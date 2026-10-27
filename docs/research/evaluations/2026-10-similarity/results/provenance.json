@@ -1,0 +1,2231 @@
+{
+  "app_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+  "developer_build_receipt": {
+    "build_command": "CARGO_BUILD_JOBS=2 cargo build -p atlas-dev --release --offline --locked",
+    "build_log": "/tmp/similarity-dev-release-final.log",
+    "executable_path": "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas-dev",
+    "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+    "head": "efe8e6b10e37156d8d241c5a6087def5e0c2a44f",
+    "note": "Sources observed immediately after successful build; parent owns complete dirty-tree receipt. Instrumented atlas-search/test-support enabled.",
+    "owned_sources": {
+      "crates/atlas-dev/Cargo.toml": "7d756e6d476489eac4c4c3e5cda68cc5e841a867dbad6e4924b756c282fc6b21",
+      "crates/atlas-dev/src/cli.rs": "d4163e1a1d0e70254e1d14d423c64fd4fa1e2b4b4760d30cb4e1265b075603d5",
+      "crates/atlas-dev/src/commands.rs": "d7792c6a649fd22782317ef2803ca4d868449c65e4f5004d1522ee8faefeca65",
+      "crates/atlas-dev/src/commands/baseline.rs": "5994598cef311fb904ecdfa788177494962649b281aac84e78cea9f540846e86",
+      "crates/atlas-dev/src/commands/baseline/args.rs": "778a5efe81805250fc7587d68882a9a8ae37e32507e827b85d196a47d47be0b9",
+      "crates/atlas-dev/src/commands/baseline/checks.rs": "e2eef884f71373a5740d80934233d9acd316c1b245f50aa038709cd9d345d0a7",
+      "crates/atlas-dev/src/commands/baseline/files.rs": "f2aa0b14beef2e5adda3e5d30ac9f7427ace84c913bf28a7f7212eb594600b2e",
+      "crates/atlas-dev/src/commands/baseline/model.rs": "6d862724ba48d7d921964a9d20b63615b58d7bea930080eca474a0dd147b3200",
+      "crates/atlas-dev/src/commands/baseline/publish.rs": "8e4ae5b0078cd1388eebab8e4af7910db8076a23255bab5392174ea537becc04",
+      "crates/atlas-dev/src/commands/baseline/tests.rs": "66a12c7584b39f5a3e6985f429a866712bd3a837261eb1c64b06129f7a104b8a",
+      "crates/atlas-dev/src/commands/index.rs": "f86ee4e10b0fa4271beb927ebeed319fdf596ce51d1ed26b33ddad3ce5edcd03",
+      "crates/atlas-dev/src/commands/index/args.rs": "ce3776fe456d546e46ad76ff2dd8b6c0d0e82c70ef3a50478f248c41f07f557c",
+      "crates/atlas-dev/src/commands/similarity.rs": "0619410bcafd583e351110c97961e459e048f5e82b58ca0a4973a660c3c4cbff",
+      "crates/atlas-dev/src/commands/similarity/args.rs": "4e38217a6a6b8871b031e6c4cac46bbf5a5b50bc2a7f01dfadc7651b5524113c",
+      "crates/atlas-dev/src/commands/similarity/execution.rs": "de09a74677ace6babfa8fb1f00718d5d5d228caaab5e93f593c5a24bd3f865a9",
+      "crates/atlas-dev/src/commands/similarity/model.rs": "6343048087a77ec0151c91855a333902c2574a6bd13627f97bce98be3e604c47",
+      "crates/atlas-dev/src/commands/similarity/performance.rs": "9b5a0e2575bb0fd5c038d7d34c3ec08ec328d2a8a74640c805bab0be1097e4e9",
+      "crates/atlas-dev/src/commands/similarity/tests.rs": "5afff6fffda15ee9d10c497bd85e36e91f7f19cf6603c4af58c9cc6556f64cf7",
+      "crates/atlas-dev/src/commands/source.rs": "9c23c6089906e6bfaf4eabec9d626a2b5fb0fd71b87a5648a72011a2881ee631",
+      "crates/atlas-dev/src/commands/source/args.rs": "91454e3ef39b2509234934ba9ca7677bf25717f50cfe9afecb1b9dc07bd4d563",
+      "crates/atlas-dev/src/main.rs": "9d58220bed4e76d10a062358b9cf9f724ebc883bca9eee8cd9c2fa6f772ff253",
+      "crates/atlas-dev/tests/artifact_read_evidence.rs": "eb08c042d8620c023f44d2c412ad1ce89a3170645c35b0809f790998144b179e",
+      "crates/atlas-dev/tests/baseline_web.rs": "9d2e9b4d89791b8b3087e90c7ab2d65fc8e1a29b338af4d98df3d0be07d67e6c",
+      "crates/atlas-dev/tests/commands.rs": "2034c04df6809552d114a0f2bbace7c2e2181915dfceb2abbfb1d212c341a841",
+      "crates/atlas-dev/tests/embedding_storage.rs": "e156a8ca064cd2067a246226925d5c425e412012ead7674414adbd3902690c56",
+      "crates/atlas-dev/tests/retrieval_evidence.rs": "253c3e36281e62cc7ed30305e378fb56c738596d02e0fd7ef81290372f219411"
+    },
+    "recorded_utc": "2026-10-27T06:54:37.799311+00:00",
+    "toolchain": "1.95.0-aarch64-apple-darwin",
+    "tracked_diff_sha256": "429cfab5dd0da4709d32afa5c5b7d88b9f3ddeb3e1a5841e51626a5202ae342f",
+    "version": 1
+  },
+  "input_freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+  "judge_run_allocation": {
+    "judge-a-batches01-06": "isolated main A session",
+    "judge-a-batches07-08": "isolated supplementary A traits session",
+    "judge-b-batch06": "isolated supplementary B spells session",
+    "judge-b-batches01-05,07-08": "isolated main B session",
+    "judge-c": "independent isolated adjudication session"
+  },
+  "model_judgments": "Two isolated inherited-model opinion panels, some batches in separate sessions, with a third blinded adjudicator. Exact provider builds were not exposed. These are model-assisted opinions, not human gold labels.",
+  "product_build_receipt": {
+    "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+    "git_status": "",
+    "os_page_cache": "uncontrolled",
+    "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+    "revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+    "scope": "Representative fresh CLI process and retained HTTP service cross-check. Single samples are not p95 estimates. Raw response data stays ignored.",
+    "ui_index_sha256": "823f94f2bf396478c0824b9050ffa22092b07066502017adead7d43e195b0ee6"
+  },
+  "product_cli_processes": [
+    {
+      "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas",
+        "similar",
+        "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+        "--method",
+        "baseline",
+        "--search-profile",
+        "bge-base",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--path-mode",
+        "repo",
+        "--limit",
+        "10",
+        "--json"
+      ],
+      "elapsed_seconds": 1.3975503330002539,
+      "exit_code": 0,
+      "peak_process_rss_bytes": 40009728,
+      "platform": "darwin",
+      "scope": "peak child process RSS across this invocation; not per-stage memory; OS page cache uncontrolled",
+      "stderr": "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/product-probes/cli-lich-bge-base-baseline.process.stderr.log",
+      "stdout": "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/product-probes/cli-lich-bge-base-baseline.process.stdout.json",
+      "system_seconds": 0.113565,
+      "user_seconds": 0.264913
+    },
+    {
+      "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas",
+        "similar",
+        "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+        "--method",
+        "content-average",
+        "--search-profile",
+        "bge-base",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--path-mode",
+        "repo",
+        "--limit",
+        "10",
+        "--json",
+        "--candidate-parts",
+        "corresponding"
+      ],
+      "elapsed_seconds": 15.938352791999932,
+      "exit_code": 0,
+      "peak_process_rss_bytes": 76447744,
+      "platform": "darwin",
+      "scope": "peak child process RSS across this invocation; not per-stage memory; OS page cache uncontrolled",
+      "stderr": "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/product-probes/cli-lich-bge-base-content-average.process.stderr.log",
+      "stdout": "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/product-probes/cli-lich-bge-base-content-average.process.stdout.json",
+      "system_seconds": 3.786212,
+      "user_seconds": 12.099452
+    },
+    {
+      "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas",
+        "similar",
+        "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+        "--method",
+        "passages",
+        "--search-profile",
+        "bge-base",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--path-mode",
+        "repo",
+        "--limit",
+        "10",
+        "--json",
+        "--candidate-parts",
+        "corresponding",
+        "--decay",
+        "0.25"
+      ],
+      "elapsed_seconds": 16.82535375000043,
+      "exit_code": 0,
+      "peak_process_rss_bytes": 127844352,
+      "platform": "darwin",
+      "scope": "peak child process RSS across this invocation; not per-stage memory; OS page cache uncontrolled",
+      "stderr": "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/product-probes/cli-lich-bge-base-passages.process.stderr.log",
+      "stdout": "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/product-probes/cli-lich-bge-base-passages.process.stdout.json",
+      "system_seconds": 3.836678,
+      "user_seconds": 12.520636
+    },
+    {
+      "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas",
+        "similar",
+        "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+        "--method",
+        "baseline",
+        "--search-profile",
+        "embeddinggemma",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--path-mode",
+        "repo",
+        "--limit",
+        "10",
+        "--json"
+      ],
+      "elapsed_seconds": 0.4549866670004121,
+      "exit_code": 0,
+      "peak_process_rss_bytes": 39960576,
+      "platform": "darwin",
+      "scope": "peak child process RSS across this invocation; not per-stage memory; OS page cache uncontrolled",
+      "stderr": "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/product-probes/cli-lich-embeddinggemma-baseline.process.stderr.log",
+      "stdout": "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/product-probes/cli-lich-embeddinggemma-baseline.process.stdout.json",
+      "system_seconds": 0.086722,
+      "user_seconds": 0.249709
+    },
+    {
+      "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas",
+        "similar",
+        "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+        "--method",
+        "content-average",
+        "--search-profile",
+        "embeddinggemma",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--path-mode",
+        "repo",
+        "--limit",
+        "10",
+        "--json",
+        "--candidate-parts",
+        "corresponding"
+      ],
+      "elapsed_seconds": 15.975980416999846,
+      "exit_code": 0,
+      "peak_process_rss_bytes": 77348864,
+      "platform": "darwin",
+      "scope": "peak child process RSS across this invocation; not per-stage memory; OS page cache uncontrolled",
+      "stderr": "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/product-probes/cli-lich-embeddinggemma-content-average.process.stderr.log",
+      "stdout": "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/product-probes/cli-lich-embeddinggemma-content-average.process.stdout.json",
+      "system_seconds": 3.870372,
+      "user_seconds": 12.069713
+    },
+    {
+      "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas",
+        "similar",
+        "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+        "--method",
+        "passages",
+        "--search-profile",
+        "embeddinggemma",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--path-mode",
+        "repo",
+        "--limit",
+        "10",
+        "--json",
+        "--candidate-parts",
+        "corresponding",
+        "--decay",
+        "0.25"
+      ],
+      "elapsed_seconds": 16.249166624999816,
+      "exit_code": 0,
+      "peak_process_rss_bytes": 129138688,
+      "platform": "darwin",
+      "scope": "peak child process RSS across this invocation; not per-stage memory; OS page cache uncontrolled",
+      "stderr": "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/product-probes/cli-lich-embeddinggemma-passages.process.stderr.log",
+      "stdout": "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/product-probes/cli-lich-embeddinggemma-passages.process.stdout.json",
+      "system_seconds": 3.818248,
+      "user_seconds": 12.372394
+    }
+  ],
+  "product_http": {
+    "cancellation": {
+      "after_baseline": {
+        "raw_ps_cpu_time_and_rss_kib": "0:49.86 160384",
+        "status": 0,
+        "stderr": "",
+        "time": 1793085465.432545
+      },
+      "baseline_after_disconnect": {
+        "elapsed_seconds": 0.3218144169995867,
+        "label": "http-after-disconnect-baseline",
+        "request": {
+          "criteria": {
+            "filter": null,
+            "kind": "similar_records",
+            "seed_record_key": "hazards:Q8bXKgDm8eguqThB",
+            "similarity": {
+              "method": "baseline"
+            }
+          },
+          "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+          "page": {
+            "number": 1,
+            "size": 10
+          },
+          "ranking": "score",
+          "search_profile": "bge-base"
+        },
+        "response_file": "http-after-disconnect-baseline.response.json",
+        "response_sha256": "f425935fd72c117aba818d6899677de77d73783ab579a8d23efa132c94caafbd",
+        "status": 200
+      },
+      "before": {
+        "raw_ps_cpu_time_and_rss_kib": "0:49.18 159344",
+        "status": 0,
+        "stderr": "",
+        "time": 1793085464.905032
+      },
+      "disconnect": {
+        "interpretation": "Real complete HTTP/1 connection close; no internal cancellation instrumentation. CPU/resource observations cannot alone establish a cancelled code path.",
+        "request": {
+          "criteria": {
+            "filter": null,
+            "kind": "similar_records",
+            "seed_record_key": "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+            "similarity": {
+              "candidate_parts": "corresponding",
+              "decay": 0.25,
+              "method": "passages",
+              "parts": null
+            }
+          },
+          "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+          "page": {
+            "number": 1,
+            "size": 10
+          },
+          "ranking": "score",
+          "search_profile": "bge-base"
+        },
+        "sent_and_closed_after_seconds": 0.20145220799986419
+      },
+      "idle_samples": [
+        {
+          "raw_ps_cpu_time_and_rss_kib": "0:49.86 160384",
+          "status": 0,
+          "stderr": "",
+          "time": 1793085466.45204
+        },
+        {
+          "raw_ps_cpu_time_and_rss_kib": "0:49.86 160384",
+          "status": 0,
+          "stderr": "",
+          "time": 1793085467.475706
+        },
+        {
+          "raw_ps_cpu_time_and_rss_kib": "0:49.86 160384",
+          "status": 0,
+          "stderr": "",
+          "time": 1793085468.501855
+        },
+        {
+          "raw_ps_cpu_time_and_rss_kib": "0:49.86 160384",
+          "status": 0,
+          "stderr": "",
+          "time": 1793085469.5226119
+        },
+        {
+          "raw_ps_cpu_time_and_rss_kib": "0:49.86 160384",
+          "status": 0,
+          "stderr": "",
+          "time": 1793085470.544818
+        }
+      ],
+      "recovery": {
+        "elapsed_seconds": 0.32176137500027835,
+        "label": "http-post-disconnect-recovery",
+        "request": {
+          "criteria": {
+            "filter": null,
+            "kind": "similar_records",
+            "seed_record_key": "hazards:Q8bXKgDm8eguqThB",
+            "similarity": {
+              "method": "baseline"
+            }
+          },
+          "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+          "page": {
+            "number": 1,
+            "size": 10
+          },
+          "ranking": "score",
+          "search_profile": "bge-base"
+        },
+        "response_file": "http-post-disconnect-recovery.response.json",
+        "response_sha256": "f425935fd72c117aba818d6899677de77d73783ab579a8d23efa132c94caafbd",
+        "status": 200
+      }
+    },
+    "command": [
+      "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas",
+      "web",
+      "--port",
+      "4987",
+      "--path-mode",
+      "repo",
+      "--index",
+      "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+      "--source",
+      "/Users/ekosten/Library/Caches/pf2e-atlas/pf2e/28d9d156f252d084371d994dc359509b49eadf18",
+      "--embedding-cache-path",
+      "/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/.cache/hf-models"
+    ],
+    "peak_memory_scope": "Server lifetime resource max collected on termination; ps samples are sampled RSS, not peak.",
+    "pid": 37350,
+    "requests": [
+      {
+        "elapsed_seconds": 0.3080554170001051,
+        "label": "http-initial-baseline",
+        "request": {
+          "criteria": {
+            "filter": null,
+            "kind": "similar_records",
+            "seed_record_key": "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+            "similarity": {
+              "method": "baseline"
+            }
+          },
+          "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+          "page": {
+            "number": 1,
+            "size": 10
+          },
+          "ranking": "score",
+          "search_profile": "bge-base"
+        },
+        "response_file": "http-initial-baseline.response.json",
+        "response_sha256": "9d65a8dc89b14a8abed5b4c182fafa888fa2648adfb9a5a2296ad0217a103404",
+        "status": 200
+      },
+      {
+        "elapsed_seconds": 16.03023658300026,
+        "label": "http-lich-bge-base-passages",
+        "request": {
+          "criteria": {
+            "filter": null,
+            "kind": "similar_records",
+            "seed_record_key": "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+            "similarity": {
+              "candidate_parts": "corresponding",
+              "decay": 0.25,
+              "method": "passages",
+              "parts": null
+            }
+          },
+          "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+          "page": {
+            "number": 1,
+            "size": 10
+          },
+          "ranking": "score",
+          "search_profile": "bge-base"
+        },
+        "response_file": "http-lich-bge-base-passages.response.json",
+        "response_sha256": "3a67365e6b947c115522c407da7d6d10a62aa2576927baeebd18a5c26b66bf4f",
+        "status": 200
+      },
+      {
+        "elapsed_seconds": 16.00928129100066,
+        "label": "http-lich-embeddinggemma-passages",
+        "request": {
+          "criteria": {
+            "filter": null,
+            "kind": "similar_records",
+            "seed_record_key": "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+            "similarity": {
+              "candidate_parts": "corresponding",
+              "decay": 0.25,
+              "method": "passages",
+              "parts": null
+            }
+          },
+          "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+          "page": {
+            "number": 1,
+            "size": 10
+          },
+          "ranking": "score",
+          "search_profile": "embeddinggemma"
+        },
+        "response_file": "http-lich-embeddinggemma-passages.response.json",
+        "response_sha256": "51bc03b72d3ae016b96fd3916288bc6a043c5a4aeccb1d1c952f28c195f6183d",
+        "status": 200
+      },
+      {
+        "elapsed_seconds": 0.381331250000585,
+        "label": "http-concurrent-baseline",
+        "request": {
+          "criteria": {
+            "filter": null,
+            "kind": "similar_records",
+            "seed_record_key": "hazards:Q8bXKgDm8eguqThB",
+            "similarity": {
+              "method": "baseline"
+            }
+          },
+          "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+          "page": {
+            "number": 1,
+            "size": 10
+          },
+          "ranking": "score",
+          "search_profile": "bge-base"
+        },
+        "response_file": "http-concurrent-baseline.response.json",
+        "response_sha256": "f425935fd72c117aba818d6899677de77d73783ab579a8d23efa132c94caafbd",
+        "status": 200
+      },
+      {
+        "elapsed_seconds": 16.248420875000193,
+        "label": "http-concurrent-lich",
+        "request": {
+          "criteria": {
+            "filter": null,
+            "kind": "similar_records",
+            "seed_record_key": "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+            "similarity": {
+              "candidate_parts": "corresponding",
+              "decay": 0.25,
+              "method": "passages",
+              "parts": null
+            }
+          },
+          "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+          "page": {
+            "number": 1,
+            "size": 10
+          },
+          "ranking": "score",
+          "search_profile": "bge-base"
+        },
+        "response_file": "http-concurrent-lich.response.json",
+        "response_sha256": "3a67365e6b947c115522c407da7d6d10a62aa2576927baeebd18a5c26b66bf4f",
+        "status": 200
+      },
+      {
+        "elapsed_seconds": 0.3028695000002699,
+        "label": "http-post-concurrency-baseline",
+        "request": {
+          "criteria": {
+            "filter": null,
+            "kind": "similar_records",
+            "seed_record_key": "hazards:Q8bXKgDm8eguqThB",
+            "similarity": {
+              "method": "baseline"
+            }
+          },
+          "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+          "page": {
+            "number": 1,
+            "size": 10
+          },
+          "ranking": "score",
+          "search_profile": "bge-base"
+        },
+        "response_file": "http-post-concurrency-baseline.response.json",
+        "response_sha256": "f425935fd72c117aba818d6899677de77d73783ab579a8d23efa132c94caafbd",
+        "status": 200
+      }
+    ]
+  },
+  "product_http_process": {
+    "command": [
+      "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas",
+      "web",
+      "--port",
+      "4987",
+      "--path-mode",
+      "repo",
+      "--index",
+      "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+      "--source",
+      "/Users/ekosten/Library/Caches/pf2e-atlas/pf2e/28d9d156f252d084371d994dc359509b49eadf18",
+      "--embedding-cache-path",
+      "/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/.cache/hf-models"
+    ],
+    "elapsed_seconds": 54.99733545900017,
+    "exit_code": -15,
+    "peak_process_rss_bytes": 164249600,
+    "pid": 37350,
+    "scope": "Retained probe server lifetime including sequential/concurrent/abandoned requests; not a per-request memory measurement. Terminated by this measurement script.",
+    "system_seconds": 11.709478,
+    "user_seconds": 38.477323
+  },
+  "product_probes": {
+    "all_cli_samples_ok_and_same_generation_10_rows": true,
+    "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+    "cancellation_observation": "Complete HTTP1 body then socket full shutdown after.201s; baseline response.322s, recovery.322s; server cumulative CPU49.86s remained unchanged across5one-second idle samples after baseline. This is consistent with work stopping but is not internal checkpoint instrumentation. Existing deterministic abandonment regressions remain required at final gate.",
+    "cli_fresh_process_single_samples": [
+      {
+        "label": "cli-lich-bge-base-baseline.process",
+        "peak_rss_mib": 38.15625,
+        "seconds": 1.3975503330002539,
+        "status": 0
+      },
+      {
+        "label": "cli-lich-bge-base-content-average.process",
+        "peak_rss_mib": 72.90625,
+        "seconds": 15.938352791999932,
+        "status": 0
+      },
+      {
+        "label": "cli-lich-bge-base-passages.process",
+        "peak_rss_mib": 121.921875,
+        "seconds": 16.82535375000043,
+        "status": 0
+      },
+      {
+        "label": "cli-lich-embeddinggemma-baseline.process",
+        "peak_rss_mib": 38.109375,
+        "seconds": 0.4549866670004121,
+        "status": 0
+      },
+      {
+        "label": "cli-lich-embeddinggemma-content-average.process",
+        "peak_rss_mib": 73.765625,
+        "seconds": 15.975980416999846,
+        "status": 0
+      },
+      {
+        "label": "cli-lich-embeddinggemma-passages.process",
+        "peak_rss_mib": 123.15625,
+        "seconds": 16.249166624999816,
+        "status": 0
+      }
+    ],
+    "http_request_samples": [
+      {
+        "elapsed_seconds": 0.3080554170001051,
+        "label": "http-initial-baseline",
+        "status": 200
+      },
+      {
+        "elapsed_seconds": 16.03023658300026,
+        "label": "http-lich-bge-base-passages",
+        "status": 200
+      },
+      {
+        "elapsed_seconds": 16.00928129100066,
+        "label": "http-lich-embeddinggemma-passages",
+        "status": 200
+      },
+      {
+        "elapsed_seconds": 0.381331250000585,
+        "label": "http-concurrent-baseline",
+        "status": 200
+      },
+      {
+        "elapsed_seconds": 16.248420875000193,
+        "label": "http-concurrent-lich",
+        "status": 200
+      },
+      {
+        "elapsed_seconds": 0.3028695000002699,
+        "label": "http-post-concurrency-baseline",
+        "status": 200
+      }
+    ],
+    "http_response_validation": "All8 responses status200, frozen generation6 and10rows; additional abandoned request intentionally has no response.",
+    "limits": [
+      "Single cross-check samples are not p50/p95. OS caches uncontrolled.",
+      "All real samples use explicit corresponding content for new record methods; primary frozen matrix also measures any.",
+      "Initial default-sandbox server bind failed; preserved server.log/probe.log. Automatic escalation allowed localhost rerun; no successful CLI samples repeated.",
+      "V1 harness finalizer attempted wait4 after poll reaped failed server; successful v2 lifecycle resource receipt uses wait4.",
+      "No saturation/resource-limit test: two concurrent requests exercise responsiveness and recovery only."
+    ],
+    "memory_scope": "CLI receipts are true per-process peaks; server true lifetime peak156.64MiB includes sequential/concurrent/abandoned requests, not per-request. ps samples are sampled RSS, not peaks.",
+    "preservation": "No source/application edits, setup/inference, installed workspace or original preview4972 changes. Temporary4987 server stopped by own SIGTERM.",
+    "revision": "03b674c6167a4da99d7618372b1c48c53fc39175"
+  },
+  "quality_analysis_receipt": {
+    "bytes": 14358477,
+    "path": "scratch/similarity-evaluation/quality-analysis-v1.json",
+    "sha256": "33b99968361adb2611a6b06f47ccada99220b320742789141ab329713ad482ff"
+  },
+  "raw_report_receipts": [
+    {
+      "bytes": 1491012,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-c01--bge-base--fixedpool.json",
+      "sha256": "05dca067539c679387b9430c906094b9bc7a25998b7cf5dc4f6b8c03d4799c64"
+    },
+    {
+      "bytes": 1501779,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-c01--embeddinggemma--fixedpool.json",
+      "sha256": "f3495284151bd9b022905505e551127e1ceadb051d6b0af188cc2827ced073be"
+    },
+    {
+      "bytes": 5622808,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-c02--bge-base--fixedpool.json",
+      "sha256": "1f82e6a079e800a20398f0790fec20d6c8897d1617b65b962990f3b6e67a0329"
+    },
+    {
+      "bytes": 5598702,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-c02--embeddinggemma--fixedpool.json",
+      "sha256": "b3dd403235ecdfbb72fa3c92e1d846e40a830f41ff7b2328178997e105a62538"
+    },
+    {
+      "bytes": 1363744,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-c03--bge-base--fixedpool.json",
+      "sha256": "155e0cbfe86b8b99344bf8457984329c5c5730bc958419aea040851fd71cac03"
+    },
+    {
+      "bytes": 1313201,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-c03--embeddinggemma--fixedpool.json",
+      "sha256": "9e19423944d2685a6d51dda9590fa2b8688bd0ed05af3b72803af379afaeb7cb"
+    },
+    {
+      "bytes": 1730544,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-h01--bge-base--fixedpool.json",
+      "sha256": "f640b2bd45fc8eedc0e90c2187190bbe6495b96f6729ba10a2c032c5d6c2002a"
+    },
+    {
+      "bytes": 1723012,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-h01--embeddinggemma--fixedpool.json",
+      "sha256": "13d52022aa5c64ae69ab5c08bff5542589ce01ef6baabef41b6a1705888faa23"
+    },
+    {
+      "bytes": 779027,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-h02--bge-base--fixedpool.json",
+      "sha256": "63273ad594976c96e281d2972f1821215b5dc9d288d1dd933621fdc638d6278a"
+    },
+    {
+      "bytes": 775656,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-h02--embeddinggemma--fixedpool.json",
+      "sha256": "c52017349470994db1246ba7c6ca183d97f4153d8cbb81834fb355d63fb693b1"
+    },
+    {
+      "bytes": 831803,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-h03--bge-base--fixedpool.json",
+      "sha256": "c8a032e5e91c36f0bb804454b34814b97e22b2ed2322b8ff28309736d28c996d"
+    },
+    {
+      "bytes": 823180,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-h03--embeddinggemma--fixedpool.json",
+      "sha256": "9b6fc4f4b0b08a95fec653d38e176f4641f23dd8f823065aac4f608657eb2e0a"
+    },
+    {
+      "bytes": 949333,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-s01--bge-base--fixedpool.json",
+      "sha256": "9faf73442ccb066c44c0f4ed5aed9f74671cb0886d5579a3e6f1172c199325ee"
+    },
+    {
+      "bytes": 947198,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-s01--embeddinggemma--fixedpool.json",
+      "sha256": "388fb6753cb6d551160935e8d5d8bcb8db9825ab0b62f10df3fbb9d48eb26d29"
+    },
+    {
+      "bytes": 896992,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-s02--bge-base--fixedpool.json",
+      "sha256": "ee349169f49c60d00bc35237a46c3fed90067b98995dc066daa50e3a1bb9903d"
+    },
+    {
+      "bytes": 895020,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-s02--embeddinggemma--fixedpool.json",
+      "sha256": "9183aeb8c0e9bed5d98dbea762b93d0ce7562d4df6a242845274d61d85c7a82b"
+    },
+    {
+      "bytes": 878523,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-s03--bge-base--fixedpool.json",
+      "sha256": "e2b9a9a874d096504024eb5b298a577d73c8c7304fb865405fc424eb95b4c289"
+    },
+    {
+      "bytes": 874734,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-s03--embeddinggemma--fixedpool.json",
+      "sha256": "0d9fe4a92f358c617ea2f9e2da9663cdafde3fe34cf67a86a1e8054407d55366"
+    },
+    {
+      "bytes": 303844,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-t01--bge-base--fixedpool.json",
+      "sha256": "ff9d026728aa1434ee3debcece8eb65e6151299e40ef794dc59f90837ac105fb"
+    },
+    {
+      "bytes": 296670,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-t01--embeddinggemma--fixedpool.json",
+      "sha256": "7f101aced520f11f45d410b4cda6cd5160830a744d58737b21c1e2ebc31efc8a"
+    },
+    {
+      "bytes": 366309,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-t02--bge-base--fixedpool.json",
+      "sha256": "9b97e2195da5ba9215c662fe00bb15e3943504eeb82825e868eee100cb94cbfb"
+    },
+    {
+      "bytes": 359283,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-t02--embeddinggemma--fixedpool.json",
+      "sha256": "7c1fd787366dda080fec5fe83aed9d091947047bbdc1deda7b826493d67e5c83"
+    },
+    {
+      "bytes": 375702,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-t03--bge-base--fixedpool.json",
+      "sha256": "6397af73ad82643894c6ff8cf04d634398817032e2cb93c581c8aa92f0055fa6"
+    },
+    {
+      "bytes": 377048,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-t03--embeddinggemma--fixedpool.json",
+      "sha256": "57bd04da1588d56381ddd1773047304af6e40e43e901c46c2c29dd8d82b240cd"
+    },
+    {
+      "bytes": 1204660,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-c01--bge-base--fixedpool.json",
+      "sha256": "310c3e5607e9789af2aa42b720611f35aec316455c88f59066df90aebf19f051"
+    },
+    {
+      "bytes": 1197937,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-c01--embeddinggemma--fixedpool.json",
+      "sha256": "2c9056e02eeb8d64fcf7a7271bedf8840f43c5b7a8c6d0219228b2728c83038b"
+    },
+    {
+      "bytes": 2149262,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-c02--bge-base--fixedpool.json",
+      "sha256": "2c559511b3835b63e4d008b1aed1f9194838159b0c3ae6913e65ef77af4df302"
+    },
+    {
+      "bytes": 2142071,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-c02--embeddinggemma--fixedpool.json",
+      "sha256": "116725e18ba89cb3b11e67ed98e48e2ba03209db047416e31b9fafd4bacb3c16"
+    },
+    {
+      "bytes": 1135696,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-c03--bge-base--fixedpool.json",
+      "sha256": "4a7ceec203dcbe306fec53e7558b57a18a0db352e4cc5eff0c648a391ea4c89a"
+    },
+    {
+      "bytes": 1125761,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-c03--embeddinggemma--fixedpool.json",
+      "sha256": "a4e7d649c8eb738ba51289bcf057a1370d9a97d8060e95c55e2ff2aa8f2dffc1"
+    },
+    {
+      "bytes": 1800540,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-h01--bge-base--fixedpool.json",
+      "sha256": "410c292670750b3cba188e2a6ce3ee3295a1dc7b806df58e8a306367dbced0da"
+    },
+    {
+      "bytes": 1776384,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-h01--embeddinggemma--fixedpool.json",
+      "sha256": "5371d15e035550e300e79d288daeebe92930a15505703288b092ed6901e42dab"
+    },
+    {
+      "bytes": 1506348,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-h02--bge-base--fixedpool.json",
+      "sha256": "9e9dc30f57a9b2971a7592a84e3950f35ef90fb01db10a2e660281970fceef97"
+    },
+    {
+      "bytes": 1482152,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-h02--embeddinggemma--fixedpool.json",
+      "sha256": "c68210bb30b53e5e0c52826f5d7eb8716cc39b8ba6c25012143f5983e5c5e481"
+    },
+    {
+      "bytes": 1850179,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-h03--bge-base--fixedpool.json",
+      "sha256": "487d3f389e6711d1253a4b09fe78143cd893e50cc830962cfd6a3e7dea10f1a1"
+    },
+    {
+      "bytes": 1795218,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-h03--embeddinggemma--fixedpool.json",
+      "sha256": "130449b1155bff8b102cbd85b596f21fa67ae61df5bea994a77da4b2a5a668b8"
+    },
+    {
+      "bytes": 899636,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-s01--bge-base--fixedpool.json",
+      "sha256": "340bc25edfefe96832350a50b4a8a81f39815d0fb02a19375f49d81464f17e91"
+    },
+    {
+      "bytes": 893823,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-s01--embeddinggemma--fixedpool.json",
+      "sha256": "1a34c5867d79ff1e0fc27f7ea9f9e35796f4d4b433fd83c9852c56b4247ba118"
+    },
+    {
+      "bytes": 886000,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-s02--bge-base--fixedpool.json",
+      "sha256": "271df8c3ffbf96d4a62c708e3b25c43ab08f998a16b23f558c023124c97afbe9"
+    },
+    {
+      "bytes": 884322,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-s02--embeddinggemma--fixedpool.json",
+      "sha256": "e98b9d99ea9d38be49d18095c5dac3b7c65908562e9ea5815b34be7e6cf64d3c"
+    },
+    {
+      "bytes": 871763,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-s03--bge-base--fixedpool.json",
+      "sha256": "005dfaf47c8d31610c9860a48d9c6b21e08a2725c13317d5720f83d097b1ea73"
+    },
+    {
+      "bytes": 863124,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-s03--embeddinggemma--fixedpool.json",
+      "sha256": "69e58d6b7a9a391c6c4307d3e3585dc8d0bfe486b98fb1349ea7ce2c90fe352e"
+    },
+    {
+      "bytes": 311950,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-t01--bge-base--fixedpool.json",
+      "sha256": "dfc207f67fa53091424b2c2475d7e083abccbb055846425c2a0fb4d5a7a067f6"
+    },
+    {
+      "bytes": 308474,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-t01--embeddinggemma--fixedpool.json",
+      "sha256": "8651cc843d4bc1877aa1fcea3f5055381f215fa800dd07b7fd30e843bb475ae6"
+    },
+    {
+      "bytes": 363378,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-t02--bge-base--fixedpool.json",
+      "sha256": "8cc5e96e936add5b54f547e45f39be5012f75a2ea86fe6724f7cd57e9181ac3a"
+    },
+    {
+      "bytes": 344463,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-t02--embeddinggemma--fixedpool.json",
+      "sha256": "6f82442a400b875e75b516dcac04f6740ec3fe702fa344f1ff1cb1132fbb69df"
+    },
+    {
+      "bytes": 374596,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-t03--bge-base--fixedpool.json",
+      "sha256": "dc8652755556c6a5905ea9e68051f0f60f726880c276939e09c3c10e8e486a4a"
+    },
+    {
+      "bytes": 353847,
+      "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-t03--embeddinggemma--fixedpool.json",
+      "sha256": "f4d215a6211e080d0b7c7043acb0f6255ba8c23b68a724f45d348f61704dcbc6"
+    },
+    {
+      "bytes": 2324877,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-c01--bge-base--oracle.json",
+      "sha256": "87d2ae27a4b1ebc3776f7c93269182c7771535db658e3eaed4ce4625e43ff68b"
+    },
+    {
+      "bytes": 2317440,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-c01--embeddinggemma--oracle.json",
+      "sha256": "524af6b712f73a428efa8ac7fbf20127728d385cdd0b7330f092dab78528b2ea"
+    },
+    {
+      "bytes": 5652253,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-c02--bge-base--oracle.json",
+      "sha256": "03600100cec73231d7498bbe496cb48f28a94d3875dc402194a7acde05f26bcc"
+    },
+    {
+      "bytes": 5651663,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-c02--embeddinggemma--oracle.json",
+      "sha256": "4f01a42f51bf3904c501ac04e61f78155cc62270a2b9d04255491afb5da95789"
+    },
+    {
+      "bytes": 2055261,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-c03--bge-base--oracle.json",
+      "sha256": "34df1e0229dbb5e14c7ebde18e1c11267645da99d49ebfef9a120626f795caba"
+    },
+    {
+      "bytes": 2053273,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-c03--embeddinggemma--oracle.json",
+      "sha256": "5b9986fea09e28cc6c7b0307f2196649fca7156ea67c5d5b77663072f2905bbf"
+    },
+    {
+      "bytes": 2531351,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-h01--bge-base--oracle.json",
+      "sha256": "5f0852458c9474dabd98769c20b885a224cb656878459db53b76bea3212fa9f5"
+    },
+    {
+      "bytes": 2543843,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-h01--embeddinggemma--oracle.json",
+      "sha256": "fa5e497f97ecedf8547f1296ab4842a0ad68515db05291ca007b19ea859d71bb"
+    },
+    {
+      "bytes": 1703578,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-h02--bge-base--oracle.json",
+      "sha256": "65cb818845dbd13fc3a517573847809db8a05b6a8913f30350d46ea7bfd2d5b8"
+    },
+    {
+      "bytes": 1693752,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-h02--embeddinggemma--oracle.json",
+      "sha256": "c34bcdf009cc6e24dc81568d6d000eef0801f389eae89dd8b0dc06b8b9c3e1f5"
+    },
+    {
+      "bytes": 1711748,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-h03--bge-base--oracle.json",
+      "sha256": "31591038236d771028593032b8b7d33abcfe1bc85df50a313fd26e839d6dd011"
+    },
+    {
+      "bytes": 1708298,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-h03--embeddinggemma--oracle.json",
+      "sha256": "633834996d4755fb02c8d2ab1d5219bfaf30ec5dead45b5a663f7cac4d75d9fb"
+    },
+    {
+      "bytes": 1713020,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-s01--bge-base--oracle.json",
+      "sha256": "c1994142a39afdda7ca607dcaa625c5617381f52ec224b35da1e46fc1ba0f876"
+    },
+    {
+      "bytes": 1707882,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-s01--embeddinggemma--oracle.json",
+      "sha256": "35b609b4b146eb3ed8b03e3b60a24adb92cb5deb2c32ea51a98963949cdcbaff"
+    },
+    {
+      "bytes": 1707222,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-s02--bge-base--oracle.json",
+      "sha256": "8c9f7085a2a822c4568150ce8b68120644bd7999084eb9cb6a00bf1775951846"
+    },
+    {
+      "bytes": 1693345,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-s02--embeddinggemma--oracle.json",
+      "sha256": "9c3716313cde1a3d3ab29fa6ee0c9fc14af92ecba342a851c37b9d252e8a21c9"
+    },
+    {
+      "bytes": 1713017,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-s03--bge-base--oracle.json",
+      "sha256": "d56f85b55f8f50de1116de405990173a044bc21297a5a26cf8638c21f9e90567"
+    },
+    {
+      "bytes": 1704452,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-s03--embeddinggemma--oracle.json",
+      "sha256": "fdee18242a9752e15cb6b54190faf68247418711873994a9ada57861436b0be4"
+    },
+    {
+      "bytes": 878317,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-t01--bge-base--oracle.json",
+      "sha256": "bab09039db9f7d572fcfa1ab8cdfbcb8ae6b91418efebcad0573061f9160cc9b"
+    },
+    {
+      "bytes": 872835,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-t01--embeddinggemma--oracle.json",
+      "sha256": "44ee8757e73207069dccf3b3caf89521348667ac489fcd3fe97122429ce3dbe0"
+    },
+    {
+      "bytes": 877586,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-t02--bge-base--oracle.json",
+      "sha256": "2a5579aaf6f11fbefec4c5290e101b9206d2309aae93e9950ddeb36d6f10f52f"
+    },
+    {
+      "bytes": 874059,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-t02--embeddinggemma--oracle.json",
+      "sha256": "fbdd08232c573b44ace835d63f0547e1c389149ba7168846e59e333160002a7a"
+    },
+    {
+      "bytes": 863344,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-t03--bge-base--oracle.json",
+      "sha256": "6329779ed2025ca6412a9b3fb3d8b116fbc4f5c5362cc019587f0f07f7cc7834"
+    },
+    {
+      "bytes": 869035,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/dev-t03--embeddinggemma--oracle.json",
+      "sha256": "7d5c92c9b1a3ab238c59955ff9e60480a1f61df6f7da013380e3118355c0d8bf"
+    },
+    {
+      "bytes": 2039786,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-c01--bge-base--oracle.json",
+      "sha256": "ca69c5f2b475385bb9898e538b6754ffa56eec18df4b25daf32490887dc06244"
+    },
+    {
+      "bytes": 2038500,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-c01--embeddinggemma--oracle.json",
+      "sha256": "7ec56120d444ce04234215c180172d41e02e0f77123beaf62753b83dbe909218"
+    },
+    {
+      "bytes": 2642116,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-c02--bge-base--oracle.json",
+      "sha256": "35cfe5931ef41842de442742a9702ca4ca8e297354c596063f938fcb088738a1"
+    },
+    {
+      "bytes": 2637287,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-c02--embeddinggemma--oracle.json",
+      "sha256": "a7fee52b8ebd1663b25b38ab21471d4b36da7f690efb5b13357cb3cde60befd6"
+    },
+    {
+      "bytes": 1793064,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-c03--bge-base--oracle.json",
+      "sha256": "c8375606c0dc6868534cdf1d549016bdc7e6b57fbff39fa135614ae6394d9370"
+    },
+    {
+      "bytes": 1791047,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-c03--embeddinggemma--oracle.json",
+      "sha256": "4a602a5b8825a423679a6ff33efbf18511a3409a8296e5aeb242868827b3405a"
+    },
+    {
+      "bytes": 2489237,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-h01--bge-base--oracle.json",
+      "sha256": "1247a7676be5fab0b979ee84012d60c6895489e8e97433f59a4f7de318ad7199"
+    },
+    {
+      "bytes": 2476192,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-h01--embeddinggemma--oracle.json",
+      "sha256": "c3efa6bde6683e3dd5684c24d50d275cec837a5b269818556ea7bc2f1f76cfba"
+    },
+    {
+      "bytes": 2055416,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-h02--bge-base--oracle.json",
+      "sha256": "fe8adff9ef0a609c8651e1c62929c8d98d0181fadbb9c2d4ab022fd5f370275b"
+    },
+    {
+      "bytes": 2047253,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-h02--embeddinggemma--oracle.json",
+      "sha256": "968d97a531da755b4e2ba9215e9a1e2dbf1ec6b4fbc3946df4d46ac71c612370"
+    },
+    {
+      "bytes": 2363323,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-h03--bge-base--oracle.json",
+      "sha256": "dfea6a22e0b97a64b2a35fa8605d0307e47dcc8393f15b7a44b3ef877cc962a5"
+    },
+    {
+      "bytes": 2336988,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-h03--embeddinggemma--oracle.json",
+      "sha256": "5c4ead314dfa50cb7bf7216bbe4d03a524ea291ef27fd56979eb378c79123aab"
+    },
+    {
+      "bytes": 1710473,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-s01--bge-base--oracle.json",
+      "sha256": "da6dba2ec18ea5f29d729f0124399b181a222e6f55eded919342ad7ea535b923"
+    },
+    {
+      "bytes": 1698024,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-s01--embeddinggemma--oracle.json",
+      "sha256": "d0cc020b001f6a339d96fdff1c121fbf47d8f16a311458d80c8c4590a1bf03f2"
+    },
+    {
+      "bytes": 1713259,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-s02--bge-base--oracle.json",
+      "sha256": "23b2018b874b9cef4e09ed5fa5c16b800e787cffa77771951da0a98084189791"
+    },
+    {
+      "bytes": 1711655,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-s02--embeddinggemma--oracle.json",
+      "sha256": "a4b13905088c07734c77820c01d006f08823976fe01eb74d0822e44b69dde3b4"
+    },
+    {
+      "bytes": 1708464,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-s03--bge-base--oracle.json",
+      "sha256": "2bd9d21b326d937300b83f93b143947691b6dd903c178c4b3fd8c9369aa45570"
+    },
+    {
+      "bytes": 1696762,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-s03--embeddinggemma--oracle.json",
+      "sha256": "16d58a2342fb6a79b3f9094b87e6b7950bf11cf8ab70362cb90dcc654ed31de5"
+    },
+    {
+      "bytes": 870708,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-t01--bge-base--oracle.json",
+      "sha256": "5e009a51ed40a6f9b80d89eb427e15cbad0f799f7c479ab8ee42bc17f01f6696"
+    },
+    {
+      "bytes": 865011,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-t01--embeddinggemma--oracle.json",
+      "sha256": "352cd48a59e0df00805767f0fb33afe0c64a99750d3bc998842fd74b339bb08d"
+    },
+    {
+      "bytes": 874223,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-t02--bge-base--oracle.json",
+      "sha256": "c30de823c08a5e875dab00f99249f247679607d813439460450028884385a3ad"
+    },
+    {
+      "bytes": 868103,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-t02--embeddinggemma--oracle.json",
+      "sha256": "d9739af6f4d207eea27c81a3c644ce633078d8875416cde2701ad5496fa93013"
+    },
+    {
+      "bytes": 881833,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-t03--bge-base--oracle.json",
+      "sha256": "2bc176ccbe389d536c120474b6eae2f4834514032c1c3af5ab8217bf2b551519"
+    },
+    {
+      "bytes": 875116,
+      "path": "scratch/similarity-evaluation/quality-v1/oracle/hold-t03--embeddinggemma--oracle.json",
+      "sha256": "1523921fbe94854a999ee722c83fd45a84084f81cd5341ba0e93621ebc633e4b"
+    },
+    {
+      "bytes": 116834,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c01--bge-base--average-any/reports/dev-c01--bge-base--performance.json",
+      "sha256": "9e8d175d785ff837262bd96e62c1be0b5ad901fc59656ebf99dc6961b23b48eb"
+    },
+    {
+      "bytes": 1946,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c01--bge-base--average-any/process.json",
+      "sha256": "cfdf1c85b018b7fc49d240b7f699c78498bf2397fee7be8b202bde52c426c75a"
+    },
+    {
+      "bytes": 46704,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c01--bge-base--baseline/reports/dev-c01--bge-base--performance.json",
+      "sha256": "82f2a9d35f5c2aad7c77a6b63e3d0aafb136d8ee87df27a51761731c768dd9ed"
+    },
+    {
+      "bytes": 1933,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c01--bge-base--baseline/process.json",
+      "sha256": "2971a1e3641bda987424011e3b991d20c40e1bccc0de424a400c63ef07d8affe"
+    },
+    {
+      "bytes": 163237,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c01--bge-base--passages-any-0p5/reports/dev-c01--bge-base--performance.json",
+      "sha256": "b1771f251108a8302acc254082da4adb2da434acb71de623f9d2763775cbe9e5"
+    },
+    {
+      "bytes": 1966,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c01--bge-base--passages-any-0p5/process.json",
+      "sha256": "74c07dcd3ca613141703bf4ecdfc206ffc06204ad7be788483bdc797229c1657"
+    },
+    {
+      "bytes": 119551,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c01--embeddinggemma--average-any/reports/dev-c01--embeddinggemma--performance.json",
+      "sha256": "f65a9ec281b355a3ed7c13e017099b8736d91b5b9d8fc92d1a4512d4567a092a"
+    },
+    {
+      "bytes": 1970,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c01--embeddinggemma--average-any/process.json",
+      "sha256": "adb4a9cc3b15d2bcacfb106a269af0d674152967678ec26f1f64c5cc567de640"
+    },
+    {
+      "bytes": 46803,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c01--embeddinggemma--baseline/reports/dev-c01--embeddinggemma--performance.json",
+      "sha256": "6f1f400ddd1b8f06c5ab611483a43b45000ae21304eb2ed5d371e671b893ce66"
+    },
+    {
+      "bytes": 1958,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c01--embeddinggemma--baseline/process.json",
+      "sha256": "5f4c6d63846738e061828bdab47252c6855d4679c716c7200e49e25c6018a046"
+    },
+    {
+      "bytes": 168498,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c01--embeddinggemma--passages-any-0p5/reports/dev-c01--embeddinggemma--performance.json",
+      "sha256": "354cd98282d3247fa169f6d33ecc242f88a47cc1eb2e7fccccc0c950db7edebe"
+    },
+    {
+      "bytes": 1989,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c01--embeddinggemma--passages-any-0p5/process.json",
+      "sha256": "084a15d03365dae52884b32a6a8384ccdfc81bd4b9b1f91d7a28fb037d8e3cfe"
+    },
+    {
+      "bytes": 437079,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c02--bge-base--average-any/reports/dev-c02--bge-base--performance.json",
+      "sha256": "0c6b9a4f8ff0445c1a8f35d34a0becb449aba7eb14d3b1e0af35676dbc23a9bc"
+    },
+    {
+      "bytes": 1949,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c02--bge-base--average-any/process.json",
+      "sha256": "dcf17ef5cfe3567e43e2a298770229ba7c7b10d8d7369610a7fc9d25069ce81e"
+    },
+    {
+      "bytes": 66613,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c02--bge-base--baseline/reports/dev-c02--bge-base--performance.json",
+      "sha256": "ec19c7180ea66b839cb066a6b6e899cb26bb53d8d543c196fe85a46d1cbf0ddb"
+    },
+    {
+      "bytes": 1944,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c02--bge-base--baseline/process.json",
+      "sha256": "01d04bc47e25fe362b85e5946b2340dd0852c0f6a6c810a71f9d7b3eead8eb64"
+    },
+    {
+      "bytes": 488809,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c02--bge-base--passages-any-0p5/reports/dev-c02--bge-base--performance.json",
+      "sha256": "c97af25b1201a5fe216f66c11012a3259afc74fd771fbcbac89f07340415a0f1"
+    },
+    {
+      "bytes": 1961,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c02--bge-base--passages-any-0p5/process.json",
+      "sha256": "e611279f1918dba799ea79d8098ecc51c3c49528a3d9b0d5521cb56ad959f862"
+    },
+    {
+      "bytes": 486982,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c02--bge-base--passages-corresponding-0p25/reports/dev-c02--bge-base--performance.json",
+      "sha256": "4a3b24a4757c69f684527c5c5b8a2e076626a23777bc5b5025651953f9b310e6"
+    },
+    {
+      "bytes": 2011,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c02--bge-base--passages-corresponding-0p25/process.json",
+      "sha256": "f47076e30bbf2e4e6975c2791a9991282150777b929736c6604c9065c15f65fa"
+    },
+    {
+      "bytes": 428117,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c02--embeddinggemma--average-any/reports/dev-c02--embeddinggemma--performance.json",
+      "sha256": "6a91441406cda4d86055f6b9e72e0808d90daeb9bab62ccd015b2635836ca4e6"
+    },
+    {
+      "bytes": 1973,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c02--embeddinggemma--average-any/process.json",
+      "sha256": "346ff073c09ca253a4d846b75b0d665bd36b196911f82c22651315b616602134"
+    },
+    {
+      "bytes": 66582,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c02--embeddinggemma--baseline/reports/dev-c02--embeddinggemma--performance.json",
+      "sha256": "3dd1c640b30551430c33b5445c2d2d9cfe55b60e11541bc723d149438f0fee48"
+    },
+    {
+      "bytes": 1958,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c02--embeddinggemma--baseline/process.json",
+      "sha256": "2090284183f2ed542e62819cc0ffcf321b34fabac4961fb7280a1c3d8410e431"
+    },
+    {
+      "bytes": 480911,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c02--embeddinggemma--passages-any-0p5/reports/dev-c02--embeddinggemma--performance.json",
+      "sha256": "87d8fa5754574e5ec644359a60938686fbabe264fa34d1b471a9c886e5ae5693"
+    },
+    {
+      "bytes": 1993,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c02--embeddinggemma--passages-any-0p5/process.json",
+      "sha256": "6b35120ae7c5420d2986a7a68917f19b8ddd2ac24ecf88dbee81aabe3007521b"
+    },
+    {
+      "bytes": 477715,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c02--embeddinggemma--passages-corresponding-0p25/reports/dev-c02--embeddinggemma--performance.json",
+      "sha256": "aaca150a604a94398014fc66653d750f2ab44a36c82928bd29ccaeacdfc574d4"
+    },
+    {
+      "bytes": 2032,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-c02--embeddinggemma--passages-corresponding-0p25/process.json",
+      "sha256": "c0f6cafc0cb7f4a4dbf0f680f70fa81553564f8f45130bc8773f3dcc29186c89"
+    },
+    {
+      "bytes": 156590,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-h01--bge-base--average-any/reports/dev-h01--bge-base--performance.json",
+      "sha256": "21ed89d8429f3f5ff8d59b39a54f2a6c25ecdd9aa311a17df5078a65a2db9a62"
+    },
+    {
+      "bytes": 1947,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-h01--bge-base--average-any/process.json",
+      "sha256": "0770f49a7f685123ef6f1fa9efdbc525ad1016cbc562158a750ed756bafcf98b"
+    },
+    {
+      "bytes": 62408,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-h01--bge-base--baseline/reports/dev-h01--bge-base--performance.json",
+      "sha256": "13e63b1fa40b73e5f3c75ecafef5bf1e27f029c0b0a8e06e7ce12a77d7c3e696"
+    },
+    {
+      "bytes": 1933,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-h01--bge-base--baseline/process.json",
+      "sha256": "d97448609f08124ea1bb15b07d954d3aec40691d5cc71b6173387bda042f42a6"
+    },
+    {
+      "bytes": 198438,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-h01--bge-base--passages-any-0p5/reports/dev-h01--bge-base--performance.json",
+      "sha256": "9d19b59032f494f6ee0c7479c03364066ec32d8f8f3a4e337cec67b64d9e2d1b"
+    },
+    {
+      "bytes": 1968,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-h01--bge-base--passages-any-0p5/process.json",
+      "sha256": "befcb6a96a53156494abc9340e4389a0702ffc04f62be67fe38dee3c865d5dc4"
+    },
+    {
+      "bytes": 133977,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-h01--embeddinggemma--average-any/reports/dev-h01--embeddinggemma--performance.json",
+      "sha256": "e60bafb9725776b341f15dc6cb204e45861d1925c97d0975d242cb5047957596"
+    },
+    {
+      "bytes": 1970,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-h01--embeddinggemma--average-any/process.json",
+      "sha256": "705f9ccbe6bb9379a1d25766acd6dcd749bf2634e4b93f858f637daf2618af2d"
+    },
+    {
+      "bytes": 68455,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-h01--embeddinggemma--baseline/reports/dev-h01--embeddinggemma--performance.json",
+      "sha256": "d1699256fb097130c567d72d0e6e6b603e4550b34f5afd196898efd720fe1d6a"
+    },
+    {
+      "bytes": 1957,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-h01--embeddinggemma--baseline/process.json",
+      "sha256": "660869e7423383fad19f576e5495acb4f790adbfb0a3e88063fef54bd3a24335"
+    },
+    {
+      "bytes": 178909,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-h01--embeddinggemma--passages-any-0p5/reports/dev-h01--embeddinggemma--performance.json",
+      "sha256": "865083afe78da78acbcfb033900d81cd27c947467bb56250083b51a6532acd47"
+    },
+    {
+      "bytes": 1992,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-h01--embeddinggemma--passages-any-0p5/process.json",
+      "sha256": "6017d2f370280813f92df68e95eb5493d0f7dd0708fa7b02c8b43dbe78b4d325"
+    },
+    {
+      "bytes": 83766,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-s01--bge-base--average-any/reports/dev-s01--bge-base--performance.json",
+      "sha256": "4f89908f7c7298699d647c6596564ea7098ed973492b73f4aab0950f664cae42"
+    },
+    {
+      "bytes": 1946,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-s01--bge-base--average-any/process.json",
+      "sha256": "6b5f417eab45c3985018996153e0692609fe5b12b32e25d028ca8b1d3f935e75"
+    },
+    {
+      "bytes": 43920,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-s01--bge-base--baseline/reports/dev-s01--bge-base--performance.json",
+      "sha256": "d0be46d10509923f79a20fdb718c5b220c4d7f28bccd05b097b4971e0adeb28d"
+    },
+    {
+      "bytes": 1933,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-s01--bge-base--baseline/process.json",
+      "sha256": "eb22c81758bff1a7de8594d6b703b5c9fdfd1c4ba9d0b8a16ee446958100513c"
+    },
+    {
+      "bytes": 84201,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-s01--bge-base--passages-any-0p5/reports/dev-s01--bge-base--performance.json",
+      "sha256": "352cd1f5f7c890e563903aae8395f767bd444d31b254759e1571060112b3ff1d"
+    },
+    {
+      "bytes": 1966,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-s01--bge-base--passages-any-0p5/process.json",
+      "sha256": "2cda264525b0690c14624f9ed8756d7a423109e593f12d0e3d03bba472739a03"
+    },
+    {
+      "bytes": 82820,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-s01--embeddinggemma--average-any/reports/dev-s01--embeddinggemma--performance.json",
+      "sha256": "3162be40faf47a9cea901a27258048bcdf36df8f535d5d322c2405499b1f6ff9"
+    },
+    {
+      "bytes": 1971,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-s01--embeddinggemma--average-any/process.json",
+      "sha256": "3931eabd28f63bcc13d776a3ed47d9d1e8c58e61cf3f22d2e428b7581cd1aa96"
+    },
+    {
+      "bytes": 43929,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-s01--embeddinggemma--baseline/reports/dev-s01--embeddinggemma--performance.json",
+      "sha256": "259dc7d1722b48b0d83763d3d7f82d823e68cd5526eccb76af3d548339bcfd00"
+    },
+    {
+      "bytes": 1967,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-s01--embeddinggemma--baseline/process.json",
+      "sha256": "ed1c39c4382109b8158e01ee2731bf82c03cf785c49a74009bfabdf5877ed1ab"
+    },
+    {
+      "bytes": 84199,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-s01--embeddinggemma--passages-any-0p5/reports/dev-s01--embeddinggemma--performance.json",
+      "sha256": "77c134b0b73ac6e235419442aa660a5e0eeb977dc1673fedddf7785dbe3491ec"
+    },
+    {
+      "bytes": 1990,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-s01--embeddinggemma--passages-any-0p5/process.json",
+      "sha256": "65f9aedf2564cd487c0e233a7107b6a6487e819a8ee173f65af11144c05a1bd2"
+    },
+    {
+      "bytes": 82481,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-t01--bge-base--average-any/reports/dev-t01--bge-base--performance.json",
+      "sha256": "ddbae6e5bf468fa7f9e011363df35b370e8ff849fb8128b2140f8e4b77c7c139"
+    },
+    {
+      "bytes": 1946,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-t01--bge-base--average-any/process.json",
+      "sha256": "cc042eae8f7938178aa53d46b56cb1964c1640443ac0461a8cac5227f546cfc8"
+    },
+    {
+      "bytes": 66634,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-t01--bge-base--baseline/reports/dev-t01--bge-base--performance.json",
+      "sha256": "dbd38a0b509ac1c264b2d68a480a8ec7ea8005e8024003cdd2d1bf57992fdbcd"
+    },
+    {
+      "bytes": 1933,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-t01--bge-base--baseline/process.json",
+      "sha256": "5b8d39d043fe28e6bd53f1884538a6e79c2d1ec0adea991d74f5ddace82a54de"
+    },
+    {
+      "bytes": 81192,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-t01--bge-base--passages-any-0p5/reports/dev-t01--bge-base--performance.json",
+      "sha256": "b4d04547782638b5f5f7f7f83e584f65f46de8f18f79f47db3affe3f22257af4"
+    },
+    {
+      "bytes": 1967,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-t01--bge-base--passages-any-0p5/process.json",
+      "sha256": "7592188e8b25d5e12cefe20828fee4b6a8993a147c3d6d6ecf142d3e71933ef5"
+    },
+    {
+      "bytes": 77679,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-t01--embeddinggemma--average-any/reports/dev-t01--embeddinggemma--performance.json",
+      "sha256": "42e62d34262a986b22dbe263aa03c97ca0e68d12f04876dc8695a6c68000fcb7"
+    },
+    {
+      "bytes": 1970,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-t01--embeddinggemma--average-any/process.json",
+      "sha256": "a5e722bbb925a4700fc341c6093b27c7e79ceea56fe626b7fe52a41703f73616"
+    },
+    {
+      "bytes": 64932,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-t01--embeddinggemma--baseline/reports/dev-t01--embeddinggemma--performance.json",
+      "sha256": "342cac52e3f9e9190c10b1fd1ae4db6193910ea87614f82c9511980a929688e5"
+    },
+    {
+      "bytes": 1957,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-t01--embeddinggemma--baseline/process.json",
+      "sha256": "dad7d5be2cca92e51d363f9daec6f33dd9b6391ac302a534d17e6b1472439ef2"
+    },
+    {
+      "bytes": 76567,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-t01--embeddinggemma--passages-any-0p5/reports/dev-t01--embeddinggemma--performance.json",
+      "sha256": "533c41c97b4ff32bef2f97fae0bcce43ba7860dfb3599f1cda8b58d975281bae"
+    },
+    {
+      "bytes": 1991,
+      "path": "scratch/similarity-evaluation/performance-v1/dev-t01--embeddinggemma--passages-any-0p5/process.json",
+      "sha256": "7e0eec241884991dc1ee7ae0daf2533cfde681b15681ab6cd9cb91a556703cb1"
+    }
+  ],
+  "reported_scope": "historical frozen experiment at declared build, not a claim that later default/docs amendments were timed",
+  "research_batch_processes": {
+    "fixed-pool": {
+      "binary_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+      "command": [
+        "./target/release/atlas-dev",
+        "similarity",
+        "evaluate",
+        "--manifest",
+        "docs/research/evaluations/2026-10-similarity/manifest.json",
+        "--corpus",
+        "docs/research/evaluations/2026-10-similarity/corpus.json",
+        "--all-scenarios",
+        "--phase",
+        "fixed-pool",
+        "--build-revision",
+        "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "--index",
+        ".atlas/workspace.sqlite",
+        "--path-mode",
+        "repo",
+        "--output-dir",
+        "scratch/similarity-evaluation/quality-v1/fixed-pool",
+        "--json"
+      ],
+      "elapsed_seconds": 474.43415841700016,
+      "exit_code": 0,
+      "peak_process_rss_bytes": 608419840,
+      "platform": "darwin",
+      "scope": "peak child process RSS across this invocation; not per-stage memory; OS page cache uncontrolled",
+      "stderr": "scratch/similarity-evaluation/quality-v1/fixed-pool-process.stderr.log",
+      "stdout": "scratch/similarity-evaluation/quality-v1/fixed-pool-process.stdout.json",
+      "system_seconds": 181.323597,
+      "user_seconds": 291.417258
+    },
+    "oracle": {
+      "binary_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+      "command": [
+        "./target/release/atlas-dev",
+        "similarity",
+        "evaluate",
+        "--manifest",
+        "docs/research/evaluations/2026-10-similarity/manifest.json",
+        "--corpus",
+        "docs/research/evaluations/2026-10-similarity/corpus.json",
+        "--all-scenarios",
+        "--phase",
+        "oracle",
+        "--build-revision",
+        "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "--index",
+        ".atlas/workspace.sqlite",
+        "--path-mode",
+        "repo",
+        "--output-dir",
+        "scratch/similarity-evaluation/quality-v1/oracle",
+        "--json"
+      ],
+      "elapsed_seconds": 195.09403720799992,
+      "exit_code": 0,
+      "peak_process_rss_bytes": 134889472,
+      "platform": "darwin",
+      "scope": "peak child process RSS across this invocation; not per-stage memory; OS page cache uncontrolled",
+      "stderr": "scratch/similarity-evaluation/quality-v1/oracle-process.stderr.log",
+      "stdout": "scratch/similarity-evaluation/quality-v1/oracle-process.stdout.json",
+      "system_seconds": 156.141858,
+      "user_seconds": 27.513438999999998
+    }
+  },
+  "score_sidecar": {
+    "inputs": [
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 0,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-c01--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "dev-c01",
+        "sha256": "05dca067539c679387b9430c906094b9bc7a25998b7cf5dc4f6b8c03d4799c64",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 1,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-c01--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "dev-c01",
+        "sha256": "f3495284151bd9b022905505e551127e1ceadb051d6b0af188cc2827ced073be",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 2,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-c02--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "dev-c02",
+        "sha256": "1f82e6a079e800a20398f0790fec20d6c8897d1617b65b962990f3b6e67a0329",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 3,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-c02--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "dev-c02",
+        "sha256": "b3dd403235ecdfbb72fa3c92e1d846e40a830f41ff7b2328178997e105a62538",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 4,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-c03--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "dev-c03",
+        "sha256": "155e0cbfe86b8b99344bf8457984329c5c5730bc958419aea040851fd71cac03",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 5,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-c03--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "dev-c03",
+        "sha256": "9e19423944d2685a6d51dda9590fa2b8688bd0ed05af3b72803af379afaeb7cb",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 6,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-h01--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "dev-h01",
+        "sha256": "f640b2bd45fc8eedc0e90c2187190bbe6495b96f6729ba10a2c032c5d6c2002a",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 7,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-h01--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "dev-h01",
+        "sha256": "13d52022aa5c64ae69ab5c08bff5542589ce01ef6baabef41b6a1705888faa23",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 8,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-h02--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "dev-h02",
+        "sha256": "63273ad594976c96e281d2972f1821215b5dc9d288d1dd933621fdc638d6278a",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 9,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-h02--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "dev-h02",
+        "sha256": "c52017349470994db1246ba7c6ca183d97f4153d8cbb81834fb355d63fb693b1",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 10,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-h03--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "dev-h03",
+        "sha256": "c8a032e5e91c36f0bb804454b34814b97e22b2ed2322b8ff28309736d28c996d",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 11,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-h03--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "dev-h03",
+        "sha256": "9b6fc4f4b0b08a95fec653d38e176f4641f23dd8f823065aac4f608657eb2e0a",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 12,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-s01--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "dev-s01",
+        "sha256": "9faf73442ccb066c44c0f4ed5aed9f74671cb0886d5579a3e6f1172c199325ee",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 13,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-s01--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "dev-s01",
+        "sha256": "388fb6753cb6d551160935e8d5d8bcb8db9825ab0b62f10df3fbb9d48eb26d29",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 14,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-s02--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "dev-s02",
+        "sha256": "ee349169f49c60d00bc35237a46c3fed90067b98995dc066daa50e3a1bb9903d",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 15,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-s02--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "dev-s02",
+        "sha256": "9183aeb8c0e9bed5d98dbea762b93d0ce7562d4df6a242845274d61d85c7a82b",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 16,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-s03--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "dev-s03",
+        "sha256": "e2b9a9a874d096504024eb5b298a577d73c8c7304fb865405fc424eb95b4c289",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 17,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-s03--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "dev-s03",
+        "sha256": "0d9fe4a92f358c617ea2f9e2da9663cdafde3fe34cf67a86a1e8054407d55366",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 18,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-t01--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "dev-t01",
+        "sha256": "ff9d026728aa1434ee3debcece8eb65e6151299e40ef794dc59f90837ac105fb",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 19,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-t01--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "dev-t01",
+        "sha256": "7f101aced520f11f45d410b4cda6cd5160830a744d58737b21c1e2ebc31efc8a",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 20,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-t02--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "dev-t02",
+        "sha256": "9b97e2195da5ba9215c662fe00bb15e3943504eeb82825e868eee100cb94cbfb",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 21,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-t02--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "dev-t02",
+        "sha256": "7c1fd787366dda080fec5fe83aed9d091947047bbdc1deda7b826493d67e5c83",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 22,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-t03--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "dev-t03",
+        "sha256": "6397af73ad82643894c6ff8cf04d634398817032e2cb93c581c8aa92f0055fa6",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 23,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/dev-t03--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "dev-t03",
+        "sha256": "57bd04da1588d56381ddd1773047304af6e40e43e901c46c2c29dd8d82b240cd",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 24,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-c01--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "hold-c01",
+        "sha256": "310c3e5607e9789af2aa42b720611f35aec316455c88f59066df90aebf19f051",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 25,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-c01--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "hold-c01",
+        "sha256": "2c9056e02eeb8d64fcf7a7271bedf8840f43c5b7a8c6d0219228b2728c83038b",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 26,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-c02--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "hold-c02",
+        "sha256": "2c559511b3835b63e4d008b1aed1f9194838159b0c3ae6913e65ef77af4df302",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 27,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-c02--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "hold-c02",
+        "sha256": "116725e18ba89cb3b11e67ed98e48e2ba03209db047416e31b9fafd4bacb3c16",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 28,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-c03--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "hold-c03",
+        "sha256": "4a7ceec203dcbe306fec53e7558b57a18a0db352e4cc5eff0c648a391ea4c89a",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 29,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-c03--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "hold-c03",
+        "sha256": "a4e7d649c8eb738ba51289bcf057a1370d9a97d8060e95c55e2ff2aa8f2dffc1",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 30,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-h01--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "hold-h01",
+        "sha256": "410c292670750b3cba188e2a6ce3ee3295a1dc7b806df58e8a306367dbced0da",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 31,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-h01--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "hold-h01",
+        "sha256": "5371d15e035550e300e79d288daeebe92930a15505703288b092ed6901e42dab",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 32,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-h02--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "hold-h02",
+        "sha256": "9e9dc30f57a9b2971a7592a84e3950f35ef90fb01db10a2e660281970fceef97",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 33,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-h02--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "hold-h02",
+        "sha256": "c68210bb30b53e5e0c52826f5d7eb8716cc39b8ba6c25012143f5983e5c5e481",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 34,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-h03--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "hold-h03",
+        "sha256": "487d3f389e6711d1253a4b09fe78143cd893e50cc830962cfd6a3e7dea10f1a1",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 35,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-h03--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "hold-h03",
+        "sha256": "130449b1155bff8b102cbd85b596f21fa67ae61df5bea994a77da4b2a5a668b8",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 36,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-s01--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "hold-s01",
+        "sha256": "340bc25edfefe96832350a50b4a8a81f39815d0fb02a19375f49d81464f17e91",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 37,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-s01--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "hold-s01",
+        "sha256": "1a34c5867d79ff1e0fc27f7ea9f9e35796f4d4b433fd83c9852c56b4247ba118",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 38,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-s02--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "hold-s02",
+        "sha256": "271df8c3ffbf96d4a62c708e3b25c43ab08f998a16b23f558c023124c97afbe9",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 39,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-s02--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "hold-s02",
+        "sha256": "e98b9d99ea9d38be49d18095c5dac3b7c65908562e9ea5815b34be7e6cf64d3c",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 40,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-s03--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "hold-s03",
+        "sha256": "005dfaf47c8d31610c9860a48d9c6b21e08a2725c13317d5720f83d097b1ea73",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 41,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-s03--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "hold-s03",
+        "sha256": "69e58d6b7a9a391c6c4307d3e3585dc8d0bfe486b98fb1349ea7ce2c90fe352e",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 42,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-t01--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "hold-t01",
+        "sha256": "dfc207f67fa53091424b2c2475d7e083abccbb055846425c2a0fb4d5a7a067f6",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 43,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-t01--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "hold-t01",
+        "sha256": "8651cc843d4bc1877aa1fcea3f5055381f215fa800dd07b7fd30e843bb475ae6",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 44,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-t02--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "hold-t02",
+        "sha256": "8cc5e96e936add5b54f547e45f39be5012f75a2ea86fe6724f7cd57e9181ac3a",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 45,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-t02--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "hold-t02",
+        "sha256": "6f82442a400b875e75b516dcac04f6740ec3fe702fa344f1ff1cb1132fbb69df",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 46,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-t03--bge-base--fixedpool.json",
+        "profile": "bge-base",
+        "scenario_id": "hold-t03",
+        "sha256": "dc8652755556c6a5905ea9e68051f0f60f726880c276939e09c3c10e8e486a4a",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      },
+      {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "corpus_sha256": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "declared_build_revision": "03b674c6167a4da99d7618372b1c48c53fc39175",
+        "executable_sha256": "3b1eee95c682d6df830fa26f3caaa071dd6ead1c6631a74cde1326d6d23aa55c",
+        "freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "id": 47,
+        "manifest_sha256": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "path": "scratch/similarity-evaluation/quality-v1/fixed-pool/hold-t03--embeddinggemma--fixedpool.json",
+        "profile": "embeddinggemma",
+        "scenario_id": "hold-t03",
+        "sha256": "f4d215a6211e080d0b7c7043acb0f6255ba8c23b68a724f45d348f61704dcbc6",
+        "source_revision": "28d9d156f252d084371d994dc359509b49eadf18"
+      }
+    ],
+    "kind": "lossless_score_attachment_to_existing_production_rankings",
+    "scope": "Existing frozen03b full-corpus production top20 order retained; candidate-only method scores joined by scenario/profile/variant/options/root from same bound report fixed_pool.exact; no retrieval rerun, scoring change, remaster reimplementation, or judging-pool mutation.",
+    "score_semantics": "Method aggregate equals effective returned Similar score for retained roots. Canonical remaster policy removes legacy rows only; it does not replace keys, transfer scores, renormalize scores, or reorder survivors. This does not reconstruct scores for the entire admitted root union.",
+    "verification": {
+      "actual_score_tolerance": 1e-06,
+      "counts": {
+        "actual_score_comparisons": 4320,
+        "covered_top20_scores": 11040,
+        "derived_cells": 336,
+        "derived_top20_scores": 6720,
+        "reports": 48,
+        "variant_cells": 552
+      },
+      "different_actual_float_count": 0,
+      "max_actual_score_difference": 0.0,
+      "max_actual_semantic_similarity_difference": 0.0,
+      "original_bound_files": [
+        {
+          "path": "scratch/similarity-evaluation/judging-pool/private-rankings.json",
+          "sha256": "653830192d0c3d3d9c4a946cd1cd9fec80d69485e4a656f01cc87bc12631c576"
+        },
+        {
+          "path": "scratch/similarity-evaluation/judging-pool/pool.freeze.json",
+          "sha256": "c43f752f7f33eca18eef4a3ac7d563c624a3eedcb1e45a99b3afe643fbd0ed86"
+        },
+        {
+          "path": "scratch/similarity-evaluation/blind-packets/judging.freeze.json",
+          "sha256": "155224a94ebea7c040bc0f00882e815df114658bcb8ee179165a79fee5bc41f5"
+        },
+        {
+          "path": "scratch/similarity-evaluation/runtime/runner-build-receipt.json",
+          "sha256": "69a14fd9a67dd6556821a5c0a53dec6fba766420013380f88273549cb256abaa"
+        }
+      ]
+    }
+  },
+  "source_replay_limit": "Source addresses/hashes/packet digests are retained; omitted game-source bodies and vector math require original pinned source/artifact and are not re-verified by offline result replay."
+}

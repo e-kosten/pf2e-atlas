@@ -86,3 +86,13 @@ reports its PID and leaves peak RSS null; sampled RSS is not a substitute for
 process peak. Cancellation and concurrent-admission probes are separate required
 measurements, not silently inferred from single-request timings. Instrumented
 read-statement counters are partial diagnostics, not a complete SQLite trace.
+
+## Replay the completed recorded run
+
+```sh
+node --experimental-strip-types docs/research/evaluations/2026-10-similarity/verify.ts
+```
+
+The research-gate entrypoint invokes the unchanged frozen-input verifier, Python analysis regression tests and `verify_results.py`. It needs Node and Python 3, but no artifact, source corpus, model weights, server or network. The compact result manifest binds original prompt/opinion/adjudication bytes, pre-grading pool/packet digests, cited source addresses/hashes, generated score tables and raw timing samples. Dense generated tables use standard lossless gzip.
+
+Recorded replay checks the canonical analysis metrics, score/rank joins, controlled admission and returned-top-ten comparisons, and cold/warm timing summaries. It does not recompute vectors, retrieve candidates, reapply product remaster policy or re-verify omitted source bodies. Full fresh execution still requires the pinned source/artifact and compiled provenance described above. The completed historical run and its limits are documented in [RESULTS.md](RESULTS.md).

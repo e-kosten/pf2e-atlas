@@ -1,0 +1,4150 @@
+{
+  "experiment_id": "2026-10-configurable-similarity-v1",
+  "input_freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+  "randomization_seed": 20261026,
+  "scenarios": [
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-ec22c26456a81925",
+          "record_key": "hazards:6In2S3lDnxNgZ2np"
+        },
+        {
+          "blind_candidate_id": "c-97d18244336a5ab2",
+          "record_key": "hazards:H8CPGJn81JSTCRNx"
+        },
+        {
+          "blind_candidate_id": "c-bd3ca4cb0a348a41",
+          "record_key": "pfs-season-5-bestiary:e9j6zxkEUzoPlaWG"
+        },
+        {
+          "blind_candidate_id": "c-7e5427072e3231b9",
+          "record_key": "hazards:C6nFe8SCWJ8FmLOT"
+        },
+        {
+          "blind_candidate_id": "c-5e1ccf463629ead1",
+          "record_key": "hazards:m4PRYxFq9ojcwesh"
+        },
+        {
+          "blind_candidate_id": "c-81eecf5712f2746d",
+          "record_key": "pathfinder-monster-core-2:PFB61dvUsakciV0N"
+        },
+        {
+          "blind_candidate_id": "c-dcb30afc9bab9e50",
+          "record_key": "hazards:nO4osrBRnpWKFCMP"
+        },
+        {
+          "blind_candidate_id": "c-9b4828ee3ec9b770",
+          "record_key": "crown-of-the-kobold-king-bestiary:gfi71qgcpDMpXK6G"
+        },
+        {
+          "blind_candidate_id": "c-6cbca4c3fbe9b98b",
+          "record_key": "triumph-of-the-tusk-bestiary:nz0wC5rfBf8tfPCr"
+        },
+        {
+          "blind_candidate_id": "c-e625711801de1ec8",
+          "record_key": "hazards:v2xIxZ9ZZ6fJyATF"
+        },
+        {
+          "blind_candidate_id": "c-5ebd7e96db552a6a",
+          "record_key": "hazards:gFt2nzQrVgXM9tmJ"
+        },
+        {
+          "blind_candidate_id": "c-f386d2eda6e6b61a",
+          "record_key": "spore-war-bestiary:P1fgeFcZRO8DYcWp"
+        },
+        {
+          "blind_candidate_id": "c-e73ccfa1f9a94f25",
+          "record_key": "spore-war-bestiary:9JFc5iSpc5a9TgRS"
+        },
+        {
+          "blind_candidate_id": "c-28d91f9f782c8ace",
+          "record_key": "hazards:VA4VL3kVUxBYbwRf"
+        },
+        {
+          "blind_candidate_id": "c-aec1b85e8441ddbf",
+          "record_key": "pfs-season-1-bestiary:iPInBeC8feDsmP2e"
+        },
+        {
+          "blind_candidate_id": "c-bb2113981d748d75",
+          "record_key": "pfs-season-1-bestiary:PX7QH8D43Bax2LC4"
+        },
+        {
+          "blind_candidate_id": "c-417567e12f6870a7",
+          "record_key": "pfs-season-3-bestiary:rXNQ9zxsf9rN7zUQ"
+        },
+        {
+          "blind_candidate_id": "c-02d1ea6ea5da9cca",
+          "record_key": "pfs-season-5-bestiary:YDr59BA0SzwFwvTF"
+        },
+        {
+          "blind_candidate_id": "c-afb471ca96d0e517",
+          "record_key": "pfs-season-2-bestiary:gAoKDxmIriTC7xVn"
+        },
+        {
+          "blind_candidate_id": "c-054a3de9f8f7bb19",
+          "record_key": "hazards:gB9WkJtH88jJQa5Z"
+        },
+        {
+          "blind_candidate_id": "c-11250213eed9638f",
+          "record_key": "hazards:lgyGhpyPosriQUzE"
+        },
+        {
+          "blind_candidate_id": "c-91c03d97a4d1aa84",
+          "record_key": "pfs-season-1-bestiary:HYUQOdH0WB6ckC5e"
+        },
+        {
+          "blind_candidate_id": "c-f521f2d8a0e4864f",
+          "record_key": "hazards:OSPYSuckHhHl4Cr9"
+        },
+        {
+          "blind_candidate_id": "c-6013bd0df97c6a93",
+          "record_key": "pathfinder-bestiary-2:mpBOeFrbtx1wMrNn"
+        },
+        {
+          "blind_candidate_id": "c-c480f4fecbc92ad4",
+          "record_key": "hazards:AqK60DreNDtgDb4o"
+        },
+        {
+          "blind_candidate_id": "c-f31533cab4437835",
+          "record_key": "hazards:LLPsEKLoVmoPleJS"
+        },
+        {
+          "blind_candidate_id": "c-cc9ed747a163d743",
+          "record_key": "pfs-season-2-bestiary:M9AglEGo8jMH9CnU"
+        },
+        {
+          "blind_candidate_id": "c-efed2e912dce4516",
+          "record_key": "hazards:A93flWUsot3FmC7t"
+        },
+        {
+          "blind_candidate_id": "c-56edca5bb32a5bf9",
+          "record_key": "hazards:4O7wKZdeAemTEbvG"
+        },
+        {
+          "blind_candidate_id": "c-e1b03fe0729a257b",
+          "record_key": "pfs-season-3-bestiary:fRIyhOmNon1GtQeT"
+        },
+        {
+          "blind_candidate_id": "c-b00e3979a268d2ad",
+          "record_key": "hazards:vTdWEBzJzltMM6r4"
+        },
+        {
+          "blind_candidate_id": "c-4e7fcccc01593f81",
+          "record_key": "claws-of-the-tyrant-bestiary:ii2idpmr4mWpeW7K"
+        }
+      ],
+      "intent": "Find hazards or other records that share the seed’s heat-draining fungal danger, including its behavior and counterplay; incidental cold wording alone is weak evidence.",
+      "scenario_id": "dev-h01",
+      "seed_identity": {
+        "kind": "record",
+        "record_key": "hazards:Q8bXKgDm8eguqThB",
+        "title": "Brown Mold"
+      },
+      "selected_sections": [],
+      "selection": {
+        "kind": "all"
+      },
+      "source_binding_id": "brown-mold",
+      "task_scope": "all"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-a53fa9e01fe6673c",
+          "record_key": "pfs-season-1-bestiary:PX7QH8D43Bax2LC4"
+        },
+        {
+          "blind_candidate_id": "c-b571337083812469",
+          "record_key": "blog-bestiary:bupIhMxa1zvWI91a"
+        },
+        {
+          "blind_candidate_id": "c-e62cfa5efa56e6d8",
+          "record_key": "hazards:siylw0zIh1g4VnCW"
+        },
+        {
+          "blind_candidate_id": "c-0ec57eb52d469102",
+          "record_key": "hazards:gB9WkJtH88jJQa5Z"
+        },
+        {
+          "blind_candidate_id": "c-5fe01cac903b10fb",
+          "record_key": "pfs-season-1-bestiary:HYUQOdH0WB6ckC5e"
+        },
+        {
+          "blind_candidate_id": "c-1a2949d1ce3fc2cf",
+          "record_key": "season-of-ghosts-bestiary:ujCqaRPlw23baewz"
+        },
+        {
+          "blind_candidate_id": "c-5c0fe22d6129d50b",
+          "record_key": "hazards:AqK60DreNDtgDb4o"
+        },
+        {
+          "blind_candidate_id": "c-1284b351b2b2aae2",
+          "record_key": "strength-of-thousands-bestiary:QkT3Yr6mdnhVNJE8"
+        },
+        {
+          "blind_candidate_id": "c-8d5376fc47a6237b",
+          "record_key": "pathfinder-monster-core-2:PFB61dvUsakciV0N"
+        },
+        {
+          "blind_candidate_id": "c-496888a1a565a305",
+          "record_key": "pfs-season-5-bestiary:e9j6zxkEUzoPlaWG"
+        },
+        {
+          "blind_candidate_id": "c-c1d00a312821e144",
+          "record_key": "pfs-season-3-bestiary:rXNQ9zxsf9rN7zUQ"
+        },
+        {
+          "blind_candidate_id": "c-d8ed5c11bc35c346",
+          "record_key": "hazards:gFt2nzQrVgXM9tmJ"
+        },
+        {
+          "blind_candidate_id": "c-2d818abc591bbc0c",
+          "record_key": "pathfinder-monster-core-2:jWsHDhzrIOqOp29p"
+        },
+        {
+          "blind_candidate_id": "c-f1d19336e8a15104",
+          "record_key": "sky-kings-tomb-bestiary:SiBC7HLCaxDeOTt6"
+        },
+        {
+          "blind_candidate_id": "c-7b85108885f389b0",
+          "record_key": "hazards:LLPsEKLoVmoPleJS"
+        },
+        {
+          "blind_candidate_id": "c-edc8db8a0788f8c0",
+          "record_key": "hazards:lgyGhpyPosriQUzE"
+        },
+        {
+          "blind_candidate_id": "c-dcd438f75bfada20",
+          "record_key": "pfs-season-2-bestiary:gAoKDxmIriTC7xVn"
+        },
+        {
+          "blind_candidate_id": "c-d3fb967207bc50aa",
+          "record_key": "hazards:C6nFe8SCWJ8FmLOT"
+        },
+        {
+          "blind_candidate_id": "c-35ef6912ebab3a20",
+          "record_key": "hazards:vTdWEBzJzltMM6r4"
+        },
+        {
+          "blind_candidate_id": "c-59d4ce2009be9e61",
+          "record_key": "pfs-season-3-bestiary:fRIyhOmNon1GtQeT"
+        },
+        {
+          "blind_candidate_id": "c-e33538f96698eb49",
+          "record_key": "crown-of-the-kobold-king-bestiary:gfi71qgcpDMpXK6G"
+        },
+        {
+          "blind_candidate_id": "c-817dfe786ffe7999",
+          "record_key": "pfs-introductions-bestiary:7u3dkPN8iSpW4QPB"
+        },
+        {
+          "blind_candidate_id": "c-37e4e751a4870958",
+          "record_key": "pfs-season-2-bestiary:M9AglEGo8jMH9CnU"
+        },
+        {
+          "blind_candidate_id": "c-edc805450defac56",
+          "record_key": "hazards:A93flWUsot3FmC7t"
+        },
+        {
+          "blind_candidate_id": "c-c78979e7b9cd6971",
+          "record_key": "pfs-season-1-bestiary:iPInBeC8feDsmP2e"
+        },
+        {
+          "blind_candidate_id": "c-5440c836dcf2afd6",
+          "record_key": "claws-of-the-tyrant-bestiary:ii2idpmr4mWpeW7K"
+        },
+        {
+          "blind_candidate_id": "c-d17165b46defa937",
+          "record_key": "spore-war-bestiary:9JFc5iSpc5a9TgRS"
+        },
+        {
+          "blind_candidate_id": "c-4551ade4cacea835",
+          "record_key": "pathfinder-monster-core-2:SjTv1ayVrguLsnTX"
+        },
+        {
+          "blind_candidate_id": "c-766f906b3bfc9e89",
+          "record_key": "hazards:VA4VL3kVUxBYbwRf"
+        },
+        {
+          "blind_candidate_id": "c-79d4773cc4548746",
+          "record_key": "seven-dooms-for-sandpoint-bestiary:nUnZtlm7PneSF8ww"
+        },
+        {
+          "blind_candidate_id": "c-1db91388994514b1",
+          "record_key": "pfs-season-5-bestiary:YDr59BA0SzwFwvTF"
+        },
+        {
+          "blind_candidate_id": "c-f964666bfb0b370f",
+          "record_key": "triumph-of-the-tusk-bestiary:nz0wC5rfBf8tfPCr"
+        }
+      ],
+      "intent": "Find comparable recovery or reset behavior after a hazard has activated or expanded. Judge the selected reset text, not general fungus or cold similarity.",
+      "scenario_id": "dev-h02",
+      "seed_identity": {
+        "kind": "record",
+        "record_key": "hazards:Q8bXKgDm8eguqThB",
+        "title": "Brown Mold"
+      },
+      "selected_sections": [
+        {
+          "label": "Reset",
+          "owner": "Brown Mold"
+        }
+      ],
+      "selection": {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "kind": "explicit",
+        "selectors": [
+          "part:43ae599956b6366a12eb5f29c32e52805ff2d3a4e1693ba4fbaddbecdc613499"
+        ]
+      },
+      "source_binding_id": "brown-mold",
+      "task_scope": "explicit"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-d6f048faf2902053",
+          "record_key": "pathfinder-monster-core-2:5Gw0j1Qbh1uXUhkj"
+        },
+        {
+          "blind_candidate_id": "c-512c3754ed18a870",
+          "record_key": "hazards:tbwGr6FIr5WpvQ6l"
+        },
+        {
+          "blind_candidate_id": "c-46b6972642218022",
+          "record_key": "one-shot-bestiary:IkRDtRFBdQd1LRvD"
+        },
+        {
+          "blind_candidate_id": "c-c723f1033cc75a09",
+          "record_key": "shades-of-blood-bestiary:hDfVyBCE7K6fcPxf"
+        },
+        {
+          "blind_candidate_id": "c-b2acb18fef7ac5c3",
+          "record_key": "night-of-the-gray-death-bestiary:mgcQVqHyxDzNWT3e"
+        },
+        {
+          "blind_candidate_id": "c-c624b7ff728e08d1",
+          "record_key": "troubles-in-grayce-bestiary:ZkqZwgQm9qmssVPe"
+        },
+        {
+          "blind_candidate_id": "c-acaaf19863dff003",
+          "record_key": "hazards:H2GX04CQXLPQHT8h"
+        },
+        {
+          "blind_candidate_id": "c-2967c959e6b055ed",
+          "record_key": "prey-for-death-bestiary:TUIJIAnhjA3Hz2jn"
+        },
+        {
+          "blind_candidate_id": "c-d0ea7db448ff0f05",
+          "record_key": "shades-of-blood-bestiary:gLXKdNb5qY5jJYEX"
+        },
+        {
+          "blind_candidate_id": "c-eac73c7e931969ce",
+          "record_key": "hazards:J4YChuob7MIPT5Mq"
+        },
+        {
+          "blind_candidate_id": "c-9d8d92f681f29039",
+          "record_key": "fists-of-the-ruby-phoenix-bestiary:eVKjtiQtDaJpk9Ra"
+        },
+        {
+          "blind_candidate_id": "c-33c9474d0085a86f",
+          "record_key": "abomination-vaults-bestiary:VsRKgjKolLsJMd0I"
+        },
+        {
+          "blind_candidate_id": "c-31484be43badae8b",
+          "record_key": "stolen-fate-bestiary:pLbDF5JJoF93vgwL"
+        },
+        {
+          "blind_candidate_id": "c-174697bc70bc3d35",
+          "record_key": "hazards:BHq5wpQU8hQEke8D"
+        },
+        {
+          "blind_candidate_id": "c-ef49ca4fe59c9929",
+          "record_key": "hazards:4O7wKZdeAemTEbvG"
+        },
+        {
+          "blind_candidate_id": "c-5d24ef7bfa0ce88b",
+          "record_key": "equipment-srd:qvfO0jFIvIM8hReG"
+        },
+        {
+          "blind_candidate_id": "c-7017c3851f6f4c83",
+          "record_key": "pfs-season-3-bestiary:T8rc4C98gf87869G"
+        },
+        {
+          "blind_candidate_id": "c-8fb6a82574cd3ccc",
+          "record_key": "hells-destiny-bestiary:8YPAJOxXyl1YNCGu"
+        },
+        {
+          "blind_candidate_id": "c-0039653bb10c565c",
+          "record_key": "age-of-ashes-bestiary:zdJHl3xMY7n2Lwlf"
+        },
+        {
+          "blind_candidate_id": "c-4166ff32a98e2730",
+          "record_key": "hazards:g9HovYB4pfHgIML9"
+        },
+        {
+          "blind_candidate_id": "c-3a7233e09bbab665",
+          "record_key": "hazards:7VqibTAEXXX6PIhh"
+        },
+        {
+          "blind_candidate_id": "c-d132048b0e1303c6",
+          "record_key": "hazards:lVqVDjXnHboMif7F"
+        },
+        {
+          "blind_candidate_id": "c-0c1d482358737a0b",
+          "record_key": "crown-of-the-kobold-king-bestiary:kV8HuA48rVKxuUks"
+        },
+        {
+          "blind_candidate_id": "c-aec8310db52f39d9",
+          "record_key": "blood-lords-bestiary:ZzRnrcSstcvJx5Dg"
+        },
+        {
+          "blind_candidate_id": "c-be6b372be9475185",
+          "record_key": "hazards:v2xIxZ9ZZ6fJyATF"
+        },
+        {
+          "blind_candidate_id": "c-c7faec6ffe39bb57",
+          "record_key": "pfs-season-2-bestiary:DYEJU8PPBg6yWGJe"
+        },
+        {
+          "blind_candidate_id": "c-819af5f18f1d6653",
+          "record_key": "kingmaker-bestiary:ce5vC049lfuXnPSy"
+        },
+        {
+          "blind_candidate_id": "c-e1ccd8197e1638fd",
+          "record_key": "troubles-in-otari-bestiary:vg6fEjWSj4jilXRn"
+        },
+        {
+          "blind_candidate_id": "c-af83523d294e863a",
+          "record_key": "pathfinder-bestiary-3:ChzqT42N5waJZ9VS"
+        },
+        {
+          "blind_candidate_id": "c-cc3939576a60f1e8",
+          "record_key": "hazards:vlMuFskctUvjJe8X"
+        },
+        {
+          "blind_candidate_id": "c-4c9d4929cdc60930",
+          "record_key": "spells-srd:KAapTzGKJMbMQCL1"
+        },
+        {
+          "blind_candidate_id": "c-371f7ae0d5e9bdd7",
+          "record_key": "prey-for-death-bestiary:2c6GMe3gATc3l7ZV"
+        },
+        {
+          "blind_candidate_id": "c-50a57ea55d5ce93a",
+          "record_key": "outlaws-of-alkenstar-bestiary:YsSpSUB1jeLSifFg"
+        },
+        {
+          "blind_candidate_id": "c-c96cdd534a7b4ebf",
+          "record_key": "sky-kings-tomb-bestiary:0IzwmjL0OIfDqInF"
+        },
+        {
+          "blind_candidate_id": "c-297754cf110fe39a",
+          "record_key": "hazards:uEZ4Jv2wNyukJTRL"
+        },
+        {
+          "blind_candidate_id": "c-622893e91b0021d0",
+          "record_key": "hazards:OekigjNLNp9XENjx"
+        },
+        {
+          "blind_candidate_id": "c-663b84985a27e4aa",
+          "record_key": "hazards:xkqjwu1ox0pQLOnb"
+        }
+      ],
+      "intent": "Find records with similar repeated automatic movement-and-attack routines. Shared trap classification or a one-time blade attack is insufficient for a strong match.",
+      "scenario_id": "dev-h03",
+      "seed_identity": {
+        "kind": "record",
+        "record_key": "hazards:HnPd9Vqh5NHKEdRq",
+        "title": "Spinning Blade Pillar"
+      },
+      "selected_sections": [
+        {
+          "label": "Routine",
+          "owner": "Spinning Blade Pillar"
+        }
+      ],
+      "selection": {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "kind": "explicit",
+        "selectors": [
+          "part:27816e1e35b1c9990943934ba3655c020e997a0dcd1f71ff9b94b976becd0bae"
+        ]
+      },
+      "source_binding_id": "spinning-blade-pillar",
+      "task_scope": "explicit"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-61e1737e800ec959",
+          "record_key": "fists-of-the-ruby-phoenix-bestiary:sXtwJyM7sWWDQDOU"
+        },
+        {
+          "blind_candidate_id": "c-af635ae68a9bc4d5",
+          "record_key": "pfs-season-1-bestiary:HmyF3aYbHxm8RDWf"
+        },
+        {
+          "blind_candidate_id": "c-ba84ceee0811d9d7",
+          "record_key": "rollable-tables:N0pDFNCffTe2Du39"
+        },
+        {
+          "blind_candidate_id": "c-1bde01491ec5e823",
+          "record_key": "pfs-season-3-bestiary:e9kWyI8plxVuMOe3"
+        },
+        {
+          "blind_candidate_id": "c-f473146de0606c25",
+          "record_key": "pfs-season-4-bestiary:GJivJZpKr26648NR"
+        },
+        {
+          "blind_candidate_id": "c-73c74aae2f6a7805",
+          "record_key": "hazards:AqK60DreNDtgDb4o"
+        },
+        {
+          "blind_candidate_id": "c-3e523444ec67ab99",
+          "record_key": "the-enmity-cycle-bestiary:gBjrp5li1LCbIO8X"
+        },
+        {
+          "blind_candidate_id": "c-7cfacd2030b2d52c",
+          "record_key": "pfs-season-4-bestiary:sN1Mm3M5fnb0SjYq"
+        },
+        {
+          "blind_candidate_id": "c-6575631171661e15",
+          "record_key": "pfs-introductions-bestiary:7u3dkPN8iSpW4QPB"
+        },
+        {
+          "blind_candidate_id": "c-056399b96648bbaa",
+          "record_key": "hazards:OekigjNLNp9XENjx"
+        },
+        {
+          "blind_candidate_id": "c-59f38344137ab355",
+          "record_key": "strength-of-thousands-bestiary:ybYXRItLGKw7oHsO"
+        },
+        {
+          "blind_candidate_id": "c-9e5b9a3e4fc3e4b7",
+          "record_key": "hazards:98rS64gLzy1ReXoR"
+        },
+        {
+          "blind_candidate_id": "c-1386adf0b3c72cf7",
+          "record_key": "lost-omens-bestiary:KZi4BkWZhGXR3lt3"
+        },
+        {
+          "blind_candidate_id": "c-be8df7afdf012c6b",
+          "record_key": "equipment-srd:3Un39La3zogviHgZ"
+        },
+        {
+          "blind_candidate_id": "c-df2f4b84cc0498ac",
+          "record_key": "pfs-season-4-bestiary:eon011qZn3I3wYxK"
+        },
+        {
+          "blind_candidate_id": "c-672dcb11bc676651",
+          "record_key": "quest-for-the-frozen-flame-bestiary:kJlIPynpcH61F9Am"
+        },
+        {
+          "blind_candidate_id": "c-ae4da0fc6591e954",
+          "record_key": "hazards:gFt2nzQrVgXM9tmJ"
+        },
+        {
+          "blind_candidate_id": "c-4ea000b90fd07d5e",
+          "record_key": "hazards:lgyGhpyPosriQUzE"
+        },
+        {
+          "blind_candidate_id": "c-245d9314f2cc2bbf",
+          "record_key": "hazards:O0qA1ElCOgYGEBtL"
+        },
+        {
+          "blind_candidate_id": "c-93a6e85229980534",
+          "record_key": "pfs-season-1-bestiary:DFu5ktENReo9lpbe"
+        },
+        {
+          "blind_candidate_id": "c-7e550cd86e93489b",
+          "record_key": "pathfinder-bestiary-2:uQBfbNaIHdt0l2QB"
+        },
+        {
+          "blind_candidate_id": "c-189fb5bc13c7eda4",
+          "record_key": "pfs-season-4-bestiary:sxN5QwOxfFx0160i"
+        },
+        {
+          "blind_candidate_id": "c-d22e81d4122c13d1",
+          "record_key": "lost-omens-bestiary:FrLxEXUPE3mMLrYN"
+        },
+        {
+          "blind_candidate_id": "c-31a12b603093025d",
+          "record_key": "hazards:BHq5wpQU8hQEke8D"
+        },
+        {
+          "blind_candidate_id": "c-5e60d748873d474f",
+          "record_key": "hazards:LLPsEKLoVmoPleJS"
+        },
+        {
+          "blind_candidate_id": "c-a75f80fbcaa8e883",
+          "record_key": "pfs-season-4-bestiary:5R9kkxzfr4KJAeA1"
+        },
+        {
+          "blind_candidate_id": "c-93b70445985be507",
+          "record_key": "hazards:VA4VL3kVUxBYbwRf"
+        },
+        {
+          "blind_candidate_id": "c-196328f026256e9f",
+          "record_key": "spells-srd:HcIAQZjNXHemoXSU"
+        },
+        {
+          "blind_candidate_id": "c-2ba906cf3312f654",
+          "record_key": "lost-omens-bestiary:NMts9B5OMPHNJ3jg"
+        },
+        {
+          "blind_candidate_id": "c-0f9abc116db81852",
+          "record_key": "hazards:1egK7HFAFdHxMS9N"
+        },
+        {
+          "blind_candidate_id": "c-7260e3817add31bf",
+          "record_key": "hazards:6In2S3lDnxNgZ2np"
+        }
+      ],
+      "intent": "Find environmental or mechanical dangers with comparable gradual engulfing or submerging behavior and opportunities to escape or disturb the hazard.",
+      "scenario_id": "hold-h01",
+      "seed_identity": {
+        "kind": "record",
+        "record_key": "hazards:C6nFe8SCWJ8FmLOT",
+        "title": "Quicksand"
+      },
+      "selected_sections": [],
+      "selection": {
+        "kind": "all"
+      },
+      "source_binding_id": "quicksand",
+      "task_scope": "all"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-85bee837e50eead8",
+          "record_key": "shades-of-blood-bestiary:0hKpSwWOIMDURHXe"
+        },
+        {
+          "blind_candidate_id": "c-0a9d37a73da3a4b8",
+          "record_key": "spore-war-bestiary:9JFc5iSpc5a9TgRS"
+        },
+        {
+          "blind_candidate_id": "c-d6e1d9aab9a222bb",
+          "record_key": "strength-of-thousands-bestiary:JRn1QlBUtlU7xjYR"
+        },
+        {
+          "blind_candidate_id": "c-6a5a17a1f58b4db3",
+          "record_key": "spells-srd:91ZbBll8M7IXQ4yw"
+        },
+        {
+          "blind_candidate_id": "c-39fee13d9a2515db",
+          "record_key": "claws-of-the-tyrant-bestiary:Uns3D5g4MTwraYmE"
+        },
+        {
+          "blind_candidate_id": "c-adeae01b26ff0449",
+          "record_key": "strength-of-thousands-bestiary:ooMCMjhvmIsOghH1"
+        },
+        {
+          "blind_candidate_id": "c-c3acaad73c053cf0",
+          "record_key": "blood-lords-bestiary:2cSy2hsHLS0mYLXs"
+        },
+        {
+          "blind_candidate_id": "c-cb2a793bb0bc4420",
+          "record_key": "claws-of-the-tyrant-bestiary:ii2idpmr4mWpeW7K"
+        },
+        {
+          "blind_candidate_id": "c-a4cb0390002ce7f3",
+          "record_key": "pathfinder-bestiary-2:DWQzgPL1WjXfu4rV"
+        },
+        {
+          "blind_candidate_id": "c-be6df059b0578f50",
+          "record_key": "kingmaker-bestiary:ZlEhOqdwPDpU3jvO"
+        },
+        {
+          "blind_candidate_id": "c-5a92a52239194ee2",
+          "record_key": "pfs-season-1-bestiary:xKfj6ctW8fKEfrxp"
+        },
+        {
+          "blind_candidate_id": "c-1186485b7a6fa0e3",
+          "record_key": "extinction-curse-bestiary:Rma6WvkTkRW1H0ro"
+        },
+        {
+          "blind_candidate_id": "c-4016451ad4f15efb",
+          "record_key": "blood-lords-bestiary:i722khDhe3zTB881"
+        },
+        {
+          "blind_candidate_id": "c-ba21145f55b339c3",
+          "record_key": "strength-of-thousands-bestiary:LUqXkF5DEEuATH5L"
+        },
+        {
+          "blind_candidate_id": "c-3e7e91afc98a4b1d",
+          "record_key": "sky-kings-tomb-bestiary:T4hNSZSA9XGokGL0"
+        },
+        {
+          "blind_candidate_id": "c-da81f11bd40ca06f",
+          "record_key": "wardens-of-wildwood-bestiary:7jeSUb3zjcsBYfEP"
+        },
+        {
+          "blind_candidate_id": "c-4dd9f6d5d4df5b0e",
+          "record_key": "hazards:gFt2nzQrVgXM9tmJ"
+        },
+        {
+          "blind_candidate_id": "c-d3d9590bb8586c6f",
+          "record_key": "hellbreakers-bestiary:PsXI3ZlrLXfC9P75"
+        },
+        {
+          "blind_candidate_id": "c-988c84745f4069f4",
+          "record_key": "kingmaker-bestiary:w8jUzPPGLQECT4j7"
+        },
+        {
+          "blind_candidate_id": "c-09c59b4c52115edf",
+          "record_key": "claws-of-the-tyrant-bestiary:OZRvOYnkvEVlTx90"
+        },
+        {
+          "blind_candidate_id": "c-81c1b4dd041ee82d",
+          "record_key": "blood-lords-bestiary:Q7Mfkogemi5D9LJh"
+        },
+        {
+          "blind_candidate_id": "c-7135b958a68a1e93",
+          "record_key": "spells-srd:jQgX7zChqjFrU7Q1"
+        },
+        {
+          "blind_candidate_id": "c-f876d6ec01aff4d1",
+          "record_key": "spells-srd:kCgkreCT6g0dipMd"
+        },
+        {
+          "blind_candidate_id": "c-101006545258c785",
+          "record_key": "triumph-of-the-tusk-bestiary:9KlZ43sStGWMgIR9"
+        },
+        {
+          "blind_candidate_id": "c-d0df4835fa9ac43e",
+          "record_key": "strength-of-thousands-bestiary:PHpFRuT0JuxL8xbj"
+        },
+        {
+          "blind_candidate_id": "c-a077e2274f168317",
+          "record_key": "pfs-season-4-bestiary:lC3AaEl9XFaewjx0"
+        },
+        {
+          "blind_candidate_id": "c-fe7776924c874516",
+          "record_key": "stolen-fate-bestiary:lJnVbE89rKEYJ3Hw"
+        },
+        {
+          "blind_candidate_id": "c-4ec0a0aca1d54e1d",
+          "record_key": "quest-for-the-frozen-flame-bestiary:9bMjxEnzFuJfWyP8"
+        },
+        {
+          "blind_candidate_id": "c-552d387ec4616cec",
+          "record_key": "strength-of-thousands-bestiary:otOOVXZU1CdTcLxS"
+        },
+        {
+          "blind_candidate_id": "c-de2d32a833387b70",
+          "record_key": "bastion-of-blasphemies-bestiary:UAgosUUeyJkx3EbY"
+        },
+        {
+          "blind_candidate_id": "c-6cb9a25f6b114c96",
+          "record_key": "pfs-season-4-bestiary:ixCuB33ckYp0BLnh"
+        },
+        {
+          "blind_candidate_id": "c-888aa2d43e077bc1",
+          "record_key": "pfs-season-5-bestiary:bPUdYAQ88KS0HTzF"
+        },
+        {
+          "blind_candidate_id": "c-2975377872979af7",
+          "record_key": "hells-destiny-bestiary:rEjKVZqLfEC5jdVV"
+        },
+        {
+          "blind_candidate_id": "c-94c37b2738a4cfe3",
+          "record_key": "hellbreakers-bestiary:uo2TMdgaN9S7HprW"
+        },
+        {
+          "blind_candidate_id": "c-b100c00de30f0ea5",
+          "record_key": "pathfinder-monster-core-2:rEjKVZqLfEC5jdVV"
+        },
+        {
+          "blind_candidate_id": "c-899b4ee809cb1d79",
+          "record_key": "wardens-of-wildwood-bestiary:66iNb6JH1cttC45T"
+        },
+        {
+          "blind_candidate_id": "c-670d636787e08ff4",
+          "record_key": "age-of-ashes-bestiary:WouSA1UsIzvBTOix"
+        },
+        {
+          "blind_candidate_id": "c-f71992005bf50895",
+          "record_key": "pfs-season-6-bestiary:LFgi1KkIqqpByXmj"
+        },
+        {
+          "blind_candidate_id": "c-f6e1496c348bc2e3",
+          "record_key": "spells-srd:cQgPIohUja0DUiRL"
+        },
+        {
+          "blind_candidate_id": "c-5b95e08da348a655",
+          "record_key": "extinction-curse-bestiary:wQHcJGJ9rSyFQFPB"
+        },
+        {
+          "blind_candidate_id": "c-6826baa8700ac91e",
+          "record_key": "strength-of-thousands-bestiary:WMeRC4WHogtHXnGG"
+        },
+        {
+          "blind_candidate_id": "c-9dec6dbd6137195d",
+          "record_key": "shades-of-blood-bestiary:qZsz7vc0KLi2U23P"
+        },
+        {
+          "blind_candidate_id": "c-d5b6fbc3a927b864",
+          "record_key": "bastion-of-blasphemies-bestiary:ex2fJQ7HZgAAl2Xs"
+        },
+        {
+          "blind_candidate_id": "c-f5a244462a7c7f8e",
+          "record_key": "pathfinder-monster-core-2:d8ePlvZTcfKCa6Fm"
+        },
+        {
+          "blind_candidate_id": "c-9346f240669e1424",
+          "record_key": "pfs-season-6-bestiary:sWEU6a4CUbooqypZ"
+        },
+        {
+          "blind_candidate_id": "c-0bf560d57611095d",
+          "record_key": "pfs-season-6-bestiary:hgV0rv9fbB2ZeUyR"
+        },
+        {
+          "blind_candidate_id": "c-506c4046efd09219",
+          "record_key": "pathfinder-bestiary:VUJrPHKOjYkIQnWn"
+        },
+        {
+          "blind_candidate_id": "c-28ee103db55069b3",
+          "record_key": "spore-war-bestiary:67FHrUbWeN8uZva9"
+        },
+        {
+          "blind_candidate_id": "c-4b8352137e415559",
+          "record_key": "strength-of-thousands-bestiary:d1zIcvHE3z7k0Rzs"
+        },
+        {
+          "blind_candidate_id": "c-8a086d99a10ca46e",
+          "record_key": "pfs-season-5-bestiary:YDr59BA0SzwFwvTF"
+        },
+        {
+          "blind_candidate_id": "c-f39dd4f8765e3d77",
+          "record_key": "pathfinder-monster-core-2:n2zUhVaFXuOJE8a1"
+        },
+        {
+          "blind_candidate_id": "c-2644acb179c35202",
+          "record_key": "wardens-of-wildwood-bestiary:FyBXmJSWFs4EHArp"
+        },
+        {
+          "blind_candidate_id": "c-2068d35ff11c2d3a",
+          "record_key": "spore-war-bestiary:aIWGyUxKId3ak6ez"
+        },
+        {
+          "blind_candidate_id": "c-7645ff108cabf2f4",
+          "record_key": "strength-of-thousands-bestiary:ZDiRrUHkhFz0mLc7"
+        },
+        {
+          "blind_candidate_id": "c-e31f926ba8606879",
+          "record_key": "hells-destiny-bestiary:sLjk4Jq4KW0R1U4t"
+        },
+        {
+          "blind_candidate_id": "c-c480eacaf54cb797",
+          "record_key": "blood-lords-bestiary:5HgUBmFaEWVZhx2g"
+        },
+        {
+          "blind_candidate_id": "c-dc0e9fbbacbcd432",
+          "record_key": "fall-of-plaguestone-bestiary:wBCpq9pX4NZFXE0T"
+        }
+      ],
+      "intent": "Find comparable plant restraint and ways to neutralize or pacify it. Evaluate both the selected disable text and trapping-vines ability; generic plant references are weak evidence.",
+      "scenario_id": "hold-h02",
+      "seed_identity": {
+        "kind": "record",
+        "record_key": "strength-of-thousands-bestiary:iKhMNWK6FB7ICach",
+        "title": "Agitated Carnivorous Plants"
+      },
+      "selected_sections": [
+        {
+          "label": "Disable",
+          "owner": "Agitated Carnivorous Plants"
+        },
+        {
+          "label": "Ability",
+          "owner": "Trapping Vines"
+        }
+      ],
+      "selection": {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "kind": "explicit",
+        "selectors": [
+          "part:2eb71593f2761f20381ca6a655f49ee5485524d7ba0415166b7a2cec8fedec30",
+          "part:fdbad8be27f24fcf1bcca929625f16d6120da43e2f7bab2f031dfad873c50fc5"
+        ]
+      },
+      "source_binding_id": "agitated-carnivorous-plants",
+      "task_scope": "explicit"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-1d315d10a9659db2",
+          "record_key": "abomination-vaults-bestiary:dWOK0nzGWyc5NkNz"
+        },
+        {
+          "blind_candidate_id": "c-2fcac885da37da0b",
+          "record_key": "age-of-ashes-bestiary:h7apR3QSxVZmy2nt"
+        },
+        {
+          "blind_candidate_id": "c-09448292e7426477",
+          "record_key": "age-of-ashes-bestiary:ja9KowUPZjhwhJ1x"
+        },
+        {
+          "blind_candidate_id": "c-328ea4884a20f919",
+          "record_key": "revenge-of-the-runelords-bestiary:uv0pb5o8phryeL4z"
+        },
+        {
+          "blind_candidate_id": "c-af13d12ed8c9f354",
+          "record_key": "age-of-ashes-bestiary:BudeoAoJ4dOxjj0K"
+        },
+        {
+          "blind_candidate_id": "c-432a7bede1de715b",
+          "record_key": "extinction-curse-bestiary:NgmbMRekIHiA44lg"
+        },
+        {
+          "blind_candidate_id": "c-362c201a03805aca",
+          "record_key": "pathfinder-monster-core-2:XlFn2e6yj0mxHeq8"
+        },
+        {
+          "blind_candidate_id": "c-a32960f268d10c37",
+          "record_key": "season-of-ghosts-bestiary:OoTnmIkunSTCPet3"
+        },
+        {
+          "blind_candidate_id": "c-ac5747175c2fc4e9",
+          "record_key": "age-of-ashes-bestiary:roRmUbaC9kJC7met"
+        },
+        {
+          "blind_candidate_id": "c-d1df42b943956a8d",
+          "record_key": "blood-lords-bestiary:nv41Nzzaavh1tv3w"
+        },
+        {
+          "blind_candidate_id": "c-7fe7d56c03d86a58",
+          "record_key": "hazards:su4TRBOoso4vjkoK"
+        },
+        {
+          "blind_candidate_id": "c-02f7efb4d10cd9b0",
+          "record_key": "sky-kings-tomb-bestiary:gl7jMlFgJW1iKJM3"
+        },
+        {
+          "blind_candidate_id": "c-2226a882c4af106a",
+          "record_key": "blood-lords-bestiary:lq8H7BBc5C2y9BN0"
+        },
+        {
+          "blind_candidate_id": "c-774db402cd812346",
+          "record_key": "abomination-vaults-bestiary:3ry9WSvMMXHUe3kE"
+        },
+        {
+          "blind_candidate_id": "c-8197be40bd1e810e",
+          "record_key": "myth-speaker-bestiary:XXWSvVIZ4HuAFGTX"
+        },
+        {
+          "blind_candidate_id": "c-c6a85a10b5113b8f",
+          "record_key": "age-of-ashes-bestiary:HbgvZUYFJd2VfwmQ"
+        },
+        {
+          "blind_candidate_id": "c-163c6a29014e081b",
+          "record_key": "agents-of-edgewatch-bestiary:fvOjtzuRNpmpEHXA"
+        },
+        {
+          "blind_candidate_id": "c-f2d3b6541e8d3218",
+          "record_key": "blood-lords-bestiary:RIUiN0518gxNIsKD"
+        },
+        {
+          "blind_candidate_id": "c-0967b3537bb5b147",
+          "record_key": "book-of-the-dead-bestiary:uqY9TkQTO5n9rCLZ"
+        },
+        {
+          "blind_candidate_id": "c-ad303b27f78e37fb",
+          "record_key": "lost-omens-bestiary:qgshcvL8lu24Bxjq"
+        },
+        {
+          "blind_candidate_id": "c-35e9ed4b2fc15188",
+          "record_key": "age-of-ashes-bestiary:teabm1YiRAKdUaEQ"
+        },
+        {
+          "blind_candidate_id": "c-e1e591f94b763e68",
+          "record_key": "age-of-ashes-bestiary:VQiBBu6D2srK6Fmj"
+        },
+        {
+          "blind_candidate_id": "c-5e47487ae7eb3759",
+          "record_key": "blood-lords-bestiary:0NtGFCLjz0lPPp4o"
+        },
+        {
+          "blind_candidate_id": "c-929d31dbc72dcac9",
+          "record_key": "blood-lords-bestiary:07DkxPmw2du1xu16"
+        },
+        {
+          "blind_candidate_id": "c-2797712efa7f2f48",
+          "record_key": "kingmaker-bestiary:uQbzVX7DWDbxLONd"
+        },
+        {
+          "blind_candidate_id": "c-94c225d0cb6eb0b0",
+          "record_key": "spells-srd:Y1glh4WNHAlpTwH3"
+        },
+        {
+          "blind_candidate_id": "c-c60860b393ad6f23",
+          "record_key": "kingmaker-bestiary:2mkfF43tP8IGVfBz"
+        },
+        {
+          "blind_candidate_id": "c-c054b035d6ccbb2d",
+          "record_key": "pathfinder-bestiary-3:sgZGrUQrfH3QPdXF"
+        },
+        {
+          "blind_candidate_id": "c-8452547a4d4f09b5",
+          "record_key": "kingmaker-bestiary:hW40C78kV4MBDs4v"
+        },
+        {
+          "blind_candidate_id": "c-2cf022960e890f78",
+          "record_key": "spells-srd:aIPa7Yp4vGeKIKNG"
+        },
+        {
+          "blind_candidate_id": "c-d218df83c329c265",
+          "record_key": "night-of-the-gray-death-bestiary:JbSbUomIHYwkqgAM"
+        },
+        {
+          "blind_candidate_id": "c-fdaa280bdf99fc79",
+          "record_key": "feats-srd:VAxtUenSWEBWYBRt"
+        },
+        {
+          "blind_candidate_id": "c-6079f0e9e39330fc",
+          "record_key": "hells-destiny-bestiary:uEyZiYMHXsmZT5P1"
+        },
+        {
+          "blind_candidate_id": "c-dbfbc51260feb34b",
+          "record_key": "revenge-of-the-runelords-bestiary:w0tzpjuIi18Q2I0K"
+        },
+        {
+          "blind_candidate_id": "c-a9b8dde4f69b3816",
+          "record_key": "age-of-ashes-bestiary:zNIjGSxkG8xyDLgR"
+        },
+        {
+          "blind_candidate_id": "c-169ac8078ef6a621",
+          "record_key": "sky-kings-tomb-bestiary:prfRLA4AJjab8s64"
+        },
+        {
+          "blind_candidate_id": "c-3eb5e87e7ba94f66",
+          "record_key": "extinction-curse-bestiary:YaKW9i3v9nn8Blij"
+        },
+        {
+          "blind_candidate_id": "c-3a26885a9bb66034",
+          "record_key": "kingmaker-bestiary:eAu4SOvMaNISD3RZ"
+        },
+        {
+          "blind_candidate_id": "c-d55c58974e577033",
+          "record_key": "age-of-ashes-bestiary:lDgabn0WtDKbLtfc"
+        },
+        {
+          "blind_candidate_id": "c-86decb93f47f1421",
+          "record_key": "age-of-ashes-bestiary:HI2xA7LCpNPkpV03"
+        },
+        {
+          "blind_candidate_id": "c-ddfc48e01735b1b6",
+          "record_key": "shades-of-blood-bestiary:Oy20FAWnqhq7mfPd"
+        },
+        {
+          "blind_candidate_id": "c-49c7a382157a32cd",
+          "record_key": "age-of-ashes-bestiary:DxlauoGqSVDZWBOM"
+        },
+        {
+          "blind_candidate_id": "c-0ff99f91d041af27",
+          "record_key": "age-of-ashes-bestiary:Pmi71NUPAIE3YMws"
+        },
+        {
+          "blind_candidate_id": "c-d28f5e6a834a5f7d",
+          "record_key": "stolen-fate-bestiary:GzkJGkSYO512zr80"
+        },
+        {
+          "blind_candidate_id": "c-a899cd7b281e9bdf",
+          "record_key": "blood-lords-bestiary:7BqiEDwmEPDwGMAn"
+        },
+        {
+          "blind_candidate_id": "c-c4d93c221744736f",
+          "record_key": "extinction-curse-bestiary:G2i7CUiYmyl1yjQo"
+        },
+        {
+          "blind_candidate_id": "c-5b5c99286deed24c",
+          "record_key": "age-of-ashes-bestiary:axCgEgk7n1yXpgdp"
+        },
+        {
+          "blind_candidate_id": "c-1bd7513caf31483c",
+          "record_key": "pfs-season-6-bestiary:FvKfmKTvZsnwcEvA"
+        },
+        {
+          "blind_candidate_id": "c-ee1306aa958d2c64",
+          "record_key": "abomination-vaults-bestiary:knoWZfTiLY7xGwhB"
+        },
+        {
+          "blind_candidate_id": "c-804df67810719d74",
+          "record_key": "abomination-vaults-bestiary:E0FMRiGNCv5n7AVH"
+        },
+        {
+          "blind_candidate_id": "c-0aa6238963c701a1",
+          "record_key": "extinction-curse-bestiary:1HIqZAGVSR2pAiY6"
+        },
+        {
+          "blind_candidate_id": "c-3ef68e8a5b1fc2d2",
+          "record_key": "curtain-call-bestiary:yBd3PYNJoUTrJVgM"
+        }
+      ],
+      "intent": "Find dangers or effects sharing an area psychic scream that disorients victims. Distinguish mental disorientation from unrelated loud noise or ordinary weapon damage.",
+      "scenario_id": "hold-h03",
+      "seed_identity": {
+        "kind": "record",
+        "record_key": "age-of-ashes-bestiary:KEbmwWwmpAmIoBcm",
+        "title": "Mental Scream Trap"
+      },
+      "selected_sections": [],
+      "selection": {
+        "kind": "all"
+      },
+      "source_binding_id": "mental-scream-trap",
+      "task_scope": "all"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-cb3507d920da751f",
+          "record_key": "sky-kings-tomb-bestiary:xbaQfH3eVSR1rGNd"
+        },
+        {
+          "blind_candidate_id": "c-f634c845b2c9ea9d",
+          "record_key": "pathfinder-monster-core-2:Iy3DchRS4K7yEBDT"
+        },
+        {
+          "blind_candidate_id": "c-fe5c20f8e8b6d9f5",
+          "record_key": "pathfinder-monster-core-2:tlz1pWkPehmFj6YS"
+        },
+        {
+          "blind_candidate_id": "c-bfaa3642a458ca2f",
+          "record_key": "pathfinder-monster-core:qlxVPpwVFw5qIVQM"
+        },
+        {
+          "blind_candidate_id": "c-f29f29d76e14231c",
+          "record_key": "pathfinder-bestiary:k9fM0vufbdsDPQul"
+        },
+        {
+          "blind_candidate_id": "c-674c7295addedbb2",
+          "record_key": "rage-of-elements-bestiary:uEabVqGzN4TprwHw"
+        },
+        {
+          "blind_candidate_id": "c-8607826b95397402",
+          "record_key": "pathfinder-monster-core-2:1Flhs1lWpOmAujhd"
+        },
+        {
+          "blind_candidate_id": "c-9f39fc052135184e",
+          "record_key": "pfs-season-6-bestiary:88HAT2lHPAm8bWHC"
+        },
+        {
+          "blind_candidate_id": "c-44b6ed5904d179ca",
+          "record_key": "pathfinder-monster-core-2:micllXbcz1eBcAoz"
+        },
+        {
+          "blind_candidate_id": "c-46d8c154c66210e4",
+          "record_key": "pathfinder-monster-core:pVbggIyXxCo8pPue"
+        },
+        {
+          "blind_candidate_id": "c-032ad7e00e961e33",
+          "record_key": "pathfinder-monster-core:yYicb7uJH4EaBO4v"
+        },
+        {
+          "blind_candidate_id": "c-c1ad92ff547ef2b7",
+          "record_key": "pathfinder-monster-core-2:9YU5IF7pIcuq9bNY"
+        },
+        {
+          "blind_candidate_id": "c-85e92ea49a10cec2",
+          "record_key": "feats-srd:rpBHUvBKodPCHaET"
+        },
+        {
+          "blind_candidate_id": "c-27a31543e0a928f3",
+          "record_key": "pathfinder-monster-core:xN5J9S485LxFZMkL"
+        },
+        {
+          "blind_candidate_id": "c-5658c7d7dbc7ab83",
+          "record_key": "spells-srd:T9psKCvl7TIdKysl"
+        },
+        {
+          "blind_candidate_id": "c-0763d64b4fb19b3d",
+          "record_key": "pathfinder-monster-core-2:yaDZ0N6t8vOxbqLy"
+        },
+        {
+          "blind_candidate_id": "c-9f144ab08e2ae0ab",
+          "record_key": "pfs-season-6-bestiary:niboeMqpzuQ8yvOX"
+        },
+        {
+          "blind_candidate_id": "c-5d987a9f94a1e6ba",
+          "record_key": "pathfinder-monster-core:MX2cLbODuo4gECPJ"
+        },
+        {
+          "blind_candidate_id": "c-3f94108ab5846200",
+          "record_key": "pfs-season-6-bestiary:xNKBknnZ5ev5lBes"
+        },
+        {
+          "blind_candidate_id": "c-d28005793515de23",
+          "record_key": "feat-effects:qaIqu9H9OdX1B5wy"
+        },
+        {
+          "blind_candidate_id": "c-1c04f23272e26a86",
+          "record_key": "myth-speaker-bestiary:2La4fXp6iq11vQpP"
+        },
+        {
+          "blind_candidate_id": "c-96c5612a795583d2",
+          "record_key": "pathfinder-monster-core-2:xNn7kUg4GxyqCupT"
+        },
+        {
+          "blind_candidate_id": "c-bb70bdbb173a2532",
+          "record_key": "pathfinder-monster-core:UwvAf8riRdMaitA4"
+        },
+        {
+          "blind_candidate_id": "c-edf294c5dcc3f25b",
+          "record_key": "pathfinder-monster-core:RJFpwZIGbuOuCtXr"
+        },
+        {
+          "blind_candidate_id": "c-270e62421389c092",
+          "record_key": "pathfinder-monster-core-2:vdXh2dETJ21UlgUg"
+        },
+        {
+          "blind_candidate_id": "c-27df1cbf7887d6d4",
+          "record_key": "feats-srd:zIDG7JvwJNxybwyh"
+        }
+      ],
+      "intent": "Find records sharing an embodied fire creature’s movement and smoke-related abilities. A carried fire item or incidental fire resistance alone does not establish strong root similarity.",
+      "scenario_id": "dev-c01",
+      "seed_identity": {
+        "kind": "record",
+        "record_key": "pathfinder-monster-core-2:qdelXqVZKfk1MlAB",
+        "title": "Striding Fire"
+      },
+      "selected_sections": [],
+      "selection": {
+        "kind": "all"
+      },
+      "source_binding_id": "striding-fire",
+      "task_scope": "all"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-0623fa879400646f",
+          "record_key": "pathfinder-monster-core:DBTbqI9QQRtlJwWh"
+        },
+        {
+          "blind_candidate_id": "c-3eeeb7fee5610157",
+          "record_key": "pathfinder-monster-core-2:n40ubwOuMGF7HHZ6"
+        },
+        {
+          "blind_candidate_id": "c-eadf46084bb405c6",
+          "record_key": "pathfinder-monster-core:ZlAzJNsHYz1ZtMVK"
+        },
+        {
+          "blind_candidate_id": "c-007354bcabd2c9aa",
+          "record_key": "pathfinder-bestiary:S35DifoycBwkxaGq"
+        },
+        {
+          "blind_candidate_id": "c-61259d52d201b2cd",
+          "record_key": "pathfinder-monster-core:MCgSMT680ic6kr5k"
+        },
+        {
+          "blind_candidate_id": "c-98e13f7de6a2b481",
+          "record_key": "book-of-the-dead-bestiary:wGEZUOgoJNkgXx9Z"
+        },
+        {
+          "blind_candidate_id": "c-3498e8b2874ba408",
+          "record_key": "stolen-fate-bestiary:25cRUcUTP3rK5qjU"
+        },
+        {
+          "blind_candidate_id": "c-6ed37a0a3aa0cbad",
+          "record_key": "age-of-ashes-bestiary:UD7EwTQG2Sbl4d8R"
+        },
+        {
+          "blind_candidate_id": "c-e4c486e64e077b2e",
+          "record_key": "bestiary-family-ability-glossary:XvPm866TKSfclErJ"
+        },
+        {
+          "blind_candidate_id": "c-b1727160e223994c",
+          "record_key": "pathfinder-monster-core:WoICHri7raCYv1wU"
+        },
+        {
+          "blind_candidate_id": "c-0889779b2e5e7fe1",
+          "record_key": "pathfinder-monster-core:aWiTcxAySoYjUP6T"
+        },
+        {
+          "blind_candidate_id": "c-224dbc6e592e20dd",
+          "record_key": "fists-of-the-ruby-phoenix-bestiary:lemXhFkFAUbZGtL6"
+        },
+        {
+          "blind_candidate_id": "c-66205e33468fe438",
+          "record_key": "bastion-of-blasphemies-bestiary:V90ggUnKvweg3G0q"
+        },
+        {
+          "blind_candidate_id": "c-0e1615e80f9fedf5",
+          "record_key": "pathfinder-monster-core:kKFfigxrJ2vbJazp"
+        },
+        {
+          "blind_candidate_id": "c-88f8f90af7eb53db",
+          "record_key": "pfs-season-6-bestiary:Mg8gzA54MY5DMHZk"
+        },
+        {
+          "blind_candidate_id": "c-6845792e34094e9d",
+          "record_key": "pathfinder-monster-core:VotlWUsFKdOrHWF6"
+        },
+        {
+          "blind_candidate_id": "c-f81fe24800289901",
+          "record_key": "pathfinder-npc-core:MxcprNbX7hcpAU8p"
+        },
+        {
+          "blind_candidate_id": "c-0f341ea17cdaeab1",
+          "record_key": "feats-srd:matJDIUDvgaJqyiF"
+        },
+        {
+          "blind_candidate_id": "c-05d475681d3790b6",
+          "record_key": "pathfinder-monster-core:zkl6planCbeCuAdS"
+        },
+        {
+          "blind_candidate_id": "c-eb4f2f13c6b5e49d",
+          "record_key": "shades-of-blood-bestiary:qzhjVB9Pp4sV2mNu"
+        },
+        {
+          "blind_candidate_id": "c-5bcf3c386f879384",
+          "record_key": "spore-war-bestiary:9QYCWXVN2B9ssayl"
+        },
+        {
+          "blind_candidate_id": "c-13f023963d7c2bbe",
+          "record_key": "kingmaker-bestiary:ZDt1rLh1VUFnHj5S"
+        },
+        {
+          "blind_candidate_id": "c-13b6ce54c5cd5c2c",
+          "record_key": "shades-of-blood-bestiary:YSSDO5sjftfy90gk"
+        },
+        {
+          "blind_candidate_id": "c-f94437f784b6b002",
+          "record_key": "battlecry-bestiary:wJYqPXEhWy5kBZ7D"
+        },
+        {
+          "blind_candidate_id": "c-4478dfc54bd752e8",
+          "record_key": "revenge-of-the-runelords-bestiary:UPvIOjp41CCwoz3Z"
+        },
+        {
+          "blind_candidate_id": "c-9e29f58c4c2aa153",
+          "record_key": "claws-of-the-tyrant-bestiary:ElTYWqGvup7okvC5"
+        },
+        {
+          "blind_candidate_id": "c-79cbeaceac723093",
+          "record_key": "pathfinder-npc-core:x7Mnb3F4r6JvXD9C"
+        },
+        {
+          "blind_candidate_id": "c-bd50ea4cbcbd0b84",
+          "record_key": "bestiary-family-ability-glossary:fqZhojt2M5LfSKSH"
+        },
+        {
+          "blind_candidate_id": "c-c5b491af80d07ac0",
+          "record_key": "pfs-season-6-bestiary:cyOOXZliztAjS9YM"
+        },
+        {
+          "blind_candidate_id": "c-e9c4438265bf9d8c",
+          "record_key": "pathfinder-npc-core:SlabO2qbzHYS3kA6"
+        },
+        {
+          "blind_candidate_id": "c-cccc6b64495301f0",
+          "record_key": "hells-destiny-bestiary:UxXIgjkispdVsCox"
+        },
+        {
+          "blind_candidate_id": "c-81fbc4db282314cf",
+          "record_key": "pathfinder-monster-core-2:RLpV0XLGZJWjtEYT"
+        },
+        {
+          "blind_candidate_id": "c-2ea961b67ed427d1",
+          "record_key": "pathfinder-monster-core:llSpQyOTaylpqgnW"
+        },
+        {
+          "blind_candidate_id": "c-ecadf806591ec533",
+          "record_key": "bestiary-family-ability-glossary:b3p8x6sgTa0BOvAb"
+        },
+        {
+          "blind_candidate_id": "c-5c3f92312dce93f1",
+          "record_key": "bestiary-family-ability-glossary:a7A4xY3NeWI2Ya4Z"
+        },
+        {
+          "blind_candidate_id": "c-11766fda8006d6af",
+          "record_key": "blood-lords-bestiary:oVqkX1LugEW4qoXN"
+        },
+        {
+          "blind_candidate_id": "c-5fafdafa5881693c",
+          "record_key": "kingmaker-bestiary:n82GZhM6joceE91v"
+        },
+        {
+          "blind_candidate_id": "c-5eb2a8e8d7a4652a",
+          "record_key": "strength-of-thousands-bestiary:9cyXSTXSsqOYXZtB"
+        },
+        {
+          "blind_candidate_id": "c-5cb6c510dacd0050",
+          "record_key": "pathfinder-monster-core:GNwLVbfFx8EPz7xO"
+        },
+        {
+          "blind_candidate_id": "c-4e57b038b9c57ed0",
+          "record_key": "agents-of-edgewatch-bestiary:94yI4TrNag0jMaYy"
+        },
+        {
+          "blind_candidate_id": "c-7d6cb2dd77f9524b",
+          "record_key": "book-of-the-dead-bestiary:zPQZLswJISQrvPb7"
+        },
+        {
+          "blind_candidate_id": "c-f3d0948c788a7c2b",
+          "record_key": "age-of-ashes-bestiary:Ev930dfPpwCR8Zju"
+        },
+        {
+          "blind_candidate_id": "c-10e1d771814bfa3e",
+          "record_key": "shadows-at-sundown-bestiary:JzoZZ0SurEHMeAPR"
+        },
+        {
+          "blind_candidate_id": "c-b220871059b8d25b",
+          "record_key": "lost-omens-bestiary:DkQWhW0CelytSWAV"
+        },
+        {
+          "blind_candidate_id": "c-7735f0e376b14bce",
+          "record_key": "pathfinder-monster-core:oNR29GreK0AxLucN"
+        },
+        {
+          "blind_candidate_id": "c-abd37a904a2f2edc",
+          "record_key": "prey-for-death-bestiary:WauAMtDTNY9fxlER"
+        },
+        {
+          "blind_candidate_id": "c-9634ea50897a96a5",
+          "record_key": "pathfinder-monster-core-2:H2awmVR3ENs0VeYg"
+        },
+        {
+          "blind_candidate_id": "c-3a50f032bf5761b0",
+          "record_key": "pathfinder-monster-core:yPYQC2bfOYmqcfIB"
+        },
+        {
+          "blind_candidate_id": "c-514376f10ff044d2",
+          "record_key": "war-of-immortals-bestiary:Roj3l7HjnV0kFq9a"
+        }
+      ],
+      "intent": "Find records portraying an immortal arcane undead entity and its characteristic powers. Distinguish intrinsic identity and mechanics from overlap caused only by copied spells or carried equipment.",
+      "scenario_id": "dev-c02",
+      "seed_identity": {
+        "kind": "record",
+        "record_key": "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+        "title": "Lich"
+      },
+      "selected_sections": [],
+      "selection": {
+        "kind": "all"
+      },
+      "source_binding_id": "lich",
+      "task_scope": "all"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-037012cddb902cf1",
+          "record_key": "pathfinder-monster-core:yPYQC2bfOYmqcfIB"
+        },
+        {
+          "blind_candidate_id": "c-535e6c45a7242e9d",
+          "record_key": "pathfinder-bestiary-2:WKsogmP2X2F68Zdm"
+        },
+        {
+          "blind_candidate_id": "c-d789e4e68d72cb77",
+          "record_key": "pfs-season-6-bestiary:Mg8gzA54MY5DMHZk"
+        },
+        {
+          "blind_candidate_id": "c-7e238cc68e9934bc",
+          "record_key": "bestiary-family-ability-glossary:EyFVoDiReJsBx1rf"
+        },
+        {
+          "blind_candidate_id": "c-8ef18533a408ff7a",
+          "record_key": "pathfinder-monster-core:GNwLVbfFx8EPz7xO"
+        },
+        {
+          "blind_candidate_id": "c-cc68f5812b1dd716",
+          "record_key": "book-of-the-dead-bestiary:zPQZLswJISQrvPb7"
+        },
+        {
+          "blind_candidate_id": "c-ed5d75b3efa836dd",
+          "record_key": "revenge-of-the-runelords-bestiary:UPvIOjp41CCwoz3Z"
+        },
+        {
+          "blind_candidate_id": "c-16dc5e095935ae4a",
+          "record_key": "bestiary-family-ability-glossary:7TYLgIMDGgUfbgGY"
+        },
+        {
+          "blind_candidate_id": "c-0149c3621b21fa3e",
+          "record_key": "feats-srd:peUBtdoG5LyVaf5g"
+        },
+        {
+          "blind_candidate_id": "c-d6a534e9039a213d",
+          "record_key": "pathfinder-bestiary:S35DifoycBwkxaGq"
+        },
+        {
+          "blind_candidate_id": "c-2913704a42ebeb14",
+          "record_key": "pathfinder-monster-core:llSpQyOTaylpqgnW"
+        },
+        {
+          "blind_candidate_id": "c-4c827061e71ef55d",
+          "record_key": "claws-of-the-tyrant-bestiary:ElTYWqGvup7okvC5"
+        },
+        {
+          "blind_candidate_id": "c-de5850250c8f34fe",
+          "record_key": "age-of-ashes-bestiary:mY494hn9sKVD9q8C"
+        },
+        {
+          "blind_candidate_id": "c-c4b4dadfc75538ab",
+          "record_key": "pathfinder-monster-core-2:n40ubwOuMGF7HHZ6"
+        },
+        {
+          "blind_candidate_id": "c-5c733b6b4fb65c3f",
+          "record_key": "pathfinder-monster-core:Gu0cJHGwPd547OtC"
+        },
+        {
+          "blind_candidate_id": "c-c185e4406bb4fceb",
+          "record_key": "book-of-the-dead-bestiary:7WqlOvjoqURmeorA"
+        },
+        {
+          "blind_candidate_id": "c-f2f6b6e14891fe2c",
+          "record_key": "pathfinder-monster-core:VotlWUsFKdOrHWF6"
+        },
+        {
+          "blind_candidate_id": "c-4b86295b3c81e008",
+          "record_key": "pathfinder-monster-core:zkl6planCbeCuAdS"
+        },
+        {
+          "blind_candidate_id": "c-97a2ba0745c40e73",
+          "record_key": "pathfinder-monster-core:kKFfigxrJ2vbJazp"
+        },
+        {
+          "blind_candidate_id": "c-0c1e821f2e42c3c1",
+          "record_key": "bastion-of-blasphemies-bestiary:V90ggUnKvweg3G0q"
+        },
+        {
+          "blind_candidate_id": "c-9cda49dc7036e729",
+          "record_key": "pathfinder-monster-core:oNR29GreK0AxLucN"
+        },
+        {
+          "blind_candidate_id": "c-957d6c49b2aceab9",
+          "record_key": "strength-of-thousands-bestiary:9cyXSTXSsqOYXZtB"
+        },
+        {
+          "blind_candidate_id": "c-ba8e920f6e30fafd",
+          "record_key": "stolen-fate-bestiary:25cRUcUTP3rK5qjU"
+        },
+        {
+          "blind_candidate_id": "c-6a478ae71dd2c2e0",
+          "record_key": "bestiary-family-ability-glossary:nxF03w5vKrw1jmxQ"
+        },
+        {
+          "blind_candidate_id": "c-fa51bd1a91588a66",
+          "record_key": "pfs-season-6-bestiary:cyOOXZliztAjS9YM"
+        },
+        {
+          "blind_candidate_id": "c-d3bc8b3955bdb0eb",
+          "record_key": "pathfinder-monster-core:ZlAzJNsHYz1ZtMVK"
+        },
+        {
+          "blind_candidate_id": "c-ee5daa396f8aee7d",
+          "record_key": "pathfinder-npc-core:BcSzGmSxCn0uWkxU"
+        },
+        {
+          "blind_candidate_id": "c-d6af1c85c71ce754",
+          "record_key": "pathfinder-monster-core:WoICHri7raCYv1wU"
+        },
+        {
+          "blind_candidate_id": "c-74f0e57a64e7a11c",
+          "record_key": "blood-lords-bestiary:oVqkX1LugEW4qoXN"
+        },
+        {
+          "blind_candidate_id": "c-14e23f3586664315",
+          "record_key": "war-of-immortals-bestiary:Roj3l7HjnV0kFq9a"
+        },
+        {
+          "blind_candidate_id": "c-734a860fa0b98267",
+          "record_key": "battlecry-bestiary:wJYqPXEhWy5kBZ7D"
+        },
+        {
+          "blind_candidate_id": "c-d0ec05a0649ced34",
+          "record_key": "pathfinder-monster-core:MCgSMT680ic6kr5k"
+        },
+        {
+          "blind_candidate_id": "c-fe488a9f5a01e667",
+          "record_key": "pathfinder-monster-core:aWiTcxAySoYjUP6T"
+        },
+        {
+          "blind_candidate_id": "c-2c701c75312b1c98",
+          "record_key": "equipment-srd:NEbr7nKuiluJgBHT"
+        },
+        {
+          "blind_candidate_id": "c-681b26db0a8db64b",
+          "record_key": "bestiary-family-ability-glossary:hfT7YDwx0UX4expm"
+        },
+        {
+          "blind_candidate_id": "c-c1751873513b34c8",
+          "record_key": "book-of-the-dead-bestiary:wGEZUOgoJNkgXx9Z"
+        },
+        {
+          "blind_candidate_id": "c-572dc3546bd1ea8b",
+          "record_key": "pathfinder-monster-core:DBTbqI9QQRtlJwWh"
+        },
+        {
+          "blind_candidate_id": "c-cc7dfcab0b27f69b",
+          "record_key": "blood-lords-bestiary:NoOG4QIbIEBWKk1I"
+        },
+        {
+          "blind_candidate_id": "c-1a1c0d87f40a7a01",
+          "record_key": "bestiary-family-ability-glossary:a7A4xY3NeWI2Ya4Z"
+        },
+        {
+          "blind_candidate_id": "c-aa7dd256935b9339",
+          "record_key": "equipment-srd:qFVPeeJ70B1u2n81"
+        },
+        {
+          "blind_candidate_id": "c-c85a609fdefd33ba",
+          "record_key": "pathfinder-monster-core:bsrQp0pLgvjJr6mC"
+        },
+        {
+          "blind_candidate_id": "c-7e0f00c852b83ce9",
+          "record_key": "pathfinder-monster-core-2:H2awmVR3ENs0VeYg"
+        }
+      ],
+      "intent": "Find records sharing the lich’s undead transformation and persistence through a soul-containing anchor. Ignore unselected spell and equipment descriptions when judging usefulness.",
+      "scenario_id": "dev-c03",
+      "seed_identity": {
+        "kind": "record",
+        "record_key": "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+        "title": "Lich"
+      },
+      "selected_sections": [
+        {
+          "label": "Description",
+          "owner": "Lich"
+        },
+        {
+          "label": "Ability",
+          "owner": "Rejuvenation"
+        }
+      ],
+      "selection": {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "kind": "explicit",
+        "selectors": [
+          "part:8cfc70b937eac40f5517f41aa1f18d842c71ae4e1e9bda7bba23855fb6fb7435",
+          "part:1c0a2ef604280e5e803b9eef24af4651cc8762a6c33f95799392f8972b51774c"
+        ]
+      },
+      "source_binding_id": "lich",
+      "task_scope": "explicit"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-49f2c67d09ec4974",
+          "record_key": "myth-speaker-bestiary:dmf1SRd2NIKUpgci"
+        },
+        {
+          "blind_candidate_id": "c-7ce8e654c273cfb4",
+          "record_key": "pathfinder-monster-core:CHVMOXznjUDcb3XP"
+        },
+        {
+          "blind_candidate_id": "c-a1f11e8a5bed78d0",
+          "record_key": "equipment-srd:U8P9aRhjFpptHJCd"
+        },
+        {
+          "blind_candidate_id": "c-82282086d7e27faa",
+          "record_key": "pathfinder-bestiary-2:RknMXlwJcbvGhk3n"
+        },
+        {
+          "blind_candidate_id": "c-518139b23b603067",
+          "record_key": "revenge-of-the-runelords-bestiary:VwXQStpbtRju6TRg"
+        },
+        {
+          "blind_candidate_id": "c-682d427b0e2d0f9b",
+          "record_key": "pathfinder-monster-core:bgKwwvO0uDGD7XsG"
+        },
+        {
+          "blind_candidate_id": "c-0623bf8c9dba8efe",
+          "record_key": "lost-omens-bestiary:WEBwqj2hocAzx09L"
+        },
+        {
+          "blind_candidate_id": "c-064f2463ae8823ee",
+          "record_key": "pathfinder-monster-core:PUPnGG406PanzIvL"
+        },
+        {
+          "blind_candidate_id": "c-f94d48958b236142",
+          "record_key": "pathfinder-monster-core-2:klE1DOebNsmqmmzh"
+        },
+        {
+          "blind_candidate_id": "c-5490120fe5d351fe",
+          "record_key": "equipment-srd:lu3kPHtKZTHPx4Fx"
+        },
+        {
+          "blind_candidate_id": "c-84d50e733dbc7e36",
+          "record_key": "pathfinder-monster-core-2:jiLbjz3kic9Uv5b6"
+        },
+        {
+          "blind_candidate_id": "c-c65c3631fb6f3042",
+          "record_key": "pathfinder-monster-core:gCmfPEfqS60BiuVP"
+        },
+        {
+          "blind_candidate_id": "c-8caf006fc874b2fd",
+          "record_key": "pathfinder-bestiary-2:g1htYgARxNKxc7MV"
+        },
+        {
+          "blind_candidate_id": "c-48628a23f3b039a1",
+          "record_key": "pathfinder-monster-core:mathcxCcrQmn9Jj8"
+        },
+        {
+          "blind_candidate_id": "c-1741ad82ec098191",
+          "record_key": "pathfinder-monster-core:NRBgcu0LkXXp8mtp"
+        },
+        {
+          "blind_candidate_id": "c-ddaf7bc080850315",
+          "record_key": "pathfinder-monster-core:BWm17BRQYGMLqtNe"
+        },
+        {
+          "blind_candidate_id": "c-bdb6c1bf47862077",
+          "record_key": "pathfinder-monster-core-2:Lb11NsmTJpd4YS1p"
+        },
+        {
+          "blind_candidate_id": "c-ae0159383f0edeb2",
+          "record_key": "pathfinder-monster-core-2:9u9DrehHJk66ix5B"
+        },
+        {
+          "blind_candidate_id": "c-d6ee41270578b16c",
+          "record_key": "pathfinder-monster-core:aCTOWweRtjucLmfe"
+        },
+        {
+          "blind_candidate_id": "c-81da0540b929db40",
+          "record_key": "revenge-of-the-runelords-bestiary:EIExtvIGAnR420JB"
+        },
+        {
+          "blind_candidate_id": "c-250f628772447f34",
+          "record_key": "pathfinder-monster-core:wvP8zBmI0PDO1Uq2"
+        },
+        {
+          "blind_candidate_id": "c-10b7fe7b2ff5f46c",
+          "record_key": "equipment-srd:etgPdPhPviKkaFO8"
+        },
+        {
+          "blind_candidate_id": "c-7a234de7abda1304",
+          "record_key": "pathfinder-bestiary-3:c7kP2W6zaZA9oxAd"
+        },
+        {
+          "blind_candidate_id": "c-93e71f3ab7131e38",
+          "record_key": "pathfinder-monster-core-2:jREewNN2JDyTawa7"
+        },
+        {
+          "blind_candidate_id": "c-3d33bbad848c2f56",
+          "record_key": "equipment-srd:OhCgwW4g6A1mbjmH"
+        },
+        {
+          "blind_candidate_id": "c-1c7372e2daf24adc",
+          "record_key": "agents-of-edgewatch-bestiary:gFVazlIgCZivKzKF"
+        },
+        {
+          "blind_candidate_id": "c-ef8d3c0494e1b8a6",
+          "record_key": "pathfinder-monster-core:9rXYGu7D3umIW1sv"
+        },
+        {
+          "blind_candidate_id": "c-92abef06e47c6806",
+          "record_key": "pathfinder-bestiary-2:32HHvah2Ji6FjJnM"
+        },
+        {
+          "blind_candidate_id": "c-eb11721d8ac1a21a",
+          "record_key": "myth-speaker-bestiary:u6WyDjPRey2G79tf"
+        },
+        {
+          "blind_candidate_id": "c-64becdf537d80c8d",
+          "record_key": "pathfinder-monster-core:4ISm82EYQeOndynw"
+        },
+        {
+          "blind_candidate_id": "c-4001eff62185f3de",
+          "record_key": "vehicles:cvP9ytBY9SJbaNbo"
+        },
+        {
+          "blind_candidate_id": "c-e51092354c8d2ebf",
+          "record_key": "pathfinder-monster-core:mEZUTqNIgu0ASApu"
+        },
+        {
+          "blind_candidate_id": "c-944a318c77c4fcfb",
+          "record_key": "pathfinder-monster-core:Z5QezXy38ZHyt3O3"
+        },
+        {
+          "blind_candidate_id": "c-ca1dc0185a366d8b",
+          "record_key": "pathfinder-bestiary-2:WxSpfUReYJb4StxG"
+        },
+        {
+          "blind_candidate_id": "c-1c8df7f5c70ced07",
+          "record_key": "pathfinder-bestiary-2:3MDlKPlPhHBo1DId"
+        },
+        {
+          "blind_candidate_id": "c-62ed5a3e0d58c921",
+          "record_key": "pathfinder-bestiary-3:PVstJNeHeWLU2XoK"
+        },
+        {
+          "blind_candidate_id": "c-3c217b5a1d26e92a",
+          "record_key": "pathfinder-monster-core:WamGnH8v0QHz8NFr"
+        },
+        {
+          "blind_candidate_id": "c-65923eae9d2f1871",
+          "record_key": "pathfinder-monster-core:zT3fSxNatEbrkCzN"
+        }
+      ],
+      "intent": "Find records sharing the aquatic predator’s explanatory description and defensive obscuring cloud. Aquatic membership alone is weak evidence; an analogous cloud mechanism can be useful across kinds.",
+      "scenario_id": "hold-c01",
+      "seed_identity": {
+        "kind": "record",
+        "record_key": "pathfinder-monster-core:k5p4mRDT26DrDXPA",
+        "title": "Giant Octopus"
+      },
+      "selected_sections": [
+        {
+          "label": "Description",
+          "owner": "Giant Octopus"
+        },
+        {
+          "label": "Ability",
+          "owner": "Ink Cloud"
+        }
+      ],
+      "selection": {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "kind": "explicit",
+        "selectors": [
+          "part:b52c287e14c9f9472efb764179c13bc299ca7a16175b612249500f11dc31a63a",
+          "part:a4d3f87d4c28dccd35383b4a7b044502dc965b19fd1e1a605c5bfaccb0aebe2f"
+        ]
+      },
+      "source_binding_id": "giant-octopus",
+      "task_scope": "explicit"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-1c3a04094f4ac311",
+          "record_key": "wardens-of-wildwood-bestiary:ibgHT0HBOi6eB26U"
+        },
+        {
+          "blind_candidate_id": "c-826bc90c3a362f92",
+          "record_key": "lost-omens-bestiary:IG23I5XqPXeICaOH"
+        },
+        {
+          "blind_candidate_id": "c-ec8c18e27f17ecf2",
+          "record_key": "pathfinder-monster-core-2:n2zUhVaFXuOJE8a1"
+        },
+        {
+          "blind_candidate_id": "c-869c476422be40da",
+          "record_key": "spore-war-bestiary:bwU58Qns7TzR43Jj"
+        },
+        {
+          "blind_candidate_id": "c-ccf8a83cc84bfd23",
+          "record_key": "kingmaker-bestiary:vBugpZnpxQcrrWoo"
+        },
+        {
+          "blind_candidate_id": "c-75402f50ba131926",
+          "record_key": "stolen-fate-bestiary:lJnVbE89rKEYJ3Hw"
+        },
+        {
+          "blind_candidate_id": "c-be4f75a29fba8bcb",
+          "record_key": "pathfinder-bestiary-3:H8PaAZanEOT85KjD"
+        },
+        {
+          "blind_candidate_id": "c-19122fc6eed7bbbe",
+          "record_key": "pathfinder-bestiary-2:0rhltfBkQtYkCwXd"
+        },
+        {
+          "blind_candidate_id": "c-84ee7090cdc16348",
+          "record_key": "pathfinder-bestiary-2:F5QibbbxUeO8A3Kj"
+        },
+        {
+          "blind_candidate_id": "c-764f39397beabf8f",
+          "record_key": "pathfinder-bestiary-2:nzLGh9GKCk7imto3"
+        },
+        {
+          "blind_candidate_id": "c-1568d710401f6e6a",
+          "record_key": "gatewalkers-bestiary:16Ru7zfHAHD544xO"
+        },
+        {
+          "blind_candidate_id": "c-4f53ad4d907a4503",
+          "record_key": "spells-srd:cQgPIohUja0DUiRL"
+        },
+        {
+          "blind_candidate_id": "c-54875277c0ee526c",
+          "record_key": "pathfinder-bestiary-2:wqsmnoby2n3BOvKu"
+        },
+        {
+          "blind_candidate_id": "c-99d59dd3cd3e5377",
+          "record_key": "shades-of-blood-bestiary:1xZBbOp6wBPjwTIf"
+        },
+        {
+          "blind_candidate_id": "c-fc7cc579b9fa4dd8",
+          "record_key": "sky-kings-tomb-bestiary:T4hNSZSA9XGokGL0"
+        },
+        {
+          "blind_candidate_id": "c-3d957463e3c6b110",
+          "record_key": "crown-of-the-kobold-king-bestiary:T4ZhpGRLsNT1bKoS"
+        },
+        {
+          "blind_candidate_id": "c-4faf11e8cd917ed1",
+          "record_key": "pathfinder-bestiary-2:Ge5Q5I7TTksf7QyN"
+        },
+        {
+          "blind_candidate_id": "c-96f8227d4fa57a6d",
+          "record_key": "pathfinder-monster-core-2:zs7dPbTetShR8T3D"
+        },
+        {
+          "blind_candidate_id": "c-785c971bea9a1830",
+          "record_key": "wardens-of-wildwood-bestiary:24Mybh3pBJN5mQ7R"
+        },
+        {
+          "blind_candidate_id": "c-8d1903e88991a341",
+          "record_key": "strength-of-thousands-bestiary:iKhMNWK6FB7ICach"
+        },
+        {
+          "blind_candidate_id": "c-abf81972e5b7b30c",
+          "record_key": "wardens-of-wildwood-bestiary:xV8QIBCeKOm2GQXL"
+        },
+        {
+          "blind_candidate_id": "c-44d1c0afc4fb1795",
+          "record_key": "pathfinder-npc-core:jOASgCgSyk3enLfP"
+        },
+        {
+          "blind_candidate_id": "c-24351f147df6c2f4",
+          "record_key": "pathfinder-bestiary-2:DC9b8mG1KdyXZkLp"
+        },
+        {
+          "blind_candidate_id": "c-99dbba6ba5987157",
+          "record_key": "pathfinder-bestiary-2:bAaVfrdNLfFh7iHv"
+        },
+        {
+          "blind_candidate_id": "c-90869268a56d38b7",
+          "record_key": "rage-of-elements-bestiary:WrGYN6jtEfv7k1pV"
+        },
+        {
+          "blind_candidate_id": "c-565ce890e07b4b55",
+          "record_key": "spells-srd:kCgkreCT6g0dipMd"
+        },
+        {
+          "blind_candidate_id": "c-94e83386a0a51805",
+          "record_key": "pathfinder-monster-core:YV83qiV7nEtVDPEP"
+        },
+        {
+          "blind_candidate_id": "c-564cc94f998b91f2",
+          "record_key": "pathfinder-bestiary-2:GsrqCDf0Dc9PisEt"
+        },
+        {
+          "blind_candidate_id": "c-8a3914a8e89573b2",
+          "record_key": "pathfinder-monster-core:BWm17BRQYGMLqtNe"
+        },
+        {
+          "blind_candidate_id": "c-d9cb14fda2e0a2e8",
+          "record_key": "season-of-ghosts-bestiary:43fI9XHecCCvirYr"
+        },
+        {
+          "blind_candidate_id": "c-e1c00f763aa3a01e",
+          "record_key": "abomination-vaults-bestiary:k4fVLtVrgIEg9xij"
+        },
+        {
+          "blind_candidate_id": "c-9facc432e528dbf5",
+          "record_key": "pathfinder-bestiary-2:Aa652cDdKTani3DY"
+        },
+        {
+          "blind_candidate_id": "c-07803058ae479f8e",
+          "record_key": "pathfinder-monster-core:Bgfu9IQfK1DyaXmt"
+        },
+        {
+          "blind_candidate_id": "c-a74c2e60f82cc331",
+          "record_key": "pathfinder-monster-core:KH1GkazaI59zftst"
+        },
+        {
+          "blind_candidate_id": "c-46983e8ee6ac0b4c",
+          "record_key": "strength-of-thousands-bestiary:EYAcaqkQajIbvtLB"
+        },
+        {
+          "blind_candidate_id": "c-d4d07411483ae548",
+          "record_key": "extinction-curse-bestiary:Z3VrS25uw9vD2sek"
+        },
+        {
+          "blind_candidate_id": "c-bf8aa78169594c8e",
+          "record_key": "pathfinder-bestiary-2:Kw4UUxt5rorsGjsK"
+        },
+        {
+          "blind_candidate_id": "c-03c53da1084ec22d",
+          "record_key": "hells-destiny-bestiary:rEjKVZqLfEC5jdVV"
+        },
+        {
+          "blind_candidate_id": "c-892a13739092abd7",
+          "record_key": "pathfinder-bestiary-2:5FGuXfg6Ub2hCBG7"
+        },
+        {
+          "blind_candidate_id": "c-1135203a2b93aab6",
+          "record_key": "fall-of-plaguestone-bestiary:wBCpq9pX4NZFXE0T"
+        },
+        {
+          "blind_candidate_id": "c-32e177ac20ed73da",
+          "record_key": "kingmaker-bestiary:w8jUzPPGLQECT4j7"
+        },
+        {
+          "blind_candidate_id": "c-53195001280e0a84",
+          "record_key": "outlaws-of-alkenstar-bestiary:YsSpSUB1jeLSifFg"
+        },
+        {
+          "blind_candidate_id": "c-af14b52eeefc6d7b",
+          "record_key": "pathfinder-monster-core-2:rEjKVZqLfEC5jdVV"
+        }
+      ],
+      "intent": "Find records sharing a predatory plant’s camouflage, grasping vegetation, and constricting prey. A mundane plant object or incidental terrain wording alone is insufficient.",
+      "scenario_id": "hold-c02",
+      "seed_identity": {
+        "kind": "record",
+        "record_key": "pathfinder-bestiary-2:DWQzgPL1WjXfu4rV",
+        "title": "Assassin Vine"
+      },
+      "selected_sections": [],
+      "selection": {
+        "kind": "all"
+      },
+      "source_binding_id": "assassin-vine",
+      "task_scope": "all"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-f358ea2c7265a538",
+          "record_key": "book-of-the-dead-bestiary:A5GOni2mXNhVsdRg"
+        },
+        {
+          "blind_candidate_id": "c-2ca80cac17d987bb",
+          "record_key": "spells-srd:qTzvVnAMWL05VitC"
+        },
+        {
+          "blind_candidate_id": "c-e1a88c66adda89f5",
+          "record_key": "fists-of-the-ruby-phoenix-bestiary:htshGim6Q1y75TPt"
+        },
+        {
+          "blind_candidate_id": "c-b1d7afba1b9ef72f",
+          "record_key": "shades-of-blood-bestiary:nq70qRFWZOyJkmDC"
+        },
+        {
+          "blind_candidate_id": "c-dd7a1c6a2c693cd6",
+          "record_key": "hazards:vTdWEBzJzltMM6r4"
+        },
+        {
+          "blind_candidate_id": "c-8c28cb0066f0006c",
+          "record_key": "lost-omens-bestiary:KTabPRN489yjTvek"
+        },
+        {
+          "blind_candidate_id": "c-553ecc7376c298be",
+          "record_key": "feats-srd:SNgOGKUHAxgFJgxW"
+        },
+        {
+          "blind_candidate_id": "c-a923c8d7a8ccebb5",
+          "record_key": "pathfinder-bestiary-3:Pnw71fJ41j6Wx62M"
+        },
+        {
+          "blind_candidate_id": "c-24b4ea1d12c6d626",
+          "record_key": "pathfinder-monster-core-2:rTpTB8NQbTxI2fPf"
+        },
+        {
+          "blind_candidate_id": "c-151ed1697cd4a909",
+          "record_key": "age-of-ashes-bestiary:5r2S6FeE6D1Oh66T"
+        },
+        {
+          "blind_candidate_id": "c-75fb1013e00dabc2",
+          "record_key": "pathfinder-bestiary-2:OFHr8UhsBOOgj0ef"
+        },
+        {
+          "blind_candidate_id": "c-3393b6663352f45e",
+          "record_key": "lost-omens-bestiary:x6rsUA8iKakg11iD"
+        },
+        {
+          "blind_candidate_id": "c-4101e983ccaf666b",
+          "record_key": "pathfinder-bestiary-2:cd2IaNGpdmHHZnrN"
+        },
+        {
+          "blind_candidate_id": "c-98e27fd4ab337d9f",
+          "record_key": "pathfinder-bestiary-2:O69kXMo6shkA606k"
+        },
+        {
+          "blind_candidate_id": "c-e16d72177aa32f5d",
+          "record_key": "lost-omens-bestiary:n73ZDMFaAHD5y4KO"
+        },
+        {
+          "blind_candidate_id": "c-9ecd4ae2fa738576",
+          "record_key": "pfs-season-2-bestiary:7R69eW0f3BuHe7TS"
+        },
+        {
+          "blind_candidate_id": "c-3c12916ee8689e2c",
+          "record_key": "spells-srd:0H1ozccQGGFLUwFI"
+        },
+        {
+          "blind_candidate_id": "c-7039221e49ce3f59",
+          "record_key": "pathfinder-bestiary-3:RCsFDD6nqNUX0gIa"
+        },
+        {
+          "blind_candidate_id": "c-84974ba268d3b36c",
+          "record_key": "spells-srd:1xbFBQDRs0hT5xZ9"
+        },
+        {
+          "blind_candidate_id": "c-995d700e0016817e",
+          "record_key": "equipment-srd:BXb0tzJHOAB8whWB"
+        },
+        {
+          "blind_candidate_id": "c-431c3b75e185460c",
+          "record_key": "pathfinder-monster-core-2:Z3qKSY1HK2wP9UVl"
+        },
+        {
+          "blind_candidate_id": "c-6ea4826c5bacfd62",
+          "record_key": "lost-omens-bestiary:SPSJBTVSUzH5lf5a"
+        },
+        {
+          "blind_candidate_id": "c-bf3dbff330b8358b",
+          "record_key": "pathfinder-bestiary-2:wxBQsGLdti2xcGVT"
+        },
+        {
+          "blind_candidate_id": "c-baec8afb3773e0be",
+          "record_key": "pathfinder-monster-core-2:wfsRPYfsXIEhNEXd"
+        },
+        {
+          "blind_candidate_id": "c-048303fae70a666e",
+          "record_key": "lost-omens-bestiary:e43EMo2IolpXGOfd"
+        },
+        {
+          "blind_candidate_id": "c-5f94cec4fcd6e227",
+          "record_key": "pathfinder-monster-core-2:aX8XLPYr0wNlDX4h"
+        },
+        {
+          "blind_candidate_id": "c-810e32771e47049c",
+          "record_key": "pathfinder-bestiary:B7eLG2k7qUo8HU6O"
+        },
+        {
+          "blind_candidate_id": "c-6e1af49adff2080b",
+          "record_key": "actionspf2e:6SAdjml3OZw0BZnn"
+        },
+        {
+          "blind_candidate_id": "c-1e47f5286ee7c0ec",
+          "record_key": "outlaws-of-alkenstar-bestiary:Zf9C8InVZGnDH8c2"
+        },
+        {
+          "blind_candidate_id": "c-1a02f1835d4610bb",
+          "record_key": "pathfinder-bestiary-2:F5QibbbxUeO8A3Kj"
+        },
+        {
+          "blind_candidate_id": "c-d72b47285163091f",
+          "record_key": "equipment-srd:WAMDYE9tt3W8obzr"
+        },
+        {
+          "blind_candidate_id": "c-84837c0d7806ac9a",
+          "record_key": "spells-srd:XGB77j7m0SLky8U1"
+        },
+        {
+          "blind_candidate_id": "c-0cb808c0ac18ea4d",
+          "record_key": "age-of-ashes-bestiary:HI2xA7LCpNPkpV03"
+        },
+        {
+          "blind_candidate_id": "c-659887d0fa55e74d",
+          "record_key": "howl-of-the-wild-bestiary:bu6iSeOO5ho0IIRS"
+        },
+        {
+          "blind_candidate_id": "c-9d5bebd6cd305fe2",
+          "record_key": "pathfinder-bestiary-2:h4SZ3U9at7aT0ASv"
+        },
+        {
+          "blind_candidate_id": "c-1b2ac17a8717ad93",
+          "record_key": "quest-for-the-frozen-flame-bestiary:5huE8GHx2GRJDBx0"
+        },
+        {
+          "blind_candidate_id": "c-c5ded51f704018b0",
+          "record_key": "age-of-ashes-bestiary:53lk7ek73j65A09B"
+        },
+        {
+          "blind_candidate_id": "c-4fa7682556d2aff2",
+          "record_key": "gatewalkers-bestiary:yJSqKx1kBbadhQX6"
+        },
+        {
+          "blind_candidate_id": "c-9c650e5b89b1909b",
+          "record_key": "abomination-vaults-bestiary:DnAeqlJRZc5N7hve"
+        },
+        {
+          "blind_candidate_id": "c-d23b7afd4bb97968",
+          "record_key": "lost-omens-bestiary:xEdeUVwxzAMPncWl"
+        },
+        {
+          "blind_candidate_id": "c-30e281c6e6443322",
+          "record_key": "pathfinder-bestiary-2:18NInoyRLIrWE0nt"
+        },
+        {
+          "blind_candidate_id": "c-35ab2582c2066af4",
+          "record_key": "seven-dooms-for-sandpoint-bestiary:PmQtJ1LBy45ulUpG"
+        },
+        {
+          "blind_candidate_id": "c-e1d69b0b765741be",
+          "record_key": "fists-of-the-ruby-phoenix-bestiary:L2OWZ5Afvnmaif83"
+        },
+        {
+          "blind_candidate_id": "c-ece8480c31174645",
+          "record_key": "blood-lords-bestiary:RIUiN0518gxNIsKD"
+        },
+        {
+          "blind_candidate_id": "c-b7fe73989976205e",
+          "record_key": "pathfinder-bestiary-2:TzdLLC68qlgrn91m"
+        },
+        {
+          "blind_candidate_id": "c-a0a8a4cf765e26f5",
+          "record_key": "spells-srd:wzLkNU3AAqOSKFPR"
+        },
+        {
+          "blind_candidate_id": "c-31caf231dbf8b982",
+          "record_key": "howl-of-the-wild-bestiary:bFRTPIDVo2tmmj9w"
+        },
+        {
+          "blind_candidate_id": "c-a70c1c0a8d1b2775",
+          "record_key": "pathfinder-bestiary-2:xdIHvCBspeSXRL6A"
+        },
+        {
+          "blind_candidate_id": "c-1632d13b3a8f9116",
+          "record_key": "revenge-of-the-runelords-bestiary:4ybD5OG5HGvhEIfK"
+        },
+        {
+          "blind_candidate_id": "c-63f34489fd230047",
+          "record_key": "lost-omens-bestiary:wuI92F4wa4mgeZQA"
+        },
+        {
+          "blind_candidate_id": "c-9bacd7d897d6166a",
+          "record_key": "pfs-season-2-bestiary:yqOuv6qNnJgCFPn1"
+        },
+        {
+          "blind_candidate_id": "c-ca15d42403a1e9c4",
+          "record_key": "gatewalkers-bestiary:CBCMrAi44SYguevM"
+        },
+        {
+          "blind_candidate_id": "c-5fcab0afa6ce6af0",
+          "record_key": "pathfinder-monster-core-2:t2IZHTaoFiZM3sxV"
+        },
+        {
+          "blind_candidate_id": "c-deb0ace0fc459c44",
+          "record_key": "shades-of-blood-bestiary:Y1uFZHLnPjMyLvHS"
+        },
+        {
+          "blind_candidate_id": "c-e77a151f6e91128e",
+          "record_key": "hellbreakers-bestiary:L3iKGwRinPeljMM2"
+        },
+        {
+          "blind_candidate_id": "c-6c84fc7e7e6ff8d4",
+          "record_key": "pathfinder-bestiary:x26dyZZZRvZpzK2X"
+        },
+        {
+          "blind_candidate_id": "c-8faf45c64cc6c26c",
+          "record_key": "pathfinder-monster-core-2:5aLSif13KCcvnuLO"
+        },
+        {
+          "blind_candidate_id": "c-fe09414cfcc634e8",
+          "record_key": "pathfinder-bestiary-2:NQ6qRvpD9DIwVxt3"
+        }
+      ],
+      "intent": "Find abilities or effects that use focused destructive harmonics. Judge the selected mechanism and its consequences, not generic subterranean creature resemblance.",
+      "scenario_id": "hold-c03",
+      "seed_identity": {
+        "kind": "record",
+        "record_key": "pathfinder-bestiary-2:xUtl7Nkb6iJpPUMK",
+        "title": "Destrachan"
+      },
+      "selected_sections": [
+        {
+          "label": "Ability",
+          "owner": "Destructive Harmonics"
+        }
+      ],
+      "selection": {
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "kind": "explicit",
+        "selectors": [
+          "part:49692fc7b4446143196bc728f43563466a3d290c54b9a0e1272d55c39b142a1b"
+        ]
+      },
+      "source_binding_id": "destrachan",
+      "task_scope": "explicit"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-1d082fb7043ffd03",
+          "record_key": "equipment-srd:85GqeSGXjSQwLy07"
+        },
+        {
+          "blind_candidate_id": "c-5183a83ae1b172cf",
+          "record_key": "stolen-fate-bestiary:mcCHcnMN1gYBHbqA"
+        },
+        {
+          "blind_candidate_id": "c-35c9df11790e65fc",
+          "record_key": "equipment-srd:xZFbFeJckiQS7smT"
+        },
+        {
+          "blind_candidate_id": "c-2eb194982872f845",
+          "record_key": "equipment-srd:aj2eTtEAgLu4f14b"
+        },
+        {
+          "blind_candidate_id": "c-8654a4e2d5776d6b",
+          "record_key": "spells-srd:wdA52JJnsuQWeyqz"
+        },
+        {
+          "blind_candidate_id": "c-b88a23748b729292",
+          "record_key": "spells-srd:fAlzXtQAASaJx0mY"
+        },
+        {
+          "blind_candidate_id": "c-701b7170c2117056",
+          "record_key": "spells-srd:2Vkd1IxylPceUAAF"
+        },
+        {
+          "blind_candidate_id": "c-1359653ba016a301",
+          "record_key": "claws-of-the-tyrant-bestiary:uhTMcy0blrxpP6aZ"
+        },
+        {
+          "blind_candidate_id": "c-46b6098f70ec536f",
+          "record_key": "pathfinder-monster-core:6VOX4biqPtAE7y3g"
+        },
+        {
+          "blind_candidate_id": "c-0b9872235242c109",
+          "record_key": "pathfinder-npc-core:wuniRDzgL6STnyPa"
+        },
+        {
+          "blind_candidate_id": "c-6fb8cbd4359de84d",
+          "record_key": "pathfinder-monster-core-2:2qAd4TmEu5wexX7U"
+        },
+        {
+          "blind_candidate_id": "c-aeb568b1fe83e57f",
+          "record_key": "spells-srd:Et8RSCLx8w7uOLvo"
+        },
+        {
+          "blind_candidate_id": "c-d47bd6911170a195",
+          "record_key": "pathfinder-monster-core-2:maz62hCQDR9ZktsA"
+        },
+        {
+          "blind_candidate_id": "c-056a99a3e84cb5ca",
+          "record_key": "hells-destiny-bestiary:gl2s2vXwFLBPgNCg"
+        },
+        {
+          "blind_candidate_id": "c-8ca9d5a6c00ae221",
+          "record_key": "spells-srd:ikSb3LRGnrwXJBVX"
+        },
+        {
+          "blind_candidate_id": "c-b79a6297ada03a69",
+          "record_key": "equipment-srd:YynRLFPm1yt6nDAQ"
+        },
+        {
+          "blind_candidate_id": "c-fb06d1ea63ec526e",
+          "record_key": "spells-srd:x5rGOmhDRDVQPrnW"
+        },
+        {
+          "blind_candidate_id": "c-498a026e50eda4be",
+          "record_key": "spells-srd:KIV2LqzS5KtqOItV"
+        },
+        {
+          "blind_candidate_id": "c-b7c164b931048638",
+          "record_key": "age-of-ashes-bestiary:kLX36WXp6rjTt71z"
+        },
+        {
+          "blind_candidate_id": "c-49063abed4460a8e",
+          "record_key": "spells-srd:kqhPt9344UkcGVYO"
+        },
+        {
+          "blind_candidate_id": "c-00414cba76be0c45",
+          "record_key": "spells-srd:Zmh4ynfnCtwKeAYl"
+        },
+        {
+          "blind_candidate_id": "c-b4e25b7a7d095aec",
+          "record_key": "spells-srd:CzjQtkRuRlzRvwzg"
+        },
+        {
+          "blind_candidate_id": "c-4b762480559c793a",
+          "record_key": "pathfinder-npc-core:J0JoIeg82JCQj3Fm"
+        },
+        {
+          "blind_candidate_id": "c-fa251fa32f04ae5b",
+          "record_key": "spells-srd:zNN9212H2FGfM7VS"
+        },
+        {
+          "blind_candidate_id": "c-07c0bc6bfcb1cc8d",
+          "record_key": "spells-srd:HpIJTVqgXorH9X0L"
+        },
+        {
+          "blind_candidate_id": "c-5582fd6d2c335ae5",
+          "record_key": "equipment-srd:eOtQtVRLeGH39dNx"
+        },
+        {
+          "blind_candidate_id": "c-9697d1ec003f726c",
+          "record_key": "pathfinder-monster-core-2:eTPzH6vTomEZy2UA"
+        },
+        {
+          "blind_candidate_id": "c-e6aae354de24fb90",
+          "record_key": "pathfinder-npc-core:02hCP1sCfUXXjW5B"
+        },
+        {
+          "blind_candidate_id": "c-fedfb5c681921d3c",
+          "record_key": "hells-destiny-bestiary:HvshmY1KE8p6a2ry"
+        },
+        {
+          "blind_candidate_id": "c-bd3c7d64f466e324",
+          "record_key": "hells-destiny-bestiary:kgycwEZ7ByvNVdMw"
+        },
+        {
+          "blind_candidate_id": "c-2908bb8b6e5e2f96",
+          "record_key": "equipment-srd:qQpcBE7ngv7TIAW3"
+        },
+        {
+          "blind_candidate_id": "c-135f0c1f45b99b38",
+          "record_key": "hells-destiny-bestiary:RHgSOud92ADrlg04"
+        },
+        {
+          "blind_candidate_id": "c-678ed199f91b76ce",
+          "record_key": "pathfinder-monster-core-2:CZc6eVvRcsVJgjBU"
+        },
+        {
+          "blind_candidate_id": "c-bb735c2686125a02",
+          "record_key": "equipment-srd:grRxpX1iE3zOJA1q"
+        },
+        {
+          "blind_candidate_id": "c-8898fb75f0072d45",
+          "record_key": "bastion-of-blasphemies-bestiary:y4pwwFi0rSVwHOz6"
+        },
+        {
+          "blind_candidate_id": "c-defb711c6ef347f5",
+          "record_key": "equipment-srd:VtzChvlCG2TQRrgu"
+        },
+        {
+          "blind_candidate_id": "c-5d4d39e2274def07",
+          "record_key": "pathfinder-monster-core-2:z0X1HFrLzAUMxtMT"
+        },
+        {
+          "blind_candidate_id": "c-17facaa94d13187d",
+          "record_key": "hellbreakers-bestiary:KxFEwqWX9FFGobeC"
+        },
+        {
+          "blind_candidate_id": "c-ac937e26afd45dd8",
+          "record_key": "pathfinder-monster-core-2:mGgYxXQN0vQR60Gt"
+        },
+        {
+          "blind_candidate_id": "c-49cba18a6f4a1269",
+          "record_key": "pathfinder-npc-core:mkyMSRTbDV4lho2o"
+        },
+        {
+          "blind_candidate_id": "c-bc061c0266d5af8a",
+          "record_key": "paizo-pregens:jK8fcRQkH5tDrorw"
+        },
+        {
+          "blind_candidate_id": "c-82f500c5e49c3018",
+          "record_key": "spells-srd:SnaLVgxZ9ryUFmUr"
+        },
+        {
+          "blind_candidate_id": "c-d3df6d4d1212391a",
+          "record_key": "pfs-season-1-bestiary:3MSKMI7ehLTC1bqw"
+        },
+        {
+          "blind_candidate_id": "c-d03adc133bda7daf",
+          "record_key": "spells-srd:SnjhtQYexDtNDdEg"
+        },
+        {
+          "blind_candidate_id": "c-407f995bac41839f",
+          "record_key": "pathfinder-monster-core-2:7gzLs1OP0aCZZNU9"
+        },
+        {
+          "blind_candidate_id": "c-3a0bf480a7e9891e",
+          "record_key": "equipment-srd:gSstSNe0sxB2mIKW"
+        },
+        {
+          "blind_candidate_id": "c-f20074e9ec5dd2cd",
+          "record_key": "pathfinder-bestiary-2:c4uQKZaRWv9n9IHo"
+        },
+        {
+          "blind_candidate_id": "c-480beae827983477",
+          "record_key": "pathfinder-monster-core-2:ct5z8lpPOFlOTkMz"
+        }
+      ],
+      "intent": "Find records sharing the spell’s restoration or vitality interactions and flexible target or area behavior. Shared holy or cleric flavor without corresponding effect is weak evidence.",
+      "scenario_id": "dev-s01",
+      "seed_identity": {
+        "kind": "record",
+        "record_key": "spells-srd:rfZpqmj0AIIdkVIs",
+        "title": "Heal"
+      },
+      "selected_sections": [],
+      "selection": {
+        "kind": "all"
+      },
+      "source_binding_id": "heal",
+      "task_scope": "all"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-b88992c3bb106d9d",
+          "record_key": "spells-srd:IarZrgCeaiUqOuRu"
+        },
+        {
+          "blind_candidate_id": "c-7174ee91edf3c95f",
+          "record_key": "spells-srd:2ZdHjnpEQJuqOYSG"
+        },
+        {
+          "blind_candidate_id": "c-c16d57c2ef50cfa0",
+          "record_key": "lost-omens-bestiary:CRgrrRHvCbI83ZFz"
+        },
+        {
+          "blind_candidate_id": "c-65ff1b9a7dffc835",
+          "record_key": "spells-srd:E3X2RbzWHCdz7gsk"
+        },
+        {
+          "blind_candidate_id": "c-46f1659e9d5cad79",
+          "record_key": "pathfinder-bestiary-3:QWx9cIVUeP7dMOez"
+        },
+        {
+          "blind_candidate_id": "c-80ce2b5830e16e73",
+          "record_key": "pathfinder-monster-core:oKaewcA4gu3fbSVP"
+        },
+        {
+          "blind_candidate_id": "c-16d9bc2569194c77",
+          "record_key": "equipment-srd:YR8IAV94fPo0kfBz"
+        },
+        {
+          "blind_candidate_id": "c-350d8ae622e86b53",
+          "record_key": "equipment-srd:tBwMPimZ6A93XpHf"
+        },
+        {
+          "blind_candidate_id": "c-e6648db00fb8a0ad",
+          "record_key": "pathfinder-npc-core:FTqAUF89sIKC0qPm"
+        },
+        {
+          "blind_candidate_id": "c-d113c359578ce771",
+          "record_key": "stolen-fate-bestiary:a5B1GrGkM97l20Wk"
+        },
+        {
+          "blind_candidate_id": "c-9f3b1a0e119823af",
+          "record_key": "pathfinder-monster-core-2:yaDZ0N6t8vOxbqLy"
+        },
+        {
+          "blind_candidate_id": "c-be172573ddda1695",
+          "record_key": "pathfinder-npc-core:0cj7cQhgNnLxbUmR"
+        },
+        {
+          "blind_candidate_id": "c-ae87921206d91c8c",
+          "record_key": "spells-srd:ZxHC7V7HtjUsB8zH"
+        },
+        {
+          "blind_candidate_id": "c-22d92c1ff705d3e1",
+          "record_key": "spells-srd:Z3kJty995FkrsZRb"
+        },
+        {
+          "blind_candidate_id": "c-cc414b6eb8bf5d40",
+          "record_key": "pfs-season-3-bestiary:gtcISL1zMhQ0mv5g"
+        },
+        {
+          "blind_candidate_id": "c-f4270c31500b62f2",
+          "record_key": "hells-destiny-bestiary:RkRec3jq3kVw3Sbt"
+        },
+        {
+          "blind_candidate_id": "c-f984272d36e35516",
+          "record_key": "spells-srd:XS7Wyh5YC0NWeWyB"
+        },
+        {
+          "blind_candidate_id": "c-d401e8466cbc0d3b",
+          "record_key": "lost-omens-bestiary:Ev1Gle9bZsfkN6p6"
+        },
+        {
+          "blind_candidate_id": "c-0f9e7aa42abc5234",
+          "record_key": "spells-srd:YrzBLPLd3r9m6t1p"
+        },
+        {
+          "blind_candidate_id": "c-03a84783ea3e94bf",
+          "record_key": "spells-srd:9LHr9SuDLTicdbXs"
+        },
+        {
+          "blind_candidate_id": "c-36a898b6b1d75b98",
+          "record_key": "spells-srd:3GXU3ugrwLv0P7AH"
+        },
+        {
+          "blind_candidate_id": "c-8ebea1bcb597505c",
+          "record_key": "age-of-ashes-bestiary:dTikLHqGfiSYemuZ"
+        },
+        {
+          "blind_candidate_id": "c-d05d1413bf56dabb",
+          "record_key": "spells-srd:5QD75UbyB5EiG3yz"
+        },
+        {
+          "blind_candidate_id": "c-a2abbb96340c875f",
+          "record_key": "equipment-srd:zToq18jKonWIp48U"
+        },
+        {
+          "blind_candidate_id": "c-2403b54389ee8ef1",
+          "record_key": "spells-srd:1OiPVy1wuoXi6LR5"
+        },
+        {
+          "blind_candidate_id": "c-6c5d4390cddd9afa",
+          "record_key": "pathfinder-monster-core-2:Iy3DchRS4K7yEBDT"
+        },
+        {
+          "blind_candidate_id": "c-031a60673a5374d9",
+          "record_key": "spells-srd:6DfLZBl8wKIV03Iq"
+        },
+        {
+          "blind_candidate_id": "c-5c384c878b805c56",
+          "record_key": "spells-srd:oJKZi8OQgmVXHOc0"
+        },
+        {
+          "blind_candidate_id": "c-41da969468543460",
+          "record_key": "battlecry-bestiary:iHAHQbGNUNUH51Zs"
+        },
+        {
+          "blind_candidate_id": "c-ed8c097b2a2cee04",
+          "record_key": "spells-srd:A16eFTRh82xIjMu8"
+        },
+        {
+          "blind_candidate_id": "c-edb5f503d3467d89",
+          "record_key": "spells-srd:Wi2HcreCfujKiCvW"
+        },
+        {
+          "blind_candidate_id": "c-efe7b837f681abc0",
+          "record_key": "pfs-season-3-bestiary:LG2pZMbLXZKtcWZh"
+        },
+        {
+          "blind_candidate_id": "c-d94b47f7bc312085",
+          "record_key": "equipment-srd:c2Oa9UbhjwAsZaPp"
+        },
+        {
+          "blind_candidate_id": "c-bcdeee38c809db8b",
+          "record_key": "pathfinder-npc-core:Vp2PPBttJl1h8iZe"
+        },
+        {
+          "blind_candidate_id": "c-f51e52dcb3e2d8c6",
+          "record_key": "spells-srd:y6rAdMK6EFlV6U0t"
+        },
+        {
+          "blind_candidate_id": "c-ee838f77b097c2b9",
+          "record_key": "spells-srd:WG91Z5TiR6oO5FOw"
+        }
+      ],
+      "intent": "Find records with comparable explosive area fire damage. Distinguish an area effect from unrelated fire items or a single-target attack.",
+      "scenario_id": "dev-s02",
+      "seed_identity": {
+        "kind": "record",
+        "record_key": "spells-srd:sxQZ6yqTn0czJxVd",
+        "title": "Fireball"
+      },
+      "selected_sections": [],
+      "selection": {
+        "kind": "all"
+      },
+      "source_binding_id": "fireball",
+      "task_scope": "all"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-740c8411d10eaa84",
+          "record_key": "pathfinder-monster-core-2:yaDZ0N6t8vOxbqLy"
+        },
+        {
+          "blind_candidate_id": "c-57e372a9c7b714d9",
+          "record_key": "spells-srd:7Iela4GgVeO3LfAo"
+        },
+        {
+          "blind_candidate_id": "c-0b26183d617bc281",
+          "record_key": "lost-omens-bestiary:aTXEJ6cMnh9LgnyE"
+        },
+        {
+          "blind_candidate_id": "c-b51147935d2d5107",
+          "record_key": "spells-srd:HWrNMQENi9WSGbnF"
+        },
+        {
+          "blind_candidate_id": "c-c6a4aa7912b93219",
+          "record_key": "spells-srd:ZLLY6ThJXCCrO0rL"
+        },
+        {
+          "blind_candidate_id": "c-234cd17e0f329525",
+          "record_key": "pathfinder-bestiary:2T2cN4j4EzfDAIEe"
+        },
+        {
+          "blind_candidate_id": "c-716f21887c918cab",
+          "record_key": "lost-omens-bestiary:ltkFXFlOrsE9DLhn"
+        },
+        {
+          "blind_candidate_id": "c-876a18f8d7dc49ad",
+          "record_key": "strength-of-thousands-bestiary:zfo1oFWRg3A2BxTQ"
+        },
+        {
+          "blind_candidate_id": "c-8f286b6cf07784cb",
+          "record_key": "feats-srd:cg6iASOmkTadIYCd"
+        },
+        {
+          "blind_candidate_id": "c-291e56308746d0d0",
+          "record_key": "lost-omens-bestiary:cg5rBJCChmdFDpd1"
+        },
+        {
+          "blind_candidate_id": "c-984e986be7cdab62",
+          "record_key": "age-of-ashes-bestiary:dTikLHqGfiSYemuZ"
+        },
+        {
+          "blind_candidate_id": "c-09e7ec792936f6f7",
+          "record_key": "spells-srd:KsWhliKfUs3IpW3c"
+        },
+        {
+          "blind_candidate_id": "c-387d42487d655995",
+          "record_key": "pathfinder-monster-core:mQJL411e9Iz8dJoh"
+        },
+        {
+          "blind_candidate_id": "c-082ccff51f3509fa",
+          "record_key": "pfs-season-5-bestiary:byTExdYHVbLJKmKA"
+        },
+        {
+          "blind_candidate_id": "c-d24f4ab23990bc32",
+          "record_key": "spells-srd:kOa055FIrO9Smnya"
+        },
+        {
+          "blind_candidate_id": "c-1a801ce9a0737711",
+          "record_key": "spells-srd:QLTgY1AqFvX82vq2"
+        },
+        {
+          "blind_candidate_id": "c-4d6b1dcf56c6196e",
+          "record_key": "spells-srd:2ZdHjnpEQJuqOYSG"
+        },
+        {
+          "blind_candidate_id": "c-55cefb48b75b1c23",
+          "record_key": "spells-srd:YrzBLPLd3r9m6t1p"
+        },
+        {
+          "blind_candidate_id": "c-52f359619a67b7ad",
+          "record_key": "spells-srd:it4ZsAi6XgvGcodc"
+        },
+        {
+          "blind_candidate_id": "c-f8354b5e921dc3a1",
+          "record_key": "blog-bestiary:gSX7hcUFdtOt5a4I"
+        },
+        {
+          "blind_candidate_id": "c-6cf4803628d0a5a6",
+          "record_key": "lost-omens-bestiary:CRgrrRHvCbI83ZFz"
+        },
+        {
+          "blind_candidate_id": "c-fe4f450f02201670",
+          "record_key": "spells-srd:Gn5deIoobHpd3SiR"
+        },
+        {
+          "blind_candidate_id": "c-ab528bc231d5db40",
+          "record_key": "fists-of-the-ruby-phoenix-bestiary:eVKjtiQtDaJpk9Ra"
+        },
+        {
+          "blind_candidate_id": "c-1287e4cd564f44dd",
+          "record_key": "lost-omens-bestiary:34t48adpGuEM9lIn"
+        },
+        {
+          "blind_candidate_id": "c-d8dd8de40451807b",
+          "record_key": "shades-of-blood-bestiary:YSSDO5sjftfy90gk"
+        },
+        {
+          "blind_candidate_id": "c-8e1f7da183896ece",
+          "record_key": "spells-srd:eONVFSbBiqaDLGey"
+        },
+        {
+          "blind_candidate_id": "c-3e1650cabd8f563e",
+          "record_key": "spells-srd:ZJOQBqkNErZu1QAa"
+        },
+        {
+          "blind_candidate_id": "c-d6a458d6f4185abf",
+          "record_key": "spells-srd:Z3kJty995FkrsZRb"
+        },
+        {
+          "blind_candidate_id": "c-92e7e2a4ffcd9f14",
+          "record_key": "pfs-season-5-bestiary:6SDKAujYM3nP4iDC"
+        },
+        {
+          "blind_candidate_id": "c-96f78e98ae93d33a",
+          "record_key": "pathfinder-monster-core-2:wHtddmyDuL1l2E6I"
+        },
+        {
+          "blind_candidate_id": "c-72d0aaa6320e1312",
+          "record_key": "lost-omens-bestiary:wc3uAlMMFQhlmTT9"
+        },
+        {
+          "blind_candidate_id": "c-f2620051bcc1effe",
+          "record_key": "pfs-season-3-bestiary:LG2pZMbLXZKtcWZh"
+        },
+        {
+          "blind_candidate_id": "c-3b0f21eaceeb51fd",
+          "record_key": "pathfinder-bestiary-3:Lqm3acjjbLKuRUCf"
+        },
+        {
+          "blind_candidate_id": "c-a325157b3f58e186",
+          "record_key": "spells-srd:y6rAdMK6EFlV6U0t"
+        },
+        {
+          "blind_candidate_id": "c-1b05f2f1136bb39f",
+          "record_key": "spells-srd:sxQZ6yqTn0czJxVd"
+        },
+        {
+          "blind_candidate_id": "c-a7f16cc772badb1f",
+          "record_key": "spells-srd:T9psKCvl7TIdKysl"
+        },
+        {
+          "blind_candidate_id": "c-543fe23b3fa4b03e",
+          "record_key": "lost-omens-bestiary:ypt7NUTKYTMyf21k"
+        },
+        {
+          "blind_candidate_id": "c-3585566e9746738e",
+          "record_key": "pathfinder-npc-core:Vp2PPBttJl1h8iZe"
+        },
+        {
+          "blind_candidate_id": "c-c7c18d879fd81caa",
+          "record_key": "spells-srd:O7ZEqWjwdKyo2CUv"
+        },
+        {
+          "blind_candidate_id": "c-8153ed1acc94c21a",
+          "record_key": "lost-omens-bestiary:HdIr8upCJBgIdnyj"
+        },
+        {
+          "blind_candidate_id": "c-0141a04eeb9100f4",
+          "record_key": "spells-srd:XS7Wyh5YC0NWeWyB"
+        },
+        {
+          "blind_candidate_id": "c-c03e4933717a6fca",
+          "record_key": "feats-srd:PlRAfeNof3xgJttZ"
+        },
+        {
+          "blind_candidate_id": "c-0247024b1acaa3de",
+          "record_key": "age-of-ashes-bestiary:Ev930dfPpwCR8Zju"
+        },
+        {
+          "blind_candidate_id": "c-aebe1a57846e5c26",
+          "record_key": "spells-srd:E3X2RbzWHCdz7gsk"
+        },
+        {
+          "blind_candidate_id": "c-c482473af6242534",
+          "record_key": "spells-srd:CB5TlGv5ZghtMifi"
+        },
+        {
+          "blind_candidate_id": "c-db45dd75a9a316fc",
+          "record_key": "lost-omens-bestiary:M2Vi2mkwMZv1ZRka"
+        },
+        {
+          "blind_candidate_id": "c-ececafeb0349b630",
+          "record_key": "spells-srd:oJKZi8OQgmVXHOc0"
+        },
+        {
+          "blind_candidate_id": "c-ce72b4454bcb7b61",
+          "record_key": "spells-srd:DeF63UTmr7rchF60"
+        },
+        {
+          "blind_candidate_id": "c-d25c6ce1c24b6e57",
+          "record_key": "spells-srd:LNOwaJAkCfsgTKgV"
+        },
+        {
+          "blind_candidate_id": "c-873d341d369a58e2",
+          "record_key": "spells-srd:R5FHRv7VqyRnxg2t"
+        }
+      ],
+      "intent": "Find records using a persistent damaging barrier to divide or control space. Shared fire vocabulary without a comparable barrier is only partial evidence.",
+      "scenario_id": "dev-s03",
+      "seed_identity": {
+        "kind": "record",
+        "record_key": "spells-srd:IarZrgCeaiUqOuRu",
+        "title": "Wall of Fire"
+      },
+      "selected_sections": [],
+      "selection": {
+        "kind": "all"
+      },
+      "source_binding_id": "wall-of-fire",
+      "task_scope": "all"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-4975c59d5f84ad79",
+          "record_key": "equipment-srd:Otd9pV58s2LFK1gW"
+        },
+        {
+          "blind_candidate_id": "c-37cbd652be312ce7",
+          "record_key": "spells-srd:oUDNCArkQTdhllxD"
+        },
+        {
+          "blind_candidate_id": "c-dbe433e317573cd1",
+          "record_key": "pathfinder-bestiary:MLmwdUIW4o7ZSUEG"
+        },
+        {
+          "blind_candidate_id": "c-314c642c635af294",
+          "record_key": "battlecry-bestiary:tKPZ1iDZukJDvzAK"
+        },
+        {
+          "blind_candidate_id": "c-54728570f5e574e6",
+          "record_key": "pathfinder-monster-core:dfshMY9yEEXOUoMo"
+        },
+        {
+          "blind_candidate_id": "c-f294ca127afe40ef",
+          "record_key": "pathfinder-bestiary:oj0vzfjflUc3xMBo"
+        },
+        {
+          "blind_candidate_id": "c-7c2bae4b4a2244b2",
+          "record_key": "lost-omens-bestiary:9u6v6WW2mJzPeoNW"
+        },
+        {
+          "blind_candidate_id": "c-ffb7a7c31104b555",
+          "record_key": "spells-srd:cf7Jkm39uEjUFtHt"
+        },
+        {
+          "blind_candidate_id": "c-6cede7ffd54dd921",
+          "record_key": "pathfinder-bestiary:Jgh0WGVetNXi5jlM"
+        },
+        {
+          "blind_candidate_id": "c-7de0265a09a4d243",
+          "record_key": "agents-of-edgewatch-bestiary:nfULZbf8OOUDdrZM"
+        },
+        {
+          "blind_candidate_id": "c-ee12edde7e5f62b0",
+          "record_key": "myth-speaker-bestiary:TyM7RUMDIqGQtYr0"
+        },
+        {
+          "blind_candidate_id": "c-f1d8362496553b59",
+          "record_key": "spells-srd:zfn5RqAdF63neqpP"
+        },
+        {
+          "blind_candidate_id": "c-0092cda36cedac52",
+          "record_key": "spells-srd:9XHmC2JgTUIQ1CCm"
+        },
+        {
+          "blind_candidate_id": "c-44508c4b3363705f",
+          "record_key": "spells-srd:6wLY5LnehCo3tHlr"
+        },
+        {
+          "blind_candidate_id": "c-b150716b06c7e3ae",
+          "record_key": "spells-srd:eSL5hVT9gXrnRLtd"
+        },
+        {
+          "blind_candidate_id": "c-ba1bcbc2785b87a6",
+          "record_key": "spells-srd:WzLKjSw6hsBhuklC"
+        },
+        {
+          "blind_candidate_id": "c-e2d2475326d6ada5",
+          "record_key": "spells-srd:Seaah9amXg70RKw2"
+        },
+        {
+          "blind_candidate_id": "c-78fe9b8ed57c0984",
+          "record_key": "agents-of-edgewatch-bestiary:JhYJUNlcxiurcZcl"
+        },
+        {
+          "blind_candidate_id": "c-be0c1c1b06f3e159",
+          "record_key": "spells-srd:T4QKmtYPeCgYxVGe"
+        },
+        {
+          "blind_candidate_id": "c-048399e00b675d82",
+          "record_key": "spells-srd:3cq9RTbyIFJaVLNa"
+        },
+        {
+          "blind_candidate_id": "c-aa7049f85530ef86",
+          "record_key": "feats-srd:0jJ5FG72lydY3HHR"
+        },
+        {
+          "blind_candidate_id": "c-918d1fa5b12646b4",
+          "record_key": "triumph-of-the-tusk-bestiary:igzD3pYQ0MEHP3zs"
+        },
+        {
+          "blind_candidate_id": "c-98b5016808f839cd",
+          "record_key": "spells-srd:E80SrXuBdZViPGiH"
+        },
+        {
+          "blind_candidate_id": "c-428a65075350bc3b",
+          "record_key": "pfs-season-1-bestiary:GdYMRHVctjyvOD7D"
+        },
+        {
+          "blind_candidate_id": "c-cb42cdf027b05a4d",
+          "record_key": "pfs-season-2-bestiary:KvFN6OFxOnTYjdJq"
+        },
+        {
+          "blind_candidate_id": "c-825e894b729cd547",
+          "record_key": "agents-of-edgewatch-bestiary:N1IpUIW2Ry7uBN3G"
+        },
+        {
+          "blind_candidate_id": "c-91cc51f1370dd1e2",
+          "record_key": "spells-srd:K4LXpaBWrGy6jIER"
+        },
+        {
+          "blind_candidate_id": "c-97facf5e20a43d6e",
+          "record_key": "spells-srd:Y3G6Y6EDgCY0s3fq"
+        },
+        {
+          "blind_candidate_id": "c-0b6b2b0b7778f03a",
+          "record_key": "equipment-srd:T1iRa7JuHAKqQNjd"
+        },
+        {
+          "blind_candidate_id": "c-a5905e04a6e86c95",
+          "record_key": "pfs-season-1-bestiary:7PXPcv8x3Wnc730i"
+        },
+        {
+          "blind_candidate_id": "c-ad8ef1f2a27d73aa",
+          "record_key": "spells-srd:i88Vi47PDDoP6gQv"
+        },
+        {
+          "blind_candidate_id": "c-e503809fe4dc68bf",
+          "record_key": "pfs-season-2-bestiary:i3mgIwXZeJxwFWNI"
+        },
+        {
+          "blind_candidate_id": "c-55e0c0c5636681ec",
+          "record_key": "feats-srd:SASOvOG2Nqs2ekdA"
+        },
+        {
+          "blind_candidate_id": "c-b4b494fdea916efb",
+          "record_key": "rage-of-elements-bestiary:E7OZ0cdycOi5Cuu1"
+        },
+        {
+          "blind_candidate_id": "c-54456c89619854b1",
+          "record_key": "pathfinder-bestiary:fsdCVADRbLxpBVT8"
+        },
+        {
+          "blind_candidate_id": "c-47423a118f6c6f88",
+          "record_key": "pathfinder-monster-core-2:yFFw1Gsd4teXA97L"
+        },
+        {
+          "blind_candidate_id": "c-18b23bf47a662f0a",
+          "record_key": "spells-srd:zCLyETFoPqCQXLVy"
+        },
+        {
+          "blind_candidate_id": "c-5ee0a539f60ac69c",
+          "record_key": "pathfinder-monster-core-2:HH93tN1gMZXr3jvf"
+        },
+        {
+          "blind_candidate_id": "c-ce0b024ae7bd5a5a",
+          "record_key": "kingmaker-bestiary:KP7uf1E8CQgzTuQy"
+        },
+        {
+          "blind_candidate_id": "c-9807abce4ebac74c",
+          "record_key": "lost-omens-bestiary:T2HLLrHCxnBrtXly"
+        },
+        {
+          "blind_candidate_id": "c-0c0607e70e656f35",
+          "record_key": "spells-srd:iAnpxrLaBU4V6Sej"
+        },
+        {
+          "blind_candidate_id": "c-67b85e878e982fda",
+          "record_key": "spells-srd:MZGkMsPBztFN0pUO"
+        },
+        {
+          "blind_candidate_id": "c-3e61a6e689c32338",
+          "record_key": "stolen-fate-bestiary:J7QJMfQZlOd7DOq5"
+        },
+        {
+          "blind_candidate_id": "c-7d5049adb34bf2f8",
+          "record_key": "pfs-season-2-bestiary:R7LYEfEApIhp6jdp"
+        }
+      ],
+      "intent": "Find records whose described mechanism uses pressurized water or an analogous forceful blast to damage and push a target. Water association alone is weak evidence.",
+      "scenario_id": "hold-s01",
+      "seed_identity": {
+        "kind": "record",
+        "record_key": "spells-srd:jfVCuOpzC6mUrf6f",
+        "title": "Hydraulic Push"
+      },
+      "selected_sections": [],
+      "selection": {
+        "kind": "all"
+      },
+      "source_binding_id": "hydraulic-push",
+      "task_scope": "all"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-7b1a1a8ff3416b32",
+          "record_key": "book-of-the-dead-bestiary:VYLTAIVA9qUsbujo"
+        },
+        {
+          "blind_candidate_id": "c-27ae850e748ccc3a",
+          "record_key": "lost-omens-bestiary:A0h1xHoyIhQDFz5e"
+        },
+        {
+          "blind_candidate_id": "c-ba9c2e5e82fe34cf",
+          "record_key": "pfs-season-1-bestiary:lvWJic1WYdyJATa0"
+        },
+        {
+          "blind_candidate_id": "c-e6ea20bd708bb910",
+          "record_key": "wardens-of-wildwood-bestiary:SscxN3m8bRuXhgWk"
+        },
+        {
+          "blind_candidate_id": "c-a1d7aa8573c4fecb",
+          "record_key": "pfs-season-1-bestiary:rOYazaPBX73nLCJE"
+        },
+        {
+          "blind_candidate_id": "c-42dd64543dcb69c6",
+          "record_key": "wardens-of-wildwood-bestiary:oFZvM54qFh9OVctJ"
+        },
+        {
+          "blind_candidate_id": "c-88e0355227a3f412",
+          "record_key": "lost-omens-bestiary:5UUWSspQyk1kA1Rh"
+        },
+        {
+          "blind_candidate_id": "c-e1211bdef295ef4b",
+          "record_key": "spore-war-bestiary:bytRrCmVh2g5FoQE"
+        },
+        {
+          "blind_candidate_id": "c-c2328a87f9ba5206",
+          "record_key": "pathfinder-npc-core:atFtrrjwkTiFm6hJ"
+        },
+        {
+          "blind_candidate_id": "c-665bcf6219c8c78b",
+          "record_key": "wardens-of-wildwood-bestiary:bO3DhcY4fumsjnW4"
+        },
+        {
+          "blind_candidate_id": "c-5fbbbb94efdcb037",
+          "record_key": "spells-srd:CB5TlGv5ZghtMifi"
+        },
+        {
+          "blind_candidate_id": "c-249284f3bb44c280",
+          "record_key": "lost-omens-bestiary:CAh3tIdAo90ZmM3H"
+        },
+        {
+          "blind_candidate_id": "c-ae24f27a6425c29f",
+          "record_key": "season-of-ghosts-bestiary:HSozUsLp1ufDkJIr"
+        },
+        {
+          "blind_candidate_id": "c-87e51baea0302f52",
+          "record_key": "spells-srd:gBJtUhewnihlqxm7"
+        },
+        {
+          "blind_candidate_id": "c-604d89041f91c189",
+          "record_key": "wardens-of-wildwood-bestiary:YU2EwouEWCKNcjGK"
+        },
+        {
+          "blind_candidate_id": "c-3d0fb3cf2ce78f2d",
+          "record_key": "feats-srd:mHvkBdBN4gs6CH1g"
+        },
+        {
+          "blind_candidate_id": "c-0b328abe902ae456",
+          "record_key": "spore-war-bestiary:y2EhtiAUEfUZNQH8"
+        },
+        {
+          "blind_candidate_id": "c-dc52c3f220b0e390",
+          "record_key": "pathfinder-bestiary-2:F5QibbbxUeO8A3Kj"
+        },
+        {
+          "blind_candidate_id": "c-f725b2a8c7daf4a9",
+          "record_key": "spore-war-bestiary:rJ7yZpv0nUWMYEOF"
+        },
+        {
+          "blind_candidate_id": "c-fcc03e393e9a815c",
+          "record_key": "spells-srd:7Iela4GgVeO3LfAo"
+        },
+        {
+          "blind_candidate_id": "c-7daa6b9cfac7b9dd",
+          "record_key": "pathfinder-npc-core:FTqAUF89sIKC0qPm"
+        },
+        {
+          "blind_candidate_id": "c-3fbc996b495ffec4",
+          "record_key": "spells-srd:u5FAOOXuqK7fLqKW"
+        },
+        {
+          "blind_candidate_id": "c-f1974cdad8f89436",
+          "record_key": "spells-srd:IarZrgCeaiUqOuRu"
+        },
+        {
+          "blind_candidate_id": "c-c6bdc2a9003e7f8b",
+          "record_key": "spells-srd:MMIPT6jfwHfLPkm5"
+        },
+        {
+          "blind_candidate_id": "c-0d1569ad92214e81",
+          "record_key": "spells-srd:ZLLY6ThJXCCrO0rL"
+        },
+        {
+          "blind_candidate_id": "c-3072a6006a76c93b",
+          "record_key": "spells-srd:eONVFSbBiqaDLGey"
+        },
+        {
+          "blind_candidate_id": "c-c1d916ff9e5075bd",
+          "record_key": "spells-srd:zCcfPS4y5SrZzU2x"
+        },
+        {
+          "blind_candidate_id": "c-ec68f51bd6b6e46b",
+          "record_key": "spells-srd:qvwIwJ9QBihy8R0t"
+        },
+        {
+          "blind_candidate_id": "c-76b90c1e7b11d96b",
+          "record_key": "pathfinder-npc-core:0cj7cQhgNnLxbUmR"
+        },
+        {
+          "blind_candidate_id": "c-e7407673f520a820",
+          "record_key": "spells-srd:K9gI08enGtmih5X1"
+        },
+        {
+          "blind_candidate_id": "c-91d826ad7a1c4d17",
+          "record_key": "spells-srd:nnSipUPNd3sm5vYL"
+        },
+        {
+          "blind_candidate_id": "c-713fbea267693819",
+          "record_key": "spells-srd:ZJOQBqkNErZu1QAa"
+        },
+        {
+          "blind_candidate_id": "c-df604e205104b99c",
+          "record_key": "lost-omens-bestiary:DfpQvOOkqdEbUnyC"
+        },
+        {
+          "blind_candidate_id": "c-9f157608f49592d3",
+          "record_key": "spells-srd:kOa055FIrO9Smnya"
+        },
+        {
+          "blind_candidate_id": "c-94f95b85fd59ebae",
+          "record_key": "bastion-of-blasphemies-bestiary:UAgosUUeyJkx3EbY"
+        },
+        {
+          "blind_candidate_id": "c-94f9831d145a4d4c",
+          "record_key": "spells-srd:it4ZsAi6XgvGcodc"
+        },
+        {
+          "blind_candidate_id": "c-4beae54f578387e7",
+          "record_key": "spells-srd:HWrNMQENi9WSGbnF"
+        },
+        {
+          "blind_candidate_id": "c-4547ce1813660e1a",
+          "record_key": "spells-srd:CXICME10TkEJxz0P"
+        },
+        {
+          "blind_candidate_id": "c-1846a83df6c88fa9",
+          "record_key": "spells-srd:oGV6YdpZLIG4G4gH"
+        },
+        {
+          "blind_candidate_id": "c-d6d7d3c9cdc3ad54",
+          "record_key": "spells-srd:R5FHRv7VqyRnxg2t"
+        },
+        {
+          "blind_candidate_id": "c-9cae9c577fbcacfe",
+          "record_key": "spells-srd:Tc5NLaMu71vrGTJQ"
+        },
+        {
+          "blind_candidate_id": "c-cba17504675dde46",
+          "record_key": "wardens-of-wildwood-bestiary:Cm96cXbKhov2TqJq"
+        }
+      ],
+      "intent": "Find records using thorny growth as an obstructing or damaging spatial barrier. Generic plant membership or a creature carrying wooden equipment is insufficient.",
+      "scenario_id": "hold-s02",
+      "seed_identity": {
+        "kind": "record",
+        "record_key": "spells-srd:KsWhliKfUs3IpW3c",
+        "title": "Wall of Thorns"
+      },
+      "selected_sections": [],
+      "selection": {
+        "kind": "all"
+      },
+      "source_binding_id": "wall-of-thorns",
+      "task_scope": "all"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-a86ab1db83caa1ac",
+          "record_key": "battlecry-bestiary:p8sGnipPHZuoyg9F"
+        },
+        {
+          "blind_candidate_id": "c-4104deedf418d001",
+          "record_key": "pathfinder-monster-core-2:2ooIWWoCK1NCJKwT"
+        },
+        {
+          "blind_candidate_id": "c-33e42ecf55c197ef",
+          "record_key": "pathfinder-monster-core-2:TQtISRsI3FI2ddBR"
+        },
+        {
+          "blind_candidate_id": "c-c1e24abfde7a05c7",
+          "record_key": "menace-under-otari-bestiary:YYhD00fbaYCHjrDn"
+        },
+        {
+          "blind_candidate_id": "c-a83828d122112c9d",
+          "record_key": "blog-bestiary:zvxYdvU6TAxoFMRu"
+        },
+        {
+          "blind_candidate_id": "c-51a65917456a2818",
+          "record_key": "equipment-srd:BXb0tzJHOAB8whWB"
+        },
+        {
+          "blind_candidate_id": "c-40618c2dd8499c65",
+          "record_key": "paizo-pregens:oQy9PfE5CQC8Hrtg"
+        },
+        {
+          "blind_candidate_id": "c-bce3ee4816d2df58",
+          "record_key": "triumph-of-the-tusk-bestiary:igzD3pYQ0MEHP3zs"
+        },
+        {
+          "blind_candidate_id": "c-24138ca6f8cbf85e",
+          "record_key": "spells-srd:4WS7HrFjwNvTn8T2"
+        },
+        {
+          "blind_candidate_id": "c-1f33fd5f435c2912",
+          "record_key": "pathfinder-npc-core:wuniRDzgL6STnyPa"
+        },
+        {
+          "blind_candidate_id": "c-6ebfe88dfcc769dc",
+          "record_key": "abomination-vaults-bestiary:HnIyJuqKNOvK7eOJ"
+        },
+        {
+          "blind_candidate_id": "c-da74f33618a0e690",
+          "record_key": "pathfinder-monster-core:5KstOkXabrOlZaKR"
+        },
+        {
+          "blind_candidate_id": "c-4a2b13a74195c09a",
+          "record_key": "spells-srd:XhfsRLfQjN3ed1zI"
+        },
+        {
+          "blind_candidate_id": "c-06e79086abec1b35",
+          "record_key": "lost-omens-bestiary:x6rsUA8iKakg11iD"
+        },
+        {
+          "blind_candidate_id": "c-d7026b1e22d6bd88",
+          "record_key": "pathfinder-monster-core:9SNpsnwlzZjH4DQf"
+        },
+        {
+          "blind_candidate_id": "c-cca5d104e54cdebd",
+          "record_key": "spells-srd:7idCEYHnPpVNL9vX"
+        },
+        {
+          "blind_candidate_id": "c-c686950ce7c426c7",
+          "record_key": "spells-srd:iALgymtr6vhsHFCr"
+        },
+        {
+          "blind_candidate_id": "c-e875048f684cbac9",
+          "record_key": "bastion-of-blasphemies-bestiary:VQrtNCtgkoNuCaxn"
+        },
+        {
+          "blind_candidate_id": "c-76b325b42fe1f4f5",
+          "record_key": "spells-srd:1RxPW9I70Nd7wokz"
+        },
+        {
+          "blind_candidate_id": "c-f6eb65647704bf72",
+          "record_key": "seven-dooms-for-sandpoint-bestiary:QY6YXMOIbcwNNAsf"
+        },
+        {
+          "blind_candidate_id": "c-2e002c2ad825649b",
+          "record_key": "equipment-srd:JOaELkzLWTywhn5Z"
+        },
+        {
+          "blind_candidate_id": "c-dedb8ee914c091a0",
+          "record_key": "spells-srd:LFSwMtQVP05EzlZe"
+        },
+        {
+          "blind_candidate_id": "c-9553910a54dfbc56",
+          "record_key": "spells-srd:qTzvVnAMWL05VitC"
+        },
+        {
+          "blind_candidate_id": "c-07aba955c950f0fc",
+          "record_key": "spells-srd:ZvB9sV7NLdpDeoTw"
+        },
+        {
+          "blind_candidate_id": "c-610509365fcd468f",
+          "record_key": "spells-srd:iG1USiSRXMjCDGAr"
+        },
+        {
+          "blind_candidate_id": "c-84e4bfee9a893227",
+          "record_key": "equipment-srd:dTxbaa7HSiJbIuNN"
+        },
+        {
+          "blind_candidate_id": "c-eb7275f29018befa",
+          "record_key": "pathfinder-npc-core:msItO7UjfQfWe9nZ"
+        },
+        {
+          "blind_candidate_id": "c-f79e3bd3b46afaca",
+          "record_key": "spells-srd:b5BQbwmuBhgPXTyi"
+        },
+        {
+          "blind_candidate_id": "c-6ce119a5563289d5",
+          "record_key": "spells-srd:0H1ozccQGGFLUwFI"
+        },
+        {
+          "blind_candidate_id": "c-f0116de78e84e17c",
+          "record_key": "spells-srd:thAHF1zxNplLCJPO"
+        },
+        {
+          "blind_candidate_id": "c-4fcbe72a8e0102cf",
+          "record_key": "spells-srd:q5vbYgLztQ04FQZg"
+        },
+        {
+          "blind_candidate_id": "c-f97eb94381c43417",
+          "record_key": "spells-srd:1OiPVy1wuoXi6LR5"
+        },
+        {
+          "blind_candidate_id": "c-231d2edcf3ac3bc0",
+          "record_key": "spells-srd:XGB77j7m0SLky8U1"
+        },
+        {
+          "blind_candidate_id": "c-1cf1eaf5e0b70c5d",
+          "record_key": "seven-dooms-for-sandpoint-bestiary:PmQtJ1LBy45ulUpG"
+        },
+        {
+          "blind_candidate_id": "c-ccbd35a7fd66252f",
+          "record_key": "pfs-season-3-bestiary:SJoWqX2P5LhJsbYA"
+        },
+        {
+          "blind_candidate_id": "c-c37e735ef7b902a5",
+          "record_key": "lost-omens-bestiary:xEdeUVwxzAMPncWl"
+        },
+        {
+          "blind_candidate_id": "c-e9d4292ada968698",
+          "record_key": "spells-srd:ZrRhweQ7KQ0wKN3m"
+        },
+        {
+          "blind_candidate_id": "c-ce6cfabd06d8faed",
+          "record_key": "spells-srd:1xbFBQDRs0hT5xZ9"
+        },
+        {
+          "blind_candidate_id": "c-327d218483dcc73a",
+          "record_key": "triumph-of-the-tusk-bestiary:8J79PxxX2ZmWwkcS"
+        },
+        {
+          "blind_candidate_id": "c-8d45bd4046e27f22",
+          "record_key": "spells-srd:PHVHBbdHeQRfjLmE"
+        },
+        {
+          "blind_candidate_id": "c-3c0ef97b639b8b2a",
+          "record_key": "spells-srd:vtCCVe869shMCJMj"
+        },
+        {
+          "blind_candidate_id": "c-b8f700e28c3c3b50",
+          "record_key": "spells-srd:zDJS8E66UI0himqV"
+        },
+        {
+          "blind_candidate_id": "c-142a6b951e8be38a",
+          "record_key": "hellbreakers-bestiary:lxCHRvzbqZEzwCI4"
+        },
+        {
+          "blind_candidate_id": "c-5ed045d0a0a2d79d",
+          "record_key": "lost-omens-bestiary:PiOJ1mCKSoCLr67f"
+        }
+      ],
+      "intent": "Find records with an area sonic blast and comparable physical or disorienting consequences. Exact spell-name references without supporting mechanics are not strong root similarity.",
+      "scenario_id": "hold-s03",
+      "seed_identity": {
+        "kind": "record",
+        "record_key": "spells-srd:wzLkNU3AAqOSKFPR",
+        "title": "Noise Blast"
+      },
+      "selected_sections": [],
+      "selection": {
+        "kind": "all"
+      },
+      "source_binding_id": "sound-burst",
+      "task_scope": "all"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-e7c1e6661c6ccc53",
+          "record_key": "spell-effects:pE2TWhG97XbhgAdH"
+        },
+        {
+          "blind_candidate_id": "c-66e79fac97288155",
+          "record_key": "spells-srd:jks2h5pMsm8pCi8e"
+        },
+        {
+          "blind_candidate_id": "c-e2a2daed4fec4b35",
+          "record_key": "feat-effects:Pe4qwrE1oU68iW4g"
+        },
+        {
+          "blind_candidate_id": "c-7cb1617e6a14b18b",
+          "record_key": "pathfinder-monster-core:UwvAf8riRdMaitA4"
+        },
+        {
+          "blind_candidate_id": "c-df870b6b1fc23e14",
+          "record_key": "pathfinder-bestiary-2:6xioRweZ0T4o4X9e"
+        },
+        {
+          "blind_candidate_id": "c-644daa7a2ef867ae",
+          "record_key": "feat-effects:Tw9MjeQHL3qFY1PO"
+        },
+        {
+          "blind_candidate_id": "c-868104254b3e78a1",
+          "record_key": "pathfinder-monster-core-2:qdelXqVZKfk1MlAB"
+        },
+        {
+          "blind_candidate_id": "c-6b763a7268a3d982",
+          "record_key": "spell-effects:uIMaMzd6pcKmMNPJ"
+        },
+        {
+          "blind_candidate_id": "c-7f173711dc023550",
+          "record_key": "spell-effects:BGv44XBGtD4zOJBd"
+        },
+        {
+          "blind_candidate_id": "c-2e42981c2c16480e",
+          "record_key": "feats-srd:bVng7Mkrj4UnQzLo"
+        },
+        {
+          "blind_candidate_id": "c-dde7e072209c008d",
+          "record_key": "spell-effects:TrmNSuv6zWEiceqn"
+        },
+        {
+          "blind_candidate_id": "c-aeb51caeda0df18e",
+          "record_key": "familiar-abilities:5019hvUZcNe9dLEO"
+        },
+        {
+          "blind_candidate_id": "c-daf404de0d65eb94",
+          "record_key": "spell-effects:UXdt1WVA66oZOoZS"
+        },
+        {
+          "blind_candidate_id": "c-c35fc1697a1d8324",
+          "record_key": "spell-effects:lmAwCy7isFvLYdGd"
+        },
+        {
+          "blind_candidate_id": "c-d6824e336b05e97d",
+          "record_key": "feats-srd:sJ7WTLDwAbIA9Elc"
+        },
+        {
+          "blind_candidate_id": "c-f8892d7fada636d1",
+          "record_key": "pathfinder-monster-core:pVbggIyXxCo8pPue"
+        },
+        {
+          "blind_candidate_id": "c-be4fce38bc5ac9e1",
+          "record_key": "feats-srd:qbH9ns3HMYBxIvEQ"
+        },
+        {
+          "blind_candidate_id": "c-6e49d66dd5457b26",
+          "record_key": "pathfinder-monster-core-2:micllXbcz1eBcAoz"
+        },
+        {
+          "blind_candidate_id": "c-3ad66e430e20be62",
+          "record_key": "spell-effects:ei9MIyZbIaP4AZmh"
+        },
+        {
+          "blind_candidate_id": "c-e789a650fbfd64ef",
+          "record_key": "hells-destiny-bestiary:RkRec3jq3kVw3Sbt"
+        }
+      ],
+      "intent": "Find records whose explanatory content meaningfully embodies the catalog fire concept. Grade described fire behavior, not exact trait membership by itself.",
+      "scenario_id": "dev-t01",
+      "seed_identity": {
+        "kind": "trait",
+        "title": "Fire",
+        "trait_key": "trait:fire"
+      },
+      "selected_sections": [],
+      "selection": {
+        "kind": "all"
+      },
+      "source_binding_id": "fire",
+      "task_scope": "all"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-92b43b1f3b625883",
+          "record_key": "battlecry-bestiary:qjCFbg7IB5NDbMOW"
+        },
+        {
+          "blind_candidate_id": "c-9aff31bb0343c046",
+          "record_key": "pfs-season-5-bestiary:eWYkgj6FV8D2IUhT"
+        },
+        {
+          "blind_candidate_id": "c-ccb8e85255e6c6f8",
+          "record_key": "pfs-season-5-bestiary:MZcunXY0d99zLI1v"
+        },
+        {
+          "blind_candidate_id": "c-5d6cdd1354b929ea",
+          "record_key": "pathfinder-monster-core-2:fCsCDQAH23UOtECx"
+        },
+        {
+          "blind_candidate_id": "c-94b9411fc76432d8",
+          "record_key": "pfs-season-4-bestiary:C9gWLpxJr4QKxP64"
+        },
+        {
+          "blind_candidate_id": "c-79f0b55043f92ad0",
+          "record_key": "pathfinder-monster-core-2:B1ZWz3rJ6VBYVH1U"
+        },
+        {
+          "blind_candidate_id": "c-1fc5ab63dc38c50b",
+          "record_key": "pfs-season-2-bestiary:gOPvMgZIQXidd1n8"
+        },
+        {
+          "blind_candidate_id": "c-43677ed5435a7fc5",
+          "record_key": "pfs-season-4-bestiary:nr6qCJkCLNAZh5ED"
+        },
+        {
+          "blind_candidate_id": "c-02291e824cdf8859",
+          "record_key": "outlaws-of-alkenstar-bestiary:pgYXyo7Qs9b84bQh"
+        },
+        {
+          "blind_candidate_id": "c-fac16da7c0e6cbf2",
+          "record_key": "pfs-season-2-bestiary:iuHyixlsXUA4KJ9Q"
+        },
+        {
+          "blind_candidate_id": "c-e54cfcab59db107e",
+          "record_key": "book-of-the-dead-bestiary:8o27tdIZFp0eTs5N"
+        },
+        {
+          "blind_candidate_id": "c-10ae005da67a265a",
+          "record_key": "blood-lords-bestiary:woGNg9IcqOtEy9hb"
+        },
+        {
+          "blind_candidate_id": "c-d0e1c52f8feb78a8",
+          "record_key": "pfs-season-2-bestiary:5NCKrDA869F82zPC"
+        },
+        {
+          "blind_candidate_id": "c-fa788dc7556a47c6",
+          "record_key": "familiar-abilities:FVTyfoJNPboqdtTe"
+        },
+        {
+          "blind_candidate_id": "c-ded09c24651d0567",
+          "record_key": "pathfinder-bestiary-2:cKu0rrZtEAFCosej"
+        },
+        {
+          "blind_candidate_id": "c-0296ee2738c551b4",
+          "record_key": "pfs-season-2-bestiary:fF28drhtacyoHU96"
+        },
+        {
+          "blind_candidate_id": "c-87817f28186db93c",
+          "record_key": "book-of-the-dead-bestiary:ipVQuGff2OeTVwFK"
+        },
+        {
+          "blind_candidate_id": "c-1c66096a04f4d891",
+          "record_key": "book-of-the-dead-bestiary:z72hPIIjIiLIxnor"
+        },
+        {
+          "blind_candidate_id": "c-df8a59279ff88c63",
+          "record_key": "blood-lords-bestiary:HKH4GURuq59l0ag4"
+        },
+        {
+          "blind_candidate_id": "c-985854419e7f34d3",
+          "record_key": "abomination-vaults-bestiary:ro9oVsu1cuCP8OQH"
+        },
+        {
+          "blind_candidate_id": "c-7f6d93f9e69cb630",
+          "record_key": "pfs-season-7-bestiary:j0iZU9FnWCtVP9nl"
+        },
+        {
+          "blind_candidate_id": "c-0158cb91a39bb80a",
+          "record_key": "ancestryfeatures:SAbzItAI4uwbdnQk"
+        },
+        {
+          "blind_candidate_id": "c-302897dd4a12d92b",
+          "record_key": "bestiary-ability-glossary-srd:TTCw5NusiSSkJU1x"
+        },
+        {
+          "blind_candidate_id": "c-fb44e2d8811df5a9",
+          "record_key": "agents-of-edgewatch-bestiary:ySpOZlKUbcxWhKQ6"
+        },
+        {
+          "blind_candidate_id": "c-4c2ef5b01fff6776",
+          "record_key": "pfs-season-6-bestiary:fUptgBB85gl6Gza2"
+        }
+      ],
+      "intent": "Find records whose explanatory content meaningfully concerns the catalog undead concept. Distinguish intrinsic undeath from incidental references or equipment carried by an undead owner.",
+      "scenario_id": "dev-t02",
+      "seed_identity": {
+        "kind": "trait",
+        "title": "Undead",
+        "trait_key": "trait:undead"
+      },
+      "selected_sections": [],
+      "selection": {
+        "kind": "all"
+      },
+      "source_binding_id": "undead",
+      "task_scope": "all"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-0cb0e09c082c86f3",
+          "record_key": "pathfinder-npc-core:srsib4P14wAYv4pS"
+        },
+        {
+          "blind_candidate_id": "c-7d266c4727aa0a5e",
+          "record_key": "equipment-srd:NpNDlH8YE2i67vQV"
+        },
+        {
+          "blind_candidate_id": "c-7b394cc159fff203",
+          "record_key": "equipment-srd:8Rels5G8re0MXFAS"
+        },
+        {
+          "blind_candidate_id": "c-d51ea3f0cdd5f2fd",
+          "record_key": "myth-speaker-bestiary:X5VGzifC2pKuttRq"
+        },
+        {
+          "blind_candidate_id": "c-30ab3dfedac30d82",
+          "record_key": "feats-srd:SHhuzlK4VkOMlZBh"
+        },
+        {
+          "blind_candidate_id": "c-15aa7365f019cbdf",
+          "record_key": "equipment-srd:f0A1zqCFiUJuXc9U"
+        },
+        {
+          "blind_candidate_id": "c-af3a5a984f70ad10",
+          "record_key": "equipment-effects:T27uDXdMVc5ZFwKw"
+        },
+        {
+          "blind_candidate_id": "c-7d9b77896603f48f",
+          "record_key": "journals:kzxu2dI7tFxv6Ix6"
+        },
+        {
+          "blind_candidate_id": "c-bf718d3cc7357239",
+          "record_key": "equipment-srd:TtDWzugeKjtlWfZq"
+        },
+        {
+          "blind_candidate_id": "c-4b69d108dc7a16d7",
+          "record_key": "feats-srd:bGCQg3XAF0twCU9w"
+        },
+        {
+          "blind_candidate_id": "c-e00406bfe73cc657",
+          "record_key": "feats-srd:sfxLo9kz2WkCQiy4"
+        },
+        {
+          "blind_candidate_id": "c-1e0d49fd06b789eb",
+          "record_key": "equipment-srd:GbR8rgZMCVBn3Evb"
+        },
+        {
+          "blind_candidate_id": "c-85777dc524b7564e",
+          "record_key": "equipment-srd:U5IGgD7Z225OPnhK"
+        },
+        {
+          "blind_candidate_id": "c-8210fca050bfcb93",
+          "record_key": "equipment-srd:kF6oa9xUGAz4zF11"
+        },
+        {
+          "blind_candidate_id": "c-c96049f2887b863e",
+          "record_key": "feats-srd:u8YnTCS2EGoJl90W"
+        },
+        {
+          "blind_candidate_id": "c-590113aa4f938723",
+          "record_key": "rollable-tables:zgZoI7h0XjjJrrNK"
+        },
+        {
+          "blind_candidate_id": "c-162322e0c473a4d4",
+          "record_key": "feats-srd:ikjPRBeBUWV6hYFF"
+        },
+        {
+          "blind_candidate_id": "c-6160fb8a89519026",
+          "record_key": "feats-srd:MU9qS0QuBdcyLkza"
+        },
+        {
+          "blind_candidate_id": "c-795b4ef3100f3e5a",
+          "record_key": "feats-srd:UA3iZTAZrugKClKE"
+        },
+        {
+          "blind_candidate_id": "c-eda5b2a27dbc6ca4",
+          "record_key": "feats-srd:pEFcWRYiWLSjxvkW"
+        },
+        {
+          "blind_candidate_id": "c-1c05510490d2ddc3",
+          "record_key": "equipment-srd:PGBAg9ywfdlJCoCl"
+        },
+        {
+          "blind_candidate_id": "c-8e71b9f1254eebfe",
+          "record_key": "feats-srd:4evo0jTAKBhowyDG"
+        },
+        {
+          "blind_candidate_id": "c-600f7619bce8a109",
+          "record_key": "pathfinder-npc-core:1wk2fBlDuHLRYfJW"
+        },
+        {
+          "blind_candidate_id": "c-3414e1a0345c618c",
+          "record_key": "feats-srd:eJPu2Sj7XYCM0h0R"
+        },
+        {
+          "blind_candidate_id": "c-b6a9ffb8f1f4cd66",
+          "record_key": "equipment-srd:C35j9PXcyDdrTsat"
+        },
+        {
+          "blind_candidate_id": "c-8347bd3d1428a3e5",
+          "record_key": "feats-srd:U9uRb2TezYlQPNJd"
+        },
+        {
+          "blind_candidate_id": "c-2ab57456d16ee455",
+          "record_key": "equipment-srd:V9mhR91d2qWa3dGh"
+        },
+        {
+          "blind_candidate_id": "c-ffcc3d58cade60b8",
+          "record_key": "feats-srd:Cy5W8U4yN9P1EvBy"
+        },
+        {
+          "blind_candidate_id": "c-3417835c5cdc9c9b",
+          "record_key": "equipment-srd:sG5JfXmH9wqmqW3w"
+        },
+        {
+          "blind_candidate_id": "c-2aee6d655433b155",
+          "record_key": "feats-srd:lv8jRWK7bv7dR6SM"
+        },
+        {
+          "blind_candidate_id": "c-50444f3d345858d4",
+          "record_key": "equipment-srd:ts5z3xR9j48Cic5H"
+        },
+        {
+          "blind_candidate_id": "c-0535b018c700cc6a",
+          "record_key": "equipment-srd:ZtiSyJMXellZRPRB"
+        },
+        {
+          "blind_candidate_id": "c-350a883d62ed9d28",
+          "record_key": "equipment-srd:GVdbmKFLi5PlMr5R"
+        },
+        {
+          "blind_candidate_id": "c-92ea0eeb6a8d577f",
+          "record_key": "equipment-srd:ZjApNlusD5oZkPTJ"
+        },
+        {
+          "blind_candidate_id": "c-19bd74473d7996b9",
+          "record_key": "feats-srd:lhSqWHXK1JShUabF"
+        }
+      ],
+      "intent": "Exercise the known catalog label Amp when no definition is available. Preserve explicit label-only provenance and assess failure or retrieval behavior; semantic usefulness is unknown without an independently established seed meaning.",
+      "scenario_id": "dev-t03",
+      "seed_identity": {
+        "kind": "trait",
+        "title": "Amp",
+        "trait_key": "trait:amp"
+      },
+      "selected_sections": [],
+      "selection": {
+        "kind": "all"
+      },
+      "source_binding_id": "amp",
+      "task_scope": "all"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-1ae327ff04544f73",
+          "record_key": "spells-srd:zhqnMOVPzVvWSUbC"
+        },
+        {
+          "blind_candidate_id": "c-ec75d7a91636f8d0",
+          "record_key": "spell-effects:mKw9WvqnhaUsPvvy"
+        },
+        {
+          "blind_candidate_id": "c-2b977d669adab40a",
+          "record_key": "feats-srd:yWt2Em1Cz7mgDS1R"
+        },
+        {
+          "blind_candidate_id": "c-c953cfec4fd14c4e",
+          "record_key": "pathfinder-monster-core:Fn5ZKPwiaXm242Np"
+        },
+        {
+          "blind_candidate_id": "c-689dd8436d6f749b",
+          "record_key": "feats-srd:ab7xlmUzPUOFnAl2"
+        },
+        {
+          "blind_candidate_id": "c-4bde025a19405b15",
+          "record_key": "bestiary-effects:35OHxyrZA43S8rtL"
+        },
+        {
+          "blind_candidate_id": "c-fa6350d8b50897bf",
+          "record_key": "pathfinder-monster-core:1AZoRkLec47xrTqY"
+        },
+        {
+          "blind_candidate_id": "c-a00ec609ddeb1dc2",
+          "record_key": "spells-srd:WzLKjSw6hsBhuklC"
+        },
+        {
+          "blind_candidate_id": "c-d3e43cc1708ddbf0",
+          "record_key": "pathfinder-monster-core-2:PV8ex8ivTfD7bzEP"
+        },
+        {
+          "blind_candidate_id": "c-0e41c2d6f1926480",
+          "record_key": "feats-srd:nroOy0PBeEUGdUXD"
+        },
+        {
+          "blind_candidate_id": "c-4e529a0a40e25c2c",
+          "record_key": "familiar-abilities:mIl4YjbssQ5AERWS"
+        },
+        {
+          "blind_candidate_id": "c-c990fab898093130",
+          "record_key": "other-effects:TPbr1kErAAJKBi3V"
+        },
+        {
+          "blind_candidate_id": "c-c872a75188429d8a",
+          "record_key": "actionspf2e:eBgO5gp5kKhGtmk9"
+        },
+        {
+          "blind_candidate_id": "c-d39948074fea9b12",
+          "record_key": "equipment-effects:YjcV6eW4u9OpSNC2"
+        },
+        {
+          "blind_candidate_id": "c-2bb0c67566b098d8",
+          "record_key": "spell-effects:w1HwO7huxJoK0gHY"
+        },
+        {
+          "blind_candidate_id": "c-4ce4a70de4a04e60",
+          "record_key": "pfs-season-6-bestiary:Jfes5xCt2seO5TKw"
+        },
+        {
+          "blind_candidate_id": "c-4462a02813458894",
+          "record_key": "spells-srd:lXsFKdaOz9t9w11U"
+        },
+        {
+          "blind_candidate_id": "c-bc4384a26a697998",
+          "record_key": "spells-srd:Seaah9amXg70RKw2"
+        },
+        {
+          "blind_candidate_id": "c-4ae78c4483d2e550",
+          "record_key": "spells-srd:zfn5RqAdF63neqpP"
+        },
+        {
+          "blind_candidate_id": "c-3964010c45a2c3cf",
+          "record_key": "spells-srd:RS1nrqEjEi1ZlC53"
+        },
+        {
+          "blind_candidate_id": "c-24c4c4f5845df05f",
+          "record_key": "agents-of-edgewatch-bestiary:nfULZbf8OOUDdrZM"
+        },
+        {
+          "blind_candidate_id": "c-6048f6f781b83466",
+          "record_key": "feats-srd:ajesR7y0jWzqjAgc"
+        },
+        {
+          "blind_candidate_id": "c-f08eb37b81f00a6c",
+          "record_key": "spells-srd:MZGkMsPBztFN0pUO"
+        }
+      ],
+      "intent": "Find records whose explanatory content meaningfully embodies the catalog water concept. Exact trait membership and incidental words are separate from semantic usefulness.",
+      "scenario_id": "hold-t01",
+      "seed_identity": {
+        "kind": "trait",
+        "title": "Water",
+        "trait_key": "trait:water"
+      },
+      "selected_sections": [],
+      "selection": {
+        "kind": "all"
+      },
+      "source_binding_id": "water",
+      "task_scope": "all"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-04657bde1b14884a",
+          "record_key": "one-shot-bestiary:3oCs4xRge4oXjQC4"
+        },
+        {
+          "blind_candidate_id": "c-3b05edb4cd43d170",
+          "record_key": "spells-srd:qvwIwJ9QBihy8R0t"
+        },
+        {
+          "blind_candidate_id": "c-3da2d8daccedc2d3",
+          "record_key": "pathfinder-monster-core:4MoqBCDQA6FR1sPw"
+        },
+        {
+          "blind_candidate_id": "c-f43f44092da32725",
+          "record_key": "spells-srd:zCcfPS4y5SrZzU2x"
+        },
+        {
+          "blind_candidate_id": "c-eaf4675fc4ec2ec5",
+          "record_key": "bestiary-effects:3MIZf42EhhKbIwLQ"
+        },
+        {
+          "blind_candidate_id": "c-d324d06bad35d76b",
+          "record_key": "pfs-season-2-bestiary:6aIh6EXxkqkBciQA"
+        },
+        {
+          "blind_candidate_id": "c-f09411cc1e517436",
+          "record_key": "pathfinder-bestiary-2:nzLGh9GKCk7imto3"
+        },
+        {
+          "blind_candidate_id": "c-4924e2d5523e180c",
+          "record_key": "spell-effects:tu8FyCtmL3YYR2jL"
+        },
+        {
+          "blind_candidate_id": "c-b854da555098d7ee",
+          "record_key": "strength-of-thousands-bestiary:Cj0ra2zasTZCBRjJ"
+        },
+        {
+          "blind_candidate_id": "c-2680d5c0db9d0a03",
+          "record_key": "pathfinder-bestiary-2:Ge5Q5I7TTksf7QyN"
+        },
+        {
+          "blind_candidate_id": "c-c7fab44bbd9a0b8e",
+          "record_key": "familiar-abilities:57b8u8s3fV0UCrgJ"
+        },
+        {
+          "blind_candidate_id": "c-08f49041f4e22558",
+          "record_key": "quest-for-the-frozen-flame-bestiary:LL3XklJHogUKWDfh"
+        },
+        {
+          "blind_candidate_id": "c-c95cebc6ac74bf0f",
+          "record_key": "book-of-the-dead-bestiary:VYLTAIVA9qUsbujo"
+        },
+        {
+          "blind_candidate_id": "c-a94fd484c70a934e",
+          "record_key": "spells-srd:jSRAyd57kd4WZ4yE"
+        },
+        {
+          "blind_candidate_id": "c-1943a9ec681f7a9e",
+          "record_key": "bestiary-effects:MGlENdqYCAwBkyXt"
+        },
+        {
+          "blind_candidate_id": "c-d523177f47946bf4",
+          "record_key": "pathfinder-bestiary-3:H8PaAZanEOT85KjD"
+        },
+        {
+          "blind_candidate_id": "c-f2ff5990ee214aca",
+          "record_key": "feats-srd:ahyQpMVDIqhvXkQ4"
+        },
+        {
+          "blind_candidate_id": "c-053e5fdab3fba2f2",
+          "record_key": "pfs-season-5-bestiary:3w7qrvJsy55a8ct9"
+        },
+        {
+          "blind_candidate_id": "c-d34a51b77131c6d7",
+          "record_key": "pathfinder-bestiary-3:eGNpuEg60STItyGz"
+        },
+        {
+          "blind_candidate_id": "c-3fd5b7f72aaa35fb",
+          "record_key": "pathfinder-bestiary-3:tQBUoh5wLJXiFdX6"
+        },
+        {
+          "blind_candidate_id": "c-6a00d841abce3a03",
+          "record_key": "feats-srd:I9rSWQyueWHQyNxe"
+        },
+        {
+          "blind_candidate_id": "c-78f5b181cca7c90e",
+          "record_key": "spells-srd:dileJ0Yxqg76LMvu"
+        },
+        {
+          "blind_candidate_id": "c-c722f82c0b0ca740",
+          "record_key": "familiar-abilities:lLWkoGiNLNIEm5Sp"
+        }
+      ],
+      "intent": "Find records whose explanatory content meaningfully embodies the catalog plant concept. Distinguish an intrinsically plant entity or effect from carried plant-derived objects.",
+      "scenario_id": "hold-t02",
+      "seed_identity": {
+        "kind": "trait",
+        "title": "Plant",
+        "trait_key": "trait:plant"
+      },
+      "selected_sections": [],
+      "selection": {
+        "kind": "all"
+      },
+      "source_binding_id": "plant",
+      "task_scope": "all"
+    },
+    {
+      "candidates": [
+        {
+          "blind_candidate_id": "c-26f016943e392e46",
+          "record_key": "spells-srd:1xbFBQDRs0hT5xZ9"
+        },
+        {
+          "blind_candidate_id": "c-d5da23a9243281ed",
+          "record_key": "feats-srd:D1uVM4fif8Y0FYu1"
+        },
+        {
+          "blind_candidate_id": "c-7ba337822397a0d2",
+          "record_key": "bestiary-effects:k3P0APls0jHEYdHz"
+        },
+        {
+          "blind_candidate_id": "c-21bc93c7b64e7a9b",
+          "record_key": "spells-srd:vtCCVe869shMCJMj"
+        },
+        {
+          "blind_candidate_id": "c-94ac0f245d3d933c",
+          "record_key": "hellbreakers-bestiary:L3iKGwRinPeljMM2"
+        },
+        {
+          "blind_candidate_id": "c-91c1c674118b67de",
+          "record_key": "stolen-fate-bestiary:334vtiUd5J507PsX"
+        },
+        {
+          "blind_candidate_id": "c-cda4443f2701a752",
+          "record_key": "bestiary-effects:YKCsmlMgI0aS7joO"
+        },
+        {
+          "blind_candidate_id": "c-d69e75d2b4379c7f",
+          "record_key": "feat-effects:ycalVFivloJ14yhA"
+        },
+        {
+          "blind_candidate_id": "c-791fe3e9b8c6b145",
+          "record_key": "age-of-ashes-bestiary:XHJC4G6bfPiVXGKE"
+        },
+        {
+          "blind_candidate_id": "c-a259b6dd570abe02",
+          "record_key": "feats-srd:SC5oZbyvLO5CQwhl"
+        },
+        {
+          "blind_candidate_id": "c-acda2c3b2a339b02",
+          "record_key": "kingmaker-bestiary:htHgsx1COWOfhE3D"
+        },
+        {
+          "blind_candidate_id": "c-76a48f768dff14cf",
+          "record_key": "spell-effects:mmJNE57hC7G3SPae"
+        },
+        {
+          "blind_candidate_id": "c-278fce7e17ff2934",
+          "record_key": "agents-of-edgewatch-bestiary:BCMkxoQB4xK4BniG"
+        },
+        {
+          "blind_candidate_id": "c-5cc632af85096422",
+          "record_key": "spells-srd:tPtTKe0X1dDwoDmQ"
+        },
+        {
+          "blind_candidate_id": "c-f729ad7e02adadfa",
+          "record_key": "pfs-season-3-bestiary:SJoWqX2P5LhJsbYA"
+        },
+        {
+          "blind_candidate_id": "c-6c4f83ce73b0031b",
+          "record_key": "pfs-season-4-bestiary:GiSG0NC5MMpekWAu"
+        },
+        {
+          "blind_candidate_id": "c-6c8c68b7ef379508",
+          "record_key": "howl-of-the-wild-bestiary:bu6iSeOO5ho0IIRS"
+        },
+        {
+          "blind_candidate_id": "c-bddb13c55cc6ceee",
+          "record_key": "pathfinder-monster-core:9SNpsnwlzZjH4DQf"
+        },
+        {
+          "blind_candidate_id": "c-bfdfe5b68ea32793",
+          "record_key": "bestiary-effects:tSF9z5VTeevxoww3"
+        },
+        {
+          "blind_candidate_id": "c-daa0e9c16da12854",
+          "record_key": "kingmaker-bestiary:554zNFkbYXBdmgAy"
+        },
+        {
+          "blind_candidate_id": "c-a377a78c26154ffc",
+          "record_key": "spells-srd:gIdDLrbswTV3OBJy"
+        },
+        {
+          "blind_candidate_id": "c-a43029cca15b0be7",
+          "record_key": "agents-of-edgewatch-bestiary:gIcReNQOZceZBBlw"
+        },
+        {
+          "blind_candidate_id": "c-0b04b3e7e91ca049",
+          "record_key": "feats-srd:5uny1fH9ybbO6ytR"
+        },
+        {
+          "blind_candidate_id": "c-ae89269ab2efed6b",
+          "record_key": "kingmaker-bestiary:PK8yBANFyMqFZ3IY"
+        },
+        {
+          "blind_candidate_id": "c-404c85f2d77e9eff",
+          "record_key": "pathfinder-bestiary-3:O8iynsWnjObQ8TJl"
+        },
+        {
+          "blind_candidate_id": "c-612bb8bb28dea77d",
+          "record_key": "kingmaker-bestiary:Dxn6t9aoWUwPn6CE"
+        },
+        {
+          "blind_candidate_id": "c-d3b02868459052a6",
+          "record_key": "equipment-effects:nBGodDOQTCWBXjNd"
+        },
+        {
+          "blind_candidate_id": "c-73226c1689775e1c",
+          "record_key": "feats-srd:SNgOGKUHAxgFJgxW"
+        },
+        {
+          "blind_candidate_id": "c-f88fd25ce9455b34",
+          "record_key": "lost-omens-bestiary:KLxdUFCvZ7HkAP1E"
+        }
+      ],
+      "intent": "Find records whose explanatory content meaningfully embodies the catalog sonic concept, supported by described sound-based behavior rather than an isolated trait tag.",
+      "scenario_id": "hold-t03",
+      "seed_identity": {
+        "kind": "trait",
+        "title": "Sonic",
+        "trait_key": "trait:sonic"
+      },
+      "selected_sections": [],
+      "selection": {
+        "kind": "all"
+      },
+      "source_binding_id": "sonic",
+      "task_scope": "all"
+    }
+  ],
+  "source_packets_pending": true,
+  "version": 1
+}

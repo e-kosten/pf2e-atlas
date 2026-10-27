@@ -1,0 +1,8 @@
+{
+  "input_freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+  "private_rankings_sha256": "653830192d0c3d3d9c4a946cd1cd9fec80d69485e4a656f01cc87bc12631c576",
+  "public_pool_sha256": "d9223cec121981d07d401d9818e436acdfa4f8e490e8397b58ceae4c97302709",
+  "randomization_seed": 20261026,
+  "state": "pool-constructed-awaiting-source-packets",
+  "version": 1
+}

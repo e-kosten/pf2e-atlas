@@ -1,0 +1,3470 @@
+{
+  "cells": [
+    {
+      "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+      "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+      "cold_ms": 4.318792000049143,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas",
+        "web",
+        "--port",
+        "4988",
+        "--path-mode",
+        "repo",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--source",
+        "/Users/ekosten/Library/Caches/pf2e-atlas/pf2e/28d9d156f252d084371d994dc359509b49eadf18",
+        "--embedding-cache-path",
+        "/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/.cache/hf-models"
+      ],
+      "input_hashes": {
+        "corpus.json": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "freeze.json": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "manifest.json": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "seeds.json": "bf0f1ae40150592927d26b021d318f0bebbef5fbb8e405d2b5c4b43d6c74ba1c"
+      },
+      "lifecycle": "Fresh retained service process for this cell; first endpoint request process-cold;20 subsequent complete requests warm in same service/client context. OS page cache uncontrolled. Startup time excluded from endpoint latency.",
+      "percentile_convention": "nearest-rank ceil(p*n), one-based",
+      "pid": 81257,
+      "process_resources": {
+        "elapsed_ms": 165.7695829999284,
+        "exit_code": -15,
+        "peak_rss_bytes": 21905408,
+        "scope": "True child process peak across service startup and all21 inventory requests for this cell; not a per-request peak. Own server intentionally terminated after samples.",
+        "system_seconds": 0.018137,
+        "user_seconds": 0.045384999999999995
+      },
+      "profile": "bge-base",
+      "request": {
+        "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "search_profile": "bge-base",
+        "seed": {
+          "kind": "record",
+          "record_key": "pathfinder-monster-core-2:qdelXqVZKfk1MlAB"
+        }
+      },
+      "samples": [
+        {
+          "elapsed_ms": 4.318792000049143,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "cold",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.8045420003763866,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-01",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.6944589999402524,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-02",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.6775420001285966,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-03",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.398249999714608,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-04",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.420042000267131,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-05",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.3242080005729804,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-06",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0927499999743304,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-07",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.095167000334186,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-08",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.119249999850581,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-09",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9802500000878354,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-10",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9874999998137355,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-11",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.07854100062832,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-12",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9068749998041312,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-13",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8209999998362036,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-14",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9443749997662962,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-15",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0805839994864073,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-16",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.961082999514474,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-17",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.930958999764698,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-18",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.7232910004167934,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-19",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0462499996938277,
+          "full_response_sha256": "bf5ec0d490e6e566a1399b84590cb64612072d36a10597f427d242d0de25ce13",
+          "label": "warm-20",
+          "part_count": 3,
+          "raw_response_sha256": "11072fa5629445a84bb18e55809798b1b6c34bc5487ccee3cc385dccbc199209",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        }
+      ],
+      "scenario_id": "dev-c01",
+      "source_revision": "28d9d156f252d084371d994dc359509b49eadf18",
+      "startup_ms": 110.59820799982845,
+      "status": "ok",
+      "warm_p50_ms": 2.07854100062832,
+      "warm_p95_ms": 2.6944589999402524,
+      "warm_repetitions": 20
+    },
+    {
+      "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+      "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+      "cold_ms": 3.6101249997955165,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas",
+        "web",
+        "--port",
+        "4988",
+        "--path-mode",
+        "repo",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--source",
+        "/Users/ekosten/Library/Caches/pf2e-atlas/pf2e/28d9d156f252d084371d994dc359509b49eadf18",
+        "--embedding-cache-path",
+        "/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/.cache/hf-models"
+      ],
+      "input_hashes": {
+        "corpus.json": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "freeze.json": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "manifest.json": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "seeds.json": "bf0f1ae40150592927d26b021d318f0bebbef5fbb8e405d2b5c4b43d6c74ba1c"
+      },
+      "lifecycle": "Fresh retained service process for this cell; first endpoint request process-cold;20 subsequent complete requests warm in same service/client context. OS page cache uncontrolled. Startup time excluded from endpoint latency.",
+      "percentile_convention": "nearest-rank ceil(p*n), one-based",
+      "pid": 81278,
+      "process_resources": {
+        "elapsed_ms": 159.1218330004267,
+        "exit_code": -15,
+        "peak_rss_bytes": 21889024,
+        "scope": "True child process peak across service startup and all21 inventory requests for this cell; not a per-request peak. Own server intentionally terminated after samples.",
+        "system_seconds": 0.017911,
+        "user_seconds": 0.046356999999999995
+      },
+      "profile": "embeddinggemma",
+      "request": {
+        "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "search_profile": "embeddinggemma",
+        "seed": {
+          "kind": "record",
+          "record_key": "pathfinder-monster-core-2:qdelXqVZKfk1MlAB"
+        }
+      },
+      "samples": [
+        {
+          "elapsed_ms": 3.6101249997955165,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "cold",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.882417000364512,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-01",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.76458400003321,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-02",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.419958999780647,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-03",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.5055000005522743,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-04",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.2200829998837435,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-05",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.373000000261527,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-06",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.1385000000009313,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-07",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.103042000271671,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-08",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0932079996782704,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-09",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9959999999628053,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-10",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.118667000104324,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-11",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.991125000131433,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-12",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9194590004190104,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-13",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.172499999687716,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-14",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8152920001739403,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-15",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9324579998283298,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-16",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8451670002832543,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-17",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.7674579994491069,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-18",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.7079580002246075,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-19",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.720125000247208,
+          "full_response_sha256": "a4d91a7f4f0ac2670a1dbb1eb6b8776249844fada3da7d767f702407ae1389da",
+          "label": "warm-20",
+          "part_count": 3,
+          "raw_response_sha256": "eb9676052e6c8f40cc122fdc47fae6ba97ce39b5f3aae1e1dfaf7dbcb3b46682",
+          "roles": {
+            "ability": 2,
+            "description": 1
+          },
+          "selection_signature_sha256": "88245e2faa9ffcc40e7e902102fbc24d12a42bd4df591f4056ac7ac39d9da5df",
+          "status": 200
+        }
+      ],
+      "scenario_id": "dev-c01",
+      "source_revision": "28d9d156f252d084371d994dc359509b49eadf18",
+      "startup_ms": 105.98533300071722,
+      "status": "ok",
+      "warm_p50_ms": 2.0932079996782704,
+      "warm_p95_ms": 2.76458400003321,
+      "warm_repetitions": 20
+    },
+    {
+      "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+      "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+      "cold_ms": 3.4512920001361636,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas",
+        "web",
+        "--port",
+        "4988",
+        "--path-mode",
+        "repo",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--source",
+        "/Users/ekosten/Library/Caches/pf2e-atlas/pf2e/28d9d156f252d084371d994dc359509b49eadf18",
+        "--embedding-cache-path",
+        "/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/.cache/hf-models"
+      ],
+      "input_hashes": {
+        "corpus.json": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "freeze.json": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "manifest.json": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "seeds.json": "bf0f1ae40150592927d26b021d318f0bebbef5fbb8e405d2b5c4b43d6c74ba1c"
+      },
+      "lifecycle": "Fresh retained service process for this cell; first endpoint request process-cold;20 subsequent complete requests warm in same service/client context. OS page cache uncontrolled. Startup time excluded from endpoint latency.",
+      "percentile_convention": "nearest-rank ceil(p*n), one-based",
+      "pid": 81340,
+      "process_resources": {
+        "elapsed_ms": 198.96041599986347,
+        "exit_code": -15,
+        "peak_rss_bytes": 22183936,
+        "scope": "True child process peak across service startup and all21 inventory requests for this cell; not a per-request peak. Own server intentionally terminated after samples.",
+        "system_seconds": 0.017908999999999998,
+        "user_seconds": 0.048065
+      },
+      "profile": "bge-base",
+      "request": {
+        "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "search_profile": "bge-base",
+        "seed": {
+          "kind": "record",
+          "record_key": "pathfinder-monster-core:smItqlbr0iuDJ8nL"
+        }
+      },
+      "samples": [
+        {
+          "elapsed_ms": 3.4512920001361636,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "cold",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.630291999594192,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-01",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.3309580001296126,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-02",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.4971249995360267,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-03",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.83279199993558,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-04",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.4234170005001943,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-05",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.4255419994005933,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-06",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.659542000401416,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-07",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.479750000020431,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-08",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.298917000189249,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-09",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.1554589993684203,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-10",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.11745799970231,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-11",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.344999999877473,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-12",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.2197500002221204,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-13",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.089499999783584,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-14",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.2227080007724,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-15",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.074582999739505,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-16",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.976708999791299,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-17",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9877079994330416,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-18",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9058340003539342,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-19",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.110291999997571,
+          "full_response_sha256": "a607fef9a74545b6942232ebf8576b7fec5e2f96f017d731e3dac5feeced2173",
+          "label": "warm-20",
+          "part_count": 38,
+          "raw_response_sha256": "9b8f1533d656d1ff116d0094716834c1505084b54650ac35448d52d11011235c",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        }
+      ],
+      "scenario_id": "dev-c02",
+      "source_revision": "28d9d156f252d084371d994dc359509b49eadf18",
+      "startup_ms": 106.59824999947887,
+      "status": "ok",
+      "warm_p50_ms": 2.2227080007724,
+      "warm_p95_ms": 2.659542000401416,
+      "warm_repetitions": 20
+    },
+    {
+      "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+      "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+      "cold_ms": 4.358417000730697,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas",
+        "web",
+        "--port",
+        "4988",
+        "--path-mode",
+        "repo",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--source",
+        "/Users/ekosten/Library/Caches/pf2e-atlas/pf2e/28d9d156f252d084371d994dc359509b49eadf18",
+        "--embedding-cache-path",
+        "/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/.cache/hf-models"
+      ],
+      "input_hashes": {
+        "corpus.json": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "freeze.json": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "manifest.json": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "seeds.json": "bf0f1ae40150592927d26b021d318f0bebbef5fbb8e405d2b5c4b43d6c74ba1c"
+      },
+      "lifecycle": "Fresh retained service process for this cell; first endpoint request process-cold;20 subsequent complete requests warm in same service/client context. OS page cache uncontrolled. Startup time excluded from endpoint latency.",
+      "percentile_convention": "nearest-rank ceil(p*n), one-based",
+      "pid": 81361,
+      "process_resources": {
+        "elapsed_ms": 203.44137499978387,
+        "exit_code": -15,
+        "peak_rss_bytes": 22233088,
+        "scope": "True child process peak across service startup and all21 inventory requests for this cell; not a per-request peak. Own server intentionally terminated after samples.",
+        "system_seconds": 0.017997,
+        "user_seconds": 0.04811
+      },
+      "profile": "embeddinggemma",
+      "request": {
+        "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "search_profile": "embeddinggemma",
+        "seed": {
+          "kind": "record",
+          "record_key": "pathfinder-monster-core:smItqlbr0iuDJ8nL"
+        }
+      },
+      "samples": [
+        {
+          "elapsed_ms": 4.358417000730697,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "cold",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.8065839996997965,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-01",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.9040420004093903,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-02",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.6477499995962717,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-03",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.7061660002800636,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-04",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.600707999590668,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-05",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.449334000630188,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-06",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.2990000006757327,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-07",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.1450000003824243,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-08",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0446660000743577,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-09",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0520830003079027,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-10",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.1145000000615255,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-11",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.3523750005551847,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-12",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.2263750006459304,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-13",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0370000002003508,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-14",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0886660004180158,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-15",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9502080003803712,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-16",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0387920003486215,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-17",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8359159994361107,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-18",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.877917000456364,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-19",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0081669999854057,
+          "full_response_sha256": "57113fcc5e7dbfe37589923cebe34b5751b775ffc0668d37b1d9454178893371",
+          "label": "warm-20",
+          "part_count": 38,
+          "raw_response_sha256": "ed417937a7dcf74e5982efd095abad018c224c6dab2530ff8dd9bae12acc6ee4",
+          "roles": {
+            "ability": 7,
+            "description": 31
+          },
+          "selection_signature_sha256": "f257087492cbbfa47dc06e9f6f959ace0daf0e57261337c463708f02e764af34",
+          "status": 200
+        }
+      ],
+      "scenario_id": "dev-c02",
+      "source_revision": "28d9d156f252d084371d994dc359509b49eadf18",
+      "startup_ms": 110.50979199990252,
+      "status": "ok",
+      "warm_p50_ms": 2.1145000000615255,
+      "warm_p95_ms": 2.8065839996997965,
+      "warm_repetitions": 20
+    },
+    {
+      "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+      "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+      "cold_ms": 12.782791999597976,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas",
+        "web",
+        "--port",
+        "4988",
+        "--path-mode",
+        "repo",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--source",
+        "/Users/ekosten/Library/Caches/pf2e-atlas/pf2e/28d9d156f252d084371d994dc359509b49eadf18",
+        "--embedding-cache-path",
+        "/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/.cache/hf-models"
+      ],
+      "input_hashes": {
+        "corpus.json": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "freeze.json": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "manifest.json": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "seeds.json": "bf0f1ae40150592927d26b021d318f0bebbef5fbb8e405d2b5c4b43d6c74ba1c"
+      },
+      "lifecycle": "Fresh retained service process for this cell; first endpoint request process-cold;20 subsequent complete requests warm in same service/client context. OS page cache uncontrolled. Startup time excluded from endpoint latency.",
+      "percentile_convention": "nearest-rank ceil(p*n), one-based",
+      "pid": 81212,
+      "process_resources": {
+        "elapsed_ms": 76.13841700003832,
+        "exit_code": -15,
+        "peak_rss_bytes": 21905408,
+        "scope": "True child process peak across service startup and all21 inventory requests for this cell; not a per-request peak. Own server intentionally terminated after samples.",
+        "system_seconds": 0.022115,
+        "user_seconds": 0.039541
+      },
+      "profile": "bge-base",
+      "request": {
+        "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "search_profile": "bge-base",
+        "seed": {
+          "kind": "record",
+          "record_key": "hazards:Q8bXKgDm8eguqThB"
+        }
+      },
+      "samples": [
+        {
+          "elapsed_ms": 12.782791999597976,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "cold",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.996208000491606,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-01",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8326669996895362,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-02",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.7788329996619723,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-03",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.67612499990355,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-04",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.6718329998184345,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-05",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0697500003734604,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-06",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8529580001995782,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-07",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9222499995521503,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-08",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9035420000363956,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-09",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.7705829995975364,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-10",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8055000000458676,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-11",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.058750000287546,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-12",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9869580000886344,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-13",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.863333000073908,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-14",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8247919997520512,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-15",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.839209000536357,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-16",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.7913339997903677,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-17",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.6429170000265003,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-18",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.6697500004738686,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-19",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.6731670002627652,
+          "full_response_sha256": "2b43b34eafd311bb9c1d9c79c2cce2f5acec28a03acc7d99697725821201f59f",
+          "label": "warm-20",
+          "part_count": 6,
+          "raw_response_sha256": "b76b5034427a5e730956fd14697ef5d90aca7d4aab0aa5adb95194a9f3709b2a",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        }
+      ],
+      "scenario_id": "dev-h01",
+      "source_revision": "28d9d156f252d084371d994dc359509b49eadf18",
+      "startup_ms": 16.08045899956778,
+      "status": "ok",
+      "warm_p50_ms": 1.8247919997520512,
+      "warm_p95_ms": 2.058750000287546,
+      "warm_repetitions": 20
+    },
+    {
+      "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+      "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+      "cold_ms": 3.726541999640176,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas",
+        "web",
+        "--port",
+        "4988",
+        "--path-mode",
+        "repo",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--source",
+        "/Users/ekosten/Library/Caches/pf2e-atlas/pf2e/28d9d156f252d084371d994dc359509b49eadf18",
+        "--embedding-cache-path",
+        "/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/.cache/hf-models"
+      ],
+      "input_hashes": {
+        "corpus.json": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "freeze.json": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "manifest.json": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "seeds.json": "bf0f1ae40150592927d26b021d318f0bebbef5fbb8e405d2b5c4b43d6c74ba1c"
+      },
+      "lifecycle": "Fresh retained service process for this cell; first endpoint request process-cold;20 subsequent complete requests warm in same service/client context. OS page cache uncontrolled. Startup time excluded from endpoint latency.",
+      "percentile_convention": "nearest-rank ceil(p*n), one-based",
+      "pid": 81233,
+      "process_resources": {
+        "elapsed_ms": 166.19683299995813,
+        "exit_code": -15,
+        "peak_rss_bytes": 21987328,
+        "scope": "True child process peak across service startup and all21 inventory requests for this cell; not a per-request peak. Own server intentionally terminated after samples.",
+        "system_seconds": 0.017287,
+        "user_seconds": 0.046099
+      },
+      "profile": "embeddinggemma",
+      "request": {
+        "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "search_profile": "embeddinggemma",
+        "seed": {
+          "kind": "record",
+          "record_key": "hazards:Q8bXKgDm8eguqThB"
+        }
+      },
+      "samples": [
+        {
+          "elapsed_ms": 3.726541999640176,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "cold",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.7822499996545957,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-01",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.661708999767143,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-02",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.555582999775652,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-03",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.5058329993044026,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-04",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.334625000003143,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-05",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.261458999782917,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-06",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.168917000744841,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-07",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0846249999522115,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-08",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.1063340000182507,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-09",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.1222919995125267,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-10",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.283083999827795,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-11",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.1027089997005532,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-12",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0109999995838734,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-13",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9185000001016306,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-14",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.811749999433232,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-15",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9931249998990097,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-16",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0925420003550244,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-17",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8062910003209254,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-18",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8567910001365817,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-19",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0238329998392146,
+          "full_response_sha256": "c1b3f82a53817ad8694b7f730e28bc868c85136d7ccece8d74c966680251e1b0",
+          "label": "warm-20",
+          "part_count": 6,
+          "raw_response_sha256": "3c8bad225356ed5d818552bd0dd455477dc9d4387bf816d0ac500888fc729b4c",
+          "roles": {
+            "ability": 2,
+            "description": 1,
+            "disable": 1,
+            "reset": 1,
+            "stealth": 1
+          },
+          "selection_signature_sha256": "3ad01f85fe408556851928a509ffa82efeaa18624f205ddb64e46fbb31bfe8bc",
+          "status": 200
+        }
+      ],
+      "scenario_id": "dev-h01",
+      "source_revision": "28d9d156f252d084371d994dc359509b49eadf18",
+      "startup_ms": 106.47387500011973,
+      "status": "ok",
+      "warm_p50_ms": 2.1027089997005532,
+      "warm_p95_ms": 2.661708999767143,
+      "warm_repetitions": 20
+    },
+    {
+      "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+      "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+      "cold_ms": 4.410374999679334,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas",
+        "web",
+        "--port",
+        "4988",
+        "--path-mode",
+        "repo",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--source",
+        "/Users/ekosten/Library/Caches/pf2e-atlas/pf2e/28d9d156f252d084371d994dc359509b49eadf18",
+        "--embedding-cache-path",
+        "/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/.cache/hf-models"
+      ],
+      "input_hashes": {
+        "corpus.json": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "freeze.json": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "manifest.json": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "seeds.json": "bf0f1ae40150592927d26b021d318f0bebbef5fbb8e405d2b5c4b43d6c74ba1c"
+      },
+      "lifecycle": "Fresh retained service process for this cell; first endpoint request process-cold;20 subsequent complete requests warm in same service/client context. OS page cache uncontrolled. Startup time excluded from endpoint latency.",
+      "percentile_convention": "nearest-rank ceil(p*n), one-based",
+      "pid": 81382,
+      "process_resources": {
+        "elapsed_ms": 159.1337919999205,
+        "exit_code": -15,
+        "peak_rss_bytes": 21757952,
+        "scope": "True child process peak across service startup and all21 inventory requests for this cell; not a per-request peak. Own server intentionally terminated after samples.",
+        "system_seconds": 0.018321999999999998,
+        "user_seconds": 0.044728
+      },
+      "profile": "bge-base",
+      "request": {
+        "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "search_profile": "bge-base",
+        "seed": {
+          "kind": "record",
+          "record_key": "spells-srd:rfZpqmj0AIIdkVIs"
+        }
+      },
+      "samples": [
+        {
+          "elapsed_ms": 4.410374999679334,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "cold",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.8202920002513565,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-01",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.770834000330069,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-02",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.5654579994807136,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-03",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.4512919999324367,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-04",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.372667000599904,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-05",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.298417000019981,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-06",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.2567500000150176,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-07",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.291292000336398,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-08",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.208957999755512,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-09",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0732919992951793,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-10",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0015840000269236,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-11",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8691670002226601,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-12",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9214579997424153,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-13",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8595000001369044,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-14",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.773582999703649,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-15",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.72104200009926,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-16",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.7031669995049015,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-17",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9479579996186658,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-18",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8130829994333908,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-19",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.6933339993556729,
+          "full_response_sha256": "01ac8ea48b9fcdf4cfe7ab3acabb0d8c7e6a0513f460c56120bd19607ee41aad",
+          "label": "warm-20",
+          "part_count": 1,
+          "raw_response_sha256": "f3f08442e1facade6618e67672222200d33d72f8606fc16aac45209aa50490e2",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        }
+      ],
+      "scenario_id": "dev-s01",
+      "source_revision": "28d9d156f252d084371d994dc359509b49eadf18",
+      "startup_ms": 106.88299999947048,
+      "status": "ok",
+      "warm_p50_ms": 2.0015840000269236,
+      "warm_p95_ms": 2.770834000330069,
+      "warm_repetitions": 20
+    },
+    {
+      "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+      "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+      "cold_ms": 3.6327500001789303,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas",
+        "web",
+        "--port",
+        "4988",
+        "--path-mode",
+        "repo",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--source",
+        "/Users/ekosten/Library/Caches/pf2e-atlas/pf2e/28d9d156f252d084371d994dc359509b49eadf18",
+        "--embedding-cache-path",
+        "/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/.cache/hf-models"
+      ],
+      "input_hashes": {
+        "corpus.json": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "freeze.json": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "manifest.json": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "seeds.json": "bf0f1ae40150592927d26b021d318f0bebbef5fbb8e405d2b5c4b43d6c74ba1c"
+      },
+      "lifecycle": "Fresh retained service process for this cell; first endpoint request process-cold;20 subsequent complete requests warm in same service/client context. OS page cache uncontrolled. Startup time excluded from endpoint latency.",
+      "percentile_convention": "nearest-rank ceil(p*n), one-based",
+      "pid": 81403,
+      "process_resources": {
+        "elapsed_ms": 153.26654199998302,
+        "exit_code": -15,
+        "peak_rss_bytes": 21807104,
+        "scope": "True child process peak across service startup and all21 inventory requests for this cell; not a per-request peak. Own server intentionally terminated after samples.",
+        "system_seconds": 0.017615,
+        "user_seconds": 0.045248
+      },
+      "profile": "embeddinggemma",
+      "request": {
+        "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "search_profile": "embeddinggemma",
+        "seed": {
+          "kind": "record",
+          "record_key": "spells-srd:rfZpqmj0AIIdkVIs"
+        }
+      },
+      "samples": [
+        {
+          "elapsed_ms": 3.6327500001789303,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "cold",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.787374999570602,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-01",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.4648750004416797,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-02",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.364625000154774,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-03",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.593166999758978,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-04",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.207833000284154,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-05",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.088707999973849,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-06",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.073874999950931,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-07",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0100840001759934,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-08",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9725000001926674,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-09",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.018958000007842,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-10",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.124999999978172,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-11",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9328750004206086,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-12",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.140458000212675,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-13",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9248750004408066,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-14",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8053330004477175,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-15",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8222079997940455,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-16",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.87858299977961,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-17",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.735625000037544,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-18",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.7673749998721178,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-19",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.6959169997790013,
+          "full_response_sha256": "beee32483c499221178178cde8e9d2ab9474d6e8cf33ba45203eba4f3074e5d9",
+          "label": "warm-20",
+          "part_count": 1,
+          "raw_response_sha256": "e7f53d83a71987080dea5b6148359c3af10eafee143bbf0f4e59765e9664d919",
+          "roles": {
+            "description": 1
+          },
+          "selection_signature_sha256": "dc1f2b2992af9badb4201b190f8cc3f5eabe254a1c9064fe04a485244e420f4c",
+          "status": 200
+        }
+      ],
+      "scenario_id": "dev-s01",
+      "source_revision": "28d9d156f252d084371d994dc359509b49eadf18",
+      "startup_ms": 103.18491700036247,
+      "status": "ok",
+      "warm_p50_ms": 2.0100840001759934,
+      "warm_p95_ms": 2.593166999758978,
+      "warm_repetitions": 20
+    },
+    {
+      "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+      "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+      "cold_ms": 4.732917000183079,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas",
+        "web",
+        "--port",
+        "4988",
+        "--path-mode",
+        "repo",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--source",
+        "/Users/ekosten/Library/Caches/pf2e-atlas/pf2e/28d9d156f252d084371d994dc359509b49eadf18",
+        "--embedding-cache-path",
+        "/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/.cache/hf-models"
+      ],
+      "input_hashes": {
+        "corpus.json": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "freeze.json": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "manifest.json": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "seeds.json": "bf0f1ae40150592927d26b021d318f0bebbef5fbb8e405d2b5c4b43d6c74ba1c"
+      },
+      "lifecycle": "Fresh retained service process for this cell; first endpoint request process-cold;20 subsequent complete requests warm in same service/client context. OS page cache uncontrolled. Startup time excluded from endpoint latency.",
+      "percentile_convention": "nearest-rank ceil(p*n), one-based",
+      "pid": 81425,
+      "process_resources": {
+        "elapsed_ms": 164.46149999956106,
+        "exit_code": -15,
+        "peak_rss_bytes": 22560768,
+        "scope": "True child process peak across service startup and all21 inventory requests for this cell; not a per-request peak. Own server intentionally terminated after samples.",
+        "system_seconds": 0.019426,
+        "user_seconds": 0.045159
+      },
+      "profile": "bge-base",
+      "request": {
+        "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "search_profile": "bge-base",
+        "seed": {
+          "kind": "trait",
+          "trait_key": "trait:fire"
+        }
+      },
+      "samples": [
+        {
+          "elapsed_ms": 4.732917000183079,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "cold",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.8271669998503057,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-01",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.396374999989348,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-02",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.3047499998938292,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-03",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.1994999997332343,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-04",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.09587500012276,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-05",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9930830003431765,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-06",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.992333999623952,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-07",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.1535420000873273,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-08",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.1746249994976097,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-09",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.898958000310813,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-10",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.765707999766164,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-11",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.3613749999640277,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-12",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.186957999583683,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-13",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.067499999611755,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-14",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.2400840007321676,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-15",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.291000000695931,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-16",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.2792500003561145,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-17",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.110542000082205,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-18",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8786250002449378,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-19",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.0900830004393356,
+          "full_response_sha256": "94368dfab6c011c122839796333d449f3e6e71ce2aea776446d369397098d9d2",
+          "label": "warm-20",
+          "part_count": 1,
+          "raw_response_sha256": "fb776fccf1e434d0de4996abc3863dc789744804e6c0380a86574a75fb07ad2e",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        }
+      ],
+      "scenario_id": "dev-t01",
+      "source_revision": "28d9d156f252d084371d994dc359509b49eadf18",
+      "startup_ms": 110.69554099958623,
+      "status": "ok",
+      "warm_p50_ms": 2.1535420000873273,
+      "warm_p95_ms": 2.396374999989348,
+      "warm_repetitions": 20
+    },
+    {
+      "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+      "binary_sha256": "0ab4633b7a975c219e3dfda81dfb5c3b917163df7806efae41b214d1e9b49fe0",
+      "cold_ms": 3.8967499995123944,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/target/release/atlas",
+        "web",
+        "--port",
+        "4988",
+        "--path-mode",
+        "repo",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/workspace.sqlite",
+        "--source",
+        "/Users/ekosten/Library/Caches/pf2e-atlas/pf2e/28d9d156f252d084371d994dc359509b49eadf18",
+        "--embedding-cache-path",
+        "/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/.cache/hf-models"
+      ],
+      "input_hashes": {
+        "corpus.json": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+        "freeze.json": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+        "manifest.json": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+        "seeds.json": "bf0f1ae40150592927d26b021d318f0bebbef5fbb8e405d2b5c4b43d6c74ba1c"
+      },
+      "lifecycle": "Fresh retained service process for this cell; first endpoint request process-cold;20 subsequent complete requests warm in same service/client context. OS page cache uncontrolled. Startup time excluded from endpoint latency.",
+      "percentile_convention": "nearest-rank ceil(p*n), one-based",
+      "pid": 81467,
+      "process_resources": {
+        "elapsed_ms": 159.41279199978453,
+        "exit_code": -15,
+        "peak_rss_bytes": 22265856,
+        "scope": "True child process peak across service startup and all21 inventory requests for this cell; not a per-request peak. Own server intentionally terminated after samples.",
+        "system_seconds": 0.019264999999999997,
+        "user_seconds": 0.043857
+      },
+      "profile": "embeddinggemma",
+      "request": {
+        "expected_artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+        "search_profile": "embeddinggemma",
+        "seed": {
+          "kind": "trait",
+          "trait_key": "trait:fire"
+        }
+      },
+      "samples": [
+        {
+          "elapsed_ms": 3.8967499995123944,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "cold",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.6344580001023132,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-01",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.516124999601743,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-02",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.3093750005500624,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-03",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.2875419999763835,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-04",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.440917000058107,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-05",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.156499999728112,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-06",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 2.090791999762587,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-07",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8870000003516907,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-08",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9658749997688574,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-09",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9936250000682776,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-10",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.9129170004816842,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-11",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.7898750002132147,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-12",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.788749999832362,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-13",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.818624999941676,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-14",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8064160003632423,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-15",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.698334000138857,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-16",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.6594589997112053,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-17",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.7281250002270099,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-18",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.6907500003071618,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-19",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        },
+        {
+          "elapsed_ms": 1.8202499995823018,
+          "full_response_sha256": "827f7826c3db9dd68e159689b5b0ea991cebc1c1a1a3d19e1f19b2179f35a7ab",
+          "label": "warm-20",
+          "part_count": 1,
+          "raw_response_sha256": "b0f3b752c70a2e5d34b224694ae6b803afe3aefc270967e0618f4c622e49f922",
+          "roles": {
+            "trait_definition": 1
+          },
+          "selection_signature_sha256": "084789eb1fb9deac13eed84a21df6838280b5d9e6c26940fd40c9af37c68c1b2",
+          "status": 200
+        }
+      ],
+      "scenario_id": "dev-t01",
+      "source_revision": "28d9d156f252d084371d994dc359509b49eadf18",
+      "startup_ms": 110.69237499941664,
+      "status": "ok",
+      "warm_p50_ms": 1.8870000003516907,
+      "warm_p95_ms": 2.516124999601743,
+      "warm_repetitions": 20
+    }
+  ],
+  "execution_plan_receipt": {
+    "bytes": 152439,
+    "path": "scratch/similarity-evaluation/product-probes/inventory-v1/execution-plan.json",
+    "sha256": "13b8238bbf43ebbef14cf72133479f8b2f13351ad01ea4012e5ae136f38301bf"
+  },
+  "summary": {
+    "cells": [
+      {
+        "cold_ms": 4.318792000049143,
+        "part_count": 3,
+        "peak_process_rss_mib": 20.890625,
+        "profile": "bge-base",
+        "roles": {
+          "ability": 2,
+          "description": 1
+        },
+        "scenario_id": "dev-c01",
+        "warm_p50_ms": 2.07854100062832,
+        "warm_p95_ms": 2.6944589999402524
+      },
+      {
+        "cold_ms": 3.6101249997955165,
+        "part_count": 3,
+        "peak_process_rss_mib": 20.875,
+        "profile": "embeddinggemma",
+        "roles": {
+          "ability": 2,
+          "description": 1
+        },
+        "scenario_id": "dev-c01",
+        "warm_p50_ms": 2.0932079996782704,
+        "warm_p95_ms": 2.76458400003321
+      },
+      {
+        "cold_ms": 3.4512920001361636,
+        "part_count": 38,
+        "peak_process_rss_mib": 21.15625,
+        "profile": "bge-base",
+        "roles": {
+          "ability": 7,
+          "description": 31
+        },
+        "scenario_id": "dev-c02",
+        "warm_p50_ms": 2.2227080007724,
+        "warm_p95_ms": 2.659542000401416
+      },
+      {
+        "cold_ms": 4.358417000730697,
+        "part_count": 38,
+        "peak_process_rss_mib": 21.203125,
+        "profile": "embeddinggemma",
+        "roles": {
+          "ability": 7,
+          "description": 31
+        },
+        "scenario_id": "dev-c02",
+        "warm_p50_ms": 2.1145000000615255,
+        "warm_p95_ms": 2.8065839996997965
+      },
+      {
+        "cold_ms": 12.782791999597976,
+        "part_count": 6,
+        "peak_process_rss_mib": 20.890625,
+        "profile": "bge-base",
+        "roles": {
+          "ability": 2,
+          "description": 1,
+          "disable": 1,
+          "reset": 1,
+          "stealth": 1
+        },
+        "scenario_id": "dev-h01",
+        "warm_p50_ms": 1.8247919997520512,
+        "warm_p95_ms": 2.058750000287546
+      },
+      {
+        "cold_ms": 3.726541999640176,
+        "part_count": 6,
+        "peak_process_rss_mib": 20.96875,
+        "profile": "embeddinggemma",
+        "roles": {
+          "ability": 2,
+          "description": 1,
+          "disable": 1,
+          "reset": 1,
+          "stealth": 1
+        },
+        "scenario_id": "dev-h01",
+        "warm_p50_ms": 2.1027089997005532,
+        "warm_p95_ms": 2.661708999767143
+      },
+      {
+        "cold_ms": 4.410374999679334,
+        "part_count": 1,
+        "peak_process_rss_mib": 20.75,
+        "profile": "bge-base",
+        "roles": {
+          "description": 1
+        },
+        "scenario_id": "dev-s01",
+        "warm_p50_ms": 2.0015840000269236,
+        "warm_p95_ms": 2.770834000330069
+      },
+      {
+        "cold_ms": 3.6327500001789303,
+        "part_count": 1,
+        "peak_process_rss_mib": 20.796875,
+        "profile": "embeddinggemma",
+        "roles": {
+          "description": 1
+        },
+        "scenario_id": "dev-s01",
+        "warm_p50_ms": 2.0100840001759934,
+        "warm_p95_ms": 2.593166999758978
+      },
+      {
+        "cold_ms": 4.732917000183079,
+        "part_count": 1,
+        "peak_process_rss_mib": 21.515625,
+        "profile": "bge-base",
+        "roles": {
+          "trait_definition": 1
+        },
+        "scenario_id": "dev-t01",
+        "warm_p50_ms": 2.1535420000873273,
+        "warm_p95_ms": 2.396374999989348
+      },
+      {
+        "cold_ms": 3.8967499995123944,
+        "part_count": 1,
+        "peak_process_rss_mib": 21.234375,
+        "profile": "embeddinggemma",
+        "roles": {
+          "trait_definition": 1
+        },
+        "scenario_id": "dev-t01",
+        "warm_p50_ms": 1.8870000003516907,
+        "warm_p95_ms": 2.516124999601743
+      }
+    ],
+    "cold_requests": 10,
+    "lifecycle": "Separate retained service process for every scenario/profile cell; first inventory request cold,20 subsequent complete warm endpoint calls in same process/context;21 stable responses per cell.",
+    "max_cold_ms": 12.782791999597976,
+    "max_process_peak_mib": 21.515625,
+    "max_warm_p95_ms": 2.8065839996997965,
+    "original_preview": "Port4972 untouched. Probe used4988 only.",
+    "peak_scope": "True process peak across service startup plus21inventory requests, not per-request; all10task-owned servers intentionally terminated after their cells.",
+    "platform_cache_limit": "OS page cache/background load uncontrolled; cold definition is fresh process, not disk-cold. HTTPstartup time excluded from endpoint samples and recorded separately.",
+    "provenance": "execution-plan.json binds exact03b productbinary SHA and original buildreceipt plus current observed source state. Tracked source may change after binary build; no rebuild was performed. Frozen source/artifact/profile/selector identities are checked on every request.",
+    "sql_stage_metrics": "Product HTTP inventory API exposes no internal stage/SQLread counters; these timings cover complete endpoint request and response transfer only.",
+    "status": "ok",
+    "validated_requests": 210,
+    "warm_requests": 200
+  }
+}

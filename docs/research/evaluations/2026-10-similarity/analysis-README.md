@@ -1,6 +1,6 @@
 # Blind judging and analysis helper
 
-`analysis.py` consumes the maintained `atlas-dev similarity-eval` JSON reports. It does not query an artifact, embed content, calculate similarity, modify frozen experiment inputs, or select a winning configuration. Use the frozen protocol's rubric and decision gates. Raw reports, source excerpts, packets and opinions belong under ignored `scratch/similarity-evaluation/`; tracked conclusions should contain paraphrases and artifact hashes/pointers.
+`analysis.py` consumes the maintained `atlas-dev similarity evaluate` JSON reports. It does not query an artifact, embed content, calculate similarity, modify frozen experiment inputs, or select a winning configuration. Use the frozen protocol's rubric and decision gates. Raw reports, source excerpts, packets and opinions belong under ignored `scratch/similarity-evaluation/`; tracked conclusions should contain paraphrases and artifact hashes/pointers.
 
 ## Construct and freeze the pool
 
