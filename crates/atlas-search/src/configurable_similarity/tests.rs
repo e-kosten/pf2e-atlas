@@ -123,15 +123,15 @@ fn corresponding_roles_filter_before_the_bounded_knn_and_other_never_corresponds
     let exclude = "hazards:aaaaaaaaaaaaaaaa".parse().unwrap();
     let hits = service
         .index
-        .similarity_candidates(
-            &profile,
-            &vector,
-            &query,
-            None,
-            Some(&exclude),
-            Some(SimilarityRole::Reset),
-            1,
-        )
+        .similarity_candidates(atlas_index::SourceSimilarityCandidateRequest {
+            profile: &profile,
+            vector: &vector,
+            query: &query,
+            keys: None,
+            exclude: Some(&exclude),
+            role: Some(SimilarityRole::Reset),
+            limit: 1,
+        })
         .unwrap();
     assert_eq!(hits.len(), 1);
     assert_eq!(
@@ -145,15 +145,15 @@ fn corresponding_roles_filter_before_the_bounded_knn_and_other_never_corresponds
     assert!(
         service
             .index
-            .similarity_candidates(
-                &profile,
-                &vector,
-                &query,
-                None,
-                None,
-                Some(SimilarityRole::Other),
-                1
-            )
+            .similarity_candidates(atlas_index::SourceSimilarityCandidateRequest {
+                profile: &profile,
+                vector: &vector,
+                query: &query,
+                keys: None,
+                exclude: None,
+                role: Some(SimilarityRole::Other),
+                limit: 1,
+            })
             .unwrap()
             .is_empty()
     );

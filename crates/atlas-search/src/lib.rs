@@ -8,10 +8,16 @@ mod records;
 mod reference_resolution;
 mod service;
 mod similar;
+mod similarity_evaluation;
 mod similarity_scoring;
 pub use configurable_similarity::{
     ConfigurableSimilarRequest, ConfigurableSimilarResult, SimilarityDiagnostics,
     SimilarityEvidence, SimilarityPair, SimilarityPartScore, SimilarityRoleScore,
+    SimilarityTimings,
+};
+pub use similarity_evaluation::{
+    SimilarityEvaluationEvidence, SimilarityEvaluationRequest, SimilarityEvaluationResult,
+    SimilarityEvaluationRow, SimilarityEvaluationRun, SimilarityEvaluationVariant,
 };
 #[cfg(any(test, feature = "test-support"))]
 pub mod test_support;

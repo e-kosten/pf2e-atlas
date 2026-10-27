@@ -16,6 +16,15 @@ pub struct SourceSimilarityUnit {
     pub vector: Vec<f32>,
     pub trait_text: Option<String>,
 }
+pub struct SourceSimilarityCandidateRequest<'a> {
+    pub profile: &'a SearchProfileId,
+    pub vector: &'a [f32],
+    pub query: &'a crate::ValidatedQuery,
+    pub keys: Option<&'a [RecordKey]>,
+    pub exclude: Option<&'a RecordKey>,
+    pub role: Option<SimilarityRole>,
+    pub limit: usize,
+}
 
 fn parse_part(json: &str, recipe: &str) -> Result<SimilarityPart, IndexError> {
     if recipe != SIMILARITY_ROLE_RECIPE {
@@ -27,6 +36,62 @@ fn parse_part(json: &str, recipe: &str) -> Result<SimilarityPart, IndexError> {
 }
 
 impl SqliteIndexReader {
+    /// Exact legacy max-cosine scores for every supplied root, including identity
+    /// units. No KNN candidate selection or unit window participates in this read.
+    pub fn baseline_similarity_scores(
+        &self,
+        profile: &SearchProfileId,
+        keys: &[RecordKey],
+        vector: &[f32],
+    ) -> Result<Vec<(RecordKey, f64, usize)>, IndexError> {
+        if keys.is_empty() {
+            return Ok(vec![]);
+        }
+        if keys.len() > 256 {
+            return Err(IndexError::Limit(
+                "baseline scoring supports 256 roots per batch".into(),
+            ));
+        }
+        let model = self.context().search_profile(profile)?;
+        crate::validation::check_vector(vector, model.dimensions)?;
+        self.require_vectors()?;
+        let table = crate::schema::vector_table(model)?;
+        let mut values = vec![
+            Value::Text(profile.to_string()),
+            Value::Blob(crate::read_units::vector_bytes(vector)),
+        ];
+        values.extend(keys.iter().map(|key| Value::Text(key.to_string())));
+        let placeholders = (0..keys.len())
+            .map(|i| format!("?{}", i + 3))
+            .collect::<Vec<_>>()
+            .join(",");
+        let sql = format!(
+            "SELECT r.key,max(1.0-vec_distance_cosine(sv.embedding,?2)),count(*) FROM semantic_units su JOIN records r USING(record_id) JOIN {table} sv ON sv.unit_id=su.unit_id WHERE su.profile_id=?1 AND r.document_kind<>'Macro' AND r.key IN ({placeholders}) GROUP BY r.key ORDER BY r.key"
+        );
+        self.count_statement();
+        let rows = self
+            .native()?
+            .prepare(&sql)?
+            .query_map(params_from_iter(values.iter()), |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, f64>(1)?,
+                    row.get::<_, usize>(2)?,
+                ))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        rows.into_iter()
+            .map(|(key, score, count)| {
+                Ok((
+                    key.parse()
+                        .map_err(|e| IndexError::Invalid(format!("invalid stored key: {e}")))?,
+                    score,
+                    count,
+                ))
+            })
+            .collect()
+    }
+
     pub fn similarity_parts(
         &self,
         seed: &SimilaritySeed,
@@ -266,14 +331,17 @@ impl SqliteIndexReader {
 
     pub fn similarity_candidates(
         &self,
-        profile: &SearchProfileId,
-        vector: &[f32],
-        query: &crate::ValidatedQuery,
-        keys: Option<&[RecordKey]>,
-        exclude: Option<&RecordKey>,
-        role: Option<SimilarityRole>,
-        limit: usize,
+        request: SourceSimilarityCandidateRequest<'_>,
     ) -> Result<Vec<SourceVectorHit>, IndexError> {
+        let SourceSimilarityCandidateRequest {
+            profile,
+            vector,
+            query,
+            keys,
+            exclude,
+            role,
+            limit,
+        } = request;
         if limit == 0 || limit > 4096 {
             return Err(IndexError::Limit(
                 "similarity KNN window must be 1..4096".into(),

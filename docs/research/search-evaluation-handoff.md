@@ -35,6 +35,11 @@ Do not add entire SQLite/vector/model archives to Git. The committed subset reta
 rankings and metrics, with source pointers/hashes instead of literal source passages.
 Full-source interpretation and arbitrary re-ranking still need the local archive.
 
+The [configurable Similar protocol](evaluations/2026-10-similarity/README.md)
+separately freezes the stored-vector method experiment's scenarios, exact section
+bindings, controlled candidate universe and judging/performance rules. It does
+not reuse the older archive's exposed holdouts or judgments.
+
 ## Reanalysis rules
 
 - Read the experiment's protocol and reproduction guide first. Different studies

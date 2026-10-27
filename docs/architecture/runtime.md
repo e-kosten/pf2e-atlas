@@ -367,6 +367,26 @@ identity and Trait definition respectively; the new passage and centroid recipes
 reuse stored vectors. See
 [ADR0059](./decisions/0059-configurable-similarity.md).
 
+Developer similarity evaluation uses `atlas-search`'s direct candidate-scoring
+workflow over an explicit eligible key universe. It bypasses KNN and scores every
+supplied key, reporting unavailable comparisons rather than silently dropping
+records. Restricting a product search with `RecordScope::Keys` is still bounded
+retrieval, not an exhaustive scorer. Exact baseline scores use the legacy SQLite
+cosine over all semantic units, including identities; content methods use the same
+logical-part scorer and role masks as product search. Evaluation batches share
+stored vector reads and complete passage maxima across decay variants, then
+reselect explanation pairs for each variant. Evidence remains bounded to the raw
+top ten scored rows; a later remaster preference may require source lookup for a
+promoted row. Evaluation preparation/aggregation timings are not product latency.
+
+Product content-method diagnostics separate seed preparation, candidate generation,
+vector reads, scoring, and evidence hydration. Their complete pre-reranking root
+union is available to the developer runner for admission-recall measurement. The
+legacy baseline reports total latency without claiming a complete candidate union.
+The direct scorer reports baseline read-plus-SQL-scoring separately because SQLite
+calculates the legacy distance while reading; it is not pure vector I/O. No extra
+embedding inference, artifact rebuild, or persistent centroid projection is needed.
+
 For query-backed reader context, app-service also projects `matching_sections`:
 whole-entry and precise witnesses for the same checked entry share one useful
 destination, while distinct embedded identities and passages remain separate.

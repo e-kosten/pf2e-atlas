@@ -35,7 +35,7 @@ pub mod query;
 mod read_content;
 mod read_similarity;
 mod read_similarity_sections;
-pub use read_similarity::SourceSimilarityUnit;
+pub use read_similarity::{SourceSimilarityCandidateRequest, SourceSimilarityUnit};
 mod read_units;
 mod reader;
 mod schema;

@@ -1,0 +1,871 @@
+{
+  "version": 1,
+  "experiment_id": "2026-10-configurable-similarity-v1",
+  "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+  "source_revision": "28d9d156f252d084371d994dc359509b49eadf18",
+  "profiles": [
+    "bge-base",
+    "embeddinggemma"
+  ],
+  "repetitions": 1,
+  "policy": {
+    "prefer_remaster": false,
+    "ranked_results_opened_before_freeze": false,
+    "oracle_scope": "exact frozen corpus keys plus per-scenario eligibility; excludes record seed itself",
+    "baseline_explicit_selection": "context-only; excluded from advanced matched-scope quality comparisons",
+    "trait_corresponding": "skip inapplicable variants, report skipped cells",
+    "quality_strata": [
+      "whole-record",
+      "trait-default",
+      "section-focused"
+    ],
+    "label_only_quality": "unknown, diagnostic-only",
+    "candidate_policy": "production v1 bounded candidate generation; no budget tuning from holdout",
+    "primary_record_quality_aggregation": "mean within kind/theme cluster, mean across clusters within kind, then equal macro-average of hazard/creature/spell kinds",
+    "whole_record_counts": {
+      "development": {
+        "hazard": 1,
+        "creature": 2,
+        "spell": 3
+      },
+      "holdout": {
+        "hazard": 2,
+        "creature": 1,
+        "spell": 3
+      }
+    },
+    "candidate_admission_recall_at10": "fraction of usable exhaustive oracle top10 in complete bounded pre-rerank admitted root-key union; legacy baseline admission unavailable",
+    "returned_top10_agreement": "separate output ordering metric, not candidate-admission recall"
+  },
+  "variants": [
+    {
+      "id": "baseline",
+      "options": {
+        "method": "baseline"
+      },
+      "scope_note": "Legacy identity/trait-definition seed; explicit section selections do not apply."
+    },
+    {
+      "id": "average-any",
+      "options": {
+        "method": "content-average",
+        "parts": null,
+        "candidate_parts": "any"
+      }
+    },
+    {
+      "id": "average-corresponding",
+      "options": {
+        "method": "content-average",
+        "parts": null,
+        "candidate_parts": "corresponding"
+      }
+    },
+    {
+      "id": "passages-any-0",
+      "options": {
+        "method": "passages",
+        "decay": 0,
+        "parts": null,
+        "candidate_parts": "any"
+      }
+    },
+    {
+      "id": "passages-any-0p25",
+      "options": {
+        "method": "passages",
+        "decay": 0.25,
+        "parts": null,
+        "candidate_parts": "any"
+      }
+    },
+    {
+      "id": "passages-any-0p5",
+      "options": {
+        "method": "passages",
+        "decay": 0.5,
+        "parts": null,
+        "candidate_parts": "any"
+      }
+    },
+    {
+      "id": "passages-any-0p75",
+      "options": {
+        "method": "passages",
+        "decay": 0.75,
+        "parts": null,
+        "candidate_parts": "any"
+      }
+    },
+    {
+      "id": "passages-any-1",
+      "options": {
+        "method": "passages",
+        "decay": 1,
+        "parts": null,
+        "candidate_parts": "any"
+      }
+    },
+    {
+      "id": "passages-corresponding-0",
+      "options": {
+        "method": "passages",
+        "decay": 0,
+        "parts": null,
+        "candidate_parts": "corresponding"
+      }
+    },
+    {
+      "id": "passages-corresponding-0p25",
+      "options": {
+        "method": "passages",
+        "decay": 0.25,
+        "parts": null,
+        "candidate_parts": "corresponding"
+      }
+    },
+    {
+      "id": "passages-corresponding-0p5",
+      "options": {
+        "method": "passages",
+        "decay": 0.5,
+        "parts": null,
+        "candidate_parts": "corresponding"
+      }
+    },
+    {
+      "id": "passages-corresponding-0p75",
+      "options": {
+        "method": "passages",
+        "decay": 0.75,
+        "parts": null,
+        "candidate_parts": "corresponding"
+      }
+    },
+    {
+      "id": "passages-corresponding-1",
+      "options": {
+        "method": "passages",
+        "decay": 1,
+        "parts": null,
+        "candidate_parts": "corresponding"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "dev-h01",
+      "split": "development",
+      "cluster": "cold-fungus",
+      "stratum": "whole-record",
+      "seed": {
+        "kind": "record",
+        "record_key": "hazards:Q8bXKgDm8eguqThB"
+      },
+      "seed_title": "Brown Mold",
+      "source_binding_id": "brown-mold",
+      "intent": "Find hazards or other records that share the seed\u2019s heat-draining fungal danger, including its behavior and counterplay; incidental cold wording alone is weak evidence.",
+      "tags": [
+        "whole-record",
+        "intrinsic-mechanics"
+      ],
+      "selection": {
+        "kind": "all"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": true,
+      "quality_eligible": true,
+      "baseline_comparison": "whole-seed-default-reference",
+      "selection_labels": []
+    },
+    {
+      "id": "dev-h02",
+      "split": "development",
+      "cluster": "cold-fungus",
+      "stratum": "section-focused",
+      "seed": {
+        "kind": "record",
+        "record_key": "hazards:Q8bXKgDm8eguqThB"
+      },
+      "seed_title": "Brown Mold",
+      "source_binding_id": "brown-mold",
+      "intent": "Find comparable recovery or reset behavior after a hazard has activated or expanded. Judge the selected reset text, not general fungus or cold similarity.",
+      "tags": [
+        "single-section",
+        "narrow-correspondence"
+      ],
+      "selection": {
+        "kind": "explicit",
+        "selectors": [
+          "part:43ae599956b6366a12eb5f29c32e52805ff2d3a4e1693ba4fbaddbecdc613499"
+        ],
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": true,
+      "quality_eligible": true,
+      "baseline_comparison": "context-only-unmatched-selection",
+      "selection_labels": [
+        {
+          "owner": "Brown Mold",
+          "label": "Reset"
+        }
+      ]
+    },
+    {
+      "id": "dev-h03",
+      "split": "development",
+      "cluster": "rotating-blade-trap",
+      "stratum": "section-focused",
+      "seed": {
+        "kind": "record",
+        "record_key": "hazards:HnPd9Vqh5NHKEdRq"
+      },
+      "seed_title": "Spinning Blade Pillar",
+      "source_binding_id": "spinning-blade-pillar",
+      "intent": "Find records with similar repeated automatic movement-and-attack routines. Shared trap classification or a one-time blade attack is insufficient for a strong match.",
+      "tags": [
+        "single-section",
+        "narrow-correspondence"
+      ],
+      "selection": {
+        "kind": "explicit",
+        "selectors": [
+          "part:27816e1e35b1c9990943934ba3655c020e997a0dcd1f71ff9b94b976becd0bae"
+        ],
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": true,
+      "quality_eligible": true,
+      "baseline_comparison": "context-only-unmatched-selection",
+      "selection_labels": [
+        {
+          "owner": "Spinning Blade Pillar",
+          "label": "Routine"
+        }
+      ]
+    },
+    {
+      "id": "hold-h01",
+      "split": "holdout",
+      "cluster": "aquatic-terrain",
+      "stratum": "whole-record",
+      "seed": {
+        "kind": "record",
+        "record_key": "hazards:C6nFe8SCWJ8FmLOT"
+      },
+      "seed_title": "Quicksand",
+      "source_binding_id": "quicksand",
+      "intent": "Find environmental or mechanical dangers with comparable gradual engulfing or submerging behavior and opportunities to escape or disturb the hazard.",
+      "tags": [
+        "whole-record",
+        "environmental-hazard"
+      ],
+      "selection": {
+        "kind": "all"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": true,
+      "quality_eligible": true,
+      "baseline_comparison": "whole-seed-default-reference",
+      "selection_labels": []
+    },
+    {
+      "id": "hold-h02",
+      "split": "holdout",
+      "cluster": "grasping-plants",
+      "stratum": "section-focused",
+      "seed": {
+        "kind": "record",
+        "record_key": "strength-of-thousands-bestiary:iKhMNWK6FB7ICach"
+      },
+      "seed_title": "Agitated Carnivorous Plants",
+      "source_binding_id": "agitated-carnivorous-plants",
+      "intent": "Find comparable plant restraint and ways to neutralize or pacify it. Evaluate both the selected disable text and trapping-vines ability; generic plant references are weak evidence.",
+      "tags": [
+        "multiple-sections",
+        "missing-counterpart",
+        "cross-kind"
+      ],
+      "selection": {
+        "kind": "explicit",
+        "selectors": [
+          "part:2eb71593f2761f20381ca6a655f49ee5485524d7ba0415166b7a2cec8fedec30",
+          "part:fdbad8be27f24fcf1bcca929625f16d6120da43e2f7bab2f031dfad873c50fc5"
+        ],
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": true,
+      "quality_eligible": true,
+      "baseline_comparison": "context-only-unmatched-selection",
+      "selection_labels": [
+        {
+          "owner": "Agitated Carnivorous Plants",
+          "label": "Disable"
+        },
+        {
+          "owner": "Trapping Vines",
+          "label": "Ability"
+        }
+      ]
+    },
+    {
+      "id": "hold-h03",
+      "split": "holdout",
+      "cluster": "sonic-pressure",
+      "stratum": "whole-record",
+      "seed": {
+        "kind": "record",
+        "record_key": "age-of-ashes-bestiary:KEbmwWwmpAmIoBcm"
+      },
+      "seed_title": "Mental Scream Trap",
+      "source_binding_id": "mental-scream-trap",
+      "intent": "Find dangers or effects sharing an area psychic scream that disorients victims. Distinguish mental disorientation from unrelated loud noise or ordinary weapon damage.",
+      "tags": [
+        "whole-record",
+        "cross-kind-description"
+      ],
+      "selection": {
+        "kind": "all"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": true,
+      "quality_eligible": true,
+      "baseline_comparison": "whole-seed-default-reference",
+      "selection_labels": []
+    },
+    {
+      "id": "dev-c01",
+      "split": "development",
+      "cluster": "elemental-fire",
+      "stratum": "whole-record",
+      "seed": {
+        "kind": "record",
+        "record_key": "pathfinder-monster-core-2:qdelXqVZKfk1MlAB"
+      },
+      "seed_title": "Striding Fire",
+      "source_binding_id": "striding-fire",
+      "intent": "Find records sharing an embodied fire creature\u2019s movement and smoke-related abilities. A carried fire item or incidental fire resistance alone does not establish strong root similarity.",
+      "tags": [
+        "whole-record",
+        "cross-kind-description"
+      ],
+      "selection": {
+        "kind": "all"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": true,
+      "quality_eligible": true,
+      "baseline_comparison": "whole-seed-default-reference",
+      "selection_labels": []
+    },
+    {
+      "id": "dev-c02",
+      "split": "development",
+      "cluster": "arcane-undead",
+      "stratum": "whole-record",
+      "seed": {
+        "kind": "record",
+        "record_key": "pathfinder-monster-core:smItqlbr0iuDJ8nL"
+      },
+      "seed_title": "Lich",
+      "source_binding_id": "lich",
+      "intent": "Find records portraying an immortal arcane undead entity and its characteristic powers. Distinguish intrinsic identity and mechanics from overlap caused only by copied spells or carried equipment.",
+      "tags": [
+        "whole-record",
+        "long-field",
+        "equipment-noise",
+        "complex-seed"
+      ],
+      "selection": {
+        "kind": "all"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": true,
+      "quality_eligible": true,
+      "baseline_comparison": "whole-seed-default-reference",
+      "selection_labels": []
+    },
+    {
+      "id": "dev-c03",
+      "split": "development",
+      "cluster": "arcane-undead",
+      "stratum": "section-focused",
+      "seed": {
+        "kind": "record",
+        "record_key": "pathfinder-monster-core:smItqlbr0iuDJ8nL"
+      },
+      "seed_title": "Lich",
+      "source_binding_id": "lich",
+      "intent": "Find records sharing the lich\u2019s undead transformation and persistence through a soul-containing anchor. Ignore unselected spell and equipment descriptions when judging usefulness.",
+      "tags": [
+        "multiple-sections",
+        "equipment-noise",
+        "cross-kind"
+      ],
+      "selection": {
+        "kind": "explicit",
+        "selectors": [
+          "part:8cfc70b937eac40f5517f41aa1f18d842c71ae4e1e9bda7bba23855fb6fb7435",
+          "part:1c0a2ef604280e5e803b9eef24af4651cc8762a6c33f95799392f8972b51774c"
+        ],
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": true,
+      "quality_eligible": true,
+      "baseline_comparison": "context-only-unmatched-selection",
+      "selection_labels": [
+        {
+          "owner": "Lich",
+          "label": "Description"
+        },
+        {
+          "owner": "Rejuvenation",
+          "label": "Ability"
+        }
+      ]
+    },
+    {
+      "id": "hold-c01",
+      "split": "holdout",
+      "cluster": "aquatic-terrain",
+      "stratum": "section-focused",
+      "seed": {
+        "kind": "record",
+        "record_key": "pathfinder-monster-core:k5p4mRDT26DrDXPA"
+      },
+      "seed_title": "Giant Octopus",
+      "source_binding_id": "giant-octopus",
+      "intent": "Find records sharing the aquatic predator\u2019s explanatory description and defensive obscuring cloud. Aquatic membership alone is weak evidence; an analogous cloud mechanism can be useful across kinds.",
+      "tags": [
+        "multiple-sections",
+        "cross-kind-description"
+      ],
+      "selection": {
+        "kind": "explicit",
+        "selectors": [
+          "part:b52c287e14c9f9472efb764179c13bc299ca7a16175b612249500f11dc31a63a",
+          "part:a4d3f87d4c28dccd35383b4a7b044502dc965b19fd1e1a605c5bfaccb0aebe2f"
+        ],
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": true,
+      "quality_eligible": true,
+      "baseline_comparison": "context-only-unmatched-selection",
+      "selection_labels": [
+        {
+          "owner": "Giant Octopus",
+          "label": "Description"
+        },
+        {
+          "owner": "Ink Cloud",
+          "label": "Ability"
+        }
+      ]
+    },
+    {
+      "id": "hold-c02",
+      "split": "holdout",
+      "cluster": "grasping-plants",
+      "stratum": "whole-record",
+      "seed": {
+        "kind": "record",
+        "record_key": "pathfinder-bestiary-2:DWQzgPL1WjXfu4rV"
+      },
+      "seed_title": "Assassin Vine",
+      "source_binding_id": "assassin-vine",
+      "intent": "Find records sharing a predatory plant\u2019s camouflage, grasping vegetation, and constricting prey. A mundane plant object or incidental terrain wording alone is insufficient.",
+      "tags": [
+        "whole-record",
+        "intrinsic-mechanics"
+      ],
+      "selection": {
+        "kind": "all"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": true,
+      "quality_eligible": true,
+      "baseline_comparison": "whole-seed-default-reference",
+      "selection_labels": []
+    },
+    {
+      "id": "hold-c03",
+      "split": "holdout",
+      "cluster": "sonic-pressure",
+      "stratum": "section-focused",
+      "seed": {
+        "kind": "record",
+        "record_key": "pathfinder-bestiary-2:xUtl7Nkb6iJpPUMK"
+      },
+      "seed_title": "Destrachan",
+      "source_binding_id": "destrachan",
+      "intent": "Find abilities or effects that use focused destructive harmonics. Judge the selected mechanism and its consequences, not generic subterranean creature resemblance.",
+      "tags": [
+        "single-section",
+        "narrow-correspondence"
+      ],
+      "selection": {
+        "kind": "explicit",
+        "selectors": [
+          "part:49692fc7b4446143196bc728f43563466a3d290c54b9a0e1272d55c39b142a1b"
+        ],
+        "artifact_generation": "a9474928b73e8cf89e84c5ed6990a838:6"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": true,
+      "quality_eligible": true,
+      "baseline_comparison": "context-only-unmatched-selection",
+      "selection_labels": [
+        {
+          "owner": "Destructive Harmonics",
+          "label": "Ability"
+        }
+      ]
+    },
+    {
+      "id": "dev-s01",
+      "split": "development",
+      "cluster": "vitality-restoration",
+      "stratum": "whole-record",
+      "seed": {
+        "kind": "record",
+        "record_key": "spells-srd:rfZpqmj0AIIdkVIs"
+      },
+      "seed_title": "Heal",
+      "source_binding_id": "heal",
+      "intent": "Find records sharing the spell\u2019s restoration or vitality interactions and flexible target or area behavior. Shared holy or cleric flavor without corresponding effect is weak evidence.",
+      "tags": [
+        "whole-record",
+        "action-variants",
+        "existing-boundaries"
+      ],
+      "selection": {
+        "kind": "all"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": true,
+      "quality_eligible": true,
+      "baseline_comparison": "whole-seed-default-reference",
+      "selection_labels": []
+    },
+    {
+      "id": "dev-s02",
+      "split": "development",
+      "cluster": "elemental-fire",
+      "stratum": "whole-record",
+      "seed": {
+        "kind": "record",
+        "record_key": "spells-srd:sxQZ6yqTn0czJxVd"
+      },
+      "seed_title": "Fireball",
+      "source_binding_id": "fireball",
+      "intent": "Find records with comparable explosive area fire damage. Distinguish an area effect from unrelated fire items or a single-target attack.",
+      "tags": [
+        "whole-record",
+        "area-damage"
+      ],
+      "selection": {
+        "kind": "all"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": true,
+      "quality_eligible": true,
+      "baseline_comparison": "whole-seed-default-reference",
+      "selection_labels": []
+    },
+    {
+      "id": "dev-s03",
+      "split": "development",
+      "cluster": "elemental-fire",
+      "stratum": "whole-record",
+      "seed": {
+        "kind": "record",
+        "record_key": "spells-srd:IarZrgCeaiUqOuRu"
+      },
+      "seed_title": "Wall of Fire",
+      "source_binding_id": "wall-of-fire",
+      "intent": "Find records using a persistent damaging barrier to divide or control space. Shared fire vocabulary without a comparable barrier is only partial evidence.",
+      "tags": [
+        "whole-record",
+        "area-control"
+      ],
+      "selection": {
+        "kind": "all"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": true,
+      "quality_eligible": true,
+      "baseline_comparison": "whole-seed-default-reference",
+      "selection_labels": []
+    },
+    {
+      "id": "hold-s01",
+      "split": "holdout",
+      "cluster": "aquatic-terrain",
+      "stratum": "whole-record",
+      "seed": {
+        "kind": "record",
+        "record_key": "spells-srd:jfVCuOpzC6mUrf6f"
+      },
+      "seed_title": "Hydraulic Push",
+      "source_binding_id": "hydraulic-push",
+      "intent": "Find records whose described mechanism uses pressurized water or an analogous forceful blast to damage and push a target. Water association alone is weak evidence.",
+      "tags": [
+        "whole-record",
+        "cross-kind-description"
+      ],
+      "selection": {
+        "kind": "all"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": true,
+      "quality_eligible": true,
+      "baseline_comparison": "whole-seed-default-reference",
+      "selection_labels": []
+    },
+    {
+      "id": "hold-s02",
+      "split": "holdout",
+      "cluster": "grasping-plants",
+      "stratum": "whole-record",
+      "seed": {
+        "kind": "record",
+        "record_key": "spells-srd:KsWhliKfUs3IpW3c"
+      },
+      "seed_title": "Wall of Thorns",
+      "source_binding_id": "wall-of-thorns",
+      "intent": "Find records using thorny growth as an obstructing or damaging spatial barrier. Generic plant membership or a creature carrying wooden equipment is insufficient.",
+      "tags": [
+        "whole-record",
+        "area-control"
+      ],
+      "selection": {
+        "kind": "all"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": true,
+      "quality_eligible": true,
+      "baseline_comparison": "whole-seed-default-reference",
+      "selection_labels": []
+    },
+    {
+      "id": "hold-s03",
+      "split": "holdout",
+      "cluster": "sonic-pressure",
+      "stratum": "whole-record",
+      "seed": {
+        "kind": "record",
+        "record_key": "spells-srd:wzLkNU3AAqOSKFPR"
+      },
+      "seed_title": "Noise Blast",
+      "source_binding_id": "sound-burst",
+      "intent": "Find records with an area sonic blast and comparable physical or disorienting consequences. Exact spell-name references without supporting mechanics are not strong root similarity.",
+      "tags": [
+        "whole-record",
+        "area-damage"
+      ],
+      "selection": {
+        "kind": "all"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": true,
+      "quality_eligible": true,
+      "baseline_comparison": "whole-seed-default-reference",
+      "selection_labels": []
+    },
+    {
+      "id": "dev-t01",
+      "split": "development",
+      "cluster": "elemental-fire",
+      "stratum": "trait-default",
+      "seed": {
+        "kind": "trait",
+        "trait_key": "trait:fire"
+      },
+      "seed_title": "Fire",
+      "source_binding_id": "fire",
+      "intent": "Find records whose explanatory content meaningfully embodies the catalog fire concept. Grade described fire behavior, not exact trait membership by itself.",
+      "tags": [
+        "trait-definition",
+        "cross-kind"
+      ],
+      "selection": {
+        "kind": "all"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": false,
+      "quality_eligible": true,
+      "baseline_comparison": "whole-seed-default-reference",
+      "selection_labels": []
+    },
+    {
+      "id": "dev-t02",
+      "split": "development",
+      "cluster": "arcane-undead",
+      "stratum": "trait-default",
+      "seed": {
+        "kind": "trait",
+        "trait_key": "trait:undead"
+      },
+      "seed_title": "Undead",
+      "source_binding_id": "undead",
+      "intent": "Find records whose explanatory content meaningfully concerns the catalog undead concept. Distinguish intrinsic undeath from incidental references or equipment carried by an undead owner.",
+      "tags": [
+        "trait-definition",
+        "cross-kind"
+      ],
+      "selection": {
+        "kind": "all"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": false,
+      "quality_eligible": true,
+      "baseline_comparison": "whole-seed-default-reference",
+      "selection_labels": []
+    },
+    {
+      "id": "dev-t03",
+      "split": "development",
+      "cluster": "label-only-amp",
+      "stratum": "trait-default",
+      "seed": {
+        "kind": "trait",
+        "trait_key": "trait:amp"
+      },
+      "seed_title": "Amp",
+      "source_binding_id": "amp",
+      "intent": "Exercise the known catalog label Amp when no definition is available. Preserve explicit label-only provenance and assess failure or retrieval behavior; semantic usefulness is unknown without an independently established seed meaning.",
+      "tags": [
+        "trait-label-only",
+        "missing-definition",
+        "robustness"
+      ],
+      "selection": {
+        "kind": "all"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": false,
+      "quality_eligible": false,
+      "baseline_comparison": "whole-seed-default-reference",
+      "selection_labels": []
+    },
+    {
+      "id": "hold-t01",
+      "split": "holdout",
+      "cluster": "aquatic-terrain",
+      "stratum": "trait-default",
+      "seed": {
+        "kind": "trait",
+        "trait_key": "trait:water"
+      },
+      "seed_title": "Water",
+      "source_binding_id": "water",
+      "intent": "Find records whose explanatory content meaningfully embodies the catalog water concept. Exact trait membership and incidental words are separate from semantic usefulness.",
+      "tags": [
+        "trait-definition",
+        "cross-kind"
+      ],
+      "selection": {
+        "kind": "all"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": false,
+      "quality_eligible": true,
+      "baseline_comparison": "whole-seed-default-reference",
+      "selection_labels": []
+    },
+    {
+      "id": "hold-t02",
+      "split": "holdout",
+      "cluster": "grasping-plants",
+      "stratum": "trait-default",
+      "seed": {
+        "kind": "trait",
+        "trait_key": "trait:plant"
+      },
+      "seed_title": "Plant",
+      "source_binding_id": "plant",
+      "intent": "Find records whose explanatory content meaningfully embodies the catalog plant concept. Distinguish an intrinsically plant entity or effect from carried plant-derived objects.",
+      "tags": [
+        "trait-definition",
+        "cross-kind"
+      ],
+      "selection": {
+        "kind": "all"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": false,
+      "quality_eligible": true,
+      "baseline_comparison": "whole-seed-default-reference",
+      "selection_labels": []
+    },
+    {
+      "id": "hold-t03",
+      "split": "holdout",
+      "cluster": "sonic-pressure",
+      "stratum": "trait-default",
+      "seed": {
+        "kind": "trait",
+        "trait_key": "trait:sonic"
+      },
+      "seed_title": "Sonic",
+      "source_binding_id": "sonic",
+      "intent": "Find records whose explanatory content meaningfully embodies the catalog sonic concept, supported by described sound-based behavior rather than an isolated trait tag.",
+      "tags": [
+        "trait-definition",
+        "cross-kind"
+      ],
+      "selection": {
+        "kind": "all"
+      },
+      "candidate_filter": null,
+      "compare_corresponding": false,
+      "quality_eligible": true,
+      "baseline_comparison": "whole-seed-default-reference",
+      "selection_labels": []
+    }
+  ],
+  "performance": {
+    "scenario_ids": [
+      "dev-h01",
+      "dev-c01",
+      "dev-c02",
+      "dev-s01",
+      "dev-t01"
+    ],
+    "profiles": [
+      "bge-base",
+      "embeddinggemma"
+    ],
+    "variant_ids": [
+      "baseline",
+      "passages-any-0p5",
+      "average-any"
+    ],
+    "warm_repetitions": 20,
+    "cold_sessions": 1,
+    "cold_definition": "first request in a fresh process, without OS page-cache eviction",
+    "targets": {
+      "common_warm_p95_ms": 5000,
+      "complex_warm_p95_ms": 20000,
+      "process_peak_rss_mib": 512
+    },
+    "targets_status": "provisional development budgets frozen before result measurement; not shipping SLOs",
+    "additional_cases": [
+      {
+        "scenario_id": "dev-c02",
+        "variant_id": "passages-corresponding-0p25",
+        "profiles": [
+          "bge-base",
+          "embeddinggemma"
+        ]
+      }
+    ],
+    "warm_definition": "Repeated complete production requests in the same service process/context; scorer-only preparation reuse is measured separately.",
+    "failure_policy": "After a cold structural/unsupported/resource-limit failure, report the classified failure and no warm p95; do not repeat the same deterministic failure 20 times."
+  }
+}

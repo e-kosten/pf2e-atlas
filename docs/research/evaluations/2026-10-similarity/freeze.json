@@ -1,0 +1,28 @@
+{
+  "version": 3,
+  "experiment_id": "2026-10-configurable-similarity-v1",
+  "state": "frozen-before-ranked-results",
+  "frozen_on": "2026-10-26",
+  "source_base_revision": "efe8e6b10e37156d8d241c5a6087def5e0c2a44f",
+  "files": {
+    "README.md": "ea6c802daedcafb38e397d4e1afa548f84eb4c30e8b708585d8d14b7ccbfcf72",
+    "protocol.md": "1707da521ab852bdc5165691c1c30b4b8ea3f4748039294b51cfc7b1642f22c6",
+    "manifest.json": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+    "corpus.json": "225a062af249ba7cc339adf788dc882d8ccda6c21a2af6b97af3cbfc89245dc7",
+    "seeds.json": "bf0f1ae40150592927d26b021d318f0bebbef5fbb8e405d2b5c4b43d6c74ba1c",
+    "verify.py": "6ba3cda3534e50190df9be4afeb6edd43d3f3dd5c1a6f5038a29753de510d2db"
+  },
+  "exposure": "Identity resolution, catalog browse, part inventory and source inspection only. No Similar rankings or candidate judgments opened before this freeze.",
+  "pre_run_amendments": [
+    {
+      "superseded_freeze_sha256": "e3d618d81478226adecd0dea85a5898e10f7a1a8802d64a4eca26b44296c0543",
+      "reason": "Independent audit made whole-record primary kind-macro aggregation and unequal stratum counts explicit before any rankings were opened.",
+      "ranked_results_opened": false
+    },
+    {
+      "superseded_freeze_sha256": "b8a9fe0d4d0d8827418badb70f00dd90a216a4a989d424f32e3ef0aa583f3159",
+      "reason": "Independent audit separated pre-rerank candidate-admission recall from final returned-top-ten agreement and made legacy unavailable admission explicit before any rankings opened.",
+      "ranked_results_opened": false
+    }
+  ]
+}

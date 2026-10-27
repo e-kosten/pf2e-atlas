@@ -23,6 +23,7 @@ pub(crate) struct RoleScore {
     pub weight: f64,
     pub comparable: bool,
 }
+#[derive(Clone, Copy)]
 pub(crate) struct Pair<'a> {
     pub seed: &'a SourceSimilarityUnit,
     pub candidate: &'a SourceSimilarityUnit,
@@ -166,11 +167,68 @@ fn allowed(
     mode == SimilarityCandidateParts::Any || seed.corresponds_to(candidate)
 }
 
+/// Shared normalized geometric weights, also used to evaluate decay variants
+/// over already measured part maxima without repeating vector comparisons.
+pub(crate) fn decay_weights(count: usize, decay: f64) -> Vec<f64> {
+    let mut value = 1.0;
+    let mut weights = Vec::with_capacity(count);
+    for _ in 0..count {
+        weights.push(value);
+        value *= decay;
+    }
+    let total: f64 = weights.iter().sum();
+    for weight in &mut weights {
+        *weight /= total;
+    }
+    weights
+}
+
 pub(crate) fn passages<'a>(
     seed: &[Part<'a>],
     candidate: &[Part<'a>],
     mode: SimilarityCandidateParts,
     decay: f64,
+    cancelled: Option<&dyn Fn() -> bool>,
+) -> Result<Score<'a>, SearchError> {
+    passages_with_limit(seed, candidate, mode, decay, 3, cancelled)
+}
+
+/// Evaluation reuses every part's best pair before choosing the displayed
+/// contributors for each decay. A capped explanation is not a reusable maximum.
+pub(crate) fn passage_maxima<'a>(
+    seed: &[Part<'a>],
+    candidate: &[Part<'a>],
+    mode: SimilarityCandidateParts,
+    cancelled: Option<&dyn Fn() -> bool>,
+) -> Result<Score<'a>, SearchError> {
+    passages_with_limit(seed, candidate, mode, 1.0, usize::MAX, cancelled)
+}
+
+pub(crate) fn select_passage_pairs<'a>(
+    pairs: &[Pair<'a>],
+    contribution: impl Fn(&Pair<'a>) -> f64,
+    limit: usize,
+) -> Vec<Pair<'a>> {
+    let mut pairs = pairs
+        .iter()
+        .copied()
+        .filter(|pair| contribution(pair) > 0.0)
+        .collect::<Vec<_>>();
+    pairs.sort_by(|a, b| {
+        contribution(b)
+            .total_cmp(&contribution(a))
+            .then(b.cosine.total_cmp(&a.cosine))
+    });
+    pairs.truncate(limit);
+    pairs
+}
+
+fn passages_with_limit<'a>(
+    seed: &[Part<'a>],
+    candidate: &[Part<'a>],
+    mode: SimilarityCandidateParts,
+    decay: f64,
+    evidence_limit: usize,
     cancelled: Option<&dyn Fn() -> bool>,
 ) -> Result<Score<'a>, SearchError> {
     let mut control = ScoringControl::new(cancelled)?;
@@ -227,15 +285,8 @@ pub(crate) fn passages<'a>(
             .total_cmp(&a.score)
             .then(a.part.selector.cmp(&b.part.selector))
     });
-    let mut weight = 1.0;
-    let mut total = 0.0;
-    for part in &mut part_scores {
+    for (part, weight) in part_scores.iter_mut().zip(decay_weights(seed.len(), decay)) {
         part.weight = weight;
-        total += weight;
-        weight *= decay;
-    }
-    for part in &mut part_scores {
-        part.weight /= total;
     }
     let score = part_scores
         .iter()
@@ -248,13 +299,7 @@ pub(crate) fn passages<'a>(
             .find(|part| part.part.selector == pair.seed.part.selector)
             .map_or(0.0, |part| part.score * part.weight)
     };
-    pairs.retain(|pair| contribution(pair) > 0.0);
-    pairs.sort_by(|a, b| {
-        contribution(b)
-            .total_cmp(&contribution(a))
-            .then(b.cosine.total_cmp(&a.cosine))
-    });
-    pairs.truncate(3);
+    let pairs = select_passage_pairs(&pairs, contribution, evidence_limit);
     Ok(Score {
         score,
         aggregation: "part_maxima_rank_decay",

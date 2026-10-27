@@ -56,6 +56,14 @@ scorers over fixed pools before tuning the end-to-end retrieval policy. Any save
 derived metadata/cache includes generation, profile and recipe identity. Evidence
 limits cannot alter ranking, and unsupported requests cannot silently lose parts.
 
+The developer evaluation path visits every explicitly supplied eligible key without
+KNN and shares the canonical scorer. Candidate admission recall uses the complete
+pre-reranking union of the content-method pipeline; top-result agreement is a
+separate metric, and the legacy baseline does not fabricate a candidate-union
+measurement. Reused passage maxima retain all per-part best pairs until the
+variant-specific weights select the bounded explanation. Raw score evidence caps
+cannot become scoring or candidate cutoffs.
+
 Initial defaults remain experimental until source-grounded usefulness, measured
 latency and human UX review support a shipping choice. Ordinary hybrid search
 fusion, structured filters, authored section boundaries and exact trait

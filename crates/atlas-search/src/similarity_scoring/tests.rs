@@ -325,3 +325,80 @@ fn scoring_cancels_within_a_candidate_and_uncancelled_scores_are_identical() {
         assert_eq!(actual.comparisons, expected.comparisons);
     }
 }
+
+#[test]
+fn reused_maxima_reselect_evidence_after_decay_when_tied_parts_have_different_peak_chunks() {
+    let mut source = vec![];
+    for (selector, values) in [
+        ("a", [0.5_f32, 0.5]),
+        ("b", [0.75, 0.25]),
+        ("c", [1.0, 0.0]),
+        ("d", [0.625, 0.375]),
+    ] {
+        for (index, cosine) in values.into_iter().enumerate() {
+            source.push(unit(
+                selector,
+                SimilarityRole::Description,
+                [cosine, (1.0 - cosine * cosine).sqrt()],
+                index * 10,
+                (index + 1) * 10,
+            ));
+        }
+    }
+    let target = [unit(
+        "target",
+        SimilarityRole::Description,
+        [1.0, 0.0],
+        0,
+        10,
+    )];
+    let seed = parts(&source);
+    let candidate = parts(&target);
+    let maxima =
+        super::passage_maxima(&seed, &candidate, SimilarityCandidateParts::Any, None).unwrap();
+    assert_eq!(maxima.pairs.len(), 4);
+    // At equal weights the three largest peak cosines omit part a, but at
+    // decay zero its stable selector makes it the only actual contributor.
+    assert!(
+        !passages(&seed, &candidate, SimilarityCandidateParts::Any, 1.0)
+            .pairs
+            .iter()
+            .any(|pair| pair.seed.part.selector.0 == "a")
+    );
+    for decay in [0.0, 0.25, 0.5, 1.0] {
+        let weights = super::decay_weights(maxima.parts.len(), decay);
+        let chosen = super::select_passage_pairs(
+            &maxima.pairs,
+            |pair| {
+                maxima
+                    .parts
+                    .iter()
+                    .zip(&weights)
+                    .find(|(part, _)| part.part.selector == pair.seed.part.selector)
+                    .map_or(0.0, |(part, weight)| part.score * weight)
+            },
+            3,
+        );
+        let direct = passages(&seed, &candidate, SimilarityCandidateParts::Any, decay);
+        assert_eq!(
+            chosen
+                .iter()
+                .map(|pair| (&pair.seed.part.selector, pair.cosine))
+                .collect::<Vec<_>>(),
+            direct
+                .pairs
+                .iter()
+                .map(|pair| (&pair.seed.part.selector, pair.cosine))
+                .collect::<Vec<_>>()
+        );
+        close(
+            maxima
+                .parts
+                .iter()
+                .zip(&weights)
+                .map(|(part, weight)| part.score * weight)
+                .sum(),
+            direct.score,
+        );
+    }
+}
