@@ -388,6 +388,7 @@ it("keeps inherited conditions read-only and preserves distinct rules and exact 
       extra_remaining: null,
       extra_uses: [],
       reactions_total: null,
+      can_grant_reaction: true,
       reactions_remaining: null,
       start_results: [],
       pending_reason: null,
