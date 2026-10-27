@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { useRouterState } from "@tanstack/react-router";
 import { RouterTestContext } from "../../test/router";
 import type { ReactNode } from "react";
-import { ConfigProvider, Grid } from "antd";
+import { App, ConfigProvider, Grid } from "antd";
 import type {
   RecordDetailRequest,
   RecordDetailView,
@@ -122,7 +122,7 @@ describe("record route views", () => {
     expect(screen.queryByText("Reference", { exact: true })).toBeNull();
     expect(
       screen.getByRole("heading", { name: "heal" }).closest("header"),
-    ).toContainElement(screen.getByRole("button", { name: "Add to saved list" }));
+    ).toContainElement(screen.getByRole("button", { name: "Add to list" }));
     expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Refresh" })).toBeNull();
   });
@@ -137,7 +137,7 @@ describe("record route views", () => {
     await addCurrentRecordToList();
 
     expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
-      list_ref: "research",
+      list_ref: "list_research",
       record_ref: "spell:heal",
     });
   });
@@ -152,11 +152,11 @@ describe("record route views", () => {
     render(<RecordView route={{ recordKey: "spell:heal" }} />, {
       wrapper: queryClientWrapper(),
     });
-    const trigger = screen.getByRole("button", { name: "Add to saved list" });
+    const trigger = screen.getByRole("button", { name: "Add to list" });
     fireEvent.click(trigger);
-    const dialog = await screen.findByRole("dialog", { name: "Add to List" });
+    const dialog = await screen.findByRole("dialog", { name: "Add to list" });
     await act(async () => resolveDetail(recordDetailFixture("spell:heal")));
-    expect(screen.getByRole("dialog", { name: "Add to List" })).toBe(dialog);
+    expect(screen.getByRole("dialog", { name: "Add to list" })).toBe(dialog);
     expect(trigger).toBeInTheDocument();
     await waitFor(() => expect(trigger.closest("header")).toHaveTextContent("heal"));
   });
@@ -207,7 +207,7 @@ describe("record route views", () => {
     await screen.findByRole("heading", { name: "linked" });
     await addCurrentRecordToList(1);
     expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
-      list_ref: "research",
+      list_ref: "list_research",
       record_ref: "spell:linked",
     });
     await waitFor(() =>
@@ -316,7 +316,7 @@ function RecordHarness() {
 
 async function addCurrentRecordToList(buttonIndex = 0) {
   const buttons = await screen.findAllByRole("button", {
-    name: "Add to saved list",
+    name: "Add to list",
   });
   fireEvent.click(buttons[buttonIndex]!);
 
@@ -340,7 +340,7 @@ function queryClientWrapper() {
       <QueryClientProvider client={queryClient}>
         <RouterTestContext>
           <ConfigProvider theme={{ token: { motion: false } }}>
-            {children}
+            <App>{children}</App>
           </ConfigProvider>
         </RouterTestContext>
       </QueryClientProvider>
