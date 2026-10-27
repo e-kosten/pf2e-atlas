@@ -30,14 +30,14 @@ export function SearchMatchContext({
 }) {
   const { token } = theme.useToken();
   const onNavigate = useContext(ReaderMatchNavigation);
-  const sections = query?.trim() ? (row.matching_sections ?? []) : [];
+  const similarity = showSimilarityDetails ? row.similarity : undefined;
+  const sections = !similarity || query?.trim() ? (row.matching_sections ?? []) : [];
   const evidence =
     generation && filter
       ? (row.relationship_evidence ?? []).filter((item) =>
           clauses?.some((clause) => clause.clause_id === item.clause_id),
         )
       : [];
-  const similarity = showSimilarityDetails ? row.similarity : undefined;
   if (!sections.length && !evidence.length && !similarity) return null;
   return (
     <div className="reader-match-context">
@@ -55,7 +55,7 @@ export function SearchMatchContext({
       {!!sections.length && (
         <section aria-label="Search matches">
           <Typography.Title level={3} style={{ fontSize: token.fontSizeLG, margin: 0 }}>
-            Search matches for “{query}”
+            {query?.trim() ? `Search matches for “${query}”` : "Search matches"}
           </Typography.Title>
           <ul className="reader-match-context__sections">
             {sections.map((section) => (
