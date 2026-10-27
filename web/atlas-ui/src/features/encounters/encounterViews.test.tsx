@@ -1492,9 +1492,12 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(window.location.pathname).toBe("/records/" + selected.selected.record_key),
     );
-    expect(selectedNavigation(atlasRouter.latestLocation.search)).toEqual(
-      selected.selected,
-    );
+    expect(
+      selectedNavigation(
+        atlasRouter.latestLocation.search,
+        selected.selected.record_key,
+      ),
+    ).toEqual(selected.selected);
   });
 
   it("opens condition references with their current participant and condition identity", async () => {

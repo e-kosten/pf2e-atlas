@@ -124,11 +124,12 @@ export function useSearchProfileSelection(
         search: (search) => {
           const next = { ...search };
           delete next[SEARCH_PROFILE_PARAM];
+          delete next.page;
           return next;
         },
         replace: true,
         resetScroll: false,
-        state: (state) => ({ ...state, atlasSearchPage: 1 }),
+        state: true,
       });
     },
     select: (next) => {
@@ -142,10 +143,14 @@ export function useSearchProfileSelection(
         void router.navigate({
           to: ".",
           hash: true,
-          search: (search) => ({ ...search, [SEARCH_PROFILE_PARAM]: next }),
+          search: (search) => ({
+            ...search,
+            [SEARCH_PROFILE_PARAM]: next,
+            page: undefined,
+          }),
           replace: true,
           resetScroll: false,
-          state: (state) => ({ ...state, atlasSearchPage: 1 }),
+          state: true,
         });
     },
   };

@@ -56,11 +56,9 @@ const existing: QueryRelationship = {
   },
 };
 function setup(initial: SearchFormState = DEFAULT_SEARCH_STATE) {
-  history.replaceState(
-    { atlasSearchPage: 3 },
-    "",
-    "/search" + searchStateQueryString(initial),
-  );
+  const params = new URLSearchParams(searchStateQueryString(initial));
+  params.set("page", "3");
+  history.replaceState({}, "", "/search?" + params.toString());
   let live!: SearchWorkspaceState;
   function Harness() {
     live = useSearchWorkspace({ enabled: false, searchProfile: "bge-base" });

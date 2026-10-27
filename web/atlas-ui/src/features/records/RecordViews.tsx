@@ -60,6 +60,7 @@ export function RecordView({ route }: RecordViewProps) {
           }
           anchor={preview.anchor}
           readingHistory={preview.readingHistory}
+          requestedNavigation={preview.selection}
           landing={preview.landing}
           detail={preview.detail}
           loading={preview.loading}

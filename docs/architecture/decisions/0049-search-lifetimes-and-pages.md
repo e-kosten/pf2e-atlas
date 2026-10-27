@@ -101,8 +101,13 @@ nondefault page size use ordinary parameters; retrieval mode is derived. This
 replaces raw predicate JSON in URLs without another expression language, a
 parallel simple-filter dialect or a server-side short-link registry.
 
-Page remains request state and is retained in browser
-history state for same-tab Back; generation stays in the search owner. That owner
+Page remains request state and is also represented by the browser `page` query
+parameter; page one is omitted. This is the sole browser page authority. Explicit
+page changes push history so Back and Forward traverse visited result pages.
+Criteria, order, profile, seed and page-size changes reset page one; automatic
+page correction replaces the entry. Copied links and reloads request the named
+page without promising frozen results. Generation stays in the search owner and
+is never a bookmark or search-session identifier. That owner
 remains mounted under the persistent Router layout through React Activity, while
 its requests are disabled outside Search. [ADR0058](./0058-browser-routing.md)
 defines global route and browser-history ownership. Non-search route changes do not reset its committed criteria or page.

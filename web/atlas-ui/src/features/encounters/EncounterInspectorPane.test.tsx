@@ -152,7 +152,7 @@ it("labels multiple inline options and keeps a single option beside its existing
     ).toBeVisible();
     expect(sidebar.getByRole("link", { name: ability.label })).toHaveAttribute(
       "href",
-      expect.stringContaining("/records/actors:abcdefghijklmnop?selection="),
+      expect.stringContaining("/records/actors:abcdefghijklmnop?at=1."),
     );
   }
   const mounted = { ...abilities[0], label: "Mounted" };

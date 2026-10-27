@@ -12,9 +12,7 @@ import {
 
 describe("workspaceInteractionReducer", () => {
   it("changes search immediately without resetting execution state", () => {
-    const state = baseState({
-      pageNumber: 3,
-    });
+    const state = baseState();
     const nextSearch = {
       ...DEFAULT_SEARCH_STATE,
       query: "heal",
@@ -28,29 +26,25 @@ describe("workspaceInteractionReducer", () => {
 
     expect(next.search).toBe(nextSearch);
     expect(next.activeSearch).toBe(state.activeSearch);
-    expect(next.pageNumber).toBe(3);
   });
 
-  it("resets the page when search execution commits", () => {
+  it("commits execution without owning URL pagination", () => {
     const nextSearch = {
       ...DEFAULT_SEARCH_STATE,
       query: "fireball",
       mode: "text_search" as const,
     };
 
-    const next = workspaceInteractionReducer(baseState({ pageNumber: 4 }), {
+    const next = workspaceInteractionReducer(baseState(), {
       type: "search.executionCommitted",
       search: nextSearch,
     });
 
     expect(next.activeSearch).toBe(nextSearch);
-    expect(next.pageNumber).toBe(1);
   });
 
   it("does not reset state when the committed search is already active", () => {
-    const state = baseState({
-      pageNumber: 4,
-    });
+    const state = baseState();
 
     const next = workspaceInteractionReducer(state, {
       type: "search.executionCommitted",
@@ -71,7 +65,7 @@ describe("workspaceInteractionReducer", () => {
       },
     };
 
-    const next = workspaceInteractionReducer(baseState({ pageNumber: 3 }), {
+    const next = workspaceInteractionReducer(baseState(), {
       type: "url.restored",
       search: restoredSearch,
       selectedRecordKey: "spell:heal",
@@ -80,7 +74,6 @@ describe("workspaceInteractionReducer", () => {
     expect(next.search).toBe(restoredSearch);
     expect(next.activeSearch).toBe(restoredSearch);
     expect(next.selectedRecordKey).toBe("spell:heal");
-    expect(next.pageNumber).toBe(1);
   });
 
   it("tracks result and record interactions explicitly", () => {
@@ -90,15 +83,6 @@ describe("workspaceInteractionReducer", () => {
     });
     expect(selected.selectedRecordKey).toBe("spell:heal");
   });
-
-  it("changes page without dropping the selected record", () => {
-    const next = workspaceInteractionReducer(baseState({ pageNumber: 1 }), {
-      type: "resultPage.changed",
-      pageNumber: 2,
-    });
-
-    expect(next.pageNumber).toBe(2);
-  });
 });
 
 function baseState(
@@ -107,7 +91,6 @@ function baseState(
   return {
     search: DEFAULT_SEARCH_STATE,
     selectedRecordKey: null,
-    pageNumber: 1,
     activeSearch: DEFAULT_SEARCH_STATE,
     ...overrides,
   };
@@ -189,9 +172,9 @@ it("resets restored paging before executing a recovered URL without adding a rem
     KIND_PREFERENCE_KEY,
     JSON.stringify({ kind: "in", field: "kind", values: ["creature"] }),
   );
-  history.replaceState({ atlasSearchPage: 9 }, "", "/search?filter=2.obsolete");
+  history.replaceState(null, "", "/search?filter=2.obsolete&page=9");
   const state = initialWorkspaceInteractionState();
-  expect(state.pageNumber).toBe(1);
+  expect(state).not.toHaveProperty("pageNumber");
   expect(state.search.filter).toBeNull();
   expect(state.search.filterWasReset).toBe(true);
   localStorage.clear();
@@ -201,3 +184,15 @@ function initialWorkspaceInteractionState() {
   atlasRouter.updateLatestLocation();
   return readInitialState();
 }
+
+it("suppresses remembered Kind defaults for an empty recovery entry", () => {
+  localStorage.setItem(
+    KIND_PREFERENCE_KEY,
+    JSON.stringify({ include: ["creature"], exclude: [] }),
+  );
+  history.replaceState({ atlasSearchReset: "recovery-entry" }, "", "/search");
+  const state = initialWorkspaceInteractionState();
+  expect(state.search.filter).toBeNull();
+  expect(state.activeSearch.filter).toBeNull();
+  localStorage.clear();
+});

@@ -1,3 +1,4 @@
+import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { SearchResultRow } from "../../generated/atlas";
 import { summaryFixture, activityFixture } from "../../test/fixtures";
@@ -34,10 +35,9 @@ it("shows named locations and excerpts with exact native destinations and delibe
   expect(within(context).getByText("A cone of fire.")).toBeVisible();
   const link = within(context).getByRole("link", { name: "Breath Fire" });
   expect(
-    JSON.parse(
-      new URL(link.getAttribute("href")!, "http://localhost").searchParams.get(
-        "selection",
-      )!,
+    selectedNavigation(
+      parseSearchParams(new URL(link.getAttribute("href")!, "http://localhost").search),
+      navigation.record_key,
     ),
   ).toEqual(navigation);
   fireEvent.click(link, { metaKey: true });

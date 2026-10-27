@@ -1,10 +1,16 @@
 import { atlasRouter } from "../../app/router";
+import { useRouterState } from "@tanstack/react-router";
+import { listIndexSearch, type ListIndexInput } from "../../app/routeSearch";
 import {
   navigateDestination,
   destinationHref,
   isPrimaryActivation,
 } from "../../app/navigation";
-import { listDestination, listEditDestination } from "../../app/destinations";
+import {
+  listDestination,
+  listEditDestination,
+  listsDestination,
+} from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
 import { ListTagSummary } from "./ListTagSummary";
@@ -13,7 +19,7 @@ import { ChoicePicker } from "../../shared/ui/pickers/ChoicePicker";
 import { Alert, Button, Input, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Pencil, Plus, Search } from "lucide-react";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { SavedListSummaryView } from "../../generated/atlas";
 import {
   IndexTable,
@@ -29,35 +35,46 @@ import { formatDate } from "../../shared/ui/formatDate";
 type ListIndexViewProps = {
   route: Record<string, never>;
 };
-type IndexState = {
-  name: string;
-  include: string[];
-  exclude: string[];
+type IndexPosition = {
   scroll: number;
   documentScroll: number;
 };
-// Browser-session collection state survives detail/edit navigation, scoped to this app client.
-const indexPositions = new WeakMap<QueryClient, IndexState>();
+const indexPositions = new WeakMap<QueryClient, Map<string, IndexPosition>>();
 export function ListIndexView(_props: ListIndexViewProps) {
   usePageTitle("Lists");
   const client = useQueryClient();
-  const [state, setState] = useState<IndexState>(
-    () =>
-      indexPositions.get(client) ?? {
-        name: "",
-        include: [],
-        exclude: [],
-        scroll: 0,
-        documentScroll: 0,
-      },
-  );
+  const search = useRouterState({
+    router: atlasRouter,
+    select: (state) => state.location.search,
+  });
+  const state = listIndexSearch(search);
+  const [nameDraft, setNameDraft] = useState(state.query);
+  const previousQuery = useRef(state.query);
+  useEffect(() => {
+    if (previousQuery.current === state.query) return;
+    previousQuery.current = state.query;
+    setNameDraft((draft) => (draft.trim() === state.query ? draft : state.query));
+  }, [state.query]);
+  const positionKey = JSON.stringify(state);
+  const positions = useMemo(() => {
+    let saved = indexPositions.get(client);
+    if (!saved) {
+      saved = new Map();
+      indexPositions.set(client, saved);
+    }
+    return saved;
+  }, [client]);
   const scrollRef = useRef<HTMLElement>(null);
-  const restored = useRef(false);
-  function changeState(next: IndexState) {
-    indexPositions.set(client, next);
-    setState(next);
-    if (scrollRef.current) scrollRef.current.scrollTop = next.scroll;
-    if (window.scrollY !== next.documentScroll) window.scrollTo(0, next.documentScroll);
+  const restored = useRef<string | null>(null);
+  function changeState(next: ListIndexInput) {
+    positions.clear();
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    if (window.scrollY !== 0) window.scrollTo(0, 0);
+    void atlasRouter.navigate({
+      ...listsDestination(next),
+      replace: true,
+      resetScroll: false,
+    });
   }
   const [tagsOpen, setTagsOpen] = useState(false);
   const [tagSearch, setTagSearch] = useState("");
@@ -68,37 +85,35 @@ export function ListIndexView(_props: ListIndexViewProps) {
   const tagOptions = useMemo(() => savedListTagOptions(allLists), [allLists]);
   const filteredLists = useMemo(() => filterLists(allLists, state), [allLists, state]);
   useLayoutEffect(() => {
-    if (lists.data && scrollRef.current && !restored.current) {
+    if (lists.data && scrollRef.current && restored.current !== positionKey) {
+      const saved = positions.get(positionKey) ?? { scroll: 0, documentScroll: 0 };
       const restore = () => {
-        if (scrollRef.current) scrollRef.current.scrollTop = state.scroll;
-        if (window.scrollY !== state.documentScroll)
-          window.scrollTo(0, state.documentScroll);
+        if (scrollRef.current) scrollRef.current.scrollTop = saved.scroll;
+        if (window.scrollY !== saved.documentScroll)
+          window.scrollTo(0, saved.documentScroll);
       };
       restore();
       const frame = requestAnimationFrame(restore);
-      restored.current = true;
+      restored.current = positionKey;
       return () => cancelAnimationFrame(frame);
     }
-  }, [lists.data, state.scroll, state.documentScroll]);
+  }, [lists.data, positions, positionKey]);
   useLayoutEffect(() => {
     const snapshot = () =>
-      indexPositions.set(client, {
-        ...state,
+      positions.set(positionKey, {
         scroll: scrollRef.current?.scrollTop ?? 0,
         documentScroll: window.scrollY,
       });
     return atlasRouter.subscribe("onBeforeNavigate", snapshot);
-  }, [client, state]);
+  }, [positions, positionKey]);
   return (
     <EntityIndexPage
       scrollRef={scrollRef}
       onScroll={(event) => {
-        const next = {
-          ...state,
+        positions.set(positionKey, {
           scroll: event.currentTarget.scrollTop,
           documentScroll: window.scrollY,
-        };
-        indexPositions.set(client, next);
+        });
       }}
       toolbar={
         <PrimaryToolbar className="list-index-view__actions">
@@ -108,15 +123,14 @@ export function ListIndexView(_props: ListIndexViewProps) {
             placeholder="Search lists…"
             prefix={<Search size={16} />}
             allowClear
-            value={state.name}
-            onChange={(event) =>
+            value={nameDraft}
+            onChange={(event) => {
+              setNameDraft(event.target.value);
               changeState({
                 ...state,
-                name: event.target.value,
-                scroll: 0,
-                documentScroll: 0,
-              })
-            }
+                query: event.target.value,
+              });
+            }}
           />
           {(tagOptions.length > 0 || selectedTags.length > 0) && (
             <ChoicePicker
@@ -142,8 +156,6 @@ export function ListIndexView(_props: ListIndexViewProps) {
                     next === "exclude"
                       ? [...state.exclude.filter((value) => value !== tag), tag]
                       : state.exclude.filter((value) => value !== tag),
-                  scroll: 0,
-                  documentScroll: 0,
                 })
               }
               open={tagsOpen}
@@ -210,7 +222,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
             ? "Loading saved lists…"
             : lists.error && !lists.data
               ? "Saved lists unavailable"
-              : selectedTags.length || state.name.trim()
+              : selectedTags.length || state.query.trim()
                 ? "No lists match these filters"
                 : "No saved lists. Create a list to collect records.",
         }}
@@ -229,11 +241,11 @@ export function ListIndexView(_props: ListIndexViewProps) {
 }
 function filterLists(
   lists: SavedListSummaryView[],
-  state: IndexState,
+  state: ReturnType<typeof listIndexSearch>,
 ): SavedListSummaryView[] {
   const included = state.include;
   const excluded = new Set(state.exclude);
-  const name = state.name.trim().toLocaleLowerCase();
+  const name = state.query.trim().toLocaleLowerCase();
   return lists.filter(
     (list) =>
       list.name.toLocaleLowerCase().includes(name) &&

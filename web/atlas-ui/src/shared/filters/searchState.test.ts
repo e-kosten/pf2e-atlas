@@ -275,18 +275,14 @@ describe("source query state", () => {
       "list_records",
     );
   });
-  it("recovers malformed filter transport while retaining the text query", () => {
+  it("blocks malformed filter transport until empty Search recovery", () => {
     const state = decodeSearchStateFromParams(
       new URLSearchParams("filter=bad&q=dragon"),
     );
     expect(state.filterError).toBeNull();
     expect(state.filterWasReset).toBe(true);
-    expect(hasExecutableSearch(state)).toBe(true);
-    expect(buildSearchRequest(state, 1).criteria).toMatchObject({
-      kind: "text_search",
-      query: "dragon",
-      filter: null,
-    });
+    expect(hasExecutableSearch(state)).toBe(false);
+    expect(state.query).toBe("");
   });
   it("bounds page sizes without changing valid zero-valued filters", () => {
     const state = decodeSearchStateFromParams(
@@ -389,12 +385,8 @@ it("recovers obsolete filter links without retaining a legacy decoder", () => {
   );
   expect(state.filterError).toBeNull();
   expect(state.filterWasReset).toBe(true);
-  expect(hasExecutableSearch(state)).toBe(true);
-  expect(buildSearchRequest(state, 1).criteria).toMatchObject({
-    kind: "text_search",
-    query: "fire",
-    filter: null,
-  });
+  expect(hasExecutableSearch(state)).toBe(false);
+  expect(state.query).toBe("");
 });
 
 it("carries complete relationship constraints in browse and saved-list discovery contexts", () => {

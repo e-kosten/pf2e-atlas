@@ -22,15 +22,49 @@ regex dispatcher and custom change event are removed.
 The persistent application layout owns theme, readiness, profile selection and
 Search. React Activity keeps Search mounted and hides it across other routes;
 Search requests remain disabled outside Search. TanStack Query continues to own
-requests, immutable reference caches and generation retirement. Router loaders
+requests, immutable reference caches and generation retirement. Root link errors
+reuse the same theme and application shell, disabling retained Search while
+showing recovery. Primary recovery navigation focuses the destination content
+container; native modified links retain normal browser behavior. Router loaders
 and preloading do not introduce a parallel data cache or semantic inference.
 
-Existing transport codecs retain string values and repeated sort priority.
-Selection, parent landing and native section fragments remain distinct. Filter
-recovery replaces only failed transport and preserves independent criteria and
-reading. Page and embedded-owner return context live in Router history state.
+Transport codecs retain string values and repeated sort priority. The record key
+in the pathname is the sole reading identity. Optional casting rank uses `rank`;
+exact selection and independent parent landing use the bounded, versioned compact
+`at` and `focus` address codecs. Those addresses omit the repeated record key and
+empty trailing values while retaining embedded owner identities, source
+fingerprints and passage hashes. Address identity uses canonical tuple values,
+independent of object property order; retained document identity omits rank while
+requested navigation retains its explicit rank intent. The browser checks transport shape and bounds;
+backend policy remains authoritative for source availability and meaning. The
+retired JSON `selection`/`landing` parameters are rejected without a legacy
+decoder. URL projection retains requested casting ranks without promoting a
+backend-resolved source default into an explicit rank. Native section fragments
+remain separate from exact addresses. Owner-return links derive whole-parent
+reading from validated generated route context, preserving Search/list criteria
+even after direct embedded navigation or a field/passage-specific origin. Filter
+recovery replaces failed filter transport with empty, idle Search under
+[ADR0057](./0057-relationship-scoped-search.md); invalid reading addresses retain
+their separate explicit recovery actions. Search pages, list-index filters and
+Encounter Active/Archived selection live in route query state. Embedded-owner
+return context and transient recovery notices live in Router history state.
 Typed destination factories centralize native hrefs; embedded-owner return policy
 remains explicit application policy. Modified links retain native behavior.
+
+Each route family owns its accepted query schema. Validate meaningful conflicts,
+reading addresses, typed filters and sorting before canonicalizing. Serialization
+removes unrelated parameters, trims committed text, omits automatic defaults and
+uses deterministic order while preserving explicit repeated sort priority. Equal
+duplicate singleton values collapse; conflicting values are recoverable link
+errors. Benign invalid page/limit values normalize to defaults. Canonicalization
+replaces history without resetting scroll or unfinished editor drafts. A bare
+`/` normalizes to Search; unknown paths expose Link not found and Open Search.
+
+Explicit pagination, encounter tabs and page destinations push history. Continuous
+edits, rank changes, normalization and automatic page correction replace entries.
+Trait Similar links retain an explicit search profile across tab and order changes;
+source-default profiles remain implicit. List slugs are created once and remain
+stable through ordinary display-name edits.
 
 Router restores page scrolling. Existing bounded list/reader positions and Drawer
 history/focus remain with shared reading owners. URL updates restore only changed
