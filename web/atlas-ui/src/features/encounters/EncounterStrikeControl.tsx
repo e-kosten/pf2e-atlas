@@ -24,7 +24,6 @@ import { RollResult } from "../../shared/dice/RollResult";
 import type { StrikeLaunch } from "./useEncounterStrike";
 import { useDiceRoll } from "../../shared/dice/useDiceRoll";
 import { useDicePopoverFocus } from "../../shared/dice/useDicePopoverFocus";
-import { isDefiniteRollRejection } from "../../shared/dice/rollLifecycle";
 import { DamageComponents } from "../../shared/records/ActorReference";
 
 const signed = (value: number) => `${value >= 0 ? "+" : ""}${value}`;
@@ -176,17 +175,16 @@ function StrikeRollPopover({
     return () => cancelAnimationFrame(frame);
   }, [open, contextOpen]);
   const { trigger, content, afterOpenChange } = useDicePopoverFocus(open);
-  const [retry, setRetry] = useState<RollEncounterStrikeRequest>();
-  const roll = useDiceRoll<EncounterStrikeRollView>();
+  const roll = useDiceRoll<EncounterStrikeRollView>({ retainResultOnError: true });
   const attack = attackNumber !== undefined;
   const actionLabel = `${title} ${attack ? "attack" : "damage"}`;
   const act = () =>
     void roll.run(async () => {
-      const current = retry ? undefined : await refresh();
-      const request = retry ?? {
+      const current = await refresh();
+      const request: RollEncounterStrikeRequest = {
         request_id: crypto.randomUUID(),
-        expected_revision: current!.expected_revision,
-        expected_participant_revision: current!.expected_participant_revision,
+        expected_revision: current.expected_revision,
+        expected_participant_revision: current.expected_participant_revision,
         participant_key: participantKey,
         reference,
         attack_number: attackNumber ?? 1,
@@ -194,19 +192,10 @@ function StrikeRollPopover({
         modifier_override: null,
         roll_kind: attack ? ("attack" as const) : ("damage" as const),
       };
-      if (!retry) setContextOpen(false);
-      setRetry(request);
-      try {
-        const result = await rollEncounterStrike(encounterKey, request);
-        setOriginal(request);
-        setRetry(undefined);
-        return result;
-      } catch (cause) {
-        if (isDefiniteRollRejection(cause)) {
-          setRetry(undefined);
-        }
-        throw cause;
-      }
+      setContextOpen(false);
+      const result = await rollEncounterStrike(encounterKey, request);
+      setOriginal(request);
+      return result;
     });
   return (
     <Popover
@@ -221,7 +210,7 @@ function StrikeRollPopover({
       afterOpenChange={afterOpenChange}
       onOpenChange={(next) => {
         setOpen(next);
-        if (next && !disabled) act();
+        if (next && !disabled && !roll.result && !roll.error) act();
       }}
       content={
         <div
@@ -249,7 +238,7 @@ function StrikeRollPopover({
                 label={title}
                 value={mode}
                 onChange={setMode}
-                disabled={disabled || roll.busy || !!retry}
+                disabled={disabled || roll.busy}
               />
             )}
           </div>
@@ -331,8 +320,11 @@ function StrikeRollPopover({
           {roll.error && (
             <Alert
               type="warning"
-              title={
-                retry ? "Couldn’t confirm the roll. Retry to recover it." : roll.error
+              title={roll.error}
+              description={
+                roll.result
+                  ? "Previous result shown. Roll again to make a new roll."
+                  : "Roll again to make a new roll."
               }
             />
           )}
@@ -348,7 +340,7 @@ function StrikeRollPopover({
               loading={roll.busy && !roll.animating ? { delay: 300 } : false}
               onClick={act}
             >
-              {retry && roll.error ? "Retry" : roll.result ? "Reroll" : "Roll"}
+              {roll.error ? "Roll again" : roll.result ? "Reroll" : "Roll"}
             </Button>
           </div>
         </div>
