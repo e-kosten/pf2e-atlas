@@ -756,8 +756,8 @@ describe("AtlasApp routing", () => {
     fireEvent.click(resultRow);
     expect(await screen.findByRole("heading", { name: "heal" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Add to saved list" }));
-    const dialog = await screen.findByRole("dialog", { name: "Add to List" });
+    fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
+    const dialog = await screen.findByRole("dialog", { name: "Add to list" });
     const selector = within(dialog).getByRole("combobox");
     await waitFor(() => expect(selector).toBeEnabled());
     fireEvent.mouseDown(selector);
@@ -766,7 +766,7 @@ describe("AtlasApp routing", () => {
 
     await waitFor(() =>
       expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
-        list_ref: "research",
+        list_ref: "list_research",
         record_ref: "spell:heal",
       }),
     );

@@ -225,7 +225,7 @@ test("a long saved-list choice stays bounded through a pending and failed Add", 
   });
   let writes = 0;
   try {
-    await page.route(`**/api/lists/${slug}/items`, async (route) => {
+    await page.route(`**/api/lists/${list.list_key}/items`, async (route) => {
       writes += 1;
       await gate;
       await route.fulfill({
@@ -235,11 +235,11 @@ test("a long saved-list choice stays bounded through a pending and failed Add", 
     });
     await page.goto(`/records/${sentinel}`);
     const trigger = page.getByRole("button", {
-      name: "Add to saved list",
+      name: "Add to list or encounter",
       exact: true,
     });
     await activate(trigger, info);
-    const dialog = page.getByRole("dialog", { name: "Add to List", exact: true });
+    const dialog = page.getByRole("dialog", { name: "Add to…", exact: true });
     const selector = dialog.getByRole("combobox", { name: "Saved list", exact: true });
     await expect(selector).toBeEnabled();
     await activate(selector, info);
@@ -247,7 +247,9 @@ test("a long saved-list choice stays bounded through a pending and failed Add", 
     await expect
       .poll(async () => {
         const choice = await option.boundingBox();
-        const field = await dialog.locator(".list-picker").boundingBox();
+        const field = await dialog
+          .locator(".record-destination-picker__select")
+          .boundingBox();
         return choice && field ? field.width - choice.width : Infinity;
       })
       .toBeLessThan(48);
@@ -644,10 +646,10 @@ test("closing a reference with a feature-action tooltip preserves the owner view
   await link.press("Enter");
   const drawer = page.getByRole("dialog", { name: "Off-Guard", exact: true });
   await expect(drawer).toBeVisible();
-  const save = drawer.getByRole("button", { name: "Add to saved list", exact: true });
+  const save = drawer.getByRole("button", { name: "Add to list", exact: true });
   await save.focus();
   await save.hover();
-  await expect(page.getByRole("tooltip", { name: "Add to saved list" })).toBeVisible();
+  await expect(page.getByRole("tooltip", { name: "Add to list" })).toBeVisible();
   await page.evaluate(() => {
     const probe = { running: true, widths: [] as number[] };
     (
@@ -1645,4 +1647,103 @@ test("invalid reading recovery stays readable and actionable on narrow screens",
   );
   await expect(message).toHaveCount(0);
   await expect(page.locator("#atlas-main")).toBeFocused();
+});
+
+test("create-and-add keeps the footer aligned and keyboard actions reachable", async ({
+  page,
+}, info) => {
+  const suffix = `${info.project.name}-${Date.now()}`;
+  const listResponse = await page.request.post("/api/lists", {
+    data: { slug: `picker-${suffix}`, name: `Picker ${suffix}`, tags: [] },
+  });
+  expect(listResponse.ok()).toBeTruthy();
+  const { list } = await listResponse.json();
+  const encounterResponse = await page.request.post("/api/encounters", {
+    data: { name: `Picker ${suffix}` },
+  });
+  expect(encounterResponse.ok()).toBeTruthy();
+  const { encounter } = await encounterResponse.json();
+  try {
+    await page.goto(`/records/${sentinel}`);
+    const trigger = page.getByRole("button", {
+      name: "Add to list or encounter",
+      exact: true,
+    });
+    for (const kind of ["list", "encounter"]) {
+      await activate(trigger, info);
+      const dialog = page.getByRole("dialog", { name: "Add to…", exact: true });
+      if (kind === "encounter")
+        await activate(
+          dialog.getByRole("tab", { name: "Encounters", exact: true }),
+          info,
+        );
+      await activate(
+        dialog.getByRole("button", { name: `New ${kind}`, exact: true }),
+        info,
+      );
+      const name = dialog.getByRole("textbox", {
+        name: `New ${kind} name`,
+        exact: true,
+      });
+      await expect(name).toBeFocused();
+      await name.fill("Retained destination idea");
+      const existing = dialog.getByRole("button", {
+        name: `Choose existing ${kind}`,
+        exact: true,
+      });
+      const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
+      const create = dialog.getByRole("button", { name: "Create & add", exact: true });
+      await name.press("Tab");
+      await expect(existing).toBeFocused();
+      await existing.press("Tab");
+      await expect(cancel).toBeFocused();
+      await cancel.press("Tab");
+      await expect(create).toBeFocused();
+      const boxes = await Promise.all(
+        [existing, cancel, create].map((control) => control.boundingBox()),
+      );
+      const [backBox, cancelBox, createBox] = boxes.map((box) => box!);
+      expect(backBox.height).toBe(cancelBox.height);
+      expect(cancelBox.height).toBe(createBox.height);
+      expect(cancelBox.y).toBe(createBox.y);
+      if (page.viewportSize()!.width >= 700) expect(backBox.y).toBe(cancelBox.y);
+      await noPageOverflow(page);
+      await activate(existing, info);
+      await expect(dialog.getByRole("combobox")).toBeFocused();
+      await activate(
+        dialog.getByRole("button", { name: `New ${kind}`, exact: true }),
+        info,
+      );
+      await expect(name).toHaveValue("Retained destination idea");
+      await activate(cancel, info);
+      await expect(dialog).toBeHidden();
+      await expect(trigger).toBeFocused();
+    }
+  } finally {
+    await page.request.delete(`/api/lists/${list.list_key}`);
+    await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
+  }
+});
+
+test("noncombat records offer a list without encounter tabs or guidance", async ({
+  page,
+}, info) => {
+  await page.goto("/records/browser-rules:rule000000000001");
+  const trigger = page.getByRole("button", { name: "Add to list", exact: true });
+  await trigger.focus();
+  await expect(
+    page.getByRole("tooltip", { name: "Add to list", exact: true }),
+  ).toBeVisible();
+  await activate(trigger, info);
+  const dialog = page.getByRole("dialog", { name: "Add to list", exact: true });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("tab", { name: "Encounters" })).toHaveCount(0);
+  await expect(
+    dialog.getByText("Only creatures and hazards can be added to encounters."),
+  ).toHaveCount(0);
+  await expect(
+    dialog.getByRole("button", { name: "New list", exact: true }),
+  ).toBeEnabled();
+  await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
+  await expect(trigger).toBeFocused();
 });
