@@ -1,3 +1,4 @@
+import { atlasRouter } from "../../app/router";
 import { RouterTestContext } from "../../test/router";
 import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import type { ResultSort } from "../../generated/atlas";
@@ -73,6 +74,175 @@ describe("useSearchWorkspace", () => {
     });
     apiMocks.searchPage.mockResolvedValue(searchResultsPage());
     history.replaceState(null, "", "/");
+  });
+
+  it("restores copied pages from the URL and pushes page history for Back and Forward", async () => {
+    history.replaceState({ atlasSearchPage: 19 }, "", "/search?q=fire&page=4");
+    apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) =>
+      searchResultsPage(["spell:fireball"], { pageNumber: request.page.number }),
+    );
+    apiMocks.getRecordDetail.mockImplementation(async (key: string) =>
+      detailFixture(key),
+    );
+    const first = renderHook(() => useSearchWorkspace({ searchProfile: "bge-base" }), {
+      wrapper: queryClientWrapper(),
+    });
+    await waitFor(() => expect(first.result.current.resultPage?.page.number).toBe(4));
+    expect(apiMocks.searchPage.mock.calls[0][0].page.number).toBe(4);
+    const initialLength = history.length;
+    act(() => first.result.current.setPageNumber(5));
+    await waitFor(() => expect(first.result.current.resultPage?.page.number).toBe(5));
+    expect(new URLSearchParams(location.search).get("page")).toBe("5");
+    expect(history.length).toBe(initialLength + 1);
+    act(() => history.back());
+    await waitFor(() => expect(first.result.current.pageNumber).toBe(4));
+    act(() => history.forward());
+    await waitFor(() => expect(first.result.current.pageNumber).toBe(5));
+    act(() => first.result.current.selectRecord("spell:fireball"));
+    await waitFor(() => expect(first.result.current.reading.detail).toBeDefined());
+    expect(new URLSearchParams(location.search).get("page")).toBe("5");
+    const copied = atlasRouter.latestLocation.href;
+    first.unmount();
+    history.replaceState(null, "", copied);
+    const reloaded = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      { wrapper: queryClientWrapper() },
+    );
+    await waitFor(() =>
+      expect(reloaded.result.current.resultPage?.page.number).toBe(5),
+    );
+    expect(apiMocks.searchPage.mock.lastCall?.[0].page.number).toBe(5);
+  });
+
+  it("restores an explicit profile and page together from browser history", async () => {
+    history.replaceState(null, "", "/search?q=fire&search_profile=bge-base&page=5");
+    apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) =>
+      searchResultsPage([], {
+        pageNumber: request.page.number,
+        profile: request.search_profile,
+      }),
+    );
+    const { result, rerender } = renderHook(
+      ({ profile }) => useSearchWorkspace({ searchProfile: profile }),
+      { initialProps: { profile: "bge-base" }, wrapper: queryClientWrapper() },
+    );
+    await waitFor(() => expect(result.current.resultPage?.page.number).toBe(5));
+    act(() => {
+      history.pushState(
+        null,
+        "",
+        "/search?q=fire&search_profile=embeddinggemma&page=4",
+      );
+      window.dispatchEvent(new PopStateEvent("popstate"));
+      rerender({ profile: "embeddinggemma" });
+    });
+    await waitFor(() =>
+      expect(result.current.resultPage?.search_profile).toBe("embeddinggemma"),
+    );
+    expect(result.current.pageNumber).toBe(4);
+    expect(apiMocks.searchPage.mock.lastCall?.[0].page.number).toBe(4);
+    expect(new URLSearchParams(location.search).get("page")).toBe("4");
+  });
+
+  it("replaces an out-of-range page once using current response bounds and preserves exact reading", async () => {
+    history.replaceState(
+      { retained: "history" },
+      "",
+      "/search/records/spell:heal?q=heal&limit=5&page=5&rank=4&record_view=explore#description",
+    );
+    apiMocks.getRecordDetail.mockImplementation(
+      async (key: string, request?: RecordDetailRequest) => ({
+        ...detailFixture(key),
+        selected: { ...rootNavigation(key), spell_rank: request?.spell_rank },
+      }),
+    );
+    apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
+      ...searchResultsPage(request.page.number === 3 ? ["spell:heal"] : [], {
+        pageNumber: request.page.number,
+      }),
+      page: {
+        number: request.page.number,
+        size: 5,
+        count: request.page.number === 3 ? 2 : 0,
+        total: 12n,
+        has_more: false,
+        next_page: null,
+      },
+    }));
+    const initialLength = history.length;
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      { wrapper: queryClientWrapper() },
+    );
+    await waitFor(() => expect(result.current.resultPage?.page.number).toBe(3));
+    expect(
+      apiMocks.searchPage.mock.calls.map(([request]) => request.page.number),
+    ).toEqual([5, 3]);
+    expect(history.length).toBe(initialLength);
+    expect(history.state.retained).toBe("history");
+    expect(location.hash).toBe("#description");
+    const params = new URLSearchParams(location.search);
+    expect(params.get("page")).toBe("3");
+    expect(params.get("rank")).toBe("4");
+    expect(params.get("record_view")).toBe("explore");
+    expect(result.current.selectedRecordKey).toBe("spell:heal");
+  });
+
+  it("normalizes an empty current result set to page one without a redirect loop", async () => {
+    history.replaceState(null, "", "/search?q=ice&limit=5&page=6");
+    apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
+      ...searchResultsPage(),
+      page: {
+        number: request.page.number,
+        size: 5,
+        count: 0,
+        total: 0n,
+        has_more: false,
+        next_page: null,
+      },
+    }));
+    const initialLength = history.length;
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      { wrapper: queryClientWrapper() },
+    );
+    await waitFor(() => expect(result.current.resultPage?.page.number).toBe(1));
+    expect(
+      apiMocks.searchPage.mock.calls.map(([request]) => request.page.number),
+    ).toEqual([6, 1]);
+    expect(new URLSearchParams(location.search).has("page")).toBe(false);
+    expect(history.length).toBe(initialLength);
+    await delay(40);
+    expect(apiMocks.searchPage).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not clamp a requested page with placeholder or late prior-criteria totals", async () => {
+    seedSearchUrl("fire");
+    const nextPage = deferred<SearchResultsPage>();
+    apiMocks.searchPage
+      .mockResolvedValueOnce({
+        ...searchResultsPage(["spell:fire"]),
+        page: { ...searchResultsPage().page, total: 1n, count: 1 },
+      })
+      .mockReturnValueOnce(nextPage.promise);
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      { wrapper: queryClientWrapper() },
+    );
+    await waitFor(() => expect(result.current.resultPage).toBeDefined());
+    act(() => result.current.setPageNumber(5));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(2));
+    expect(result.current.pageNumber).toBe(5);
+    expect(new URLSearchParams(location.search).get("page")).toBe("5");
+    act(() => result.current.setSearch({ ...result.current.search, query: "ice" }));
+    await act(async () =>
+      nextPage.resolve({
+        ...searchResultsPage([], { pageNumber: 5 }),
+        page: { ...searchResultsPage().page, number: 5, total: 1n },
+      }),
+    );
+    expect(new URLSearchParams(location.search).get("page")).toBeNull();
+    expect(new URLSearchParams(location.search).get("q")).toBe("ice");
   });
 
   it("opens a submitted canonical key immediately without running text inference", async () => {
@@ -458,7 +628,7 @@ describe("useSearchWorkspace", () => {
     apiMocks.searchPage.mockImplementation((request: SearchResultsRequest) =>
       Promise.resolve({
         ...searchResultsPage(),
-        page: { ...searchResultsPage().page, number: request.page.number },
+        page: { ...searchResultsPage().page, number: request.page.number, total: 100n },
         mode: { kind: "similar_records", seed: summaryFixture("items:seed", "Seed") },
       }),
     );
@@ -1315,7 +1485,11 @@ function searchResultsPage(
       number: options.pageNumber || 1,
       size: 25,
       count: recordKeys.length,
-      total: BigInt(recordKeys.length),
+      total: BigInt(
+        (options.pageNumber ?? 1) > 1
+          ? ((options.pageNumber ?? 1) - 1) * 25 + Math.max(1, recordKeys.length)
+          : recordKeys.length,
+      ),
       has_more: false,
       next_page: null,
     },

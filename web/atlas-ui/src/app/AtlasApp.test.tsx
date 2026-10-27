@@ -24,6 +24,8 @@ import type {
   SearchResultsRequest,
   RecordDetailRequest,
 } from "../generated/atlas";
+import { encodeReadingAddress } from "./readingUrl";
+import { selectedNavigation, parseSearchParams } from "./urlState";
 import { AtlasApp } from "./AtlasApp";
 import { atlasRouter } from "./router";
 const routerSlot = vi.hoisted(() => ({
@@ -40,8 +42,8 @@ async function loadApplication() {
   routerSlot.current = createAtlasRouter();
 }
 import { SEARCH_PROFILE_PREFERENCE_KEY } from "../shared/search/SearchProfileContext";
-import { rootNavigation } from "../shared/records/useReferenceReading";
 import { encodeFilterUrl } from "../shared/filters/filterUrl";
+import { COLOR_SCHEME_STORAGE_KEY } from "../shared/theme/atlasTheme";
 
 const apiMocks = vi.hoisted(() => ({
   addSavedListItem: vi.fn(),
@@ -52,6 +54,7 @@ const apiMocks = vi.hoisted(() => ({
   getRecordDetail: vi.fn(),
   getRelatedRecords: vi.fn(),
   getSavedLists: vi.fn(),
+  filterSavedList: vi.fn(),
   searchPage: vi.fn(),
 }));
 
@@ -65,6 +68,7 @@ vi.mock("../api/atlasApi", async (original) => ({
   getRecordDetail: apiMocks.getRecordDetail,
   getRelatedRecords: apiMocks.getRelatedRecords,
   getSavedLists: apiMocks.getSavedLists,
+  filterSavedList: apiMocks.filterSavedList,
   searchPage: apiMocks.searchPage,
 }));
 
@@ -119,40 +123,114 @@ describe("AtlasApp routing", () => {
     );
   });
 
-  it("automatically recovers a broken filter in the real notification context without losing selected reading", async () => {
-    const selection = { ...rootNavigation("spell:heal"), spell_rank: 4 };
+  it("keeps invalid-link recovery in the chosen theme and moves keyboard recovery focus to main content", async () => {
+    localStorage.setItem(COLOR_SCHEME_STORAGE_KEY, "dark");
+    history.replaceState(null, "", "/search/records/spell:heal?q=heal&at=99.bad");
+    render(<AtlasApp />, { wrapper: queryClientWrapper() });
+    const message = await screen.findByText("This link couldn’t be restored");
+    expect(message.closest("[data-theme]")).toHaveAttribute("data-theme", "dark");
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
+    expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
+    const recovery = screen.getByRole("link", { name: "Return to results" });
+    recovery.focus();
+    expect(recovery).toHaveFocus();
+    fireEvent.click(recovery, { detail: 0 });
+    await waitFor(() => expect(location.pathname).toBe("/search"));
+    await waitFor(() => expect(document.getElementById("atlas-main")).toHaveFocus());
+    expect(
+      await screen.findByRole("searchbox", { name: "Search records" }),
+    ).not.toHaveFocus();
+    expect(document.getElementById("atlas-main")).toHaveAttribute("tabindex", "-1");
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+  });
+
+  it("replaces a broken filter link with empty idle Search and a dismissible inline notice", async () => {
+    localStorage.setItem(
+      "atlas.search.kind-default.v1",
+      JSON.stringify({ include: ["creature"], exclude: [] }),
+    );
     const params = new URLSearchParams({
       q: "fire",
       filter: "2.obsolete",
-      selection: JSON.stringify(selection),
+      rank: "4",
+      page: "9",
+      record_view: "explore",
     });
-    history.replaceState(
-      { atlasSearchPage: 9 },
-      "",
-      "/search/records/spell:heal?" + params,
-    );
+    history.replaceState(null, "", "/search/records/spell:heal?" + params);
     const length = history.length;
-    apiMocks.getRecordDetail.mockResolvedValue({
-      ...recordDetailFixture("spell:heal"),
-      selected: selection,
-    });
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
-    await screen.findByText(
-      "Filters in this link couldn’t be restored and were cleared.",
+    const notice = await screen.findByText(
+      "This link couldn’t be restored. Search has been reset.",
     );
-    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalled());
-    await screen.findByRole("heading", { name: "heal" });
-    expect(new URLSearchParams(window.location.search).get("q")).toBe("fire");
-    expect(new URLSearchParams(window.location.search).get("selection")).toBe(
-      JSON.stringify(selection),
-    );
-    expect(new URLSearchParams(window.location.search).has("filter")).toBe(false);
+    await waitFor(() => expect(location.pathname).toBe("/search"));
+    expect(new URLSearchParams(location.search).get("q")).toBeNull();
+    expect(new URLSearchParams(location.search).has("filter")).toBe(false);
+    expect(new URLSearchParams(location.search).has("rank")).toBe(false);
     expect(history.length).toBe(length);
-    for (const [request] of apiMocks.searchPage.mock.calls) {
-      expect(request.page.number).toBe(1);
-      expect(request.criteria.filter).toBeNull();
-    }
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
+    expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
+    expect(screen.getByRole("searchbox", { name: "Search records" })).toHaveValue("");
+    fireEvent.click(
+      within(notice.closest("[role=alert]")!).getByRole("button", { name: "close" }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByText("This link couldn’t be restored. Search has been reset."),
+      ).toBeNull(),
+    );
+    expect(apiMocks.searchPage).not.toHaveBeenCalled();
   });
+
+  it.each(["filter=3.broken&rank=bad", "filter=3.broken&selection=obsolete"])(
+    "recovers a saved-list filter failure before reading validation: %s",
+    async (query) => {
+      history.replaceState(null, "", "/lists/research/records/spell:heal?" + query);
+      render(<AtlasApp />, { wrapper: queryClientWrapper() });
+      await screen.findByText("This link couldn’t be restored. Search has been reset.");
+      await waitFor(() => expect(location.pathname).toBe("/search"));
+      expect(screen.getByRole("searchbox", { name: "Search records" })).toHaveValue("");
+      expect(apiMocks.searchPage).not.toHaveBeenCalled();
+      expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
+      expect(apiMocks.filterSavedList).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    "/lists/research/records/spell:heal?filter=2.obsolete&q=other&rank=8",
+    "/search/records/spell:heal?filter=3.broken&rank=bad",
+    "/search/records/spell:heal?filter=3.broken&selection=obsolete",
+  ])(
+    "clears retained Search criteria, reading, page and unfinished input after transport failure: %s",
+    async (brokenLink) => {
+      history.replaceState(null, "", "/search/records/spell:heal?q=heal&page=4&rank=4");
+      apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
+        ...searchResultsPage(),
+        page: { ...searchResultsPage().page, number: request.page.number },
+        sort: { kind: "relevance" },
+      }));
+      render(<AtlasApp />, { wrapper: queryClientWrapper() });
+      const input = await screen.findByRole("searchbox", { name: "Search records" });
+      await screen.findByRole("heading", { name: "heal" });
+      await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalled());
+      fireEvent.change(input, { target: { value: "Unsubmitted draft" } });
+      const requestsBefore = apiMocks.searchPage.mock.calls.length;
+      const detailReadsBefore = apiMocks.getRecordDetail.mock.calls.length;
+      act(() => {
+        history.pushState(null, "", brokenLink);
+        fireEvent.popState(window);
+      });
+      await screen.findByText("This link couldn’t be restored. Search has been reset.");
+      await waitFor(() => expect(location.pathname).toBe("/search"));
+      expect(screen.getByRole("searchbox", { name: "Search records" })).toHaveValue("");
+      expect(screen.queryByRole("heading", { name: "heal" })).toBeNull();
+      expect(new URLSearchParams(location.search).get("page")).toBeNull();
+      expect(new URLSearchParams(location.search).get("q")).toBeNull();
+      expect(apiMocks.searchPage).toHaveBeenCalledTimes(requestsBefore);
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledTimes(detailReadsBefore);
+      expect(apiMocks.filterSavedList).not.toHaveBeenCalled();
+    },
+  );
 
   it("restores record pages from browser history without running search queries", async () => {
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
@@ -255,8 +333,8 @@ describe("AtlasApp routing", () => {
         q: "heal",
         filter,
         search_profile: "embeddinggemma",
-        selection: JSON.stringify(selection),
-        landing: JSON.stringify(landing),
+        at: encodeReadingAddress(selection.record_key, selection, false)!,
+        focus: encodeReadingAddress(selection.record_key, landing, true)!,
       });
       history.replaceState(null, "", "/search/records/spell:heal?" + params);
       localStorage.setItem(SEARCH_PROFILE_PREFERENCE_KEY, "bge-base");
@@ -303,8 +381,19 @@ describe("AtlasApp routing", () => {
       const copiedParams = new URLSearchParams(window.location.search);
       expect(copiedParams.get("search_profile")).toBe("embeddinggemma");
       expect(copiedParams.get("filter")).toBe(filter);
-      expect(JSON.parse(copiedParams.get("selection")!)).toEqual(selection);
-      expect(JSON.parse(copiedParams.get("landing")!)).toEqual(landing);
+      expect(
+        selectedNavigation(
+          parseSearchParams(copiedParams.toString()),
+          selection.record_key,
+        ),
+      ).toEqual(selection);
+      expect(
+        selectedNavigation(
+          parseSearchParams(copiedParams.toString()),
+          selection.record_key,
+          "focus",
+        ),
+      ).toEqual(landing);
       expect(apiMocks.searchPage).not.toHaveBeenCalled();
       first.unmount();
       await loadApplication();
@@ -350,10 +439,17 @@ describe("AtlasApp routing", () => {
         });
       }
       expect(
-        JSON.parse(new URLSearchParams(window.location.search).get("selection")!),
+        selectedNavigation(
+          parseSearchParams(window.location.search),
+          selection.record_key,
+        ),
       ).toEqual(selection);
       expect(
-        JSON.parse(new URLSearchParams(window.location.search).get("landing")!),
+        selectedNavigation(
+          parseSearchParams(window.location.search),
+          selection.record_key,
+          "focus",
+        ),
       ).toEqual(landing);
       expect(screen.getByRole("heading", { name: "heal" })).toBeVisible();
     },
@@ -389,7 +485,7 @@ describe("AtlasApp routing", () => {
       history.replaceState(
         null,
         "",
-        "/records/spell:heal?search_profile=embeddinggemma",
+        "/search/records/spell:heal?search_profile=embeddinggemma",
       );
       localStorage.setItem(SEARCH_PROFILE_PREFERENCE_KEY, "bge-base");
       let finish!: (value: AppReadinessView) => void;
@@ -425,7 +521,7 @@ describe("AtlasApp routing", () => {
       expect(apiMocks.getRelatedRecords).toHaveBeenCalledTimes(1);
       for (const nativeClick of [{ metaKey: true }, { ctrlKey: true }, { button: 1 }])
         expect(fireEvent.click(link, nativeClick)).toBe(true);
-      expect(window.location.pathname).toBe("/records/spell:heal");
+      expect(window.location.pathname).toBe("/search/records/spell:heal");
       reader.unmount();
       await loadApplication();
       history.replaceState(null, "", copied.pathname + copied.search);

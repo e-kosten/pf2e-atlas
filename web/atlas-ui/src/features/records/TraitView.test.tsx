@@ -5,6 +5,7 @@ import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import { AtlasApiError } from "../../api/atlasApi";
 import { RecordIdentity } from "../../shared/records/RecordPresentation";
 import { RouterTestContext } from "../../test/router";
+import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import {
   decodeSearchStateFromParams,
   buildSearchRequest,
@@ -225,11 +226,11 @@ it("keeps exact embedded membership addresses in native links and navigation", a
   });
   setup();
   const link = await screen.findByRole("link", { name: /Creature.*Trait on Claw/ });
+  const target = new URL(link.getAttribute("href")!, window.location.origin);
+  expect(target.searchParams.has("selection")).toBe(false);
   expect(
-    new URL(link.getAttribute("href")!, window.location.origin).searchParams.get(
-      "selection",
-    ),
-  ).toBe(JSON.stringify(navigation));
+    selectedNavigation(parseSearchParams(target.search), navigation.record_key),
+  ).toEqual(navigation);
   expect(fireEvent.click(link, { metaKey: true })).toBe(true);
   expect(screen.queryByRole("dialog")).toBeNull();
   fireEvent.click(link);

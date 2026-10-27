@@ -6,6 +6,11 @@ import {
   type ReadingViewInput,
 } from "./urlState";
 import { encodeReadingAddress } from "./readingUrl";
+import {
+  canonicalRouteSearch,
+  type ListIndexInput,
+  type EncounterIndexInput,
+} from "./routeSearch";
 
 export type RecordPageInput = ReadingViewInput & {
   recordKey: string;
@@ -26,6 +31,7 @@ export type SearchPageInput = ReadingViewInput & {
   query?: string;
   selection?: RecordNavigationView;
   landing?: RecordNavigationView;
+  page?: number;
 };
 
 function readingSearch(
@@ -66,12 +72,17 @@ export function recordDestination(input: RecordPageInput) {
   return linkOptions({
     to: "/records/$recordKey",
     params: { recordKey: input.recordKey },
-    search: readingSearch(input),
+    search: canonicalRouteSearch("record", readingSearch(input)),
     hash: input.section ? encodeURIComponent(input.section) : "",
   });
 }
 export function searchDestination(input: SearchPageInput = {}) {
-  const search = readingSearch({ ...input, recordKey: input.selectedRecordKey });
+  const params = readingSearch({ ...input, recordKey: input.selectedRecordKey });
+  if (input.page !== undefined) params.page = String(input.page);
+  const search = canonicalRouteSearch(
+    input.selectedRecordKey ? "search_record" : "search",
+    params,
+  );
   return input.selectedRecordKey
     ? linkOptions({
         to: "/search/records/$recordKey",
@@ -81,7 +92,10 @@ export function searchDestination(input: SearchPageInput = {}) {
     : linkOptions({ to: "/search", search });
 }
 export function listDestination(input: ListPageInput) {
-  const search = readingSearch({ ...input, recordKey: input.selectedRecordKey });
+  const search = canonicalRouteSearch(
+    input.selectedRecordKey ? "list_record" : "list",
+    readingSearch({ ...input, recordKey: input.selectedRecordKey }),
+  );
   return input.selectedRecordKey
     ? linkOptions({
         to: "/lists/$slug/records/$recordKey",
@@ -94,14 +108,24 @@ export function traitDestination(input: TraitPageInput) {
   return linkOptions({
     to: "/traits/$traitKey",
     params: { traitKey: input.traitKey },
-    search: parseSearchParams(input.query ?? ""),
+    search: canonicalRouteSearch("trait", parseSearchParams(input.query ?? "")),
   });
 }
-export function listsDestination() {
-  return linkOptions({ to: "/lists" });
+export function listsDestination(input: ListIndexInput = {}) {
+  return linkOptions({
+    to: "/lists",
+    search: canonicalRouteSearch("lists", {
+      q: input.query,
+      tag: input.include,
+      exclude_tag: input.exclude,
+    }),
+  });
 }
-export function encountersDestination() {
-  return linkOptions({ to: "/encounters" });
+export function encountersDestination(input: EncounterIndexInput = {}) {
+  return linkOptions({
+    to: "/encounters",
+    search: canonicalRouteSearch("encounters", { view: input.view }),
+  });
 }
 export function listEditDestination(input: { slug: string }) {
   return linkOptions({ to: "/lists/$slug/edit", params: { slug: input.slug } });

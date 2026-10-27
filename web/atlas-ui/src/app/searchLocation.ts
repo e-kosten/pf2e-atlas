@@ -1,4 +1,5 @@
 import { atlasRouter, type AtlasRouter } from "./router";
+import { failedFilterTransport } from "./routeSearch";
 import { selectedNavigation, readingView } from "./urlState";
 import type { SearchPageInput } from "./destinations";
 
@@ -9,6 +10,8 @@ export function currentSearchLocation(
   const matches = router.matchRoutes(location.pathname, location.search);
   const match = matches.find((match) => match.staticData.section === "search");
   if (!match) return null;
+  if (failedFilterTransport("search", location.search))
+    return { selectedRecordKey: null, query: location.searchStr };
   try {
     const recordKey =
       "recordKey" in match.params ? String(match.params.recordKey) : null;

@@ -134,12 +134,18 @@ Existing graph links/uses remain bounded previews and never become eligibility.
 
 URLs serialize the canonical predicate through a versioned compact browser
 transport. Unsupported or malformed filter transport, including retired
-relationships parameters, clears the complete expression automatically, replaces
-the URL entry and resets paging. One nonblocking message reports the cleared
-filters; independent criteria and exact reading navigation remain intact. A
-decoded predicate with invalid fields or selections remains an editable validation
-error. Retrieval failures never clear filters. No converter or old request/execution
-path is retained.
+relationships parameters, replaces the broken entry with empty, idle Search.
+The recovery clears all Search criteria, reading/Explore state, paging and
+uncommitted editor drafts, including retained state in the persistent Search
+owner. Remembered kind defaults do not populate this recovery entry; global
+profile and theme preferences remain independent. No unfiltered catalogue request
+runs before or after recovery. A dismissible inline notice says “This link
+couldn’t be restored. Search has been reset.” The notice travels in transient
+navigation state, not a URL token. Saved-list filter failures use the same
+Search destination without changing saved data. A decoded predicate with invalid
+fields or selections remains an editable validation error. Retrieval failures,
+network errors and stale source selections never trigger this transport reset.
+No converter or old request/execution path is retained.
 
 Similar remains a separate search criterion. Its named, selectable read-only seed
 occupies the keyword search shell with identical clear/search affordances. Clearing

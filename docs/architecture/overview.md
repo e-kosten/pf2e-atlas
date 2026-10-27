@@ -265,8 +265,12 @@ TanStack Router owns browser route matching, generated typed destinations and
 history/location subscriptions. Thin route modules compose existing feature
 owners under a persistent layout. React Activity retains Search's draft/reading
 state outside Search, with requests disabled; TanStack Query remains the request
-and cache owner. URL codecs preserve strings, repeated sort priority and exact
-reading addresses. Browser page scrolling and bounded reader/Drawer restoration
+and cache owner. Route schemas own accepted query state and canonicalization;
+URL codecs preserve strings, repeated sort priority and exact compact reading
+addresses. Search page, list-index filters and encounter archive selection are
+shareable query state. Failed filter transport replaces the entry with empty,
+idle Search and a dismissible notice; backend validation failures remain editable.
+Browser page scrolling and bounded reader/Drawer restoration
 have distinct owners. See [ADR0058](./decisions/0058-browser-routing.md).
 
 Reuse family presentation components across detail, preview, comparison and

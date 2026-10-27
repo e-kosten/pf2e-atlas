@@ -59,9 +59,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
       decodeSearchStateFromParams(new URLSearchParams(route.query), "saved_list"),
     );
   }, [route.query]);
-  useFilterUrlRecovery(filters, (restored) => {
-    setFilters(restored);
-  });
+  useFilterUrlRecovery(filters);
   function changeFilters(next: SearchFormState) {
     const query = searchStateQueryString(next);
     previousQuery.current = query || undefined;
@@ -69,7 +67,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
     navigateDestination(listDestination({ ...route, query }));
   }
   const listQuery = searchStateQueryString(filters);
-  const reading = useReferenceReading();
+  const reading = useReferenceReading(null, !filters.filterWasReset);
   const readingNavigation = useRef(false);
   const activeFilters = useDebouncedSearchFilters(filters);
   const filterToken = useMemo(
@@ -80,7 +78,10 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   const list = useQuery({
     queryKey: ["saved-list", route.slug, filterToken],
     placeholderData: keepPreviousData,
-    enabled: !activeFilters.filterError,
+    enabled:
+      !filters.filterWasReset &&
+      !activeFilters.filterWasReset &&
+      !activeFilters.filterError,
     queryFn: async () => {
       const query = listSearchQuery(activeFilters);
       const view = await filterSavedList({
@@ -124,7 +125,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
     };
     if (!changed && !addressChanged && !unavailable && !recovered) return;
     const request =
-      route.selectedRecordKey && !blocked
+      !filters.filterWasReset && route.selectedRecordKey && !blocked
         ? {
             navigation: route.selection ?? rootNavigation(route.selectedRecordKey),
             landing: route.landing,
@@ -133,6 +134,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
     if (JSON.stringify(reading.request) !== JSON.stringify(request))
       inspectSelection(request);
   }, [
+    filters.filterWasReset,
     route.slug,
     route.selectedRecordKey,
     route.selection,

@@ -1,3 +1,4 @@
+import { encodeFilterUrl } from "../shared/filters/filterUrl";
 import { beforeEach, expect, it } from "vitest";
 import { createMemoryHistory } from "@tanstack/react-router";
 import { atlasRouter } from "./router";
@@ -49,17 +50,23 @@ it("uses generated routes for reserved and Unicode identities without double enc
 });
 
 it("retains repeated sorting and exact selected reading across Search navigation", async () => {
+  const filter = encodeFilterUrl({
+    kind: "in",
+    clause_id: "kind",
+    field: "kind",
+    values: ["equipment"],
+  });
   await atlasRouter.navigate(
     searchDestination({
       selectedRecordKey: "equipment:armor",
-      query: "?q=Leather&sort=level_desc&sort=name_asc&filter=3.opaque",
+      query: `?q=Leather&sort=level_desc&sort=name_asc&filter=${filter}`,
     }),
   );
   expect(currentSearchLocation()).toMatchObject({
     selectedRecordKey: "equipment:armor",
   });
   expect(atlasRouter.state.location.search.sort).toEqual(["level_desc", "name_asc"]);
-  expect(atlasRouter.state.location.search.filter).toBe("3.opaque");
+  expect(atlasRouter.state.location.search.filter).toBe(filter);
   expect(
     destinationHref(
       listDestination({

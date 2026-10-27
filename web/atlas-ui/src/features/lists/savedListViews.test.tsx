@@ -842,7 +842,7 @@ describe("list views", () => {
     },
   );
 
-  it("automatically recovers a list filter URL while retaining its query, order and selected member", async () => {
+  it("replaces an unreadable list link with empty Search without requesting broader list data", async () => {
     const query = "?filter=2.obsolete&q=Action&sort=name_asc";
     history.replaceState(
       null,
@@ -866,24 +866,15 @@ describe("list views", () => {
       />,
       { wrapper: queryClientWrapper() },
     );
-    await screen.findByText(
-      "Filters in this link couldn’t be restored and were cleared.",
-    );
-    await screen.findByRole("heading", { name: "Test Action 1" });
-    expect(window.location.pathname).toBe(
-      "/lists/research/records/actions:testAction1",
-    );
-    expect(new URLSearchParams(window.location.search).get("q")).toBe("Action");
-    expect(new URLSearchParams(window.location.search).get("sort")).toBe("name_asc");
-    expect(new URLSearchParams(window.location.search).has("filter")).toBe(false);
+    await waitFor(() => expect(window.location.pathname).toBe("/search"));
+    expect(window.location.search).toBe("");
+    expect(history.state).toMatchObject({
+      atlasFilterResetNotice: true,
+      atlasSearchReset: expect.any(String),
+    });
     expect(history.length).toBe(length);
-    expect(apiMocks.filterSavedList).toHaveBeenCalledWith(
-      expect.objectContaining({
-        list_ref: "research",
-        query: "Action",
-        sort: { kind: "attributes", rules: [{ field: "name", direction: "asc" }] },
-      }),
-    );
+    expect(apiMocks.filterSavedList).not.toHaveBeenCalled();
+    expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
     expect(apiMocks.reorderSavedListItem).not.toHaveBeenCalled();
   });
 

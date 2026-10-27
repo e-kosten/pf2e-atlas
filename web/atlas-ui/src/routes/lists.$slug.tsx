@@ -5,6 +5,7 @@ import {
   selectedNavigation,
   readingView,
 } from "../app/urlState";
+import { failedFilterTransport } from "../app/routeSearch";
 
 export const Route = createFileRoute("/lists/$slug")({
   staticData: { section: "lists" },
@@ -19,6 +20,7 @@ function ListWorkspace() {
     shouldThrow: false,
   });
   const editor = useMatch({ from: "/lists/$slug/edit", shouldThrow: false });
+  const resetting = failedFilterTransport(selected ? "list_record" : "list", search);
   const {
     rank: _rank,
     at: _at,
@@ -34,14 +36,16 @@ function ListWorkspace() {
       route={{
         slug,
         query: stringifySearchParams(criteria) || undefined,
-        selectedRecordKey: selected?.params.recordKey ?? null,
-        selection: selected
-          ? selectedNavigation(search, selected.params.recordKey)
-          : undefined,
-        landing: selected
-          ? selectedNavigation(search, selected.params.recordKey, "focus")
-          : undefined,
-        ...readingView(search),
+        selectedRecordKey: !resetting ? (selected?.params.recordKey ?? null) : null,
+        selection:
+          selected && !resetting
+            ? selectedNavigation(search, selected.params.recordKey)
+            : undefined,
+        landing:
+          selected && !resetting
+            ? selectedNavigation(search, selected.params.recordKey, "focus")
+            : undefined,
+        ...(!resetting ? readingView(search) : {}),
       }}
     />
   );

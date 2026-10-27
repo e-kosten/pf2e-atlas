@@ -1,3 +1,4 @@
+import { readUrl } from "./readingUrl";
 import { expect, test } from "@playwright/test";
 import { encodeFilterUrl } from "../src/shared/filters/filterUrl";
 
@@ -496,9 +497,7 @@ test("relationship scope stays tappable within a phone viewport and preserves ex
       (url) =>
         decodeURIComponent(url.pathname) === "/records/conditionitems:dfCMdR4wnpbYNTix",
     );
-    expect(JSON.parse(new URL(page.url()).searchParams.get("selection")!)).toEqual(
-      constraint.selection,
-    );
+    expect(readUrl(new URL(page.url()))).toEqual(constraint.selection);
     await expect(
       page.getByRole("heading", { name: "Stunned", exact: true }),
     ).toBeVisible();

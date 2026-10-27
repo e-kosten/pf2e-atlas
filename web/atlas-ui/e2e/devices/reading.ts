@@ -1,3 +1,4 @@
+import { encodeReadingAddress } from "../../src/app/readingUrl";
 import { expect, type Locator, type Page, type TestInfo } from "@playwright/test";
 import { encodeFilterUrl } from "../../src/shared/filters/filterUrl";
 
@@ -18,7 +19,7 @@ export const creatureFilter = encodeURIComponent(
     values: ["creature"],
   }),
 );
-export const landedSearch = `/search/records/${sentinel}?filter=${creatureFilter}&landing=${encodeURIComponent(JSON.stringify(landing))}`;
+export const landedSearch = `/search/records/${sentinel}?filter=${creatureFilter}&focus=${encodeReadingAddress(sentinel, landing, true)}`;
 
 export async function activate(control: Locator, info: TestInfo) {
   if (info.project.use.hasTouch) await control.tap();

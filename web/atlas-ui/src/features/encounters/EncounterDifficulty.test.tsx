@@ -1,3 +1,4 @@
+import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import { ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -191,10 +192,9 @@ it("uses an exact native rules destination and retains the draft after reading r
   });
   const link = screen.getByRole("link", { name: "Encounter Budget" });
   expect(
-    JSON.parse(
-      new URL(link.getAttribute("href")!, "http://localhost").searchParams.get(
-        "selection",
-      )!,
+    selectedNavigation(
+      parseSearchParams(new URL(link.getAttribute("href")!, "http://localhost").search),
+      navigation.record_key,
     ),
   ).toEqual(navigation);
   fireEvent.click(link, { ctrlKey: true });

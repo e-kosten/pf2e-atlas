@@ -1,6 +1,6 @@
+import { routeSearch } from "../app/routeSearch";
 import { createFileRoute } from "@tanstack/react-router";
-import { validateReadingSearch } from "../app/urlState";
 export const Route = createFileRoute("/lists/$slug/records/$recordKey")({
-  validateSearch: validateReadingSearch,
+  ...routeSearch("list_record"),
   staticData: { section: "lists" },
 });

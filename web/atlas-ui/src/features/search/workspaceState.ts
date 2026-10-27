@@ -90,13 +90,11 @@ function preferredKindPredicate(): QueryPredicate | null {
 export type WorkspaceInteractionState = {
   search: SearchFormState;
   selectedRecordKey: string | null;
-  pageNumber: number;
   activeSearch: SearchFormState;
 };
 export type WorkspaceInteractionEvent =
   | {
       type: "url.restored";
-      pageNumber?: number;
       search: SearchFormState;
       selectedRecordKey: string | null;
     }
@@ -109,10 +107,6 @@ export type WorkspaceInteractionEvent =
       search: SearchFormState;
     }
   | {
-      type: "resultPage.changed";
-      pageNumber: number;
-    }
-  | {
       type: "record.selected";
       recordKey: string | null;
     };
@@ -123,18 +117,13 @@ export function initialWorkspaceInteractionState(): WorkspaceInteractionState {
   const route = currentSearchLocation();
   if (
     atlasRouter.latestLocation.pathname === "/search" &&
-    !atlasRouter.latestLocation.searchStr
+    !atlasRouter.latestLocation.searchStr &&
+    !atlasRouter.latestLocation.state.atlasSearchReset
   )
     search = { ...search, filter: preferredKindPredicate() };
   return {
     search,
     selectedRecordKey: route?.selectedRecordKey ?? null,
-    pageNumber:
-      !search.filterWasReset &&
-      Number.isSafeInteger(atlasRouter.latestLocation.state.atlasSearchPage) &&
-      (atlasRouter.latestLocation.state.atlasSearchPage ?? 0) > 0
-        ? atlasRouter.latestLocation.state.atlasSearchPage!
-        : 1,
     activeSearch: search,
   };
 }
@@ -149,10 +138,6 @@ export function workspaceInteractionReducer(
         search: event.search,
         activeSearch: event.search,
         selectedRecordKey: event.selectedRecordKey,
-        pageNumber:
-          Number.isSafeInteger(event.pageNumber) && event.pageNumber! > 0
-            ? event.pageNumber!
-            : 1,
       };
     case "search.changed":
       return {
@@ -166,12 +151,6 @@ export function workspaceInteractionReducer(
       return {
         ...state,
         activeSearch: event.search,
-        pageNumber: 1,
-      };
-    case "resultPage.changed":
-      return {
-        ...state,
-        pageNumber: event.pageNumber,
       };
     case "record.selected":
       return {
