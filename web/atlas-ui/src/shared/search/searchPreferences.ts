@@ -25,6 +25,10 @@ export const DEFAULT_SIMILARITY_PREFERENCES: SimilarityPreferences = {
   decay: 0.5,
   candidateParts: "any",
 };
+export const DEFAULT_TRAIT_SIMILARITY_PREFERENCES: SimilarityPreferences = {
+  ...DEFAULT_SIMILARITY_PREFERENCES,
+  method: "baseline",
+};
 export const DEFAULT_SEARCH_PREFERENCES: SearchPreferences = {
   version: 1,
   model: null,
@@ -32,7 +36,7 @@ export const DEFAULT_SEARCH_PREFERENCES: SearchPreferences = {
   showSimilarityDetails: false,
   showSmallerWeights: false,
   recordSimilarity: DEFAULT_SIMILARITY_PREFERENCES,
-  traitSimilarity: DEFAULT_SIMILARITY_PREFERENCES,
+  traitSimilarity: DEFAULT_TRAIT_SIMILARITY_PREFERENCES,
 };
 
 function object(value: unknown): Record<string, unknown> | null {
@@ -43,13 +47,16 @@ function object(value: unknown): Record<string, unknown> | null {
 
 function similarity(value: unknown, trait = false): SimilarityPreferences {
   const input = object(value);
+  const defaults = trait
+    ? DEFAULT_TRAIT_SIMILARITY_PREFERENCES
+    : DEFAULT_SIMILARITY_PREFERENCES;
   return {
     method:
       input?.method === "passages" ||
       input?.method === "content-average" ||
       input?.method === "baseline"
         ? input.method
-        : "passages",
+        : defaults.method,
     decay:
       typeof input?.decay === "number" &&
       Number.isFinite(input.decay) &&

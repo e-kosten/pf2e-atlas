@@ -91,7 +91,9 @@ impl AtlasAppService {
                         AppServiceError::new(AppErrorCode::InvalidRecordKey, e.to_string())
                     })?;
                     let seed = atlas_domain::SimilaritySeed::Record { record_key: key };
-                    let options = options.unwrap_or_default();
+                    let options = options.unwrap_or_else(|| {
+                        atlas_domain::SimilarityOptions::default_for_seed(&seed)
+                    });
                     crate::similarity::validate_options(
                         &seed,
                         &options,
@@ -125,7 +127,9 @@ impl AtlasAppService {
                         .parse::<atlas_domain::TraitKey>()
                         .map_err(|error| AppServiceError::invalid_request(error.to_string()))?;
                     let seed = atlas_domain::SimilaritySeed::Trait { trait_key: key };
-                    let options = options.unwrap_or_default();
+                    let options = options.unwrap_or_else(|| {
+                        atlas_domain::SimilarityOptions::default_for_seed(&seed)
+                    });
                     crate::similarity::validate_options(
                         &seed,
                         &options,

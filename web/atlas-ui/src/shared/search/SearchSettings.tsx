@@ -34,6 +34,7 @@ import { AtlasApiError, getSimilarityParts } from "../../api/atlasApi";
 import { useSearchProfile } from "./SearchProfileContext";
 import {
   DEFAULT_SIMILARITY_PREFERENCES,
+  DEFAULT_TRAIT_SIMILARITY_PREFERENCES,
   type SimilarityPreferences,
 } from "./searchPreferences";
 import {
@@ -384,7 +385,9 @@ export function SearchSettings({
                         ranking: "score",
                         showSimilarityDetails: false,
                         showSmallerWeights: false,
-                        similarity: DEFAULT_SIMILARITY_PREFERENCES,
+                        similarity: trait
+                          ? DEFAULT_TRAIT_SIMILARITY_PREFERENCES
+                          : DEFAULT_SIMILARITY_PREFERENCES,
                         parts: null,
                         generation: undefined,
                       }

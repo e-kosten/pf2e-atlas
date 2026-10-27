@@ -440,6 +440,39 @@ it("explains selected Similar choices and keeps help separate from opening Secti
   expect(screen.queryByRole("spinbutton", { name: "Match decay" })).toBeNull();
 });
 
+it("resets traits to their default without replacing the record preference", () => {
+  const preferences = {
+    ...DEFAULT_SEARCH_PREFERENCES,
+    recordSimilarity: {
+      method: "content-average" as const,
+      decay: 0.25,
+      candidateParts: "corresponding" as const,
+    },
+    traitSimilarity: {
+      method: "passages" as const,
+      decay: 0.75,
+      candidateParts: "any" as const,
+    },
+  };
+  const { apply, remember } = setup(
+    { ...DEFAULT_SEARCH_STATE, similarSeed: "trait:fire", similarity: options },
+    { kind: "trait", trait_key: "trait:fire" },
+    preferences,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(apply).toHaveBeenCalledWith(
+    expect.objectContaining({ similarity: { method: "baseline" } }),
+    "bge-base",
+  );
+  expect(remember).toHaveBeenCalledWith(
+    expect.objectContaining({
+      recordSimilarity: preferences.recordSimilarity,
+      traitSimilarity: DEFAULT_SEARCH_PREFERENCES.traitSimilarity,
+    }),
+  );
+});
+
 it("names the trait baseline by its content while preserving its wire value", async () => {
   const { apply } = setup(
     {

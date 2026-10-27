@@ -186,7 +186,9 @@ atlas similar 'Brown Mold' --method passages --decay 0.5 --explain --json
 atlas similar trait:fire --method baseline --json
 ```
 
-Similar uses stored vectors and needs no model weights. `--method passages`
+Similar uses stored vectors and needs no model weights. Records default to
+Passage matches; traits default to the baseline Trait definition recipe. Content
+options without `--method` select Passage matches. `--method passages`
 compares selected content with geometric rank decay from the strongest logical
 part (0) through equal-part contribution (1). `--method content-average` compares
 content centroids; it does not accept decay. `--method baseline` preserves root

@@ -1,6 +1,6 @@
 # ADR 0059 Configurable stored vector similarity
 
-Status: proposed; implementation in progress.
+Status: accepted.
 
 ## Context
 
@@ -64,7 +64,10 @@ measurement. Reused passage maxima retain all per-part best pairs until the
 variant-specific weights select the bounded explanation. Raw score evidence caps
 cannot become scoring or candidate cutoffs.
 
-Initial defaults remain experimental until source-grounded usefulness, measured
-latency and human UX review support a shipping choice. Ordinary hybrid search
-fusion, structured filters, authored section boundaries and exact trait
-membership/reference workflows are unchanged.
+Record Similar defaults to Passage matches with Any content and decay 0.5.
+Trait Similar retains the baseline Trait definition recipe. Explicit methods and
+valid remembered browser choices override those independent defaults. Content
+options supplied to the CLI without a method select Passage matches.
+
+Ordinary hybrid search fusion, structured filters, authored section boundaries
+and exact trait membership/reference workflows are unchanged.
