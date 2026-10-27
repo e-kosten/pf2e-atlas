@@ -258,12 +258,6 @@
   }
 }
 
-.list-picker {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
-}
-
 @media (max-width: 575px) {
   .list-edit-view {
     padding: 16px;
