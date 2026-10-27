@@ -17,10 +17,12 @@ export function EncounterAbilityControls({
   ability,
   disabled,
   onChange,
+  showLabel = false,
 }: {
   ability: EncounterAbilityStateView;
   disabled: boolean;
   onChange?: AbilityStateHandler;
+  showLabel?: boolean;
 }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
@@ -89,6 +91,7 @@ export function EncounterAbilityControls({
       aria-busy={pending}
     >
       <Space wrap align="center">
+        {showLabel && <span>{ability.label}</span>}
         {state.kind === "option" ? (
           <>
             {!state.always_active && state.choices.length === 0 && (

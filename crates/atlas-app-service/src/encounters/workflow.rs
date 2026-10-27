@@ -392,19 +392,42 @@ impl AtlasAppService {
                 },
             )?;
             reference_revision = Some(revision);
-            let derived = existing
+            let record = existing
                 .record_key
                 .as_ref()
-                .and_then(|k| records.get(k))
-                .and_then(|r| effective_max(&r.detail.source, Some(new_variant)));
+                .and_then(|key| records.get(key));
+            let derived = record.and_then(|r| effective_max(&r.detail.source, Some(new_variant)));
+            let sources = super::hydration::participant_source_conditions(&existing, &records);
+            let capacity = |participant: &atlas_local_state::EncounterParticipant| {
+                let level = record
+                    .and_then(|record| {
+                        let baseline = record.arithmetic_baseline.as_ref()?;
+                        super::rules::effective_participant_level(
+                            participant,
+                            baseline.level.as_ref(),
+                            record.adjustment_applicable,
+                        )
+                    })
+                    .as_ref()
+                    .and_then(serde_json::Number::as_i64);
+                super::rules::effective_hp_maximum(participant, &sources, level)
+            };
+            let old_capacity = capacity(&existing);
+            let mut adjusted = existing.clone();
+            adjusted.max_hp = derived;
+            adjusted.participant_variant = new_variant;
+            if variant_changed {
+                adjusted.variant_origin = atlas_local_state::ParticipantVariantOrigin::Explicit;
+            }
+            let new_capacity = capacity(&adjusted);
             max_hp = derived;
             current_hp = if detail.encounter.status == EncounterStatus::Draft
                 && hp_origin == atlas_local_state::ParticipantHpOrigin::DerivedPristine
                 && !current_edited
             {
-                derived
+                new_capacity
             } else if !current_edited {
-                match (existing.max_hp, existing.current_hp, derived) {
+                match (old_capacity, existing.current_hp, new_capacity) {
                     (Some(old), Some(current), Some(new))
                         if old >= 0 && current >= 0 && current <= old =>
                     {

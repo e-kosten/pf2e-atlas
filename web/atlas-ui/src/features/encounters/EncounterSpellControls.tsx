@@ -163,7 +163,7 @@ function SpellCastingReminders({
   participant: EncounterParticipantView;
   selection: import("../../generated/atlas").RecordNavigationView;
 }) {
-  // Resource-only refreshes can retain advice; changed conditions/status cannot.
+  // Resource-only refreshes can retain advice; changed conditions/options/status cannot.
   const readingIdentity = JSON.stringify(
     [
       encounterRef,
@@ -171,6 +171,18 @@ function SpellCastingReminders({
       generation,
       selection,
       participant.conditions,
+      participant.ability_states?.flatMap(({ navigation, rule_ordinal, state }) =>
+        state.kind === "option"
+          ? [
+              {
+                navigation,
+                rule_ordinal,
+                active: state.active,
+                selection: state.selection,
+              },
+            ]
+          : [],
+      ),
       participant.defeated,
       participant.hazard_disabled,
       participant.mortality,

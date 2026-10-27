@@ -191,7 +191,7 @@ pub(super) fn views(
             EncounterAbilityStateView {
                 navigation: navigation(&option.owner),
                 rule_ordinal: Some(option.ordinal),
-                label: option.label.clone(),
+                label: option_label(option, &sources.options).into(),
                 state: EncounterAbilityStateKindView::Option {
                     active,
                     always_active: option.always_active,
@@ -260,6 +260,41 @@ pub(super) fn views(
             }
         }))
         .collect()
+}
+
+fn option_label<'a>(
+    option: &'a rules::source_ability_state::SourceOption,
+    options: &[rules::source_ability_state::SourceOption],
+) -> &'a str {
+    let multiple = options
+        .iter()
+        .filter(|candidate| {
+            candidate.owner == option.owner
+                && (!candidate.always_active || !candidate.choices.is_empty())
+        })
+        .take(2)
+        .count()
+        > 1;
+    if !multiple {
+        return &option.label;
+    }
+    // Exact English labels at model pin 28d9d156, static/lang/re-en.json.
+    match option.authored_label.as_deref() {
+        Some("PF2E.NPCAbility.SanctumKnight.AeonStar.Black.RollOptionLabel") => {
+            "Black Aeon Star used"
+        }
+        Some("PF2E.NPCAbility.SanctumKnight.AeonStar.Gold.RollOptionLabel") => {
+            "Gold Aeon Star used"
+        }
+        Some("PF2E.NPCAbility.SanctumKnight.AeonStar.Green.RollOptionLabel") => {
+            "Green Aeon Star used"
+        }
+        Some("PF2E.NPCAbility.SanctumKnight.AeonStar.White.RollOptionLabel") => {
+            "White Aeon Star used"
+        }
+        Some(label) if !label.starts_with("PF2E.") && !label.trim().is_empty() => label,
+        _ => &option.label,
+    }
 }
 
 fn drained_values(

@@ -69,19 +69,28 @@ pub(in crate::encounters) fn plan_condition_change(
         }
     };
     let magnitude_changed = prior_rule != next_rule || prior_value != next_value;
-    let changes_drained = magnitude_changed
-        && next_rule == Some(ConditionRule::Drained)
-        && (prior_rule != next_rule
-            || ConditionRule::Drained
-                .definition()
-                .hp_loss
-                .is_some_and(|loss| loss.reevaluate_on_update));
     let checks_mortality = magnitude_changed
         && matches!(
             next_rule,
             Some(ConditionRule::Dying | ConditionRule::Doomed)
         );
     let after = subject_after_change(participant, &change)?;
+    let drained_sources = |subject: &EncounterParticipant| {
+        super::causes::condition_causes(subject, None, sources)
+            .into_iter()
+            .filter(|cause| cause.rule == ConditionRule::Drained)
+            .map(|cause| (cause.source.key(), cause.value))
+            .collect::<Vec<_>>()
+    };
+    let before_drained = drained_sources(participant);
+    let known_before = before_drained
+        .iter()
+        .filter_map(|(_, value)| *value)
+        .max()
+        .unwrap_or(0);
+    let changes_drained = drained_sources(&after).iter().any(|cause| {
+        !before_drained.contains(cause) && cause.1.is_none_or(|value| value > known_before)
+    });
     let mut changes = PreparedConditionEvent {
         condition_changes: vec![change],
         ..Default::default()

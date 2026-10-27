@@ -219,7 +219,7 @@ impl AtlasAppService {
             },
             request.intent == ConditionRemovalIntentView::RemoveEffect,
             true,
-            None,
+            subject.level,
             &request.request_id,
         )?;
         commit(
@@ -1523,8 +1523,26 @@ mod lifecycle_event_tests {
                     },
                 )
                 .unwrap();
-            let detail = worker.encounter(&key).unwrap();
             if unknown_rule == ConditionRule::Drained {
+                add(
+                    &worker,
+                    &key,
+                    &participant,
+                    ConditionRule::Drained,
+                    "known-stronger-drained",
+                    Some(3),
+                    ConditionEventIntentView::Correction,
+                );
+                add(
+                    &worker,
+                    &key,
+                    &participant,
+                    ConditionRule::Drained,
+                    "dominated-drained",
+                    Some(1),
+                    ConditionEventIntentView::Apply,
+                );
+                let detail = worker.encounter(&key).unwrap();
                 worker
                     .remove_encounter_participant_condition(
                         &key,

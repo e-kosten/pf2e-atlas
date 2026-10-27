@@ -638,9 +638,17 @@ pub(crate) fn compose_participant(
             .iter()
             .any(|unresolved| unresolved.key() == target)
         {
-            fact.value = None;
-            fact.adjustment = None;
-            fact.state = QueryFieldState::Missing;
+            *fact = block
+                .values
+                .iter()
+                .find(|stat| stat.target.key() == target)
+                .map(|stat| number_with_uncertainty(stat, true))
+                .unwrap_or_else(|| {
+                    let mut retained = fact.clone();
+                    retained.value = None;
+                    retained.state = QueryFieldState::Missing;
+                    retained
+                });
             return;
         }
         if let Some(replacement) = block
@@ -736,33 +744,47 @@ pub(crate) fn compose_participant(
             .iter()
             .find(|v| v.navigation == activity.navigation)
         {
-            if v.calculation_unavailable.is_some() {
-                activity.attack.value = None;
-                activity.attack.state = atlas_domain::QueryFieldState::Missing;
-                activity.difficulty_class.value = None;
-                activity.difficulty_class.state = atlas_domain::QueryFieldState::Missing;
-            }
             if let Some(roll) = v.rolls.first() {
                 activity.attack.value = Some(roll.adjusted_value.clone());
-                if !roll.modifiers.is_empty() || !roll.suppressed_modifiers.is_empty() {
+                if !roll.modifiers.is_empty()
+                    || !roll.suppressed_modifiers.is_empty()
+                    || v.calculation_unavailable.is_some()
+                {
                     activity.attack.adjustment = Some(NumberAdjustmentView {
                         authored: roll.base_value.clone(),
                         applied: modifier_views(&roll.modifiers),
                         suppressed: modifier_views(&roll.suppressed_modifiers),
-                        notes: vec![],
+                        notes: if v.calculation_unavailable.is_some() {
+                            v.notes.clone()
+                        } else {
+                            vec![]
+                        },
                     });
                 }
             }
             if let Some(dc) = &v.difficulty_class {
                 activity.difficulty_class.value = Some(dc.adjusted_value.clone());
-                if !dc.modifiers.is_empty() || !dc.suppressed_modifiers.is_empty() {
+                if !dc.modifiers.is_empty()
+                    || !dc.suppressed_modifiers.is_empty()
+                    || v.calculation_unavailable.is_some()
+                {
                     activity.difficulty_class.adjustment = Some(NumberAdjustmentView {
                         authored: dc.base_value.clone(),
                         applied: modifier_views(&dc.modifiers),
                         suppressed: modifier_views(&dc.suppressed_modifiers),
-                        notes: vec![],
+                        notes: if v.calculation_unavailable.is_some() {
+                            v.notes.clone()
+                        } else {
+                            vec![]
+                        },
                     });
                 }
+            }
+            if v.calculation_unavailable.is_some() {
+                activity.attack.value = None;
+                activity.attack.state = atlas_domain::QueryFieldState::Missing;
+                activity.difficulty_class.value = None;
+                activity.difficulty_class.state = atlas_domain::QueryFieldState::Missing;
             }
             for damage in activity.damage.value.iter_mut().flatten() {
                 if let Some(effective) = v.damage.iter().find(|d| d.damage_id == damage.id) {
@@ -775,18 +797,19 @@ pub(crate) fn compose_participant(
                 }
             }
             activity.notes.extend(v.notes.clone());
-            activity.attack_options =
-                if v.kind == crate::encounters::mechanics::MechanicActivityKindView::Strike {
-                    super::strike::project_attack_options(
-                        v.rolls
-                            .first()
-                            .and_then(|roll| roll.adjusted_value.as_i64()),
-                        v.traits_known
-                            .then(|| v.traits.iter().any(|value| value == "agile")),
-                    )
-                } else {
-                    vec![]
-                };
+            activity.attack_options = if v.calculation_unavailable.is_none()
+                && v.kind == crate::encounters::mechanics::MechanicActivityKindView::Strike
+            {
+                super::strike::project_attack_options(
+                    v.rolls
+                        .first()
+                        .and_then(|roll| roll.adjusted_value.as_i64()),
+                    v.traits_known
+                        .then(|| v.traits.iter().any(|value| value == "agile")),
+                )
+            } else {
+                vec![]
+            };
         }
     }
     a.runtime = Some(ActorRuntimeView {
@@ -926,6 +949,24 @@ pub(crate) fn number_with_modifiers(
             notes: stat.notes.clone(),
         }),
     }
+}
+
+pub(crate) fn number_with_uncertainty(
+    stat: &crate::encounters::mechanics::StatValueView,
+    uncertain: bool,
+) -> NumberFactView {
+    let mut fact = number_with_modifiers(stat);
+    if uncertain {
+        fact.state = QueryFieldState::Missing;
+        fact.value = None;
+        fact.adjustment.get_or_insert_with(|| NumberAdjustmentView {
+            authored: stat.base_value.clone(),
+            applied: modifier_views(&stat.modifiers),
+            suppressed: modifier_views(&stat.suppressed_modifiers),
+            notes: stat.notes.clone(),
+        });
+    }
+    fact
 }
 
 fn modifier_views(modifiers: &[crate::encounters::mechanics::Modifier]) -> Vec<StatModifierView> {
