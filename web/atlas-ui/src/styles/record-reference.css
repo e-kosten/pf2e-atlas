@@ -649,6 +649,7 @@
 .comparison-source .record-reference__header,
 .comparison-source .document-outline,
 .comparison-source .source-section-selected,
+.comparison-source .record-reference .source-owner-selected,
 .comparison-source
   .record-reference__content:has(.source-section-selected)
   > :is(h3, h5),
@@ -726,6 +727,9 @@
 }
 .comparison-source .record-reference a:hover {
   text-decoration: underline;
+}
+.comparison-source .record-reference a.source-owner-selected {
+  color: var(--comparison-normal-link);
 }
 .comparison-source .record-reference :is(a, [role="button"]):focus-visible {
   outline: 2px solid var(--comparison-normal-link);

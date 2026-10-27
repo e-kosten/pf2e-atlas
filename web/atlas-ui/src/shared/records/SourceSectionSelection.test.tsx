@@ -6,7 +6,13 @@ import type {
 import { PreparedContent, PreparedContentBody } from "./PreparedContent";
 import { SourceSectionSelectionContext } from "./SourceSectionSelectionContext";
 import { RecordReferenceDrawer } from "./RecordReferenceDrawer";
-import { detailFixture } from "../../test/fixtures";
+import {
+  actorFixture,
+  activityFixture,
+  detailFixture,
+  knownFact,
+} from "../../test/fixtures";
+import { ActorActivities } from "./ActorReference";
 
 const location = {
   record: "journals:source",
@@ -72,6 +78,69 @@ function source(
     </SourceSectionSelectionContext>
   );
 }
+
+it.each(["gear", "spell"] as const)(
+  "reflects selected embedded sections in compact %s links without selecting their facts",
+  (kind) => {
+    const activity = { ...activityFixture("Embedded entry", location.record), kind };
+    const actor = actorFixture();
+    actor.activities = knownFact([activity]);
+    const onReference = vi.fn();
+    const embeddedInventory = {
+      ...inventory,
+      parts: inventory.parts.map((part) => ({
+        ...part,
+        owners: activity.navigation.embedded_path,
+        navigation: { ...part.navigation!, source_fingerprint: "snapshot" },
+      })),
+    };
+    function reading(selected: string[] | null, current = embeddedInventory) {
+      return (
+        <SourceSectionSelectionContext
+          value={{
+            seed: inventory.seed,
+            generation: "generation-1",
+            selection: { inventory: current, selected },
+          }}
+        >
+          <ActorActivities actor={actor} onReference={onReference} />
+        </SourceSectionSelectionContext>
+      );
+    }
+    const view = render(reading(["part-1"]));
+    const link = screen.getByRole("link", { name: "Embedded entry" });
+    expect(link).toHaveClass("source-owner-selected");
+    fireEvent.click(link);
+    expect(onReference).toHaveBeenCalledOnce();
+    for (const selected of [[], ["part-2"]]) {
+      view.rerender(reading(selected));
+      expect(link).not.toHaveClass("source-owner-selected");
+      expect(link).toBe(screen.getByRole("link", { name: "Embedded entry" }));
+    }
+    view.rerender(reading(null));
+    expect(link).toHaveClass("source-owner-selected");
+    for (const current of [
+      { ...embeddedInventory, artifact_generation: "generation-2" },
+      { ...embeddedInventory, seed: { kind: "record" as const, record_key: "other" } },
+      {
+        ...embeddedInventory,
+        parts: embeddedInventory.parts.map((part) => ({ ...part, owners: [] })),
+      },
+      {
+        ...embeddedInventory,
+        parts: embeddedInventory.parts.map((part) => ({
+          ...part,
+          navigation: { ...part.navigation!, source_fingerprint: "foreign" },
+        })),
+      },
+    ]) {
+      view.rerender(reading(null, current));
+      expect(link).not.toHaveClass("source-owner-selected");
+    }
+    view.rerender(<ActorActivities actor={actor} onReference={onReference} />);
+    expect(link).not.toHaveClass("source-owner-selected");
+  },
+);
 
 it("dims exact canonical sections live without replacing readable prose, native links, or focus", () => {
   const view = render(source(null));
