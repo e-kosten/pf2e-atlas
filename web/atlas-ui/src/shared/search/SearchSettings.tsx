@@ -738,7 +738,7 @@ export function SearchSettings({
                       label={
                         <SettingLabel
                           label="Show similarity details"
-                          help="Shows section scores, weights, and source and result excerpts in the selected record."
+                          help="Replaces the list of matching sections with scores, weights, and source and result excerpts."
                         />
                       }
                       htmlFor={`${id}-similarity-details`}

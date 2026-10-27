@@ -51,10 +51,14 @@ it("shows named locations and excerpts with exact native destinations and delibe
 });
 
 it.each([undefined, "", "  "])(
-  "omits query context without an active query (%s)",
+  "shows server-provided matching sections without fabricating a query label (%s)",
   (query) => {
-    const { container } = renderMatches({ row, query });
-    expect(container).toBeEmptyDOMElement();
+    renderMatches({ row, query });
+    const context = screen.getByRole("region", { name: "Search matches" });
+    expect(
+      within(context).getByRole("heading", { name: "Search matches" }),
+    ).toBeVisible();
+    expect(within(context).getByRole("link", { name: "Breath Fire" })).toBeVisible();
   },
 );
 
@@ -146,4 +150,32 @@ it("hides similarity details by default while preserving ordinary text match con
   view.rerender(<SearchMatchContext {...props} showSimilarityDetails={false} />);
   expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull();
   expect(screen.getByRole("region", { name: "Search matches" })).toBeVisible();
+});
+
+it("switches Similar results between compact matches and details without hiding both", () => {
+  const props = {
+    row: { ...row, similarity: similarityEvidenceFixture(navigation, null) },
+  };
+  const view = render(<SearchMatchContext {...props} />);
+  let context = screen.getByRole("region", { name: "Search matches" });
+  const href = within(context)
+    .getByRole("link", { name: "Breath Fire" })
+    .getAttribute("href");
+  expect(within(context).getByText("A cone of fire.")).toBeVisible();
+  expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull();
+  expect(screen.queryByRole("table")).toBeNull();
+
+  view.rerender(<SearchMatchContext {...props} showSimilarityDetails />);
+  expect(screen.queryByRole("region", { name: "Search matches" })).toBeNull();
+  context = screen.getByRole("region", { name: "Similarity comparison" });
+  expect(within(context).getByRole("table")).toBeVisible();
+
+  view.rerender(<SearchMatchContext {...props} showSimilarityDetails={false} />);
+  context = screen.getByRole("region", { name: "Search matches" });
+  expect(within(context).getByRole("link", { name: "Breath Fire" })).toHaveAttribute(
+    "href",
+    href,
+  );
+  expect(within(context).getByText("A cone of fire.")).toBeVisible();
+  expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull();
 });
