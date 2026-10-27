@@ -125,6 +125,7 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
         }
         rows={workspace.resultPage?.rows ?? []}
         showSimilarityDetails={profile.preferences.showSimilarityDetails}
+        showSmallerWeights={profile.preferences.showSmallerWeights}
         query={
           workspace.resultPage?.mode.kind === "text_search"
             ? workspace.resultPage.mode.query

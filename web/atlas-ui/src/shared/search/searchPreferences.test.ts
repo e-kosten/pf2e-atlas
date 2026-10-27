@@ -14,6 +14,7 @@ it("remembers general preferences across browser-owner launches", () => {
     model: "embeddinggemma",
     ranking: "rrf" as const,
     showSimilarityDetails: true,
+    showSmallerWeights: true,
     recordSimilarity: {
       method: "content-average" as const,
       decay: 0.75,
@@ -33,6 +34,7 @@ it("defaults similarity details off without losing existing browser preferences"
     model: "embeddinggemma",
     ranking: "rrf",
     showSimilarityDetails: false,
+    showSmallerWeights: false,
   });
 });
 

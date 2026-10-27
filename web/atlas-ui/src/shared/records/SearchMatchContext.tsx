@@ -19,6 +19,7 @@ export function SearchMatchContext({
   generation,
   onRefresh,
   showSimilarityDetails = false,
+  showSmallerWeights = false,
 }: {
   row: SearchResultRow;
   query?: string;
@@ -27,6 +28,7 @@ export function SearchMatchContext({
   generation?: string;
   onRefresh?: () => Promise<void>;
   showSimilarityDetails?: boolean;
+  showSmallerWeights?: boolean;
 }) {
   const { token } = theme.useToken();
   const onNavigate = useContext(ReaderMatchNavigation);
@@ -48,6 +50,7 @@ export function SearchMatchContext({
           </Typography.Title>
           <SimilarityExplanation
             evidence={similarity}
+            showSmallerWeights={showSmallerWeights}
             onNavigate={onNavigate ?? undefined}
           />
         </section>

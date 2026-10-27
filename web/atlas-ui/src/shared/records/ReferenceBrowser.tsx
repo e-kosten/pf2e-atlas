@@ -32,10 +32,12 @@ export function ReferenceBrowser({
   onRefreshResults,
   query,
   showSimilarityDetails = false,
+  showSmallerWeights = false,
 }: {
   rows: SearchResultRow[];
   query?: string;
   showSimilarityDetails?: boolean;
+  showSmallerWeights?: boolean;
   loading: boolean;
   selectedRecordKey: string | null;
   onSelect: (row: SearchResultRow, request: ReadingRequest) => void;
@@ -79,6 +81,7 @@ export function ReferenceBrowser({
           <SearchMatchContext
             row={selected}
             showSimilarityDetails={showSimilarityDetails}
+            showSmallerWeights={showSmallerWeights}
             query={query}
             clauses={relationshipClauses}
             filter={filter}
