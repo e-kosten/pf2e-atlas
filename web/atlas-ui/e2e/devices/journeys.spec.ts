@@ -66,9 +66,20 @@ test("Explore keeps header geometry stable and restores mode and tab through bro
   expect(target.pathname).toBe("/search");
   expect(target.searchParams.get("similar")).toBe(key);
   await activate(search, info);
-  await expect(
-    page.getByRole("searchbox", { name: "Similar search", exact: true }),
-  ).toHaveValue("Signal Protocol");
+  const seed = page
+    .locator(".reference-search-entry--similar")
+    .getByRole("link", { name: "Signal Protocol", exact: true });
+  await expect(seed).toHaveAttribute("href", `/records/${key}`);
+  const searchUrl = page.url();
+  await activate(seed, info);
+  const drawer = page.getByRole("dialog", { name: /^Signal Protocol\b/ });
+  await expect(drawer).toBeVisible();
+  await activate(
+    drawer.getByRole("button", { name: "Close reference preview", exact: true }),
+    info,
+  );
+  await expect(drawer).toBeHidden();
+  expect(page.url()).toBe(searchUrl);
   await page.goBack();
   await expect(
     region.getByRole("tab", { name: "Similar", exact: true }),
