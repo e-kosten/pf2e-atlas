@@ -94,10 +94,9 @@ fn selected_rank_resolves_both_spell_aliases_without_borrowing_an_actor() {
             end: section.text.len(),
         },
     });
-    assert!(
-        f.worker.record_detail_at(addressed.clone()).is_ok(),
-        "canonical search passages survive numeric reading projections"
-    );
+    let addressed_view = f.worker.record_detail_at(addressed.clone()).unwrap();
+    assert!(html(&addressed_view).contains("data-atlas-passage-target"));
+    assert!(html(&addressed_view).contains(">10d6</span> mental damage"));
     if let Some(atlas_domain::SourcePassageAddress::HtmlSection {
         prepared_html_sha256,
         ..
