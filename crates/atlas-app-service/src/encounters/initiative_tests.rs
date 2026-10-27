@@ -246,6 +246,7 @@ fn implicit_bleed_is_projected_and_rolled_as_persistent() {
         participant_key: participant.participant_key.clone(),
         expected_participant_revision: participant.revision,
         reference: EncounterReferenceRequest {
+            condition_id: None,
             artifact_generation: detail.artifact_generation.unwrap(),
             selection: RecordDetailRequest {
                 record_key: activity.navigation.record_key.clone(),

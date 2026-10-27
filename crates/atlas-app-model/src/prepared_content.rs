@@ -41,16 +41,78 @@ pub enum ContentControlKindView {
     Damage {
         formula: String,
         options: std::collections::BTreeMap<String, String>,
+        literal: Option<ContentRollPresentationView>,
+        roll: Option<RollContentRequest>,
     },
     Command {
         command: String,
         arguments: String,
         options: std::collections::BTreeMap<String, String>,
+        literal: Option<ContentRollPresentationView>,
+        roll: Option<RollContentRequest>,
     },
     Template {
         shape: Option<String>,
         options: std::collections::BTreeMap<String, String>,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ContentRollPresentationView {
+    pub heading: String,
+    pub components: Vec<ContentRollComponentView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RollUnitView {
+    pub singular: String,
+    pub plural: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ContentRollComponentView {
+    pub formula: String,
+    pub label: String,
+    pub expression: atlas_dice::RollPreviewExpression,
+    pub unit: Option<RollUnitView>,
+}
+
+/// Selects an authored interaction, never a caller-supplied executable formula.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RollContentRequest {
+    pub content_interpretation_version: String,
+    pub source: crate::ContentLocationView,
+    pub source_fingerprint: String,
+    pub ordinal: usize,
+    pub authored_formula: String,
+    pub authored_command: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub spell_rank: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub encounter: Option<ContentRollEncounterContext>,
+}
+
+/// Identity and revision only; numeric context is always reread on the server.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ContentRollEncounterContext {
+    pub encounter_ref: String,
+    pub participant_key: String,
+    pub participant_revision: i64,
+    pub artifact_generation: String,
+    pub condition_id: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ContentRollResultView {
+    pub components: Vec<ContentRollComponentResultView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ContentRollComponentResultView {
+    pub label: String,
+    pub outcome: atlas_dice::RollOutcome,
 }
 
 /// An attributed marker destination within one already-selected prepared body.
@@ -66,6 +128,11 @@ pub struct PreparedReferenceView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub contextual_target: Option<crate::RecordNavigationView>,
+    /// Derived action command targets its containing root action; readers retain
+    /// the label without offering redundant navigation. Target evidence remains.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub self_action_reference: Option<bool>,
 }
 
 /// Flat binding namespaces for inserted prepared fields in the composed HTML.

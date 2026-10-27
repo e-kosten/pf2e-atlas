@@ -3,7 +3,7 @@
 Status: proposed
 Priority: before extending supported inline mechanics
 Owner: unassigned
-Last reviewed: 2026-10-23
+Last reviewed: 2026-10-26
 
 Extend the upstream-backed comparison of Foundry rich-text syntax when changing
 the source pin or supporting additional content. ADR 0044 already established
@@ -52,6 +52,27 @@ PF2e action-font spans recognize lowercase `f` and `r` as aliases of `F` and `R`
 matching the pinned font. Preparation emits the existing free-action/reaction
 attributes and readable labels; unknown values retain their diagnostics.
 
+Literal typed damage and supported mixed-type pools have readable preparation
+and source-checked reference dice controls. Actor/item expressions, nested damage
+flavors and unrecognized options remain outside that execution subset. Known
+traits/domains/roll options stay metadata beside literal base-formula rolls. Authored
+formulas/options remain evidence; this does not establish full Foundry roll parity.
+
+The registered PF2e `/act` commands now use source-backed English labels, trailing
+action costs, variants and verified unique action references. References back to
+the containing action remain readable without reopening that action. The action
+registry's ASCII case-only naming differences are handled separately from exact
+authored UUID/name references. These controls do not execute actor actions.
+
+Literal `/r`, `/gmr` and `/br` commands share source-checked transient reference
+rolling, retaining their original modes and captions. Atlas has no Foundry chat
+recipient routing or persisted roll history. Unsupported dice syntax, flavored
+inline formulas and actor/item-dependent expressions remain outside this subset.
+Checks and area templates render as plain text, with complete labels, opposing
+DCs, basic/secret qualifiers, statistic choices and explicit area widths. Source
+options, custom labels and DC visibility are retained without generic parameter
+popups. Contextual formulas remain a separate comparison domain.
+
 ## Completion and boundaries
 
 Produce a bounded discrepancy report and regression fixtures for any accepted
@@ -65,3 +86,10 @@ tree. Gameplay execution requires separate, explicitly scoped runtime behavior.
 
 See [shared content interpretation](../../architecture/decisions/0044-shared-source-content-interpretation.md)
 and [Foundry-inspired product actions](foundry-inspired-product-actions.md).
+
+
+Contextual reading resolves the bounded arithmetic subset from selected spell rank,
+checked item/owning-actor levels and addressed encounter context. Missing values
+render symbolic prose; generic badge defaults remain unknown. Other actor data,
+kingdom state, unsupported formulas, flavored command rolls and runtime template
+geometry remain outside this subset. See ADR0044 and the artifact contract.

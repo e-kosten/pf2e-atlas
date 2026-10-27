@@ -65,6 +65,7 @@ fn declared_english_catalogs_expand_nested_content_in_manifest_order() {
         ContentVisibilityRule::All,
         Some(&catalog),
         None,
+        &atlas_record::source_content::FormulaContext::default(),
     )
     .unwrap();
     assert!(content.text.contains("Complete English rules."));
@@ -201,6 +202,7 @@ fn pinned_english_localize_references_have_resolvable_content() {
             ContentVisibilityRule::All,
             Some(&catalog),
             None,
+            &atlas_record::source_content::FormulaContext::default(),
         )
         .unwrap();
         assert!(!content.text.trim().is_empty(), "{key}");

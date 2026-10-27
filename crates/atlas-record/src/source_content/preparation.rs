@@ -15,7 +15,8 @@ use super::{
 /// upstream format metadata when choosing fields (for example HTML journal
 /// pages). Markdown/plain-text document formats are not inferred from strings.
 /// Context inputs are explicit; no database,
-/// UI routes, document preparation, formula evaluation or embedding is involved.
+/// UI routes, Foundry document preparation or embedding is involved. Canonical
+/// callers supply source-kind labels without runtime numeric values.
 pub fn prepare_source_content(
     locator: SourceContentLocator,
     markup: &str,
@@ -23,23 +24,27 @@ pub fn prepare_source_content(
     visibility: ContentVisibilityRule,
     localization: Option<&dyn LocalizationResolver>,
     references: Option<&dyn ContentReferenceResolver>,
+    formula_context: &super::FormulaContext,
 ) -> Result<PreparedSourceContent, html2text::Error> {
     let authored_hash = format!(
         "{:x}",
         <sha2::Sha256 as sha2::Digest>::digest(markup.as_bytes())
     );
     let parsed = parse_foundry_content_with_localization(markup, localization);
-    let resolve =
-        |target: &str| references.and_then(|resolver| resolver.resolve_reference(&locator, target));
+    let resolve = |kind: &ContentReferenceKind, target: &str| {
+        references.and_then(|resolver| resolver.resolve_reference(&locator, kind, target))
+    };
     let mut projection = Projection {
         origin: PreparationOrigin::Record(&locator),
         authored_hash: &authored_hash,
         audience,
+        localization,
         resolver: Some(&resolve),
         references: Vec::new(),
         interactions: Vec::new(),
         diagnostics: Vec::new(),
         block: String::new(),
+        formula_context,
     };
     let audiences = match visibility {
         ContentVisibilityRule::All => Vec::new(),
@@ -82,15 +87,18 @@ pub fn prepare_trait_definition(
         <sha2::Sha256 as sha2::Digest>::digest(markup.as_bytes())
     );
     let parsed = parse_foundry_content_with_localization(markup, localization);
+    let formula_context = &super::FormulaContext::default();
     let mut projection = Projection {
         origin: PreparationOrigin::Trait(&key),
         authored_hash: &authored_hash,
         audience,
+        localization,
         resolver: references,
         references: Vec::new(),
         interactions: Vec::new(),
         diagnostics: Vec::new(),
         block: String::new(),
+        formula_context,
     };
     let html = projection.nodes(&parsed.document.nodes, "", &[], true, false);
     let html = sanitizer().clean(&html).to_string();
@@ -116,7 +124,10 @@ pub(super) fn sanitizer() -> ammonia::Builder<'static> {
             "data-atlas-interaction",
             "data-atlas-interaction-kind",
         ])
-        .add_tag_attributes("span", ["data-atlas-action-glyph"])
+        .add_tag_attributes(
+            "span",
+            ["data-atlas-action-glyph", "data-atlas-roll-formula"],
+        )
         .add_tag_attributes("ol", ["start"])
         .add_tag_attributes("li", ["value"])
         .add_tag_attributes("td", ["colspan", "rowspan"])
@@ -135,11 +146,27 @@ struct Projection<'a> {
     origin: PreparationOrigin<'a>,
     authored_hash: &'a str,
     audience: ContentAudience,
+    localization: Option<&'a dyn LocalizationResolver>,
     resolver: Option<&'a super::ContentReferenceLookup<'a>>,
     references: Vec<ContentReferenceOccurrence>,
     interactions: Vec<ContentInteraction>,
     diagnostics: Vec<ContentInterpretationDiagnostic>,
     block: String,
+    formula_context: &'a super::FormulaContext,
+}
+
+struct InlineContext<'a> {
+    previous: Option<&'a ParsedNode>,
+    following: Option<&'a ParsedNode>,
+}
+
+fn short_damage_label(
+    formula: &str,
+    options: &std::collections::BTreeMap<String, String>,
+    following: Option<&ParsedNode>,
+) -> bool {
+    options.contains_key("shortLabel")
+        || matches!(following,Some(ParsedNode::Text{text}) if super::read_only_text::authored_healing_points(formula,text))
 }
 
 enum PreparationOrigin<'a> {
@@ -183,12 +210,76 @@ impl Projection<'_> {
             .iter()
             .enumerate()
             .map(|(index, node)| {
+                let normalized;
+                let previous = index.checked_sub(1).and_then(|index| nodes.get(index));
+                let tail = match (node, previous) {
+                    (
+                        ParsedNode::Text { text },
+                        Some(ParsedNode::Foundry {
+                            node:
+                                ParsedMacro::Damage {
+                                    label: None,
+                                    formula,
+                                    options,
+                                    ..
+                                },
+                        }),
+                    ) if !options.contains_key("shortLabel")
+                        && super::contextual_damage_text(formula, self.formula_context, false)
+                            .is_some() =>
+                    {
+                        super::read_only_text::damage_noun(text)
+                    }
+                    (
+                        ParsedNode::Text { text },
+                        Some(ParsedNode::Foundry {
+                            node:
+                                ParsedMacro::Check {
+                                    label: None,
+                                    options,
+                                    ..
+                                },
+                        }),
+                    ) => super::read_only_text::check_noun(text)
+                        .map(|(_, tail)| tail)
+                        .or_else(|| {
+                            options
+                                .get("dc")
+                                .filter(|_| {
+                                    options.get("showDC").map_or_else(
+                                        || self.audience.permits(self.audience.implicit_check_dc),
+                                        |rule| {
+                                            ContentVisibilityRule::from_source(rule)
+                                                .is_some_and(|rule| self.audience.permits(rule))
+                                        },
+                                    )
+                                })
+                                .and_then(|dc| {
+                                    super::read_only_text::redundant_dc_clause(
+                                        text,
+                                        dc,
+                                        self.formula_context,
+                                    )
+                                })
+                        }),
+                    _ => None,
+                };
+                let node = if let Some(tail) = tail {
+                    normalized = ParsedNode::Text { text: tail.into() };
+                    &normalized
+                } else {
+                    node
+                };
                 self.node(
                     node,
                     &format!("{path}/{index}"),
                     audiences,
                     visible,
                     in_link,
+                    InlineContext {
+                        previous: index.checked_sub(1).and_then(|index| nodes.get(index)),
+                        following: nodes.get(index + 1),
+                    },
                 )
             })
             .collect()
@@ -201,6 +292,7 @@ impl Projection<'_> {
         audiences: &[String],
         visible: bool,
         in_link: bool,
+        context: InlineContext<'_>,
     ) -> String {
         match node {
             ParsedNode::Text { text } => {
@@ -358,7 +450,9 @@ impl Projection<'_> {
                 }
             }
             ParsedNode::ParsedLink { link } => self.link(link, path, audiences, visible, in_link),
-            ParsedNode::Foundry { node } => self.foundry(node, path, audiences, visible, in_link),
+            ParsedNode::Foundry { node } => {
+                self.foundry(node, path, audiences, visible, in_link, context)
+            }
         }
     }
 
@@ -403,7 +497,7 @@ impl Projection<'_> {
         let resolved = if matches!(kind, ContentReferenceKind::HtmlLink) {
             None
         } else {
-            self.resolver.and_then(|resolver| resolver(target))
+            self.resolver.and_then(|resolver| resolver(&kind, target))
         };
         let display = resolved
             .as_ref()
@@ -528,6 +622,7 @@ impl Projection<'_> {
         audiences: &[String],
         visible: bool,
         in_link: bool,
+        context: InlineContext<'_>,
     ) -> String {
         if let ParsedMacro::Localize {
             key,
@@ -567,7 +662,7 @@ impl Projection<'_> {
             _ => None,
         };
         let unknown = matches!(node, ParsedMacro::UnknownFoundry { .. });
-        let label_html = label.map(|nodes| {
+        let mut label_html = label.map(|nodes| {
             self.nodes(
                 nodes,
                 &format!("{path}/label"),
@@ -577,6 +672,10 @@ impl Projection<'_> {
             )
         });
         let mut interaction = None;
+        let mut derived_html = None;
+        let mut action_cost = String::new();
+        let mut action_reference = None;
+        let mut action_suffix = String::new();
         let text = match node {
             ParsedMacro::Check {
                 statistic, options, ..
@@ -593,18 +692,20 @@ impl Projection<'_> {
                 if statistic.is_none() {
                     self.issue(path, ContentDiagnosticCode::MissingCheckType, "@Check");
                 }
-                let mut text = statistic
-                    .clone()
-                    .unwrap_or_else(|| "[missing check type]".into());
-                if options.contains_key("basic") {
-                    text = format!("basic {text}");
-                }
-                if let Some(dc) = options.get("dc") {
-                    text = format!("DC {dc} {text}");
-                }
-                if let Some(against) = options.get("against").or_else(|| options.get("defense")) {
-                    text.push_str(&format!(" vs {against} DC"));
-                }
+                let noun = match context.following {
+                    Some(ParsedNode::Text { text }) => {
+                        super::read_only_text::check_noun(text).map(|(noun, _)| noun)
+                    }
+                    _ => None,
+                };
+                let already_secret = matches!(context.previous, Some(ParsedNode::Text { text }) if text.split_whitespace().next_back().is_some_and(|word| word.eq_ignore_ascii_case("secret")));
+                let text = super::read_only_text::check_text(
+                    statistic.as_deref().unwrap_or("[missing check type]"),
+                    &options,
+                    noun,
+                    already_secret,
+                    self.formula_context,
+                );
                 self.dynamic(path, options.values().map(String::as_str));
                 interaction = Some(ContentInteractionKind::Check { statistic, options });
                 text
@@ -617,7 +718,18 @@ impl Projection<'_> {
                     formula: formula.clone(),
                     options: options.clone(),
                 });
-                formula.clone()
+                super::contextual_damage_text(
+                    formula,
+                    self.formula_context,
+                    short_damage_label(formula, options, context.following),
+                )
+                .map_or_else(
+                    || formula.clone(),
+                    |rendered| {
+                        derived_html = Some(rendered.html());
+                        rendered.text
+                    },
+                )
             }
             ParsedMacro::InlineCommand {
                 command,
@@ -631,24 +743,75 @@ impl Projection<'_> {
                     arguments: arguments.clone(),
                     options: options.clone(),
                 });
-                format!("/{command} {arguments}")
+                if command == "act" {
+                    if let Some(action) = super::inline_action::inline_action(
+                        arguments,
+                        options,
+                        self.localization,
+                        self.audience,
+                    ) {
+                        if let Some(cost) = action.cost {
+                            action_cost = format!(" {}", self.action_markup(path, cost));
+                        }
+                        let target = format!("Compendium.pf2e.actionspf2e.Item.{}", action.name);
+                        let (ordinal, _, _) = self.reference(
+                            path,
+                            audiences,
+                            visible,
+                            ContentReferenceKind::Action { slug: action.slug },
+                            &target,
+                            label.is_some(),
+                        );
+                        action_reference = Some(ordinal);
+                        action_suffix = action.details;
+                        action.label
+                    } else {
+                        format!("/{command} {arguments}")
+                    }
+                } else if let Some(roll) =
+                    super::resolved_contextual_roll(command, arguments, self.formula_context)
+                {
+                    // Plain authored labels often repeat the literal formula with a
+                    // unit. Mark its exact prefix without parsing label mechanics.
+                    if let Some([ParsedNode::Text { text }]) = label
+                        && let Some(suffix) = text.strip_prefix(&roll.formula)
+                        && (suffix.is_empty() || !suffix.starts_with(char::is_alphanumeric))
+                    {
+                        label_html = Some(format!(
+                            "<span data-atlas-roll-formula=\"\">{}</span>{}",
+                            escape(&roll.formula),
+                            escape(suffix)
+                        ));
+                    }
+                    let caption = if roll.caption.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" {}", roll.caption)
+                    };
+                    derived_html = Some(format!(
+                        "<span data-atlas-roll-formula=\"\">{}</span>{}",
+                        escape(&roll.formula),
+                        escape(&caption)
+                    ));
+                    format!("{}{caption}", roll.formula)
+                } else if let Some(rendered) =
+                    super::contextual_roll_text(command, arguments, self.formula_context)
+                {
+                    derived_html = Some(rendered.html());
+                    rendered.text
+                } else {
+                    format!("/{command} {arguments}")
+                }
             }
             ParsedMacro::Template { shape, options, .. } => {
-                let distance = options.get("distance").map(String::as_str).unwrap_or("");
-                let valid = shape.as_deref().is_some_and(|shape| {
-                    matches!(
-                        shape,
-                        "burst" | "cone" | "cube" | "cylinder" | "emanation" | "line" | "square"
-                    )
-                }) && distance.parse::<f64>().is_ok_and(f64::is_finite)
-                    && options
-                        .get("width")
-                        .is_none_or(|width| width.parse::<f64>().is_ok_and(f64::is_finite));
-                let text = if valid {
-                    let mut text = format!("{distance}-foot {}", shape.as_deref().unwrap_or(""));
-                    if let Some(width) = options.get("width") {
-                        text.push_str(&format!(" (width {width} feet)"));
-                    }
+                let text = if let Some(text) = super::read_only_text::template_text(
+                    shape.as_deref(),
+                    options,
+                    match context.previous {
+                        Some(ParsedNode::Text { text }) => Some(text.as_str()),
+                        _ => None,
+                    },
+                ) {
                     text
                 } else {
                     self.issue(
@@ -656,6 +819,7 @@ impl Projection<'_> {
                         ContentDiagnosticCode::InvalidTemplate,
                         "Authored shape/distance/width retained; no runtime area inferred",
                     );
+                    let distance = options.get("distance").map(String::as_str).unwrap_or("");
                     format!(
                         "[template: {}; distance={distance}]",
                         shape.as_deref().unwrap_or("")
@@ -683,6 +847,24 @@ impl Projection<'_> {
             self.interactions.push(ContentInteraction {
                 ordinal,
                 path: path.to_string(),
+                label: if label.is_some() {
+                    super::ContentInteractionLabel::Authored
+                } else {
+                    match &kind {
+                        ContentInteractionKind::Damage { formula,options } if !options.contains_key("shortLabel") && short_damage_label(formula,options,context.following) => super::ContentInteractionLabel::HealingPoints,
+                        ContentInteractionKind::Damage { .. } => super::ContentInteractionLabel::Damage,
+                        ContentInteractionKind::Check { .. } => {
+                            let noun = match context.following {
+                                Some(ParsedNode::Text { text }) => super::read_only_text::check_noun(text).map(|(noun, _)| noun.to_owned()),
+                                _ => None,
+                            };
+                            let secret_in_prose = matches!(context.previous, Some(ParsedNode::Text {text}) if text.split_whitespace().next_back().is_some_and(|word|word.eq_ignore_ascii_case("secret")));
+                            super::ContentInteractionLabel::Check { noun, secret_in_prose }
+                        }
+                        ContentInteractionKind::Command { command, .. } if matches!(command.as_str(), "r" | "gmr" | "br") => super::ContentInteractionLabel::Roll,
+                        _ => super::ContentInteractionLabel::Authored,
+                    }
+                },
                 kind,
             });
             format!(
@@ -696,9 +878,20 @@ impl Projection<'_> {
         let body = if unknown {
             escape(&text)
         } else {
-            label_html.unwrap_or_else(|| escape(&text))
+            label_html.unwrap_or_else(|| derived_html.unwrap_or_else(|| escape(&text)))
         };
-        format!("<span{marker}>{body}</span>")
+        let body = if let Some(ordinal) = action_reference {
+            let binding = self.reference_binding(ordinal);
+            format!(
+                "<span data-atlas-reference=\"{ordinal}\" data-atlas-reference-binding=\"{binding}\">{body}</span>"
+            )
+        } else {
+            body
+        };
+        format!(
+            "<span{marker}>{body}{action_cost}{}</span>",
+            escape(&action_suffix)
+        )
     }
 
     fn dynamic<'a>(&mut self, path: &str, values: impl Iterator<Item = &'a str>) {

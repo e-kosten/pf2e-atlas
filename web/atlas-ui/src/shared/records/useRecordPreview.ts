@@ -15,6 +15,8 @@ type EncounterPreviewContext = {
   identity: string;
   generation: string | null;
   parentRecordKey: string | undefined;
+  revision?: bigint;
+  conditions?: { condition_id: bigint; condition_key?: string | null }[];
   presentation: RecordPresentationView | undefined;
   reloadEncounter?: () => Promise<unknown>;
 };
@@ -28,7 +30,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     recordKey: string;
     selection?: RecordNavigationView;
     landing?: RecordNavigationView;
-    context?: { identity: string; generation: string | null };
+    context?: { identity: string; generation: string | null; conditionId?: bigint };
     scroll: number;
     focusHref?: string;
   };
@@ -58,19 +60,27 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   const [requestedContext, setRequestedContext] = useState<{
     identity: string;
     generation: string | null;
+    conditionId?: bigint;
   }>();
   const contextualError = requestedContext
     ? reloadState?.kind === "finished"
       ? "The encounter has refreshed. Close this preview and reopen the activity to use its current context."
       : requestedContext.identity !== encounterContext?.identity
         ? "The selected participant has changed. Reopen the activity for this participant."
-        : !requestedContext.generation
-          ? "Reference content is unavailable for this participant."
-          : requestedContext.generation !== encounterContext?.generation
-            ? "The reference collection has changed. Reload the encounter and reopen the activity."
-            : !encounterContext?.presentation
-              ? "This participant's reference is no longer available."
-              : undefined
+        : requestedContext.conditionId !== undefined &&
+            encounterContext?.conditions &&
+            !encounterContext.conditions.some(
+              (c) => c.condition_id === requestedContext.conditionId,
+            )
+          ? "This condition is no longer on the participant."
+          : !requestedContext.generation
+            ? "Reference content is unavailable for this participant."
+            : requestedContext.generation !== encounterContext?.generation
+              ? "The reference collection has changed. Reload the encounter and reopen the activity."
+              : !encounterContext?.presentation &&
+                  requestedContext.conditionId === undefined
+                ? "This participant's reference is no longer available."
+                : undefined
     : undefined;
   // Runtime views never seed immutable reference caches. A changed participant
   // presentation starts a new request; composition stays in Rust app-service.
@@ -81,6 +91,8 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
       requestedContext?.identity,
       requestedContext?.generation,
       recordKey,
+      requestedContext?.conditionId?.toString(),
+      encounterContext?.revision?.toString(),
       JSON.stringify(encounterContext?.presentation, (_key, value) =>
         typeof value === "bigint" ? value.toString() : value,
       ),
@@ -93,6 +105,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         requestedContext!.identity,
         {
           artifact_generation: requestedContext!.generation!,
+          condition_id: requestedContext!.conditionId,
           selection: {
             record_key: recordKey!,
             spell_rank: selection!.spell_rank,
@@ -194,17 +207,35 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
       setReloadState(null);
       setRecordKey(nextRecordKey);
       setAnchor((current) => current ?? anchor ?? null);
-      setSelection(navigation);
+      const condition = encounterContext?.conditions?.find(
+        (condition) =>
+          condition.condition_key === nextRecordKey &&
+          condition.condition_id.toString() === anchor?.dataset.atlasConditionId,
+      );
+      const addressed =
+        navigation ??
+        (condition
+          ? {
+              record_key: nextRecordKey,
+              embedded_path: [],
+              field: null,
+              passage: null,
+              source_fingerprint: null,
+            }
+          : undefined);
+      setSelection(addressed);
       setLanding(nextLanding);
       setRestore({ scroll: 0, focusHref: undefined });
       setRestoringHistory(false);
       const contextual =
-        encounterContext?.parentRecordKey === nextRecordKey && navigation;
+        (encounterContext?.parentRecordKey === nextRecordKey && navigation) ||
+        condition;
       setRequestedContext(
         contextual
           ? {
-              identity: encounterContext.identity,
-              generation: encounterContext.generation,
+              identity: encounterContext!.identity,
+              generation: encounterContext!.generation,
+              conditionId: condition?.condition_id,
             }
           : undefined,
       );

@@ -131,6 +131,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         .route("/api/records/{record_key}", get(record_detail))
         .route("/api/encounters/{encounter_ref}/strike-options", post(crate::handlers::encounter_strike_options))
         .route("/api/encounters/{encounter_ref}/strike-rolls", post(crate::handlers::roll_encounter_strike))
+        .route("/api/rolls/content", post(crate::handlers::roll_content))
         .route("/api/rolls/flat-check", post(crate::handlers::roll_flat_check))
         .route("/api/rolls/table", post(crate::handlers::roll_table))
         .route("/api/records/detail", post(crate::handlers::record_detail_at))

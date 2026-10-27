@@ -5,6 +5,28 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Intrinsic dice-popover recovery references
+
+PR128's shared intrinsic sizing changes the recovery popover width and content
+inset while retaining its right edge, arrow and controls. The eight Linux
+`recovery-before` and `recovery-cleared-anchor` frames were reviewed by the parent
+and independent Astra across all four projects. Other Linux references remain
+unchanged; two incidental phone Chromium raster differences from capture were
+excluded. Exact pixel tolerance remains zero.
+
+Linux x64, Ubuntu 24.04, Playwright 1.62.1:
+[capture 40457056559](https://github.com/e-kosten/pf2e-atlas/actions/runs/40457056559)
+passed all four focused interaction/geometry cases using CI40453942587's fixture.
+Its synthetic merge `51c342dc9b8889a1700bf2d63bc180a9d3fe8a7d` has the same tree
+`ce5dd89d11d50e2f30020a025101bcfbc429449e` as reviewed PR head
+`206b9829a26057ec3f0fa0833b7f86a3af00d750`. Binary SHA-256:
+`9a5e8f8fd9a8453ca0256866e1ffac634b3325f4c3f88331607a1811b2eacb1c`;
+frontend index SHA-256:
+`1875c1ee930bffdd15c1365cbe5b3047916d023b0691e6e2bb9f472dccc562e2`.
+All four before frames match the failing ordinary CI actuals byte-for-byte.
+The existing macOS references are preserved; these Linux images were captured
+separately. Ordinary hosted comparison with updates disabled remains required.
+
 ## Early reaction controls
 
 macOS arm64, Playwright 1.62.1, source

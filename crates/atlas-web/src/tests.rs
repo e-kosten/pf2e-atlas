@@ -1589,6 +1589,12 @@ impl AtlasWebService for MockService {
         })
     }
 
+    fn roll_content(
+        &self,
+        _request: atlas_app_model::RollContentRequest,
+    ) -> Result<atlas_app_model::ContentRollResultView, AppServiceError> {
+        Ok(atlas_app_model::ContentRollResultView { components: vec![] })
+    }
     fn roll_flat_check(
         &self,
         request: atlas_app_model::RollFlatCheckRequest,
@@ -2276,4 +2282,21 @@ async fn list_note_routes_take_identity_from_path_and_preserve_explicit_clear() 
     .await;
     assert_eq!(status, StatusCode::OK);
     assert!(body["note"].is_null());
+}
+
+#[tokio::test]
+async fn content_roll_reference_roll_transport_checks_the_request_shape() {
+    let (status, body) = route_json(
+        Method::POST, "/api/rolls/content",
+        Some(json!({"source":{"record":"items:example","embedded_path":[],"field":"/system/description/value"},"source_fingerprint":"current","content_interpretation_version":"foundry-content/v12","ordinal":0,"authored_formula":"2d6[fire]"})),
+    ).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body["components"].is_array());
+    let (status, _) = route_json(
+        Method::POST,
+        "/api/rolls/content",
+        Some(json!({"formula":"100d100"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
 }

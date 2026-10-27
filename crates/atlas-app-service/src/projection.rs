@@ -250,8 +250,19 @@ pub(crate) fn relationship_view(
     o: atlas_search::SourceStoredRelationship,
     fingerprint: &str,
 ) -> atlas_app_model::RecordRelationshipView {
+    use atlas_record::source_content::{
+        ContentReferenceKind, ContentReferenceResolution, ContentReferenceTarget,
+    };
+    let derived_action = matches!(
+        o.details.reference_kind,
+        Some(ContentReferenceKind::Action { .. })
+    );
+    let self_action_reference = (derived_action && o.locator.owners.is_empty()
+        && matches!(&o.resolution, ContentReferenceResolution::Resolved(ContentReferenceTarget::Record { key }) if key == &o.locator.record))
+        .then_some(true);
     let (status, target, url) = content_reference_destination(o.resolution, fingerprint);
     atlas_app_model::RecordRelationshipView {
+        self_action_reference,
         source_title: None,
         target_title: None,
         source_navigation: RecordNavigationView {
@@ -540,6 +551,49 @@ mod tests {
             item_family: Some("effect".into()),
         });
         occurrence
+    }
+
+    #[test]
+    fn only_derived_action_links_to_the_containing_root_receive_the_self_action_fact() {
+        use atlas_record::source_content::ContentReferenceKind;
+        let mut action = effect_occurrence("aaaaaaaaaaaaaaaa", "Seek");
+        action.locator.record = "actions:aaaaaaaaaaaaaaaa".parse().unwrap();
+        action.resolution = ContentReferenceResolution::Resolved(ContentReferenceTarget::Record {
+            key: action.locator.record.clone(),
+        });
+        action.details.reference_kind = Some(ContentReferenceKind::Action {
+            slug: "seek".into(),
+        });
+        let view = relationship_view(action.clone(), "snapshot");
+        assert_eq!(view.self_action_reference, Some(true));
+        assert_eq!(
+            view.target.unwrap().record_key,
+            "actions:aaaaaaaaaaaaaaaa",
+            "Resolved evidence remains available"
+        );
+        let mut ordinary = action.clone();
+        ordinary.details.reference_kind = Some(ContentReferenceKind::Uuid);
+        assert_eq!(
+            relationship_view(ordinary, "snapshot").self_action_reference,
+            None
+        );
+        let mut other = action.clone();
+        other.locator.record = "spells:bbbbbbbbbbbbbbbb".parse().unwrap();
+        assert_eq!(
+            relationship_view(other, "snapshot").self_action_reference,
+            None
+        );
+        action
+            .locator
+            .owners
+            .push(atlas_domain::OwnedContentLocator {
+                collection: "/items".into(),
+                identity: atlas_domain::OwnedContentIdentity::Stable("cccccccccccccccc".into()),
+            });
+        assert_eq!(
+            relationship_view(action, "snapshot").self_action_reference,
+            None
+        );
     }
 
     #[test]
