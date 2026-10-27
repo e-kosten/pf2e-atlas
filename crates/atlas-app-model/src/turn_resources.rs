@@ -1,4 +1,4 @@
-//! Manual resource controls and the recorded allowance of one actual turn.
+//! Manual resource controls, including a reaction granted before the first turn.
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -17,6 +17,7 @@ pub struct TurnResourcesView {
     pub extra_uses: Vec<crate::ConditionExtraActionView>,
     pub reactions_total: Option<i64>,
     pub reactions_remaining: Option<i64>,
+    pub can_grant_reaction: bool,
     pub start_results: Vec<TurnResourceResultView>,
     pub pending_reason: Option<String>,
     pub forecast: crate::RuntimeCountView,
@@ -61,6 +62,7 @@ pub struct TurnResourceResultView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum TurnResourceAction {
+    GrantReaction,
     Spend {
         resource: TurnResourceKind,
     },
