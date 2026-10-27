@@ -384,7 +384,24 @@ export function SearchSettings({
         : identitySelected
           ? `${selectedCount} selections`
           : `${selectedCount} selected ${selectedCount === 1 ? "section" : "sections"}`;
-  const sourcePossessive = seedTitle ? `${seedTitle}’s` : "the record’s";
+  const sourcePossessive = seedTitle
+    ? `${seedTitle}’s`
+    : trait
+      ? "the trait’s"
+      : "the record’s";
+  const sourceName = seedTitle || (trait ? "this trait" : "this record");
+  const searchContentHelp =
+    draft?.searchContent === "core"
+      ? "Limits content searches to a core set of fields, like name and description, while omitting details like a creature's spells."
+      : "Searches all available content, including details like a creature's spells.";
+  const sourceSectionsHelp =
+    draft?.sourceSections === "core"
+      ? trait
+        ? `Uses ${sourcePossessive} definition, or its name when no definition is available.`
+        : `Uses ${sourcePossessive} name and identity plus the core sections chosen for this record kind.`
+      : draft?.sourceSections === "custom"
+        ? `Uses only the selected content from ${sourceName}.`
+        : `Uses all of ${sourcePossessive} available document sections.`;
   const partsHelp = `Choose which sections of this ${trait ? "trait" : "record"} to use when finding similar records.`;
   const methodHelp =
     draft?.similarity.method === "passages"
@@ -532,12 +549,14 @@ export function SearchSettings({
                   )}
                   <Form.Item
                     label={
-                      <SettingLabel
-                        label="Search content"
-                        help="Limits content matches to core sections chosen for each record kind. Names and identifying information remain searchable."
-                      />
+                      <SettingLabel label="Search content" help={searchContentHelp} />
                     }
                     htmlFor={`${id}-content`}
+                    extra={
+                      seed
+                        ? "Content searched in other records."
+                        : "Content searched for your query."
+                    }
                   >
                     <Select
                       id={`${id}-content`}
@@ -606,10 +625,11 @@ export function SearchSettings({
                           label={
                             <SettingLabel
                               label="Source sections"
-                              help="All sections uses the document’s available sections. Core sections includes name and identity with a focused selection for this record kind. Custom lets you choose."
+                              help={sourceSectionsHelp}
                             />
                           }
                           htmlFor={`${id}-sections`}
+                          extra={`Content from ${sourceName} used for comparison.`}
                         >
                           <Select
                             id={`${id}-sections`}
