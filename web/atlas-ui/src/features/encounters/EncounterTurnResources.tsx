@@ -1,6 +1,6 @@
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
-import { Button, Space, Tooltip } from "antd";
+import { Button, Space, Tooltip, theme } from "antd";
 import { useRef, useState } from "react";
 import type {
   TurnResourceAction,
@@ -27,6 +27,7 @@ export function EncounterTurnResources({
   onReference?: RecordReferenceHandler;
 }) {
   const [busy, setBusy] = useState(false);
+  const { token } = theme.useToken();
   const inFlight = useRef(false);
   const [error, setError] = useState<string>();
   if (!value) return null;
@@ -59,6 +60,8 @@ export function EncounterTurnResources({
     value.can_spend_actions.reason === value.can_spend_reactions.reason;
   const stock = value.reactions_remaining;
   const grantReaction = value.can_grant_reaction;
+  const reactionRestricted = Number(stock) > 0 && !value.can_spend_reactions.available;
+  const reactionBlocked = unavailable || reactionRestricted;
   return (
     <section className="encounter-turn-resources" aria-label="Turn" aria-busy={busy}>
       <div className="encounter-turn-resources__controls">
@@ -136,14 +139,19 @@ export function EncounterTurnResources({
                 trigger={["hover", "focus"]}
               >
                 <Button
-                  disabled={
-                    unavailable ||
-                    (Number(stock) > 0 && !value.can_spend_reactions.available)
-                  }
-                  aria-disabled={
-                    busy ||
-                    unavailable ||
-                    (Number(stock) > 0 && !value.can_spend_reactions.available)
+                  aria-disabled={busy || reactionBlocked}
+                  styles={
+                    reactionBlocked
+                      ? {
+                          root: {
+                            color: token.colorTextDisabled,
+                            background: token.colorBgContainerDisabled,
+                            borderColor: token.colorBorderDisabled,
+                            boxShadow: "none",
+                            cursor: "not-allowed",
+                          },
+                        }
+                      : undefined
                   }
                   aria-label={
                     grantReaction
@@ -165,6 +173,7 @@ export function EncounterTurnResources({
                     )
                   }
                   onClick={() => {
+                    if (busy || reactionBlocked) return;
                     void act(
                       grantReaction
                         ? { kind: "grant_reaction" }

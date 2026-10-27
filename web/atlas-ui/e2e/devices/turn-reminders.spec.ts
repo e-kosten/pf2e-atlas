@@ -1,4 +1,106 @@
 import { expect, test } from "./fixtures";
+
+test("allowing a restricted reaction retains keyboard focus without spending it", async ({
+  page,
+}) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Restricted reaction ${Date.now()}` },
+  });
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  const resourceActions: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" && request.url().endsWith("/turn-resources")) {
+      resourceActions.push(request.postDataJSON().action.kind);
+    }
+  });
+  try {
+    expect(
+      (
+        await page.request.post(`${path}/participants/manual`, {
+          data: {
+            encounter_ref: encounter.encounter_key,
+            display_name: "Restricted reaction hero",
+            initiative: 20,
+            max_hp: 20,
+            current_hp: 20,
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    const detail = await (await page.request.get(path)).json();
+    const actor = detail.participants[0];
+    const catalog = await (
+      await page.request.get(
+        `${path}/participants/${actor.participant_key}/condition-definitions`,
+      )
+    ).json();
+    const stunned = catalog.conditions.find(
+      (condition: { name: string }) => condition.name === "Stunned",
+    );
+    const added = await page.request.post(
+      `${path}/participants/${actor.participant_key}/conditions`,
+      {
+        data: {
+          request_id: `stunned-${Date.now()}`,
+          expected_encounter_revision: detail.revision,
+          participant_key: actor.participant_key,
+          condition_ref: stunned.condition_ref,
+          event_intent: "apply",
+          decisions: { keep_upright: false },
+          scope: { kind: "everyone" },
+          extra_action: { kind: "unspecified" },
+          immunity_override: false,
+          parameters: { kind: "none" },
+          value: 1,
+        },
+      },
+    );
+    expect(added.ok(), await added.text()).toBeTruthy();
+    await page.goto(`/encounters/${encounter.slug}`);
+    await page
+      .getByRole("button", { name: "Restricted reaction hero", exact: true })
+      .click();
+    const allow = page.getByRole("button", { name: "Allow reaction", exact: true });
+    await allow.focus();
+    await page.keyboard.press("Enter");
+    const reaction = page.getByRole("button", { name: "Spend reaction", exact: true });
+    await expect(reaction).toHaveAttribute("aria-disabled", "true");
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        }),
+    );
+    await expect(reaction).toBeFocused();
+    await expect(
+      page.getByText("Cannot react · Stunned", { exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Space");
+    await expect(reaction).toBeFocused();
+    expect(resourceActions).toEqual(["grant_reaction"]);
+    const saved = await (await page.request.get(path)).json();
+    expect(saved.participants[0].turn_resources.reactions_remaining).toBe(1);
+    await expect(
+      page.getByRole("button", { name: "Restore reaction", exact: true }),
+    ).toHaveCount(0);
+
+    await page
+      .getByRole("button", { name: "Remove Stunned", exact: true })
+      .last()
+      .click();
+    await expect(reaction).toHaveAttribute("aria-disabled", "false");
+    await reaction.focus();
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("button", { name: "Restore reaction", exact: true }),
+    ).toBeFocused();
+  } finally {
+    await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
+  }
+});
+
 for (const outcome of [
   "table",
   "roll",

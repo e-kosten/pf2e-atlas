@@ -107,6 +107,84 @@ it("keeps an ungranted reaction visible before the first turn and tracks an expl
   );
 });
 
+it("keeps a restricted granted reaction focusable without permitting spending", async () => {
+  const onChange = vi.fn().mockResolvedValue(undefined);
+  const initial: TurnResourcesView = {
+    ...value(),
+    turn_key: null,
+    regular_total: null,
+    regular_remaining: null,
+    reactions_total: null,
+    reactions_remaining: null,
+    can_grant_reaction: true,
+    can_edit_actions: false,
+    can_spend_reactions: { available: false, reason: "Stunned." },
+    start_results: [],
+  };
+  const { rerender } = render(
+    <EncounterTurnResources
+      value={initial}
+      disabled={false}
+      isCurrent={false}
+      onChange={onChange}
+    />,
+  );
+  const allow = screen.getByRole("button", { name: "Allow reaction" });
+  allow.focus();
+  fireEvent.click(allow);
+  await waitFor(() =>
+    expect(onChange).toHaveBeenCalledWith({ kind: "grant_reaction" }),
+  );
+  const granted = {
+    ...initial,
+    reactions_total: 1n,
+    reactions_remaining: 1n,
+    can_grant_reaction: false,
+  };
+  rerender(
+    <EncounterTurnResources
+      value={granted}
+      disabled
+      isCurrent={false}
+      onChange={onChange}
+    />,
+  );
+  const restricted = screen.getByRole("button", { name: "Spend reaction" });
+  expect(restricted).toHaveFocus();
+  expect(restricted).toHaveAttribute("aria-disabled", "true");
+  expect(restricted).not.toBeDisabled();
+  fireEvent.click(restricted);
+  expect(onChange).toHaveBeenCalledTimes(1);
+  rerender(
+    <EncounterTurnResources
+      value={granted}
+      disabled={false}
+      isCurrent={false}
+      onChange={onChange}
+    />,
+  );
+  expect(restricted).toHaveFocus();
+  expect(restricted).toHaveAttribute("aria-disabled", "true");
+  fireEvent.click(restricted);
+  expect(onChange).toHaveBeenCalledTimes(1);
+  expect(screen.getByText("Cannot react · Stunned")).toBeVisible();
+
+  rerender(
+    <EncounterTurnResources
+      value={{ ...granted, can_spend_reactions: { available: true } }}
+      disabled={false}
+      isCurrent={false}
+      onChange={onChange}
+    />,
+  );
+  expect(restricted).toHaveFocus();
+  expect(restricted).toHaveAttribute("aria-disabled", "false");
+  fireEvent.click(restricted);
+  await waitFor(() =>
+    expect(onChange).toHaveBeenLastCalledWith({ kind: "spend", resource: "reaction" }),
+  );
+});
+
 it("spends only on explicit input and retains the recorded allowance and start result across updates", async () => {
   const onChange = vi.fn().mockResolvedValue(undefined),
     initial = value();
