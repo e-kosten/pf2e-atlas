@@ -60,7 +60,7 @@ fn selected_rank_resolves_both_spell_aliases_without_borrowing_an_actor() {
     let view = f.worker.record_detail_at(request.clone()).unwrap();
     assert!(html(&view).contains(">10d6</span> mental damage"));
     assert!(html(&view).contains("5 fire damage"));
-    assert!(html(&view).contains("half the creature’s level (rounded up)"));
+    assert!(html(&view).contains("(half the creature’s level) (rounded up)"));
     let canonical = f
         .worker
         .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
@@ -148,7 +148,7 @@ fn actor_parent_values_do_not_turn_standalone_feats_or_effect_defaults_into_cont
     let actor = f.worker.record_detail("actors:contextActor0001").unwrap();
     assert!(html(&actor).contains(">4d6</span> damage"));
     assert!(
-        html(&actor).contains("half the creature’s level (rounded up)"),
+        html(&actor).contains("(half the creature’s level) (rounded up)"),
         "foreign inclusion retains its own symbolic context"
     );
     let mut request = selection("actors:contextActor0001");

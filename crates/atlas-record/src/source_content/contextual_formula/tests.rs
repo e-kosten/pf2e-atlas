@@ -2,6 +2,33 @@ use super::*;
 use crate::source_content::*;
 
 #[test]
+fn symbolic_damage_preserves_compound_halving_and_rounding_operands() {
+    let context = FormulaContext::default();
+    for (formula, expected) in [
+        (
+            "(floor((@actor.level -1)/2)+1)d6[fire]",
+            "a number of d6s of fire damage equal to (half (the creature’s level − 1)) (rounded down) + 1",
+        ),
+        (
+            "floor(1 + @actor.level/2)d6[void]",
+            "a number of d6s of void damage equal to (1 + (half the creature’s level)) (rounded down)",
+        ),
+        (
+            "ceil(@actor.level/3 + @item.rank/2)d6[fire]",
+            "a number of d6s of fire damage equal to ((the creature’s level ÷ 3) + (half spell rank)) (rounded up)",
+        ),
+    ] {
+        assert_eq!(
+            contextual_damage_text(formula, &context, false)
+                .unwrap()
+                .text,
+            expected,
+            "{formula}"
+        );
+    }
+}
+
+#[test]
 fn known_values_resolve_only_the_bounded_arithmetic_subset() {
     let context = FormulaContext {
         actor_level: Some(7),
@@ -68,7 +95,7 @@ fn missing_values_become_rules_without_guessing_defaults() {
         contextual_damage_text("(ceil(@actor.level / 2))d6[untyped]", &context, false)
             .unwrap()
             .text,
-        "a number of d6s of damage equal to half the creature’s level (rounded up)"
+        "a number of d6s of damage equal to (half the creature’s level) (rounded up)"
     );
     assert_eq!(
         contextual_damage_text("(max(8,@item.rank*2))d6[mental]", &context, false)
@@ -153,7 +180,7 @@ fn healing_uses_the_authored_hit_point_unit_without_losing_typed_or_mixed_labels
     assert!(
         prepared
             .text
-            .contains("(half the creature’s level (rounded up))d6 Hit Points")
+            .contains("((half the creature’s level) (rounded up))d6 Hit Points")
     );
     let rendered = render_contextual_interactions(
         &prepared.html,
