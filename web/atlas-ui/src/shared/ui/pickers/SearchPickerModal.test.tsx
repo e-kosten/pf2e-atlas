@@ -756,7 +756,9 @@ it("applies reloaded B parts once while preserving the picker candidate and unsa
   fireEvent.click(screen.getByText("Sections to compare"));
   fireEvent.click(await screen.findByRole("button", { name: "Reload sections" }));
   await screen.findByRole("checkbox", { name: "Description" });
-  fireEvent.click(screen.getByRole("checkbox", { name: "All sections" }));
+  const selectAll = screen.getByRole("checkbox", { name: "Select all", exact: true });
+  expect(selectAll).toBeChecked();
+  fireEvent.click(selectAll);
   fireEvent.click(screen.getByRole("checkbox", { name: "Description" }));
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
   // The reader remains open; return to results to inspect the new collection.
