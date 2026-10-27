@@ -37,6 +37,7 @@ impl AtlasAppService {
                                 html: prepared.html,
                                 controls: crate::prepared_content::content_controls(
                                     &prepared.interactions,
+                                    None,
                                 ),
                             },
                             references: prepared
@@ -50,6 +51,7 @@ impl AtlasAppService {
                                             retrieval.source_fingerprint(),
                                         );
                                     atlas_app_model::PreparedReferenceView {
+                                        self_action_reference: None,
                                         ordinal: reference.ordinal,
                                         status: status.into(),
                                         target,

@@ -235,6 +235,8 @@ it("omits known-empty optional headings while preserving unavailable and control
                   command: "r",
                   arguments: "1d20",
                   options: {},
+                  literal: null,
+                  roll: null,
                 },
               },
             ],

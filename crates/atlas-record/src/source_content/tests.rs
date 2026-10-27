@@ -60,6 +60,7 @@ fn prepare(markup: &str) -> PreparedSourceContent {
         ContentVisibilityRule::All,
         None,
         None,
+        &crate::source_content::FormulaContext::default(),
     )
     .unwrap();
     validate_prepared_reference_bindings(
@@ -97,7 +98,8 @@ fn unavailable_reference_labels_preserve_authored_names_and_diagnostic_identity(
 
 #[test]
 fn reference_bindings_check_all_visible_facts_without_inventing_hidden_markers() {
-    let content=prepare_source_content(locator(),"<p data-visibility='gm'>@UUID[secret]</p><p>@UUID[public]{Public} <a href='javascript:alert(1)'>Blocked</a> <a href='https://example.com'>External</a></p>",ContentAudience {include_gm:false,include_owner:false,implicit_check_dc:ContentVisibilityRule::None},ContentVisibilityRule::All,None,None).unwrap();
+    let content=prepare_source_content(locator(),"<p data-visibility='gm'>@UUID[secret]</p><p>@UUID[public]{Public} <a href='javascript:alert(1)'>Blocked</a> <a href='https://example.com'>External</a></p>",ContentAudience {include_gm:false,include_owner:false,implicit_check_dc:ContentVisibilityRule::None},ContentVisibilityRule::All,None,None,
+&crate::source_content::FormulaContext::default(),).unwrap();
     assert!(!content.references[0].visible);
     assert!(content.references[1].visible);
     let check = |html: &str,
@@ -249,6 +251,7 @@ impl ContentReferenceResolver for Context {
     fn resolve_reference(
         &self,
         _source: &SourceContentLocator,
+        _kind: &crate::source_content::ContentReferenceKind,
         target: &str,
     ) -> Option<ResolvedContentReference> {
         (target == "Compendium.pf2e.spells-srd.Item.abcdefghijklmnop").then(|| {
@@ -268,10 +271,10 @@ fn preserves_html_unicode_and_mechanics_without_a_persisted_tree() {
     let markup = "<h2>Élan — 力</h2><p>↔ @Check[type:reflex|basic|dc:21] @Template[type:cone|distance:30|width:5] @Damage[2d6[fire]] [[/r 1d20+4]]</p>";
     let content = prepare(markup);
     assert!(content.html.contains("<h2>Élan — 力</h2>"));
-    assert!(content.text.contains("DC 21 basic reflex"));
-    assert!(content.text.contains("30-foot cone (width 5 feet)"));
-    assert!(content.text.contains("2d6[fire]"));
-    assert!(content.text.contains("/r 1d20+4"));
+    assert!(content.text.contains("DC 21 basic Reflex save"));
+    assert!(content.text.contains("30-foot cone (5 feet wide)"));
+    assert!(content.text.contains("2d6 fire damage"));
+    assert!(content.text.contains("1d20+4"));
     assert_eq!(content.interactions.len(), 4);
     assert_eq!(content.locator, locator());
     let ContentInteractionKind::Check { statistic, options } = &content.interactions[0].kind else {
@@ -315,6 +318,7 @@ fn localization_uses_the_localized_body_and_retains_ignored_label_references() {
         ContentVisibilityRule::All,
         Some(&context),
         Some(&context),
+        &crate::source_content::FormulaContext::default(),
     )
     .unwrap();
     assert_eq!(content.text, "Heals you. Heal");
@@ -345,6 +349,7 @@ fn missing_recursive_localization_remains_literal_and_diagnosed() {
         ContentVisibilityRule::All,
         Some(&context),
         None,
+        &crate::source_content::FormulaContext::default(),
     )
     .unwrap();
     assert_eq!(content.text, "@Localize[Loop] @Localize[Missing]");
@@ -373,6 +378,7 @@ fn occurrences_are_complete_before_visibility_and_interactions_are_projected() {
         ContentVisibilityRule::All,
         None,
         None,
+        &crate::source_content::FormulaContext::default(),
     )
     .unwrap();
     assert_eq!(content.references.len(), 4);
@@ -398,6 +404,7 @@ fn occurrences_are_complete_before_visibility_and_interactions_are_projected() {
         ContentVisibilityRule::All,
         None,
         None,
+        &crate::source_content::FormulaContext::default(),
     )
     .unwrap();
     assert_eq!(
@@ -520,7 +527,10 @@ fn unknown_and_dynamic_content_survives_without_runtime_evaluation() {
         "@Mystery[odd]{Label} @Damage[(@actor.level+2)d6[fire]] @Check[type:reflex|dc:resolve(@actor.level)] <span class='action-glyph'>unknown</span> @Template[cone|distance:resolve(@actor.level)] <span class='pf2-icon'>R</span>",
     );
     assert!(content.text.contains("@Mystery[odd]{Label}"));
-    assert!(content.text.contains("(@actor.level+2)d6[fire]"));
+    assert!(content.text.contains("the creature’s level"));
+    assert!(
+        matches!(&content.interactions[0].kind,ContentInteractionKind::Damage{formula,..} if formula=="(@actor.level+2)d6[fire]")
+    );
     assert!(content.text.contains("resolve(@actor.level)"));
     assert!(content.text.contains("[action glyph: unknown]"));
     assert!(content.text.contains("reaction"));
@@ -551,6 +561,7 @@ fn stable_locator_is_independent_of_display_output_and_snapshot_local_identity_i
         ContentVisibilityRule::All,
         None,
         None,
+        &crate::source_content::FormulaContext::default(),
     )
     .unwrap();
     let second = prepare_source_content(
@@ -560,6 +571,7 @@ fn stable_locator_is_independent_of_display_output_and_snapshot_local_identity_i
         ContentVisibilityRule::All,
         None,
         None,
+        &crate::source_content::FormulaContext::default(),
     )
     .unwrap();
     assert_eq!(first.locator, second.locator);
@@ -618,9 +630,10 @@ fn typed_partial_source_and_owned_item_are_callable_without_ingest() {
         ContentVisibilityRule::All,
         None,
         None,
+        &crate::source_content::FormulaContext::default(),
     )
     .unwrap();
-    assert_eq!(content.text, "DC 21 basic reflex");
+    assert_eq!(content.text, "DC 21 basic Reflex save");
     assert_eq!(content.interactions.len(), 1);
 }
 
@@ -634,7 +647,7 @@ fn meaningful_captions_and_list_words_survive_undecorated_projection() {
         "First",
         "Next",
         "Last",
-        "Targets 1d6[fire]",
+        "Targets 1d6 fire damage",
         "Creature",
         "Two",
         "Three",
@@ -660,7 +673,7 @@ fn meaningful_captions_and_list_words_survive_undecorated_projection() {
 #[test]
 fn typed_damage_suffixes_do_not_consume_the_inline_roll_terminator() {
     let content = prepare("[[/r 2d6[fire]]]{Flames} @Damage[formula:3d6[cold]|name:Frost]");
-    assert_eq!(content.text, "Flames 3d6[cold]");
+    assert_eq!(content.text, "Flames 3d6 cold damage");
     assert!(
         matches!(&content.interactions[0].kind, ContentInteractionKind::Command { arguments, .. } if arguments == "2d6[fire]")
     );
@@ -674,7 +687,7 @@ fn unusual_glyph_contents_do_not_drop_nested_reference_or_interaction_markers() 
     let content = prepare(
         "<span class='action-glyph'>@UUID[target]{Label} @Damage[1d6[fire]] <a href='https://example.com'>Source</a></span>",
     );
-    assert_eq!(content.text, "Label 1d6[fire] Source");
+    assert_eq!(content.text, "Label 1d6 fire damage Source");
     assert!(content.html.contains("data-atlas-reference=\"0\""));
     assert!(content.html.contains("data-atlas-reference=\"1\""));
     assert!(content.html.contains("data-atlas-interaction=\"0\""));
@@ -753,7 +766,7 @@ fn trait_definitions_share_localization_sanitization_and_explicit_reference_evid
             (key == "definition").then_some("<strong>Localized definition</strong> @UUID[Compendium.pf2e.spells-srd.Item.abc]{Spell}")
         }
     }
-    let resolve = |_: &str| {
+    let resolve = |_: &ContentReferenceKind, _: &str| {
         Some(ResolvedContentReference {
             target: ContentReferenceTarget::Record {
                 key: "spells-srd:abc".parse().unwrap(),
@@ -832,4 +845,271 @@ fn trait_reference_markers_validate_only_against_exact_trait_identity() {
         )
         .is_err()
     );
+}
+
+#[test]
+fn literal_damage_reading_keeps_authored_evidence_and_custom_labels() {
+    let content = prepare(
+        "<p>@Damage[1[fire]]; @Damage[(4d8+10)[bludgeoning]]; @Damage[2d6[cold],1d6[persistent,fire]]; @Damage[3d6[fire]]{Flames}</p>",
+    );
+    assert!(content.text.contains("1 fire damage"));
+    assert!(content.text.contains("4d8+10 bludgeoning damage"));
+    assert!(
+        content
+            .text
+            .contains("2d6 cold damage + 1d6 persistent fire damage")
+    );
+    assert!(content.text.ends_with("Flames"));
+    assert!(
+        matches!(&content.interactions[1].kind, ContentInteractionKind::Damage { formula, .. } if formula == "(4d8+10)[bludgeoning]")
+    );
+    let contextual = prepare("@Damage[(2d6+@actor.level)[fire]]");
+    assert!(contextual.text.contains("the creature’s level"));
+    assert!(
+        matches!(&contextual.interactions[0].kind,ContentInteractionKind::Damage{formula,..} if formula=="(2d6+@actor.level)[fire]")
+    );
+    assert!(
+        contextual
+            .diagnostics
+            .iter()
+            .any(|d| d.code == ContentDiagnosticCode::RuntimeContextRequired)
+    );
+}
+
+#[test]
+fn literal_damage_respects_an_authored_noun_and_short_label() {
+    let content = prepare(
+        "<p>Deals @Damage[(4d8+10)[bludgeoning]] damage, and @Damage[1[fire]] damage.</p><p>@Damage[2d6[fire]|shortLabel] fire damage.</p>",
+    );
+    assert!(
+        content
+            .text
+            .contains("Deals 4d8+10 bludgeoning damage, and 1 fire damage.")
+    );
+    assert!(content.text.contains("2d6 fire damage."));
+    assert!(!content.text.contains("damage damage"));
+    assert_eq!(
+        prepare("@Damage[1[fire]] damageable").text,
+        "1 fire damage damageable"
+    );
+}
+
+#[test]
+fn literal_damage_marks_the_formula_boundary_without_accepting_authored_markers() {
+    let content = prepare("@Damage[(4d8+10)[bludgeoning]] damage");
+    assert!(
+        content
+            .html
+            .contains("data-atlas-roll-formula=\"\">4d8+10</span> bludgeoning")
+    );
+    assert_eq!(content.text, "4d8+10 bludgeoning damage");
+    let labeled = prepare("@Damage[4d8[bludgeoning]]{Impact}");
+    assert!(!labeled.html.contains("data-atlas-roll-formula"));
+    assert_eq!(labeled.text, "Impact");
+    let spoofed = prepare("<span data-atlas-roll-formula=''>Fake</span>");
+    assert!(!spoofed.html.contains("data-atlas-roll-formula"));
+}
+
+#[test]
+fn action_commands_use_registry_labels_glyphs_variants_and_checked_references() {
+    struct English;
+    impl LocalizationResolver for English {
+        fn localized_value(&self, key: &str) -> Option<&str> {
+            match key {
+                "PF2E.Actions.Seek.Title" => Some("Seek"),
+                "PF2E.Actions.AdministerFirstAid.Title" => Some("Administer First Aid"),
+                "PF2E.Actions.AdministerFirstAid.StopBleeding.Title" => Some("Stop Bleeding"),
+                _ => None,
+            }
+        }
+    }
+    struct References;
+    impl ContentReferenceResolver for References {
+        fn resolve_reference(
+            &self,
+            _: &SourceContentLocator,
+            _kind: &crate::source_content::ContentReferenceKind,
+            target: &str,
+        ) -> Option<ResolvedContentReference> {
+            (target == "Compendium.pf2e.actionspf2e.Item.Seek").then(|| ResolvedContentReference {
+                target: ContentReferenceTarget::Record {
+                    key: "actionspf2e:BlAOM2X92SI6HMtJ".parse().unwrap(),
+                },
+                display_name: Some("Seek".into()),
+                item_family: Some("action".into()),
+            })
+        }
+    }
+    let content = prepare_source_content(locator(),
+        "<p>uses [[/act seek]]; [[/act seek dc=20]]{Perception}; [[/act administer-first-aid variant=stop-bleeding]]; [[/act seek variant=made-up]]; [[/act unknown]]. [[/br 1d4 #rounds]] [[/r @actor.level+1d6]]</p>",
+        audience(), ContentVisibilityRule::All, Some(&English), Some(&References),
+&crate::source_content::FormulaContext::default(),).unwrap();
+    let html = scraper::Html::parse_fragment(&content.html);
+    let selector = scraper::Selector::parse("[data-atlas-reference]").unwrap();
+    let references: Vec<_> = html.select(&selector).collect();
+    assert_eq!(references.len(), 3);
+    for (reference, expected) in references.iter().zip(["Seek", "Perception"]) {
+        assert_eq!(reference.text().collect::<String>(), expected);
+        let glyph = reference
+            .next_siblings()
+            .find_map(scraper::ElementRef::wrap)
+            .unwrap();
+        assert_eq!(
+            glyph.value().attr("data-atlas-action-glyph"),
+            Some("one_action")
+        );
+    }
+    assert!(content.text.contains("Seek one action"));
+    assert!(content.text.contains("Perception one action (DC 20)"));
+    assert!(
+        content
+            .text
+            .contains("Administer First Aid - Stop Bleeding two actions")
+    );
+    assert!(content.text.contains("/act seek variant=made-up"));
+    assert!(content.text.contains("/act unknown"));
+    assert!(content.text.contains("1d4 rounds"));
+    assert!(content.text.contains("the creature’s level + 1d6"));
+    assert!(matches!(
+        content.references[0].resolution,
+        ContentReferenceResolution::Resolved(_)
+    ));
+    assert!(matches!(
+        content.references[2].resolution,
+        ContentReferenceResolution::Unresolved
+    ));
+    assert_eq!(
+        content.references[0].kind,
+        ContentReferenceKind::Action {
+            slug: "seek".into()
+        }
+    );
+    assert!(
+        matches!(&content.interactions[2].kind, ContentInteractionKind::Command { command, arguments, options } if command=="act" && arguments=="administer-first-aid variant=stop-bleeding" && options["variant"]=="stop-bleeding")
+    );
+    validate_prepared_reference_bindings(
+        &content.html,
+        &content.locator,
+        &content.authored_markup_sha256,
+        &content.references,
+    )
+    .unwrap();
+}
+
+#[test]
+fn literal_roll_labels_keep_authored_text_and_mark_only_an_exact_formula_prefix() {
+    let content = prepare(
+        "<p>[[/r 1d4 #rounds]]{1d4 rounds}; [[/gmr 1d4]]{Recharge}; [[/br 1d4]]{1d40 rounds}</p>",
+    );
+    assert_eq!(content.text, "1d4 rounds; Recharge; 1d40 rounds");
+    assert_eq!(content.html.matches("data-atlas-roll-formula").count(), 1);
+    assert!(
+        content
+            .html
+            .contains("data-atlas-roll-formula=\"\">1d4</span> rounds")
+    );
+    assert_eq!(content.interactions.len(), 3);
+}
+
+#[test]
+fn checks_read_as_complete_sentences_with_choices_and_defenses() {
+    for (markup, expected) in [
+        (
+            "Affected creatures attempt a @Check[reflex|dc:28|basic] save.",
+            "Affected creatures attempt a DC 28 basic Reflex save.",
+        ),
+        (
+            "Attempt a @Check[morale|defense:morale|roller:self] check against a target army.",
+            "Attempt a Morale check vs Morale DC against a target army.",
+        ),
+        ("@Check[flat|dc:5|showDC:all].", "DC 5 flat check."),
+        (
+            "@Check[will|dc:20] saving throw.",
+            "DC 20 Will saving throw.",
+        ),
+        (
+            "@Check[religion,society|dc:28]",
+            "DC 28 Religion check or DC 28 Society check",
+        ),
+        (
+            "@Check[acrobatics|against:ac] check",
+            "Acrobatics check vs AC",
+        ),
+        (
+            "@Check[reflex|against:class-spell|basic] save",
+            "basic Reflex save vs class or spell DC",
+        ),
+        (
+            "@Check[athletics|dc:20|adjustment:2]",
+            "DC 22 Athletics check",
+        ),
+        (
+            "@Check[arcana,nature|dc:20|adjustment:2,-2]",
+            "DC 22 Arcana check or DC 18 Nature check",
+        ),
+        (
+            "@Check[perception|dc:20|traits:secret]",
+            "DC 20 secret Perception check",
+        ),
+        (
+            "a secret @Check[flat|dc:6|traits:secret]",
+            "a secret DC 6 flat check",
+        ),
+        (
+            "@Check[flat|dc:resolve(5+@item.badge.value)]",
+            "flat check with a DC equal to 5 + the effect’s counter value",
+        ),
+        (
+            "@Check[crafting|dc:@self.level|adjustment:2] check",
+            "Crafting check against a level-based DC + 2",
+        ),
+        (
+            "@Check[fortitude|dc:21]{Resist the poison} check",
+            "Resist the poison check",
+        ),
+    ] {
+        let content = prepare(markup);
+        assert_eq!(content.text, expected, "{markup}");
+        assert_eq!(content.interactions.len(), 1);
+    }
+}
+
+#[test]
+fn area_text_preserves_shapes_widths_labels_and_runtime_fallbacks() {
+    for (markup, expected) in [
+        ("@Template[cone|distance:30]", "30-foot cone"),
+        (
+            "a 10-foot-wide, @Template[line|distance:60|width:10]",
+            "a 10-foot-wide, 60-foot line",
+        ),
+        (
+            "a 5-foot-wide @Template[line|distance:60|width:10]",
+            "a 5-foot-wide 60-foot line (10 feet wide)",
+        ),
+        ("@Template[type:burst|distance:10]", "10-foot burst"),
+        (
+            "@Template[line|distance:120|width:10]",
+            "120-foot line (10 feet wide)",
+        ),
+        (
+            "@Template[line|distance:30|width:1]",
+            "30-foot line (1 foot wide)",
+        ),
+        (
+            "@Template[line|distance:120|width:10]{10 feet wide and 120 feet long}",
+            "10 feet wide and 120 feet long",
+        ),
+        ("@Template[cube|distance:20]", "20-foot cube"),
+        ("@Template[cylinder|distance:10]", "10-foot cylinder"),
+        ("@Template[square|distance:10]", "10-foot square"),
+        ("@Template[emanation|distance:20]", "20-foot emanation"),
+        (
+            "@Template[cone|distance:resolve(@actor.level)]",
+            "[template: cone; distance=resolve(@actor.level)]",
+        ),
+    ] {
+        let content = prepare(markup);
+        assert_eq!(content.text, expected, "{markup}");
+        assert_eq!(content.interactions.len(), 1);
+    }
 }

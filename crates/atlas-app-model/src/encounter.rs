@@ -425,6 +425,9 @@ pub struct EncounterDetailView {
 /// A complete selected reference in one current participant's runtime context.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterReferenceRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub condition_id: Option<i64>,
     pub artifact_generation: String,
     pub selection: crate::RecordDetailRequest,
 }

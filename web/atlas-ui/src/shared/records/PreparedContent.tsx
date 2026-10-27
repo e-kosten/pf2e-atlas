@@ -2,7 +2,7 @@ import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { sanitizePreparedHtml } from "./PreparedHtml";
 import DOMPurify from "dompurify";
-import { Alert, Modal, Typography } from "antd";
+import { Alert, Typography } from "antd";
 import { documentHeadings } from "./documentHeadings";
 import "../../styles/ui/journal-reading.css";
 import {
@@ -15,6 +15,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { EffectReferenceLink } from "./EffectReferenceLink";
+import { ContentRoll } from "../dice/ContentRoll";
 import type {
   PreparedContentFieldView,
   PreparedFieldBodyView,
@@ -33,6 +34,8 @@ export type RecordReferenceHandler = (
   landing?: RecordNavigationView,
 ) => void;
 const NO_RELATIONSHIPS: RecordRelationshipView[] = [];
+// Plain check/area text inside a reference remains part of that reference.
+const ACTIVATION_MARKER = "[data-atlas-reference]";
 export function PreparedContent({
   content,
   relationships = NO_RELATIONSHIPS,
@@ -116,9 +119,9 @@ export function PreparedContentBody({
     sourceSelection && sectionRendering?.selection_version === supportedVersion
       ? sectionRendering.html
       : undefined;
-  const [modal, contextHolder] = Modal.useModal();
   const container = useRef<HTMLDivElement>(null);
   const [effectLinks, setEffectLinks] = useState<ReactPortal[]>([]);
+  const rollHosts = useRef(new Map<string, HTMLElement>());
   const referenceHandler = useRef(onReference);
   useLayoutEffect(() => {
     referenceHandler.current = onReference;
@@ -206,6 +209,7 @@ export function PreparedContentBody({
     );
     const listeners: Array<() => void> = [];
     const effects: ReactPortal[] = [];
+    const activeRolls = new Set<string>();
     markers?.forEach((originalMarker) => {
       let marker = originalMarker;
       const namespace = marker
@@ -229,6 +233,48 @@ export function PreparedContentBody({
                 c.ordinal === Number(marker.getAttribute("data-atlas-interaction")),
             )?.control
           : null;
+      if (control?.kind === "check" || control?.kind === "template") {
+        marker.removeAttribute("href");
+        marker.removeAttribute("role");
+        marker.removeAttribute("tabindex");
+        return;
+      }
+      if (fact?.self_action_reference) {
+        marker.removeAttribute("href");
+        marker.removeAttribute("role");
+        marker.removeAttribute("tabindex");
+        marker.removeAttribute("aria-disabled");
+        marker.removeAttribute("title");
+        return;
+      }
+      if (
+        (control?.kind === "damage" || control?.kind === "command") &&
+        control.literal
+      ) {
+        marker.removeAttribute("role");
+        marker.removeAttribute("tabindex");
+        if (control.roll) {
+          const identity = `${namespace ?? "host"}:${JSON.stringify(control.roll, (_key, value) => (typeof value === "bigint" ? value.toString() : value))}`;
+          activeRolls.add(identity);
+          let host = rollHosts.current.get(identity);
+          if (!host) {
+            host = document.createElement("span");
+            rollHosts.current.set(identity, host);
+          }
+          const formula = Array.from(
+            marker.querySelectorAll<HTMLElement>("[data-atlas-roll-formula]"),
+          ).find((node) => node.closest("[data-atlas-interaction]") === marker);
+          (formula ?? marker).after(host);
+          effects.push(
+            createPortal(
+              <ContentRoll request={control.roll} presentation={control.literal} />,
+              host,
+              identity,
+            ),
+          );
+        }
+        return;
+      }
       if (fact?.target && fact.effect_label) {
         const host = document.createElement("span");
         host.setAttribute("data-atlas-reference", String(ref));
@@ -261,7 +307,7 @@ export function PreparedContentBody({
         marker.removeAttribute("tabindex");
         return;
       }
-      if (!fact?.target && (!control || control.kind === "command")) {
+      if (!fact?.target) {
         marker.removeAttribute("href");
         marker.removeAttribute("role");
         marker.removeAttribute("tabindex");
@@ -299,22 +345,20 @@ export function PreparedContentBody({
           ),
         );
         marker.removeAttribute("role");
-      } else marker.setAttribute("role", "button");
+      }
       marker.tabIndex = 0;
       const ownsEvent = (e: Event) => {
         const target = e.target as Element;
+        if (target.closest("button")) return false;
         const link = target.closest("a[href]");
         return (
-          target.closest("[data-atlas-reference],[data-atlas-interaction]") ===
-            marker &&
+          target.closest(ACTIVATION_MARKER) === marker &&
           (!link || link === marker || !marker.contains(link))
         );
       };
       const activate = (e: Event) => {
         if (!ownsEvent(e)) return;
-        const marker = (e.target as Element).closest(
-          "[data-atlas-reference],[data-atlas-interaction]",
-        );
+        const marker = (e.target as Element).closest(ACTIVATION_MARKER);
         if (!marker || !container.current?.contains(marker)) return;
         if (fact?.target && e instanceof MouseEvent && !isPrimaryActivation(e)) return;
         e.preventDefault();
@@ -327,34 +371,6 @@ export function PreparedContentBody({
           openReference(target.record_key, marker as HTMLElement, target);
           return;
         }
-        const ordinal = Number(marker.getAttribute("data-atlas-interaction"));
-        const control = markerControls.find((c) => c.ordinal === ordinal)?.control;
-        if (!control || control.kind === "command") return;
-        const title =
-          control.kind === "check"
-            ? control.statistic || "Check"
-            : control.kind === "damage"
-              ? control.formula
-              : control.shape || "Template";
-        modal.info({
-          title,
-          closable: true,
-          mask: { closable: true },
-          afterClose: () => {
-            if (marker instanceof HTMLElement && marker.isConnected)
-              marker.focus({ preventScroll: true });
-          },
-          content: (
-            <dl>
-              {Object.entries(control.options).map(([key, value]) => (
-                <div key={key}>
-                  <dt>{key}</dt>
-                  <dd>{value}</dd>
-                </div>
-              ))}
-            </dl>
-          ),
-        });
       };
       const keyboard = (e: KeyboardEvent) => {
         if (!ownsEvent(e)) return;
@@ -370,9 +386,15 @@ export function PreparedContentBody({
         marker.removeEventListener("keydown", keyboard);
       });
     });
+    for (const [identity, host] of rollHosts.current) {
+      if (!activeRolls.has(identity)) {
+        host.remove();
+        rollHosts.current.delete(identity);
+      }
+    }
     setEffectLinks(effects);
     return () => listeners.forEach((remove) => remove());
-  }, [body, references, openReference, html, modal]);
+  }, [body, references, openReference, html]);
   useLayoutEffect(() => {
     if (sourceHtml === undefined) return;
     const excluded = new Set<number>(JSON.parse(excludedSections));
@@ -449,7 +471,6 @@ export function PreparedContentBody({
   );
   return (
     <>
-      {contextHolder}
       {effectLinks}
       {documentNavigation ? (
         <div

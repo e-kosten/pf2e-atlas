@@ -168,7 +168,7 @@ export function EncounterPersistentRecovery({
           onOpenChange?.(next);
         }}
         content={
-          <div ref={panel} className="encounter-recovery-actions">
+          <div ref={panel} className="atlas-dice-popover">
             {dice.error && <Alert type="error" title={dice.error} />}
             {error && (
               <Alert type="error" title="Recovery failed" description={error} />

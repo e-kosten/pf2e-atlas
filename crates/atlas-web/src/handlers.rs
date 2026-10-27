@@ -558,6 +558,17 @@ pub(crate) async fn related_records(
     ))
 }
 
+pub(crate) async fn roll_content(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<atlas_app_model::RollContentRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || service.roll_content(request)).await?,
+    ))
+}
+
 pub(crate) async fn roll_flat_check(
     State(state): State<AtlasWebState>,
     payload: Result<Json<atlas_app_model::RollFlatCheckRequest>, JsonRejection>,

@@ -1489,6 +1489,15 @@ complete class progression from these arrays. A short price/bulk/usage group doe
 not need a table. Compact table rows suit short progression values; prose-heavy
 roll tables need more cell spacing. Keep source-authored tables as tables.
 
+### Inline checks and areas
+
+Prepared `@Check` and `@Template` content reads as ordinary rules text. Render the
+backend's labels and qualifiers without a clickable appearance, keyboard stop or
+parameter dialog. For example, show “DC 28 basic Reflex save” or “30-foot cone.”
+Custom labels may contain independently usable document links; retain those links.
+Literal damage/inline-roll dice controls keep their explicit rolling behavior.
+Context-dependent formulas stay authored rather than acquiring guessed values.
+
 ## Mutable workflows
 
 ### Dice presentation
@@ -1506,6 +1515,22 @@ formula, range and result. Feature consumers do not choose different defaults.
 Clicking an encounter attack bonus or damage expression opens its result popover
 and rolls immediately. Reroll is explicit; opening via an effect or rerender must
 never submit a roll. Fortune/misfortune changes apply to the next deliberate roll.
+
+Dice popovers have one stable, purpose-specific heading before, during and after
+rolling, including failures and retries. Use the authored purpose (`Counteract`,
+`Recharge Breath Weapon`), the known workflow (`Fire recovery`), or the formula
+when no purpose is known. A single damage component uses its type as the heading;
+mixed components use Damage/Healing as appropriate and retain their individual
+labels. Do not repeat a single component's caption beneath the heading. Exact
+authored time-unit captions use Duration with units beside the total (`7 hours`),
+not a standalone Hours label. Backend presentation supplies these roles; the
+browser must not infer check mechanics from a d20 formula or source prose.
+
+Single-participant initiative names the participant and task (`Goblin · Initiative`);
+batch initiative uses Initiative. A dialog's accessible name references its visible
+heading. Keep the task name stable rather than appending Result after rolling.
+Inline table rolls and flat checks under an existing section retain useful local
+labels without acquiring another popover heading.
 
 Initiative uses the encounter mutation owner and backend-resolved choices.
 Preserve a request ID and unchanged intent for retry after an uncertain response.

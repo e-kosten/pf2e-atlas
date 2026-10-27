@@ -5,7 +5,6 @@ import {
   renderHook,
   screen,
   waitFor,
-  within,
 } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App, ConfigProvider, Grid } from "antd";
@@ -66,14 +65,16 @@ function response(request: EncounterReferenceRequest): RecordDetailView {
                 body: {
                   kind: "html",
                   inclusions: [],
-                  html: '<p>Exact local Jaws prose <span data-atlas-interaction="0">Reflex check</span></p>',
+                  html: '<p>Exact local Jaws prose <span data-atlas-interaction="0">Contextual damage</span></p>',
                   controls: [
                     {
                       ordinal: 0,
                       control: {
-                        kind: "check",
-                        statistic: "Reflex",
-                        options: { dc: "15" },
+                        kind: "damage",
+                        formula: "(@actor.level)d6[fire]",
+                        options: { traits: "fire" },
+                        literal: null,
+                        roll: null,
                       },
                     },
                   ],
@@ -425,7 +426,7 @@ it("retries a failed encounter refresh through its owner and reopens an initial 
 });
 
 it.each(["desktop", "narrow"])(
-  "%s contextual preview preserves nested native Escape and original trigger focus",
+  "%s contextual preview leaves symbolic damage as text and restores original trigger focus",
   async (viewport) => {
     vi.spyOn(Grid, "useBreakpoint").mockReturnValue({
       xl: viewport === "desktop",
@@ -440,15 +441,10 @@ it.each(["desktop", "narrow"])(
     await waitFor(() =>
       expect(screen.getByRole("heading", { name: "Jaws 1 action" })).toHaveFocus(),
     );
-    const marker = await screen.findByRole("button", { name: "Reflex check" });
-    act(() => marker.focus());
-    fireEvent.keyDown(marker, { key: "Enter" });
-    const modal = await screen.findByRole("dialog", { name: "Reflex" });
-    const ok = within(modal).getByRole("button", { name: "OK" });
-    act(() => ok.focus());
-    fireEvent.keyDown(ok, { key: "Escape", keyCode: 27 });
-    await waitFor(() => expect(modal).not.toBeInTheDocument());
-    expect(marker).toHaveFocus();
+    const marker = await screen.findByText("Contextual damage");
+    expect(marker).not.toHaveAttribute("tabindex");
+    fireEvent.click(marker);
+    expect(screen.queryByRole("dialog", { name: "(@actor.level)d6[fire]" })).toBeNull();
     const heading = screen.getByRole("heading", { name: "Jaws 1 action" });
     act(() => heading.focus());
     fireEvent.keyDown(heading, { key: "Escape", keyCode: 27 });

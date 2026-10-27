@@ -8,7 +8,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Checkbox, Popover, Select, Spin } from "antd";
 import { Dice5 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { AtlasApiError, getInitiativeOptions } from "../../api/atlasApi";
 import type {
   EncounterParticipantView,
@@ -36,7 +36,7 @@ type RollProps = {
 export function InitiativeRollModal(props: RollProps) {
   return (
     <EncounterModal
-      title="Roll initiative"
+      title="Initiative"
       open
       onCancel={props.onClose}
       footer={null}
@@ -63,6 +63,8 @@ export function InitiativePopover({
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const headingId = useId();
+  const heading = `${participant.display_name} · Initiative`;
   const query = useInitiativeOptions(encounterKey, participant.participant_key, open);
   const visible = open && Boolean(query.data || query.isError);
   const { trigger, content, afterOpenChange } = useDicePopoverFocus(visible);
@@ -102,10 +104,11 @@ export function InitiativePopover({
         <div
           ref={content}
           tabIndex={-1}
-          className="initiative-popover"
+          className="atlas-dice-popover initiative-popover"
           role="dialog"
-          aria-label="Initiative"
+          aria-labelledby={headingId}
         >
+          <strong id={headingId}>{heading}</strong>
           {open && (
             <InitiativeContent
               query={query}

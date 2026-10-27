@@ -176,3 +176,13 @@ test('condition facts cover the full pinned pack and retain all native relations
   assert.match(catalog.digest,/^[a-f0-9]{64}$/);
   assert.match(generateRustModules(input)['condition_definitions.rs'], /pub enum ConditionId/);
 });
+
+test('PF2e action registry contains source-backed labels, costs and variants', () => {
+  assert.equal(input.actionDefinitions?.length, 72);
+  const seek = input.actionDefinitions!.find(action => action.slug === 'seek')!;
+  assert.equal(seek.name, 'PF2E.Actions.Seek.Title');
+  assert.equal(seek.cost, '1');
+  assert.ok(seek.file.endsWith('/basic/seek.ts'));
+  assert.equal(input.actionDefinitions!.find(action => action.slug === 'administer-first-aid')!.variants[1].slug, 'stop-bleeding');
+  assert.ok(!input.actionDefinitions!.some(action => action.slug === 'plot-course'));
+});

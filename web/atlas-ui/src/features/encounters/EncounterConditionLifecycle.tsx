@@ -112,7 +112,7 @@ export function EncounterConditionRecovery({
         content={
           active ? (
             <div
-              className="encounter-recovery-popover"
+              className="atlas-dice-popover encounter-recovery-popover"
               role="dialog"
               aria-label={selected.option?.label ?? label}
               onKeyDownCapture={(event) => {

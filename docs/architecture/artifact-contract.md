@@ -193,9 +193,64 @@ remain visible with their source diagnostic.
 Prepared unresolved references preserve an explicit authored label or a qualified
 authored root name; opaque UUIDs display as unavailable. Their exact authored
 targets and unresolved status remain in relationship evidence and diagnostics.
-The content interpretation identity is `foundry-content/v10`; older prepared
+The content interpretation identity is `foundry-content/v22`; older prepared
 content requires re-preparation even when the physical schema is unchanged.
 Exact compatible embedding checkpoints remain reusable.
+
+Static PF2e damage-instance annotations are interpreted in atlas-record, using
+atlas-dice's pure preparation to validate bounded arithmetic without rolling.
+Preparation marks a formula boundary for inline dice placement.
+Readable text retains each known type/category and authored labels; an adjacent
+authored damage noun is preserved without duplication. Raw formulas/options remain
+in the existing interaction sidecar. Unsupported expressions retain their source.
+Dice preview trees are transient app projections, never persisted content ASTs.
+Literal `/r`, `/gmr` and `/br` arithmetic uses the same bounded engine. Captions
+and authored command modes remain source data; modes do not change audience in
+Atlas's local reference roller. Flavored and unsupported inline-roll formulas stay readable without an executable offer.
+
+The pinned SystemActions registry supplies generated literal `/act` identities,
+localization keys, costs and variant names. English catalog lookup resolves those
+keys during preparation; action costs follow the displayed label. Navigation resolves the registry's exact English name
+through the action pack's unique admitted-name index, allowing ASCII case-only
+differences for these derived action references; missing or ambiguous
+destinations have no usable link. The sidecar retains the original command and
+options, and reference facts identify the registry slug and derived target.
+No Foundry action code executes. Action reference boundaries contain the label;
+costs and option details follow outside the link.
+
+Checks and area templates retain their source options and field-local interaction
+identities but render as plain text. Preparation supplies complete check names,
+basic/secret qualifiers, opposing DCs and authored area widths; exact custom labels
+and audience-filtered DCs remain authoritative. Literal DC adjustments can be
+composed without actor context. Authored actor/item formulas remain in the interaction sidecar.
+Renderers add no check or area execution control or parameter dialog. Literal
+reference dice and verified document links keep their separate capabilities.
+
+Contextual formulas use a bounded transient arithmetic interpreter in atlas-record:
+integer/decimal constants, arithmetic, dice, floor/ceil/min/max and resolve, with
+an explicit variable allowlist. Canonical preparation supplies source-kind labels
+only and emits symbolic prose; neither FTS nor embeddings acquire runtime values.
+Symbolic halving and rounding retain compound operand grouping, so their prose
+preserves the authored arithmetic order.
+The sidecar records generated-label provenance, authored healing units and adjacent
+check nouns/secret qualifiers, not an expression AST. An immediately adjacent clause is absorbed
+only when it exactly repeats the generated symbolic DC; custom labels stay intact.
+Unknown syntax/variables retain authored expressions. Area-template runtime
+geometry, general predicates, actor flags and Foundry scripts remain unsupported.
+
+App-service binds selected spell rank (including the spell-only item.level alias),
+checked item level and the owning actor's effective source level. Standalone feat
+levels never stand in for actor level; generic condition/effect badge defaults
+never stand in for a live value. Encounter references can supply their current
+participant level or an addressed condition's effective value. Missing context
+remains readable prose with no input prompt or parameter dialog. Each field is
+resolved before composing inline inclusions, which retain their own source context.
+Canonical search passage hashes are validated against the stored field before
+read-time substitution. Resolved damage and inline rolls acquire the existing bounded dice capability
+only if the entire expression is supported. Roll requests carry source identity,
+selected rank and, when needed, encounter/participant revision and condition
+identity. The server rereads those facts and validates the complete current offer
+before randomness. Results remain stateless; no roll history is written.
 
 Localization preparation uses `selected-source-catalog/english-fallback/v2`.
 Its English catalog digest covers all manifest-declared English catalog paths

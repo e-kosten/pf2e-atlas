@@ -567,6 +567,7 @@ fn write_content(
                             ContentReferenceKind::Compendium => "compendium",
                             ContentReferenceKind::Embed { .. } => "embed",
                             ContentReferenceKind::HtmlLink => "html_link",
+                            ContentReferenceKind::Action { .. } => "action",
                         };
                         write_relationship(
                             c,

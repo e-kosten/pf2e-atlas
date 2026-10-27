@@ -62,6 +62,10 @@ pub(crate) trait AtlasWebService: Send + Sync {
         request: atlas_app_model::SimilarityPartsRequest,
         execution: &ReadExecutionContext,
     ) -> Result<atlas_app_model::SimilarityPartsView, AppServiceError>;
+    fn roll_content(
+        &self,
+        request: atlas_app_model::RollContentRequest,
+    ) -> Result<atlas_app_model::ContentRollResultView, AppServiceError>;
     fn roll_flat_check(
         &self,
         request: atlas_app_model::RollFlatCheckRequest,
@@ -507,6 +511,12 @@ impl AtlasWebService for AtlasAppService {
         request: atlas_app_model::EncounterStrikeOptionsRequest,
     ) -> Result<atlas_app_model::EncounterStrikeOptionsView, AppServiceError> {
         self.encounter_strike_options(encounter_ref, request)
+    }
+    fn roll_content(
+        &self,
+        request: atlas_app_model::RollContentRequest,
+    ) -> Result<atlas_app_model::ContentRollResultView, AppServiceError> {
+        self.roll_content(request)
     }
     fn roll_flat_check(
         &self,

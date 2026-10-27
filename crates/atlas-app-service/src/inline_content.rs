@@ -234,7 +234,12 @@ impl Composer<'_> {
             &content.content.fields,
             &content.bounded,
             self.r.artifact_context().audience,
-            self.r.source_fingerprint(),
+            &crate::prepared_content::PreparedContentContext::source(
+                self.r.source_fingerprint(),
+                &record.source,
+                &owners,
+                None,
+            ),
         )?;
         let added_bytes: usize = fields
             .iter()

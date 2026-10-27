@@ -397,3 +397,11 @@ export type { SimilarityPartsRequest } from "../../../../crates/atlas-app-model/
 export type { SimilarityPartsView } from "../../../../crates/atlas-app-model/bindings/SimilarityPartsView";
 export type { SimilarityEvidenceView } from "../../../../crates/atlas-app-model/bindings/SimilarityEvidenceView";
 export type { SimilarityConfigurationView } from "../../../../crates/atlas-app-model/bindings/SimilarityConfigurationView";
+
+export type { ContentRollComponentView } from "../../../../crates/atlas-app-model/bindings/ContentRollComponentView";
+export type { RollContentRequest } from "../../../../crates/atlas-app-model/bindings/RollContentRequest";
+export type { ContentRollResultView } from "../../../../crates/atlas-app-model/bindings/ContentRollResultView";
+export type { ContentRollComponentResultView } from "../../../../crates/atlas-app-model/bindings/ContentRollComponentResultView";
+
+export type { ContentRollPresentationView } from "../../../../crates/atlas-app-model/bindings/ContentRollPresentationView";
+export type { RollUnitView } from "../../../../crates/atlas-app-model/bindings/RollUnitView";

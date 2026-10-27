@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type {
   RollOutcome,
+  RollUnitView,
   RollExpression,
   RollPreviewExpression,
 } from "../../generated/atlas";
@@ -11,11 +12,13 @@ import "../../styles/ui/dice.css";
 
 export function RollResult({
   outcome,
+  unit,
   pending = false,
   drawing = diceAppearance.drawing,
   motion = diceAppearance.motion,
 }: {
   outcome: RollOutcome;
+  unit?: RollUnitView;
   pending?: boolean;
   drawing?: DiceDrawing;
   motion?: DiceMotion;
@@ -24,7 +27,11 @@ export function RollResult({
     <span
       className="atlas-roll"
       role="status"
-      aria-label={pending ? "Rolling" : `${outcome.formula}: ${outcome.total}`}
+      aria-label={
+        pending
+          ? "Rolling"
+          : `${outcome.formula}: ${outcome.total}${unit ? ` ${unitLabel(unit, outcome.total)}` : ""}`
+      }
     >
       <Expression
         pending={pending}
@@ -32,8 +39,13 @@ export function RollResult({
         drawing={drawing}
         motion={motion}
       />
-      <span aria-hidden="true">=</span>
-      <strong className="atlas-roll__total">{pending ? " " : outcome.total}</strong>
+      <span className="atlas-roll__result">
+        <span aria-hidden="true">=</span>
+        <span className="atlas-roll__quantity">
+          <strong className="atlas-roll__total">{pending ? " " : outcome.total}</strong>
+          {unit && <span>{unitLabel(unit, pending ? undefined : outcome.total)}</span>}
+        </span>
+      </span>
     </span>
   );
 }
@@ -41,11 +53,13 @@ export function RollResult({
 export function UnrolledRoll({
   expression,
   formula,
+  unit,
   pending = false,
   children,
 }: {
   expression: RollPreviewExpression;
   formula: string;
+  unit?: RollUnitView;
   pending?: boolean;
   children: ReactNode;
 }) {
@@ -53,7 +67,7 @@ export function UnrolledRoll({
     <span
       className="atlas-roll"
       role={pending ? "status" : "group"}
-      aria-label={`${pending ? "Rolling" : "Unrolled"} ${formula}`}
+      aria-label={`${pending ? "Rolling" : "Unrolled"} ${formula}${unit ? ` ${unit.plural}` : ""}`}
     >
       <Expression
         value={expression}
@@ -61,8 +75,13 @@ export function UnrolledRoll({
         drawing={diceAppearance.drawing}
         motion={diceAppearance.motion}
       />
-      <span aria-hidden="true">=</span>
-      <span className="atlas-roll__total">{children}</span>
+      <span className="atlas-roll__result">
+        <span aria-hidden="true">=</span>
+        <span className="atlas-roll__quantity">
+          <span className="atlas-roll__total">{children}</span>
+          {unit && <span>{unit.plural}</span>}
+        </span>
+      </span>
     </span>
   );
 }
@@ -144,4 +163,8 @@ function Expression({
       );
     }
   }
+}
+
+function unitLabel(unit: RollUnitView, total?: number) {
+  return total !== undefined && Math.abs(total) === 1 ? unit.singular : unit.plural;
 }

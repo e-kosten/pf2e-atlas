@@ -238,7 +238,12 @@ fn source_heading_link(source: &PreparedInclusionSourceLink, title: &str) -> Str
         source.namespace
     )
 }
-fn element_with_body(element: ElementRef<'_>, tag: &str, body: &str, promoted: bool) -> String {
+pub(super) fn element_with_body(
+    element: ElementRef<'_>,
+    tag: &str,
+    body: &str,
+    promoted: bool,
+) -> String {
     let mut out = format!("<{tag}");
     for (name, value) in element.value().attrs() {
         out.push_str(&format!(" {name}=\"{}\"", escape_content_text(value)));
@@ -246,7 +251,27 @@ fn element_with_body(element: ElementRef<'_>, tag: &str, body: &str, promoted: b
     if promoted {
         out.push_str(" data-atlas-inclusion-heading=\"true\"");
     }
-    out.push_str(&format!(">{body}</{tag}>"));
+    out.push('>');
+    out.push_str(body);
+    if !matches!(
+        tag,
+        "area"
+            | "base"
+            | "br"
+            | "col"
+            | "embed"
+            | "hr"
+            | "img"
+            | "input"
+            | "link"
+            | "meta"
+            | "param"
+            | "source"
+            | "track"
+            | "wbr"
+    ) {
+        out.push_str(&format!("</{tag}>"));
+    }
     out
 }
 fn action_heading(
