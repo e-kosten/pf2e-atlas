@@ -396,7 +396,7 @@ function actionCheck(
     dc: toBigInt(value.dc),
     sources: value.sources.map((source) => ({
       ...source,
-      condition_id: toBigInt(source.condition_id),
+      condition_id: source.condition_id === null ? null : toBigInt(source.condition_id),
     })),
   };
 }
@@ -565,7 +565,8 @@ function actionPreview(
     ...value,
     issues: value.issues.map((issue) => ({
       ...issue,
-      source_condition_id: toBigInt(issue.source_condition_id),
+      source_condition_id:
+        issue.source_condition_id === null ? null : toBigInt(issue.source_condition_id),
     })),
     disruption: value.disruption === null ? null : actionCheck(value.disruption),
   };
@@ -630,7 +631,10 @@ export async function getEncounterConditionLifecycleActions(
             condition_id: toBigInt(action.condition_id),
             issues: action.issues.map((issue) => ({
               ...issue,
-              source_condition_id: toBigInt(issue.source_condition_id),
+              source_condition_id:
+                issue.source_condition_id === null
+                  ? null
+                  : toBigInt(issue.source_condition_id),
             })),
           };
         case "reminder":
@@ -961,7 +965,8 @@ async function atlasFetchEncounter<T>(
           throw new AtlasApiError(200, "Invalid persistent damage source");
         return {
           ...source,
-          condition_id: toBigInt(source.condition_id),
+          condition_id:
+            source.condition_id === null ? null : toBigInt(source.condition_id),
           recovery_dc:
             source.recovery_dc === null ? null : toBigInt(source.recovery_dc),
         };
@@ -1013,6 +1018,25 @@ async function atlasFetchEncounter<T>(
         ? {}
         : { base_death_threshold: toBigInt(value.base_death_threshold) }),
       conditions: value.conditions.map(condition),
+      ...(Array.isArray(value.ability_states)
+        ? {
+            ability_states: value.ability_states.map((ability) => {
+              if (!isRecord(ability) || !isRecord(ability.state))
+                throw new AtlasApiError(200, "Invalid ability state");
+              return {
+                ...ability,
+                state:
+                  ability.state.kind === "uses"
+                    ? {
+                        ...ability.state,
+                        remaining: toBigInt(ability.state.remaining),
+                        maximum: toBigInt(ability.state.maximum),
+                      }
+                    : ability.state,
+              };
+            }),
+          }
+        : {}),
       ...(Array.isArray(value.persistent_damage_groups)
         ? {
             persistent_damage_groups:
@@ -1441,6 +1465,16 @@ export async function getTraitRecords(
       "The Similar response does not match the selected search model. Retry.",
     );
   return result;
+}
+
+export async function updateEncounterAbilityState(
+  encounterRef: string,
+  request: import("../generated/atlas").UpdateEncounterAbilityStateRequest,
+): Promise<import("../generated/atlas").EncounterMutationView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/ability-state`,
+    { method: "POST", body: jsonBody(request) },
+  );
 }
 
 export async function updateTurnResources(

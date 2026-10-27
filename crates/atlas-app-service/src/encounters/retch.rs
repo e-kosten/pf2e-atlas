@@ -2,7 +2,10 @@
 use super::rules::action_context::{
     ActionContext, ActionEvaluation, ActionFact, ActionJudgment, ActionKind, evaluate_action,
 };
-pub(super) fn evaluate(participant: &atlas_local_state::EncounterParticipant) -> ActionEvaluation {
+pub(super) fn evaluate(
+    participant: &atlas_local_state::EncounterParticipant,
+    sources: &super::rules::source_conditions::SourceConditions,
+) -> ActionEvaluation {
     let facts = [
         ActionFact::Manipulate,
         ActionFact::Auditory,
@@ -19,6 +22,7 @@ pub(super) fn evaluate(participant: &atlas_local_state::EncounterParticipant) ->
     });
     evaluate_action(
         participant,
+        sources,
         &ActionContext {
             kind: ActionKind::Retch,
             reaction: Some(false),

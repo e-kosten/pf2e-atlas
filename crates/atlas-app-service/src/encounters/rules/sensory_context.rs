@@ -4,7 +4,7 @@ use atlas_local_state::EncounterParticipant;
 
 pub(in crate::encounters) struct DazzledConcealment {
     pub applies: Option<bool>,
-    pub source_ids: Vec<i64>,
+    pub source_ids: Vec<super::causes::ConditionSourceKey>,
 }
 /// Range can rule an alternative out; being within range alone does not establish
 /// echolocation or another special sense's remaining target requirements.
@@ -15,11 +15,17 @@ pub(in crate::encounters) fn dazzled_concealment(
     distance: Option<f64>,
     vision_only: Option<bool>,
 ) -> DazzledConcealment {
-    let causes = super::causes::condition_causes(observer, Some(other));
+    let causes = super::causes::condition_causes(
+        observer,
+        Some(other),
+        baseline
+            .map(|baseline| &baseline.source_conditions)
+            .unwrap_or_else(|| super::source_conditions::SourceConditions::empty()),
+    );
     let source_ids = causes
         .iter()
         .filter(|cause| cause.rule == ConditionRule::Dazzled)
-        .map(|cause| cause.source.condition_id)
+        .map(|cause| cause.source.key())
         .collect::<Vec<_>>();
     if source_ids.is_empty() {
         return DazzledConcealment {

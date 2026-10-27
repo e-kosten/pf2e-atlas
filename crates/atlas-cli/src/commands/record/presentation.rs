@@ -273,6 +273,28 @@ pub(super) fn render_record(
             );
         }
     }
+    if let Some(grants) = &presentation.grants {
+        line(&mut out, "\nGrants");
+        for entry in &grants.entries {
+            line(&mut out, format!("- {}", entry.title));
+        }
+        if grants.unavailable_count > 0 {
+            line(
+                &mut out,
+                if grants.unavailable_count == 1 {
+                    "One granted reference is unavailable.".into()
+                } else {
+                    format!(
+                        "{} granted references are unavailable.",
+                        grants.unavailable_count
+                    )
+                },
+            );
+        }
+        if grants.truncated {
+            line(&mut out, "Some granted references could not be loaded.");
+        }
+    }
     Ok(out.lines().fold(String::new(), |mut rendered, line| {
         if !line.is_empty() || !rendered.ends_with("\n\n") {
             rendered.push_str(line);

@@ -4,7 +4,7 @@ use atlas_app_model::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct StatBlockView {
-    pub(crate) source_actions: super::rules::source_action_conditions::SourceActionConditions,
+    pub(crate) source_conditions: super::rules::source_conditions::SourceConditions,
     pub record_key: String,
     pub title: String,
     pub level: Option<serde_json::Number>,
@@ -144,7 +144,7 @@ pub(crate) enum SpellUsage {
 pub(crate) struct StatReplacement {
     pub target: StatisticTarget,
     pub value: serde_json::Number,
-    pub condition_id: i64,
+    pub source: String,
     pub condition_name: String,
 }
 impl StatBlockView {

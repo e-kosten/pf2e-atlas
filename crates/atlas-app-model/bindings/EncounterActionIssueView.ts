@@ -3,4 +3,4 @@ import type { ConditionSubjectView } from "./ConditionSubjectView";
 import type { EncounterActionFactView } from "./EncounterActionFactView";
 import type { EncounterActionIssueKindView } from "./EncounterActionIssueKindView";
 
-export type EncounterActionIssueView = { subject: ConditionSubjectView | null, source_condition_id: bigint, condition_name: string, controller_key: string | null, instructions: string | null, kind: EncounterActionIssueKindView, fact: EncounterActionFactView | null, reason: string, };
+export type EncounterActionIssueView = { subject: ConditionSubjectView | null, source_key: string, source_condition_id: bigint | null, condition_name: string, controller_key: string | null, instructions: string | null, kind: EncounterActionIssueKindView, fact: EncounterActionFactView | null, reason: string, };

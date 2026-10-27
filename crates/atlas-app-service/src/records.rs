@@ -118,6 +118,7 @@ pub(crate) fn read_record_detail(
     request: RecordDetailRequest,
 ) -> AppServiceResult<(atlas_search::SourceRecordDetail, RecordDetailView)> {
     validate_request(&request)?;
+    let whole_document = request.fields.is_empty() && request.passage.is_none();
     let key = RecordKey::parse(&request.record_key)
         .map_err(|e| AppServiceError::new(AppErrorCode::InvalidRecordKey, e.to_string()))?;
     if request
@@ -264,6 +265,7 @@ pub(crate) fn read_record_detail(
         direction: SourceRelationshipDirection::Outgoing,
         limit: 1024,
     })?;
+    let grants_truncated = relationships.truncated;
     let mut view = RecordDetailView {
         encounter_adjustment: request
             .owners
@@ -322,6 +324,9 @@ pub(crate) fn read_record_detail(
     };
     crate::contextual_references::attach_consumable_spell(&mut view, r)?;
     crate::contextual_references::attach_ranked_effects(&mut view, r)?;
+    if whole_document {
+        crate::record_grants::attach(&detail.source, &mut view, r, grants_truncated)?;
+    }
     Ok((detail, view))
 }
 pub(crate) fn validate_request(r: &RecordDetailRequest) -> AppServiceResult<()> {

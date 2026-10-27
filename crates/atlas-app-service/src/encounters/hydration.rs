@@ -17,8 +17,8 @@ pub(super) fn source_baseline(
     else {
         return Ok(None);
     };
-    baseline.source_actions =
-        super::rules::source_action_conditions::source_action_conditions(record, |uuid| {
+    baseline.source_conditions =
+        super::rules::source_conditions::source_conditions(record, |uuid| {
             Ok(
                 match retrieval
                     .resolve_source_root_reference(uuid)?
@@ -31,8 +31,11 @@ pub(super) fn source_baseline(
                 },
             )
         })?;
-    if !baseline.source_actions.entries.is_empty() {
-        baseline.source_actions.source_fingerprint = Some(retrieval.source_fingerprint().into());
+    if !baseline.source_conditions.entries.is_empty()
+        || !baseline.source_conditions.options.is_empty()
+        || !baseline.source_conditions.uses.is_empty()
+    {
+        baseline.source_conditions.source_fingerprint = Some(retrieval.source_fingerprint().into());
     }
     Ok(Some(baseline))
 }
@@ -101,18 +104,18 @@ pub(super) fn hydrate_participant_records(
     Ok((Some(r.artifact_generation()?), records))
 }
 
-pub(super) fn participant_source_actions(
+pub(super) fn participant_source_conditions(
     participant: &EncounterParticipant,
     records: &BTreeMap<String, HydratedParticipantRecord>,
-) -> super::rules::source_action_conditions::SourceActionConditions {
+) -> super::rules::source_conditions::SourceConditions {
     let Some(key) = &participant.record_key else {
         return Default::default();
     };
     records
         .get(key)
         .and_then(|record| record.arithmetic_baseline.as_ref())
-        .map(|baseline| baseline.source_actions.clone())
-        .unwrap_or_else(super::rules::source_action_conditions::SourceActionConditions::unavailable)
+        .map(|baseline| baseline.source_conditions.clone())
+        .unwrap_or_else(super::rules::source_conditions::SourceConditions::unavailable)
 }
 pub(super) fn resolve_record_ref(
     r: &mut atlas_search::AtlasRetrievalService,
