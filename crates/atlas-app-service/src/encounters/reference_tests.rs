@@ -4,6 +4,113 @@ use atlas_search::test_support::{input, open_input_fixture, open_source_fixture,
 use serde_json::json;
 
 #[test]
+fn addressed_condition_formula_includes_the_creatures_authored_condition_value() {
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        || {
+            Ok(open_source_fixture(
+                vec![
+                    record(
+                        "actors",
+                        "Actor",
+                        json!({
+                            "_id":"inherentActor001","name":"Inherent stupefied","type":"npc",
+                            "system":{"details":{"level":{"value":5}},"attributes":{"adjustment":null,"hp":{"max":50}},"traits":{"value":[]}},
+                            "items":[{"_id":"inherentStup0001","name":"Stupefied","type":"condition","system":{"slug":"stupefied","value":{"isValued":true,"value":4}}}]
+                        }),
+                    ),
+                    record(
+                        "conditionitems",
+                        "Item",
+                        json!({
+                            "_id":"e1XGnhKNSQIm5IXg","name":"Stupefied","type":"condition",
+                            "system":{"slug":"stupefied","value":{"isValued":true,"value":1},"description":{"value":"<p>@Check[flat|showDC:all|dc:resolve(5+@item.badge.value)]</p>"}}
+                        }),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let encounter = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Authored condition formula".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            encounter_ref: encounter.slug.clone(),
+            record_ref: "actors:inherentActor001".into(),
+            quantity: 1,
+            participant_variant: None,
+            initiative: None,
+        })
+        .unwrap();
+    let current = f.worker.encounter(&encounter.slug).unwrap();
+    let participant_key = current.participants[0].participant_key.clone();
+    f.worker
+        .add_encounter_participant_condition(
+            &encounter.slug,
+            AddEncounterParticipantConditionRequest {
+                request_id: "temporary-stupefied".into(),
+                event_intent: Default::default(),
+                decisions: Default::default(),
+                expected_encounter_revision: current.revision,
+                participant_key: participant_key.clone(),
+                condition_ref: Some("conditionitems:e1XGnhKNSQIm5IXg".into()),
+                name: None,
+                value: Some(2),
+                source_participant_key: None,
+                duration: None,
+                note: None,
+                scope: Default::default(),
+                extra_action: Default::default(),
+                immunity_override: false,
+                parameters: Default::default(),
+                origin: None,
+            },
+        )
+        .unwrap();
+    let current = f.worker.encounter(&encounter.slug).unwrap();
+    let saved = &current.participants[0].conditions[0];
+    assert_eq!(saved.value, Some(2));
+    let view = f
+        .worker
+        .encounter_reference(
+            &encounter.slug,
+            &participant_key,
+            EncounterReferenceRequest {
+                artifact_generation: current.artifact_generation.unwrap(),
+                condition_id: Some(saved.condition_id),
+                selection: RecordDetailRequest {
+                    record_key: "conditionitems:e1XGnhKNSQIm5IXg".into(),
+                    owners: vec![],
+                    fields: vec![],
+                    passage: None,
+                    spell_rank: None,
+                    source_fingerprint: None,
+                },
+            },
+        )
+        .unwrap();
+    let html = view
+        .presentation
+        .content
+        .iter()
+        .find_map(|field| match &field.body {
+            PreparedFieldBodyView::Html { html, .. } => Some(html.as_str()),
+            _ => None,
+        })
+        .unwrap();
+    assert!(html.contains("DC 9 flat check"), "{html}");
+}
+
+#[test]
 fn selected_reference_preserves_local_documents_and_composes_current_participant_facts() {
     let source = json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Local caster","system":{"details":{"level":{"value":5}},"attributes":{"adjustment":null,"ac":{"value":22},"hp":{"max":60}}},"items":[
         {"_id":"eeeeeeeeeeeeeeee","name":"Staff casting","type":"spellcastingEntry","system":{"description":{"value":""},"spelldc":{"dc":33,"value":23},"prepared":{"value":"spontaneous"},"tradition":{"value":"arcane"}}},
@@ -51,6 +158,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
     let generation = current.artifact_generation.unwrap();
     let participant = &current.participants[0];
     let request = |id: &str| EncounterReferenceRequest {
+        condition_id: None,
         artifact_generation: generation.clone(),
         selection: RecordDetailRequest {
             spell_rank: None,
@@ -243,6 +351,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
             &encounter.slug,
             &participant.participant_key,
             EncounterReferenceRequest {
+                condition_id: None,
                 artifact_generation: generation,
                 selection: RecordDetailRequest {
                     spell_rank: None,
@@ -309,6 +418,7 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
     let generation_a = current.artifact_generation.unwrap();
     let participant_key = current.participants[0].participant_key.clone();
     let request_a = EncounterReferenceRequest {
+        condition_id: None,
         artifact_generation: generation_a.clone(),
         selection: RecordDetailRequest {
             spell_rank: None,
@@ -421,4 +531,265 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
             .contains("snapshot-local navigation")
     );
     assert_eq!(navigation_error.recoverable_action, None);
+}
+
+#[test]
+fn contextual_reference_uses_current_actor_level_and_effective_condition_value() {
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        || {
+            Ok(open_source_fixture(
+                vec![
+                    record(
+                        "actors",
+                        "Actor",
+                        json!({"_id":"contextActor0001","name":"Context creature","type":"npc","system":{"details":{"level":{"value":7},"publicNotes":"<p>@Damage[(ceil(@actor.level/2))d6[untyped]]</p>"},"attributes":{"adjustment":null,"ac":{"value":22},"hp":{"max":60}},"traits":{"value":[],"rarity":"common"}}}),
+                    ),
+                    record(
+                        "actors",
+                        "Actor",
+                        json!({"_id":"contextUnknown01","name":"Unknown adjustment","type":"npc","system":{"details":{"level":{"value":7},"publicNotes":"<p>@Damage[(ceil(@actor.level/2))d6[untyped]]</p>"},"attributes":{"adjustment":"unsupported","ac":{"value":22},"hp":{"max":60}}}}),
+                    ),
+                    record(
+                        "conditionitems",
+                        "Item",
+                        json!({"_id":"e1XGnhKNSQIm5IXg","name":"Stupefied","type":"condition","system":{"value":{"value":1,"isValued":true},"description":{"value":"<p>@Check[flat|showDC:all|dc:resolve(5+@item.badge.value)] with a DC equal to 5 + your stupefied value.</p>"}}}),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let encounter = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Context formulas".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
+            encounter_ref: encounter.slug.clone(),
+            record_ref: "actors:contextActor0001".into(),
+            quantity: 1,
+            initiative: None,
+        })
+        .unwrap();
+    let current = f.worker.encounter(&encounter.slug).unwrap();
+    let participant = &current.participants[0];
+    let request = EncounterReferenceRequest {
+        condition_id: None,
+        artifact_generation: current.artifact_generation.clone().unwrap(),
+        selection: RecordDetailRequest {
+            record_key: "actors:contextActor0001".into(),
+            owners: vec![],
+            fields: vec![],
+            passage: None,
+            spell_rank: None,
+            source_fingerprint: None,
+        },
+    };
+    let selected = f
+        .worker
+        .encounter_reference(
+            &encounter.slug,
+            &participant.participant_key,
+            request.clone(),
+        )
+        .unwrap();
+    let get_roll = |view: &RecordDetailView| {
+        view.presentation
+            .content
+            .iter()
+            .find_map(|f| match &f.body {
+                PreparedFieldBodyView::Html { controls, .. } => {
+                    controls.iter().find_map(|c| match &c.control {
+                        ContentControlKindView::Damage { roll, .. } => roll.clone(),
+                        _ => None,
+                    })
+                }
+                _ => None,
+            })
+            .unwrap()
+    };
+    let old = get_roll(&selected);
+    assert!(old.encounter.is_some());
+    assert!(f.worker.roll_content(old.clone()).is_ok());
+    let canonical = f
+        .worker
+        .with_retrieval(&crate::ReadExecutionContext::uncancellable(), |r| {
+            Ok(
+                r.read_attributed_content(&[atlas_record::source_content::SourceContentLocator {
+                    record: "actors:contextActor0001".parse().unwrap(),
+                    owners: vec![],
+                    field: "/system/details/publicNotes".into(),
+                }])?
+                .content
+                .fields[0]
+                    .html
+                    .clone()
+                    .unwrap(),
+            )
+        })
+        .unwrap();
+    let section = atlas_record::source_record::select_prepared_html_sections(&canonical)
+        .unwrap()
+        .remove(0);
+    let mut passage_request = request.clone();
+    passage_request.selection.fields = vec!["/system/details/publicNotes".into()];
+    passage_request.selection.passage = Some(atlas_domain::SourcePassageAddress::HtmlSection {
+        prepared_html_sha256: atlas_search::test_support::hash(canonical.as_bytes()),
+        canonical_text_sha256: atlas_search::test_support::hash(section.text.as_bytes()),
+        selection_version: atlas_record::source_record::SOURCE_CONTENT_SELECTION_VERSION.into(),
+        section_ordinal: 0,
+        label: section.label,
+        chunk_bytes: atlas_domain::SourceByteRange {
+            start: 0,
+            end: section.text.len(),
+        },
+    });
+    let mut update = super::tests::update(participant);
+    update.participant_variant = EncounterParticipantVariantView::Weak;
+    update.variant_edit = true;
+    f.worker
+        .update_encounter_participant(&encounter.slug, update)
+        .unwrap();
+    assert!(
+        f.worker.roll_content(old).is_err(),
+        "changed participant revision cannot reuse its old offer"
+    );
+    let updated = f
+        .worker
+        .encounter_reference(
+            &encounter.slug,
+            &participant.participant_key,
+            request.clone(),
+        )
+        .unwrap();
+    let outcome = f.worker.roll_content(get_roll(&updated)).unwrap();
+    assert!((3..=18).contains(&outcome.components[0].outcome.total));
+    let addressed = f
+        .worker
+        .encounter_reference(
+            &encounter.slug,
+            &participant.participant_key,
+            passage_request,
+        )
+        .unwrap();
+    let addressed_html = addressed
+        .presentation
+        .content
+        .iter()
+        .find_map(|field| match &field.body {
+            PreparedFieldBodyView::Html { html, .. } => Some(html.as_str()),
+            _ => None,
+        })
+        .unwrap();
+    assert!(addressed_html.contains("data-atlas-passage-target"));
+    assert!(addressed_html.contains(">3d6</span> damage"));
+    let current = f.worker.encounter(&encounter.slug).unwrap();
+    f.worker
+        .add_encounter_participant_condition(
+            &encounter.slug,
+            AddEncounterParticipantConditionRequest {
+                request_id: "context-stupefied".into(),
+                event_intent: Default::default(),
+                decisions: Default::default(),
+                expected_encounter_revision: current.revision,
+                scope: Default::default(),
+                extra_action: Default::default(),
+                immunity_override: false,
+                parameters: Default::default(),
+                origin: None,
+                participant_key: participant.participant_key.clone(),
+                condition_ref: Some("conditionitems:e1XGnhKNSQIm5IXg".into()),
+                name: None,
+                value: Some(2),
+                source_participant_key: None,
+                duration: None,
+                note: None,
+            },
+        )
+        .unwrap();
+    let current = f.worker.encounter(&encounter.slug).unwrap();
+    let condition = &current.participants[0].conditions[0];
+    let mut request = request;
+    request.condition_id = Some(condition.condition_id);
+    request.selection.record_key = condition.condition_key.clone().unwrap();
+    let selected = f
+        .worker
+        .encounter_reference(
+            &encounter.slug,
+            &participant.participant_key,
+            request.clone(),
+        )
+        .unwrap();
+    let text = selected
+        .presentation
+        .content
+        .iter()
+        .find_map(|f| match &f.body {
+            PreparedFieldBodyView::Html { html, .. } => Some(html),
+            _ => None,
+        })
+        .unwrap();
+    assert!(text.contains("DC 7 flat check"));
+    assert!(!text.contains("your stupefied value"));
+    request.condition_id = Some(condition.condition_id + 999);
+    assert!(
+        f.worker
+            .encounter_reference(&encounter.slug, &participant.participant_key, request)
+            .is_err()
+    );
+    let generic = f
+        .worker
+        .record_detail("conditionitems:e1XGnhKNSQIm5IXg")
+        .unwrap();
+    let generic = serde_json::to_string(&generic.presentation.content).unwrap();
+    assert!(generic.contains("5 + your stupefied value"));
+    assert!(!generic.contains("DC 6"));
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
+            encounter_ref: encounter.slug.clone(),
+            record_ref: "actors:contextUnknown01".into(),
+            quantity: 1,
+            initiative: None,
+        })
+        .unwrap();
+    let current = f.worker.encounter(&encounter.slug).unwrap();
+    let unknown = current
+        .participants
+        .iter()
+        .find(|p| p.record_key.as_deref() == Some("actors:contextUnknown01"))
+        .unwrap();
+    let unknown = f
+        .worker
+        .encounter_reference(
+            &encounter.slug,
+            &unknown.participant_key,
+            EncounterReferenceRequest {
+                condition_id: None,
+                artifact_generation: current.artifact_generation.unwrap(),
+                selection: RecordDetailRequest {
+                    record_key: "actors:contextUnknown01".into(),
+                    owners: vec![],
+                    fields: vec![],
+                    passage: None,
+                    spell_rank: None,
+                    source_fingerprint: None,
+                },
+            },
+        )
+        .unwrap();
+    let unknown = serde_json::to_string(&unknown.presentation.content).unwrap();
+    assert!(
+        unknown.contains("the creature’s level"),
+        "unknown effective level never falls back to its unadjusted source"
+    );
+    assert!(!unknown.contains(">4d6"));
 }

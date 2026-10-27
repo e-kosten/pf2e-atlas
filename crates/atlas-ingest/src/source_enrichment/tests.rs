@@ -293,3 +293,29 @@ fn addressed_handoff_keeps_sparse_outputs_separate_from_the_unchanged_record() {
     assert_eq!(source.report().content_outcomes.get("prepared"), Some(&1));
     assert!(!source.report().content_outcomes.contains_key("unavailable"));
 }
+
+#[test]
+fn preparation_reuse_replays_the_derived_action_policy_and_detects_case_collisions() {
+    struct English;
+    impl atlas_record::source_content::LocalizationResolver for English {
+        fn localized_value(&self, key: &str) -> Option<&str> {
+            (key == "PF2E.Actions.GrabAnEdge.Title").then_some("Grab An Edge")
+        }
+    }
+    let admitted = |id: &str, name: &str, description: &str| {
+        let document = document(
+            json!({"_id":id,"type":"action","name":name,"system":{"description":{"value":description}}}),
+            "action.json",
+        );
+        SourceBackedRecord::new("actionspf2e", document.admission.model.unwrap()).unwrap()
+    };
+    let action = admitted("aaaaaaaaaaaaaaaa", "Grab an Edge", "");
+    let origin = admitted("bbbbbbbbbbbbbbbb", "Origin", "[[/act grab-an-edge]]");
+    let mut index = SourceReferenceIndex::default();
+    index.insert_source(action.key(), action.source());
+    let content = prepare_record_content(&origin, context().audience, Some(&English), Some(&index));
+    assert!(references_unchanged(&content, &index));
+    let collision = admitted("cccccccccccccccc", "Grab An Edge", "");
+    index.insert_source(collision.key(), collision.source());
+    assert!(!references_unchanged(&content, &index));
+}

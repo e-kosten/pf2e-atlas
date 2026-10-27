@@ -2510,6 +2510,7 @@ fn strike_rolls_use_effective_damage_and_recover_before_stale_guards() {
         participant_key: p.participant_key.clone(),
         expected_participant_revision: p.revision,
         reference: EncounterReferenceRequest {
+            condition_id: None,
             artifact_generation: current.artifact_generation.clone().unwrap(),
             selection: RecordDetailRequest {
                 spell_rank: None,

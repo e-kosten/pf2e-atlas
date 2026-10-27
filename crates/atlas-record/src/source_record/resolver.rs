@@ -1,7 +1,7 @@
 use super::traversal::visit_source_nodes;
 use crate::source_content::{
-    ContentReferenceResolver, ContentReferenceTarget, ResolvedContentReference,
-    SourceContentLocator,
+    ContentReferenceKind, ContentReferenceResolver, ContentReferenceTarget,
+    ResolvedContentReference, SourceContentLocator,
 };
 use atlas_domain::OwnedContentIdentity;
 use atlas_domain::RecordKey;
@@ -239,10 +239,11 @@ impl ContentReferenceResolver for SourceReferenceIndex {
     fn resolve_reference(
         &self,
         source: &SourceContentLocator,
+        kind: &ContentReferenceKind,
         target: &str,
     ) -> Option<ResolvedContentReference> {
         if target.starts_with("Compendium.") || target.starts_with("pf2e.") {
-            return self.resolve_global_reference(target);
+            return self.resolve_global_content_reference(kind, target);
         }
         if let Some(relative) = target.strip_prefix('.') {
             // Pinned journal prose uses .PAGE_ID for a sibling page in the
@@ -273,6 +274,34 @@ impl ContentReferenceResolver for SourceReferenceIndex {
 }
 
 impl SourceReferenceIndex {
+    /// Registry names and pack names differ in ASCII capitalization for two
+    /// pinned actions. Only derived action references may use a unique case-only
+    /// match, confined to root action items in the declared action pack.
+    pub fn resolve_global_content_reference(
+        &self,
+        kind: &ContentReferenceKind,
+        target: &str,
+    ) -> Option<ResolvedContentReference> {
+        if !matches!(kind, ContentReferenceKind::Action { .. }) {
+            return self.resolve_global_reference(target);
+        }
+        let prefix = "Compendium.pf2e.actionspf2e.Item.";
+        let name = target.strip_prefix(prefix)?;
+        let mut matches = self
+            .names
+            .range(prefix.to_owned()..)
+            .take_while(|(key, _)| key.starts_with(prefix))
+            .filter(|(key, _)| key[prefix.len()..].eq_ignore_ascii_case(name));
+        let (key, _) = matches.next()?;
+        if matches.next().is_some() {
+            return None;
+        }
+        let resolved = self.lookup(key)?;
+        (resolved.item_family.as_deref() == Some("action")
+            && matches!(resolved.target, ContentReferenceTarget::Record { .. }))
+        .then_some(resolved)
+    }
+
     /// Resolve only fully qualified authored destinations; no document-relative context exists for terms.
     pub fn resolve_global_reference(&self, target: &str) -> Option<ResolvedContentReference> {
         if let Some(legacy) = target.strip_prefix("Compendium.") {

@@ -27,7 +27,7 @@ directly; there is no ingest re-export facade or copied parser.
 
 The callable preparation API accepts a source-field locator, authored HTML,
 explicit audience/implicit DC policy, whole-field visibility and optional localization/reference
-providers. Callers select HTML fields using upstream format metadata; this API
+providers, plus source-kind formula labels without runtime values. Callers select HTML fields using upstream format metadata; this API
 does not guess journal Markdown/plain-text formats from string contents.
 
 Source macros use the pinned handlers/registration as evidence. The old invented
@@ -54,13 +54,17 @@ HTML parser dependency; the comparison with 0.17.1 found no relevant fidelity ga
 Localization uses resolved content, with ignored custom labels retained in source
 and diagnosed. Authored custom labels on other enrichments remain labels; their
 mechanics are sidecar facts rather than appended prose. Unsupported macros and
-dynamic expressions remain literal/authored data with diagnostics. Interpretation
-does not execute commands, predicates, formulas or Foundry document preparation.
+unknown expressions remain literal/authored data with diagnostics. Interpretation
+does not execute commands, predicates or Foundry document preparation. A bounded
+transient arithmetic interpreter supplies symbolic reading and checked numeric
+substitution; application consumers own authoritative values.
 
 Reference recognition precedes display/graph/search policy. Hidden occurrences
 remain identifiable with explicit visibility; unresolved and sanitizer-blocked
-destinations remain evidence, not usable links. Resolver output carries identities
-and optional display names, never hard-coded web/CLI routes or copied destination
+destinations remain evidence, not usable links. Derived action references carry
+their registry identity and permit only unique ASCII case-only name matches
+within the admitted action pack. Authored UUID/name references keep their existing
+exact policy. Resolver output carries identities and optional display names, never hard-coded web/CLI routes or copied destination
 prose. Preparation retains Embed targets/options as occurrences without expanding
 stored HTML or retrieval text. Selected application reading may compose the
 supported inline Item descriptions from checked prepared fields in one snapshot.
@@ -121,8 +125,18 @@ search implicitly. No UI locale setting, multi-locale index or runtime preparati
 framework is required now. This library API does not implement new CLI locale
 flags or artifact metadata; those follow the coherent adoption design.
 
-Source expressions, modifier behavior and runtime preparation remain separate
-behavior work. Avoid document-specific repairs, speculative interaction schemas,
+Contextual expression reading uses a bounded transient arithmetic tree, never a
+persisted AST or arbitrary JavaScript. Preparation accepts source-kind labels only;
+application consumers may bind checked selected spell rank, item level, owning
+actor level or explicitly addressed encounter state. Generic badge defaults and
+standalone feat levels cannot supply live condition values or actor level.
+Generated-label provenance permits replacing only derived interaction bodies;
+authored labels, source parameters and reference bindings remain intact. Resolve
+each field in its own namespace before inline composition. Dice offers bind their
+source, selected rank and any runtime participant revision; the server rereads
+context before rolling. Missing values become symbolic prose without input forms.
+General rules execution and unsupported runtime preparation remain separate work.
+Avoid document-specific repairs, speculative interaction schemas,
 compatibility facades and a second persisted/public generic HTML tree.
 
 ## Sources

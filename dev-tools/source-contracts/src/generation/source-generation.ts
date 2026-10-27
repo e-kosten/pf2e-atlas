@@ -1,3 +1,4 @@
+import { generateActionModule } from './action-definitions.js';
 import { generateConditionModule } from './condition-definitions.js';
 import { generateTraitDefinitionModule } from './trait-definitions.js';
 import type { GraphField, GraphNode } from '../contracts.js';
@@ -683,6 +684,11 @@ ${openTraitArrays.size ? '// Explicit trait-array policies keep identifiers as s
     if (!input.referenceSource) throw new Error('Trait metadata requires pinned source provenance');
     files['trait_definitions.rs'] = generateTraitDefinitionModule(input.traitDefinitions, generatedHeader + '\n// Pinned source digest: ' + input.source.source_digest, input.referenceSource);
     files['mod.rs'] += '\nmod trait_definitions;\npub use trait_definitions::{FoundryTraitDefinition, FoundryTraitSourceLocation, trait_definitions, trait_definition};\n';
+  }
+  if (input.actionDefinitions) {
+    if (!input.referenceSource) throw new Error('Action metadata requires pinned source provenance');
+    files['action_definitions.rs'] = generateActionModule(input.actionDefinitions, generatedHeader + '\n// Pinned source digest: ' + input.source.source_digest, input.referenceSource);
+    files['mod.rs'] += '\nmod action_definitions;\npub use action_definitions::{FoundryActionDefinition, FoundryActionVariant, action_definition, action_definitions};\n';
   }
   if (input.conditionCatalog) {
     if (!input.referenceSource) throw new Error('Condition facts require pinned source provenance');

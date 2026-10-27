@@ -394,6 +394,7 @@ export function EncounterConditionControls({
             type="link"
             className="encounter-condition-row__name"
             style={{ padding: 0, height: "auto", justifyContent: "start" }}
+            data-atlas-condition-id={condition.condition_id.toString()}
             aria-label={presentation?.label}
             href={destinationHref(
               recordDestination({ recordKey: condition.condition_key }),

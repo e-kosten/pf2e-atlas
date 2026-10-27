@@ -640,6 +640,7 @@ fn unknown_source_condition_cannot_roll_an_authored_strike_subtotal() {
                 participant_key: participant.participant_key.clone(),
                 expected_participant_revision: participant.revision,
                 reference: EncounterReferenceRequest {
+                    condition_id: None,
                     artifact_generation: initial.artifact_generation.clone().unwrap(),
                     selection: RecordDetailRequest {
                         spell_rank: None,

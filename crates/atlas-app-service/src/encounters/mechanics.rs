@@ -93,7 +93,7 @@ pub(super) fn hp_delta(variant: ParticipantVariant, level: i64) -> i64 {
         }
     }
 }
-pub(super) fn adjusted_npc_level(level: i64, variant: ParticipantVariant) -> i64 {
+pub(crate) fn adjusted_npc_level(level: i64, variant: ParticipantVariant) -> i64 {
     let base = level.clamp(-1, 100);
     match variant {
         ParticipantVariant::Normal => base,

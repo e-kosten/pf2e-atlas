@@ -802,4 +802,9 @@ pub use trait_definitions::{
     FoundryTraitDefinition, FoundryTraitSourceLocation, trait_definition, trait_definitions,
 };
 
+mod action_definitions;
+pub use action_definitions::{
+    FoundryActionDefinition, FoundryActionVariant, action_definition, action_definitions,
+};
+
 pub mod condition_definitions;
