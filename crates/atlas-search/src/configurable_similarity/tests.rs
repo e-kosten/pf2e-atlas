@@ -6,6 +6,267 @@ use atlas_domain::{
 use serde_json::json;
 
 #[test]
+fn actual_work_limits_keep_exact_boundaries_and_explain_how_to_reduce_work() {
+    let mut vectors = CandidateWorkBudget::default();
+    vectors
+        .include(MAX_CANDIDATE_UNITS, 1, 1, 128, true)
+        .unwrap();
+    assert!(
+        vectors
+            .remaining_vectors()
+            .unwrap_err()
+            .to_string()
+            .contains(LIMIT_RECOVERY)
+    );
+    let error = vectors.include(1, 1, 1, 1, true).unwrap_err();
+    assert!(error.to_string().contains("65536"));
+    assert!(error.to_string().contains(LIMIT_RECOVERY));
+
+    let mut passages = CandidateWorkBudget::default();
+    passages.include(62_500, 128, 128, 128, true).unwrap();
+    assert_eq!(passages.comparisons, MAX_COMPARISONS);
+    let error = passages.include(1, 128, 128, 1, true).unwrap_err();
+    assert!(error.to_string().contains("8000000"));
+    assert!(error.to_string().contains(LIMIT_RECOVERY));
+
+    let mut averages = CandidateWorkBudget::default();
+    for _ in 0..242 {
+        averages.include(128, 128, 128, 128, false).unwrap();
+    }
+    let error = averages.include(128, 128, 128, 128, false).unwrap_err();
+    assert!(error.to_string().contains("8000000"));
+    assert!(error.to_string().contains(LIMIT_RECOVERY));
+}
+
+#[test]
+fn complete_candidate_union_above_4096_is_scored_when_actual_work_fits() {
+    let source = (0..18)
+        .map(|i| format!("<h2>Section {i}</h2><p>Seed description {i}</p>"))
+        .collect::<String>();
+    let mut records = vec![record(
+        "actors",
+        "Actor",
+        json!({
+            "_id":"aaaaaaaaaaaaaaaa", "name":"Seed", "type":"npc",
+            "system":{"details":{"publicNotes":source}}
+        }),
+    )];
+    for i in 0..4320 {
+        records.push(record(
+            "actors",
+            "Actor",
+            json!({
+                "_id":format!("b{i:015}"), "name":format!("Candidate {i}"), "type":"npc",
+                "system":{"details":{"publicNotes":"<p>Candidate description</p>"}}
+            }),
+        ));
+    }
+    let mut data = input(records, true);
+    for unit in &mut data.semantic_units {
+        let axis = match &unit.address {
+            SourcePassageAddress::Identity {} => 0,
+            SourcePassageAddress::HtmlSection {
+                section_ordinal, ..
+            } if unit.record.id().as_str() == "aaaaaaaaaaaaaaaa" => section_ordinal + 1,
+            _ => unit.record.id().as_str()[1..].parse::<usize>().unwrap() / 240 + 1,
+        };
+        unit.vector.fill(0.);
+        unit.vector[axis] = 1.;
+    }
+    let (service, _artifact) = open_input_fixture(data).unwrap();
+    let seed = SimilaritySeed::Record {
+        record_key: "actors:aaaaaaaaaaaaaaaa".parse().unwrap(),
+    };
+    let options = SimilarityOptions::Passages {
+        parts: None,
+        candidate_parts: SimilarityCandidateParts::Corresponding,
+        decay: 0.25,
+    };
+    let result = service
+        .configurable_similar(ConfigurableSimilarRequest {
+            seed: &seed,
+            options: &options,
+            source_sections: Some(SimilaritySourceSections::All),
+            content_scope: SearchContentScope::Core,
+            search_profile: None,
+            filter: None,
+            scope: RecordScope::All,
+            page: SearchPage::first(10).unwrap(),
+            sort: ResultSort::Relevance {},
+            prefer_remaster: false,
+            cancelled: None,
+        })
+        .unwrap()
+        .unwrap();
+    assert_eq!(result.candidate_keys.as_ref().unwrap().len(), 4320);
+    assert_eq!(result.results.page.total, 4320);
+    assert_eq!(result.results.records.len(), 10);
+    assert_eq!(result.diagnostics.seed_units, 19);
+    assert!(result.diagnostics.knn_queries <= 2 * result.diagnostics.seed_units);
+    assert!(
+        result.candidate_keys.as_ref().unwrap().len()
+            <= result.diagnostics.knn_queries * CANDIDATE_WINDOW
+    );
+    assert!(result.diagnostics.candidate_vectors < MAX_CANDIDATE_UNITS);
+    assert!(result.diagnostics.pairwise_comparisons < MAX_COMPARISONS);
+}
+
+#[test]
+fn index_vector_read_limits_keep_actionable_section_recovery() {
+    let (service, _artifact) = open_input_fixture(fixture()).unwrap();
+    let error = service
+        .index
+        .similarity_units(
+            &SearchProfileId::new("bge-base"),
+            &["hazards:aaaaaaaaaaaaaaaa".parse().unwrap()],
+            SearchContentScope::All,
+            true,
+            1,
+        )
+        .unwrap_err();
+    let error = SearchError::from(error);
+    assert_eq!(error.kind(), crate::SearchErrorKind::InvalidOptions);
+    assert!(error.to_string().contains("Vector limit: 1"));
+    assert!(error.to_string().contains(LIMIT_RECOVERY));
+}
+
+#[test]
+fn compact_explanations_keep_first_32_rows_but_score_and_rank_all_65_components() {
+    let prose = (0..64)
+        .map(|i| format!("<h2>Section {i}</h2><p>Source passage {i}</p>"))
+        .collect::<String>();
+    let mut data = input(
+        vec![
+            record(
+                "actors",
+                "Actor",
+                json!({"_id":"aaaaaaaaaaaaaaaa","name":"Source","type":"npc","system":{"details":{"publicNotes":prose}}}),
+            ),
+            record(
+                "actors",
+                "Actor",
+                json!({"_id":"bbbbbbbbbbbbbbbb","name":"Candidate A","type":"npc","system":{"details":{"publicNotes":"<p>Candidate A description</p>"}}}),
+            ),
+            record(
+                "actors",
+                "Actor",
+                json!({"_id":"cccccccccccccccc","name":"Candidate B","type":"npc","system":{"details":{"publicNotes":"<p>Candidate B description</p>"}}}),
+            ),
+        ],
+        true,
+    );
+    for unit in &mut data.semantic_units {
+        unit.vector.fill(0.);
+        match &unit.address {
+            SourcePassageAddress::Identity {} => unit.vector[0] = 1.,
+            SourcePassageAddress::HtmlSection {
+                section_ordinal, ..
+            } if unit.record.id().as_str() == "aaaaaaaaaaaaaaaa" => {
+                if *section_ordinal < 31 {
+                    unit.vector[1] = 1.;
+                } else {
+                    unit.vector[0] = 0.8;
+                    unit.vector[1] = 0.6;
+                }
+            }
+            _ if unit.record.id().as_str() == "bbbbbbbbbbbbbbbb" => unit.vector[1] = 1.,
+            _ => {
+                unit.vector[0] = 0.6;
+                unit.vector[1] = 0.8;
+            }
+        }
+    }
+    let (service, _artifact) = open_input_fixture(data).unwrap();
+    let key: RecordKey = "actors:aaaaaaaaaaaaaaaa".parse().unwrap();
+    let seed = SimilaritySeed::Record {
+        record_key: key.clone(),
+    };
+    let options = SimilarityOptions::Passages {
+        parts: None,
+        candidate_parts: SimilarityCandidateParts::Corresponding,
+        decay: 1.,
+    };
+    let result = service
+        .configurable_similar(ConfigurableSimilarRequest {
+            seed: &seed,
+            options: &options,
+            source_sections: Some(SimilaritySourceSections::All),
+            content_scope: SearchContentScope::All,
+            search_profile: None,
+            filter: None,
+            scope: RecordScope::All,
+            page: SearchPage::first(10).unwrap(),
+            sort: ResultSort::Relevance {},
+            prefer_remaster: false,
+            cancelled: None,
+        })
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        result
+            .results
+            .records
+            .iter()
+            .map(|row| row.record.key.id().as_str())
+            .collect::<Vec<_>>(),
+        ["cccccccccccccccc", "bbbbbbbbbbbbbbbb"]
+    );
+    assert_eq!(result.results.page.total, 2);
+    let profile = SearchProfileId::new("bge-base");
+    let seed_units = service
+        .index
+        .similarity_units(&profile, &[key], SearchContentScope::All, true, 128)
+        .unwrap();
+    let seed_parts = crate::similarity_scoring::parts(&seed_units).unwrap();
+    let source_indices = seed_parts
+        .iter()
+        .enumerate()
+        .map(|(index, part)| (part.metadata.selector(), index))
+        .collect();
+    for (key, evidence) in &result.evidence {
+        let candidate_units = service
+            .index
+            .similarity_units(
+                &profile,
+                std::slice::from_ref(key),
+                SearchContentScope::All,
+                true,
+                128,
+            )
+            .unwrap();
+        let candidate_parts = crate::similarity_scoring::parts(&candidate_units).unwrap();
+        let full = crate::similarity_scoring::passages(
+            &seed_parts,
+            &candidate_parts,
+            SimilarityCandidateParts::Corresponding,
+            1.,
+            None,
+        )
+        .unwrap();
+        let expected=full.parts.iter().take(32).map(|part|json!({"part":part.part,"score":part.score,"weight":part.weight,"comparable":part.comparable})).collect::<Vec<_>>();
+        assert_eq!(evidence.score, full.score);
+        assert_eq!(evidence.selected_parts, 65);
+        assert_eq!(evidence.comparable_parts, 65);
+        assert!(evidence.truncated);
+        assert_eq!(
+            serde_json::to_value(&evidence.parts).unwrap(),
+            json!(expected)
+        );
+        let (compact, truncated) = compact_part_scores(full.parts, &source_indices).unwrap();
+        assert_eq!(compact.len(), 32);
+        assert_eq!(compact.capacity(), 32);
+        assert!(truncated);
+    }
+    let first = result
+        .evidence
+        .iter()
+        .find(|(key, _)| key.id().as_str() == "bbbbbbbbbbbbbbbb")
+        .unwrap();
+    assert!((first.1.score - (32. + 33. * f64::from(0.6_f32)) / 65.).abs() < 1e-10);
+    assert!(first.1.parts.iter().all(|part| part.score == 1.));
+}
+
+#[test]
 fn section_navigation_combines_overlapping_chunks_across_profiles_without_hydrating_content() {
     let text = "Long description ".repeat(20);
     let mut data = crate::test_support::input_with_both_profiles(vec![record(
@@ -461,6 +722,14 @@ fn trait_label_only_parts_use_stored_chunks_without_fabricating_record_navigatio
         .unwrap()
         .unwrap();
     let pair = &result.evidence[0].1.pairs[0];
+    assert_eq!(result.diagnostics.seed_units, 1);
+    assert!(
+        result
+            .evidence
+            .iter()
+            .flat_map(|(_, evidence)| &evidence.parts)
+            .all(|part| !part.part.is_identity())
+    );
     assert!(pair.seed.is_none());
     assert_eq!(pair.seed_text, "Fire");
     let core = service
@@ -516,7 +785,20 @@ fn page_explanations_share_prepared_fields_and_plain_snapshots_and_reuse_candida
     let seed = SimilaritySeed::Record {
         record_key: "characters:aaaaaaaaaaaaaaaa".parse().unwrap(),
     };
-    let options = SimilarityOptions::default();
+    let options = SimilarityOptions::Passages {
+        decay: 0.5,
+        parts: Some(
+            service
+                .similarity_parts(&seed, None)
+                .unwrap()
+                .parts
+                .iter()
+                .filter(|component| !component.is_identity())
+                .map(|component| component.selector().clone())
+                .collect(),
+        ),
+        candidate_parts: SimilarityCandidateParts::Any,
+    };
     let request = || ConfigurableSimilarRequest {
         source_sections: None,
         content_scope: atlas_domain::SearchContentScope::All,

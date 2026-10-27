@@ -8,14 +8,77 @@ use atlas_domain::{
     SimilaritySourceSections,
 };
 use atlas_index::{SourceSimilarityUnit, SourceUnitLocation};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 const MAX_SEED_UNITS: usize = 128;
-const MAX_CANDIDATE_ROOTS: usize = 4096;
 const MAX_CANDIDATE_UNITS: usize = 65_536;
 const MAX_COMPARISONS: usize = 8_000_000;
 const CANDIDATE_WINDOW: usize = 256;
 const MAX_EXPLANATION_PARTS: usize = 32;
+const LIMIT_RECOVERY: &str =
+    "Deselect some sections under Sections to compare, or add filters to narrow the results.";
+
+#[derive(Default)]
+struct CandidateWorkBudget {
+    vectors: usize,
+    comparisons: usize,
+}
+
+impl CandidateWorkBudget {
+    fn remaining_vectors(&self) -> Result<usize, SearchError> {
+        let remaining = MAX_CANDIDATE_UNITS.saturating_sub(self.vectors);
+        if remaining == 0 {
+            return Err(SearchError::invalid_search_options(format!(
+                "This comparison is too broad to complete. {LIMIT_RECOVERY} (Vector limit: {MAX_CANDIDATE_UNITS}.)"
+            )));
+        }
+        Ok(remaining)
+    }
+
+    fn include(
+        &mut self,
+        vectors: usize,
+        seed_units: usize,
+        seed_parts: usize,
+        roots: usize,
+        passages: bool,
+    ) -> Result<(), SearchError> {
+        let total_vectors = self.vectors.checked_add(vectors).ok_or_else(|| {
+            SearchError::invalid_search_options(format!(
+                "This comparison is too broad to complete. {LIMIT_RECOVERY} (Workload exceeds the supported range.)"
+            ))
+        })?;
+        if total_vectors > MAX_CANDIDATE_UNITS {
+            return Err(SearchError::invalid_search_options(format!(
+                "This comparison is too broad to complete. {LIMIT_RECOVERY} (Vector limit: {MAX_CANDIDATE_UNITS}.)"
+            )));
+        }
+        let workload = if passages {
+            vectors.checked_mul(seed_units)
+        } else {
+            seed_units
+                .checked_add(seed_parts)
+                .and_then(|count| count.checked_add(1))
+                .and_then(|count| roots.checked_mul(count))
+                .and_then(|count| count.checked_add(vectors))
+        };
+        let comparisons = workload
+            .and_then(|count| self.comparisons.checked_add(count))
+            .ok_or_else(|| {
+                SearchError::invalid_search_options(format!(
+                    "This comparison is too broad to complete. {LIMIT_RECOVERY} (Workload exceeds the supported range.)"
+                ))
+            })?;
+        if comparisons > MAX_COMPARISONS {
+            return Err(SearchError::invalid_search_options(format!(
+                "This comparison is too broad to complete. {LIMIT_RECOVERY} (Vector-pair limit: {MAX_COMPARISONS}.)"
+            )));
+        }
+        self.vectors = total_vectors;
+        self.comparisons = comparisons;
+        Ok(())
+    }
+}
 
 pub struct ConfigurableSimilarRequest<'a> {
     pub seed: &'a SimilaritySeed,
@@ -102,23 +165,71 @@ pub struct SimilarityPair {
     pub cosine: f64,
 }
 struct PendingPair {
-    seed_part: SimilarityPartSelector,
-    seed: Option<SourceUnitLocation>,
-    seed_text: Option<String>,
+    seed_unit: usize,
     candidate: SourceUnitLocation,
     cosine: f64,
-    seed_label: String,
     candidate_label: String,
+}
+struct PendingPartScore {
+    source_part: usize,
+    score: f64,
+    weight: f64,
+    comparable: bool,
 }
 struct PendingEvidence {
     score: f64,
-    aggregation: String,
+    aggregation: &'static str,
     selected_parts: usize,
     comparable_parts: usize,
-    parts: Vec<SimilarityPartScore>,
+    parts: Vec<PendingPartScore>,
     roles: Vec<SimilarityRoleScore>,
     pairs: Vec<PendingPair>,
     representative: bool,
+    truncated: bool,
+}
+
+#[derive(PartialEq, Eq, Hash)]
+enum SeedUnitKey<'a> {
+    Native(i64),
+    Trait(
+        &'a SimilarityPartSelector,
+        &'a atlas_domain::SourcePassageAddress,
+    ),
+}
+
+fn seed_unit_key(unit: &SourceSimilarityUnit) -> SeedUnitKey<'_> {
+    match &unit.location {
+        Some(location) => SeedUnitKey::Native(location.unit_id),
+        // Trait chunks have no record witness. Equal source addresses recover
+        // the same trait text and label, including any repeated chunk coverage.
+        None => SeedUnitKey::Trait(unit.component.selector(), &unit.address),
+    }
+}
+
+fn compact_part_scores(
+    parts: Vec<crate::similarity_scoring::PartScore>,
+    source_indices: &BTreeMap<&SimilarityPartSelector, usize>,
+) -> Result<(Vec<PendingPartScore>, bool), SearchError> {
+    let truncated = parts.len() > MAX_EXPLANATION_PARTS;
+    // Allocate only the capped compact rows, rather than reusing the scorer's
+    // larger allocation (which contains full metadata for every source part).
+    let mut compact = Vec::with_capacity(parts.len().min(MAX_EXPLANATION_PARTS));
+    for part in parts.into_iter().take(MAX_EXPLANATION_PARTS) {
+        compact.push(PendingPartScore {
+            source_part: source_indices
+                .get(part.part.selector())
+                .copied()
+                .ok_or_else(|| {
+                    SearchError::artifact_contract_violation(
+                        "comparison source section disappeared",
+                    )
+                })?,
+            score: part.score,
+            weight: part.weight,
+            comparable: part.comparable,
+        });
+    }
+    Ok((compact, truncated))
 }
 impl ConfigurableSimilarRequest<'_> {
     fn check(&self) -> Result<(), SearchError> {
@@ -292,6 +403,16 @@ impl crate::AtlasRetrievalService {
             ));
         }
         let seed_parts = crate::similarity_scoring::parts(&seed_units)?;
+        let seed_part_indices = seed_parts
+            .iter()
+            .enumerate()
+            .map(|(index, part)| (part.metadata.selector(), index))
+            .collect::<BTreeMap<_, _>>();
+        let seed_unit_indices = seed_units
+            .iter()
+            .enumerate()
+            .map(|(index, unit)| (seed_unit_key(unit), index))
+            .collect::<HashMap<_, _>>();
         let mode = request.options.candidate_parts();
         let predicate = self.predicate(request.filter)?;
         let exclude = match request.seed {
@@ -363,6 +484,10 @@ impl crate::AtlasRetrievalService {
         }
         diagnostics.timings.seed_preparation_ms = Some(started.elapsed().as_secs_f64() * 1000.0);
         let generation_started = std::time::Instant::now();
+        // Every query comes from a bounded seed unit or one nonempty role/group
+        // of those units. Thus queries <= 2*128 and their complete 256-hit union
+        // contains at most 65,536 roots, before the actual-work budgets below.
+        debug_assert!(queries.len() <= seed_units.len() * 2);
         let mut keys = BTreeSet::new();
         for (vector, role) in queries {
             request.check()?;
@@ -383,11 +508,6 @@ impl crate::AtlasRetrievalService {
                 keys.insert(hit.location.record);
             }
             diagnostics.knn_queries += 1;
-            if keys.len() > MAX_CANDIDATE_ROOTS {
-                return Err(SearchError::invalid_search_options(format!(
-                    "comparison found more than {MAX_CANDIDATE_ROOTS} candidate records; narrow the selected parts or candidate filters"
-                )));
-            }
         }
         diagnostics.timings.candidate_generation_ms =
             Some(generation_started.elapsed().as_secs_f64() * 1000.0);
@@ -396,15 +516,10 @@ impl crate::AtlasRetrievalService {
         let keys = keys.into_iter().collect::<Vec<_>>();
         let mut roots = Vec::new();
         let mut pending = BTreeMap::new();
-        let mut budgeted_comparisons = 0usize;
+        let mut budget = CandidateWorkBudget::default();
         for batch in keys.chunks(128) {
             request.check()?;
-            let remaining = MAX_CANDIDATE_UNITS.saturating_sub(diagnostics.candidate_vectors);
-            if remaining == 0 {
-                return Err(SearchError::invalid_search_options(
-                    "comparison exceeded its candidate vector budget; narrow the selected parts or candidate filters",
-                ));
-            }
+            let remaining = budget.remaining_vectors()?;
             let reading_started = std::time::Instant::now();
             let units = self.index.similarity_units(
                 &profile,
@@ -416,28 +531,14 @@ impl crate::AtlasRetrievalService {
             *diagnostics.timings.vector_read_ms.get_or_insert(0.0) +=
                 reading_started.elapsed().as_secs_f64() * 1000.0;
             let scoring_started = std::time::Instant::now();
-            diagnostics.candidate_vectors += units.len();
-            let workload = if matches!(request.options, SimilarityOptions::Passages { .. }) {
-                units.len().checked_mul(seed_units.len())
-            } else {
-                batch
-                    .len()
-                    .checked_mul(seed_units.len() + seed_parts.len() + 1)
-                    .and_then(|count| count.checked_add(units.len()))
-            };
-            let comparisons = workload
-                .and_then(|count| count.checked_add(budgeted_comparisons))
-                .ok_or_else(|| {
-                    SearchError::invalid_search_options(
-                        "comparison workload exceeds its supported range",
-                    )
-                })?;
-            if comparisons > MAX_COMPARISONS {
-                return Err(SearchError::invalid_search_options(format!(
-                    "comparison needs more than {MAX_COMPARISONS} vector pairs; narrow the selected parts or candidate filters"
-                )));
-            }
-            budgeted_comparisons = comparisons;
+            budget.include(
+                units.len(),
+                seed_units.len(),
+                seed_parts.len(),
+                batch.len(),
+                matches!(request.options, SimilarityOptions::Passages { .. }),
+            )?;
+            diagnostics.candidate_vectors = budget.vectors;
             let mut grouped = BTreeMap::<RecordKey, Vec<SourceSimilarityUnit>>::new();
             for unit in units {
                 if let Some(location) = &unit.location {
@@ -482,18 +583,28 @@ impl crate::AtlasRetrievalService {
                 let pairs = score
                     .pairs
                     .into_iter()
-                    .filter_map(|pair| {
-                        Some(PendingPair {
-                            seed_part: pair.seed.component.selector().clone(),
-                            seed: pair.seed.location.clone(),
-                            seed_text: pair.seed.trait_text.clone(),
-                            candidate: pair.candidate.location.clone()?,
+                    .filter(|pair| pair.candidate.location.is_some())
+                    .map(|pair| {
+                        Ok(PendingPair {
+                            seed_unit: seed_unit_indices
+                                .get(&seed_unit_key(pair.seed))
+                                .copied()
+                                .ok_or_else(|| {
+                                    SearchError::artifact_contract_violation(
+                                        "comparison seed unit disappeared",
+                                    )
+                                })?,
+                            candidate: pair.candidate.location.clone().ok_or_else(|| {
+                                SearchError::artifact_contract_violation(
+                                    "comparison candidate location disappeared",
+                                )
+                            })?,
                             cosine: pair.cosine,
-                            seed_label: pair.seed.component.label().to_owned(),
                             candidate_label: pair.candidate.component.label().to_owned(),
                         })
                     })
-                    .collect::<Vec<_>>();
+                    .collect::<Result<Vec<_>, SearchError>>()?;
+                let (parts, truncated) = compact_part_scores(score.parts, &seed_part_indices)?;
 
                 roots.push(crate::text::RankedRoot {
                     key: key.clone(),
@@ -509,19 +620,10 @@ impl crate::AtlasRetrievalService {
                     key,
                     PendingEvidence {
                         score: score.score,
-                        aggregation: score.aggregation.into(),
+                        aggregation: score.aggregation,
                         selected_parts: seed_parts.len(),
                         comparable_parts: score.comparable_parts,
-                        parts: score
-                            .parts
-                            .into_iter()
-                            .map(|part| SimilarityPartScore {
-                                part: part.part,
-                                score: part.score,
-                                weight: part.weight,
-                                comparable: part.comparable,
-                            })
-                            .collect(),
+                        parts,
                         roles: score
                             .roles
                             .into_iter()
@@ -534,6 +636,7 @@ impl crate::AtlasRetrievalService {
                             .collect(),
                         pairs,
                         representative: score.representative,
+                        truncated,
                     },
                 );
             }
@@ -558,7 +661,7 @@ impl crate::AtlasRetrievalService {
             if let Some(pending) = pending.remove(&record.record.key) {
                 evidence.push((
                     record.record.key.clone(),
-                    prepare_similarity_evidence(pending),
+                    prepare_similarity_evidence(pending, &seed_parts, &seed_units)?,
                 ));
             }
         }
@@ -672,36 +775,58 @@ impl crate::AtlasRetrievalService {
         Ok(())
     }
 }
-fn prepare_similarity_evidence(pending: PendingEvidence) -> SimilarityEvidence {
+fn prepare_similarity_evidence(
+    pending: PendingEvidence,
+    seed_parts: &[crate::similarity_scoring::Part<'_>],
+    seed_units: &[SourceSimilarityUnit],
+) -> Result<SimilarityEvidence, SearchError> {
     let pairs = pending
         .pairs
         .into_iter()
-        .map(|pair| SimilarityPair {
-            seed_part: pair.seed_part,
-            seed: pair
-                .seed
-                .map(|location| raw_witness(location, pair.cosine, &pair.seed_label)),
-            seed_text: crate::text::reading_excerpt(pair.seed_text.as_deref().unwrap_or_default()),
-            candidate: raw_witness(pair.candidate, pair.cosine, &pair.candidate_label),
-            cosine: pair.cosine,
+        .map(|pair| {
+            let seed = seed_units.get(pair.seed_unit).ok_or_else(|| {
+                SearchError::artifact_contract_violation("comparison seed unit disappeared")
+            })?;
+            Ok(SimilarityPair {
+                seed_part: seed.component.selector().clone(),
+                seed: seed
+                    .location
+                    .clone()
+                    .map(|location| raw_witness(location, pair.cosine, seed.component.label())),
+                seed_text: crate::text::reading_excerpt(
+                    seed.trait_text.as_deref().unwrap_or_default(),
+                ),
+                candidate: raw_witness(pair.candidate, pair.cosine, &pair.candidate_label),
+                cosine: pair.cosine,
+            })
         })
-        .collect();
-    let truncated = pending.parts.len() > MAX_EXPLANATION_PARTS;
-    SimilarityEvidence {
+        .collect::<Result<Vec<_>, SearchError>>()?;
+    let parts = pending
+        .parts
+        .into_iter()
+        .map(|part| {
+            let source = seed_parts.get(part.source_part).ok_or_else(|| {
+                SearchError::artifact_contract_violation("comparison source section disappeared")
+            })?;
+            Ok(SimilarityPartScore {
+                part: source.metadata.clone(),
+                score: part.score,
+                weight: part.weight,
+                comparable: part.comparable,
+            })
+        })
+        .collect::<Result<Vec<_>, SearchError>>()?;
+    Ok(SimilarityEvidence {
         score: pending.score,
-        aggregation: pending.aggregation,
+        aggregation: pending.aggregation.into(),
         selected_parts: pending.selected_parts,
         comparable_parts: pending.comparable_parts,
-        parts: pending
-            .parts
-            .into_iter()
-            .take(MAX_EXPLANATION_PARTS)
-            .collect(),
+        parts,
         roles: pending.roles,
         pairs,
         representative: pending.representative,
-        truncated,
-    }
+        truncated: pending.truncated,
+    })
 }
 
 fn raw_witness(location: SourceUnitLocation, cosine: f64, label: &str) -> SearchWitness {
@@ -752,7 +877,6 @@ pub(crate) fn selected_components(
         SimilaritySourceSections::All => inventory
             .parts
             .iter()
-            .filter(|component| !component.is_identity())
             .map(|component| component.selector().clone())
             .collect(),
         SimilaritySourceSections::Core => inventory.core.selectors.iter().cloned().collect(),

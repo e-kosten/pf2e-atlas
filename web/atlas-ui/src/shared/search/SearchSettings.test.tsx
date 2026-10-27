@@ -331,7 +331,7 @@ it("suspends an empty part draft when switching to the baseline", async () => {
   const { apply } = setup();
   fireEvent.click(screen.getByText("Sections to compare"));
   await screen.findByRole("checkbox", { name: "Description" });
-  fireEvent.click(screen.getByRole("checkbox", { name: "All sections" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Select all" }));
   expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Comparison method" }));
   fireEvent.click(screen.getByText("Name and identity"));
@@ -699,6 +699,76 @@ function coreInventory(): SimilarityPartsView {
   };
 }
 
+it("includes identity once in All and lets the backend resolve the preset on Apply", async () => {
+  api.parts.mockResolvedValue(coreInventory());
+  const { apply } = setup();
+  fireEvent.click(screen.getByText("Sections to compare"));
+  const identity = await screen.findByRole("checkbox", {
+    name: "Brown Mold: Name and identity",
+  });
+  expect(identity).toBeChecked();
+  expect(
+    screen.getAllByRole("checkbox", { name: "Brown Mold: Name and identity" }),
+  ).toHaveLength(1);
+  expect(screen.getByRole("checkbox", { name: "Description" })).toBeChecked();
+  expect(screen.getByRole("checkbox", { name: "Reset" })).toBeChecked();
+  expect(screen.getByRole("checkbox", { name: "Select all" })).toBeChecked();
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(apply).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({
+      sourceSections: "all",
+      similarity: { ...options, parts: null },
+      similarityGeneration: undefined,
+    }),
+    "bge-base",
+  );
+});
+
+it("reflects the complete selection in Select all across Core, Custom and All", async () => {
+  api.parts.mockResolvedValue(coreInventory());
+  setup({
+    ...DEFAULT_SEARCH_STATE,
+    similarSeed: seed.record_key,
+    similarity: options,
+    sourceSections: "core",
+  });
+  const identity = await screen.findByRole("checkbox", {
+    name: "Brown Mold: Name and identity",
+  });
+  const selectAll = screen.getByRole("checkbox", { name: "Select all" });
+  expect(selectAll).toBePartiallyChecked();
+  fireEvent.click(selectAll);
+  expect(identity).toBeChecked();
+  expect(screen.getByRole("checkbox", { name: "Reset" })).toBeChecked();
+  expect(selectAll).toBeChecked();
+  fireEvent.click(identity);
+  expect(selectAll).toBePartiallyChecked();
+  fireEvent.click(identity);
+  expect(selectAll).toBeChecked();
+  await waitFor(() => expect(screen.getByText("Custom")).toBeVisible());
+});
+
+it("blocks All when its required identity is unavailable instead of omitting it", async () => {
+  const current = coreInventory();
+  api.parts.mockResolvedValue({
+    ...current,
+    parts: current.parts.map((part) =>
+      part.kind === "identity" ? { ...part, has_vectors: false } : part,
+    ),
+  });
+  const { apply } = setup();
+  fireEvent.click(screen.getByText("Sections to compare"));
+  await screen.findByText(
+    "Name and identity is unavailable for this model. Choose another model or update the collection.",
+  );
+  expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+  expect(
+    screen.getByRole("checkbox", { name: "Brown Mold: Name and identity" }),
+  ).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(apply).not.toHaveBeenCalled();
+});
+
 it("distinguishes source and result content and explains their selected draft options", async () => {
   api.parts.mockResolvedValue(coreInventory());
   const { apply, remember } = setup();
@@ -711,7 +781,9 @@ it("distinguishes source and result content and explains their selected draft op
   const sourceHelp = screen.getByRole("button", { name: "About source sections" });
   const contentHelp = screen.getByRole("button", { name: "About search content" });
   fireEvent.click(sourceHelp);
-  await screen.findByText("Uses all of Brown Mold’s available document sections.");
+  await screen.findByText(
+    "Uses Brown Mold’s name and identity plus all available document sections.",
+  );
   fireEvent.keyDown(sourceHelp, { key: "Escape" });
   fireEvent.click(contentHelp);
   await screen.findByText(

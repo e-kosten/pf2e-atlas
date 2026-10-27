@@ -1437,10 +1437,29 @@ fn similar_record_and_trait_responses_acknowledge_scoring_and_mapping_recipes() 
                 value["similarity"]["recipe"],
                 if matches!(options, atlas_domain::SimilarityOptions::Baseline {}) {
                     "current-baseline/v1"
+                } else if !trait_seed {
+                    atlas_domain::SIMILARITY_COMPONENT_RECIPE
                 } else {
                     atlas_domain::SIMILARITY_RECIPE
                 }
             );
+            if !trait_seed && !matches!(options, atlas_domain::SimilarityOptions::Baseline {}) {
+                let config = page.similarity.as_ref().unwrap();
+                assert_eq!(
+                    config.source_sections,
+                    Some(atlas_domain::SimilaritySourceSections::All)
+                );
+                assert!(config.candidate_identity);
+                assert_eq!(config.resolved_selectors.len(), 2);
+                assert_eq!(
+                    config
+                        .resolved_selectors
+                        .iter()
+                        .filter(|selector| selector.0.starts_with("identity:"))
+                        .count(),
+                    1
+                );
+            }
         }
     }
 }
