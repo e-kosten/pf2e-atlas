@@ -698,6 +698,59 @@ function coreInventory(): SimilarityPartsView {
     ],
   };
 }
+
+it("distinguishes source and result content and explains their selected draft options", async () => {
+  api.parts.mockResolvedValue(coreInventory());
+  const { apply, remember } = setup();
+  await waitFor(() => {
+    expect(screen.getByText("Content searched in other records.")).toBeVisible();
+    expect(
+      screen.getByText("Content from Brown Mold used for comparison."),
+    ).toBeVisible();
+  });
+  const sourceHelp = screen.getByRole("button", { name: "About source sections" });
+  const contentHelp = screen.getByRole("button", { name: "About search content" });
+  fireEvent.click(sourceHelp);
+  await screen.findByText("Uses all of Brown Mold’s available document sections.");
+  fireEvent.keyDown(sourceHelp, { key: "Escape" });
+  fireEvent.click(contentHelp);
+  await screen.findByText(
+    "Searches all available content, including details like a creature's spells.",
+  );
+  fireEvent.keyDown(contentHelp, { key: "Escape" });
+
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Source sections" }));
+  fireEvent.click(screen.getByText("Core sections"));
+  await screen.findByRole("checkbox", { name: "Brown Mold: Name and identity" });
+  fireEvent.click(sourceHelp);
+  await screen.findByText(
+    "Uses Brown Mold’s name and identity plus the core sections chosen for this record kind.",
+  );
+  fireEvent.keyDown(sourceHelp, { key: "Escape" });
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Search content" }));
+  fireEvent.click(screen.getAllByText("Core sections").slice(-1)[0]);
+  fireEvent.click(contentHelp);
+  await screen.findByText(
+    "Limits content searches to a core set of fields, like name and description, while omitting details like a creature's spells.",
+  );
+  fireEvent.keyDown(contentHelp, { key: "Escape" });
+
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Source sections" }));
+  fireEvent.click(screen.getByText("Custom"));
+  fireEvent.click(sourceHelp);
+  await screen.findByText("Uses only the selected content from Brown Mold.");
+  expect(apply).not.toHaveBeenCalled();
+  expect(remember).not.toHaveBeenCalled();
+});
+
+it("describes the searched content for ordinary text without source-selection copy", async () => {
+  setup({ ...DEFAULT_SEARCH_STATE, query: "fire" });
+  await waitFor(() =>
+    expect(screen.getByText("Content searched for your query.")).toBeVisible(),
+  );
+  expect(screen.queryByText("Content from Brown Mold used for comparison.")).toBeNull();
+});
+
 it("applies Core source and result controls atomically without storing exact selectors", async () => {
   api.parts.mockResolvedValue(coreInventory());
   const { apply, remember } = setup();
