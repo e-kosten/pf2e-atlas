@@ -504,6 +504,9 @@
   gap: var(--space-control);
   vertical-align: middle;
 }
+.actor-activity__activation > .action-cost {
+  flex-shrink: 0;
+}
 .actor-reference__activities--strike,
 .actor-reference__activities--gear {
   container: activity-list / inline-size;
