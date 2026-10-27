@@ -223,6 +223,43 @@
       "sha256": "5710bbf54e765108262d33a37d3e4e882f6895086400468db84bbae7200e5843"
     },
     {
+      "bytes": 1891,
+      "path": "integration-parity/README.md",
+      "sha256": "1ee4988b944b68b67a499c16999e9b067e5cc2e636bce6b3a44030bfecdc46e5"
+    },
+    {
+      "bytes": 19654,
+      "path": "integration-parity/input-manifest.json",
+      "sha256": "94b373ec8e7f78d02aeaf21d3712fad1d3e4af93c0e9b42ba268c2460d29c809"
+    },
+    {
+      "bytes": 91478,
+      "path": "integration-parity/native-inputs.json.gz",
+      "payload_sha256": "62153e677882b998a602ac9c818b6e5abc1428e9d51a92f4acc73f5068410117",
+      "sha256": "c59f8e6c917f611413ce5738fe41166e0a70669f28257537e684d6aabad56034"
+    },
+    {
+      "bytes": 56119,
+      "path": "integration-parity/native-metrics.tsv.gz",
+      "payload_sha256": "840f91a946e088e2fba48ba52bb31c76a5ec5124a364d00cb92ff6f065f0e9ea",
+      "sha256": "f2ad87b6e6d525f73a79150231671c0454907dd922d89864a2ccf75b17b9811d"
+    },
+    {
+      "bytes": 4259,
+      "path": "integration-parity/native-summary.json",
+      "sha256": "ec3ec95b1ffc6abc85e0e7ba10a5076382fd5c34faa5a7e744ee4e006a6d5ad0"
+    },
+    {
+      "bytes": 51243,
+      "path": "integration-parity/parity.json",
+      "sha256": "d35fa4221d594bf3621146a76be28699cc7b9c9e13dd134913e1b7cda13be6f6"
+    },
+    {
+      "bytes": 1603,
+      "path": "integration-parity/refresh-validation.json",
+      "sha256": "0e74f20737bdf484ac8958d9f8dcb1bcbda50355f625df137c30e9b5e8fbf702"
+    },
+    {
       "bytes": 146803,
       "path": "inventory.json",
       "sha256": "ffef811fe8ab91719d1da1d3222aa3db5edcf01f5b73acf8d7ed0af49e1c88af"

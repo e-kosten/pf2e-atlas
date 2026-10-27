@@ -7,6 +7,9 @@ recompute vectors, retrieve candidates or re-verify omitted source bodies.
 """
 import argparse
 import collections
+import csv
+import io
+import statistics
 import hashlib
 import gzip
 import importlib.util
@@ -167,6 +170,69 @@ def verify_displayed_audit(result_dir, provenance):
     return counts
 
 
+def verify_integration_parity(dataset, result_dir, production, historical):
+    directory = result_dir/'integration-parity'
+    declaration = load(directory/'input-manifest.json')
+    report = load(directory/'parity.json')
+    refresh = load(directory/'refresh-validation.json')
+    native = load(directory/'native-summary.json')
+    inputs = load(directory/'native-inputs.json.gz')
+    require(declaration['core_revision'] == '0ed3dd72dd1414492ddce10b4824d46ed3291c60' and declaration['binary_sha256'] == report['binary_sha256'], 'integration execution identity differs')
+    for name, digest in declaration['frozen_hashes'].items():
+        require(sha(dataset/name) == digest, 'integration frozen input binding differs')
+    old = historical['artifact_generation']
+    new = report['generation']
+    require(old != new and old == native['old_generation'] == refresh['frozen_original_generation'] == inputs['old_generation'] and new == native['new_generation'] == refresh['replacement_generation'] == inputs['new_generation'], 'integration generations differ')
+    require(refresh['frozen_original_schema'] == 16 and refresh['replacement_schema'] == 17 and refresh['saved_tables_equal'] == 17 and refresh['replacement_ready_check'], 'integrated refresh contract differs')
+    require({row['profile'] for row in refresh['native_equivalence']} == {'bge-base', 'embeddinggemma'} and all(row['frozen_inputs'] == row['new_inputs'] == row['common_exact_identity'] == 161515 and row['frozen_only'] == row['new_only'] == 0 and row['common_published_checksum_differences'] == (22 if row['profile'] == 'bge-base' else 665) for row in refresh['native_equivalence']), 'integrated native identity equivalence differs')
+    input_fields = ['profile', 'table', 'old_input_id', 'new_input_id', 'dimensions', 'input_sha256', 'tokens', 'old_vector_sha256', 'new_vector_sha256']
+    input_tsv = ''.join('\t'.join(str(row[field]) for field in input_fields)+'\n' for row in inputs['rows'])
+    require(hashlib.sha256(input_tsv.encode()).hexdigest() == native['input_sha256'], 'native input binding differs')
+    require(hashlib.sha256(payload(directory/'native-metrics.tsv.gz')).hexdigest() == native['raw_values_sha256'], 'native diagnostic metric binding differs')
+    metrics = list(csv.DictReader(io.StringIO(payload(directory/'native-metrics.tsv.gz').decode()), delimiter='\t'))
+    key = lambda row: (row['profile'], row['input_sha256'], int(row['tokens']))
+    identities = {key(row): row for row in inputs['rows']}
+    require(len(metrics) == len(identities) == len(inputs['rows']) == 687 and {key(row) for row in metrics} == set(identities), 'native changed-identity census differs')
+    require(native['actual_blob_checksums_verified_against_publication'] and native['read_only_connections'] and native['no_model_inference'] and native['cause_not_inferred_from_checksum_alone'], 'native audit scope differs')
+    for profile in native['profiles']:
+        rows = [row for row in metrics if row['profile'] == profile['profile']]
+        expected = 22 if profile['profile'] == 'bge-base' else 665 if profile['profile'] == 'embeddinggemma' else None
+        require(len(rows) == profile['vectors_compared'] == expected and profile['all_finite'] and profile['dimensions'] == 768, 'native profile census differs')
+        require(all(row['finite'] == 'true' and int(row['dimensions']) == 768 and identities[key(row)]['dimensions'] == 768 and identities[key(row)]['old_vector_sha256'] != identities[key(row)]['new_vector_sha256'] for row in rows), 'native finite/checksum observation differs')
+        for field in ['old_norm', 'new_norm', 'max_abs_delta', 'l2_delta', 'cosine', 'raw_cosine']:
+            values = sorted(float(row[field]) for row in rows)
+            require(all(math.isfinite(value) for value in values), 'native metric is nonfinite')
+            observed = {'min': min(values), 'max': max(values), 'mean': statistics.mean(values), 'p50_nearest_rank': values[math.ceil(.5*len(values))-1], 'p95_nearest_rank': values[math.ceil(.95*len(values))-1]}
+            require(all(math.isclose(value, profile[field][stat], rel_tol=1e-14, abs_tol=1e-15) for stat, value in observed.items()), 'native metric summary differs')
+    lookup = {(row['scenario_id'], row['profile'], row['id']): row['returned_top20'] for row in production}
+    cells = {row['id']: row for row in declaration['cells']}
+    require(len(cells) == len(report['cells']) == 8 and set(cells) == {row['id'] for row in report['cells']}, 'integration comparison census differs')
+    score_count = 0
+    for row in report['cells']:
+        cell = cells[row['id']]
+        require(all(cell[field] == row[field] for field in ['scenario_id', 'profile', 'variant']) and cell['old_generation'] == old and cell['new_generation'] == row['new_generation'] == new, 'integration cell identity differs')
+        prior = lookup[(row['scenario_id'], row['profile'], row['variant'])]
+        require(row['exit_code'] == 0 and row['status'] == 'ok' and row['same_order'] and row['old_top20'] == row['new_top20'] == [value['record_key'] for value in prior] and row['overlap'] == row['old_count'] == row['new_count'] == 20 and not row['old_only'] and not row['new_only'], 'integration top-twenty parity differs')
+        scores = row['new_scores']
+        if row['variant'] == 'baseline':
+            require(not scores and row['common_roots_with_product_scores'] == 0 and row['max_abs_common_score_delta'] is None, 'baseline product score unavailable was lost')
+        else:
+            require(scores == {value['record_key']: value['score'] for value in prior} and row['common_roots_with_product_scores'] == 20 and row['max_abs_common_score_delta'] == 0, 'integration exposed score parity differs')
+            score_count += len(scores)
+    require(score_count == 140, 'integration exposed score census differs')
+    inventories = report['inventory_comparison']
+    require(len(inventories) == 7 and all(row['all_logical_metadata_equal'] and row['role_recipe_equal'] and row['supports_corresponding_parts_equal'] and not row['navigation_differences'] for row in inventories), 'integration recorded inventory comparison differs')
+    require(all(row['old_new_selector_overlap'] == (1 if row['scenario_id'] == 'dev-t01' else 0) for row in inventories), 'integration record/trait selector distinction differs')
+    guards = {row['id']: row for row in report['negative_guard_probes']}
+    require(set(guards) == {'old-generation-old-selector', 'new-generation-old-selector', 'trait-old-generation'}, 'integration stale guard census differs')
+    for name, row in guards.items():
+        error = row['response']['error']
+        require(row['response']['status'] == 'error' and error['code'] == ('invalid_request' if name == 'new-generation-old-selector' else 'artifact_generation_changed') and row['exit_code'] == (2 if name == 'new-generation-old-selector' else 3), 'integration stale guard response differs')
+        if name != 'new-generation-old-selector':
+            require(error['details']['actual_artifact_generation'] == new and error['details']['expected_artifact_generation'] == old, 'integration stale generation details differ')
+    return {'comparisons': 8, 'exposed_scores': score_count, 'changed_native_identities': len(metrics), 'inventory_comparisons': len(inventories), 'negative_guards': len(guards)}
+
+
 def verify(dataset, result_dir):
     manifest = load(result_dir / 'manifest.json')
     require(manifest['state'] == 'complete-recorded-experiment', 'result package incomplete')
@@ -269,6 +335,7 @@ def verify(dataset, result_dir):
             require(value['score'] == value['semantic_similarity'] == expected[value['record_key']], 'actual and recovered scores differ')
             actual_count += 1
     require(top_count == 11040 and actual_count == 4320, 'score verification census differs')
+    integration = verify_integration_parity(dataset, result_dir, production, historical_artifact)
     oracle_cells = admission_available = 0
     for case in lines(result_dir/'oracle.jsonl'):
         keys = case['keys']
@@ -313,7 +380,7 @@ def verify(dataset, result_dir):
         require(len(samples) == 21 and all(r['status'] == 200 for r in samples), 'inventory request census/status differs')
         require(cell['cold_ms'] == samples[0]['elapsed_ms'] and cell['warm_p50_ms'] == percentile(warm,.5) and cell['warm_p95_ms'] == percentile(warm,.95), 'inventory percentiles differ')
         require(len({r['selection_signature_sha256'] for r in samples}) == 1 and len({r['full_response_sha256'] for r in samples}) == 1, 'inventory selection changed between requests')
-    print(json.dumps({'status': 'ok', 'opinion_rows': len(opinions), 'adjudications': len(adjudications), 'score_values': top_count, 'actual_scores_replayed': actual_count, 'oracle_cells': oracle_cells, 'performance_cells': len(perf['cells']), 'displayed_audit': displayed_audit, 'scope': 'recorded-data replay and bindings; no source-body or vector-math re-verification'}, sort_keys=True))
+    print(json.dumps({'status': 'ok', 'opinion_rows': len(opinions), 'adjudications': len(adjudications), 'score_values': top_count, 'actual_scores_replayed': actual_count, 'oracle_cells': oracle_cells, 'performance_cells': len(perf['cells']), 'displayed_audit': displayed_audit, 'integration_parity': integration, 'scope': 'recorded-data replay and bindings; no source-body or vector-math re-verification'}, sort_keys=True))
 
 
 if __name__ == '__main__':

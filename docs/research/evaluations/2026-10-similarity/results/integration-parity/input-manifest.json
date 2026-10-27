@@ -1,0 +1,546 @@
+{
+  "declared_utc": "2026-10-27T09:31:43Z",
+  "scope": "six excerpt-audit cases plus Lich PassageAny.5 bothmodels, diagnostic timing only",
+  "predeclaration_sha256": "eac4ad2e8b60c6f0772536d22041ac8e5d8bbb9fcf8eaf523cf33a8c17b58430",
+  "binary_sha256": "453eea2d6a099fb431e213b95af1e1493ff3f46b2bcf687f9b9f018602b09e7c",
+  "core_revision": "0ed3dd72dd1414492ddce10b4824d46ed3291c60",
+  "cells": [
+    {
+      "id": "cell-01",
+      "scenario_id": "dev-h01",
+      "profile": "bge-base",
+      "variant": "passages-any-0p5",
+      "seed": {
+        "kind": "record",
+        "record_key": "hazards:Q8bXKgDm8eguqThB"
+      },
+      "old_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+      "new_generation": "a9474928b73e8cf89e84c5ed6990a838:7",
+      "selection_mapping": [],
+      "new_selected_parts": [],
+      "method": "passages",
+      "candidate_parts": "any",
+      "decay": 0.5,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-0ed3dd72",
+        "similar",
+        "hazards:Q8bXKgDm8eguqThB",
+        "--method",
+        "passages",
+        "--search-profile",
+        "bge-base",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/preview-latest.sqlite",
+        "--path-mode",
+        "repo",
+        "--explain",
+        "--json",
+        "--limit",
+        "20",
+        "--artifact-generation",
+        "a9474928b73e8cf89e84c5ed6990a838:7",
+        "--candidate-parts",
+        "any",
+        "--decay",
+        "0.5"
+      ]
+    },
+    {
+      "id": "cell-02",
+      "scenario_id": "dev-h02",
+      "profile": "embeddinggemma",
+      "variant": "average-corresponding",
+      "seed": {
+        "kind": "record",
+        "record_key": "hazards:Q8bXKgDm8eguqThB"
+      },
+      "old_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+      "new_generation": "a9474928b73e8cf89e84c5ed6990a838:7",
+      "selection_mapping": [
+        {
+          "old_selector": "part:43ae599956b6366a12eb5f29c32e52805ff2d3a4e1693ba4fbaddbecdc613499",
+          "new_selector": "part:08182a5f487987668a6229c9d00338950f2d3d5e49fcef4031a709de8c70a014",
+          "authored_match": {
+            "owners": [],
+            "field": "/system/details/reset",
+            "section_ordinal": 0,
+            "canonical_text_sha256": "eeb718bf93d6fb7f6432f59043800a70f9ac2f4ccf28d77bc36bfd6cb3971ade"
+          }
+        }
+      ],
+      "new_selected_parts": [
+        "part:08182a5f487987668a6229c9d00338950f2d3d5e49fcef4031a709de8c70a014"
+      ],
+      "method": "content-average",
+      "candidate_parts": "corresponding",
+      "decay": null,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-0ed3dd72",
+        "similar",
+        "hazards:Q8bXKgDm8eguqThB",
+        "--method",
+        "content-average",
+        "--search-profile",
+        "embeddinggemma",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/preview-latest.sqlite",
+        "--path-mode",
+        "repo",
+        "--explain",
+        "--json",
+        "--limit",
+        "20",
+        "--artifact-generation",
+        "a9474928b73e8cf89e84c5ed6990a838:7",
+        "--candidate-parts",
+        "corresponding",
+        "--part",
+        "part:08182a5f487987668a6229c9d00338950f2d3d5e49fcef4031a709de8c70a014"
+      ]
+    },
+    {
+      "id": "cell-03",
+      "scenario_id": "dev-c02",
+      "profile": "bge-base",
+      "variant": "passages-corresponding-0p25",
+      "seed": {
+        "kind": "record",
+        "record_key": "pathfinder-monster-core:smItqlbr0iuDJ8nL"
+      },
+      "old_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+      "new_generation": "a9474928b73e8cf89e84c5ed6990a838:7",
+      "selection_mapping": [],
+      "new_selected_parts": [],
+      "method": "passages",
+      "candidate_parts": "corresponding",
+      "decay": 0.25,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-0ed3dd72",
+        "similar",
+        "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+        "--method",
+        "passages",
+        "--search-profile",
+        "bge-base",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/preview-latest.sqlite",
+        "--path-mode",
+        "repo",
+        "--explain",
+        "--json",
+        "--limit",
+        "20",
+        "--artifact-generation",
+        "a9474928b73e8cf89e84c5ed6990a838:7",
+        "--candidate-parts",
+        "corresponding",
+        "--decay",
+        "0.25"
+      ]
+    },
+    {
+      "id": "cell-04",
+      "scenario_id": "dev-c03",
+      "profile": "embeddinggemma",
+      "variant": "average-any",
+      "seed": {
+        "kind": "record",
+        "record_key": "pathfinder-monster-core:smItqlbr0iuDJ8nL"
+      },
+      "old_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+      "new_generation": "a9474928b73e8cf89e84c5ed6990a838:7",
+      "selection_mapping": [
+        {
+          "old_selector": "part:8cfc70b937eac40f5517f41aa1f18d842c71ae4e1e9bda7bba23855fb6fb7435",
+          "new_selector": "part:425ef0e9b5bf4fcf5b0bbccb5da1a9bac8e6a69b2ebab484298646544db74a65",
+          "authored_match": {
+            "owners": [],
+            "field": "/system/details/publicNotes",
+            "section_ordinal": 0,
+            "canonical_text_sha256": "60810816477cb5085bac18489e6c729dd0b96479299b3465fe95f3f2d688e5c6"
+          }
+        },
+        {
+          "old_selector": "part:1c0a2ef604280e5e803b9eef24af4651cc8762a6c33f95799392f8972b51774c",
+          "new_selector": "part:95ff6c8de8213e5872a39682015d34b8b2f0b07ba1a205e7cb4dfcd3f5d86597",
+          "authored_match": {
+            "owners": [
+              {
+                "collection": "/items",
+                "identity": {
+                  "Stable": "CjdoOLjRkqyfp25v"
+                }
+              }
+            ],
+            "field": "/system/description/value",
+            "section_ordinal": 0,
+            "canonical_text_sha256": "974cf00205642a6e9b66804b660d4dfe9b9e283a3d420f3779070b9550ec6154"
+          }
+        }
+      ],
+      "new_selected_parts": [
+        "part:425ef0e9b5bf4fcf5b0bbccb5da1a9bac8e6a69b2ebab484298646544db74a65",
+        "part:95ff6c8de8213e5872a39682015d34b8b2f0b07ba1a205e7cb4dfcd3f5d86597"
+      ],
+      "method": "content-average",
+      "candidate_parts": "any",
+      "decay": null,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-0ed3dd72",
+        "similar",
+        "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+        "--method",
+        "content-average",
+        "--search-profile",
+        "embeddinggemma",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/preview-latest.sqlite",
+        "--path-mode",
+        "repo",
+        "--explain",
+        "--json",
+        "--limit",
+        "20",
+        "--artifact-generation",
+        "a9474928b73e8cf89e84c5ed6990a838:7",
+        "--candidate-parts",
+        "any",
+        "--part",
+        "part:425ef0e9b5bf4fcf5b0bbccb5da1a9bac8e6a69b2ebab484298646544db74a65",
+        "--part",
+        "part:95ff6c8de8213e5872a39682015d34b8b2f0b07ba1a205e7cb4dfcd3f5d86597"
+      ]
+    },
+    {
+      "id": "cell-05",
+      "scenario_id": "dev-t01",
+      "profile": "bge-base",
+      "variant": "baseline",
+      "seed": {
+        "kind": "trait",
+        "trait_key": "trait:fire"
+      },
+      "old_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+      "new_generation": "a9474928b73e8cf89e84c5ed6990a838:7",
+      "selection_mapping": [],
+      "new_selected_parts": [],
+      "method": "baseline",
+      "candidate_parts": null,
+      "decay": null,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-0ed3dd72",
+        "similar",
+        "trait:fire",
+        "--method",
+        "baseline",
+        "--search-profile",
+        "bge-base",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/preview-latest.sqlite",
+        "--path-mode",
+        "repo",
+        "--explain",
+        "--json",
+        "--limit",
+        "20",
+        "--artifact-generation",
+        "a9474928b73e8cf89e84c5ed6990a838:7"
+      ]
+    },
+    {
+      "id": "cell-06",
+      "scenario_id": "hold-s01",
+      "profile": "embeddinggemma",
+      "variant": "passages-any-0p5",
+      "seed": {
+        "kind": "record",
+        "record_key": "spells-srd:jfVCuOpzC6mUrf6f"
+      },
+      "old_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+      "new_generation": "a9474928b73e8cf89e84c5ed6990a838:7",
+      "selection_mapping": [],
+      "new_selected_parts": [],
+      "method": "passages",
+      "candidate_parts": "any",
+      "decay": 0.5,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-0ed3dd72",
+        "similar",
+        "spells-srd:jfVCuOpzC6mUrf6f",
+        "--method",
+        "passages",
+        "--search-profile",
+        "embeddinggemma",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/preview-latest.sqlite",
+        "--path-mode",
+        "repo",
+        "--explain",
+        "--json",
+        "--limit",
+        "20",
+        "--artifact-generation",
+        "a9474928b73e8cf89e84c5ed6990a838:7",
+        "--candidate-parts",
+        "any",
+        "--decay",
+        "0.5"
+      ]
+    },
+    {
+      "id": "integration-default-bge-base",
+      "scenario_id": "dev-c02",
+      "profile": "bge-base",
+      "variant": "passages-any-0p5",
+      "seed": {
+        "kind": "record",
+        "record_key": "pathfinder-monster-core:smItqlbr0iuDJ8nL"
+      },
+      "old_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+      "new_generation": "a9474928b73e8cf89e84c5ed6990a838:7",
+      "selection_mapping": [],
+      "new_selected_parts": [],
+      "method": "passages",
+      "candidate_parts": "any",
+      "decay": 0.5,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-0ed3dd72",
+        "similar",
+        "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+        "--method",
+        "passages",
+        "--search-profile",
+        "bge-base",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/preview-latest.sqlite",
+        "--path-mode",
+        "repo",
+        "--explain",
+        "--json",
+        "--limit",
+        "20",
+        "--artifact-generation",
+        "a9474928b73e8cf89e84c5ed6990a838:7",
+        "--candidate-parts",
+        "any",
+        "--decay",
+        "0.5"
+      ]
+    },
+    {
+      "id": "integration-default-embeddinggemma",
+      "scenario_id": "dev-c02",
+      "profile": "embeddinggemma",
+      "variant": "passages-any-0p5",
+      "seed": {
+        "kind": "record",
+        "record_key": "pathfinder-monster-core:smItqlbr0iuDJ8nL"
+      },
+      "old_generation": "a9474928b73e8cf89e84c5ed6990a838:6",
+      "new_generation": "a9474928b73e8cf89e84c5ed6990a838:7",
+      "selection_mapping": [],
+      "new_selected_parts": [],
+      "method": "passages",
+      "candidate_parts": "any",
+      "decay": 0.5,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-0ed3dd72",
+        "similar",
+        "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+        "--method",
+        "passages",
+        "--search-profile",
+        "embeddinggemma",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/preview-latest.sqlite",
+        "--path-mode",
+        "repo",
+        "--explain",
+        "--json",
+        "--limit",
+        "20",
+        "--artifact-generation",
+        "a9474928b73e8cf89e84c5ed6990a838:7",
+        "--candidate-parts",
+        "any",
+        "--decay",
+        "0.5"
+      ]
+    }
+  ],
+  "inventory_comparison": [
+    {
+      "scenario_id": "dev-h01",
+      "profile": "bge-base",
+      "parts": 6,
+      "all_logical_metadata_equal": true,
+      "role_recipe_equal": true,
+      "supports_corresponding_parts_equal": true,
+      "navigation_differences": [],
+      "old_new_selector_overlap": 0,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-0ed3dd72",
+        "similar",
+        "hazards:Q8bXKgDm8eguqThB",
+        "--list-parts",
+        "--search-profile",
+        "bge-base",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/preview-latest.sqlite",
+        "--path-mode",
+        "repo",
+        "--json"
+      ],
+      "stdout_sha256": "dbf8549faa1ae5860a47d7bbf7bcb6e3a8065cf7521f0ec9d479702319b1d39d"
+    },
+    {
+      "scenario_id": "dev-h02",
+      "profile": "embeddinggemma",
+      "parts": 6,
+      "all_logical_metadata_equal": true,
+      "role_recipe_equal": true,
+      "supports_corresponding_parts_equal": true,
+      "navigation_differences": [],
+      "old_new_selector_overlap": 0,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-0ed3dd72",
+        "similar",
+        "hazards:Q8bXKgDm8eguqThB",
+        "--list-parts",
+        "--search-profile",
+        "embeddinggemma",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/preview-latest.sqlite",
+        "--path-mode",
+        "repo",
+        "--json"
+      ],
+      "stdout_sha256": "fadef4c81729f24d63fee8919cf8e01f8f0d48d3096bb8bb624460ddca67fd0a"
+    },
+    {
+      "scenario_id": "dev-c02",
+      "profile": "bge-base",
+      "parts": 38,
+      "all_logical_metadata_equal": true,
+      "role_recipe_equal": true,
+      "supports_corresponding_parts_equal": true,
+      "navigation_differences": [],
+      "old_new_selector_overlap": 0,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-0ed3dd72",
+        "similar",
+        "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+        "--list-parts",
+        "--search-profile",
+        "bge-base",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/preview-latest.sqlite",
+        "--path-mode",
+        "repo",
+        "--json"
+      ],
+      "stdout_sha256": "aa35751f30a8c057ba4edfa126bbf66f655f7e320f4c187c0b98a11065a8b78b"
+    },
+    {
+      "scenario_id": "dev-c03",
+      "profile": "embeddinggemma",
+      "parts": 38,
+      "all_logical_metadata_equal": true,
+      "role_recipe_equal": true,
+      "supports_corresponding_parts_equal": true,
+      "navigation_differences": [],
+      "old_new_selector_overlap": 0,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-0ed3dd72",
+        "similar",
+        "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+        "--list-parts",
+        "--search-profile",
+        "embeddinggemma",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/preview-latest.sqlite",
+        "--path-mode",
+        "repo",
+        "--json"
+      ],
+      "stdout_sha256": "7a430e0815e42d3abaa3b3ba58fe234f0e8f554b3055e60dff77b0bdac2fa72c"
+    },
+    {
+      "scenario_id": "dev-t01",
+      "profile": "bge-base",
+      "parts": 1,
+      "all_logical_metadata_equal": true,
+      "role_recipe_equal": true,
+      "supports_corresponding_parts_equal": true,
+      "navigation_differences": [],
+      "old_new_selector_overlap": 1,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-0ed3dd72",
+        "similar",
+        "trait:fire",
+        "--list-parts",
+        "--search-profile",
+        "bge-base",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/preview-latest.sqlite",
+        "--path-mode",
+        "repo",
+        "--json"
+      ],
+      "stdout_sha256": "3c172c993d867678fd331576c38f98edaadc288556faa9fda26b1f3d52b43839"
+    },
+    {
+      "scenario_id": "hold-s01",
+      "profile": "embeddinggemma",
+      "parts": 1,
+      "all_logical_metadata_equal": true,
+      "role_recipe_equal": true,
+      "supports_corresponding_parts_equal": true,
+      "navigation_differences": [],
+      "old_new_selector_overlap": 0,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-0ed3dd72",
+        "similar",
+        "spells-srd:jfVCuOpzC6mUrf6f",
+        "--list-parts",
+        "--search-profile",
+        "embeddinggemma",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/preview-latest.sqlite",
+        "--path-mode",
+        "repo",
+        "--json"
+      ],
+      "stdout_sha256": "4dd56309b7b81b4606d46b0bc56438c9dbdc7088e63245ea5dfff6d9fba10890"
+    },
+    {
+      "scenario_id": "dev-c02",
+      "profile": "embeddinggemma",
+      "parts": 38,
+      "all_logical_metadata_equal": true,
+      "role_recipe_equal": true,
+      "supports_corresponding_parts_equal": true,
+      "navigation_differences": [],
+      "old_new_selector_overlap": 0,
+      "command": [
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/scratch/similarity-evaluation/runtime/product-atlas-0ed3dd72",
+        "similar",
+        "pathfinder-monster-core:smItqlbr0iuDJ8nL",
+        "--list-parts",
+        "--search-profile",
+        "embeddinggemma",
+        "--index",
+        "/Users/ekosten/Documents/Codex/2026-10-25/i-m-curious-how-in-similar/work/configurable-similarity/.atlas/preview-latest.sqlite",
+        "--path-mode",
+        "repo",
+        "--json"
+      ],
+      "stdout_sha256": "7a430e0815e42d3abaa3b3ba58fe234f0e8f554b3055e60dff77b0bdac2fa72c"
+    }
+  ],
+  "frozen_hashes": {
+    "freeze.json": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+    "manifest.json": "87954351787f59392da7d56d9f8e7ae8251f40ff01ccd1d938c3e66736a0a8e6",
+    "seeds.json": "bf0f1ae40150592927d26b021d318f0bebbef5fbb8e405d2b5c4b43d6c74ba1c"
+  }
+}
