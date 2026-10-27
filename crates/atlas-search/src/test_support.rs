@@ -5,7 +5,7 @@ use atlas_foundry_model::{
 };
 pub use atlas_index::test_support::publish_input;
 use atlas_index::*;
-pub use atlas_index::{SourceReadMetrics, TraitSeedChunk, TraitVectorInput};
+pub use atlas_index::{TraitSeedChunk, TraitVectorInput};
 use atlas_record::{
     source_content::{CONTENT_INTERPRETATION_VERSION, ContentAudience, ContentVisibilityRule},
     source_record::{
@@ -72,14 +72,6 @@ pub fn open_input_fixture(
         )?,
         artifact,
     ))
-}
-impl crate::AtlasRetrievalService {
-    pub fn read_metrics(&self) -> SourceReadMetrics {
-        self.index.read_metrics()
-    }
-    pub fn reset_read_metrics(&self) {
-        self.index.reset_read_metrics();
-    }
 }
 pub fn hash(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
