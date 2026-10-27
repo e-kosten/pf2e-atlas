@@ -3022,6 +3022,7 @@ function turnResourcesFixture(
     extra_remaining: 0n,
     extra_uses: [],
     reactions_total: 1n,
+    can_grant_reaction: false,
     reactions_remaining: 1n,
     start_results: [],
     pending_reason: null,
