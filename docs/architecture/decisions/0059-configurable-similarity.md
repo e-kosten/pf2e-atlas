@@ -73,5 +73,6 @@ Ordinary hybrid search fusion, structured filters, authored section boundaries
 and exact trait membership/reference workflows are unchanged.
 
 [ADR0060](0060-core-sections-and-search-scope.md) adds independent Core source and
-result choices and a typed identity component for those new requests. Legacy
-All/prose-only comparisons retain this decision's representation and scoring.
+result choices and a typed identity component. Following functional UX review,
+All and Core source presets both include identity. Explicit prose-only Custom
+comparisons retain this decision's representation and scoring.

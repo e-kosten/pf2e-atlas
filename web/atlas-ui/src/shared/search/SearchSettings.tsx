@@ -163,11 +163,13 @@ export function SearchSettings({
     draft?.sourceSections === "core"
       ? (inventory.data?.core.selectors ?? [])
       : draft?.sourceSections === "all"
-        ? available
-            .filter((part) => part.kind === "section")
-            .map((part) => part.selector)
+        ? available.map((part) => part.selector)
         : (draft?.parts ?? []);
   const selectedCount = selectedParts.length;
+  const allSelected =
+    available.length > 0 &&
+    selectedParts.length === available.length &&
+    available.every((part) => selectedParts.includes(part.selector));
   const missingCore =
     draft?.sourceSections === "core" &&
     inventory.data !== undefined &&
@@ -178,6 +180,10 @@ export function SearchSettings({
     (part) => part.kind === "identity" && selectedParts.includes(part.selector),
   );
   const usesParts = draft !== null && draft.similarity.method !== "baseline";
+  const missingAllIdentity =
+    usesParts &&
+    draft.sourceSections === "all" &&
+    allParts.some((part) => part.kind === "identity" && !part.has_vectors);
   const showingSource = Boolean(seed && usesParts && partsOpen);
   if (
     draft &&
@@ -289,6 +295,7 @@ export function SearchSettings({
       !validModel ||
       invalidParts ||
       missingCore ||
+      missingAllIdentity ||
       staleParts ||
       uncheckedParts ||
       invalidDecay
@@ -401,7 +408,9 @@ export function SearchSettings({
         : `Uses ${sourcePossessive} name and identity plus the core sections chosen for this record kind.`
       : draft?.sourceSections === "custom"
         ? `Uses only the selected content from ${sourceName}.`
-        : `Uses all of ${sourcePossessive} available document sections.`;
+        : trait
+          ? `Uses all of ${sourcePossessive} available document sections.`
+          : `Uses ${sourcePossessive} name and identity plus all available document sections.`;
   const partsHelp = `Choose which sections of this ${trait ? "trait" : "record"} to use when finding similar records.`;
   const methodHelp =
     draft?.similarity.method === "passages"
@@ -480,6 +489,7 @@ export function SearchSettings({
             !validModel ||
             invalidParts ||
             missingCore ||
+            missingAllIdentity ||
             staleParts ||
             uncheckedParts ||
             invalidDecay,
@@ -677,6 +687,12 @@ export function SearchSettings({
                               another model or update the collection.
                             </Typography.Paragraph>
                           )}
+                          {missingAllIdentity && (
+                            <Typography.Paragraph type="danger" role="alert">
+                              Name and identity is unavailable for this model. Choose
+                              another model or update the collection.
+                            </Typography.Paragraph>
+                          )}
                         </Form.Item>
                       )}
                       {draft.similarity.method === "passages" && (
@@ -812,10 +828,9 @@ export function SearchSettings({
                                   {inventory.data && (
                                     <>
                                       <Checkbox
-                                        checked={draft.sourceSections === "all"}
+                                        checked={allSelected}
                                         indeterminate={
-                                          draft.sourceSections !== "all" &&
-                                          selectedParts.length > 0
+                                          !allSelected && selectedParts.length > 0
                                         }
                                         onChange={(event) =>
                                           setDraft({
@@ -829,7 +844,7 @@ export function SearchSettings({
                                           })
                                         }
                                       >
-                                        All sections
+                                        Select all
                                       </Checkbox>
                                       <PartChoices
                                         parts={allParts}

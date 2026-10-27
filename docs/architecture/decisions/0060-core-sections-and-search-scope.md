@@ -44,10 +44,26 @@ prose field, byte range, ordinal or role. Passage matches treats identity as one
 logical contribution under the same sorted geometric decay; Content average
 gives it one logical centroid contribution. Corresponding compares identity with
 identity and retains existing prose-role rules. Any permits cross-component
-matches. Core or explicit-identity sources also admit destination identity in All
-scope; legacy All/prose-only comparisons keep their original eligibility and
+matches. All and Core source presets include one root identity; Custom includes
+exactly its selected components. Sources that include identity also admit
+destination identity in All scope. All's inclusion of identity was explicitly
+approved during the functional UX review and changes its former prose-only
+scores. Custom prose-only comparisons retain their original eligibility and
 scores. Identity counts toward the existing resource ceilings. Baseline methods
 accept destination scope but reject explicit source presets.
+
+Keep the complete union of per-query candidates and score it in bounded batches.
+Do not impose a separate 4,096-record cutoff: record count is a poor proxy for
+work when scoped records contribute different numbers of vectors. The seed limit
+of 128 native units and 256 hits per query structurally bound candidate admission;
+the total number of chunk and centroid queries is at most twice the seed-unit count.
+Retain the 65,536 fetched-vector and 8,000,000 comparison budgets, overflow checks
+and cancellation. Limit failures must explain how to recover by deselecting source
+sections or narrowing candidate filters. Do not silently truncate selected
+sections or admitted neighbors. Keep pending explanations compact, sharing seed
+metadata and retaining only the existing bounded explanation rows; hydrate full
+metadata and witness text after paging. These presentation bounds must not change
+full scores, selected/comparable counts or candidate ordering.
 
 `atlas-index` materializes exact Core membership over existing parts, lexical
 units and semantic locations. Retain root/alias lexical rows and their existing
@@ -70,7 +86,7 @@ selection and recipe acknowledgements. CLI and web transport these choices
 without inferring field policy or calculating scores. The shared Search settings
 dialog remembers one result scope across text/Similar and All/Core source presets
 by projected family. Custom selectors remain seed/generation-specific. Explicit
-legacy links retain All semantics; opening a link does not overwrite saved
+legacy links resolve to the current All preset; opening a link does not overwrite saved
 preferences. Browse and exact membership/reference operations retain their
 existing contracts.
 
@@ -80,11 +96,13 @@ Core is an opt-in restriction and representation, not a relevance winner.
 Compare identity-only, prose-only and combined representations, equipment's own
 versus intrinsic spell content, and multiple decay values in a separate frozen
 evaluation. Preserve useful associated-content queries in that later study.
-No broader study or default change is implied by implementing these controls.
+No broader study is implied by implementing these controls. The default preset
+remains All; its explicitly approved identity inclusion changes its contents.
 
 Validation must prove exact typed membership, privacy/category distinctions,
 pre-limit masking, identity weighting/correspondence, missing-vector failures,
-legacy All parity and offline lexical/native/saved-state preservation. Record
+All/Core identity inclusion, Custom prose-only parity and offline
+lexical/native/saved-state preservation. Record
 coverage and metadata cost separately from semantic usefulness. See
 [ADR0053](0053-field-aware-search-fusion.md) and
 [ADR0059](0059-configurable-similarity.md) for the unchanged lexical and scoring

@@ -1,6 +1,6 @@
 //! Core policy is already independently tested; these fixtures protect retrieval composition.
 use super::*;
-use crate::test_support::{input, open_input_fixture, record};
+use crate::test_support::{input, input_with_both_profiles, open_input_fixture, record};
 use atlas_domain::{
     CoreFallbackReason, CoreSectionRepresentation, SearchContentScope, SimilarityCandidateParts,
     SimilarityOptions, SimilaritySeed, SimilaritySourceSections, SourcePassageAddress,
@@ -118,14 +118,23 @@ fn core_candidate_scope_excludes_carried_matches_and_preserves_standalone_prose(
 }
 
 #[test]
-fn legacy_all_stays_prose_only_and_core_source_enables_identity_in_all_candidates() {
+fn custom_prose_only_keeps_its_recipe_and_core_enables_identity_in_all_candidates() {
     let (service, _artifact) = open_input_fixture(fixture()).unwrap();
     let seed = SimilaritySeed::Record {
         record_key: "actors:aaaaaaaaaaaaaaaa".parse().unwrap(),
     };
     let options = SimilarityOptions::Passages {
         decay: 0.5,
-        parts: None,
+        parts: Some(
+            service
+                .similarity_parts(&seed, None)
+                .unwrap()
+                .parts
+                .iter()
+                .filter(|component| !component.is_identity())
+                .map(|component| component.selector().clone())
+                .collect(),
+        ),
         candidate_parts: SimilarityCandidateParts::Corresponding,
     };
     let all = service
@@ -140,7 +149,12 @@ fn legacy_all_stays_prose_only_and_core_source_enables_identity_in_all_candidate
             .iter()
             .all(|selector| selector.0.starts_with("part:"))
     );
-    let mut query = request(&seed, &options);
+    let core_options = SimilarityOptions::Passages {
+        decay: 0.5,
+        parts: None,
+        candidate_parts: SimilarityCandidateParts::Corresponding,
+    };
+    let mut query = request(&seed, &core_options);
     query.source_sections = Some(SimilaritySourceSections::Core);
     let core = service.configurable_similar(query).unwrap().unwrap();
     let sparse = core
@@ -161,6 +175,117 @@ fn legacy_all_stays_prose_only_and_core_source_enables_identity_in_all_candidate
         pair.candidate.location.address,
         Some(SourcePassageAddress::Identity {})
     ) && pair.candidate.location.field.is_none()));
+}
+
+#[test]
+fn all_sources_include_identity_once_and_match_exact_custom_components_for_both_profiles() {
+    let mut data = input_with_both_profiles(
+        ["aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb"]
+            .into_iter()
+            .map(|id| {
+                record(
+                    "actors",
+                    "Actor",
+                    json!({
+                        "_id":id,"name":id,"type":"npc",
+                        "system":{"details":{"publicNotes":"<p>Root description</p>"}},
+                        "items":[{"_id":"ownedAction00001","type":"action","name":"Action",
+                            "system":{"description":{"value":"<p>Owned ability</p>"}}}]
+                    }),
+                )
+            })
+            .collect(),
+    );
+    for unit in &mut data.semantic_units {
+        unit.vector.fill(0.);
+        let axis = if matches!(unit.address, SourcePassageAddress::Identity {}) {
+            0
+        } else if unit.owners.is_empty() {
+            1
+        } else {
+            2
+        };
+        unit.vector[axis] = 1.;
+    }
+    let (service, _artifact) = open_input_fixture(data).unwrap();
+    let seed = SimilaritySeed::Record {
+        record_key: "actors:aaaaaaaaaaaaaaaa".parse().unwrap(),
+    };
+    for profile in ["bge-base", "embeddinggemma"] {
+        let profile = atlas_domain::SearchProfileId::new(profile);
+        let inventory = service.similarity_parts(&seed, Some(&profile)).unwrap();
+        let selectors = inventory
+            .parts
+            .iter()
+            .map(|part| part.selector().clone())
+            .collect::<Vec<_>>();
+        assert_eq!(selectors.len(), 3);
+        for mode in [
+            SimilarityCandidateParts::Any,
+            SimilarityCandidateParts::Corresponding,
+        ] {
+            for average in [false, true] {
+                let make_options = |parts| {
+                    if average {
+                        SimilarityOptions::ContentAverage {
+                            parts,
+                            candidate_parts: mode,
+                        }
+                    } else {
+                        SimilarityOptions::Passages {
+                            parts,
+                            candidate_parts: mode,
+                            decay: 0.5,
+                        }
+                    }
+                };
+                let custom_options = make_options(Some(selectors.clone()));
+                let mut custom = request(&seed, &custom_options);
+                custom.search_profile = Some(&profile);
+                let custom = service.configurable_similar(custom).unwrap().unwrap();
+                for preset in [None, Some(SimilaritySourceSections::All)] {
+                    let options = make_options(None);
+                    let mut query = request(&seed, &options);
+                    query.source_sections = preset;
+                    query.search_profile = Some(&profile);
+                    let all = service.configurable_similar(query).unwrap().unwrap();
+                    assert_eq!(all.source_sections, Some(SimilaritySourceSections::All));
+                    assert_eq!(all.resolved_selectors, custom.resolved_selectors);
+                    assert_eq!(all.diagnostics.seed_units, 3);
+                    assert!(all.candidate_identity);
+                    assert_eq!(all.recipe, atlas_domain::SIMILARITY_COMPONENT_RECIPE);
+                    assert_eq!(all.results.records.len(), 1);
+                    assert_eq!(
+                        all.results.records[0].score,
+                        custom.results.records[0].score
+                    );
+                    assert!((all.results.records[0].score - 1.).abs() < 1e-6);
+                    let evidence = &all.evidence[0].1;
+                    assert_eq!(evidence.selected_parts, 3);
+                    if !average {
+                        assert_eq!(
+                            evidence
+                                .parts
+                                .iter()
+                                .filter(|part| part.part.is_identity())
+                                .count(),
+                            1
+                        );
+                    } else if mode == SimilarityCandidateParts::Corresponding {
+                        assert_eq!(
+                            evidence
+                                .roles
+                                .iter()
+                                .filter(|role| role.key
+                                    == atlas_domain::SimilarityComparisonKey::Identity)
+                                .count(),
+                            1
+                        );
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[test]
@@ -195,6 +320,17 @@ fn identity_only_fallback_keeps_each_content_method_and_reports_why() {
                 CoreSectionRepresentation::IdentityOnly
             );
             assert_eq!(selection.fallback_reason, Some(reason));
+            let all = service
+                .configurable_similar(request(&seed, &options))
+                .unwrap()
+                .unwrap();
+            assert_eq!(all.source_sections, Some(SimilaritySourceSections::All));
+            assert_eq!(all.effective, options);
+            assert_eq!(all.diagnostics.seed_units, 1);
+            assert_eq!(all.resolved_selectors.len(), 1);
+            assert!(all.candidate_identity);
+            assert!(all.core.is_none());
+            assert_eq!(all.recipe, atlas_domain::SIMILARITY_COMPONENT_RECIPE);
         }
     }
 }
@@ -429,27 +565,51 @@ fn identity_consumes_one_of_the_existing_seed_vector_slots() {
             record_key: "actors:aaaaaaaaaaaaaaaa".parse().unwrap(),
         };
         let options = SimilarityOptions::default();
-        let all = service
-            .configurable_similar(request(&seed, &options))
+        let prose_only = SimilarityOptions::Passages {
+            decay: 0.5,
+            parts: Some(
+                service
+                    .similarity_parts(&seed, None)
+                    .unwrap()
+                    .parts
+                    .iter()
+                    .filter(|component| !component.is_identity())
+                    .map(|component| component.selector().clone())
+                    .collect(),
+            ),
+            candidate_parts: SimilarityCandidateParts::Any,
+        };
+        let custom = service
+            .configurable_similar(request(&seed, &prose_only))
             .unwrap()
             .unwrap();
-        assert_eq!(all.diagnostics.seed_units, sections);
-        let mut query = request(&seed, &options);
-        query.source_sections = Some(SimilaritySourceSections::Core);
-        if sections == 127 {
-            assert_eq!(
-                service
-                    .configurable_similar(query)
-                    .unwrap()
-                    .unwrap()
-                    .diagnostics
-                    .seed_units,
-                128
-            );
-        } else {
-            let error = service.configurable_similar(query).unwrap_err();
-            assert_eq!(error.kind(), SearchErrorKind::InvalidOptions);
-            assert!(error.to_string().contains("128"));
+        assert_eq!(custom.diagnostics.seed_units, sections);
+        for mode in [
+            SimilaritySourceSections::All,
+            SimilaritySourceSections::Core,
+        ] {
+            let mut query = request(&seed, &options);
+            query.source_sections = Some(mode);
+            if sections == 127 {
+                assert_eq!(
+                    service
+                        .configurable_similar(query)
+                        .unwrap()
+                        .unwrap()
+                        .diagnostics
+                        .seed_units,
+                    128
+                );
+            } else {
+                let error = service.configurable_similar(query).unwrap_err();
+                assert_eq!(error.kind(), SearchErrorKind::InvalidOptions);
+                assert!(error.to_string().contains("128"));
+                assert!(
+                    error
+                        .to_string()
+                        .contains("Deselect some sections under Sections to compare")
+                );
+            }
         }
     }
 }

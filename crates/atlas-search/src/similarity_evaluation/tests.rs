@@ -157,8 +157,8 @@ fn exact_matrix_matches_product_scores_for_both_profiles_and_every_method() {
                 );
             }
         }
-        // The spell's identity is positive, its prose negative: legacy baseline
-        // must include identity units, while content methods do not use them.
+        // The spell's identity is positive, its prose negative. The legacy
+        // baseline retains raw cosine; All content now includes identity too.
         assert_eq!(
             exact.runs[0]
                 .rows
@@ -275,8 +275,16 @@ fn direct_oracle_finds_a_winner_absent_from_every_bounded_knn_lane() {
         record_key: "hazards:aaaaaaaaaaaaaaaa".parse().unwrap(),
     };
     let profile = SearchProfileId::new("bge-base");
+    let prose = service
+        .similarity_parts(&seed, Some(&profile))
+        .unwrap()
+        .parts
+        .iter()
+        .filter(|part| !part.is_identity())
+        .map(|part| part.selector().clone())
+        .collect();
     let options = SimilarityOptions::ContentAverage {
-        parts: None,
+        parts: Some(prose),
         candidate_parts: SimilarityCandidateParts::Any,
     };
     let keys = (0..300)
@@ -492,10 +500,18 @@ fn undefined_seed_and_candidate_centroids_are_distinguished_from_zero_matches() 
             record_key: "hazards:aaaaaaaaaaaaaaaa".parse().unwrap(),
         };
         let profile = SearchProfileId::new("bge-base");
+        let prose = service
+            .similarity_parts(&seed, Some(&profile))
+            .unwrap()
+            .parts
+            .iter()
+            .filter(|part| !part.is_identity())
+            .map(|part| part.selector().clone())
+            .collect();
         let variants = [SimilarityEvaluationVariant {
             id: "average".into(),
             options: SimilarityOptions::ContentAverage {
-                parts: None,
+                parts: Some(prose),
                 candidate_parts: SimilarityCandidateParts::Any,
             },
         }];

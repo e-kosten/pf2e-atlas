@@ -382,7 +382,9 @@ Core includes one native record identity component plus its selected prose,
 with explicit identity-only resolution when no allowed prose exists. Traits keep
 their existing definition/label representation. The same scorer handles typed
 Identity/Section components; correspondence does not invent an Identity prose
-role. Legacy All/prose-only requests retain their old behavior. Query-backed
+role. Both All and Core source presets include root identity; Custom uses exactly
+the selected components. Explicit prose-only Custom and baseline methods retain
+their scoring contracts. Query-backed
 discovery shares scope, while unsupported browse/membership requests reject it.
 Offline Core metadata publication is separately versioned and generation-atomic,
 without source/model access or new vector inference. The browser remembers one

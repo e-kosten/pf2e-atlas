@@ -319,7 +319,7 @@ impl SqliteIndexReader {
         while let Some(row) = rows.next()? {
             if units.len() == max_units {
                 return Err(IndexError::Limit(format!(
-                    "similarity requires more than {max_units} candidate vectors; narrow the selected parts or candidate filters"
+                    "This comparison is too broad to complete. Deselect some sections under Sections to compare, or add filters to narrow the results. (Vector limit: {max_units}.)"
                 )));
             }
             let address: SourcePassageAddress = serde_json::from_str(&row.get::<_, String>(6)?)?;
@@ -369,7 +369,7 @@ impl SqliteIndexReader {
         )?;
         if count > max_units {
             return Err(IndexError::Limit(format!(
-                "trait comparison requires {count} seed units, exceeding {max_units}"
+                "This comparison is too broad to complete. Deselect some sections under Sections to compare, or add filters to narrow the results. (Seed units: {count}; limit: {max_units}.)"
             )));
         }
         let seed = SimilaritySeed::Trait {

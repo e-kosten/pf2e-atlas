@@ -410,8 +410,9 @@ type. Missing/unmodelled prose resolves identity-only with a reason; required
 missing vectors remain readiness errors. Traits retain their single existing
 definition/label-only representation. Identity components use their native
 header address, without a fake section or comparison role. Scoped SQL filters
-before candidate limits and final aggregation. Legacy All/prose-only scores and
-baselines retain their original contracts; new component-aware requests
+before candidate limits and final aggregation. All and Core source presets include
+root identity once; Custom can select identity or prose independently. Explicit
+prose-only Custom scores and baselines retain their original contracts; component-aware requests
 acknowledge their effective representation and recipe. See
 [ADR0060](./decisions/0060-core-sections-and-search-scope.md).
 
