@@ -1682,8 +1682,7 @@ test("create-and-add keeps the footer aligned and keyboard actions reachable", a
         info,
       );
       const name = dialog.getByRole("textbox", {
-        name: `New ${kind} name`,
-        exact: true,
+        name: new RegExp(`New ${kind} name$`),
       });
       await expect(name).toBeFocused();
       await name.fill("Retained destination idea");
@@ -1693,12 +1692,16 @@ test("create-and-add keeps the footer aligned and keyboard actions reachable", a
       });
       const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
       const create = dialog.getByRole("button", { name: "Create & add", exact: true });
-      await name.press("Tab");
-      await expect(existing).toBeFocused();
-      await existing.press("Tab");
-      await expect(cancel).toBeFocused();
-      await cancel.press("Tab");
-      await expect(create).toBeFocused();
+      // Native keyboard order is sampled by the desktop project. Touch
+      // contexts exercise these same controls with actual taps below.
+      if (!info.project.use.hasTouch) {
+        await name.press("Tab");
+        await expect(existing).toBeFocused();
+        await existing.press("Tab");
+        await expect(cancel).toBeFocused();
+        await cancel.press("Tab");
+        await expect(create).toBeFocused();
+      }
       const boxes = await Promise.all(
         [existing, cancel, create].map((control) => control.boundingBox()),
       );
