@@ -6,7 +6,7 @@ import {
   similarityConfigurationFixture,
   similarityPartsFixture,
 } from "../../test/similarityFixtures";
-import type { ResultSort } from "../../generated/atlas";
+import type { ResultSort, SimilarityOptions } from "../../generated/atlas";
 import {
   summaryFixture,
   editorFixture,
@@ -38,6 +38,7 @@ import {
 import { KIND_PREFERENCE_KEY } from "./workspaceState";
 import { AtlasApiError } from "../../api/atlasApi";
 import { useSearchWorkspace } from "./useSearchWorkspace";
+import { DEFAULT_SEARCH_PREFERENCES } from "../../shared/search/searchPreferences";
 import { RelationshipEvidence } from "../../shared/records/RelationshipEvidence";
 import { linkLeaf } from "../../shared/filters/linkPredicates";
 import { rootNavigation } from "../../shared/records/useReferenceReading";
@@ -53,6 +54,12 @@ const apiMocks = vi.hoisted(() => ({
   getRelationshipOccurrences: vi.fn(),
   getSimilarityParts: vi.fn(),
 }));
+const recordSimilarity: SimilarityOptions = {
+  method: "passages",
+  decay: 0.5,
+  parts: null,
+  candidate_parts: "any",
+};
 
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
@@ -106,6 +113,9 @@ describe("useSearchWorkspace", () => {
     history.replaceState(null, "", "/search?q=fire");
     apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
       ...searchResultsPage(["items:witness"], { pageNumber: request.page.number }),
+      ...(request.criteria.kind === "similar_records" && request.criteria.similarity
+        ? { similarity: similarityConfigurationFixture(request.criteria.similarity) }
+        : {}),
       sort:
         request.sort ??
         (request.criteria.kind === "list_records"
@@ -214,7 +224,7 @@ describe("useSearchWorkspace", () => {
   it("retains loaded Similar rows and the seed title as updating while a new order is pending", async () => {
     history.replaceState(null, "", "/search?similar=items:armor");
     const original: SearchResultsPage = {
-      ...searchResultsPage(["items:old"]),
+      ...searchResultsPage(["items:old"], { similarity: recordSimilarity }),
       mode: {
         kind: "similar_records",
         seed: summaryFixture("items:armor", "Leather Armor"),
@@ -314,7 +324,10 @@ describe("useSearchWorkspace", () => {
       () => useSearchWorkspace({ searchProfile: "bge-base" }),
       { wrapper: queryClientWrapper() },
     );
-    await waitFor(() => expect(result.current.resultPage).toBeDefined());
+    await waitFor(() => {
+      expect(result.current.errorMessage).toBeNull();
+      expect(result.current.resultPage).toBeDefined();
+    });
     expect(result.current.filterCountsEnabled).toBe(true);
     expect(result.current.filterDiscoveryContext).toMatchObject({
       filter: { kind: "relationship", relationship: constraint },
@@ -620,6 +633,7 @@ describe("useSearchWorkspace", () => {
     apiMocks.searchPage.mockImplementation((request: SearchResultsRequest) =>
       Promise.resolve({
         ...searchResultsPage(),
+        similarity: similarityConfigurationFixture(recordSimilarity),
         page: { ...searchResultsPage().page, number: request.page.number },
         mode: { kind: "similar_records", seed: summaryFixture("items:seed", "Seed") },
       }),
@@ -635,6 +649,7 @@ describe("useSearchWorkspace", () => {
     expect(apiMocks.searchPage.mock.calls[0][0].criteria).toEqual({
       kind: "similar_records",
       seed_record_key: "items:seed",
+      similarity: recordSimilarity,
       filter: result.current.search.filter,
     });
     expect(apiMocks.discoverFilterCounts).not.toHaveBeenCalled();
@@ -646,6 +661,7 @@ describe("useSearchWorkspace", () => {
       criteria: {
         kind: "similar_records",
         seed_record_key: "items:seed",
+        similarity: recordSimilarity,
         filter: result.current.search.filter,
       },
       page: { number: 2, size: 25 },
@@ -843,7 +859,9 @@ describe("useSearchWorkspace", () => {
     );
     expect(result.current.resultPage).toBeUndefined();
     rerender({ usable: false });
-    apiMocks.searchPage.mockResolvedValue(searchResultsPage(["items:similar"]));
+    apiMocks.searchPage.mockResolvedValue(
+      searchResultsPage(["items:similar"], { similarity: recordSimilarity }),
+    );
     act(() =>
       result.current.setSearch({
         ...result.current.search,
@@ -1117,6 +1135,45 @@ describe("useSearchWorkspace", () => {
     });
   });
 
+  it("debounces typing with the current persisted rank-based preference and sends it once", async () => {
+    apiMocks.searchPage.mockResolvedValue({
+      ...searchResultsPage(),
+      ranking: "rrf",
+    });
+    const { result } = renderHook(
+      () =>
+        useSearchWorkspace({
+          searchProfile: "bge-base",
+          searchPreferences: { ...DEFAULT_SEARCH_PREFERENCES, ranking: "rrf" },
+        }),
+      { wrapper: queryClientWrapper() },
+    );
+    await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalled());
+    expect(result.current.search.ranking).toBe("rrf");
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      act(() => {
+        result.current.setSearch({ ...result.current.search, query: "f" });
+        result.current.setSearch({ ...result.current.search, query: "fi" });
+      });
+      expect(result.current.search.query).toBe("fi");
+      expect(result.current.resultsLoading).toBe(true);
+      await act(async () => vi.advanceTimersByTimeAsync(299));
+      expect(new URLSearchParams(location.search).get("q")).toBe("fi");
+      expect(new URLSearchParams(location.search).get("ranking")).toBe("rrf");
+      expect(apiMocks.searchPage).not.toHaveBeenCalled();
+      await act(async () => vi.advanceTimersByTimeAsync(1));
+      expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
+      expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({
+        ranking: "rrf",
+        criteria: { kind: "text_search", query: "fi" },
+      });
+      expect(result.current.resultPage?.ranking).toBe("rrf");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("can disable search workspace queries for non-search routes", async () => {
     const { result } = renderHook(
       () => useSearchWorkspace({ enabled: false, searchProfile: "bge-base" }),
@@ -1161,12 +1218,16 @@ describe("useSearchWorkspace", () => {
     await waitFor(() =>
       expect(window.location.pathname).toBe("/search/records/spell:heal"),
     );
-    expect(window.location.search).toBe("?search_profile=bge-base&q=dirge");
+    expect(window.location.search).toBe(
+      "?search_profile=bge-base&ranking=score&q=dirge",
+    );
 
     act(() => result.current.selectRecord(null));
     expect(result.current.selectedRecordKey).toBeNull();
     await waitFor(() => expect(window.location.pathname).toBe("/search"));
-    expect(window.location.search).toBe("?search_profile=bge-base&q=dirge");
+    expect(window.location.search).toBe(
+      "?search_profile=bge-base&ranking=score&q=dirge",
+    );
   });
 
   it("writes shared structured predicates in URL state", async () => {
@@ -1473,9 +1534,17 @@ function seedSearchUrl(query = "dirge") {
 
 function searchResultsPage(
   recordKeys: string[] = [],
-  options: { pageNumber?: number; generation?: string; profile?: string } = {},
+  options: {
+    pageNumber?: number;
+    generation?: string;
+    profile?: string;
+    similarity?: SimilarityOptions;
+  } = {},
 ): SearchResultsPage {
   return {
+    ...(options.similarity
+      ? { similarity: similarityConfigurationFixture(options.similarity) }
+      : {}),
     relationship_clauses: [],
     sort: { kind: "relevance" } as const,
     ranking: "score" as const,
