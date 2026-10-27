@@ -10,23 +10,34 @@ impl AtlasAppService {
         &self,
         request: RollContentRequest,
     ) -> AppServiceResult<ContentRollResultView> {
-        self.with_retrieval(&ReadExecutionContext::uncancellable(), move |retrieval| {
-            if request.source_fingerprint != retrieval.source_fingerprint() {
+        self.with_workspace(&ReadExecutionContext::uncancellable(), move |workspace| {
+            if request.source_fingerprint != workspace.retrieval_mut().source_fingerprint() {
                 return Err(AppServiceError::invalid_request(
                     "This source changed. Reopen the record before rolling.",
                 ));
             }
-            let (_, detail) = crate::records::read_record_detail(
-                retrieval,
-                RecordDetailRequest {
-                    record_key: request.source.record.to_string(),
-                    owners: request.source.owners.clone(),
-                    fields: vec![request.source.field.clone()],
-                    passage: None,
-                    spell_rank: None,
-                    source_fingerprint: Some(request.source_fingerprint.clone()),
-                },
-            )?;
+            let selection = RecordDetailRequest {
+                record_key: request.source.record.to_string(),
+                owners: request.source.owners.clone(),
+                fields: vec![request.source.field.clone()],
+                passage: None,
+                spell_rank: request.spell_rank,
+                source_fingerprint: Some(request.source_fingerprint.clone()),
+            };
+            let detail = if let Some(binding) = &request.encounter {
+                crate::encounters::reference::read_encounter_reference(
+                    workspace,
+                    &binding.encounter_ref,
+                    &binding.participant_key,
+                    atlas_app_model::EncounterReferenceRequest {
+                        artifact_generation: binding.artifact_generation.clone(),
+                        selection,
+                        condition_id: binding.condition_id,
+                    },
+                )?
+            } else {
+                crate::records::read_record_detail(workspace.retrieval_mut(), selection)?.1
+            };
             let control = detail
                 .presentation
                 .content

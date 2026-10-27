@@ -2,7 +2,7 @@ import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { sanitizePreparedHtml } from "./PreparedHtml";
 import DOMPurify from "dompurify";
-import { Alert, Modal, Typography } from "antd";
+import { Alert, Typography } from "antd";
 import { documentHeadings } from "./documentHeadings";
 import "../../styles/ui/journal-reading.css";
 import {
@@ -31,8 +31,7 @@ export type RecordReferenceHandler = (
 ) => void;
 const NO_RELATIONSHIPS: RecordRelationshipView[] = [];
 // Plain check/area text inside a reference remains part of that reference.
-const ACTIVATION_MARKER =
-  '[data-atlas-reference],[data-atlas-interaction][role="button"]';
+const ACTIVATION_MARKER = "[data-atlas-reference]";
 export function PreparedContent({
   content,
   relationships = NO_RELATIONSHIPS,
@@ -93,7 +92,6 @@ export function PreparedContentBody({
   references: (PreparedReferenceView | RecordRelationshipView)[];
   onReference: RecordReferenceHandler;
 }) {
-  const [modal, contextHolder] = Modal.useModal();
   const container = useRef<HTMLDivElement>(null);
   const [effectLinks, setEffectLinks] = useState<ReactPortal[]>([]);
   const rollHosts = useRef(new Map<string, HTMLElement>());
@@ -222,7 +220,7 @@ export function PreparedContentBody({
         marker.removeAttribute("role");
         marker.removeAttribute("tabindex");
         if (control.roll) {
-          const identity = `${namespace ?? "host"}:${JSON.stringify(control.roll)}`;
+          const identity = `${namespace ?? "host"}:${JSON.stringify(control.roll, (_key, value) => (typeof value === "bigint" ? value.toString() : value))}`;
           activeRolls.add(identity);
           let host = rollHosts.current.get(identity);
           if (!host) {
@@ -272,7 +270,7 @@ export function PreparedContentBody({
         marker.removeAttribute("tabindex");
         return;
       }
-      if (!fact?.target && (!control || control.kind === "command")) {
+      if (!fact?.target) {
         marker.removeAttribute("href");
         marker.removeAttribute("role");
         marker.removeAttribute("tabindex");
@@ -310,7 +308,7 @@ export function PreparedContentBody({
           ),
         );
         marker.removeAttribute("role");
-      } else marker.setAttribute("role", "button");
+      }
       marker.tabIndex = 0;
       const ownsEvent = (e: Event) => {
         const target = e.target as Element;
@@ -336,29 +334,6 @@ export function PreparedContentBody({
           openReference(target.record_key, marker as HTMLElement, target);
           return;
         }
-        const ordinal = Number(marker.getAttribute("data-atlas-interaction"));
-        const control = markerControls.find((c) => c.ordinal === ordinal)?.control;
-        if (control?.kind !== "damage") return;
-        const title = control.formula;
-        modal.info({
-          title,
-          closable: true,
-          mask: { closable: true },
-          afterClose: () => {
-            if (marker instanceof HTMLElement && marker.isConnected)
-              marker.focus({ preventScroll: true });
-          },
-          content: (
-            <dl>
-              {Object.entries(control.options).map(([key, value]) => (
-                <div key={key}>
-                  <dt>{key}</dt>
-                  <dd>{value}</dd>
-                </div>
-              ))}
-            </dl>
-          ),
-        });
       };
       const keyboard = (e: KeyboardEvent) => {
         if (!ownsEvent(e)) return;
@@ -382,7 +357,7 @@ export function PreparedContentBody({
     }
     setEffectLinks(effects);
     return () => listeners.forEach((remove) => remove());
-  }, [body, references, openReference, html, modal]);
+  }, [body, references, openReference, html]);
   if (body.kind === "unavailable")
     return (
       <Alert
@@ -433,7 +408,6 @@ export function PreparedContentBody({
   );
   return (
     <>
-      {contextHolder}
       {effectLinks}
       {documentNavigation ? (
         <div

@@ -23,7 +23,7 @@ impl AtlasAppService {
     }
 }
 
-pub(super) fn read_encounter_reference(
+pub(crate) fn read_encounter_reference(
     workspace: &mut atlas_runtime::WorkspaceRead,
     encounter_ref: &str,
     participant_key: &str,
@@ -44,6 +44,63 @@ pub(super) fn read_encounter_reference(
                 "participant is no longer in this encounter",
             )
         })?;
+    let binding = atlas_app_model::ContentRollEncounterContext {
+        encounter_ref: encounter.encounter.encounter_key.clone(),
+        participant_key: participant.participant_key.clone(),
+        participant_revision: participant.revision,
+        artifact_generation: request.artifact_generation.clone(),
+        condition_id: request.condition_id,
+    };
+    if let Some(condition_id) = request.condition_id {
+        let condition = participant
+            .conditions
+            .iter()
+            .find(|c| c.condition_id == condition_id)
+            .ok_or_else(|| {
+                AppServiceError::invalid_request("condition is no longer on this participant")
+            })?;
+        if condition.condition_key.as_deref() != Some(request.selection.record_key.as_str())
+            || !request.selection.owners.is_empty()
+        {
+            return Err(AppServiceError::invalid_request(
+                "selected reference does not belong to this condition",
+            ));
+        }
+        let r = workspace.retrieval_mut();
+        let generation = r.artifact_generation()?;
+        if generation != request.artifact_generation {
+            return Err(AppServiceError::artifact_generation_changed(
+                &request.artifact_generation,
+                &generation,
+                AppRecoverableAction::ReloadRecord,
+            ));
+        }
+        let (source, mut selected) = crate::records::read_record_detail(r, request.selection)?;
+        let badge_value = super::conditions::condition_rule_for_key(
+            condition.condition_key.as_deref(),
+        )
+        .and_then(|rule| {
+            let causes = super::rules::causes::condition_causes(participant, None);
+            causes
+                .iter()
+                .filter(|c| c.rule == rule)
+                .map(|c| c.value.filter(|n| *n > 0))
+                .collect::<Option<Vec<_>>>()?
+                .into_iter()
+                .max()
+        });
+        crate::prepared_content::resolve_runtime_content(
+            r,
+            &source.source,
+            &mut selected,
+            crate::prepared_content::RuntimeContentContext {
+                actor_level: None,
+                badge_value,
+                binding,
+            },
+        )?;
+        return Ok(selected);
+    }
     if participant.record_key.as_deref() != Some(request.selection.record_key.as_str()) {
         return Err(AppServiceError::invalid_request(
             "selected reference does not belong to this participant",
@@ -105,6 +162,16 @@ pub(super) fn read_encounter_reference(
     );
     let current = crate::presentation::compose_participant(root, &block);
     compose_selected(&mut selected, current, &block)?;
+    crate::prepared_content::resolve_runtime_content(
+        r,
+        &source.source,
+        &mut selected,
+        crate::prepared_content::RuntimeContentContext {
+            actor_level: block.adjusted_level.as_ref().and_then(|n| n.as_i64()),
+            badge_value: None,
+            binding,
+        },
+    )?;
     Ok(selected)
 }
 

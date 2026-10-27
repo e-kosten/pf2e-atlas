@@ -1,8 +1,15 @@
 //! Shared Foundry content interpretation and derived projections.
 //!
 //! Authored markup remains in the source DTO. Preparation does not persist its
-//! transient parser tree or evaluate gameplay expressions. The private interpreter tree exists only during field preparation.
+//! transient parser tree or bind runtime gameplay values. Expression trees remain
+//! transient during preparation and selected reading.
 
+mod contextual_formula;
+pub use contextual_formula::{
+    FormulaContext, FormulaText, contextual_damage_text, contextual_roll_text,
+    describe_contextual_formula, render_contextual_interactions, resolve_contextual_formula,
+    resolved_contextual_damage, resolved_contextual_roll,
+};
 mod inline_action;
 mod literal_damage;
 mod literal_roll;
@@ -29,10 +36,10 @@ pub use marker_validation::{
 };
 pub use model::{
     CONTENT_INTERPRETATION_VERSION, ContentAudience, ContentDiagnosticCode, ContentInteraction,
-    ContentInteractionKind, ContentInterpretationDiagnostic, ContentReferenceKind,
-    ContentReferenceLabel, ContentReferenceLookup, ContentReferenceOccurrence,
-    ContentReferenceResolution, ContentReferenceResolver, ContentReferenceTarget,
-    ContentVisibilityRule, PreparedSourceContent, PreparedTraitDefinition,
+    ContentInteractionKind, ContentInteractionLabel, ContentInterpretationDiagnostic,
+    ContentReferenceKind, ContentReferenceLabel, ContentReferenceLookup,
+    ContentReferenceOccurrence, ContentReferenceResolution, ContentReferenceResolver,
+    ContentReferenceTarget, ContentVisibilityRule, PreparedSourceContent, PreparedTraitDefinition,
     ResolvedContentReference, SourceContentLocator,
 };
 pub use parse_diagnostics::{ContentParseDiagnostics, DroppedContentMacro};

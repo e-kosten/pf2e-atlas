@@ -118,6 +118,10 @@ pub fn prepare_record_content(
                     visibility,
                     localization,
                     references.map(|r| r as &dyn ContentReferenceResolver),
+                    &record
+                        .node_at(owners)
+                        .map(super::source_formula_labels)
+                        .unwrap_or_default(),
                 ) {
                     Ok(prepared) => SourceContentStatus::Prepared(Box::new(prepared)),
                     Err(error) => SourceContentStatus::PreparationFailed {

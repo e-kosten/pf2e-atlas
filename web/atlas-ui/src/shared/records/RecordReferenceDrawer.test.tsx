@@ -1,12 +1,5 @@
 import { detailFixture } from "../../test/fixtures";
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ConfigProvider, Grid } from "antd";
 import { StrictMode } from "react";
 import type { RecordDetailView } from "../../generated/atlas";
@@ -281,7 +274,7 @@ describe("RecordReferenceDrawer", () => {
   );
 
   it.each(["desktop", "narrow"])(
-    "%s preview focuses the heading and lets a nested source modal own Escape",
+    "%s preview keeps symbolic damage as text and restores native Escape",
     async (viewport) => {
       vi.spyOn(Grid, "useBreakpoint").mockReturnValue({
         xs: viewport === "narrow",
@@ -325,19 +318,11 @@ describe("RecordReferenceDrawer", () => {
       await waitFor(() =>
         expect(screen.getByRole("heading", { name: "Dirge of Doom" })).toHaveFocus(),
       );
-      const marker = screen.getByRole("button", { name: "Contextual damage" });
-      marker.focus();
-      fireEvent.keyDown(marker, { key: "Enter" });
-      await waitFor(() => expect(screen.getAllByRole("dialog")).toHaveLength(2));
-      const modal = screen.getByRole("dialog", { name: "(@actor.level)d6[fire]" });
-      expect(modal).toHaveTextContent("(@actor.level)d6[fire]");
+      const marker = screen.getByText("Contextual damage");
+      expect(marker).not.toHaveAttribute("tabindex");
+      fireEvent.click(marker);
+      expect(screen.getAllByRole("dialog")).toHaveLength(1);
       expect(close).not.toHaveBeenCalled();
-      const modalAction = within(modal).getByRole("button", { name: "OK" });
-      act(() => modalAction.focus());
-      fireEvent.keyDown(modalAction, { key: "Escape", keyCode: 27 });
-      expect(close).not.toHaveBeenCalled();
-      await waitFor(() => expect(modal).not.toBeInTheDocument());
-      expect(marker).toHaveFocus();
       const heading = screen.getByRole("heading", { name: "Dirge of Doom" });
       act(() => heading.focus());
       fireEvent.keyDown(heading, {

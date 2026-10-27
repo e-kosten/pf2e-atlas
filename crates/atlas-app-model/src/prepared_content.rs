@@ -86,6 +86,22 @@ pub struct RollContentRequest {
     pub ordinal: usize,
     pub authored_formula: String,
     pub authored_command: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub spell_rank: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub encounter: Option<ContentRollEncounterContext>,
+}
+
+/// Identity and revision only; numeric context is always reread on the server.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ContentRollEncounterContext {
+    pub encounter_ref: String,
+    pub participant_key: String,
+    pub participant_revision: i64,
+    pub artifact_generation: String,
+    pub condition_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

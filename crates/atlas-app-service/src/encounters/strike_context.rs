@@ -203,6 +203,7 @@ mod tests {
             expected_participant_revision: actor.revision,
             participant_key: actor.participant_key.clone(),
             reference: EncounterReferenceRequest {
+                condition_id: None,
                 artifact_generation: current.artifact_generation.clone().unwrap(),
                 selection: RecordDetailRequest {
                     record_key: strike.navigation.record_key.clone(),
