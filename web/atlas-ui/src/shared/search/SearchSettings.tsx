@@ -419,6 +419,15 @@ export function SearchSettings({
               <Segmented
                 aria-label="Search settings view"
                 block
+                styles={{
+                  label: {
+                    paddingBlock: "var(--space-control)",
+                    lineHeight: 1.4,
+                    whiteSpace: "normal",
+                    overflow: "visible",
+                    textOverflow: "clip",
+                  },
+                }}
                 value={sourceView}
                 options={[
                   { label: "Search settings", value: "sections" },

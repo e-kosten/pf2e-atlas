@@ -4,7 +4,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 
 ## Current ADRs
 
-- [`0059-configurable-similarity.md`](./0059-configurable-similarity.md): proposed stored-vector Similar methods, exact part selection, cross-kind roles, shared browser/CLI semantics and persistent browser search preferences.
+- [`0059-configurable-similarity.md`](./0059-configurable-similarity.md): stored-vector Similar methods, exact part selection, cross-kind roles, shared browser/CLI semantics and persistent browser search preferences.
 
 - [`0057-relationship-scoped-search.md`](./0057-relationship-scoped-search.md): first-class Boolean reference predicates across web/CLI, checked source admission, distinct-root pages, clause-addressed positive proof evidence and human-named criteria.
 
