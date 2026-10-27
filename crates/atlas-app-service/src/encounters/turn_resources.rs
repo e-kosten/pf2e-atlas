@@ -1,4 +1,4 @@
-//! Resource allocation and explicit manual spending share one authoritative turn.
+//! Turn allocation and explicit reaction grants share authoritative resource stock.
 use super::{
     conditions::{ConditionRule, condition_rule_for_key},
     event_execution, rules,
@@ -104,6 +104,7 @@ pub(super) fn prepare_start(
             .unwrap_or((None, None))
     };
     changes.turn_resources.push(TurnResources {
+        before_first_turn: false,
         allocation: pending_reason
             .is_none()
             .then(|| rules::capabilities::action_allocation(participant, sources))
@@ -149,7 +150,7 @@ pub(super) fn view(
     }
     let budget = rules::capabilities::action_budget(participant, sources);
     let saved = participant.turn_resources.as_ref();
-    let ready = saved.filter(|r| r.pending_reason.is_none());
+    let ready = saved.filter(|r| !r.before_first_turn && r.pending_reason.is_none());
     let mut action_permission = budget.can_act.clone();
     if current != Some(participant.participant_key.as_str()) {
         action_permission.available = false;
@@ -236,6 +237,7 @@ pub(super) fn view(
             .unwrap_or_default(),
         reactions_total: saved.and_then(|r| r.reactions_total),
         reactions_remaining: saved.and_then(|r| r.reactions_remaining),
+        can_grant_reaction: saved.is_none(),
         start_results: saved
             .map(|r| {
                 r.effects
@@ -314,6 +316,33 @@ impl AtlasAppService {
                 (Default::default(), None)
             };
         let changes = match request.action {
+            TurnResourceAction::GrantReaction => {
+                if participant.turn_resources.is_some() {
+                    return Err(AppServiceError::invalid_request(
+                        "A reaction has already been granted or this creature's first turn has started.",
+                    ));
+                }
+                PreparedConditionEvent {
+                    turn_resources: vec![TurnResources {
+                        before_first_turn: true,
+                        allocation: None,
+                        actions_open: false,
+                        pending_reason: None,
+                        participant_key: participant.participant_key.clone(),
+                        turn_key: format!("before-first-turn:{}", request.request_id),
+                        round_number: snapshot.encounter.round_number,
+                        regular_total: 0,
+                        regular_remaining: 0,
+                        extra_total: 0,
+                        extra_remaining: 0,
+                        extra_uses: vec![],
+                        reactions_total: Some(1),
+                        reactions_remaining: Some(1),
+                        effects: vec![],
+                    }],
+                    ..Default::default()
+                }
+            }
             TurnResourceAction::Regain => {
                 if snapshot.encounter.current_turn_participant_key.as_deref()
                     != Some(&participant.participant_key)
@@ -325,7 +354,7 @@ impl AtlasAppService {
                 if participant
                     .turn_resources
                     .as_ref()
-                    .is_some_and(|r| r.pending_reason.is_none())
+                    .is_some_and(|r| !r.before_first_turn && r.pending_reason.is_none())
                 {
                     return Err(AppServiceError::invalid_request(
                         "This turn's resources were already regained.",
