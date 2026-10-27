@@ -365,7 +365,7 @@ record or trait seeds. The same app workflow projects an exact part inventory an
 paired match evidence for CLI and web; the browser does not infer correspondence
 roles or calculate scores. Inventory can report missing vectors without requiring
 model weights. The index-owned section/role projection is backfilled from retained
-checked data by workspace migration 16 and refreshed during publication. Existing
+checked data by workspace migration 17 and refreshed during publication. Existing
 record and trait algorithms remain explicit `baseline` methods, labeled Name and
 identity and Trait definition respectively; the new passage and centroid recipes
 reuse stored vectors. See

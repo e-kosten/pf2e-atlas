@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 16;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 17;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -99,6 +99,12 @@ const MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 16,
+        name: "encounter-ability-state",
+        sql: atlas_local_state::ABILITY_STATE_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 17,
         name: "similarity-parts",
         sql: atlas_index::SIMILARITY_SCHEMA_SQL,
         backfill: Some(atlas_storage::DataBackfill {
@@ -223,6 +229,39 @@ mod tests {
                 tags: vec![],
             })
             .unwrap();
+        let ability_state = atlas_local_state::ParticipantAbilityState {
+            owner: atlas_domain::OwnedContentLocator {
+                collection: "items".into(),
+                identity: atlas_domain::OwnedContentIdentity::Stable("bbbbbbbbbbbbbbbb".into()),
+            },
+            rule_ordinal: Some(0),
+            source_fingerprint: "kept-source".into(),
+            value: atlas_local_state::AbilityStateValue::Option {
+                active: true,
+                selection: None,
+            },
+        };
+        write.connection().execute_batch(r#"
+            INSERT INTO encounters(id,encounter_key,slug,name,status,round_number,revision,created_at,updated_at)
+            VALUES(1,'kept-encounter','kept-encounter','Kept','draft',0,0,'before','before');
+            INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,current_hp,max_hp,temporary_hp,revision,created_at,updated_at)
+            VALUES(1,1,'kept-participant','pc',0,'PC',0,13,20,3,5,'before','before');
+        "#).unwrap();
+        write
+            .connection()
+            .execute(
+                "INSERT INTO encounter_ability_states VALUES(?,?,?,?)",
+                rusqlite::params![
+                    "kept-participant",
+                    serde_json::to_string(&ability_state.owner).unwrap(),
+                    0,
+                    serde_json::to_string(
+                        &serde_json::json!({"version":1,"payload":ability_state})
+                    )
+                    .unwrap(),
+                ],
+            )
+            .unwrap();
         let table: String = write
             .connection()
             .query_row(
@@ -253,11 +292,11 @@ mod tests {
                 |row| row.get::<_, i64>(0),
             )
             .unwrap();
-        // Model the exact pre-projection physical shape in this disposable fixture.
+        // Model main's ability-state schema before adding the Similar projection.
         write
             .connection()
             .execute_batch(
-                "DROP TABLE similarity_parts; DELETE FROM schema_migrations WHERE version=16; PRAGMA user_version=15;",
+                "DROP TABLE similarity_parts; DELETE FROM schema_migrations WHERE version=17; PRAGMA user_version=16;",
             )
             .unwrap();
         write.commit().unwrap();
@@ -268,6 +307,16 @@ mod tests {
         assert_eq!(
             LocalStateRead::new(&read).saved_lists().list().unwrap()[0].name,
             "Kept"
+        );
+        assert_eq!(
+            LocalStateRead::new(&read)
+                .encounters()
+                .get_with_participants("kept-encounter")
+                .unwrap()
+                .unwrap()
+                .participants[0]
+                .ability_states,
+            vec![ability_state]
         );
         let roles = read
             .connection()

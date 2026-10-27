@@ -28,6 +28,9 @@ pub enum TurnActionAdjustment {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TurnResources {
+    /// A GM-granted reaction does not allocate actions or start the first turn.
+    #[serde(default)]
+    pub before_first_turn: bool,
     /// Older saved turns lack the facts needed to reconstruct their allocation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub allocation: Option<TurnActionAllocation>,

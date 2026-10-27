@@ -104,6 +104,12 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 16,
+        name: "encounter-ability-state",
+        sql: atlas_local_state::ABILITY_STATE_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 17,
         name: "similarity-parts",
         sql: crate::SIMILARITY_SCHEMA_SQL,
         backfill: Some(atlas_storage::DataBackfill {

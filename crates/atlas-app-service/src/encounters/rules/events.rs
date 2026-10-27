@@ -27,6 +27,7 @@ pub(in crate::encounters) enum ConditionConsequence {
 
 pub(in crate::encounters) fn plan_condition_change(
     participant: &EncounterParticipant,
+    sources: &super::source_conditions::SourceConditions,
     change: ConditionEventChange,
     apply_consequences: bool,
     keep_upright: bool,
@@ -68,19 +69,28 @@ pub(in crate::encounters) fn plan_condition_change(
         }
     };
     let magnitude_changed = prior_rule != next_rule || prior_value != next_value;
-    let changes_drained = magnitude_changed
-        && next_rule == Some(ConditionRule::Drained)
-        && (prior_rule != next_rule
-            || ConditionRule::Drained
-                .definition()
-                .hp_loss
-                .is_some_and(|loss| loss.reevaluate_on_update));
     let checks_mortality = magnitude_changed
         && matches!(
             next_rule,
             Some(ConditionRule::Dying | ConditionRule::Doomed)
         );
     let after = subject_after_change(participant, &change)?;
+    let drained_sources = |subject: &EncounterParticipant| {
+        super::causes::condition_causes(subject, None, sources)
+            .into_iter()
+            .filter(|cause| cause.rule == ConditionRule::Drained)
+            .map(|cause| (cause.source.key(), cause.value))
+            .collect::<Vec<_>>()
+    };
+    let before_drained = drained_sources(participant);
+    let known_before = before_drained
+        .iter()
+        .filter_map(|(_, value)| *value)
+        .max()
+        .unwrap_or(0);
+    let changes_drained = drained_sources(&after).iter().any(|cause| {
+        !before_drained.contains(cause) && cause.1.is_none_or(|value| value > known_before)
+    });
     let mut changes = PreparedConditionEvent {
         condition_changes: vec![change],
         ..Default::default()
@@ -88,8 +98,8 @@ pub(in crate::encounters) fn plan_condition_change(
     let mut effects = vec![];
     if apply_consequences {
         let increase = if changes_drained {
-            effective_drained_value(&after)?
-                .saturating_sub(effective_drained_value(participant)?)
+            effective_drained_value(&after, sources)?
+                .saturating_sub(effective_drained_value(participant, sources)?)
                 .max(0)
         } else {
             0
@@ -259,8 +269,8 @@ pub(in crate::encounters) fn plan_condition_change(
             effects.push(ConditionConsequence::BecomeProne);
         }
     }
-    let maximum_before = super::effective_hp_maximum(participant, level);
-    let maximum_after = super::effective_hp_maximum(&after, level);
+    let maximum_before = super::effective_hp_maximum(participant, sources, level);
+    let maximum_after = super::effective_hp_maximum(&after, sources, level);
     let hp_change = (maximum_before != maximum_after
         || effects.iter().any(|effect| {
             matches!(
@@ -286,12 +296,16 @@ pub(in crate::encounters) fn plan_condition_change(
         effects,
     })
 }
-fn effective_drained_value(participant: &EncounterParticipant) -> AppServiceResult<i64> {
+pub(in crate::encounters) fn effective_drained_value(
+    participant: &EncounterParticipant,
+    sources: &super::source_conditions::SourceConditions,
+) -> AppServiceResult<i64> {
     let mut maximum = 0;
-    for condition in participant.conditions.iter().filter(|condition| {
-        condition_rule_for_key(condition.condition_key.as_deref()) == Some(ConditionRule::Drained)
-    }) {
-        let value = condition.value.filter(|value| *value > 0).ok_or_else(|| {
+    for condition in super::causes::condition_causes(participant, None, sources)
+        .iter()
+        .filter(|condition| condition.rule == ConditionRule::Drained)
+    {
+        let value = condition.value.filter(|value| *value >= 0).ok_or_else(|| {
             AppServiceError::invalid_request(
                 "Set the existing Drained value before calculating its HP loss",
             )

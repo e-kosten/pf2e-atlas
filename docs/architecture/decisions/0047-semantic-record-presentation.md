@@ -49,6 +49,24 @@ source navigation uses the inclusion's exact reference namespace. Description-on
 insertions add neither a heading nor a source shortcut. Existing Related records
 provides secondary access to the underlying record.
 
+Explicit declared-grant destinations use the canonical graph and navigation in
+Explore's References. Non-actor item documents also expose a bottom Grants section
+for recipient destinations not already linked in prose, inline inclusions or
+feature lists. Sisterhood Orphan links to Inflict Punishment; Eagle Hunter links
+to Pet and Train Animal. Show every projected destination in normal reading flow,
+without a search action or result-preview cap. Preserve unavailable and bounded
+states. App-service owns eligibility and exact-destination deduplication for both
+browser and terminal readers.
+
+These links refer to rules; they do not say that an actor qualifies for or has
+received the grant. Preserve authored restrictions and existing links in prose,
+without matching ability names in text or executing choices and predicates.
+Conditional or altered grants can still identify a reference record; its ordinary
+preview does not represent an applied, altered copy. Actor roots and actor-owned
+selections describe internal composition and do not receive the inline recipient
+section. Their Explore references remain available. Encounter application and
+lifecycle of internal grants belong to the encounter workflow, not this projection.
+
 Borrowed record views remain storage and presentation neutral. They preserve
 availability and typed values; app-service owns labels and semantic composition.
 Renderers format those values independently, including signs and units. Neither

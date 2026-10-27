@@ -11,8 +11,10 @@ import {
   activityFixture,
   detailFixture,
   knownFact,
+  summaryFixture,
 } from "../../test/fixtures";
 import { ActorActivities } from "./ActorReference";
+import { RecordPresentation } from "./RecordPresentation";
 
 const location = {
   record: "journals:source",
@@ -78,6 +80,85 @@ function source(
     </SourceSectionSelectionContext>
   );
 }
+
+it("keeps rendered grant references outside selected source sections without losing links or focus", () => {
+  const presentation = detailFixture(location.record, "Source").presentation;
+  presentation.content = [content];
+  const granted = summaryFixture("feats:granted", "Granted feat");
+  granted.rarity = "rare";
+  granted.traits = [{ kind: "trait", value: "fire", label: "Fire" }];
+  const navigation = {
+    record_key: granted.record_key,
+    embedded_path: [],
+    field: null,
+    passage: null,
+    source_fingerprint: null,
+  };
+  presentation.grants = {
+    entries: [
+      { title: granted.title, record: granted, navigation },
+      {
+        title: "Another grant",
+        record: null,
+        navigation: { ...navigation, record_key: "feats:another" },
+      },
+    ],
+    unavailable_count: 0,
+    truncated: false,
+  };
+  const onReference = vi.fn();
+  function reading(selected: string[] | null) {
+    return (
+      <div className="comparison-source">
+        <SourceSectionSelectionContext
+          value={{
+            seed: inventory.seed,
+            generation: inventory.artifact_generation,
+            selection: { inventory, selected },
+          }}
+        >
+          <RecordPresentation presentation={presentation} onReference={onReference} />
+        </SourceSectionSelectionContext>
+      </div>
+    );
+  }
+  const view = render(reading(null));
+  const grants = screen.getByRole("region", { name: "Grants" });
+  const link = screen.getByRole("link", { name: /Granted feat/ });
+  const fallback = screen.getByRole("link", { name: "Another grant" });
+  expect(screen.getByText(/First prose/)).toHaveClass("source-section-selected");
+  expect(grants).toContainElement(screen.getByRole("heading", { name: "Grants" }));
+  expect(grants).toHaveTextContent("Rare");
+  expect(grants).toHaveTextContent("Fire");
+  expect(link).toHaveAttribute(
+    "href",
+    expect.stringContaining("/records/feats:granted?selection="),
+  );
+  expect(fallback).toHaveAttribute(
+    "href",
+    expect.stringContaining("/records/feats:another?selection="),
+  );
+  link.focus();
+  for (const selected of [[], ["part-1"], null]) {
+    view.rerender(reading(selected));
+    expect(link).toBe(screen.getByRole("link", { name: /Granted feat/ }));
+    expect(link).toHaveFocus();
+    expect(
+      grants.querySelector(".source-section-selected, .source-owner-selected"),
+    ).toBeNull();
+    expect(link).not.toHaveAttribute("aria-disabled", "true");
+  }
+  fireEvent.click(link, { ctrlKey: true });
+  expect(onReference).not.toHaveBeenCalled();
+  fireEvent.click(link);
+  expect(onReference).toHaveBeenCalledWith(granted.record_key, link, navigation);
+  fireEvent.click(fallback);
+  expect(onReference).toHaveBeenLastCalledWith(
+    "feats:another",
+    fallback,
+    presentation.grants.entries[1].navigation,
+  );
+});
 
 it.each(["gear", "spell"] as const)(
   "reflects selected embedded sections in compact %s links without selecting their facts",

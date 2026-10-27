@@ -25,6 +25,7 @@ function value(): TurnResourcesView {
     extra_uses: [],
     reactions_total: 1n,
     reactions_remaining: 1n,
+    can_grant_reaction: false,
     start_results: [
       {
         condition_name: "Stunned",
@@ -46,6 +47,144 @@ function value(): TurnResourcesView {
     can_spend_reactions: { available: true },
   };
 }
+it("keeps an ungranted reaction visible before the first turn and tracks an explicit grant", async () => {
+  const onChange = vi.fn().mockResolvedValue(undefined);
+  const initial: TurnResourcesView = {
+    ...value(),
+    turn_key: null,
+    round_number: null,
+    regular_total: null,
+    regular_remaining: null,
+    extra_total: null,
+    extra_remaining: null,
+    reactions_total: null,
+    reactions_remaining: null,
+    can_grant_reaction: true,
+    can_edit_actions: false,
+    start_results: [],
+  };
+  const { rerender } = render(
+    <EncounterTurnResources
+      value={initial}
+      disabled={false}
+      isCurrent={false}
+      onChange={onChange}
+    />,
+  );
+  expect(screen.getByText("At turn start")).toBeVisible();
+  expect(onChange).not.toHaveBeenCalled();
+  const grant = screen.getByRole("button", { name: "Allow reaction" });
+  expect(grant).toHaveTextContent("Allow");
+  fireEvent.focus(grant);
+  expect(await screen.findByRole("tooltip")).toHaveTextContent(
+    "The GM decides whether this creature can use a reaction before its first turn.",
+  );
+  grant.focus();
+  fireEvent.click(grant);
+  await waitFor(() =>
+    expect(onChange).toHaveBeenCalledWith({ kind: "grant_reaction" }),
+  );
+  rerender(
+    <EncounterTurnResources
+      value={{
+        ...initial,
+        reactions_total: 1n,
+        reactions_remaining: 1n,
+        can_grant_reaction: false,
+      }}
+      disabled={false}
+      isCurrent={false}
+      onChange={onChange}
+    />,
+  );
+  expect(screen.queryByRole("button", { name: "Allow reaction" })).toBeNull();
+  expect(screen.getByText("At turn start")).toBeVisible();
+  const spend = screen.getByRole("button", { name: "Spend reaction" });
+  expect(spend).toHaveFocus();
+  fireEvent.click(spend);
+  await waitFor(() =>
+    expect(onChange).toHaveBeenLastCalledWith({ kind: "spend", resource: "reaction" }),
+  );
+});
+
+it("keeps a restricted granted reaction focusable without permitting spending", async () => {
+  const onChange = vi.fn().mockResolvedValue(undefined);
+  const initial: TurnResourcesView = {
+    ...value(),
+    turn_key: null,
+    regular_total: null,
+    regular_remaining: null,
+    reactions_total: null,
+    reactions_remaining: null,
+    can_grant_reaction: true,
+    can_edit_actions: false,
+    can_spend_reactions: { available: false, reason: "Stunned." },
+    start_results: [],
+  };
+  const { rerender } = render(
+    <EncounterTurnResources
+      value={initial}
+      disabled={false}
+      isCurrent={false}
+      onChange={onChange}
+    />,
+  );
+  const allow = screen.getByRole("button", { name: "Allow reaction" });
+  allow.focus();
+  fireEvent.click(allow);
+  await waitFor(() =>
+    expect(onChange).toHaveBeenCalledWith({ kind: "grant_reaction" }),
+  );
+  const granted = {
+    ...initial,
+    reactions_total: 1n,
+    reactions_remaining: 1n,
+    can_grant_reaction: false,
+  };
+  rerender(
+    <EncounterTurnResources
+      value={granted}
+      disabled
+      isCurrent={false}
+      onChange={onChange}
+    />,
+  );
+  const restricted = screen.getByRole("button", { name: "Spend reaction" });
+  expect(restricted).toHaveFocus();
+  expect(restricted).toHaveAttribute("aria-disabled", "true");
+  expect(restricted).not.toBeDisabled();
+  fireEvent.click(restricted);
+  expect(onChange).toHaveBeenCalledTimes(1);
+  rerender(
+    <EncounterTurnResources
+      value={granted}
+      disabled={false}
+      isCurrent={false}
+      onChange={onChange}
+    />,
+  );
+  expect(restricted).toHaveFocus();
+  expect(restricted).toHaveAttribute("aria-disabled", "true");
+  fireEvent.click(restricted);
+  expect(onChange).toHaveBeenCalledTimes(1);
+  expect(screen.getByText("Cannot react · Stunned")).toBeVisible();
+
+  rerender(
+    <EncounterTurnResources
+      value={{ ...granted, can_spend_reactions: { available: true } }}
+      disabled={false}
+      isCurrent={false}
+      onChange={onChange}
+    />,
+  );
+  expect(restricted).toHaveFocus();
+  expect(restricted).toHaveAttribute("aria-disabled", "false");
+  fireEvent.click(restricted);
+  await waitFor(() =>
+    expect(onChange).toHaveBeenLastCalledWith({ kind: "spend", resource: "reaction" }),
+  );
+});
+
 it("spends only on explicit input and retains the recorded allowance and start result across updates", async () => {
   const onChange = vi.fn().mockResolvedValue(undefined),
     initial = value();

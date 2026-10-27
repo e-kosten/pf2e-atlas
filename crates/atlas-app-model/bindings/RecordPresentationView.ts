@@ -2,6 +2,11 @@
 import type { EmbeddedRecordLinkView } from "./EmbeddedRecordLinkView";
 import type { PreparedContentFieldView } from "./PreparedContentFieldView";
 import type { RecordBodyView } from "./RecordBodyView";
+import type { RecordGrantsView } from "./RecordGrantsView";
 import type { RecordSummaryView } from "./RecordSummaryView";
 
-export type RecordPresentationView = { identity: RecordSummaryView, classification: string, content: Array<PreparedContentFieldView>, embedded: Array<EmbeddedRecordLinkView>, body: RecordBodyView, };
+export type RecordPresentationView = { identity: RecordSummaryView, classification: string, content: Array<PreparedContentFieldView>, embedded: Array<EmbeddedRecordLinkView>, body: RecordBodyView,
+/**
+ * Declared recipient destinations not already presented in this document.
+ */
+grants?: RecordGrantsView, };

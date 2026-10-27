@@ -127,6 +127,29 @@ beforeEach(() => {
   );
 });
 
+it("keeps ability state beside activation and usage after the complete authored text", async () => {
+  mount({
+    ...context,
+    renderAbilityControls: (navigation) =>
+      JSON.stringify(navigation) === JSON.stringify(abilities[0].navigation)
+        ? {
+            activation: <button>Effect: Hidden</button>,
+            usage: <button>Use ability</button>,
+          }
+        : {},
+  });
+  const explanation = await screen.findByText("Ability 0 authored explanation");
+  const effect = screen.getByRole("button", { name: "Effect: Hidden" });
+  const use = screen.getByRole("button", { name: "Use ability" });
+  const heading = screen.getByRole("heading", { level: 4, name: "Ability 0" });
+  expect(heading.parentElement).toContainElement(effect);
+  expect(heading.parentElement).toHaveTextContent("Reaction");
+  expect(
+    explanation.compareDocumentPosition(use) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(use.closest("section")).toContainElement(explanation);
+});
+
 it("keeps a generation conflict paused until the actual parent owner reloads", async () => {
   api.getEmbeddedReading.mockRejectedValue(
     new AtlasApiError(409, "The reference collection changed", {

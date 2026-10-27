@@ -1,10 +1,39 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import type { ComponentProps, ReactNode } from "react";
 import { EncounterInspectorPane } from "./EncounterInspectorPane";
 import { encounterParticipant, renderEncounter } from "./encounterTestFixtures";
-import { detailFixture, spellFixture } from "../../test/fixtures";
+import { actorFixture, detailFixture, spellFixture } from "../../test/fixtures";
+import type { EmbeddedReadingContext } from "../../shared/records/EmbeddedAbilityReading";
+import type { EncounterAbilityStateView } from "../../generated/atlas";
 
-vi.mock("../../api/atlasApi", () => ({
+vi.mock("./EncounterActorReading", () => ({
+  EncounterActorReading: ({
+    reading,
+    actorEncounter,
+  }: {
+    reading?: EmbeddedReadingContext;
+    actorEncounter?: { conditions: ReactNode };
+  }) => {
+    const controls = reading?.renderAbilityControls?.({
+      record_key: reading.parent.record_key,
+      embedded_path: [
+        { collection: "/items", identity: { Stable: "ability000000000" } },
+      ],
+      field: null,
+      passage: null,
+      source_fingerprint: "source",
+    });
+    return (
+      <>
+        {actorEncounter?.conditions}
+        <section aria-label="Inline ability">{controls?.activation}</section>
+      </>
+    );
+  },
+}));
+
+vi.mock("../../api/atlasApi", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../api/atlasApi")>()),
   getEncounterConditionLifecycleActions: vi
     .fn()
     .mockResolvedValue({ encounter_revision: 1n, actions: [] }),
@@ -66,4 +95,73 @@ it("keeps retained spell content read-only after a contextual refresh fails and 
     <EncounterInspectorPane {...props} previewDetail={detailFixture("actors:mage")} />,
   );
   expect(screen.queryByRole("button", { name: "Cast" })).toBeNull();
+});
+
+it("labels multiple inline options and keeps a single option beside its existing ability heading", () => {
+  const presentation = detailFixture("actors:abcdefghijklmnop").presentation;
+  presentation.body = { kind: "creature", value: actorFixture() };
+  const abilities: EncounterAbilityStateView[] = [
+    "Black",
+    "Gold",
+    "Green",
+    "White",
+  ].map((color, ordinal) => ({
+    label: `${color} Aeon Star used`,
+    rule_ordinal: ordinal,
+    navigation: {
+      record_key: "actors:abcdefghijklmnop",
+      embedded_path: [
+        { collection: "/items", identity: { Stable: "ability000000000" } },
+      ],
+      field: null,
+      passage: null,
+      source_fingerprint: "source",
+    },
+    state: {
+      kind: "option",
+      active: false,
+      always_active: false,
+      selection: null,
+      choices: [],
+    },
+  }));
+  const participant = encounterParticipant({
+    participant_kind: "creature",
+    record_key: "actors:abcdefghijklmnop",
+    presentation,
+    ability_states: abilities,
+  });
+  const props = {
+    disabled: false,
+    previewLoading: false,
+    encounterKey: "encounter",
+    encounterRevision: 1n,
+    artifactGeneration: "test-generation",
+    participants: [participant],
+    participant,
+    onAbilityState: vi.fn().mockResolvedValue(true),
+    onReference: vi.fn(),
+  } as unknown as ComponentProps<typeof EncounterInspectorPane>;
+  const { rerender } = renderEncounter(<EncounterInspectorPane {...props} />);
+  const inline = within(screen.getByRole("region", { name: "Inline ability" }));
+  const sidebar = within(screen.getByRole("region", { name: "Ability states" }));
+  for (const ability of abilities) {
+    expect(inline.getByText(ability.label)).toBeVisible();
+    expect(
+      inline.getByRole("switch", { name: `${ability.label} active` }),
+    ).toBeVisible();
+    expect(sidebar.getByRole("link", { name: ability.label })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/records/actors:abcdefghijklmnop?selection="),
+    );
+  }
+  const mounted = { ...abilities[0], label: "Mounted" };
+  rerender(
+    <EncounterInspectorPane
+      {...props}
+      participant={{ ...participant, ability_states: [mounted] }}
+    />,
+  );
+  expect(inline.queryByText("Mounted")).toBeNull();
+  expect(inline.getByRole("switch", { name: "Mounted active" })).toBeVisible();
 });

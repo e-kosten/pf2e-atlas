@@ -1126,6 +1126,7 @@ fn failed_start_resource_write_rolls_back_turn_condition_changes_and_receipts()
                                 condition_id: condition.condition_id,
                             }],
                             turn_resources: vec![TurnResources {
+                                before_first_turn: false,
                                 allocation: None,
                                 actions_open: true,
                                 pending_reason: None,
@@ -1890,6 +1891,7 @@ fn consumed_application_claim_and_stock_roll_back_when_receipt_fails()
             origin,
         }],
         turn_resources: vec![TurnResources {
+            before_first_turn: false,
             allocation: None,
             actions_open: true,
             pending_reason: None,
@@ -2264,5 +2266,120 @@ fn difficulty_reference_is_guarded_persistent_and_does_not_overwrite_encounter_m
             .difficulty_reference,
         Default::default()
     );
+    Ok(())
+}
+
+#[test]
+fn authored_ability_state_is_participant_owned_persistent_and_retry_safe()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("ability-state-persistence")?;
+    let participant = store
+        .encounters()
+        .add_participant("test", creature("One", None, 20))?;
+    store
+        .encounters()
+        .add_participant("test", creature("Two", None, 20))?;
+    let snapshot = store.encounters().get_with_participants("test")?.unwrap();
+    let state = ParticipantAbilityState {
+        owner: atlas_domain::OwnedContentLocator {
+            collection: "/items".into(),
+            identity: atlas_domain::OwnedContentIdentity::Stable("ability000000000".into()),
+        },
+        rule_ordinal: None,
+        source_fingerprint: "source-one".into(),
+        value: AbilityStateValue::Uses { remaining: 2 },
+    };
+    let changes = PreparedConditionEvent {
+        ability_states: vec![AbilityStateChange {
+            participant_key: participant.participant_key.clone(),
+            expected_revision: participant.revision,
+            state: state.clone(),
+        }],
+        ..Default::default()
+    };
+    let intent = serde_json::json!({"ability":"use"});
+    let receipt = store.encounters().apply_condition_event(
+        &snapshot.encounter.encounter_key,
+        "use-one",
+        &intent,
+        snapshot.encounter.revision,
+        changes.clone(),
+    )?;
+    let retry = store.encounters().apply_condition_event(
+        &snapshot.encounter.encounter_key,
+        "use-one",
+        &intent,
+        snapshot.encounter.revision,
+        changes,
+    )?;
+    assert_eq!(receipt, retry);
+    let reopened = TestStore::open(store.path())?;
+    let saved = reopened
+        .encounters()
+        .get_with_participants("test")?
+        .unwrap();
+    let first = saved
+        .participants
+        .iter()
+        .find(|p| p.participant_key == participant.participant_key)
+        .unwrap();
+    assert_eq!(first.ability_states, vec![state]);
+    assert_eq!(first.current_hp, Some(20));
+    assert!(first.conditions.is_empty());
+    assert_eq!(first.revision, participant.revision + 1);
+    assert!(
+        saved
+            .participants
+            .iter()
+            .filter(|p| p.participant_key != participant.participant_key)
+            .all(|p| p.ability_states.is_empty())
+    );
+    Ok(())
+}
+
+#[test]
+fn failed_receipt_rolls_back_ability_state_and_participant_revision()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("ability-state-rollback")?;
+    let participant = store
+        .encounters()
+        .add_participant("test", creature("One", None, 20))?;
+    let snapshot = store.encounters().get_with_participants("test")?.unwrap();
+    store.connection()?.execute_batch("CREATE TRIGGER reject_ability_receipt BEFORE INSERT ON encounter_event_receipts BEGIN SELECT RAISE(ABORT,'reject receipt'); END;")?;
+    let changes = PreparedConditionEvent {
+        ability_states: vec![AbilityStateChange {
+            participant_key: participant.participant_key.clone(),
+            expected_revision: participant.revision,
+            state: ParticipantAbilityState {
+                owner: atlas_domain::OwnedContentLocator {
+                    collection: "/items".into(),
+                    identity: atlas_domain::OwnedContentIdentity::Stable("ability000000000".into()),
+                },
+                rule_ordinal: Some(0),
+                source_fingerprint: "source".into(),
+                value: AbilityStateValue::Option {
+                    active: true,
+                    selection: None,
+                },
+            },
+        }],
+        ..Default::default()
+    };
+    assert!(
+        store
+            .encounters()
+            .apply_condition_event(
+                "test",
+                "failed-ability",
+                &serde_json::json!({"active":true}),
+                snapshot.encounter.revision,
+                changes
+            )
+            .is_err()
+    );
+    let saved = store.encounters().get_with_participants("test")?.unwrap();
+    assert_eq!(saved.encounter.revision, snapshot.encounter.revision);
+    assert_eq!(saved.participants[0].revision, participant.revision);
+    assert!(saved.participants[0].ability_states.is_empty());
     Ok(())
 }

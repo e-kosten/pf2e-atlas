@@ -3,11 +3,11 @@
 Status: in_progress
 Priority: soon
 Owner: configurable-similarity workstream
-Last reviewed: 2026-10-26
+Last reviewed: 2026-10-27
 
-## Authorized Similar experiment
+## Configurable Similar
 
-The current work adds Passage matches with normalized geometric rank decay,
+Similar supports Passage matches with normalized geometric rank decay,
 Content average, and the existing record/trait baselines over stored vectors.
 Advanced Compare parts selects exact existing source sections; candidate matching
 can use any prose or explicit cross-kind correspondence roles. Role eligibility
@@ -20,14 +20,18 @@ links override saved launch defaults without saving them automatically; exact
 part selections remain seed/generation-specific. CLI part discovery and the same
 scoring/evidence contracts use the shared app service.
 
-Implementation begins from main 9d3fbb1f and pauses at a runnable browser/CLI UX
-checkpoint. The canonical active plan is scratch/plans/2026-10-26-configurable-similarity.md
-in the feature worktree. Starting defaults are experimental; the final evaluation
-separates fixed-pool ordering, bounded candidate recall, source-grounded usefulness,
-explanation fidelity and measured runtime cost across both stored models.
+Record Similar defaults to Passage matches with Any content and decay 0.5;
+trait Similar retains the Trait definition baseline. Explicit links and valid
+remembered choices override those independent defaults. The
+[frozen Similar study](../../research/evaluations/2026-10-similarity/RESULTS.md)
+preserves fixed-pool ordering, controlled-subset candidate recall, model-assisted
+usefulness judgments and runtime measurements across both stored profiles.
+These results do not establish full-corpus recall or a universal relevance winner.
+
 Highlighting arbitrary text, new segmentation/models, summaries and learned
 reranking remain outside this scope. The lexical/hybrid algorithms below are
 unchanged by moving their existing chooser into the shared settings dialog.
+Broader lexical and associated-content evaluation remains open.
 
 ## Current Baseline
 

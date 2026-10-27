@@ -135,6 +135,24 @@ pub(crate) fn delete(connection: &Connection, encounter_ref: &str) -> LocalState
     Ok(removed > 0)
 }
 
+/// Pristine source-derived rows may complete initialization without becoming edited state.
+pub(super) fn initialize_participant_hp(
+    connection: &Connection,
+    participant_key: &str,
+    current_hp: Option<i64>,
+) -> LocalStateResult<()> {
+    let changed = connection.execute(
+        "UPDATE encounter_participants SET current_hp=?2 WHERE participant_key=?1 AND revision=0 AND hp_origin='derived_pristine' AND current_hp IS max_hp",
+        params![participant_key,current_hp],
+    )?;
+    if changed != 1 {
+        return Err(LocalStateError::InvalidRollRequest(
+            "participant is no longer pristine for initialization",
+        ));
+    }
+    Ok(())
+}
+
 pub(crate) fn add_participant(
     connection: &Connection,
     encounter_ref: &str,
@@ -571,6 +589,8 @@ fn participants(
     let rows = statement.query_map(params![encounter_key], participant_from_row)?;
     let mut participants = rows.collect::<Result<Vec<_>, _>>()?;
     for participant in &mut participants {
+        participant.ability_states =
+            super::ability_state::read(connection, &participant.participant_key)?;
         participant.conditions = participant_conditions(connection, &participant.participant_key)?;
         participant.persistent_precedence =
             super::persistent_precedence::read(connection, &participant.participant_key)?;
@@ -655,6 +675,7 @@ fn participant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPa
         updated_at: row.get(18)?,
         hp_origin: crate::ParticipantHpOrigin::from_str(&row.get::<_, String>(19)?),
         variant_origin: crate::ParticipantVariantOrigin::from_str(&row.get::<_, String>(20)?),
+        ability_states: vec![],
         conditions: Vec::new(),
     })
 }
@@ -679,6 +700,7 @@ pub(crate) fn participant(
     else {
         return Ok(None);
     };
+    participant.ability_states = super::ability_state::read(connection, participant_key)?;
     participant.conditions = participant_conditions(connection, participant_key)?;
     participant.expended_spells =
         super::spell_resources::read_expended(connection, participant_key)?;

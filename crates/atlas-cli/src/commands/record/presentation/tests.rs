@@ -325,6 +325,7 @@ fn detail(body: RecordBodyView) -> RecordDetailView {
         artifact_generation: "test-generation".into(),
         record: summary("Local Caster", "creature"),
         presentation: RecordPresentationView {
+            grants: None,
             classification: "creature 2".into(),
             identity: summary("Custom Fireball", "spell"),
             content: vec![],
@@ -705,6 +706,31 @@ fn selected_strike_retains_attack_damage_usage_and_parent_context() {
             "missing {expected:?} in {rendered}"
         );
     }
+}
+
+#[test]
+fn recipient_grants_are_readable_while_json_retains_the_exact_destination() {
+    let mut record = detail(RecordBodyView::Content);
+    record.selected.field = None;
+    record.presentation.grants = Some(RecordGrantsView {
+        entries: vec![RecordGrantLinkView {
+            title: "Granted benefit".into(),
+            record: None,
+            navigation: address(),
+        }],
+        unavailable_count: 1,
+        truncated: false,
+    });
+    let output = render_record(&record, TerminalDetail::Standard, 80).unwrap();
+    assert!(output.contains("Grants\n- Granted benefit"));
+    assert!(output.contains("One granted reference is unavailable."));
+    assert!(!output.contains("embedded_path"));
+    assert!(!output.contains("actor00000000000"));
+    let json = serde_json::to_value(record).unwrap();
+    assert_eq!(
+        json["presentation"]["grants"]["entries"][0]["navigation"],
+        serde_json::to_value(address()).unwrap()
+    );
 }
 
 #[test]

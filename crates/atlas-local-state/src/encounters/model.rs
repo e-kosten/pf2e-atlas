@@ -58,6 +58,8 @@ impl EncounterStatus {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EncounterParticipant {
     #[serde(default)]
+    pub ability_states: Vec<super::ParticipantAbilityState>,
+    #[serde(default)]
     pub turn_resources: Option<super::TurnResources>,
     pub level_override: Option<i64>,
     pub base_death_threshold: i64,
