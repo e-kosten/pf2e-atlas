@@ -73,7 +73,7 @@ export function SimilarityExplanation({
               title: "Weight",
               dataIndex: "weight",
               width: 68,
-              render: (weight: number) => weight.toFixed(3),
+              render: (weight: number) => `${(weight * 100).toFixed(1)}%`,
             },
           ]}
         />
