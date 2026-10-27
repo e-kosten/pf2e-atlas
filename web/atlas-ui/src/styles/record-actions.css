@@ -1,11 +1,13 @@
 .record-destination-picker,
 .record-destination-picker__form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 
 .record-destination-picker__choices {
   display: flex;
+  min-width: 0;
   flex-wrap: wrap;
   gap: 8px;
 }
