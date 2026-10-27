@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const base = dirname(fileURLToPath(import.meta.url));
 for (const args of [
   [join(base, "verify.py")],
-  ["-m", "unittest", "discover", "-s", base, "-p", "test_analysis.py"],
+  ["-m", "unittest", "discover", "-s", base, "-p", "test_*.py"],
   [join(base, "verify_results.py")],
 ]) {
   const result = spawnSync("python3", args, { stdio: "inherit" });

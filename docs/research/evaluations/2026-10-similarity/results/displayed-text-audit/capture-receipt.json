@@ -1,0 +1,60 @@
+{
+  "predeclaration_sha256": "eac4ad2e8b60c6f0772536d22041ac8e5d8bbb9fcf8eaf523cf33a8c17b58430",
+  "completed_at_utc": "2026-10-27T08:24:10.506706+00:00",
+  "receipts": [
+    {
+      "audit_cell_id": "cell-01",
+      "exit_code": 0,
+      "elapsed_seconds_diagnostic": 4.0533622080001805,
+      "output": "captures/cell-01.json",
+      "output_sha256": "b13bbd9860245cb398c487b3dbb282add3fd99addf766d52dd4ef6f66375e8cc",
+      "stderr": "captures/cell-01.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "audit_cell_id": "cell-02",
+      "exit_code": 0,
+      "elapsed_seconds_diagnostic": 0.22969008300060523,
+      "output": "captures/cell-02.json",
+      "output_sha256": "b08cbccaa7b6d948050ad85e06f51607861f583f31bcfe2f9ed5030f14ad0d7b",
+      "stderr": "captures/cell-02.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "audit_cell_id": "cell-03",
+      "exit_code": 0,
+      "elapsed_seconds_diagnostic": 15.529713791998802,
+      "output": "captures/cell-03.json",
+      "output_sha256": "d60435808200aa00c6039b79ce01df4e8d596ce91846f2de604bc1728ea7ef4d",
+      "stderr": "captures/cell-03.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "audit_cell_id": "cell-04",
+      "exit_code": 0,
+      "elapsed_seconds_diagnostic": 2.406151624998529,
+      "output": "captures/cell-04.json",
+      "output_sha256": "51003824eaa668e26ba6aa3ebbe8ff817450a2b55accc86056e1cad4e0a9b979",
+      "stderr": "captures/cell-04.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "audit_cell_id": "cell-05",
+      "exit_code": 0,
+      "elapsed_seconds_diagnostic": 0.31424587500077905,
+      "output": "captures/cell-05.json",
+      "output_sha256": "75619dfac0c6aa2f76d9c47f020244a742b9f34cd4e17d5cdee3ab6403a0242e",
+      "stderr": "captures/cell-05.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "audit_cell_id": "cell-06",
+      "exit_code": 0,
+      "elapsed_seconds_diagnostic": 0.7476137920002657,
+      "output": "captures/cell-06.json",
+      "output_sha256": "021c457ff73fa457505e45954388d613b9f7a45a1c74b718d6388068dfe28614",
+      "stderr": "captures/cell-06.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

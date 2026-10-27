@@ -1,0 +1,14 @@
+{
+  "ui_projection_source_files": [
+    {
+      "path": "web/atlas-ui/src/shared/records/SimilarityExplanation.tsx",
+      "sha256": "05e0494a4946cea213f2907bb434a2987c5aa7c4fbae1cf8bcff90243d11bc0a"
+    },
+    {
+      "path": "web/atlas-ui/src/shared/records/SearchMatchContext.tsx",
+      "sha256": "80b29fe02df7e0b459bcb897d304c81d0a07baebf3d52447c4750311b9f84770"
+    }
+  ],
+  "observed_ui_source_equivalence": "git diff03b674c6 c8bd7ebb for bothdisplaycomponents is empty; settings/default amendments do not change displayedpair or baseline matchingsection projection.",
+  "json_mapping": "SimilarityExplanation uses pair.seed_text and pair.candidate.snippet withtheirlabels/navigation; SearchMatchContext uses matching_sections whenrow.similarity absent. No extra sourcecontext is presentedasdisplayed."
+}
