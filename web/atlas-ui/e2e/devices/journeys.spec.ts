@@ -1728,6 +1728,58 @@ test("create-and-add keeps the footer aligned and keyboard actions reachable", a
   }
 });
 
+test("Search linked previews add the linked record and retain the reading context", async ({
+  page,
+}, info) => {
+  const name = `Linked preview ${info.project.name}-${Date.now()}`;
+  const response = await page.request.post("/api/lists", {
+    data: { slug: `linked-preview-${Date.now()}`, name, tags: [] },
+  });
+  expect(response.ok()).toBeTruthy();
+  const { list } = await response.json();
+  try {
+    await page.goto(landedSearch);
+    const host = page.locator(".reference-reader__scroll");
+    const link = host.getByRole("link", { name: "Off-Guard", exact: true }).last();
+    await link.scrollIntoViewIfNeeded();
+    const position = await host.evaluate((node) => node.scrollTop);
+    const url = page.url();
+    await activate(link, info);
+    const preview = page.getByRole("dialog", { name: "Off-Guard", exact: true });
+    const trigger = preview.getByRole("button", { name: "Add to list", exact: true });
+    await activate(trigger, info);
+    const picker = page.getByRole("dialog", { name: "Add to list", exact: true });
+    await expect(picker.getByRole("tab", { name: "Encounters" })).toHaveCount(0);
+    const selector = picker.getByRole("combobox");
+    await expect(selector).toBeEnabled();
+    await activate(selector, info);
+    await activate(
+      page.locator(".ant-select-dropdown:visible").getByText(name, { exact: true }),
+      info,
+    );
+    await activate(picker.getByRole("button", { name: "Add", exact: true }), info);
+    await expect(picker).toBeHidden();
+    await expect(preview).toBeVisible();
+    await expect(trigger).toBeFocused();
+    expect(page.url()).toBe(url);
+    expect(
+      (await (await page.request.get(`/api/lists/${list.list_key}`)).json()).items,
+    ).toEqual([
+      expect.objectContaining({ record_key: "browser-conditions:offguard00000001" }),
+    ]);
+    await activate(
+      preview.getByRole("button", { name: "Close reference preview", exact: true }),
+      info,
+    );
+    await expect(preview).toBeHidden();
+    await expect(link).toBeFocused();
+    await expect.poll(() => host.evaluate((node) => node.scrollTop)).toBe(position);
+    await noPageOverflow(page);
+  } finally {
+    await page.request.delete(`/api/lists/${list.list_key}`);
+  }
+});
+
 test("noncombat records offer a list without encounter tabs or guidance", async ({
   page,
 }, info) => {

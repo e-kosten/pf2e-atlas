@@ -45,6 +45,7 @@ import { encodeFilterUrl } from "../shared/filters/filterUrl";
 import { COLOR_SCHEME_STORAGE_KEY } from "../shared/theme/atlasTheme";
 
 const apiMocks = vi.hoisted(() => ({
+  addEncounterRecordParticipant: vi.fn(),
   addSavedListItem: vi.fn(),
   discoverFilterEditor: vi.fn(),
   discoverFilterValues: vi.fn(),
@@ -52,6 +53,7 @@ const apiMocks = vi.hoisted(() => ({
   verifyBackendCompatibility: vi.fn(),
   getRecordDetail: vi.fn(),
   getRelatedRecords: vi.fn(),
+  getEncounters: vi.fn(),
   getSavedLists: vi.fn(),
   filterSavedList: vi.fn(),
   searchPage: vi.fn(),
@@ -59,6 +61,7 @@ const apiMocks = vi.hoisted(() => ({
 
 vi.mock("../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../api/atlasApi")>()),
+  addEncounterRecordParticipant: apiMocks.addEncounterRecordParticipant,
   addSavedListItem: apiMocks.addSavedListItem,
   discoverFilterEditor: apiMocks.discoverFilterEditor,
   discoverFilterValues: apiMocks.discoverFilterValues,
@@ -66,6 +69,7 @@ vi.mock("../api/atlasApi", async (original) => ({
   verifyBackendCompatibility: apiMocks.verifyBackendCompatibility,
   getRecordDetail: apiMocks.getRecordDetail,
   getRelatedRecords: apiMocks.getRelatedRecords,
+  getEncounters: apiMocks.getEncounters,
   getSavedLists: apiMocks.getSavedLists,
   filterSavedList: apiMocks.filterSavedList,
   searchPage: apiMocks.searchPage,
@@ -771,6 +775,81 @@ describe("AtlasApp routing", () => {
       }),
     );
   }, 10_000);
+
+  it.each(["creature", "hazard", "equipment"] as const)(
+    "adds a linked %s from Search without leaving the selected reader",
+    async (kind) => {
+      history.replaceState(null, "", "/search/records/spell:heal?q=heal");
+      apiMocks.searchPage.mockResolvedValue(searchResultsPage(["spell:heal"]));
+      const linkedKey = `${kind}:linked`;
+      apiMocks.getRecordDetail.mockImplementation(async (key: string) => {
+        const detail = detailFixture(
+          key,
+          key === linkedKey ? `Linked ${kind}` : "heal",
+          key === linkedKey ? undefined : linkedKey,
+        );
+        if (key === linkedKey) detail.record.kind = kind;
+        return detail;
+      });
+      apiMocks.getEncounters.mockResolvedValue({
+        encounters: [
+          {
+            encounter_key: "enc_ambush",
+            slug: "ambush",
+            name: "Ambush",
+            status: "draft",
+          },
+        ],
+      });
+      apiMocks.addEncounterRecordParticipant.mockResolvedValue({
+        encounter_key: "enc_ambush",
+      });
+      render(<AtlasApp />, { wrapper: queryClientWrapper() });
+      const selected = await screen.findByRole("link", { name: /^heal/, hidden: true });
+      const nested = await screen.findByRole("link", { name: "Nested Rule" });
+      const reader = document.querySelector<HTMLElement>(".reference-reader__scroll")!;
+      reader.scrollTop = 425;
+      const input = screen.getByRole("searchbox", { name: "Search records" });
+      fireEvent.change(input, { target: { value: "Unsubmitted idea" } });
+      const url = location.href;
+      fireEvent.click(nested);
+      const preview = await screen.findByRole("dialog", { name: "Reference" });
+      await within(preview).findByRole("heading", { name: `Linked ${kind}` });
+      const compatible = kind !== "equipment";
+      const trigger = within(preview).getByRole("button", {
+        name: compatible ? "Add to list or encounter" : "Add to list",
+      });
+      fireEvent.click(trigger);
+      const picker = await screen.findByRole("dialog", {
+        name: compatible ? "Add to…" : "Add to list",
+      });
+      if (compatible)
+        fireEvent.click(within(picker).getByRole("tab", { name: "Encounters" }));
+      else expect(within(picker).queryByRole("tab", { name: "Encounters" })).toBeNull();
+      const selector = within(picker).getByRole("combobox");
+      await waitFor(() => expect(selector).toBeEnabled());
+      fireEvent.mouseDown(selector);
+      fireEvent.click(await screen.findByText(compatible ? "Ambush" : "Research"));
+      fireEvent.click(within(picker).getByRole("button", { name: "Add" }));
+      const mutation = compatible
+        ? apiMocks.addEncounterRecordParticipant
+        : apiMocks.addSavedListItem;
+      await waitFor(() => expect(mutation).toHaveBeenCalledTimes(1));
+      expect(mutation).toHaveBeenCalledWith(
+        compatible
+          ? { encounter_ref: "enc_ambush", record_ref: linkedKey, quantity: 1 }
+          : { list_ref: "list_research", record_ref: linkedKey },
+      );
+      await waitFor(() => expect(picker).not.toBeVisible());
+      expect(preview).toBeVisible();
+      await waitFor(() => expect(trigger).toHaveFocus());
+      expect(location.href).toBe(url);
+      expect(input).toHaveValue("Unsubmitted idea");
+      expect(reader.scrollTop).toBe(425);
+      expect(selected).toHaveAttribute("aria-current", "true");
+    },
+    10_000,
+  );
 });
 
 function installLocalStorage() {

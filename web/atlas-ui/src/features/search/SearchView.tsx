@@ -176,14 +176,13 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
         reading={workspace.reading}
         positions={workspace.positions}
         resultsHeader={<ResultPaneHeader workspace={workspace} />}
-        readerActions={
-          workspace.reading.detail && (
-            <AddToRecordButton
-              recordKey={workspace.reading.detail.record.record_key}
-              record={workspace.reading.detail.record}
-            />
-          )
-        }
+        recordActions={(record) => (
+          <AddToRecordButton
+            key={record.record_key}
+            recordKey={record.record_key}
+            record={record}
+          />
+        )}
       />
     </main>
   );
