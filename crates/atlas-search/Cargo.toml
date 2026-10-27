@@ -20,7 +20,8 @@ thiserror.workspace = true
 tempfile = { version = "3.23.0", optional = true }
 
 [features]
-test-support = ["dep:tempfile", "atlas-index/test-support"]
+read-metrics = ["atlas-index/test-support"]
+test-support = ["dep:tempfile", "read-metrics"]
 
 [dev-dependencies]
 atlas-index = {workspace = true, features=["test-support"]}

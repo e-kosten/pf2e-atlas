@@ -15,7 +15,7 @@ tracing.workspace = true
 atlas-cli-support.workspace = true
 atlas-ingest.workspace = true
 atlas-index.workspace = true
-atlas-search = { workspace = true, features = ["test-support"] }
+atlas-search = { workspace = true, features = ["read-metrics"] }
 atlas-domain.workspace = true
 atlas-foundry-model.workspace = true
 sha2.workspace = true

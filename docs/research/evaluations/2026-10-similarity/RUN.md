@@ -14,7 +14,9 @@ Run a development smoke first. Supply the actual full build commit and record an
 uncommitted compiler inputs in the build receipt. Reports bind the executable's
 SHA256, caller-declared commit, observed Git state and all frozen input digests;
 observing Git at invocation does not itself prove which tree built the executable.
-The developer executable enables `atlas-search/test-support` for read counters.
+Current developer builds enable `atlas-search/read-metrics` for index-owned read
+counters without enabling search fixture constructors. The frozen study used the
+earlier `atlas-search/test-support` feature; its recorded provenance is unchanged.
 Timings cover the complete production algorithm in that instrumented executable;
 cross-check representative shipped CLI or web requests separately.
 

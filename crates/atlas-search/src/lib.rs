@@ -4,6 +4,8 @@ mod discovery;
 mod error;
 mod graph;
 mod page;
+#[cfg(any(test, feature = "read-metrics"))]
+mod read_metrics;
 mod records;
 mod reference_resolution;
 mod service;
@@ -25,6 +27,8 @@ pub mod test_support;
 mod tests;
 mod text;
 mod variants;
+#[cfg(any(test, feature = "read-metrics"))]
+pub use atlas_index::SourceReadMetrics;
 pub use atlas_index::{
     ArtifactInstance, SourcePreparedContent, SourceStoredRelationship, SourceUnitLocation,
 };
