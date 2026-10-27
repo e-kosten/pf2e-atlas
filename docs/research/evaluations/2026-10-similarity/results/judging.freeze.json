@@ -1,0 +1,107 @@
+{
+  "input_freeze_sha256": "55c2342e65ef5826428eb41afce81a142eeda15fe8c82963fc147c415710f429",
+  "packets": {
+    "dev-c01": {
+      "file": "dev-c01.json",
+      "sha256": "cf8f51a54dbab60a99348264aa18b75def0a3aeb841e2d13774b25dbab1da44b"
+    },
+    "dev-c02": {
+      "file": "dev-c02.json",
+      "sha256": "07fe563687d0b4f832eebd65fa80e1ee0d6c59c20824609429edbe49a69125c1"
+    },
+    "dev-c03": {
+      "file": "dev-c03.json",
+      "sha256": "8b1619c71dab85284a5b50d70902af02473882aa8bec63f9c10ce37c46408362"
+    },
+    "dev-h01": {
+      "file": "dev-h01.json",
+      "sha256": "d14a5e6a74d4878895c5115d57c1cf23b64db20fa231978f0c3193b6a9d5c5ad"
+    },
+    "dev-h02": {
+      "file": "dev-h02.json",
+      "sha256": "9c2ab7334cdb5d4688a48ebbaa1b69239a317a0b499c9e1ad2c3500bab3d77dd"
+    },
+    "dev-h03": {
+      "file": "dev-h03.json",
+      "sha256": "36ccf53f004f90a8392aa382c267e10c039e8f694af5ba126af445bcca70f381"
+    },
+    "dev-s01": {
+      "file": "dev-s01.json",
+      "sha256": "3bb0686dd4a2b43f2bf3d8f117b6bf7d4f760aafd57c74fa771f6498e6dc999c"
+    },
+    "dev-s02": {
+      "file": "dev-s02.json",
+      "sha256": "3fcdc6e4831b38b6a2418863c9b278060732bb5cd0714dbe215f4642e5056920"
+    },
+    "dev-s03": {
+      "file": "dev-s03.json",
+      "sha256": "7ba7315c876c47a34dc89b06dd2b5d1ef34e8c750d9f51559fc2c8a5b6b731a7"
+    },
+    "dev-t01": {
+      "file": "dev-t01.json",
+      "sha256": "ff80cf37eb966d0803365e951a4c62418f43fe5680780d21fce5071f1bd8ab48"
+    },
+    "dev-t02": {
+      "file": "dev-t02.json",
+      "sha256": "95c69bdedfd86bf699bc7e62fd8d4edc6151dfa82ee9435bc18da68eea18a749"
+    },
+    "dev-t03": {
+      "file": "dev-t03.json",
+      "sha256": "1524384d4d8fcc6eb0c580f3049152304784feba2c5e6bfe41a7246cacc74df8"
+    },
+    "hold-c01": {
+      "file": "hold-c01.json",
+      "sha256": "3ec5f05782905d84d19d63ed0cee6bf3bfd638af7a7954f30d07ed2b46f812da"
+    },
+    "hold-c02": {
+      "file": "hold-c02.json",
+      "sha256": "30353fe22a33989af3c669f9dba5f54e4e2b74c1bf2a4362456f10d87fcef823"
+    },
+    "hold-c03": {
+      "file": "hold-c03.json",
+      "sha256": "3eee20a64faad2e9d5595d0040329e7d496dc5406e75c1176d49cdda398cf2e0"
+    },
+    "hold-h01": {
+      "file": "hold-h01.json",
+      "sha256": "0e60345b0c86d75f7c3a35e7a9ba77b98f7557adfca560a7b07dfed07f57f738"
+    },
+    "hold-h02": {
+      "file": "hold-h02.json",
+      "sha256": "5552f7caeb3ed8fa824d14a38a6c9d0c9ce6cdb739452f4a2baf8da461842b0c"
+    },
+    "hold-h03": {
+      "file": "hold-h03.json",
+      "sha256": "473998c4673c9e669012aca337aea411c61febe04206a15b148ec8d6f3c8e78a"
+    },
+    "hold-s01": {
+      "file": "hold-s01.json",
+      "sha256": "2bfab630ed953fde837aa2bd40def7002fd8f43388a40a6dd3e274fd62233a28"
+    },
+    "hold-s02": {
+      "file": "hold-s02.json",
+      "sha256": "693c927761f82752506cdba8daf707b856a82eb5607327c3c9e96698fd66c75d"
+    },
+    "hold-s03": {
+      "file": "hold-s03.json",
+      "sha256": "feca232fde81da6cf25192e8167bd77d57eb70987ac7dcfa16880b2489f308ca"
+    },
+    "hold-t01": {
+      "file": "hold-t01.json",
+      "sha256": "185ad73be8f9162a02210ddb9f1843fc6f55960b49f61efe2abbfc37550ee28a"
+    },
+    "hold-t02": {
+      "file": "hold-t02.json",
+      "sha256": "ad649c14541bcac1fcff2d16cd7066439c0a4c01ef69dc0772723d44b086cdc6"
+    },
+    "hold-t03": {
+      "file": "hold-t03.json",
+      "sha256": "51929d749f40a3fec84882f0cd7b54cd1475591838feb1210cec13dbb73bb758"
+    }
+  },
+  "private_rankings_sha256": "653830192d0c3d3d9c4a946cd1cd9fec80d69485e4a656f01cc87bc12631c576",
+  "public_pool_sha256": "d9223cec121981d07d401d9818e436acdfa4f8e490e8397b58ceae4c97302709",
+  "randomization_seed": 20261026,
+  "source_packet_input_sha256": "4aeff31f183a551003c8eb9d76a92b69c8eef2cbeb0f5b6e10e6775f68429da0",
+  "state": "grading-packets-frozen-before-opinions",
+  "version": 1
+}
