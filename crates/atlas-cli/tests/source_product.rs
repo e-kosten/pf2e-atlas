@@ -1329,7 +1329,27 @@ fn similar_discovers_exact_record_and_trait_parts_without_stored_vectors() {
     assert!(
         parts
             .iter()
+            .filter(|part| part["kind"] == "section")
             .all(|part| part["selector"].as_str().unwrap().starts_with("part:"))
+    );
+    assert_eq!(
+        parts
+            .iter()
+            .filter(|part| part["kind"] == "identity")
+            .count(),
+        1
+    );
+    let all = fixture.data(&[
+        "similar",
+        "Treat Wounds",
+        "--list-parts",
+        "--sections",
+        "all",
+        "--json",
+    ]);
+    assert_eq!(
+        all["parts"], record["parts"],
+        "All discovery includes every source component, including identity"
     );
     assert!(parts.iter().any(|part| part["role_label"] == "Ability"));
 

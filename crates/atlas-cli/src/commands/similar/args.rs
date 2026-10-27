@@ -11,7 +11,7 @@ pub(crate) struct SimilarOptions {
         long,
         value_enum,
         conflicts_with = "parts",
-        help = "Source selection: all existing prose sections, or Core identity and sections chosen for this record kind"
+        help = "Source selection: identity and all sections, or identity and Core sections chosen for this record kind"
     )]
     pub(crate) sections: Option<crate::cli::args::CliSearchContent>,
     #[arg(
