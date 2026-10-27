@@ -4,14 +4,12 @@ use atlas_app_model::{AppError, AppErrorCode};
 use atlas_cli_support::CliPathMode;
 use atlas_domain::SimilaritySeed;
 
-pub(super) fn missing_generation(options: &SimilarOptions) -> Option<AppError> {
+pub(super) fn missing_generation(options: &SimilarOptions) -> Option<String> {
     (!options.parts.is_empty() && options.artifact_generation.is_none()).then(|| {
-        let mut error = AppError::new(
-            AppErrorCode::InvalidRequest,
-            "--part requires --artifact-generation from the section inventory",
-        );
-        append_command(&mut error, &command(options, None));
-        error
+        format!(
+            "--part requires --artifact-generation from the section inventory\nRediscover sections: {}",
+            command(options, None)
+        )
     })
 }
 

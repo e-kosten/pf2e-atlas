@@ -1348,7 +1348,7 @@ fn similar_guard_errors_keep_json_pure_and_include_copyable_rediscovery() {
     for (extra, expected_code, expected_seed) in [
         (
             vec!["--part", "part:unavailable"],
-            "invalid_request",
+            "invalid_input",
             "'Treat Wounds'",
         ),
         (
