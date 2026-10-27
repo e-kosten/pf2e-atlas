@@ -47,6 +47,7 @@ export function EncounterOriginalRecord({
           onReference={preview.open}
           onRankChange={preview.changeRank}
           readingHistory={preview.readingHistory}
+          requestedNavigation={preview.selection}
           landing={preview.landing}
           onOpenFullPage={() => {
             navigateDestination(

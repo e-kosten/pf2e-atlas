@@ -123,6 +123,7 @@ export function TraitView({ route }: { route: TraitPageInput }) {
           actions={<AddToListButton recordKey={preview.recordKey} />}
           anchor={preview.anchor}
           readingHistory={preview.readingHistory}
+          requestedNavigation={preview.selection}
           landing={preview.landing}
           detail={preview.detail}
           loading={preview.loading}

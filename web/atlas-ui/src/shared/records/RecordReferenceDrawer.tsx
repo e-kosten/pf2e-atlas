@@ -12,6 +12,7 @@ import type {
 import { usePreviewContentFocus } from "./usePreviewContentFocus";
 import { RecordPresentationIdentity } from "./RecordPresentation";
 import type { RecordNavigationView } from "../../generated/atlas";
+import { readingNavigationForUrl } from "./readingUrlNavigation";
 const getPopupContainer = (trigger?: HTMLElement) =>
   trigger?.closest<HTMLElement>(".record-preview-drawer-root") ?? document.body;
 export function RecordReferenceDrawer({
@@ -29,6 +30,7 @@ export function RecordReferenceDrawer({
   onReference,
   onRankChange,
   fullPageHref,
+  requestedNavigation,
   landing,
   readingHistory,
   anchor,
@@ -41,13 +43,16 @@ export function RecordReferenceDrawer({
   const [closing, setClosing] = useState(false);
   const open = !closing;
   const close = () => setClosing(true);
+  const navigation = detail
+    ? readingNavigationForUrl(detail.selected, { navigation: requestedNavigation })
+    : undefined;
   const href =
     fullPageHref ??
     (detail
       ? destinationHref(
           recordDestination({
             recordKey: detail.selected.record_key,
-            selection: detail.selected,
+            selection: navigation,
             landing,
           }),
         )
@@ -57,7 +62,7 @@ export function RecordReferenceDrawer({
       navigateDestination(
         recordDestination({
           recordKey: detail.selected.record_key,
-          selection: detail.selected,
+          selection: navigation,
           landing,
         }),
       );

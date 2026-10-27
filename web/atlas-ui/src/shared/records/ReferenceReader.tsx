@@ -22,6 +22,7 @@ import { usePreviewContentFocus } from "./usePreviewContentFocus";
 import { landReadingTarget } from "./landReadingTarget";
 import { BrowsePaneHeader } from "./BrowsePaneHeader";
 import { useRecordExploreLocation } from "./recordExploreLocation";
+import { readingNavigationForUrl } from "./readingUrlNavigation";
 export function ReferenceReader({
   reading,
   selectedRecordKey = null,
@@ -286,7 +287,10 @@ export function ReferenceReader({
     focusMatchTarget,
   ]);
   const detail = reading.detail;
-  const fullNavigation = detail?.selected ?? reading.request?.navigation;
+  const selected = detail?.selected ?? reading.request?.navigation;
+  const fullNavigation = selected
+    ? readingNavigationForUrl(selected, reading.request)
+    : undefined;
   const fullRoute = fullNavigation
     ? recordDestination({
         recordKey: fullNavigation.record_key,
@@ -413,6 +417,7 @@ export function ReferenceReader({
           onReference={preview.open}
           onRankChange={preview.changeRank}
           readingHistory={preview.readingHistory}
+          requestedNavigation={preview.selection}
           landing={preview.landing}
           onOpenFullPage={() => {
             navigateDestination(

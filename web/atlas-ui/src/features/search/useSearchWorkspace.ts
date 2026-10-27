@@ -53,6 +53,7 @@ import {
   isArtifactGenerationChanged,
   retireImmutableReferenceQueries,
 } from "../../shared/queries/immutableReferenceQueries";
+import { readingNavigationForUrl } from "../../shared/records/readingUrlNavigation";
 const SEARCH_REQUEST_DEBOUNCE_MS = 300;
 export type SearchWorkspaceState = {
   search: SearchFormState;
@@ -334,7 +335,7 @@ export function useSearchWorkspace({
   useEffect(() => {
     const view = currentSearchLocation();
     if (!enabled || !reading.detail || search.filterWasReset || !view) return;
-    const selected = reading.detail.selected;
+    const selected = readingNavigationForUrl(reading.detail.selected, reading.request);
     const selection =
       selected.spell_rank !== undefined ||
       selected.embedded_path.length ||
@@ -358,7 +359,15 @@ export function useSearchWorkspace({
         resetScroll: false,
         state: (state) => ({ ...state, atlasSearchPage: pageNumber }),
       });
-  }, [enabled, reading.detail, reading.landing, search, urlProfile, pageNumber]);
+  }, [
+    enabled,
+    reading.detail,
+    reading.request,
+    reading.landing,
+    search,
+    urlProfile,
+    pageNumber,
+  ]);
 
   useEffect(() => {
     if (!enabled || urlProfile === null || !currentSearchLocation()) return;

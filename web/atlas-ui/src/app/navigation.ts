@@ -48,23 +48,35 @@ export function ownerReturnHref(parent: string, landing: RecordNavigationView): 
   const current = atlasRouter.latestLocation;
   const fallback = destinationHref(recordDestination({ recordKey: parent, landing }));
   const origin = current.state.atlasOwnerOrigin;
-  const currentRecordKey = atlasRouter.state.matches.flatMap((match) =>
-    "recordKey" in match.params ? [match.params.recordKey] : [],
-  )[0];
-  const selected = currentRecordKey
-    ? selectedNavigation(current.search, currentRecordKey)
-    : undefined;
-  const knownParent =
-    currentRecordKey === parent && !selected?.embedded_path.length
-      ? current.href
-      : fallback;
-  const url = new URL(
+  function wholeParentUrl(href: string, requireRoot: boolean): URL | undefined {
+    try {
+      const url = new URL(href, window.location.origin);
+      if (url.origin !== window.location.origin) return undefined;
+      const search = parseSearchParams(url.search);
+      const parentMatch = atlasRouter
+        .matchRoutes(url.pathname, search)
+        .some(
+          (match) => "recordKey" in match.params && match.params.recordKey === parent,
+        );
+      if (!parentMatch) return undefined;
+      const selected = selectedNavigation(search, parent);
+      const embedded = Boolean(selected?.embedded_path.length);
+      if (requireRoot && embedded) return undefined;
+      url.searchParams.delete("at");
+      if (embedded) url.searchParams.delete("rank");
+      return url;
+    } catch {
+      return undefined;
+    }
+  }
+  const inherited =
     origin?.recordKey === parent && typeof origin.href === "string"
-      ? origin.href
-      : knownParent,
-    window.location.origin,
-  );
-  if (url.origin !== window.location.origin) return fallback;
+      ? wholeParentUrl(origin.href, true)
+      : undefined;
+  const url =
+    inherited ??
+    wholeParentUrl(current.href, false) ??
+    new URL(fallback, window.location.origin);
   const focus = encodeReadingAddress(parent, landing, true);
   if (focus === undefined) url.searchParams.delete("focus");
   else url.searchParams.set("focus", focus);

@@ -33,7 +33,11 @@ empty trailing values while retaining embedded owner identities, source
 fingerprints and passage hashes. The browser checks transport shape and bounds;
 backend policy remains authoritative for source availability and meaning. The
 retired JSON `selection`/`landing` parameters are rejected without a legacy
-decoder. Native section fragments remain separate from exact addresses. Filter
+decoder. URL projection retains requested casting ranks without promoting a
+backend-resolved source default into an explicit rank. Native section fragments
+remain separate from exact addresses. Owner-return links derive whole-parent
+reading from validated generated route context, preserving Search/list criteria
+even after direct embedded navigation or a field/passage-specific origin. Filter
 recovery replaces only failed transport and preserves independent criteria and
 reading. Page and embedded-owner return context live in Router history state.
 Typed destination factories centralize native hrefs; embedded-owner return policy
