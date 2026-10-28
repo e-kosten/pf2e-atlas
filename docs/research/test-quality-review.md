@@ -24,7 +24,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | crates/atlas-index | 17 | 17 | 0 | 0 |
 | crates/atlas-ingest | 6 | 6 | 0 | 0 |
 | crates/atlas-local-state | 7 | 7 | 0 | 0 |
-| crates/atlas-record | 18 | 18 | 0 | 0 |
+| crates/atlas-record | 18 | 0 | 18 | 0 |
 | crates/atlas-runtime | 7 | 7 | 0 | 0 |
 | crates/atlas-search | 15 | 15 | 0 | 0 |
 | crates/atlas-storage | 3 | 0 | 3 | 0 |
@@ -277,24 +277,24 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [crates/atlas-record/src/source_content/contextual_formula/tests.rs](../../crates/atlas-record/src/source_content/contextual_formula/tests.rs) | pending | — |
-| [crates/atlas-record/src/source_content/inclusion.rs](../../crates/atlas-record/src/source_content/inclusion.rs) | pending | — |
-| [crates/atlas-record/src/source_content/literal_damage.rs](../../crates/atlas-record/src/source_content/literal_damage.rs) | pending | — |
-| [crates/atlas-record/src/source_content/literal_roll.rs](../../crates/atlas-record/src/source_content/literal_roll.rs) | pending | — |
-| [crates/atlas-record/src/source_content/marker_validation.rs](../../crates/atlas-record/src/source_content/marker_validation.rs) | pending | — |
-| [crates/atlas-record/src/source_content/parser_tests.rs](../../crates/atlas-record/src/source_content/parser_tests.rs) | pending | — |
-| [crates/atlas-record/src/source_content/tests.rs](../../crates/atlas-record/src/source_content/tests.rs) | pending | — |
-| [crates/atlas-record/src/source_content/text_projection.rs](../../crates/atlas-record/src/source_content/text_projection.rs) | pending | — |
-| [crates/atlas-record/src/source_content/trait_references.rs](../../crates/atlas-record/src/source_content/trait_references.rs) | pending | — |
-| [crates/atlas-record/src/source_record/actor_presentation.rs](../../crates/atlas-record/src/source_record/actor_presentation.rs) | pending | — |
-| [crates/atlas-record/src/source_record/actor_query_tests.rs](../../crates/atlas-record/src/source_record/actor_query_tests.rs) | pending | — |
-| [crates/atlas-record/src/source_record/core_sections_tests.rs](../../crates/atlas-record/src/source_record/core_sections_tests.rs) | pending | — |
-| [crates/atlas-record/src/source_record/declared_grant_tests.rs](../../crates/atlas-record/src/source_record/declared_grant_tests.rs) | pending | — |
-| [crates/atlas-record/src/source_record/item_query_tests.rs](../../crates/atlas-record/src/source_record/item_query_tests.rs) | pending | — |
-| [crates/atlas-record/src/source_record/search_selection.rs](../../crates/atlas-record/src/source_record/search_selection.rs) | pending | — |
-| [crates/atlas-record/src/source_record/similarity_tests.rs](../../crates/atlas-record/src/source_record/similarity_tests.rs) | pending | — |
-| [crates/atlas-record/src/source_record/tests.rs](../../crates/atlas-record/src/source_record/tests.rs) | pending | — |
-| [crates/atlas-record/src/source_record/trait_memberships.rs](../../crates/atlas-record/src/source_record/trait_memberships.rs) | pending | — |
+| [crates/atlas-record/src/source_content/contextual_formula/tests.rs](../../crates/atlas-record/src/source_content/contextual_formula/tests.rs) | mixed | Reviewed bounded arithmetic, rounding, missing context, healing labels and rejection partitions. Condition-specific badge/prose cases excluded and unchanged; other literal expected prose and formulas retained. |
+| [crates/atlas-record/src/source_content/inclusion.rs](../../crates/atlas-record/src/source_content/inclusion.rs) | changed | Action heading checks now require the exact retained or generated linked title and namespace, so a heading with only glyph/qualifiers cannot pass. Retained isolated-vs-inline, multiple-inclusion and unheaded cases. |
+| [crates/atlas-record/src/source_content/literal_damage.rs](../../crates/atlas-record/src/source_content/literal_damage.rs) | changed | Assert complete component cardinality, each formula and typed damage/healing kind; added material, precision, splash and combined healing/damage label cases with literal dice structure. All prior unsupported/partial formula cases retained. |
+| [crates/atlas-record/src/source_content/literal_roll.rs](../../crates/atlas-record/src/source_content/literal_roll.rs) | changed | All three roll modes now require the literal two-dice-plus-three preview tree, beyond copied formula text and a dice flag. Pool/caption handling and every unsupported input retained. |
+| [crates/atlas-record/src/source_content/marker_validation.rs](../../crates/atlas-record/src/source_content/marker_validation.rs) | changed | Safe cached markup uses an independent canonical literal including safe-link rel attributes, rather than deriving its input from the sanitizer under test. Missing/duplicate/kind, active markup and unavailable-image partitions retained. |
+| [crates/atlas-record/src/source_content/parser_tests.rs](../../crates/atlas-record/src/source_content/parser_tests.rs) | reviewed | Retained exact rendered text plus source target/kind/label evidence, comma-bearing targets, tables/templates and nested/missing/recursive localization. Condition UUID is opaque parser input, with no condition semantics reviewed. |
+| [crates/atlas-record/src/source_content/tests.rs](../../crates/atlas-record/src/source_content/tests.rs) | reviewed | Retained reference-binding field mutations, href tampering, source identity, complete visibility evidence, sanitization, localization, nested references, glyph and formula boundaries, checked action navigation and independent literal check/area prose. Opaque condition targets do not exercise condition mechanics. |
+| [crates/atlas-record/src/source_content/text_projection.rs](../../crates/atlas-record/src/source_content/text_projection.rs) | reviewed | Canonical words, absent renderer decorations/URLs and preserved block breaks protect the intended undecorated projection without freezing library whitespace; retained. |
+| [crates/atlas-record/src/source_content/trait_references.rs](../../crates/atlas-record/src/source_content/trait_references.rs) | reviewed | Repeated occurrences keep exact trait/owner attribution and distinct paths; hidden/unknown visibility, shared-key ambiguity, duplicate same-identity mapping and script exclusion remain distinct protections. |
+| [crates/atlas-record/src/source_record/actor_presentation.rs](../../crates/atlas-record/src/source_record/actor_presentation.rs) | changed | Skill visitor must enumerate exactly arcana, preventing its callback-local assertions from passing when no skill is visited. Retained literal ability/special-skill values, adjustment states and duplicate retained-member rejection. |
+| [crates/atlas-record/src/source_record/actor_query_tests.rs](../../crates/atlas-record/src/source_record/actor_query_tests.rs) | changed | Applicable populated fields must be Value rather than any non-NotApplicable state; speed entries require exact fly/swim values in authored order. Retained null/invalid/default ancestry, IWR and zero/negative baseline cases. Historical corpus check keeps its explicit source prerequisite. |
+| [crates/atlas-record/src/source_record/core_sections_tests.rs](../../crates/atlas-record/src/source_record/core_sections_tests.rs) | mixed | Reviewed exact family/field/owner membership, nested source exclusions, visibility, unavailable-core fallback and foreign identity rejection. Condition family row excluded and unchanged. |
+| [crates/atlas-record/src/source_record/declared_grant_tests.rs](../../crates/atlas-record/src/source_record/declared_grant_tests.rs) | reviewed | Static grant targets, owned attribution, occurrence order, applied-vs-declared distinction, rejected/dynamic/ignored rules and escaped ABC feature keys have independent exact expectations; retained. No condition application mechanics. |
+| [crates/atlas-record/src/source_record/item_query_tests.rs](../../crates/atlas-record/src/source_record/item_query_tests.rs) | mixed | Condition cases excluded and unchanged. Root/embedded equivalence now has independent rank/tradition/focus/key-order expectations; raw JSON bytes preserve actual z-before-a source order instead of json map sorting. Ammunition price requires 400 copper, not presence alone. Retained units, fractional price, unsafe numbers and availability cases. |
+| [crates/atlas-record/src/source_record/search_selection.rs](../../crates/atlas-record/src/source_record/search_selection.rs) | changed | Passage recovery now independently rejects stale canonical text digest and selection version, matching the existing identity contract. Preserved duplicate heading landing, nested markup, UTF8, source address, partitions and historical corpus navigation cases. |
+| [crates/atlas-record/src/source_record/similarity_tests.rs](../../crates/atlas-record/src/source_record/similarity_tests.rs) | reviewed | Typed root/embedded families, public/private biography and empty fields, journal/table roles, hazards and prerequisites use literal role/address expectations; retained. |
+| [crates/atlas-record/src/source_record/tests.rs](../../crates/atlas-record/src/source_record/tests.rs) | mixed | Reviewed generic source dispatch, traversal, checked snapshots, prepared visibility, relative/qualified/colliding references, source states, grants/provenance and action navigation. Existing independent outcome expectations retained. Condition family entries excluded and unchanged. |
+| [crates/atlas-record/src/source_record/trait_memberships.rs](../../crates/atlas-record/src/source_record/trait_memberships.rs) | changed | Require complete three/five membership cardinality as well as exact owned trait identities, labels, nested paths and duplicate-ID positions; surplus memberships can no longer pass find-only checks. |
 
 ### crates/atlas-runtime
 
@@ -667,3 +667,9 @@ Completion requires every inventory entry to have a substantive disposition, eve
 ### Archived evaluation verifier
 
 - `sh scripts/validation/research.sh` passed before and after removal: 34 exported files and 22,533 point-metric values. Original bootstrap intervals, source interpretations and frozen datasets were not modified or claimed rerun.
+
+### Source-backed records and content milestone
+
+- `cargo test -p atlas-record`: 145 passed, two existing corpus tests ignored, and both compile-fail doctests passed. Condition-specific cases ran unchanged but remain excluded from the review.
+- Stronger fixtures exposed sorted JSON-map setup in the original order test; raw authored bytes now test z-before-a order directly. The independent safe HTML fixture includes the sanitizer-required link relationship rather than silently sanitizing its own expected input.
+- Reasoned counterexamples include dropped/surplus damage or trait components, wrong executable kind/AST, missing skill callback, missing values misreported as applicable, lost action heading title and stale passage identity. No production mutation probe is claimed for this milestone.

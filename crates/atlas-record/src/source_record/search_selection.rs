@@ -987,9 +987,25 @@ mod tests {
         );
         assert!(recover_source_passage(Some("<p>changed</p>"), None, &address).is_err());
         assert!(recover_source_passage(None, None, &address).is_err());
-        let SourcePassageAddress::HtmlSection { chunk_bytes, .. } = &address else {
-            panic!("expected HTML")
-        };
+        for field in ["canonical hash", "selection version"] {
+            let mut bad = address.clone();
+            if let SourcePassageAddress::HtmlSection {
+                canonical_text_sha256,
+                selection_version,
+                ..
+            } = &mut bad
+            {
+                if field == "canonical hash" {
+                    *canonical_text_sha256 = hash("different text");
+                } else {
+                    *selection_version = "unknown-version".into();
+                }
+            }
+            assert!(
+                recover_source_passage(Some(html), None, &bad).is_err(),
+                "{field}"
+            );
+        }
         let mut bad = address.clone();
         if let SourcePassageAddress::HtmlSection {
             section_ordinal, ..
@@ -1006,7 +1022,6 @@ mod tests {
             range.end = section.text.find('🐉').unwrap() + 1;
         }
         assert!(recover_source_passage(Some(html), None, &bad).is_err());
-        assert!(chunk_bytes.end > 0);
     }
     #[test]
     fn known_empty_unknown_visibility_macros_and_partial_source_remain_distinct() {
