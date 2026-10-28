@@ -49,8 +49,14 @@ The application identity remains claimed without creating an inactive condition.
 
 Workspace migration 16 adds participant-owned ability-state rows for authored
 switches, finite choices and limited-use expenditure. Values use the existing
-versioned saved-state codec; exact owner/rule/source identity prevents applying
-one ability's state to another. Derived conditions remain reads, rather than
+versioned saved-state codec. Stable owner/rule slots and an optional versioned
+declaration identity bind values to supported ability semantics. App-service
+ignores legacy or mismatched bindings and uses current authored defaults; it
+retains valid bindings across unrelated reference or label changes. The whole-source
+fingerprint remains command-navigation provenance, not the saved-value validity
+test. Missing declaration identities decode as absent in existing live, baseline
+and outgoing snapshots without changing the receipt envelope or released SQL
+migrations. Derived conditions remain reads, rather than
 materialized saved condition rows. Existing reference data, HP, saved conditions,
 action stock and receipts are preserved.
 

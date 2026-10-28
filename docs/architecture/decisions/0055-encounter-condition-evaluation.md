@@ -86,7 +86,15 @@ turn, including when regaining actions is pending.
 Grant immunity uses the shared checked immunity policy. Bounded condition
 predicates and supported authored RollOption switches/finite condition choices
 select maintained causes. Participant overrides persist separately from derived
-conditions with exact source identity and guarded writes. The pinned finite-choice
+conditions with stable owner/rule slots and versioned declaration identities. The
+identity hashes supported option, choice and linked-grant semantics, or frequency
+capacity/interval; display labels, whole-corpus fingerprints and authored initial
+values are excluded. Unrelated reference edits preserve saved state. Changed or
+removed declarations, moved slots and legacy entries without that identity use
+the current authored defaults; Atlas does not silently rebind them or create a
+confirmation workflow. Navigation fingerprints still guard commands against stale
+source views. All ability-state writers, including turn and overnight refresh,
+store the current declaration identity. The pinned finite-choice
 preparer supplies its first authored choice when no selection is stored; toggles
 use the authored value or pinned default. Equipment requirements, context-dependent
 expressions and unsupported effect lifetimes remain authored rules. Prose-only

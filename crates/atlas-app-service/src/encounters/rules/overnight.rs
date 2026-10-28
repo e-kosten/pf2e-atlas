@@ -235,14 +235,13 @@ pub(in crate::encounters) fn prepare(
                     state.ability_states.push(ParticipantAbilityState {
                         owner: ability.owner.clone(),
                         rule_ordinal: None,
+                        declaration_identity: Some(ability.declaration_identity.clone()),
                         source_fingerprint: fingerprint.clone(),
                         value: AbilityStateValue::Uses {
                             remaining: ability.maximum,
                         },
                     });
-                    if ability.remaining(p, sources.source_fingerprint.as_deref())
-                        != ability.maximum
-                    {
+                    if ability.remaining(p) != ability.maximum {
                         row.changes.push(format!(
                             "Restore {} to {} uses",
                             ability.label, ability.maximum

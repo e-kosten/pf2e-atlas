@@ -2212,6 +2212,7 @@ fn authored_ability_state_is_participant_owned_persistent_and_retry_safe()
         },
         rule_ordinal: None,
         source_fingerprint: "source-one".into(),
+        declaration_identity: Some("ability-declaration/v1:test".into()),
         value: AbilityStateValue::Uses { remaining: 2 },
     };
     let changes = PreparedConditionEvent {
@@ -2282,6 +2283,7 @@ fn failed_receipt_rolls_back_ability_state_and_participant_revision()
                 },
                 rule_ordinal: Some(0),
                 source_fingerprint: "source".into(),
+                declaration_identity: Some("ability-declaration/v1:test".into()),
                 value: AbilityStateValue::Option {
                     active: true,
                     selection: None,
