@@ -136,6 +136,8 @@ mod tests {
         clone.embed_query(&gemma, "forest guardian").unwrap();
         assert_eq!(inference.loaded_profiles(), vec![base.clone(), gemma]);
         let after = inference.embed_query(&base, "forest guardian").unwrap();
+        assert_eq!(before.len(), 768);
+        assert_eq!(after.len(), 768);
         assert!(before.iter().zip(after).all(|(a, b)| (a - b).abs() < 2e-5));
         eprintln!(
             "shared sessions: default warm, secondary lazy, both retained, clone shares native lane"
