@@ -151,7 +151,9 @@ it("retains the definition and focus during failed same-trait refresh", async ()
   expect(member).toHaveFocus();
   expect(scroll.scrollTop).toBe(120);
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-  expect(await screen.findByText("Multiple attack penalty is reduced.")).toBeVisible();
+  await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  expect(api.getTraitDetail).toHaveBeenCalledTimes(3);
+  expect(screen.getByText("Multiple attack penalty is reduced.")).toBeVisible();
 });
 it("shares the normal document identity chrome without routine navigation or refresh controls", async () => {
   setup();
@@ -214,16 +216,13 @@ it("offers generation recovery only after a stale association and rereads the tr
       ([request]) => request.expected_artifact_generation === "generation-two",
     ),
   ).toBe(true);
-  expect(
-    client
-      .getQueryCache()
-      .findAll({ queryKey: ["trait-records"] })
-      .every(
-        (query) =>
-          (query.queryKey[1] as { expected_artifact_generation: string })
-            .expected_artifact_generation === "generation-two",
-      ),
-  ).toBe(true);
+  const associations = client.getQueryCache().findAll({ queryKey: ["trait-records"] });
+  expect(associations).toHaveLength(2);
+  for (const query of associations)
+    expect(query.queryKey[1]).toMatchObject({
+      trait_key: "trait:agile",
+      expected_artifact_generation: "generation-two",
+    });
   expect(screen.queryByRole("button", { name: "Reload trait" })).toBeNull();
 });
 

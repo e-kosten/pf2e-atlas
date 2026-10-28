@@ -69,15 +69,17 @@ const outcome = {
 };
 function wrapper({ children }: { children: React.ReactNode }) {
   return (
-    <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-    >
-      {children}
-    </QueryClientProvider>
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        {children}
+      </QueryClientProvider>
+    </ConfigProvider>
   );
 }
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
   vi.spyOn(window, "matchMedia").mockImplementation(
     (media) =>
       ({
@@ -249,7 +251,15 @@ it("damage roll makes a fresh attempt after an uncertain response and on reroll"
   expect(calls[1][1].request_id).not.toBe(calls[0][1].request_id);
   fireEvent.click(screen.getByRole("button", { name: "Reroll" }));
   await waitFor(() => expect(rollEncounterStrike).toHaveBeenCalledTimes(3));
-  expect(calls[2][1].request_id).not.toBe(calls[0][1].request_id);
+  expect(new Set(calls.map(([, request]) => request.request_id)).size).toBe(3);
+  for (const [, request] of calls) {
+    expect(request.request_id).toEqual(expect.stringMatching(/\S+/));
+    expect(request).toMatchObject({
+      participant_key: "p",
+      roll_kind: "damage",
+      mode: "normal",
+    });
+  }
 });
 it.each([400, 409])(
   "damage roll exposes a definite %s rejection and permits a new request",
@@ -274,7 +284,8 @@ it("retains the displayed damage after a failed reroll and loses it on unmount",
   const mounted = renderStrike();
   fireEvent.click(screen.getByRole("button", { name: "Roll Jaws damage" }));
   await screen.findByRole("button", { name: "Reroll" });
-  const shown = screen.getByText(`Damage: ${outcome.total}`).textContent;
+  const shown = "Damage: 19";
+  await waitFor(() => expect(screen.getByText(shown)).toBeVisible());
   fireEvent.click(screen.getByRole("button", { name: "Reroll" }));
   await screen.findByRole("button", { name: "Roll again" });
   expect(screen.getByText(shown!)).toBeInTheDocument();
@@ -314,7 +325,20 @@ it("initiative retries the same request, then makes a fresh deliberate reroll", 
   fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
   await screen.findByRole("button", { name: "Reroll" });
   expect(onRoll.mock.calls[1][0]).toEqual(onRoll.mock.calls[0][0]);
-  expect(onRoll.mock.calls[0][0].artifact_generation).toBe("generation");
+  expect(onRoll.mock.calls[0][0]).toMatchObject({
+    request_id: expect.stringMatching(/\S+/),
+    artifact_generation: "generation",
+    expected_revision: 1n,
+    participants: [
+      {
+        participant_key: "p",
+        expected_revision: 1n,
+        statistic: "perception",
+        mode: "normal",
+        modifier_override: null,
+      },
+    ],
+  });
   fireEvent.click(screen.getByRole("button", { name: "Reroll" }));
   await waitFor(() => expect(onRoll).toHaveBeenCalledTimes(3));
   expect(onRoll.mock.calls[2][0].request_id).not.toBe(

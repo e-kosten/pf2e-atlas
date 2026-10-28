@@ -176,15 +176,7 @@ describe("record route views", () => {
     expect(window.location.pathname).toBe("/records/spell:heal");
     expect(
       screen.getByRole("link", { name: "Open reference full page" }),
-    ).toHaveAttribute(
-      "href",
-      destinationHref(
-        recordDestination({
-          recordKey: "spell:linked",
-          selection: recordDetailFixture("spell:linked").selected,
-        }),
-      ),
-    );
+    ).toHaveAttribute("href", "/records/spell:linked");
     fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
     await waitFor(() => expect(trigger).toHaveFocus());
   });
