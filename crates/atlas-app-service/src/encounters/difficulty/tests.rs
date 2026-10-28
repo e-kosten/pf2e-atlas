@@ -288,7 +288,15 @@ fn curated_rules_open_the_exact_journal_pages() {
             )?)
         }),
     );
-    for rule in rule_references() {
+    let references = rule_references();
+    assert_eq!(
+        references
+            .iter()
+            .map(|rule| rule.title.as_str())
+            .collect::<Vec<_>>(),
+        ["Encounter Budget", "XP Awards"]
+    );
+    for rule in references {
         let selected = f
             .worker
             .record_detail_at(atlas_app_model::RecordDetailRequest {
