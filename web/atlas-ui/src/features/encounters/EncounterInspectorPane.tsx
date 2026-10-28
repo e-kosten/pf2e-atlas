@@ -75,6 +75,7 @@ export function EncounterInspectorPane({
   onConditionRecovery,
   onResolveHpLifecycle,
   onBeginStrike,
+  onPrepareStrike,
   renderStrikeContext,
   requestedConditionEdit,
   participant,
@@ -154,6 +155,7 @@ export function EncounterInspectorPane({
   >["onApply"];
   onResolveHpLifecycle: React.ComponentProps<typeof EncounterLifeStatus>["onResolve"];
   onBeginStrike: (request: import("./useEncounterStrike").StrikeLaunch) => void;
+  onPrepareStrike?: (request: import("./useEncounterStrike").StrikeLaunch) => void;
   renderStrikeContext?: (requestId: string) => React.ReactNode;
   requestedConditionEdit?: import("./conditionEditRequest").ConditionEditRequest;
   onSpellAction: (
@@ -244,6 +246,7 @@ export function EncounterInspectorPane({
           participant={participant}
           onResolveHpLifecycle={onResolveHpLifecycle}
           onBeginStrike={onBeginStrike}
+          onPrepareStrike={onPrepareStrike}
           renderStrikeContext={renderStrikeContext}
           requestedConditionEdit={requestedConditionEdit}
           participants={participants}
@@ -330,6 +333,7 @@ function EncounterParticipantSurface({
   participant,
   onResolveHpLifecycle,
   onBeginStrike,
+  onPrepareStrike,
   renderStrikeContext,
   requestedConditionEdit,
   participants,
@@ -407,6 +411,7 @@ function EncounterParticipantSurface({
   participant: EncounterParticipantView;
   onResolveHpLifecycle: React.ComponentProps<typeof EncounterLifeStatus>["onResolve"];
   onBeginStrike: (request: import("./useEncounterStrike").StrikeLaunch) => void;
+  onPrepareStrike?: (request: import("./useEncounterStrike").StrikeLaunch) => void;
   renderStrikeContext?: (requestId: string) => React.ReactNode;
   requestedConditionEdit?: import("./conditionEditRequest").ConditionEditRequest;
   participants: EncounterParticipantView[];
@@ -690,6 +695,7 @@ function EncounterParticipantSurface({
                 participant={participant}
                 activity={activity}
                 onBeginStrike={onBeginStrike}
+                onPrepareStrike={onPrepareStrike}
                 renderStrikeContext={renderStrikeContext}
                 disabled={disabled}
               />

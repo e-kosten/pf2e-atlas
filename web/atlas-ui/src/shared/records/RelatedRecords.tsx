@@ -2,7 +2,8 @@ import { AtlasModal as Modal } from "../ui/overlays/AtlasModal";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
 import { recordDestination, searchDestination } from "../../app/destinations";
-import { Button, Empty, Spin, Tabs, Typography } from "antd";
+import { Button, Empty, Tabs, Typography } from "antd";
+import { LoadingStatus } from "../ui/LoadingStatus";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
@@ -234,9 +235,7 @@ function ReferencePreview({
       </ExploreSearchAction>
       {profile.error && <SearchProfileNotice />}
       {query.isPending && !profile.error && (
-        <div role="status">
-          <Spin size="small" delay={400} /> Loading references…
-        </div>
+        <LoadingStatus label="Loading references…" />
       )}
       {query.error && (
         <QueryError
@@ -390,11 +389,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
       : [];
   return (
     <div className="record-explore__task">
-      {related.isLoading && (
-        <div role="status">
-          <Spin size="small" delay={400} /> Checking versions…
-        </div>
-      )}
+      {related.isLoading && <LoadingStatus label="Checking versions…" />}
       {related.error && (
         <QueryError
           error={related.error}
@@ -542,8 +537,8 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
       )}
       {!profile.storedVectors && <SearchProfileNotice />}
       {similar.isFetching && (
-        <div role="status">
-          <Spin size="small" delay={400} /> Loading similar records…
+        <div className={similar.data ? "detail-refresh" : undefined}>
+          <LoadingStatus label="Loading similar records…" />
         </div>
       )}
       {similar.error && (

@@ -58,7 +58,7 @@ export function EncounterPersistentTurnReview({
           action={<Button onClick={() => void query.refetch()}>Retry</Button>}
         />
       )}
-      {!review && query.isPending && <Spin />}
+      {!review && query.isPending && <Spin delay={500} />}
       {review && (
         <>
           <EncounterPersistentDamageBatch

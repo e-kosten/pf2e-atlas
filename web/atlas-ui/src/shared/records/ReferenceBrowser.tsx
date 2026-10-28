@@ -1,4 +1,5 @@
-import { Empty, Spin } from "antd";
+import { Empty } from "antd";
+import { LoadingStatus } from "../ui/LoadingStatus";
 import type { ReactNode } from "react";
 import type {
   RelationshipClauseSummaryView,
@@ -87,10 +88,7 @@ export function ReferenceBrowser({
       }
     >
       {loading && !rows.length ? (
-        <div className="reference-loading" role="status" aria-label="Searching…">
-          <Spin />
-          <span>Searching…</span>
-        </div>
+        <LoadingStatus className="reference-loading" label="Searching…" />
       ) : !rows.length && emptyMessage ? (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyMessage} />
       ) : null}

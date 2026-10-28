@@ -22,6 +22,7 @@ import { LinkPickerContext } from "../shared/filters/LinkPickerContext";
 import { LinkConditionPicker } from "../shared/filters/LinkConditionPicker";
 import { BackendCompatibilityGate } from "./BackendCompatibilityGate";
 import { GlobalFeedbackProvider } from "../shared/feedback/GlobalFeedback";
+import { LoadingStatus } from "../shared/ui/LoadingStatus";
 
 import { useSearchWorkspace } from "../features/search/useSearchWorkspace";
 import { useQuery } from "@tanstack/react-query";
@@ -125,7 +126,13 @@ function AtlasWorkspace({
         >
           <>
             <Activity mode={!routeError && section === "search" ? "visible" : "hidden"}>
-              <Suspense fallback={<main className="detail-empty">Loading</main>}>
+              <Suspense
+                fallback={
+                  <main className="detail-empty">
+                    <LoadingStatus label="Loading search…" />
+                  </main>
+                }
+              >
                 <SearchView workspace={workspace} />
               </Suspense>
             </Activity>
