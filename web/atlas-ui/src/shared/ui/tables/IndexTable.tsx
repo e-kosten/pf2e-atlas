@@ -14,7 +14,6 @@ export function IndexTable<Row extends object>({
   onActivateRow,
   rowKey,
   loading,
-  locale,
   ...props
 }: IndexTableProps<Row>) {
   const spinning = typeof loading === "object" ? (loading.spinning ?? true) : !!loading;
@@ -26,10 +25,6 @@ export function IndexTable<Row extends object>({
           ? { delay: 500, ...loading }
           : { spinning, delay: 500 }
       }
-      locale={{
-        ...locale,
-        emptyText: spinning && !props.dataSource?.length ? null : locale?.emptyText,
-      }}
       tableLayout="auto"
       pagination={false}
       onRow={(row) => ({

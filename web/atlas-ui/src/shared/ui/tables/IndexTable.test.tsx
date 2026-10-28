@@ -30,7 +30,9 @@ describe("IndexTable", () => {
       rowKey: (entry: typeof row) => entry.key,
       locale: { emptyText: "No records" },
     };
-    const view = render(<IndexTable {...props} dataSource={[]} loading />);
+    const view = render(
+      <IndexTable {...props} dataSource={[]} loading locale={{ emptyText: null }} />,
+    );
     expect(screen.queryByText("No records")).not.toBeInTheDocument();
     view.rerender(<IndexTable {...props} dataSource={[row]} loading={false} />);
     const name = screen.getByText(row.name);
@@ -40,6 +42,9 @@ describe("IndexTable", () => {
       <IndexTable {...props} dataSource={[]} loading={{ spinning: false }} />,
     );
     expect(screen.getByText("No records")).toBeInTheDocument();
+    const empty = screen.getByText("No records");
+    view.rerender(<IndexTable {...props} dataSource={[]} loading />);
+    expect(screen.getByText("No records")).toBe(empty);
   });
 
   it("activates once from a plain cell click or Enter focused on the row", () => {
