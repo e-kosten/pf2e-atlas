@@ -8,7 +8,7 @@ The read-only census observes generation `a9474928b73e8cf89e84c5ed6990a838:7`, s
 
 Stored metadata was read with SQLite URI `mode=ro`, `query_only=on`, and one explicit read snapshot. The developer diagnostic counted `similarity_parts`, joined stored units with the exact index-owned `read_similarity.rs::PART_JOIN`, and grouped prepared-field outcomes by typed family, owner depth, visibility and availability. It did not parse game prose, classify roles from field names, read vectors, mutate either workspace, or regenerate embeddings. Stored labels alone cannot verify the policy that produced them; the independent typed checks below supply that distinction.
 
-The retained [compressed metadata](similarity-role-census/2026-10-27.json.gz) contains 63 role/field/owner buckets with bounded exact-address examples, 78 prepared-field audience/outcome buckets, per-profile unit availability and trait counts. It includes the source pin, reference generation, schema, source policy/test hashes, canonical join expression and acquisition timestamp. It contains no game-source bodies or vector values.
+The local `scratch/similarity-evaluation/role-census-export-2026-10-27.json.gz` contains 63 role/field/owner buckets with bounded exact-address examples, 78 prepared-field audience/outcome buckets, per-profile unit availability and trait counts. It includes the source pin, reference generation, schema, source policy/test hashes, canonical join expression and acquisition timestamp. It contains no game-source bodies or vector values.
 
 - Compressed SHA256: `a85e77e8a72fac736f1ebc3187f60802e670d7ec8fe000b3ba91610c09ba7237`
 - Decoded canonical JSON SHA256: `97597a475ee9ebb287b73abca4582c3772bde77acf4506e09de5f9987c59ec9a`
