@@ -301,13 +301,20 @@ fn status_reports_candidate_failure_without_invoking_migrations() {
     let report = status(&checkout, &store, &candidate).unwrap();
     assert_eq!(report["compatibility"]["exit_code"], 1);
     let calls = fs::read_to_string(checkout.join("calls")).unwrap();
+    let index = checkout.join(".atlas/workspace.sqlite");
+    let actual = calls.lines().collect::<std::collections::BTreeSet<_>>();
+    let expected = [
+        format!(
+            "setup --check --offline --json --path-mode global --index {}",
+            index.display()
+        ),
+        format!(
+            "index check --json --path-mode global --index {}",
+            index.display()
+        ),
+    ];
     assert_eq!(calls.lines().count(), 2);
-    assert!(
-        calls
-            .lines()
-            .all(|line| line.starts_with("setup --check --offline")
-                || line.starts_with("index check"))
-    );
+    assert_eq!(actual, expected.iter().map(String::as_str).collect());
     assert_eq!(
         fs::read(checkout.join(".atlas/workspace.sqlite")).unwrap(),
         b"immutable seed contents"

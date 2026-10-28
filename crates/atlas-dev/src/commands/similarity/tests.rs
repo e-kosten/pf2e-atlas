@@ -42,6 +42,8 @@ fn requires_explicit_scenarios_and_preserves_subset_flags() {
     let SimilarityCommand::Evaluate(options) = parsed.args.command;
     assert_eq!(options.scenarios, ["dev-h01"]);
     assert_eq!(options.profiles, ["bge-base"]);
+    assert_eq!(options.variants, ["baseline"]);
+    assert!(!options.all_scenarios);
     assert_eq!(options.phase, Phase::Oracle);
     assert!(options.json);
 }
@@ -64,7 +66,7 @@ fn separates_admission_recall_from_returned_overlap_and_unknown_denominators() {
 }
 #[test]
 fn reports_nearest_rank_percentiles_and_no_empty_latency() {
-    let samples = (1..=20).map(f64::from).collect::<Vec<_>>();
+    let samples = (1..=20).rev().map(f64::from).collect::<Vec<_>>();
     assert_eq!(percentile(&samples, 0.95), Some(19.0));
     assert_eq!(percentile(&samples, 0.5), Some(10.0));
     assert_eq!(percentile(&[], 0.95), None);

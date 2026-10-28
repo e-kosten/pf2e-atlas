@@ -16,7 +16,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | crates/atlas-app-service | 74 | 74 | 0 | 0 |
 | crates/atlas-cli | 23 | 23 | 0 | 0 |
 | crates/atlas-cli-support | 2 | 0 | 2 | 0 |
-| crates/atlas-dev | 7 | 7 | 0 | 0 |
+| crates/atlas-dev | 7 | 0 | 7 | 0 |
 | crates/atlas-dice | 1 | 0 | 1 | 0 |
 | crates/atlas-domain | 11 | 0 | 11 | 0 |
 | crates/atlas-embedding | 5 | 0 | 5 | 0 |
@@ -30,7 +30,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | crates/atlas-storage | 3 | 0 | 3 | 0 |
 | crates/atlas-tags | 4 | 0 | 4 | 0 |
 | crates/atlas-web | 3 | 3 | 0 | 0 |
-| dev-tools/dice-prototype | 1 | 1 | 0 | 0 |
+| dev-tools/dice-prototype | 1 | 0 | 1 | 0 |
 | dev-tools/release | 3 | 3 | 0 | 0 |
 | dev-tools/source-contracts | 28 | 28 | 0 | 0 |
 | research verification | 1 | 1 | 0 | 0 |
@@ -172,13 +172,13 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [crates/atlas-dev/src/commands/baseline/tests.rs](../../crates/atlas-dev/src/commands/baseline/tests.rs) | pending | — |
-| [crates/atlas-dev/src/commands/similarity/tests.rs](../../crates/atlas-dev/src/commands/similarity/tests.rs) | pending | — |
-| [crates/atlas-dev/tests/artifact_read_evidence.rs](../../crates/atlas-dev/tests/artifact_read_evidence.rs) | pending | — |
-| [crates/atlas-dev/tests/baseline_web.rs](../../crates/atlas-dev/tests/baseline_web.rs) | pending | — |
-| [crates/atlas-dev/tests/commands.rs](../../crates/atlas-dev/tests/commands.rs) | pending | — |
-| [crates/atlas-dev/tests/embedding_storage.rs](../../crates/atlas-dev/tests/embedding_storage.rs) | pending | — |
-| [crates/atlas-dev/tests/retrieval_evidence.rs](../../crates/atlas-dev/tests/retrieval_evidence.rs) | pending | — |
+| [crates/atlas-dev/src/commands/baseline/tests.rs](../../crates/atlas-dev/src/commands/baseline/tests.rs) | changed | Status failure now requires both exact read-only command argument lists, not two matching prefixes that could repeat one command. Retained missing-only private copies, pinning, tamper/symlink rejection, executable selection, validation failures, busy publisher and launcher forwarding. |
+| [crates/atlas-dev/src/commands/similarity/tests.rs](../../crates/atlas-dev/src/commands/similarity/tests.rs) | changed | Percentile inputs are deliberately unsorted to detect missing sorting; subset parsing verifies variants and explicit scenario mode. Kept distinct recall denominators/unknowns and frozen-input tampering before workspace access. |
+| [crates/atlas-dev/tests/artifact_read_evidence.rs](../../crates/atlas-dev/tests/artifact_read_evidence.rs) | reviewed | Explicit ignored local timing harness compares repeated warm/fresh read counts for five distinct public operations and disclaims cold OS cache. It is evidence collection, not an independent relevance oracle; no worthwhile test rewrite identified. |
+| [crates/atlas-dev/tests/baseline_web.rs](../../crates/atlas-dev/tests/baseline_web.rs) | reviewed | Real child execution distinguishes baseline from explicit candidate with spaces, verifies selected path/banner/exit forwarding and preserves private workspace bytes; retained. |
+| [crates/atlas-dev/tests/commands.rs](../../crates/atlas-dev/tests/commands.rs) | changed | Inspection now verifies selected record key, source path, snapshot version/content and the complete requested original payload. Kept no-Node source commands, absence of implicit artifact creation and original-source checksum rejection. |
+| [crates/atlas-dev/tests/embedding_storage.rs](../../crates/atlas-dev/tests/embedding_storage.rs) | reviewed | Explicit schema-9 full-corpus probe snapshots into disposable storage and compares saved/attributed/vector digests, kNN output, revision/key, reuse and physical reclamation. Distinct migration proof retained; historical corpus prerequisite unavailable in this task. |
+| [crates/atlas-dev/tests/retrieval_evidence.rs](../../crates/atlas-dev/tests/retrieval_evidence.rs) | reviewed | Explicit ignored judged-source harness uses real ingest/native retrieval, scoped expected top-three results and source-passage recovery, retaining unjudged output as observations. Private historical judged sample unavailable; no replacement with synthetic relevance claims. |
 
 ### crates/atlas-dice
 
@@ -357,7 +357,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [dev-tools/dice-prototype/server/src/main.rs](../../dev-tools/dice-prototype/server/src/main.rs) | pending | — |
+| [dev-tools/dice-prototype/server/src/main.rs](../../dev-tools/dice-prototype/server/src/main.rs) | reviewed | Exploratory Caith/dicexp comparison is separate from production atlas-dice. Retained mixed-pool arithmetic invariant, bounded high/low/tie seed family, request replay/conflict, forbidden formula and plain breakdown tests; all six passed. |
 
 ### dev-tools/release
 
@@ -639,3 +639,9 @@ Completion requires every inventory entry to have a substantive disposition, eve
 - `cargo test -p atlas-embedding -- --include-ignored --test-threads=1`: 24 passed, including all three native BGE/Gemma execution cases. Reused verified shared model assets through a task-local cache link; no asset downloads or installed workspace changes.
 - The unchanged frontend baseline also passed: 159 files / 1,585 tests. Browser checks remain separate.
 - Native batch lengths are now checked before elementwise tolerance comparisons; this rejects an empty/truncated output that a zip-only check could accept. Cache checks remain real filesystem operations with bounded synchronization, without retries or weaker tolerances.
+
+### Developer tooling milestone
+
+- `cargo test -p atlas-dev` passed after supplying the installed Apple Clang runtime through `LIBRARY_PATH`; ONNX static linking advertises a removed Clang 17 directory. The first attempt failed at linking, before test execution. No repository/build-policy change was made.
+- `cargo test --manifest-path dev-tools/dice-prototype/server/Cargo.toml --target-dir target --locked`: six passed. Reused the task target rather than allocating another compiler cache.
+- The three developer evidence collectors remain explicitly ignored with their existing fixture prerequisites; source inspection supports their retained purpose, without claiming those historical full-corpus experiments were rerun.
