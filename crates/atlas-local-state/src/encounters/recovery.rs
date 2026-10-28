@@ -51,6 +51,16 @@ impl From<&EncounterParticipant> for ParticipantGameplay {
     }
 }
 
+pub struct ApplyEncounterRecovery<'a> {
+    pub encounter_key: &'a str,
+    pub request_id: &'a str,
+    pub intent: &'a serde_json::Value,
+    pub expected_revision: i64,
+    pub reset_encounter: bool,
+    pub end_turn: bool,
+    pub replacements: &'a [(String, ParticipantGameplay)],
+}
+
 pub(super) fn capture_baseline(connection: &Connection, key: &str) -> LocalStateResult<()> {
     let p = storage::participant(connection, key)?
         .ok_or_else(|| LocalStateError::ParticipantNotFound(key.into()))?;
@@ -91,16 +101,16 @@ impl EncountersRead<'_> {
 }
 impl EncountersWrite<'_> {
     /// Replace only gameplay. The encounter guard covers roster and every participant.
-    pub fn apply_recovery(
-        &self,
-        key: &str,
-        id: &str,
-        intent: &serde_json::Value,
-        expected_revision: i64,
-        reset_encounter: bool,
-        end_turn: bool,
-        replacements: &[(String, ParticipantGameplay)],
-    ) -> LocalStateResult<()> {
+    pub fn apply_recovery(&self, request: ApplyEncounterRecovery<'_>) -> LocalStateResult<()> {
+        let ApplyEncounterRecovery {
+            encounter_key: key,
+            request_id: id,
+            intent,
+            expected_revision,
+            reset_encounter,
+            end_turn,
+            replacements,
+        } = request;
         crate::atomic_action::run(self.connection, || {
             if self.recovery_applied(key, id, intent)? {
                 return Ok(());

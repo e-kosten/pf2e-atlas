@@ -11,7 +11,6 @@ mod schema;
 mod slug;
 mod store;
 
-pub use encounters::ParticipantGameplay;
 pub use encounters::{
     AbilityStateChange, AbilityStateValue, AddEncounterParticipant,
     AddEncounterParticipantCondition, CheckDegree, ConditionAction, ConditionDuration,
@@ -32,6 +31,7 @@ pub use encounters::{
     ResolvedInitiativeRoll, SavedHpEventContext, SavedPendingConsequence, SpellResource,
     UpdateEncounter, UpdateEncounterParticipant, UpdateEncounterParticipantCondition, WakingRule,
 };
+pub use encounters::{ApplyEncounterRecovery, ParticipantGameplay};
 pub use encounters::{
     EncounterDifficultyReference, SavedOutgoingTurn, TurnActionAdjustment, TurnActionAllocation,
     TurnResourceEffect, TurnResources,
