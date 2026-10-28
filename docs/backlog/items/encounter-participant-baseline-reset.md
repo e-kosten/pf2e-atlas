@@ -44,5 +44,6 @@ All living non-hazard participants start selected.
 Ability toggles and weekly/longer frequencies persist. Source-granted conditions
 stay attached to their abilities. Reset is source-independent; rest uses a guarded
 source revision. Interaction review and local Rust/frontend/device validation
-pass. Publication and Linux visual validation remain in progress; Linux references
-require separate Ubuntu capture.
+pass. Independent code review findings are fixed and rechecked; macOS and Linux
+visual references have been captured and reviewed separately. Implementation and
+CI evidence are tracked in [PR140](https://github.com/e-kosten/pf2e-atlas/pull/140).
