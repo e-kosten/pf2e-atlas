@@ -66,6 +66,7 @@ fn project_for_opponent(
     }
     let mut movement_restriction = None;
     let deafened = super::causes::resolve_causes(participant, opponent, additional, &sources)
+        .active
         .iter()
         .any(|cause| cause.rule == ConditionRule::Deafened);
     let available_senses = block
@@ -83,7 +84,7 @@ fn project_for_opponent(
         .senses_known
         .then(|| super::senses::blinded_penalty_applies(&available_senses, None))
         .flatten();
-    for cause in super::causes::resolve_causes(participant, opponent, additional, &sources) {
+    for cause in super::causes::resolve_causes(participant, opponent, additional, &sources).active {
         let c = cause.source;
         let rule = cause.rule;
         use super::condition_effects::{Context, Target, modifiers};
@@ -307,7 +308,7 @@ fn project_for_opponent(
             }
         }
     }
-    let causes = super::causes::resolve_causes(participant, opponent, additional, &sources);
+    let causes = super::causes::resolve_causes(participant, opponent, additional, &sources).active;
     if let Some((maximum, uncertain)) = projected_hp_maximum(
         participant,
         &sources,
@@ -433,37 +434,6 @@ fn project_for_opponent(
     block
 }
 
-pub(super) fn uncertain_source_causes<'a>(
-    participant: &'a EncounterParticipant,
-    opponent: Option<&str>,
-    additional: &[super::causes::ScopedConditionCause<'a>],
-    sources: &'a super::source_conditions::SourceConditions,
-) -> Vec<super::causes::ConditionCause<'a>> {
-    let known = super::causes::resolve_causes(participant, opponent, additional, sources);
-    let rules = known.iter().map(|cause| cause.rule).collect::<Vec<_>>();
-    super::causes::expand(
-        sources.entries.iter().filter_map(|source| {
-            let activation = source.active(&rules, sources, participant);
-            let missing_value = source.rule.definition().has_value && source.value.is_none()
-                && known.iter().any(|cause| {
-                    matches!(cause.source, super::causes::ConditionSource::Authored(active, ..) if std::ptr::eq(active, source))
-                        && cause.rule == source.rule
-                });
-            (activation.is_none() || (activation == Some(true) && missing_value)).then_some(
-                super::causes::ConditionCause {
-                    source: super::causes::ConditionSource::Authored(
-                        source,
-                        sources.source_fingerprint.as_deref(),
-                        &participant.participant_key,
-                    ),
-                    rule: source.rule,
-                    value: source.value,
-                },
-            )
-        }).collect(),
-    )
-}
-
 fn modifier_can_change(modifiers: &[Modifier], kind: ModifierType, value: Option<i64>) -> bool {
     let Some(value) = value else {
         return true;
@@ -488,7 +458,8 @@ fn project_uncertain_sources(
     let level = participant
         .level_override
         .or_else(|| block.adjusted_level.as_ref().and_then(Number::as_i64));
-    for cause in uncertain_source_causes(participant, opponent, additional, sources) {
+    for cause in super::causes::resolve_causes(participant, opponent, additional, sources).uncertain
+    {
         let reason = if cause.rule.definition().has_value && cause.value.is_none() {
             "The source condition's value is unavailable."
         } else {
@@ -777,6 +748,7 @@ pub(in crate::encounters) fn participant_runtime_block(p: &EncounterParticipant)
             None,
             crate::encounters::rules::source_conditions::SourceConditions::empty(),
         )
+        .active
         .into_iter()
         // Parent hints describe their maintained grants; do not duplicate child hints.
         .filter(|cause| {
@@ -1053,7 +1025,7 @@ fn projected_hp_maximum(
     };
     let context = Context::statistic(&stat.target, None);
     let mut uncertain = false;
-    for cause in super::causes::condition_causes(participant, None, sources) {
+    for cause in super::causes::condition_causes(participant, None, sources).active {
         for (modifier_type, value) in modifiers(
             cause.rule,
             cause.value,
@@ -1082,7 +1054,7 @@ fn projected_hp_maximum(
             );
         }
     }
-    for cause in uncertain_source_causes(participant, None, &[], sources) {
+    for cause in super::causes::condition_causes(participant, None, sources).uncertain {
         if modifiers(
             cause.rule,
             cause.value,
@@ -1126,7 +1098,7 @@ pub(in crate::encounters) fn project_initiative(
         ..Context::statistic(&target, None)
     };
     let level = block.adjusted_level.as_ref().and_then(Number::as_i64);
-    for cause in super::causes::condition_causes(participant, None, &sources) {
+    for cause in super::causes::condition_causes(participant, None, &sources).active {
         if !cause.rule.definition().modifiers.iter().any(|effect| {
             !matches!(
                 effect.predicate,

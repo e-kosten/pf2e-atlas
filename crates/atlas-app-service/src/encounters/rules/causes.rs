@@ -109,11 +109,53 @@ pub(in crate::encounters) struct ScopedConditionCause<'a> {
     pub against: Option<&'a str>,
 }
 
+pub(in crate::encounters) struct ConditionResolution<'a> {
+    pub active: Vec<ConditionCause<'a>>,
+    pub uncertain: Vec<ConditionCause<'a>>,
+    source_unavailable: bool,
+}
+impl ConditionResolution<'_> {
+    pub fn known_presence(&self, rule: ConditionRule) -> crate::AppServiceResult<bool> {
+        if self.active.iter().any(|cause| cause.rule == rule) {
+            return Ok(true);
+        }
+        if self.source_unavailable || self.uncertain.iter().any(|cause| cause.rule == rule) {
+            return Err(crate::AppServiceError::invalid_request(format!(
+                "Check whether {} applies before resolving this event.",
+                rule.definition().name
+            )));
+        }
+        Ok(false)
+    }
+    pub fn known_value(&self, rule: ConditionRule) -> crate::AppServiceResult<i64> {
+        let mut value = 0;
+        for cause in self.active.iter().filter(|cause| cause.rule == rule) {
+            value = value.max(cause.value.filter(|value| *value >= 0).ok_or_else(|| {
+                crate::AppServiceError::invalid_request(format!(
+                    "Set the {} value before resolving this event.",
+                    rule.definition().name
+                ))
+            })?);
+        }
+        if self.source_unavailable
+            || self.uncertain.iter().any(|cause| {
+                cause.rule == rule && cause.value.is_none_or(|possible| possible > value)
+            })
+        {
+            return Err(crate::AppServiceError::invalid_request(format!(
+                "Check the {} value and source before resolving this event.",
+                rule.definition().name
+            )));
+        }
+        Ok(value)
+    }
+}
+
 pub(in crate::encounters) fn condition_causes<'a>(
     participant: &'a EncounterParticipant,
     opponent: Option<&str>,
     sources: &'a SourceConditions,
-) -> Vec<ConditionCause<'a>> {
+) -> ConditionResolution<'a> {
     resolve_causes(participant, opponent, &[], sources)
 }
 
@@ -122,8 +164,8 @@ pub(in crate::encounters) fn resolve_causes<'a>(
     opponent: Option<&str>,
     additional: &[ScopedConditionCause<'a>],
     sources: &'a SourceConditions,
-) -> Vec<ConditionCause<'a>> {
-    let mut causes: Vec<_> = participant
+) -> ConditionResolution<'a> {
+    let saved: Vec<_> = participant
         .conditions
         .iter()
         .filter(|source| scope_applies(&source.scope, opponent))
@@ -135,45 +177,69 @@ pub(in crate::encounters) fn resolve_causes<'a>(
             })
         })
         .collect();
-    causes.extend(
-        additional
-            .iter()
-            .filter(|cause| cause.against.is_none() || cause.against == opponent)
-            .map(|cause| ConditionCause {
+    let mut base = ConditionResolution {
+        active: saved,
+        uncertain: vec![],
+        source_unavailable: sources.unavailable_reason.is_some(),
+    };
+    for cause in additional
+        .iter()
+        .filter(|cause| cause.against.is_none() || cause.against == opponent)
+    {
+        admit_derived(
+            &mut base,
+            ConditionCause {
                 source: cause.source,
                 rule: cause.rule,
                 value: cause.value,
-            }),
-    );
-    // Evaluate bounded predicates against effective known conditions. Iterate only to
-    // a stable state; circular activation is left unresolved rather than guessed.
-    let saved = causes.clone();
+            },
+            false,
+            sources,
+        );
+    }
+    let mut result = expand_and_suppress(base.active.clone(), base.uncertain.clone(), sources);
     let mut prior = vec![];
-    let mut seen = vec![];
-    for _ in 0..=sources.entries.len() + 1 {
-        let rules = suppress_and_expand(causes.clone())
+    let mut history: Vec<Vec<Option<bool>>> = vec![];
+    let mut cyclic = vec![false; sources.entries.len()];
+    for _ in 0..sources.entries.len().saturating_mul(3).saturating_add(4) {
+        let known = result
+            .active
             .iter()
             .map(|cause| cause.rule)
             .collect::<Vec<_>>();
-        let active = sources
+        let possible = result
+            .uncertain
+            .iter()
+            .map(|cause| cause.rule)
+            .collect::<Vec<_>>();
+        let mut states = sources
             .entries
             .iter()
             .enumerate()
-            .filter(|(_, source)| source.active(&rules, sources, participant) == Some(true))
-            .map(|(index, _)| index)
+            .map(|(i, source)| {
+                if cyclic[i] {
+                    None
+                } else {
+                    source.active(&known, &possible, sources, participant)
+                }
+            })
             .collect::<Vec<_>>();
-        if active == prior {
-            break;
+        if states == prior {
+            return result;
         }
-        if seen.contains(&active) {
-            causes = saved.clone();
-            break;
+        if let Some(start) = history.iter().position(|seen| seen == &states) {
+            for i in 0..states.len() {
+                if history[start..].iter().any(|seen| seen[i] != states[i]) {
+                    cyclic[i] = true;
+                    states[i] = None;
+                }
+            }
+            history.clear();
         }
-        seen.push(active.clone());
-        causes = saved.clone();
-        causes.extend(active.iter().map(|index| {
-            let source = &sources.entries[*index];
-            ConditionCause {
+        let mut active = base.active.clone();
+        let mut uncertain = base.uncertain.clone();
+        for (source, state) in sources.entries.iter().zip(&states) {
+            let cause = ConditionCause {
                 source: ConditionSource::Authored(
                     source,
                     sources.source_fingerprint.as_deref(),
@@ -181,37 +247,81 @@ pub(in crate::encounters) fn resolve_causes<'a>(
                 ),
                 rule: source.rule,
                 value: source.value,
+            };
+            match state {
+                Some(true) => {
+                    active.push(cause);
+                    if source.rule.definition().has_value && source.value.is_none() {
+                        uncertain.push(cause);
+                    }
+                }
+                None => uncertain.push(cause),
+                Some(false) => {}
             }
-        }));
-        prior = active;
+        }
+        result = expand_and_suppress(active, uncertain, sources);
+        history.push(states.clone());
+        prior = states;
     }
-    suppress_and_expand(causes)
+    result
 }
 
-fn suppress_and_expand(mut causes: Vec<ConditionCause<'_>>) -> Vec<ConditionCause<'_>> {
-    // Reachability establishes derived suppressors without erasing independent sources.
-    let reachable = expand(causes.clone());
-    causes.retain(|cause| {
-        !reachable
-            .iter()
-            .any(|other| suppresses(other.rule, cause.rule))
-    });
-    let mut causes = expand(causes);
-    let active = causes.clone();
-    causes.retain(|cause| {
-        !active
-            .iter()
-            .any(|other| suppresses(other.rule, cause.rule))
-    });
-
-    causes.sort_by_key(|cause| {
+fn admit_derived<'a>(
+    result: &mut ConditionResolution<'a>,
+    cause: ConditionCause<'a>,
+    uncertain: bool,
+    sources: &SourceConditions,
+) {
+    use super::applicability::{ConditionImmunityState, condition_immunity};
+    match condition_immunity(&sources.immunities, cause.rule.definition().slug) {
+        ConditionImmunityState::Immune => {}
+        ConditionImmunityState::Available if !uncertain => push_unique(&mut result.active, cause),
+        _ => push_unique(&mut result.uncertain, cause),
+    }
+}
+fn push_unique<'a>(causes: &mut Vec<ConditionCause<'a>>, cause: ConditionCause<'a>) {
+    if !causes
+        .iter()
+        .any(|prior| prior.source.key() == cause.source.key() && prior.rule == cause.rule)
+    {
+        causes.push(cause);
+    }
+}
+fn expand_and_suppress<'a>(
+    active: Vec<ConditionCause<'a>>,
+    uncertain: Vec<ConditionCause<'a>>,
+    sources: &SourceConditions,
+) -> ConditionResolution<'a> {
+    let reachable = expand(active.clone(), uncertain.clone(), sources);
+    let active = active
+        .into_iter()
+        .filter(|cause| {
+            !reachable
+                .active
+                .iter()
+                .any(|other| suppresses(other.rule, cause.rule))
+        })
+        .collect();
+    let mut result = expand(active, uncertain, sources);
+    let suppressors = result
+        .active
+        .iter()
+        .map(|cause| cause.rule)
+        .collect::<Vec<_>>();
+    result
+        .active
+        .retain(|cause| !suppressors.iter().any(|rule| suppresses(*rule, cause.rule)));
+    result
+        .uncertain
+        .retain(|cause| !suppressors.iter().any(|rule| suppresses(*rule, cause.rule)));
+    result.active.sort_by_key(|cause| {
         (
             cause.source.condition_id().is_none(),
             cause.source.condition_id().unwrap_or(0),
             cause.rule,
         )
     });
-    causes
+    result
 }
 
 fn suppresses(rule: ConditionRule, other: ConditionRule) -> bool {
@@ -249,10 +359,28 @@ pub(in crate::encounters) fn application_grants(
         .any(|grant| grant.target == target && grant.in_memory_only != Some(true))
 }
 
-pub(super) fn expand(mut causes: Vec<ConditionCause<'_>>) -> Vec<ConditionCause<'_>> {
-    let mut cursor = 0;
-    while cursor < causes.len() {
-        let cause = causes[cursor];
+fn expand<'a>(
+    active: Vec<ConditionCause<'a>>,
+    uncertain: Vec<ConditionCause<'a>>,
+    sources: &SourceConditions,
+) -> ConditionResolution<'a> {
+    let mut result = ConditionResolution {
+        active,
+        uncertain,
+        source_unavailable: sources.unavailable_reason.is_some(),
+    };
+    let mut active_cursor = 0;
+    let mut uncertain_cursor = 0;
+    while active_cursor < result.active.len() || uncertain_cursor < result.uncertain.len() {
+        let (cause, uncertain) = if active_cursor < result.active.len() {
+            let cause = result.active[active_cursor];
+            active_cursor += 1;
+            (cause, false)
+        } else {
+            let cause = result.uncertain[uncertain_cursor];
+            uncertain_cursor += 1;
+            (cause, true)
+        };
         for grant in cause
             .rule
             .definition()
@@ -260,19 +388,19 @@ pub(super) fn expand(mut causes: Vec<ConditionCause<'_>>) -> Vec<ConditionCause<
             .iter()
             .filter(|grant| maintained(cause.rule, grant))
         {
-            if !causes.iter().any(|existing| {
-                existing.source.key() == cause.source.key() && existing.rule == grant.target
-            }) {
-                causes.push(ConditionCause {
+            admit_derived(
+                &mut result,
+                ConditionCause {
                     source: cause.source,
                     rule: grant.target,
                     value: grant.target.definition().default_value,
-                });
-            }
+                },
+                uncertain,
+                sources,
+            );
         }
-        cursor += 1;
     }
-    causes
+    result
 }
 
 #[cfg(test)]

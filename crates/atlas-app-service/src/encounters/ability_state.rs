@@ -139,7 +139,8 @@ impl AtlasAppService {
                 )
             })?;
             rules::hp_events::plan_hp_event(
-                participant,
+                &after,
+                sources,
                 &rules::hp_events::HpEventInput::DirectLoss { amount },
                 &Default::default(),
                 None,
@@ -302,6 +303,7 @@ fn drained_values(
     sources: &rules::source_conditions::SourceConditions,
 ) -> Vec<Option<i64>> {
     rules::causes::condition_causes(participant, None, sources)
+        .active
         .into_iter()
         .filter(|cause| cause.rule == super::conditions::ConditionRule::Drained)
         .map(|cause| cause.value)

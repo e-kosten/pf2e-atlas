@@ -21,6 +21,7 @@ pub(in crate::encounters) fn cannot_act_reason(
         return Some("Hazard disabled.");
     }
     super::causes::condition_causes(p, None, sources)
+        .active
         .into_iter()
         .find_map(|cause| match cause.rule {
             ConditionRule::Stunned if cause.value != Some(0) => Some("Stunned."),
@@ -47,14 +48,15 @@ fn regain_forecast(p: &EncounterParticipant, sources: &SourceConditions) -> Rega
     let mut stunned = 0;
     let mut quickened = false;
     let mut duration_stun = false;
+    let resolution = super::causes::condition_causes(p, None, sources);
     let mut unknown = sources.unavailable_reason.is_some()
-        || sources.unresolved_entries(p).iter().any(|source| {
+        || resolution.uncertain.iter().any(|source| {
             matches!(
                 source.rule,
                 ConditionRule::Slowed | ConditionRule::Quickened | ConditionRule::Stunned
             )
         });
-    for cause in super::causes::condition_causes(p, None, sources) {
+    for cause in resolution.active {
         let (rule, value, has_duration) = (cause.rule, cause.value, cause.source.has_duration());
         match rule {
             ConditionRule::Quickened => quickened = true,
@@ -120,6 +122,7 @@ pub(in crate::encounters) fn stunned_resolution_loss(
         let remaining = resources.regular_remaining + resources.extra_remaining;
         let mut stunned = 0;
         for cause in super::causes::condition_causes(p, None, sources)
+            .active
             .into_iter()
             .filter(|c| c.rule == ConditionRule::Stunned)
         {
@@ -173,6 +176,7 @@ pub(in crate::encounters) fn action_budget(
     let reason = cannot_act_reason(p, sources);
     let reaction_reason = reason.or_else(|| {
         super::causes::condition_causes(p, None, sources)
+            .active
             .iter()
             .any(|cause| cause.rule == ConditionRule::Confused)
             .then_some("Confused.")
@@ -639,7 +643,8 @@ mod tests {
             &p,
             None,
             crate::encounters::rules::source_conditions::SourceConditions::empty(),
-        );
+        )
+        .active;
         assert_eq!(
             general
                 .iter()
@@ -652,7 +657,8 @@ mod tests {
             &p,
             Some("a"),
             crate::encounters::rules::source_conditions::SourceConditions::empty(),
-        );
+        )
+        .active;
         assert_eq!(
             targeted
                 .iter()
@@ -668,6 +674,7 @@ mod tests {
                 Some("a"),
                 crate::encounters::rules::source_conditions::SourceConditions::empty()
             )
+            .active
             .len(),
             1
         );

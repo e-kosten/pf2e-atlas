@@ -2136,3 +2136,74 @@ fn concurrent_preparation_cannot_be_omitted_or_lost_by_table_clear() {
         }
     }
 }
+
+#[test]
+fn source_and_saved_petrified_die_at_zero_with_or_without_dying_tracking() {
+    use serde_json::json;
+    for source_owned in [false, true] {
+        for track in [false, true] {
+            let (f, _artifact, key, participant) = source_petrified_fixture(Some(source_owned));
+            if !source_owned {
+                f.worker.add_encounter_participant_condition(&key, serde_json::from_value(json!({
+                    "request_id":"saved-statue", "expected_encounter_revision":f.worker.encounter(&key).unwrap().revision,
+                    "participant_key":participant,"condition_ref":super::conditions::ConditionRule::Petrified.definition().record_key
+                })).unwrap()).unwrap();
+            }
+            f.worker.set_encounter_life_settings(&key,&participant,serde_json::from_value(json!({
+                "request_id":"track-statue","expected_encounter_revision":f.worker.encounter(&key).unwrap().revision,"track_dying":track
+            })).unwrap()).unwrap();
+            let before = f.worker.encounter(&key).unwrap();
+            let request = serde_json::from_value(json!({"request_id":"destroy-statue","expected_revision":before.participants[0].revision,"participant_key":participant,"action":{"kind":"damage","amount":"60"},"context":{"lethality":"lethal","critical":false,"keep_current_initiative":true}})).unwrap();
+            f.worker.apply_encounter_hp_action(&key, request).unwrap();
+            let after = snapshot(&f, &key).participants.remove(0);
+            assert_eq!(after.current_hp, Some(0));
+            assert_eq!(after.mortality, atlas_local_state::MortalityState::Dead);
+            assert!(
+                !after
+                    .conditions
+                    .iter()
+                    .any(
+                        |c| super::conditions::condition_rule_for_key(c.condition_key.as_deref())
+                            == Some(super::conditions::ConditionRule::Dying)
+                    )
+            );
+        }
+    }
+}
+
+#[test]
+fn table_persistent_damage_uses_source_petrified_mortality_and_replays_before_reference_reads() {
+    let (f, artifact, key, participant) = source_petrified_fixture(Some(true));
+    let mut request = source_statue_damage(&f, &key, &participant);
+    for group in &mut request.groups {
+        group.damage = PersistentDamageInput::TableResult { amount: 20 };
+    }
+    let result = f
+        .worker
+        .apply_persistent_damage(&key, request.clone())
+        .unwrap();
+    assert_eq!(result.total, 60);
+    assert_eq!(
+        snapshot(&f, &key).participants[0].mortality,
+        atlas_local_state::MortalityState::Dead
+    );
+    atlas_search::test_support::invalidate_reference(
+        artifact.path(),
+        atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+    )
+    .unwrap();
+    assert_eq!(
+        f.worker.apply_persistent_damage(&key, request).unwrap(),
+        result
+    );
+}
+
+#[test]
+fn uncertain_petrified_does_not_silently_use_ordinary_mortality() {
+    use serde_json::json;
+    let (f, _artifact, key, participant) = source_petrified_fixture(None);
+    let before = f.worker.encounter(&key).unwrap();
+    let request = serde_json::from_value(json!({"request_id":"unknown-statue","expected_revision":before.participants[0].revision,"participant_key":participant,"action":{"kind":"damage","amount":"60"}})).unwrap();
+    assert!(f.worker.apply_encounter_hp_action(&key, request).is_err());
+    assert_eq!(snapshot(&f, &key).participants[0].current_hp, Some(60));
+}

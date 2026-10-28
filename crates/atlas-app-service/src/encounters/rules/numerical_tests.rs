@@ -209,7 +209,8 @@ fn scoped_restrained_suppresses_only_the_overlapping_grabbed_cause() {
         &participant,
         None,
         crate::encounters::rules::source_conditions::SourceConditions::empty(),
-    );
+    )
+    .active;
     assert!(general.iter().any(
         |cause| cause.source.condition_id() == Some(1) && cause.rule == ConditionRule::OffGuard
     ));
@@ -217,7 +218,8 @@ fn scoped_restrained_suppresses_only_the_overlapping_grabbed_cause() {
         &participant,
         Some("a"),
         crate::encounters::rules::source_conditions::SourceConditions::empty(),
-    );
+    )
+    .active;
     assert!(
         !targeted
             .iter()
@@ -1196,4 +1198,103 @@ fn fleeing_hint_uses_feared_subject_instead_of_causal_source() {
             .reason,
         "Spend your actions escaping the burning doorway. Can't Delay or Ready."
     );
+}
+
+#[test]
+fn child_immunity_keeps_the_parent_and_independent_saved_causes() {
+    use super::{ConditionImmunity, ImmunityCoverage};
+    for (parent, child) in [
+        (ConditionRule::Prone, ConditionRule::OffGuard),
+        (ConditionRule::Grabbed, ConditionRule::Immobilized),
+        (ConditionRule::Encumbered, ConditionRule::Clumsy),
+    ] {
+        let mut p = participant();
+        p.conditions = vec![condition(1, parent, None)];
+        let mut sources = super::source_conditions::SourceConditions::default();
+        sources.immunities = vec![ConditionImmunity {
+            slug: child.definition().slug.into(),
+            coverage: ImmunityCoverage::Unconditional,
+        }]
+        .into();
+        let resolved = super::causes::condition_causes(&p, None, &sources);
+        assert!(resolved.known_presence(parent).unwrap());
+        assert!(!resolved.known_presence(child).unwrap());
+        let mut independent = condition(2, child, child.definition().default_value);
+        independent.immunity_override = true;
+        p.conditions.push(independent);
+        assert!(
+            super::causes::condition_causes(&p, None, &sources)
+                .known_presence(child)
+                .unwrap()
+        );
+    }
+}
+
+#[test]
+fn uncertain_child_immunity_preserves_a_dominating_known_penalty() {
+    let mut p = participant();
+    p.conditions = vec![
+        condition(1, ConditionRule::Encumbered, None),
+        condition(2, ConditionRule::Frightened, Some(2)),
+    ];
+    let mut baseline = source_baseline();
+    baseline.source_conditions.immunities.authored_complete = false;
+    let resolved = super::causes::condition_causes(&p, None, &baseline.source_conditions);
+    assert!(resolved.known_presence(ConditionRule::Clumsy).is_err());
+    let projected = project_participant(&p, &baseline, true, &[]);
+    assert_eq!(
+        projected
+            .effective_stat(&StatisticTarget::ArmorClass)
+            .and_then(serde_json::Number::as_i64),
+        Some(18)
+    );
+}
+
+#[test]
+fn relationship_off_guard_uses_the_observers_immunity() {
+    use super::{ConditionImmunity, ImmunityCoverage};
+    let observer = participant();
+    let mut attacker = participant();
+    attacker.participant_key = "attacker".into();
+    attacker.conditions = vec![condition(1, ConditionRule::Hidden, None)];
+    let roster = vec![observer.clone(), attacker];
+    let additional =
+        super::relationships::observer_defense_causes(&observer.participant_key, &roster);
+    let mut baseline = source_baseline();
+    baseline.source_conditions.immunities = vec![ConditionImmunity {
+        slug: "off-guard".into(),
+        coverage: ImmunityCoverage::Unconditional,
+    }]
+    .into();
+    let projected = project_participant(&observer, &baseline, true, &additional);
+    assert!(
+        projected.contextual_armor_class.iter().all(|ac| ac
+            .value
+            .value
+            .as_ref()
+            .and_then(serde_json::Number::as_i64)
+            == Some(20))
+    );
+}
+
+#[test]
+fn cyclic_activation_retains_unrelated_known_grants_and_reports_uncertainty() {
+    let p = participant();
+    let record = atlas_search::test_support::record("actors", "Actor", json!({
+        "_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Cyclic grants",
+        "system":{"traits":{"value":[]},"attributes":{"immunities":[]}},
+        "items":[{"_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Quickened","system":{"actionType":{"value":"passive"},"rules":[{"key":"GrantItem","inMemoryOnly":true,"uuid":"Compendium.pf2e.conditionitems.Item.Quickened"}]}},
+        {"_id":"cccccccccccccccc","type":"action","name":"Slowed","system":{"actionType":{"value":"passive"},"rules":[{"key":"GrantItem","inMemoryOnly":true,"uuid":"Compendium.pf2e.conditionitems.Item.Slowed","predicate":[{"not":"self:condition:slowed"}]}]}}]
+    })).record;
+    let sources = super::source_conditions::source_conditions(&record, |uuid| {
+        Ok(if uuid.ends_with("Quickened") {
+            Some(ConditionRule::Quickened)
+        } else {
+            Some(ConditionRule::Slowed)
+        })
+    })
+    .unwrap();
+    let resolved = super::causes::condition_causes(&p, None, &sources);
+    assert!(resolved.known_presence(ConditionRule::Quickened).unwrap());
+    assert!(resolved.known_presence(ConditionRule::Slowed).is_err());
 }

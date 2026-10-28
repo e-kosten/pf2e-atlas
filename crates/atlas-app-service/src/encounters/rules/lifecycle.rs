@@ -116,6 +116,7 @@ pub(in crate::encounters) fn prepare_lifecycle<'a>(
                         None,
                         crate::encounters::rules::source_conditions::SourceConditions::empty(),
                     )
+                    .active
                     .into_iter()
                     .filter(|cause| cause.rule == ConditionRule::Stunned)
                     .filter_map(|cause| cause.value)

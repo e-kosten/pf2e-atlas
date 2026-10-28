@@ -15,6 +15,7 @@ use atlas_local_state::{
 
 pub(in crate::encounters) fn plan_hp_event(
     participant: &EncounterParticipant,
+    sources: &super::source_conditions::SourceConditions,
     input: &HpEventInput,
     context: &SavedHpEventContext,
     effective_maximum: Option<i64>,
@@ -38,13 +39,15 @@ pub(in crate::encounters) fn plan_hp_event(
             "Correct temporary HP before recording this event",
         ));
     }
+    let conditions = super::causes::condition_causes(participant, None, sources);
+    let petrified = conditions.known_presence(ConditionRule::Petrified)?;
     let mut update = ParticipantEventChange::preserving(participant);
     let mut changes = PreparedConditionEvent::default();
     match input {
         HpEventInput::DirectLoss { .. } => {
             update.current_hp = Some(current.saturating_sub(amount).max(0));
             if current > 0 && update.current_hp == Some(0) {
-                if has(participant, ConditionRule::Petrified) {
+                if petrified {
                     update.mortality = MortalityState::Dead;
                     clear(participant, ConditionRule::Dying, &mut changes);
                     clear(participant, ConditionRule::Doomed, &mut changes);
@@ -88,7 +91,7 @@ pub(in crate::encounters) fn plan_hp_event(
             if amount > 0
                 && update.current_hp.is_some_and(|hp| hp >= 1)
                 && participant.mortality != MortalityState::Dead
-                && !has(participant, ConditionRule::Petrified)
+                && !petrified
             {
                 if super::lifecycle::known_effective(participant, ConditionRule::Dying)? > 0 {
                     clear(participant, ConditionRule::Dying, &mut changes);
@@ -118,7 +121,7 @@ pub(in crate::encounters) fn plan_hp_event(
             update.temporary_hp -= temporary_damage;
             update.current_hp = Some(current.saturating_sub(amount - temporary_damage).max(0));
             let after = update.current_hp.unwrap_or(0);
-            if has(participant, ConditionRule::Petrified) {
+            if petrified {
                 if after == 0 {
                     update.mortality = MortalityState::Dead;
                     clear(participant, ConditionRule::Dying, &mut changes);
