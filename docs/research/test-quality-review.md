@@ -19,7 +19,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | crates/atlas-dev | 7 | 7 | 0 | 0 |
 | crates/atlas-dice | 1 | 0 | 1 | 0 |
 | crates/atlas-domain | 11 | 0 | 11 | 0 |
-| crates/atlas-embedding | 5 | 5 | 0 | 0 |
+| crates/atlas-embedding | 5 | 0 | 5 | 0 |
 | crates/atlas-foundry-model | 11 | 11 | 0 | 0 |
 | crates/atlas-index | 17 | 17 | 0 | 0 |
 | crates/atlas-ingest | 6 | 6 | 0 | 0 |
@@ -206,11 +206,11 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [crates/atlas-embedding/src/centroid.rs](../../crates/atlas-embedding/src/centroid.rs) | pending | — |
-| [crates/atlas-embedding/src/document_input.rs](../../crates/atlas-embedding/src/document_input.rs) | pending | — |
-| [crates/atlas-embedding/src/model_cache.rs](../../crates/atlas-embedding/src/model_cache.rs) | pending | — |
-| [crates/atlas-embedding/src/query_sessions.rs](../../crates/atlas-embedding/src/query_sessions.rs) | pending | — |
-| [crates/atlas-embedding/src/tests.rs](../../crates/atlas-embedding/src/tests.rs) | pending | — |
+| [crates/atlas-embedding/src/centroid.rs](../../crates/atlas-embedding/src/centroid.rs) | changed | Added complete output dimensions and named rejection partitions for empty input/chunks, mismatched dimensions, nonfinite and cancelling vectors; retained independent unequal-magnitude chunk expectation. |
+| [crates/atlas-embedding/src/document_input.rs](../../crates/atlas-embedding/src/document_input.rs) | reviewed | Complete shared segmentation digest perturbation preserves its abbreviated prefix and must change every profile reuse identity; retained alongside raw-hash separation. Execution-input sensitivity is tested separately in tests.rs. |
+| [crates/atlas-embedding/src/model_cache.rs](../../crates/atlas-embedding/src/model_cache.rs) | reviewed | Known SHA-256 vectors, immutable revision paths, verified no-download reuse, failed/partial repairs, retry and coordinated overlapping publication use real files. Same-target versus external-weights concurrency protects distinct cleanup hazards; retained. |
+| [crates/atlas-embedding/src/query_sessions.rs](../../crates/atlas-embedding/src/query_sessions.rs) | changed | Retained nonblocking readiness, one shared native lane and real retained two-model sessions. Added dimensions before zip-based native stability comparison so truncated output cannot pass vacuously. |
+| [crates/atlas-embedding/src/tests.rs](../../crates/atlas-embedding/src/tests.rs) | changed | Added nonunit/infinite vector rejection, native batch/output lengths and source-section attribution in byte-coverage checks. Kept independent pinned profile/prefix contracts, UTF-8/body/overlap budgets, full segmentation-digest sensitivity, cache repair and reusable occurrence/error protection. |
 
 ### crates/atlas-foundry-model
 
@@ -633,3 +633,9 @@ Completion requires every inventory entry to have a substantive disposition, eve
 - `atlas-sqlite-vec` has no local test entry point: registration is exercised against real vec0 tables and rollback in storage, and vector capabilities are covered again with atlas-index. No synthetic registration-failure seam added.
 
 - Application-model checks passed with `cargo test -p atlas-app-model` and the combined focused run. The HP revision test now isolates one missing-field failure instead of accepting an unrelated malformed request as evidence.
+
+### Embedding milestone
+
+- `cargo test -p atlas-embedding -- --include-ignored --test-threads=1`: 24 passed, including all three native BGE/Gemma execution cases. Reused verified shared model assets through a task-local cache link; no asset downloads or installed workspace changes.
+- The unchanged frontend baseline also passed: 159 files / 1,585 tests. Browser checks remain separate.
+- Native batch lengths are now checked before elementwise tolerance comparisons; this rejects an empty/truncated output that a zip-only check could accept. Cache checks remain real filesystem operations with bounded synchronization, without retries or weaker tolerances.
