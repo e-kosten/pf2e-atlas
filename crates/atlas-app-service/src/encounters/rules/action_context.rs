@@ -168,16 +168,12 @@ pub(in crate::encounters) fn evaluate_action(
     context: &ActionContext<'_>,
 ) -> ActionEvaluation {
     let mut result = ActionEvaluation::default();
-    let known = condition_causes(participant, context.other_participant, sources);
+    let resolution = condition_causes(participant, context.other_participant, sources);
+    let known = resolution.active;
     for cause in &known {
         evaluate_cause(&mut result, participant, sources, context, *cause);
     }
-    for cause in super::projection::uncertain_source_causes(
-        participant,
-        context.other_participant,
-        &[],
-        sources,
-    ) {
+    for cause in resolution.uncertain {
         if known
             .iter()
             .any(|active| active.rule == cause.rule && active.source.key() == cause.source.key())
@@ -330,6 +326,7 @@ pub(in crate::encounters) fn is_confused(
     sources: &SourceConditions,
 ) -> bool {
     condition_causes(participant, None, sources)
+        .active
         .iter()
         .any(|cause| cause.rule == ConditionRule::Confused)
 }
@@ -343,6 +340,7 @@ pub(in crate::encounters) fn control_direction(
     let controller = source.source_participant_key.as_deref()?;
     let instructions = source.note.as_ref();
     let conflicting = condition_causes(participant, Some(controller), sources)
+        .active
         .iter()
         .any(|cause| {
             cause.rule == ConditionRule::Controlled
@@ -372,6 +370,7 @@ pub(in crate::encounters) fn stupefied_casting_hint(
     sources: &SourceConditions,
 ) -> Option<Result<i64, ()>> {
     let mut checks = condition_causes(participant, opponent, sources)
+        .active
         .into_iter()
         .filter(|cause| cause.rule == ConditionRule::Stupefied)
         .peekable();

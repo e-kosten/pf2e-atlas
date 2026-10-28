@@ -81,13 +81,37 @@ impl AtlasAppService {
                 "Persistent damage sources changed; review the groups",
             ));
         }
-        let needs_source = request.groups.iter().any(|group| {
+        let needs_protections = request.groups.iter().any(|group| {
             matches!(
                 group.damage,
                 PersistentDamageInput::Roll | PersistentDamageInput::Prepared { .. }
             )
         });
-        let (record, source_conditions, reference_revision) = if needs_source {
+        let table_damage = request
+            .groups
+            .iter()
+            .fold(0_i64, |sum, group| match group.damage {
+                PersistentDamageInput::TableResult { amount } => sum.saturating_add(amount),
+                _ => sum,
+            });
+        let needs_lifecycle = participant.record_key.is_some()
+            && (participant
+                .current_hp
+                .is_some_and(|hp| table_damage.saturating_sub(participant.temporary_hp) >= hp)
+                || participant.conditions.iter().any(|condition| {
+                    matches!(
+                        super::conditions::condition_rule_for_key(
+                            condition.condition_key.as_deref()
+                        ),
+                        Some(
+                            super::conditions::ConditionRule::Unconscious
+                                | super::conditions::ConditionRule::Confused
+                        )
+                    )
+                }));
+        let (record, source_conditions, reference_revision) = if needs_protections
+            || needs_lifecycle
+        {
             let record_key = participant.record_key.clone().ok_or_else(|| {
                 AppServiceError::invalid_request(
                     "Damage protections are unavailable; enter table results",
@@ -98,7 +122,9 @@ impl AtlasAppService {
                 &crate::ReadExecutionContext::uncancellable(),
                 move |session| {
                     let generation = session.retrieval_mut().artifact_generation()?;
-                    if expected_generation.as_deref() != Some(generation.as_str()) {
+                    if (needs_protections || expected_generation.is_some())
+                        && expected_generation.as_deref() != Some(generation.as_str())
+                    {
                         return Err(AppServiceError::invalid_request(
                             "Reference data changed; reload before rolling",
                         ));
@@ -456,6 +482,7 @@ impl AtlasAppService {
                         total -= hardness_absorbed;
                         let mut changes = super::rules::hp_events::plan_hp_event(
                             participant,
+                            &source_conditions,
                             &HpEventInput::ResolvedDamage { amount: total },
                             &context,
                             participant.max_hp,

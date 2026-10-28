@@ -187,7 +187,20 @@ pub(super) fn participant_view(
             )
         })
         .unwrap_or_default();
-    let knockout_unavailable_reason =
+    let petrified_knockout = if participant.current_hp == Some(0) {
+        match super::rules::causes::condition_causes(&participant, None, sources)
+            .known_presence(super::conditions::ConditionRule::Petrified)
+        {
+            Ok(true) => Some("At 0 HP, a petrified statue is destroyed. Mark it dead.".into()),
+            Err(_) => {
+                Some("Check whether Petrified applies before choosing a knockout outcome.".into())
+            }
+            Ok(false) => None,
+        }
+    } else {
+        None
+    };
+    let knockout_unavailable_reason = petrified_knockout.or_else(|| {
         super::conditions::modeled_condition_by_rule(super::conditions::ConditionRule::Dying)
             .and_then(|dying| {
                 match super::rules::condition_applicability(dying, &participant, &knockout_facts) {
@@ -197,7 +210,8 @@ pub(super) fn participant_view(
                     None => Some("Dying does not apply to this participant kind.".into()),
                     _ => None,
                 }
-            });
+            })
+    });
     let knockout_options = if knockout_unavailable_reason.is_none() {
         super::rules::hp_events::knockout_options(&participant, None)
     } else {

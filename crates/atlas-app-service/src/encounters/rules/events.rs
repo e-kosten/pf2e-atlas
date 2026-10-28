@@ -77,6 +77,7 @@ pub(in crate::encounters) fn plan_condition_change(
     let after = subject_after_change(participant, &change)?;
     let drained_sources = |subject: &EncounterParticipant| {
         super::causes::condition_causes(subject, None, sources)
+            .active
             .into_iter()
             .filter(|cause| cause.rule == ConditionRule::Drained)
             .map(|cause| (cause.source.key(), cause.value))
@@ -119,6 +120,7 @@ pub(in crate::encounters) fn plan_condition_change(
                     })?;
                     let hp_changes = super::hp_events::plan_hp_event(
                         participant,
+                        sources,
                         &crate::encounters::rules::hp_events::HpEventInput::DirectLoss { amount },
                         &Default::default(),
                         None,
@@ -300,20 +302,9 @@ pub(in crate::encounters) fn effective_drained_value(
     participant: &EncounterParticipant,
     sources: &super::source_conditions::SourceConditions,
 ) -> AppServiceResult<i64> {
-    let mut maximum = 0;
-    for condition in super::causes::condition_causes(participant, None, sources)
-        .iter()
-        .filter(|condition| condition.rule == ConditionRule::Drained)
-    {
-        let value = condition.value.filter(|value| *value >= 0).ok_or_else(|| {
-            AppServiceError::invalid_request(
-                "Set the existing Drained value before calculating its HP loss",
-            )
-        })?;
-        maximum = maximum.max(value);
-    }
-    Ok(maximum)
+    super::causes::condition_causes(participant, None, sources).known_value(ConditionRule::Drained)
 }
+
 fn has_condition(participant: &EncounterParticipant, rule: ConditionRule) -> bool {
     participant
         .conditions

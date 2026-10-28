@@ -70,6 +70,7 @@ impl AtlasAppService {
         }
         let changes = rules::hp_events::plan_hp_event(
             participant,
+            &subject.source_conditions,
             &input,
             &hp_context_for_subject(context, &subject),
             effective_maximum,
@@ -462,12 +463,22 @@ pub(super) fn hp_subject_context(
             super::conditions::condition_rule_for_key(condition.condition_key.as_deref())
                 == Some(super::conditions::ConditionRule::Drained)
         });
-    let may_fall = matches!(*input,HpEventInput::ResolvedDamage{amount} if participant.track_dying && participant.current_hp.is_some_and(|hp|amount.saturating_sub(participant.temporary_hp)>=hp));
+    let may_fall = matches!(*input,HpEventInput::ResolvedDamage{amount} if participant.current_hp.is_some_and(|hp|amount.saturating_sub(participant.temporary_hp)>=hp));
     let source_hazard = participant.participant_kind == atlas_local_state::ParticipantKind::Hazard
         && matches!(*input, HpEventInput::ResolvedDamage { .. });
     let source_healing =
         matches!(*input, HpEventInput::ResolvedHealing { .. }) && participant.record_key.is_some();
-    if needs_level || may_fall || source_hazard || source_healing {
+    let source_waking = participant.record_key.is_some()
+        && participant.conditions.iter().any(|condition| {
+            matches!(
+                super::conditions::condition_rule_for_key(condition.condition_key.as_deref()),
+                Some(
+                    super::conditions::ConditionRule::Unconscious
+                        | super::conditions::ConditionRule::Confused
+                )
+            )
+        });
+    if needs_level || may_fall || source_hazard || source_healing || source_waking {
         workflow::condition_subject_context(service, participant)
     } else {
         Ok(workflow::ConditionSubjectContext::from_saved(participant))
@@ -1071,6 +1082,7 @@ mod hp_lifecycle_tests {
         saved.track_dying = false;
         let changes = rules::hp_events::plan_hp_event(
             &saved,
+            &Default::default(),
             &HpEventInput::ResolvedDamage { amount: 6 },
             &SavedHpEventContext {
                 broken_threshold: Some(5),
@@ -1253,6 +1265,7 @@ mod hp_lifecycle_tests {
         assert!(
             rules::hp_events::plan_hp_event(
                 &saved,
+                &Default::default(),
                 &HpEventInput::ResolvedDamage { amount: 10 },
                 &SavedHpEventContext {
                     lethality: Some(atlas_local_state::DamageLethality::Lethal),
@@ -1305,6 +1318,7 @@ mod hp_lifecycle_tests {
         );
         let changes = rules::hp_events::plan_hp_event(
             &participant,
+            &subject.source_conditions,
             &HpEventInput::ResolvedDamage { amount: 10 },
             &context,
             Some(10),

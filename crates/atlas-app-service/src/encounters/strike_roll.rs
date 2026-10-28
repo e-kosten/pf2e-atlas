@@ -440,6 +440,7 @@ pub(super) fn resolve_strike(
     }
     for cause in
         super::rules::causes::condition_causes(participant, None, &baseline.source_conditions)
+            .active
     {
         if cause.rule == super::conditions::ConditionRule::Blinded {
             conditional.push(RuntimeEffectNoteView {

@@ -3,7 +3,7 @@ use super::super::conditions::ModeledCondition;
 use atlas_app_model::{EncounterConditionApplicabilityView, EncounterConditionEligibilityView};
 use atlas_local_state::{EncounterParticipant, ParticipantKind};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(in crate::encounters) struct ConditionImmunity {
     pub slug: String,
     pub coverage: ImmunityCoverage,
@@ -15,7 +15,7 @@ pub(in crate::encounters) enum ImmunityCoverage {
     Unknown,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub(in crate::encounters) struct ConditionImmunityFacts {
     pub entries: Vec<ConditionImmunity>,
     pub authored_complete: bool,

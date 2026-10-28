@@ -113,7 +113,8 @@ fn prepare(
                 subject,
                 Some(&participant.participant_key),
                 &target_sources,
-            );
+            )
+            .active;
             let prevents_effect = activity.traits_known
                 && causes.iter().any(|cause| {
                     (cause.rule == super::conditions::ConditionRule::Blinded

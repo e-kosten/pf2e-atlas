@@ -25,7 +25,8 @@ pub(in crate::encounters) fn prepare(
         p,
         None,
         sources.unwrap_or(super::source_conditions::SourceConditions::empty()),
-    );
+    )
+    .active;
     if p.participant_kind == ParticipantKind::Hazard
         || p.mortality == MortalityState::Dead
         || conditions

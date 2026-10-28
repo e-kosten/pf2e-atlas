@@ -54,6 +54,13 @@ impl AtlasAppService {
             }
             let subject = workflow::condition_subject_context(self, participant)?;
             reference_revision = subject.reference_revision;
+            if super::rules::causes::condition_causes(participant, None, &subject.source_conditions)
+                .known_presence(ConditionRule::Petrified)?
+            {
+                return Err(AppServiceError::invalid_request(
+                    "At 0 HP, a petrified statue is destroyed. Mark it dead.",
+                ));
+            }
             workflow::validate_condition_subject(
                 &subject,
                 Some(ConditionRule::Dying.definition().record_key),
@@ -275,13 +282,14 @@ impl AtlasAppService {
         if let Some(receipt) = recover(self, encounter_ref, &request.request_id, &intent)? {
             return Ok(mutation(receipt));
         }
-        let (encounter_key, changes, _) = prepare_drained(self, encounter_ref, &request)?;
+        let (encounter_key, changes, _, reference_revision) =
+            prepare_drained(self, encounter_ref, &request)?;
         EncounterEvent {
             encounter_key: &encounter_key,
             request_id: &request.request_id,
             intent: &intent,
             expected_revision: request.expected_encounter_revision,
-            reference_revision: None,
+            reference_revision,
             participant_revision: None,
         }
         .commit(self, changes)
@@ -292,7 +300,7 @@ impl AtlasAppService {
         encounter_ref: &str,
         request: ResolveDrainedConsequenceRequest,
     ) -> AppServiceResult<ConditionHpChangeView> {
-        prepare_drained(self, encounter_ref, &request).map(|(_, _, preview)| preview)
+        prepare_drained(self, encounter_ref, &request).map(|(_, _, preview, _)| preview)
     }
 }
 fn prepare_drained(
@@ -303,6 +311,7 @@ fn prepare_drained(
     String,
     atlas_local_state::PreparedConditionEvent,
     ConditionHpChangeView,
+    Option<u64>,
 )> {
     if !(-9_007_199_254_740_991..=9_007_199_254_740_991).contains(&request.level) {
         return Err(AppServiceError::invalid_request(
@@ -342,9 +351,11 @@ fn prepare_drained(
     .ok_or_else(|| {
         AppServiceError::invalid_request("Drained HP loss exceeds the supported range")
     })?;
+    let subject = workflow::condition_subject_context(service, participant)?;
     let mut changes = if request.apply_hp_loss {
         super::rules::hp_events::plan_hp_event(
             participant,
+            &subject.source_conditions,
             &HpEventInput::DirectLoss { amount },
             &Default::default(),
             None,
@@ -367,7 +378,6 @@ fn prepare_drained(
 
     let mut after = participant.clone();
     after.level_override = Some(request.level);
-    let subject = workflow::condition_subject_context(service, participant)?;
     let preview = ConditionHpChangeView {
         current_before: participant.current_hp,
         current_after: changes
@@ -385,7 +395,12 @@ fn prepare_drained(
             Some(request.level),
         ),
     };
-    Ok((snapshot.encounter.encounter_key, changes, preview))
+    Ok((
+        snapshot.encounter.encounter_key,
+        changes,
+        preview,
+        subject.reference_revision,
+    ))
 }
 
 fn commit(

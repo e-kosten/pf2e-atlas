@@ -21,7 +21,8 @@ pub(in crate::encounters) fn dazzled_concealment(
         baseline
             .map(|baseline| &baseline.source_conditions)
             .unwrap_or_else(|| super::source_conditions::SourceConditions::empty()),
-    );
+    )
+    .active;
     let source_ids = causes
         .iter()
         .filter(|cause| cause.rule == ConditionRule::Dazzled)

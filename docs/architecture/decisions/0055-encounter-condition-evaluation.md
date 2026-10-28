@@ -45,8 +45,12 @@ immunity does not become blanket immunity to all conditions it could cause.
 
 Independent saved condition sources retain identity, scope, parameters, duration
 and origin. Resolve scope before suppression and derive maintained grants without
-saving duplicate child rows. Removing one source cannot remove an independent
-effect. Persistent consequences, such as Drained HP loss and falling Prone, use
+saving duplicate child rows. The resolver carries known and uncertain causes
+together, applies recipient immunity to every maintained child and observer-relative
+grant, and retains the parent when only its child is immune. A saved immunity
+override admits that source only; it does not waive a different child immunity.
+Predicate cycles make the varying causes uncertain without dropping unrelated
+known causes. Removing one source cannot remove an independent effect. Persistent consequences, such as Drained HP loss and falling Prone, use
 explicit event plans. Correcting an entry differs from applying an effect now.
 Behavioral subjects, such as a fascination or threat, are distinct from the source
 that applied the condition. Missing subjects require context only when an action
@@ -100,7 +104,13 @@ one reference snapshot before the guarded write; it never re-resolves a mutable
 encounter slug between preparations. Ordinary resolved damage that needs no
 source lifecycle facts, and removal of an unmodeled custom condition, remain
 state-local operations. Healing still resolves source conditions to preserve
-effective maximum HP.
+effective maximum HP. Events that can reach zero HP also prepare source mortality
+facts: source-owned and saved Petrified both destroy the statue at zero, including
+when dying tracking is disabled or persistent damage uses table totals. Table totals
+remain after protections and are never reduced by IWR a second time. Unknown
+Petrified applicability blocks that mortality decision rather than inventing an
+ordinary knockout. Saved-row recovery selectors remain separate from effective
+condition truth; source-owned conditions are read-only.
 A source-option transition that increases effective Drained charges the increase
 once through the existing guarded HP event; switching it off does not heal HP.
 New source-derived participants start at their effective capacity while retaining

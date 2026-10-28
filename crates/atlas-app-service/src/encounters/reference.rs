@@ -83,7 +83,7 @@ pub(crate) fn read_encounter_reference(
             condition.condition_key.as_deref(),
         )
         .and_then(|rule| {
-            let causes = super::rules::causes::condition_causes(participant, None, &sources);
+            let causes = super::rules::causes::condition_causes(participant, None, &sources).active;
             causes
                 .iter()
                 .filter(|c| c.rule == rule)
