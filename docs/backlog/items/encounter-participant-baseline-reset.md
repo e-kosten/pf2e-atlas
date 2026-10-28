@@ -3,7 +3,7 @@
 Status: in_progress
 Priority: current
 Owner: encounter-reset-rest
-Last reviewed: 2026-10-27
+Last reviewed: 2026-10-28
 
 Allow a participant to return atomically to a defined creation baseline for
 reusable encounters. The abandoned integration implemented this capability;
@@ -12,8 +12,8 @@ reset. Keep today's source-backed architecture and richer encounter rules.
 
 Define which HP, conditions, spell/ability/turn resources, initiative, variant and
 hazard-state values belong to the baseline, and what happens to pending events
-and the current turn. Preserve display name, notes, side and visibility unless
-the reviewed product policy explicitly says otherwise. Distinguish reset from
+and the current turn. Preserve display name, notes, assigned level, side and roster
+dimming unless the reviewed product policy explicitly says otherwise. Distinguish reset from
 healing, reactivation and source refresh. Baselines need a versioned durable owner,
 explicit availability and atomic/retry-safe execution; a partial multi-request
 reset is insufficient.
@@ -43,4 +43,6 @@ recovery offers calculated overnight healing with editable amounts, or full HP.
 All living non-hazard participants start selected.
 Ability toggles and weekly/longer frequencies persist. Source-granted conditions
 stay attached to their abilities. Reset is source-independent; rest uses a guarded
-source revision. Interaction acceptance and final validation remain pending.
+source revision. Interaction review and local Rust/frontend/device validation
+pass. Publication and Linux visual validation remain in progress; Linux references
+require separate Ubuntu capture.

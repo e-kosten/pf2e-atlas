@@ -16,6 +16,8 @@ two additional phone frames. Modal bounds, wrapped choices, recovery anchors and
 source-list geometry remain stable. Sparse glyph-edge raster differences outside
 the headers do not move controls or change content. Linux references require
 separate Ubuntu capture; macOS pixels are not reused for Linux.
+Ordinary comparison with updates disabled passes the 187 other device cases;
+all four life-status cases pass after updating their participant menu interaction.
 
 ## Intrinsic dice-popover recovery references
 
