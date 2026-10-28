@@ -23,7 +23,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | crates/atlas-foundry-model | 11 | 0 | 11 | 0 |
 | crates/atlas-index | 17 | 0 | 17 | 0 |
 | crates/atlas-ingest | 6 | 0 | 6 | 0 |
-| crates/atlas-local-state | 7 | 7 | 0 | 0 |
+| crates/atlas-local-state | 7 | 0 | 7 | 0 |
 | crates/atlas-record | 18 | 0 | 18 | 0 |
 | crates/atlas-runtime | 7 | 0 | 7 | 0 |
 | crates/atlas-search | 15 | 0 | 15 | 0 |
@@ -265,13 +265,13 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [crates/atlas-local-state/src/atomic_action.rs](../../crates/atlas-local-state/src/atomic_action.rs) | pending | — |
-| [crates/atlas-local-state/src/encounters/receipt_codec.rs](../../crates/atlas-local-state/src/encounters/receipt_codec.rs) | pending | — |
-| [crates/atlas-local-state/src/encounters/tests.rs](../../crates/atlas-local-state/src/encounters/tests.rs) | pending | — |
-| [crates/atlas-local-state/src/encounters/turn_resources.rs](../../crates/atlas-local-state/src/encounters/turn_resources.rs) | pending | — |
-| [crates/atlas-local-state/src/parties/tests.rs](../../crates/atlas-local-state/src/parties/tests.rs) | pending | — |
-| [crates/atlas-local-state/src/saved_lists/tests.rs](../../crates/atlas-local-state/src/saved_lists/tests.rs) | pending | — |
-| [crates/atlas-local-state/src/test_support.rs](../../crates/atlas-local-state/src/test_support.rs) | pending | — |
+| [crates/atlas-local-state/src/atomic_action.rs](../../crates/atlas-local-state/src/atomic_action.rs) | changed | Panic rollback now checks the complete retained row set rather than an aggregate sum, preserving exact outer work and rejecting surplus zero-valued rows. Existing nested domain savepoint fault cases remain in party/list/encounter suites. |
+| [crates/atlas-local-state/src/encounters/receipt_codec.rs](../../crates/atlas-local-state/src/encounters/receipt_codec.rs) | changed | Receipt roundtrip now also requires the literal version-1 payload envelope independently of the decoder. Retained rejection of unknown version before interpreting its changed payload and malformed scalar input. |
+| [crates/atlas-local-state/src/encounters/tests.rs](../../crates/atlas-local-state/src/encounters/tests.rs) | mixed | Condition CRUD, duration/lifecycle, condition application/consumption and condition-event behavior excluded and unchanged. Reviewed generic initiative receipts/concurrency/rollback, participant order/revisions, aggregate snapshots, spell resources, difficulty, ability-state persistence, baseline/recovery and failure savepoints. Encounter deletion now checks no participant rows remain, beyond the missing encounter read. |
+| [crates/atlas-local-state/src/encounters/turn_resources.rs](../../crates/atlas-local-state/src/encounters/turn_resources.rs) | changed | Legacy stock decoding must preserve false before_first_turn as well as unknown allocation and exact action stock. This is omitted-field storage compatibility; condition adjustments/allocation mechanics were not reviewed or changed. |
+| [crates/atlas-local-state/src/parties/tests.rs](../../crates/atlas-local-state/src/parties/tests.rs) | reviewed | Real caller transactions and insertion faults prove roster create/update rollback even when committed, stale update/delete protection, stable member keys/order, optional levels and invalid-level preservation. Exact reopened roster remains covered; retained. |
+| [crates/atlas-local-state/src/saved_lists/tests.rs](../../crates/atlas-local-state/src/saved_lists/tests.rs) | changed | Rejected duplicate import leaves no list; removal requires complete remaining cardinality; hydration preserves the actual supplied record/key/position/note and unresolved key. Retained no-op duplicates, metadata/tag rollback, dense/reopened ordering, snapshots, stable keys/slugs and import replacement. |
+| [crates/atlas-local-state/src/test_support.rs](../../crates/atlas-local-state/src/test_support.rs) | mixed | Reviewed real SQLite transaction wrappers plus composed outer rollback, imported identity retention/restrictive foreign keys and owner-scoped slugs. Condition-specific wrapper methods excluded and unchanged; no fake domain implementation or new shared harness added. |
 
 ### crates/atlas-record
 
@@ -696,3 +696,8 @@ Completion requires every inventory entry to have a substantive disposition, eve
 - Initial candidate `cargo test -p atlas-search`: 99 passed, three existing ignored tests. Native BGE prepared-query/filtered paging test passed explicitly against verified assets.
 - The final sweep passed 98 cases and exposed an overly broad new trait expectation: baseline accepts its positive identity, while content methods correctly omit its nonpositive prose. The corrected test now requires literal method-specific key sets and passed its focused rerun. Final dense-window sorting and physical-variant refinements also passed focused reruns; unchanged successful cases were reused.
 - No production changes or skipped failures were used. Corpus navigation checks retain their existing explicit prerequisites. The removed counter measured only the test loop, so it never proved native invocation frequency; actual native retrieval and no-prepared-query FTS/Similar success remain protected.
+
+### Saved-state milestone
+
+- `cargo test -p atlas-local-state`: 66 passed. Condition-specific cases ran unchanged but remain excluded from review.
+- Exact saved rows, versioned receipt framing, physical cascade deletion, rejected-import absence and hydrated values now reject plausible partial results. Existing real-transaction fault and concurrency cases remain intact; no new mutation probe or timing/flake improvement claim is made.
