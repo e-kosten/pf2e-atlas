@@ -348,15 +348,8 @@ mod tests {
 
     #[test]
     fn default_worker_count_uses_parallel_retrieval_lanes() {
-        let (sender, _receiver) = mpsc::sync_channel(1);
-        let executor = RetrievalExecutor {
-            sender,
-            runtime: None,
-            last_read_metrics: Default::default(),
-            submission_budget: Arc::new(Mutex::new(None)),
-            worker_count: DEFAULT_RETRIEVAL_WORKERS,
-            queue_capacity: DEFAULT_RETRIEVAL_QUEUE_CAPACITY,
-        };
+        let runtime = Arc::new(AtlasRuntime::resolve(AtlasRuntimeOptions::default()).unwrap());
+        let executor = RetrievalExecutor::start(runtime).unwrap();
 
         assert!(executor.worker_count() > 1);
     }

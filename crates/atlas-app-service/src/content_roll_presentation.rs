@@ -89,20 +89,22 @@ mod tests {
             ("Counteract", "Counteract", None),
             ("Counteract Check", "Counteract Check", None),
             ("Recharge Breath Weapon", "Recharge Breath Weapon", None),
-            ("hours", "Duration", Some("hours")),
-            ("Rounds", "Duration", Some("rounds")),
+            ("hours", "Duration", Some(("hour", "hours"))),
+            ("Rounds", "Duration", Some(("round", "rounds"))),
             ("Fatigued duration", "Fatigued duration", None),
             ("", "1d20+32", None),
         ] {
             let raw = format!("1d20+32 #{caption}");
             let view = command_presentation(literal_content_roll("r", &raw).unwrap());
             assert_eq!(view.heading, heading);
+            assert_eq!(view.components.len(), 1);
+            assert_eq!(view.components[0].formula, "1d20+32");
             assert_eq!(view.components[0].label, caption);
             assert_eq!(
                 view.components[0]
                     .unit
                     .as_ref()
-                    .map(|unit| unit.plural.as_str()),
+                    .map(|unit| (unit.singular.as_str(), unit.plural.as_str())),
                 expected_unit
             );
         }
@@ -110,19 +112,21 @@ mod tests {
 
     #[test]
     fn damage_heading_preserves_single_type_and_mixed_damage_healing_categories() {
-        for (formula, expected) in [
-            ("1d6[fire]", "Fire damage"),
-            ("1d6[fire],1d4[cold]", "Damage"),
-            ("1d6[vitality,healing]", "Vitality healing"),
-            ("1d6[vitality,healing],1d4[healing]", "Healing"),
-            ("1d6[fire],1d4[vitality,healing]", "Damage and healing"),
+        for (formula, expected, count) in [
+            ("1d6[fire]", "Fire damage", 1),
+            ("1d6[fire],1d4[cold]", "Damage", 2),
+            ("1d6[vitality,healing]", "Vitality healing", 1),
+            ("1d6[vitality,healing],1d4[healing]", "Healing", 2),
+            ("1d6[fire],1d4[vitality,healing]", "Damage and healing", 2),
             (
                 "1d6[vitality,healing,damage],1d4[healing]",
                 "Damage and healing",
+                2,
             ),
         ] {
             let view = damage_presentation(literal_damage(formula).unwrap());
             assert_eq!(view.heading, expected);
+            assert_eq!(view.components.len(), count);
             assert!(view.components.iter().all(|part| part.unit.is_none()));
         }
     }
