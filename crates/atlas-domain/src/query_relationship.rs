@@ -231,10 +231,16 @@ mod tests {
             children: vec![leaf(Some("same")), leaf(Some("same"))],
         });
         assert!(relationship_clauses(&duplicate).is_err());
-        let mut predicate = QueryPredicate::new(QueryExpression::AllOf {
-            children: (0..17).map(|_| leaf(None)).collect(),
-        });
-        assign_relationship_clause_ids(&mut predicate).unwrap();
-        assert!(relationship_clauses(&predicate).is_err());
+        for (leaves, accepted) in [(16, true), (17, false)] {
+            let mut predicate = QueryPredicate::new(QueryExpression::AllOf {
+                children: (0..leaves).map(|_| leaf(None)).collect(),
+            });
+            assign_relationship_clause_ids(&mut predicate).unwrap();
+            assert_eq!(
+                relationship_clauses(&predicate).is_ok(),
+                accepted,
+                "{leaves} leaves"
+            );
+        }
     }
 }

@@ -83,4 +83,14 @@ fn process_admission_and_abrupt_exit_preserve_maintenance_and_data() {
     maintenance
         .publish::<_, rusqlite::Error>(|_| Ok(()))
         .unwrap();
+    drop(maintenance);
+    drop(owner);
+    let read = workspace.read(1).unwrap();
+    assert_eq!(read.reference_revision().unwrap(), 2);
+    assert_eq!(
+        read.connection()
+            .query_row("SELECT title FROM saved", [], |r| r.get::<_, String>(0))
+            .unwrap(),
+        "process write"
+    );
 }
