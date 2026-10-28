@@ -425,15 +425,14 @@ fn inline_content_bounds_large_repeated_prose_and_retains_the_exact_destination(
     assert!(html.contains("Meaningful supplied rules.") && html.contains("Host conclusion."));
     assert!(html.contains("More content is available") && html.contains("Open reference"));
     assert!(html.len() < 280 * 1024, "{} bytes", html.len());
-    assert!(
+    assert_eq!(
         detail
             .relationships
             .iter()
             .filter(|r| r.kind == "embed")
-            .all(|r| r
-                .target
-                .as_ref()
-                .is_some_and(|t| t.record_key == "features:featTarget100000"))
+            .map(|r| r.target.as_ref().map(|target| target.record_key.as_str()))
+            .collect::<Vec<_>>(),
+        vec![Some("features:featTarget100000"); 12]
     );
 }
 

@@ -13,7 +13,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | Subsystem | Files | Pending | Reviewed/changed/mixed | Excluded |
 | --- | ---: | ---: | ---: | ---: |
 | crates/atlas-app-model | 6 | 0 | 6 | 0 |
-| crates/atlas-app-service | 74 | 74 | 0 | 0 |
+| crates/atlas-app-service | 74 | 23 | 35 | 16 |
 | crates/atlas-cli | 23 | 23 | 0 | 0 |
 | crates/atlas-cli-support | 2 | 0 | 2 | 0 |
 | crates/atlas-dev | 7 | 0 | 7 | 0 |
@@ -58,79 +58,79 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [crates/atlas-app-service/src/content_roll.rs](../../crates/atlas-app-service/src/content_roll.rs) | pending | — |
-| [crates/atlas-app-service/src/content_roll_presentation.rs](../../crates/atlas-app-service/src/content_roll_presentation.rs) | pending | — |
-| [crates/atlas-app-service/src/contextual_content_tests.rs](../../crates/atlas-app-service/src/contextual_content_tests.rs) | pending | — |
-| [crates/atlas-app-service/src/contextual_references.rs](../../crates/atlas-app-service/src/contextual_references.rs) | pending | — |
-| [crates/atlas-app-service/src/discovery.rs](../../crates/atlas-app-service/src/discovery.rs) | pending | — |
-| [crates/atlas-app-service/src/embedded_reading_tests.rs](../../crates/atlas-app-service/src/embedded_reading_tests.rs) | pending | — |
-| [crates/atlas-app-service/src/encounters/casting_reminders.rs](../../crates/atlas-app-service/src/encounters/casting_reminders.rs) | pending | — |
-| [crates/atlas-app-service/src/encounters/condition_events.rs](../../crates/atlas-app-service/src/encounters/condition_events.rs) | pending | — |
+| [crates/atlas-app-service/src/content_roll.rs](../../crates/atlas-app-service/src/content_roll.rs) | changed | Reference damage results now require every literal label/formula in order; inline command results require one component and the exact offered formula. Retained repeated stateless requests, range checks and stale/policy/context rejection. |
+| [crates/atlas-app-service/src/content_roll_presentation.rs](../../crates/atlas-app-service/src/content_roll_presentation.rs) | changed | Added component cardinality and exact command formula; duration units require both singular and plural. Retained authored captions and distinct damage/healing heading partitions. |
+| [crates/atlas-app-service/src/contextual_content_tests.rs](../../crates/atlas-app-service/src/contextual_content_tests.rs) | reviewed | Selected rank, checked passage, item/actor namespaces and symbolic foreign inclusions already have independent formula/HTML expectations and stale-context rejection; retained. |
+| [crates/atlas-app-service/src/contextual_references.rs](../../crates/atlas-app-service/src/contextual_references.rs) | reviewed | Verified canonical citation vs local spell navigation, two provenance sources, conflicting/missing provenance and no-inline eligibility. Rank preservation and owned-content isolation are distinct regressions; retained. |
+| [crates/atlas-app-service/src/discovery.rs](../../crates/atlas-app-service/src/discovery.rs) | reviewed | Unknown executable operators fail with InternalError and the operator name instead of an invented operand; retained alongside real-catalog operand coverage in filters.rs. |
+| [crates/atlas-app-service/src/embedded_reading_tests.rs](../../crates/atlas-app-service/src/embedded_reading_tests.rs) | changed | Table pages now require every literal result body, exact second-page bounds and unique identities across both pages. Retained finite 32-entry batches, late targeting, group-before-page order, bounded fields, unavailable cache and generation/fingerprint guards. |
+| [crates/atlas-app-service/src/encounters/casting_reminders.rs](../../crates/atlas-app-service/src/encounters/casting_reminders.rs) | excluded | Condition-derived casting restrictions and adjudication advice are excluded; unchanged. |
+| [crates/atlas-app-service/src/encounters/condition_events.rs](../../crates/atlas-app-service/src/encounters/condition_events.rs) | excluded | Condition mutation, derived HP loss, grants and immunity lifecycle are excluded; unchanged. |
 | [crates/atlas-app-service/src/encounters/difficulty/tests.rs](../../crates/atlas-app-service/src/encounters/difficulty/tests.rs) | pending | — |
-| [crates/atlas-app-service/src/encounters/event_execution.rs](../../crates/atlas-app-service/src/encounters/event_execution.rs) | pending | — |
-| [crates/atlas-app-service/src/encounters/hp.rs](../../crates/atlas-app-service/src/encounters/hp.rs) | pending | — |
+| [crates/atlas-app-service/src/encounters/event_execution.rs](../../crates/atlas-app-service/src/encounters/event_execution.rs) | reviewed | Reviewed generic receipt replay and guard ordering with empty prepared changes; one evaluation despite stale reference retry, no evaluation on invalid revisions/intent. No condition evaluation cases changed. |
+| [crates/atlas-app-service/src/encounters/hp.rs](../../crates/atlas-app-service/src/encounters/hp.rs) | reviewed | Integer input grammar has independent signed/grouped totals, correction floor, byte/depth boundaries and intermediate-overflow rejection; retained. Condition/HP lifecycle is reviewed separately or excluded. |
 | [crates/atlas-app-service/src/encounters/hp_events.rs](../../crates/atlas-app-service/src/encounters/hp_events.rs) | pending | — |
 | [crates/atlas-app-service/src/encounters/hp_tests.rs](../../crates/atlas-app-service/src/encounters/hp_tests.rs) | pending | — |
 | [crates/atlas-app-service/src/encounters/initiative_tests.rs](../../crates/atlas-app-service/src/encounters/initiative_tests.rs) | pending | — |
-| [crates/atlas-app-service/src/encounters/persistent_damage_tests.rs](../../crates/atlas-app-service/src/encounters/persistent_damage_tests.rs) | pending | — |
+| [crates/atlas-app-service/src/encounters/persistent_damage_tests.rs](../../crates/atlas-app-service/src/encounters/persistent_damage_tests.rs) | excluded | Persistent-damage condition lifecycle and recovery are excluded; unchanged. |
 | [crates/atlas-app-service/src/encounters/recovery.rs](../../crates/atlas-app-service/src/encounters/recovery.rs) | pending | — |
 | [crates/atlas-app-service/src/encounters/recovery_tests.rs](../../crates/atlas-app-service/src/encounters/recovery_tests.rs) | pending | — |
 | [crates/atlas-app-service/src/encounters/reference_tests.rs](../../crates/atlas-app-service/src/encounters/reference_tests.rs) | pending | — |
-| [crates/atlas-app-service/src/encounters/rules/applicability.rs](../../crates/atlas-app-service/src/encounters/rules/applicability.rs) | pending | — |
-| [crates/atlas-app-service/src/encounters/rules/capabilities.rs](../../crates/atlas-app-service/src/encounters/rules/capabilities.rs) | pending | — |
-| [crates/atlas-app-service/src/encounters/rules/causes.rs](../../crates/atlas-app-service/src/encounters/rules/causes.rs) | pending | — |
-| [crates/atlas-app-service/src/encounters/rules/condition_effects.rs](../../crates/atlas-app-service/src/encounters/rules/condition_effects.rs) | pending | — |
+| [crates/atlas-app-service/src/encounters/rules/applicability.rs](../../crates/atlas-app-service/src/encounters/rules/applicability.rs) | excluded | Condition immunity/applicability policy is excluded; unchanged. |
+| [crates/atlas-app-service/src/encounters/rules/capabilities.rs](../../crates/atlas-app-service/src/encounters/rules/capabilities.rs) | excluded | Condition action restrictions, allotments and casting capabilities are excluded; unchanged. |
+| [crates/atlas-app-service/src/encounters/rules/causes.rs](../../crates/atlas-app-service/src/encounters/rules/causes.rs) | excluded | Condition maintained grants and lifetime policy are excluded; unchanged. |
+| [crates/atlas-app-service/src/encounters/rules/condition_effects.rs](../../crates/atlas-app-service/src/encounters/rules/condition_effects.rs) | excluded | Condition rule arithmetic and selector effects are excluded; unchanged. |
 | [crates/atlas-app-service/src/encounters/rules/damage.rs](../../crates/atlas-app-service/src/encounters/rules/damage.rs) | pending | — |
-| [crates/atlas-app-service/src/encounters/rules/effective_immunities.rs](../../crates/atlas-app-service/src/encounters/rules/effective_immunities.rs) | pending | — |
-| [crates/atlas-app-service/src/encounters/rules/lifecycle.rs](../../crates/atlas-app-service/src/encounters/rules/lifecycle.rs) | pending | — |
+| [crates/atlas-app-service/src/encounters/rules/effective_immunities.rs](../../crates/atlas-app-service/src/encounters/rules/effective_immunities.rs) | excluded | Generated/native condition immunity projection is excluded; unchanged. |
+| [crates/atlas-app-service/src/encounters/rules/lifecycle.rs](../../crates/atlas-app-service/src/encounters/rules/lifecycle.rs) | excluded | Condition recovery/reminder planning is excluded; unchanged. |
 | [crates/atlas-app-service/src/encounters/rules/modifiers.rs](../../crates/atlas-app-service/src/encounters/rules/modifiers.rs) | pending | — |
-| [crates/atlas-app-service/src/encounters/rules/numerical_tests.rs](../../crates/atlas-app-service/src/encounters/rules/numerical_tests.rs) | pending | — |
-| [crates/atlas-app-service/src/encounters/rules/persistent_damage.rs](../../crates/atlas-app-service/src/encounters/rules/persistent_damage.rs) | pending | — |
-| [crates/atlas-app-service/src/encounters/rules/projection.rs](../../crates/atlas-app-service/src/encounters/rules/projection.rs) | pending | — |
-| [crates/atlas-app-service/src/encounters/rules/senses.rs](../../crates/atlas-app-service/src/encounters/rules/senses.rs) | pending | — |
+| [crates/atlas-app-service/src/encounters/rules/numerical_tests.rs](../../crates/atlas-app-service/src/encounters/rules/numerical_tests.rs) | excluded | Condition numerical and behavioral projection regressions are excluded; unchanged. |
+| [crates/atlas-app-service/src/encounters/rules/persistent_damage.rs](../../crates/atlas-app-service/src/encounters/rules/persistent_damage.rs) | excluded | Persistent-damage condition precedence and recovery are excluded; unchanged. |
+| [crates/atlas-app-service/src/encounters/rules/projection.rs](../../crates/atlas-app-service/src/encounters/rules/projection.rs) | excluded | Condition modifier and contextual projection is excluded; unchanged. |
+| [crates/atlas-app-service/src/encounters/rules/senses.rs](../../crates/atlas-app-service/src/encounters/rules/senses.rs) | excluded | Condition-dependent sensory availability is excluded; unchanged. |
 | [crates/atlas-app-service/src/encounters/rules/source_ability_state.rs](../../crates/atlas-app-service/src/encounters/rules/source_ability_state.rs) | pending | — |
-| [crates/atlas-app-service/src/encounters/rules/source_conditions.rs](../../crates/atlas-app-service/src/encounters/rules/source_conditions.rs) | pending | — |
+| [crates/atlas-app-service/src/encounters/rules/source_conditions.rs](../../crates/atlas-app-service/src/encounters/rules/source_conditions.rs) | excluded | Condition source adapters, predicates and grant activation are excluded; unchanged. |
 | [crates/atlas-app-service/src/encounters/rules/source_facts.rs](../../crates/atlas-app-service/src/encounters/rules/source_facts.rs) | pending | — |
 | [crates/atlas-app-service/src/encounters/rules/spell_damage_tests.rs](../../crates/atlas-app-service/src/encounters/rules/spell_damage_tests.rs) | pending | — |
 | [crates/atlas-app-service/src/encounters/spell_tests.rs](../../crates/atlas-app-service/src/encounters/spell_tests.rs) | pending | — |
-| [crates/atlas-app-service/src/encounters/strike_context.rs](../../crates/atlas-app-service/src/encounters/strike_context.rs) | pending | — |
+| [crates/atlas-app-service/src/encounters/strike_context.rs](../../crates/atlas-app-service/src/encounters/strike_context.rs) | excluded | Test specifically exercises condition-adjusted attack context; excluded and unchanged. |
 | [crates/atlas-app-service/src/encounters/strike_roll.rs](../../crates/atlas-app-service/src/encounters/strike_roll.rs) | pending | — |
 | [crates/atlas-app-service/src/encounters/tests.rs](../../crates/atlas-app-service/src/encounters/tests.rs) | pending | — |
 | [crates/atlas-app-service/src/encounters/timing_tests.rs](../../crates/atlas-app-service/src/encounters/timing_tests.rs) | pending | — |
 | [crates/atlas-app-service/src/encounters/turn_resource_tests.rs](../../crates/atlas-app-service/src/encounters/turn_resource_tests.rs) | pending | — |
-| [crates/atlas-app-service/src/encounters/workflow.rs](../../crates/atlas-app-service/src/encounters/workflow.rs) | pending | — |
-| [crates/atlas-app-service/src/executor.rs](../../crates/atlas-app-service/src/executor.rs) | pending | — |
-| [crates/atlas-app-service/src/executor_abandonment_tests.rs](../../crates/atlas-app-service/src/executor_abandonment_tests.rs) | pending | — |
-| [crates/atlas-app-service/src/executor_lifetime_tests.rs](../../crates/atlas-app-service/src/executor_lifetime_tests.rs) | pending | — |
-| [crates/atlas-app-service/src/filters.rs](../../crates/atlas-app-service/src/filters.rs) | pending | — |
-| [crates/atlas-app-service/src/flat_check.rs](../../crates/atlas-app-service/src/flat_check.rs) | pending | — |
-| [crates/atlas-app-service/src/inline_content_tests.rs](../../crates/atlas-app-service/src/inline_content_tests.rs) | pending | — |
-| [crates/atlas-app-service/src/party_tests.rs](../../crates/atlas-app-service/src/party_tests.rs) | pending | — |
-| [crates/atlas-app-service/src/physical_labels.rs](../../crates/atlas-app-service/src/physical_labels.rs) | pending | — |
-| [crates/atlas-app-service/src/prepared_content.rs](../../crates/atlas-app-service/src/prepared_content.rs) | pending | — |
-| [crates/atlas-app-service/src/presentation/hazard_readouts.rs](../../crates/atlas-app-service/src/presentation/hazard_readouts.rs) | pending | — |
-| [crates/atlas-app-service/src/presentation/spell_changes.rs](../../crates/atlas-app-service/src/presentation/spell_changes.rs) | pending | — |
-| [crates/atlas-app-service/src/presentation/spell_context.rs](../../crates/atlas-app-service/src/presentation/spell_context.rs) | pending | — |
-| [crates/atlas-app-service/src/presentation/spell_effect/tests.rs](../../crates/atlas-app-service/src/presentation/spell_effect/tests.rs) | pending | — |
-| [crates/atlas-app-service/src/presentation/spell_forms.rs](../../crates/atlas-app-service/src/presentation/spell_forms.rs) | pending | — |
-| [crates/atlas-app-service/src/presentation/spell_rank.rs](../../crates/atlas-app-service/src/presentation/spell_rank.rs) | pending | — |
-| [crates/atlas-app-service/src/presentation/tests.rs](../../crates/atlas-app-service/src/presentation/tests.rs) | pending | — |
-| [crates/atlas-app-service/src/projection.rs](../../crates/atlas-app-service/src/projection.rs) | pending | — |
-| [crates/atlas-app-service/src/read_execution.rs](../../crates/atlas-app-service/src/read_execution.rs) | pending | — |
+| [crates/atlas-app-service/src/encounters/workflow.rs](../../crates/atlas-app-service/src/encounters/workflow.rs) | excluded | Tests cover relative condition subjects and immunity overrides; excluded and unchanged. |
+| [crates/atlas-app-service/src/executor.rs](../../crates/atlas-app-service/src/executor.rs) | changed | Default-lane test now invokes the real executor startup instead of constructing a test object with its own expected defaults. Retained queue-busy metadata, minimum lane count and synchronized real concurrency test. |
+| [crates/atlas-app-service/src/executor_abandonment_tests.rs](../../crates/atlas-app-service/src/executor_abandonment_tests.rs) | reviewed | Real bounded admission, release gates and callback counts distinguish queued abandonment, preadmission cancellation and projection cancellation; later live reads prove workers remain usable. Retained. |
+| [crates/atlas-app-service/src/executor_lifetime_tests.rs](../../crates/atlas-app-service/src/executor_lifetime_tests.rs) | reviewed | Publication read sees replacement generation/name and startup-failure/panic cases require started workers to release retained resources; retained. |
+| [crates/atlas-app-service/src/filters.rs](../../crates/atlas-app-service/src/filters.rs) | reviewed | Real executable catalog is checked against an independent full operand map, repair remains available after invalid requests, and control narrowing does not remove metadata. Explicit text-scope and single-operand admission cases retained. |
+| [crates/atlas-app-service/src/flat_check.rs](../../crates/atlas-app-service/src/flat_check.rs) | changed | Checks require returned DC and literal 1d20 formula as well as range and outcome comparison. Retained guaranteed success/failure DC extremes and invalid bounds. |
+| [crates/atlas-app-service/src/inline_content_tests.rs](../../crates/atlas-app-service/src/inline_content_tests.rs) | changed | Large-prose inclusion case now requires all twelve exact destinations, closing an empty/partial relationship-list pass. Kept independent nesting/cycle/options/depth/count/HTML/visibility budgets and binding-source cases. |
+| [crates/atlas-app-service/src/party_tests.rs](../../crates/atlas-app-service/src/party_tests.rs) | reviewed | Source-free party snapshots retain duplicate-name identity, order and levels after party edits/deletion; stale/empty/deleted additions and invalid/foreign edits preserve state. Retained. |
+| [crates/atlas-app-service/src/physical_labels.rs](../../crates/atlas-app-service/src/physical_labels.rs) | changed | Replaced inequality between two projected labels with independent literal one-hand, two-hand and firearm-attachment labels; retained special hand choices and homebrew fallback. |
+| [crates/atlas-app-service/src/prepared_content.rs](../../crates/atlas-app-service/src/prepared_content.rs) | reviewed | Sidecar tests require contextual value plus both source-section and passage markers while preserving authored input. Plain escaping is exact and bounded content has no misleading metadata; retained. |
+| [crates/atlas-app-service/src/presentation/hazard_readouts.rs](../../crates/atlas-app-service/src/presentation/hazard_readouts.rs) | changed | Added actual zero input to the zero/unknown/overflow test; independent expected values remain explicit. Public projection tests separately cover effective and unresolved hazard statistics. |
+| [crates/atlas-app-service/src/presentation/spell_changes.rs](../../crates/atlas-app-service/src/presentation/spell_changes.rs) | reviewed | Exact component identifiers, base values, interval explanations and absence of markers for prose-only, unchanged or unavailable replacements protect distinct provenance rules; retained. |
+| [crates/atlas-app-service/src/presentation/spell_context.rs](../../crates/atlas-app-service/src/presentation/spell_context.rs) | changed | Rank-override table now requires its spell visitor to execute exactly once, so missing traversal cannot silently pass. Retained invalid/null/precedence and automatic/base-rank expectations. |
+| [crates/atlas-app-service/src/presentation/spell_effect/tests.rs](../../crates/atlas-app-service/src/presentation/spell_effect/tests.rs) | reviewed | Read-only rank preview tests have literal bracket statistics, independent choices and range/ability qualifiers; malformed/actor-dependent forms expose no invented facts. Source/destination and localized-name cases retained; no condition lifecycle work. |
+| [crates/atlas-app-service/src/presentation/spell_forms.rs](../../crates/atlas-app-service/src/presentation/spell_forms.rs) | reviewed | Form-specific scaling has literal damage/kinds/base marker, sort order and source immutability; unsupported changes preserve authored patch with a local reason. Retained. |
+| [crates/atlas-app-service/src/presentation/spell_rank.rs](../../crates/atlas-app-service/src/presentation/spell_rank.rs) | changed | Interval case now covers base/before/at/after first step and second completed step with literal damage/area values. Fixed layers, null clears, source preservation, unsafe patches and arithmetic overflow remain distinct. |
+| [crates/atlas-app-service/src/presentation/tests.rs](../../crates/atlas-app-service/src/presentation/tests.rs) | changed | Classification now uses literal expected product text and unsupported PC maximum HP requires NotApplicable with no value rather than merely differing from zero. Retained authored presence, rank, physical/profile, bounded navigation, hazard and rich-prerequisite partitions. |
+| [crates/atlas-app-service/src/projection.rs](../../crates/atlas-app-service/src/projection.rs) | changed | Compact effect labels require two outcomes instead of vacuous all checks; snapshot-local navigation fingerprints use an independent expected rule instead of the production helper. Retained source identity, citation and explicit-label partitions. |
+| [crates/atlas-app-service/src/read_execution.rs](../../crates/atlas-app-service/src/read_execution.rs) | reviewed | Tracked clones share abandonment while uncancellable context remains usable; public service/executor tests additionally protect admission and resource effects. Retained. |
 | [crates/atlas-app-service/src/related_tests.rs](../../crates/atlas-app-service/src/related_tests.rs) | pending | — |
 | [crates/atlas-app-service/src/relationship_discovery_tests.rs](../../crates/atlas-app-service/src/relationship_discovery_tests.rs) | pending | — |
-| [crates/atlas-app-service/src/relationship_search.rs](../../crates/atlas-app-service/src/relationship_search.rs) | pending | — |
-| [crates/atlas-app-service/src/result_order.rs](../../crates/atlas-app-service/src/result_order.rs) | pending | — |
-| [crates/atlas-app-service/src/result_order_tests.rs](../../crates/atlas-app-service/src/result_order_tests.rs) | pending | — |
+| [crates/atlas-app-service/src/relationship_search.rs](../../crates/atlas-app-service/src/relationship_search.rs) | reviewed | Infrastructure failures keep exact code/message instead of becoming unavailable selection metadata; public discovery/page tests own selection and generation scenarios. Retained. |
+| [crates/atlas-app-service/src/result_order.rs](../../crates/atlas-app-service/src/result_order.rs) | reviewed | Literal unit-price outputs protect zero, fraction, decimal shifting and adjacent largest exact copper values; retained alongside real service sorting tests. |
+| [crates/atlas-app-service/src/result_order_tests.rs](../../crates/atlas-app-service/src/result_order_tests.rs) | changed | Random saved-list order now requires complete active membership without duplicates, plus existing deterministic seeds and exact unresolved tail. Kept temporary sorting/state preservation, edition preference, unit-price body-free projection and pre-inference validation cases. |
 | [crates/atlas-app-service/src/search_match_sections.rs](../../crates/atlas-app-service/src/search_match_sections.rs) | pending | — |
 | [crates/atlas-app-service/src/search_pages/tests.rs](../../crates/atlas-app-service/src/search_pages/tests.rs) | pending | — |
-| [crates/atlas-app-service/src/service.rs](../../crates/atlas-app-service/src/service.rs) | pending | — |
-| [crates/atlas-app-service/src/service_abandonment_tests.rs](../../crates/atlas-app-service/src/service_abandonment_tests.rs) | pending | — |
-| [crates/atlas-app-service/src/service_lifetime_tests.rs](../../crates/atlas-app-service/src/service_lifetime_tests.rs) | pending | — |
+| [crates/atlas-app-service/src/service.rs](../../crates/atlas-app-service/src/service.rs) | reviewed | Actual pooled startup without an artifact reports Blocked, does not create the path and rejects reading. Retained with command-mode lifetime and abandonment coverage. |
+| [crates/atlas-app-service/src/service_abandonment_tests.rs](../../crates/atlas-app-service/src/service_abandonment_tests.rs) | reviewed | Public search and both discovery modes prove cancellation before lazy workspace opening or callback entry; file absence is an explicit forbidden side effect. Retained. |
+| [crates/atlas-app-service/src/service_lifetime_tests.rs](../../crates/atlas-app-service/src/service_lifetime_tests.rs) | reviewed | Command publication reads change generation/title while preserving saved encounters; source-free commands and stored Gemma Similar/readiness work without model assets. Send/Sync is an intentional ownership contract; retained. |
 | [crates/atlas-app-service/src/similarity.rs](../../crates/atlas-app-service/src/similarity.rs) | pending | — |
-| [crates/atlas-app-service/src/source_consumer_tests.rs](../../crates/atlas-app-service/src/source_consumer_tests.rs) | pending | — |
-| [crates/atlas-app-service/src/table_roll.rs](../../crates/atlas-app-service/src/table_roll.rs) | pending | — |
-| [crates/atlas-app-service/src/traits.rs](../../crates/atlas-app-service/src/traits.rs) | pending | — |
+| [crates/atlas-app-service/src/source_consumer_tests.rs](../../crates/atlas-app-service/src/source_consumer_tests.rs) | changed | Table availability requires explicit None/empty/single cardinalities; actor child projection loop requires both children; large saved-list read requires every ordered identity and resolved title across the 1024-item batch boundary; vocabulary requires literal values and absent selection retention. Kept stale navigation, preparation/summary budgets, repair and import/export regressions. |
+| [crates/atlas-app-service/src/table_roll.rs](../../crates/atlas-app-service/src/table_roll.rs) | changed | Both overlapping results require their distinct prepared bodies and invalid-range output requires the exact result identity. Retained repeated non-consuming rolls, gap, inclusive boundaries and stale-generation admission. |
+| [crates/atlas-app-service/src/traits.rs](../../crates/atlas-app-service/src/traits.rs) | reviewed | Unknown definitions expose no invented source/content, associations enforce generation and embedded membership selects the literal owner without tagging the parent. Retained. |
 | [crates/atlas-app-service/tests/source_ability_state.rs](../../crates/atlas-app-service/tests/source_ability_state.rs) | pending | — |
 
 ### crates/atlas-cli
@@ -701,3 +701,8 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 - `cargo test -p atlas-local-state`: 66 passed. Condition-specific cases ran unchanged but remain excluded from review.
 - Exact saved rows, versioned receipt framing, physical cascade deletion, rejected-import absence and hydrated values now reject plausible partial results. Existing real-transaction fault and concurrency cases remain intact; no new mutation probe or timing/flake improvement claim is made.
+
+### Application reading, presentation and execution milestone
+
+- Broad `cargo test -p atlas-app-service --lib`: 469 passed, one existing corpus test ignored. Final refinements passed focused reruns: 69 presentation, ten projection, ten executor, four order and sixteen source-consumer tests. The remaining application workflow files are still pending; a passing broad suite does not mark them reviewed.
+- Changes require exact formulas, labels, page bodies, batch identities and vocabulary values. The default-worker check now exercises real startup. Conditional lifecycle cases remain excluded and unchanged. No production mutation probe or speed/flake claim is made for this milestone.

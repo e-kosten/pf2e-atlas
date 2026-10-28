@@ -603,10 +603,12 @@ mod tests {
         let mut repeated = first.clone();
         repeated.ordinal = 1;
         let single = relationship_views(vec![first.clone(), repeated.clone()], "snapshot");
-        assert!(
+        assert_eq!(
             single
                 .iter()
-                .all(|v| v.effect_label.as_ref().unwrap().text == "Effect")
+                .map(|v| v.effect_label.as_ref().unwrap().text.as_str())
+                .collect::<Vec<_>>(),
+            ["Effect", "Effect"]
         );
 
         let second =
@@ -635,10 +637,12 @@ mod tests {
                 }),
             }
             let views = relationship_views(vec![first.clone(), separate], "snapshot");
-            assert!(
+            assert_eq!(
                 views
                     .iter()
-                    .all(|v| v.effect_label.as_ref().unwrap().text == "Effect")
+                    .map(|v| v.effect_label.as_ref().unwrap().text.as_str())
+                    .collect::<Vec<_>>(),
+                ["Effect", "Effect"]
             );
         }
     }
@@ -665,16 +669,22 @@ mod tests {
     fn relationship_source_navigation_preserves_actual_occurrence_not_incoming_seed() {
         let source_key: atlas_domain::RecordKey = "actors:aaaaaaaaaaaaaaaa".parse().unwrap();
         let seed_key: atlas_domain::RecordKey = "items:bbbbbbbbbbbbbbbb".parse().unwrap();
-        for owners in [
-            vec![],
-            vec![OwnedContentLocator {
-                collection: "items".into(),
-                identity: OwnedContentIdentity::Stable("cccccccccccccccc".into()),
-            }],
-            vec![OwnedContentLocator {
-                collection: "items".into(),
-                identity: OwnedContentIdentity::SnapshotLocal { index: 4 },
-            }],
+        for (owners, expected_fingerprint) in [
+            (vec![], None),
+            (
+                vec![OwnedContentLocator {
+                    collection: "items".into(),
+                    identity: OwnedContentIdentity::Stable("cccccccccccccccc".into()),
+                }],
+                None,
+            ),
+            (
+                vec![OwnedContentLocator {
+                    collection: "items".into(),
+                    identity: OwnedContentIdentity::SnapshotLocal { index: 4 },
+                }],
+                Some("current-generation"),
+            ),
         ] {
             for ordinal in [0, 3] {
                 let locator = SourceContentLocator {
@@ -708,7 +718,7 @@ mod tests {
                 );
                 assert_eq!(
                     view.source_navigation.source_fingerprint,
-                    navigation_fingerprint(&owners, "current-generation")
+                    expected_fingerprint.map(str::to_owned)
                 );
                 assert!(view.source_navigation.passage.is_none());
                 assert_eq!(view.ordinal, ordinal);

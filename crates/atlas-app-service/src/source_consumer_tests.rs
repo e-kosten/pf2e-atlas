@@ -107,16 +107,17 @@ fn saved_list_reorder_keeps_unresolved_records_and_export_import_order() {
 #[test]
 fn table_results_preserve_collection_states_and_have_one_authoritative_list() {
     use atlas_domain::QueryFieldState;
-    for (results, expected) in [
-        (None, QueryFieldState::Missing),
-        (Some(json!(null)), QueryFieldState::Null),
-        (Some(json!(42)), QueryFieldState::Invalid),
-        (Some(json!([])), QueryFieldState::Value),
+    for (results, expected, expected_count) in [
+        (None, QueryFieldState::Missing, None),
+        (Some(json!(null)), QueryFieldState::Null, None),
+        (Some(json!(42)), QueryFieldState::Invalid, None),
+        (Some(json!([])), QueryFieldState::Value, Some(0)),
         (
             Some(
                 json!([{"_id":"aaaaaaaaaaaaaaaa","type":"text","range":[0,0],"weight":0,"description":"Zero result"}]),
             ),
             QueryFieldState::Value,
+            Some(1),
         ),
     ] {
         let mut table = json!({"_id":"table00000000000","name":"Table","formula":""});
@@ -138,6 +139,7 @@ fn table_results_preserve_collection_states_and_have_one_authoritative_list() {
             panic!("table")
         };
         assert_eq!(body.results.state, expected);
+        assert_eq!(body.results.value.as_ref().map(Vec::len), expected_count);
         assert!(detail.presentation.owned.is_empty());
         assert_eq!(body.formula.value.as_deref(), Some(""));
         if let Some(links) = body.results.value
@@ -285,12 +287,13 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
     );
     assert_eq!(equipment.bulk.value, Some(1.into()));
     let actor = f.worker.record_detail("actors:actor00000000000").unwrap();
-    for activity in actor_body(&actor.presentation)
+    let activities = actor_body(&actor.presentation)
         .activities
         .value
         .as_ref()
-        .unwrap()
-    {
+        .unwrap();
+    assert_eq!(activities.len(), 2);
+    for activity in activities {
         if activity.kind == ActorActivityKindView::Spell {
             assert!(activity.action_cost.value.is_some());
             assert!(activity.usage.is_none());
@@ -663,7 +666,24 @@ fn saved_lists_over_1024_batch_summaries_preserve_missing_snapshots_and_export_o
         .unwrap();
     let list = f.worker.saved_list("large-list").unwrap();
     let metrics = f.worker.last_read_metrics();
-    assert_eq!(list.items.len(), 1031);
+    assert_eq!(
+        list.items
+            .iter()
+            .map(|item| item.record_key.clone())
+            .collect::<Vec<_>>(),
+        (0..1031)
+            .map(|index| format!("actions:{index:016}"))
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        list.items[..1030]
+            .iter()
+            .map(|item| item.record.as_ref().unwrap().title.clone())
+            .collect::<Vec<_>>(),
+        (0..1030)
+            .map(|index| format!("Action {index}"))
+            .collect::<Vec<_>>()
+    );
     assert_eq!(metrics.source_body_decodes, 0);
     assert_eq!(metrics.summary_batches, 2);
     assert_eq!(list.items[1030].status, SavedListItemStatusView::Unresolved);
@@ -1106,25 +1126,25 @@ fn vocabulary_uses_artifact_or_saved_membership_without_search_conditions_or_cou
             })
             .unwrap();
     }
-    for (scope, count) in [
-        (FilterVocabularyScope::Artifact, 2),
+    for (scope, expected) in [
+        (FilterVocabularyScope::Artifact, vec!["cold", "fire"]),
         (
             FilterVocabularyScope::SavedList {
                 list_ref: "fire-list".into(),
             },
-            1,
+            vec!["fire"],
         ),
         (
             FilterVocabularyScope::SavedList {
                 list_ref: "empty-list".into(),
             },
-            0,
+            vec![],
         ),
         (
             FilterVocabularyScope::SavedList {
                 list_ref: "unresolved-list".into(),
             },
-            0,
+            vec![],
         ),
     ] {
         let response = f
@@ -1151,9 +1171,22 @@ fn vocabulary_uses_artifact_or_saved_membership_without_search_conditions_or_cou
             panic!("explicit vocabulary response")
         };
         assert_eq!(actual_scope, scope);
-        assert_eq!(values.total_values, count);
-        assert_eq!(values.options.len(), count as usize);
-        assert_eq!(values.selected_values.len(), 1);
+        assert_eq!(values.total_values, expected.len() as u64);
+        assert_eq!(
+            values
+                .options
+                .iter()
+                .map(|option| option.value.clone())
+                .collect::<Vec<_>>(),
+            expected
+                .into_iter()
+                .map(|value| atlas_domain::QueryLiteral::String(value.into()))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            values.selected_values,
+            [atlas_domain::QueryLiteral::String("selected-absent".into())]
+        );
         let encoded = serde_json::to_value(values).unwrap().to_string();
         assert!(!encoded.contains("distinct_roots"));
     }

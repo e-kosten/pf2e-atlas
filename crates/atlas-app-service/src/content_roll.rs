@@ -149,8 +149,18 @@ mod tests {
         };
         for _ in 0..2 {
             let result = fixture.worker.roll_content(request.clone()).unwrap();
-            assert_eq!(result.components.len(), 3);
-            assert_eq!(result.components[0].label, "bludgeoning damage");
+            assert_eq!(
+                result
+                    .components
+                    .iter()
+                    .map(|part| (part.label.as_str(), part.outcome.formula.as_str()))
+                    .collect::<Vec<_>>(),
+                [
+                    ("bludgeoning damage", "4d8+10"),
+                    ("fire damage", "1d6"),
+                    ("cold damage", "2")
+                ]
+            );
             assert!((14..=42).contains(&result.components[0].outcome.total));
             assert!((1..=6).contains(&result.components[1].outcome.total));
             assert_eq!(result.components[2].outcome.total, 2);
@@ -227,7 +237,9 @@ mod tests {
             };
             assert_eq!(request.authored_command.as_deref(), Some(*mode));
             let result = fixture.worker.roll_content(request.clone()).unwrap();
+            assert_eq!(result.components.len(), 1);
             assert_eq!(result.components[0].label, "rounds");
+            assert_eq!(result.components[0].outcome.formula, "2d6+3");
             assert!((5..=15).contains(&result.components[0].outcome.total));
             let mut changed = request.clone();
             changed.authored_command = Some("different".into());
