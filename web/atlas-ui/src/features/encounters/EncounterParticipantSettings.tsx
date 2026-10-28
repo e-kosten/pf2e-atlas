@@ -166,7 +166,7 @@ function ParticipantSettingsForm({
       {error && (
         <ErrorNotice
           error={error}
-          title="Participant could not be saved"
+          title="Participant changes could not be confirmed"
           description={error}
         />
       )}

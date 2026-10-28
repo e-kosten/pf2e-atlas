@@ -173,7 +173,11 @@ export function EncounterPersistentRecovery({
           <div ref={panel} className="atlas-dice-popover">
             {dice.error && <ErrorNotice error={dice.error} title={dice.error} />}
             {error && (
-              <ErrorNotice error={error} title="Recovery failed" description={error} />
+              <ErrorNotice
+                error={error}
+                title="Recovery could not be confirmed"
+                description={error}
+              />
             )}
             {changed && !result && (
               <Alert

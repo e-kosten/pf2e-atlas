@@ -2765,7 +2765,9 @@ describe("encounter views", () => {
     fireEvent.change(note, { target: { value: "My note" } });
     await clickConditionApply();
     await waitFor(() =>
-      expect(screen.getAllByText("Condition action failed").length).toBeGreaterThan(0),
+      expect(
+        screen.getAllByText("Condition change could not be confirmed").length,
+      ).toBeGreaterThan(0),
     );
     expect(note).toHaveValue("My note");
     expect(screen.getByRole("button", { name: "Apply" })).toBeInTheDocument();

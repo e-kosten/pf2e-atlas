@@ -353,7 +353,7 @@ function RecoveryContent({
       {dice.error && (
         <ErrorNotice
           error={dice.error}
-          title="Recovery failed"
+          title="Recovery could not be confirmed"
           description={dice.error}
         />
       )}

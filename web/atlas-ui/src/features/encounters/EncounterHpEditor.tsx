@@ -54,7 +54,7 @@ export function EncounterHpEditor({
       {error && (
         <ErrorNotice
           error={error}
-          title="HP could not be updated"
+          title="HP update could not be confirmed"
           description={error}
         />
       )}

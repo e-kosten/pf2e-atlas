@@ -135,7 +135,7 @@ export function EncounterTurnReview({
       {actionError && (
         <ErrorNotice
           error={actionError}
-          title="Turn action failed"
+          title="Turn action could not be confirmed"
           description={actionError}
         />
       )}

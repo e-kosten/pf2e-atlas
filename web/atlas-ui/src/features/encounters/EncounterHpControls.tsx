@@ -172,7 +172,7 @@ export function EncounterHpControls({
       {error && !editorOpen && (
         <ErrorNotice
           error={error}
-          title="HP could not be updated"
+          title="HP update could not be confirmed"
           description={error}
         />
       )}

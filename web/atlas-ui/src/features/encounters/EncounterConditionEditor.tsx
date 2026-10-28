@@ -311,7 +311,7 @@ export function EncounterConditionEditor({
       {error && (
         <ErrorNotice
           error={error}
-          title="Condition action failed"
+          title="Condition change could not be confirmed"
           description={error}
         />
       )}

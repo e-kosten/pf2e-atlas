@@ -195,7 +195,7 @@ export function EditEncounterForm({
       {error && (
         <ErrorNotice
           error={error}
-          title="Encounter action failed"
+          title="Encounter change could not be confirmed"
           description={error}
         />
       )}

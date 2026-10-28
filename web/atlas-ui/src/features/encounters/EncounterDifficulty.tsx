@@ -275,7 +275,10 @@ function DifficultyReference({
           <p>Enter party level and size, or add PCs.</p>
         )}
         {saveError && (
-          <ErrorNotice error={saveError} title="Difficulty could not be saved" />
+          <ErrorNotice
+            error={saveError}
+            title="Difficulty change could not be confirmed"
+          />
         )}
         {!valid && (
           <p role="alert">
