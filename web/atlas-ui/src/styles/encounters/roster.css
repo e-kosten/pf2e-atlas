@@ -230,6 +230,16 @@
 
 .encounter-roster__row--dimmed .encounter-roster__name,
 .encounter-roster__row--dimmed .encounter-roster__hp {
-  color: var(--muted);
+  color: var(--roster-dimmed-text, var(--text-dimmed));
   font-weight: 400;
+  opacity: 1;
+}
+
+.encounter-roster__row--current.encounter-roster__row--dimmed {
+  --roster-dimmed-text: color-mix(in srgb, var(--text) 75%, var(--selection-bg));
+}
+
+.encounter-roster__dimmed-icon {
+  margin-inline-end: 6px;
+  vertical-align: -0.125em;
 }

@@ -252,7 +252,7 @@ export function EncounterRecoveryModal({
           <p className="encounter-recovery__intro">
             {rest
               ? "8 hours of rest and daily preparations."
-              : "Restore HP, initiative, adjustments, conditions and resources to their creation values."}
+              : "Restore HP, initiative, adjustments, conditions and resources to their original values."}
           </p>
           {rest && preview.data?.rules_reference && (
             <EncounterOriginalRecord

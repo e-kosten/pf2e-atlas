@@ -76,6 +76,7 @@ export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
     // Badge ink needs more contrast against its neutral pill background.
     "--comparison-reference-badge-text": `color-mix(in srgb, ${token.colorText} ${scheme === "light" ? 68 : 54}%, ${token.colorBgContainer})`,
     "--comparison-selected-bg": `color-mix(in srgb, ${token.controlItemBgActive} 35%, ${token.colorBgContainer})`,
+    "--text-dimmed": `color-mix(in srgb, ${token.colorText} ${scheme === "dark" ? 60 : 65}%, ${token.colorBgContainer})`,
     "--line": token.colorBorderSecondary,
     "--split": token.colorSplit,
     "--primary": token.colorPrimary,

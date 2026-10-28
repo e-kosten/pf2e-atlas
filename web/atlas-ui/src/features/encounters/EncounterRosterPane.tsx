@@ -253,7 +253,16 @@ export function EncounterRosterPane({
               }
               onClick={() => onSelect(participant.participant_key)}
             >
-              <span className="encounter-roster__name">{participant.display_name}</span>
+              <span className="encounter-roster__name">
+                {participant.hidden && (
+                  <EyeOff
+                    className="encounter-roster__dimmed-icon"
+                    size={14}
+                    aria-hidden="true"
+                  />
+                )}
+                {participant.display_name}
+              </span>
               {participant.hazard_disabled && (
                 <span className="encounter-roster__state">Disabled</span>
               )}
