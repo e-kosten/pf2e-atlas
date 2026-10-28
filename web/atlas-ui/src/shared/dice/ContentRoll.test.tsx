@@ -242,7 +242,7 @@ it("retains type labels that distinguish multiple damage components", async () =
     }),
   );
   await screen.findByRole("dialog", { name: "Damage" });
-  await screen.findAllByRole("status", { name: "4d8+10: 28" });
+  expect(await screen.findAllByRole("status", { name: "4d8+10: 28" })).toHaveLength(2);
   expect(screen.getByText("fire damage", { exact: true })).toBeVisible();
   expect(screen.getByText("cold damage", { exact: true })).toBeVisible();
 });

@@ -639,9 +639,6 @@ it("blocks selection and form actions while Add is pending, preserving the draft
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
   );
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
-  );
   view.setDisabled(true);
   expect(screen.getByRole("searchbox")).toBeDisabled();
   expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
@@ -661,6 +658,7 @@ it("distinguishes failed retrieval from empty results and retries the same reque
   fireEvent.click(screen.getByRole("button", { name: "Retry search" }));
   expect(await screen.findByRole("link", { name: /Ghoul/ })).toBeInTheDocument();
   expect(search).toHaveBeenCalledTimes(2);
+  expect(search.mock.calls[1][0]).toEqual(search.mock.calls[0][0]);
 });
 it("adopts generation once and explicitly refreshes conflicts without clearing candidate or form", async () => {
   const { client } = renderPicker();
@@ -773,7 +771,7 @@ it("applies reloaded B parts once while preserving the picker candidate and unsa
   expect(search.mock.calls[1][1]?.aborted).toBe(true);
   await act(async () => {
     finishOld(result("Old A"));
-    await new Promise((resolve) => setTimeout(resolve, 350));
+    await oldPage;
   });
   expect(screen.queryByRole("link", { name: /Old A/ })).toBeNull();
   expect(screen.queryByRole("button", { name: "Refresh results" })).toBeNull();
