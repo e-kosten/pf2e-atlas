@@ -465,12 +465,17 @@ export function EncounterConditionEditor({
                   frightenedMinimum: 0,
                   brokenThreshold: undefined,
                 });
+                const timedStunned =
+                  selected?.supports_duration_instead_of_value &&
+                  (form.getFieldValue("durationUnit") ?? "none") !== "none";
+                form.setFieldValue("stunMode", timedStunned ? "duration" : "value");
                 form.setFields([
                   {
                     name: "value",
-                    value: selected?.has_value
-                      ? Number(selected.default_value ?? 1n)
-                      : undefined,
+                    value:
+                      selected?.has_value && !timedStunned
+                        ? Number(selected.default_value ?? 1n)
+                        : undefined,
                     errors: [],
                   },
                 ]);
