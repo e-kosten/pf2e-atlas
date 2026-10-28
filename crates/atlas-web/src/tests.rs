@@ -33,7 +33,6 @@ use serde_json::{Value, json};
 use tower::ServiceExt;
 
 use super::assets::WebAssets;
-use super::error::status_for_error;
 use super::router::router_with_state;
 use super::service::{AtlasWebService, AtlasWebState, call_service};
 
@@ -133,52 +132,51 @@ async fn matching_contract_reaches_the_service() {
     );
 }
 
-#[test]
-fn app_error_codes_map_to_expected_http_statuses() {
-    assert_eq!(
-        status_for_error(AppErrorCode::InvalidRequest),
-        StatusCode::BAD_REQUEST
-    );
-    assert_eq!(
-        status_for_error(AppErrorCode::RecordResolutionMiss),
-        StatusCode::BAD_REQUEST
-    );
-    assert_eq!(
-        status_for_error(AppErrorCode::RecordResolutionAmbiguous),
-        StatusCode::BAD_REQUEST
-    );
-    assert_eq!(
-        status_for_error(AppErrorCode::ArtifactGenerationChanged),
-        StatusCode::CONFLICT
-    );
-    assert_eq!(
-        status_for_error(AppErrorCode::SavedListNotFound),
-        StatusCode::NOT_FOUND
-    );
-    assert_eq!(
-        status_for_error(AppErrorCode::SavedListAlreadyExists),
-        StatusCode::CONFLICT
-    );
-    assert_eq!(
-        status_for_error(AppErrorCode::ArtifactNotReady),
-        StatusCode::UNPROCESSABLE_ENTITY
-    );
-    assert_eq!(
-        status_for_error(AppErrorCode::VectorReadinessRequired),
-        StatusCode::SERVICE_UNAVAILABLE
-    );
-    assert_eq!(
-        status_for_error(AppErrorCode::ServiceBusy),
-        StatusCode::SERVICE_UNAVAILABLE
-    );
-    assert_eq!(
-        status_for_error(AppErrorCode::InternalError),
-        StatusCode::INTERNAL_SERVER_ERROR
-    );
-    assert_eq!(
-        status_for_error(AppErrorCode::QueryFailed),
-        StatusCode::INTERNAL_SERVER_ERROR
-    );
+#[tokio::test]
+async fn app_errors_preserve_their_identity_and_details_in_http_responses() {
+    for (code, expected) in [
+        (AppErrorCode::InvalidRequest, StatusCode::BAD_REQUEST),
+        (AppErrorCode::RecordResolutionMiss, StatusCode::BAD_REQUEST),
+        (
+            AppErrorCode::RecordResolutionAmbiguous,
+            StatusCode::BAD_REQUEST,
+        ),
+        (
+            AppErrorCode::ArtifactGenerationChanged,
+            StatusCode::CONFLICT,
+        ),
+        (AppErrorCode::SavedListNotFound, StatusCode::NOT_FOUND),
+        (AppErrorCode::SavedListAlreadyExists, StatusCode::CONFLICT),
+        (
+            AppErrorCode::ArtifactNotReady,
+            StatusCode::UNPROCESSABLE_ENTITY,
+        ),
+        (
+            AppErrorCode::VectorReadinessRequired,
+            StatusCode::SERVICE_UNAVAILABLE,
+        ),
+        (AppErrorCode::ServiceBusy, StatusCode::SERVICE_UNAVAILABLE),
+        (
+            AppErrorCode::OperationCancelled,
+            StatusCode::REQUEST_TIMEOUT,
+        ),
+        (AppErrorCode::OperationTimeout, StatusCode::REQUEST_TIMEOUT),
+        (
+            AppErrorCode::InternalError,
+            StatusCode::INTERNAL_SERVER_ERROR,
+        ),
+        (AppErrorCode::QueryFailed, StatusCode::INTERNAL_SERVER_ERROR),
+    ] {
+        let mut error = atlas_app_model::AppError::new(code, "Request could not complete")
+            .with_details(json!({"request_id": "request-42"}));
+        error.retryable = Some(false);
+        let response = super::error::WebError(error.clone()).into_response();
+        assert_eq!(response.status(), expected, "{code:?}");
+        assert_eq!(response.headers()["content-type"], "application/json");
+        let (_, body) = response_json(response).await;
+        let actual: atlas_app_model::AppError = serde_json::from_value(body).unwrap();
+        assert_eq!(actual, error, "{code:?}");
+    }
 }
 
 #[tokio::test]
