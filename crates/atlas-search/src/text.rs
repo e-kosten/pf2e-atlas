@@ -548,8 +548,16 @@ mod excerpt_tests {
         );
         let input = "créature ".repeat(40);
         let excerpt = reading_excerpt(&input);
-        assert!(excerpt.ends_with("créature…"));
-        assert!(excerpt.chars().count() <= 241);
-        assert!(!reading_excerpt("Complete short sentence.").ends_with('…'));
+        assert_eq!(excerpt, format!("{}…", ["créature"; 26].join(" ")));
+        assert_eq!(
+            reading_excerpt("Complete short sentence."),
+            "Complete short sentence."
+        );
+        for (length, expected) in [
+            (240, "🐉".repeat(240)),
+            (241, format!("{}…", "🐉".repeat(240))),
+        ] {
+            assert_eq!(reading_excerpt(&"🐉".repeat(length)), expected);
+        }
     }
 }

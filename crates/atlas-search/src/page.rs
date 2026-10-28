@@ -107,9 +107,11 @@ mod tests {
 
     #[test]
     fn search_page_derives_offset() {
-        let page = SearchPage::new(3, 25).expect("page should be valid");
-
-        assert_eq!(page.offset().expect("offset should fit"), 50);
+        for (number, size, offset) in [(1, 1, 0), (3, 25, 50), (u32::MAX, 1, u32::MAX - 1)] {
+            let page = SearchPage::new(number, size).unwrap();
+            assert_eq!(page.offset().unwrap(), offset);
+        }
+        assert!(SearchPage::new(u32::MAX, 2).unwrap().offset().is_err());
     }
 
     #[test]
@@ -122,14 +124,27 @@ mod tests {
 
     #[test]
     fn search_page_info_reports_next_page_from_consumed_results() {
-        let page = SearchPage::new(2, 10).expect("page should be valid");
-        let info = SearchPageInfo::from_page(page, 10, 25).expect("page info should resolve");
-
-        assert_eq!(info.number, 2);
-        assert_eq!(info.size, 10);
-        assert_eq!(info.count, 10);
-        assert_eq!(info.total, 25);
-        assert!(info.has_more);
-        assert_eq!(info.next_page, Some(3));
+        for (number, count, total, next_page) in [
+            (1, 0, 0, None),
+            (2, 10, 25, Some(3)),
+            (3, 5, 25, None),
+            (4, 0, 25, None),
+        ] {
+            let page = SearchPage::new(number, 10).unwrap();
+            let info = SearchPageInfo::from_page(page, count, total).unwrap();
+            assert_eq!(
+                info,
+                SearchPageInfo {
+                    number,
+                    size: 10,
+                    count,
+                    total,
+                    has_more: next_page.is_some(),
+                    next_page,
+                }
+            );
+        }
+        let last = SearchPage::new(u32::MAX, 1).unwrap();
+        assert!(SearchPageInfo::from_page(last, 1, u64::from(u32::MAX) + 1).is_err());
     }
 }
