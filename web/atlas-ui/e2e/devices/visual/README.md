@@ -5,6 +5,18 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Encounter settings and participant title alignment
+
+macOS arm64, Playwright 1.62.1, product source
+`97075725` (including UI commit `0070fcbf`): all 12 condition-refinement capture
+cases pass. The 40 macOS references show the compact encounter cog, participant
+settings cog and optically aligned title/classification. Parent reviewed desktop
+diffs; independent Astra reviewed before/after pairs across all four projects and
+two additional phone frames. Modal bounds, wrapped choices, recovery anchors and
+source-list geometry remain stable. Sparse glyph-edge raster differences outside
+the headers do not move controls or change content. Linux references require
+separate Ubuntu capture; macOS pixels are not reused for Linux.
+
 ## Intrinsic dice-popover recovery references
 
 PR128's shared intrinsic sizing changes the recovery popover width and content
