@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQueryClient, type QueryKey } from "@tanstack/react-query";
 import type { RecordNavigationView } from "../../generated/atlas";
 import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
+import { recordNavigationIdentity } from "./recordNavigationIdentity";
 
 // Rank is a view parameter, not a different source document. Keep every other
 // address dimension: embedded copies and source generations must never borrow data.
@@ -9,13 +10,10 @@ export function recordReadingIdentity(
   recordKey: string | null,
   selection?: RecordNavigationView,
 ) {
-  return JSON.stringify([
+  return recordNavigationIdentity(
     recordKey,
-    selection?.embedded_path ?? [],
-    selection?.field ?? null,
-    selection?.passage ?? null,
-    selection?.source_fingerprint ?? null,
-  ]);
+    selection ? { ...selection, spell_rank: undefined } : undefined,
+  );
 }
 
 export function useRetainedRecord<T>(

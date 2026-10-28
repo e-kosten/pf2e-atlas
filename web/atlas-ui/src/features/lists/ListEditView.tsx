@@ -16,7 +16,6 @@ import {
   normalizeOptionalText,
   normalizeTags,
   savedListTagOptions,
-  slugify,
 } from "./listUtils";
 import { useSavedLists } from "./savedListQueries";
 import { formatDate } from "../../shared/ui/formatDate";
@@ -135,7 +134,7 @@ export function ListEditView({ route }: ListEditViewProps) {
               onFinish={(values) =>
                 update.mutate({
                   list_key: list.data!.list.list_key,
-                  slug: slugify(values.name),
+                  slug: list.data!.list.slug,
                   name: values.name,
                   description: normalizeOptionalText(values.description),
                   tags: normalizeTags(values.tags),
@@ -148,14 +147,6 @@ export function ListEditView({ route }: ListEditViewProps) {
                 validateFirst
                 rules={[
                   { required: true, whitespace: true, message: "Name is required." },
-                  {
-                    validator: (_, value: string | undefined) =>
-                      value === undefined || slugify(value).length > 0
-                        ? Promise.resolve()
-                        : Promise.reject(
-                            new Error("Use at least one letter or number."),
-                          ),
-                  },
                 ]}
               >
                 <Input />

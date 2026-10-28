@@ -1,3 +1,4 @@
+import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { LinkFilterControls } from "../../shared/filters/LinkFilterControls";
 import { linkLeaf } from "../../shared/filters/linkPredicates";
@@ -61,9 +62,15 @@ it("changes direction while preserving exact scope and target", async () => {
 it("offers the exact native target and reuses the picker for changing it", async () => {
   const { edit } = setup();
   fireEvent.click(screen.getByRole("button", { name: /Links to Leather Armor/ }));
+  const target = new URL(
+    (await screen.findByRole("link", { name: "Open Leather Armor" })).getAttribute(
+      "href",
+    )!,
+    "http://atlas.local",
+  );
   expect(
-    await screen.findByRole("link", { name: "Open Leather Armor" }),
-  ).toHaveAttribute("href", expect.stringContaining("selection="));
+    selectedNavigation(parseSearchParams(target.search), "equipment:secret-id"),
+  ).toEqual(leaf.relationship.selection);
   fireEvent.click(screen.getByRole("button", { name: "Change record" }));
   expect(edit).toHaveBeenCalledWith(leaf);
 });

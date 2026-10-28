@@ -3,73 +3,37 @@ import { createBrowserHistory } from "@tanstack/react-router";
 import { StrictMode, useState } from "react";
 import { renderHook, waitFor } from "@testing-library/react";
 import {
+  DEFAULT_SEARCH_STATE,
   buildSearchRequest,
   decodeSearchStateFromParams,
-  encodeSearchExecutionState,
+  hasExecutableSearch,
   type SearchFormState,
 } from "./searchState";
 import { encodeFilterUrl } from "./filterUrl";
-import { FILTER_URL_RESET_NOTICE, useFilterUrlRecovery } from "./useFilterUrlRecovery";
-
-const info = vi.hoisted(() => vi.fn());
-vi.mock("antd", async (original) => {
-  const actual = await original<typeof import("antd")>();
-  return {
-    ...actual,
-    App: Object.assign(actual.App, { useApp: () => ({ message: { info } }) }),
-  };
-});
+import { useFilterUrlRecovery } from "./useFilterUrlRecovery";
 
 beforeEach(() => {
-  vi.clearAllMocks();
   history.replaceState(null, "", "/search");
 });
 
 it.each(["2.obsolete", "3.broken", "", "4.future"])(
-  "recovers unreadable filter %s while retaining independent criteria",
+  "blocks all execution and discards criteria for unreadable filter %s",
   (filter) => {
     const state = decodeSearchStateFromParams(
       new URLSearchParams({
         q: "armor",
+        similar: "actors:seed",
         filter,
         ranking: "rrf",
         sort: "name_asc",
         limit: "50",
       }),
     );
-    expect(state).toMatchObject({
-      query: "armor",
-      ranking: "rrf",
-      filter: null,
-      filterError: null,
-      filterWasReset: true,
-      pageSize: 50,
-      sort: { kind: "attributes", rules: [{ field: "name", direction: "asc" }] },
-    });
-    const { filterWasReset: _reset, ...clean } = state;
-    expect(buildSearchRequest(state, 1)).toEqual(buildSearchRequest(clean, 1));
-    expect(encodeSearchExecutionState(state)).toBe(encodeSearchExecutionState(clean));
+    expect(state).toEqual({ ...DEFAULT_SEARCH_STATE, filterWasReset: true });
+    expect(hasExecutableSearch(state)).toBe(false);
+    expect(() => buildSearchRequest(state, 1)).toThrow("must be reset");
   },
 );
-
-it("retains Similar, independent validation failures, and saved-list scope", () => {
-  const state = decodeSearchStateFromParams(
-    new URLSearchParams({
-      similar: "actors:seed",
-      filter: "2.old",
-      ranking: "unknown",
-      sort: "saved_order",
-    }),
-    "saved_list",
-  );
-  expect(state).toMatchObject({
-    similarSeed: "actors:seed",
-    filter: null,
-    filterWasReset: true,
-    filterError: "Unknown search ranking",
-    sort: { kind: "saved_order" },
-  });
-});
 
 it("keeps decoded predicates for backend validation instead of dropping unavailable fields", () => {
   const filter = {
@@ -85,43 +49,56 @@ it("keeps decoded predicates for backend validation instead of dropping unavaila
   expect(state.filterWasReset).toBeUndefined();
 });
 
-it("clears the whole ambiguous legacy expression instead of salvaging a current clause", () => {
+it("treats conflicting filter duplicates as unreadable but accepts equal duplicates", () => {
+  const filter = encodeFilterUrl({ kind: "boolean_constant", value: false });
+  expect(
+    decodeSearchStateFromParams(new URLSearchParams({ filter })).filterWasReset,
+  ).toBeUndefined();
+  expect(
+    decodeSearchStateFromParams(
+      new URLSearchParams([
+        ["filter", filter],
+        ["filter", filter],
+      ]),
+    ).filterWasReset,
+  ).toBeUndefined();
+  expect(
+    decodeSearchStateFromParams(
+      new URLSearchParams([
+        ["filter", filter],
+        ["filter", "2.old"],
+      ]),
+    ),
+  ).toEqual({ ...DEFAULT_SEARCH_STATE, filterWasReset: true });
+});
+
+it("rejects the whole ambiguous retired expression", () => {
   const state = decodeSearchStateFromParams(
     new URLSearchParams({
       filter: encodeFilterUrl({ kind: "boolean_constant", value: false }),
       relationships: "old-secret-reference",
     }),
   );
-  expect(state).toMatchObject({
-    filter: null,
-    filterWasReset: true,
-    filterError: null,
-  });
-  expect(JSON.stringify(state)).not.toContain("old-secret-reference");
+  expect(state).toEqual({ ...DEFAULT_SEARCH_STATE, filterWasReset: true });
 });
 
 it.each(["/search/records/items:chosen", "/lists/my-list/records/items:chosen"])(
-  "cleans only filter transport at %s, retains reading/history, and notifies once in StrictMode",
+  "replaces %s with empty Search and one transient notice in StrictMode",
   async (path) => {
     const params = new URLSearchParams({
       filter: "2.obsolete",
-      relationships: "old-secret",
       q: "armor",
-      selection: '{"record_key":"items:chosen","embedded_path":[]}',
-      landing: '{"field":"description"}',
+      rank: "4",
       search_profile: "chosen-profile",
       sort: "random",
       seed: "0",
       limit: "50",
       ranking: "rrf",
-      other: "retained",
+      page: "9",
+      record_view: "explore",
     });
     atlasRouter.update({ history: createBrowserHistory() });
-    history.replaceState(
-      { atlasSearchPage: 9, atlasOwnerOrigin: { recordKey: "items:chosen" } },
-      "",
-      path + "?" + params + "#section",
-    );
+    history.replaceState(null, "", path + "?" + params + "#section");
     atlasRouter.updateLatestLocation();
     const initialLength = history.length;
     const restored = decodeSearchStateFromParams(params);
@@ -133,27 +110,18 @@ it.each(["/search/records/items:chosen", "/lists/my-list/records/items:chosen"])
       },
       { wrapper: StrictMode },
     );
-    await waitFor(() => expect(result.current.filterWasReset).toBeUndefined());
-    await waitFor(() =>
-      expect(new URLSearchParams(location.search).has("filter")).toBe(false),
-    );
-    expect(location.pathname).toBe(path);
-    expect(location.hash).toBe("#section");
-    const current = new URLSearchParams(location.search);
-    params.delete("filter");
-    params.delete("relationships");
-    expect([...current]).toEqual([...params]);
+    await waitFor(() => expect(result.current).toEqual(DEFAULT_SEARCH_STATE));
+    expect(location.pathname).toBe("/search");
+    expect(location.search).toBe("");
+    expect(location.hash).toBe("");
     expect(history.length).toBe(initialLength);
     expect(history.state).toMatchObject({
-      atlasSearchPage: 1,
-      atlasOwnerOrigin: { recordKey: "items:chosen" },
+      atlasSearchReset: expect.any(String),
+      atlasFilterResetNotice: true,
     });
-    expect(info).toHaveBeenCalledExactlyOnceWith({
-      key: "filter-url-reset",
-      content: FILTER_URL_RESET_NOTICE,
-    });
+    const token = history.state.atlasSearchReset;
     rerender();
-    expect(info).toHaveBeenCalledTimes(1);
+    expect(history.state.atlasSearchReset).toBe(token);
   },
 );
 
@@ -169,6 +137,5 @@ it("never clears a decoded backend or validation error", () => {
   const recover = vi.fn();
   renderHook(() => useFilterUrlRecovery(search, recover));
   expect(recover).not.toHaveBeenCalled();
-  expect(info).not.toHaveBeenCalled();
   expect(location.search).toBe("?" + params);
 });

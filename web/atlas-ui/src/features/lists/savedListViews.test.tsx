@@ -1,4 +1,5 @@
 import { RouterTestContext } from "../../test/router";
+import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import type { ResultSort } from "../../generated/atlas";
 import {
   detailFixture,
@@ -21,6 +22,8 @@ import {
 import type { ReactNode } from "react";
 import type {
   RecordDetailView,
+  RecordDetailRequest,
+  RecordNavigationView,
   SavedListDetailView,
   SavedListIndexView,
   DiscoverFilterValuesRequest,
@@ -29,7 +32,7 @@ import type {
 import { useFilterVocabulary } from "../../shared/filters/useFilterDiscovery";
 import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
 import { useSavedListFilterDiscovery } from "./useSavedListFilters";
-import { AddToListButton } from "./AddToListButton";
+import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { ListDetailView } from "./ListDetailView";
 import { ListEditView } from "./ListEditView";
 import { ListIndexView } from "./ListIndexView";
@@ -144,7 +147,7 @@ describe("list views", () => {
     apiMocks.updateSavedList.mockResolvedValue({
       list: {
         list_key: "list_research",
-        slug: "renamed-research",
+        slug: "research",
         name: "Renamed Research",
         description: "Updated prep",
         tags: ["arc-one"],
@@ -606,6 +609,118 @@ describe("list views", () => {
     expect(apiMocks.discoverFilterCounts).not.toHaveBeenCalled();
   });
 
+  it("restores an exact list address and rank changes for the same selected member", async () => {
+    const key = "actions:testAction1";
+    const selection: RecordNavigationView = {
+      record_key: key,
+      embedded_path: [{ collection: "/items", identity: { Stable: "ability-one" } }],
+      field: "/system/description/value",
+      passage: { kind: "identity" },
+      source_fingerprint: null,
+      spell_rank: 0,
+    };
+    apiMocks.getRecordDetail.mockImplementation(
+      async (recordKey: string, request?: RecordDetailRequest) => ({
+        ...recordDetailFixture(recordKey),
+        selected: request
+          ? {
+              record_key: recordKey,
+              embedded_path: request.embedded_path,
+              field: request.fields[0] ?? null,
+              passage: request.passage,
+              source_fingerprint: request.source_fingerprint,
+              spell_rank: request.spell_rank,
+            }
+          : recordDetailFixture(recordKey).selected,
+      }),
+    );
+    const route = { slug: "research", selectedRecordKey: key, selection };
+    const view = render(<ListDetailView route={route} />, {
+      wrapper: queryClientWrapper(),
+    });
+    await waitFor(() =>
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        key,
+        {
+          record_key: key,
+          embedded_path: selection.embedded_path,
+          fields: [selection.field],
+          passage: selection.passage,
+          source_fingerprint: null,
+          spell_rank: 0,
+        },
+        expect.any(AbortSignal),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Open full page" })).toHaveAttribute(
+        "href",
+        expect.stringContaining("rank=0"),
+      ),
+    );
+    view.rerender(
+      <ListDetailView
+        route={{ ...route, selection: { ...selection, spell_rank: 8 } }}
+      />,
+    );
+    await waitFor(() =>
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        key,
+        expect.objectContaining({
+          embedded_path: selection.embedded_path,
+          spell_rank: 8,
+        }),
+        expect.any(AbortSignal),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Open full page" })).toHaveAttribute(
+        "href",
+        expect.stringContaining("rank=8"),
+      ),
+    );
+    expect(apiMocks.removeSavedListItem).not.toHaveBeenCalled();
+  });
+
+  it("restores landing-only changes for the same list member in native full-page links", async () => {
+    const key = "actions:testAction1";
+    const first: RecordNavigationView = {
+      record_key: key,
+      embedded_path: [{ collection: "/items", identity: { Stable: "ability-one" } }],
+      field: null,
+      passage: null,
+      source_fingerprint: null,
+    };
+    const second: RecordNavigationView = {
+      ...first,
+      embedded_path: [{ collection: "/items", identity: { Stable: "ability-two" } }],
+    };
+    const route = { slug: "research", selectedRecordKey: key, landing: first };
+    const view = render(<ListDetailView route={route} />, {
+      wrapper: queryClientWrapper(),
+    });
+    function currentLanding() {
+      const link = screen.getByRole("link", { name: "Open full page" });
+      const url = new URL(link.getAttribute("href")!, location.origin);
+      return selectedNavigation(parseSearchParams(url.search), key, "focus");
+    }
+    await waitFor(() => expect(currentLanding()).toEqual(first));
+    view.rerender(<ListDetailView route={{ ...route, landing: second }} />);
+    await waitFor(() => expect(currentLanding()).toEqual(second));
+    expect(screen.getByRole("link", { name: /Test Action 1/ })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Return to selection" }));
+    await waitFor(() =>
+      expect(window.location.pathname).toBe(
+        "/lists/research/records/actions:testAction1",
+      ),
+    );
+    expect(new URL(window.location.href).searchParams.has("focus")).toBe(false);
+    expect(apiMocks.removeSavedListItem).not.toHaveBeenCalled();
+  });
+
   it("previews references beside the list reader while retaining selection and exact full-page links", async () => {
     history.replaceState(null, "", "/lists/research/actions%3AtestAction1");
     render(
@@ -642,9 +757,7 @@ describe("list views", () => {
       location.origin,
     );
     expect(fullPage.pathname).toBe("/records/rules:nested");
-    expect(JSON.parse(fullPage.searchParams.get("selection")!)).toEqual(
-      detailFixture("rules:nested").selected,
-    );
+    expect(fullPage.search).toBe("");
     fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
     expect(
       await screen.findByRole("heading", { name: "Test Action 1" }),
@@ -662,6 +775,11 @@ describe("list views", () => {
   it.each([false, true])(
     "recovers the same selected reader when an unresolved member becomes active (filtered omission=%s)",
     async (omitWhileBlocked) => {
+      const selection: RecordNavigationView = {
+        ...detailFixture("actions:testAction1").selected,
+        embedded_path: [{ collection: "/items", identity: { Stable: "ability-one" } }],
+        spell_rank: 0,
+      };
       const unresolved = savedListDetailFixture();
       unresolved.items[0] = {
         ...unresolved.items[0],
@@ -677,6 +795,7 @@ describe("list views", () => {
               route={{
                 slug: "research",
                 selectedRecordKey: "actions:testAction1",
+                selection,
               }}
             />
           </App>
@@ -712,10 +831,18 @@ describe("list views", () => {
         "aria-current",
         "true",
       );
+      expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+        "actions:testAction1",
+        expect.objectContaining({
+          embedded_path: selection.embedded_path,
+          spell_rank: 0,
+        }),
+        expect.any(AbortSignal),
+      );
     },
   );
 
-  it("automatically recovers a list filter URL while retaining its query, order and selected member", async () => {
+  it("replaces an unreadable list link with empty Search without requesting broader list data", async () => {
     const query = "?filter=2.obsolete&q=Action&sort=name_asc";
     history.replaceState(
       null,
@@ -739,24 +866,15 @@ describe("list views", () => {
       />,
       { wrapper: queryClientWrapper() },
     );
-    await screen.findByText(
-      "Filters in this link couldn’t be restored and were cleared.",
-    );
-    await screen.findByRole("heading", { name: "Test Action 1" });
-    expect(window.location.pathname).toBe(
-      "/lists/research/records/actions:testAction1",
-    );
-    expect(new URLSearchParams(window.location.search).get("q")).toBe("Action");
-    expect(new URLSearchParams(window.location.search).get("sort")).toBe("name_asc");
-    expect(new URLSearchParams(window.location.search).has("filter")).toBe(false);
+    await waitFor(() => expect(window.location.pathname).toBe("/search"));
+    expect(window.location.search).toBe("");
+    expect(history.state).toMatchObject({
+      atlasFilterResetNotice: true,
+      atlasSearchReset: expect.any(String),
+    });
     expect(history.length).toBe(length);
-    expect(apiMocks.filterSavedList).toHaveBeenCalledWith(
-      expect.objectContaining({
-        list_ref: "research",
-        query: "Action",
-        sort: { kind: "attributes", rules: [{ field: "name", direction: "asc" }] },
-      }),
-    );
+    expect(apiMocks.filterSavedList).not.toHaveBeenCalled();
+    expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
     expect(apiMocks.reorderSavedListItem).not.toHaveBeenCalled();
   });
 
@@ -872,40 +990,41 @@ describe("list views", () => {
     );
   });
 
-  it("edits list metadata and navigates to the updated slug", async () => {
-    render(
-      <ListEditView
-        route={{
+  it.each(["Renamed Research!", "🌙"])(
+    "edits list metadata to %s while preserving its URL",
+    async (name) => {
+      render(
+        <ListEditView
+          route={{
+            slug: "research",
+          }}
+        />,
+        { wrapper: queryClientWrapper() },
+      );
+
+      expect(await screen.findByDisplayValue("Research")).toBeInTheDocument();
+      expect(screen.queryByLabelText("Slug")).not.toBeInTheDocument();
+
+      fireEvent.change(screen.getByLabelText("Name"), {
+        target: { value: name },
+      });
+      fireEvent.change(screen.getByLabelText("Description"), {
+        target: { value: "Updated prep" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() =>
+        expect(apiMocks.updateSavedList).toHaveBeenCalledWith({
+          list_key: "list_research",
           slug: "research",
-        }}
-      />,
-      { wrapper: queryClientWrapper() },
-    );
-
-    expect(await screen.findByDisplayValue("Research")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Slug")).not.toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText("Name"), {
-      target: { value: "Renamed Research!" },
-    });
-    fireEvent.change(screen.getByLabelText("Description"), {
-      target: { value: "Updated prep" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    await waitFor(() =>
-      expect(apiMocks.updateSavedList).toHaveBeenCalledWith({
-        list_key: "list_research",
-        slug: "renamed-research",
-        name: "Renamed Research!",
-        description: "Updated prep",
-        tags: ["arc-one", "boss"],
-      }),
-    );
-    await waitFor(() =>
-      expect(window.location.pathname).toBe("/lists/renamed-research"),
-    );
-  });
+          name,
+          description: "Updated prep",
+          tags: ["arc-one", "boss"],
+        }),
+      );
+      await waitFor(() => expect(window.location.pathname).toBe("/lists/research"));
+    },
+  );
 
   it("deletes lists from the edit page and returns to the list index", async () => {
     render(
@@ -1002,14 +1121,14 @@ describe("list views", () => {
   it("explains the saved-list action on keyboard focus without loading lists", async () => {
     render(
       <ConfigProvider theme={{ token: { motion: false } }}>
-        <AddToListButton recordKey="actions:testAction1" />
+        <AddToRecordButton recordKey="actions:testAction1" />
       </ConfigProvider>,
       { wrapper: queryClientWrapper() },
     );
-    const action = screen.getByRole("button", { name: "Add to saved list" });
+    const action = screen.getByRole("button", { name: "Add to list" });
     act(() => action.focus());
     expect(action).toHaveFocus();
-    expect(await screen.findByRole("tooltip")).toHaveTextContent("Add to saved list");
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Add to list");
     expect(apiMocks.getSavedLists).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     act(() => action.blur());
@@ -1017,11 +1136,11 @@ describe("list views", () => {
   });
 
   it("adds the current record to a selected list", async () => {
-    render(<AddToListButton recordKey="actions:testAction1" />, {
+    render(<AddToRecordButton recordKey="actions:testAction1" />, {
       wrapper: queryClientWrapper(),
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Add to saved list" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
 
     const selector = await screen.findByRole("combobox");
     await waitFor(() => expect(selector).toBeEnabled());
@@ -1031,7 +1150,7 @@ describe("list views", () => {
 
     await waitFor(() =>
       expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
-        list_ref: "research",
+        list_ref: "list_research",
         record_ref: "actions:testAction1",
       }),
     );

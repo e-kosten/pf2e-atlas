@@ -60,6 +60,19 @@ runtime. The original generation-7 preview and generation-6 Similar study remain
 separate. These are implementation and preservation checks; the broader Core
 relevance and decay study has not run.
 
+## Integration with the published workspace history
+
+The retained research and preview artifacts above use unpublished feature-branch
+migration numbers. They are bound to their recorded executables, not portable
+inputs for a newer runtime. After integration with main's stateless strike-roll
+migration, the canonical history is migration 17 for stateless strike rolls,
+18 for Similar metadata, and 19 for Core eligibility. Migrations 1–17 retain
+main's published names and checksums. Do not open an older task artifact with a
+migrating canonical runtime or relabel historical validation as current evidence.
+Fresh workspaces and supported main workspaces follow the canonical migration
+history. A task-only data conversion, if needed for preview continuity, must be
+explicitly recorded separately from product upgrade compatibility.
+
 ## Reanalysis rules
 
 - Read the experiment's protocol and reproduction guide first. Different studies

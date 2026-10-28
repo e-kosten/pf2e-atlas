@@ -185,34 +185,6 @@ impl TestEncounters<'_> {
         transaction.commit()?;
         Ok(())
     }
-    pub fn strike_roll_receipt(
-        &self,
-        key: &str,
-        id: &str,
-        intent: &serde_json::Value,
-    ) -> LocalStateResult<Option<StoredStrikeReceipt>> {
-        let mut connection = self.0.connection()?;
-        let transaction = connection.transaction_with_behavior(TransactionBehavior::Deferred)?;
-        let domain = EncountersRead::from_connection(&transaction);
-        let result = domain.strike_roll_receipt(key, id, intent)?;
-        transaction.commit()?;
-        Ok(result)
-    }
-    pub fn roll_strike(
-        &self,
-        key: &str,
-        id: &str,
-        intent: &serde_json::Value,
-        guard: ParticipantRollGuard<'_>,
-        evaluate: impl FnOnce() -> LocalStateResult<StoredStrikeRoll>,
-    ) -> LocalStateResult<StoredStrikeReceipt> {
-        let mut connection = self.0.connection()?;
-        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let domain = EncountersWrite::from_connection(&transaction);
-        let result = domain.roll_strike(key, id, intent, guard, evaluate)?;
-        transaction.commit()?;
-        Ok(result)
-    }
     pub fn initiative_roll_receipt(
         &self,
         encounter_key: &str,

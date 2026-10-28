@@ -10,6 +10,7 @@ import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import { AtlasApiError } from "../../api/atlasApi";
 import { RecordIdentity } from "../../shared/records/RecordPresentation";
 import { RouterTestContext } from "../../test/router";
+import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import {
   decodeSearchStateFromParams,
   buildSearchRequest,
@@ -106,13 +107,13 @@ beforeEach(() => {
     coverage: null,
   }));
 });
-function setup() {
+function setup(query?: string) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
       <SearchProfileProvider id="embeddinggemma">
         <RouterTestContext>
-          <TraitView route={{ traitKey: "trait:agile" }} />
+          <TraitView route={{ traitKey: "trait:agile", query }} />
         </RouterTestContext>
       </SearchProfileProvider>
     </QueryClientProvider>,
@@ -262,11 +263,11 @@ it("keeps exact embedded membership addresses in native links and navigation", a
   });
   setup();
   const link = await screen.findByRole("link", { name: /Creature.*Trait on Claw/ });
+  const target = new URL(link.getAttribute("href")!, window.location.origin);
+  expect(target.searchParams.has("selection")).toBe(false);
   expect(
-    new URL(link.getAttribute("href")!, window.location.origin).searchParams.get(
-      "selection",
-    ),
-  ).toBe(JSON.stringify(navigation));
+    selectedNavigation(parseSearchParams(target.search), navigation.record_key),
+  ).toEqual(navigation);
   expect(fireEvent.click(link, { metaKey: true })).toBe(true);
   expect(screen.queryByRole("dialog")).toBeNull();
   fireEvent.click(link);
@@ -293,6 +294,33 @@ it("requests stored Similar with the selected profile and no text fallback", asy
     ),
   ).toBe(true);
 });
+
+it.each([undefined, "embeddinggemma", "bge-base"])(
+  "retains explicit profile %s and random ordering across trait tab updates without promoting defaults",
+  async (profile) => {
+    const query =
+      "?tab=similar&sort=random&seed=42" +
+      (profile ? `&search_profile=${profile}` : "");
+    history.replaceState(null, "", "/traits/trait:agile" + query);
+    setup(query);
+    await screen.findByRole("tab", { name: "Similar", selected: true });
+    fireEvent.click(screen.getByRole("tab", { name: "References" }));
+    await waitFor(() => {
+      const params = new URLSearchParams(location.search);
+      expect(params.get("tab")).toBe("references");
+      expect(params.get("search_profile")).toBe(profile ?? null);
+      expect(params.get("sort")).toBe("random");
+      expect(params.get("seed")).toBe("42");
+    });
+    fireEvent.click(screen.getByRole("tab", { name: "Similar" }));
+    await waitFor(() => {
+      const params = new URLSearchParams(location.search);
+      expect(params.get("tab")).toBe("similar");
+      expect(params.get("search_profile")).toBe(profile ?? null);
+      expect(params.get("seed")).toBe("42");
+    });
+  },
+);
 
 it("restores Similar order from its URL and carries it into primary Search", async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

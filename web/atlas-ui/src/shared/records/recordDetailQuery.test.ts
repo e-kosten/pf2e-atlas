@@ -3,6 +3,30 @@ import { recordDetailQueryOptions } from "./recordDetailQuery";
 import type { RecordNavigationView } from "../../generated/atlas";
 
 describe("record detail query identity", () => {
+  it("retains rank zero and takes record identity from the requested path", () => {
+    const selected: RecordNavigationView = {
+      record_key: "spells:other",
+      embedded_path: [],
+      field: null,
+      passage: null,
+      source_fingerprint: null,
+      spell_rank: 0,
+    };
+    const query = recordDetailQueryOptions("spells:cantrip", selected);
+    expect(query.queryKey).toEqual([
+      "record-detail",
+      "spells:cantrip",
+      {
+        record_key: "spells:cantrip",
+        embedded_path: [],
+        fields: [],
+        passage: null,
+        source_fingerprint: null,
+        spell_rank: 0,
+      },
+    ]);
+  });
+
   it("shares a root request and distinguishes every selected address component", () => {
     const root = recordDetailQueryOptions("actors:ghoul");
     expect(root.queryKey).toEqual(["record-detail", "actors:ghoul", null]);

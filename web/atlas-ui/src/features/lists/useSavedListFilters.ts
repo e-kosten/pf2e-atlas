@@ -24,6 +24,7 @@ export function useSavedListFilterDiscovery(listRef: string, filters: SearchForm
   );
   const discovery = useFilterDiscovery({
     context,
+    enabled: !filters.filterWasReset,
     queryKeyPrefix: ["saved-list-filter-discovery", listRef, filterToken],
     vocabularyScope: { kind: "saved_list", list_ref: listRef },
   });

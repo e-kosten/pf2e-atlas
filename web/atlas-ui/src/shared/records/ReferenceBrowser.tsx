@@ -2,6 +2,7 @@ import { Empty, Spin } from "antd";
 import type { ReactNode } from "react";
 import type {
   RelationshipClauseSummaryView,
+  RecordSummaryView,
   SearchResultRow,
 } from "../../generated/atlas";
 import { type BrowsePositions } from "./useBrowsePositions";
@@ -20,7 +21,7 @@ export function ReferenceBrowser({
   onSelect,
   reading,
   resultsHeader,
-  readerActions,
+  recordActions,
   readerStatus,
   onReaderClose,
   emptyMessage = "No matching records",
@@ -43,7 +44,7 @@ export function ReferenceBrowser({
   onSelect: (row: SearchResultRow, request: ReadingRequest) => void;
   reading: ReferenceReading;
   resultsHeader?: ReactNode;
-  readerActions?: ReactNode;
+  recordActions?: (record: RecordSummaryView) => ReactNode;
   readerStatus?: ReactNode;
   onReaderClose?: () => void;
   emptyMessage?: string | null;
@@ -72,7 +73,7 @@ export function ReferenceBrowser({
       resultsLabel="Search results"
       resultsIdentity={rows}
       resultsLoading={loading}
-      readerActions={readerActions}
+      recordActions={recordActions}
       readerStatus={readerStatus}
       onReaderClose={onReaderClose}
       positions={positions}

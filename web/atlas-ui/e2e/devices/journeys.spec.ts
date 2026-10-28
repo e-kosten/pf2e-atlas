@@ -1,3 +1,5 @@
+import { readUrl } from "../readingUrl";
+import { encodeReadingAddress } from "../../src/app/readingUrl";
 import { expect, test } from "./fixtures";
 import type { Page } from "@playwright/test";
 import {
@@ -234,7 +236,7 @@ test("a long saved-list choice stays bounded through a pending and failed Add", 
   });
   let writes = 0;
   try {
-    await page.route(`**/api/lists/${slug}/items`, async (route) => {
+    await page.route(`**/api/lists/${list.list_key}/items`, async (route) => {
       writes += 1;
       await gate;
       await route.fulfill({
@@ -244,11 +246,11 @@ test("a long saved-list choice stays bounded through a pending and failed Add", 
     });
     await page.goto(`/records/${sentinel}`);
     const trigger = page.getByRole("button", {
-      name: "Add to saved list",
+      name: "Add to list or encounter",
       exact: true,
     });
     await activate(trigger, info);
-    const dialog = page.getByRole("dialog", { name: "Add to List", exact: true });
+    const dialog = page.getByRole("dialog", { name: "Add to…", exact: true });
     const selector = dialog.getByRole("combobox", { name: "Saved list", exact: true });
     await expect(selector).toBeEnabled();
     await activate(selector, info);
@@ -256,7 +258,9 @@ test("a long saved-list choice stays bounded through a pending and failed Add", 
     await expect
       .poll(async () => {
         const choice = await option.boundingBox();
-        const field = await dialog.locator(".list-picker").boundingBox();
+        const field = await dialog
+          .locator(".record-destination-picker__select")
+          .boundingBox();
         return choice && field ? field.width - choice.width : Infinity;
       })
       .toBeLessThan(48);
@@ -315,7 +319,7 @@ test("a long saved-list choice stays bounded through a pending and failed Add", 
   }
 });
 
-test("compact filter links reload and recover without losing the selected entry", async ({
+test("compact filter links reload and unreadable links reset to empty idle Search", async ({
   page,
 }) => {
   await page.goto(landedSearch);
@@ -326,26 +330,29 @@ test("compact filter links reload and recover without losing the selected entry"
   await expect(title).toBeVisible();
 
   const broken = new URL(page.url());
-  const retainedLanding = broken.searchParams.get("landing");
   broken.searchParams.set("filter", "2.obsolete");
   broken.searchParams.set("sort", "name_asc");
   broken.searchParams.set("limit", "50");
   await page.goto(broken.href);
   const notice = page.getByText(
-    "Filters in this link couldn’t be restored and were cleared.",
+    "This link couldn’t be restored. Search has been reset.",
     { exact: true },
   );
   await expect(notice).toBeVisible();
-  await expect(title).toBeVisible();
+  await expect(title).toHaveCount(0);
   const recovered = new URL(page.url());
-  expect(recovered.searchParams.has("filter")).toBe(false);
-  expect(recovered.searchParams.get("landing")).toBe(retainedLanding);
-  expect(recovered.searchParams.get("sort")).toBe("name_asc");
-  expect(recovered.searchParams.get("limit")).toBe("50");
+  expect(recovered.pathname).toBe("/search");
+  expect(recovered.search).toBe("");
   await noPageOverflow(page);
+  await page
+    .getByRole("alert")
+    .filter({ hasText: "This link couldn’t be restored. Search has been reset." })
+    .getByRole("button")
+    .click();
+  await expect(notice).toHaveCount(0);
 
   await page.reload();
-  await expect(title).toBeVisible();
+  await expect(title).toHaveCount(0);
   await expect(notice).toHaveCount(0);
   expect(new URL(page.url()).searchParams.has("filter")).toBe(false);
 });
@@ -557,8 +564,8 @@ test("filters, exact late activity, preview dismissal and Results remain usable"
   expect(await page.evaluate(() => scrollY)).toBe(outer);
   const full = page.getByRole("link", { name: "Open full page", exact: true });
   expect(
-    new URL((await full.getAttribute("href"))!, page.url()).searchParams.get("landing"),
-  ).toBe(JSON.stringify(landing));
+    readUrl(new URL((await full.getAttribute("href"))!, page.url()), "focus"),
+  ).toEqual(landing);
   await noPageOverflow(page);
   const results = page.getByRole("button", { name: "Results", exact: true });
   if (await results.isVisible()) {
@@ -633,7 +640,7 @@ test("closing a reference with a feature-action tooltip preserves the owner view
   page,
 }, info) => {
   await page.goto(
-    `/records/${sentinel}?landing=${encodeURIComponent(JSON.stringify(landing))}`,
+    `/records/${sentinel}?focus=${encodeReadingAddress(sentinel, landing, true)}`,
   );
   const host = page.locator(".record-view__pane");
   await expect(host.getByRole("heading", { name: /^Signal Pulse\b/ })).toBeVisible();
@@ -650,10 +657,10 @@ test("closing a reference with a feature-action tooltip preserves the owner view
   await link.press("Enter");
   const drawer = page.getByRole("dialog", { name: "Off-Guard", exact: true });
   await expect(drawer).toBeVisible();
-  const save = drawer.getByRole("button", { name: "Add to saved list", exact: true });
+  const save = drawer.getByRole("button", { name: "Add to list", exact: true });
   await save.focus();
   await save.hover();
-  await expect(page.getByRole("tooltip", { name: "Add to saved list" })).toBeVisible();
+  await expect(page.getByRole("tooltip", { name: "Add to list" })).toBeVisible();
   await page.evaluate(() => {
     const probe = { running: true, widths: [] as number[] };
     (
@@ -722,9 +729,7 @@ test("reference rank menus accept pointer selection and retain their trigger", a
   const href = await drawer
     .getByRole("link", { name: "Open reference full page", exact: true })
     .getAttribute("href");
-  expect(
-    JSON.parse(new URL(href!, page.url()).searchParams.get("selection")!).spell_rank,
-  ).toBe(4);
+  expect(Number(new URL(href!, page.url()).searchParams.get("rank"))).toBe(4);
   await activate(
     drawer.getByRole("button", { name: "Close reference preview", exact: true }),
     info,
@@ -990,11 +995,9 @@ test("encounter references retain their owner, scroll and native destination", a
       name: "Open reference full page",
       exact: true,
     });
-    expect(
-      new URL((await full.getAttribute("href"))!, page.url()).searchParams.get(
-        "selection",
-      ),
-    ).toBe(JSON.stringify(landing));
+    expect(readUrl(new URL((await full.getAttribute("href"))!, page.url()))).toEqual(
+      landing,
+    );
     await expect(full).toBeInViewport();
     await page.screenshot({ path: info.outputPath("preview-toolbar.png") });
     if (!info.project.use.hasTouch) {
@@ -1020,9 +1023,7 @@ test("encounter references retain their owner, scroll and native destination", a
       await expect(
         other.getByRole("heading", { name: /^Signal Pulse\b/ }),
       ).toBeVisible();
-      expect(new URL(other.url()).searchParams.get("selection")).toBe(
-        JSON.stringify(landing),
-      );
+      expect(readUrl(new URL(other.url()))).toEqual(landing);
       await expect(page).toHaveURL(new RegExp(`/encounters/${encounter.slug}$`));
       await other.close();
     }
@@ -1483,4 +1484,332 @@ test("list entry notes stay beneath the reader and removal confirms in place", a
       (await page.request.delete(`/api/lists/${list.list_key}`)).ok(),
     ).toBeTruthy();
   }
+});
+
+test("Search page URLs reload, copy and traverse explicit pagination history", async ({
+  page,
+  context,
+}, info) => {
+  const filter = new URL(landedSearch, "http://localhost").searchParams.get("filter")!;
+  await page.goto(`/search?filter=${encodeURIComponent(filter)}&limit=5&page=4`);
+  const current = page.getByRole("textbox", { name: "Current page", exact: true });
+  await expect(current).toHaveValue("4");
+  const next = page.getByRole("button", { name: "Next page", exact: true });
+  await expect(next).toBeEnabled();
+  await activate(next, info);
+  await expect(page).toHaveURL((url) => url.searchParams.get("page") === "5");
+  await expect(current).toHaveValue("5");
+  await expect(next).toBeEnabled();
+  const copied = page.url();
+  await page.goBack();
+  await expect(current).toHaveValue("4");
+  await expect(page).toHaveURL((url) => url.searchParams.get("page") === "4");
+  await page.goForward();
+  await expect(current).toHaveValue("5");
+  await page.reload();
+  await expect(current).toHaveValue("5");
+  const other = await context.newPage();
+  await other.goto(copied);
+  await expect(
+    other.getByRole("textbox", { name: "Current page", exact: true }),
+  ).toHaveValue("5");
+  await other.close();
+  await noPageOverflow(page);
+});
+
+test("list-index query and included/excluded tags survive reload and copied links", async ({
+  page,
+  context,
+}) => {
+  const prefix = `url-index-${Date.now()}`;
+  const created: string[] = [];
+  try {
+    for (const [suffix, tags] of [
+      ["keep", ["review"]],
+      ["hide", ["review", "retired"]],
+    ] as const) {
+      const response = await page.request.post("/api/lists", {
+        data: { slug: `${prefix}-${suffix}`, name: `${prefix} ${suffix}`, tags },
+      });
+      expect(response.ok()).toBeTruthy();
+      const { list } = await response.json();
+      created.push(list.list_key);
+    }
+    await page.goto(`/lists?q=${prefix}&tag=review&exclude_tag=retired`);
+    await expect(page.locator(`a[href="/lists/${prefix}-keep"]`)).toBeVisible();
+    await expect(page.locator(`a[href="/lists/${prefix}-hide"]`)).toHaveCount(0);
+    await expect(page.getByRole("textbox", { name: "Search saved lists" })).toHaveValue(
+      prefix,
+    );
+    const copied = page.url();
+    await page.reload();
+    await expect(page.locator(`a[href="/lists/${prefix}-keep"]`)).toBeVisible();
+    const other = await context.newPage();
+    await other.goto(copied);
+    await expect(other.locator(`a[href="/lists/${prefix}-keep"]`)).toBeVisible();
+    await expect(other.locator(`a[href="/lists/${prefix}-hide"]`)).toHaveCount(0);
+    await other.close();
+  } finally {
+    for (const key of created) await page.request.delete(`/api/lists/${key}`);
+  }
+});
+
+test("encounter archive tabs push history and restore on reload", async ({
+  page,
+}, info) => {
+  await page.goto("/encounters");
+  const active = page.getByRole("tab", { name: "Active", exact: true });
+  const archived = page.getByRole("tab", { name: "Archived", exact: true });
+  await expect(active).toHaveAttribute("aria-selected", "true");
+  await activate(archived, info);
+  await expect(page).toHaveURL((url) => url.searchParams.get("view") === "archived");
+  await expect(archived).toHaveAttribute("aria-selected", "true");
+  await page.goBack();
+  await expect(active).toHaveAttribute("aria-selected", "true");
+  await expect(page).toHaveURL((url) => !url.searchParams.has("view"));
+  await page.goForward();
+  await expect(archived).toHaveAttribute("aria-selected", "true");
+  await page.reload();
+  await expect(archived).toHaveAttribute("aria-selected", "true");
+  await noPageOverflow(page);
+});
+
+test("unreadable saved-list filters recover to idle Search without changing saved data", async ({
+  page,
+}) => {
+  const slug = `url-recovery-${Date.now()}`;
+  const created = await page.request.post("/api/lists", {
+    data: { slug, name: slug, tags: ["review"] },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { list } = await created.json();
+  try {
+    expect(
+      (
+        await page.request.post(`/api/lists/${slug}/items`, {
+          data: { list_ref: slug, record_ref: sentinel },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    const before = await (await page.request.get(`/api/lists/${slug}`)).json();
+    const executed: string[] = [];
+    page.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        (request.url().endsWith("/api/search/page") ||
+          request.url().endsWith(`/api/lists/${slug}/filter`))
+      )
+        executed.push(request.url());
+    });
+    await page.goto(
+      `/lists/${slug}/records/${sentinel}?q=patrol&filter=2.obsolete&record_view=explore`,
+    );
+    await expect(
+      page.getByText("This link couldn’t be restored. Search has been reset.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(page).toHaveURL(
+      (url) => url.pathname === "/search" && url.search === "",
+    );
+    await expect(
+      page.getByRole("searchbox", { name: "Search records", exact: true }),
+    ).toHaveValue("");
+    await expect(page.locator("[data-record-key]")).toHaveCount(0);
+    expect(executed).toEqual([]);
+    const after = await (await page.request.get(`/api/lists/${slug}`)).json();
+    expect(after).toEqual(before);
+  } finally {
+    await page.request.delete(`/api/lists/${list.list_key}`);
+  }
+});
+
+test("invalid reading recovery stays readable and actionable on narrow screens", async ({
+  page,
+}, info) => {
+  const filter = new URL(landedSearch, "http://localhost").searchParams.get("filter")!;
+  await page.goto(
+    `/search/records/${sentinel}?filter=${encodeURIComponent(filter)}&at=99.bad`,
+  );
+  const alert = page.getByRole("alert");
+  await expect(alert).toContainText("This link couldn’t be restored");
+  const message = page.getByText(
+    "This record link uses an unsupported address version.",
+    { exact: true },
+  );
+  await expect(message).toBeVisible();
+  const width = page.viewportSize()!.width;
+  const messageBox = await message.boundingBox();
+  expect(messageBox!.width).toBeGreaterThan(Math.min(160, width / 2));
+  const openRecord = page.getByRole("link", { name: "Open record", exact: true });
+  const results = page.getByRole("link", { name: "Return to results", exact: true });
+  const search = page.getByRole("link", { name: "Open Search", exact: true });
+  for (const link of [openRecord, results, search]) await expect(link).toBeInViewport();
+  expect(new URL((await openRecord.getAttribute("href"))!, page.url()).pathname).toBe(
+    `/records/${sentinel}`,
+  );
+  await noPageOverflow(page);
+  await activate(results, info);
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === "/search" &&
+      url.searchParams.get("filter") === filter &&
+      !url.searchParams.has("at"),
+  );
+  await expect(message).toHaveCount(0);
+  await expect(page.locator("#atlas-main")).toBeFocused();
+});
+
+test("create-and-add keeps the footer aligned and keyboard actions reachable", async ({
+  page,
+}, info) => {
+  const suffix = `${info.project.name}-${Date.now()}`;
+  const listResponse = await page.request.post("/api/lists", {
+    data: { slug: `picker-${suffix}`, name: `Picker ${suffix}`, tags: [] },
+  });
+  expect(listResponse.ok()).toBeTruthy();
+  const { list } = await listResponse.json();
+  const encounterResponse = await page.request.post("/api/encounters", {
+    data: { name: `Picker ${suffix}` },
+  });
+  expect(encounterResponse.ok()).toBeTruthy();
+  const { encounter } = await encounterResponse.json();
+  try {
+    await page.goto(`/records/${sentinel}`);
+    const trigger = page.getByRole("button", {
+      name: "Add to list or encounter",
+      exact: true,
+    });
+    for (const kind of ["list", "encounter"]) {
+      await activate(trigger, info);
+      const dialog = page.getByRole("dialog", { name: "Add to…", exact: true });
+      if (kind === "encounter")
+        await activate(
+          dialog.getByRole("tab", { name: "Encounters", exact: true }),
+          info,
+        );
+      await activate(
+        dialog.getByRole("button", { name: `New ${kind}`, exact: true }),
+        info,
+      );
+      const name = dialog.getByRole("textbox", {
+        name: new RegExp(`New ${kind} name$`),
+      });
+      await expect(name).toBeFocused();
+      await name.fill("Retained destination idea");
+      const existing = dialog.getByRole("button", {
+        name: `Choose existing ${kind}`,
+        exact: true,
+      });
+      const cancel = dialog.getByRole("button", { name: "Cancel", exact: true });
+      const create = dialog.getByRole("button", { name: "Create & add", exact: true });
+      // Native keyboard order is sampled by the desktop project. Touch
+      // contexts exercise these same controls with actual taps below.
+      if (!info.project.use.hasTouch) {
+        await name.press("Tab");
+        await expect(existing).toBeFocused();
+        await existing.press("Tab");
+        await expect(cancel).toBeFocused();
+        await cancel.press("Tab");
+        await expect(create).toBeFocused();
+      }
+      const boxes = await Promise.all(
+        [existing, cancel, create].map((control) => control.boundingBox()),
+      );
+      const [backBox, cancelBox, createBox] = boxes.map((box) => box!);
+      expect(backBox.height).toBe(cancelBox.height);
+      expect(cancelBox.height).toBe(createBox.height);
+      expect(cancelBox.y).toBe(createBox.y);
+      if (page.viewportSize()!.width >= 700) expect(backBox.y).toBe(cancelBox.y);
+      await noPageOverflow(page);
+      await activate(existing, info);
+      await expect(dialog.getByRole("combobox")).toBeFocused();
+      await activate(
+        dialog.getByRole("button", { name: `New ${kind}`, exact: true }),
+        info,
+      );
+      await expect(name).toHaveValue("Retained destination idea");
+      await activate(cancel, info);
+      await expect(dialog).toBeHidden();
+      await expect(trigger).toBeFocused();
+    }
+  } finally {
+    await page.request.delete(`/api/lists/${list.list_key}`);
+    await page.request.delete(`/api/encounters/${encounter.encounter_key}`);
+  }
+});
+
+test("Search linked previews add the linked record and retain the reading context", async ({
+  page,
+}, info) => {
+  const name = `Linked preview ${info.project.name}-${Date.now()}`;
+  const response = await page.request.post("/api/lists", {
+    data: { slug: `linked-preview-${Date.now()}`, name, tags: [] },
+  });
+  expect(response.ok()).toBeTruthy();
+  const { list } = await response.json();
+  try {
+    await page.goto(landedSearch);
+    const host = page.locator(".reference-reader__scroll");
+    const link = host.getByRole("link", { name: "Off-Guard", exact: true }).last();
+    await link.scrollIntoViewIfNeeded();
+    const position = await host.evaluate((node) => node.scrollTop);
+    const url = page.url();
+    await activate(link, info);
+    const preview = page.getByRole("dialog", { name: "Off-Guard", exact: true });
+    const trigger = preview.getByRole("button", { name: "Add to list", exact: true });
+    await activate(trigger, info);
+    const picker = page.getByRole("dialog", { name: "Add to list", exact: true });
+    await expect(picker.getByRole("tab", { name: "Encounters" })).toHaveCount(0);
+    const selector = picker.getByRole("combobox");
+    await expect(selector).toBeEnabled();
+    await activate(selector, info);
+    await activate(
+      page.locator(".ant-select-dropdown:visible").getByText(name, { exact: true }),
+      info,
+    );
+    await activate(picker.getByRole("button", { name: "Add", exact: true }), info);
+    await expect(picker).toBeHidden();
+    await expect(preview).toBeVisible();
+    await expect(trigger).toBeFocused();
+    expect(page.url()).toBe(url);
+    expect(
+      (await (await page.request.get(`/api/lists/${list.list_key}`)).json()).items,
+    ).toEqual([
+      expect.objectContaining({ record_key: "browser-conditions:offguard00000001" }),
+    ]);
+    await activate(
+      preview.getByRole("button", { name: "Close reference preview", exact: true }),
+      info,
+    );
+    await expect(preview).toBeHidden();
+    await expect(link).toBeFocused();
+    await expect.poll(() => host.evaluate((node) => node.scrollTop)).toBe(position);
+    await noPageOverflow(page);
+  } finally {
+    await page.request.delete(`/api/lists/${list.list_key}`);
+  }
+});
+
+test("noncombat records offer a list without encounter tabs or guidance", async ({
+  page,
+}, info) => {
+  await page.goto("/records/browser-rules:rule000000000001");
+  const trigger = page.getByRole("button", { name: "Add to list", exact: true });
+  await trigger.focus();
+  await expect(
+    page.getByRole("tooltip", { name: "Add to list", exact: true }),
+  ).toBeVisible();
+  await activate(trigger, info);
+  const dialog = page.getByRole("dialog", { name: "Add to list", exact: true });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("tab", { name: "Encounters" })).toHaveCount(0);
+  await expect(
+    dialog.getByText("Only creatures and hazards can be added to encounters."),
+  ).toHaveCount(0);
+  await expect(
+    dialog.getByRole("button", { name: "New list", exact: true }),
+  ).toBeEnabled();
+  await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
+  await expect(trigger).toBeFocused();
 });

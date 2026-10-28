@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { useRouterState } from "@tanstack/react-router";
 import { RouterTestContext } from "../../test/router";
 import type { ReactNode } from "react";
-import { ConfigProvider, Grid } from "antd";
+import { App, ConfigProvider, Grid } from "antd";
 import type {
   RecordDetailRequest,
   RecordDetailView,
@@ -13,7 +13,7 @@ import type {
 import { RecordView } from "./RecordViews";
 import { destinationHref } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
-import { selectedNavigation } from "../../app/urlState";
+import { readingView, selectedNavigation } from "../../app/urlState";
 import { atlasRouter } from "../../app/router";
 
 const apiMocks = vi.hoisted(() => ({
@@ -49,51 +49,67 @@ describe("record route views", () => {
     );
   });
 
-  it("changes standalone spell rank without adding history entries or losing its owner", async () => {
-    const origin = {
-      recordKey: "spell:heal",
-      href: "/search/records/spell:heal?q=heal",
-    };
-    history.replaceState({ atlasOwnerOrigin: origin }, "", "/records/spell:heal");
-    apiMocks.getRecordDetail.mockImplementation(
-      (key: string, request?: RecordDetailRequest) => {
-        const detail = detailFixture(key);
-        const rank = request?.spell_rank ?? 3;
-        return Promise.resolve({
-          ...detail,
-          selected: { ...detail.selected, spell_rank: rank },
-          presentation: {
-            ...detail.presentation,
-            body: {
-              kind: "spell",
-              value: { ...spellFixture(), rank: numberFact(rank) },
+  it.each(["read", "explore"] as const)(
+    "changes standalone spell rank in %s without adding history or losing view and owner",
+    async (view) => {
+      const origin = {
+        recordKey: "spell:heal",
+        href: "/search/records/spell:heal?q=heal",
+      };
+      history.replaceState(
+        { atlasOwnerOrigin: origin },
+        "",
+        "/records/spell:heal?record_tab=similar" +
+          (view === "explore" ? "&record_view=explore" : ""),
+      );
+      apiMocks.getRecordDetail.mockImplementation(
+        (key: string, request?: RecordDetailRequest) => {
+          const detail = detailFixture(key);
+          const rank = request?.spell_rank ?? 3;
+          return Promise.resolve({
+            ...detail,
+            selected: { ...detail.selected, spell_rank: rank },
+            presentation: {
+              ...detail.presentation,
+              body: {
+                kind: "spell",
+                value: { ...spellFixture(), rank: numberFact(rank) },
+              },
             },
-          },
+          });
+        },
+      );
+      render(<RecordHarness />, { wrapper: queryClientWrapper() });
+      await screen.findByRole("button", { name: /Change rank/ });
+      const entries = history.length;
+      for (const rank of [4, 5]) {
+        fireEvent.click(screen.getByRole("button", { name: /Change rank/ }));
+        fireEvent.click(await screen.findByRole("menuitem", { name: "Rank " + rank }));
+        await waitFor(() =>
+          expect(
+            selectedNavigation(atlasRouter.latestLocation.search, "spell:heal")
+              ?.spell_rank,
+          ).toBe(rank),
+        );
+        await waitFor(() =>
+          expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+            "spell:heal",
+            expect.objectContaining({ spell_rank: rank }),
+            expect.any(AbortSignal),
+          ),
+        );
+        expect(history.length).toBe(entries);
+        expect(history.state.atlasOwnerOrigin).toEqual(origin);
+        expect(atlasRouter.latestLocation.search.rank).toBe(String(rank));
+        expect(readingView(atlasRouter.latestLocation.search)).toEqual({
+          view,
+          tab: "similar",
         });
-      },
-    );
-    render(<RecordHarness />, { wrapper: queryClientWrapper() });
-    await screen.findByRole("button", { name: /Change rank/ });
-    const entries = history.length;
-    for (const rank of [4, 5]) {
-      fireEvent.click(screen.getByRole("button", { name: /Change rank/ }));
-      fireEvent.click(await screen.findByRole("menuitem", { name: "Rank " + rank }));
-      await waitFor(() =>
-        expect(selectedNavigation(atlasRouter.latestLocation.search)?.spell_rank).toBe(
-          rank,
-        ),
-      );
-      await waitFor(() =>
-        expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
-          "spell:heal",
-          expect.objectContaining({ spell_rank: rank }),
-          expect.any(AbortSignal),
-        ),
-      );
-      expect(history.length).toBe(entries);
-      expect(history.state.atlasOwnerOrigin).toEqual(origin);
-    }
-  });
+        expect(atlasRouter.latestLocation.search.selection).toBeUndefined();
+        expect(atlasRouter.latestLocation.search.at).toBeUndefined();
+      }
+    },
+  );
 
   it("renders a standalone record detail route", async () => {
     render(<RecordView route={{ recordKey: "spell:heal" }} />, {
@@ -106,7 +122,7 @@ describe("record route views", () => {
     expect(screen.queryByText("Reference", { exact: true })).toBeNull();
     expect(
       screen.getByRole("heading", { name: "heal" }).closest("header"),
-    ).toContainElement(screen.getByRole("button", { name: "Add to saved list" }));
+    ).toContainElement(screen.getByRole("button", { name: "Add to list" }));
     expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Refresh" })).toBeNull();
   });
@@ -121,7 +137,7 @@ describe("record route views", () => {
     await addCurrentRecordToList();
 
     expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
-      list_ref: "research",
+      list_ref: "list_research",
       record_ref: "spell:heal",
     });
   });
@@ -136,11 +152,11 @@ describe("record route views", () => {
     render(<RecordView route={{ recordKey: "spell:heal" }} />, {
       wrapper: queryClientWrapper(),
     });
-    const trigger = screen.getByRole("button", { name: "Add to saved list" });
+    const trigger = screen.getByRole("button", { name: "Add to list" });
     fireEvent.click(trigger);
-    const dialog = await screen.findByRole("dialog", { name: "Add to List" });
+    const dialog = await screen.findByRole("dialog", { name: "Add to list" });
     await act(async () => resolveDetail(recordDetailFixture("spell:heal")));
-    expect(screen.getByRole("dialog", { name: "Add to List" })).toBe(dialog);
+    expect(screen.getByRole("dialog", { name: "Add to list" })).toBe(dialog);
     expect(trigger).toBeInTheDocument();
     await waitFor(() => expect(trigger.closest("header")).toHaveTextContent("heal"));
   });
@@ -191,7 +207,7 @@ describe("record route views", () => {
     await screen.findByRole("heading", { name: "linked" });
     await addCurrentRecordToList(1);
     expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
-      list_ref: "research",
+      list_ref: "list_research",
       record_ref: "spell:linked",
     });
     await waitFor(() =>
@@ -249,7 +265,9 @@ describe("record route views", () => {
     await screen.findByRole("heading", { name: "first" });
     fireEvent.click(screen.getAllByRole("link", { name: "Linked Record" })[1]);
     await screen.findByRole("heading", { name: "second" });
-    expect(selectedNavigation(atlasRouter.latestLocation.search)).toEqual(primary);
+    expect(
+      selectedNavigation(atlasRouter.latestLocation.search, primary.record_key),
+    ).toEqual(primary);
     expect(
       screen.getByRole("link", { name: "Open reference full page" }),
     ).toHaveAttribute(
@@ -265,7 +283,9 @@ describe("record route views", () => {
     await screen.findByRole("heading", { name: "first" });
     fireEvent.click(screen.getByRole("button", { name: "Close reference preview" }));
     await waitFor(() => expect(trigger).toHaveFocus());
-    expect(selectedNavigation(atlasRouter.latestLocation.search)).toEqual(primary);
+    expect(
+      selectedNavigation(atlasRouter.latestLocation.search, primary.record_key),
+    ).toEqual(primary);
     expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
       second.record_key,
       {
@@ -287,15 +307,16 @@ function RecordHarness() {
   if (!match || !("recordKey" in match.params)) return null;
   const route = {
     recordKey: match.params.recordKey,
-    selection: selectedNavigation(location.search),
-    landing: selectedNavigation(location.search, "landing"),
+    ...readingView(location.search),
+    selection: selectedNavigation(location.search, match.params.recordKey),
+    landing: selectedNavigation(location.search, match.params.recordKey, "focus"),
   };
   return <RecordView key={route.recordKey} route={route} />;
 }
 
 async function addCurrentRecordToList(buttonIndex = 0) {
   const buttons = await screen.findAllByRole("button", {
-    name: "Add to saved list",
+    name: "Add to list",
   });
   fireEvent.click(buttons[buttonIndex]!);
 
@@ -319,7 +340,7 @@ function queryClientWrapper() {
       <QueryClientProvider client={queryClient}>
         <RouterTestContext>
           <ConfigProvider theme={{ token: { motion: false } }}>
-            {children}
+            <App>{children}</App>
           </ConfigProvider>
         </RouterTestContext>
       </QueryClientProvider>

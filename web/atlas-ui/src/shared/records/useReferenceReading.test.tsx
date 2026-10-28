@@ -25,6 +25,27 @@ function wrapper({ children }: { children: ReactNode }) {
   );
 }
 beforeEach(() => api.mockReset());
+it("sends an explicit zero rank to the detail service", async () => {
+  const selected = { ...rootNavigation("spells:cantrip"), spell_rank: 0 };
+  api.mockResolvedValue({ ...detailFixture("spells:cantrip"), selected });
+  const { result } = renderHook(() => useReferenceReading({ navigation: selected }), {
+    wrapper,
+  });
+  await waitFor(() => expect(result.current.detail?.selected.spell_rank).toBe(0));
+  expect(api).toHaveBeenCalledWith(
+    "spells:cantrip",
+    {
+      record_key: "spells:cantrip",
+      embedded_path: [],
+      fields: [],
+      passage: null,
+      source_fingerprint: null,
+      spell_rank: 0,
+    },
+    expect.any(AbortSignal),
+  );
+});
+
 it("lands a typed inline activity in its parent without reading a separate document", async () => {
   const activity = activityFixture("Jaws", "actors:ghoul");
   const parent = detailFixture("actors:ghoul");

@@ -1,6 +1,8 @@
 import { traitDestination, searchDestination } from "../../app/destinations";
 import type { TraitPageInput } from "../../app/destinations";
 import { navigateDestination } from "../../app/navigation";
+import { canonicalRouteSearch } from "../../app/routeSearch";
+import { parseSearchParams } from "../../app/urlState";
 import { recordDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { Alert, Button, Empty, Spin, Tabs, Typography } from "antd";
@@ -18,7 +20,7 @@ import { ReferenceResult } from "../../shared/records/ReferenceResult";
 import { ExploreSearchAction } from "../../shared/records/ExploreSearchAction";
 import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawer";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
-import { AddToListButton } from "../lists/AddToListButton";
+import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
 import { DocumentIdentityHeader } from "../../shared/records/DocumentIdentityHeader";
 import { useTraitDetail } from "../../shared/records/useTraitDetail";
@@ -128,9 +130,15 @@ export function TraitView({ route }: { route: TraitPageInput }) {
       </main>
       {preview.recordKey && (
         <RecordReferenceDrawer
-          actions={<AddToListButton recordKey={preview.recordKey} />}
+          actions={
+            <AddToRecordButton
+              recordKey={preview.recordKey}
+              record={preview.detail?.record}
+            />
+          }
           anchor={preview.anchor}
           readingHistory={preview.readingHistory}
+          requestedNavigation={preview.selection}
           landing={preview.landing}
           detail={preview.detail}
           loading={preview.loading}
@@ -195,10 +203,14 @@ function TraitAssociations({
     setState(traitAssociationState(route.query, detail.trait_key));
   }, [route.query, detail.trait_key]);
   function update(kind: TraitAssociationKind, search = state.search) {
-    const params = new URLSearchParams(route.query);
-    if (kind === "members") params.delete("tab");
-    else params.set("tab", kind);
-    params.delete("view");
+    const params = new URLSearchParams();
+    const explicitProfile = canonicalRouteSearch(
+      "trait",
+      parseSearchParams(route.query ?? ""),
+    ).search_profile;
+    if (typeof explicitProfile === "string")
+      params.set("search_profile", explicitProfile);
+    if (kind !== "members") params.set("tab", kind);
     encodeResultSort(params, search.sort);
     const query = params.size ? "?" + params.toString() : undefined;
     previousQuery.current = query;

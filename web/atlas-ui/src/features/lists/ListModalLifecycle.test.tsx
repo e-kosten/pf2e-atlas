@@ -9,13 +9,14 @@ import {
 } from "@testing-library/react";
 import { App, ConfigProvider } from "antd";
 import type { ReactNode } from "react";
-import { AddToListButton } from "./AddToListButton";
+import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { CreateListModal } from "./CreateListModal";
 
 const api = vi.hoisted(() => ({
   addSavedListItem: vi.fn(),
   createSavedList: vi.fn(),
   getSavedLists: vi.fn(),
+  getEncounters: vi.fn(),
 }));
 vi.mock("../../api/atlasApi", () => api);
 
@@ -49,7 +50,7 @@ function setup(ui: ReactNode) {
 }
 
 async function chooseList() {
-  fireEvent.click(screen.getByRole("button", { name: "Add to saved list" }));
+  fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
   const selector = await screen.findByRole("combobox", { name: "Saved list" });
   await waitFor(() => expect(selector).toBeEnabled());
   fireEvent.mouseDown(selector);
@@ -109,9 +110,9 @@ it("keeps list choice and dialog through pending/failure, then closes after retr
     list_key: "list_review",
     slug: "review",
   });
-  setup(<AddToListButton recordKey="spells:light" />);
+  setup(<AddToRecordButton recordKey="spells:light" />);
   const selector = await chooseList();
-  const dialog = screen.getByRole("dialog", { name: "Add to List" });
+  const dialog = screen.getByRole("dialog", { name: "Add to list" });
   const add = within(dialog).getByRole("button", { name: "Add" });
   fireEvent.click(add);
   fireEvent.click(add);
@@ -132,7 +133,7 @@ it("keeps list choice and dialog through pending/failure, then closes after retr
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(api.addSavedListItem).toHaveBeenCalledTimes(2);
   expect(api.addSavedListItem).toHaveBeenLastCalledWith({
-    list_ref: "review",
+    list_ref: "list_review",
     record_ref: "spells:light",
   });
 });
@@ -141,8 +142,8 @@ it("distinguishes an unavailable list catalog from empty and retries locally", a
   api.getSavedLists
     .mockRejectedValueOnce(new Error("Service unavailable"))
     .mockResolvedValueOnce(lists);
-  setup(<AddToListButton recordKey="spells:light" />);
-  fireEvent.click(screen.getByRole("button", { name: "Add to saved list" }));
+  setup(<AddToRecordButton recordKey="spells:light" />);
+  fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "Saved lists could not load",
   );
@@ -157,7 +158,7 @@ it("distinguishes an unavailable list catalog from empty and retries locally", a
 });
 
 it("retains choices and focused selector while reporting a failed catalog refresh", async () => {
-  const client = setup(<AddToListButton recordKey="spells:light" />);
+  const client = setup(<AddToRecordButton recordKey="spells:light" />);
   const selector = await chooseList();
   act(() => selector.focus());
   api.getSavedLists.mockRejectedValueOnce(new Error("Disconnected"));
@@ -173,15 +174,15 @@ it("retains choices and focused selector while reporting a failed catalog refres
   expect(screen.getByRole("button", { name: "Add" })).toBeEnabled();
 });
 
-it("gives a genuine empty catalog its existing saved-lists destination", async () => {
+it("lets an empty catalog create a list without leaving the picker", async () => {
   api.getSavedLists.mockResolvedValueOnce({ lists: [] });
-  setup(<AddToListButton recordKey="spells:light" />);
-  fireEvent.click(screen.getByRole("button", { name: "Add to saved list" }));
-  await waitFor(() => expect(screen.getByText(/No saved lists yet/)).toBeVisible());
-  expect(screen.getByRole("link", { name: "Open saved lists" })).toHaveAttribute(
-    "href",
-    "/lists",
+  setup(<AddToRecordButton recordKey="spells:light" />);
+  fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
+  await waitFor(() => expect(screen.getByText(/No lists yet/)).toBeVisible());
+  fireEvent.click(screen.getByRole("button", { name: "New list" }));
+  await waitFor(() =>
+    expect(screen.getByRole("textbox", { name: "New list name" })).toHaveFocus(),
   );
+  expect(screen.getByRole("button", { name: "Create & add" })).toBeEnabled();
   expect(screen.queryByRole("alert")).toBeNull();
-  expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
 });

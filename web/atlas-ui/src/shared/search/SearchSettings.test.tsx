@@ -1,3 +1,4 @@
+import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import { App, ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -289,7 +290,12 @@ it("flattens single-section entries while retaining independent source links and
     screen.queryByRole("checkbox", { name: "All sections in Leech Warmth" }),
   ).toBeNull();
   const link = screen.getByRole("link", { name: "Leech Warmth" });
-  expect(link).toHaveAttribute("href", expect.stringContaining("selection="));
+  expect(
+    selectedNavigation(
+      parseSearchParams(new URL(link.getAttribute("href")!, location.origin).search),
+      inventory.seed.kind === "record" ? inventory.seed.record_key : "",
+    ),
+  ).toEqual(ability.navigation);
   fireEvent.click(link);
   expect(screen.getByRole("region", { name: "Seed source" })).toHaveTextContent(
     "Ability",
@@ -532,7 +538,12 @@ it("opens a section's source separately from its checkbox and preserves the comp
   fireEvent.click(screen.getByText("Sections to compare"));
   const description = await screen.findByRole("checkbox", { name: "Description" });
   const link = screen.getByRole("link", { name: "Description" });
-  expect(link).toHaveAttribute("href", expect.stringContaining("selection="));
+  expect(
+    selectedNavigation(
+      parseSearchParams(new URL(link.getAttribute("href")!, location.origin).search),
+      inventory.seed.kind === "record" ? inventory.seed.record_key : "",
+    ),
+  ).toEqual(inventory.parts[0].navigation);
   fireEvent.click(link);
   const source = screen.getByRole("region", { name: "Seed source" });
   expect(source).toHaveTextContent("Description");

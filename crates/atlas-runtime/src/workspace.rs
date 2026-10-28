@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 18;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 19;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -105,6 +105,12 @@ const MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 17,
+        name: "stateless-strike-rolls",
+        sql: atlas_local_state::STATELESS_STRIKE_ROLLS_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 18,
         name: "similarity-parts",
         sql: atlas_index::SIMILARITY_SCHEMA_SQL,
         backfill: Some(atlas_storage::DataBackfill {
@@ -113,7 +119,7 @@ const MIGRATIONS: &[Migration] = &[
         }),
     },
     Migration {
-        version: 18,
+        version: 19,
         name: "core-section-eligibility",
         sql: atlas_index::CORE_SECTIONS_SCHEMA_SQL,
         backfill: None,
@@ -150,6 +156,77 @@ pub(crate) fn register_extensions() -> StorageResult<()> {
 mod tests {
     use super::*;
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
+
+    #[test]
+    fn stateless_strike_upgrade_removes_only_display_roll_receipts() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("stateless-strikes.sqlite");
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace.migrate(&MIGRATIONS[..16], |_| Ok(())).unwrap();
+        let write = workspace.write(16).unwrap();
+        write.connection().execute_batch(r#"
+            INSERT INTO encounters(id,encounter_key,slug,name,status,current_turn_participant_key,round_number,revision,created_at,updated_at)
+            VALUES(1,'kept','kept','Kept','running','actor',4,7,'before','before');
+            INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,current_hp,max_hp,temporary_hp,revision,created_at,updated_at)
+            VALUES(1,1,'actor','pc',0,'PC',0,13,20,3,5,'before','before');
+            INSERT INTO encounter_roll_receipts VALUES
+                (1,'attack','{"action":"strike"}','{"version":1,"payload":{"action":"strike","receipt":{"roll":{"outcome":{"kind":"attack"}}}}}'),
+                (1,'damage','{"action":"strike"}','{"version":1,"payload":{"action":"strike","receipt":{"roll":{"outcome":{"kind":"damage"}}}}}'),
+                (1,'initiative','{"participants":["actor"]}','{"version":1,"payload":{"rolls":[17]}}'),
+                (1,'unknown','{"action":"future"}','{"version":2,"payload":{"action":"future"}}'),
+                (1,'malformed','not json','not json'),
+                (1,'unidentified','{"action":"strike"}','{"version":2,"payload":{"action":"future"}}');
+            INSERT INTO encounter_event_receipts VALUES(1,'prepared','{}','{"version":1,"payload":{"prepared":"persistent_damage"}}');
+            INSERT INTO encounter_boundary_claims VALUES(1,'actor',4,'prepared_persistent_damage','fire','prepared');
+        "#).unwrap();
+        let before = LocalStateWrite::new(&write)
+            .encounters()
+            .get_with_participants("kept")
+            .unwrap();
+        let retained = |connection: &rusqlite::Connection| {
+            let mut statement = connection.prepare("SELECT request_id,request_json,receipt_json FROM encounter_roll_receipts WHERE request_id NOT IN ('attack','damage') ORDER BY request_id").unwrap();
+            statement
+                .query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
+                })
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap()
+        };
+        let receipts = retained(write.connection());
+        write.commit().unwrap();
+        let upgraded = initialize_workspace(&path).unwrap();
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let after = LocalStateRead::new(&read)
+            .encounters()
+            .get_with_participants("kept")
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(before).unwrap(),
+            serde_json::to_value(after).unwrap()
+        );
+        assert_eq!(retained(read.connection()), receipts);
+        let strike_count: i64 = read.connection().query_row("SELECT COUNT(*) FROM encounter_roll_receipts WHERE request_id IN ('attack','damage')", [], |row| row.get(0)).unwrap();
+        assert_eq!(strike_count, 0);
+        let preparation: (String,String) = read.connection().query_row("SELECT r.receipt_json,c.request_id FROM encounter_event_receipts r JOIN encounter_boundary_claims c USING(encounter_id,request_id)", [], |row| Ok((row.get(0)?,row.get(1)?))).unwrap();
+        assert_eq!(
+            preparation,
+            (
+                r#"{"version":1,"payload":{"prepared":"persistent_damage"}}"#.into(),
+                "prepared".into()
+            )
+        );
+        drop(read);
+        // Reopening an already migrated workspace preserves the surviving receipts.
+        let reopened = initialize_workspace(&path).unwrap();
+        let read = reopened.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        assert_eq!(retained(read.connection()), receipts);
+    }
 
     #[test]
     fn similarity_backfill_skips_retired_preparation_before_accessing_records() {
@@ -298,7 +375,7 @@ mod tests {
                 |row| row.get::<_, i64>(0),
             )
             .unwrap();
-        // Model main's ability-state schema before adding the Similar projection.
+        // Model main's stateless-strike schema before adding the Similar projection.
         let mut historical_context = input.context.clone();
         historical_context.core_sections_recipe.clear();
         write
@@ -314,12 +391,23 @@ mod tests {
         write
             .connection()
             .execute_batch(
-                "DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DROP TABLE similarity_parts; DELETE FROM schema_migrations WHERE version>=17; PRAGMA user_version=16;",
+                "DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DROP TABLE similarity_parts; DELETE FROM schema_migrations WHERE version>=18; PRAGMA user_version=17;",
             )
             .unwrap();
+        let main_ledger = |connection: &rusqlite::Connection| {
+            connection
+                .prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=17 ORDER BY version")
+                .unwrap()
+                .query_map([], |row| Ok((row.get::<_, u32>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?)))
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap()
+        };
+        let published_history = main_ledger(write.connection());
         write.commit().unwrap();
         let upgraded = initialize_workspace(&path).unwrap();
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        assert_eq!(main_ledger(read.connection()), published_history);
         assert_eq!(vectors(read.connection()), before);
         assert_eq!(read.reference_revision().unwrap(), revision as u64);
         assert_eq!(
@@ -351,6 +439,23 @@ mod tests {
         );
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         atlas_index::validate_reference(read.connection()).unwrap();
+        let published_revision = read.reference_revision().unwrap();
+        assert_eq!(vectors(read.connection()), before);
+        drop(read);
+        drop(upgraded);
+        let reopened = initialize_workspace(&path).unwrap();
+        assert!(
+            !atlas_index::ensure_reference_projections(&reopened, WORKSPACE_SCHEMA_VERSION)
+                .unwrap()
+        );
+        let read = reopened.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        assert_eq!(read.reference_revision().unwrap(), published_revision);
+        assert_eq!(main_ledger(read.connection()), published_history);
+        assert_eq!(vectors(read.connection()), before);
+        assert_eq!(
+            LocalStateRead::new(&read).saved_lists().list().unwrap()[0].name,
+            "Kept"
+        );
     }
 
     #[test]
@@ -409,7 +514,7 @@ mod tests {
                 .collect::<Vec<_>>()
         };
         let before = stable_values(write.connection());
-        let ledger=write.connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=17 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+        let ledger=write.connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=18 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
         let mut historical_context = input.context.clone();
         historical_context.core_sections_recipe.clear();
         write
@@ -422,7 +527,7 @@ mod tests {
                 ],
             )
             .unwrap();
-        write.connection().execute_batch("DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DELETE FROM schema_migrations WHERE version=18; PRAGMA user_version=17;").unwrap();
+        write.connection().execute_batch("DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DELETE FROM schema_migrations WHERE version=19; PRAGMA user_version=18;").unwrap();
         write.commit().unwrap();
         let source = directory.path().join("absent-source");
         let models = directory.path().join("absent-models");
@@ -448,7 +553,7 @@ mod tests {
             stable_values(reader.workspace_session().connection()),
             before
         );
-        let actual_ledger=reader.workspace_session().connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=17 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+        let actual_ledger=reader.workspace_session().connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=18 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
         assert_eq!(actual_ledger, ledger);
         assert_eq!(
             reader
