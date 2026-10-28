@@ -54,9 +54,16 @@ one ability's state to another. Derived conditions remain reads, rather than
 materialized saved condition rows. Existing reference data, HP, saved conditions,
 action stock and receipts are preserved.
 
-Workspace migration 17 adds named reference query columns for supplied ability
+Workspace migration 17 removes obsolete display-only strike rows identified by
+both the strike request and strike receipt discriminators in
+`encounter_roll_receipts`. Initiative receipts, encounter event/preparation
+receipts, boundary claims and all saved gameplay state remain unchanged. New
+display-only strike rolls perform no writes; the latest result lives only in
+browser component memory.
+
+Workspace migration 18 adds named reference query columns for supplied ability
 modifiers, NPC skill modifiers, character skill ranks, hazard Stealth and physical
-combat facts. Migration 18 adds the shared physical base-type identifier and its
+combat facts. Migration 19 adds the shared physical base-type identifier and its
 availability state. Query catalog v8 and authored-query/v5 refresh these projections
 from checked snapshots through the existing component upgrade. Saved rows and
 embedding inputs/vectors are preserved; no source re-ingest or inference is
@@ -578,9 +585,9 @@ structured references use `/documentUuid`, resolving only explicit compendium UU
 The query catalog is version 8, query projections use `authored-query/v5`, content
 selection uses `structural-source-sections/v4` and relationships use
 `typed-authored-occurrences/v5`. Preparation identities govern derived refresh;
-workspace migrations 17 and 18 provide the additional query columns. The exact preceding 6.12.4 model can be replaced from compatible
-source while preserving saved state; its snapshots are never decoded by the new
-model (ADR0052).
+workspace migrations 18 and 19 provide the additional query columns. The exact
+preceding 6.12.4 model can be replaced from compatible source while preserving
+saved state; its snapshots are never decoded by the new model (ADR0052).
 
 ### Native embedding storage
 

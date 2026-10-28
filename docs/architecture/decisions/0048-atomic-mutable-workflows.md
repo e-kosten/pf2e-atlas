@@ -109,7 +109,7 @@ same hydration snapshot that resolves the roll. Saved-receipt recovery precedes
 this guard, so publication of a new artifact cannot reroll a committed request.
 Explicit manual-modifier requests remain source-free and need no generation.
 
-The condition-system schema stores encounter roll receipts. A canonical encounter key
+The saved-domain schema stores initiative roll receipts. A canonical encounter key
 and request ID identify an operation; the original intent is saved alongside the
 resolved inputs and outcomes. Matching retries recover the receipt before source
 hydration and revision checks. Reusing an ID with different intent conflicts.
@@ -149,11 +149,21 @@ components form an instance floored at zero, with the overall minimum represente
 explicitly. Persistent instances remain separate from immediate damage. Empty
 source damage formulas do not acquire damage through adjustment arithmetic.
 
-Strike receipts use the same encounter/request identity with an action
-discriminator. Their transaction checks encounter and participant revisions and
-stores the outcome without changing initiative, HP, turn or spell resources.
-Recovery precedes source hydration, so a lost response cannot reroll merely
-because the source or participant subsequently changed.
+Display-only strike attack/damage rolls evaluate in one checked workspace read.
+Source generation and encounter/participant revisions are checked before drawing
+dice; evaluation does not open a write transaction or save a receipt. The request
+ID correlates the transient response and optional read-only target context only.
+The browser retains the latest result in component memory when reopening the
+popover, replaces it only on an explicit new roll, and loses it on unmount/reload.
+An uncertain response cannot be recovered: Roll again makes a fresh request against
+current source and encounter state. Failed rerolls retain the previous displayed
+result with local error feedback.
+
+Durable receipts belong to actions that update saved encounter state or establish
+prepared outcomes consumed by a later state change. Initiative, event and
+persistent-damage/recovery preparation receipts retain their existing guarantees.
+Workspace migration 17 removes only identified obsolete display-only strike
+receipts; no state-changing or preparation receipts are removed.
 
 Reference table rolls are stateless app-service reads. A checked artifact
 generation and selected table supply the formula and inclusive result ranges;

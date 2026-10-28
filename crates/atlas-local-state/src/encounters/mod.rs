@@ -23,16 +23,9 @@ pub use condition_parameters::{
     ConditionOrigin, ConditionParameters, ConditionSubject, DamageMultiplier, FrightenedRecovery,
     MortalityState, PersistentRecovery, WakingRule,
 };
-mod strike_receipt;
-pub use strike_receipt::{
-    StoredStrikeDamage, StoredStrikeDamageTotal, StoredStrikeOutcome, StoredStrikeReceipt,
-    StoredStrikeRoll,
-};
-mod receipt_codec;
-mod strike_rolls;
-pub use strike_rolls::ParticipantRollGuard;
 mod initiative_rolls;
 mod model;
+mod receipt_codec;
 pub use initiative_rolls::{
     InitiativeRollReceipt, ParticipantInitiativeRoll, ResolvedInitiativeRoll,
 };

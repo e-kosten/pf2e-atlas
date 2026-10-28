@@ -215,7 +215,9 @@ test("saved list creation and unknown manual participant HP use actual local-sta
     page.getByText("Browser List " + suffix, { exact: true }).first(),
   ).toBeVisible();
   await page.goto("/records/pathfinder-bestiary%3ALHHgGSs0ELCR4CYK");
-  await page.getByRole("button", { name: "Add to saved list", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Add to list or encounter", exact: true })
+    .click();
   await page.getByRole("dialog").getByRole("combobox").click();
   // Ant virtualizes long lists; reveal the option rather than assuming it is mounted.
   const listPopup = page.locator(".atlas-select-popup:visible");

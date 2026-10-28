@@ -1,0 +1,34 @@
+.record-destination-picker,
+.record-destination-picker__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.record-destination-picker__choices {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.record-destination-picker__select {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.record-destination-picker__footer,
+.record-destination-picker__footer-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.record-destination-picker__footer {
+  justify-content: space-between;
+}
+
+.record-destination-picker__footer-actions {
+  margin-inline-start: auto;
+}

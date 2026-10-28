@@ -6,22 +6,27 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import { ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   AtlasApiError,
   getEncounterStrikeOptions,
   getInitiativeOptions,
   rollEncounterStrike,
+  previewEncounterStrikeContext,
 } from "../../api/atlasApi";
 import { activityFixture, knownFact } from "../../test/fixtures";
 import type {
   EncounterParticipantView,
+  EncounterStrikeOptionsView,
   InitiativeRollView,
   RollInitiativeRequest,
   EncounterStrikeRollView,
   RollEncounterStrikeRequest,
 } from "../../generated/atlas";
 import { EncounterStrikeControl } from "./EncounterStrikeControl";
+import { useEncounterStrike } from "./useEncounterStrike";
+import type { useEncounterMutations } from "./useEncounterMutations";
 import { InitiativePopover, InitiativeRollModal } from "./InitiativeRollModal";
 
 vi.mock("../../api/atlasApi", async (original) => ({
@@ -29,6 +34,7 @@ vi.mock("../../api/atlasApi", async (original) => ({
   getEncounterStrikeOptions: vi.fn(),
   getInitiativeOptions: vi.fn(),
   rollEncounterStrike: vi.fn(),
+  previewEncounterStrikeContext: vi.fn(),
 }));
 const participant: EncounterParticipantView = {
   knockout_options: [],
@@ -122,6 +128,8 @@ it("moves keyboard focus into a damage result and restores its exact opener", as
   expect(popup).toHaveFocus(); // Async result must not send focus back behind the popup.
   fireEvent.click(within(popup).getByRole("button", { name: "Close" }));
   await waitFor(() => expect(trigger).toHaveFocus());
+  fireEvent.click(trigger);
+  await screen.findByRole("button", { name: "Reroll" });
   expect(rollEncounterStrike).toHaveBeenCalledTimes(1);
 });
 
@@ -204,7 +212,7 @@ function strikeReceipt(request: RollEncounterStrikeRequest): EncounterStrikeRoll
   };
 }
 function renderStrike() {
-  render(
+  return render(
     <EncounterStrikeControl
       encounterKey="e"
       generation="generation"
@@ -229,16 +237,16 @@ function renderStrike() {
     { wrapper },
   );
 }
-it("damage roll retries an uncertain response with the same intent and rerolls with a fresh ID", async () => {
+it("damage roll makes a fresh attempt after an uncertain response and on reroll", async () => {
   vi.mocked(rollEncounterStrike)
     .mockRejectedValueOnce(new TypeError("Network interrupted"))
     .mockImplementation(async (_key, request) => strikeReceipt(request));
   renderStrike();
   fireEvent.click(screen.getByRole("button", { name: "Roll Jaws damage" }));
-  fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Roll again" }));
   await screen.findByRole("button", { name: "Reroll" });
   const calls = vi.mocked(rollEncounterStrike).mock.calls;
-  expect(calls[1][1]).toEqual(calls[0][1]);
+  expect(calls[1][1].request_id).not.toBe(calls[0][1].request_id);
   fireEvent.click(screen.getByRole("button", { name: "Reroll" }));
   await waitFor(() => expect(rollEncounterStrike).toHaveBeenCalledTimes(3));
   expect(calls[2][1].request_id).not.toBe(calls[0][1].request_id);
@@ -253,12 +261,28 @@ it.each([400, 409])(
     fireEvent.click(screen.getByRole("button", { name: "Roll Jaws damage" }));
     await screen.findByText("Review the current attack.");
     expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Roll" }));
+    fireEvent.click(screen.getByRole("button", { name: "Roll again" }));
     await screen.findByRole("button", { name: "Reroll" });
     const calls = vi.mocked(rollEncounterStrike).mock.calls;
     expect(calls[1][1].request_id).not.toBe(calls[0][1].request_id);
   },
 );
+it("retains the displayed damage after a failed reroll and loses it on unmount", async () => {
+  vi.mocked(rollEncounterStrike)
+    .mockImplementationOnce(async (_key, request) => strikeReceipt(request))
+    .mockRejectedValueOnce(new TypeError("Connection interrupted"));
+  const mounted = renderStrike();
+  fireEvent.click(screen.getByRole("button", { name: "Roll Jaws damage" }));
+  await screen.findByRole("button", { name: "Reroll" });
+  const shown = screen.getByText(`Damage: ${outcome.total}`).textContent;
+  fireEvent.click(screen.getByRole("button", { name: "Reroll" }));
+  await screen.findByRole("button", { name: "Roll again" });
+  expect(screen.getByText(shown!)).toBeInTheDocument();
+  mounted.unmount();
+  renderStrike();
+  expect(screen.queryByText(shown!)).not.toBeInTheDocument();
+});
+
 function renderInitiative(
   onRoll: (request: RollInitiativeRequest) => Promise<InitiativeRollView>,
 ) {
@@ -311,7 +335,7 @@ it("initiative stops resubmission after a typed revision conflict", async () => 
   expect(onRoll).toHaveBeenCalledTimes(1);
 });
 
-it("attack rolls immediately with selected MAP, preserves retry intent, and context opens without rolling", async () => {
+it("attack rolls immediately with selected MAP, makes fresh attempts, and context opens without rolling", async () => {
   const beginContext = vi.fn();
   const renderContext = vi.fn(() => <div>Target questions</div>);
   vi.mocked(rollEncounterStrike)
@@ -340,14 +364,14 @@ it("attack rolls immediately with selected MAP, preserves retry intent, and cont
     }),
   );
   expect(screen.getByRole("button", { name: "Target & checks" })).toBeDisabled();
-  fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Roll again" }));
   await screen.findByRole("button", { name: "Reroll" });
   const calls = vi.mocked(rollEncounterStrike).mock.calls;
   expect(calls[0][1]).toMatchObject({
     attack_number: choice.attack_number,
     roll_kind: "attack",
   });
-  expect(calls[1][1]).toEqual(calls[0][1]);
+  expect(calls[1][1].request_id).not.toBe(calls[0][1].request_id);
   fireEvent.click(screen.getByRole("button", { name: "Target & checks" }));
   expect(beginContext).toHaveBeenCalledWith(
     expect.objectContaining({ rollId: calls[1][1].request_id }),
@@ -356,4 +380,160 @@ it("attack rolls immediately with selected MAP, preserves retry intent, and cont
   expect(rollEncounterStrike).toHaveBeenCalledTimes(2);
   fireEvent.click(screen.getByRole("button", { name: "Back to roll" }));
   expect(rollEncounterStrike).toHaveBeenCalledTimes(2);
+});
+
+function StrikeContextHarness() {
+  const strike = useEncounterStrike({
+    encounterRef: "e",
+    revision: 1n,
+    generation: "generation",
+    participants: [participant],
+    mutations: { pending: false, refreshError: null } as ReturnType<
+      typeof useEncounterMutations
+    >,
+  });
+  return (
+    <EncounterStrikeControl
+      encounterKey="e"
+      generation="generation"
+      participant={participant}
+      activity={activityFixture()}
+      disabled={false}
+      onBeginStrike={strike.launch}
+      renderStrikeContext={strike.renderContext}
+    />
+  );
+}
+
+it("reopens retained attacks in the result view after switching context owners", async () => {
+  const options = await getEncounterStrikeOptions("e", {
+    participant_key: "p",
+    reference: {
+      artifact_generation: "generation",
+      selection: {
+        record_key: "creatures:actor",
+        embedded_path: [],
+        fields: [],
+        passage: null,
+        source_fingerprint: null,
+      },
+    },
+  });
+  vi.mocked(previewEncounterStrikeContext).mockResolvedValue({
+    options,
+    targeting_check: null,
+    action: { issues: [], confused: false, disruption: null, targeting: null },
+  });
+  vi.mocked(rollEncounterStrike).mockImplementation(async (_key, request) => ({
+    ...strikeReceipt(request),
+    attack: outcome,
+    attack_modifier: 9,
+    damage: [],
+  }));
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <StrikeContextHarness />
+    </ConfigProvider>,
+    { wrapper },
+  );
+  const choices = activityFixture().attack_options.slice(0, 2);
+  const trigger = (index: number) =>
+    screen.getByRole("button", {
+      name: `Strike Jaws attack ${choices[index].modifier >= 0 ? "+" : ""}${choices[index].modifier}`,
+    });
+  for (const index of [0, 1]) {
+    fireEvent.click(trigger(index));
+    const dialog = await screen.findByRole("dialog", { name: "Jaws · Attack" });
+    await within(dialog).findByRole("button", { name: "Reroll" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Target & checks" }));
+    await within(dialog).findByRole("combobox", { name: "Strike target" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  }
+  fireEvent.click(trigger(0));
+  const reopened = await screen.findByRole("dialog", { name: "Jaws · Attack" });
+  fireEvent.click(within(reopened).getByRole("button", { name: "Target & checks" }));
+  await within(reopened).findByRole("combobox", { name: "Strike target" });
+  expect(rollEncounterStrike).toHaveBeenCalledTimes(2);
+});
+
+it("retains the displayed attack's adjustment hints until another roll succeeds", async () => {
+  const base: EncounterStrikeOptionsView = {
+    applied: [],
+    conditional: [{ source: "hidden", label: "Hidden", reason: "Check detection" }],
+    expected_revision: 1n,
+    expected_participant_revision: 1n,
+    title: "Jaws",
+    attacks: activityFixture().attack_options,
+    unavailable: null,
+    damage_available: true,
+    damage_unavailable: null,
+  };
+  const changed: EncounterStrikeOptionsView = {
+    ...base,
+    expected_revision: 2n,
+    expected_participant_revision: 2n,
+    applied: [{ source: "frightened", label: "Frightened", reason: "-2 attack" }],
+    conditional: [],
+    attacks: base.attacks.map((a) => ({ ...a, modifier: a.modifier - 2 })),
+  };
+  vi.mocked(getEncounterStrikeOptions)
+    .mockResolvedValueOnce(base)
+    .mockResolvedValue(changed);
+  vi.mocked(rollEncounterStrike)
+    .mockImplementationOnce(async (_key, request) => ({
+      ...strikeReceipt(request),
+      attack: outcome,
+      attack_modifier: 9,
+      damage: [],
+    }))
+    .mockRejectedValueOnce(new TypeError("Lost response"))
+    .mockImplementationOnce(async (_key, request) => ({
+      ...strikeReceipt(request),
+      attack: {
+        formula: "1d20+7",
+        total: 17,
+        expression: { kind: "number", value: 17 },
+      },
+      attack_modifier: 7,
+      damage: [],
+    }));
+  render(
+    <EncounterStrikeControl
+      encounterKey="e"
+      generation="generation"
+      participant={participant}
+      activity={activityFixture()}
+      disabled={false}
+      onBeginStrike={vi.fn()}
+    />,
+    { wrapper },
+  );
+  const choice = activityFixture().attack_options[0];
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: `Strike Jaws attack ${choice.modifier >= 0 ? "+" : ""}${choice.modifier}`,
+    }),
+  );
+  const dialog = await screen.findByRole("dialog", { name: "Jaws · Attack" });
+  await within(dialog).findByRole("button", { name: "Reroll" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Reroll" }));
+  await within(dialog).findByRole("button", { name: "Roll again" });
+  expect(
+    within(dialog).getByRole("status", { name: "1d20+9: 19" }),
+  ).toBeInTheDocument();
+  expect(
+    within(dialog).queryByText("Applied · Frightened · -2 attack"),
+  ).not.toBeInTheDocument();
+  expect(
+    within(dialog).getByText("Context · Hidden · Check detection"),
+  ).toBeInTheDocument();
+  fireEvent.click(within(dialog).getByRole("button", { name: "Roll again" }));
+  await within(dialog).findByRole("status", { name: "1d20+7: 17" });
+  expect(
+    within(dialog).getByText("Applied · Frightened · -2 attack"),
+  ).toBeInTheDocument();
+  expect(
+    within(dialog).queryByText("Context · Hidden · Check detection"),
+  ).not.toBeInTheDocument();
 });

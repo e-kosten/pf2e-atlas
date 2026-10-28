@@ -5,6 +5,7 @@ import { atlasRouter } from "../../app/router";
 import { ReferenceReader } from "./ReferenceReader";
 import { useBrowsePositions, type BrowsePositions } from "./useBrowsePositions";
 import { type ReferenceReading } from "./useReferenceReading";
+import type { RecordSummaryView } from "../../generated/atlas";
 import { BrowsePaneHeader } from "./BrowsePaneHeader";
 import { useBrowseHeaderAlignment } from "./useBrowseHeaderAlignment";
 // The browse host owns layout, scroll and mobile return. Features own rows,
@@ -17,7 +18,7 @@ export function BrowseReader({
   resultsLoading,
   selectedRecordKey,
   reading,
-  readerActions,
+  recordActions,
   readerStatus,
   readerContext,
   onReaderClose,
@@ -32,7 +33,7 @@ export function BrowseReader({
   selectedRecordKey: string | null;
   reading: ReferenceReading;
   readerContext?: ReactNode;
-  readerActions?: ReactNode;
+  recordActions?: (record: RecordSummaryView) => ReactNode;
   readerStatus?: ReactNode;
   onReaderClose?: () => void;
   readerFooter?: ReactNode;
@@ -113,7 +114,7 @@ export function BrowseReader({
     <ReferenceReader
       reading={reading}
       selectedRecordKey={selectedRecordKey}
-      readerActions={readerActions}
+      recordActions={recordActions}
       readerContext={readerContext}
       status={readerStatus}
       readerFooter={readerFooter}
