@@ -449,6 +449,10 @@ test("life status stays compact and stable while saving, without replacing the s
       page.getByRole("button", { name: "Participant settings", exact: true }),
       info,
     );
+    await activate(
+      page.getByRole("menuitem", { name: "Edit participant", exact: true }),
+      info,
+    );
     const dialog = page.getByRole("dialog", {
       name: "Participant settings",
       exact: true,

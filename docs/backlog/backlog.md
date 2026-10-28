@@ -16,7 +16,8 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 - [Encounter reset and overnight recovery](items/encounter-participant-baseline-reset.md)
   Restore creation gameplay baselines and preview selected participants' full-night
-  recovery. Functional preview awaiting UX review. Status: in_progress.
+  recovery. Implementation, UX review and local validation complete; Linux visual
+  validation and publication remain in progress. Status: in_progress.
 
 - [Browser URL improvements](items/browser-url-improvements.md)
   Implement concise record links, stable list navigation, shareable view state,
