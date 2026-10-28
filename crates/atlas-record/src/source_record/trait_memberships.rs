@@ -100,6 +100,7 @@ mod tests {
                 json!({"_id":"aaaaaaaaaaaaaaaa","name":"Wand","type":"consumable","system":{"traits":{"value":["wand"]},"spell":spell}}),
             );
             let memberships = trait_record_memberships(&source, audience());
+            assert_eq!(memberships.len(), 3);
             let root = memberships
                 .iter()
                 .find(|m| m.trait_key.identifier() == "wand")
@@ -135,6 +136,7 @@ mod tests {
             ]}}),
         );
         let memberships = trait_record_memberships(&source, audience());
+        assert_eq!(memberships.len(), 5);
         let named = memberships
             .iter()
             .find(|m| m.trait_key.identifier() == "magical")
