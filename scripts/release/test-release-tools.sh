@@ -177,8 +177,13 @@ EOF_CURL
     "$repo_root/scripts/install/atlas-installer.sh" \
     --install-dir "$install_dir" --version nightly --yes >/dev/null
   [ "$(head -n 1 "$url_log")" = "https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/nightly-version.txt" ]
-  [ "$(tail -n +2 "$url_log" | grep -c "/download/$nightly_tag/")" = 3 ] || {
-    echo "nightly installer did not pin all downloads to the resolved release" >&2
+  expected_urls=$(printf '%s\n' \
+    'https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/nightly-version.txt' \
+    "https://github.com/e-kosten/pf2e-atlas/releases/download/$nightly_tag/SHA256SUMS" \
+    "https://github.com/e-kosten/pf2e-atlas/releases/download/$nightly_tag/atlas-release-manifest.json" \
+    "https://github.com/e-kosten/pf2e-atlas/releases/download/$nightly_tag/atlas-cli-$host_target.tar.xz" | LC_ALL=C sort)
+  [ "$(LC_ALL=C sort "$url_log")" = "$expected_urls" ] || {
+    echo "nightly installer requested unexpected release assets" >&2
     exit 1
   }
   printf 'v9.9.9\n' > "$dist/nightly-version.txt"

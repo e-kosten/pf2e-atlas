@@ -31,10 +31,10 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | crates/atlas-tags | 4 | 0 | 4 | 0 |
 | crates/atlas-web | 3 | 3 | 0 | 0 |
 | dev-tools/dice-prototype | 1 | 0 | 1 | 0 |
-| dev-tools/release | 3 | 3 | 0 | 0 |
+| dev-tools/release | 3 | 0 | 3 | 0 |
 | dev-tools/source-contracts | 28 | 28 | 0 | 0 |
 | research verification | 1 | 1 | 0 | 0 |
-| scripts | 8 | 8 | 0 | 0 |
+| scripts | 8 | 0 | 8 | 0 |
 | web/atlas-ui/e2e | 16 | 16 | 0 | 0 |
 | web/atlas-ui/src/api | 3 | 3 | 0 | 0 |
 | web/atlas-ui/src/app | 11 | 11 | 0 | 0 |
@@ -363,9 +363,9 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [dev-tools/release/tests/nightly.test.ts](../../dev-tools/release/tests/nightly.test.ts) | pending | — |
-| [dev-tools/release/tests/release.test.ts](../../dev-tools/release/tests/release.test.ts) | pending | — |
-| [dev-tools/release/tests/smoke-packaged-web.test.ts](../../dev-tools/release/tests/smoke-packaged-web.test.ts) | pending | — |
+| [dev-tools/release/tests/nightly.test.ts](../../dev-tools/release/tests/nightly.test.ts) | reviewed | PR141 literal version/lockfile checks and required-command existence guards retained. Scheduled exact-source skip, immutable dated-release retry, validation/install/version failures and no-channel-advance assertions protect separate publication hazards. |
+| [dev-tools/release/tests/release.test.ts](../../dev-tools/release/tests/release.test.ts) | changed | Manifest expectations now use literal supported platform/package metadata and the complete checksum list, including both installers and notices. Dependency ordering requires the complete literal Rust notice block. Retained binary hashing, unknown metadata, Unicode serialization, strict CLI exits, archive inspection and runtime-data rejection. |
+| [dev-tools/release/tests/smoke-packaged-web.test.ts](../../dev-tools/release/tests/smoke-packaged-web.test.ts) | reviewed | Real child/HTTP fixtures distinguish missing assets, wrong bytes/MIME, early exit and startup timeout, with actual temporary-directory cleanup. Native packaging checks remain separate. Retained all six modes. |
 
 ### dev-tools/source-contracts
 
@@ -410,14 +410,14 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [scripts/browser-fixture.test.mjs](../../scripts/browser-fixture.test.mjs) | pending | — |
-| [scripts/git-hooks/test-common.sh](../../scripts/git-hooks/test-common.sh) | pending | — |
-| [scripts/git-hooks/test-pre-push.sh](../../scripts/git-hooks/test-pre-push.sh) | pending | — |
-| [scripts/release/test-installer.ps1](../../scripts/release/test-installer.ps1) | pending | — |
-| [scripts/release/test-prepare-release.sh](../../scripts/release/test-prepare-release.sh) | pending | — |
-| [scripts/release/test-release-tools.sh](../../scripts/release/test-release-tools.sh) | pending | — |
-| [scripts/validation/ci-results.test.mjs](../../scripts/validation/ci-results.test.mjs) | pending | — |
-| [scripts/validation/skill.test.ts](../../scripts/validation/skill.test.ts) | pending | — |
+| [scripts/browser-fixture.test.mjs](../../scripts/browser-fixture.test.mjs) | changed | Build/fallback assertions now require the locked atlas-web example arguments and Linux strip arguments, not just tool names or a broad regex. Retained real quoted executable invocation, content checksums, commit/host admission and dirty-source refusal. |
+| [scripts/git-hooks/test-common.sh](../../scripts/git-hooks/test-common.sh) | reviewed | Real isolated Git history protects staged/range classification, deletions/renames/modes, docs/skill/research ownership, fast/full check separation, failure propagation and diagnostic/timing summaries. External compilers are intentionally command-boundary doubles; retained. |
+| [scripts/git-hooks/test-pre-push.sh](../../scripts/git-hooks/test-pre-push.sh) | reviewed | Offline notices command checks its exact arguments/environment, outgoing ranges and multi-ref deduplication. Distinct missing dependencies, deletion, unrelated dirt, dirty dependency inputs and checkout/head mismatch retained; exercised through test-common.sh. |
+| [scripts/release/test-installer.ps1](../../scripts/release/test-installer.ps1) | changed | Windows nightly installation now requires the complete resolved URL set and Windows archive; retained native executable install, dry-run/overwrite refusal, checksum and rollback scenarios. PowerShell syntax passed locally; native Windows execution awaits the published CI candidate. |
+| [scripts/release/test-prepare-release.sh](../../scripts/release/test-prepare-release.sh) | changed | Command-order helpers now fail when the required command is absent before comparing positions; retained prepare/open-PR/publish modes, prompts/RC choices, dry-run forbidden effects, dirty/tag/refusal and post-validation cleanliness checks. |
+| [scripts/release/test-release-tools.sh](../../scripts/release/test-release-tools.sh) | changed | Nightly installation now requires the complete resolved URL set and host archive, retaining pointer-first behavior. Kept real archive/hash validation, dry-run, overwrite refusal, malformed pointers and rollback to the previous binary. |
+| [scripts/validation/ci-results.test.mjs](../../scripts/validation/ci-results.test.mjs) | reviewed | Selected-job failure/cancel/skip cases, all browser prerequisites, Rust/web-only selection, docs-only and malformed flags plus real CLI exit behavior retained. Expected jobs are literal, independent of production selection map. |
+| [scripts/validation/skill.test.ts](../../scripts/validation/skill.test.ts) | reviewed | Temporary package fixtures distinguish malformed frontmatter/body from missing embed and unbundled resources. Structural checks are the explicit shipped single-file package contract; retained. |
 
 ### web/atlas-ui/e2e
 
@@ -645,3 +645,9 @@ Completion requires every inventory entry to have a substantive disposition, eve
 - `cargo test -p atlas-dev` passed after supplying the installed Apple Clang runtime through `LIBRARY_PATH`; ONNX static linking advertises a removed Clang 17 directory. The first attempt failed at linking, before test execution. No repository/build-policy change was made.
 - `cargo test --manifest-path dev-tools/dice-prototype/server/Cargo.toml --target-dir target --locked`: six passed. Reused the task target rather than allocating another compiler cache.
 - The three developer evidence collectors remain explicitly ignored with their existing fixture prerequisites; source inspection supports their retained purpose, without claiming those historical full-corpus experiments were rerun.
+
+### Release and validation infrastructure milestone
+
+- `npm --prefix dev-tools/release run verify`: 23 passed. `node --test scripts/browser-fixture.test.mjs scripts/validation/ci-results.test.mjs scripts/validation/skill.test.ts`, `sh scripts/git-hooks/test-common.sh`, `sh scripts/release/test-release-tools.sh` and `sh scripts/release/test-prepare-release.sh` passed, with affected shell suites rerun after final assertion edits.
+- Disposable compiled-release probes first passed unchanged, then rejected wrong platform metadata and an omitted first dependency notice. Missing-command probes demonstrated both old order helpers returning success with no match and both candidate helpers rejecting that input.
+- PowerShell test source parsed successfully. Its native Windows executable fixture requires Windows and remains a CI validation obligation; no cross-platform replacement is claimed.
