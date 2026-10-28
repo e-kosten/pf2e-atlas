@@ -1,30 +1,70 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { test } from 'node:test';
+import { test, type TestContext } from 'node:test';
 import { sourceIdentity } from '../src/discovery/source-identity.js';
 
-test('source identity follows source bytes and relative names, not location', async () => {
-  const directories = await Promise.all([mkdtemp(path.join(tmpdir(), 'atlas-source-a-')), mkdtemp(path.join(tmpdir(), 'atlas-source-b-'))]);
-  try {
-    for (const root of directories) {
-      for (const directory of ['src', 'types', 'static/lang']) await mkdir(path.join(root, directory), { recursive: true });
-      for (const [name, bytes] of [['src/source.ts', 'export interface Source { value: number }'], ['types/base.d.ts', 'interface Base {}'], ['package.json', '{"version":"6.12.4"}'], ['tsconfig.json', '{}'], ['system.pf2e.json', '{"packs":[]}'], ['static/lang/en.json', '{}']]) await writeFile(path.join(root, name), bytes);
-    }
-    const first = await sourceIdentity(directories[0]);
-    assert.deepEqual(first, await sourceIdentity(directories[1]));
-    assert.equal(first.git_commit, null);
-    assert.equal(first.system_version, '6.12.4');
-    await writeFile(path.join(directories[1], 'system.pf2e.json'), '{"packs":[{"type":"Item"}]}');
-    assert.notEqual(first.source_digest, (await sourceIdentity(directories[1])).source_digest);
-    await writeFile(path.join(directories[1], 'package.json'), '{"version":42}');
-    await assert.rejects(sourceIdentity(directories[1]), /version must be a string/);
-    await writeFile(path.join(directories[1], 'package.json'), '{"version":"6.12.4"}');
-    await writeFile(path.join(directories[1], 'system.pf2e.json'), '{"packs":[]}');
-    await writeFile(path.join(directories[1], 'src/source.ts'), 'export interface Source { value: string }');
-    assert.notEqual(first.source_digest, (await sourceIdentity(directories[1])).source_digest);
-  } finally {
-    for (const root of directories) await rm(root, { recursive: true, force: true });
+const files = [
+  ['src/source.ts', 'export interface Source { value: number }'],
+  ['types/base.d.ts', 'interface Base {}'],
+  ['package.json', '{"version":"6.12.4"}'],
+  ['tsconfig.json', '{}'],
+  ['system.pf2e.json', '{"packs":[]}'],
+  ['static/lang/en.json', '{}'],
+] as const;
+
+async function fixture(t: TestContext) {
+  const root = await mkdtemp(path.join(tmpdir(), 'atlas-source-identity-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const [name, bytes] of files) {
+    await mkdir(path.dirname(path.join(root, name)), { recursive: true });
+    await writeFile(path.join(root, name), bytes);
   }
+  return root;
+}
+
+test('source identity ignores checkout location and files outside contract inputs', async (t) => {
+  const firstRoot = await fixture(t);
+  const secondRoot = await fixture(t);
+  const first = await sourceIdentity(firstRoot);
+  await writeFile(path.join(secondRoot, 'README.md'), 'Contributor notes');
+  assert.deepEqual(await sourceIdentity(secondRoot), first);
+  assert.equal(first.git_commit, null);
+  assert.equal(first.git_clean, null);
+  assert.equal(first.system_version, '6.12.4');
+  assert.equal(first.input_file_count, 6);
+});
+
+for (const [name, changed] of [
+  ['src/source.ts', 'export interface Source { value: string }'],
+  ['types/base.d.ts', 'interface Base { label: string }'],
+  ['package.json', '{"version":"6.12.5"}'],
+  ['tsconfig.json', '{"compilerOptions":{"strict":true}}'],
+  ['system.pf2e.json', '{"packs":[{"type":"Item"}]}'],
+  ['static/lang/en.json', '{"PF2E.Label":"Changed"}'],
+]) {
+  test(`source digest changes when ${name} bytes change`, async (t) => {
+    const root = await fixture(t);
+    const before = await sourceIdentity(root);
+    await writeFile(path.join(root, name), changed);
+    const after = await sourceIdentity(root);
+    assert.notEqual(after.source_digest, before.source_digest);
+    assert.equal(after.input_file_count, 6);
+  });
+}
+
+test('source digest binds relative names even when file contents are unchanged', async (t) => {
+  const root = await fixture(t);
+  const before = await sourceIdentity(root);
+  await rename(path.join(root, 'src/source.ts'), path.join(root, 'src/renamed.ts'));
+  const after = await sourceIdentity(root);
+  assert.notEqual(after.source_digest, before.source_digest);
+  assert.equal(after.input_file_count, 6);
+});
+
+test('source identity rejects a non-string package version', async (t) => {
+  const root = await fixture(t);
+  await writeFile(path.join(root, 'package.json'), '{"version":42}');
+  await assert.rejects(sourceIdentity(root), /version must be a string/);
 });
