@@ -482,4 +482,50 @@ mod tests {
             (false, None)
         );
     }
+    #[test]
+    fn changed_choice_membership_resets_selection_but_labels_do_not() {
+        let mut original = declaration_fixture();
+        original["items"][0]["system"]["rules"][0]["suboptions"] = json!([
+            {"label":"First","value":"fixture:first"},{"label":"Second","value":"fixture:second"}
+        ]);
+        original["items"][0]["system"]["rules"][1]["uuid"] =
+            json!("{item|flags.system.rulesSelections.abilityActive}");
+        let sources = prepared(original.clone(), "old");
+        let mut participant = saved(&sources);
+        participant.ability_states[0].value = AbilityStateValue::Option {
+            active: true,
+            selection: Some("fixture:second".into()),
+        };
+        let mut renamed = original.clone();
+        renamed["items"][0]["system"]["rules"][0]["suboptions"][1]["label"] =
+            json!("Translated second choice");
+        assert_eq!(
+            prepared(renamed, "new").options[0].state(&participant),
+            (true, Some("fixture:second".into()))
+        );
+        original["items"][0]["system"]["rules"][0]["suboptions"] =
+            json!([{"label":"First","value":"fixture:first"}]);
+        assert_eq!(
+            prepared(original, "new").options[0].state(&participant),
+            (false, Some("fixture:first".into()))
+        );
+    }
+    #[test]
+    fn moved_or_removed_option_slots_do_not_rebind_saved_switches() {
+        let original = declaration_fixture();
+        let sources = prepared(original.clone(), "old");
+        let participant = saved(&sources);
+        let mut moved = original.clone();
+        moved["items"][0]["system"]["rules"]
+            .as_array_mut()
+            .unwrap()
+            .insert(0, json!({"key":"UnmodeledRule"}));
+        let current = prepared(moved, "new");
+        assert_eq!(current.options[0].ordinal, 1);
+        assert_eq!(current.options[0].state(&participant), (false, None));
+        assert_eq!(current.uses[0].remaining(&participant), 0);
+        let mut removed = original;
+        removed["items"][0]["system"]["rules"] = json!([]);
+        assert!(prepared(removed, "new").options.is_empty());
+    }
 }
