@@ -366,6 +366,38 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
                     .unwrap();
                 assert!(matches > 0, "missing migrated FTS match: {phrase}");
             }
+            let reader = runtime.open_index().unwrap();
+            let query =
+                atlas_index::validate_query(&atlas_domain::QueryPredicate::boolean(true)).unwrap();
+            for phrase in ["Test Creature", "Frozen Grave"]
+                .into_iter()
+                .chain(lexical_changed.then_some("Snow Keeper"))
+            {
+                let matches = reader
+                    .lexical_candidates(
+                        phrase,
+                        &query,
+                        None,
+                        atlas_domain::SearchContentScope::Core,
+                        100,
+                    )
+                    .unwrap();
+                assert!(!matches.is_empty(), "missing rebuilt Core match: {phrase}");
+                assert!(matches.iter().all(|hit| hit.location.record == key));
+            }
+            assert!(
+                reader
+                    .lexical_candidates(
+                        "Flame Lance",
+                        &query,
+                        None,
+                        atlas_domain::SearchContentScope::Core,
+                        100,
+                    )
+                    .unwrap()
+                    .is_empty(),
+                "a creature's carried spell is not Core lexical content"
+            );
             if lexical_changed {
                 let aliases: i64 = read.connection().query_row(
                 "SELECT count(*) FROM lexical_units WHERE unit_kind='root_alias' AND alias_terms='Snow Keeper'",

@@ -254,7 +254,9 @@ pub fn ensure_reference_projections(
             row.insert(c)?;
         }
         }
-        if core_changed { crate::core_projection::backfill_core_sections(c,&target)?; }
+        // Core lexical membership names concrete lexical unit IDs. Rebuilding
+        // lexical rows can replace those IDs even when the Core recipe is current.
+        if core_changed || lexical_changed { crate::core_projection::backfill_core_sections(c,&target)?; }
         let json = serde_json::to_string(&target)?;
         c.execute("UPDATE artifact_context SET context_hash=?,context_json=? WHERE singleton=1", rusqlite::params![sha256(json.as_bytes()), json])?;
         crate::validate_reference(c)?;
