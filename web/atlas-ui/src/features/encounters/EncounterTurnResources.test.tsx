@@ -296,7 +296,12 @@ it("toggles the clicked slot only after canonical refresh and keeps its identity
   middle.focus();
   fireEvent.click(middle);
   expect(middle).toHaveAttribute("aria-pressed", "true");
-  await waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+  await waitFor(() =>
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({
+      kind: "spend",
+      resource: "action",
+    }),
+  );
   rerender(view({ ...initial, regular_remaining: 2n }));
   expect(screen.getByRole("button", { name: "Restore action 2" })).toBe(middle);
   expect(middle).toHaveAttribute("aria-pressed", "false");
