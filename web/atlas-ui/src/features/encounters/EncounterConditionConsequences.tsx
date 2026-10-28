@@ -1,5 +1,7 @@
+import { userErrorMessage } from "../../shared/feedback/errorMessages";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Checkbox, InputNumber, Popover, Space } from "antd";
+import { Button, Checkbox, InputNumber, Popover, Space } from "antd";
 import { useEffect, useState } from "react";
 import { previewEncounterDrainedConsequence } from "../../api/atlasApi";
 import type {
@@ -89,7 +91,10 @@ export function EncounterConditionConsequences({
           </Checkbox>
           {preview.data && <ConditionHpPreview change={preview.data} />}
           {(error || preview.error) && (
-            <Alert type="error" title={error ?? preview.error?.message} />
+            <ErrorNotice
+              error={preview.error ?? error}
+              title={error || "HP change unavailable"}
+            />
           )}
           <Space>
             <Button
@@ -110,7 +115,7 @@ export function EncounterConditionConsequences({
                   await onResolve(request);
                   setOpen(false);
                 } catch (e) {
-                  setError(e instanceof Error ? e.message : "Could not apply HP loss.");
+                  setError(userErrorMessage(e, "Could not apply HP loss."));
                 }
               }}
             >

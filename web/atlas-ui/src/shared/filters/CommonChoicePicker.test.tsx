@@ -592,8 +592,8 @@ describe("compact common choice picker", () => {
       },
     });
     open();
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Vocabulary service unavailable",
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Values could not be loaded",
     );
     expect(
       screen.getByRole("button", {

@@ -1,3 +1,4 @@
+import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { Button, Space, Tooltip, theme } from "antd";
@@ -40,9 +41,7 @@ export function EncounterTurnResources({
     try {
       await onChange(action);
     } catch (error) {
-      setError(
-        error instanceof Error ? error.message : "Could not update turn resources.",
-      );
+      setError(userErrorMessage(error, "Could not update turn resources."));
       throw error;
     } finally {
       inFlight.current = false;

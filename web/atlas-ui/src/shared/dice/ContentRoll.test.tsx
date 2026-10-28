@@ -94,7 +94,9 @@ it("shows rejected source requests locally and retries only on an explicit actio
   fireEvent.click(
     screen.getByRole("button", { name: "Roll 4d8+10 bludgeoning damage" }),
   );
-  expect(await screen.findByRole("alert")).toHaveTextContent("This source changed");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Couldn’t confirm the roll.",
+  );
   fireEvent.click(screen.getByRole("button", { name: "Close roll" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   fireEvent.click(

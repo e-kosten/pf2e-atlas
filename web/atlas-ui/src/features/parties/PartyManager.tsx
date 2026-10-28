@@ -1,11 +1,11 @@
+import { AtlasModal as Modal } from "../../shared/ui/overlays/AtlasModal";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Alert,
   Button,
   Form,
   Input,
   InputNumber,
-  Modal,
   Segmented,
   Space,
   Table,
@@ -77,10 +77,9 @@ export function PartyManager({
         }
       >
         {parties.error && (
-          <Alert
-            type="error"
+          <ErrorNotice
+            error={parties.error}
             title="Parties could not load"
-            description={parties.error.message}
             action={
               <Button
                 loading={parties.isFetching}
@@ -92,11 +91,7 @@ export function PartyManager({
           />
         )}
         {remove.error && (
-          <Alert
-            type="error"
-            title="Party could not be deleted"
-            description={remove.error.message}
-          />
+          <ErrorNotice error={remove.error} title="Party could not be deleted" />
         )}
         <Table<PartyView>
           rowKey="party_key"
@@ -269,11 +264,7 @@ function PartyEditor({ party, onClose }: { party?: PartyView; onClose: () => voi
         onFinish={(values) => void submit(values)}
       >
         {save.error && (
-          <Alert
-            type="error"
-            title="Party could not be saved"
-            description={save.error.message}
-          />
+          <ErrorNotice error={save.error} title="Party could not be saved" />
         )}
         <Form.Item
           label="Party name"

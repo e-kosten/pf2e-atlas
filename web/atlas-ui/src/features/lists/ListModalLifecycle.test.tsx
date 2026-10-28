@@ -90,7 +90,9 @@ it("keeps a new-list draft during one pending submission and a failed attempt", 
   fireEvent.click(document.querySelector(".ant-modal-wrap")!);
   expect(cancel).not.toHaveBeenCalled();
   await act(async () => reject(new Error("Service unavailable")));
-  expect(await screen.findByRole("alert")).toHaveTextContent("Service unavailable");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "List could not be created",
+  );
   expect(name).toHaveValue("Expedition");
   expect(name).toBeEnabled();
   expect(created).not.toHaveBeenCalled();

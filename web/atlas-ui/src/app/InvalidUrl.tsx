@@ -6,7 +6,8 @@ import { recordDestination, searchDestination, listDestination } from "./destina
 import { destinationHref, isPrimaryActivation } from "./navigation";
 import { ReadingUrlError } from "./readingUrl";
 import { parseSearchParams, stringifySearchParams } from "./urlState";
-import { canonicalRouteSearch } from "./routeSearch";
+import { canonicalRouteSearch, RouteSearchError } from "./routeSearch";
+import { reloadFrontend } from "../shared/browser/reloadFrontend";
 
 function RecoveryLink({ href, children }: { href: string; children: React.ReactNode }) {
   const router = useRouter();
@@ -29,7 +30,6 @@ function RecoveryLink({ href, children }: { href: string; children: React.ReactN
 }
 
 export function InvalidUrl({ error }: { error: unknown }) {
-  usePageTitle("Invalid link");
   const location = useRouterState({ select: (state) => state.location });
   const match = useRouterState({
     select: (state) =>
@@ -39,6 +39,9 @@ export function InvalidUrl({ error }: { error: unknown }) {
     error instanceof Error && "cause" in error && error.cause instanceof Error
       ? error.cause
       : error;
+  const linkProblem =
+    cause instanceof ReadingUrlError || cause instanceof RouteSearchError;
+  usePageTitle(linkProblem ? "Invalid link" : "Page unavailable");
   const recordKey =
     match && "recordKey" in match.params ? String(match.params.recordKey) : undefined;
   let resultsHref: string | undefined;
@@ -79,13 +82,20 @@ export function InvalidUrl({ error }: { error: unknown }) {
         <Alert
           type="error"
           showIcon
-          title="This link couldn’t be restored"
+          title={
+            linkProblem ? "This link couldn’t be restored" : "This page couldn’t open"
+          }
           description={
             <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
               <span>
-                {cause instanceof Error ? cause.message : "Invalid navigation URL"}
+                {linkProblem ? cause.message : "Reload this page or open Search."}
               </span>
-              <Space wrap role="group" aria-label="Link recovery">
+              <Space
+                wrap
+                role="group"
+                aria-label={linkProblem ? "Link recovery" : "Page recovery"}
+              >
+                {!linkProblem && <Button onClick={reloadFrontend}>Reload page</Button>}
                 {recordKey && (
                   <RecoveryLink
                     href={destinationHref(recordDestination({ recordKey }))}

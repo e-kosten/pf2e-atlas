@@ -66,7 +66,7 @@ test("a mismatch during use preserves an unsaved form and never replays its muta
   });
   await dialog.getByRole("button", { name: "OK", exact: true }).click();
   await expect(
-    page.getByRole("alert").filter({ hasText: "Atlas was updated" }),
+    dialog.getByRole("status").filter({ hasText: "Reload Atlas to continue" }),
   ).toBeVisible();
   await expect(dialog.getByRole("textbox", { name: "Name" })).toHaveValue(
     "Unsaved draft",

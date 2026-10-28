@@ -1,10 +1,12 @@
+import { RecordContextError } from "./recordContextError";
+import { ErrorNotice } from "../feedback/ErrorNotice";
 import {
   destinationHref,
   isPrimaryActivation,
   navigateDestination,
 } from "../../app/navigation";
 import { searchDestination } from "../../app/destinations";
-import { Alert, Button, Empty, Space, Spin } from "antd";
+import { Button, Empty, Space, Spin } from "antd";
 import type { ReactNode } from "react";
 import type { AtlasApiError } from "../../api/atlasApi";
 import type { RecordDetailView } from "../../generated/atlas";
@@ -126,9 +128,8 @@ export function RecordDetailPane({
             )}
             {error && (
               <div className="detail-status">
-                <Alert
-                  showIcon
-                  type="error"
+                <ErrorNotice
+                  error={error}
                   title={
                     detail
                       ? "Unable to refresh this record"
@@ -137,13 +138,13 @@ export function RecordDetailPane({
                         : "Unable to load this record"
                   }
                   description={
-                    detail ? (
-                      <>Previously loaded content remains below. {error.message}</>
-                    ) : notFound ? (
-                      "This record is not present in the current reference collection."
-                    ) : (
-                      error.message
-                    )
+                    error instanceof RecordContextError
+                      ? error.explanation
+                      : detail
+                        ? "Previously loaded content remains below."
+                        : notFound
+                          ? "This record is not present in the current reference collection."
+                          : undefined
                   }
                   action={
                     <Space wrap>

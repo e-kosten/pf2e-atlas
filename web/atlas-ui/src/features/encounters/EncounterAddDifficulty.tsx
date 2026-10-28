@@ -1,3 +1,4 @@
+import { isSharedFailure } from "../../shared/feedback/errorMessages";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Form, theme } from "antd";
 import type { FormInstance } from "antd";
@@ -164,7 +165,7 @@ export function EncounterAddDifficulty({
       >
         <span className="encounter-add-difficulty__context">{context}</span>
         <strong>{difficultySummary(display)}</strong>
-        {error && (
+        {error && !isSharedFailure(error) && (
           <Button size="small" onClick={() => void preview.refetch()}>
             Retry
           </Button>

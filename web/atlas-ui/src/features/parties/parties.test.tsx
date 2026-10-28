@@ -151,7 +151,7 @@ it("keeps a failed party creation draft and permits an explicit retry", async ()
     target: { value: "5" },
   });
   fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
-  expect(await screen.findByText("Could not save")).toBeInTheDocument();
+  expect(await screen.findByText("Party could not be saved")).toBeInTheDocument();
   expect(within(dialog).getByLabelText("PC 1 name")).toHaveValue("Aster");
   expect(onClose).not.toHaveBeenCalled();
   fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));

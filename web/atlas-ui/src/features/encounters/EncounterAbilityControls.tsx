@@ -1,3 +1,4 @@
+import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { DownOutlined, UndoOutlined } from "@ant-design/icons";
 import { Button, Dropdown, Space, Switch, Tooltip } from "antd";
 import { useLayoutEffect, useRef, useState } from "react";
@@ -77,7 +78,7 @@ export function EncounterAbilityControls({
       if (!(await onChange(ability, action)))
         setError("Could not confirm the update. Refresh the encounter.");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not update ability.");
+      setError(userErrorMessage(cause, "Could not update ability."));
     } finally {
       inFlight.current = false;
       setPending(false);

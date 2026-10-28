@@ -1,5 +1,6 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, Form } from "antd";
+import { Form } from "antd";
 import { useRef, useState } from "react";
 import { addSavedListItem } from "../../api/atlasApi";
 import type { SavedListSummaryView } from "../../generated/atlas";
@@ -90,13 +91,7 @@ export function ListRecordPicker({
       }}
     >
       {receipt && <span role="status">{receipt.message}</span>}
-      {add.error && (
-        <Alert
-          type="error"
-          title="Record could not be added"
-          description={add.error.message}
-        />
-      )}
+      {add.error && <ErrorNotice error={add.error} title="Record could not be added" />}
     </SearchPickerModal>
   );
 }

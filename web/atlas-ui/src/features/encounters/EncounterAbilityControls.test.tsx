@@ -59,7 +59,9 @@ it("keeps a failed update local and allows the same action to be retried", async
     <EncounterAbilityControls ability={ability} disabled={false} onChange={onChange} />,
   );
   fireEvent.click(screen.getByRole("button", { name: "Use Speed Surge" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent("Encounter changed");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Could not update ability.",
+  );
   fireEvent.click(screen.getByRole("button", { name: "Use Speed Surge" }));
   await waitFor(() => expect(onChange).toHaveBeenCalledTimes(2));
 });

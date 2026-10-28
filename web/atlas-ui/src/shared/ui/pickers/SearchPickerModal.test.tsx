@@ -639,7 +639,7 @@ it("distinguishes failed retrieval from empty results and retries the same reque
     .mockRejectedValueOnce(new Error("Server unavailable"))
     .mockResolvedValue(result());
   renderPicker();
-  expect(await screen.findByRole("alert")).toHaveTextContent("Server unavailable");
+  expect(await screen.findByRole("alert")).toHaveTextContent("Search failed");
   expect(screen.queryByText("No matching records")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Retry search" }));
   expect(await screen.findByRole("link", { name: /Ghoul/ })).toBeInTheDocument();

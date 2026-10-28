@@ -1,3 +1,5 @@
+import { userErrorMessage } from "../../shared/feedback/errorMessages";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { EncounterModal } from "./EncounterModal";
 import { RollModeControl } from "../../shared/dice/RollModeControl";
 import { useDicePopoverFocus } from "../../shared/dice/useDicePopoverFocus";
@@ -10,6 +12,7 @@ import { Alert, Button, Checkbox, Popover, Select, Spin } from "antd";
 import { Dice5 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { AtlasApiError, getInitiativeOptions } from "../../api/atlasApi";
+import { AtlasCompatibilityError } from "../../api/compatibility";
 import type {
   EncounterParticipantView,
   InitiativeOptionsView,
@@ -173,8 +176,9 @@ function InitiativeContent({
 }: RollProps & { query: ReturnType<typeof useInitiativeOptions> }) {
   if (!query.data)
     return query.isError ? (
-      <Alert
-        type="error"
+      <ErrorNotice
+        error={query.error}
+        compact
         title="Couldn’t load modifiers"
         action={<Button onClick={() => void query.refetch()}>Retry</Button>}
       />
@@ -313,9 +317,14 @@ function InitiativeForm({
             cause.appError?.code === "artifact_generation_changed" ||
             cause.appError?.code === "encounter_participant_conflict"),
       );
-      if (isDefiniteRollRejection(cause)) {
+      if (cause instanceof AtlasCompatibilityError || isDefiniteRollRejection(cause)) {
         setAttempt(null);
-        setError(cause.message);
+        setError(
+          userErrorMessage(
+            cause,
+            "The roll could not be completed. Review the current values before trying again.",
+          ),
+        );
       } else {
         setError("Couldn’t confirm the roll. Retry to recover it.");
       }

@@ -1,13 +1,13 @@
-import { Alert, Button } from "antd";
+import { ErrorNotice } from "../feedback/ErrorNotice";
+import { Button } from "antd";
 import { useSearchProfile } from "./SearchProfileContext";
 
 export function SearchProfileNotice() {
   const profile = useSearchProfile();
   if (!profile.error) return null;
   return (
-    <Alert
-      type="error"
-      showIcon
+    <ErrorNotice
+      error={profile.error}
       title={profile.error}
       action={
         profile.canResetLink && (

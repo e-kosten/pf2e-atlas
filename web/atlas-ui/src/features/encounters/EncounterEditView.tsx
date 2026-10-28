@@ -1,8 +1,9 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
 import { encounterDestination, encountersDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button } from "antd";
+import { Button } from "antd";
 import { getEncounter } from "../../api/atlasApi";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { EditEncounterForm } from "./EncounterModals";
@@ -29,7 +30,7 @@ function EncounterEditor({ route }: EncounterEditViewProps) {
       <section className="encounter-edit-view__header">
         <div>
           <h2>Edit Encounter</h2>
-          <p>{encounter.data?.encounter.name ?? route.slug}</p>
+          {encounter.data && <p>{encounter.data.encounter.name}</p>}
         </div>
         <Button
           disabled={mutations.pending}
@@ -45,10 +46,9 @@ function EncounterEditor({ route }: EncounterEditViewProps) {
         </Button>
       </section>
       {encounter.error && !mutations.refreshError && (
-        <Alert
-          type="error"
+        <ErrorNotice
+          error={encounter.error}
           title="Encounter could not load"
-          description={encounter.error.message}
           action={
             <Button
               onClick={() => void encounter.refetch()}
@@ -60,10 +60,11 @@ function EncounterEditor({ route }: EncounterEditViewProps) {
         />
       )}
       {mutations.refreshError && (
-        <Alert
-          type="error"
-          title="Saved, but encounter could not refresh"
-          description={mutations.refreshError.message}
+        <ErrorNotice
+          error={mutations.refreshError}
+          outcome={mutations.refreshOutcome}
+          type="warning"
+          title={mutations.refreshMessage}
           action={
             <Button
               onClick={() => void mutations.retryRefresh()}

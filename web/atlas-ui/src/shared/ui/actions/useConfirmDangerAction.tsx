@@ -1,4 +1,7 @@
-import { Alert, App, Space } from "antd";
+import { ErrorNotice } from "../../feedback/ErrorNotice";
+import { App, Space } from "antd";
+import { FeedbackModalFrame } from "../../feedback/GlobalFeedback";
+import { feedbackModalStyles } from "../overlays/AtlasModal";
 
 export function useConfirmDangerAction() {
   const { modal } = App.useApp();
@@ -17,6 +20,8 @@ export function useConfirmDangerAction() {
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const confirmation = modal.confirm({
       title,
+      modalRender: (node) => <FeedbackModalFrame active>{node}</FeedbackModalFrame>,
+      styles: feedbackModalStyles(),
       content,
       okText,
       okButtonProps: { danger: true },
@@ -39,14 +44,7 @@ export function useConfirmDangerAction() {
             content: (
               <Space orientation="vertical">
                 {content && <div>{content}</div>}
-                <Alert
-                  type="error"
-                  title={
-                    error instanceof Error
-                      ? error.message
-                      : `${okText} failed. Try again.`
-                  }
-                />
+                <ErrorNotice error={error} title={`${okText} could not be confirmed`} />
               </Space>
             ),
           });

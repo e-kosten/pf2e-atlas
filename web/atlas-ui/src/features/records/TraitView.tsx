@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { traitDestination, searchDestination } from "../../app/destinations";
 import type { TraitPageInput } from "../../app/destinations";
 import { navigateDestination } from "../../app/navigation";
@@ -59,19 +60,15 @@ export function TraitView({ route }: { route: TraitPageInput }) {
               </div>
             )}
             {query.error && (
-              <Alert
-                showIcon
-                type="error"
+              <ErrorNotice
+                error={query.error}
                 title={
                   query.data
                     ? "Unable to refresh this trait"
                     : "Unable to load this trait"
                 }
                 description={
-                  <>
-                    {query.data && "Previously loaded content remains below. "}
-                    {query.error.message}
-                  </>
+                  query.data ? "Previously loaded content remains below." : undefined
                 }
                 action={
                   <Button
@@ -375,11 +372,11 @@ function TraitRecords({
             : "Search trait references"}
       </ExploreSearchAction>
       {kind === "similar" && search.filterError && (
-        <Alert type="error" title={search.filterError} />
+        <ErrorNotice error={search.filterError} title={search.filterError} />
       )}
       {query.error && (
-        <Alert
-          showIcon
+        <ErrorNotice
+          error={query.error}
           type={changed ? "warning" : unavailable ? "info" : "error"}
           title={
             changed
@@ -389,12 +386,7 @@ function TraitRecords({
                 : "Unable to load these records"
           }
           description={
-            unavailable ? undefined : (
-              <>
-                {data && "Previously loaded records remain below. "}
-                {query.error.message}
-              </>
-            )
+            data && !unavailable ? "Previously loaded records remain below." : undefined
           }
           action={
             unavailable ? undefined : (

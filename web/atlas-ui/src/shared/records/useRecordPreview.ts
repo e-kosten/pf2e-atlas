@@ -1,3 +1,4 @@
+import { RecordContextError } from "./recordContextError";
 import { recordReadingIdentity, useRetainedRecord } from "./useRetainedRecord";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { RecordPreviewAnchor } from "./recordPreviewTypes";
@@ -64,22 +65,22 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   }>();
   const contextualError = requestedContext
     ? reloadState?.kind === "finished"
-      ? "The encounter has refreshed. Close this preview and reopen the activity to use its current context."
+      ? new RecordContextError("refreshed")
       : requestedContext.identity !== encounterContext?.identity
-        ? "The selected participant has changed. Reopen the activity for this participant."
+        ? new RecordContextError("participantChanged")
         : requestedContext.conditionId !== undefined &&
             encounterContext?.conditions &&
             !encounterContext.conditions.some(
               (c) => c.condition_id === requestedContext.conditionId,
             )
-          ? "This condition is no longer on the participant."
+          ? new RecordContextError("conditionRemoved")
           : !requestedContext.generation
-            ? "Reference content is unavailable for this participant."
+            ? new RecordContextError("referenceUnavailable")
             : requestedContext.generation !== encounterContext?.generation
-              ? "The reference collection has changed. Reload the encounter and reopen the activity."
+              ? new RecordContextError("generationChanged")
               : !encounterContext?.presentation &&
                   requestedContext.conditionId === undefined
-                ? "This participant's reference is no longer available."
+                ? new RecordContextError("participantReferenceRemoved")
                 : undefined
     : undefined;
   // Runtime views never seed immutable reference caches. A changed participant
@@ -257,7 +258,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         : reloadState?.kind === "failed"
           ? reloadState.error
           : contextualError
-            ? new Error(contextualError)
+            ? contextualError
             : contextual.error
       : detail.error,
     retry:

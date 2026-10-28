@@ -42,6 +42,7 @@ export default defineConfig({
       name: "phone-chromium",
       testMatch: [
         "journeys.spec.ts",
+        "feedback.spec.ts",
         "spell-effects.spec.ts",
         "conditions.spec.ts",
         "condition-refinement.spec.ts",
@@ -54,6 +55,7 @@ export default defineConfig({
       name: "phone-webkit",
       testMatch: [
         "journeys.spec.ts",
+        "feedback.spec.ts",
         "spell-effects.spec.ts",
         "conditions.spec.ts",
         "condition-refinement.spec.ts",
@@ -66,6 +68,7 @@ export default defineConfig({
       name: "tablet-webkit",
       testMatch: [
         "journeys.spec.ts",
+        "feedback.spec.ts",
         "spell-effects.spec.ts",
         "conditions.spec.ts",
         "condition-refinement.spec.ts",

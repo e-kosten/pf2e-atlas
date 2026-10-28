@@ -1,7 +1,8 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { encounterStatusLabels } from "./encounterStatus";
 import { EncounterModal } from "./EncounterModal";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Form, Input, Popconfirm, Select } from "antd";
+import { Button, Form, Input, Popconfirm, Select } from "antd";
 import { useEffect, useId, useRef } from "react";
 import { createEncounter } from "../../api/atlasApi";
 import type {
@@ -63,11 +64,7 @@ export function CreateEncounterModal({
         }}
       >
         {mutation.error && (
-          <Alert
-            type="error"
-            title="Encounter could not be created"
-            description={mutation.error.message}
-          />
+          <ErrorNotice error={mutation.error} title="Encounter could not be created" />
         )}
         <Form.Item name="name" label="Name" rules={[{ required: true }]}>
           <Input />
@@ -196,7 +193,11 @@ export function EditEncounterForm({
       }}
     >
       {error && (
-        <Alert type="error" title="Encounter action failed" description={error} />
+        <ErrorNotice
+          error={error}
+          title="Encounter change could not be confirmed"
+          description={error}
+        />
       )}
       <Form.Item name="name" label="Name" rules={[{ required: true }]}>
         <Input />

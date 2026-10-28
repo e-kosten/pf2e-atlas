@@ -1,4 +1,8 @@
-import { AtlasApiError } from "../../api/atlasApi";
+import { userErrorMessage } from "../feedback/errorMessages";
+import {
+  AtlasConnectionError,
+  reportAvailabilityFailure,
+} from "../../api/availability";
 import { useEffect, useRef, useState } from "react";
 import { waitForRollReveal } from "./rollLifecycle";
 
@@ -30,12 +34,13 @@ export function useDiceRoll<T>({
       setAnimating(true);
       await waitForRollReveal();
     } catch (cause) {
+      reportAvailabilityFailure(cause);
       if (mounted.current) {
         if (!retainResultOnError) setResult(undefined);
         setError(
-          cause instanceof AtlasApiError && cause.status < 500
-            ? cause.message
-            : "Couldn’t confirm the roll.",
+          cause instanceof AtlasConnectionError
+            ? "Couldn’t confirm the roll."
+            : userErrorMessage(cause, "Couldn’t confirm the roll."),
         );
       }
     } finally {

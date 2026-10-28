@@ -1,3 +1,5 @@
+import type { EncounterMutationCommand } from "./useEncounterMutations";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import {
   EncounterAbilityControls,
   type AbilityStateHandler,
@@ -14,7 +16,7 @@ import { EncounterLifeStatus } from "./EncounterLifeStatus";
 import { EncounterConditionRecovery } from "./EncounterConditionLifecycle";
 import { FactRow, factText } from "../../shared/records/presentationFacts";
 import { EncounterStrikeControl } from "./EncounterStrikeControl";
-import { Alert, Button, Space } from "antd";
+import { Button, Space } from "antd";
 import { ActorEncounterLayout } from "../../shared/records/ActorEncounterLayout";
 import { HazardDefenses } from "../../shared/records/HazardDefenses";
 import { ActorDefenses } from "../../shared/records/ActorReference";
@@ -53,6 +55,7 @@ export function EncounterInspectorPane({
   conditionError,
   onRetryConditions,
   error,
+  errorKind,
   spellError,
   onCloseRecordPreview,
   onOpenRecordFullPage,
@@ -105,6 +108,7 @@ export function EncounterInspectorPane({
   conditionError: Error | null;
   onRetryConditions: () => void;
   error?: string;
+  errorKind?: EncounterMutationCommand["kind"];
   spellError?: string;
   onCloseRecordPreview: () => void;
   onOpenRecordFullPage: (recordKey: string) => void;
@@ -219,6 +223,7 @@ export function EncounterInspectorPane({
           conditionError={conditionError}
           onRetryConditions={onRetryConditions}
           error={error}
+          errorKind={errorKind}
           spellError={spellError}
           conditionDefinitions={conditionDefinitions}
           damageTypes={damageTypes}
@@ -304,6 +309,7 @@ function EncounterParticipantSurface({
   conditionError,
   onRetryConditions,
   error,
+  errorKind,
   spellError,
   conditionDefinitions,
   damageTypes,
@@ -340,6 +346,7 @@ function EncounterParticipantSurface({
   conditionError: Error | null;
   onRetryConditions: () => void;
   error?: string;
+  errorKind?: EncounterMutationCommand["kind"];
   spellError?: string;
   conditionDefinitions: EncounterConditionDefinitionView[];
   damageTypes?: Array<{
@@ -404,6 +411,8 @@ function EncounterParticipantSurface({
   requestedConditionEdit?: import("./conditionEditRequest").ConditionEditRequest;
   participants: EncounterParticipantView[];
 }) {
+  const errorFor = (...kinds: EncounterMutationCommand["kind"][]) =>
+    errorKind && kinds.includes(errorKind) ? error : undefined;
   const updateParticipant = (changes: Partial<UpdateEncounterParticipantRequest>) =>
     onUpdate(participantUpdate(participant, changes));
   const presentation = participant.presentation;
@@ -451,7 +460,7 @@ function EncounterParticipantSurface({
         <EncounterHpControls
           pending={pending}
           recovery={recovery}
-          error={error}
+          error={errorFor("hp")}
           disabled={disabled}
           current={participant}
           onAction={(action) => onHpAction(participant, action)}
@@ -475,7 +484,9 @@ function EncounterParticipantSurface({
     <div className="encounter-runtime-stack">
       {turnControls}
       {conditionError && (
-        <Alert
+        <ErrorNotice
+          error={conditionError}
+          compact
           type="warning"
           title="Condition choices unavailable"
           action={<Button onClick={onRetryConditions}>Retry</Button>}
@@ -489,7 +500,7 @@ function EncounterParticipantSurface({
         recovery={recovery}
         disabled={disabled}
         addDisabled={conditionsDisabled}
-        error={error}
+        error={errorFor("add-condition", "update-condition", "remove-condition")}
         conditionDefinitions={conditionDefinitions}
         damageTypes={damageTypes}
         standardRecoveryDc={standardRecoveryDc}
@@ -539,7 +550,7 @@ function EncounterParticipantSurface({
                 participant={participant}
                 disabled={disabled}
                 pending={pending}
-                error={error}
+                error={errorFor("participant", "life-settings")}
                 recovery={recovery}
                 onUpdate={onUpdate}
                 onLifeSettings={(settings) =>

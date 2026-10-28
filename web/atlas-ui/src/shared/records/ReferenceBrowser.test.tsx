@@ -213,7 +213,7 @@ it.each([
         }
         await chooseMatch();
         if (scenario === "retry ability") {
-          await screen.findByText("Ability read rejected");
+          await screen.findByText("Unable to load ability content");
           getAbilities.mockImplementation(pending);
           fireEvent.click(screen.getByRole("button", { name: "Retry" }));
         }
