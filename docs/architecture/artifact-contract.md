@@ -76,6 +76,13 @@ Workspace migration 21 adds Core eligibility metadata. The separately versioned
 Core projection is published from checked snapshots as one reference generation,
 without source access, inference or changed lexical coverage.
 
+Workspace migration 22 adds versioned participant creation gameplay baselines and
+recovery request identities. Historical participants have no baseline: migration
+never treats their current damaged/spent state as creation facts. Local-state
+captures final creation HP after source-condition initialization and persists
+reset/rest replacements under one encounter revision guard and savepoint. Names,
+notes, side, visibility and roster position remain outside the baseline.
+
 Pre-release separate-file formats have no compatibility reader or conversion
 shim. Future workspace upgrades use ordered migrations with recorded checksums,
 a consistent backup before structural changes, and transaction-scoped validation.

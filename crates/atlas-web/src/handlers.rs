@@ -1035,3 +1035,32 @@ pub(crate) async fn preview_encounter_difficulty(
         .await?,
     ))
 }
+
+pub(crate) async fn preview_encounter_recovery(
+    State(state): State<AtlasWebState>,
+    Path(encounter_ref): Path<String>,
+    payload: Result<Json<atlas_app_model::PreviewEncounterRecoveryRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.preview_encounter_recovery(&encounter_ref, request)
+        })
+        .await?,
+    ))
+}
+pub(crate) async fn apply_encounter_recovery(
+    State(state): State<AtlasWebState>,
+    Path(encounter_ref): Path<String>,
+    payload: Result<Json<atlas_app_model::ApplyEncounterRecoveryRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_service(state, move || {
+            service.apply_encounter_recovery(&encounter_ref, request)
+        })
+        .await?,
+    ))
+}

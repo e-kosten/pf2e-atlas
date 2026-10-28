@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 21;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 22;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -134,6 +134,12 @@ const MIGRATIONS: &[Migration] = &[
         version: 21,
         name: "core-section-eligibility",
         sql: atlas_index::CORE_SECTIONS_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 22,
+        name: "encounter-recovery",
+        sql: atlas_local_state::ENCOUNTER_RECOVERY_SCHEMA_SQL,
         backfill: None,
     },
 ];

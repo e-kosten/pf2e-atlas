@@ -65,6 +65,8 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
             "/api/encounters/{encounter_ref}/participants/{participant_key}/reference",
             post(crate::handlers::encounter_reference),
         )
+        .route("/api/encounters/{encounter_ref}/recovery/preview", post(crate::handlers::preview_encounter_recovery))
+        .route("/api/encounters/{encounter_ref}/recovery", post(crate::handlers::apply_encounter_recovery))
         .route("/api/encounters/{encounter_ref}/participants/{participant_key}/spells", post(crate::handlers::apply_encounter_spell_action))
         .route("/api/encounters/{encounter_ref}/initiative", get(crate::handlers::initiative_options).post(crate::handlers::roll_initiative))
         .route(

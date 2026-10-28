@@ -2,6 +2,7 @@ import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import {
+  applyEncounterRecovery,
   setEncounterDifficulty,
   previewEncounterDifficulty,
   updateTurnResources,
@@ -45,6 +46,13 @@ import type {
 } from "../../generated/atlas";
 
 export type EncounterMutationCommand =
+  | {
+      kind: "recovery";
+      request: Omit<
+        import("../../generated/atlas").ApplyEncounterRecoveryRequest,
+        "request_id"
+      >;
+    }
   | {
       kind: "ability-state";
       request: Omit<
@@ -255,6 +263,11 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       | import("../../generated/atlas").ConditionLifecycleResultView
     > => {
       switch (command.kind) {
+        case "recovery":
+          return applyEncounterRecovery(currentRef, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
         case "ability-state":
           return updateEncounterAbilityState(currentRef, {
             ...command.request,

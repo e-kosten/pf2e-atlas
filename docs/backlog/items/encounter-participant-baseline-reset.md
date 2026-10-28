@@ -1,8 +1,8 @@
 # Encounter Participant Baseline Reset
 
-Status: deferred
-Priority: later
-Owner: unassigned
+Status: in_progress
+Priority: current
+Owner: encounter-reset-rest
 Last reviewed: 2026-10-27
 
 Allow a participant to return atomically to a defined creation baseline for
@@ -24,3 +24,22 @@ and consequences before implementation.
 
 Related: [encounter polish](rust-web-encounter-runner-polish.md),
 [capability recovery](rust-integration-recovery.md).
+
+## Current implementation
+
+Whole-encounter and participant resets restore versioned creation gameplay facts.
+Whole reset returns to Draft/round 1. Individual reset ends the current turn when
+resetting its owner. Names, notes, sides, visibility and roster order are retained;
+creation initiative is restored with a collision-free tie position. Pending
+consequences and turn decisions are invalidated; historical receipts remain.
+Existing participants explicitly lack baselines and must be re-added to capture
+one. A whole reset cannot silently skip one of these participants.
+
+Rest overnight previews eight hours of recovery and daily preparation for selected
+living creatures. It reduces saved Drained/Doomed sources, removes Fatigued,
+expires timed saved conditions, clears temporary HP, restores spell resources and
+eligible daily/shorter ability frequencies, and removes Wounded at full HP. HP
+recovery uses known Constitution and level or an entered amount (0 skips healing).
+Ability toggles and weekly/longer frequencies persist. Source-granted conditions
+stay attached to their abilities. Reset is source-independent; rest uses a guarded
+source revision. Interaction acceptance and final validation remain pending.

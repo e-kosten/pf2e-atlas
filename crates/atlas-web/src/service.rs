@@ -333,6 +333,17 @@ pub(crate) trait AtlasWebService: Send + Sync {
         encounter_ref: &str,
         request: atlas_app_model::EncounterCastingRemindersRequest,
     ) -> Result<atlas_app_model::EncounterCastingRemindersView, AppServiceError>;
+    fn preview_encounter_recovery(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::PreviewEncounterRecoveryRequest,
+    ) -> Result<atlas_app_model::EncounterRecoveryPreviewView, AppServiceError>;
+    fn apply_encounter_recovery(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ApplyEncounterRecoveryRequest,
+    ) -> Result<EncounterMutationView, AppServiceError>;
+
     fn apply_encounter_spell_action(
         &self,
         encounter_ref: &str,
@@ -839,6 +850,21 @@ impl AtlasWebService for AtlasAppService {
     ) -> Result<atlas_app_model::EncounterCastingRemindersView, AppServiceError> {
         self.encounter_casting_reminders(encounter_ref, request)
     }
+    fn preview_encounter_recovery(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::PreviewEncounterRecoveryRequest,
+    ) -> Result<atlas_app_model::EncounterRecoveryPreviewView, AppServiceError> {
+        self.preview_encounter_recovery(encounter_ref, request)
+    }
+    fn apply_encounter_recovery(
+        &self,
+        encounter_ref: &str,
+        request: atlas_app_model::ApplyEncounterRecoveryRequest,
+    ) -> Result<EncounterMutationView, AppServiceError> {
+        self.apply_encounter_recovery(encounter_ref, request)
+    }
+
     fn apply_encounter_spell_action(
         &self,
         encounter_ref: &str,

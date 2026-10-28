@@ -1,3 +1,9 @@
+export type { EncounterRecoveryAction } from "../../../../crates/atlas-app-model/bindings/EncounterRecoveryAction";
+export type { OvernightParticipantInput } from "../../../../crates/atlas-app-model/bindings/OvernightParticipantInput";
+export type { PreviewEncounterRecoveryRequest } from "../../../../crates/atlas-app-model/bindings/PreviewEncounterRecoveryRequest";
+export type { ApplyEncounterRecoveryRequest } from "../../../../crates/atlas-app-model/bindings/ApplyEncounterRecoveryRequest";
+export type { EncounterRecoveryParticipantView } from "../../../../crates/atlas-app-model/bindings/EncounterRecoveryParticipantView";
+export type { EncounterRecoveryPreviewView } from "../../../../crates/atlas-app-model/bindings/EncounterRecoveryPreviewView";
 export type { EncounterAbilityStateView } from "../../../../crates/atlas-app-model/bindings/EncounterAbilityStateView";
 export type { EncounterAbilityStateKindView } from "../../../../crates/atlas-app-model/bindings/EncounterAbilityStateKindView";
 export type { EncounterAbilityChoiceView } from "../../../../crates/atlas-app-model/bindings/EncounterAbilityChoiceView";

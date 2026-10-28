@@ -64,6 +64,7 @@ export function EncounterInspectorPane({
   onRemoveCondition,
   onUpdateCondition,
   onUpdate,
+  onReset,
   onLifeSettings,
   onRecoverPersistent,
   onResolveDrained,
@@ -97,6 +98,7 @@ export function EncounterInspectorPane({
   previewSelection,
   onPreviewRankChange,
 }: {
+  onReset?: () => void;
   onAbilityState?: AbilityStateHandler;
   disabled: boolean;
   encounterRevision: bigint;
@@ -234,6 +236,7 @@ export function EncounterInspectorPane({
           onReference={onReference}
           onRemoveCondition={onRemoveCondition}
           onUpdate={onUpdate}
+          onReset={onReset}
           onLifeSettings={onLifeSettings}
           onRecoverPersistent={onRecoverPersistent}
           onResolveDrained={onResolveDrained}
@@ -321,6 +324,7 @@ function EncounterParticipantSurface({
   onReference,
   onRemoveCondition,
   onUpdate,
+  onReset,
   onLifeSettings,
   onRecoverPersistent,
   onResolveDrained,
@@ -346,6 +350,7 @@ function EncounterParticipantSurface({
   artifactGeneration: string | null;
   pending: boolean;
   recovery?: React.ReactNode;
+  onReset?: () => void;
   conditionsDisabled: boolean;
   conditionError: Error | null;
   onRetryConditions: () => void;
@@ -551,6 +556,11 @@ function EncounterParticipantSurface({
           <div className="encounter-reference__title">
             <div className="encounter-reference__name">
               <h2>{participant.display_name}</h2>
+              {onReset && (
+                <Button type="text" disabled={disabled} onClick={onReset}>
+                  Reset
+                </Button>
+              )}
               <EncounterParticipantSettings
                 participant={participant}
                 disabled={disabled}

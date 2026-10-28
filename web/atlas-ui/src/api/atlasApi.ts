@@ -1561,3 +1561,34 @@ export function rollContent(
     body: jsonBody(request),
   });
 }
+
+export async function previewEncounterRecovery(
+  encounterRef: string,
+  request: import("../generated/atlas").PreviewEncounterRecoveryRequest,
+  signal?: AbortSignal,
+): Promise<import("../generated/atlas").EncounterRecoveryPreviewView> {
+  const result: import("../generated/atlas").EncounterRecoveryPreviewView =
+    await atlasFetch(
+      `/api/encounters/${encodeURIComponent(encounterRef)}/recovery/preview`,
+      { method: "POST", readOnly: true, body: jsonBody(request), signal },
+    );
+  return {
+    ...result,
+    encounter_revision: toBigInt(result.encounter_revision),
+    participants: result.participants.map((p) => ({
+      ...p,
+      current_hp: p.current_hp === null ? null : toBigInt(p.current_hp),
+      resulting_hp: p.resulting_hp === null ? null : toBigInt(p.resulting_hp),
+      healing: p.healing === null ? null : toBigInt(p.healing),
+    })),
+  };
+}
+export function applyEncounterRecovery(
+  encounterRef: string,
+  request: import("../generated/atlas").ApplyEncounterRecoveryRequest,
+): Promise<EncounterMutationView> {
+  return atlasFetch(`/api/encounters/${encodeURIComponent(encounterRef)}/recovery`, {
+    method: "POST",
+    body: jsonBody(request),
+  });
+}
