@@ -17,26 +17,30 @@ The current correction batch covers maintained-child and observer immunity,
 source-owned Petrified mortality, durable ability-state identities, explicit
 detection alongside Invisible, source range defaults, raw attribute preservation,
 attribute-based damage penalties, and the reviewed condition editing/recovery
-flows. The shared evaluation and event boundaries are described in
+flows. Source-backed Spend now honors the same known prohibitions as its display,
+without reallocating stock or restricting manual corrections. Successful editor
+closure waits for the controls to re-enable, preserving native focus return.
+
+One rules-owned RegainPlan now supplies allocation, numeric Stunned loss,
+Quickened restrictions and typed missing facts; presentation adapts those facts.
+Actual regain and validated explicit Stunned recovery share one consumption
+reducer. With product agreement, unused source-answer/Cantrip plumbing and raw
+recovery total/natural input were removed. Roll, table degrees, physical damage
+totals, historical outcomes and manual Stunned reconciliation remain supported.
+
+The shared evaluation and event boundaries are described in
 [ADR0055](../../architecture/decisions/0055-encounter-condition-evaluation.md).
 
 ## Open follow-through
 
-- Finish validation and PR review of the current correction batch.
-- Audit effective source-owned Dying, Wounded and Doomed arithmetic in ordinary
-  HP lifecycle events. Petrified parity does not establish parity for these valued
-  conditions: some death-threshold and recovery calculations still read saved
-  rows only. Separate effective mathematical facts from selectors that edit saved
-  rows; source-owned conditions remain read-only. The audit has not established
-  an affected pinned creature for each case.
-- Evaluate a typed internal action-regain plan. Durable allocation currently
-  consumes an action-budget presentation DTO, including its first displayed note.
-  The rules owner should supply typed allocation facts and unavailable reasons,
-  with presentation projected separately.
-- Decide whether raw recovery-roll entry, manual Stunned consumption, source-specific
-  action judgments and historical-only recovery variants justify their remaining
-  write surfaces. Code reachability alone is not usage evidence. Any removal needs
-  a concrete end state, consumer/receipt audit and product agreement.
+- Complete PR review of the current correction batch.
+- The source lifecycle audit covered 7,838 pinned actors and found no known-active
+  inherited Dying, Wounded, Doomed, Confused or Unconscious case. Some valued
+  lifecycle arithmetic still reads saved rows only. Pharasma's standalone Major
+  Curse can supply supported Doomed 2, but no pinned carrier or current attachment
+  workflow was established. A future supported immutable-source recovery workflow
+  needs a product decision; saved-row selectors and historical decoders remain
+  legitimate and should not be deleted speculatively.
 
 ## Boundaries
 
