@@ -7,8 +7,10 @@ Date: 2026-10-27
 
 Local-state owns versioned gameplay baselines captured inside participant creation,
 after source-derived initial HP is finalized. Baselines contain HP provenance,
-variant/level, mortality policy/state, initiative and saved conditions/resources;
-participant identity and editorial metadata stay live. Existing participants have
+variant, mortality policy/state, initiative and saved conditions/resources;
+participant identity, assigned level and editorial metadata stay live. The existing
+participant hidden flag now drives only roster dimming; it does not affect turn
+eligibility, initiative or encounter difficulty. Existing participants have
 no inferred baseline. Source-backed declarations remain authoritative reference
 facts and are not copied into mutable condition rows.
 

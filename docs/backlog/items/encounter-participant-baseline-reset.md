@@ -29,7 +29,7 @@ Related: [encounter polish](rust-web-encounter-runner-polish.md),
 
 Whole-encounter and participant resets restore versioned creation gameplay facts.
 Whole reset returns to Draft/round 1. Individual reset ends the current turn when
-resetting its owner. Names, notes, sides, visibility and roster order are retained;
+resetting its owner. Names, notes, assigned level, sides, roster dimming and roster order are retained;
 creation initiative is restored with a collision-free tie position. Pending
 consequences and turn decisions are invalidated; historical receipts remain.
 Existing participants explicitly lack baselines and must be re-added to capture

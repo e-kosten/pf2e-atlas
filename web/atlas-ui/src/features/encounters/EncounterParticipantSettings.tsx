@@ -247,10 +247,13 @@ function ParticipantSettingsForm({
         <Form.Item name="side" label="Side" rules={[{ required: true }]}>
           <Select
             aria-label="Participant side"
-            options={["pc", "ally", "enemy", "neutral", "hazard"].map((value) => ({
-              value,
-              label: value,
-            }))}
+            options={[
+              { value: "pc", label: "Player Characters" },
+              { value: "ally", label: "Ally" },
+              { value: "enemy", label: "Enemy" },
+              { value: "neutral", label: "Neutral" },
+              { value: "hazard", label: "Hazard" },
+            ]}
           />
         </Form.Item>
         {participant.participant_kind === "creature" && (

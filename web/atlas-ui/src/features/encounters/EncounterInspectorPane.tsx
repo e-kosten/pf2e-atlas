@@ -574,6 +574,19 @@ function EncounterParticipantSurface({
                 ? recordClassification(presentation)
                 : participant.participant_kind}
             </p>
+            <div className="encounter-reference__actions">
+              {participant.record_key && (
+                <EncounterOriginalRecord
+                  recordKey={participant.record_key}
+                  label={
+                    participant.participant_kind === "hazard"
+                      ? "View hazard reference"
+                      : "View creature reference"
+                  }
+                />
+              )}
+              {!hasHp && statusControl}
+            </div>
           </div>
           {presentation &&
           (presentation.identity.traits.length > 0 ||
@@ -593,19 +606,6 @@ function EncounterParticipantSurface({
               Source: <span>{presentation.identity.publication}</span>
             </p>
           )}
-        </div>
-        <div className="encounter-reference__actions">
-          {participant.record_key && (
-            <EncounterOriginalRecord
-              recordKey={participant.record_key}
-              label={
-                participant.participant_kind === "hazard"
-                  ? "View hazard reference"
-                  : "View creature reference"
-              }
-            />
-          )}
-          {!hasHp && statusControl}
         </div>
       </div>
       {participant.status === "unresolved" && (

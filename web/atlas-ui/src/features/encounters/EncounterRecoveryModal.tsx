@@ -1,7 +1,17 @@
 import { useId, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Button, InputNumber, Radio, Space, Spin, Table } from "antd";
+import {
+  Button,
+  ConfigProvider,
+  InputNumber,
+  Radio,
+  Space,
+  Spin,
+  Table,
+  theme,
+} from "antd";
 import type { TableColumnsType } from "antd";
+import { EncounterOriginalRecord } from "./EncounterOriginalRecord";
 import { EncounterModal } from "./EncounterModal";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { previewEncounterRecovery } from "../../api/atlasApi";
@@ -25,6 +35,7 @@ export function EncounterRecoveryModal({
   mutations: Pick<ReturnType<typeof useEncounterMutations>, "run" | "pending">;
   onClose: () => void;
 }) {
+  const { token } = theme.useToken();
   const reasonId = useId();
   const [snapshot] = useState(encounter);
   const rest = mode === "rest_overnight";
@@ -237,11 +248,21 @@ export function EncounterRecoveryModal({
       }
     >
       <div className="encounter-recovery">
-        <p className="encounter-recovery__intro">
-          {rest
-            ? "8 hours of rest and daily preparations."
-            : "Restore HP, initiative, adjustments, conditions and resources to their creation values."}
-        </p>
+        <div className="encounter-recovery__intro-row">
+          <p className="encounter-recovery__intro">
+            {rest
+              ? "8 hours of rest and daily preparations."
+              : "Restore HP, initiative, adjustments, conditions and resources to their creation values."}
+          </p>
+          {rest && preview.data?.rules_reference && (
+            <EncounterOriginalRecord
+              recordKey={preview.data.rules_reference.record_key}
+              navigation={preview.data.rules_reference}
+              label="Resting rules"
+              text="Resting rules"
+            />
+          )}
+        </div>
         {rest && (
           <div className="encounter-recovery__policy">
             <span id="recovery-hp-label">HP recovery</span>
@@ -290,27 +311,38 @@ export function EncounterRecoveryModal({
         {rest && candidates.length === 0 ? (
           <p>No living participants can rest.</p>
         ) : (
-          <Table
-            className="encounter-recovery__table"
-            size="small"
-            tableLayout="fixed"
-            pagination={false}
-            rowKey="participant_key"
-            dataSource={participants}
-            columns={columns}
-            rowSelection={
-              rest
-                ? {
-                    selectedRowKeys: chosen,
-                    onChange: (keys) => setChosen(keys.map(String)),
-                    getCheckboxProps: (p) => ({
-                      disabled: busy,
-                      "aria-label": `Rest ${p.display_name}`,
-                    }),
-                  }
-                : undefined
-            }
-          />
+          <ConfigProvider
+            theme={{
+              components: {
+                Table: {
+                  rowSelectedBg: token.colorBgContainer,
+                  rowSelectedHoverBg: token.colorFillAlter,
+                },
+              },
+            }}
+          >
+            <Table
+              className="encounter-recovery__table"
+              size="small"
+              tableLayout="fixed"
+              pagination={false}
+              rowKey="participant_key"
+              dataSource={participants}
+              columns={columns}
+              rowSelection={
+                rest
+                  ? {
+                      selectedRowKeys: chosen,
+                      onChange: (keys) => setChosen(keys.map(String)),
+                      getCheckboxProps: (p) => ({
+                        disabled: busy,
+                        "aria-label": `Rest ${p.display_name}`,
+                      }),
+                    }
+                  : undefined
+              }
+            />
+          </ConfigProvider>
         )}
         <div className="encounter-recovery__summary" aria-busy={preview.isFetching}>
           {preview.isFetching && (
@@ -320,9 +352,6 @@ export function EncounterRecoveryModal({
             <span>Choose participants to rest.</span>
           ) : (
             preview.data?.changes.map((change) => <div key={change}>{change}</div>)
-          )}
-          {!rest && (
-            <div className="muted">Names, notes, sides and visibility are kept.</div>
           )}
         </div>
       </div>

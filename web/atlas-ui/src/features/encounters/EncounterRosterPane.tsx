@@ -15,7 +15,7 @@ import type { FormInstance } from "antd";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { SortableRow, useSortableList } from "../../shared/ui/sortable/SortableList";
-import { Dice5, Ellipsis, GripVertical, Play, Trash2 } from "lucide-react";
+import { Dice5, Ellipsis, Eye, EyeOff, GripVertical, Play, Trash2 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type {
   AddEncounterManualParticipantRequest,
@@ -241,6 +241,7 @@ export function EncounterRosterPane({
                   "Current turn",
                 participant.hazard_disabled && "Disabled",
                 participant.defeated && "Defeated",
+                participant.hidden && "Dimmed",
               ]
                 .filter(Boolean)
                 .join(", ")}
@@ -272,6 +273,11 @@ export function EncounterRosterPane({
               participant={participant}
               disabled={disabled}
               onSetTurn={() => onSetTurn(participant)}
+              onToggleDim={() =>
+                onUpdate(
+                  participantUpdate(participant, { hidden: !participant.hidden }),
+                )
+              }
               onRemove={() => onRemove(participant)}
             />
             {removeError?.participantKey === participant.participant_key && (
@@ -576,6 +582,7 @@ function rosterRowClass(
     "encounter-roster__row",
     current ? "encounter-roster__row--current" : "",
     selected ? "encounter-roster__row--selected" : "",
+    participant.hidden ? "encounter-roster__row--dimmed" : "",
     participant.defeated || participant.hazard_disabled
       ? "encounter-roster__row--inactive"
       : "",
@@ -588,11 +595,13 @@ function ParticipantActions({
   participant,
   disabled,
   onSetTurn,
+  onToggleDim,
   onRemove,
 }: {
   participant: EncounterParticipantView;
   disabled: boolean;
   onSetTurn: () => void;
+  onToggleDim: () => Promise<unknown>;
   onRemove: () => void;
 }) {
   const trigger = useRef<HTMLButtonElement>(null);
@@ -611,6 +620,22 @@ function ParticipantActions({
               onClick: () => {
                 trigger.current?.focus();
                 onSetTurn();
+              },
+            },
+            {
+              key: "dim",
+              label: participant.hidden ? "Show normally" : "Dim in roster",
+              icon: participant.hidden ? (
+                <Eye size={14} aria-hidden="true" />
+              ) : (
+                <EyeOff size={14} aria-hidden="true" />
+              ),
+              disabled,
+              onClick: () => {
+                trigger.current?.focus({ preventScroll: true });
+                void onToggleDim().catch(() => {
+                  /* The encounter mutation owner retains failure feedback. */
+                });
               },
             },
           ],
