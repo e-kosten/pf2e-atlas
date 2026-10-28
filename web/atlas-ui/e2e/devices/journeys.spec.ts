@@ -76,6 +76,9 @@ test("Explore keeps header geometry stable and restores mode and tab through bro
   await activate(seed, info);
   const drawer = page.getByRole("dialog", { name: /^Signal Protocol\b/ });
   await expect(drawer).toBeVisible();
+  await expect(
+    page.locator(".record-preview-drawer-root .ant-drawer-content-wrapper"),
+  ).toHaveCSS("transform", "none");
   await activate(
     drawer.getByRole("button", { name: "Close reference preview", exact: true }),
     info,
