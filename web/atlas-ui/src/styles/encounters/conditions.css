@@ -150,6 +150,10 @@
   padding: 4px;
 }
 
+.encounter-persistent-recovery-roll {
+  flex-wrap: wrap;
+}
+
 .encounter-recovery-roll__submit {
   min-width: 96px;
 }

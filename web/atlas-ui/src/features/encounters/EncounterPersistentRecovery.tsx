@@ -1,7 +1,7 @@
 import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { Dice5 } from "lucide-react";
-import { Alert, Button, Form, InputNumber, Popover, Tooltip } from "antd";
+import { Alert, Button, Form, InputNumber, Popover, Space, Tooltip } from "antd";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   PersistentDamageGroupView,
@@ -200,7 +200,7 @@ export function EncounterPersistentRecovery({
     <>
       <Popover
         title={`${damageType} recovery`}
-        placement="bottomRight"
+        placement="top"
         open={open}
         trigger="click"
         onOpenChange={(next) => {
@@ -249,7 +249,7 @@ export function EncounterPersistentRecovery({
                   disabled || pending || result?.success || (changed && !result)
                 }
               >
-                <div className="encounter-recovery-roll">
+                <div className="encounter-recovery-roll encounter-persistent-recovery-roll">
                   <Form.Item
                     name="dc"
                     label="Flat check DC"
@@ -264,42 +264,44 @@ export function EncounterPersistentRecovery({
                       style={{ width: 72 }}
                     />
                   </Form.Item>
-                  <Button
-                    type="primary"
-                    className="encounter-recovery-roll__submit"
-                    disabled={
-                      disabled ||
-                      pending ||
-                      clearing ||
-                      result?.success ||
-                      (changed && !result) ||
-                      !rollAvailable ||
-                      dice.busy
-                    }
-                    loading={pending || dice.busy}
-                    onClick={() => void run()}
-                  >
-                    {result && !result.success && mode === "explicit"
-                      ? "Reroll"
-                      : "Roll"}
-                  </Button>
-                  {mode === "explicit" && (
+                  <Space size={12}>
                     <Button
+                      type="primary"
+                      className="encounter-recovery-roll__submit"
                       disabled={
                         disabled ||
                         pending ||
                         clearing ||
-                        dice.busy ||
                         result?.success ||
                         (changed && !result) ||
-                        !available
+                        !rollAvailable ||
+                        dice.busy
                       }
-                      loading={clearing}
-                      onClick={() => void clear()}
+                      loading={pending || dice.busy}
+                      onClick={() => void run()}
                     >
-                      Clear effect
+                      {result && !result.success && mode === "explicit"
+                        ? "Reroll"
+                        : "Roll"}
                     </Button>
-                  )}
+                    {mode === "explicit" && (
+                      <Button
+                        disabled={
+                          disabled ||
+                          pending ||
+                          clearing ||
+                          dice.busy ||
+                          result?.success ||
+                          (changed && !result) ||
+                          !available
+                        }
+                        loading={clearing}
+                        onClick={() => void clear()}
+                      >
+                        Clear effect
+                      </Button>
+                    )}
+                  </Space>
                 </div>
                 {!rollAvailable && rollUnavailableReason && (
                   <p>{rollUnavailableReason}</p>
