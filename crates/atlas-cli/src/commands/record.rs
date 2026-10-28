@@ -298,19 +298,6 @@ mod tests {
                 .collect::<Vec<_>>()
                 .join("\n");
             assert_eq!(normalized, expected.trim_end(), "terminal width {width}");
-            assert!(text.contains("Ghoul Fever"));
-            assert!(text.contains("Saving Throw"));
-            assert!(text.contains("────────────"));
-            assert!(text.contains("Local stages"));
-            assert!(text.contains("8. Stage eight"));
-            assert!(text.contains("9. Stage nine"));
-            assert!(text.contains("DC 23 Fortitude"));
-            assert!(text.contains("Stage one"));
-            assert!(text.contains("Fever"));
-            assert!(text.contains("https://example.com"));
-            assert!(text.contains("image unavailable"));
-            assert!(!text.contains("data-atlas"));
-            assert!(!text.contains("<table>"));
         }
     }
 }

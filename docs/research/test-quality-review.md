@@ -14,7 +14,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | --- | ---: | ---: | ---: | ---: |
 | crates/atlas-app-model | 6 | 0 | 6 | 0 |
 | crates/atlas-app-service | 74 | 0 | 54 | 20 |
-| crates/atlas-cli | 23 | 23 | 0 | 0 |
+| crates/atlas-cli | 23 | 0 | 23 | 0 |
 | crates/atlas-cli-support | 2 | 0 | 2 | 0 |
 | crates/atlas-dev | 7 | 0 | 7 | 0 |
 | crates/atlas-dice | 1 | 0 | 1 | 0 |
@@ -137,29 +137,29 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [crates/atlas-cli/src/agent_skills/install.rs](../../crates/atlas-cli/src/agent_skills/install.rs) | pending | — |
-| [crates/atlas-cli/src/agent_skills/package.rs](../../crates/atlas-cli/src/agent_skills/package.rs) | pending | — |
-| [crates/atlas-cli/src/commands/filter_discovery.rs](../../crates/atlas-cli/src/commands/filter_discovery.rs) | pending | — |
-| [crates/atlas-cli/src/commands/filters.rs](../../crates/atlas-cli/src/commands/filters.rs) | pending | — |
-| [crates/atlas-cli/src/commands/record.rs](../../crates/atlas-cli/src/commands/record.rs) | pending | — |
-| [crates/atlas-cli/src/commands/record/batch.rs](../../crates/atlas-cli/src/commands/record/batch.rs) | pending | — |
-| [crates/atlas-cli/src/commands/record/presentation/reference_profiles.rs](../../crates/atlas-cli/src/commands/record/presentation/reference_profiles.rs) | pending | — |
-| [crates/atlas-cli/src/commands/record/presentation/tests.rs](../../crates/atlas-cli/src/commands/record/presentation/tests.rs) | pending | — |
-| [crates/atlas-cli/src/commands/record/terminal.rs](../../crates/atlas-cli/src/commands/record/terminal.rs) | pending | — |
-| [crates/atlas-cli/src/commands/result_order.rs](../../crates/atlas-cli/src/commands/result_order.rs) | pending | — |
-| [crates/atlas-cli/src/commands/roll.rs](../../crates/atlas-cli/src/commands/roll.rs) | pending | — |
-| [crates/atlas-cli/src/commands/similar.rs](../../crates/atlas-cli/src/commands/similar.rs) | pending | — |
-| [crates/atlas-cli/src/commands/similar/recovery.rs](../../crates/atlas-cli/src/commands/similar/recovery.rs) | pending | — |
-| [crates/atlas-cli/src/commands/traits.rs](../../crates/atlas-cli/src/commands/traits.rs) | pending | — |
-| [crates/atlas-cli/src/commands/web.rs](../../crates/atlas-cli/src/commands/web.rs) | pending | — |
-| [crates/atlas-cli/tests/agent_skills.rs](../../crates/atlas-cli/tests/agent_skills.rs) | pending | — |
-| [crates/atlas-cli/tests/cli_help.rs](../../crates/atlas-cli/tests/cli_help.rs) | pending | — |
-| [crates/atlas-cli/tests/completions.rs](../../crates/atlas-cli/tests/completions.rs) | pending | — |
-| [crates/atlas-cli/tests/relationship_filters.rs](../../crates/atlas-cli/tests/relationship_filters.rs) | pending | — |
-| [crates/atlas-cli/tests/roll.rs](../../crates/atlas-cli/tests/roll.rs) | pending | — |
-| [crates/atlas-cli/tests/source_product.rs](../../crates/atlas-cli/tests/source_product.rs) | pending | — |
-| [crates/atlas-cli/tests/tags_validate.rs](../../crates/atlas-cli/tests/tags_validate.rs) | pending | — |
-| [crates/atlas-cli/tests/version.rs](../../crates/atlas-cli/tests/version.rs) | pending | — |
+| [crates/atlas-cli/src/agent_skills/install.rs](../../crates/atlas-cli/src/agent_skills/install.rs) | reviewed | Blocked-plan admission errors are independently checked; real install, force, symlink and immutability outcomes are covered by integration tests. |
+| [crates/atlas-cli/src/agent_skills/package.rs](../../crates/atlas-cli/src/agent_skills/package.rs) | reviewed | Bundled manifest/files and installed content hashes protect real package integrity, including edited files with unchanged manifests; retained. |
+| [crates/atlas-cli/src/commands/filter_discovery.rs](../../crates/atlas-cli/src/commands/filter_discovery.rs) | reviewed | Exact HP identity/label, case-insensitive label and family resolution, unknown IDs and unique-match admission cover distinct lookup behavior; retained. |
+| [crates/atlas-cli/src/commands/filters.rs](../../crates/atlas-cli/src/commands/filters.rs) | changed | Convenience plus CEL composition now checks the complete literal predicate expressions rather than three children alone; generated clause IDs require presence without pinning incidental numbering. |
+| [crates/atlas-cli/src/commands/record.rs](../../crates/atlas-cli/src/commands/record.rs) | changed | Removed thirteen redundant substring checks after complete frozen terminal-output comparisons at three widths. Golden files and distinct output cases remain unchanged. |
+| [crates/atlas-cli/src/commands/record/batch.rs](../../crates/atlas-cli/src/commands/record/batch.rs) | reviewed | Ordered visits, highest exit status, prior successful output and unprocessed tail are protected independently; real JSON product tests cover successful values. |
+| [crates/atlas-cli/src/commands/record/presentation/reference_profiles.rs](../../crates/atlas-cli/src/commands/record/presentation/reference_profiles.rs) | reviewed | Literal ancestry/rank ordering and level-sorted labels protect user-visible profile selection; retained. |
+| [crates/atlas-cli/src/commands/record/presentation/tests.rs](../../crates/atlas-cli/src/commands/record/presentation/tests.rs) | reviewed | Read all presentation partitions: required/optional/missing/null/invalid facts, known empty values, zero price, actor/spell facts, terse/full context, exact navigation and prerequisite order. Independent literal assertions retained. |
+| [crates/atlas-cli/src/commands/record/terminal.rs](../../crates/atlas-cli/src/commands/record/terminal.rs) | reviewed | Real terminal-width plain/styled rules, ANSI emphasis and TTY/NO_COLOR/dumb support are distinct from frozen full-record output; retained. |
+| [crates/atlas-cli/src/commands/result_order.rs](../../crates/atlas-cli/src/commands/result_order.rs) | reviewed | Exact ordered typed rules, random seed bounds, invalid mixtures and duplicate options protect command parsing; retained. |
+| [crates/atlas-cli/src/commands/roll.rs](../../crates/atlas-cli/src/commands/roll.rs) | reviewed | Literal expression formatting preserves nested arithmetic, draw order and discarded dice; retained. |
+| [crates/atlas-cli/src/commands/similar.rs](../../crates/atlas-cli/src/commands/similar.rs) | changed | Explicit part selection now requires the two exact ordered identities, preserving independent candidate/core scopes and invalid/nonfinite option cases. |
+| [crates/atlas-cli/src/commands/similar/recovery.rs](../../crates/atlas-cli/src/commands/similar/recovery.rs) | reviewed | Recovery retains seed/profile/path and safely quoted POSIX/PowerShell metacharacters, error details and retryability; unrelated errors remain unchanged. Rendering claims do not imply shell execution. |
+| [crates/atlas-cli/src/commands/traits.rs](../../crates/atlas-cli/src/commands/traits.rs) | reviewed | Canonical prefixed trait identity, accepted variants, bare/empty rejection and help guidance protect command admission; retained. |
+| [crates/atlas-cli/src/commands/web.rs](../../crates/atlas-cli/src/commands/web.rs) | changed | Port fallback requires the immediate next port; added a bounded exhaustion test requiring the exact 100 attempted ports and literal range error. |
+| [crates/atlas-cli/tests/agent_skills.rs](../../crates/atlas-cli/tests/agent_skills.rs) | reviewed | Ten real isolated installs cover unchanged/forced content, edited matching manifests, invalid files, shadowing, symlink directories/parents and workspace/global failures without changing installed user skills. |
+| [crates/atlas-cli/tests/cli_help.rs](../../crates/atlas-cli/tests/cli_help.rs) | reviewed | Live command help, retired options, profile conflicts, detail conflicts and pure JSON errors protect distinct public CLI contracts; retained. |
+| [crates/atlas-cli/tests/completions.rs](../../crates/atlas-cli/tests/completions.rs) | reviewed | Real Bash registration and Zsh invocation require supported all/core-only values; retained. |
+| [crates/atlas-cli/tests/relationship_filters.rs](../../crates/atlas-cli/tests/relationship_filters.rs) | changed | Lexical and outgoing graph queries now require complete literal record-key sets rather than totals or vacuous membership. Retained boolean, owned/root, duplicate occurrence, fingerprint, list and discovery partitions; condition identities are opaque fixtures only. |
+| [crates/atlas-cli/tests/roll.rs](../../crates/atlas-cli/tests/roll.rs) | changed | Success and failure envelopes now require literal statuses and the command_failed code. Renamed a test that claimed artifact independence without an artifact-free fixture; retained structured faces and kept-highest outcome checks. |
+| [crates/atlas-cli/tests/source_product.rs](../../crates/atlas-cli/tests/source_product.rs) | changed | Ambiguous graph output requires both literal identities. Reviewed real fixture builds, selected/owned content, stale fingerprints, body-free summaries, batch partial outcomes, rollback triggers, notes and discovery. Explicitly ran the bounded native Gemma/BGE setup, reuse, source-update and search scenario. |
+| [crates/atlas-cli/tests/tags_validate.rs](../../crates/atlas-cli/tests/tags_validate.rs) | reviewed | Real valid counts in JSON/human output and invalid assignment exit 3 cover the product command; retained. |
+| [crates/atlas-cli/tests/version.rs](../../crates/atlas-cli/tests/version.rs) | reviewed | Actual binary version is compared with the independently read package manifest; retained. |
 
 ### crates/atlas-cli-support
 
@@ -717,3 +717,5 @@ Completion requires every inventory entry to have a substantive disposition, eve
 - Focused checks passed: eight difficulty cases, the manual initiative case with retrieval disabled, two strike cases, eleven spell-resource/advisory cases, the stale-turn case, and both final statistics/reference cases. All thirteen source-ability integration tests passed; condition cases ran unchanged and remain excluded from review.
 - `cargo clippy -p atlas-app-service --all-targets -- -D warnings` passed. Generic test changes require exact result identities/values and immediate nonmutation on rejected writes. The manual-initiative fixture now injects unavailable retrieval rather than merely asserting success against a working artifact.
 - Every app-service entry has a substantive disposition. CLI, web transport and frontend entries remain pending; no whole-project completion or final gate/CI claim is made.
+
+CLI milestone validation: 52 unit tests; roll 3, relationships 7, source product 21, agent skills 10, help 7, completions 2, tag validation 3 and version 1 passed. The normally ignored bounded native setup/search scenario also passed explicitly (141.81 s). Frozen terminal references were not updated.
