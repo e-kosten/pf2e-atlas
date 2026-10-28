@@ -3,6 +3,7 @@ import { RecordPresentation } from "./RecordPresentation";
 import { ActorActivities, ActorFacts, DamageComponents } from "./ActorReference";
 import { SpellChanges, SpellReference } from "./SpellReference";
 import { parseSearchParams, selectedNavigation } from "../../app/urlState";
+import { decodeFilterUrl } from "../filters/filterUrl";
 import {
   actorFixture,
   activityFixture,
@@ -48,6 +49,113 @@ function actorPresentation(): RecordPresentationView {
     embedded: [],
   };
 }
+
+it("keeps conditional skills compact while exposing their complete qualification on request", async () => {
+  const actor = actorFixture();
+  actor.skills = knownFact([
+    {
+      key: "stealth",
+      label: "stealth",
+      modifier: numberFact(12),
+      note: unavailableFact("missing"),
+      conditional: knownFact([
+        {
+          label: knownFact("in forests or swamps"),
+          modifier: numberFact(18),
+          qualification: knownFact("any of (terrain:forest; terrain:swamp)"),
+        },
+      ]),
+    },
+  ]);
+  render(<ActorFacts actor={actor} />);
+  expect(screen.getByText("Stealth").parentElement).toHaveTextContent(
+    /Stealth\s*\+12\s*·\s*\+18 in forests or swamps/,
+  );
+  expect(screen.queryByText("any of (terrain:forest; terrain:swamp)")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Stealth: condition details" }));
+  expect(
+    await screen.findByText("any of (terrain:forest; terrain:swamp)"),
+  ).toBeInTheDocument();
+});
+
+it("links readable base types to a fresh exact search and describes final-use outcomes", () => {
+  const previous = window.location.href;
+  window.history.replaceState(
+    {},
+    "",
+    "/search?q=old&page=3&sort=name_desc&search_profile=embeddinggemma",
+  );
+  try {
+    const presentation: RecordPresentationView = {
+      identity: summaryFixture("items:bomb", "Bomb"),
+      classification: "Consumable",
+      content: [],
+      embedded: [],
+      body: {
+        kind: "physical_reference",
+        value: {
+          base_type: knownFact({ value: "alchemical-bomb", label: "Alchemical Bomb" }),
+          details: null,
+          quantity: numberFact(1),
+          material: unavailableFact("missing"),
+          size: unavailableFact("missing"),
+          usage: unavailableFact("missing"),
+          bulk: numberFact(0),
+          price: unavailableFact("missing"),
+          price_per: numberFact(1),
+          consumable: {
+            category: unavailableFact("missing"),
+            damage: unavailableFact("missing"),
+            spell: unavailableFact("missing"),
+            spell_presented_inline: false,
+            maximum_hp: numberFact(0),
+            hardness: numberFact(0),
+            auto_destroy: knownFact(true),
+            maximum_uses: numberFact(1),
+            source_uses: numberFact(1),
+          },
+        },
+      },
+    };
+    const { rerender } = render(
+      <RecordPresentation presentation={presentation} onReference={vi.fn()} />,
+    );
+    const url = new URL(
+      screen.getByRole("link", { name: "Alchemical Bomb" }).getAttribute("href")!,
+      window.location.origin,
+    );
+    expect(url.pathname).toBe("/search");
+    expect(decodeFilterUrl(url.searchParams.get("filter")!)).toEqual(
+      expect.objectContaining({
+        kind: "compare",
+        field: "physical.base_type",
+        op: "eq",
+        value: "alchemical-bomb",
+      }),
+    );
+    expect(url.searchParams.get("search_profile")).toBe("embeddinggemma");
+    expect(url.searchParams.has("q")).toBe(false);
+    expect(url.searchParams.has("page")).toBe(false);
+    expect(screen.getByText("After final use").parentElement).toHaveTextContent(
+      "Consumed",
+    );
+    expect(screen.queryByText("Maximum HP")).toBeNull();
+    if (
+      presentation.body.kind !== "physical_reference" ||
+      !presentation.body.value.consumable
+    )
+      throw new Error("fixture");
+    presentation.body.value.consumable.auto_destroy = knownFact(false);
+    presentation.body.value.base_type = unavailableFact("invalid");
+    rerender(<RecordPresentation presentation={presentation} onReference={vi.fn()} />);
+    expect(screen.getByText("After final use").parentElement).toHaveTextContent(
+      "Retained",
+    );
+    expect(screen.queryByRole("link", { name: "Alchemical Bomb" })).toBeNull();
+  } finally {
+    window.history.replaceState({}, "", previous);
+  }
+});
 
 it.each([false, true])(
   "links only activities with additional reference details (encounter=%s)",
@@ -313,6 +421,16 @@ describe("semantic family presentation", () => {
               kind: "hazard",
               value: {
                 actor,
+                detection_dc: {
+                  state: "not_applicable",
+                  value: null,
+                  adjustment: null,
+                },
+                broken_threshold: {
+                  state: "not_applicable",
+                  value: null,
+                  adjustment: null,
+                },
                 defense_block: knownFact(true),
                 show_saves: true,
                 complex: knownFact(false),
@@ -405,6 +523,16 @@ describe("semantic family presentation", () => {
               kind: "hazard",
               value: {
                 actor,
+                detection_dc: {
+                  state: "not_applicable",
+                  value: null,
+                  adjustment: null,
+                },
+                broken_threshold: {
+                  state: "not_applicable",
+                  value: null,
+                  adjustment: null,
+                },
                 defense_block: knownFact(true),
                 show_saves: true,
                 complex: knownFact(false),
@@ -719,6 +847,7 @@ describe("semantic family presentation", () => {
           body: {
             kind: "physical_reference",
             value: {
+              base_type: unavailableFact("missing"),
               details: null,
               quantity: numberFact(1),
               material: unavailableFact("not_applicable"),
@@ -967,6 +1096,7 @@ describe("optional authored reference facts", () => {
             body: {
               kind: "physical_reference",
               value: {
+                base_type: unavailableFact("missing"),
                 details: null,
                 quantity: numberFact(1),
                 material: unavailableFact("not_applicable"),
@@ -1186,6 +1316,9 @@ it("presents consumable spell semantics, exact navigation, package prices and so
       usage: null,
       action_cost: unavailableFact<import("../../generated/atlas").ActionCostView>(),
     }),
+    maximum_hp: { state: "missing" as const, value: null, adjustment: null },
+    hardness: { state: "missing" as const, value: null, adjustment: null },
+    auto_destroy: { state: "missing" as const, value: null },
     spell_presented_inline: false,
     maximum_uses: numberFact(500),
     source_uses: numberFact(420),
@@ -1209,6 +1342,7 @@ it("presents consumable spell semantics, exact navigation, package prices and so
     body: {
       kind: "physical_reference",
       value: {
+        base_type: unavailableFact("missing"),
         details: null,
         quantity: numberFact(10),
         material: unavailableFact("not_applicable"),

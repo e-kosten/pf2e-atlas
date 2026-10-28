@@ -68,6 +68,10 @@ fn price_units_and_table_collections_preserve_unavailable_and_zero_facts() {
         adjustment: None,
     };
     let physical = PhysicalPresentationView {
+        base_type: FactView {
+            state: QueryFieldState::Missing,
+            value: None,
+        },
         details: None,
         quantity: NumberFactView {
             state: QueryFieldState::Value,
@@ -584,6 +588,7 @@ fn actor() -> ActorPresentationView {
             modifier: numeric(14),
             note: known("while climbing".into()),
             conditional: known(vec![ConditionalSkillView {
+                qualification: known("any of (identify-magic; recall-knowledge)".into()),
                 label: known("against a grabbed creature".into()),
                 modifier: numeric(16),
             }]),
@@ -668,7 +673,7 @@ fn actor_modifiers_distances_qualified_iwr_and_activity_context_are_visible() {
     for expected in [
         "Perception: +12",
         "Athletics: +14",
-        "against a grabbed creature: +16",
+        "+16 against a grabbed creature",
         "Fortitude: +0",
         "Reflex: -2",
         "Will: [invalid]",
@@ -753,6 +758,8 @@ fn human_reading_omits_internal_navigation_while_json_retains_exact_selection() 
 #[test]
 fn hazard_uses_known_zero_and_dedicated_detection_structure_facts() {
     let record = detail(RecordBodyView::Hazard(Box::new(HazardPresentationView {
+        detection_dc: numeric(10),
+        broken_threshold: numeric(0),
         defense_block: known(true),
         show_saves: true,
         actor: actor(),
@@ -764,6 +771,31 @@ fn hazard_uses_known_zero_and_dedicated_detection_structure_facts() {
     assert!(output.contains("Hazard: Simple"));
     assert!(output.contains("Stealth: +0"));
     assert!(output.contains("Hardness: 10"));
+}
+
+#[test]
+fn conditional_skill_summary_is_compact_and_full_detail_retains_the_predicate() {
+    let mut actor = actor();
+    actor.skills = known(vec![ActorSkillView {
+        key: "stealth".into(),
+        label: "Stealth".into(),
+        modifier: numeric(12),
+        note: FactView {
+            state: QueryFieldState::Missing,
+            value: None,
+        },
+        conditional: known(vec![ConditionalSkillView {
+            label: known("in forests or swamps".into()),
+            modifier: numeric(18),
+            qualification: known("any of (terrain:forest; terrain:swamp)".into()),
+        }]),
+    }]);
+    let record = detail(RecordBodyView::Creature(Box::new(actor)));
+    let standard = render_record(&record, TerminalDetail::Standard, 100).unwrap();
+    assert!(standard.contains("Stealth: +12; +18 in forests or swamps"));
+    assert!(!standard.contains("terrain:forest"));
+    let full = render_record(&record, TerminalDetail::Full, 100).unwrap();
+    assert!(full.contains("Condition details: any of (terrain:forest; terrain:swamp)"));
 }
 
 #[test]
@@ -810,6 +842,8 @@ fn cosmetic_blanks_and_inapplicable_rows_are_omitted_without_hiding_known_zero()
     actor.perception_details = known(String::new());
     actor.language_details = known("   ".into());
     let mut record = detail(RecordBodyView::Hazard(Box::new(HazardPresentationView {
+        detection_dc: numeric(10),
+        broken_threshold: numeric(0),
         defense_block: known(true),
         show_saves: true,
         actor,

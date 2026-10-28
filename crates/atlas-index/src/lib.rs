@@ -74,7 +74,10 @@ pub use reader::{
     SqliteIndexReader,
 };
 pub use reference_jobs::{recover_reference_publication, start_reference_job};
-pub use schema::{CONSUMABLE_FILTER_SCHEMA_SQL, REFERENCE_SCHEMA_SQL};
+pub use schema::{
+    CONSUMABLE_FILTER_SCHEMA_SQL, PHYSICAL_BASE_TYPE_SCHEMA_SQL,
+    REFERENCE_NUMERIC_FILTER_SCHEMA_SQL, REFERENCE_SCHEMA_SQL,
+};
 #[cfg(any(test, feature = "test-support"))]
 pub use validation::validate_artifact;
 pub use validation::{ArtifactValidationReport, validate_reference};

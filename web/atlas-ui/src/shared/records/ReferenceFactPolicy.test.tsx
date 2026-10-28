@@ -152,6 +152,7 @@ describe("reference fact reading policy", () => {
       body: {
         kind: "physical_reference",
         value: {
+          base_type: unavailableFact("missing"),
           details: null,
           quantity: numberFact(1),
           material: unavailableFact("not_applicable"),

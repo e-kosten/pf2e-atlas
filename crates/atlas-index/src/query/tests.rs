@@ -17,6 +17,10 @@ fn database() -> Connection {
     .unwrap();
     db.execute_batch(crate::CONSUMABLE_FILTER_SCHEMA_SQL)
         .unwrap();
+    db.execute_batch(crate::REFERENCE_NUMERIC_FILTER_SCHEMA_SQL)
+        .unwrap();
+    db.execute_batch(crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL)
+        .unwrap();
     db.execute("INSERT INTO packs VALUES('test','Test')", [])
         .unwrap();
     db
@@ -1051,7 +1055,7 @@ fn common_level_or_rank_preserves_spell_rank_and_all_unavailable_states() {
     }
     assert_eq!(result(&db, "level == 3"), vec![1, 2]);
     assert_eq!(result(&db, "spell.rank == 7"), vec![3]);
-    assert_eq!(query_capabilities().unwrap().version, 6);
+    assert_eq!(query_capabilities().unwrap().version, 8);
     let catalog = query_capabilities().unwrap();
     assert_eq!(
         catalog
@@ -1532,5 +1536,141 @@ fn consumable_damage_fields_share_root_and_embedded_semantics() {
     assert_eq!(
         result(&db, "availability['consumable.damage.kind'] == 'null'"),
         vec![3]
+    );
+}
+
+#[test]
+fn reference_numeric_filters_use_authored_root_and_embedded_values() {
+    let db = database();
+    let mut ids = crate::projections::ProjectionIds::default();
+    let armor = json!({"_id":"armor00000000000","type":"armor","system":{"baseItem":"chain-mail","strength":3,"checkPenalty":-2,"speedPenalty":-5}});
+    let fixtures = vec![
+        (
+            "Actor",
+            json!({"_id":"npc0000000000000","type":"npc","system":{"abilities":{"str":{"mod":0}},"skills":{"athletics":{"base":20}}}}),
+        ),
+        (
+            "Actor",
+            json!({"_id":"char000000000000","type":"character","system":{"abilities":{"str":{"mod":5}},"skills":{"athletics":{"rank":3}}}}),
+        ),
+        ("Item", armor.clone()),
+        (
+            "Item",
+            json!({"_id":"weapon0000000000","type":"weapon","system":{"damage":{"dice":2,"die":"d8"}}}),
+        ),
+        (
+            "Item",
+            json!({"_id":"shield0000000000","type":"shield","system":{"acBonus":2,"hp":{"max":25}}}),
+        ),
+        (
+            "Actor",
+            json!({"_id":"hazard0000000000","type":"hazard","system":{"attributes":{"stealth":{"value":-1}}}}),
+        ),
+        (
+            "Actor",
+            json!({"_id":"carrier000000000","type":"npc","items":[armor]}),
+        ),
+        (
+            "Actor",
+            json!({"_id":"null000000000000","type":"npc","system":{"skills":{"athletics":{"base":null}}}}),
+        ),
+        (
+            "Actor",
+            json!({"_id":"invalid000000000","type":"npc","system":{"skills":{"athletics":{"base":"bad"}}}}),
+        ),
+        (
+            "Item",
+            json!({"_id":"bomb000000000000","type":"consumable","system":{"baseItem":"alchemical-bomb"}}),
+        ),
+        (
+            "Item",
+            json!({"_id":"bombweapon000000","type":"weapon","system":{"baseItem":"alchemical-bomb"}}),
+        ),
+        (
+            "Item",
+            json!({"_id":"nullbase00000000","type":"consumable","system":{"baseItem":null}}),
+        ),
+        (
+            "Item",
+            json!({"_id":"badbase000000000","type":"consumable","system":{"baseItem":3}}),
+        ),
+    ];
+    for (index, (document, raw)) in fixtures.into_iter().enumerate() {
+        let input = crate::foundation_tests::record("test", document, raw);
+        db.execute(
+            "INSERT INTO record_identity(id,key,availability) VALUES(?,?,'available')",
+            rusqlite::params![index as i64 + 1, input.record.key().to_string()],
+        )
+        .unwrap();
+        for row in
+            crate::projections::root_rows(&input, "Test", index as i64 + 1, &mut ids).unwrap()
+        {
+            row.insert(&db).unwrap();
+        }
+    }
+    assert_eq!(result(&db, "skills.athletics.modifier >= 20"), vec![1]);
+    assert_eq!(result(&db, "skills.athletics.rank == 3"), vec![2]);
+    assert_eq!(result(&db, "abilities.str.modifier == 0"), vec![1]);
+    assert_eq!(result(&db, "abilities.str.modifier == 5"), vec![2]);
+    assert_eq!(
+        result(
+            &db,
+            "armor.strength == 3 && armor.check_penalty == -2 && armor.speed_penalty == -5"
+        ),
+        vec![3]
+    );
+    assert_eq!(
+        result(
+            &db,
+            "embedded.equipment.exists(i, i.armor.check_penalty == -2 && i.armor.strength == 3)"
+        ),
+        vec![7]
+    );
+    assert_eq!(
+        result(
+            &db,
+            "weapon.damage.dice == 2 && weapon.damage.die_faces == 8"
+        ),
+        vec![4]
+    );
+    assert_eq!(
+        result(&db, "shield.ac_bonus == 2 && shield.broken_threshold == 12"),
+        vec![5]
+    );
+    assert_eq!(result(&db, "hazard.stealth == -1"), vec![6]);
+    assert_eq!(
+        result(&db, "physical.base_type == 'alchemical-bomb'"),
+        vec![10, 11]
+    );
+    assert_eq!(result(&db, "physical.base_type == 'chain-mail'"), vec![3]);
+    assert_eq!(
+        result(
+            &db,
+            "embedded.equipment.exists(i, i.physical.base_type == 'chain-mail')"
+        ),
+        vec![7]
+    );
+    assert_eq!(
+        result(&db, "availability['physical.base_type'] == 'null'"),
+        vec![12]
+    );
+    assert_eq!(
+        result(&db, "availability['physical.base_type'] == 'invalid'"),
+        vec![13]
+    );
+    assert_eq!(
+        result(&db, "availability['skills.athletics.modifier'] == 'null'"),
+        vec![8]
+    );
+    assert_eq!(
+        result(
+            &db,
+            "availability['skills.athletics.modifier'] == 'invalid'"
+        ),
+        vec![9]
+    );
+    assert_eq!(
+        result(&db, "skills.athletics.modifier != 20"),
+        Vec::<i64>::new()
     );
 }

@@ -12,6 +12,67 @@ use rusqlite::types::Value;
 use serde::Serialize;
 use serde_json::Number;
 
+pub(crate) const ABILITY_FIELDS: &[(&str, &str)] = &[
+    ("str", "ability_str"),
+    ("dex", "ability_dex"),
+    ("con", "ability_con"),
+    ("int", "ability_int"),
+    ("wis", "ability_wis"),
+    ("cha", "ability_cha"),
+];
+pub(crate) const SKILL_FIELDS: &[(&str, &str, &str)] = &[
+    (
+        "acrobatics",
+        "skill_acrobatics_modifier",
+        "skill_acrobatics_rank",
+    ),
+    ("arcana", "skill_arcana_modifier", "skill_arcana_rank"),
+    (
+        "athletics",
+        "skill_athletics_modifier",
+        "skill_athletics_rank",
+    ),
+    (
+        "computers",
+        "skill_computers_modifier",
+        "skill_computers_rank",
+    ),
+    ("crafting", "skill_crafting_modifier", "skill_crafting_rank"),
+    (
+        "deception",
+        "skill_deception_modifier",
+        "skill_deception_rank",
+    ),
+    (
+        "diplomacy",
+        "skill_diplomacy_modifier",
+        "skill_diplomacy_rank",
+    ),
+    (
+        "intimidation",
+        "skill_intimidation_modifier",
+        "skill_intimidation_rank",
+    ),
+    ("medicine", "skill_medicine_modifier", "skill_medicine_rank"),
+    ("nature", "skill_nature_modifier", "skill_nature_rank"),
+    (
+        "occultism",
+        "skill_occultism_modifier",
+        "skill_occultism_rank",
+    ),
+    (
+        "performance",
+        "skill_performance_modifier",
+        "skill_performance_rank",
+    ),
+    ("piloting", "skill_piloting_modifier", "skill_piloting_rank"),
+    ("religion", "skill_religion_modifier", "skill_religion_rank"),
+    ("society", "skill_society_modifier", "skill_society_rank"),
+    ("stealth", "skill_stealth_modifier", "skill_stealth_rank"),
+    ("survival", "skill_survival_modifier", "skill_survival_rank"),
+    ("thievery", "skill_thievery_modifier", "skill_thievery_rank"),
+];
+
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct SqlFact {
     pub state: &'static str,
@@ -265,6 +326,14 @@ fn actor_rows(
     number(a.save(ActorSave::Will))?.field(&mut r, "will");
     number(a.perception())?.field(&mut r, "perception");
     number(a.land_speed())?.field(&mut r, "land_speed");
+    number(a.hazard_stealth())?.field(&mut r, "stealth");
+    for (key, column) in ABILITY_FIELDS {
+        number(a.ability_modifier(key))?.field(&mut r, column);
+    }
+    for (key, modifier, rank) in SKILL_FIELDS {
+        number(a.skill_modifier(key))?.field(&mut r, modifier);
+        number(a.skill_rank(key))?.field(&mut r, rank);
+    }
     boolean(a.hazard_complexity())?.field(&mut r, "complexity");
     state(a.items()).collection(&mut r, "items_state");
     state(a.languages()).collection(&mut r, "languages_state");
@@ -426,6 +495,7 @@ fn item_rows(
         float(i.physical_price_per_item_cp())?.field(&mut r, "price_per_item_cp");
         number(i.physical_bulk())?.field(&mut r, "bulk");
         text(i.physical_usage())?.field(&mut r, "usage");
+        choice(i.physical_base_type())?.field(&mut r, "base_type");
         choice(i.consumable_category())?.field(&mut r, "consumable_category");
         choice(i.consumable_damage_kind())?.field(&mut r, "consumable_damage_kind");
         choice(i.consumable_damage_type())?.field(&mut r, "consumable_damage_type");
@@ -438,6 +508,9 @@ fn item_rows(
             choice(i.weapon_damage_type())?.field(&mut r, "damage_type");
             number(i.weapon_range_increment())?.field(&mut r, "range");
             choice(i.weapon_reload())?.field(&mut r, "reload");
+            number(i.weapon_damage_dice())?.field(&mut r, "damage_dice");
+            convert(i.weapon_damage_die_faces(), |value| numeric_value(&value))?
+                .field(&mut r, "damage_die_faces");
             rows.push(r);
         }
         if matches!(i, ItemSourceView::ArmorSource(_)) {
@@ -446,6 +519,9 @@ fn item_rows(
             choice(i.armor_category())?.field(&mut r, "category");
             number(i.armor_ac_bonus())?.field(&mut r, "ac_bonus");
             number(i.armor_dex_cap())?.field(&mut r, "dex_cap");
+            number(i.armor_strength())?.field(&mut r, "strength");
+            number(i.armor_check_penalty())?.field(&mut r, "check_penalty");
+            number(i.armor_speed_penalty())?.field(&mut r, "speed_penalty");
             rows.push(r);
         }
         if matches!(i, ItemSourceView::ShieldSource(_)) {
@@ -453,6 +529,9 @@ fn item_rows(
             r.id("physical_id", id);
             number(i.shield_hardness())?.field(&mut r, "hardness");
             number(i.shield_hp_maximum())?.field(&mut r, "hp_maximum");
+            number(i.shield_ac_bonus())?.field(&mut r, "ac_bonus");
+            convert(i.shield_broken_threshold(), |value| numeric_value(&value))?
+                .field(&mut r, "broken_threshold");
             rows.push(r);
         }
     }

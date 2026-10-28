@@ -7,6 +7,204 @@ import { DEFAULT_SEARCH_STATE, type SearchFormState } from "./searchState";
 import { editorFixture, fieldFixture } from "../../test/fixtures";
 import type { FilterEditorView, QueryPredicate } from "../../generated/atlas";
 
+const actorMetricCatalog = () =>
+  editorFixture([
+    fieldFixture("abilities.str.modifier", "number", "Strength Modifier"),
+    fieldFixture("abilities.dex.modifier", "number", "Dexterity Modifier"),
+    fieldFixture("skills.athletics.modifier", "number", "Athletics Modifier"),
+    fieldFixture("skills.athletics.rank", "number", "Athletics Rank"),
+    fieldFixture("skills.arcana.modifier", "number", "Arcana Modifier"),
+    fieldFixture("skills.arcana.rank", "number", "Arcana Rank"),
+  ]);
+function chooseActorMetricOption(label: string, option: string) {
+  const control = screen.getByRole("combobox", { name: label });
+  fireEvent.mouseDown(control);
+  fireEvent.click(screen.getAllByText(option, { exact: true }).slice(-1)[0]);
+}
+
+describe("combined ability and skill conditions", () => {
+  beforeEach(() => vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true }));
+  afterEach(() => vi.restoreAllMocks());
+
+  it("offers two families, waits for a complete selection, and retains numeric criteria when changing entity", async () => {
+    const change = renderControls(actorMetricCatalog());
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add condition" }));
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Filter field" }));
+    expect(screen.getByRole("option", { name: "Ability" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Skill" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Strength Modifier" })).toBeNull();
+    expect(screen.queryByRole("option", { name: "Athletics Rank" })).toBeNull();
+    fireEvent.click(screen.getAllByText("Ability", { exact: true }).slice(-1)[0]);
+    expect(change).not.toHaveBeenCalled();
+    chooseActorMetricOption("Ability", "Strength");
+    expect(change).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole("textbox", { name: "Strength Modifier" }), {
+      target: { value: "3" },
+    });
+    await waitFor(() =>
+      expect(change).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          filter: expect.objectContaining({
+            kind: "compare",
+            field: "abilities.str.modifier",
+            value: 3,
+          }),
+        }),
+      ),
+    );
+    chooseActorMetricOption("Ability", "Dexterity");
+    expect(screen.getByRole("textbox", { name: "Dexterity Modifier" })).toHaveValue(
+      "3",
+    );
+    await waitFor(() =>
+      expect(change).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          filter: expect.objectContaining({
+            field: "abilities.dex.modifier",
+            value: 3,
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("uses a skill/statistic picker and named ranks without sending a UI family field to the query", async () => {
+    const change = renderControls(actorMetricCatalog());
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add condition" }));
+    chooseActorMetricOption("Filter field", "Skill");
+    chooseActorMetricOption("Skill", "Athletics");
+    fireEvent.change(screen.getByRole("textbox", { name: "Athletics Modifier" }), {
+      target: { value: "20" },
+    });
+    await waitFor(() =>
+      expect(change).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          filter: expect.objectContaining({
+            field: "skills.athletics.modifier",
+            value: 20,
+          }),
+        }),
+      ),
+    );
+    change.mockClear();
+    chooseActorMetricOption("Skill statistic", "Proficiency rank");
+    expect(change).not.toHaveBeenCalled();
+    chooseActorMetricOption("Athletics Rank", "Expert");
+    await waitFor(() =>
+      expect(change).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          filter: expect.objectContaining({ field: "skills.athletics.rank", value: 2 }),
+        }),
+      ),
+    );
+    chooseActorMetricOption("Skill", "Arcana");
+    await waitFor(() =>
+      expect(change).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          filter: expect.objectContaining({ field: "skills.arcana.rank", value: 2 }),
+        }),
+      ),
+    );
+    expect(
+      screen.getByRole("combobox", { name: "Arcana Rank" }).closest(".ant-select"),
+    ).toHaveTextContent("Expert");
+  });
+
+  it("restores an existing rank condition, including an unrecognized authored numeric rank", async () => {
+    const change = renderControls(actorMetricCatalog(), {
+      kind: "compare",
+      field: "skills.arcana.rank",
+      op: "gte",
+      value: 5,
+      clause_id: "retained-rank",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    expect(
+      screen.getByRole("combobox", { name: "Skill" }).closest(".ant-select"),
+    ).toHaveTextContent("Arcana");
+    expect(
+      screen.getByRole("combobox", { name: "Skill statistic" }).closest(".ant-select"),
+    ).toHaveTextContent("Proficiency rank");
+    expect(
+      screen.getByRole("combobox", { name: "Arcana Rank" }).closest(".ant-select"),
+    ).toHaveTextContent("Rank 5");
+    expect(change).not.toHaveBeenCalled();
+    chooseActorMetricOption("Arcana Rank", "Master");
+    await waitFor(() =>
+      expect(change).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          filter: expect.objectContaining({
+            field: "skills.arcana.rank",
+            op: "gte",
+            value: 3,
+            clause_id: "retained-rank",
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("keeps named rank ranges incomplete until both bounds exist", async () => {
+    const change = renderControls(actorMetricCatalog(), {
+      kind: "compare",
+      field: "skills.athletics.rank",
+      op: "gte",
+      value: 2,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    chooseActorMetricOption("Condition for Athletics Rank", "between");
+    chooseActorMetricOption("Athletics Rank minimum", "Expert");
+    expect(change).not.toHaveBeenCalled();
+    chooseActorMetricOption("Athletics Rank maximum", "Legendary");
+    await waitFor(() =>
+      expect(change).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          filter: expect.objectContaining({
+            kind: "all_of",
+            children: [
+              expect.objectContaining({
+                kind: "compare",
+                field: "skills.athletics.rank",
+                op: "gte",
+                value: 2,
+              }),
+              expect.objectContaining({
+                kind: "compare",
+                field: "skills.athletics.rank",
+                op: "lte",
+                value: 4,
+              }),
+            ],
+          }),
+        }),
+      ),
+    );
+  });
+
+  it("retains an existing skill-rank availability condition alongside the family pickers", async () => {
+    const change = renderControls(actorMetricCatalog(), {
+      kind: "state_match",
+      field: "skills.athletics.rank",
+      state: "null",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    chooseActorMetricOption("Athletics Rank availability", "Missing from source");
+    await waitFor(() =>
+      expect(change).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          filter: expect.objectContaining({
+            kind: "state_match",
+            field: "skills.athletics.rank",
+            state: "missing",
+          }),
+        }),
+      ),
+    );
+  });
+});
+
 function renderControls(
   editor: FilterEditorView,
   predicate: QueryPredicate | null = null,
