@@ -97,6 +97,7 @@ fn append<T>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::PredicateStatement;
 
     fn generic(json: &str) -> RuleElementSource {
         let json = format!(r#"{{"type":"action","system":{{"rules":[{json}]}}}}"#);
@@ -156,7 +157,10 @@ mod tests {
             panic!("expected a typed grant")
         };
         assert_eq!(grant.ignored, SourcePresence::Value(true));
-        assert_eq!(grant.predicate.as_value().unwrap().len(), 1);
+        assert_eq!(
+            grant.predicate,
+            SourcePresence::Value(vec![PredicateStatement::String("self:effect:rage".into()),])
+        );
     }
     #[test]
     fn battle_form_brackets_use_the_authoritative_override_contract_without_mutation() {
