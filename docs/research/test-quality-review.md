@@ -20,7 +20,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | crates/atlas-dice | 1 | 0 | 1 | 0 |
 | crates/atlas-domain | 11 | 0 | 11 | 0 |
 | crates/atlas-embedding | 5 | 0 | 5 | 0 |
-| crates/atlas-foundry-model | 11 | 11 | 0 | 0 |
+| crates/atlas-foundry-model | 11 | 0 | 11 | 0 |
 | crates/atlas-index | 17 | 17 | 0 | 0 |
 | crates/atlas-ingest | 6 | 6 | 0 | 0 |
 | crates/atlas-local-state | 7 | 7 | 0 | 0 |
@@ -216,17 +216,17 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [crates/atlas-foundry-model/examples/item_generation_probe.rs](../../crates/atlas-foundry-model/examples/item_generation_probe.rs) | pending | — |
-| [crates/atlas-foundry-model/examples/predicate_generation_probe.rs](../../crates/atlas-foundry-model/examples/predicate_generation_probe.rs) | pending | — |
-| [crates/atlas-foundry-model/src/source_model/retained_rule.rs](../../crates/atlas-foundry-model/src/source_model/retained_rule.rs) | pending | — |
-| [crates/atlas-foundry-model/tests/equipment_source_generation.rs](../../crates/atlas-foundry-model/tests/equipment_source_generation.rs) | pending | — |
-| [crates/atlas-foundry-model/tests/fixtures/source_model/fidelity_tests.rs](../../crates/atlas-foundry-model/tests/fixtures/source_model/fidelity_tests.rs) | pending | — |
-| [crates/atlas-foundry-model/tests/fixtures/source_model/mod.rs](../../crates/atlas-foundry-model/tests/fixtures/source_model/mod.rs) | pending | — |
-| [crates/atlas-foundry-model/tests/item_source_generation.rs](../../crates/atlas-foundry-model/tests/item_source_generation.rs) | pending | — |
-| [crates/atlas-foundry-model/tests/predicate_source_generation.rs](../../crates/atlas-foundry-model/tests/predicate_source_generation.rs) | pending | — |
-| [crates/atlas-foundry-model/tests/snapshot.rs](../../crates/atlas-foundry-model/tests/snapshot.rs) | pending | — |
-| [crates/atlas-foundry-model/tests/source_admission.rs](../../crates/atlas-foundry-model/tests/source_admission.rs) | pending | — |
-| [crates/atlas-foundry-model/tests/source_portfolio_generation.rs](../../crates/atlas-foundry-model/tests/source_portfolio_generation.rs) | pending | — |
+| [crates/atlas-foundry-model/examples/item_generation_probe.rs](../../crates/atlas-foundry-model/examples/item_generation_probe.rs) | reviewed | Raw ordered-source oracle is exercised against real typed Item slices with complete flags, open namespaces, large numeric/string choices and repeated payload fields. Retained separate raw projection and generated-parser implementations. |
+| [crates/atlas-foundry-model/examples/predicate_generation_probe.rs](../../crates/atlas-foundry-model/examples/predicate_generation_probe.rs) | changed | Replaced mutation/comparison of JSON trees with literal complete expected projection results for numeric and string operands. Retained comparison against actual generated parsing for partial operator keys. |
+| [crates/atlas-foundry-model/src/source_model/retained_rule.rs](../../crates/atlas-foundry-model/src/source_model/retained_rule.rs) | changed | Ignored conditional grants now require the literal authored predicate instead of one element. Retained source immutability, whole-rule rejection, duplicate specialized fields and authoritative BattleForm bracket parsing; no condition event/effect semantics changed. |
+| [crates/atlas-foundry-model/tests/equipment_source_generation.rs](../../crates/atlas-foundry-model/tests/equipment_source_generation.rs) | reviewed | Typed common/physical-owner equivalence is backed by independent values for equipped/HP/price/usage. Distinct missing/null/empty state, ordered legacy data, duplicate structural fields, vocabulary/numeric errors and malformed envelopes retained. |
+| [crates/atlas-foundry-model/tests/fixtures/source_model/fidelity_tests.rs](../../crates/atlas-foundry-model/tests/fixtures/source_model/fidelity_tests.rs) | reviewed | Real generated parsers cover scalar/array policy and nested IWR forms. Fidelity checker receives independent omission/coercion/number/order/path/diagnostic faults and real mapped/open values; retained all distinct partitions. |
+| [crates/atlas-foundry-model/tests/fixtures/source_model/mod.rs](../../crates/atlas-foundry-model/tests/fixtures/source_model/mod.rs) | reviewed | Compiled generic graph protects numeric domains, exact null/collection/source-key values and errors, recursive/shared owners, templates, tuple/union discrimination, authored inputs and constrained open data. These runtime checks complement emitted API/freshness assertions; retained. |
+| [crates/atlas-foundry-model/tests/item_source_generation.rs](../../crates/atlas-foundry-model/tests/item_source_generation.rs) | mixed | Condition-family smoke row retained unchanged and excluded. Eligible flag scenarios now require exact repeated object values, array null/number identity and open namespace payloads. Retained independent family/value, missing/null, keyed grants and malformed nested-context checks. |
+| [crates/atlas-foundry-model/tests/predicate_source_generation.rs](../../crates/atlas-foundry-model/tests/predicate_source_generation.rs) | reviewed | All operator owners, recursive comparisons/u64 maximum, empty versus constructor array input, extra repeated fields, competing keys and exact nested/tuple diagnostics protect distinct parser contracts; retained. |
+| [crates/atlas-foundry-model/tests/snapshot.rs](../../crates/atlas-foundry-model/tests/snapshot.rs) | reviewed | Round trips intentionally verify the full codec contract, backed by independent hydrated values and corrupt version/identity/tag/type/extra-field/truncation checks. Raw-only roots, retained ordered values and deep/escaped nesting cases retained. |
+| [crates/atlas-foundry-model/tests/source_admission.rs](../../crates/atlas-foundry-model/tests/source_admission.rs) | changed | Valid admission now independently asserts ordered duplicate unknown values; unaffected domain values and invalid prepared spell references require exact content. Retained strict/admission equivalence, explicit invalid states, whole-rule exclusion, unknown roots and contextual diagnostics. |
+| [crates/atlas-foundry-model/tests/source_portfolio_generation.rs](../../crates/atlas-foundry-model/tests/source_portfolio_generation.rs) | mixed | Condition-family smoke row unchanged and excluded. Eligible cases now verify each pinned rule typed variant, exact retained unknown values and surviving generic Item rules. Kept full family/parser API, authored patches/sentinels, document kinds and bounded enum layout. |
 
 ### crates/atlas-index
 
@@ -658,3 +658,8 @@ Completion requires every inventory entry to have a substantive disposition, eve
 - `npm --prefix dev-tools/source-contracts run verify-generated`: 11 passed against fresh pinned upstream extraction, with no generated artifact changes. Condition-specific assertions ran unchanged as part of that gate but remain excluded from this review.
 - A disposable presence-blind comparator passed the previous equipment test and failed the candidate presence case. Both unchanged test copies passed before mutation. Temporary probe modules were removed afterward.
 - The first added-field assertion assumed a primitive reference and failed: the compiler correctly retains an optional number as number-or-undefined. The final assertion verifies those literal resolved meanings without binding the structural reference hash.
+
+### Rust source-model milestone
+
+- `cargo test -p atlas-foundry-model --all-targets`: 91 passed, including the generic compiled fixture and developer example tests. The final rule-variant check also passed a focused dispatch rerun before the final all-target check.
+- Production source parsing, admission, dispatch, snapshots and generated output remain unchanged. The strengthened assertions distinguish correct-length output from exact retained duplicate values/references and verify typed dispatch independently of the common rule key.
