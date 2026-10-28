@@ -312,6 +312,9 @@ describe("AtlasApp routing", () => {
     expect(apiMocks.searchPage.mock.calls[0][0].search_profile).toBe("embeddinggemma");
     fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
     const settings = screen.getByRole("dialog", { name: "Search settings" });
+    fireEvent.click(
+      within(settings).getByRole("button", { name: /Advanced settings/ }),
+    );
     const model = within(settings).getByRole("combobox", { name: "Search model" });
     expect(model).toBeEnabled();
     fireEvent.mouseDown(model);
@@ -597,6 +600,7 @@ describe("AtlasApp routing", () => {
     expect(screen.getAllByRole("button", { name: "Add condition" })).toHaveLength(2);
     await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
+    fireEvent.click(screen.getByRole("button", { name: /Advanced settings/ }));
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "Search model" }));
     fireEvent.click(await screen.findByText("EmbeddingGemma"));
     expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
@@ -750,6 +754,7 @@ describe("AtlasApp routing", () => {
     render(<AtlasApp />, { wrapper: queryClientWrapper() });
     await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
+    fireEvent.click(screen.getByRole("button", { name: /Advanced settings/ }));
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "Search model" }));
     fireEvent.click(await screen.findByText("EmbeddingGemma"));
     expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);

@@ -35,6 +35,8 @@ describe("search pane composition", () => {
     expect(screen.queryByRole("combobox", { name: "Search model" })).toBeNull();
     fireEvent.click(settings);
     const dialog = within(screen.getByRole("dialog", { name: "Search settings" }));
+    expect(dialog.queryByRole("combobox", { name: "Search model" })).toBeNull();
+    fireEvent.click(dialog.getByRole("button", { name: /Advanced settings/ }));
     expect(dialog.getByRole("combobox", { name: "Search model" })).toBeEnabled();
     expect(dialog.getByText("BGE Base")).toBeInTheDocument();
     fireEvent.click(dialog.getByRole("button", { name: "Cancel" }));

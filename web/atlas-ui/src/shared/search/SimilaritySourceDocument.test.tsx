@@ -167,7 +167,11 @@ it("rejects a source from a different artifact generation", async () => {
     />,
     { wrapper },
   );
-  expect(await screen.findByText("The reference collection changed.")).toBeVisible();
+  expect(
+    await screen.findByText(
+      "The reference collection changed. Refresh before continuing.",
+    ),
+  ).toBeVisible();
   expect(screen.queryByText("Wrong generation source")).toBeNull();
 });
 
@@ -498,3 +502,32 @@ it.each([
     });
   },
 );
+
+it("keeps unknown trait failures contextual and retries without exposing diagnostics", async () => {
+  api.trait
+    .mockRejectedValueOnce(new Error("private-path-and-decoder-details"))
+    .mockResolvedValue({
+      trait_key: "trait:fire",
+      label: "Fire",
+      artifact_generation: "test-generation",
+      content: {
+        body: { kind: "plain", text: "Recovered definition" },
+        references: [],
+      },
+    });
+  render(
+    <SimilaritySourceDocument
+      seed={{ kind: "trait", trait_key: "trait:fire" }}
+      generation="test-generation"
+      target={null}
+      active
+      onReloadSections={vi.fn()}
+    />,
+    { wrapper },
+  );
+  expect(await screen.findByText("Unable to load this trait")).toBeVisible();
+  expect(screen.queryByText("private-path-and-decoder-details")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  expect(await screen.findByText("Recovered definition")).toBeVisible();
+  expect(screen.queryByText("Unable to load this trait")).toBeNull();
+});
