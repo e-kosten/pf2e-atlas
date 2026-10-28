@@ -57,7 +57,23 @@ it does not certify automatic modal focus restoration. Four macOS
 Astra reviewed every pair; other frames retain their preceding references,
 including excluded incidental 1/255 raster changes. All four capture cases and the subsequent twelve ordinary repetitions pass with
 snapshot updates disabled. The product source remains `f777261b`; this follow-up changes the test harness and
-reference focus state only. Linux focus references require separate hosted capture.
+reference focus state only.
+
+Linux x64, Ubuntu 24.04, Playwright 1.62.1:
+[capture 40767178596](https://github.com/e-kosten/pf2e-atlas/actions/runs/40767178596)
+passed all four cases using CI40766561296's authenticated fixture. Synthetic merge
+`50a9981d41ea930fda537ba5a5c2130057b96e2d` combines test-only main `ce3f6442`
+and harness source `e958db26`. Its tree `c8fe5b15b80b276c8f4f3ebc0d4d47f48e8741af`
+matches the explicit integration `72abb4a9`. Binary SHA-256:
+`90e97ce64f185b5985928b9315b919a06a1c75e128bd06c4f04933eb539f5a4f`;
+frontend index SHA-256:
+`5a3c68c619e99e7363b10befa4bb40d846ccac72e734c33b07e2aa74ce31eaed`.
+The integrated upstream checkpoint dismisses each passive tooltip layer before
+comparison. Parent and independent Astra reviewed all four Linux source-focus
+pairs: only the intended outline moves to the condition-name link, with no
+layout, scroll or clipping changes. Only those four frames are adopted; the
+other 36 references remain intact. The incidental phone Chromium fallback
+edge-raster differences are excluded. Ordinary final-head CI remains required.
 
 ## Encounter settings and participant title alignment
 
