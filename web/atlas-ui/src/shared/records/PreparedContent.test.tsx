@@ -411,7 +411,7 @@ it("opens verified item context without changing the original citation", () => {
       spell_rank: 2,
     },
   };
-  const original = edge.target;
+  const original = structuredClone(edge.target);
   const onReference = vi.fn();
   render(
     <PreparedContent
@@ -561,7 +561,7 @@ it.each([false, true])(
       html: '<p><span data-atlas-reference="0">Bear</span></p>',
       controls: [],
     };
-    const original = detail.relationships[0].target!;
+    const original = structuredClone(detail.relationships[0].target!);
     const contextual = { ...original, spell_rank: 4 };
     const edge = {
       ...detail.relationships[0],
@@ -590,7 +590,7 @@ it.each([false, true])(
     expect(onReference).not.toHaveBeenCalled();
     fireEvent.click(link);
     expect(onReference).toHaveBeenCalledWith(contextual.record_key, link, contextual);
-    expect(edge.target).toBe(original);
+    expect(edge.target).toEqual(original);
   },
 );
 

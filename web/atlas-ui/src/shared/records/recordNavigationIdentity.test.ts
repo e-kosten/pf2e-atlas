@@ -49,6 +49,7 @@ it("distinguishes each exact address dimension and excludes only rank from retai
         { collection: "/items", identity: { SnapshotLocal: { index: 0 } } },
       ],
     },
+    { embedded_path: [{ collection: "/items", identity: { Stable: "other" } }] },
     { field: "/system/details/publicNotes" },
     { source_fingerprint: "source-b" },
     { passage: { ...passage, prepared_html_sha256: "prepared-b" } },
@@ -57,6 +58,7 @@ it("distinguishes each exact address dimension and excludes only rank from retai
     { passage: { ...passage, section_ordinal: 3 } },
     { passage: { ...passage, label: "Other section" } },
     { passage: { ...passage, chunk_bytes: { start: 11, end: 50 } } },
+    { passage: { ...passage, chunk_bytes: { start: 10, end: 51 } } },
   ]) {
     const changed = { ...serverSelection, ...change };
     expect(recordNavigationIdentity(changed.record_key, changed)).not.toBe(
