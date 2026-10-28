@@ -26,6 +26,8 @@ export type SearchPreferences = {
   traitSimilarity: SimilarityPreferences;
 };
 
+export const DEFAULT_SOURCE_SECTIONS = "all" as const;
+
 export const DEFAULT_SIMILARITY_PREFERENCES: SimilarityPreferences = {
   method: "passages",
   decay: 0.5,
@@ -71,7 +73,7 @@ function similarity(value: unknown, trait = false): SimilarityPreferences {
       input.decay >= 0 &&
       input.decay <= 1
         ? input.decay
-        : 0.5,
+        : defaults.decay,
     candidateParts:
       !trait && input?.candidateParts === "corresponding" ? "corresponding" : "any",
   };
