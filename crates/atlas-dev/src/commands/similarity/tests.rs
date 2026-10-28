@@ -72,20 +72,45 @@ fn reports_nearest_rank_percentiles_and_no_empty_latency() {
 
 #[test]
 fn rejects_changed_frozen_input_before_opening_a_workspace() {
-    let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../docs/research/evaluations/2026-10-similarity");
     let temporary = tempfile::tempdir().unwrap();
-    let freeze: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(source.join("freeze.json")).unwrap()).unwrap();
-    for name in freeze["files"]
-        .as_object()
-        .unwrap()
-        .keys()
-        .map(String::as_str)
-        .chain(std::iter::once("freeze.json"))
-    {
-        std::fs::copy(source.join(name), temporary.path().join(name)).unwrap();
+    let manifest = serde_json::json!({
+        "version": 1,
+        "experiment_id": "synthetic",
+        "artifact_generation": "synthetic:1",
+        "source_revision": "synthetic",
+        "profiles": ["bge-base"],
+        "repetitions": 1,
+        "variants": [{"id": "baseline", "options": {"method": "baseline"}}],
+        "scenarios": [{
+            "id": "dev-h01", "split": "development", "stratum": "whole-record",
+            "seed": {"kind": "record", "record_key": "test:seed"},
+            "selection": {"kind": "all"}, "quality_eligible": true
+        }],
+        "performance": {
+            "scenario_ids": ["dev-h01"], "profiles": ["bge-base"],
+            "variant_ids": ["baseline"], "warm_repetitions": 1,
+            "additional_cases": []
+        }
+    });
+    let corpus = serde_json::json!({
+        "version": 1, "artifact_generation": "synthetic:1", "source_revision": "synthetic",
+        "records": [{"record_key": "test:candidate"}]
+    });
+    let mut digests = serde_json::Map::new();
+    for (name, input) in [("manifest.json", manifest), ("corpus.json", corpus)] {
+        let bytes = serde_json::to_vec(&input).unwrap();
+        digests.insert(name.into(), super::model::hash(&bytes).into());
+        std::fs::write(temporary.path().join(name), bytes).unwrap();
     }
+    std::fs::write(
+        temporary.path().join("freeze.json"),
+        serde_json::to_vec(&serde_json::json!({
+            "state": "frozen-before-ranked-results", "experiment_id": "synthetic",
+            "files": digests
+        }))
+        .unwrap(),
+    )
+    .unwrap();
     let command = Command::try_parse_from([
         "atlas-dev",
         "evaluate",

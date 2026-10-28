@@ -4,7 +4,7 @@ The local research is expensive evidence, not disposable build output. Keep its
 original bytes, versioned judgments, input bindings, and reproduction tools.
 The dated conclusions are in [source-backed evaluation notes](source-backed-search-evaluation.md);
 The [synthesis](search-evaluation-synthesis.md) connects the experiments;
-current product policy is in ADRs 0050, 0053 and 0059. Historical findings describe the
+current product policy is in ADRs 0050, 0053, 0059 and 0060. Historical findings describe the
 implementation tested at the time, not necessarily today's defaults.
 
 Paths below are relative to the repository root, not an individual worktree.
@@ -29,57 +29,33 @@ grading pass. Some experiments share relative symlinks and inputs across these
 directories. Preserve that layout when backing them up. Model downloads remain
 in `.cache/hf-models`; experimental model assets also live inside research trees.
 
-Git carries the [curated evaluation dataset](evaluations/2026-10-search/README.md),
-its integrity verifier, decision summaries and this map. Raw evidence remains ignored
-locally, including copied source and model data; this is **not an off-machine
-backup**. Preserve it separately before moving machines or deleting `scratch/`.
-Do not add entire SQLite/vector/model archives to Git. The committed subset retains selected reviewer opinions, final judgments,
-rankings and metrics, with source pointers/hashes instead of literal source passages.
-Full-source interpretation and arbitrary re-ranking still need the local archive.
+For new experiments, Git carries concise findings and decisions; raw datasets,
+rankings, opinions, timing samples and experimental replay scripts stay in ignored
+`scratch/`. Repository tests use small synthetic fixtures rather than historical
+research artifacts. The older [curated search archive](evaluations/2026-10-search/README.md)
+remains an existing historical exception, not the template for new studies.
+Local evidence is **not an off-machine backup**; preserve it separately before
+moving machines or deleting retained research directories.
 
-The [configurable Similar protocol](evaluations/2026-10-similarity/README.md)
-separately freezes the stored-vector method experiment's scenarios, exact section
-bindings, controlled candidate universe and judging/performance rules. It does
-not reuse the older archive's exposed holdouts or judgments.
+The [Similar evaluation summary](similarity-evaluation.md) records the durable
+findings and limitations. Its complete frozen protocol, inputs, result package
+and replay tools now live in `scratch/similarity-evaluation/study-2026-10/`.
+Original bytes and hashes are preserved. Read its `LOCAL-REPLAY.md` for relocated
+commands; older recorded commands retain their original paths. The move receipt
+is `scratch/similarity-evaluation/repository-cleanup-receipt.json`.
+The role census is `scratch/similarity-evaluation/role-census-export-2026-10-27.json.gz`;
+the Core census is `scratch/core-sections/census-export-2026-10-27.json.gz`.
 
-The Similar study also needs its original `.atlas/workspace.sqlite` at generation
-`a9474928b73e8cf89e84c5ed6990a838:6` and the measured executables retained under
-`scratch/similarity-evaluation/runtime/`. Keep this schema-16 research workspace
-separate from a newer preview workspace; run setup against the preview copy, not
-the frozen study. Preserve live SQLite data through a consistent backup, including
-pending WAL state. When relocating an archive, retain bound file bytes and record
-a separate path map rather than rewriting hashed packets.
-
-The Core implementation also retains `.atlas/core-baseline-v22.sqlite` at
-generation 8/schema 17 and `.atlas/core-preview.sqlite` at generation 9/schema 18.
-Keep the immutable baseline with its pre-Core executable, the Core executable,
-input manifests and raw receipts under `scratch/core-sections/`. The preview is
-mutable review state; preserve its committed WAL through SQLite's backup API
-before moving or archiving it. Never open the baseline with a migrating Core
-runtime. The original generation-7 preview and generation-6 Similar study remain
-separate. These are implementation and preservation checks; the broader Core
-relevance and decay study has not run.
-
-## Integration with the published workspace history
-
-The retained research and preview artifacts above use unpublished feature-branch
-migration numbers. They are bound to their recorded executables, not portable
-inputs for a newer runtime. The first latest-main reconciliation retained main17
-for stateless strike rolls and placed Similar/Core at18/19; its canonical task
-copy is `.atlas/core-preview-main19.sqlite`, paired with the frozen facfb227
-executable and generation9.
-
-After main d957 added numeric filters and physical base-type metadata at18/19,
-the current source preserves main's published migrations1–19 and appends Similar20
-and Core21. Do not open an older task artifact with that migrating runtime or
-relabel historical validation as current evidence. Fresh workspaces and supported
-main workspaces follow the canonical history. Any task-only conversion must use a
-consistent new copy, authenticate the exact ledger, preserve native/prepared/FTS/
-Core/saved data and separately verify the supported query-projection refresh.
-Its expected reference-generation advance is9→10; it creates no new embeddings.
-The guarded task procedure and independent review live under
-`scratch/core-sections/main-sync/main-d957-schema/`. This is a developer-artifact
-conversion, not product compatibility with unpublished migration histories.
+The Similar study requires its original generation-6/schema-16 artifact and matching
+measured executables under `scratch/similarity-evaluation/runtime/`. Core and main
+integration evidence is retained separately under `scratch/core-sections/`.
+These artifacts use several historical migration/preparation versions; match the
+recorded binary and generation, and never migrate a frozen research database.
+Use a consistent SQLite snapshot when relocating live data. Record path changes
+separately rather than rewriting frozen inputs or relabeling old measurements as
+current evidence. Detailed task-only migration receipts remain local under
+`scratch/core-sections/main-sync/`; they are not product compatibility policy.
+Broader Core relevance/identity/decay evaluation has not run.
 
 ## Reanalysis rules
 

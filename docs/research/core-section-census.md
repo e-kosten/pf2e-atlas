@@ -67,7 +67,7 @@ the [research handoff](search-evaluation-handoff.md).
 
 ## Receipt identity
 
-[Curated machine-readable census](core-section-census/2026-10-27.json.gz) includes source/policy hashes, all family/visibility counters, profile readiness, trait coverage and bounded resource/preservation metadata. It contains no source bodies or vectors. Raw consistent artifacts, executables, before/after manifests and logs remain in the task evidence directory and must survive worktree cleanup.
+The local `scratch/core-sections/census-export-2026-10-27.json.gz` includes source/policy hashes, all family/visibility counters, profile readiness, trait coverage and bounded resource/preservation metadata. It contains no source bodies or vectors. Raw consistent artifacts, executables, before/after manifests and logs remain in the task evidence directory and must survive worktree cleanup.
 
 - Compressed SHA-256: `035102d08047bab060fe24ebcdda3bca46ecc8ad833df25c74aa041ef97af16d`.
 - Decoded SHA-256: `aa46c21bf95ad2bfa6c7bc2f54ccdac5f123fe855bbeebc0372f65f6412e78c6`.

@@ -23,7 +23,7 @@ scoring/evidence contracts use the shared app service.
 Record Similar defaults to Passage matches with Any content and decay 0.5;
 trait Similar retains the Trait definition baseline. Explicit links and valid
 remembered choices override those independent defaults. The
-[frozen Similar study](../../research/evaluations/2026-10-similarity/RESULTS.md)
+[Similar evaluation summary](../../research/similarity-evaluation.md)
 preserves fixed-pool ordering, controlled-subset candidate recall, model-assisted
 usefulness judgments and runtime measurements across both stored profiles.
 These results do not establish full-corpus recall or a universal relevance winner.
