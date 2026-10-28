@@ -159,11 +159,12 @@ mod tests {
         )
         .unwrap();
         assert_eq!(updated.indexing_locale, "fr");
-        assert_eq!(updated.search_profiles.len(), 2);
-        assert!(
-            updated
-                .search_profiles
-                .contains(&SearchProfileId::new("bge-base"))
+        assert_eq!(
+            updated.search_profiles,
+            vec![
+                SearchProfileId::new("bge-base"),
+                SearchProfileId::new("embeddinggemma")
+            ]
         );
         let lexical = resolve_configuration(
             &paths,

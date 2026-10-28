@@ -211,6 +211,7 @@ mod tests {
                 check: true,
             },
         );
+        assert_eq!(report.targets.len(), 2);
         assert!(
             report
                 .targets
@@ -218,6 +219,8 @@ mod tests {
                 .all(|target| target.status == SetupCleanTargetStatus::Planned)
         );
         assert!(!paths.index_path.parent().unwrap().exists());
+        assert!(paths.source_root.is_dir());
+        assert!(paths.embedding_cache_root.is_dir());
         fs::create_dir_all(paths.index_path.parent().unwrap()).unwrap();
         fs::write(&paths.index_path, "saved state").unwrap();
         let report = clean_setup(
@@ -228,12 +231,15 @@ mod tests {
                 check: false,
             },
         );
+        assert_eq!(report.targets.len(), 2);
         assert!(
             report
                 .targets
                 .iter()
                 .all(|target| target.status == SetupCleanTargetStatus::Removed)
         );
+        assert!(!paths.source_root.exists());
+        assert!(!paths.embedding_cache_root.exists());
         assert_eq!(fs::read_to_string(paths.index_path).unwrap(), "saved state");
     }
 

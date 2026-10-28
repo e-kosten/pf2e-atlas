@@ -122,6 +122,32 @@ mod tests {
         assert_eq!(calls.get(), 2);
     }
     #[test]
+    fn asset_replacement_during_verification_cannot_cache_a_stale_success() {
+        let directory = tempfile::tempdir().unwrap();
+        let config = EmbeddingRuntimeConfig::new(
+            atlas_embedding::EmbeddingModelId::BgeBaseEnV15,
+            directory.path(),
+        );
+        let files = required_embedding_model_cache_files(&config);
+        for file in &files {
+            fs::create_dir_all(file.local_path.parent().unwrap()).unwrap();
+            fs::write(&file.local_path, b"original").unwrap();
+        }
+        let availability = ProfileAssets::default();
+        let id = SearchProfileId::new("bge-base");
+        assert!(!availability.check(&id, &config, || {
+            fs::write(&files[0].local_path, b"changed during verification").unwrap();
+            true
+        }));
+        let verified_again = Cell::new(false);
+        assert!(availability.check(&id, &config, || {
+            verified_again.set(true);
+            true
+        }));
+        assert!(verified_again.get());
+    }
+
+    #[test]
     fn readiness_never_checks_an_unstored_model_package() {
         let directory = tempfile::tempdir().unwrap();
         let runtime = crate::AtlasRuntime::resolve(crate::AtlasRuntimeOptions {

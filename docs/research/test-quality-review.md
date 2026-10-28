@@ -25,7 +25,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | crates/atlas-ingest | 6 | 0 | 6 | 0 |
 | crates/atlas-local-state | 7 | 7 | 0 | 0 |
 | crates/atlas-record | 18 | 0 | 18 | 0 |
-| crates/atlas-runtime | 7 | 7 | 0 | 0 |
+| crates/atlas-runtime | 7 | 0 | 7 | 0 |
 | crates/atlas-search | 15 | 15 | 0 | 0 |
 | crates/atlas-storage | 3 | 0 | 3 | 0 |
 | crates/atlas-tags | 4 | 0 | 4 | 0 |
@@ -300,13 +300,13 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [crates/atlas-runtime/src/error.rs](../../crates/atlas-runtime/src/error.rs) | pending | — |
-| [crates/atlas-runtime/src/profile_assets.rs](../../crates/atlas-runtime/src/profile_assets.rs) | pending | — |
-| [crates/atlas-runtime/src/setup_clean.rs](../../crates/atlas-runtime/src/setup_clean.rs) | pending | — |
-| [crates/atlas-runtime/src/source_acquisition.rs](../../crates/atlas-runtime/src/source_acquisition.rs) | pending | — |
-| [crates/atlas-runtime/src/source_configuration.rs](../../crates/atlas-runtime/src/source_configuration.rs) | pending | — |
-| [crates/atlas-runtime/src/tests.rs](../../crates/atlas-runtime/src/tests.rs) | pending | — |
-| [crates/atlas-runtime/src/workspace.rs](../../crates/atlas-runtime/src/workspace.rs) | pending | — |
+| [crates/atlas-runtime/src/error.rs](../../crates/atlas-runtime/src/error.rs) | reviewed | Literal error kind/message and target identity protect stable runtime diagnostics; retained. Typed storage/search conversions are also exercised at runtime transport boundaries. |
+| [crates/atlas-runtime/src/profile_assets.rs](../../crates/atlas-runtime/src/profile_assets.rs) | changed | Added deterministic file replacement inside verification: stale success is rejected and the next access must verify again. Retained missing-package no-scan, unchanged positive/negative caching, normal replacement recovery and stored-profile scope checks. |
+| [crates/atlas-runtime/src/setup_clean.rs](../../crates/atlas-runtime/src/setup_clean.rs) | changed | Cleanup now requires both requested targets and real directory survival/removal in check/execute modes, beyond report status. Retained containment, sidecar, relative nonexistent suffix, symlink and broken-alias protection. |
+| [crates/atlas-runtime/src/source_acquisition.rs](../../crates/atlas-runtime/src/source_acquisition.rs) | reviewed | Real local Git repositories prove exact detached pin, offline cache reuse, dirty/wrong revision preservation and absent partial publication after failure; retained without network mocks. |
+| [crates/atlas-runtime/src/source_configuration.rs](../../crates/atlas-runtime/src/source_configuration.rs) | changed | Adding Gemma must preserve exactly the sorted Base/Gemma profile set, instead of cardinality plus Base presence. Retained durable locale/model intent, source override precedence, check-mode no-creation and incompatible-file preservation. |
+| [crates/atlas-runtime/src/tests.rs](../../crates/atlas-runtime/src/tests.rs) | reviewed | Retained query/lexical/historical upgrade matrix with exact saved rows, vectors, pending progress, revisions and no inference/source access. Setup freshness, failed build/config/profile preservation, absent assets, native retained query session and source compatibility have distinct outcomes. |
+| [crates/atlas-runtime/src/workspace.rs](../../crates/atlas-runtime/src/workspace.rs) | mixed | Condition application/system migration cases excluded and unchanged. Fresh migration failure now proves no user tables or schema version remain before recovery; historical baseline upgrade checks complete saved-list identity and encounter key/name. Other migration/history/vector/receipt preservation and idempotent reopening checks retained. |
 
 ### crates/atlas-search
 
@@ -679,3 +679,9 @@ Completion requires every inventory entry to have a substantive disposition, eve
 - `cargo test -p atlas-ingest`: 29 library and eight loader integration tests passed. Five additional bounded native tests passed with `--ignored --skip actual_complete_source --skip complete_artifact_snapshots --skip pinned_english --test-threads=1`, using the verified BGE/Gemma caches.
 - The four full-source/archive checks retain their existing prerequisites; this milestone does not claim their historical corpora were rebuilt. Actual target addition, ambiguity, recovery and rename publication now have independent destination/label expectations. A plausible counterexample is advancing reuse statistics while publishing stale references; no mutation probe is claimed.
 - Compiler output reached approximately 15 GiB: inspected 9.5 GiB dependency output, 3.9 GiB incremental state and 216 MiB build scripts. Free space remained 129 GiB; retained the active task cache rather than rebuilding it.
+
+### Runtime milestone
+
+- `cargo test -p atlas-runtime`: 53 passed, one existing native test ignored. `cargo test -p atlas-runtime -- --ignored --test-threads=1`: the retained Gemma query-session recovery test passed with verified assets.
+- The cleanup assertions reject a lying Removed report, the verification-race fixture changes file length deterministically, and rollback is inspected before a later initialization could repair partial state. These are discriminating inputs/reasoned counterexamples; no production mutation probe is claimed.
+- CI on the earlier published source-tooling head passed native Windows release tooling, Windows publication, macOS/Linux release checks, frontend unit/bundle checks, source contracts and research evidence. Rust and one browser shard were still running at inspection; this is not final-head readiness evidence.
