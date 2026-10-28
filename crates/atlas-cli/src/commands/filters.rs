@@ -156,9 +156,26 @@ mod tests {
             ..Default::default()
         })
         .expect("valid");
-        assert!(
-            matches!(predicate.unwrap().expression, QueryExpression::AllOf {children} if children.len() == 3)
+        let expected: Vec<QueryPredicate> = serde_json::from_value(serde_json::json!([
+            {"kind":"compare", "field":"defenses.hp.maximum", "op":"gte", "value":80},
+            {"kind":"in", "field":"kind", "values":["creature"]},
+            {"kind":"set_match", "field":"traits", "op":"includes_all", "values":["undead"]}
+        ]))
+        .unwrap();
+        let QueryExpression::AllOf { children } = predicate.unwrap().expression else {
+            panic!("expected all constraints")
+        };
+        assert_eq!(
+            children
+                .iter()
+                .map(|child| &child.expression)
+                .collect::<Vec<_>>(),
+            expected
+                .iter()
+                .map(|child| &child.expression)
+                .collect::<Vec<_>>()
         );
+        assert!(children[0].clause_id.is_some());
     }
     #[test]
     fn unknown_fields_and_unsupported_syntax_fail() {

@@ -168,6 +168,14 @@ fn boolean_links_share_root_scope_with_ordinary_fields_and_preserve_occurrence_e
         "--json",
     ]);
     assert_eq!(lexical["page"]["total"], 2);
+    let mut keys = lexical["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|row| row["record"]["record_key"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    keys.sort_unstable();
+    assert_eq!(keys, ["actors:guard00000000000", "actors:scout00000000000"]);
     assert_eq!(lexical["coverage"]["exhaustive"], true);
     assert!(
         lexical["rows"]
@@ -253,6 +261,14 @@ fn strict_named_flags_resolve_outside_candidate_filters_and_fail_on_ambiguity() 
     assert_eq!(main["page"]["total"], 1);
     let outgoing = fixture.data(&["search", "--linked-from", "Fixture Guard", "--json"]);
     assert_eq!(outgoing["page"]["total"], 2);
+    let mut keys = outgoing["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|row| row["record"]["record_key"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    keys.sort_unstable();
+    assert_eq!(keys, ["items:armor00000000000", "items:stun000000000000"]);
     let outgoing_main = fixture.data(&[
         "search",
         "--linked-from-main-entry",

@@ -130,7 +130,33 @@ mod tests {
         .await
         .expect("auto binding should skip occupied default port");
 
-        assert_ne!(selected, DEFAULT_WEB_PORT);
-        assert!(selected > DEFAULT_WEB_PORT);
+        assert_eq!(selected, DEFAULT_WEB_PORT + 1);
+    }
+    #[tokio::test]
+    async fn default_port_exhaustion_stops_after_the_supported_range() {
+        let mut attempts = Vec::new();
+        let error = bind_local_listener_with(None, |port| {
+            attempts.push(port);
+            let result = if attempts.len() > 100 {
+                Ok(port)
+            } else {
+                Err("occupied".to_owned())
+            };
+            async move { result }
+        })
+        .await
+        .unwrap_err();
+        assert_eq!(
+            attempts,
+            (DEFAULT_WEB_PORT..DEFAULT_WEB_PORT + 100).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            error,
+            format!(
+                "no available localhost port found in {}..{}",
+                DEFAULT_WEB_PORT,
+                DEFAULT_WEB_PORT + 99
+            )
+        );
     }
 }

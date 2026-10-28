@@ -487,8 +487,10 @@ mod tests {
                 .unwrap()
                 .parts()
                 .unwrap()
-                .len(),
-            2
+                .iter()
+                .map(|selector| selector.0.as_str())
+                .collect::<Vec<_>>(),
+            ["part-123", "part-456"]
         );
     }
 
