@@ -2437,6 +2437,82 @@ fn recovery_restores_creation_state_preserves_identity_and_recovers_retries()
 }
 
 #[test]
+fn recovery_keeps_unchanged_ties_reserved_while_restoring_changed_initiatives()
+-> crate::LocalStateResult<()> {
+    let store = fixture("recovery-tied-initiatives")?;
+    let mut participants = vec![];
+    for name in ["One", "Two", "Three"] {
+        participants.push(
+            store
+                .encounters()
+                .add_participant("test", creature(name, Some(10), 20))?,
+        );
+    }
+    for (participant, initiative) in participants.iter().zip([20, 30]) {
+        let current = store.encounters().get_with_participants("test")?.unwrap();
+        let mut update = edit(
+            current
+                .participants
+                .iter()
+                .find(|p| p.participant_key == participant.participant_key)
+                .unwrap(),
+        );
+        update.initiative = Some(initiative);
+        store.encounters().update_participant(update)?;
+    }
+    let before = store.encounters().get_with_participants("test")?.unwrap();
+    let unchanged = before
+        .participants
+        .iter()
+        .find(|p| p.participant_key == participants[2].participant_key)
+        .unwrap();
+    let mut connection = store.connection()?;
+    let transaction = connection.transaction()?;
+    let domain = EncountersWrite::from_connection(&transaction);
+    let replacements = before
+        .participants
+        .iter()
+        .map(|p| {
+            Ok((
+                p.participant_key.clone(),
+                domain.participant_baseline(&p.participant_key)?.unwrap(),
+            ))
+        })
+        .collect::<crate::LocalStateResult<Vec<_>>>()?;
+    domain.apply_recovery(ApplyEncounterRecovery {
+        encounter_key: &before.encounter.encounter_key,
+        request_id: "restore-tied-initiatives",
+        intent: &serde_json::json!({"reset":true}),
+        expected_revision: before.encounter.revision,
+        reset_encounter: true,
+        end_turn: true,
+        replacements: &replacements,
+    })?;
+    transaction.commit()?;
+    let after = store.encounters().get_with_participants("test")?.unwrap();
+    assert!(after.participants.iter().all(|p| p.initiative == Some(10)));
+    assert_eq!(
+        after
+            .participants
+            .iter()
+            .map(|p| p.initiative_order)
+            .collect::<std::collections::BTreeSet<_>>()
+            .len(),
+        3
+    );
+    assert_eq!(
+        after
+            .participants
+            .iter()
+            .find(|p| p.participant_key == unchanged.participant_key)
+            .unwrap()
+            .initiative_order,
+        unchanged.initiative_order
+    );
+    Ok(())
+}
+
+#[test]
 fn recovery_failure_rolls_back_all_participants_and_does_not_consume_request()
 -> crate::LocalStateResult<()> {
     let store = fixture("recovery-rollback")?;

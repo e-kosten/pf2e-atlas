@@ -19,22 +19,23 @@ pub(in crate::encounters) fn prepare(
     record: Option<&HydratedParticipantRecord>,
     row: &mut EncounterRecoveryParticipantView,
 ) -> AppServiceResult<Option<ParticipantGameplay>> {
+    let baseline = record.and_then(|r| r.arithmetic_baseline.as_ref());
+    let sources = baseline.map(|b| &b.source_conditions);
+    let conditions = super::causes::condition_causes(
+        p,
+        None,
+        sources.unwrap_or(super::source_conditions::SourceConditions::empty()),
+    );
     if p.participant_kind == ParticipantKind::Hazard
         || p.mortality == MortalityState::Dead
-        || p.conditions.iter().any(|c| {
-            matches!(
-                condition_rule_for_key(c.condition_key.as_deref()),
-                Some(ConditionRule::Dying | ConditionRule::Petrified)
-            )
-        })
+        || conditions
+            .iter()
+            .any(|c| matches!(c.rule, ConditionRule::Dying | ConditionRule::Petrified))
     {
         row.unavailable_reason =
             Some("Choose a living creature that isn't dying or petrified.".into());
         return Ok(None);
     }
-    let sources = record
-        .and_then(|r| r.arithmetic_baseline.as_ref())
-        .map(|b| &b.source_conditions);
     let block = record.and_then(|r| {
         r.arithmetic_baseline
             .as_ref()
@@ -46,10 +47,13 @@ pub(in crate::encounters) fn prepare(
             .and_then(|b| b.adjusted_level.as_ref().or(b.level.as_ref()))
             .and_then(|n| n.as_i64())
     });
-    let con = block
-        .as_ref()
-        .and_then(|b| b.effective_stat(&StatisticTarget::Ability(Ability::Constitution)))
-        .and_then(|n| n.as_i64());
+    let con = baseline
+        .and_then(|b| {
+            b.values
+                .iter()
+                .find(|value| value.target == StatisticTarget::Ability(Ability::Constitution))
+        })
+        .and_then(|value| value.base_value.as_i64());
     row.healing = healing.or_else(|| {
         level
             .filter(|l| *l > 0)
