@@ -39,7 +39,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | web/atlas-ui/src/api | 3 | 0 | 3 | 0 |
 | web/atlas-ui/src/app | 11 | 0 | 11 | 0 |
 | web/atlas-ui/src/features | 53 | 53 | 0 | 0 |
-| web/atlas-ui/src/shared | 92 | 92 | 0 | 0 |
+| web/atlas-ui/src/shared | 92 | 72 | 20 | 0 |
 
 ## Review ledger
 
@@ -526,15 +526,15 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [web/atlas-ui/src/shared/branding/AtlasMark.test.tsx](../../web/atlas-ui/src/shared/branding/AtlasMark.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/browser/startupReload.test.ts](../../web/atlas-ui/src/shared/browser/startupReload.test.ts) | pending | — |
-| [web/atlas-ui/src/shared/dice/ContentRoll.test.tsx](../../web/atlas-ui/src/shared/dice/ContentRoll.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/dice/RollResult.test.tsx](../../web/atlas-ui/src/shared/dice/RollResult.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/dice/useDicePopoverFocus.test.tsx](../../web/atlas-ui/src/shared/dice/useDicePopoverFocus.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/dice/useDiceRoll.test.tsx](../../web/atlas-ui/src/shared/dice/useDiceRoll.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/feedback/ErrorNotice.test.tsx](../../web/atlas-ui/src/shared/feedback/ErrorNotice.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/feedback/GlobalFeedback.test.tsx](../../web/atlas-ui/src/shared/feedback/GlobalFeedback.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/feedback/errorMessages.test.ts](../../web/atlas-ui/src/shared/feedback/errorMessages.test.ts) | pending | — |
+| [web/atlas-ui/src/shared/branding/AtlasMark.test.tsx](../../web/atlas-ui/src/shared/branding/AtlasMark.test.tsx) | reviewed | Decorative SVG accessibility, compass/die silhouette structure and separate small favicon assets are intentional artwork contracts; retained without visual-reference refresh. |
+| [web/atlas-ui/src/shared/browser/startupReload.test.ts](../../web/atlas-ui/src/shared/browser/startupReload.test.ts) | changed | Unavailable storage now covers both reading and recording the reload guard. Retained once-per-tab behavior and explicit rearming after a successful handshake. |
+| [web/atlas-ui/src/shared/dice/ContentRoll.test.tsx](../../web/atlas-ui/src/shared/dice/ContentRoll.test.tsx) | changed | Multi-type result requires two actual outcome statuses, preventing one result plus an unrolled placeholder from passing. Retained exact request, explicit reroll/retry, stable purpose heading, units, focus and duplicate suppression. |
+| [web/atlas-ui/src/shared/dice/RollResult.test.tsx](../../web/atlas-ui/src/shared/dice/RollResult.test.tsx) | reviewed | Literal arithmetic grouping, actual unconventional-die labels with shared fallback shape, settled-only discards and blank-vs-rolling-vs-recorded outcomes are distinct rendering contracts; retained. |
+| [web/atlas-ui/src/shared/dice/useDicePopoverFocus.test.tsx](../../web/atlas-ui/src/shared/dice/useDicePopoverFocus.test.tsx) | reviewed | Field/portal destinations, outside-click close, result-to-opener restoration and obsolete transition callbacks protect focus without pinning effect order; retained. |
+| [web/atlas-ui/src/shared/dice/useDiceRoll.test.tsx](../../web/atlas-ui/src/shared/dice/useDiceRoll.test.tsx) | reviewed | Controlled promises and virtual time cover duplicate suppression through reveal, reduced motion, retained/cleared failed results, explicit recovery, no retry and unmount without timers. Shared uncertain outcome remains separately asserted; retained. |
+| [web/atlas-ui/src/shared/feedback/ErrorNotice.test.tsx](../../web/atlas-ui/src/shared/feedback/ErrorNotice.test.tsx) | reviewed | Local failures hide diagnostics, shared reads have one shell owner, uncertain writes stay local and confirmed/partial saves retain truthful outcomes and actions; retained. |
+| [web/atlas-ui/src/shared/feedback/GlobalFeedback.test.tsx](../../web/atlas-ui/src/shared/feedback/GlobalFeedback.test.tsx) | reviewed | Real modal/drawer portals preserve draft/focus and one reachable recovery through nested open/close transitions; innermost simultaneous host is explicitly protected. Retained. |
+| [web/atlas-ui/src/shared/feedback/errorMessages.test.ts](../../web/atlas-ui/src/shared/feedback/errorMessages.test.ts) | reviewed | Reviewed copy hides raw diagnostics and unknown/prototype-name codes while retaining conflicts and uncertain-write semantics; retained. |
 | [web/atlas-ui/src/shared/filters/CollectionValueInput.test.tsx](../../web/atlas-ui/src/shared/filters/CollectionValueInput.test.tsx) | pending | — |
 | [web/atlas-ui/src/shared/filters/CommonChoicePicker.test.tsx](../../web/atlas-ui/src/shared/filters/CommonChoicePicker.test.tsx) | pending | — |
 | [web/atlas-ui/src/shared/filters/FilterPanel.test.tsx](../../web/atlas-ui/src/shared/filters/FilterPanel.test.tsx) | pending | — |
@@ -549,9 +549,9 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | [web/atlas-ui/src/shared/filters/useFilterDiscovery.test.ts](../../web/atlas-ui/src/shared/filters/useFilterDiscovery.test.ts) | pending | — |
 | [web/atlas-ui/src/shared/filters/useFilterEditor.test.tsx](../../web/atlas-ui/src/shared/filters/useFilterEditor.test.tsx) | pending | — |
 | [web/atlas-ui/src/shared/filters/useFilterUrlRecovery.test.tsx](../../web/atlas-ui/src/shared/filters/useFilterUrlRecovery.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/layout/PaneLayout.test.tsx](../../web/atlas-ui/src/shared/layout/PaneLayout.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/layout/WorkspaceLayout.test.tsx](../../web/atlas-ui/src/shared/layout/WorkspaceLayout.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/queries/immutableReferenceQueries.test.ts](../../web/atlas-ui/src/shared/queries/immutableReferenceQueries.test.ts) | pending | — |
+| [web/atlas-ui/src/shared/layout/PaneLayout.test.tsx](../../web/atlas-ui/src/shared/layout/PaneLayout.test.tsx) | reviewed | Pointer delta/minimum, cancellation/lost capture, keyboard step/reset and disabled handles assert literal resulting widths and accessible values; retained. |
+| [web/atlas-ui/src/shared/layout/WorkspaceLayout.test.tsx](../../web/atlas-ui/src/shared/layout/WorkspaceLayout.test.tsx) | reviewed | Collapse preserves pane identity, new selected records reopen detail, and noncollapsible participant content remains visible when roster collapses; retained. |
+| [web/atlas-ui/src/shared/queries/immutableReferenceQueries.test.ts](../../web/atlas-ui/src/shared/queries/immutableReferenceQueries.test.ts) | changed | Added trait-detail, trait-records and relationship-occurrences families to real-cache retirement assertions. Retained abort-before-removal, late-response nonresurrection, mutable aggregate preservation and typed-only generation recovery. |
 | [web/atlas-ui/src/shared/records/ActionCost.test.tsx](../../web/atlas-ui/src/shared/records/ActionCost.test.tsx) | pending | — |
 | [web/atlas-ui/src/shared/records/ActorRuntimeHints.test.tsx](../../web/atlas-ui/src/shared/records/ActorRuntimeHints.test.tsx) | pending | — |
 | [web/atlas-ui/src/shared/records/ContextualActivityPreview.test.tsx](../../web/atlas-ui/src/shared/records/ContextualActivityPreview.test.tsx) | pending | — |
@@ -610,14 +610,14 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | [web/atlas-ui/src/shared/search/searchIdentity.test.ts](../../web/atlas-ui/src/shared/search/searchIdentity.test.ts) | pending | — |
 | [web/atlas-ui/src/shared/search/searchPreferences.test.ts](../../web/atlas-ui/src/shared/search/searchPreferences.test.ts) | pending | — |
 | [web/atlas-ui/src/shared/search/similarityState.test.ts](../../web/atlas-ui/src/shared/search/similarityState.test.ts) | pending | — |
-| [web/atlas-ui/src/shared/theme/themeDefinitions.test.ts](../../web/atlas-ui/src/shared/theme/themeDefinitions.test.ts) | pending | — |
-| [web/atlas-ui/src/shared/ui/HelpTooltip.test.tsx](../../web/atlas-ui/src/shared/ui/HelpTooltip.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/ui/LoadingStatus.test.tsx](../../web/atlas-ui/src/shared/ui/LoadingStatus.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/ui/actions/DangerActionButton.test.tsx](../../web/atlas-ui/src/shared/ui/actions/DangerActionButton.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/ui/actions/PaneAction.test.tsx](../../web/atlas-ui/src/shared/ui/actions/PaneAction.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/ui/forms/EditableCommitField.test.tsx](../../web/atlas-ui/src/shared/ui/forms/EditableCommitField.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/ui/pickers/SearchPickerModal.test.tsx](../../web/atlas-ui/src/shared/ui/pickers/SearchPickerModal.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/ui/tables/IndexTable.test.tsx](../../web/atlas-ui/src/shared/ui/tables/IndexTable.test.tsx) | pending | — |
+| [web/atlas-ui/src/shared/theme/themeDefinitions.test.ts](../../web/atlas-ui/src/shared/theme/themeDefinitions.test.ts) | changed | Document/favicon application now covers both light and dark schemes. Retained independent contrast thresholds, ordered neutral luminance, semantic Ant/CSS mappings and complete pre-React fallback consistency. |
+| [web/atlas-ui/src/shared/ui/HelpTooltip.test.tsx](../../web/atlas-ui/src/shared/ui/HelpTooltip.test.tsx) | reviewed | Real hover/focus/click help remains accessible and consumes Escape before containing modal without stealing initial field focus; retained. |
+| [web/atlas-ui/src/shared/ui/LoadingStatus.test.tsx](../../web/atlas-ui/src/shared/ui/LoadingStatus.test.tsx) | changed | Second request now must reveal at its own exact 500 ms boundary, closing the case where it never appears. Retained first-request threshold, reserved node identity and absence of early announcement. |
+| [web/atlas-ui/src/shared/ui/actions/DangerActionButton.test.tsx](../../web/atlas-ui/src/shared/ui/actions/DangerActionButton.test.tsx) | reviewed | Real contextual modal/button/callback and popover callers preserve theme, safe cancellation/focus, pending dismissal locks, synchronous/asynchronous failures and explicit retry. Backdrop and keyboard cases protect different events; retained. |
+| [web/atlas-ui/src/shared/ui/actions/PaneAction.test.tsx](../../web/atlas-ui/src/shared/ui/actions/PaneAction.test.tsx) | reviewed | StrictMode native Ant tooltip/ref forwarding, focus/hover dismissal, disabled sends and exact native link attributes/events protect the shared wrapper boundary; retained. |
+| [web/atlas-ui/src/shared/ui/forms/EditableCommitField.test.tsx](../../web/atlas-ui/src/shared/ui/forms/EditableCommitField.test.tsx) | reviewed | Real blur/Enter/Escape sequences protect exactly-once commits, rejected draft retention and successful retry, unchanged cancellation, disabled edits and renewed editing; retained. |
+| [web/atlas-ui/src/shared/ui/pickers/SearchPickerModal.test.tsx](../../web/atlas-ui/src/shared/ui/pickers/SearchPickerModal.test.tsx) | changed | Retry now requires the identical request, removed one repeated unchanged wait, and late-response test awaits its controlled promise instead of a 350 ms sleep. Retained real selection/generation/profile flows, exact Add identities, draft/focus continuity, lazy counts, pending guards and mutable-cache preservation. |
+| [web/atlas-ui/src/shared/ui/tables/IndexTable.test.tsx](../../web/atlas-ui/src/shared/ui/tables/IndexTable.test.tsx) | reviewed | Real table rows retain content during refresh and separate row activation from nested actions/typing/native title links; modified/nonprimary clicks and exactly-once navigation retained. |
 
 ## Validation and delivery
 
@@ -723,3 +723,5 @@ CLI milestone validation: 52 unit tests; roll 3, relationships 7, source product
 Web milestone validation: complete atlas-web unit/integration and doc-test command passed, including the real TCP disconnect test. Frontend bundle rebuilt to match the contract digest before compilation; no visual references changed.
 
 Frontend API/app milestone validation: 14 files / 226 tests passed; subsequent native anchor matrix passed with all 30 routing tests. Condition-specific API cases were not edited. JSDOM emitted its existing pseudo-style and native-navigation limitations; browser acceptance remains part of final validation.
+
+Shared primitive milestone validation: 20 files / 126 tests passed, including picker, real query-cache, modal/drawer, dice, theme and navigation-wrapper tests. No snapshots or production behavior changed.
