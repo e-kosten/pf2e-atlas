@@ -11,6 +11,7 @@ import {
 import type { SavedListItemView } from "../../generated/atlas";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { RecordBrowseSummary } from "../../shared/records/RecordBrowseSummary";
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 
 export function ListItemsPane({
   error,
@@ -137,7 +138,7 @@ export function ListItemsPane({
         </div>
       )}
       {loading && !items.length ? (
-        <Spin className="reference-loading" aria-label="Loading saved records" />
+        <LoadingStatus className="reference-loading" label="Loading saved records" />
       ) : !items.length ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}

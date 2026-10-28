@@ -23,6 +23,25 @@ function renderIndex(content: ReactNode) {
 }
 
 describe("IndexTable", () => {
+  it("does not flash completed-empty copy and preserves rows through refresh", () => {
+    const props = {
+      columns: [{ title: "Name", dataIndex: "name" }],
+      onActivateRow: vi.fn(),
+      rowKey: (entry: typeof row) => entry.key,
+      locale: { emptyText: "No records" },
+    };
+    const view = render(<IndexTable {...props} dataSource={[]} loading />);
+    expect(screen.queryByText("No records")).not.toBeInTheDocument();
+    view.rerender(<IndexTable {...props} dataSource={[row]} loading={false} />);
+    const name = screen.getByText(row.name);
+    view.rerender(<IndexTable {...props} dataSource={[row]} loading />);
+    expect(screen.getByText(row.name)).toBe(name);
+    view.rerender(
+      <IndexTable {...props} dataSource={[]} loading={{ spinning: false }} />,
+    );
+    expect(screen.getByText("No records")).toBeInTheDocument();
+  });
+
   it("activates once from a plain cell click or Enter focused on the row", () => {
     const { onActivateRow, tableRow } = renderIndex(row.name);
     fireEvent.click(screen.getByText("Ready"));

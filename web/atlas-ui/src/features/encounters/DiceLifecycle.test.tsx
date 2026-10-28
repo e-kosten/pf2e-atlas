@@ -400,6 +400,7 @@ function StrikeContextHarness() {
       activity={activityFixture()}
       disabled={false}
       onBeginStrike={strike.launch}
+      onPrepareStrike={strike.prepare}
       renderStrikeContext={strike.renderContext}
     />
   );
@@ -536,4 +537,69 @@ it("retains the displayed attack's adjustment hints until another roll succeeds"
   expect(
     within(dialog).queryByText("Context · Hidden · Check detection"),
   ).not.toBeInTheDocument();
+});
+
+it("prepares checks during roll reveal and keeps the result view until the requested context is ready", async () => {
+  const options = await getEncounterStrikeOptions("e", {
+    participant_key: "p",
+    reference: {
+      artifact_generation: "generation",
+      selection: {
+        record_key: "creatures:actor",
+        embedded_path: [],
+        fields: [],
+        passage: null,
+        source_fingerprint: null,
+      },
+    },
+  });
+  let resolve!: (
+    value: Awaited<ReturnType<typeof previewEncounterStrikeContext>>,
+  ) => void;
+  vi.mocked(previewEncounterStrikeContext).mockImplementationOnce(
+    () =>
+      new Promise((done) => {
+        resolve = done;
+      }),
+  );
+  vi.mocked(rollEncounterStrike).mockImplementation(async (_key, request) => ({
+    ...strikeReceipt(request),
+    attack: outcome,
+    damage: [],
+  }));
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <StrikeContextHarness />
+    </ConfigProvider>,
+    { wrapper },
+  );
+  const choice = activityFixture().attack_options[0];
+  fireEvent.click(
+    screen.getByRole("button", { name: `Strike Jaws attack +${choice.modifier}` }),
+  );
+  const dialog = await screen.findByRole("dialog", { name: "Jaws · Attack" });
+  await within(dialog).findByRole("button", { name: "Reroll" });
+  expect(previewEncounterStrikeContext).toHaveBeenCalled();
+  const target = within(dialog).getByRole("button", { name: "Target & checks" });
+  act(() => target.focus());
+  fireEvent.click(target);
+  expect(screen.getByRole("dialog", { name: "Jaws · Attack" })).toBe(dialog);
+  expect(
+    screen.queryByRole("combobox", { name: "Strike target" }),
+  ).not.toBeInTheDocument();
+  await act(async () =>
+    resolve({
+      options,
+      targeting_check: null,
+      action: { issues: [], confused: false, disruption: null, targeting: null },
+    }),
+  );
+  await within(dialog).findByRole("combobox", { name: "Strike target" });
+  expect(dialog).toHaveAccessibleName("Jaws · Target & checks");
+  expect(dialog).toHaveFocus();
+  expect(rollEncounterStrike).toHaveBeenCalledTimes(1);
+  const back = within(dialog).getByRole("button", { name: "Back to roll" });
+  act(() => back.focus());
+  fireEvent.click(back);
+  expect(within(dialog).getByRole("button", { name: "Target & checks" })).toHaveFocus();
 });

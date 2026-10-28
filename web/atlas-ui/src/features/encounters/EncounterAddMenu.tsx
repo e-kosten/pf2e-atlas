@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import type { AddEncounterPartyRequest, PartyView } from "../../generated/atlas";
 import { PartyManager } from "../parties/PartyManager";
 import { useParties } from "../parties/useParties";
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 
 export function EncounterAddMenu({
   onAdd,
@@ -52,7 +53,11 @@ export function EncounterAddMenu({
       onClick: () => void add(party),
     })) ?? [];
   if (parties.isLoading)
-    items.push({ key: "loading", disabled: true, label: "Loading parties…" });
+    items.push({
+      key: "loading",
+      disabled: true,
+      label: <LoadingStatus label="Loading parties…" />,
+    });
   if (parties.error && !isSharedFailure(parties.error))
     items.push({
       key: "retry",

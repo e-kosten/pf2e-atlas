@@ -16,6 +16,7 @@ import { normalizeOptionalText, normalizeTags, savedListTagOptions } from "./lis
 import { useSavedLists } from "./savedListQueries";
 import { formatDate } from "../../shared/ui/formatDate";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 type ListEditViewProps = {
   route: { slug: string };
 };
@@ -117,7 +118,7 @@ export function ListEditView({ route }: ListEditViewProps) {
       </section>
       <section className="list-edit-view__body">
         {list.isLoading ? (
-          <div className="detail-empty">Loading list</div>
+          <LoadingStatus className="detail-empty" label="Loading list…" />
         ) : !list.data ? (
           <div className="detail-empty">
             {list.error ? "List unavailable" : "List not found"}

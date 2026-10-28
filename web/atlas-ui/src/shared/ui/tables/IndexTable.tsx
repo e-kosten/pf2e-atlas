@@ -13,11 +13,23 @@ type IndexTableProps<Row extends object> = Omit<
 export function IndexTable<Row extends object>({
   onActivateRow,
   rowKey,
+  loading,
+  locale,
   ...props
 }: IndexTableProps<Row>) {
+  const spinning = typeof loading === "object" ? (loading.spinning ?? true) : !!loading;
   return (
     <Table<Row>
       {...props}
+      loading={
+        typeof loading === "object"
+          ? { delay: 500, ...loading }
+          : { spinning, delay: 500 }
+      }
+      locale={{
+        ...locale,
+        emptyText: spinning && !props.dataSource?.length ? null : locale?.emptyText,
+      }}
       tableLayout="auto"
       pagination={false}
       onRow={(row) => ({

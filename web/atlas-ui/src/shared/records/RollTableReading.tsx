@@ -1,3 +1,4 @@
+import { LoadingStatus } from "../ui/LoadingStatus";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
@@ -108,11 +109,13 @@ export function RollTableReading({
         pagination={false}
         size="middle"
         locale={{
-          emptyText: reading.isPending
-            ? "Loading results…"
-            : reading.isError
-              ? "Results unavailable"
-              : "No results.",
+          emptyText: reading.isPending ? (
+            <LoadingStatus label="Loading results…" />
+          ) : reading.isError ? (
+            "Results unavailable"
+          ) : (
+            "No results."
+          ),
         }}
         loading={{ spinning: reading.isFetching && entries.length === 0, delay: 300 }}
         rowClassName={(row) =>
