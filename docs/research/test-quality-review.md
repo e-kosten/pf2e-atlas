@@ -33,7 +33,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | dev-tools/dice-prototype | 1 | 0 | 1 | 0 |
 | dev-tools/release | 3 | 0 | 3 | 0 |
 | dev-tools/source-contracts | 28 | 0 | 26 | 2 |
-| research verification | 1 | 1 | 0 | 0 |
+| research verification | 1 | 0 | 1 | 0 |
 | scripts | 8 | 0 | 8 | 0 |
 | web/atlas-ui/e2e | 16 | 16 | 0 | 0 |
 | web/atlas-ui/src/api | 3 | 3 | 0 | 0 |
@@ -404,7 +404,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [docs/research/evaluations/2026-10-search/verify.ts](../../docs/research/evaluations/2026-10-search/verify.ts) | pending | — |
+| [docs/research/evaluations/2026-10-search/verify.ts](../../docs/research/evaluations/2026-10-search/verify.ts) | changed | Removed a counter that incremented beside each row push and asserted the resulting row length. Kept independent exported-file digests, judgment/ranking joins, identity/duplicate/grade bounds, cluster coverage and full point-metric replay; frozen evidence and output unchanged. |
 
 ### scripts
 
@@ -663,3 +663,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 - `cargo test -p atlas-foundry-model --all-targets`: 91 passed, including the generic compiled fixture and developer example tests. The final rule-variant check also passed a focused dispatch rerun before the final all-target check.
 - Production source parsing, admission, dispatch, snapshots and generated output remain unchanged. The strengthened assertions distinguish correct-length output from exact retained duplicate values/references and verify typed dispatch independently of the common rule key.
+
+### Archived evaluation verifier
+
+- `sh scripts/validation/research.sh` passed before and after removal: 34 exported files and 22,533 point-metric values. Original bootstrap intervals, source interpretations and frozen datasets were not modified or claimed rerun.
