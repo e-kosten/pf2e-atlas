@@ -39,7 +39,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | web/atlas-ui/src/api | 3 | 0 | 3 | 0 |
 | web/atlas-ui/src/app | 11 | 0 | 11 | 0 |
 | web/atlas-ui/src/features | 53 | 53 | 0 | 0 |
-| web/atlas-ui/src/shared | 92 | 72 | 20 | 0 |
+| web/atlas-ui/src/shared | 92 | 64 | 28 | 0 |
 
 ## Review ledger
 
@@ -602,14 +602,14 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | [web/atlas-ui/src/shared/records/useRecordPreview.test.tsx](../../web/atlas-ui/src/shared/records/useRecordPreview.test.tsx) | pending | — |
 | [web/atlas-ui/src/shared/records/useReferenceReading.test.tsx](../../web/atlas-ui/src/shared/records/useReferenceReading.test.tsx) | pending | — |
 | [web/atlas-ui/src/shared/records/useRetainedRecord.test.tsx](../../web/atlas-ui/src/shared/records/useRetainedRecord.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/search/ResultSortControl.test.tsx](../../web/atlas-ui/src/shared/search/ResultSortControl.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/search/SearchProfileContext.test.tsx](../../web/atlas-ui/src/shared/search/SearchProfileContext.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/search/SearchSettings.test.tsx](../../web/atlas-ui/src/shared/search/SearchSettings.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/search/SearchSettingsFlow.test.tsx](../../web/atlas-ui/src/shared/search/SearchSettingsFlow.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/search/SimilaritySourceDocument.test.tsx](../../web/atlas-ui/src/shared/search/SimilaritySourceDocument.test.tsx) | pending | — |
-| [web/atlas-ui/src/shared/search/searchIdentity.test.ts](../../web/atlas-ui/src/shared/search/searchIdentity.test.ts) | pending | — |
-| [web/atlas-ui/src/shared/search/searchPreferences.test.ts](../../web/atlas-ui/src/shared/search/searchPreferences.test.ts) | pending | — |
-| [web/atlas-ui/src/shared/search/similarityState.test.ts](../../web/atlas-ui/src/shared/search/similarityState.test.ts) | pending | — |
+| [web/atlas-ui/src/shared/search/ResultSortControl.test.tsx](../../web/atlas-ui/src/shared/search/ResultSortControl.test.tsx) | changed | Added repeated-random-draw Shuffle cases requiring a changed seed, including u32 maximum wrapping to zero. Retained ordered rules, saved/semantic modes, exact Enter/blur/cancel outcomes, native clipboard failures, stale A-B-A results, timer retirement and Select-first Escape. |
+| [web/atlas-ui/src/shared/search/SearchProfileContext.test.tsx](../../web/atlas-ui/src/shared/search/SearchProfileContext.test.tsx) | reviewed | Real router owners protect URL/preference/server authority after metadata, blocked reference handling, explicit unavailable choices, independent live tabs, Back intent and optional storage denial; retained. |
+| [web/atlas-ui/src/shared/search/SearchSettings.test.tsx](../../web/atlas-ui/src/shared/search/SearchSettings.test.tsx) | changed | Trait Reset now requires literal baseline/0.5/any preferences instead of importing the expected production default. Retained atomic Apply/Cancel, exact generation-bound parts, missing vectors, section/source independence, draft preservation, lazy inventory and content-family presets. |
+| [web/atlas-ui/src/shared/search/SearchSettingsFlow.test.tsx](../../web/atlas-ui/src/shared/search/SearchSettingsFlow.test.tsx) | reviewed | Real settings flows protect optional advanced controls, return focus, complete draft Reset/Cancel/Apply, independent family preferences, presentation-only changes without retrieval and repair of empty/unavailable custom sections; retained. |
+| [web/atlas-ui/src/shared/search/SimilaritySourceDocument.test.tsx](../../web/atlas-ui/src/shared/search/SimilaritySourceDocument.test.tsx) | reviewed | Real reading/drawer/native routing protects exact source selection, whole-document scroll, seed/generation isolation, delayed focus ownership, shared reload, root/embedded spell rank handoff and contextual retry. Retained. |
+| [web/atlas-ui/src/shared/search/searchIdentity.test.ts](../../web/atlas-ui/src/shared/search/searchIdentity.test.ts) | reviewed | Sort priority/seeds are compared structurally; retention isolates eligibility, source identity, model and generation; content scopes and stale or differently addressed inventories are rejected before evidence. Retained. |
+| [web/atlas-ui/src/shared/search/searchPreferences.test.ts](../../web/atlas-ui/src/shared/search/searchPreferences.test.ts) | changed | Fresh launch now requires the complete literal preference contract, including independent record/trait methods and decay, rather than two method fields. Retained actual storage round trips, legacy migration/failure preservation, malformed recovery and inactive preference values. |
+| [web/atlas-ui/src/shared/search/similarityState.test.ts](../../web/atlas-ui/src/shared/search/similarityState.test.ts) | reviewed | Literal URL-over-preference settings, trait baseline wire contract, exact selectors/generation, malformed explicit choices and seed-specific labels already protect conversion; retained. |
 | [web/atlas-ui/src/shared/theme/themeDefinitions.test.ts](../../web/atlas-ui/src/shared/theme/themeDefinitions.test.ts) | changed | Document/favicon application now covers both light and dark schemes. Retained independent contrast thresholds, ordered neutral luminance, semantic Ant/CSS mappings and complete pre-React fallback consistency. |
 | [web/atlas-ui/src/shared/ui/HelpTooltip.test.tsx](../../web/atlas-ui/src/shared/ui/HelpTooltip.test.tsx) | reviewed | Real hover/focus/click help remains accessible and consumes Escape before containing modal without stealing initial field focus; retained. |
 | [web/atlas-ui/src/shared/ui/LoadingStatus.test.tsx](../../web/atlas-ui/src/shared/ui/LoadingStatus.test.tsx) | changed | Second request now must reveal at its own exact 500 ms boundary, closing the case where it never appears. Retained first-request threshold, reserved node identity and absence of early announcement. |
@@ -725,3 +725,5 @@ Web milestone validation: complete atlas-web unit/integration and doc-test comma
 Frontend API/app milestone validation: 14 files / 226 tests passed; subsequent native anchor matrix passed with all 30 routing tests. Condition-specific API cases were not edited. JSDOM emitted its existing pseudo-style and native-navigation limitations; browser acceptance remains part of final validation.
 
 Shared primitive milestone validation: 20 files / 126 tests passed, including picker, real query-cache, modal/drawer, dice, theme and navigation-wrapper tests. No snapshots or production behavior changed.
+
+Shared search milestone validation: all 8 files / 111 tests passed. Literal defaults/reset and repeated-seed boundary cases passed without changing preferences or search behavior.

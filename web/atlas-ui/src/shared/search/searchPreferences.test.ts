@@ -10,8 +10,17 @@ beforeEach(() => localStorage.clear());
 
 it("keeps record and trait launch defaults independent", () => {
   const preferences = readSearchPreferences();
-  expect(preferences.recordSimilarity.method).toBe("passages");
-  expect(preferences.traitSimilarity.method).toBe("baseline");
+  expect(preferences).toEqual({
+    version: 1,
+    model: null,
+    ranking: "score",
+    searchContent: "all",
+    sourceSectionsByFamily: {},
+    matchDisplay: "sections",
+    showSmallerWeights: false,
+    recordSimilarity: { method: "passages", decay: 0.5, candidateParts: "any" },
+    traitSimilarity: { method: "baseline", decay: 0.5, candidateParts: "any" },
+  });
 });
 
 it("preserves a stored trait content method and its inactive values", () => {
