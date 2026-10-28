@@ -22,7 +22,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | crates/atlas-embedding | 5 | 0 | 5 | 0 |
 | crates/atlas-foundry-model | 11 | 0 | 11 | 0 |
 | crates/atlas-index | 17 | 17 | 0 | 0 |
-| crates/atlas-ingest | 6 | 6 | 0 | 0 |
+| crates/atlas-ingest | 6 | 0 | 6 | 0 |
 | crates/atlas-local-state | 7 | 7 | 0 | 0 |
 | crates/atlas-record | 18 | 0 | 18 | 0 |
 | crates/atlas-runtime | 7 | 7 | 0 | 0 |
@@ -254,12 +254,12 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [crates/atlas-ingest/src/audit.rs](../../crates/atlas-ingest/src/audit.rs) | pending | — |
-| [crates/atlas-ingest/src/build_tests.rs](../../crates/atlas-ingest/src/build_tests.rs) | pending | — |
-| [crates/atlas-ingest/src/source/localization/tests.rs](../../crates/atlas-ingest/src/source/localization/tests.rs) | pending | — |
-| [crates/atlas-ingest/src/source_compatibility.rs](../../crates/atlas-ingest/src/source_compatibility.rs) | pending | — |
-| [crates/atlas-ingest/src/source_enrichment/tests.rs](../../crates/atlas-ingest/src/source_enrichment/tests.rs) | pending | — |
-| [crates/atlas-ingest/tests/typed_source_loading.rs](../../crates/atlas-ingest/tests/typed_source_loading.rs) | pending | — |
+| [crates/atlas-ingest/src/audit.rs](../../crates/atlas-ingest/src/audit.rs) | reviewed | Retained dynamic damage-key wildcard versus fixed AC member normalization. The public path-audit command is also exercised by the CLI integration inventory, which remains a separate review obligation. |
+| [crates/atlas-ingest/src/build_tests.rs](../../crates/atlas-ingest/src/build_tests.rs) | mixed | Incremental reference lifecycle now reads published occurrence destinations and display names after missing, added, duplicate-name, unique-again and renamed states, beyond reuse counters. Retained atomic failures, captures, locale/fingerprint changes, source-free trait output and native reuse/attribution checks. Condition-related alias fixture assertions excluded and unchanged. |
+| [crates/atlas-ingest/src/source/localization/tests.rs](../../crates/atlas-ingest/src/source/localization/tests.rs) | reviewed | Independent literal fallback/override expectations, manifest order, catalog bytes/path identity, captured transient changes and invalid paths retain distinct protection. Historical complete-source Localize census retains its explicit pinned-source prerequisite. |
+| [crates/atlas-ingest/src/source_compatibility.rs](../../crates/atlas-ingest/src/source_compatibility.rs) | reviewed | System identity and conventional manifest filename both enforce the model version, custom module versions remain independent, and explicit manifest override is checked; retained. |
+| [crates/atlas-ingest/src/source_enrichment/tests.rs](../../crates/atlas-ingest/src/source_enrichment/tests.rs) | reviewed | Exact bytes, snapshot, provenance, diagnostics and report partitions cross the consuming handoff. Collision reservation, unavailable-name exclusion in both orders, sparse outcomes and action-case collision invalidation remain distinct; retained. |
+| [crates/atlas-ingest/tests/typed_source_loading.rs](../../crates/atlas-ingest/tests/typed_source_loading.rs) | mixed | Reviewed document-kind dispatch, exact source bytes/hash/provenance, invalid/partial members, embedded identities, quarantine classes, stable discovery and read failures. Condition-family dispatch fixture row excluded and unchanged; all generic loading protection retained. |
 
 ### crates/atlas-local-state
 
@@ -673,3 +673,9 @@ Completion requires every inventory entry to have a substantive disposition, eve
 - `cargo test -p atlas-record`: 145 passed, two existing corpus tests ignored, and both compile-fail doctests passed. Condition-specific cases ran unchanged but remain excluded from the review.
 - Stronger fixtures exposed sorted JSON-map setup in the original order test; raw authored bytes now test z-before-a order directly. The independent safe HTML fixture includes the sanitizer-required link relationship rather than silently sanitizing its own expected input.
 - Reasoned counterexamples include dropped/surplus damage or trait components, wrong executable kind/AST, missing skill callback, missing values misreported as applicable, lost action heading title and stale passage identity. No production mutation probe is claimed for this milestone.
+
+### Ingest milestone
+
+- `cargo test -p atlas-ingest`: 29 library and eight loader integration tests passed. Five additional bounded native tests passed with `--ignored --skip actual_complete_source --skip complete_artifact_snapshots --skip pinned_english --test-threads=1`, using the verified BGE/Gemma caches.
+- The four full-source/archive checks retain their existing prerequisites; this milestone does not claim their historical corpora were rebuilt. Actual target addition, ambiguity, recovery and rename publication now have independent destination/label expectations. A plausible counterexample is advancing reuse statistics while publishing stale references; no mutation probe is claimed.
+- Compiler output reached approximately 15 GiB: inspected 9.5 GiB dependency output, 3.9 GiB incremental state and 216 MiB build scripts. Free space remained 129 GiB; retained the active task cache rather than rebuilding it.
