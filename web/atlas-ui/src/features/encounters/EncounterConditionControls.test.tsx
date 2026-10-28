@@ -4,7 +4,7 @@ import { EncounterConditionControls } from "./EncounterConditionControls";
 import { encounterParticipant, renderEncounter } from "./encounterTestFixtures";
 
 it.each([true, false])(
-  "keeps the committed editor until controls re-enable (refresh=%s)",
+  "retires the committed editor after controls re-enable without reopening on later writes (refresh=%s)",
   async (refreshed) => {
     let resolveSave!: (value: boolean) => void;
     const saved = new Promise<boolean>((resolve) => {
@@ -75,6 +75,9 @@ it.each([true, false])(
     rerender(<EncounterConditionControls {...props} />);
     await waitFor(() => expect(dialog).not.toBeInTheDocument());
     expect(edit).toBeEnabled();
+    rerender(<EncounterConditionControls {...props} disabled pending />);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    rerender(<EncounterConditionControls {...props} />);
     expect(props.onUpdateCondition).toHaveBeenCalledOnce();
     fireEvent.click(edit);
     expect(
