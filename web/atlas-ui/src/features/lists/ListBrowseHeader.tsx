@@ -6,7 +6,8 @@ import {
 } from "../../app/navigation";
 import { listsDestination, listEditDestination } from "../../app/destinations";
 import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
-import { Button, Spin, Typography } from "antd";
+import { Button, Typography } from "antd";
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { ArrowLeft, Pencil, Plus } from "lucide-react";
 import { ListTagSummary } from "./ListTagSummary";
 import type { SavedListSummaryView } from "../../generated/atlas";
@@ -51,10 +52,8 @@ export function ListBrowseHeader({
         </Typography.Link>
       </div>
       {errorNotice}
-      {loading ? (
-        <div className="list-browse-header__identity" role="status">
-          <Spin size="small" aria-label="Loading list" /> Loading list…
-        </div>
+      {loading && !list ? (
+        <LoadingStatus className="list-browse-header__identity" label="Loading list…" />
       ) : !list ? (
         <div className="list-browse-header__identity">
           {!errorNotice && "List not found"}

@@ -24,7 +24,7 @@ export function FlatCheckRoll({
         </span>
         <Button
           disabled={disabled || roll.busy}
-          loading={roll.busy}
+          loading={roll.busy && !roll.animating ? { delay: 300 } : false}
           onClick={() => void roll.run(() => rollFlatCheck({ dc }))}
         >
           {roll.result ? "Reroll" : "Roll"}

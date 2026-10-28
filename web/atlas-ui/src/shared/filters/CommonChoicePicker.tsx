@@ -139,7 +139,7 @@ export function CommonChoicePicker({
           >
             Show unavailable
           </Checkbox>
-          {query.isLoading && <Spin size="small" />}
+          {query.isLoading && <Spin size="small" delay={500} />}
           {query.data && (
             <Typography.Text type="secondary" role="status">
               {new Intl.NumberFormat().format(query.data.values.total_values)} values

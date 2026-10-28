@@ -98,10 +98,14 @@ export function PartyManager({
           size="small"
           tableLayout="fixed"
           pagination={false}
-          loading={parties.isLoading}
+          loading={{ spinning: parties.isFetching, delay: 500 }}
           dataSource={parties.data?.parties ?? []}
           locale={{
-            emptyText: parties.error ? "Parties unavailable" : "No parties yet.",
+            emptyText: parties.isLoading
+              ? null
+              : parties.error
+                ? "Parties unavailable"
+                : "No parties yet.",
           }}
           columns={[
             {

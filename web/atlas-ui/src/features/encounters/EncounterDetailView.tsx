@@ -483,6 +483,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                   });
                 }}
                 onBeginStrike={strikes.launch}
+                onPrepareStrike={strikes.prepare}
                 renderStrikeContext={strikes.renderContext}
                 onConditionRecovery={async (request) => {
                   const result = await mutations.run({
