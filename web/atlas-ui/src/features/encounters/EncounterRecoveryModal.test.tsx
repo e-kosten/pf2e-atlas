@@ -4,9 +4,18 @@ import { encounterParticipant, renderEncounter } from "./encounterTestFixtures";
 import type {
   EncounterRecoveryAction,
   EncounterSummaryView,
+  PreviewEncounterRecoveryRequest,
 } from "../../generated/atlas";
 const api = vi.hoisted(() => ({ previewEncounterRecovery: vi.fn() }));
 vi.mock("../../api/atlasApi", () => api);
+function recoveryMutations(run = vi.fn()) {
+  return {
+    run,
+    pending: false,
+    previewRecovery: (request: PreviewEncounterRecoveryRequest, signal?: AbortSignal) =>
+      api.previewEncounterRecovery("encounter", request, signal),
+  };
+}
 const encounter = {
   encounter: { encounter_key: "encounter" } as EncounterSummaryView,
   revision: 3n,
@@ -51,7 +60,7 @@ it("selects every participant and submits entered recovery only for those left s
     <EncounterRecoveryModal
       encounter={encounter}
       mode="rest_overnight"
-      mutations={{ run, pending: false }}
+      mutations={recoveryMutations(run)}
       onClose={onClose}
     />,
   );
@@ -88,7 +97,7 @@ it("offers full HP without requiring individual amounts", async () => {
     <EncounterRecoveryModal
       encounter={encounter}
       mode="rest_overnight"
-      mutations={{ run, pending: false }}
+      mutations={recoveryMutations(run)}
       onClose={vi.fn()}
     />,
   );
@@ -139,7 +148,7 @@ it("shows a missing baseline and prevents a partial encounter reset", async () =
     <EncounterRecoveryModal
       encounter={encounter}
       mode="reset_encounter"
-      mutations={{ run, pending: false }}
+      mutations={recoveryMutations(run)}
       onClose={vi.fn()}
     />,
   );
@@ -165,7 +174,7 @@ it("keeps a cleared calculated amount blank and associates its shared validation
     <EncounterRecoveryModal
       encounter={encounter}
       mode="rest_overnight"
-      mutations={{ run: vi.fn(), pending: false }}
+      mutations={recoveryMutations()}
       onClose={vi.fn()}
     />,
   );

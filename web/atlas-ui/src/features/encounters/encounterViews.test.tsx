@@ -84,6 +84,7 @@ const apiMocks = vi.hoisted(() => ({
 
 vi.mock("../../api/atlasApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/atlasApi")>()),
+  previewEncounterRecovery: apiMocks.previewEncounterRecovery,
   applyEncounterSpellAction: apiMocks.applyEncounterSpellAction,
   applyEncounterHpAction: apiMocks.applyEncounterHpAction,
   getEncounterPersistentReview: apiMocks.getEncounterPersistentReview,
@@ -1312,6 +1313,68 @@ describe("encounter views", () => {
     const dialog = await screen.findByRole("dialog", { name: "Rest overnight" });
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(cog).toHaveFocus());
+  });
+
+  it("refreshes a conflicting recovery preview while retaining the draft for explicit reopening", async () => {
+    apiMocks.previewEncounterRecovery.mockImplementation(async (_key, request) => ({
+      encounter_key: serverEncounter.encounter.encounter_key,
+      encounter_revision: request.expected_encounter_revision,
+      participants: serverEncounter.participants.map((p) => ({
+        participant_key: p.participant_key,
+        display_name: p.display_name,
+        current_hp: p.current_hp,
+        resulting_hp: p.current_hp,
+        resulting_max_hp: p.max_hp,
+        healing: 5n,
+        changes: [],
+        unavailable_reason: null,
+      })),
+      changes: [],
+      can_apply: true,
+    }));
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    const cog = screen.getByRole("button", { name: "Encounter settings" });
+    await waitFor(() => expect(cog).toBeEnabled());
+    fireEvent.click(cog);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Rest overnight" }));
+    const dialog = await screen.findByRole("dialog", { name: "Rest overnight" });
+    const amount = (
+      await within(dialog).findAllByRole("spinbutton", {
+        name: /^HP recovery for /,
+      })
+    )[0];
+    await waitFor(() => expect(amount).toHaveValue("5"));
+    apiMocks.previewEncounterRecovery.mockImplementationOnce(async () => {
+      serverEncounter = { ...serverEncounter, revision: 9n };
+      throw new AtlasApiError(409, "Stale", {
+        code: "encounter_turn_conflict",
+        message: "Stale",
+        retryable: false,
+      });
+    });
+    fireEvent.change(amount, { target: { value: "7" } });
+    await within(dialog).findByText(/Close this review and reopen it/);
+    expect(amount).toHaveValue("7");
+    expect(
+      within(dialog).getByRole("button", { name: "Rest overnight" }),
+    ).toBeDisabled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(cog).toHaveFocus());
+    fireEvent.click(cog);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Rest overnight" }));
+    const reopened = await screen.findByRole("dialog", { name: "Rest overnight" });
+    await waitFor(() =>
+      expect(
+        within(reopened).getByRole("button", { name: "Rest overnight" }),
+      ).toBeEnabled(),
+    );
+    expect(apiMocks.previewEncounterRecovery).toHaveBeenLastCalledWith(
+      "encounter_ambush",
+      expect.objectContaining({ expected_encounter_revision: 9n }),
+      expect.any(AbortSignal),
+    );
   });
 
   it("keeps encounter lifecycle actions in the edit modal", async () => {

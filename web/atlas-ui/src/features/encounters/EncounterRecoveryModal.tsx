@@ -14,7 +14,6 @@ import type { TableColumnsType } from "antd";
 import { EncounterOriginalRecord } from "./EncounterOriginalRecord";
 import { EncounterModal } from "./EncounterModal";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
-import { previewEncounterRecovery } from "../../api/atlasApi";
 import type {
   EncounterDetailView,
   EncounterParticipantView,
@@ -32,7 +31,10 @@ export function EncounterRecoveryModal({
 }: {
   encounter: Pick<EncounterDetailView, "participants" | "revision" | "encounter">;
   mode: Mode;
-  mutations: Pick<ReturnType<typeof useEncounterMutations>, "run" | "pending">;
+  mutations: Pick<
+    ReturnType<typeof useEncounterMutations>,
+    "run" | "pending" | "previewRecovery"
+  >;
   onClose: () => void;
 }) {
   const { token } = theme.useToken();
@@ -46,6 +48,7 @@ export function EncounterRecoveryModal({
   const [healingMode, setHealingMode] = useState<OvernightHealingMode>("natural");
   const [healing, setHealing] = useState<Record<string, bigint | null>>({});
   const [submitError, setSubmitError] = useState<unknown>(null);
+  const stale = encounter.revision !== snapshot.revision;
   const action: EncounterRecoveryAction = rest
     ? {
         kind: "rest_overnight",
@@ -71,16 +74,14 @@ export function EncounterRecoveryModal({
       snapshot.encounter.encounter_key,
       identity,
     ],
-    queryFn: ({ signal }) =>
-      previewEncounterRecovery(snapshot.encounter.encounter_key, request, signal),
-    enabled: !rest || chosen.length > 0,
+    queryFn: ({ signal }) => mutations.previewRecovery(request, signal),
+    enabled: !stale && (!rest || chosen.length > 0),
     // The creation snapshot and participant identities stay fixed for this review.
     // Retain their last preview while changing healing inputs; submission waits.
     placeholderData: keepPreviousData,
     retry: false,
   });
   const busy = mutations.pending;
-  const stale = encounter.revision !== snapshot.revision;
   const resetName =
     typeof mode === "object"
       ? snapshot.participants.find((p) => p.participant_key === mode.participantKey)
@@ -289,7 +290,7 @@ export function EncounterRecoveryModal({
         {submitError != null && (
           <ErrorNotice error={submitError} title="Recovery could not save" />
         )}
-        {preview.error && (
+        {preview.error && !stale && (
           <ErrorNotice
             error={preview.error}
             title="Recovery preview could not load"

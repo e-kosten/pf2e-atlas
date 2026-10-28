@@ -5,6 +5,7 @@ import {
   applyEncounterRecovery,
   setEncounterDifficulty,
   previewEncounterDifficulty,
+  previewEncounterRecovery,
   updateTurnResources,
   updateEncounterAbilityState,
   applyEncounterHpAction,
@@ -411,6 +412,20 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       }
     },
   });
+  const previewRecovery = async (
+    request: import("../../generated/atlas").PreviewEncounterRecoveryRequest,
+    signal?: AbortSignal,
+  ) => {
+    try {
+      return await previewEncounterRecovery(currentRef, request, signal);
+    } catch (error) {
+      if (isEncounterConflict(error)) {
+        setRefreshOrigin("conflict");
+        await attemptRefresh();
+      }
+      throw error;
+    }
+  };
   const previewDifficulty = async (
     request: import("../../generated/atlas").PreviewEncounterDifficultyRequest,
   ) => {
@@ -478,6 +493,7 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     run,
     previewCondition,
     previewDifficulty,
+    previewRecovery,
     pending: mutation.isPending || refreshing,
     error: mutation.error,
     errorKind: mutation.variables?.kind,
