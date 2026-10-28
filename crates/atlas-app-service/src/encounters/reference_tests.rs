@@ -199,10 +199,13 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
         (1, 1)
     );
     assert_eq!(physical.presentation.identity.title, "Customized staff");
-    assert!(matches!(
-        physical.presentation.body,
-        RecordBodyView::PhysicalReference(_)
-    ));
+    let RecordBodyView::PhysicalReference(local) = &physical.presentation.body else {
+        panic!("selected physical reference")
+    };
+    assert_eq!(
+        local.price.value.as_ref().unwrap().gp.value,
+        Some(900.into())
+    );
     let serialized = serde_json::to_string(&physical).unwrap();
     assert!(serialized.contains("Customized equipment prose"));
     assert!(!serialized.contains("Catalog prose"));

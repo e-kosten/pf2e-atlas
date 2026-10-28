@@ -203,6 +203,10 @@ fn explicit_manual_modifier_does_not_require_reference_hydration() {
             initiative: None,
         })
         .unwrap();
+    let crate::service::RetrievalBackend::Pooled(executor) = &f.worker.retrieval else {
+        panic!("fixture executor")
+    };
+    executor.fail_after_submissions(0);
     let mut input = request(f.worker.encounter_initiative_options(&key).unwrap());
     assert!(input.artifact_generation.is_none());
     input.participants[0].modifier_override = Some(7);

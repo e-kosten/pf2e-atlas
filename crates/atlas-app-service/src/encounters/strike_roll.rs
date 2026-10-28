@@ -186,9 +186,9 @@ mod tests {
         assert_eq!(
             attack_options(&activity)
                 .iter()
-                .map(|a| a.modifier)
+                .map(|a| (a.attack_number, a.modifier))
                 .collect::<Vec<_>>(),
-            [12, 7, 2]
+            [(1, 12), (2, 7), (3, 2)]
         );
         activity.traits.push(RecordBadgeView {
             trait_key: Some("trait:agile".into()),
@@ -199,9 +199,9 @@ mod tests {
         assert_eq!(
             attack_options(&activity)
                 .iter()
-                .map(|a| a.modifier)
+                .map(|a| (a.attack_number, a.modifier))
                 .collect::<Vec<_>>(),
-            [12, 8, 4]
+            [(1, 12), (2, 8), (3, 4)]
         );
         activity.attack.value = None;
         assert!(attack_options(&activity).is_empty());
@@ -288,7 +288,22 @@ mod damage_tests {
             component(2, "cold", None),
         ];
         let groups = damage_totals(&components).unwrap();
-        assert_eq!((groups[0].raw_total, groups[0].total), (-1, 0));
+        assert_eq!(
+            groups
+                .iter()
+                .map(|group| (
+                    group.damage_type.as_str(),
+                    group.persistent,
+                    group.raw_total,
+                    group.total
+                ))
+                .collect::<Vec<_>>(),
+            [
+                ("fire", false, -1, 0),
+                ("fire", true, 8, 8),
+                ("cold", false, 2, 2)
+            ]
+        );
         assert_eq!(damage_sum(&groups, false).unwrap(), (Some(2), 0));
         assert_eq!(damage_sum(&groups, true).unwrap(), (Some(8), 0));
         assert_eq!(components[0].outcome.as_ref().unwrap().total, -5);
