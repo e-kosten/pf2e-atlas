@@ -58,6 +58,7 @@ it("saves participant metadata as one complete revision-checked write and cancel
     { wrapper },
   );
   fireEvent.click(screen.getByRole("button", { name: "Participant settings" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Edit participant" }));
   const dialog = await screen.findByRole("dialog", { name: "Participant settings" });
   fireEvent.change(within(dialog).getByLabelText("Participant name"), {
     target: { value: "Mira Dawn" },
@@ -85,6 +86,7 @@ it("saves participant metadata as one complete revision-checked write and cancel
   );
   await waitFor(() => expect(dialog).not.toBeVisible());
   fireEvent.click(screen.getByRole("button", { name: "Participant settings" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Edit participant" }));
   const reopened = await screen.findByRole("dialog", { name: "Participant settings" });
   fireEvent.change(within(reopened).getByLabelText("Participant name"), {
     target: { value: "Discard" },
@@ -105,6 +107,7 @@ it("retains failed metadata drafts while refreshing untouched fields and expecte
     { wrapper },
   );
   fireEvent.click(screen.getByRole("button", { name: "Participant settings" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Edit participant" }));
   const dialog = await screen.findByRole("dialog", { name: "Participant settings" });
   fireEvent.change(within(dialog).getByLabelText("Participant name"), {
     target: { value: "Retained name" },
@@ -152,6 +155,7 @@ it("retains the editor after a committed write until canonical read recovery com
     { wrapper },
   );
   fireEvent.click(screen.getByRole("button", { name: "Participant settings" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Edit participant" }));
   const dialog = await screen.findByRole("dialog", { name: "Participant settings" });
   fireEvent.change(within(dialog).getByLabelText("Participant name"), {
     target: { value: "Saved name" },
@@ -202,6 +206,7 @@ it("updates Track dying separately while retaining an unfinished metadata draft"
   };
   const { rerender } = render(<EncounterParticipantSettings {...props} />, { wrapper });
   fireEvent.click(screen.getByRole("button", { name: "Participant settings" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Edit participant" }));
   const name = await screen.findByLabelText("Participant name");
   fireEvent.change(name, { target: { value: "Unfinished name" } });
   fireEvent.click(screen.getByRole("checkbox", { name: "Track dying" }));
@@ -231,6 +236,7 @@ it("saves life facts separately and preserves an unfinished participant name", a
     { wrapper },
   );
   fireEvent.click(screen.getByRole("button", { name: "Participant settings" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Edit participant" }));
   const dialog = await screen.findByRole("dialog", { name: "Participant settings" });
   fireEvent.change(within(dialog).getByLabelText("Participant name"), {
     target: { value: "Unfinished name" },
@@ -269,6 +275,7 @@ it("records an explicit mortality correction separately from HP and participant 
     { wrapper },
   );
   fireEvent.click(screen.getByRole("button", { name: "Participant settings" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Edit participant" }));
   fireEvent.click(screen.getByRole("radio", { name: "Dead" }));
   await waitFor(() =>
     expect(onLifeSettings).toHaveBeenCalledWith({
@@ -296,6 +303,7 @@ it("keeps drafts editable and the selected mortality stable through a pending li
   };
   const { rerender } = render(<EncounterParticipantSettings {...props} />, { wrapper });
   fireEvent.click(screen.getByRole("button", { name: "Participant settings" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Edit participant" }));
   const dialog = await screen.findByRole("dialog", { name: "Participant settings" });
   const name = within(dialog).getByLabelText("Participant name");
   fireEvent.change(name, { target: { value: "Draft" } });
@@ -335,6 +343,7 @@ it("restores the confirmed mortality after a failed write", async () => {
     { wrapper },
   );
   fireEvent.click(screen.getByRole("button", { name: "Participant settings" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Edit participant" }));
   fireEvent.click(screen.getByRole("radio", { name: "Dead" }));
   expect(screen.getByRole("radio", { name: "Dead" })).toBeChecked();
   await act(async () => fail(new Error("Conflict")));

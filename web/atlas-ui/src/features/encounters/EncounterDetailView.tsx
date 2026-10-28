@@ -1,3 +1,4 @@
+import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 import { EncounterRecoveryModal } from "./EncounterRecoveryModal";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
@@ -5,8 +6,8 @@ import { recordDestination, encountersDestination } from "../../app/destinations
 import { EncounterModalProvider } from "./EncounterModal";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Grid, Space, Spin } from "antd";
-import { Edit2 } from "lucide-react";
+import { Alert, Button, Dropdown, Grid, Spin } from "antd";
+import { Settings } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { getEncounter, getEncounterConditionDefinitions } from "../../api/atlasApi";
 import { useEncounterStrike } from "./useEncounterStrike";
@@ -41,6 +42,8 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
   const narrow = screens.md === false;
   const [participantOpen, setParticipantOpen] = useState(false);
   const host = useRef<HTMLDivElement>(null);
+  const settingsTrigger = useRef<HTMLButtonElement>(null);
+  const recoveryTrigger = useRef<HTMLElement | null>(null);
   const rosterPosition = useRef({ page: 0, pane: 0 });
   const [removalKey, setRemovalKey] = useState<string | null>(null);
   const removedParticipantFocus = useRef<{
@@ -74,6 +77,10 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
   const [recoveryMode, setRecoveryMode] = useState<
     "reset_encounter" | "rest_overnight" | { participantKey: string } | null
   >(null);
+  const closeRecovery = () => {
+    setRecoveryMode(null);
+    restoreOverlayFocus(recoveryTrigger.current, null);
+  };
   const [initiativeOpen, setInitiativeOpen] = useState<{
     participant?: string;
   } | null>(null);
@@ -273,28 +280,35 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             <div>
               <h2>{encounterSummary?.name ?? "Encounter"}</h2>
             </div>
-            <Space wrap>
+            <Dropdown
+              trigger={["click"]}
+              menu={{
+                items: [
+                  { key: "edit", label: "Edit encounter" },
+                  { type: "divider" },
+                  { key: "rest", label: "Rest overnight" },
+                  { key: "reset", label: "Reset encounter" },
+                ],
+                onClick: ({ key }) => {
+                  settingsTrigger.current?.focus({ preventScroll: true });
+                  recoveryTrigger.current = settingsTrigger.current;
+                  if (key === "edit") setEditEncounterOpen(true);
+                  else
+                    setRecoveryMode(
+                      key === "rest" ? "rest_overnight" : "reset_encounter",
+                    );
+                },
+              }}
+            >
               <Button
+                type="text"
+                ref={settingsTrigger}
+                aria-label="Encounter settings"
+                title="Encounter settings"
                 disabled={disabled}
-                onClick={() => setRecoveryMode("rest_overnight")}
-              >
-                Rest overnight
-              </Button>
-              <Button
-                disabled={disabled}
-                onClick={() => setRecoveryMode("reset_encounter")}
-              >
-                Reset encounter
-              </Button>
-              <Button
-                aria-label="Settings"
-                disabled={disabled}
-                icon={<Edit2 size={14} />}
-                onClick={() => setEditEncounterOpen(true)}
-              >
-                Settings
-              </Button>
-            </Space>
+                icon={<Settings size={18} />}
+              />
+            </Dropdown>
           </section>
           {encounter.error && !mutations.refreshError && (
             <ErrorNotice
@@ -489,8 +503,13 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               <EncounterInspectorPane
                 onReset={
                   selected
-                    ? () =>
-                        setRecoveryMode({ participantKey: selected.participant_key })
+                    ? () => {
+                        recoveryTrigger.current =
+                          document.activeElement instanceof HTMLElement
+                            ? document.activeElement
+                            : null;
+                        setRecoveryMode({ participantKey: selected.participant_key });
+                      }
                     : undefined
                 }
                 currentTurnKey={encounter.data?.current_turn_participant_key}
@@ -754,7 +773,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             encounter={encounter.data}
             mode={recoveryMode}
             mutations={mutations}
-            onClose={() => setRecoveryMode(null)}
+            onClose={closeRecovery}
           />
         )}
         {encounterSummary && (

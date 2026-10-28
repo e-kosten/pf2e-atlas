@@ -1,3 +1,4 @@
+export type { OvernightHealingMode } from "../../../../crates/atlas-app-model/bindings/OvernightHealingMode";
 export type { EncounterRecoveryAction } from "../../../../crates/atlas-app-model/bindings/EncounterRecoveryAction";
 export type { OvernightParticipantInput } from "../../../../crates/atlas-app-model/bindings/OvernightParticipantInput";
 export type { PreviewEncounterRecoveryRequest } from "../../../../crates/atlas-app-model/bindings/PreviewEncounterRecoveryRequest";

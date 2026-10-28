@@ -39,7 +39,8 @@ Rest overnight previews eight hours of recovery and daily preparation for select
 living creatures. It reduces saved Drained/Doomed sources, removes Fatigued,
 expires timed saved conditions, clears temporary HP, restores spell resources and
 eligible daily/shorter ability frequencies, and removes Wounded at full HP. HP
-recovery uses known Constitution and level or an entered amount (0 skips healing).
+recovery offers calculated overnight healing with editable amounts, or full HP.
+All living non-hazard participants start selected.
 Ability toggles and weekly/longer frequencies persist. Source-granted conditions
 stay attached to their abilities. Reset is source-independent; rest uses a guarded
 source revision. Interaction acceptance and final validation remain pending.

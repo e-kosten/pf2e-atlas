@@ -9,8 +9,15 @@ pub enum EncounterRecoveryAction {
         participant_key: String,
     },
     RestOvernight {
+        healing_mode: OvernightHealingMode,
         participants: Vec<OvernightParticipantInput>,
     },
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum OvernightHealingMode {
+    Natural,
+    Full,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct OvernightParticipantInput {
@@ -35,6 +42,7 @@ pub struct EncounterRecoveryParticipantView {
     pub display_name: String,
     pub current_hp: Option<i64>,
     pub resulting_hp: Option<i64>,
+    pub resulting_max_hp: Option<i64>,
     pub healing: Option<i64>,
     pub changes: Vec<String>,
     pub unavailable_reason: Option<String>,

@@ -5,7 +5,7 @@ use super::super::{
     stat_block::{Ability, StatisticTarget},
 };
 use crate::{AppServiceError, AppServiceResult};
-use atlas_app_model::EncounterRecoveryParticipantView;
+use atlas_app_model::{EncounterRecoveryParticipantView, OvernightHealingMode};
 use atlas_foundry_model::generated::AbilitySystemSourceFrequencyPer as Per;
 use atlas_local_state::{
     AbilityStateValue, ConditionParameters, EncounterParticipant, MortalityState,
@@ -15,6 +15,7 @@ use atlas_local_state::{
 pub(in crate::encounters) fn prepare(
     p: &EncounterParticipant,
     healing: Option<i64>,
+    healing_mode: OvernightHealingMode,
     record: Option<&HydratedParticipantRecord>,
     row: &mut EncounterRecoveryParticipantView,
 ) -> AppServiceResult<Option<ParticipantGameplay>> {
@@ -55,9 +56,6 @@ pub(in crate::encounters) fn prepare(
             .zip(con)
             .and_then(|(l, c)| l.checked_mul(c.max(1)))
     });
-    if row.healing.is_none() {
-        row.unavailable_reason = Some("Enter overnight HP recovery, or 0 to skip healing.".into());
-    }
     let mut state = ParticipantGameplay::from(p);
     state.temporary_hp = 0;
     if p.temporary_hp > 0 {
@@ -121,19 +119,32 @@ pub(in crate::encounters) fn prepare(
         sources.unwrap_or(super::source_conditions::SourceConditions::empty()),
         level,
     );
-    if let Some(amount) = row.healing.filter(|n| *n > 0) {
+    row.resulting_max_hp = maximum;
+    if row.healing.is_none() && p.current_hp.zip(maximum).is_some_and(|(hp, max)| hp >= max) {
+        row.healing = Some(0);
+    }
+    if healing_mode == OvernightHealingMode::Full {
+        if let Some(maximum) = maximum {
+            state.current_hp = Some(maximum.max(p.current_hp.unwrap_or(0)));
+            row.healing = p
+                .current_hp
+                .map(|current| maximum.saturating_sub(current).max(0));
+            if maximum > 0 {
+                state.defeated = false;
+            }
+        } else {
+            row.unavailable_reason = Some("Set maximum HP before restoring full HP.".into());
+        }
+    } else if row.healing.is_none() {
+        row.unavailable_reason = Some("Enter the missing HP recovery amounts.".into());
+    } else if let Some(amount) = row.healing.filter(|n| *n > 0) {
         if let (Some(current), Some(maximum)) = (p.current_hp, maximum) {
             state.current_hp = Some(current.saturating_add(amount).min(maximum).max(current));
             if state.current_hp.is_some_and(|hp| hp > 0) {
                 state.defeated = false;
             }
-            row.changes.push(format!(
-                "Recover {} HP",
-                state.current_hp.unwrap_or(current) - current
-            ));
         } else {
-            row.unavailable_reason =
-                Some("Set current and maximum HP, or enter 0 to skip healing.".into());
+            row.unavailable_reason = Some("Set current and maximum HP before healing.".into());
         }
     }
     if state.current_hp != p.current_hp
@@ -190,7 +201,9 @@ pub(in crate::encounters) fn prepare(
                 undo_remaining: None,
             })
             .collect();
-        if !catalog.resources.is_empty() || !p.expended_spells.is_empty() {
+        if catalog.resources.iter().any(|r| r.remaining != r.capacity)
+            || !p.expended_spells.is_empty()
+        {
             row.changes
                 .push("Restore spell slots, focus points and innate spells".into());
         }
@@ -199,7 +212,7 @@ pub(in crate::encounters) fn prepare(
             r.remaining = r.capacity;
             r.undo_remaining = None;
         }
-        if !state.spell_resources.is_empty() {
+        if p.spell_resources.iter().any(|r| r.remaining != r.capacity) {
             row.changes.push("Restore spell resources".into());
         }
     }
@@ -222,10 +235,14 @@ pub(in crate::encounters) fn prepare(
                             remaining: ability.maximum,
                         },
                     });
-                    row.changes.push(format!(
-                        "Restore {} to {} uses",
-                        ability.label, ability.maximum
-                    ));
+                    if ability.remaining(p, sources.source_fingerprint.as_deref())
+                        != ability.maximum
+                    {
+                        row.changes.push(format!(
+                            "Restore {} to {} uses",
+                            ability.label, ability.maximum
+                        ));
+                    }
                 }
             }
         }
