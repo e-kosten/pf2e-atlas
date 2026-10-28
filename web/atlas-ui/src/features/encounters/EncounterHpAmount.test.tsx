@@ -47,3 +47,27 @@ it("keeps Enter inert in the Damage-only review control", () => {
   fireEvent.keyDown(input, { key: "Enter" });
   expect(onAction).not.toHaveBeenCalled();
 });
+
+it.each(["unconfirmed", "rejected"])(
+  "retains a %s HP change and permits an explicit retry",
+  async (failure) => {
+    const onAction = vi.fn();
+    if (failure === "unconfirmed") onAction.mockResolvedValueOnce(false);
+    else onAction.mockRejectedValueOnce(new Error("Write failed"));
+    onAction.mockResolvedValueOnce(true);
+    render(<EncounterHpAmount disabled={false} onAction={onAction} />);
+    const input = screen.getByLabelText("HP change");
+    fireEvent.change(input, { target: { value: " 10 + 2 " } });
+    fireEvent.click(screen.getByRole("button", { name: "Damage" }));
+    await act(async () => {});
+    expect(input).toHaveValue(" 10 + 2 ");
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({
+      kind: "damage",
+      amount: " 10 + 2 ",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Damage" }));
+    await waitFor(() => expect(input).toHaveValue(""));
+    expect(onAction).toHaveBeenCalledTimes(2);
+    expect(onAction).toHaveBeenLastCalledWith({ kind: "damage", amount: " 10 + 2 " });
+  },
+);
