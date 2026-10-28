@@ -485,7 +485,7 @@ describe("list views", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Test Action 1/ })).toHaveAttribute(
       "href",
-      "/lists/research/records/actions:testAction1?ranking=score",
+      "/lists/research/records/actions:testAction1",
     );
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Saved records" })).toBeInTheDocument();
@@ -908,7 +908,7 @@ describe("list views", () => {
     );
     expect(screen.getByRole("link", { name: /Test Action 1/ })).toHaveAttribute(
       "href",
-      "/lists/research/records/actions:testAction1?ranking=score&sort=level_desc",
+      "/lists/research/records/actions:testAction1?sort=level_desc",
     );
     expect(screen.queryByRole("button", { name: "Reorder Test Action 1" })).toBeNull();
     expect(apiMocks.reorderSavedListItem).not.toHaveBeenCalled();

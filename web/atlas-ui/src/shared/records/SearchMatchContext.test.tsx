@@ -105,10 +105,11 @@ it("shows similarity coverage, contributions, caveats and both exact passage des
   ] as const) {
     const link = within(context).getByRole("link", { name: label });
     expect(
-      JSON.parse(
-        new URL(link.getAttribute("href")!, "http://localhost").searchParams.get(
-          "selection",
-        )!,
+      selectedNavigation(
+        parseSearchParams(
+          new URL(link.getAttribute("href")!, "http://localhost").search,
+        ),
+        target.record_key,
       ),
     ).toEqual(target);
     fireEvent.click(link, { metaKey: true });

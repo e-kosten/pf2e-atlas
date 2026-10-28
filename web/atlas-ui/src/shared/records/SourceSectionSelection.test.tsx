@@ -138,14 +138,9 @@ it("keeps rendered grant references outside selected source sections without los
   expect(grants).toContainElement(screen.getByRole("heading", { name: "Grants" }));
   expect(grants).toHaveTextContent("Rare");
   expect(grants).toHaveTextContent("Fire");
-  expect(link).toHaveAttribute(
-    "href",
-    expect.stringContaining("/records/feats:granted?selection="),
-  );
-  expect(fallback).toHaveAttribute(
-    "href",
-    expect.stringContaining("/records/feats:another?selection="),
-  );
+  // Whole-root navigation has no redundant compact address.
+  expect(link).toHaveAttribute("href", "/records/feats:granted");
+  expect(fallback).toHaveAttribute("href", "/records/feats:another");
   link.focus();
   for (const selected of [[], ["part-1"], null]) {
     view.rerender(reading(selected));
