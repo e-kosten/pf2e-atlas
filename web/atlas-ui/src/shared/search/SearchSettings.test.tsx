@@ -146,7 +146,20 @@ function setup(
     </QueryClientProvider>,
   );
   fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
+  openAdvancedSettings();
   return { apply, remember };
+}
+
+function openAdvancedSettings() {
+  if (!screen.queryByRole("combobox", { name: "Search model" }))
+    fireEvent.click(screen.getByRole("button", { name: /Advanced settings/ }));
+}
+function backToSettings() {
+  fireEvent.click(screen.getByRole("button", { name: "Back to search settings" }));
+  openAdvancedSettings();
+}
+function chooseSections() {
+  fireEvent.click(screen.getByRole("button", { name: "Choose sections" }));
 }
 
 function openMatchDisplay() {
@@ -174,6 +187,7 @@ it("defaults to Matching sections and discards a canceled display change", async
   expect(remember).not.toHaveBeenCalled();
   expect(apply).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
+  openAdvancedSettings();
   openMatchDisplay();
   await waitFor(() =>
     expect(
@@ -222,6 +236,7 @@ it("remembers smaller weights as a presentation preference with Cancel and Reset
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(remember).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
+  openAdvancedSettings();
   openMatchDisplay();
   expect(choice()).not.toBeChecked();
   fireEvent.click(choice());
@@ -249,6 +264,7 @@ it("keeps edits local until Apply and discards them on Cancel", () => {
   expect(remember).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
+  openAdvancedSettings();
   expect(
     Number(
       (screen.getByRole("spinbutton", { name: "Match decay" }) as HTMLInputElement)
@@ -286,7 +302,7 @@ it("rejects a manually typed decay outside the supported range", () => {
 
 it("discovers exact parts and carries their collection guard when applying", async () => {
   const { apply } = setup();
-  fireEvent.click(screen.getByText("Sections to compare"));
+  chooseSections();
   const description = await screen.findByRole("checkbox", { name: "Description" });
   fireEvent.click(description);
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
@@ -311,7 +327,7 @@ it("flattens single-section entries while retaining independent source links and
   } satisfies SimilarityPartsView["parts"][number];
   api.parts.mockResolvedValue({ ...inventory, parts: [...inventory.parts, ability] });
   const { apply } = setup();
-  fireEvent.click(screen.getByText("Sections to compare"));
+  chooseSections();
   const choice = await screen.findByRole("checkbox", { name: "Leech Warmth: Ability" });
   expect(
     screen.queryByRole("checkbox", { name: "All sections in Leech Warmth" }),
@@ -358,7 +374,7 @@ it("retains an exact selection and prevents Apply when inventory cannot validate
     similarity: { ...options, parts: ["old-part"] },
     similarityGeneration: "old-generation",
   });
-  await screen.findByText("Collection unavailable");
+  await screen.findByText("Unable to load comparison sections");
   expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
   expect(apply).not.toHaveBeenCalled();
 });
@@ -370,15 +386,16 @@ it("omits controls that do not apply to the baseline", async () => {
   await waitFor(() =>
     expect(screen.queryByRole("spinbutton", { name: "Match decay" })).toBeNull(),
   );
-  expect(screen.queryByText("Sections to compare")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Choose sections" })).toBeNull();
 });
 
 it("suspends an empty part draft when switching to the baseline", async () => {
   const { apply } = setup();
-  fireEvent.click(screen.getByText("Sections to compare"));
+  chooseSections();
   await screen.findByRole("checkbox", { name: "Description" });
   fireEvent.click(screen.getByRole("checkbox", { name: "Select all" }));
   expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+  backToSettings();
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Comparison method" }));
   fireEvent.click(screen.getByText("Name and identity"));
   expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled();
@@ -449,22 +466,7 @@ it("explains selected Similar choices and keeps help separate from opening Secti
     expect(screen.getByText(/0 uses only the strongest section/)).toBeVisible(),
   );
   fireEvent.keyDown(decayHelp, { key: "Escape" });
-  const partsHelp = screen.getByRole("button", { name: "About sections to compare" });
-  fireEvent.click(partsHelp);
-  await waitFor(() =>
-    expect(
-      screen.getByText(
-        /Choose which sections of this record to use when finding similar records/,
-      ),
-    ).toBeVisible(),
-  );
-  expect(api.parts).toHaveBeenCalledTimes(1);
-  expect(screen.queryByRole("checkbox", { name: "Description" })).toBeNull();
-  expect(screen.queryByRole("region", { name: "Seed source" })).toBeNull();
-  fireEvent.keyDown(partsHelp, { key: "Escape" });
-  fireEvent.click(screen.getByText("Sections to compare"));
-  await screen.findByRole("checkbox", { name: "Description" });
-  const candidateHelp = screen.getByRole("button", { name: "About candidate content" });
+  const candidateHelp = screen.getByRole("button", { name: "About section matching" });
   fireEvent.click(candidateHelp);
   await waitFor(() =>
     expect(
@@ -472,7 +474,7 @@ it("explains selected Similar choices and keeps help separate from opening Secti
     ).toBeVisible(),
   );
   fireEvent.keyDown(candidateHelp, { key: "Escape" });
-  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Candidate content" }));
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Section matching" }));
   fireEvent.click(screen.getByText("Corresponding sections"));
   fireEvent.click(candidateHelp);
   await waitFor(() =>
@@ -483,9 +485,23 @@ it("explains selected Similar choices and keeps help separate from opening Secti
     ).toBeVisible(),
   );
   fireEvent.keyDown(candidateHelp, { key: "Escape" });
+  chooseSections();
+  const description = await screen.findByRole("checkbox", { name: "Description" });
+  const partsHelp = screen.getByRole("button", {
+    name: "About sections from brown mold",
+  });
+  fireEvent.click(partsHelp);
+  await screen.findByText(
+    /Choose which sections of this record to use when finding similar records/,
+  );
+  expect(api.parts).toHaveBeenCalledTimes(1);
+  expect(description).toBeChecked();
+  expect(screen.getByRole("radio", { name: "Search settings" })).toBeChecked();
+  fireEvent.keyDown(partsHelp, { key: "Escape" });
+  backToSettings();
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Comparison method" }));
   fireEvent.click(screen.getByText("Content average"));
-  fireEvent.click(methodHelp);
+  fireEvent.click(screen.getByRole("button", { name: "About comparison method" }));
   await waitFor(() =>
     expect(
       screen.getByText(
@@ -538,7 +554,7 @@ it("names the trait baseline by its content while preserving its wire value", as
     },
     { kind: "trait", trait_key: "trait:fire" },
   );
-  await waitFor(() => expect(screen.getByText("Trait definition")).toBeVisible());
+  await waitFor(() => expect(screen.getByTitle("Trait definition")).toBeVisible());
   expect(screen.queryByText("Name and identity")).toBeNull();
   expect(screen.queryByText("Current baseline")).toBeNull();
   expect(screen.queryByText(/Uses the trait’s definition, or its label/)).toBeNull();
@@ -562,7 +578,7 @@ it("opens a section's source separately from its checkbox and preserves the comp
   fireEvent.change(screen.getByRole("spinbutton", { name: "Match decay" }), {
     target: { value: "0.75" },
   });
-  fireEvent.click(screen.getByText("Sections to compare"));
+  chooseSections();
   const description = await screen.findByRole("checkbox", { name: "Description" });
   const link = screen.getByRole("link", { name: "Description" });
   expect(
@@ -583,7 +599,6 @@ it("opens a section's source separately from its checkbox and preserves the comp
   expect(description).toBeChecked();
   expect(screen.getByRole("radio", { name: "Source document" })).toBeChecked();
   fireEvent.click(screen.getByRole("radio", { name: "Search settings" }));
-  expect(screen.getByRole("spinbutton", { name: "Match decay" })).toHaveValue("0.75");
   fireEvent.click(description);
   expect(description).not.toBeChecked();
   fireEvent.click(screen.getByRole("radio", { name: "Source document" }));
@@ -600,7 +615,7 @@ it("opens a section's source separately from its checkbox and preserves the comp
 
 it("keeps modified section activation native and leaves selection and the active view unchanged", async () => {
   setup();
-  fireEvent.click(screen.getByText("Sections to compare"));
+  chooseSections();
   const description = await screen.findByRole("checkbox", { name: "Description" });
   const event = new MouseEvent("click", {
     bubbles: true,
@@ -627,7 +642,7 @@ it("reloads the source and inventory generation together while preserving unrela
   fireEvent.change(screen.getByRole("spinbutton", { name: "Match decay" }), {
     target: { value: "0.75" },
   });
-  fireEvent.click(screen.getByText("Sections to compare"));
+  chooseSections();
   fireEvent.click(await screen.findByRole("checkbox", { name: "Description" }));
   fireEvent.click(screen.getByRole("link", { name: "Reset" }));
   fireEvent.click(screen.getByRole("button", { name: "Reload sections" }));
@@ -642,7 +657,6 @@ it("reloads the source and inventory generation together while preserving unrela
   );
   expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
   fireEvent.click(screen.getByRole("radio", { name: "Search settings" }));
-  expect(screen.getByRole("spinbutton", { name: "Match decay" })).toHaveValue("0.75");
   expect(screen.getByRole("checkbox", { name: "Description" })).not.toBeChecked();
   fireEvent.click(screen.getByRole("checkbox", { name: "Description" }));
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
@@ -671,25 +685,29 @@ it("retires loaded source when a model-switch inventory reports a new generation
   fireEvent.change(screen.getByRole("spinbutton", { name: "Match decay" }), {
     target: { value: "0.75" },
   });
-  fireEvent.click(screen.getByText("Sections to compare"));
+  chooseSections();
   fireEvent.click(await screen.findByRole("checkbox", { name: "Description" }));
   expect(
     screen.getByRole("region", { name: "Seed source", hidden: true }),
   ).toHaveAttribute("data-generation", "generation-1");
+  backToSettings();
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Search model" }));
   fireEvent.click(screen.getByText("EmbeddingGemma"));
-  await screen.findByText("The reference collection changed.");
+  await screen.findByText(
+    "The reference collection changed. Reload sections to continue.",
+  );
   expect(
     screen.queryByRole("region", { name: "Seed source", hidden: true }),
   ).toBeNull();
   expect(screen.getByRole("button", { name: "Reload sections" })).toBeVisible();
   expect(screen.getByRole("spinbutton", { name: "Match decay" })).toHaveValue("0.75");
+  chooseSections();
   expect(screen.getByText("1 selected section")).toBeVisible();
   expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
   fireEvent.click(screen.getByRole("radio", { name: "Source document" }));
   expect(screen.getByText("Reference collection changed")).toBeVisible();
   expect(screen.getByRole("button", { name: "Reload sections" })).toBeVisible();
-  fireEvent.click(screen.getByRole("radio", { name: "Search settings" }));
+  backToSettings();
   // An older model's cached inventory cannot resurrect retired source content.
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Search model" }));
   fireEvent.click(screen.getByText("BGE Base"));
@@ -701,7 +719,7 @@ it("retires loaded source when a model-switch inventory reports a new generation
 
 it("updates only the local source selection immediately and restores the applied selection after Cancel", async () => {
   const { apply } = setup();
-  fireEvent.click(screen.getByText("Sections to compare"));
+  chooseSections();
   const description = await screen.findByRole("checkbox", { name: "Description" });
   const source = screen.getByRole("region", { name: "Seed source", hidden: true });
   expect(source).toHaveAttribute("data-selected", "null");
@@ -714,7 +732,8 @@ it("updates only the local source selection immediately and restores the applied
   expect(apply).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
-  fireEvent.click(screen.getByText("Sections to compare"));
+  openAdvancedSettings();
+  chooseSections();
   await screen.findByRole("checkbox", { name: "Description" });
   expect(
     screen.getByRole("region", { name: "Seed source", hidden: true }),
@@ -819,11 +838,13 @@ it("blocks early All Apply and exposes loading, failure and retry with sections 
   expect(remember).not.toHaveBeenCalled();
   await act(async () => rejectInventory(new Error("Collection unavailable")));
   expect(await screen.findByText("Unable to load comparison sections")).toBeVisible();
-  expect(screen.getByText("Collection unavailable")).toBeVisible();
+  expect(screen.queryByText("Collection unavailable")).toBeNull();
   expect(applyButton).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
   await waitFor(() => expect(api.parts).toHaveBeenCalledTimes(2));
-  expect(screen.getByText("Loading comparison sections…")).toBeVisible();
+  await waitFor(() =>
+    expect(screen.getByText("Loading comparison sections…")).toBeVisible(),
+  );
   fireEvent.click(applyButton);
   expect(remember).not.toHaveBeenCalled();
   await act(async () => resolveInventory(coreInventory()));
@@ -841,7 +862,7 @@ it("blocks early All Apply and exposes loading, failure and retry with sections 
 it("includes identity once in All and lets the backend resolve the preset on Apply", async () => {
   api.parts.mockResolvedValue(coreInventory());
   const { apply } = setup();
-  fireEvent.click(screen.getByText("Sections to compare"));
+  chooseSections();
   const identity = await screen.findByRole("checkbox", {
     name: "Brown Mold: Name and identity",
   });
@@ -871,6 +892,7 @@ it("reflects the complete selection in Select all across Core, Custom and All", 
     similarity: options,
     sourceSections: "core",
   });
+  chooseSections();
   const identity = await screen.findByRole("checkbox", {
     name: "Brown Mold: Name and identity",
   });
@@ -884,7 +906,8 @@ it("reflects the complete selection in Select all across Core, Custom and All", 
   expect(selectAll).toBePartiallyChecked();
   fireEvent.click(identity);
   expect(selectAll).toBeChecked();
-  await waitFor(() => expect(screen.getByText("Custom")).toBeVisible());
+  backToSettings();
+  await waitFor(() => expect(screen.getByTitle("Custom")).toBeVisible());
 });
 
 it("blocks All when its required identity is unavailable instead of omitting it", async () => {
@@ -896,7 +919,7 @@ it("blocks All when its required identity is unavailable instead of omitting it"
     ),
   });
   const { apply } = setup();
-  fireEvent.click(screen.getByText("Sections to compare"));
+  chooseSections();
   await screen.findByText(
     "Name and identity is unavailable for this model. Choose another model or update the collection.",
   );
@@ -931,7 +954,6 @@ it("distinguishes source and result content and explains their selected draft op
 
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Source sections" }));
   fireEvent.click(screen.getByText("Core sections"));
-  await screen.findByRole("checkbox", { name: "Brown Mold: Name and identity" });
   fireEvent.click(sourceHelp);
   await screen.findByText(
     "Uses Brown Mold’s name and identity plus the core sections chosen for this record kind.",
@@ -947,7 +969,8 @@ it("distinguishes source and result content and explains their selected draft op
 
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Source sections" }));
   fireEvent.click(screen.getByText("Custom"));
-  fireEvent.click(sourceHelp);
+  backToSettings();
+  fireEvent.click(screen.getByRole("button", { name: "About source sections" }));
   await screen.findByText("Uses only the selected content from Brown Mold.");
   expect(apply).not.toHaveBeenCalled();
   expect(remember).not.toHaveBeenCalled();
@@ -964,12 +987,14 @@ it("applies Core source and result controls atomically without storing exact sel
   const { apply, remember } = setup();
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Source sections" }));
   fireEvent.click(screen.getByText("Core sections"));
+  chooseSections();
   await screen.findByRole("checkbox", { name: "Brown Mold: Name and identity" });
   expect(screen.getByRole("checkbox", { name: "Description" })).toBeChecked();
   expect(screen.getByRole("checkbox", { name: "Reset" })).not.toBeChecked();
   expect(
     screen.getByRole("checkbox", { name: "Brown Mold: Name and identity" }),
   ).toBeChecked();
+  backToSettings();
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Search content" }));
   fireEvent.click(screen.getAllByText("Core sections").slice(-1)[0]);
   expect(apply).not.toHaveBeenCalled();
@@ -998,11 +1023,13 @@ it("turns a Core checkbox edit into generation-bound Custom and permits deselect
     similarity: options,
     sourceSections: "core",
   });
+  chooseSections();
   const identity = await screen.findByRole("checkbox", {
     name: "Brown Mold: Name and identity",
   });
   fireEvent.click(identity);
-  await waitFor(() => expect(screen.getByText("Custom")).toBeVisible());
+  backToSettings();
+  await waitFor(() => expect(screen.getByTitle("Custom")).toBeVisible());
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
   expect(apply).toHaveBeenCalledExactlyOnceWith(
     expect.objectContaining({

@@ -8,10 +8,8 @@ import {
   Collapse,
   Form,
   Grid,
-  InputNumber,
   Select,
   Segmented,
-  Slider,
   Space,
   Switch,
   Tooltip,
@@ -51,7 +49,8 @@ import {
   type SimilaritySourceTarget,
 } from "./SimilaritySourceDocument";
 import { assertSimilarityInventoryIdentity } from "./searchIdentity";
-import { HelpTooltip } from "../ui/HelpTooltip";
+import { SearchSettingLabel } from "./SearchSettingLabel";
+import { SimilarityComparisonSettings } from "./SimilarityComparisonSettings";
 import { AtlasModal as Modal } from "../ui/overlays/AtlasModal";
 import { LoadingStatus } from "../ui/LoadingStatus";
 import { ErrorNotice } from "../feedback/ErrorNotice";
@@ -433,7 +432,7 @@ export function SearchSettings({
       {draft.sourceSections === "core" &&
         inventory.data?.core.representation === "identity_only" && (
           <Typography.Text type="secondary">
-            <SettingLabel
+            <SearchSettingLabel
               label="Name and identity only"
               help={
                 inventory.data.core.fallback_reason === "unmodelled_kind"
@@ -579,7 +578,10 @@ export function SearchSettings({
                 >
                   Search settings
                 </Button>
-                <SettingLabel label={`Sections from ${sourceName}`} help={partsHelp} />
+                <SearchSettingLabel
+                  label={`Sections from ${sourceName}`}
+                  help={partsHelp}
+                />
               </div>
             )}
             {showingSource && !wide && (
@@ -691,7 +693,7 @@ export function SearchSettings({
                         (usesParts ? (
                           <Form.Item
                             label={
-                              <SettingLabel
+                              <SearchSettingLabel
                                 label="Source sections"
                                 help={sourceSectionsHelp}
                               />
@@ -755,7 +757,7 @@ export function SearchSettings({
                         ))}
                       <Form.Item
                         label={
-                          <SettingLabel
+                          <SearchSettingLabel
                             label="Search content"
                             help={searchContentHelp}
                           />
@@ -802,7 +804,7 @@ export function SearchSettings({
                                   .length > 1 && (
                                   <Form.Item
                                     label={
-                                      <SettingLabel
+                                      <SearchSettingLabel
                                         label="Embedding model"
                                         help="Changes which embedding model is used for search and document ranking."
                                       />
@@ -823,7 +825,7 @@ export function SearchSettings({
                                 {!seed ? (
                                   <Form.Item
                                     label={
-                                      <SettingLabel
+                                      <SearchSettingLabel
                                         label="Ranking"
                                         help="Search combines word matches with meaning matches. Score-based considers how strongly each record matches. Rank-based considers how high each record appears in those two lists."
                                       />
@@ -844,177 +846,17 @@ export function SearchSettings({
                                     />
                                   </Form.Item>
                                 ) : (
-                                  <>
-                                    <Form.Item
-                                      label={
-                                        <SettingLabel
-                                          label="Comparison method"
-                                          help={methodHelp}
-                                        />
-                                      }
-                                      htmlFor={`${id}-method`}
-                                    >
-                                      <Select
-                                        id={`${id}-method`}
-                                        aria-label="Comparison method"
-                                        value={draft.similarity.method}
-                                        options={[
-                                          {
-                                            value: "passages",
-                                            label: "Passage matches",
-                                          },
-                                          {
-                                            value: "content-average",
-                                            label: "Content average",
-                                          },
-                                          {
-                                            value: "baseline",
-                                            label: trait
-                                              ? "Trait definition"
-                                              : "Name and identity",
-                                          },
-                                        ]}
-                                        onChange={(method) =>
-                                          setDraft({
-                                            ...draft,
-                                            similarity: { ...draft.similarity, method },
-                                          })
-                                        }
-                                      />
-                                    </Form.Item>
-                                    {usesParts && !trait && (
-                                      <Form.Item
-                                        label={
-                                          <SettingLabel
-                                            label="Section matching"
-                                            help={
-                                              draft.similarity.candidateParts ===
-                                              "corresponding"
-                                                ? "Only sections with matching purposes can contribute, including across record kinds. For example, descriptions compare with descriptions. If a result lacks that type of section, it contributes no match."
-                                                : "Any selected section can match any content in a result, even when the sections serve different purposes."
-                                            }
-                                          />
-                                        }
-                                        htmlFor={`${id}-candidate`}
-                                      >
-                                        <Select
-                                          id={`${id}-candidate`}
-                                          aria-label="Section matching"
-                                          value={draft.similarity.candidateParts}
-                                          options={[
-                                            { value: "any", label: "Any section" },
-                                            {
-                                              value: "corresponding",
-                                              label: "Corresponding sections",
-                                            },
-                                          ]}
-                                          onChange={(candidateParts) =>
-                                            setDraft({
-                                              ...draft,
-                                              similarity: {
-                                                ...draft.similarity,
-                                                candidateParts,
-                                              },
-                                            })
-                                          }
-                                        />
-                                      </Form.Item>
-                                    )}
-                                    {draft.similarity.method === "passages" && (
-                                      <Form.Item
-                                        label={
-                                          <SettingLabel
-                                            label="Match decay"
-                                            help="Sections are ordered by match strength for each result. 0 uses only the strongest section; 1 gives all selected sections equal weight. Values in between give each additional section less weight."
-                                          />
-                                        }
-                                        validateStatus={
-                                          invalidDecay ? "error" : undefined
-                                        }
-                                        help={
-                                          invalidDecay
-                                            ? "Enter a number from 0 through 1."
-                                            : undefined
-                                        }
-                                      >
-                                        <div className="search-settings__decay">
-                                          <Slider
-                                            aria-label="Match decay slider"
-                                            min={0}
-                                            max={1}
-                                            step={0.05}
-                                            value={
-                                              invalidDecay ? 0 : draft.similarity.decay
-                                            }
-                                            onChange={(decay) =>
-                                              setDraft({
-                                                ...draft,
-                                                similarity: {
-                                                  ...draft.similarity,
-                                                  decay,
-                                                },
-                                              })
-                                            }
-                                          />
-                                          <InputNumber
-                                            aria-label="Match decay"
-                                            min={0}
-                                            max={1}
-                                            step={0.05}
-                                            value={
-                                              Number.isFinite(draft.similarity.decay)
-                                                ? draft.similarity.decay
-                                                : null
-                                            }
-                                            onInput={(text) => {
-                                              setDraft({
-                                                ...draft,
-                                                similarity: {
-                                                  ...draft.similarity,
-                                                  decay: text.trim()
-                                                    ? Number(text)
-                                                    : Number.NaN,
-                                                },
-                                              });
-                                            }}
-                                            onChange={(decay) => {
-                                              setDraft({
-                                                ...draft,
-                                                similarity: {
-                                                  ...draft.similarity,
-                                                  decay:
-                                                    typeof decay === "number"
-                                                      ? decay
-                                                      : Number.NaN,
-                                                },
-                                              });
-                                            }}
-                                          />
-                                        </div>
-                                        <div className="search-settings__scale">
-                                          <span>
-                                            {identitySelected
-                                              ? "Strongest match"
-                                              : "Strongest section"}
-                                          </span>
-                                          <span>
-                                            {identitySelected
-                                              ? "All selections equally"
-                                              : "All sections equally"}
-                                          </span>
-                                        </div>
-                                        {!invalidDecay && (
-                                          <Typography.Text type="secondary">
-                                            {selectedCount === 1
-                                              ? identitySelected
-                                                ? "One selection; decay has no effect."
-                                                : "One section selected; decay has no effect."
-                                              : `Contributions: 1, ${Number(draft.similarity.decay.toFixed(4))}, ${Number((draft.similarity.decay ** 2).toFixed(4))}…`}
-                                          </Typography.Text>
-                                        )}
-                                      </Form.Item>
-                                    )}
-                                  </>
+                                  <SimilarityComparisonSettings
+                                    value={draft.similarity}
+                                    onChange={(similarity) =>
+                                      setDraft({ ...draft, similarity })
+                                    }
+                                    trait={trait}
+                                    methodHelp={methodHelp}
+                                    selectedCount={selectedCount}
+                                    identitySelected={identitySelected}
+                                    invalidDecay={invalidDecay}
+                                  />
                                 )}
                               </>
                             ),
@@ -1026,7 +868,7 @@ export function SearchSettings({
                               <>
                                 <Form.Item
                                   label={
-                                    <SettingLabel
+                                    <SearchSettingLabel
                                       label="Match display"
                                       help={
                                         draft.matchDisplay === "hidden"
@@ -1061,7 +903,7 @@ export function SearchSettings({
                                     labelCol={{ flex: "auto" }}
                                     wrapperCol={{ flex: "none" }}
                                     label={
-                                      <SettingLabel
+                                      <SearchSettingLabel
                                         label="Show smaller weights"
                                         help="Includes rows whose weight rounds to 0.0%. All selections still contribute to ranking."
                                       />
@@ -1151,14 +993,5 @@ export function SearchSettings({
         )}
       </Modal>
     </>
-  );
-}
-
-function SettingLabel({ label, help }: { label: string; help: string }) {
-  return (
-    <span className="search-settings__label">
-      <span>{label}</span>
-      <HelpTooltip label={`About ${label.toLowerCase()}`}>{help}</HelpTooltip>
-    </span>
   );
 }
