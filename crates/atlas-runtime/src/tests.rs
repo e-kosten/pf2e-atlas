@@ -759,10 +759,22 @@ fn stored_vector_runtime_needs_no_query_model_but_full_mode_does() {
         },
     })
     .unwrap();
-    assert!(runtime.open_search_index().is_ok());
-    assert!(runtime.prepare_query(None, "test query").is_err());
-    assert!(runtime.validate_index_report(SetupTarget::Full).is_ok());
-    assert!(runtime.check_index_report(SetupTarget::Records).is_ok());
+    let validation = runtime.validate_index_report(SetupTarget::Full).unwrap();
+    assert_eq!(validation.roots, 1);
+    assert_eq!(validation.checked_snapshots, 1);
+    assert_eq!(validation.semantic_units, 1);
+    let statistics = runtime.check_index_report(SetupTarget::Records).unwrap();
+    assert_eq!(statistics.records, 1);
+    assert_eq!(statistics.product_records, 1);
+    assert_eq!(statistics.semantic_units, 1);
+    assert_eq!(
+        runtime
+            .prepare_query(None, "test query")
+            .err()
+            .expect("missing model assets must prevent query inference")
+            .kind(),
+        atlas_search::SearchErrorKind::EmbeddingUnavailable
+    );
     let reader = runtime.open_index().unwrap();
     let metadata = runtime.search_profile_readiness(&reader.context().search_profiles);
     assert_eq!(metadata.len(), 1);
