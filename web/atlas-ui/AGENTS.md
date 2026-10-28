@@ -18,6 +18,11 @@ and update continuity; do not introduce a competing feature-local design policy.
 Follow the root `AGENTS.md` Product UI Copy guidance for both frontend text and
 backend-projected text. Review the rendered result, not just the component code.
 
+Before changing errors, unavailable states or recovery actions, read
+[Error feedback and recovery](docs/frontend-guidelines.md#error-feedback-and-recovery).
+Use the shared ErrorNotice and reviewed error messages; pass the original cause so
+shared outages are handled once without hiding independent failures.
+
 ## Shared UI Primitives
 
 Before creating a feature-local interaction pattern, check `src/shared/ui`.
@@ -28,7 +33,7 @@ Before creating a feature-local interaction pattern, check `src/shared/ui`.
 - Use `EntityIndexPage` for `/things` index pages with a title, summary, actions, and table body.
 - Use `EditableCommitField` for inline fields that keep a local draft and commit on blur or Enter.
 - In reading/scanning views, editable values need a persistent subtle cue, with inputs revealed on activation. Use the neutral filled value-button pattern for inline encounter HP; spell rank uses a clickable classification chip with a visible dropdown arrow. Keep fields visible for data-entry tasks. Follow [Reading and editing values](docs/frontend-guidelines.md#reading-and-editing-values); hover alone must not establish editability.
-- Use `SearchPickerModal` for modal record-search selection flows.
+- Use `AtlasModal` and `AtlasDrawer` for ordinary overlays so shared recovery stays reachable inside the active focus boundary. Use `SearchPickerModal` for modal record-search selection flows.
 - Use `PaneIconButton` and `PaneIconLink` for pane-header icon actions.
 - Use `BrowsePaneHeader` in selected-record workspaces; `BrowseReader` owns alignment of the two natural header rows, including wrapped controls. Do not independently fix their heights.
 - Use `DangerActionButton` for buttons that open a destructive confirmation before running the action.

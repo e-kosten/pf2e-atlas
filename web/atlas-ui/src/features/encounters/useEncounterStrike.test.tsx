@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEncounterStrike } from "./useEncounterStrike";
 import type { EncounterParticipantView } from "../../generated/atlas";
 import type { useEncounterMutations } from "./useEncounterMutations";
+import { AtlasApiError } from "../../api/atlasApi";
 const api = vi.hoisted(() => ({
   previewEncounterStrikeContext: vi.fn(),
   rollFlatCheck: vi.fn(),
@@ -26,11 +27,15 @@ const participants = [
   { participant_key: "actor", display_name: "Attacker" },
   { participant_key: "target", display_name: "Target creature" },
 ] as EncounterParticipantView[];
-function Harness() {
+function Harness({
+  revision = 4n,
+  generation = "generation",
+  rollId = "original",
+} = {}) {
   const strike = useEncounterStrike({
     encounterRef: "encounter",
-    revision: 4n,
-    generation: "generation",
+    revision,
+    generation,
     participants,
     mutations: { pending: false, refreshError: null } as ReturnType<
       typeof useEncounterMutations
@@ -43,13 +48,13 @@ function Harness() {
           strike.launch({
             strike: { participant_key: "actor", reference },
             attackNumber: 2,
-            rollId: "original",
+            rollId,
           })
         }
       >
         Target & checks
       </button>
-      {strike.renderContext("original")}
+      {strike.renderContext(rollId)}
     </>
   );
 }
@@ -74,16 +79,16 @@ function setup(overrides = {}) {
     success: true,
     outcome: { formula: "1d20", total: 15, expression: { kind: "number", value: 15 } },
   });
-  render(
-    <ConfigProvider theme={{ token: { motion: false } }}>
-      <QueryClientProvider
-        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-      >
-        <Harness />
-      </QueryClientProvider>
-    </ConfigProvider>,
-  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const view = render(<Harness />, {
+    wrapper: ({ children }) => (
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      </ConfigProvider>
+    ),
+  });
   fireEvent.click(screen.getByRole("button", { name: "Target & checks" }));
+  return { ...view, client };
 }
 it("offers reference checks without requiring guessed-location answers or committing an attack", async () => {
   setup();
@@ -155,4 +160,80 @@ it("keeps the usable-senses reminder when a condition needs it", async () => {
   expect(
     screen.queryByText("No additional checks from tracked conditions."),
   ).not.toBeInTheDocument();
+});
+
+it("keeps same-target checks and dice results mounted through a revision refresh and failure", async () => {
+  const view = setup();
+  await screen.findByText("Undetected · DC 11 flat check");
+  fireEvent.click(screen.getByRole("button", { name: "Roll" }));
+  await screen.findByText("Success");
+  const target = screen.getByRole("combobox", { name: "Strike target" });
+  const rollCount = api.rollFlatCheck.mock.calls.length;
+  const reroll = screen.getByRole("button", { name: "Reroll" });
+  let reject!: (cause: Error) => void;
+  api.previewEncounterStrikeContext.mockImplementationOnce(
+    () =>
+      new Promise((_resolve, fail) => {
+        reject = fail;
+      }),
+  );
+  view.rerender(<Harness revision={5n} />);
+  expect(screen.getByRole("combobox", { name: "Strike target" })).toBe(target);
+  expect(screen.getByText("Success")).toBeInTheDocument();
+  expect(reroll).toBeDisabled();
+  await act(async () => reject(new Error("Unavailable")));
+  await screen.findByText(/Previous checks shown\./);
+  expect(screen.getByText("Success")).toBeInTheDocument();
+  expect(reroll).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  await waitFor(() => expect(reroll).toBeEnabled());
+  expect(api.rollFlatCheck).toHaveBeenCalledTimes(rollCount);
+});
+
+it("keeps the target selector mounted but never lends checks to another target or generation", async () => {
+  const view = setup();
+  await screen.findByText("Undetected · DC 11 flat check");
+  api.previewEncounterStrikeContext.mockImplementation(() => new Promise(() => {}));
+  const target = screen.getByRole("combobox", { name: "Strike target" });
+  fireEvent.mouseDown(target);
+  fireEvent.click(await screen.findByText("Target creature"));
+  expect(screen.getByRole("combobox", { name: "Strike target" })).toBe(target);
+  expect(screen.queryByText("Undetected · DC 11 flat check")).not.toBeInTheDocument();
+  view.rerender(<Harness generation="replacement" />);
+  expect(
+    screen.queryByRole("combobox", { name: "Strike target" }),
+  ).not.toBeInTheDocument();
+});
+
+it("retires obsolete checks even if another read failure replaces the generation error", async () => {
+  const { client, rerender } = setup();
+  await screen.findByText("Undetected · DC 11 flat check");
+  api.previewEncounterStrikeContext.mockRejectedValueOnce(
+    new AtlasApiError(409, "Changed", {
+      code: "artifact_generation_changed",
+      message: "Changed",
+    }),
+  );
+  await act(async () => {
+    await client.invalidateQueries({ queryKey: ["strike-assistance"] });
+  });
+  await screen.findByRole("button", { name: "Reload encounter" });
+  expect(screen.queryByText("Undetected · DC 11 flat check")).not.toBeInTheDocument();
+  api.previewEncounterStrikeContext.mockRejectedValueOnce(new Error("Unavailable"));
+  await act(async () => {
+    await client.refetchQueries({ queryKey: ["strike-assistance"] });
+  });
+  expect(screen.queryByText("Undetected · DC 11 flat check")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Reload encounter" })).toBeInTheDocument();
+  act(() => {
+    client.setQueriesData(
+      { queryKey: ["strike-assistance"] },
+      (previous: unknown) => previous,
+    );
+  });
+  rerender(<Harness rollId="another" />);
+  fireEvent.click(screen.getByRole("button", { name: "Target & checks" }));
+  expect(
+    await screen.findByRole("button", { name: "Reload encounter" }),
+  ).toBeInTheDocument();
 });

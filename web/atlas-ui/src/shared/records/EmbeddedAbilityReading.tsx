@@ -1,4 +1,6 @@
-import { Alert, Button, Collapse, Space, Spin } from "antd";
+import { ErrorNotice } from "../feedback/ErrorNotice";
+import { Alert, Button, Collapse, Space } from "antd";
+import { LoadingStatus } from "../ui/LoadingStatus";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getEmbeddedReading } from "../../api/atlasApi";
@@ -266,10 +268,9 @@ function OwnedAbilityBatch({
         );
       })}
       {reading.isError && (
-        <Alert
-          type="error"
+        <ErrorNotice
+          error={reading.error}
           title="Unable to load ability content"
-          description={reading.error.message}
           action={
             <Space wrap>
               <Button
@@ -293,11 +294,7 @@ function OwnedAbilityBatch({
           }
         />
       )}
-      {loading && (
-        <div role="status">
-          <Spin size="small" /> Loading abilities…
-        </div>
-      )}
+      {loading && <LoadingStatus label="Loading abilities…" />}
       {last && last.end < last.total && (
         <div
           ref={sentinel}

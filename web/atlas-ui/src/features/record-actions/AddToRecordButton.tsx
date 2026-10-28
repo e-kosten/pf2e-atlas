@@ -1,11 +1,11 @@
+import { AtlasModal as Modal } from "../../shared/ui/overlays/AtlasModal";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Alert,
   App,
   Button,
   Form,
   Input,
-  Modal,
   Select,
   Tabs,
   Tooltip,
@@ -397,8 +397,8 @@ function AddToRecordModal({
           )}
         </Form>
         {catalog.error && !creating && (
-          <Alert
-            type="error"
+          <ErrorNotice
+            error={catalog.error}
             title={
               kind === "list"
                 ? catalog.data
@@ -424,16 +424,16 @@ function AddToRecordModal({
           />
         )}
         {submit.error && (
-          <Alert
-            type="error"
+          <ErrorNotice
+            error={submit.error}
+            outcome={created ? "saved" : undefined}
             title={
               created
-                ? `${selected?.name} was created, but the record could not be added.`
+                ? `${selected?.name} was created. Adding the record could not be confirmed.`
                 : creating
                   ? `${kind === "list" ? "List" : "Encounter"} could not be created`
                   : "Record could not be added"
             }
-            description={submit.error.message}
           />
         )}
       </div>

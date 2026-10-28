@@ -1,5 +1,6 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import type { ComponentProps } from "react";
-import { Button, Space, Spin } from "antd";
+import { Button, Spin } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import { getEmbeddedReading } from "../../api/atlasApi";
 import { RecordPresentation } from "../../shared/records/RecordPresentation";
@@ -55,26 +56,31 @@ export function EncounterActorReading(
         </div>
       )}
       {enabled && query.isError && (
-        <Space className="encounter-actor-reading__status" role="status" wrap>
-          <span>
-            {changed
+        <ErrorNotice
+          error={query.error}
+          compact
+          className="encounter-actor-reading__status"
+          title={
+            changed
               ? "Reference changed. Reload the encounter."
               : entry
                 ? "Could not update rules text. Previous text shown."
-                : "Rules text unavailable."}
-          </span>
-          <Button
-            size="small"
-            onClick={() => {
-              if (changed) {
-                if (reading?.reloadParent) reading.reloadParent();
-                else window.location.reload();
-              } else void query.refetch();
-            }}
-          >
-            {changed ? "Reload encounter" : "Retry"}
-          </Button>
-        </Space>
+                : "Rules text unavailable."
+          }
+          action={
+            <Button
+              size="small"
+              onClick={() => {
+                if (changed) {
+                  if (reading?.reloadParent) reading.reloadParent();
+                  else window.location.reload();
+                } else void query.refetch();
+              }}
+            >
+              {changed ? "Reload encounter" : "Retry"}
+            </Button>
+          }
+        />
       )}
       <RecordPresentation
         {...props}

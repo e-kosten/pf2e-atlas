@@ -1,4 +1,5 @@
-import { Alert, Button } from "antd";
+import { ErrorNotice } from "../feedback/ErrorNotice";
+import { Button } from "antd";
 import { rollFlatCheck } from "../../api/atlasApi";
 import type { FlatCheckRollView } from "../../generated/atlas";
 import { useDiceRoll } from "./useDiceRoll";
@@ -23,13 +24,13 @@ export function FlatCheckRoll({
         </span>
         <Button
           disabled={disabled || roll.busy}
-          loading={roll.busy}
+          loading={roll.busy && !roll.animating ? { delay: 300 } : false}
           onClick={() => void roll.run(() => rollFlatCheck({ dc }))}
         >
           {roll.result ? "Reroll" : "Roll"}
         </Button>
       </div>
-      {roll.error && <Alert type="error" title={roll.error} />}
+      {roll.error && <ErrorNotice error={roll.error} title={roll.error} />}
       {roll.result && (
         <>
           <RollResult outcome={roll.result.outcome} pending={roll.animating} />

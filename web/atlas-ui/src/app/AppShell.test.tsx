@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../shared/feedback/ErrorNotice";
 import { RouterTestContext } from "../test/router";
 import { readinessFixture } from "../test/fixtures";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -5,6 +6,7 @@ import { AppShell } from "./AppShell";
 import {
   checkResponseCompatibility,
   clearCompatibilityFailure,
+  AtlasCompatibilityError,
 } from "../api/compatibility";
 import { reloadFrontend } from "../shared/browser/reloadFrontend";
 vi.mock("../shared/browser/reloadFrontend", () => ({ reloadFrontend: vi.fn() }));
@@ -106,11 +108,10 @@ describe("application navigation and accessibility", () => {
     expect(screen.getAllByRole("main")).toHaveLength(1);
   });
 
-  it("names icon actions and announces the actual global error", () => {
+  it("announces connection recovery without rendering raw readiness diagnostics", () => {
     const { refresh } = renderShell("The local service is unavailable.");
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "The local service is unavailable.",
-    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Atlas unavailable");
+    expect(screen.queryByText("The local service is unavailable.")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("button", { name: "Reference status" })).toBeNull();
@@ -130,6 +131,18 @@ describe("application navigation and accessibility", () => {
       >
         <main>
           <input aria-label="Draft" defaultValue="unsaved text" />
+          <ErrorNotice
+            error={new AtlasCompatibilityError("old")}
+            title="Encounter could not load"
+          />
+          <ErrorNotice
+            error={new AtlasCompatibilityError("old")}
+            title="Turn review could not load"
+          />
+          <ErrorNotice
+            error={new Error("private decoder detail")}
+            title="A separate edit could not be saved"
+          />
         </main>
       </AppShell>,
       { wrapper: RouterTestContext },
@@ -142,9 +155,16 @@ describe("application navigation and accessibility", () => {
         ),
       ).toThrow();
     });
+    expect(screen.getByRole("status")).toHaveTextContent("Reload Atlas to continue.");
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "Atlas was updated. Reload to continue.",
+      "A separate edit could not be saved",
     );
+    expect(
+      screen.queryByText(
+        /Encounter could not load|Turn review could not load|private decoder detail/,
+      ),
+    ).toBeNull();
     expect(screen.getByRole("textbox", { name: "Draft" })).toBe(draft);
     expect(draft).toHaveValue("unsaved text");
     expect(reloadFrontend).not.toHaveBeenCalled();

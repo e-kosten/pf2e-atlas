@@ -53,6 +53,7 @@ import {
   clearCompatibilityFailure,
   getCompatibilityFailure,
 } from "./compatibility";
+import { AtlasConnectionError } from "./availability";
 
 const API_BASE = import.meta.env.VITE_ATLAS_API_BASE ?? "";
 
@@ -83,6 +84,7 @@ export async function discoverFilterEditor(
   signal?: AbortSignal,
 ): Promise<FilterEditorView> {
   const editor = await atlasFetch<unknown>("/api/filters/editor", {
+    readOnly: true,
     method: "POST",
     body: jsonBody(request),
     signal,
@@ -95,6 +97,7 @@ export async function discoverFilterValues(
   signal?: AbortSignal,
 ): Promise<FilterValueListView> {
   const values = await atlasFetch<unknown>("/api/filters/values", {
+    readOnly: true,
     method: "POST",
     body: jsonBody(request),
     signal,
@@ -108,6 +111,7 @@ export async function searchPage(
 ): Promise<SearchResultsPage> {
   const page = await atlasFetch<unknown>("/api/search/page", {
     signal,
+    readOnly: true,
     method: "POST",
     body: jsonBody(request),
   });
@@ -130,6 +134,7 @@ export async function getRelationshipOccurrences(
   signal?: AbortSignal,
 ): Promise<RelationshipOccurrencesPage> {
   const value = await atlasFetch<unknown>("/api/search/relationship-occurrences", {
+    readOnly: true,
     method: "POST",
     body: jsonBody(request),
     signal,
@@ -149,6 +154,7 @@ export async function getRecordDetail(
 ): Promise<RecordDetailView> {
   return selection
     ? atlasFetch("/api/records/detail", {
+        readOnly: true,
         method: "POST",
         body: jsonBody(selection),
         signal,
@@ -160,6 +166,7 @@ export async function getEmbeddedReading(
   signal?: AbortSignal,
 ): Promise<EmbeddedReadingBatchView> {
   return atlasFetch("/api/records/embedded-reading", {
+    readOnly: true,
     method: "POST",
     body: jsonBody(request),
     signal,
@@ -175,6 +182,7 @@ export async function getEncounterReference(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/reference`,
     {
       signal,
+      readOnly: true,
       method: "POST",
       body: jsonBody(request),
     },
@@ -397,7 +405,7 @@ export async function previewEncounterCondition(
   const suffix = "condition_id" in request ? `/${request.condition_id.toString()}` : "";
   return atlasFetchEncounter(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/conditions${suffix}/preview`,
-    { method: "POST", body: jsonBody(request) },
+    { readOnly: true, method: "POST", body: jsonBody(request) },
   );
 }
 
@@ -421,6 +429,7 @@ export async function encounterCastingReminders(
   return atlasFetch(
     `/api/encounters/${encodeURIComponent(encounterRef)}/casting-reminders`,
     {
+      readOnly: true,
       method: "POST",
       body: jsonBody(request),
     },
@@ -433,7 +442,7 @@ export async function previewEncounterDrainedConsequence(
 ): Promise<import("../generated/atlas").ConditionHpChangeView> {
   return atlasFetch(
     `/api/encounters/${encodeURIComponent(encounterRef)}/condition-consequences/preview`,
-    { method: "POST", body: jsonBody(request) },
+    { readOnly: true, method: "POST", body: jsonBody(request) },
   );
 }
 
@@ -592,6 +601,7 @@ export async function previewEncounterStrikeContext(
   const value = await atlasFetch<
     import("../generated/atlas").EncounterStrikeContextView
   >(`/api/encounters/${encodeURIComponent(encounterRef)}/strike-context`, {
+    readOnly: true,
     method: "POST",
     body: jsonBody(request),
   });
@@ -736,7 +746,7 @@ export async function previewEncounterHpLifecycle(
   return hpLifecycle(
     await atlasFetch(
       `/api/encounters/${encodeURIComponent(encounterRef)}/hp-lifecycle/preview`,
-      { method: "POST", body: jsonBody(request) },
+      { readOnly: true, method: "POST", body: jsonBody(request) },
     ),
   );
 }
@@ -788,6 +798,7 @@ export async function filterSavedList(
 ): Promise<SavedListDetailView> {
   return checkedSavedListDetail(
     await atlasFetch(`/api/lists/${encodeURIComponent(request.list_ref)}/filter`, {
+      readOnly: true,
       method: "POST",
       body: jsonBody(request),
     }),
@@ -845,16 +856,27 @@ export async function reorderSavedListItem(
   );
 }
 
-async function atlasFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+type AtlasRequestInit = RequestInit & { readOnly?: boolean };
+
+async function atlasFetch<T>(path: string, init: AtlasRequestInit = {}): Promise<T> {
   const failure = getCompatibilityFailure();
   if (failure && path !== "/api/compatibility") throw failure;
   const headers = new Headers(init.headers);
   headers.set("Content-Type", "application/json");
   headers.set(API_CONTRACT_HEADER, API_CONTRACT);
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers,
-  });
+  const { readOnly = false, ...request } = init;
+  const write = !!init.method && init.method !== "GET" && !readOnly;
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, { ...request, headers });
+  } catch (cause) {
+    if (
+      init.signal?.aborted ||
+      (cause instanceof DOMException && cause.name === "AbortError")
+    )
+      throw cause;
+    throw new AtlasConnectionError(write, cause);
+  }
   // Preserve genuine proxy/service failures while rejecting old successful APIs
   // before attempting to interpret their DTOs. Old servers return 404 here.
   if (
@@ -865,12 +887,20 @@ async function atlasFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   ) {
     checkResponseCompatibility(response);
   }
-  const text = await response.text();
+  let text: string;
+  try {
+    text = await response.text();
+  } catch (cause) {
+    if (init.signal?.aborted) throw cause;
+    throw new AtlasConnectionError(write, cause);
+  }
   const parsed = parseJsonResponse(text);
   const payload = parsed.ok ? parsed.value : undefined;
 
   if (!response.ok) {
     const appError = isAppError(payload) ? payload : undefined;
+    if (!appError && [502, 503, 504].includes(response.status))
+      throw new AtlasConnectionError(write, new Error(`HTTP ${response.status}`));
     throw new AtlasApiError(
       response.status,
       appError?.message ?? fallbackErrorMessage(response, text, parsed),
@@ -934,7 +964,7 @@ function normalizeConditionNotes(
 
 async function atlasFetchEncounter<T>(
   path: string,
-  init: RequestInit = {},
+  init: AtlasRequestInit = {},
 ): Promise<T> {
   const payload = await atlasFetch<unknown>(path, init);
   if (!isRecord(payload)) throw new AtlasApiError(200, "Invalid encounter response");
@@ -1304,6 +1334,7 @@ export async function getRelatedRecords(
   signal?: AbortSignal,
 ): Promise<import("../generated/atlas").RelatedRecordsView> {
   return atlasFetch("/api/related", {
+    readOnly: true,
     method: "POST",
     body: jsonBody(request),
     signal,
@@ -1315,7 +1346,7 @@ export async function discoverFilterCounts(
 ): Promise<import("../generated/atlas").FilterCountsView> {
   const result = await atlasFetch<import("../generated/atlas").FilterCountsView>(
     "/api/filters/counts",
-    { method: "POST", body: jsonBody(request), signal },
+    { readOnly: true, method: "POST", body: jsonBody(request), signal },
   );
   if (result.counts.status === "unavailable") return result;
   return {
@@ -1347,6 +1378,7 @@ export async function getEncounterStrikeOptions(
   const result = await atlasFetch<
     import("../generated/atlas").EncounterStrikeOptionsView
   >(`/api/encounters/${encodeURIComponent(encounter)}/strike-options`, {
+    readOnly: true,
     method: "POST",
     body: jsonBody(request),
   });
@@ -1440,6 +1472,7 @@ export async function getTraitDetail(
   const result: import("../generated/atlas").TraitDetailView = await atlasFetch(
     "/api/traits/detail",
     {
+      readOnly: true,
       method: "POST",
       body: jsonBody(request),
       signal,
@@ -1456,6 +1489,7 @@ export async function getTraitRecords(
   const result: import("../generated/atlas").TraitRecordsPage = await atlasFetch(
     "/api/traits/records",
     {
+      readOnly: true,
       method: "POST",
       body: jsonBody(request),
       signal,
@@ -1515,7 +1549,7 @@ export async function previewEncounterDifficulty(
 ): Promise<import("../generated/atlas").EncounterDifficultyView> {
   return atlasFetch(
     `/api/encounters/${encodeURIComponent(encounterRef)}/difficulty/preview`,
-    { method: "POST", body: jsonBody(request) },
+    { readOnly: true, method: "POST", body: jsonBody(request) },
   );
 }
 

@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import {
   navigateDestination,
   destinationHref,
@@ -11,15 +12,11 @@ import { ArrowLeft, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { deleteSavedList, getSavedList, updateSavedList } from "../../api/atlasApi";
 import type { UpdateSavedListRequest } from "../../generated/atlas";
-import {
-  InlineError,
-  normalizeOptionalText,
-  normalizeTags,
-  savedListTagOptions,
-} from "./listUtils";
+import { normalizeOptionalText, normalizeTags, savedListTagOptions } from "./listUtils";
 import { useSavedLists } from "./savedListQueries";
 import { formatDate } from "../../shared/ui/formatDate";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 type ListEditViewProps = {
   route: { slug: string };
 };
@@ -121,7 +118,7 @@ export function ListEditView({ route }: ListEditViewProps) {
       </section>
       <section className="list-edit-view__body">
         {list.isLoading ? (
-          <div className="detail-empty">Loading list</div>
+          <LoadingStatus className="detail-empty" label="Loading list…" />
         ) : !list.data ? (
           <div className="detail-empty">
             {list.error ? "List unavailable" : "List not found"}
@@ -216,13 +213,18 @@ export function ListEditView({ route }: ListEditViewProps) {
         )}
         {list.error && (
           <>
-            <InlineError message={list.error.message} />
+            <ErrorNotice error={list.error} title="List unavailable" />
             <Button loading={list.isFetching} onClick={() => void list.refetch()}>
               Retry list
             </Button>
           </>
         )}
-        {update.error && <InlineError message={update.error.message} />}
+        {update.error && (
+          <ErrorNotice
+            error={update.error}
+            title="List changes could not be confirmed"
+          />
+        )}
       </section>
     </main>
   );

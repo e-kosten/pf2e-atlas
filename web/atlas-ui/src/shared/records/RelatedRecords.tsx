@@ -1,8 +1,12 @@
+import { AtlasModal as Modal } from "../ui/overlays/AtlasModal";
+import { ErrorNotice } from "../feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
 import { recordDestination, searchDestination } from "../../app/destinations";
-import { Alert, Button, Empty, Modal, Spin, Tabs, Typography } from "antd";
+import { Button, Empty, Tabs, Typography } from "antd";
+import { LoadingStatus } from "../ui/LoadingStatus";
 import { useState } from "react";
 import { SearchPreviewRows } from "./SearchPreviewRows";
+import { ReferenceResult } from "./ReferenceResult";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
 import {
@@ -36,7 +40,6 @@ import { RecordDetailPane } from "./RecordDetailPane";
 import { useRecordDetail } from "./useRecordDetail";
 import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
 import { relationshipSearchRoute } from "./relationshipSearch";
-import { ReferenceResult } from "./ReferenceResult";
 import { ExploreSearchAction } from "./ExploreSearchAction";
 import { useRecordExploreLocation } from "./recordExploreLocation";
 
@@ -126,11 +129,9 @@ function QueryError({
     (error instanceof AtlasApiError &&
       error.appError?.recoverable_action === "reload_record");
   return (
-    <Alert
-      type="error"
-      showIcon
+    <ErrorNotice
+      error={error}
       title="Unable to load connections"
-      description={error.message}
       action={
         <Button
           size="small"
@@ -204,9 +205,7 @@ function ReferencePreview({
       </ExploreSearchAction>
       {profile.error && <SearchProfileNotice />}
       {query.isPending && !profile.error && (
-        <div role="status">
-          <Spin size="small" delay={400} /> Loading references…
-        </div>
+        <LoadingStatus label="Loading references…" />
       )}
       {query.error && (
         <QueryError
@@ -279,10 +278,10 @@ function OtherReferences({ detail, onReload, reloadLabel }: ExploreProps) {
     );
   if (graph?.kind === "error")
     return (
-      <Alert
-        type="error"
+      <ErrorNotice
+        error={graph.error}
+        compact
         title="Additional references could not be checked"
-        description={graph.error.message}
       />
     );
   if (!other.length) return null;
@@ -360,11 +359,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
       : [];
   return (
     <div className="record-explore__task">
-      {related.isLoading && (
-        <div role="status">
-          <Spin size="small" delay={400} /> Checking versions…
-        </div>
-      )}
+      {related.isLoading && <LoadingStatus label="Checking versions…" />}
       {related.error && (
         <QueryError
           error={related.error}
@@ -375,11 +370,11 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
       )}
       {[counterparts, variants].map((category, index) =>
         category?.kind === "error" ? (
-          <Alert
+          <ErrorNotice
+            error={category.error}
+            compact
             key={index}
-            type="error"
             title={`${index === 0 ? "Editions" : "Variants"} could not be checked`}
-            description={category.error.message}
             action={
               <Button size="small" onClick={() => void related.refetch()}>
                 Retry
@@ -586,8 +581,8 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
       )}
       {!profile.storedVectors && <SearchProfileNotice />}
       {similar.isFetching && (
-        <div role="status">
-          <Spin size="small" delay={400} /> Loading similar records…
+        <div className={similar.data ? "detail-refresh" : undefined}>
+          <LoadingStatus label="Loading similar records…" />
         </div>
       )}
       {previewError && (

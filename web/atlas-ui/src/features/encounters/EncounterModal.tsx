@@ -1,4 +1,5 @@
-import { Modal, type ModalProps } from "antd";
+import { AtlasModal as Modal } from "../../shared/ui/overlays/AtlasModal";
+import { type ModalProps } from "antd";
 import {
   createContext,
   useContext,

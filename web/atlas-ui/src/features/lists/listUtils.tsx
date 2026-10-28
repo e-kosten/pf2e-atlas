@@ -1,9 +1,5 @@
 import type { SavedListSummaryView } from "../../generated/atlas";
 
-export function InlineError({ message }: { message: string }) {
-  return <div className="error-banner">{message}</div>;
-}
-
 export function listCountLabel(count: number): string {
   return count === 1 ? "1 saved list" : `${count.toLocaleString()} saved lists`;
 }

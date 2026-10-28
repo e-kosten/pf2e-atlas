@@ -114,7 +114,7 @@ it("retains a created destination after an add failure and retries only the add"
   });
   fireEvent.click(screen.getByRole("button", { name: "Create & add" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(
-    "Ambush was created, but the record could not be added.",
+    "Ambush was created. Adding the record could not be confirmed.",
   );
   expect(
     screen.getByRole("combobox", { name: "Encounter" }).parentElement,

@@ -101,7 +101,9 @@ it("allows cancellation and awaits failed member removal in one retryable confir
   expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
   expect(screen.getByText("Retained unavailable record")).toBeVisible();
   await act(async () => reject(new Error("Removal unavailable")));
-  await waitFor(() => expect(screen.getByText("Removal unavailable")).toBeVisible());
+  await waitFor(() =>
+    expect(screen.getByText("Unable to remove. Try again.")).toBeVisible(),
+  );
   expect(screen.getByRole("tooltip")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Remove" }));
   await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());

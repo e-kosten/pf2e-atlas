@@ -47,6 +47,10 @@ unrelated documentation edit need not invalidate a completed compiler/test run.
 Local validation and CI both matter: local checks shorten feedback, while CI
 checks the published candidate in clean environments and on other platforms.
 
+For browser feedback changes, follow the [error feedback and recovery policy](web/atlas-ui/docs/frontend-guidelines.md#error-feedback-and-recovery),
+including its fault and outcome checks. Keep the original diagnostic error
+separate from reviewed user copy.
+
 ## Local Build Review
 
 User experience changes, including CLI behavior and output, get an early human

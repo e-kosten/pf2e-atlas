@@ -1,5 +1,5 @@
+import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { App } from "antd";
 import { useEffect, useRef, useState } from "react";
 import {
   setEncounterDifficulty,
@@ -153,7 +153,6 @@ function isEncounterConflict(error: unknown): boolean {
 }
 
 export function useEncounterMutations(encounterRef: string, encounterKey?: string) {
-  const { message } = App.useApp();
   const queryClient = useQueryClient();
   const inFlight = useRef(false);
   const eventRequests = useRef(new Map<string, { identity: string; id: string }>());
@@ -391,47 +390,11 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
         await attemptRefresh(receipt.encounter_key);
       }
     },
-    onError: async (error, command) => {
+    onError: async (error) => {
       const conflict = isEncounterConflict(error);
       if (conflict) {
         setRefreshOrigin("conflict");
         await attemptRefresh();
-      }
-      if (command.kind !== "spell" || !active.current) return;
-      const action = command.request.action;
-      // The editor owns its draft and displays conflicts inside its modal.
-      if (action.kind === "set_entry_resources") return;
-      if (conflict && refreshSucceeded.current) {
-        const participant = refreshedView.current?.participants.find(
-          (p) => p.participant_key === command.request.participant_key,
-        );
-        if (
-          action.kind === "set_expended" &&
-          participant?.spellcasting?.spells.some(
-            (spell) =>
-              spell.navigation.record_key === action.selection.record_key &&
-              JSON.stringify(spell.navigation.embedded_path) ===
-                JSON.stringify(action.selection.embedded_path) &&
-              spell.expended === action.expended,
-          )
-        )
-          return;
-        void message.info("Encounter updated. Try again.", 4);
-      } else {
-        const verb =
-          action.kind === "cast"
-            ? "record spell use"
-            : action.kind === "undo"
-              ? "undo"
-              : action.expended
-                ? "expend"
-                : "restore";
-        void message.error(
-          conflict
-            ? "Couldn’t refresh the encounter. Try reloading."
-            : `Couldn’t ${verb}. Try again.`,
-          4,
-        );
       }
     },
   });
@@ -507,8 +470,12 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
     errorKind: mutation.variables?.kind,
     errorMessage: conflict
       ? "Encounter changed. Review the refreshed values before retrying your edit."
-      : mutation.error?.message,
+      : mutation.error
+        ? userErrorMessage(mutation.error)
+        : undefined,
     refreshError,
+    refreshOutcome:
+      refreshOrigin === "saved" ? ("saved" as const) : ("changed" as const),
     refreshMessage:
       refreshOrigin === "saved"
         ? "Saved, but the encounter could not refresh"

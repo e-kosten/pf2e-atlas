@@ -303,6 +303,7 @@ describe("AtlasApp routing", () => {
     await act(() => vi.dynamicImportSettled());
     await waitFor(() => expect(apiMocks.getReadiness).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole("combobox", { name: "Search model" })).toBeNull();
+    expect(screen.queryByRole("status", { name: "Searching…" })).toBeNull();
     expect(await screen.findByRole("status", { name: "Searching…" })).toBeVisible();
     expect(screen.queryByRole("textbox", { name: "Current page" })).toBeNull();
     expect(apiMocks.searchPage).not.toHaveBeenCalled();

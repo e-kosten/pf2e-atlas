@@ -1,5 +1,7 @@
+import { userErrorMessage } from "../../shared/feedback/errorMessages";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Checkbox, InputNumber, Popover, Space } from "antd";
+import { Button, Checkbox, InputNumber, Popover, Space, Spin } from "antd";
 import { useEffect, useState } from "react";
 import { previewEncounterDrainedConsequence } from "../../api/atlasApi";
 import type {
@@ -7,6 +9,7 @@ import type {
   ResolveDrainedConsequenceRequest,
 } from "../../generated/atlas";
 import { ConditionHpPreview } from "./ConditionHpPreview";
+import { useRetainedRecord } from "../../shared/records/useRetainedRecord";
 export function EncounterConditionConsequences({
   encounterRef,
   row,
@@ -61,6 +64,11 @@ export function EncounterConditionConsequences({
     enabled: open && valid,
     retry: false,
   });
+  const displayed = useRetainedRecord(
+    JSON.stringify([encounterRef, row.consequence_key]),
+    preview.data,
+    preview.error,
+  );
   return (
     <Popover
       title="Drained"
@@ -70,6 +78,11 @@ export function EncounterConditionConsequences({
       onOpenChange={setOpen}
       content={
         <div className="encounter-condition-change">
+          {preview.isFetching && (
+            <div className="detail-refresh" aria-label="Updating HP change">
+              <Spin size="small" delay={500} />
+            </div>
+          )}
           <label>
             Level{" "}
             <InputNumber
@@ -87,9 +100,20 @@ export function EncounterConditionConsequences({
           >
             Reduce current HP
           </Checkbox>
-          {preview.data && <ConditionHpPreview change={preview.data} />}
+          {displayed && <ConditionHpPreview change={displayed} />}
           {(error || preview.error) && (
-            <Alert type="error" title={error ?? preview.error?.message} />
+            <ErrorNotice
+              error={preview.error ?? error}
+              title={error || "HP change unavailable"}
+              description={!error && displayed ? "Previous preview shown." : undefined}
+              action={
+                !error ? (
+                  <Button size="small" onClick={() => void preview.refetch()}>
+                    Retry
+                  </Button>
+                ) : undefined
+              }
+            />
           )}
           <Space>
             <Button
@@ -110,7 +134,7 @@ export function EncounterConditionConsequences({
                   await onResolve(request);
                   setOpen(false);
                 } catch (e) {
-                  setError(e instanceof Error ? e.message : "Could not apply HP loss.");
+                  setError(userErrorMessage(e, "Could not apply HP loss."));
                 }
               }}
             >

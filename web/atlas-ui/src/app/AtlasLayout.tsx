@@ -21,9 +21,12 @@ import { AppShell } from "./AppShell";
 import { LinkPickerContext } from "../shared/filters/LinkPickerContext";
 import { LinkConditionPicker } from "../shared/filters/LinkConditionPicker";
 import { BackendCompatibilityGate } from "./BackendCompatibilityGate";
+import { GlobalFeedbackProvider } from "../shared/feedback/GlobalFeedback";
+import { LoadingStatus } from "../shared/ui/LoadingStatus";
 
 import { useSearchWorkspace } from "../features/search/useSearchWorkspace";
 import { useQuery } from "@tanstack/react-query";
+
 import { getReadiness } from "../api/atlasApi";
 import {
   SearchProfileContext,
@@ -64,16 +67,18 @@ export function AtlasLayout({ routeError }: { routeError?: ReactNode } = {}) {
         },
       }}
     >
-      <App component={false}>
-        <BackendCompatibilityGate>
-          <AtlasWorkspace
-            colorScheme={colorScheme}
-            onColorSchemeChange={updateColorScheme}
-            resolvedColorScheme={resolvedColorScheme}
-            routeError={routeError}
-          />
-        </BackendCompatibilityGate>
-      </App>
+      <GlobalFeedbackProvider>
+        <App component={false}>
+          <BackendCompatibilityGate>
+            <AtlasWorkspace
+              colorScheme={colorScheme}
+              onColorSchemeChange={updateColorScheme}
+              resolvedColorScheme={resolvedColorScheme}
+              routeError={routeError}
+            />
+          </BackendCompatibilityGate>
+        </App>
+      </GlobalFeedbackProvider>
     </ConfigProvider>
   );
 }
@@ -122,7 +127,13 @@ function AtlasWorkspace({
         >
           <>
             <Activity mode={!routeError && section === "search" ? "visible" : "hidden"}>
-              <Suspense fallback={<main className="detail-empty">Loading</main>}>
+              <Suspense
+                fallback={
+                  <main className="detail-empty">
+                    <LoadingStatus label="Loading search…" />
+                  </main>
+                }
+              >
                 <SearchView workspace={workspace} />
               </Suspense>
             </Activity>

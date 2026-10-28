@@ -46,3 +46,8 @@ Discuss material UX changes first, provide an early functional checkpoint, and
 complete Astra browser review and final tests after the direction is accepted.
 Keep existing Ant controls and shared family renderers; do not introduce another
 stat block or feature-local overlay design.
+
+The [2026-10-27 loading audit](../../research/ui/2026-10-27-loading-continuity-audit.md)
+identifies remaining immediate mutation-button busy indicators and late-arriving
+lifecycle/status controls. Preserve immediate input guards while delaying visual
+progress; review the initial control footprint without inventing unavailable actions.

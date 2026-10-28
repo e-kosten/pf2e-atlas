@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { atlasRouter } from "../../app/router";
 import { useRouterState } from "@tanstack/react-router";
 import {
@@ -28,7 +29,10 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
   const profile = useSearchProfile();
   const hasCriteria = hasExecutableSearch(workspace.search);
   const failed = Boolean(
-    workspace.errorMessage || workspace.search.filterError || profile.error,
+    workspace.resultsFailed ||
+    workspace.errorMessage ||
+    workspace.search.filterError ||
+    profile.error,
   );
   const loading =
     !failed &&
@@ -45,7 +49,10 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
         ? mode.title
         : undefined;
   const similarTitle =
-    seedTitle ?? (workspace.errorMessage ? "Record unavailable" : "Loading record…");
+    seedTitle ??
+    (workspace.resultsFailed || workspace.errorMessage
+      ? "Record unavailable"
+      : "Loading record…");
   return (
     <main className="search-workspace">
       {reset.notice && (
@@ -125,9 +132,8 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
       />
       <SearchProfileNotice />
       {workspace.errorMessage && (
-        <Alert
-          type="error"
-          showIcon
+        <ErrorNotice
+          error={workspace.errorMessage}
           title="Unable to update results"
           description={workspace.errorMessage}
           action={
@@ -149,7 +155,9 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
           failed
             ? null
             : hasCriteria
-              ? "No matching records."
+              ? workspace.resultPage
+                ? "No matching records."
+                : null
               : "Search or choose filters."
         }
         rows={workspace.resultPage?.rows ?? []}
