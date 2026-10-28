@@ -66,6 +66,7 @@ function RecordSeedLink({
       {preview.recordKey && (
         <RecordReferenceDrawer
           anchor={preview.anchor}
+          requestedNavigation={preview.selection}
           readingHistory={preview.readingHistory}
           landing={preview.landing}
           detail={preview.detail}

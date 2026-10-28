@@ -296,6 +296,7 @@ function TraitSourceDocument({
       {preview.recordKey && (
         <RecordReferenceDrawer
           anchor={preview.anchor}
+          requestedNavigation={preview.selection}
           detail={preview.detail}
           loading={preview.loading}
           error={preview.error}

@@ -5,8 +5,14 @@ import type {
   SimilarityComponentView,
   SimilarityPartsView,
   RecordDetailView,
+  RecordDetailRequest,
+  RecordNavigationView,
 } from "../../generated/atlas";
-import { detailFixture } from "../../test/fixtures";
+import { detailFixture, spellFixture } from "../../test/fixtures";
+import { SimilaritySeedLink } from "./SimilaritySeedLink";
+import { parseSearchParams, selectedNavigation } from "../../app/urlState";
+import { atlasRouter } from "../../app/router";
+import { RouterTestContext } from "../../test/router";
 import { SimilaritySourceDocument } from "./SimilaritySourceDocument";
 import { rootNavigation } from "../records/useReferenceReading";
 
@@ -55,11 +61,16 @@ function wrapper({ children }: { children: React.ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
     <QueryClientProvider client={client}>
-      <ConfigProvider theme={{ token: { motion: false } }}>{children}</ConfigProvider>
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <RouterTestContext>{children}</RouterTestContext>
+      </ConfigProvider>
     </QueryClientProvider>
   );
 }
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  history.replaceState(null, "", "/search");
+});
 
 it("starts with the full seed, opens the supplied source address, and restores whole-document reading position", async () => {
   const root = content(detailFixture(recordKey, "Brown Mold"), "Full source document");
@@ -310,3 +321,180 @@ it("emphasizes a source only with the matching seed and generation inventory", a
   view.rerender(source(null));
   expect(view.container.querySelector(".comparison-source")).toBeNull();
 });
+
+it.each([
+  { caller: "seed link", embedded: false },
+  { caller: "seed link", embedded: true },
+  { caller: "trait source", embedded: false },
+  { caller: "trait source", embedded: true },
+] as const)(
+  "preserves requested spell rank and exact identity from $caller (embedded=$embedded)",
+  async ({ caller, embedded }) => {
+    const spellKey = "spells:fireball";
+    const target: RecordNavigationView = embedded
+      ? {
+          ...rootNavigation(spellKey),
+          embedded_path: [
+            { collection: "/items", identity: { Stable: "nested-spell" } },
+          ],
+          field: "/system/description/value",
+          source_fingerprint: "spell-snapshot",
+        }
+      : rootNavigation(spellKey);
+    // Returning from an embedded spell exercises the Drawer's landing handoff.
+    const landing: RecordNavigationView | undefined =
+      caller === "seed link" && !embedded
+        ? {
+            ...rootNavigation(spellKey),
+            embedded_path: [
+              { collection: "/items", identity: { Stable: "nested-spell" } },
+            ],
+            source_fingerprint: "spell-snapshot",
+          }
+        : undefined;
+    const reference = {
+      ...detailFixture("rules:host", "Host", spellKey).relationships[0],
+      target: landing ?? target,
+    };
+    api.detail.mockImplementation((key: string, request?: RecordDetailRequest) => {
+      const detail = detailFixture(key, "Fireball");
+      const rank = request?.spell_rank ?? 3;
+      detail.selected = {
+        ...rootNavigation(key),
+        embedded_path: request?.embedded_path ?? [],
+        field: request?.fields?.[0] ?? null,
+        passage: request?.passage ?? null,
+        source_fingerprint: request?.source_fingerprint ?? null,
+        spell_rank: rank,
+      };
+      detail.presentation.body = { kind: "spell", value: spellFixture() };
+      detail.presentation.body.value.rank = {
+        ...detail.presentation.body.value.rank,
+        value: rank,
+      };
+      detail.presentation.content = [
+        {
+          locator: {
+            record: key,
+            embedded_path: [],
+            field: "/system/description/value",
+          },
+          role: "description",
+          source_fingerprint: "spell-snapshot",
+          body: {
+            kind: "html",
+            html: '<p><span data-atlas-reference="0">Embedded spell</span></p>',
+            controls: [],
+            inclusions: [],
+          },
+        },
+      ];
+      detail.relationships = [
+        {
+          ...reference,
+          source: detail.presentation.content[0].locator,
+        },
+      ];
+      return Promise.resolve(detail);
+    });
+    api.trait.mockResolvedValue({
+      trait_key: "trait:fire",
+      label: "Fire",
+      artifact_generation: "test-generation",
+      content: {
+        body: {
+          kind: "html",
+          html: '<p><span data-atlas-reference="0">Spell reference</span></p>',
+          controls: [],
+          inclusions: [],
+        },
+        references: [reference],
+      },
+    });
+    if (caller === "seed link") {
+      render(
+        <SimilaritySeedLink
+          seed={{ kind: "record", record_key: spellKey }}
+          title="Source seed"
+        />,
+        { wrapper },
+      );
+      fireEvent.click(screen.getByRole("link", { name: "Source seed" }));
+      await screen.findByRole("button", { name: /Change rank/ });
+      if (embedded || landing) {
+        fireEvent.click(screen.getByRole("link", { name: "Embedded spell" }));
+        await waitFor(() =>
+          expect(api.detail).toHaveBeenLastCalledWith(
+            spellKey,
+            expect.objectContaining({
+              embedded_path: (landing ?? target).embedded_path,
+            }),
+            expect.any(AbortSignal),
+          ),
+        );
+        if (landing) {
+          fireEvent.click(
+            await screen.findByRole("link", { name: "Return to Fireball" }),
+          );
+        }
+      }
+    } else {
+      render(
+        <SimilaritySourceDocument
+          seed={{ kind: "trait", trait_key: "trait:fire" }}
+          generation="test-generation"
+          target={null}
+          active
+          onReloadSections={vi.fn()}
+        />,
+        { wrapper },
+      );
+      fireEvent.click(await screen.findByRole("link", { name: "Spell reference" }));
+    }
+    await screen.findByRole("link", { name: "Open reference full page" });
+    const openFullPage = () =>
+      screen.getByRole("link", { name: "Open reference full page" });
+    await waitFor(() => {
+      const search = new URL(openFullPage().getAttribute("href")!, "http://localhost")
+        .search;
+      expect(new URLSearchParams(search).has("rank")).toBe(false);
+      expect(
+        selectedNavigation(parseSearchParams(search), spellKey) ??
+          rootNavigation(spellKey),
+      ).toEqual(target);
+      expect(selectedNavigation(parseSearchParams(search), spellKey, "focus")).toEqual(
+        landing,
+      );
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Change rank/ }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Rank 5" }));
+    await waitFor(() =>
+      expect(api.detail).toHaveBeenLastCalledWith(
+        spellKey,
+        expect.objectContaining({ spell_rank: 5, embedded_path: target.embedded_path }),
+        expect.any(AbortSignal),
+      ),
+    );
+    await waitFor(() =>
+      expect(
+        selectedNavigation(
+          parseSearchParams(
+            new URL(openFullPage().getAttribute("href")!, "http://localhost").search,
+          ),
+          spellKey,
+        ),
+      ).toEqual({ ...target, spell_rank: 5 }),
+    );
+    fireEvent.click(openFullPage());
+    await waitFor(() => {
+      expect(atlasRouter.latestLocation.pathname).toBe("/records/" + spellKey);
+      expect(selectedNavigation(atlasRouter.latestLocation.search, spellKey)).toEqual({
+        ...target,
+        spell_rank: 5,
+      });
+      expect(
+        selectedNavigation(atlasRouter.latestLocation.search, spellKey, "focus"),
+      ).toEqual(landing);
+    });
+  },
+);
