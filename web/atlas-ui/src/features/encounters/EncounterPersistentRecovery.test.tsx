@@ -206,3 +206,62 @@ it("waits for the canonical update to enable the retained result before restorin
   view.rerender(content(false));
   await waitFor(() => expect(result).toHaveFocus());
 });
+
+it("clears the episode from a table outcome without requiring a recovery DC", async () => {
+  const { onRecover, onResult } = setup({
+    ...group,
+    sources: [{ ...group.sources[0], recovery_dc: null }],
+  });
+  const cleared = { ...receipt, dc: null };
+  onRecover.mockResolvedValue(cleared);
+  fireEvent.click(await screen.findByRole("button", { name: "Clear effect" }));
+  await waitFor(() =>
+    expect(onRecover).toHaveBeenCalledExactlyOnceWith({
+      resolution: "clear",
+      mode: "explicit",
+      boundary_key: null,
+      expected_encounter_revision: 11n,
+      participant_key: "actor",
+      episode_id: "fire-episode",
+      dc_override: null,
+    }),
+  );
+  expect(onResult).toHaveBeenCalledWith(cleared);
+  await waitFor(() => expect(screen.getByText("Recovered")).toBeVisible());
+});
+
+it("allows clearing after a failed check at the updated encounter revision", async () => {
+  const onRecover = vi.fn().mockResolvedValueOnce({ ...receipt, success: false });
+  const content = (revision: bigint) => (
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterPersistentRecovery
+        group={group}
+        mode="explicit"
+        available={true}
+        participantKey="actor"
+        encounterRevision={revision}
+        disabled={false}
+        pending={false}
+        damageType="Fire"
+        onRecover={onRecover}
+      />
+    </ConfigProvider>
+  );
+  const view = render(content(11n));
+  fireEvent.click(screen.getByRole("button", { name: "Roll Fire recovery" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Roll" }));
+  await screen.findByText("Still active · DC 15");
+  view.rerender(content(12n));
+  onRecover.mockResolvedValueOnce({ ...receipt, dc: null });
+  fireEvent.click(screen.getByRole("button", { name: "Clear effect" }));
+  await waitFor(() =>
+    expect(onRecover).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        resolution: "clear",
+        expected_encounter_revision: 12n,
+        dc_override: null,
+      }),
+    ),
+  );
+  await waitFor(() => expect(screen.getByText("Recovered")).toBeVisible());
+});
