@@ -165,9 +165,9 @@ export function EncounterConditionControls({
     preview.reset();
     setEditor(null);
   };
-  const finished = (refreshed: boolean) => {
-    if (refreshed) close();
-    else setCommitted(true);
+  const finished = () => {
+    preview.reset();
+    setCommitted(true);
   };
   const update = (
     condition: EncounterParticipantConditionView,
@@ -746,13 +746,12 @@ export function EncounterConditionControls({
                   ? () => setEditor({ ...editor, revision: encounterRevision })
                   : undefined
             }
-            onSave={async (request) =>
-              finished(
-                await ("condition_id" in request
-                  ? onUpdateCondition(current.participant_key, request)
-                  : onAddCondition(request)),
-              )
-            }
+            onSave={async (request) => {
+              await ("condition_id" in request
+                ? onUpdateCondition(current.participant_key, request)
+                : onAddCondition(request));
+              finished();
+            }}
             onRemove={removeSelected}
           />
         </EncounterModal>
