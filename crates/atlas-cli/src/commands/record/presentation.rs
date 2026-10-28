@@ -63,6 +63,7 @@ pub(super) fn render_record(
             });
             line(&mut out, "\nDetection");
             number(&mut out, "Stealth", &body.stealth, true, "");
+            optional_number(&mut out, "Detection DC", &body.detection_dc, false, "");
             for field in presentation.content.iter().filter(|f| f.role == "stealth") {
                 content_field(&mut out, field, width, false)?;
             }
@@ -71,6 +72,13 @@ pub(super) fn render_record(
             }
             let defenses = known_value(&body.defense_block) != Some(&false);
             if defenses {
+                optional_number(
+                    &mut out,
+                    "Broken Threshold",
+                    &body.broken_threshold,
+                    false,
+                    "",
+                );
                 number(&mut out, "Hardness", &body.hardness, false, "");
             }
             actor::render(
@@ -91,6 +99,17 @@ pub(super) fn render_record(
         }
         RecordBodyView::Activity(body) => actor::activity_facts(&mut out, body, false),
         RecordBodyView::PhysicalReference(body) => {
+            if body
+                .base_type
+                .value
+                .as_ref()
+                .is_some_and(|value| !value.value.trim().is_empty())
+                || body.base_type.state == QueryFieldState::Invalid
+            {
+                fact(&mut out, "Base type", &body.base_type, |value| {
+                    value.label.clone()
+                });
+            }
             optional_text(&mut out, "Usage", &body.usage);
             number(&mut out, "Bulk", &body.bulk, false, "");
             let price_label = body
@@ -142,6 +161,33 @@ pub(super) fn render_record(
                 number(&mut out, "Quantity", &body.quantity, false, "");
             }
             if let Some(consumable) = &body.consumable {
+                for (label, value) in [
+                    ("Maximum HP", &consumable.maximum_hp),
+                    ("Hardness", &consumable.hardness),
+                ] {
+                    if value
+                        .value
+                        .as_ref()
+                        .and_then(|v| v.as_f64())
+                        .is_some_and(|v| v != 0.0)
+                        || matches!(
+                            value.state,
+                            QueryFieldState::Invalid | QueryFieldState::Null
+                        )
+                    {
+                        optional_number(&mut out, label, value, false, "");
+                    }
+                }
+                if consumable.auto_destroy.state == QueryFieldState::Value
+                    || matches!(
+                        consumable.auto_destroy.state,
+                        QueryFieldState::Invalid | QueryFieldState::Null
+                    )
+                {
+                    fact(&mut out, "After final use", &consumable.auto_destroy, |v| {
+                        if *v { "Consumed" } else { "Retained" }.into()
+                    });
+                }
                 required_text(&mut out, "Category", &consumable.category);
                 if let Some(damage) = &consumable.damage.value {
                     required_text(&mut out, "Damage or healing", &damage.kind);

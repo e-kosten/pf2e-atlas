@@ -2,4 +2,4 @@
 import type { FactView } from "./FactView";
 import type { NumberFactView } from "./NumberFactView";
 
-export type ConditionalSkillView = { label: FactView<string>, modifier: NumberFactView, };
+export type ConditionalSkillView = { qualification: FactView<string>, label: FactView<string>, modifier: NumberFactView, };

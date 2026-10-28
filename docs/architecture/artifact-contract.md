@@ -54,6 +54,15 @@ one ability's state to another. Derived conditions remain reads, rather than
 materialized saved condition rows. Existing reference data, HP, saved conditions,
 action stock and receipts are preserved.
 
+Workspace migration 17 adds named reference query columns for supplied ability
+modifiers, NPC skill modifiers, character skill ranks, hazard Stealth and physical
+combat facts. Migration 18 adds the shared physical base-type identifier and its
+availability state. Query catalog v8 and authored-query/v5 refresh these projections
+from checked snapshots through the existing component upgrade. Saved rows and
+embedding inputs/vectors are preserved; no source re-ingest or inference is
+required for this projection-only upgrade. Missing, null, invalid and
+inapplicable values remain distinct rather than receiving template defaults.
+
 Pre-release separate-file formats have no compatibility reader or conversion
 shim. Future workspace upgrades use ordered migrations with recorded checksums,
 a consistent backup before structural changes, and transaction-scoped validation.
@@ -566,10 +575,10 @@ The current source contract includes ammunition as an equipment family. NPC skil
 are keyed authored entries; character movement is runtime-derived and has no
 source-backed movement projection. Table result content uses `/description` and
 structured references use `/documentUuid`, resolving only explicit compendium UUIDs.
-The query catalog is version 6, query projections use `authored-query/v3`, content
+The query catalog is version 8, query projections use `authored-query/v5`, content
 selection uses `structural-source-sections/v4` and relationships use
-`typed-authored-occurrences/v5`. These rebuild derived data without a physical
-schema migration. The exact preceding 6.12.4 model can be replaced from compatible
+`typed-authored-occurrences/v5`. Preparation identities govern derived refresh;
+workspace migrations 17 and 18 provide the additional query columns. The exact preceding 6.12.4 model can be replaced from compatible
 source while preserving saved state; its snapshots are never decoded by the new
 model (ADR0052).
 

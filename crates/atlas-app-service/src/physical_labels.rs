@@ -1,6 +1,21 @@
 //! Exact usage labels from PF2e 8.6.1 config/usage and English localization.
 //! Source: 28d9d156f252d084371d994dc359509b49eadf18; unknown tokens stay verbatim.
 //! These labels never infer a normalized hand-count axis.
+/// Human-readable identifier formatting; the exact authored token remains the key.
+pub(crate) fn base_type(value: &str) -> String {
+    value
+        .split(['-', '_'])
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 pub(crate) const USAGES: &[(&str, &str)] = &[
     ("affixed-or-held-in-one-hand", "Affixed or Held in 1 Hand"),
     ("affixed-to-a-creature", "Affixed to a Creature"),

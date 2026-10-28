@@ -3,13 +3,20 @@
 Status: deferred
 Priority: after source-backed artifact adoption
 Owner: unassigned
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-27
 
 The initial catalog intentionally covers representative useful shared, Actor and
 Item-family filters. Extend it only for concrete retrieval needs; the generated
 DTO already preserves other authored fields without making them filterable.
 
-Candidates include frequency, skills, finer collection scopes and additional
+Supplied NPC skill modifiers, character skill ranks and ability modifiers now
+have explicit numeric bindings, alongside armor requirements/penalties, base
+weapon dice, shield AC/BT and hazard Stealth. These are source facts, not
+calculated character statistics or contextual conditional-skill bonuses.
+Physical base types also have a shared exact identifier binding, including
+immediate embedded equipment.
+
+Remaining candidates include frequency, finer collection scopes and additional
 family-specific facts. Keep different meanings and units distinct. Add each
 binding, availability policy, operators, discovery, parameterized SQL and direct
 DTO oracle together. Reuse stable field shapes and the maintained UI builder;

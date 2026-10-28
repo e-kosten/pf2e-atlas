@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 16;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 18;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -101,6 +101,18 @@ const MIGRATIONS: &[Migration] = &[
         version: 16,
         name: "encounter-ability-state",
         sql: atlas_local_state::ABILITY_STATE_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 17,
+        name: "reference-numeric-filters",
+        sql: atlas_index::REFERENCE_NUMERIC_FILTER_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 18,
+        name: "physical-base-type",
+        sql: atlas_index::PHYSICAL_BASE_TYPE_SCHEMA_SQL,
         backfill: None,
     },
 ];

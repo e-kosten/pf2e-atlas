@@ -60,12 +60,19 @@ export function HazardReference({
                 )}
                 <ReferenceFact label="Size" fact={hazard.actor.size} optional />
                 <ReferenceFact
-                  label="Stealth"
-                  fact={hazard.stealth}
-                  format={(value) => `${Number(value) >= 0 ? "+" : ""}${value}`}
+                  label="Detection DC"
+                  fact={hazard.detection_dc}
+                  optional
                 />
+                <div className="hazard-reference__stealth">
+                  <ReferenceFact
+                    label="Stealth"
+                    fact={hazard.stealth}
+                    format={(value) => `${Number(value) >= 0 ? "+" : ""}${value}`}
+                  />{" "}
+                  {content.detection}
+                </div>
               </div>
-              {content.detection}
             </section>
             {encounterContent?.durability ?? <HazardDefenses hazard={hazard} />}
             {content.disable}
