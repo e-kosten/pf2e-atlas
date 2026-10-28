@@ -45,7 +45,7 @@ test("browser artifacts reject stale source, corrupt contents and incompatible h
     mkdirSync(resolve(root, "bin"));
     for (const tool of ["cargo", "strip"]) {
       const path = resolve(root, "bin", tool);
-      writeFileSync(path, `#!/bin/sh\nprintf '${tool}\\n' >> build-order\n`);
+      writeFileSync(path, `#!/bin/sh\nprintf '${tool} %s\\n' "$*" >> build-order\n`);
       chmodSync(path, 0o755);
     }
     const environment = {
@@ -57,7 +57,10 @@ test("browser artifacts reject stale source, corrupt contents and incompatible h
     execFileSync(process.execPath, [script, artifact], { env: environment });
     assert.equal(
       readFileSync(resolve(root, "build-order"), "utf8"),
-      process.platform === "linux" ? "cargo\nstrip\n" : "cargo\n",
+      "cargo build --locked -p atlas-web --example browser_fixture\n" +
+        (process.platform === "linux"
+          ? "strip --strip-debug target/debug/examples/browser_fixture\n"
+          : ""),
     );
     const { browserFixture } = await import(pathToFileURL(script));
     const selected = browserFixture(artifact);
@@ -67,9 +70,9 @@ test("browser artifacts reject stale source, corrupt contents and incompatible h
       readFileSync(browserFixture("").index, "utf8"),
       "candidate frontend",
     );
-    assert.match(
+    assert.equal(
       browserFixture("").command,
-      /^cargo run .* --example browser_fixture --$/,
+      "cargo run --locked -p atlas-web --example browser_fixture --",
     );
     for (const file of ["browser_fixture", "index.html"]) {
       const path = resolve(artifact, file);
