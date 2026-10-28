@@ -471,18 +471,6 @@ fn prepare_check(
             "Roll requires a known recovery DC and current modifier; table outcomes need neither",
         ));
     }
-    if let LifecycleCheckInputView::TableResult { natural, .. } = &input {
-        if purpose != Purpose::ConfusedDamageRecovery && natural.is_none() {
-            return Err(AppServiceError::invalid_request(
-                "Record the natural d20 result or the table's degree of success",
-            ));
-        }
-        if natural.is_some_and(|value| !(1..=20).contains(&value)) {
-            return Err(AppServiceError::invalid_request(
-                "Natural d20 result must be between 1 and 20",
-            ));
-        }
-    }
     Ok(Some(PreparedCheck {
         input,
         dc,
@@ -503,7 +491,6 @@ type ResolvedCheck = (
 );
 fn resolve_check(check: PreparedCheck) -> Result<ResolvedCheck, atlas_dice::DiceError> {
     let mut roll = None;
-    let mut table_result = None;
     let degree = match check.input {
         LifecycleCheckInputView::TableDegree { degree } => degree_local(degree),
         LifecycleCheckInputView::Roll => {
@@ -531,24 +518,13 @@ fn resolve_check(check: PreparedCheck) -> Result<ResolvedCheck, atlas_dice::Dice
                 degree
             }
         }
-        LifecycleCheckInputView::TableResult { total, natural } => {
-            table_result = Some(total);
-            calculate_degree(
-                total,
-                check.dc.ok_or_else(|| {
-                    atlas_dice::DiceError::Invalid("Check DC is unavailable".into())
-                })?,
-                natural,
-                check.purpose != atlas_local_state::LifecycleCheckPurpose::ConfusedDamageRecovery,
-            )
-        }
     };
     Ok((
         check.purpose,
         check.dc,
         check.modifier,
         roll,
-        table_result,
+        None,
         degree,
         check.table_actions,
     ))

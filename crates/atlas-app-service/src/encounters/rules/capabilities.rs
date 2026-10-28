@@ -32,78 +32,168 @@ pub(in crate::encounters) fn cannot_act_reason(
         })
 }
 
-#[derive(Debug, Clone, Copy)]
-struct RegainForecast {
+#[derive(Debug, Clone)]
+pub(in crate::encounters) struct RegainPlan {
     slowed: i64,
     stunned: i64,
     quickened: bool,
     duration_stun: bool,
-    unknown: bool,
+    missing: Option<MissingRegainFact>,
+    inactive: bool,
+    extra_uses: Vec<atlas_local_state::ConditionExtraAction>,
     allotment: i64,
     lost_to_stun: i64,
     lost_to_slowed: i64,
 }
-fn regain_forecast(p: &EncounterParticipant, sources: &SourceConditions) -> RegainForecast {
-    let mut slowed = 0;
-    let mut stunned = 0;
-    let mut quickened = false;
-    let mut duration_stun = false;
-    let resolution = super::causes::condition_causes(p, None, sources);
-    let mut unknown = sources.unavailable_reason.is_some()
-        || resolution.uncertain.iter().any(|source| {
-            matches!(
-                source.rule,
-                ConditionRule::Slowed | ConditionRule::Quickened | ConditionRule::Stunned
-            )
-        });
-    for cause in resolution.active {
-        let (rule, value, has_duration) = (cause.rule, cause.value, cause.source.has_duration());
-        match rule {
-            ConditionRule::Quickened => quickened = true,
-            ConditionRule::Slowed => match value {
-                Some(v) if v >= 0 => slowed = slowed.max(v),
-                _ => unknown = true,
-            },
-            ConditionRule::Stunned => match value {
-                Some(v) if v >= 0 => stunned = stunned.max(v),
-                None if has_duration => duration_stun = true,
-                _ => unknown = true,
-            },
-            _ => {}
+#[derive(Debug, Clone)]
+enum MissingRegainFact {
+    SourceUnavailable(String),
+    SlowedValue,
+    ConditionContext,
+}
+impl MissingRegainFact {
+    fn reason(&self) -> &str {
+        match self {
+            Self::SourceUnavailable(reason) => reason,
+            Self::SlowedValue => "The source record does not supply a usable Slowed value.",
+            Self::ConditionContext => "An action condition's value or activation needs context.",
         }
     }
-    let allotment = 3 + i64::from(quickened);
-    let lost_to_stun = if duration_stun {
-        allotment
-    } else {
-        stunned.min(allotment)
-    };
-    let lost_to_slowed = (slowed.min(allotment) - lost_to_stun).max(0);
-    RegainForecast {
-        slowed,
-        stunned,
-        quickened,
-        duration_stun,
-        unknown,
-        allotment,
-        lost_to_stun,
-        lost_to_slowed,
-    }
 }
-pub(in crate::encounters) fn numeric_stunned_actions_lost(
-    p: &EncounterParticipant,
-    sources: &SourceConditions,
-) -> Option<i64> {
-    let forecast = regain_forecast(p, sources);
-    if forecast.unknown {
-        None
-    } else if p.defeated
-        || p.hazard_disabled
-        || p.mortality == atlas_local_state::MortalityState::Dead
-    {
-        Some(0)
-    } else {
-        Some(forecast.lost_to_stun)
+impl RegainPlan {
+    pub(in crate::encounters) fn evaluate(
+        p: &EncounterParticipant,
+        sources: &SourceConditions,
+    ) -> Self {
+        let mut slowed = 0;
+        let mut stunned = 0;
+        let mut quickened = false;
+        let mut duration_stun = false;
+        let resolution = super::causes::condition_causes(p, None, sources);
+        let mut unknown = sources.unavailable_reason.is_some()
+            || resolution.uncertain.iter().any(|source| {
+                matches!(
+                    source.rule,
+                    ConditionRule::Slowed | ConditionRule::Quickened | ConditionRule::Stunned
+                )
+            });
+        for cause in resolution.active {
+            let (rule, value, has_duration) =
+                (cause.rule, cause.value, cause.source.has_duration());
+            match rule {
+                ConditionRule::Quickened => quickened = true,
+                ConditionRule::Slowed => match value {
+                    Some(v) if v >= 0 => slowed = slowed.max(v),
+                    _ => unknown = true,
+                },
+                ConditionRule::Stunned => match value {
+                    Some(v) if v >= 0 => stunned = stunned.max(v),
+                    None if has_duration => duration_stun = true,
+                    _ => unknown = true,
+                },
+                _ => {}
+            }
+        }
+        let allotment = 3 + i64::from(quickened);
+        let lost_to_stun = if duration_stun {
+            allotment
+        } else {
+            stunned.min(allotment)
+        };
+        let lost_to_slowed = (slowed.min(allotment) - lost_to_stun).max(0);
+        let missing = unknown.then(|| {
+            sources
+                .unavailable_reason
+                .as_ref()
+                .map(|reason| MissingRegainFact::SourceUnavailable(reason.clone()))
+                .unwrap_or_else(|| {
+                    if sources
+                        .entries
+                        .iter()
+                        .any(|c| c.rule == ConditionRule::Slowed && c.value.is_none())
+                    {
+                        MissingRegainFact::SlowedValue
+                    } else {
+                        MissingRegainFact::ConditionContext
+                    }
+                })
+        });
+        let extra_uses = p
+            .conditions
+            .iter()
+            .filter(|c| {
+                condition_rule_for_key(c.condition_key.as_deref()) == Some(ConditionRule::Quickened)
+            })
+            .map(|c| c.extra_action.clone())
+            .chain(
+                sources
+                    .active_entries(p)
+                    .into_iter()
+                    .filter(|c| c.rule == ConditionRule::Quickened)
+                    .map(|_| atlas_local_state::ConditionExtraAction::Unspecified),
+            )
+            .collect();
+        Self {
+            slowed,
+            stunned,
+            quickened,
+            duration_stun,
+            missing,
+            inactive: p.defeated
+                || p.hazard_disabled
+                || p.mortality == atlas_local_state::MortalityState::Dead,
+            extra_uses,
+            allotment,
+            lost_to_stun,
+            lost_to_slowed,
+        }
+    }
+    pub(in crate::encounters) fn total(&self) -> Option<i64> {
+        if self.inactive || self.duration_stun {
+            Some(0)
+        } else if self.missing.is_some() {
+            None
+        } else {
+            Some(self.allotment - self.lost_to_stun - self.lost_to_slowed)
+        }
+    }
+    pub(in crate::encounters) fn missing_reason(&self) -> Option<&str> {
+        self.missing.as_ref().map(MissingRegainFact::reason)
+    }
+    pub(in crate::encounters) fn stunned_loss(&self) -> Option<i64> {
+        if self.missing.is_some() {
+            None
+        } else if self.inactive {
+            Some(0)
+        } else {
+            Some(self.lost_to_stun)
+        }
+    }
+    pub(in crate::encounters) fn allocation(&self) -> Option<TurnActionAllocation> {
+        self.missing.is_none().then(|| self.evaluated_allocation())
+    }
+    pub(in crate::encounters) fn extra(&self) -> i64 {
+        i64::from(
+            self.total().is_some_and(|total| total > 0)
+                && !self.extra_uses.is_empty()
+                && self.extra_unavailable_reason().is_none(),
+        )
+    }
+    pub(in crate::encounters) fn extra_uses(&self) -> Vec<atlas_local_state::ConditionExtraAction> {
+        self.extra_uses.clone()
+    }
+    fn extra_unavailable_reason(&self) -> Option<&'static str> {
+        if !self.quickened {
+            None
+        } else if self.inactive {
+            Some("Unavailable")
+        } else if self.lost_to_stun > 0 {
+            Some("Lost to Stunned")
+        } else if self.lost_to_slowed > 0 {
+            Some("Lost to Slowed")
+        } else {
+            None
+        }
     }
 }
 /// Explicit Stunned resolution uses a recorded remaining pool when this turn has begun.
@@ -134,42 +224,18 @@ pub(in crate::encounters) fn stunned_resolution_loss(
         }
         return Some(stunned.min(remaining));
     }
-    numeric_stunned_actions_lost(p, sources)
+    RegainPlan::evaluate(p, sources).stunned_loss()
 }
 pub(in crate::encounters) fn action_budget(
     p: &EncounterParticipant,
     sources: &SourceConditions,
 ) -> ActionBudgetView {
-    let forecast = regain_forecast(p, sources);
-    let RegainForecast {
-        slowed: _,
-        stunned: _,
-        quickened,
-        duration_stun,
-        unknown,
-        allotment: _,
-        lost_to_stun,
-        lost_to_slowed,
-    } = forecast;
-    let inactive =
-        p.defeated || p.hazard_disabled || p.mortality == atlas_local_state::MortalityState::Dead;
-    let mut actions = allocation_count(&allocation_from_forecast(forecast, inactive));
-    if unknown && !inactive && !duration_stun {
-        actions.adjusted_value = None;
-    }
+    let plan = RegainPlan::evaluate(p, sources);
+    let inactive = plan.inactive;
+    let mut actions = allocation_count(&plan.evaluated_allocation());
+    actions.adjusted_value = plan.total();
     let mut notes = Vec::new();
-    if unknown {
-        let reason = sources.unavailable_reason.as_deref().unwrap_or_else(|| {
-            if sources
-                .entries
-                .iter()
-                .any(|c| c.rule == ConditionRule::Slowed && c.value.is_none())
-            {
-                "The source record does not supply a usable Slowed value."
-            } else {
-                "An action condition's value or activation needs context."
-            }
-        });
+    if let Some(reason) = plan.missing_reason() {
         actions.explanation = Some(reason.into());
         notes.push(note("unresolved", "Needs review", reason));
     }
@@ -194,31 +260,11 @@ pub(in crate::encounters) fn action_budget(
         reason: reason.map(str::to_owned),
     };
     ActionBudgetView {
-        extra_action_unavailable_reason: if !quickened {
-            None
-        } else if inactive {
-            Some("Unavailable".into())
-        } else if lost_to_stun > 0 {
-            Some("Lost to Stunned".into())
-        } else if lost_to_slowed > 0 {
-            Some("Lost to Slowed".into())
-        } else {
-            None
-        },
-        quickened_sources: p
-            .conditions
-            .iter()
-            .filter(|c| {
-                condition_rule_for_key(c.condition_key.as_deref()) == Some(ConditionRule::Quickened)
-            })
-            .map(|c| super::super::projection::condition_extra_action_view(c.extra_action.clone()))
-            .chain(
-                sources
-                    .active_entries(p)
-                    .into_iter()
-                    .filter(|c| c.rule == ConditionRule::Quickened)
-                    .map(|_| atlas_app_model::ConditionExtraActionView::Unspecified),
-            )
+        extra_action_unavailable_reason: plan.extra_unavailable_reason().map(str::to_owned),
+        quickened_sources: plan
+            .extra_uses
+            .into_iter()
+            .map(super::super::projection::condition_extra_action_view)
             .collect(),
         actions,
         reactions: count("Reactions", 1, Some(i64::from(reaction_reason.is_none()))),
@@ -227,47 +273,35 @@ pub(in crate::encounters) fn action_budget(
         notes,
     }
 }
-/// Capture the same evaluated regain facts before Stunned is consumed.
-pub(in crate::encounters) fn action_allocation(
-    p: &EncounterParticipant,
-    sources: &SourceConditions,
-) -> Option<TurnActionAllocation> {
-    let forecast = regain_forecast(p, sources);
-    let inactive =
-        p.defeated || p.hazard_disabled || p.mortality == atlas_local_state::MortalityState::Dead;
-    (!forecast.unknown).then(|| allocation_from_forecast(forecast, inactive))
-}
-
-fn allocation_from_forecast(forecast: RegainForecast, inactive: bool) -> TurnActionAllocation {
-    let mut adjustments = vec![];
-    if forecast.quickened {
-        adjustments.push(TurnActionAdjustment::Quickened { gained: 1 });
-    }
-    if inactive {
-        adjustments.push(TurnActionAdjustment::Inactive {
-            lost: forecast.allotment,
-        });
-    } else {
-        if forecast.lost_to_stun > 0 {
-            adjustments.push(TurnActionAdjustment::Stunned {
-                value: (!forecast.duration_stun).then_some(forecast.stunned),
-                lost: forecast.lost_to_stun,
-            });
+impl RegainPlan {
+    fn evaluated_allocation(&self) -> TurnActionAllocation {
+        let mut adjustments = vec![];
+        if self.quickened {
+            adjustments.push(TurnActionAdjustment::Quickened { gained: 1 });
         }
-        if forecast.slowed > 0 {
-            adjustments.push(TurnActionAdjustment::Slowed {
-                value: forecast.slowed,
-                lost: forecast.lost_to_slowed,
-                overlap: forecast
-                    .slowed
-                    .min(forecast.allotment)
-                    .min(forecast.lost_to_stun),
+        if self.inactive {
+            adjustments.push(TurnActionAdjustment::Inactive {
+                lost: self.allotment,
             });
+        } else {
+            if self.lost_to_stun > 0 {
+                adjustments.push(TurnActionAdjustment::Stunned {
+                    value: (!self.duration_stun).then_some(self.stunned),
+                    lost: self.lost_to_stun,
+                });
+            }
+            if self.slowed > 0 {
+                adjustments.push(TurnActionAdjustment::Slowed {
+                    value: self.slowed,
+                    lost: self.lost_to_slowed,
+                    overlap: self.slowed.min(self.allotment).min(self.lost_to_stun),
+                });
+            }
         }
-    }
-    TurnActionAllocation {
-        base: 3,
-        adjustments,
+        TurnActionAllocation {
+            base: 3,
+            adjustments,
+        }
     }
 }
 
@@ -578,6 +612,31 @@ mod tests {
         );
     }
     #[test]
+    fn known_zero_regain_keeps_unknown_attribution_separate() {
+        let mut p = participant();
+        let sources = SourceConditions::unavailable();
+        let plan = RegainPlan::evaluate(&p, &sources);
+        assert_eq!(plan.total(), None);
+        assert!(plan.allocation().is_none());
+        p.conditions = vec![condition("Stunned", None)];
+        p.conditions[0].duration = Some(ConditionDuration {
+            amount: 1,
+            unit: ConditionDurationUnit::Minutes,
+            timing: None,
+        });
+        let plan = RegainPlan::evaluate(&p, &sources);
+        assert_eq!(plan.total(), Some(0));
+        assert_eq!(plan.extra(), 0);
+        assert_eq!(plan.stunned_loss(), None);
+        assert!(plan.allocation().is_none());
+        assert!(plan.missing_reason().is_some());
+        p.conditions.clear();
+        p.defeated = true;
+        let plan = RegainPlan::evaluate(&p, &sources);
+        assert_eq!(plan.total(), Some(0));
+        assert!(plan.allocation().is_none());
+    }
+    #[test]
     fn inactive_status_preserves_hp_and_blocks_current_capability() {
         let mut p = participant();
         p.defeated = true;
@@ -734,18 +793,15 @@ mod tests {
             condition.condition_id = index as i64 + 1;
         }
         let facts = [
-            ActionJudgment {
-                source_id: None,
+            KnownActionFact {
                 fact: ActionFact::Manipulate,
                 value: true,
             },
-            ActionJudgment {
-                source_id: None,
+            KnownActionFact {
                 fact: ActionFact::Auditory,
                 value: true,
             },
-            ActionJudgment {
-                source_id: None,
+            KnownActionFact {
                 fact: ActionFact::Move,
                 value: false,
             },
@@ -804,8 +860,7 @@ mod tests {
                 fact: ActionFact::MentalOnly
             }]
         );
-        let facts = [ActionJudgment {
-            source_id: None,
+        let facts = [KnownActionFact {
             fact: ActionFact::MentalOnly,
             value: true,
         }];
@@ -825,7 +880,7 @@ mod tests {
     }
 
     #[test]
-    fn independent_fascination_sources_require_independent_judgments() {
+    fn independent_fascination_sources_keep_independent_reminders() {
         use super::super::action_context::*;
         let mut p = participant();
         p.conditions = vec![condition("Fascinated", None), condition("Fascinated", None)];
@@ -837,18 +892,10 @@ mod tests {
                 }),
             };
         }
-        let facts = [
-            ActionJudgment {
-                source_id: None,
-                fact: ActionFact::Concentrate,
-                value: true,
-            },
-            ActionJudgment {
-                source_id: Some(1),
-                fact: ActionFact::RelatesToFascination,
-                value: true,
-            },
-        ];
+        let facts = [KnownActionFact {
+            fact: ActionFact::Concentrate,
+            value: true,
+        }];
         let context = ActionContext {
             kind: ActionKind::Retch,
             reaction: Some(false),
@@ -862,10 +909,13 @@ mod tests {
                 &context
             )
             .issues,
-            vec![ActionIssue::NeedsFact {
-                source_id: crate::encounters::rules::causes::ConditionSourceKey::Saved(2),
-                fact: ActionFact::RelatesToFascination
-            }]
+            vec![1, 2]
+                .into_iter()
+                .map(|id| ActionIssue::NeedsFact {
+                    source_id: crate::encounters::rules::causes::ConditionSourceKey::Saved(id),
+                    fact: ActionFact::RelatesToFascination,
+                })
+                .collect::<Vec<_>>()
         );
     }
     #[test]

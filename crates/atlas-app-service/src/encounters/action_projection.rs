@@ -1,5 +1,5 @@
 //! Input validation and DTO projection shared by live condition workflows.
-use super::rules::action_context::{ActionFact, ActionIssue, ActionJudgment};
+use super::rules::action_context::{ActionFact, ActionIssue, KnownActionFact};
 use atlas_app_model::*;
 
 pub(super) fn issue_view(
@@ -102,7 +102,6 @@ fn fact_question(fact: ActionFact) -> &'static str {
             "Does this casting relate to this fascination's subject?"
         }
         ActionFact::FurthersEscape => "Does this action help escape the named threat?",
-        ActionFact::Cantrip => "Is this spell a cantrip?",
         ActionFact::VoluntaryIngestion => "Does this action voluntarily consume food or drink?",
     }
 }
@@ -121,7 +120,6 @@ pub(super) fn fact_to_view(fact: ActionFact) -> EncounterActionFactView {
         ActionFact::MentalOnly => EncounterActionFactView::MentalOnly,
         ActionFact::RelatesToFascination => EncounterActionFactView::RelatesToFascination,
         ActionFact::FurthersEscape => EncounterActionFactView::FurthersEscape,
-        ActionFact::Cantrip => EncounterActionFactView::Cantrip,
         ActionFact::VoluntaryIngestion => EncounterActionFactView::VoluntaryIngestion,
     }
 }
@@ -153,20 +151,17 @@ fn prohibition_reason(rule: super::conditions::ConditionRule) -> &'static str {
 
 pub(super) fn strike_facts(
     activity: &super::stat_block::MechanicActivityView,
-) -> Vec<ActionJudgment> {
+) -> Vec<KnownActionFact> {
     let mut facts = vec![
-        ActionJudgment {
-            source_id: None,
+        KnownActionFact {
             fact: ActionFact::Attack,
             value: true,
         },
-        ActionJudgment {
-            source_id: None,
+        KnownActionFact {
             fact: ActionFact::MentalOnly,
             value: false,
         },
-        ActionJudgment {
-            source_id: None,
+        KnownActionFact {
             fact: ActionFact::VoluntaryIngestion,
             value: false,
         },
@@ -178,8 +173,7 @@ pub(super) fn strike_facts(
             (ActionFact::Move, "move"),
             (ActionFact::Concentrate, "concentrate"),
         ] {
-            facts.push(ActionJudgment {
-                source_id: None,
+            facts.push(KnownActionFact {
                 fact,
                 value: activity.traits.iter().any(|item| item == name),
             });
