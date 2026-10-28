@@ -785,8 +785,10 @@ export function useSearchWorkspace({
           ...currentSearchLocation(),
           selectedRecordKey,
           query: searchStateQueryString(committed, profile),
-          selection: reading.request?.navigation,
-          landing: reading.landing,
+          selection: reading.detail
+            ? readingNavigationForUrl(reading.detail.selected, reading.request)
+            : (reading.request?.match ?? reading.request?.navigation),
+          landing: reading.landing ?? reading.request?.landing,
           page: 1,
         }),
         replace: true,

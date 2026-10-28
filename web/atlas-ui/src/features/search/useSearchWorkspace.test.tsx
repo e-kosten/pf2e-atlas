@@ -32,6 +32,7 @@ import type {
   SearchResultsRequest,
   SearchResultsPage,
   RecordDetailRequest,
+  RecordDetailView,
   RecordNavigationView,
 } from "../../generated/atlas";
 import {
@@ -585,53 +586,146 @@ describe("useSearchWorkspace", () => {
     });
   });
 
-  it("commits model and ranking together, resets the URL page, and retains Explore", async () => {
-    history.replaceState(
-      null,
-      "",
-      "/search/records/spell:heal?q=heal&page=2&record_view=explore&record_tab=similar",
-    );
-    apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
-      ...searchResultsPage([], {
-        profile: request.search_profile,
-        pageNumber: request.page.number,
-      }),
-      ranking: request.ranking ?? "score",
-    }));
-    const { result, rerender } = renderHook(
-      ({ profile }) => useSearchWorkspace({ searchProfile: profile }),
-      {
-        initialProps: { profile: "bge-base" },
-        wrapper: queryClientWrapper(),
-      },
-    );
-    await waitFor(() =>
-      expect(result.current.resultPage?.search_profile).toBe("bge-base"),
-    );
-    expect(result.current.pageNumber).toBe(2);
-    apiMocks.searchPage.mockClear();
-    act(() => {
-      result.current.applySettings!(
-        { ...result.current.search, ranking: "rrf" },
-        "embeddinggemma",
+  it.each([
+    { rank: undefined, pending: false },
+    { rank: 5, pending: false },
+    { rank: 5, pending: true },
+  ])(
+    "applies settings while retaining exact match, focus and requested rank $rank (pending=$pending)",
+    async ({ rank, pending }) => {
+      const recordKey = "spell:heal";
+      history.replaceState(
+        null,
+        "",
+        "/search/records/" +
+          recordKey +
+          "?q=heal&page=2&record_view=explore&record_tab=similar",
       );
-      rerender({ profile: "embeddinggemma" });
-    });
-    await waitFor(() => expect(result.current.resultPage?.ranking).toBe("rrf"));
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 350));
-    });
-    expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
-    expect(new URLSearchParams(location.search).has("page")).toBe(false);
-    expect(new URLSearchParams(location.search).get("record_view")).toBe("explore");
-    expect(new URLSearchParams(location.search).get("record_tab")).toBe("similar");
-    expect(location.pathname).toBe("/search/records/spell:heal");
-    expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({
-      search_profile: "embeddinggemma",
-      ranking: "rrf",
-      page: { number: 1 },
-    });
-  });
+      const match: RecordNavigationView = {
+        ...rootNavigation(recordKey),
+        field: "/system/description/value",
+        passage: {
+          kind: "html_section",
+          prepared_html_sha256: "prepared-a",
+          canonical_text_sha256: "text-a",
+          selection_version: "selection-v1",
+          section_ordinal: 1,
+          label: "Healing",
+          chunk_bytes: { start: 10, end: 50 },
+        },
+        source_fingerprint: "source-a",
+        ...(rank === undefined ? {} : { spell_rank: rank }),
+      };
+      const landing: RecordNavigationView = {
+        ...rootNavigation(recordKey),
+        embedded_path: [{ collection: "/items", identity: { Stable: "source-entry" } }],
+        source_fingerprint: "source-a",
+      };
+      const section = deferred<RecordDetailView>();
+      const selected = {
+        ...detailFixture(recordKey),
+        selected: { ...match, spell_rank: rank ?? 3 },
+      };
+      apiMocks.getRecordDetail.mockImplementation(
+        (key: string, request?: RecordDetailRequest) =>
+          request?.fields?.length
+            ? pending
+              ? section.promise
+              : Promise.resolve(selected)
+            : Promise.resolve({
+                ...detailFixture(key),
+                selected: { ...rootNavigation(key), spell_rank: 3 },
+              }),
+      );
+      apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) => ({
+        ...searchResultsPage([], {
+          profile: request.search_profile,
+          pageNumber: request.page.number,
+        }),
+        ranking: request.ranking ?? "score",
+      }));
+      const { result, rerender } = renderHook(
+        ({ profile }) => useSearchWorkspace({ searchProfile: profile }),
+        {
+          initialProps: { profile: "bge-base" },
+          wrapper: queryClientWrapper(),
+        },
+      );
+      await waitFor(() =>
+        expect(result.current.resultPage?.search_profile).toBe("bge-base"),
+      );
+      await waitFor(() =>
+        expect(result.current.reading.detail?.selected.spell_rank).toBe(3),
+      );
+      const exactRequest = { navigation: rootNavigation(recordKey), match, landing };
+      act(() => result.current.reading.inspect(exactRequest));
+      await waitFor(() =>
+        expect(apiMocks.getRecordDetail).toHaveBeenLastCalledWith(
+          recordKey,
+          expect.objectContaining({ fields: [match.field], passage: match.passage }),
+          expect.any(AbortSignal),
+        ),
+      );
+      if (!pending) {
+        await waitFor(() =>
+          expect(result.current.reading.detail?.selected).toEqual(selected.selected),
+        );
+        await waitFor(() =>
+          expect(
+            selectedNavigation(parseSearchParams(location.search), recordKey),
+          ).toEqual(match),
+        );
+        expect(
+          selectedNavigation(parseSearchParams(location.search), recordKey, "focus"),
+        ).toEqual(landing);
+      }
+      expect(result.current.reading.request).toBe(exactRequest);
+      expect(result.current.reading.canGoBack).toBe(true);
+      expect(result.current.pageNumber).toBe(2);
+      apiMocks.searchPage.mockClear();
+      act(() => {
+        result.current.applySettings!(
+          { ...result.current.search, ranking: "rrf" },
+          "embeddinggemma",
+        );
+        rerender({ profile: "embeddinggemma" });
+      });
+      await waitFor(() => expect(result.current.resultPage?.ranking).toBe("rrf"));
+      await act(async () => {
+        await delay(350);
+      });
+      expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
+      expect(new URLSearchParams(location.search).has("page")).toBe(false);
+      expect(new URLSearchParams(location.search).get("record_view")).toBe("explore");
+      expect(new URLSearchParams(location.search).get("record_tab")).toBe("similar");
+      expect(location.pathname).toBe("/search/records/" + recordKey);
+      expect(selectedNavigation(parseSearchParams(location.search), recordKey)).toEqual(
+        match,
+      );
+      expect(
+        selectedNavigation(parseSearchParams(location.search), recordKey, "focus"),
+      ).toEqual(landing);
+      expect(result.current.reading.request).toBe(exactRequest);
+      expect(result.current.reading.canGoBack).toBe(true);
+      if (pending) {
+        await act(async () => section.resolve(selected));
+        await waitFor(() =>
+          expect(result.current.reading.detail?.selected).toEqual(selected.selected),
+        );
+        expect(
+          selectedNavigation(parseSearchParams(location.search), recordKey),
+        ).toEqual(match);
+        expect(
+          selectedNavigation(parseSearchParams(location.search), recordKey, "focus"),
+        ).toEqual(landing);
+      }
+      expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({
+        search_profile: "embeddinggemma",
+        ranking: "rrf",
+        page: { number: 1 },
+      });
+    },
+  );
 
   it("applies reloaded B parts without a separate refresh and retires late A reads", async () => {
     history.replaceState(null, "", "/search?similar=hazards%3Abrown-mold");
