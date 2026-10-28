@@ -1055,6 +1055,11 @@ export function SearchSettings({
                                 </Form.Item>
                                 {seed && draft.matchDisplay === "detailed" && (
                                   <Form.Item
+                                    layout="horizontal"
+                                    labelAlign="left"
+                                    colon={false}
+                                    labelCol={{ flex: "auto" }}
+                                    wrapperCol={{ flex: "none" }}
                                     label={
                                       <SettingLabel
                                         label="Show smaller weights"
