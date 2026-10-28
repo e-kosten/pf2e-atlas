@@ -1,5 +1,9 @@
 import type { CoreSectionFamily, SimilarityOptions } from "../../generated/atlas";
-import type { SearchPreferences, SimilarityPreferences } from "./searchPreferences";
+import {
+  DEFAULT_SOURCE_SECTIONS,
+  type SearchPreferences,
+  type SimilarityPreferences,
+} from "./searchPreferences";
 
 export function similarityFromPreferences(
   preferences: SimilarityPreferences,
@@ -45,7 +49,7 @@ export function preferredSourceSections(
   preferences: SearchPreferences,
   family: CoreSectionFamily,
 ): "all" | "core" {
-  return preferences.sourceSectionsByFamily[family] ?? "all";
+  return preferences.sourceSectionsByFamily[family] ?? DEFAULT_SOURCE_SECTIONS;
 }
 export function hasCoreSourcePreference(preferences: SearchPreferences): boolean {
   return Object.values(preferences.sourceSectionsByFamily).some(

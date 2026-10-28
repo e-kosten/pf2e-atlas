@@ -138,3 +138,22 @@
     min-width: 0;
   }
 }
+
+.search-settings__source-choice,
+.search-settings__editor-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-control);
+}
+.search-settings__source-preset {
+  flex: 1;
+  min-width: 0;
+}
+.search-settings__editor-header {
+  flex: none;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.search-settings__section-summary {
+  margin-block-end: var(--space-group);
+}
