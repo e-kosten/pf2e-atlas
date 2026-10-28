@@ -130,6 +130,15 @@ fn project_for_opponent(
                         },
                     );
                     applied = true;
+                } else if rule != ConditionRule::Blinded {
+                    if !block.unresolved_stats.contains(&stat.target) {
+                        block.unresolved_stats.push(stat.target.clone());
+                    }
+                    stat.notes.push(RuntimeEffectNoteView {
+                        source: c.explanation_key(),
+                        label: c.name().into(),
+                        reason: "The statistic's attribute or traits are unavailable.".into(),
+                    });
                 }
             }
         }
@@ -158,6 +167,9 @@ fn project_for_opponent(
                         );
                         applied = true;
                     }
+                } else if !activity.rolls.is_empty() {
+                    activity.calculation_unavailable =
+                        Some("The attack's attribute or traits are unavailable.".into());
                 }
             }
             if let Some(dc) = &mut activity.difficulty_class {
@@ -176,6 +188,9 @@ fn project_for_opponent(
                             },
                         );
                         applied = true;
+                    } else {
+                        activity.calculation_unavailable =
+                            Some("The DC's attribute or traits are unavailable.".into());
                     }
                 }
             }
@@ -183,19 +198,10 @@ fn project_for_opponent(
                 if damage.effect_kind != DamageEffectKindView::Damage {
                     continue;
                 }
-                if !damage.ability_known
-                    && rule
-                        .definition()
-                        .modifiers
-                        .iter()
-                        .any(|effect| effect.selectors.contains(&"str-damage"))
-                {
-                    damage.unavailable_reason =
-                        Some("Strength contribution is unavailable.".into());
-                    continue;
-                }
                 let context = Context {
-                    target: Target::Damage,
+                    target: Target::Damage {
+                        ability_known: damage.ability_known,
+                    },
                     ability: damage.ability,
                     initiative: false,
                     auditory: Some(false),
@@ -216,6 +222,9 @@ fn project_for_opponent(
                             },
                         );
                         applied = true;
+                    } else {
+                        damage.unavailable_reason =
+                            Some("The damage's attribute contribution is unavailable.".into());
                     }
                 }
             }
@@ -270,6 +279,17 @@ fn project_for_opponent(
         }
     }
     for activity in &mut block.activities {
+        if let Some(reason) = &activity.calculation_unavailable {
+            activity.rolls.clear();
+            activity.difficulty_class = None;
+            if !activity.notes.iter().any(|note| &note.reason == reason) {
+                activity.notes.push(RuntimeEffectNoteView {
+                    source: "condition-calculation".into(),
+                    label: "Calculation".into(),
+                    reason: reason.clone(),
+                });
+            }
+        }
         for damage in &mut activity.damage {
             let delta: i64 = damage.modifiers.iter().map(|m| m.value).sum();
             if delta != 0 && atlas_dice::prepare(&damage.formula).is_err() {
@@ -566,7 +586,9 @@ fn project_uncertain_sources(
                         cause.value,
                         level,
                         &Context {
-                            target: Target::Damage,
+                            target: Target::Damage {
+                                ability_known: damage.ability_known,
+                            },
                             ability: damage.ability,
                             initiative: false,
                             auditory: Some(false),
@@ -632,9 +654,10 @@ pub(in crate::encounters) fn resolve_condition_subject_hints(
         else {
             continue;
         };
-        let atlas_local_state::ConditionParameters::Fascinated { subject } = &condition.parameters
-        else {
-            continue;
+        let (subject, fleeing) = match &condition.parameters {
+            atlas_local_state::ConditionParameters::Fascinated { subject } => (subject, false),
+            atlas_local_state::ConditionParameters::Fleeing { subject } => (subject, true),
+            _ => continue,
         };
         let subject = subject.as_ref().and_then(|subject| match subject {
             atlas_local_state::ConditionSubject::Participant { participant_key } => roster
@@ -645,8 +668,19 @@ pub(in crate::encounters) fn resolve_condition_subject_hints(
                 Some(description.as_str())
             }
         });
-        note.reason = fascination_hint(subject);
+        note.reason = if fleeing {
+            fleeing_hint(subject)
+        } else {
+            fascination_hint(subject)
+        };
     }
+}
+
+fn fleeing_hint(subject: Option<&str>) -> String {
+    format!(
+        "Spend your actions escaping {}. Can't Delay or Ready.",
+        subject.unwrap_or("the feared subject")
+    )
 }
 
 fn fascination_hint(subject: Option<&str>) -> String {
@@ -664,7 +698,7 @@ fn condition_effect_hint(rule: ConditionRule, applied: bool) -> Option<String> {
         ConditionRule::Prone => Some("Move by Crawling or Stand to end Prone."),
         ConditionRule::Fatigued => Some("Can't use exploration activities while traveling."),
         ConditionRule::Fascinated => return Some(fascination_hint(None)),
-        ConditionRule::Fleeing => Some("Spend your actions escaping the source. Can't Delay or Ready."),
+        ConditionRule::Fleeing => return Some(fleeing_hint(None)),
         ConditionRule::Confused => Some("Randomly attacks with Strikes or offensive cantrips."),
         ConditionRule::Immobilized if !applied => {
             Some("Cannot use move actions.")

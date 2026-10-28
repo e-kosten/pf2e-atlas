@@ -825,7 +825,7 @@ fn behavioral_conditions_keep_row_hints_without_statistics() {
     assert!(notes.iter().any(|note| note.condition_id == Some(1)
         && note.reason == "Concentrate actions must relate to the subject of fascination."));
     assert!(notes.iter().any(|note| note.condition_id == Some(2)
-        && note.reason == "Spend your actions escaping the source. Can't Delay or Ready."));
+        && note.reason == "Spend your actions escaping the feared subject. Can't Delay or Ready."));
 }
 
 #[test]
@@ -994,10 +994,7 @@ fn known_stronger_penalty_keeps_values_known_despite_uncertain_source_activation
             .and_then(serde_json::Number::as_i64),
         Some(10)
     );
-    assert_eq!(
-        projected.unresolved_stats,
-        vec![StatisticTarget::Ability(Ability::Dexterity)]
-    );
+    assert!(projected.unresolved_stats.is_empty());
 }
 
 #[test]
@@ -1097,5 +1094,106 @@ fn uncertain_blinded_preserves_conditional_perception_with_an_alternative_precis
             .notes
             .iter()
             .any(|note| note.reason.contains("only precise sense"))
+    );
+}
+
+#[test]
+fn attribute_penalties_preserve_authored_attributes() {
+    use super::super::stat_block::Ability;
+    let baseline = source_baseline();
+    let mut p = participant();
+    p.conditions = vec![
+        condition(1, ConditionRule::Enfeebled, Some(2)),
+        condition(2, ConditionRule::Clumsy, Some(2)),
+        condition(3, ConditionRule::Drained, Some(1)),
+        condition(4, ConditionRule::Stupefied, Some(3)),
+    ];
+    let projected = project_participant(&p, &baseline, true, &[]);
+    for (ability, expected) in [
+        (Ability::Strength, 3),
+        (Ability::Dexterity, 2),
+        (Ability::Constitution, 2),
+        (Ability::Intelligence, 4),
+        (Ability::Wisdom, 3),
+        (Ability::Charisma, 1),
+    ] {
+        assert_eq!(
+            projected
+                .effective_stat(&StatisticTarget::Ability(ability))
+                .and_then(serde_json::Number::as_i64),
+            Some(expected)
+        );
+    }
+    assert_eq!(
+        projected
+            .effective_stat(&StatisticTarget::ArmorClass)
+            .and_then(serde_json::Number::as_i64),
+        Some(18)
+    );
+}
+
+#[test]
+fn unknown_strike_attribute_does_not_silently_ignore_a_penalty() {
+    let mut baseline = source_baseline();
+    let strike = baseline
+        .activities
+        .iter_mut()
+        .find(|a| a.label == "Finesse claw")
+        .unwrap();
+    strike.attack_ability = None;
+    let mut p = participant();
+    p.conditions = vec![condition(1, ConditionRule::Enfeebled, Some(2))];
+    let projected = project_participant(&p, &baseline, true, &[]);
+    let strike = projected
+        .activities
+        .iter()
+        .find(|a| a.label == "Finesse claw")
+        .unwrap();
+    assert!(strike.calculation_unavailable.is_some());
+    assert!(strike.rolls.is_empty());
+}
+
+#[test]
+fn invisible_preserves_explicit_observer_detection() {
+    use super::relationships::{DetectionState, detection_state};
+    let mut p = participant();
+    for (rule, expected) in [
+        (ConditionRule::Hidden, DetectionState::Hidden),
+        (ConditionRule::Undetected, DetectionState::Undetected),
+        (ConditionRule::Unnoticed, DetectionState::Undetected),
+    ] {
+        let mut scoped = condition(1, rule, None);
+        scoped.scope = ConditionScope::SelectedParticipants {
+            participant_keys: vec!["observer".into()],
+        };
+        p.conditions = vec![scoped, condition(2, ConditionRule::Invisible, None)];
+        assert_eq!(detection_state(&p, "observer"), Some(expected));
+        assert_eq!(detection_state(&p, "other"), None);
+    }
+    p.conditions = vec![condition(2, ConditionRule::Invisible, None)];
+    assert_eq!(detection_state(&p, "observer"), None);
+}
+
+#[test]
+fn fleeing_hint_uses_feared_subject_instead_of_causal_source() {
+    let mut p = participant();
+    let mut fleeing = condition(1, ConditionRule::Fleeing, None);
+    fleeing.source_participant_key = Some("caster".into());
+    fleeing.parameters = ConditionParameters::Fleeing {
+        subject: Some(ConditionSubject::Other {
+            description: "the burning doorway".into(),
+        }),
+    };
+    p.conditions.push(fleeing);
+    let mut block = participant_runtime_block(&p);
+    resolve_condition_subject_hints(&mut block, &p, &[]);
+    assert_eq!(
+        block
+            .unapplied_effects
+            .iter()
+            .find(|n| n.condition_id == Some(1))
+            .unwrap()
+            .reason,
+        "Spend your actions escaping the burning doorway. Can't Delay or Ready."
     );
 }
