@@ -112,7 +112,7 @@ impl AtlasAppService {
     }
 
     #[cfg(test)]
-    pub(super) fn last_read_metrics(&self) -> atlas_search::test_support::SourceReadMetrics {
+    pub(super) fn last_read_metrics(&self) -> atlas_search::SourceReadMetrics {
         match &self.retrieval {
             RetrievalBackend::Pooled(executor) => *executor
                 .last_read_metrics

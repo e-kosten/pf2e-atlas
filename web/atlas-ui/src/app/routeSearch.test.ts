@@ -32,7 +32,7 @@ it("normalizes committed values and defaults without dropping explicit ordered s
     ),
   );
   expect(stringifySearchParams(result)).toBe(
-    `?q=fire&filter=${filter}&sort=level_desc&sort=name_asc&page=5`,
+    `?ranking=score&q=fire&filter=${filter}&sort=level_desc&sort=name_asc&page=5`,
   );
   expect(canonicalRouteSearch("search", result)).toEqual(result);
   expect(searchDestination({ query: "?q=fire&page=5", page: 1 }).search).toEqual({
@@ -41,6 +41,46 @@ it("normalizes committed values and defaults without dropping explicit ordered s
   expect(searchDestination({ query: "?q=fire", page: 5 }).search).toEqual({
     q: "fire",
     page: "5",
+  });
+});
+
+it.each(["search", "search_record"] as const)(
+  "retains explicit comparison settings and repeated section selections on %s",
+  (kind) => {
+    const settings = {
+      search_profile: "bge-base",
+      ranking: "score",
+      similar: "creatures:lich",
+      search_content: "core",
+      similarity_method: "passages",
+      candidate_parts: "corresponding",
+      similarity_sections: "custom",
+      similarity_decay: "0.25",
+      similarity_generation: "generation-a",
+      similarity_part: ["identity:lich", "description:lich"],
+    };
+    const result = canonicalRouteSearch(kind, settings);
+    expect(result).toEqual(settings);
+    expect(canonicalRouteSearch(kind, result)).toEqual(result);
+    expect(
+      searchDestination({ query: stringifySearchParams(settings) }).search,
+    ).toEqual(settings);
+  },
+);
+
+it("retains explicit All and score settings over different browser preferences", () => {
+  expect(
+    canonicalRouteSearch("search", {
+      ranking: ["score", "score"],
+      search_content: ["all", "all"],
+      similar: "creatures:lich",
+      similarity_sections: ["all", "all"],
+    }),
+  ).toEqual({
+    ranking: "score",
+    search_content: "all",
+    similar: "creatures:lich",
+    similarity_sections: "all",
   });
 });
 
@@ -140,14 +180,25 @@ it.each(["search", "list", "trait"] as const)(
   },
 );
 
-it.each(["q", "page", "limit", "similar", "seed", "search_profile"])(
-  "rejects conflicting singleton %s values",
-  (key) => {
-    expect(() => canonicalRouteSearch("search", { [key]: ["1", "2"] })).toThrow(
-      "conflicting",
-    );
-  },
-);
+it.each([
+  "q",
+  "page",
+  "limit",
+  "similar",
+  "seed",
+  "search_profile",
+  "ranking",
+  "search_content",
+  "similarity_method",
+  "candidate_parts",
+  "similarity_sections",
+  "similarity_decay",
+  "similarity_generation",
+])("rejects conflicting singleton %s values", (key) => {
+  expect(() => canonicalRouteSearch("search", { [key]: ["1", "2"] })).toThrow(
+    "conflicting",
+  );
+});
 
 it("leaves failed filter transport untouched for shared empty-search recovery before reading validation", () => {
   const raw = {

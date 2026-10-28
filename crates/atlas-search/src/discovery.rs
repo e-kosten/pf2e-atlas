@@ -2,12 +2,25 @@ use crate::{RecordScope, RetrievalMode};
 use atlas_domain::QueryPredicate;
 #[derive(Clone, Copy)]
 pub struct FilterDiscoveryContext<'a> {
+    pub content_scope: atlas_domain::SearchContentScope,
     pub search_profile: Option<&'a atlas_domain::SearchProfileId>,
     pub text: Option<&'a str>,
     pub mode: RetrievalMode,
     pub scope: RecordScope<'a>,
     pub prefer_remaster: bool,
     pub filter: Option<&'a QueryPredicate>,
+}
+impl FilterDiscoveryContext<'_> {
+    fn validate_content_scope(self) -> Result<(), crate::SearchError> {
+        if self.content_scope == atlas_domain::SearchContentScope::Core
+            && self.text.is_none_or(|text| text.trim().is_empty())
+        {
+            return Err(crate::SearchError::invalid_search_options(
+                "Core search content requires a nonempty text search context",
+            ));
+        }
+        Ok(())
+    }
 }
 pub struct DiscoverFilterValuesRequest<'a> {
     pub only_matching: bool,
@@ -64,6 +77,7 @@ impl AtlasRetrievalService {
         &mut self,
         request: DiscoverFilterValueCountsRequest<'_>,
     ) -> Result<QueryFacetOutcome<QueryValueOptions>, SearchError> {
+        request.context.validate_content_scope()?;
         atlas_index::validate_value_counts(request.field, request.values)?;
         let query = self.predicate(request.context.filter)?;
         self.resolve_search_profile(request.context.search_profile, false)?;
@@ -105,6 +119,7 @@ impl AtlasRetrievalService {
         context: FilterDiscoveryContext<'_>,
     ) -> Result<QueryFacetOutcome<(atlas_index::ValidatedQuery, QueryFacetContext)>, SearchError>
     {
+        context.validate_content_scope()?;
         let query = self.predicate(context.filter)?;
         self.resolve_search_profile(context.search_profile, false)?;
         // Index owns the only self-exclusion analysis. Perform it even without
@@ -138,6 +153,7 @@ impl AtlasRetrievalService {
         };
         // Freeze the separate clause-removed universe before per-option pair policy.
         let (roots, _) = self.rank_candidates(crate::text::CandidateRequest {
+            content_scope: context.content_scope,
             ranking: Default::default(),
             search_profile: &search_profile,
             text,

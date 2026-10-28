@@ -127,6 +127,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         .route("/api/filters/counts", post(crate::handlers::discover_filter_counts))
         .route("/api/filters/validate", post(crate::handlers::validate_filter))
         .route("/api/search/page", post(search_page))
+        .route("/api/search/similarity/parts", post(crate::handlers::similarity_parts))
         .route("/api/search/relationship-occurrences", post(crate::handlers::relationship_occurrences))
         .route("/api/records/{record_key}", get(record_detail))
         .route("/api/encounters/{encounter_ref}/strike-options", post(crate::handlers::encounter_strike_options))

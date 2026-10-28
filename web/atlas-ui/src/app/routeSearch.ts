@@ -138,8 +138,21 @@ export function canonicalRouteSearch(
     if (profile) result.search_profile = profile;
   }
   if (isSearch) {
-    const ranking = singleton(search, "ranking");
-    if (ranking !== undefined && ranking !== "score") result.ranking = ranking;
+    // Explicit settings remain authoritative over remembered browser preferences.
+    for (const key of [
+      "ranking",
+      "search_content",
+      "similarity_method",
+      "candidate_parts",
+      "similarity_sections",
+      "similarity_decay",
+      "similarity_generation",
+    ] as const) {
+      const value = singleton(search, key);
+      if (value !== undefined) result[key] = value;
+    }
+    const parts = search.similarity_part;
+    if (parts !== undefined) result.similarity_part = parts;
   }
   if (isSearch || isList) {
     const q = singleton(search, "q")?.trim();

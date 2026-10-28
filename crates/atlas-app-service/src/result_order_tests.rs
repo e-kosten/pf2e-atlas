@@ -115,6 +115,7 @@ fn sorting_search_resolves_defaults_rejects_before_inference_and_reads_price_lab
     let mut invalid = search(
         Some(ResultSort::SavedOrder {}),
         SearchCriteria::TextSearch {
+            search_content: None,
             query: "query requiring unavailable native inference".into(),
             filter: None,
             mode: RetrievalModeView::Semantic,
@@ -144,6 +145,7 @@ fn sorting_search_resolves_defaults_rejects_before_inference_and_reads_price_lab
             atlas_domain::SortDirection::Desc,
         )),
         SearchCriteria::TextSearch {
+            search_content: None,
             query: "query requiring unavailable native inference".into(),
             filter: None,
             mode: RetrievalModeView::Semantic,
@@ -346,6 +348,7 @@ fn sorting_multirule_labels_use_any_price_rule_and_invalid_rules_fail_before_inf
         let request = search(
             Some(ResultSort::Attributes { rules }),
             SearchCriteria::TextSearch {
+                search_content: None,
                 query: "would require unavailable inference".into(),
                 filter: None,
                 mode: RetrievalModeView::Semantic,

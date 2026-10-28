@@ -57,6 +57,11 @@ impl AtlasWebState {
 }
 
 pub(crate) trait AtlasWebService: Send + Sync {
+    fn similarity_parts(
+        &self,
+        request: atlas_app_model::SimilarityPartsRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::SimilarityPartsView, AppServiceError>;
     fn roll_content(
         &self,
         request: atlas_app_model::RollContentRequest,
@@ -440,6 +445,13 @@ pub(crate) trait AtlasWebService: Send + Sync {
 }
 
 impl AtlasWebService for AtlasAppService {
+    fn similarity_parts(
+        &self,
+        request: atlas_app_model::SimilarityPartsRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::SimilarityPartsView, AppServiceError> {
+        self.similarity_parts(request, execution)
+    }
     fn trait_definition(
         &self,
         request: atlas_app_model::TraitDetailRequest,

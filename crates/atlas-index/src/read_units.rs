@@ -4,10 +4,26 @@ use crate::{
     query::{ValidatedQuery, compile_predicate},
 };
 use atlas_domain::OwnedContentLocator;
-use atlas_domain::{RecordKey, SourcePassageAddress};
+use atlas_domain::{RecordKey, SearchContentScope, SourcePassageAddress};
 use rusqlite::{OptionalExtension, params_from_iter, types::Value};
 use serde::{Deserialize, Serialize};
 pub(crate) const NAME_LOOKUP_SQL: &str = "SELECT r.key,NULL,NULL FROM records r WHERE r.document_kind<>'Macro' AND r.name_state='value' AND r.name_lookup_key=?1 UNION ALL SELECT r.key,a.alias,a.evidence_json FROM verified_aliases a JOIN records r ON r.record_id=a.record_id WHERE r.document_kind<>'Macro' AND a.alias_lookup_key=?1 ORDER BY 1,2";
+
+fn lexical_content_sql(scope: SearchContentScope) -> &'static str {
+    match scope {
+        SearchContentScope::All => "",
+        SearchContentScope::Core => " AND lu.unit_id IN (SELECT unit_id FROM core_lexical_units)",
+    }
+}
+
+pub(crate) fn semantic_content_sql(scope: SearchContentScope) -> &'static str {
+    match scope {
+        SearchContentScope::All => "",
+        SearchContentScope::Core => {
+            " AND su.location_id IN (SELECT location_id FROM core_semantic_locations)"
+        }
+    }
+}
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SourceLexicalHit {
     pub location: SourceUnitLocation,
@@ -26,6 +42,16 @@ pub struct SourceLexicalRootHit {
 pub struct SourceVectorHit {
     pub location: SourceUnitLocation,
     pub distance: f64,
+}
+
+pub struct SourceVectorCandidateRequest<'a> {
+    pub profile: &'a atlas_domain::SearchProfileId,
+    pub vector: &'a [f32],
+    pub query: &'a ValidatedQuery,
+    pub keys: Option<&'a [RecordKey]>,
+    pub exclude: Option<&'a RecordKey>,
+    pub content_scope: SearchContentScope,
+    pub limit: usize,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourceKeyPage {
@@ -76,7 +102,7 @@ pub(crate) fn eligible_sql(
 pub(crate) fn parse_key(s: String) -> Result<RecordKey, IndexError> {
     RecordKey::parse(&s).map_err(|e| IndexError::Invalid(e.to_string()))
 }
-fn location(row: &rusqlite::Row<'_>) -> rusqlite::Result<SourceUnitLocation> {
+pub(crate) fn location(row: &rusqlite::Row<'_>) -> rusqlite::Result<SourceUnitLocation> {
     let decode = |e: Box<dyn std::error::Error + Send + Sync>| {
         rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, e)
     };
@@ -218,6 +244,7 @@ impl SqliteIndexReader {
         text: &str,
         query: &ValidatedQuery,
         keys: Option<&[RecordKey]>,
+        content_scope: SearchContentScope,
         limit: usize,
     ) -> Result<Vec<SourceLexicalHit>, IndexError> {
         if limit > 65536 {
@@ -236,8 +263,9 @@ impl SqliteIndexReader {
         all.push(Value::Text(expression));
         all.push(Value::Integer(limit as i64));
         let limit_param = all.len();
+        let content_sql = lexical_content_sql(content_scope);
         let sql = format!(
-            "WITH eligible AS ({eligible}) SELECT lu.unit_id,r.key,lu.owners_json,lu.field_path,lu.section_json,bm25(lexical_fts,10.0,8.0,1.0,6.0),lu.unit_kind,CASE WHEN lu.unit_kind='root_alias' THEN lu.alias_terms ELSE lu.identity_terms END,lu.definition_terms,r.name_state FROM lexical_fts JOIN lexical_units lu ON lu.unit_id=lexical_fts.rowid JOIN records r ON r.record_id=lu.record_id WHERE lexical_fts MATCH ?{term_param} AND lu.record_id IN (SELECT record_id FROM eligible) ORDER BY 6,lu.unit_id LIMIT ?{limit_param}"
+            "WITH eligible AS ({eligible}) SELECT lu.unit_id,r.key,lu.owners_json,lu.field_path,lu.section_json,bm25(lexical_fts,10.0,8.0,1.0,6.0),lu.unit_kind,CASE WHEN lu.unit_kind='root_alias' THEN lu.alias_terms ELSE lu.identity_terms END,lu.definition_terms,r.name_state FROM lexical_fts JOIN lexical_units lu ON lu.unit_id=lexical_fts.rowid JOIN records r ON r.record_id=lu.record_id WHERE lexical_fts MATCH ?{term_param} AND lu.record_id IN (SELECT record_id FROM eligible){content_sql} ORDER BY 6,lu.unit_id LIMIT ?{limit_param}"
         );
         let c = self.native()?;
         self.count_statement();
@@ -248,34 +276,17 @@ impl SqliteIndexReader {
     }
     pub fn vector_candidates(
         &self,
-        profile: &atlas_domain::SearchProfileId,
-        vector: &[f32],
-        query: &ValidatedQuery,
-        keys: Option<&[RecordKey]>,
-        limit: usize,
+        request: SourceVectorCandidateRequest<'_>,
     ) -> Result<Vec<SourceVectorHit>, IndexError> {
-        self.vector_candidates_inner(profile, vector, query, keys, None, limit)
-    }
-    pub fn vector_candidates_excluding(
-        &self,
-        profile: &atlas_domain::SearchProfileId,
-        vector: &[f32],
-        query: &ValidatedQuery,
-        keys: Option<&[RecordKey]>,
-        exclude: &RecordKey,
-        limit: usize,
-    ) -> Result<Vec<SourceVectorHit>, IndexError> {
-        self.vector_candidates_inner(profile, vector, query, keys, Some(exclude), limit)
-    }
-    fn vector_candidates_inner(
-        &self,
-        profile: &atlas_domain::SearchProfileId,
-        vector: &[f32],
-        query: &ValidatedQuery,
-        keys: Option<&[RecordKey]>,
-        exclude: Option<&RecordKey>,
-        limit: usize,
-    ) -> Result<Vec<SourceVectorHit>, IndexError> {
+        let SourceVectorCandidateRequest {
+            profile,
+            vector,
+            query,
+            keys,
+            exclude,
+            content_scope,
+            limit,
+        } = request;
         if limit == 0 || limit > 4096 {
             return Err(IndexError::Invalid(
                 "sqlite-vec candidate window must be 1..=4096".into(),
@@ -297,8 +308,9 @@ impl SqliteIndexReader {
         all.push(Value::Blob(vector_bytes(vector)));
         let limit_param = all.len() + 1;
         all.push(Value::Integer(limit as i64));
+        let content_sql = semantic_content_sql(content_scope);
         let sql = format!(
-            "WITH eligible AS ({eligible}) SELECT su.unit_id,r.key,sl.owners_json,sl.field_path,sl.section_json,knn.distance FROM (SELECT unit_id,distance FROM {table} WHERE embedding MATCH ?{vector_param} AND k=?{limit_param} AND unit_id IN (SELECT su.unit_id FROM semantic_units su WHERE su.profile_id=?{profile_param} AND su.record_id IN (SELECT record_id FROM eligible))) knn JOIN semantic_units su ON su.unit_id=knn.unit_id JOIN semantic_locations sl USING(location_id) JOIN records r ON r.record_id=su.record_id ORDER BY knn.distance,su.unit_id"
+            "WITH eligible AS ({eligible}) SELECT su.unit_id,r.key,sl.owners_json,sl.field_path,sl.section_json,knn.distance FROM (SELECT unit_id,distance FROM {table} WHERE embedding MATCH ?{vector_param} AND k=?{limit_param} AND unit_id IN (SELECT su.unit_id FROM semantic_units su WHERE su.profile_id=?{profile_param} AND su.record_id IN (SELECT record_id FROM eligible){content_sql})) knn JOIN semantic_units su ON su.unit_id=knn.unit_id JOIN semantic_locations sl USING(location_id) JOIN records r ON r.record_id=su.record_id ORDER BY knn.distance,su.unit_id"
         );
         let c = self.native()?;
         self.count_statement();
@@ -511,6 +523,7 @@ impl SqliteIndexReader {
         text: &str,
         query: &ValidatedQuery,
         keys: Option<&[RecordKey]>,
+        content_scope: SearchContentScope,
     ) -> Result<Vec<SourceLexicalRootHit>, IndexError> {
         let expression = literal_fts_query(text)?;
         if expression.is_empty() {
@@ -519,8 +532,9 @@ impl SqliteIndexReader {
         let (eligible, mut params) = eligible_sql(query, keys)?;
         let text_param = params.len() + 1;
         params.push(Value::Text(expression));
+        let content_sql = lexical_content_sql(content_scope);
         let sql = format!(
-            "WITH eligible AS ({eligible}) SELECT lu.unit_id,r.key,lu.owners_json,lu.field_path,lu.section_json,bm25(lexical_fts,10.0,8.0,1.0,6.0),lu.unit_kind,CASE WHEN lu.unit_kind='root_alias' THEN lu.alias_terms ELSE lu.identity_terms END,lu.definition_terms,r.name_state FROM lexical_fts JOIN lexical_units lu ON lu.unit_id=lexical_fts.rowid JOIN records r ON r.record_id=lu.record_id WHERE lexical_fts MATCH ?{text_param} AND lu.record_id IN (SELECT record_id FROM eligible) ORDER BY 6,lu.unit_id"
+            "WITH eligible AS ({eligible}) SELECT lu.unit_id,r.key,lu.owners_json,lu.field_path,lu.section_json,bm25(lexical_fts,10.0,8.0,1.0,6.0),lu.unit_kind,CASE WHEN lu.unit_kind='root_alias' THEN lu.alias_terms ELSE lu.identity_terms END,lu.definition_terms,r.name_state FROM lexical_fts JOIN lexical_units lu ON lu.unit_id=lexical_fts.rowid JOIN records r ON r.record_id=lu.record_id WHERE lexical_fts MATCH ?{text_param} AND lu.record_id IN (SELECT record_id FROM eligible){content_sql} ORDER BY 6,lu.unit_id"
         );
         let c = self.native()?;
         self.count_statement();

@@ -862,6 +862,7 @@ fn cosmetic_blanks_and_inapplicable_rows_are_omitted_without_hiding_known_zero()
         },
     ] {
         record.presentation.content.push(PreparedContentFieldView {
+            section_rendering: None,
             locator: atlas_app_model::ContentLocationView {
                 record: atlas_domain::RecordKey::parse("creatures:caster").unwrap(),
                 owners: vec![],
@@ -1044,6 +1045,7 @@ fn unavailable_collections_entries_and_lore_use_final_typed_contract() {
 fn prerequisites_render_prepared_content_once_before_description() {
     let mut record = detail(RecordBodyView::Content);
     record.presentation.content = vec![PreparedContentFieldView {
+        section_rendering: None,
         locator: atlas_app_model::ContentLocationView {
             record: atlas_domain::RecordKey::parse("feats:aaaaaaaaaaaaaaaa").unwrap(),
             owners: vec![],

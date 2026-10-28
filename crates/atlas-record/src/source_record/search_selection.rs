@@ -7,6 +7,7 @@ use super::{content::select_content, traversal::visit_source_nodes};
 use crate::source_content::{ContentAudience, SourceContentLocator};
 use atlas_domain::OwnedContentLocator;
 use atlas_domain::{RecordKey, SourceByteRange, SourcePassageAddress};
+use ego_tree::NodeId;
 use scraper::{ElementRef, Html};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fmt};
@@ -347,24 +348,26 @@ pub fn select_prepared_html_sections(
     html: &str,
 ) -> Result<Vec<SourceSelectedSection>, SourceSelectionError> {
     let document = Html::parse_fragment(html);
-    Ok(html_sections(&document, html)?
-        .into_iter()
-        .map(|section| section.value)
-        .collect())
+    partition_prepared_html(&document, html).map(|partition| partition.sections)
 }
 
-struct SelectedHtmlSection {
-    value: SourceSelectedSection,
-    start: Option<ego_tree::NodeId>,
+struct PreparedHtmlPartition {
+    sections: Vec<SourceSelectedSection>,
+    section_nodes: Vec<(NodeId, usize)>,
+    section_starts: Vec<Option<NodeId>>,
 }
-fn html_sections(
+
+fn partition_prepared_html(
     document: &Html,
     html: &str,
-) -> Result<Vec<SelectedHtmlSection>, SourceSelectionError> {
+) -> Result<PreparedHtmlPartition, SourceSelectionError> {
     let mut blocks = Vec::new();
     collect_blocks(document.root_element(), &mut blocks);
     let mut output = Vec::new();
     let mut current_html = String::new();
+    let mut current_nodes = Vec::new();
+    let mut section_nodes = Vec::new();
+    let mut section_starts = Vec::new();
     let mut current_start = None;
     let mut label = None;
     let mut heading_chain: Vec<(u8, String)> = Vec::new();
@@ -380,14 +383,21 @@ fn html_sections(
             });
         let definition = block.element.and_then(leading_definition);
         if heading.is_some() || definition.is_some() {
+            let ordinal = output.len();
+            let start = current_start.take();
             finish_section(
                 &mut output,
                 &mut current_html,
-                current_start.take(),
                 label.take(),
                 std::mem::take(&mut current_chain),
                 kind,
             )?;
+            if output.len() > ordinal {
+                section_starts.push(start);
+                section_nodes.extend(current_nodes.drain(..).map(|id| (id, ordinal)));
+            } else {
+                current_nodes.clear();
+            }
             if let Some((level, heading)) = heading {
                 kind = SourceSelectedSectionKind::Heading;
                 heading_chain.retain(|(ancestor, _)| *ancestor < level);
@@ -405,34 +415,116 @@ fn html_sections(
         if current_start.is_none() {
             current_start = block.element.map(|element| element.id());
         }
+        current_nodes.push(block.node_id);
         current_html.push_str(&block.html);
     }
-    finish_section(
-        &mut output,
-        &mut current_html,
-        current_start,
-        label,
-        current_chain,
-        kind,
-    )?;
+    let ordinal = output.len();
+    finish_section(&mut output, &mut current_html, label, current_chain, kind)?;
+    if output.len() > ordinal {
+        section_starts.push(current_start);
+        section_nodes.extend(current_nodes.into_iter().map(|id| (id, ordinal)));
+    }
     if output.is_empty() {
         let text = plain(html)?;
         if !text.is_empty() {
-            output.push(SelectedHtmlSection {
-                value: SourceSelectedSection {
-                    kind: SourceSelectedSectionKind::Unlabeled,
-                    section_ordinal: 0,
-                    label: None,
-                    heading_chain: vec![],
-                    text,
-                },
-                start: Some(document.root_element().id()),
+            section_starts.push(Some(document.root_element().id()));
+            output.push(SourceSelectedSection {
+                kind: SourceSelectedSectionKind::Unlabeled,
+                section_ordinal: 0,
+                label: None,
+                heading_chain: vec![],
+                text,
             });
         }
     }
-    Ok(output)
+    Ok(PreparedHtmlPartition {
+        sections: output,
+        section_nodes,
+        section_starts,
+    })
 }
+
+/// Transient rendering copy of the canonical sections. The input bytes and
+/// selection identity remain unchanged; container topology is retained.
+pub fn section_annotated_prepared_html(html: &str) -> Result<String, SourceSelectionError> {
+    let mut document = Html::parse_fragment(html);
+    let partition = partition_prepared_html(&document, html)?;
+    annotate_section_nodes(&mut document, partition.section_nodes);
+    Ok(document.root_element().inner_html())
+}
+
+/// Traits compare one complete definition, irrespective of authored headings.
+pub fn single_section_annotated_prepared_html(html: &str) -> String {
+    let mut document = Html::parse_fragment(html);
+    let nodes = document
+        .root_element()
+        .children()
+        .map(|node| (node.id(), 0))
+        .collect();
+    annotate_section_nodes(&mut document, nodes);
+    document.root_element().inner_html()
+}
+
+fn annotate_section_nodes(document: &mut Html, sections: Vec<(NodeId, usize)>) {
+    // Render annotations are generated authority, never authored attributes.
+    // Strip the reserved name throughout this copy, including block descendants.
+    let nodes: Vec<_> = document
+        .root_element()
+        .descendants()
+        .map(|node| node.id())
+        .collect();
+    for id in nodes {
+        if let Some(mut node) = document.tree.get_mut(id)
+            && let scraper::Node::Element(element) = node.value()
+        {
+            element
+                .attrs
+                .retain(|(name, _)| name.local.as_ref() != "data-atlas-source-section");
+        }
+    }
+    let wrapper = Html::parse_fragment("<span></span>");
+    let wrapper_node = wrapper
+        .root_element()
+        .children()
+        .next()
+        .map(|node| node.value().clone());
+    for (id, ordinal) in sections {
+        let Some(mut node) = document.tree.get_mut(id) else {
+            continue;
+        };
+        if let scraper::Node::Element(element) = node.value() {
+            let mut name = element.name.clone();
+            name.local = "data-atlas-source-section".into();
+            name.ns = "".into();
+            name.prefix = None;
+            element.attrs = element
+                .attrs
+                .iter()
+                .filter(|(key, _)| key.local.as_ref() != "data-atlas-source-section")
+                .cloned()
+                .chain(std::iter::once((name, ordinal.to_string().into())))
+                .collect();
+        } else if matches!(node.value(), scraper::Node::Text(text) if !text.trim().is_empty()) {
+            // Wrapping whitespace would change adjacent-heading recognition during
+            // inline composition. Only substantive bare text needs a render node.
+            if let Some(mut element) = wrapper_node.clone() {
+                if let scraper::Node::Element(value) = &mut element {
+                    let mut name = value.name.clone();
+                    name.local = "data-atlas-source-section".into();
+                    name.ns = "".into();
+                    value.attrs = std::iter::once((name, ordinal.to_string().into())).collect();
+                }
+                let wrapper_id = node.insert_before(element).id();
+                if let Some(mut wrapper) = document.tree.get_mut(wrapper_id) {
+                    wrapper.append_id(id);
+                }
+            }
+        }
+    }
+}
+
 struct HtmlBlock<'a> {
+    node_id: NodeId,
     element: Option<ElementRef<'a>>,
     html: String,
 }
@@ -455,12 +547,14 @@ fn collect_blocks<'a>(element: ElementRef<'a>, output: &mut Vec<HtmlBlock<'a>>) 
                 collect_blocks(element, output);
             } else {
                 output.push(HtmlBlock {
+                    node_id: child.id(),
                     html: element.html(),
                     element: Some(element),
                 });
             }
         } else if let scraper::Node::Text(text) = child.value() {
             output.push(HtmlBlock {
+                node_id: child.id(),
                 element: None,
                 html: text
                     .replace('&', "&amp;")
@@ -471,9 +565,8 @@ fn collect_blocks<'a>(element: ElementRef<'a>, output: &mut Vec<HtmlBlock<'a>>) 
     }
 }
 fn finish_section(
-    output: &mut Vec<SelectedHtmlSection>,
+    output: &mut Vec<SourceSelectedSection>,
     html: &mut String,
-    start: Option<ego_tree::NodeId>,
     label: Option<String>,
     heading_chain: Vec<String>,
     kind: SourceSelectedSectionKind,
@@ -481,15 +574,12 @@ fn finish_section(
     let text = plain(html)?;
     html.clear();
     if !text.is_empty() {
-        output.push(SelectedHtmlSection {
-            value: SourceSelectedSection {
-                kind,
-                section_ordinal: output.len(),
-                label,
-                heading_chain,
-                text,
-            },
-            start,
+        output.push(SourceSelectedSection {
+            kind,
+            section_ordinal: output.len(),
+            label,
+            heading_chain,
+            text,
         });
     }
     Ok(())
@@ -512,9 +602,11 @@ pub fn mark_source_html_passage(
         ));
     };
     let mut document = Html::parse_fragment(html);
-    let start = html_sections(&document, html)?
+    let start = partition_prepared_html(&document, html)?
+        .section_starts
         .get(*section_ordinal)
-        .and_then(|section| section.start);
+        .copied()
+        .flatten();
     let Some(start) = start else {
         return Ok(format!("<div data-atlas-passage-target>\n{html}</div>"));
     };
@@ -667,7 +759,115 @@ mod tests {
         );
         assert!(marked.contains("<a data-atlas-reference=\"0\">Second.</a>"));
         assert!(marked.contains("<p>First.</p>"));
+        let annotated = section_annotated_prepared_html(&marked).unwrap();
+        let annotated_document = Html::parse_fragment(&annotated);
+        let landing = annotated_document
+            .select(&scraper::Selector::parse("[data-atlas-passage-target]").unwrap())
+            .next()
+            .unwrap();
+        assert_eq!(landing.attr("data-atlas-source-section"), Some("2"));
+        assert_eq!(
+            select_prepared_html_sections(&annotated).unwrap(),
+            select_prepared_html_sections(html).unwrap()
+        );
+        assert!(recover_source_passage(Some(html), None, &address).is_ok());
+        assert!(recover_source_passage(Some(&marked), None, &address).is_err());
         assert!(mark_source_html_passage("<p>Changed</p>", &address).is_err());
+    }
+
+    #[test]
+    fn rendering_replaces_authored_annotations_including_nested_descendants() {
+        let html = "<div data-atlas-source-section=\"99\"><h2>First</h2><p data-atlas-source-section=\"98\">Own <em data-atlas-source-section=\"1\">spoof</em></p><h2>Second</h2><p>Other</p></div>";
+        let rendering = section_annotated_prepared_html(html).unwrap();
+        assert!(html.contains("data-atlas-source-section=\"99\""));
+        assert!(!rendering.contains("99") && !rendering.contains("98"));
+        assert!(rendering.contains("<em>spoof</em>"));
+        assert!(rendering.contains("<p data-atlas-source-section=\"0\">Own"));
+        assert_eq!(
+            rendering.matches("data-atlas-source-section=\"1\"").count(),
+            2
+        );
+        let trait_rendering = single_section_annotated_prepared_html(html);
+        assert!(!trait_rendering.contains("data-atlas-source-section=\"1\""));
+    }
+
+    #[test]
+    fn rendering_annotations_preserve_canonical_partitions_and_complete_markup() {
+        let html = "bare &amp; intro<div class=\"layout\"><h2 id=\"first\">Recovery</h2><p><b>Trigger:</b> enemy moves <span data-atlas-reference=\"2\">Source</span></p><h3>Effect</h3><p><span data-atlas-interaction=\"0\">Check</span></p><ul><li><strong>Named Skill:</strong> body<ol><li>Nested list</li></ol></li><li>continued</li></ul><dl><dt><b>Recovery:</b> other</dt><dd>Definition detail</dd></dl><h2>Recovery</h2><table class=\"stats\"><thead><tr><th>Roll</th></tr></thead><tbody><tr><td>Result</td></tr></tbody></table><p><strong>Heightened (+1):</strong> extra</p></div>tail";
+        let original = html.to_owned();
+        let sections = select_prepared_html_sections(html).unwrap();
+        let rendering = section_annotated_prepared_html(html).unwrap();
+        assert_eq!(html, original);
+        assert_eq!(select_prepared_html_sections(&rendering).unwrap(), sections);
+        let mut restored = rendering.clone();
+        for ordinal in 0..sections.len() {
+            restored = restored.replace(&format!(" data-atlas-source-section=\"{ordinal}\""), "");
+        }
+        restored = restored
+            .replace("<span>bare &amp; intro</span>", "bare &amp; intro")
+            .replace("<span>tail</span>", "tail");
+        assert_eq!(
+            restored,
+            Html::parse_fragment(html).root_element().inner_html()
+        );
+        let tree = Html::parse_fragment(&rendering);
+        let blocks: Vec<_> = tree
+            .root_element()
+            .descendants()
+            .filter_map(ElementRef::wrap)
+            .filter_map(|element| {
+                element
+                    .attr("data-atlas-source-section")
+                    .map(|ordinal| (element, ordinal))
+            })
+            .collect();
+        assert!(
+            blocks
+                .iter()
+                .all(|(element, _)| !matches!(element.value().name(), "div" | "ul" | "ol" | "dl"))
+        );
+        let ordinal = |tag: &str| {
+            blocks
+                .iter()
+                .find(|(element, _)| element.value().name() == tag)
+                .unwrap()
+                .1
+        };
+        assert_eq!(ordinal("h2"), ordinal("h3"));
+        assert!(
+            blocks
+                .iter()
+                .any(|(element, _)| element.value().name() == "table")
+        );
+        assert_ne!(
+            blocks
+                .iter()
+                .find(|(element, _)| element.attr("id") == Some("first"))
+                .unwrap()
+                .1,
+            ordinal("table")
+        );
+    }
+
+    #[test]
+    fn rendering_whitespace_does_not_change_inline_composition_or_generic_labels() {
+        let html = "<h2>Ability</h2> \n<p><span data-atlas-reference=\"0\">Embed</span></p><p><b>Trigger:</b> move</p><p><b>Effect:</b> apply</p><p><b>Heightened (+1):</b> more</p>";
+        let rendering = section_annotated_prepared_html(html).unwrap();
+        assert!(rendering.contains("</h2> \n<p"));
+        assert_eq!(select_prepared_html_sections(&rendering).unwrap().len(), 1);
+        assert!(rendering.matches("data-atlas-source-section=\"0\"").count() == 5);
+    }
+
+    #[test]
+    fn trait_rendering_keeps_a_complete_definition_in_one_section() {
+        let html = "intro<h2>First</h2><p>Body</p><h2>Second</h2><ul><li>Tail</li></ul>";
+        let rendering = single_section_annotated_prepared_html(html);
+        assert!(!rendering.contains("data-atlas-source-section=\"1\""));
+        assert_eq!(
+            rendering.matches("data-atlas-source-section=\"0\"").count(),
+            5
+        );
+        assert!(rendering.contains("<ul data-atlas-source-section=\"0\"><li>Tail</li></ul>"));
     }
 
     #[test]

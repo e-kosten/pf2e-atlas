@@ -4,6 +4,9 @@ mod actor_presentation;
 mod actor_query;
 mod availability;
 mod content;
+mod core_sections;
+#[cfg(test)]
+mod core_sections_tests;
 #[cfg(test)]
 mod declared_grant_tests;
 mod identity;
@@ -15,6 +18,10 @@ mod relationships;
 mod resolver;
 mod search_selection;
 mod shield_content;
+mod similarity;
+#[cfg(test)]
+mod similarity_tests;
+pub use similarity::similarity_content_role;
 #[cfg(test)]
 mod tests;
 mod text;
@@ -30,6 +37,7 @@ pub use content::{
     SourceContentFormat, SourceContentOutcome, SourceContentRole, SourceContentSelection,
     SourceContentStatus, prepare_record_content, trait_record_localization_references,
 };
+pub use core_sections::{CoreSearchSelection, core_search_selection};
 pub use identity::{SourceIdentityError, source_record_key};
 pub use item_query::{PhysicalBaseType, spell_casting_form};
 pub use model::{SourceBackedRecord, SourceRecordConstructionError, source_owned_document_count};
@@ -42,8 +50,8 @@ pub use resolver::SourceReferenceIndex;
 pub use search_selection::{
     SOURCE_CONTENT_SELECTION_VERSION, SourceSearchSelection, SourceSelectedField,
     SourceSelectedIdentity, SourceSelectedSection, SourceSelectedSectionKind, SourceSelectionError,
-    mark_source_html_passage, recover_source_passage, select_prepared_html_sections,
-    select_record_search,
+    mark_source_html_passage, recover_source_passage, section_annotated_prepared_html,
+    select_prepared_html_sections, select_record_search, single_section_annotated_prepared_html,
 };
 pub use text::{SourceTextKind, SourceTextSource};
 

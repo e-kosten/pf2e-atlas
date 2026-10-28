@@ -28,6 +28,10 @@ impl AtlasAppService {
                     label: definition.label,
                     content: definition.prepared.map(|prepared| {
                         atlas_app_model::TraitContentView {
+                            section_rendering: Some(atlas_app_model::PreparedSectionRenderingView {
+                                html: atlas_record::source_record::single_section_annotated_prepared_html(&prepared.html),
+                                selection_version: "trait-definition-centroid/v1".into(),
+                            }),
                             body: atlas_app_model::PreparedFieldBodyView::Html {
                                 inclusions: vec![],
                                 html: prepared.html,
@@ -183,6 +187,7 @@ impl AtlasAppService {
                 TraitAssociationKind::Similar => {
                     let result = retrieval
                         .similar_trait(SimilarTraitRequest {
+                            content_scope: atlas_domain::SearchContentScope::All,
                             sort: sort
                                 .clone()
                                 .unwrap_or(atlas_domain::ResultSort::Relevance {}),

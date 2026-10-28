@@ -110,6 +110,7 @@ pub(crate) fn prepared_fields(
                         locator: locator.into(),
                         role: format!("{:?}", s.role).to_lowercase(),
                         source_fingerprint: navigation_fingerprint(owners, context.fingerprint),
+                        section_rendering: None,
                         body: PreparedFieldBodyView::Bounded {
                             reason: "This field exceeds the reference-link reading limit.".into(),
                         },
@@ -155,7 +156,21 @@ pub(crate) fn prepared_fields(
                 },
             },
         };
+        // Section ordinals bind canonical prepared content, before contextual
+        // substitutions change the displayed text. Render both copies with the
+        // same field context after deriving those annotations.
+        let section_rendering = match cache
+            .iter()
+            .find(|cached| cached.locator == locator)
+            .and_then(|cached| cached.html.as_ref().map(|html| (cached, html)))
+        {
+            Some((cached, html)) if matches!(body, PreparedFieldBodyView::Html { .. }) => {
+                contextual_section_rendering(html, &cached.interactions, &context.formula)?
+            }
+            _ => section_rendering(&body)?,
+        };
         fields.push(PreparedContentFieldView {
+            section_rendering,
             locator: locator.into(),
             role: format!("{:?}", s.role).to_lowercase(),
             source_fingerprint: navigation_fingerprint(owners, context.fingerprint),
@@ -276,6 +291,52 @@ pub(crate) fn content_controls(
         .collect()
 }
 
+/// One bounded rendering copy per selected field. Selection policy remains in
+/// atlas-record; the original body is never rewritten to carry view metadata.
+pub(crate) fn contextual_section_rendering(
+    html: &str,
+    interactions: &[atlas_record::source_content::ContentInteraction],
+    formula: &atlas_record::source_content::FormulaContext,
+) -> AppServiceResult<Option<PreparedSectionRenderingView>> {
+    let mut rendering = section_rendering(&PreparedFieldBodyView::Html {
+        html: html.to_owned(),
+        controls: vec![],
+        inclusions: vec![],
+    })?;
+    if let Some(rendering) = &mut rendering {
+        rendering.html = atlas_record::source_content::render_contextual_interactions(
+            &rendering.html,
+            interactions,
+            formula,
+        );
+    }
+    Ok(rendering)
+}
+
+fn section_rendering(
+    body: &PreparedFieldBodyView,
+) -> AppServiceResult<Option<PreparedSectionRenderingView>> {
+    use atlas_record::source_record::{
+        SOURCE_CONTENT_SELECTION_VERSION, section_annotated_prepared_html,
+    };
+    let html = match body {
+        PreparedFieldBodyView::Html { html, .. } => {
+            section_annotated_prepared_html(html).map_err(|error| {
+                AppServiceError::new(AppErrorCode::ArtifactIncompatible, error.to_string())
+            })?
+        }
+        PreparedFieldBodyView::Plain { text } => format!(
+            "<span data-atlas-source-section=\"0\">{}</span>",
+            atlas_record::source_content::escape_content_text(text)
+        ),
+        _ => return Ok(None),
+    };
+    Ok(Some(PreparedSectionRenderingView {
+        html,
+        selection_version: SOURCE_CONTENT_SELECTION_VERSION.into(),
+    }))
+}
+
 /// Rebuild the host namespace from its checked prepared row before composing
 /// inclusions. A participant's values never reach an included foreign record.
 pub(crate) fn resolve_runtime_content(
@@ -359,6 +420,8 @@ pub(crate) fn resolve_runtime_content(
                 &cached.interactions,
                 &context.formula,
             );
+            field.section_rendering =
+                contextual_section_rendering(authored, &cached.interactions, &context.formula)?;
             *controls = content_controls(&cached.interactions, Some((&cached.locator, &context)));
             inclusions.clear();
         }
@@ -368,4 +431,67 @@ pub(crate) fn resolve_runtime_content(
         view.presentation.content.iter_mut(),
         &content.relationships,
     )
+}
+
+#[cfg(test)]
+mod section_rendering_tests {
+    use super::*;
+
+    #[test]
+    fn contextual_copy_retains_source_section_and_passage_markers() {
+        use atlas_record::source_content::{ContentInteraction, ContentInteractionLabel};
+        let canonical = "<h2>Breath</h2><p data-atlas-passage-target=\"true\">Deals <span data-atlas-interaction=\"0\">unresolved damage</span>.</p>";
+        let interactions = [ContentInteraction {
+            ordinal: 0,
+            path: "/system/description/value".into(),
+            kind: ContentInteractionKind::Damage {
+                formula: "@actor.level[fire]".into(),
+                options: Default::default(),
+            },
+            label: ContentInteractionLabel::Damage,
+        }];
+        let rendering = contextual_section_rendering(
+            canonical,
+            &interactions,
+            &atlas_record::source_content::FormulaContext {
+                actor_level: Some(7),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .unwrap();
+        assert!(rendering.html.contains("7 fire damage"));
+        assert!(rendering.html.contains("data-atlas-source-section=\"0\""));
+        assert!(
+            rendering
+                .html
+                .contains("data-atlas-passage-target=\"true\"")
+        );
+        assert!(canonical.contains("unresolved damage"));
+    }
+
+    #[test]
+    fn plain_rendering_escapes_original_text_and_unavailable_has_no_metadata() {
+        let body = PreparedFieldBodyView::Plain {
+            text: "<rules> & facts".into(),
+        };
+        let rendering = section_rendering(&body).unwrap().unwrap();
+        assert_eq!(
+            rendering.html,
+            "<span data-atlas-source-section=\"0\">&lt;rules&gt; &amp; facts</span>"
+        );
+        assert_eq!(
+            body,
+            PreparedFieldBodyView::Plain {
+                text: "<rules> & facts".into()
+            }
+        );
+        assert!(
+            section_rendering(&PreparedFieldBodyView::Bounded {
+                reason: "bounded".into()
+            })
+            .unwrap()
+            .is_none()
+        );
+    }
 }

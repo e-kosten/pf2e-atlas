@@ -24,6 +24,7 @@ impl RetrievalMode {
     }
 }
 pub struct TextSearchRequest<'a> {
+    pub content_scope: atlas_domain::SearchContentScope,
     pub sort: atlas_domain::ResultSort,
     pub ranking: atlas_domain::SearchRanking,
     pub search_profile: Option<&'a atlas_domain::SearchProfileId>,
@@ -41,6 +42,7 @@ impl<'a> TextSearchRequest<'a> {
             ranking: Default::default(),
             search_profile: None,
             query,
+            content_scope: Default::default(),
             mode: RetrievalMode::Hybrid,
             filter: None,
             scope: RecordScope::All,
@@ -104,6 +106,7 @@ pub(crate) struct RankedRoot {
     pub witnesses: Vec<SearchWitness>,
 }
 pub(crate) struct CandidateRequest<'a> {
+    pub content_scope: atlas_domain::SearchContentScope,
     pub ranking: atlas_domain::SearchRanking,
     pub search_profile: &'a atlas_domain::SearchProfileId,
     pub text: &'a str,
@@ -194,6 +197,7 @@ impl AtlasRetrievalService {
             None
         };
         let (roots, window) = self.rank_candidates(CandidateRequest {
+            content_scope: request.content_scope,
             ranking: request.ranking,
             search_profile: &search_profile,
             text: request.query,
@@ -229,29 +233,23 @@ impl AtlasRetrievalService {
     }
     pub(crate) fn vector_window(
         &self,
-        search_profile: &atlas_domain::SearchProfileId,
+        request: &CandidateRequest<'_>,
         vector: &[f32],
-        query: &ValidatedQuery,
-        scope: RecordScope<'_>,
-        prefer: bool,
-        exclude: Option<&RecordKey>,
     ) -> Result<(Vec<RankedRoot>, usize), SearchError> {
         for window in SEMANTIC_WINDOWS {
-            let hits = if let Some(seed) = exclude {
-                self.index.vector_candidates_excluding(
-                    search_profile,
+            let hits = self
+                .index
+                .vector_candidates(atlas_index::SourceVectorCandidateRequest {
+                    profile: request.search_profile,
                     vector,
-                    query,
-                    scope.keys(),
-                    seed,
-                    window,
-                )?
-            } else {
-                self.index
-                    .vector_candidates(search_profile, vector, query, scope.keys(), window)?
-            };
+                    query: request.query,
+                    keys: request.scope.keys(),
+                    exclude: request.exclude,
+                    content_scope: request.content_scope,
+                    limit: window,
+                })?;
             let roots = semantic_roots(hits);
-            let displayed = self.suppress_pairs(roots.clone(), prefer)?;
+            let displayed = self.suppress_pairs(roots.clone(), request.prefer)?;
             if displayed.len() >= TARGET_ROOTS || window == 4096 {
                 return Ok((roots, window));
             }
@@ -266,7 +264,7 @@ impl AtlasRetrievalService {
     ) -> Result<(Vec<RankedRoot>, Option<usize>), SearchError> {
         let CandidateRequest {
             ranking,
-            search_profile,
+            content_scope,
             text,
             mode,
             query,
@@ -274,7 +272,7 @@ impl AtlasRetrievalService {
             prefer,
             suppress,
             vector,
-            exclude,
+            ..
         } = request;
         let mut roots = BTreeMap::<RecordKey, RankedRoot>::new();
         if mode.uses_fts() {
@@ -284,9 +282,9 @@ impl AtlasRetrievalService {
                 .and_then(|s| s.strip_suffix('"'))
                 .unwrap_or(text.trim());
             let identities = self.index.lookup_name_or_alias(identity_text)?;
-            let mut lexical = self
-                .index
-                .lexical_root_candidates(text, query, scope.keys())?;
+            let mut lexical =
+                self.index
+                    .lexical_root_candidates(text, query, scope.keys(), content_scope)?;
             let tier = |key: &RecordKey| {
                 if identities
                     .iter()
@@ -340,8 +338,7 @@ impl AtlasRetrievalService {
                     "semantic retrieval requires a compatible vector",
                 )
             })?;
-            let (semantic, k) =
-                self.vector_window(search_profile, vector, query, scope, prefer, exclude)?;
+            let (semantic, k) = self.vector_window(&request, vector)?;
             window = Some(k);
             let values = semantic.iter().map(|root| root.score).collect::<Vec<_>>();
             let scores = if mode == RetrievalMode::Hybrid {
@@ -521,7 +518,7 @@ impl AtlasRetrievalService {
 }
 
 /// Compact prose for both product surfaces; preserve words and mark shortening.
-fn reading_excerpt(text: &str) -> String {
+pub(crate) fn reading_excerpt(text: &str) -> String {
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
     let limit = 240;
     let Some((boundary, _)) = text.char_indices().nth(limit) else {

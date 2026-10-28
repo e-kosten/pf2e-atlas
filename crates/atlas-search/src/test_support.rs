@@ -5,7 +5,7 @@ use atlas_foundry_model::{
 };
 pub use atlas_index::test_support::publish_input;
 use atlas_index::*;
-pub use atlas_index::{SourceReadMetrics, TraitSeedChunk, TraitVectorInput};
+pub use atlas_index::{TraitSeedChunk, TraitVectorInput};
 use atlas_record::{
     source_content::{CONTENT_INTERPRETATION_VERSION, ContentAudience, ContentVisibilityRule},
     source_record::{
@@ -73,14 +73,6 @@ pub fn open_input_fixture(
         artifact,
     ))
 }
-impl crate::AtlasRetrievalService {
-    pub fn read_metrics(&self) -> SourceReadMetrics {
-        self.index.read_metrics()
-    }
-    pub fn reset_read_metrics(&self) {
-        self.index.reset_read_metrics();
-    }
-}
 pub fn hash(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
@@ -113,6 +105,7 @@ pub fn context(semantic: bool) -> SourceArtifactBuildContext {
         query_catalog_version: query_capabilities().unwrap().version,
         lookup_version: SOURCE_LOOKUP_VERSION.into(),
         lexical_selection_version: LEXICAL_SELECTION_VERSION.into(),
+        core_sections_recipe: atlas_domain::CORE_SECTIONS_RECIPE.into(),
         fts_tokenizer: "unicode61 remove_diacritics 2".into(),
         used_trait_labels: BTreeMap::new(),
         search_profiles: if semantic {

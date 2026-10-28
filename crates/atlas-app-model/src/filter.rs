@@ -8,9 +8,12 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum FilterDiscoveryContext {
     Filtered {
+        #[serde(default)]
+        #[ts(optional)]
+        search_content: Option<atlas_domain::SearchContentScope>,
         #[ts(optional)]
         search_profile: Option<atlas_domain::SearchProfileId>,
         #[ts(optional)]
@@ -20,6 +23,9 @@ pub enum FilterDiscoveryContext {
         mode: RetrievalModeView,
     },
     SavedList {
+        #[serde(default)]
+        #[ts(optional)]
+        search_content: Option<atlas_domain::SearchContentScope>,
         #[ts(optional)]
         search_profile: Option<atlas_domain::SearchProfileId>,
         #[ts(optional)]

@@ -168,6 +168,7 @@ fn real_producer_judged_retrieval_and_witness_evidence() {
             .unwrap();
             let result = service
                 .search_text(TextSearchRequest {
+                    content_scope: atlas_domain::SearchContentScope::All,
                     sort: atlas_domain::ResultSort::Relevance {},
                     ranking: Default::default(),
                     search_profile: None,

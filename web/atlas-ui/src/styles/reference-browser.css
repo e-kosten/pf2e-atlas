@@ -321,3 +321,19 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+.similarity-explanation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-group);
+  min-width: 0;
+}
+.similarity-explanation__pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--space-group);
+}
+.similarity-explanation__pair > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

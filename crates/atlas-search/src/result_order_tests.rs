@@ -242,6 +242,7 @@ fn sorting_semantic_set_above_two_hundred_preserves_membership_window_and_witnes
     let read = |sort: ResultSort, page, size| {
         service
             .similar_records(SimilarRecordRequest {
+                content_scope: atlas_domain::SearchContentScope::All,
                 sort: sort.clone(),
                 search_profile: None,
                 record_key: &key(0),
@@ -308,6 +309,7 @@ fn sorting_hybrid_keeps_lexical_members_outside_semantic_window_and_ranking_stra
     ] {
         let (roots, window) = service
             .rank_candidates(crate::text::CandidateRequest {
+                content_scope: atlas_domain::SearchContentScope::All,
                 ranking,
                 search_profile: &profile,
                 text: "Record",
@@ -525,6 +527,7 @@ fn sorting_adaptive_semantic_windows_preserves_expansion_for_dense_contents() {
     ] {
         let result = service
             .similar_records(SimilarRecordRequest {
+                content_scope: atlas_domain::SearchContentScope::All,
                 sort: sort.clone(),
                 search_profile: None,
                 record_key: &key(0),

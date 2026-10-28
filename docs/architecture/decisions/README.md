@@ -4,6 +4,10 @@ This index is the quickest way to scan accepted architecture decision records fo
 
 ## Current ADRs
 
+- [`0060-core-sections-and-search-scope.md`](./0060-core-sections-and-search-scope.md): typed Core recipes, independent source/result scopes, explicit identity components and metadata-only restriction of existing lexical/vector content.
+
+- [`0059-configurable-similarity.md`](./0059-configurable-similarity.md): stored-vector Similar methods, exact part selection, cross-kind roles, shared browser/CLI semantics and persistent browser search preferences.
+
 - [`0057-relationship-scoped-search.md`](./0057-relationship-scoped-search.md): first-class Boolean reference predicates across web/CLI, checked source admission, distinct-root pages, clause-addressed positive proof evidence and human-named criteria.
 
 - [`0056-trait-reference-entities.md`](./0056-trait-reference-entities.md): typed trait identities, pinned source definitions, exact membership/reference evidence and stored-vector Similar into normal records.

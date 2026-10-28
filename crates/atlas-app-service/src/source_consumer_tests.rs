@@ -441,6 +441,18 @@ fn default_detail_batches_only_root_content_and_owned_navigation_loads_exact_fie
         &field.body,
         PreparedFieldBodyView::Html { html, .. } if html.contains("data-atlas-passage-target")
     )));
+    let annotated = selected
+        .presentation
+        .content
+        .iter()
+        .find_map(|field| field.section_rendering.as_ref())
+        .unwrap();
+    assert!(annotated.html.contains("data-atlas-passage-target"));
+    assert!(annotated.html.contains("data-atlas-source-section=\"0\""));
+    assert_eq!(
+        annotated.selection_version,
+        atlas_record::source_record::SOURCE_CONTENT_SELECTION_VERSION
+    );
     let mut full_field = request.clone();
     full_field.passage = None;
     let unchanged = f.worker.record_detail_at(full_field).unwrap();
@@ -448,6 +460,13 @@ fn default_detail_batches_only_root_content_and_owned_navigation_loads_exact_fie
         &field.body,
         PreparedFieldBodyView::Html { html, .. } if html.contains("data-atlas-passage-target")
     )));
+    assert_eq!(unchanged.presentation.content, owned.presentation.content);
+    assert!(unchanged.presentation.content.iter().all(|field| {
+        field
+            .section_rendering
+            .as_ref()
+            .is_none_or(|rendering| !rendering.html.contains("data-atlas-passage-target"))
+    }));
     if let Some(atlas_domain::SourcePassageAddress::HtmlSection {
         canonical_text_sha256,
         ..
@@ -724,6 +743,7 @@ fn editor_uses_shared_catalog_validation_and_rejects_unsupported_facet_removal()
             .discover_raw_filter_counts(crate::RawFilterCountsRequest {
                 field: "defenses.hp.maximum".into(),
                 context: atlas_app_model::FilterDiscoveryContext::Filtered {
+                    search_content: None,
                     filter: Some(disjunction),
                     text: None,
                     mode: atlas_app_model::RetrievalModeView::Lexical,
@@ -928,6 +948,7 @@ fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
     let f = fixture_worker();
     let predicate:atlas_domain::QueryPredicate=serde_json::from_value(json!({"kind":"any_of","children":[{"clause_id":"choice","kind":"compare","field":"rarity","op":"eq","value":"rare"},{"kind":"compare","field":"rarity","op":"eq","value":"common"}]})).unwrap();
     let context = FilterDiscoveryContext::Filtered {
+        search_content: None,
         search_profile: None,
         expected_artifact_generation: None,
         filter: Some(predicate),
@@ -994,6 +1015,7 @@ fn app_discovery_unavailability_is_optional_but_malformed_targets_are_errors() {
 fn explicit_option_counts_defer_text_without_inference_and_validate_literals_first() {
     let f = fixture_worker();
     let context = FilterDiscoveryContext::Filtered {
+        search_content: None,
         search_profile: None,
         expected_artifact_generation: None,
         filter: None,

@@ -101,6 +101,7 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
             .unwrap();
             let result = service
                 .search_text(TextSearchRequest {
+                    content_scope: atlas_domain::SearchContentScope::All,
                     sort: atlas_domain::ResultSort::Relevance {},
                     ranking: Default::default(),
                     search_profile: None,
@@ -140,6 +141,7 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
     .unwrap();
     let lexical = service
         .search_text(TextSearchRequest {
+            content_scope: atlas_domain::SearchContentScope::All,
             sort: atlas_domain::ResultSort::Relevance {},
             ranking: Default::default(),
             search_profile: None,
@@ -165,6 +167,7 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
     let seed = &eligible[0];
     let similar = service
         .similar_records(SimilarRecordRequest {
+            content_scope: atlas_domain::SearchContentScope::All,
             sort: atlas_domain::ResultSort::Relevance {},
             search_profile: None,
             record_key: seed,

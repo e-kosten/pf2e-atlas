@@ -23,7 +23,7 @@ type RetrievalJob = Box<dyn FnOnce(&AtlasRuntime) + Send + 'static>;
 pub(super) struct RetrievalExecutor {
     sender: SyncSender<RetrievalJob>,
     #[cfg(test)]
-    pub(super) last_read_metrics: Arc<Mutex<atlas_search::test_support::SourceReadMetrics>>,
+    pub(super) last_read_metrics: Arc<Mutex<atlas_search::SourceReadMetrics>>,
     #[cfg(test)]
     pub(super) runtime: Option<Arc<AtlasRuntime>>,
     #[cfg(test)]

@@ -389,6 +389,14 @@ export type { SpellEffectPreviewView } from "../../../../crates/atlas-app-model/
 export type { SpellEffectFactView } from "../../../../crates/atlas-app-model/bindings/SpellEffectFactView";
 export type { SpellEffectStrikeView } from "../../../../crates/atlas-app-model/bindings/SpellEffectStrikeView";
 export type { SpellEffectChoiceView } from "../../../../crates/atlas-app-model/bindings/SpellEffectChoiceView";
+export type { SimilarityOptions } from "../../../../crates/atlas-app-model/bindings/SimilarityOptions";
+export type { SimilaritySeed } from "../../../../crates/atlas-app-model/bindings/SimilaritySeed";
+export type { SimilarityPartView } from "../../../../crates/atlas-app-model/bindings/SimilarityPartView";
+export type { SimilarityRole } from "../../../../crates/atlas-app-model/bindings/SimilarityRole";
+export type { SimilarityPartsRequest } from "../../../../crates/atlas-app-model/bindings/SimilarityPartsRequest";
+export type { SimilarityPartsView } from "../../../../crates/atlas-app-model/bindings/SimilarityPartsView";
+export type { SimilarityEvidenceView } from "../../../../crates/atlas-app-model/bindings/SimilarityEvidenceView";
+export type { SimilarityConfigurationView } from "../../../../crates/atlas-app-model/bindings/SimilarityConfigurationView";
 
 export type { ContentRollComponentView } from "../../../../crates/atlas-app-model/bindings/ContentRollComponentView";
 export type { RollContentRequest } from "../../../../crates/atlas-app-model/bindings/RollContentRequest";
@@ -397,3 +405,11 @@ export type { ContentRollComponentResultView } from "../../../../crates/atlas-ap
 
 export type { ContentRollPresentationView } from "../../../../crates/atlas-app-model/bindings/ContentRollPresentationView";
 export type { RollUnitView } from "../../../../crates/atlas-app-model/bindings/RollUnitView";
+export type { CoreFallbackReason } from "../../../../crates/atlas-app-model/bindings/CoreFallbackReason";
+export type { CoreSectionFamily } from "../../../../crates/atlas-app-model/bindings/CoreSectionFamily";
+export type { CoreSectionRepresentation } from "../../../../crates/atlas-app-model/bindings/CoreSectionRepresentation";
+export type { CoreSectionSelection } from "../../../../crates/atlas-app-model/bindings/CoreSectionSelection";
+export type { SearchContentScope } from "../../../../crates/atlas-app-model/bindings/SearchContentScope";
+export type { SimilaritySourceSections } from "../../../../crates/atlas-app-model/bindings/SimilaritySourceSections";
+export type { SimilarityComparisonKey } from "../../../../crates/atlas-app-model/bindings/SimilarityComparisonKey";
+export type { SimilarityComponentView } from "../../../../crates/atlas-app-model/bindings/SimilarityComponentView";

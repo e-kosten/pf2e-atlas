@@ -46,6 +46,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
     };
     let criteria = match o.query {
         Some(query) => SearchCriteria::TextSearch {
+            search_content: o.search_content.map(Into::into),
             query,
             filter,
             mode,

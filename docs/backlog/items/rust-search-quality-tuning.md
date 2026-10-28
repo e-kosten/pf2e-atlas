@@ -1,9 +1,57 @@
 # Source-backed Search Quality Evaluation
 
-Status: proposed
+Status: in_progress
 Priority: soon
-Owner: unassigned
-Last reviewed: 2026-10-19
+Owner: configurable-similarity workstream
+Last reviewed: 2026-10-27
+
+## Configurable Similar
+
+Similar supports Passage matches with normalized geometric rank decay,
+Content average, and the existing record/trait baselines over stored vectors.
+Advanced Compare parts selects exact existing source sections; candidate matching
+can use any prose or explicit cross-kind correspondence roles. Role eligibility
+must constrain candidate retrieval before bounded KNN as well as final scoring.
+
+The browser has one shared Search settings dialog for the model, existing hybrid
+ranking choice, Similar method, decay and advanced part selection. Apply commits
+one request and remembers general preferences in localStorage. Explicit search
+links override saved launch defaults without saving them automatically; exact
+part selections remain seed/generation-specific. CLI part discovery and the same
+scoring/evidence contracts use the shared app service.
+
+Record Similar defaults to Passage matches with Any content and decay 0.5;
+trait Similar retains the Trait definition baseline. Explicit links and valid
+remembered choices override those independent defaults. The
+[Similar evaluation summary](../../research/similarity-evaluation.md)
+preserves fixed-pool ordering, controlled-subset candidate recall, model-assisted
+usefulness judgments and runtime measurements across both stored profiles.
+These results do not establish full-corpus recall or a universal relevance winner.
+
+Highlighting arbitrary text, new segmentation/models, summaries and learned
+reranking remain outside this scope. The lexical/hybrid algorithms below are
+unchanged by moving their existing chooser into the shared settings dialog.
+Broader lexical and associated-content evaluation remains open.
+
+## Core sections extension
+
+Initial opt-in implementation is in progress: independent All/Core destination
+scope and All/Core/Custom source selection, typed recipes including vehicles,
+armies, PCs and familiars, and identity-plus-prose Core with identity-only fallback.
+The metadata projection restricts existing lexical/vector units without adding
+prose to FTS or generating embeddings. See
+[ADR0060](../../architecture/decisions/0060-core-sections-and-search-scope.md).
+The [typed Core census](../../research/core-section-census.md) records retained
+source coverage and operational-probe limits separately from relevance evidence.
+
+The broader relevance/decay evaluation is a separate remaining milestone. Compare
+identity-only, Core prose-only and combined representation, independent source
+and candidate restrictions, equipment's own versus intrinsic spell content, and
+multiple decay values. Extend fresh cohorts to all four added actor families;
+keep candidate admission, fixed-pool ordering, witness support and runtime
+evidence separate. Existing exposed Similar examples and the old holdout are
+development evidence. Retain current defaults until a frozen confirmation
+supports changing them.
 
 ## Current Baseline
 

@@ -37,6 +37,24 @@ use super::error::status_for_error;
 use super::router::router_with_state;
 use super::service::{AtlasWebService, AtlasWebState, call_service};
 
+#[test]
+fn browser_contract_tracks_stored_similarity_recipe_owners() {
+    let inputs: Vec<String> =
+        serde_json::from_str(include_str!("../api-contract-inputs.json")).unwrap();
+    for owner in [
+        "crates/atlas-domain/src/similarity.rs",
+        "crates/atlas-domain/src/core_sections.rs",
+        "crates/atlas-domain/src/similarity_component.rs",
+    ] {
+        assert!(
+            inputs
+                .iter()
+                .any(|input| owner == input || owner.starts_with(&format!("{input}/"))),
+            "the browser contract does not cover recipe owner {owner}"
+        );
+    }
+}
+
 #[tokio::test]
 async fn compatibility_handshake_is_available_without_service_capacity() {
     let app = router_with_state(AtlasWebState::from_service_with_blocking_capacity(
@@ -426,6 +444,23 @@ async fn search_page_rejects_malformed_criteria_and_retired_window_routes() {
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["code"], "invalid_request");
+
+    for criteria in [
+        json!({"kind":"list_records","filter":null,"search_content":"core"}),
+        json!({"kind":"trait_references","trait_key":"trait:agile","query":null,"filter":null,"search_content":"core"}),
+        json!({"kind":"text_search","query":"fire","filter":null,"mode":"lexical","source_sections":"core"}),
+    ] {
+        let (status, body) = route_json(
+            Method::POST,
+            "/api/search/page",
+            Some(json!({
+                "criteria":criteria,"page":{"number":1,"size":25}
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(body["code"], "invalid_request");
+    }
 
     for path in ["/api/result-windows", "/api/result-windows/1/page"] {
         let response = test_router()
@@ -1081,6 +1116,43 @@ struct MockService {
 mod read_abandonment_tests;
 
 impl AtlasWebService for MockService {
+    fn similarity_parts(
+        &self,
+        request: atlas_app_model::SimilarityPartsRequest,
+        execution: &ReadExecutionContext,
+    ) -> Result<atlas_app_model::SimilarityPartsView, AppServiceError> {
+        execution.check()?;
+        if request
+            .expected_artifact_generation
+            .as_deref()
+            .is_some_and(|generation| generation != "current-generation")
+        {
+            return Err(AppServiceError::new(
+                AppErrorCode::ArtifactGenerationChanged,
+                "reference data changed",
+            ));
+        }
+        Ok(atlas_app_model::SimilarityPartsView {
+            supports_corresponding_parts: matches!(
+                request.seed,
+                atlas_domain::SimilaritySeed::Record { .. }
+            ),
+            artifact_generation: "current-generation".into(),
+            search_profile: request
+                .search_profile
+                .unwrap_or_else(|| atlas_domain::SearchProfileId::new("bge-base")),
+            seed: request.seed,
+            parts: vec![],
+            core: atlas_domain::CoreSectionSelection {
+                family: atlas_domain::CoreSectionFamily::Unmodelled,
+                selectors: vec![],
+                representation: atlas_domain::CoreSectionRepresentation::IdentityOnly,
+                fallback_reason: Some(atlas_domain::CoreFallbackReason::UnmodelledKind),
+                recipe: atlas_domain::CORE_SECTIONS_RECIPE.into(),
+            },
+            role_recipe: atlas_domain::SIMILARITY_ROLE_RECIPE.into(),
+        })
+    }
     fn relationship_occurrences(
         &self,
         _request: atlas_app_model::RelationshipOccurrencesRequest,
@@ -2180,6 +2252,9 @@ fn record_summary() -> RecordSummaryView {
 
 fn search_results_page(page_number: u32) -> SearchResultsPage {
     SearchResultsPage {
+        core_recipe: None,
+        search_content: atlas_domain::SearchContentScope::All,
+        similarity: None,
         sort: atlas_domain::ResultSort::attribute(
             atlas_domain::SortField::Name,
             atlas_domain::SortDirection::Asc,
@@ -2199,6 +2274,7 @@ fn search_results_page(page_number: u32) -> SearchResultsPage {
             next_page: Some(page_number + 1),
         },
         rows: vec![atlas_app_model::SearchResultRow {
+            similarity: None,
             relationship_evidence: vec![],
             record: record_summary(),
             matches: vec![],
@@ -2282,6 +2358,43 @@ async fn list_note_routes_take_identity_from_path_and_preserve_explicit_clear() 
     .await;
     assert_eq!(status, StatusCode::OK);
     assert!(body["note"].is_null());
+}
+
+#[tokio::test]
+async fn similarity_inventory_route_preserves_typed_seed_profile_and_generation() {
+    let (status, body) = route_json(
+        Method::POST,
+        "/api/search/similarity/parts",
+        Some(json!({
+            "seed":{"kind":"record","record_key":"items:seed000000000000"},
+            "search_profile":"embeddinggemma", "expected_artifact_generation":"current-generation"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["search_profile"], "embeddinggemma");
+    assert_eq!(body["seed"]["record_key"], "items:seed000000000000");
+    assert_eq!(body["artifact_generation"], "current-generation");
+    assert_eq!(body["supports_corresponding_parts"], true);
+
+    let (status, _) = route_json(
+        Method::POST,
+        "/api/search/similarity/parts",
+        Some(json!({
+            "seed":{"kind":"trait","trait_key":"trait:fire"},
+            "expected_artifact_generation":"previous-generation"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+}
+
+#[tokio::test]
+async fn similarity_inventory_route_rejects_unknown_seed_fields() {
+    let (status, _) = route_json(Method::POST, "/api/search/similarity/parts", Some(json!({
+        "seed":{"kind":"record","record_key":"items:seed000000000000","text":"invented selection"}
+    }))).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]

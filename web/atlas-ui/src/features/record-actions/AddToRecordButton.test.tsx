@@ -1,5 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { App, ConfigProvider } from "antd";
 import type { RecordSummaryView } from "../../generated/atlas";
 import { AddToRecordButton } from "./AddToRecordButton";
@@ -85,6 +92,14 @@ it("creates and adds to a list in one submission, preserving the browsing locati
   });
   expect(window.location.href).toBe(location);
   expect(trigger).toHaveFocus();
+  const feedback = await screen.findByRole("alert");
+  expect(feedback).toHaveTextContent("Added to Ambush");
+  expect(feedback).toHaveStyle({ pointerEvents: "none" });
+  const destination = within(feedback).getByRole("link", { name: "Ambush" });
+  expect(destination).toHaveStyle({ pointerEvents: "auto" });
+  expect(destination).toHaveAttribute("href", "/lists/ambush");
+  fireEvent.click(destination, { ctrlKey: true });
+  expect(window.location.href).toBe(location);
 });
 it("retains a created destination after an add failure and retries only the add", async () => {
   api.createEncounter.mockResolvedValue({ encounter });

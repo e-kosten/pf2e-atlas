@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { SearchProfileContext } from "../shared/search/SearchProfileContext";
 import { readinessFixture } from "./fixtures";
+import { DEFAULT_SEARCH_PREFERENCES } from "../shared/search/searchPreferences";
 
 export function SearchProfileProvider({
   children,
@@ -24,6 +25,9 @@ export function SearchProfileProvider({
         canResetLink: false,
         resetLink: () => {},
         select: () => {},
+        defaultId: "bge-base",
+        preferences: DEFAULT_SEARCH_PREFERENCES,
+        applyPreferences: () => true,
       }}
     >
       {children}

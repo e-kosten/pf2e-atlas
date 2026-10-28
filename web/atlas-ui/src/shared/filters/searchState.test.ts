@@ -1,3 +1,4 @@
+import { DEFAULT_SEARCH_PREFERENCES } from "../search/searchPreferences";
 import type { ResultSort } from "../../generated/atlas";
 import type { QueryRelationship } from "../../generated/atlas";
 import { encodeFilterUrl } from "./filterUrl";
@@ -232,6 +233,7 @@ describe("source query state", () => {
       kind: "text_search",
       query: "dragon",
       mode: "hybrid",
+      search_content: "all",
       filter: state.filter,
     });
   });
@@ -326,6 +328,7 @@ it("round trips a root similar criterion and filters without adding a kind filte
     expected_artifact_generation: null,
     criteria: {
       kind: "similar_records",
+      search_content: "all",
       seed_record_key: state.similarSeed,
       filter: state.filter,
     },
@@ -449,7 +452,9 @@ describe("trait search handoffs", () => {
     );
     expect(buildSearchRequest(decoded, 1).criteria).toEqual({
       kind: "similar_traits",
+      search_content: "all",
       seed_trait_key: "trait:consumable",
+      similarity: { method: "baseline" },
       filter: expect.objectContaining(state.filter),
     });
   });
@@ -472,6 +477,102 @@ describe("trait search handoffs", () => {
     });
     expect(encodeSearchExecutionState(state)).not.toEqual(
       encodeSearchExecutionState({ ...state, traitReferenceSeed: null }),
+    );
+  });
+});
+
+describe("Core search content and source preset state", () => {
+  const preferences = {
+    ...DEFAULT_SEARCH_PREFERENCES,
+    searchContent: "core" as const,
+    sourceSectionsByFamily: { hazard: "core" as const },
+  };
+  it("uses remembered content only for a fresh launch and preserves legacy bookmark authority", () => {
+    expect(
+      decodeSearchStateFromParams(new URLSearchParams(), "search", preferences)
+        .searchContent,
+    ).toBe("core");
+    expect(
+      decodeSearchStateFromParams(new URLSearchParams("q=fire"), "search", preferences)
+        .searchContent,
+    ).toBe("all");
+    const legacy = decodeSearchStateFromParams(
+      new URLSearchParams("similar=hazards:seed&similarity_method=passages"),
+      "search",
+      preferences,
+    );
+    expect(legacy).toMatchObject({ searchContent: "all", sourceSections: "all" });
+    expect(preferences.searchContent).toBe("core");
+  });
+  it("round trips independent Core source and result scope without copying resolved selectors", () => {
+    const state = {
+      ...DEFAULT_SEARCH_STATE,
+      similarSeed: "hazards:seed",
+      sourceSections: "core" as const,
+      searchContent: "all" as const,
+      similarity: {
+        method: "passages" as const,
+        decay: 0.25,
+        parts: null,
+        candidate_parts: "corresponding" as const,
+      },
+    };
+    const params = new URLSearchParams(searchStateQueryString(state));
+    expect(params.get("similarity_sections")).toBe("core");
+    expect(params.get("search_content")).toBe("all");
+    expect(params.has("similarity_part")).toBe(false);
+    const restored = decodeSearchStateFromParams(params, "search", preferences);
+    expect(buildSearchRequest(restored, 1).criteria).toMatchObject({
+      kind: "similar_records",
+      source_sections: "core",
+      search_content: "all",
+      similarity: state.similarity,
+    });
+    expect(encodeSearchExecutionState(restored)).not.toBe(
+      encodeSearchExecutionState({ ...restored, searchContent: "core" }),
+    );
+  });
+  it("retains generation-bound legacy Custom identity selectors", () => {
+    const state = decodeSearchStateFromParams(
+      new URLSearchParams(
+        "similar=hazards:seed&similarity_method=passages&similarity_part=identity:checked&similarity_generation=generation-1",
+      ),
+    );
+    expect(state).toMatchObject({
+      sourceSections: "custom",
+      similarityGeneration: "generation-1",
+    });
+    expect(buildSearchRequest(state, 1).criteria).toMatchObject({
+      source_sections: "custom",
+      similarity: { parts: ["identity:checked"] },
+    });
+  });
+  it.each([
+    "similar=hazards:seed&similarity_method=passages&similarity_sections=core&similarity_part=part:one&similarity_generation=generation-1",
+    "similar=hazards:seed&similarity_method=baseline&similarity_sections=core",
+    "similar=hazards:seed&similarity_method=passages&similarity_sections=custom",
+    "similar=hazards:seed&similarity_method=passages&similarity_sections=core&similarity_sections=all",
+    "q=fire&search_content=unknown",
+    "q=fire&similarity_sections=core",
+  ])("rejects conflicting or unsupported explicit settings: %s", (query) => {
+    expect(
+      decodeSearchStateFromParams(new URLSearchParams(query)).filterError,
+    ).toBeTruthy();
+  });
+  it("keeps inactive preferences out of browse and exact-reference requests", () => {
+    const browse = { ...DEFAULT_SEARCH_STATE, searchContent: "core" as const };
+    expect(buildSearchRequest(browse, 1).criteria).toEqual({
+      kind: "list_records",
+      filter: null,
+    });
+    const reference = { ...browse, traitReferenceSeed: "trait:fire", query: "dragon" };
+    expect(buildSearchRequest(reference, 1).criteria).not.toHaveProperty(
+      "search_content",
+    );
+    expect(buildFilterDiscoveryContext(reference)).not.toHaveProperty("search_content");
+    expect(buildFilterDiscoveryContext({ ...browse, query: "dragon" })).toHaveProperty(
+      "search_content",
+      "core",
     );
   });
 });

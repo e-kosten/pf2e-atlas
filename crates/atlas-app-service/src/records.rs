@@ -291,6 +291,11 @@ pub(crate) fn read_record_detail(
                     interactions,
                     &context.formula,
                 );
+                field.section_rendering = crate::prepared_content::contextual_section_rendering(
+                    &marked,
+                    interactions,
+                    &context.formula,
+                )?;
             }
         }
     }

@@ -29,6 +29,11 @@ pub(crate) fn validate_selection(
         &context.used_trait_labels,
     )
     .map_err(|e| IndexError::Invalid(e.to_string()))?;
+    crate::similarity_projection::validate_record_parts(c, id, record, context, &selection)?;
+    if atlas_record::source_record::SourceNodeView::from(record.source()).document_kind() != "Macro"
+    {
+        crate::core_projection::validate_record_core(c, id, record, &selection)?;
+    }
     let mut aliases =
         c.prepare("SELECT alias FROM verified_aliases WHERE record_id=? ORDER BY alias")?;
     let aliases = aliases

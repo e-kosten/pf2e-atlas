@@ -262,6 +262,44 @@ impl SqliteIndexReader {
     ) -> Result<Option<SourceBackedRecord>, IndexError> {
         self.read_body(key, false)
     }
+    /// Read at most 256 unique product snapshots in one SQL statement.
+    pub fn read_source_records(
+        &self,
+        keys: &[RecordKey],
+    ) -> Result<Vec<SourceBackedRecord>, IndexError> {
+        if keys.len() > 256 {
+            return Err(IndexError::Limit(
+                "source snapshot batch exceeds 256 records".into(),
+            ));
+        }
+        if keys.is_empty() {
+            return Ok(vec![]);
+        }
+        let placeholders = vec!["?"; keys.len()].join(",");
+        let sql = format!(
+            "SELECT r.pack_id,r.key,b.codec_version,b.encoding,b.snapshot FROM records r JOIN record_bodies b ON b.record_id=r.record_id WHERE r.key IN ({placeholders}) AND r.document_kind<>'Macro' ORDER BY r.key"
+        );
+        let parameters = keys.iter().map(ToString::to_string).collect::<Vec<_>>();
+        self.count_statement();
+        let mut statement = self.session.connection().prepare(&sql)?;
+        let rows = statement.query_map(rusqlite::params_from_iter(parameters), |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, Vec<u8>>(4)?,
+            ))
+        })?;
+        rows.map(|row| {
+            let (pack, stored, version, encoding, bytes) = row?;
+            let key = stored
+                .parse()
+                .map_err(|error| IndexError::Invalid(format!("source row identity: {error}")))?;
+            self.decode_body(&key, pack, stored, version, encoding, bytes)
+        })
+        .collect()
+    }
     /// Exact checked snapshot inspection remains a developer operation, including Macro sources.
     pub fn read_source_record_for_inspection(
         &self,
@@ -281,28 +319,39 @@ impl SqliteIndexReader {
             |r| Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,i64>(2)?,r.get::<_,String>(3)?,r.get::<_,Vec<u8>>(4)?)),
         ).optional()?;
         row.map(|(pack, stored, version, encoding, bytes)| {
-            if version != i64::from(SNAPSHOT_VERSION) || encoding != "gzip6" {
-                return Err(IndexError::Unsupported(
-                    "source snapshot codec identity".into(),
-                ));
-            }
-            let source = decode_snapshot(&gunzip(&bytes)?)?;
-            #[cfg(any(test, feature = "test-support"))]
-            {
-                let mut m = self.read_metrics.get();
-                m.source_body_decodes += 1;
-                self.read_metrics.set(m);
-            }
-            let record = SourceBackedRecord::new(&pack, source)
-                .map_err(|e| IndexError::Invalid(format!("source identity {:?}", e.reason)))?;
-            if record.key() != key || stored != key.to_string() {
-                return Err(IndexError::Invalid(
-                    "snapshot identity disagrees with record row".into(),
-                ));
-            }
-            Ok(record)
+            self.decode_body(key, pack, stored, version, encoding, bytes)
         })
         .transpose()
+    }
+    fn decode_body(
+        &self,
+        key: &RecordKey,
+        pack: String,
+        stored: String,
+        version: i64,
+        encoding: String,
+        bytes: Vec<u8>,
+    ) -> Result<SourceBackedRecord, IndexError> {
+        if version != i64::from(SNAPSHOT_VERSION) || encoding != "gzip6" {
+            return Err(IndexError::Unsupported(
+                "source snapshot codec identity".into(),
+            ));
+        }
+        let source = decode_snapshot(&gunzip(&bytes)?)?;
+        #[cfg(any(test, feature = "test-support"))]
+        {
+            let mut m = self.read_metrics.get();
+            m.source_body_decodes += 1;
+            self.read_metrics.set(m);
+        }
+        let record = SourceBackedRecord::new(&pack, source)
+            .map_err(|e| IndexError::Invalid(format!("source identity {:?}", e.reason)))?;
+        if record.key() != key || stored != key.to_string() {
+            return Err(IndexError::Invalid(
+                "snapshot identity disagrees with record row".into(),
+            ));
+        }
+        Ok(record)
     }
 }
 const SUMMARY_SELECT: &str = "SELECT r.key,p.label AS pack_label,r.document_kind,r.source_path,r.content_hash,r.name_state,r.name,r.source_type_state,r.source_type,r.record_kind_state,r.record_kind,r.rarity_state,r.rarity,r.traits_state,(SELECT json_group_array(value) FROM (SELECT value FROM record_traits rt WHERE rt.record_id=r.record_id ORDER BY value)) AS traits_json,CASE WHEN r.source_type='spell' THEN sp.rank_state ELSE r.level_state END AS level_state,CASE WHEN r.source_type='spell' THEN sp.rank ELSE r.level END AS level,CASE WHEN r.source_type='spell' THEN sp.ritual_state ELSE 'not_applicable' END AS ritual_state,sp.ritual,r.size_state,r.size,r.publication_title_state,r.publication_title,r.publication_remaster_state,r.publication_remaster FROM records r JOIN packs p ON p.pack_id=r.pack_id LEFT JOIN spell_projection sp ON sp.root_record_id=r.record_id";

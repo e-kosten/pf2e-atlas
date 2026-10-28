@@ -1,4 +1,9 @@
-import type { ResultSort } from "../../generated/atlas";
+import type {
+  ResultSort,
+  SearchResultsRequest,
+  SearchResultsPage,
+} from "../../generated/atlas";
+import { similarityConfigurationFixture } from "../../test/similarityFixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
@@ -18,6 +23,7 @@ const api = vi.hoisted(() => ({
   getTraitDetail: vi.fn(),
   getTraitRecords: vi.fn(),
   getRecordDetail: vi.fn(),
+  searchPage: vi.fn(),
 }));
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
@@ -46,11 +52,42 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue(detailFixture("actors:creature", "Creature"));
   api.getTraitDetail.mockReset().mockResolvedValue(definition);
+  api.searchPage
+    .mockReset()
+    .mockImplementation(
+      async (request: SearchResultsRequest): Promise<SearchResultsPage> => {
+        if (request.criteria.kind !== "similar_traits" || !request.criteria.similarity)
+          throw new Error("Expected an explicit trait Similar request");
+        return {
+          search_content: "all",
+          search_profile: request.search_profile ?? "embeddinggemma",
+          artifact_generation: request.expected_artifact_generation ?? "generation-one",
+          sort: request.sort ?? { kind: "relevance" },
+          ranking: "score",
+          mode: { kind: "similar_traits", trait_key: "trait:agile", title: "Agile" },
+          similarity: similarityConfigurationFixture(request.criteria.similarity),
+          relationship_clauses: [],
+          rows: [
+            {
+              record: summaryFixture("weapons:dagger", "Dagger"),
+              matches: [],
+              relationship_evidence: [],
+            },
+          ],
+          page: {
+            number: 1,
+            size: 5,
+            count: 1,
+            total: 80n,
+            has_more: true,
+            next_page: 2,
+          },
+          coverage: null,
+        };
+      },
+    );
   api.getTraitRecords.mockReset().mockImplementation(async (request) => ({
-    search_profile: request.kind === "similar" ? request.search_profile : null,
-    ...(request.kind === "similar"
-      ? { sort: request.sort ?? { kind: "relevance" } }
-      : {}),
+    search_profile: null,
     trait_key: "trait:agile",
     kind: request.kind,
     artifact_generation: "generation-one",
@@ -248,11 +285,12 @@ it("requests stored Similar with the selected profile and no text fallback", asy
   fireEvent.click(await screen.findByRole("tab", { name: "Similar" }));
   await screen.findByRole("region", { name: "Similar records" });
   expect(
-    api.getTraitRecords.mock.calls.some(
+    api.searchPage.mock.calls.some(
       ([request]) =>
-        request.kind === "similar" &&
+        request.criteria.kind === "similar_traits" &&
         request.search_profile === "embeddinggemma" &&
-        request.trait_key === "trait:agile",
+        request.criteria.seed_trait_key === "trait:agile" &&
+        request.criteria.similarity.method === "baseline",
     ),
   ).toBe(true);
 });
@@ -299,11 +337,16 @@ it("restores Similar order from its URL and carries it into primary Search", asy
   );
   await screen.findByRole("tab", { name: "Similar", selected: true });
   await waitFor(() =>
-    expect(api.getTraitRecords.mock.lastCall?.[0]).toMatchObject({
-      kind: "similar",
+    expect(api.searchPage.mock.lastCall?.[0]).toMatchObject({
+      criteria: {
+        kind: "similar_traits",
+        seed_trait_key: "trait:agile",
+        similarity: { method: "baseline" },
+        filter: null,
+      },
       page: { number: 1, size: 5 },
       sort: { kind: "attributes", rules: [{ field: "level", direction: "desc" }] },
-    } satisfies Partial<TraitRecordsRequest>),
+    } satisfies Partial<SearchResultsRequest>),
   );
   const link = screen.getByRole("link", { name: "Search similar records" });
   const url = new URL(link.getAttribute("href")!, location.origin);
@@ -316,7 +359,9 @@ it("restores Similar order from its URL and carries it into primary Search", asy
   expect(buildSearchRequest(search, 1).criteria).toMatchObject({
     kind: "similar_traits",
     seed_trait_key: "trait:agile",
+    similarity: { method: "baseline" },
   });
+  expect(url.searchParams.get("similarity_method")).toBe("baseline");
   fireEvent.click(screen.getByRole("tab", { name: "References" }));
   await screen.findByRole("region", { name: "Trait references" });
   expect(
@@ -332,27 +377,6 @@ it.each([
 ])(
   "keeps a single bounded preview when $label changes A → B → A",
   async ({ first, second }) => {
-    api.getTraitRecords.mockImplementation(async (request: TraitRecordsRequest) => ({
-      trait_key: request.trait_key,
-      kind: request.kind,
-      search_profile: request.kind === "similar" ? request.search_profile : null,
-      artifact_generation: request.expected_artifact_generation,
-      sort: request.sort ?? { kind: "relevance" },
-      rows: [
-        {
-          record: summaryFixture("weapons:dagger", "Dagger"),
-          navigation: {
-            record_key: "weapons:dagger",
-            embedded_path: [],
-            field: null,
-            passage: null,
-            source_fingerprint: null,
-          },
-        },
-      ],
-      page: { number: 1, size: 5, count: 1, total: 80n, has_more: true, next_page: 2 },
-      coverage: null,
-    }));
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const content = (query: string) => (
       <QueryClientProvider client={client}>
@@ -368,12 +392,12 @@ it.each([
     const view = render(content(first));
     await screen.findByRole("tab", { name: "Similar", selected: true });
     await waitFor(() =>
-      expect(api.getTraitRecords.mock.lastCall?.[0].kind).toBe("similar"),
+      expect(api.searchPage.mock.lastCall?.[0].criteria.kind).toBe("similar_traits"),
     );
-    const original = api.getTraitRecords.mock.lastCall![0].sort;
+    const original = api.searchPage.mock.lastCall![0].sort;
     view.rerender(content(second));
     await waitFor(() =>
-      expect(api.getTraitRecords.mock.lastCall?.[0].sort).not.toEqual(original),
+      expect(api.searchPage.mock.lastCall?.[0].sort).not.toEqual(original),
     );
     view.rerender(content(first));
     await waitFor(() =>
@@ -387,7 +411,7 @@ it.each([
       ).toContain(first),
     );
     expect(
-      api.getTraitRecords.mock.calls.every(
+      [...api.getTraitRecords.mock.calls, ...api.searchPage.mock.calls].every(
         ([r]) => r.page.number === 1 && r.page.size === 5,
       ),
     ).toBe(true);

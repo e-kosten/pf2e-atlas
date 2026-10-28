@@ -466,6 +466,20 @@ pub(crate) async fn search_page(
     ))
 }
 
+pub(crate) async fn similarity_parts(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<atlas_app_model::SimilarityPartsRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_read_service(state, move |execution| {
+            service.similarity_parts(request, &execution)
+        })
+        .await?,
+    ))
+}
+
 pub(crate) async fn record_detail(
     State(state): State<AtlasWebState>,
     Path(record_key): Path<String>,

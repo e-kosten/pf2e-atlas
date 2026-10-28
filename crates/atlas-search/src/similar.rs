@@ -1,6 +1,7 @@
 use crate::{RecordScope, SearchPage, TextSearchResult};
 use atlas_domain::{QueryPredicate, RecordKey};
 pub struct SimilarRecordRequest<'a> {
+    pub content_scope: atlas_domain::SearchContentScope,
     pub sort: atlas_domain::ResultSort,
     pub search_profile: Option<&'a atlas_domain::SearchProfileId>,
     pub record_key: &'a RecordKey,
@@ -34,6 +35,7 @@ impl crate::AtlasRetrievalService {
             })?;
         let predicate = self.predicate(request.filter)?;
         let (roots, window) = self.rank_candidates(crate::text::CandidateRequest {
+            content_scope: request.content_scope,
             ranking: Default::default(),
             search_profile: &search_profile,
             text: "",

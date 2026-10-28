@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 19;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 21;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -119,6 +119,21 @@ const MIGRATIONS: &[Migration] = &[
         version: 19,
         name: "physical-base-type",
         sql: atlas_index::PHYSICAL_BASE_TYPE_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 20,
+        name: "similarity-parts",
+        sql: atlas_index::SIMILARITY_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            id: "typed-content-correspondence/v1",
+            apply: atlas_index::backfill_similarity_parts,
+        }),
+    },
+    Migration {
+        version: 21,
+        name: "core-section-eligibility",
+        sql: atlas_index::CORE_SECTIONS_SCHEMA_SQL,
         backfill: None,
     },
 ];
@@ -251,6 +266,354 @@ mod tests {
         let reopened = initialize_workspace(&path).unwrap();
         let read = reopened.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         assert_eq!(retained(read.connection()), receipts);
+    }
+
+    #[test]
+    fn similarity_backfill_skips_retired_preparation_before_accessing_records() {
+        // This database intentionally has no records, bodies, prepared fields or
+        // similarity table. Any attempted record scan/decode/publication fails.
+        // Only authenticated component metadata is needed to defer to setup.
+        for (field, retired) in [
+            (
+                "localization_policy",
+                "selected-source-catalog/english-fallback/v1",
+            ),
+            ("relationship_policy", "typed-authored-occurrences/v4"),
+            ("content_interpretation_version", "foundry-content/v8"),
+            ("trait_policy", ""),
+        ] {
+            let c = rusqlite::Connection::open_in_memory().unwrap();
+            c.execute_batch("CREATE TABLE artifact_context(singleton INTEGER PRIMARY KEY,format_version INTEGER,context_hash TEXT,context_json TEXT);").unwrap();
+            let context = atlas_search::test_support::context(false);
+            let mut stored = serde_json::to_value(context).unwrap();
+            stored[field] = serde_json::json!(retired);
+            let json = serde_json::to_string(&stored).unwrap();
+            c.execute(
+                "INSERT INTO artifact_context VALUES(1,?,?,?)",
+                rusqlite::params![
+                    atlas_index::ARTIFACT_FORMAT_VERSION,
+                    atlas_search::test_support::hash(json.as_bytes()),
+                    json
+                ],
+            )
+            .unwrap();
+            assert_eq!(
+                atlas_index::classify_reference_upgrade(&c).unwrap(),
+                atlas_index::ReferenceUpgrade::SourcePreparation,
+                "{field}"
+            );
+            atlas_index::backfill_similarity_parts(&c).unwrap();
+            let after: String = c
+                .query_row("SELECT context_json FROM artifact_context", [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            assert_eq!(
+                after, json,
+                "skipping must not relabel retired preparation as current"
+            );
+            assert!(
+                c.prepare("SELECT * FROM records").is_err(),
+                "the fixture must make scanning impossible"
+            );
+        }
+    }
+
+    #[test]
+    fn similarity_metadata_upgrade_from_published_nineteen_preserves_saved_state_and_exact_vectors()
+    {
+        use atlas_index::IndexArtifactWriter;
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("similarity-upgrade.sqlite");
+        let workspace = initialize_workspace(&path).unwrap();
+        let input = atlas_search::test_support::input_with_both_profiles(vec![
+            atlas_search::test_support::record(
+                "hazards",
+                "Actor",
+                serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","name":"Hazard","type":"hazard","system":{"details":{"description":"<p>A narrow fissure</p>","reset":"<p>Returns at dawn</p>"}}}),
+            ),
+        ]);
+        {
+            let owner = workspace.update_owner().unwrap();
+            let maintenance = owner
+                .maintenance(WORKSPACE_SCHEMA_VERSION, "similarity migration fixture")
+                .unwrap();
+            atlas_index::SqliteIndexWriter::new(&maintenance)
+                .write(&input)
+                .unwrap();
+        }
+        let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        LocalStateWrite::new(&write)
+            .saved_lists()
+            .create(NewSavedList {
+                slug: "kept".into(),
+                name: "Kept".into(),
+                description: Some("Keep this note".into()),
+                tags: vec![],
+            })
+            .unwrap();
+        let ability_state = atlas_local_state::ParticipantAbilityState {
+            owner: atlas_domain::OwnedContentLocator {
+                collection: "items".into(),
+                identity: atlas_domain::OwnedContentIdentity::Stable("bbbbbbbbbbbbbbbb".into()),
+            },
+            rule_ordinal: Some(0),
+            source_fingerprint: "kept-source".into(),
+            value: atlas_local_state::AbilityStateValue::Option {
+                active: true,
+                selection: None,
+            },
+        };
+        write.connection().execute_batch(r#"
+            INSERT INTO encounters(id,encounter_key,slug,name,status,round_number,revision,created_at,updated_at)
+            VALUES(1,'kept-encounter','kept-encounter','Kept','draft',0,0,'before','before');
+            INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,current_hp,max_hp,temporary_hp,revision,created_at,updated_at)
+            VALUES(1,1,'kept-participant','pc',0,'PC',0,13,20,3,5,'before','before');
+        "#).unwrap();
+        write
+            .connection()
+            .execute(
+                "INSERT INTO encounter_ability_states VALUES(?,?,?,?)",
+                rusqlite::params![
+                    "kept-participant",
+                    serde_json::to_string(&ability_state.owner).unwrap(),
+                    0,
+                    serde_json::to_string(
+                        &serde_json::json!({"version":1,"payload":ability_state})
+                    )
+                    .unwrap(),
+                ],
+            )
+            .unwrap();
+        let tables = write
+            .connection()
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' AND sql LIKE '%USING vec0%' ORDER BY name")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(tables.len(), 2);
+        let vectors = |connection: &rusqlite::Connection| {
+            tables
+                .iter()
+                .map(|table| {
+                    let values = connection
+                        .prepare(&format!(
+                            "SELECT unit_id,embedding FROM {table} ORDER BY unit_id"
+                        ))
+                        .unwrap()
+                        .query_map([], |row| {
+                            Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
+                        })
+                        .unwrap()
+                        .collect::<Result<Vec<_>, _>>()
+                        .unwrap();
+                    (table.clone(), values)
+                })
+                .collect::<Vec<_>>()
+        };
+        let before = vectors(write.connection());
+        let revision = write
+            .connection()
+            .query_row(
+                "SELECT reference_revision FROM workspace WHERE id=1",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap();
+        // Model published main's numeric/base-type schema before adding Similar.
+        let mut historical_context = input.context.clone();
+        historical_context.core_sections_recipe.clear();
+        write
+            .connection()
+            .execute(
+                "UPDATE artifact_context SET context_hash=?,context_json=?",
+                rusqlite::params![
+                    historical_context.sha256().unwrap(),
+                    serde_json::to_string(&historical_context).unwrap()
+                ],
+            )
+            .unwrap();
+        write
+            .connection()
+            .execute_batch(
+                "DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DROP TABLE similarity_parts; DELETE FROM schema_migrations WHERE version>=20; PRAGMA user_version=19;",
+            )
+            .unwrap();
+        let main_ledger = |connection: &rusqlite::Connection| {
+            connection
+                .prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=19 ORDER BY version")
+                .unwrap()
+                .query_map([], |row| Ok((row.get::<_, u32>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?)))
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap()
+        };
+        let published_history = main_ledger(write.connection());
+        write.commit().unwrap();
+        let upgraded = initialize_workspace(&path).unwrap();
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        assert_eq!(main_ledger(read.connection()), published_history);
+        assert_eq!(vectors(read.connection()), before);
+        assert_eq!(read.reference_revision().unwrap(), revision as u64);
+        assert_eq!(
+            LocalStateRead::new(&read).saved_lists().list().unwrap()[0].name,
+            "Kept"
+        );
+        assert_eq!(
+            LocalStateRead::new(&read)
+                .encounters()
+                .get_with_participants("kept-encounter")
+                .unwrap()
+                .unwrap()
+                .participants[0]
+                .ability_states,
+            vec![ability_state]
+        );
+        let roles = read
+            .connection()
+            .prepare("SELECT role FROM similarity_parts ORDER BY role")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(roles, vec!["description", "reset"]);
+        drop(read);
+        assert!(
+            atlas_index::ensure_reference_projections(&upgraded, WORKSPACE_SCHEMA_VERSION).unwrap()
+        );
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        atlas_index::validate_reference(read.connection()).unwrap();
+        let published_revision = read.reference_revision().unwrap();
+        assert_eq!(vectors(read.connection()), before);
+        drop(read);
+        drop(upgraded);
+        let reopened = initialize_workspace(&path).unwrap();
+        assert!(
+            !atlas_index::ensure_reference_projections(&reopened, WORKSPACE_SCHEMA_VERSION)
+                .unwrap()
+        );
+        let read = reopened.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        assert_eq!(read.reference_revision().unwrap(), published_revision);
+        assert_eq!(main_ledger(read.connection()), published_history);
+        assert_eq!(vectors(read.connection()), before);
+        assert_eq!(
+            LocalStateRead::new(&read).saved_lists().list().unwrap()[0].name,
+            "Kept"
+        );
+    }
+
+    #[test]
+    fn runtime_automatically_upgrades_core_without_source_models_or_changed_reference_values() {
+        use atlas_index::IndexArtifactWriter;
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("core-runtime.sqlite");
+        let workspace = initialize_workspace(&path).unwrap();
+        let input = atlas_search::test_support::input_with_both_profiles(vec![
+            atlas_search::test_support::record(
+                "actors",
+                "Actor",
+                serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","name":"Core creature","type":"npc","system":{"details":{"publicNotes":"<h2>Description</h2><p>A cold guardian.</p>","blurb":"Guardian"}}}),
+            ),
+        ]);
+        {
+            let owner = workspace.update_owner().unwrap();
+            let maintenance = owner
+                .maintenance(WORKSPACE_SCHEMA_VERSION, "runtime Core fixture")
+                .unwrap();
+            atlas_index::SqliteIndexWriter::new(&maintenance)
+                .write(&input)
+                .unwrap();
+        }
+        let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        LocalStateWrite::new(&write)
+            .saved_lists()
+            .create(NewSavedList {
+                slug: "kept".into(),
+                name: "Kept".into(),
+                description: Some("Preserved source note".into()),
+                tags: vec![],
+            })
+            .unwrap();
+        let revision = write.reference_revision().unwrap();
+        let stable_values = |c: &rusqlite::Connection| {
+            let tables=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'core_%' AND name NOT IN ('artifact_context','workspace','schema_migrations') ORDER BY name").unwrap().query_map([],|row|row.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+            tables
+                .into_iter()
+                .map(|table| {
+                    let quoted = format!("\"{}\"", table.replace('"', "\"\""));
+                    let mut statement = c.prepare(&format!("SELECT * FROM {quoted}")).unwrap();
+                    let count = statement.column_count();
+                    let mut rows = statement
+                        .query_map([], |row| {
+                            (0..count)
+                                .map(|column| row.get::<_, rusqlite::types::Value>(column))
+                                .collect::<Result<Vec<_>, _>>()
+                        })
+                        .unwrap()
+                        .collect::<Result<Vec<_>, _>>()
+                        .unwrap();
+                    rows.sort_by_key(|row| format!("{row:?}"));
+                    (table, rows)
+                })
+                .collect::<Vec<_>>()
+        };
+        let before = stable_values(write.connection());
+        let ledger=write.connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=20 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+        let mut historical_context = input.context.clone();
+        historical_context.core_sections_recipe.clear();
+        write
+            .connection()
+            .execute(
+                "UPDATE artifact_context SET context_hash=?,context_json=?",
+                rusqlite::params![
+                    historical_context.sha256().unwrap(),
+                    serde_json::to_string(&historical_context).unwrap()
+                ],
+            )
+            .unwrap();
+        write.connection().execute_batch("DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DELETE FROM schema_migrations WHERE version=21; PRAGMA user_version=20;").unwrap();
+        write.commit().unwrap();
+        let source = directory.path().join("absent-source");
+        let models = directory.path().join("absent-models");
+        let runtime = crate::AtlasRuntime::resolve(crate::AtlasRuntimeOptions {
+            path_mode: crate::AtlasPathMode::Global,
+            overrides: crate::AtlasPathOverrides {
+                source_root: Some(source.clone()),
+                embedding_cache_root: Some(models.clone()),
+                index_path: Some(path.clone()),
+            },
+            ..Default::default()
+        })
+        .unwrap();
+        assert!(runtime.upgrade_workspace_if_present().unwrap());
+        assert!(!source.exists());
+        assert!(!models.exists());
+        let reader = runtime.open_index().unwrap();
+        assert_eq!(
+            reader.workspace_session().reference_revision().unwrap(),
+            revision + 1
+        );
+        assert_eq!(
+            stable_values(reader.workspace_session().connection()),
+            before
+        );
+        let actual_ledger=reader.workspace_session().connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=20 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+        assert_eq!(actual_ledger, ledger);
+        assert_eq!(
+            reader
+                .core_selection(
+                    input.records[0].record.key(),
+                    Some(&atlas_domain::SearchProfileId::new("bge-base"))
+                )
+                .unwrap()
+                .representation,
+            atlas_domain::CoreSectionRepresentation::IdentityAndProse
+        );
+        drop(reader);
+        assert!(!runtime.upgrade_workspace_if_present().unwrap());
     }
 
     #[test]

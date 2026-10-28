@@ -346,7 +346,7 @@ pub(crate) fn write_seed(
     }
     Ok(())
 }
-fn read_chunks(
+pub(crate) fn read_chunks(
     c: &Connection,
     key: &str,
     model: &crate::SourceSearchProfileIdentity,

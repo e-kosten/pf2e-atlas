@@ -148,6 +148,30 @@ function page(
   total = rows.length,
 ): SearchResultsPage {
   return {
+    search_content: "all",
+    ...(request.criteria.kind === "similar_records" && request.criteria.similarity
+      ? {
+          similarity: {
+            options: request.criteria.similarity,
+            source_sections:
+              request.criteria.similarity.method === "baseline" ? null : "all",
+            search_content: "all",
+            candidate_identity: request.criteria.similarity.method === "baseline",
+            core_recipe: null,
+            resolved_selectors: [],
+            core: null,
+            recipe: "test-recipe",
+            role_recipe: "typed-content-correspondence/v1",
+            diagnostics: {
+              seed_units: 1,
+              knn_queries: 1,
+              candidate_vectors: 1,
+              pairwise_comparisons: 1,
+              undefined_candidate_centroids: 0,
+            },
+          },
+        }
+      : {}),
     sort:
       request.sort ??
       (request.criteria.kind === "list_records"
@@ -463,16 +487,12 @@ it("rejects late Similar responses from the previous model and updates the Searc
   await waitFor(() => expect(finishOld).toBeTypeOf("function"));
   view.rerender(content("embeddinggemma"));
   await waitFor(() => expect(finishNew).toBeTypeOf("function"));
-  const request = (profile: string): SearchResultsRequest => ({
-    search_profile: profile,
-    criteria: {
-      kind: "similar_records",
-      seed_record_key: detail.record.record_key,
-      filter: null,
-    },
-    page: { number: 1, size: 5 },
-    expected_artifact_generation: detail.artifact_generation,
-  });
+  const request = (profile: string): SearchResultsRequest =>
+    api.searchPage.mock.calls.find(
+      ([request]) =>
+        request.criteria.kind === "similar_records" &&
+        request.search_profile === profile,
+    )![0];
   await act(async () =>
     finishNew(
       page(request("embeddinggemma"), [row("actors:current", "Current suggestion")]),

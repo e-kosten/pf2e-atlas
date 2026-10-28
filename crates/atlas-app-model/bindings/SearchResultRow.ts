@@ -3,8 +3,9 @@ import type { RecordSummaryView } from "./RecordSummaryView";
 import type { RelationshipEvidenceView } from "./RelationshipEvidenceView";
 import type { SearchMatchSectionView } from "./SearchMatchSectionView";
 import type { SearchWitnessView } from "./SearchWitnessView";
+import type { SimilarityEvidenceView } from "./SimilarityEvidenceView";
 
-export type SearchResultRow = { relationship_evidence: Array<RelationshipEvidenceView>, record: RecordSummaryView, matches: Array<SearchWitnessView>,
+export type SearchResultRow = { similarity?: SimilarityEvidenceView, relationship_evidence: Array<RelationshipEvidenceView>, record: RecordSummaryView, matches: Array<SearchWitnessView>,
 /**
  * Display destinations coalesced across retrieval lanes; raw witnesses remain above.
  */
