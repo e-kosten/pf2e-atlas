@@ -417,9 +417,11 @@ test('repeat and relocated input produce identical output; an upstream field add
     const before = rootNode(original, 'Equipment');
     const after = rootNode(changed, 'Equipment');
     assert.equal(after.id, before.id);
-    assert.deepEqual(fieldsOf(after).filter((entry) => !fieldsOf(before).some((old) => old.name === entry.name))
-      .map((entry) => ({ name: entry.name, optional: entry.optional, ref: entry.ref })),
-    [{ name: 'newlyAuthored', optional: true, ref: field(after, 'newlyAuthored').ref }]);
+    const addedFields = fieldsOf(after).filter((entry) => !fieldsOf(before).some((old) => old.name === entry.name));
+    assert.deepEqual(addedFields.map((entry) => ({ name: entry.name, optional: entry.optional, undefinedAllowed: entry.undefinedAllowed })),
+      [{ name: 'newlyAuthored', optional: true, undefinedAllowed: true }]);
+    const addedType = lookup(changed, addedFields[0].ref);
+    assert.deepEqual(membersOf(addedType).map(ref => valueOf(lookup(changed, ref))).sort(), ['number', 'undefined']);
     assert.equal(rootNode(changed, 'Backpack').id, rootNode(original, 'Backpack').id);
   } finally { await rm(temporary, { recursive: true, force: true }); }
 });

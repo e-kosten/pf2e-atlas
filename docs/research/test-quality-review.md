@@ -32,7 +32,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | crates/atlas-web | 3 | 3 | 0 | 0 |
 | dev-tools/dice-prototype | 1 | 0 | 1 | 0 |
 | dev-tools/release | 3 | 0 | 3 | 0 |
-| dev-tools/source-contracts | 28 | 28 | 0 | 0 |
+| dev-tools/source-contracts | 28 | 0 | 26 | 2 |
 | research verification | 1 | 1 | 0 | 0 |
 | scripts | 8 | 0 | 8 | 0 |
 | web/atlas-ui/e2e | 16 | 16 | 0 | 0 |
@@ -371,34 +371,34 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [dev-tools/source-contracts/tests/action-definitions.test.ts](../../dev-tools/source-contracts/tests/action-definitions.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/collection-generation.test.ts](../../dev-tools/source-contracts/tests/collection-generation.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/compare-documents.test.ts](../../dev-tools/source-contracts/tests/compare-documents.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/compare-equipment.test.ts](../../dev-tools/source-contracts/tests/compare-equipment.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/compare-traits.test.ts](../../dev-tools/source-contracts/tests/compare-traits.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/condition-catalog.test.ts](../../dev-tools/source-contracts/tests/condition-catalog.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/condition-extraction.test.ts](../../dev-tools/source-contracts/tests/condition-extraction.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/document-inputs.test.ts](../../dev-tools/source-contracts/tests/document-inputs.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/document-traits.test.ts](../../dev-tools/source-contracts/tests/document-traits.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/extract.test.ts](../../dev-tools/source-contracts/tests/extract.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/generated-output.test.ts](../../dev-tools/source-contracts/tests/generated-output.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/numeric-generation.test.ts](../../dev-tools/source-contracts/tests/numeric-generation.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/object-patch.test.ts](../../dev-tools/source-contracts/tests/object-patch.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/open-generation.test.ts](../../dev-tools/source-contracts/tests/open-generation.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/pinned-generation.integration.ts](../../dev-tools/source-contracts/tests/pinned-generation.integration.ts) | pending | — |
-| [dev-tools/source-contracts/tests/pinned-source.test.ts](../../dev-tools/source-contracts/tests/pinned-source.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/portfolio-comparison.test.ts](../../dev-tools/source-contracts/tests/portfolio-comparison.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/recursive-generation.test.ts](../../dev-tools/source-contracts/tests/recursive-generation.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/rule-inputs.test.ts](../../dev-tools/source-contracts/tests/rule-inputs.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/rule-value-inputs.test.ts](../../dev-tools/source-contracts/tests/rule-value-inputs.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/sample-equipment.test.ts](../../dev-tools/source-contracts/tests/sample-equipment.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/sample-items.test.ts](../../dev-tools/source-contracts/tests/sample-items.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/sample-predicates.test.ts](../../dev-tools/source-contracts/tests/sample-predicates.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/source-identity.test.ts](../../dev-tools/source-contracts/tests/source-identity.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/template-generation.test.ts](../../dev-tools/source-contracts/tests/template-generation.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/trait-catalog.test.ts](../../dev-tools/source-contracts/tests/trait-catalog.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/trait-definition-generation.test.ts](../../dev-tools/source-contracts/tests/trait-definition-generation.test.ts) | pending | — |
-| [dev-tools/source-contracts/tests/type-graph.test.ts](../../dev-tools/source-contracts/tests/type-graph.test.ts) | pending | — |
+| [dev-tools/source-contracts/tests/action-definitions.test.ts](../../dev-tools/source-contracts/tests/action-definitions.test.ts) | changed | Complete literal action object now includes slug and source line, retaining export/constructor/variant resolution, deduplication and proof that upstream source is not executed. |
+| [dev-tools/source-contracts/tests/collection-generation.test.ts](../../dev-tools/source-contracts/tests/collection-generation.test.ts) | changed | Removed the standalone test of stock JSON.stringify, which invoked no repository code. Retained nullable/undefined collection generation, ordinary-array/map constraints, null-only slots, unsupported indices, bounded shared signatures and recursive unsupported descendants; actual collection values are checked in the Rust generic fixture. |
+| [dev-tools/source-contracts/tests/compare-documents.test.ts](../../dev-tools/source-contracts/tests/compare-documents.test.ts) | reviewed | Retained untouched numeric/duplicate payload sampling, accepted-versus-lossy outcomes, normalized rejection grouping with exact contexts, recovered/regressed identities and stale-report invalidation/path isolation. |
+| [dev-tools/source-contracts/tests/compare-equipment.test.ts](../../dev-tools/source-contracts/tests/compare-equipment.test.ts) | changed | Large-integer and presence differences now use independent candidates and require exact reported contexts/results. Previously the presence case retained the numeric difference and could pass with presence comparison broken. |
+| [dev-tools/source-contracts/tests/compare-traits.test.ts](../../dev-tools/source-contracts/tests/compare-traits.test.ts) | reviewed | Literal identity/membership/description deltas, missing/empty distinctions, source-line insensitivity, conflicting mappings, literal authored fences, exact artifact hashes and CLI output preservation cover distinct contracts; retained. |
+| [dev-tools/source-contracts/tests/condition-catalog.test.ts](../../dev-tools/source-contracts/tests/condition-catalog.test.ts) | excluded | Condition catalog extraction, modifier predicates, grants/overrides and HP-loss ownership are excluded by the user. |
+| [dev-tools/source-contracts/tests/condition-extraction.test.ts](../../dev-tools/source-contracts/tests/condition-extraction.test.ts) | excluded | Condition expression/trait rule extraction is excluded by the user. |
+| [dev-tools/source-contracts/tests/document-inputs.test.ts](../../dev-tools/source-contracts/tests/document-inputs.test.ts) | reviewed | Declaration-preserving bounded projections, sentinel/area/statistic forms, nested overlay/fixed-heightening patches and drift refusal retained. Real generated Rust probes independently verify acceptance, rejection and value fidelity. |
+| [dev-tools/source-contracts/tests/document-traits.test.ts](../../dev-tools/source-contracts/tests/document-traits.test.ts) | reviewed | Open trait-string arrays remain separate from closed small vocabularies; nonstring drift and never-element discovery have distinct outcomes. Public generated types and parser admission guards retained. |
+| [dev-tools/source-contracts/tests/extract.test.ts](../../dev-tools/source-contracts/tests/extract.test.ts) | reviewed | Real CLI checks persisted incomplete reports, strict nonzero exit, complete retry, registered rule identities and dependency-versus-source digest separation; retained. |
+| [dev-tools/source-contracts/tests/generated-output.test.ts](../../dev-tools/source-contracts/tests/generated-output.test.ts) | reviewed | Whole output-set freshness, retired generated file removal, unmanaged-file preservation, missing/directory targets and pre-acquisition source/output overlap refusal retained. |
+| [dev-tools/source-contracts/tests/numeric-generation.test.ts](../../dev-tools/source-contracts/tests/numeric-generation.test.ts) | reviewed | Number/string key domains, retained nonnumeric keys, recursive anchors, null-only fields/unusual tokens and shared imports protect generated public shapes. Numeric-key fixture is independently checked against pinned TypeScript; retained. |
+| [dev-tools/source-contracts/tests/object-patch.test.ts](../../dev-tools/source-contracts/tests/object-patch.test.ts) | reviewed | Original declarations, replacement collections, merged partial union fields and cycle/collision refusal retained. Generated Rust probe checks literal acceptance/fidelity and exact nested failure path. |
+| [dev-tools/source-contracts/tests/open-generation.test.ts](../../dev-tools/source-contracts/tests/open-generation.test.ts) | reviewed | Unknown/object/non-nullish constraints, canonical names across union ordering, indexed typed owners, null tuple guards, unsupported/dangling domains and forbidden-member shape identity retained. |
+| [dev-tools/source-contracts/tests/pinned-generation.integration.ts](../../dev-tools/source-contracts/tests/pinned-generation.integration.ts) | mixed | Condition facts case excluded from review and unchanged. Whole generated output freshness, one shared physical owner, complete document/family/rule inventory, baseline identities, emitted field/literal drift, trait-array policy, strict unsupported constructs and source-backed actions retained. |
+| [dev-tools/source-contracts/tests/pinned-source.test.ts](../../dev-tools/source-contracts/tests/pinned-source.test.ts) | mixed | Condition-pack invalidation case excluded and unchanged. Reviewed independent declaration digest/count/version admission, isolated local export, warm-cache corruption refusal and real exact-commit Git acquisition/reuse. |
+| [dev-tools/source-contracts/tests/portfolio-comparison.test.ts](../../dev-tools/source-contracts/tests/portfolio-comparison.test.ts) | changed | Admission baseline now independently rejects source and corpus identity changes as well as count/outcome changes. Kept retained/partial/raw/fidelity outcome partitions, portfolio rejection-context hashing and non-Actor raw sampling. |
+| [dev-tools/source-contracts/tests/recursive-generation.test.ts](../../dev-tools/source-contracts/tests/recursive-generation.test.ts) | reviewed | Retained recursive inline-versus-collection boxing, unanchored alias rejection, tuple arity/nullability, union discrimination, exact source-key mapping/collisions, indexed intersections, compiled-fixture freshness and cross-module canonical owner/import contracts. |
+| [dev-tools/source-contracts/tests/rule-inputs.test.ts](../../dev-tools/source-contracts/tests/rule-inputs.test.ts) | reviewed | Ordinary/Strict/Set array policies, shared declaration propagation through recursive collections, provenance drift, raw rule sampling and per-occurrence recovery/loss categories are distinct regression cases; retained. |
+| [dev-tools/source-contracts/tests/rule-value-inputs.test.ts](../../dev-tools/source-contracts/tests/rule-value-inputs.test.ts) | reviewed | Bounded constructor projections preserve original schema/provenance, BattleForm-only widening, direct Strike closed types, drift refusal and open scalar-trait policy; retained. |
+| [dev-tools/source-contracts/tests/sample-equipment.test.ts](../../dev-tools/source-contracts/tests/sample-equipment.test.ts) | reviewed | Exact raw numeric/duplicate spans, embedded ordinal/context, malformed context/JSON, manifest folder skipping/missing packs and PF2e-versus-SF2e pack isolation retained. |
+| [dev-tools/source-contracts/tests/sample-items.test.ts](../../dev-tools/source-contracts/tests/sample-items.test.ts) | reviewed | Recursive Item-only traversal retains exact nested paths and raw duplicate/large-number payloads while rejecting actual duplicate context and malformed roots; retained. |
+| [dev-tools/source-contracts/tests/sample-predicates.test.ts](../../dev-tools/source-contracts/tests/sample-predicates.test.ts) | reviewed | Constructor-versus-array shapes, raw large numbers, declared extra predicate contexts, malformed values and repeated authored-member occurrences remain distinct; retained. |
+| [dev-tools/source-contracts/tests/source-identity.test.ts](../../dev-tools/source-contracts/tests/source-identity.test.ts) | reviewed | PR141 covers all six input classes, relative-name binding, ignored files/location and invalid version admission independently. Sensitivity assertions are legitimate hash-input invariants; retained. |
+| [dev-tools/source-contracts/tests/template-generation.test.ts](../../dev-tools/source-contracts/tests/template-generation.test.ts) | reviewed | Template boundary literals, unsupported interpolation/malformed shapes, distinct generic instantiations, stable shape sharing and name collisions protect emitted type contracts; retained. |
+| [dev-tools/source-contracts/tests/trait-catalog.test.ts](../../dev-tools/source-contracts/tests/trait-catalog.test.ts) | reviewed | Real static extraction distinguishes spreads/overrides, explicit description keys, absent localization, trait/tag/rarity namespaces, family evidence, unsupported calls/ranges, deterministic relocation and selector-only lists; retained. |
+| [dev-tools/source-contracts/tests/trait-definition-generation.test.ts](../../dev-tools/source-contracts/tests/trait-definition-generation.test.ts) | changed | Shared variants now require the literal authored description key rather than equality to each other. Retained exact variant/membership/source identity, conflicts, incomplete catalogs, exclusion of English prose and pinned attribution. |
+| [dev-tools/source-contracts/tests/type-graph.test.ts](../../dev-tools/source-contracts/tests/type-graph.test.ts) | changed | Added-field drift now verifies resolved number-or-undefined semantics, replacing its self-derived expected ref. Kept constructor provenance, portfolio expansion, unresolved/closure bounds, serialization/callback drift, recursive/generic identities and path-independent determinism. |
 
 ### research verification
 
@@ -651,3 +651,10 @@ Completion requires every inventory entry to have a substantive disposition, eve
 - `npm --prefix dev-tools/release run verify`: 23 passed. `node --test scripts/browser-fixture.test.mjs scripts/validation/ci-results.test.mjs scripts/validation/skill.test.ts`, `sh scripts/git-hooks/test-common.sh`, `sh scripts/release/test-release-tools.sh` and `sh scripts/release/test-prepare-release.sh` passed, with affected shell suites rerun after final assertion edits.
 - Disposable compiled-release probes first passed unchanged, then rejected wrong platform metadata and an omitted first dependency notice. Missing-command probes demonstrated both old order helpers returning success with no match and both candidate helpers rejecting that input.
 - PowerShell test source parsed successfully. Its native Windows executable fixture requires Windows and remains a CI validation obligation; no cross-platform replacement is claimed.
+
+### Source-contract tooling milestone
+
+- Unchanged offline fixture baseline: 133 passed. Final `npm --prefix dev-tools/source-contracts run verify` with pinned Rust 1.95: 132 passed. One removed test exercised only JavaScript built-ins; all repository scenarios remain.
+- `npm --prefix dev-tools/source-contracts run verify-generated`: 11 passed against fresh pinned upstream extraction, with no generated artifact changes. Condition-specific assertions ran unchanged as part of that gate but remain excluded from this review.
+- A disposable presence-blind comparator passed the previous equipment test and failed the candidate presence case. Both unchanged test copies passed before mutation. Temporary probe modules were removed afterward.
+- The first added-field assertion assumed a primitive reference and failed: the compiler correctly retains an optional number as number-or-undefined. The final assertion verifies those literal resolved meanings without binding the structural reference hash.

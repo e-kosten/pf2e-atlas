@@ -22,8 +22,11 @@ test('admission distinguishes retained partial documents, excluded rules and val
   assert.throws(()=>admissionResults(contexts,[]),/count mismatch/);
   const baseline = {sourceDigest:'source',corpusDigest:'corpus',outcomeDigest:report.outcomeDigest,counts:report.counts};
   assert.equal(admissionBaselineMatches(baseline,baseline),true);
-  assert.equal(admissionBaselineMatches(baseline,{...baseline,counts:{...baseline.counts,rawOnly:0}}),false);
-  assert.equal(admissionBaselineMatches(baseline,{...baseline,outcomeDigest:'changed'}),false);
+  for (const change of [
+    { sourceDigest: 'changed' }, { corpusDigest: 'changed' }, { outcomeDigest: 'changed' },
+    { counts: { ...baseline.counts, rawOnly: 0 } },
+  ]) assert.equal(admissionBaselineMatches(baseline, { ...baseline, ...change }), false);
+
 });
 
 test('portfolio baseline distinguishes changed rejections, acceptance and value loss', () => {

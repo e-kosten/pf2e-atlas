@@ -23,7 +23,8 @@ test('exact variants retain shared mappings and sorted catalog memberships witho
   assert.deepEqual(definitions.map(item => item.identifier), ['amp', 'deadly-d12', 'deadly-d8', 'unknown']);
   assert.equal(definitions[3].labelKey, null);
   assert.equal(definitions[0].descriptionKey, null);
-  assert.equal(definitions[1].descriptionKey, definitions[2].descriptionKey);
+  assert.deepEqual(definitions.slice(1, 3).map(item => item.descriptionKey),
+    ['PF2E.TraitDescriptionDeadly', 'PF2E.TraitDescriptionDeadly']);
   assert.deepEqual(definitions[2].catalogs, ['npcAttackTraits', 'weaponTraits']);
   assert.deepEqual(definitions[2].sourceLocations, [source]);
   const rust = generateTraitDefinitionModule(definitions, '// generated', { repository: 'https://github.com/foundryvtt/pf2e.git', commit: 'a'.repeat(40) });

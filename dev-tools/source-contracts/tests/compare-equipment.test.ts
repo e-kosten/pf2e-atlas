@@ -8,11 +8,15 @@ const packet: EquipmentPacket = { source: 'unused raw payload', actor: null, ord
 test('comparison detects lost large integers, presence changes and rejection-path differences', () => {
   const before = { ok: true as const, value: { hp: { value: { max: { value: '9007199254740993' } } }, usage: 'missing' } };
   assert.equal(compareEquipment([packet], [before], [structuredClone(before)]).counts.equalValues, 1);
-  const changed = structuredClone(before);
-  changed.value.hp.value.max.value = '9007199254740992';
-  assert.equal(compareEquipment([packet], [before], [changed]).differences.length, 1);
-  changed.value.usage = 'null';
-  assert.equal(compareEquipment([packet], [before], [changed]).differences.length, 1);
+  for (const [name, value] of [
+    ['large integer', { hp: { value: { max: { value: '9007199254740992' } } }, usage: 'missing' }],
+    ['presence', { hp: { value: { max: { value: '9007199254740993' } } }, usage: 'null' }],
+  ] as const) {
+    const changed = { ok: true as const, value };
+    const result = compareEquipment([packet], [before], [changed]);
+    assert.deepEqual(result.differences, [{ context: packet.context, baseline: before, generated: changed }], name);
+    assert.equal(result.counts.equalValues, 0, name);
+  }
   assert.equal(compareEquipment([packet], [{ ok: false, path: '$.hp' }], [{ ok: false, path: '$.price' }]).differences.length, 1);
   assert.throws(() => compareEquipment([packet], [], []), /result count/);
 });
