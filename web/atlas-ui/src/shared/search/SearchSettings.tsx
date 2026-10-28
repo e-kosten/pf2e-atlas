@@ -37,6 +37,7 @@ import {
   DEFAULT_SIMILARITY_PREFERENCES,
   DEFAULT_TRAIT_SIMILARITY_PREFERENCES,
   type SimilarityPreferences,
+  type MatchDisplay,
 } from "./searchPreferences";
 import {
   selectedSimilarityParts,
@@ -62,7 +63,7 @@ type SettingsDraft = {
   ranking: SearchRanking;
   searchContent: SearchContentScope;
   sourceSections: SimilaritySourceSections;
-  showSimilarityDetails: boolean;
+  matchDisplay: MatchDisplay;
   showSmallerWeights: boolean;
   similarity: SimilarityPreferences;
   parts: string[] | null;
@@ -272,7 +273,7 @@ export function SearchSettings({
       ranking,
       searchContent,
       sourceSections: appliedSourceSections,
-      showSimilarityDetails: profile.preferences.showSimilarityDetails,
+      matchDisplay: profile.preferences.matchDisplay,
       showSmallerWeights: profile.preferences.showSmallerWeights,
       similarity: appliedPreferences,
       parts: appliedParts,
@@ -315,7 +316,7 @@ export function SearchSettings({
         )
       : search.similarity;
     const presentationOnly =
-      (draft.showSimilarityDetails !== profile.preferences.showSimilarityDetails ||
+      (draft.matchDisplay !== profile.preferences.matchDisplay ||
         draft.showSmallerWeights !== profile.preferences.showSmallerWeights) &&
       !search.filterError &&
       draft.model === profile.id &&
@@ -340,7 +341,7 @@ export function SearchSettings({
               [inventory.data.core.family]: draft.sourceSections,
             }
           : profile.preferences.sourceSectionsByFamily,
-      showSimilarityDetails: draft.showSimilarityDetails,
+      matchDisplay: draft.matchDisplay,
       showSmallerWeights: draft.showSmallerWeights,
       ...(seed
         ? trait
@@ -528,8 +529,7 @@ export function SearchSettings({
                         ranking: DEFAULT_SEARCH_PREFERENCES.ranking,
                         searchContent: DEFAULT_SEARCH_PREFERENCES.searchContent,
                         sourceSections: DEFAULT_SOURCE_SECTIONS,
-                        showSimilarityDetails:
-                          DEFAULT_SEARCH_PREFERENCES.showSimilarityDetails,
+                        matchDisplay: DEFAULT_SEARCH_PREFERENCES.matchDisplay,
                         showSmallerWeights:
                           DEFAULT_SEARCH_PREFERENCES.showSmallerWeights,
                         similarity: trait
@@ -761,11 +761,6 @@ export function SearchSettings({
                           />
                         }
                         htmlFor={`${id}-content`}
-                        extra={
-                          seed
-                            ? "Content searched in other records."
-                            : "Content searched for your query."
-                        }
                       >
                         <Select
                           id={`${id}-content`}
@@ -1024,59 +1019,63 @@ export function SearchSettings({
                               </>
                             ),
                           },
-                          ...(seed
-                            ? [
-                                {
-                                  key: "details",
-                                  label: "Explanation details",
-                                  children: (
-                                    <>
-                                      <Form.Item
-                                        label={
-                                          <SettingLabel
-                                            label="Show similarity details"
-                                            help="Replaces the list of matching sections with scores, weights, and source and result excerpts."
-                                          />
-                                        }
-                                        htmlFor={`${id}-similarity-details`}
-                                      >
-                                        <Switch
-                                          id={`${id}-similarity-details`}
-                                          aria-label="Show similarity details"
-                                          checked={draft.showSimilarityDetails}
-                                          onChange={(showSimilarityDetails) =>
-                                            setDraft({
-                                              ...draft,
-                                              showSimilarityDetails,
-                                            })
-                                          }
-                                        />
-                                      </Form.Item>
-                                      {draft.showSimilarityDetails && (
-                                        <Form.Item
-                                          label={
-                                            <SettingLabel
-                                              label="Show smaller weights"
-                                              help="Includes rows whose weight rounds to 0.0%. All selections still contribute to ranking."
-                                            />
-                                          }
-                                          htmlFor={`${id}-smaller-weights`}
-                                        >
-                                          <Switch
-                                            id={`${id}-smaller-weights`}
-                                            aria-label="Show smaller weights"
-                                            checked={draft.showSmallerWeights}
-                                            onChange={(showSmallerWeights) =>
-                                              setDraft({ ...draft, showSmallerWeights })
-                                            }
-                                          />
-                                        </Form.Item>
-                                      )}
-                                    </>
-                                  ),
-                                },
-                              ]
-                            : []),
+                          {
+                            key: "details",
+                            label: "Explanation details",
+                            children: (
+                              <>
+                                <Form.Item
+                                  label={
+                                    <SettingLabel
+                                      label="Match display"
+                                      help={
+                                        draft.matchDisplay === "hidden"
+                                          ? "Hides match information. Results and ranking stay the same."
+                                          : draft.matchDisplay === "detailed"
+                                            ? "Shows matching sections, plus scores, weights and excerpts for Similar results."
+                                            : "Lists matching sections and excerpts."
+                                      }
+                                    />
+                                  }
+                                  htmlFor={`${id}-match-display`}
+                                >
+                                  <Select
+                                    id={`${id}-match-display`}
+                                    aria-label="Match display"
+                                    value={draft.matchDisplay}
+                                    options={[
+                                      { value: "hidden", label: "Hidden" },
+                                      { value: "sections", label: "Matching sections" },
+                                      { value: "detailed", label: "Detailed" },
+                                    ]}
+                                    onChange={(matchDisplay: MatchDisplay) =>
+                                      setDraft({ ...draft, matchDisplay })
+                                    }
+                                  />
+                                </Form.Item>
+                                {seed && draft.matchDisplay === "detailed" && (
+                                  <Form.Item
+                                    label={
+                                      <SettingLabel
+                                        label="Show smaller weights"
+                                        help="Includes rows whose weight rounds to 0.0%. All selections still contribute to ranking."
+                                      />
+                                    }
+                                    htmlFor={`${id}-smaller-weights`}
+                                  >
+                                    <Switch
+                                      id={`${id}-smaller-weights`}
+                                      aria-label="Show smaller weights"
+                                      checked={draft.showSmallerWeights}
+                                      onChange={(showSmallerWeights) =>
+                                        setDraft({ ...draft, showSmallerWeights })
+                                      }
+                                    />
+                                  </Form.Item>
+                                )}
+                              </>
+                            ),
+                          },
                         ]}
                       />
                     </>

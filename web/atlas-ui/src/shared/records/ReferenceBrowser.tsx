@@ -1,3 +1,4 @@
+import { DEFAULT_MATCH_DISPLAY, type MatchDisplay } from "../search/searchPreferences";
 import { Empty } from "antd";
 import { LoadingStatus } from "../ui/LoadingStatus";
 import type { ReactNode } from "react";
@@ -33,12 +34,12 @@ export function ReferenceBrowser({
   generation,
   onRefreshResults,
   query,
-  showSimilarityDetails = false,
+  matchDisplay = DEFAULT_MATCH_DISPLAY,
   showSmallerWeights = false,
 }: {
   rows: SearchResultRow[];
   query?: string;
-  showSimilarityDetails?: boolean;
+  matchDisplay?: MatchDisplay;
   showSmallerWeights?: boolean;
   loading: boolean;
   selectedRecordKey: string | null;
@@ -82,7 +83,7 @@ export function ReferenceBrowser({
         showContext ? (
           <SearchMatchContext
             row={selected}
-            showSimilarityDetails={showSimilarityDetails}
+            matchDisplay={matchDisplay}
             showSmallerWeights={showSmallerWeights}
             query={query}
             clauses={relationshipClauses}

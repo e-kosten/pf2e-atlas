@@ -1,3 +1,4 @@
+import type { MatchDisplay } from "../search/searchPreferences";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
@@ -67,14 +68,14 @@ function Harness({
   relationships,
   generation = "test-generation",
   query = "jaws",
-  showSimilarityDetails = false,
+  matchDisplay = "sections",
 }: {
   positions?: BrowsePositions;
   resultRows?: SearchResultRow[];
   relationships?: RelationshipClauseSummaryView[];
   generation?: string;
   query?: string;
-  showSimilarityDetails?: boolean;
+  matchDisplay?: MatchDisplay;
 }) {
   const [selected, select] = useState<string | null>(null);
   const reading = useReferenceReading();
@@ -82,7 +83,7 @@ function Harness({
     <ReferenceBrowser
       positions={positions}
       query={query}
-      showSimilarityDetails={showSimilarityDetails}
+      matchDisplay={matchDisplay}
       rows={resultRows}
       relationshipClauses={relationships}
       filter={
@@ -512,7 +513,7 @@ it("keeps similarity evidence in the selected reader and uses shared exact match
       <QueryClientProvider
         client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
       >
-        <Harness showSimilarityDetails resultRows={resultRows} query="" />
+        <Harness matchDisplay="detailed" resultRows={resultRows} query="" />
       </QueryClientProvider>
     </ConfigProvider>,
   );
@@ -578,7 +579,7 @@ it("withholds similarity reader context from an unmatched result generation", as
   const browser = (generation: string) => (
     <QueryClientProvider client={client}>
       <Harness
-        showSimilarityDetails
+        matchDisplay="detailed"
         resultRows={resultRows}
         query=""
         generation={generation}
@@ -592,4 +593,34 @@ it("withholds similarity reader context from an unmatched result generation", as
   expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull();
   view.rerender(browser("test-generation"));
   expect(screen.getByRole("region", { name: "Similarity comparison" })).toBeVisible();
+});
+
+it("hides reader match context without refetching or replacing the selected document", async () => {
+  getDetail.mockResolvedValue(detailFixture("actors:ghoul", "Ghoul"));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const view = render(
+    <QueryClientProvider client={client}>
+      <Harness />
+    </QueryClientProvider>,
+  );
+  fireEvent.click(screen.getByRole("link", { name: /^Ghoul/ }));
+  expect(await screen.findByRole("heading", { name: "Ghoul" })).toBeVisible();
+  expect(await screen.findByRole("region", { name: "Search matches" })).toBeVisible();
+  const calls = getDetail.mock.calls.length;
+  view.rerender(
+    <QueryClientProvider client={client}>
+      <Harness matchDisplay="hidden" />
+    </QueryClientProvider>,
+  );
+  expect(screen.getByRole("heading", { name: "Ghoul" })).toBeVisible();
+  expect(screen.queryByRole("region", { name: "Search matches" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull();
+  expect(getDetail).toHaveBeenCalledTimes(calls);
+  view.rerender(
+    <QueryClientProvider client={client}>
+      <Harness />
+    </QueryClientProvider>,
+  );
+  expect(screen.getByRole("region", { name: "Search matches" })).toBeVisible();
+  expect(getDetail).toHaveBeenCalledTimes(calls);
 });

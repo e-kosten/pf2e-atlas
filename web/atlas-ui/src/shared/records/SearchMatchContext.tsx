@@ -1,3 +1,4 @@
+import { DEFAULT_MATCH_DISPLAY, type MatchDisplay } from "../search/searchPreferences";
 import { useContext } from "react";
 import { ReaderMatchNavigation } from "./ReaderMatchNavigation";
 import { Typography, theme } from "antd";
@@ -18,7 +19,7 @@ export function SearchMatchContext({
   filter,
   generation,
   onRefresh,
-  showSimilarityDetails = false,
+  matchDisplay = DEFAULT_MATCH_DISPLAY,
   showSmallerWeights = false,
 }: {
   row: SearchResultRow;
@@ -27,12 +28,13 @@ export function SearchMatchContext({
   filter?: QueryPredicate | null;
   generation?: string;
   onRefresh?: () => Promise<void>;
-  showSimilarityDetails?: boolean;
+  matchDisplay?: MatchDisplay;
   showSmallerWeights?: boolean;
 }) {
   const { token } = theme.useToken();
   const onNavigate = useContext(ReaderMatchNavigation);
-  const similarity = showSimilarityDetails ? row.similarity : undefined;
+  if (matchDisplay === "hidden") return null;
+  const similarity = matchDisplay === "detailed" ? row.similarity : undefined;
   const sections = !similarity || query?.trim() ? (row.matching_sections ?? []) : [];
   const evidence =
     generation && filter

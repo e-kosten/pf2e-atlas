@@ -8,6 +8,9 @@ export const SEARCH_PREFERENCES_KEY = "atlas.search.preferences.v1";
 export const LEGACY_SEARCH_PROFILE_KEY = "atlas.search.profile.v1";
 
 export type SimilarityMethod = "passages" | "content-average" | "baseline";
+export type MatchDisplay = "hidden" | "sections" | "detailed";
+export const DEFAULT_MATCH_DISPLAY: MatchDisplay = "sections";
+
 export type CandidateParts = "any" | "corresponding";
 export type SimilarityPreferences = {
   method: SimilarityMethod;
@@ -20,7 +23,7 @@ export type SearchPreferences = {
   ranking: SearchRanking;
   searchContent: SearchContentScope;
   sourceSectionsByFamily: Partial<Record<CoreSectionFamily, "all" | "core">>;
-  showSimilarityDetails: boolean;
+  matchDisplay: MatchDisplay;
   showSmallerWeights: boolean;
   recordSimilarity: SimilarityPreferences;
   traitSimilarity: SimilarityPreferences;
@@ -43,7 +46,7 @@ export const DEFAULT_SEARCH_PREFERENCES: SearchPreferences = {
   ranking: "score",
   searchContent: "all",
   sourceSectionsByFamily: {},
-  showSimilarityDetails: false,
+  matchDisplay: DEFAULT_MATCH_DISPLAY,
   showSmallerWeights: false,
   recordSimilarity: DEFAULT_SIMILARITY_PREFERENCES,
   traitSimilarity: DEFAULT_TRAIT_SIMILARITY_PREFERENCES,
@@ -96,7 +99,14 @@ export function readSearchPreferences(): SearchPreferences {
             ([, value]) => value === "all" || value === "core",
           ),
         ),
-        showSimilarityDetails: input.showSimilarityDetails === true,
+        matchDisplay:
+          input.matchDisplay === "hidden" ||
+          input.matchDisplay === "sections" ||
+          input.matchDisplay === "detailed"
+            ? input.matchDisplay
+            : input.showSimilarityDetails === true
+              ? "detailed"
+              : DEFAULT_MATCH_DISPLAY,
         showSmallerWeights: input.showSmallerWeights === true,
         recordSimilarity: similarity(input.recordSimilarity),
         traitSimilarity: similarity(input.traitSimilarity, true),
