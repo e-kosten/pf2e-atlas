@@ -144,3 +144,34 @@ it("rejects unsupported, damaged, and oversized payloads", () => {
     ),
   ).toThrow("couldn’t be restored");
 });
+
+it("decodes an independently authored compact address, including zero rank and byte offsets", () => {
+  const encoded = compressed([
+    [
+      ["/items", "spell/雪%"],
+      ["/effects", 0],
+    ],
+    "/system/description/value",
+    ["p", "content/v10", 2, "雪 & flame", 10, 80, "text-hash"],
+    "source:abc",
+    0,
+  ]);
+  expect(decodeReadingAddress(encoded, root.record_key, true)).toEqual({
+    record_key: root.record_key,
+    embedded_path: [
+      { collection: "/items", identity: { Stable: "spell/雪%" } },
+      { collection: "/effects", identity: { SnapshotLocal: { index: 0 } } },
+    ],
+    field: "/system/description/value",
+    passage: {
+      kind: "plain_section",
+      selection_version: "content/v10",
+      section_ordinal: 2,
+      label: "雪 & flame",
+      chunk_bytes: { start: 10, end: 80 },
+      source_text_sha256: "text-hash",
+    },
+    source_fingerprint: "source:abc",
+    spell_rank: 0,
+  });
+});

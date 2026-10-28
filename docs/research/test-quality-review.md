@@ -36,8 +36,8 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | research verification | 1 | 0 | 1 | 0 |
 | scripts | 8 | 0 | 8 | 0 |
 | web/atlas-ui/e2e | 16 | 16 | 0 | 0 |
-| web/atlas-ui/src/api | 3 | 3 | 0 | 0 |
-| web/atlas-ui/src/app | 11 | 11 | 0 | 0 |
+| web/atlas-ui/src/api | 3 | 0 | 3 | 0 |
+| web/atlas-ui/src/app | 11 | 0 | 11 | 0 |
 | web/atlas-ui/src/features | 53 | 53 | 0 | 0 |
 | web/atlas-ui/src/shared | 92 | 92 | 0 | 0 |
 
@@ -444,25 +444,25 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [web/atlas-ui/src/api/atlasApi.test.ts](../../web/atlas-ui/src/api/atlasApi.test.ts) | pending | — |
-| [web/atlas-ui/src/api/availability.test.ts](../../web/atlas-ui/src/api/availability.test.ts) | pending | — |
-| [web/atlas-ui/src/api/compatibility.test.ts](../../web/atlas-ui/src/api/compatibility.test.ts) | pending | — |
+| [web/atlas-ui/src/api/atlasApi.test.ts](../../web/atlas-ui/src/api/atlasApi.test.ts) | mixed | Eligible API cases reviewed for integer safety, exact selections/signals, request methods, read-only POSTs, discovery outcomes, revisions, traits and graph pages. Saved-list CRUD now requires exact encoded paths and complete bodies instead of methods alone. Condition normalization/lifecycle cases excluded and unchanged. |
+| [web/atlas-ui/src/api/availability.test.ts](../../web/atlas-ui/src/api/availability.test.ts) | changed | Added response-stream failure checks for both reads and writes, preserving original causes and classifying uncertain writes. Retained abort identity, local busy errors and write-failure priority. |
+| [web/atlas-ui/src/api/compatibility.test.ts](../../web/atlas-ui/src/api/compatibility.test.ts) | changed | Proxy outage now requires AtlasConnectionError instead of any non-compatibility rejection. Matching headers, old/mismatched responses before body decoding and no mutation/replay after mismatch retained. |
 
 ### web/atlas-ui/src/app
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [web/atlas-ui/src/app/AppShell.test.tsx](../../web/atlas-ui/src/app/AppShell.test.tsx) | pending | — |
-| [web/atlas-ui/src/app/AtlasApp.test.tsx](../../web/atlas-ui/src/app/AtlasApp.test.tsx) | pending | — |
-| [web/atlas-ui/src/app/BackendCompatibilityGate.test.tsx](../../web/atlas-ui/src/app/BackendCompatibilityGate.test.tsx) | pending | — |
-| [web/atlas-ui/src/app/InvalidUrl.test.tsx](../../web/atlas-ui/src/app/InvalidUrl.test.tsx) | pending | — |
-| [web/atlas-ui/src/app/documentNavigation.test.ts](../../web/atlas-ui/src/app/documentNavigation.test.ts) | pending | — |
-| [web/atlas-ui/src/app/queryClient.test.ts](../../web/atlas-ui/src/app/queryClient.test.ts) | pending | — |
-| [web/atlas-ui/src/app/readingUrl.test.ts](../../web/atlas-ui/src/app/readingUrl.test.ts) | pending | — |
-| [web/atlas-ui/src/app/routeSearch.test.ts](../../web/atlas-ui/src/app/routeSearch.test.ts) | pending | — |
-| [web/atlas-ui/src/app/routerNavigation.test.ts](../../web/atlas-ui/src/app/routerNavigation.test.ts) | pending | — |
-| [web/atlas-ui/src/app/routes.test.ts](../../web/atlas-ui/src/app/routes.test.ts) | pending | — |
-| [web/atlas-ui/src/app/urlState.test.ts](../../web/atlas-ui/src/app/urlState.test.ts) | pending | — |
+| [web/atlas-ui/src/app/AppShell.test.tsx](../../web/atlas-ui/src/app/AppShell.test.tsx) | reviewed | Real native navigation/history, modified clicks, keyboard menu, skip focus, theme and single shared mismatch notice retain mounted drafts and independent local errors; retained. |
+| [web/atlas-ui/src/app/AtlasApp.test.tsx](../../web/atlas-ui/src/app/AtlasApp.test.tsx) | reviewed | Real route graph and feature composition cover malformed-link recovery before reads, browser history, URL-over-preference authority, delayed metadata, single-profile errors, optional storage denial and nested Add flows with exact requests, focus, draft, URL and scroll preservation; retained. |
+| [web/atlas-ui/src/app/BackendCompatibilityGate.test.tsx](../../web/atlas-ui/src/app/BackendCompatibilityGate.test.tsx) | reviewed | Deferred handshake proves feature hooks stay unmounted until retry succeeds; installed mismatch reloads once then offers explicit reload. Real gate and storage boundary retained. |
+| [web/atlas-ui/src/app/InvalidUrl.test.tsx](../../web/atlas-ui/src/app/InvalidUrl.test.tsx) | reviewed | Unknown failures hide diagnostics; reading-link recovery retains independent criteria, replaces history and keeps unknown routes visible. Exact native recovery URLs retained. |
+| [web/atlas-ui/src/app/documentNavigation.test.ts](../../web/atlas-ui/src/app/documentNavigation.test.ts) | reviewed | Literal percent, slash and Unicode section identities survive both native href construction and real router navigation; retained. |
+| [web/atlas-ui/src/app/queryClient.test.ts](../../web/atlas-ui/src/app/queryClient.test.ts) | changed | Added permanent 400 and compatibility-failure cases requiring one attempt and no shared outage. Retained bounded transient retries, readiness recovery, visible query refresh and no mutation replay. |
+| [web/atlas-ui/src/app/readingUrl.test.ts](../../web/atlas-ui/src/app/readingUrl.test.ts) | changed | Added independently authored compact slot payload with stable/local embedded identities, plain-passage byte offsets and rank zero, avoiding reliance only on encoder/decoder agreement. Existing malformed/bounds, rank, identity and view partitions retained. |
+| [web/atlas-ui/src/app/routeSearch.test.ts](../../web/atlas-ui/src/app/routeSearch.test.ts) | reviewed | Literal canonical parameter outputs, singleton conflicts, list/trait scope, full page bounds, filter-before-reading recovery and real in-place redirects preserve fragments/history state; retained. |
+| [web/atlas-ui/src/app/routerNavigation.test.ts](../../web/atlas-ui/src/app/routerNavigation.test.ts) | reviewed | Reserved/Unicode native identities, inherited/direct parent return contexts, exact landing, root rank and sibling isolation are distinct routing regressions with real histories; retained. |
+| [web/atlas-ui/src/app/routes.test.ts](../../web/atlas-ui/src/app/routes.test.ts) | changed | Added native target/download matrix through nested anchor content, including ordinary and _self activation. Existing route-tree destinations, owner-workspace selection and modified events retained. |
+| [web/atlas-ui/src/app/urlState.test.ts](../../web/atlas-ui/src/app/urlState.test.ts) | reviewed | Ordered repeated values, opaque JSON-like text, prototype-name keys, exact selection/landing and once-only section decoding protect URL transport; retained. |
 
 ### web/atlas-ui/src/features
 
@@ -721,3 +721,5 @@ Completion requires every inventory entry to have a substantive disposition, eve
 CLI milestone validation: 52 unit tests; roll 3, relationships 7, source product 21, agent skills 10, help 7, completions 2, tag validation 3 and version 1 passed. The normally ignored bounded native setup/search scenario also passed explicitly (141.81 s). Frozen terminal references were not updated.
 
 Web milestone validation: complete atlas-web unit/integration and doc-test command passed, including the real TCP disconnect test. Frontend bundle rebuilt to match the contract digest before compilation; no visual references changed.
+
+Frontend API/app milestone validation: 14 files / 226 tests passed; subsequent native anchor matrix passed with all 30 routing tests. Condition-specific API cases were not edited. JSDOM emitted its existing pseudo-style and native-navigation limitations; browser acceptance remains part of final validation.
