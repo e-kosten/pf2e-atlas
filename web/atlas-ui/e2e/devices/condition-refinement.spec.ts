@@ -38,6 +38,7 @@ async function recoveryGeometry(popup: Locator) {
     const control = input.getBoundingClientRect();
     return {
       x: bounds.x,
+      y: bounds.y,
       width: bounds.width,
       input: {
         x: control.x,
@@ -222,12 +223,25 @@ test("precedence survives source removal and recovery retains its anchor after c
     await expect(dc).toHaveValue("1");
     await expect(popup.getByRole("combobox")).toHaveCount(0);
     await expect(popup).toHaveCSS("opacity", "1");
+    await expect(
+      popup.getByRole("button", { name: "Roll", exact: true }),
+    ).toBeInViewport({ ratio: 1 });
+    await expect(
+      popup.getByRole("button", { name: "Clear effect", exact: true }),
+    ).toBeInViewport({ ratio: 1 });
     await checkpoint(page, info, "recovery-before.png");
     const before = await recoveryGeometry(popup);
+    const beforeAbove =
+      before.y <
+      (await recovery.evaluate((element) => element.getBoundingClientRect().y));
     await activate(popup.getByRole("button", { name: "Roll", exact: true }), info);
     await expect(popup.getByText("Recovered · DC 1", { exact: true })).toBeVisible();
     await expect(recovery).toBeVisible();
     const after = await recoveryGeometry(popup);
+    const afterAbove =
+      after.y <
+      (await recovery.evaluate((element) => element.getBoundingClientRect().y));
+    expect(afterAbove).toBe(beforeAbove);
     expect(Math.abs(after.x - before.x)).toBeLessThan(2);
     expect(Math.abs(after.width - before.width)).toBeLessThan(2);
     expect(after.input.x).toBe(before.input.x);
