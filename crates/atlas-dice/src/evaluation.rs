@@ -284,33 +284,19 @@ mod tests {
         );
     }
     #[test]
-    fn keep_high_low_and_ties_retain_every_face() {
-        for (formula, total) in [("2d20kh1", 19), ("2d20kl1", 3)] {
-            let r = fixed(formula, vec![3, 19]);
-            assert_eq!(r.total, total);
-            let RollExpression::Dice { dice, .. } = r.expression else {
-                panic!()
-            };
-            assert_eq!(dice.len(), 2);
-            assert_eq!(dice.iter().filter(|d| d.kept).count(), 1);
-            assert_eq!(dice.iter().find(|d| d.kept).unwrap().value, total);
-        }
-        let r = fixed("2d20kh1", vec![7, 7]);
-        let RollExpression::Dice { dice, .. } = r.expression else {
-            panic!()
-        };
-        assert_eq!(dice.iter().filter(|d| d.kept).count(), 1);
-        assert_eq!(dice.len(), 2);
-    }
-    #[test]
     fn filtered_dice_preserve_draw_order_and_mark_the_selected_position() {
-        for (formula, values, flags) in [
-            ("2d20kh1", vec![3, 19], vec![false, true]),
-            ("2d20kh1", vec![19, 3], vec![true, false]),
-            ("2d20kl1", vec![3, 19], vec![true, false]),
-            ("2d20kl1", vec![19, 3], vec![false, true]),
-            ("2d20kh1", vec![7, 7], vec![true, false]),
-            ("4d6kh2", vec![4, 6, 1, 4], vec![true, true, false, false]),
+        for (formula, values, flags, total) in [
+            ("2d20kh1", vec![3, 19], vec![false, true], 19),
+            ("2d20kh1", vec![19, 3], vec![true, false], 19),
+            ("2d20kl1", vec![3, 19], vec![true, false], 3),
+            ("2d20kl1", vec![19, 3], vec![false, true], 3),
+            ("2d20kh1", vec![7, 7], vec![true, false], 7),
+            (
+                "4d6kh2",
+                vec![4, 6, 1, 4],
+                vec![true, true, false, false],
+                10,
+            ),
         ] {
             let r = fixed(formula, values.clone());
             let RollExpression::Dice { dice, .. } = r.expression else {
@@ -321,10 +307,7 @@ mod tests {
                 values.iter().map(|v| *v as i32).collect::<Vec<_>>()
             );
             assert_eq!(dice.iter().map(|d| d.kept).collect::<Vec<_>>(), flags);
-            assert_eq!(
-                dice.iter().filter(|d| d.kept).map(|d| d.value).sum::<i32>(),
-                r.total
-            );
+            assert_eq!(r.total, total, "{formula} with {values:?}");
         }
     }
     #[test]

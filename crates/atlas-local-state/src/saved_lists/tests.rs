@@ -29,6 +29,7 @@ fn saved_lists_preserve_order_and_noop_duplicate_adds() -> Result<(), Box<dyn st
         "undead-research",
         resolved_item("actions:second", Some("important"), "Second", Some("rule")),
     )?;
+    let before_duplicate = lists.get_with_items("undead-research")?.unwrap();
     assert_eq!(
         lists.add_resolved_item(
             "undead-research",
@@ -45,6 +46,10 @@ fn saved_lists_preserve_order_and_noop_duplicate_adds() -> Result<(), Box<dyn st
     let list = lists
         .get_with_items("undead-research")?
         .expect("list should exist");
+    assert_eq!(list, before_duplicate);
+    assert_eq!(list.items[0].record_title_snapshot, "First");
+    assert_eq!(list.items[0].note, None);
+    assert_eq!(list.items[1].note.as_deref(), Some("important"));
     assert!(list.list.list_key.starts_with("list_"));
     assert_eq!(list.list.name, "Undead Research");
     assert_eq!(list.items.len(), 2);
