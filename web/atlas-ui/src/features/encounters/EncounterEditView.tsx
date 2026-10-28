@@ -8,6 +8,7 @@ import { getEncounter } from "../../api/atlasApi";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { EditEncounterForm } from "./EncounterModals";
 import { useEncounterMutations } from "./useEncounterMutations";
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 type EncounterEditViewProps = {
   route: { slug: string };
 };
@@ -76,7 +77,7 @@ function EncounterEditor({ route }: EncounterEditViewProps) {
         />
       )}
       {encounter.isLoading ? (
-        <div className="detail-empty">Loading encounter...</div>
+        <LoadingStatus className="detail-empty" label="Loading encounter…" />
       ) : (
         encounter.data && (
           <section className="encounter-edit-view__content">

@@ -36,6 +36,7 @@ export function EncounterStrikeControl({
   activity,
   disabled,
   onBeginStrike,
+  onPrepareStrike,
   renderStrikeContext,
 }: {
   encounterKey: string;
@@ -44,6 +45,7 @@ export function EncounterStrikeControl({
   activity: ActorActivityView;
   disabled: boolean;
   onBeginStrike: (request: StrikeLaunch) => void;
+  onPrepareStrike?: (request: StrikeLaunch) => void;
   renderStrikeContext?: (requestId: string) => ReactNode;
 }) {
   const nav = activity.navigation;
@@ -80,7 +82,7 @@ export function EncounterStrikeControl({
     participantKey: participant.participant_key,
     reference,
     title: activity.title,
-    options: options.isFetching ? undefined : options.data,
+    options: options.data,
     disabled,
     refresh: async () => {
       const result = await options.refetch();
@@ -110,6 +112,7 @@ export function EncounterStrikeControl({
                 label={signed(choice.modifier)}
                 attackNumber={choice.attack_number}
                 onBeginStrike={onBeginStrike}
+                onPrepareStrike={onPrepareStrike}
                 renderStrikeContext={renderStrikeContext}
               />
             </Fragment>
@@ -150,6 +153,7 @@ function StrikeRollPopover({
   label,
   attackNumber,
   onBeginStrike,
+  onPrepareStrike,
   renderStrikeContext,
 }: {
   encounterKey: string;
@@ -162,18 +166,18 @@ function StrikeRollPopover({
   label: string;
   attackNumber?: number;
   onBeginStrike?: (request: StrikeLaunch) => void;
+  onPrepareStrike?: (request: StrikeLaunch) => void;
   renderStrikeContext?: (requestId: string) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const headingId = useId();
   const [mode, setMode] = useState<RollMode>("normal");
-  const [contextOpen, setContextOpen] = useState(false);
+  const [contextRequested, setContextRequested] = useState(false);
+  const contextButton = useRef<HTMLButtonElement>(null);
+  const contextOrigin = useRef<HTMLElement | null>(null);
+  const contextDialog = useRef<HTMLElement | null>(null);
+  const contextWasOpen = useRef(false);
   const popover = useRef<import("antd").TooltipRef>(null);
-  useLayoutEffect(() => {
-    if (!open) return;
-    const frame = requestAnimationFrame(() => popover.current?.forceAlign());
-    return () => cancelAnimationFrame(frame);
-  }, [open, contextOpen]);
   const { trigger, content, afterOpenChange } = useDicePopoverFocus(open);
   const roll = useDiceRoll<{
     result: EncounterStrikeRollView;
@@ -183,6 +187,25 @@ function StrikeRollPopover({
   const result = roll.result?.result;
   const original = roll.result?.request;
   const resultOptions = roll.result?.options ?? options;
+  const strikeContext =
+    contextRequested && original ? renderStrikeContext?.(original.request_id) : null;
+  const contextOpen = contextRequested && Boolean(strikeContext);
+  useLayoutEffect(() => {
+    if (!open) return;
+    const origin = contextOrigin.current;
+    const document = origin?.ownerDocument;
+    if (document && document.activeElement === document.body) {
+      // Expansion removes its initiating button. Recover only abandoned focus;
+      // a user can choose Close or another control while preparation runs.
+      if (contextOpen && origin && !origin.isConnected)
+        contextDialog.current?.focus({ preventScroll: true });
+      else if (contextWasOpen.current && !contextOpen)
+        contextButton.current?.focus({ preventScroll: true });
+    }
+    contextWasOpen.current = contextOpen;
+    const frame = requestAnimationFrame(() => popover.current?.forceAlign());
+    return () => cancelAnimationFrame(frame);
+  }, [open, contextOpen]);
   const attack = attackNumber !== undefined;
   const actionLabel = `${title} ${attack ? "attack" : "damage"}`;
   const act = () =>
@@ -199,8 +222,15 @@ function StrikeRollPopover({
         modifier_override: null,
         roll_kind: attack ? ("attack" as const) : ("damage" as const),
       };
-      setContextOpen(false);
+      setContextRequested(false);
       const result = await rollEncounterStrike(encounterKey, request);
+      if (attack)
+        onPrepareStrike?.({
+          strike: { participant_key: participantKey, reference },
+          attackNumber: attackNumber!,
+          rollId: request.request_id,
+          rolledModifier: result.attack_modifier,
+        });
       return { result, request, options: current };
     });
   return (
@@ -217,7 +247,7 @@ function StrikeRollPopover({
       onOpenChange={(next) => {
         setOpen(next);
         if (next) {
-          setContextOpen(false);
+          setContextRequested(false);
           if (!disabled && !result && !roll.error) act();
         }
       }}
@@ -236,7 +266,7 @@ function StrikeRollPopover({
                 icon={<ArrowLeft size={16} />}
                 aria-label="Back to roll"
                 title="Back to roll"
-                onClick={() => setContextOpen(false)}
+                onClick={() => setContextRequested(false)}
               />
             )}
             <strong id={headingId}>
@@ -271,26 +301,28 @@ function StrikeRollPopover({
             <>
               {!contextOpen && (
                 <Button
+                  ref={contextButton}
                   disabled={disabled || roll.busy || !original || !result?.attack}
-                  onClick={() => {
+                  loading={contextRequested ? { delay: 500 } : false}
+                  onClick={(event) => {
                     if (!original || !result?.attack) return;
-                    setContextOpen(!contextOpen);
-                    if (!contextOpen)
-                      onBeginStrike?.({
-                        strike: { participant_key: participantKey, reference },
-                        attackNumber: attackNumber!,
-                        rollId: original.request_id,
-                        rolledModifier: result?.attack_modifier,
-                      });
+                    contextOrigin.current = event.currentTarget;
+                    contextDialog.current =
+                      event.currentTarget.closest("[role=dialog]");
+                    setContextRequested(true);
+                    onBeginStrike?.({
+                      strike: { participant_key: participantKey, reference },
+                      attackNumber: attackNumber!,
+                      rollId: original.request_id,
+                      rolledModifier: result?.attack_modifier,
+                    });
                   }}
                 >
                   Target &amp; checks
                 </Button>
               )}
               {contextOpen && original && (
-                <div className="strike-roll-control__context">
-                  {renderStrikeContext?.(original.request_id)}
-                </div>
+                <div className="strike-roll-control__context">{strikeContext}</div>
               )}
             </>
           )}

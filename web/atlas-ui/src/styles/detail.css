@@ -122,6 +122,10 @@
 .record-explore__other {
   margin-block-start: var(--space-group);
 }
+.record-explore__task {
+  position: relative;
+}
+
 .record-explore__task h3 {
   margin-block: var(--space-group) var(--space-control);
 }

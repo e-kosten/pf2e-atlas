@@ -219,7 +219,7 @@ export function ListIndexView(_props: ListIndexViewProps) {
         loading={lists.isLoading || lists.isFetching}
         locale={{
           emptyText: lists.isLoading
-            ? "Loading saved lists…"
+            ? null
             : lists.error && !lists.data
               ? "Saved lists unavailable"
               : selectedTags.length || state.query.trim()

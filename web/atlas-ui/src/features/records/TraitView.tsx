@@ -1,3 +1,4 @@
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { traitDestination, searchDestination } from "../../app/destinations";
 import type { TraitPageInput } from "../../app/destinations";
@@ -217,11 +218,7 @@ function TraitAssociations({
       availability[index].data.rows.length > 0,
   );
   if (availability.some((query) => query.isPending))
-    return (
-      <div role="status">
-        <Spin delay={400} size="small" /> Loading connections…
-      </div>
-    );
+    return <LoadingStatus label="Loading connections…" />;
   return (
     <section className="record-explore" aria-label="Explore trait">
       <Tabs

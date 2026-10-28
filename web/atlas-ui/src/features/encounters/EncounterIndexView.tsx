@@ -153,7 +153,7 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
         loading={encounters.isLoading || encounters.isFetching}
         locale={{
           emptyText: encounters.isLoading
-            ? "Loading encounters…"
+            ? null
             : encounters.error && !encounters.data
               ? "Encounters unavailable"
               : view === "archived"
