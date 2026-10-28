@@ -1,4 +1,4 @@
-# ADR 0059: Encounter creation baselines and recovery
+# ADR 0061: Encounter creation baselines and recovery
 
 Status: accepted
 Date: 2026-10-27
