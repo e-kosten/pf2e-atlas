@@ -12,6 +12,7 @@ import { ReferenceBrowser } from "../../shared/records/ReferenceBrowser";
 import { ResultPaneHeader } from "./ResultPaneHeader";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
 import { SearchModelSelect } from "./SearchModelSelect";
+import { SimilarSearchButton } from "./SimilarSearchButton";
 import { SearchProfileNotice } from "../../shared/search/SearchProfileNotice";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
 import {
@@ -89,6 +90,7 @@ export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
         }
         searchRowEnd={
           <>
+            <SimilarSearchButton workspace={workspace} />
             {workspace.search.traitReferenceSeed && (
               <Tag
                 closable
