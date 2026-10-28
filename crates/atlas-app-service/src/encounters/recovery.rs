@@ -67,13 +67,15 @@ impl AtlasAppService {
                 session.require_reference_revision(revision)?;
             }
             session.local_state().encounters().apply_recovery(
-                &key.0,
-                &request.request_id,
-                &intent,
-                request.expected_encounter_revision,
-                plan.reset_encounter,
-                plan.end_turn,
-                &plan.replacements,
+                atlas_local_state::ApplyEncounterRecovery {
+                    encounter_key: &key.0,
+                    request_id: &request.request_id,
+                    intent: &intent,
+                    expected_revision: request.expected_encounter_revision,
+                    reset_encounter: plan.reset_encounter,
+                    end_turn: plan.end_turn,
+                    replacements: &plan.replacements,
+                },
             )?;
             Ok(EncounterMutationView {
                 encounter_key: key.0.clone(),

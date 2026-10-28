@@ -1,5 +1,5 @@
 mod recovery;
-pub use recovery::ParticipantGameplay;
+pub use recovery::{ApplyEncounterRecovery, ParticipantGameplay};
 mod ability_state;
 pub use ability_state::{AbilityStateChange, AbilityStateValue, ParticipantAbilityState};
 mod turn_resources;

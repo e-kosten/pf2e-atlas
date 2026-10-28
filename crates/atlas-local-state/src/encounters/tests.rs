@@ -2345,15 +2345,15 @@ fn recovery_restores_creation_state_preserves_identity_and_recovers_retries()
     let tx = c.transaction()?;
     let domain = EncountersWrite::from_connection(&tx);
     let baseline = domain.participant_baseline(&one.participant_key)?.unwrap();
-    domain.apply_recovery(
-        &snapshot.encounter.encounter_key,
-        "reset-one",
-        &serde_json::json!({"reset":"one"}),
-        snapshot.encounter.revision,
-        false,
-        true,
-        &[(one.participant_key.clone(), baseline)],
-    )?;
+    domain.apply_recovery(ApplyEncounterRecovery {
+        encounter_key: &snapshot.encounter.encounter_key,
+        request_id: "reset-one",
+        intent: &serde_json::json!({"reset":"one"}),
+        expected_revision: snapshot.encounter.revision,
+        reset_encounter: false,
+        end_turn: true,
+        replacements: &[(one.participant_key.clone(), baseline)],
+    })?;
     tx.commit()?;
     let saved = store.encounters().get_with_participants("test")?.unwrap();
     let p = saved
@@ -2397,26 +2397,26 @@ fn recovery_restores_creation_state_preserves_identity_and_recovers_retries()
     let tx = c.transaction()?;
     // A retry after subsequent state is safe even with the old encounter revision.
     let domain = EncountersWrite::from_connection(&tx);
-    domain.apply_recovery(
-        &saved.encounter.encounter_key,
-        "reset-one",
-        &serde_json::json!({"reset":"one"}),
-        snapshot.encounter.revision,
-        false,
-        true,
-        &[],
-    )?;
+    domain.apply_recovery(ApplyEncounterRecovery {
+        encounter_key: &saved.encounter.encounter_key,
+        request_id: "reset-one",
+        intent: &serde_json::json!({"reset":"one"}),
+        expected_revision: snapshot.encounter.revision,
+        reset_encounter: false,
+        end_turn: true,
+        replacements: &[],
+    })?;
     assert!(
         domain
-            .apply_recovery(
-                &saved.encounter.encounter_key,
-                "different",
-                &serde_json::json!({}),
-                snapshot.encounter.revision,
-                false,
-                true,
-                &[]
-            )
+            .apply_recovery(ApplyEncounterRecovery {
+                encounter_key: &saved.encounter.encounter_key,
+                request_id: "different",
+                intent: &serde_json::json!({}),
+                expected_revision: snapshot.encounter.revision,
+                reset_encounter: false,
+                end_turn: true,
+                replacements: &[],
+            })
             .is_err()
     );
     assert!(
@@ -2461,15 +2461,15 @@ fn recovery_failure_rolls_back_all_participants_and_does_not_consume_request()
     });
     assert!(
         domain
-            .apply_recovery(
-                &before.encounter.encounter_key,
-                "rollback",
-                &serde_json::json!({}),
-                before.encounter.revision,
-                true,
-                true,
-                &[(one.participant_key, a), (two.participant_key, b)]
-            )
+            .apply_recovery(ApplyEncounterRecovery {
+                encounter_key: &before.encounter.encounter_key,
+                request_id: "rollback",
+                intent: &serde_json::json!({}),
+                expected_revision: before.encounter.revision,
+                reset_encounter: true,
+                end_turn: true,
+                replacements: &[(one.participant_key, a), (two.participant_key, b)],
+            })
             .is_err()
     );
     assert!(!domain.recovery_applied(

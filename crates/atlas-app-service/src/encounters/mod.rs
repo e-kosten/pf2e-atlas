@@ -13,6 +13,8 @@ mod outgoing_turns;
 mod projection;
 mod record_addition;
 mod recovery;
+#[cfg(test)]
+mod recovery_tests;
 pub(crate) mod reference;
 #[cfg(test)]
 mod reference_tests;
