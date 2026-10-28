@@ -23,11 +23,8 @@ function fixture(t: TestContext) {
 test('nightly preparation changes only CLI versions and is idempotent', (t) => {
   const { root, manifest, lock } = fixture(t);
   prepareNightly(root, tag); prepareNightly(root, tag);
-  for (const file of [manifest, lock]) {
-    const content = readFileSync(file, 'utf8');
-    assert.equal(content.split(tag.slice(1)).length - 1, 1);
-    assert.equal(content.split('version = "0.1.0-rc.6"').length - 1, 1);
-  }
+  assert.equal(readFileSync(manifest, 'utf8'), `[package]\nname = "atlas-cli"\nversion = "${tag.slice(1)}"\n\n[dependencies.other]\nversion = "0.1.0-rc.6"\n`);
+  assert.equal(readFileSync(lock, 'utf8'), `version = 4\n\n[[package]]\nname = "atlas-cli"\nversion = "${tag.slice(1)}"\n\n[[package]]\nname = "other"\nversion = "0.1.0-rc.6"\n`);
 });
 
 test('invalid versions and inconsistent locks fail before changing either file', (t) => {
@@ -75,8 +72,14 @@ function publisher(t: TestContext, options: { existing?: object[]; failInstall?:
 test('channel advances only after dated publication and successful downloaded install', async (t) => {
   const { execute, calls } = publisher(t); await execute();
   const locate = (...prefix: string[]) => calls.findIndex((call) => prefix.every((value, index) => call[index] === value));
-  assert.ok(locate('gh', 'release', 'edit', tag) < locate('sh'));
-  assert.ok(locate('sh') < locate('gh', 'release', 'create', 'nightly'));
+  const datedPublication = locate('gh', 'release', 'edit', tag);
+  const installation = locate('sh');
+  const channelPublication = locate('gh', 'release', 'create', 'nightly');
+  assert.notEqual(datedPublication, -1, 'dated release must be published');
+  assert.notEqual(installation, -1, 'downloaded installer must run');
+  assert.notEqual(channelPublication, -1, 'nightly channel must be published');
+  assert.ok(datedPublication < installation);
+  assert.ok(installation < channelPublication);
   const uploads = calls.filter((call) => call.slice(0, 4).join(' ') === 'gh release upload nightly');
   assert.equal(path.basename(uploads.at(-1)![4]), 'nightly-version.txt');
   for (const call of calls.filter((call) => call[1] === 'release' && ['create', 'edit'].includes(call[2]))) {

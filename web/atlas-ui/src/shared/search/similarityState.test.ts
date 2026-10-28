@@ -73,12 +73,24 @@ it("round trips exact selected parts and their generation into the request", () 
   const restored = decodeSearchStateFromParams(
     new URLSearchParams(searchStateQueryString(search)),
   );
-  expect(restored.similarity).toEqual(search.similarity);
+  expect(restored.similarity).toEqual({
+    method: "passages",
+    decay: 0.75,
+    candidate_parts: "corresponding",
+    parts: ["one", "two"],
+  });
   expect(
     buildSearchRequest(restored, 1, "current-generation").expected_artifact_generation,
   ).toBe("old-generation");
   expect(buildSearchRequest(restored, 1).criteria).toMatchObject({
-    similarity: { parts: ["one", "two"] },
+    kind: "similar_records",
+    seed_record_key: "hazards:brown-mold",
+    similarity: {
+      method: "passages",
+      decay: 0.75,
+      candidate_parts: "corresponding",
+      parts: ["one", "two"],
+    },
   });
 });
 

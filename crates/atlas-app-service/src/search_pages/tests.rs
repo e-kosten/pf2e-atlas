@@ -823,8 +823,10 @@ fn similar_trait_search_uses_persisted_seed_and_normal_filters() {
             title: "Agile".into(),
         }
     );
-    assert!(!first.rows.is_empty());
-    assert!(first.coverage.is_some());
+    assert_eq!(first.rows.len(), 1);
+    assert_eq!(first.rows[0].record.record_key, "items:0000000000000000");
+    assert_eq!(first.page.total, 4);
+    assert_eq!(first.coverage.as_ref().unwrap().candidate_roots, 4);
     assert_eq!(
         first.similarity.unwrap().options,
         atlas_domain::SimilarityOptions::Baseline {}

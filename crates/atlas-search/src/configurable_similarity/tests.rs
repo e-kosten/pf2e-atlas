@@ -212,58 +212,117 @@ fn compact_explanations_keep_first_32_rows_but_score_and_rank_all_65_components(
         ["cccccccccccccccc", "bbbbbbbbbbbbbbbb"]
     );
     assert_eq!(result.results.page.total, 2);
-    let profile = SearchProfileId::new("bge-base");
-    let seed_units = service
-        .index
-        .similarity_units(&profile, &[key], SearchContentScope::All, true, 128)
-        .unwrap();
-    let seed_parts = crate::similarity_scoring::parts(&seed_units).unwrap();
-    let source_indices = seed_parts
-        .iter()
-        .enumerate()
-        .map(|(index, part)| (part.metadata.selector(), index))
-        .collect();
-    for (key, evidence) in &result.evidence {
-        let candidate_units = service
-            .index
-            .similarity_units(
-                &profile,
-                std::slice::from_ref(key),
-                SearchContentScope::All,
-                true,
-                128,
-            )
-            .unwrap();
-        let candidate_parts = crate::similarity_scoring::parts(&candidate_units).unwrap();
-        let full = crate::similarity_scoring::passages(
-            &seed_parts,
-            &candidate_parts,
-            SimilarityCandidateParts::Corresponding,
-            1.,
-            None,
-        )
-        .unwrap();
-        let expected=full.parts.iter().take(32).map(|part|json!({"part":part.part,"score":part.score,"weight":part.weight,"comparable":part.comparable})).collect::<Vec<_>>();
-        assert_eq!(evidence.score, full.score);
+    for (id, expected_score, section_score, section_range) in [
+        ("bbbbbbbbbbbbbbbb", 51.8 / 65., 1., 0..31),
+        ("cccccccccccccccc", 57.48 / 65., 0.96, 31..64),
+    ] {
+        let evidence = &result
+            .evidence
+            .iter()
+            .find(|(key, _)| key.id().as_str() == id)
+            .unwrap()
+            .1;
+        assert!(
+            (evidence.score - expected_score).abs() < 1e-6,
+            "{id}: {}",
+            evidence.score
+        );
         assert_eq!(evidence.selected_parts, 65);
         assert_eq!(evidence.comparable_parts, 65);
         assert!(evidence.truncated);
+        assert_eq!(evidence.parts.len(), 32);
         assert_eq!(
-            serde_json::to_value(&evidence.parts).unwrap(),
-            json!(expected)
+            evidence
+                .parts
+                .iter()
+                .filter(|part| part.part.is_identity())
+                .count(),
+            1
         );
-        let (compact, truncated) = compact_part_scores(full.parts, &source_indices).unwrap();
-        assert_eq!(compact.len(), 32);
-        assert_eq!(compact.capacity(), 32);
-        assert!(truncated);
+        assert_eq!(
+            evidence
+                .parts
+                .iter()
+                .map(|part| part.part.selector())
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            32
+        );
+        for part in &evidence.parts {
+            assert!(part.comparable);
+            assert!((part.weight - 1. / 65.).abs() < 1e-10);
+            let expected = if let Some(section) = part.part.part() {
+                assert_eq!(section.field, "/system/details/publicNotes");
+                assert!(section_range.contains(&section.section_ordinal));
+                assert_eq!(
+                    section.label,
+                    format!("Section {}", section.section_ordinal)
+                );
+                section_score
+            } else {
+                1.
+            };
+            assert!((part.score - expected).abs() < 1e-6, "{id}: {}", part.score);
+        }
     }
-    let first = result
-        .evidence
-        .iter()
-        .find(|(key, _)| key.id().as_str() == "bbbbbbbbbbbbbbbb")
-        .unwrap();
-    assert!((first.1.score - (32. + 33. * f64::from(0.6_f32)) / 65.).abs() < 1e-10);
-    assert!(first.1.parts.iter().all(|part| part.score == 1.));
+}
+
+#[test]
+fn compact_scores_preserve_source_bindings_and_bound_the_allocation_at_32_rows() {
+    for (count, retained, truncated) in [
+        (0, 0, false),
+        (31, 31, false),
+        (32, 32, false),
+        (33, 32, true),
+        (65, 32, true),
+    ] {
+        let components = (0..count)
+            .map(|index| atlas_domain::SimilarityComponent::Section {
+                part: atlas_domain::SimilarityPart {
+                    selector: atlas_domain::SimilarityPartSelector(format!("part-{index}")),
+                    label: format!("Section {index}"),
+                    owner_label: "Source".into(),
+                    owners: vec![],
+                    field: "/system/details/publicNotes".into(),
+                    section_ordinal: index,
+                    role: SimilarityRole::Description,
+                    has_vectors: true,
+                    label_only: false,
+                },
+            })
+            .collect::<Vec<_>>();
+        let source_indices = components
+            .iter()
+            .enumerate()
+            .map(|(index, part)| (part.selector(), count - index - 1))
+            .collect();
+        let scores = components
+            .iter()
+            .enumerate()
+            .map(|(index, part)| crate::similarity_scoring::PartScore {
+                part: part.clone(),
+                score: (count - index) as f64 / count as f64,
+                weight: 1. / count as f64,
+                comparable: true,
+            })
+            .collect();
+        let (compact, actual_truncated) = compact_part_scores(scores, &source_indices).unwrap();
+        assert_eq!(actual_truncated, truncated, "{count} parts");
+        assert_eq!(compact.len(), retained, "{count} parts");
+        assert_eq!(compact.capacity(), retained, "{count} parts");
+        assert_eq!(
+            compact
+                .iter()
+                .map(|part| part.source_part)
+                .collect::<Vec<_>>(),
+            (count - retained..count).rev().collect::<Vec<_>>()
+        );
+        for (index, part) in compact.iter().enumerate() {
+            assert_eq!(part.score, (count - index) as f64 / count as f64);
+            assert_eq!(part.weight, 1. / count as f64);
+            assert!(part.comparable);
+        }
+    }
 }
 
 #[test]
