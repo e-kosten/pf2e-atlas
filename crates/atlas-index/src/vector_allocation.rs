@@ -122,6 +122,7 @@ mod tests {
         };
         let distances = |c: &Connection, k: usize| {
             let hits=c.prepare(&format!("WITH knn AS MATERIALIZED(SELECT unit_id,distance FROM {table} WHERE embedding MATCH ? AND k=? AND unit_id IN (SELECT id FROM eligible)) SELECT unit_id,distance FROM knn ORDER BY distance,unit_id")).unwrap().query_map(params![&vectors[0],k],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,f64>(1)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+            assert_eq!(hits.len(), k);
             assert!(hits.iter().all(|(id, _)| id % 2 == 0));
             hits.into_iter().map(|(_, d)| d).collect::<Vec<_>>()
         };

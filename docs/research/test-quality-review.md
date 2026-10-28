@@ -21,7 +21,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | crates/atlas-domain | 11 | 0 | 11 | 0 |
 | crates/atlas-embedding | 5 | 0 | 5 | 0 |
 | crates/atlas-foundry-model | 11 | 0 | 11 | 0 |
-| crates/atlas-index | 17 | 17 | 0 | 0 |
+| crates/atlas-index | 17 | 0 | 17 | 0 |
 | crates/atlas-ingest | 6 | 0 | 6 | 0 |
 | crates/atlas-local-state | 7 | 7 | 0 | 0 |
 | crates/atlas-record | 18 | 0 | 18 | 0 |
@@ -232,23 +232,23 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [crates/atlas-index/src/core_tests.rs](../../crates/atlas-index/src/core_tests.rs) | pending | — |
-| [crates/atlas-index/src/discovery/value_order.rs](../../crates/atlas-index/src/discovery/value_order.rs) | pending | — |
-| [crates/atlas-index/src/embedding_values_tests.rs](../../crates/atlas-index/src/embedding_values_tests.rs) | pending | — |
-| [crates/atlas-index/src/foundation_tests.rs](../../crates/atlas-index/src/foundation_tests.rs) | pending | — |
-| [crates/atlas-index/src/identity.rs](../../crates/atlas-index/src/identity.rs) | pending | — |
-| [crates/atlas-index/src/input.rs](../../crates/atlas-index/src/input.rs) | pending | — |
-| [crates/atlas-index/src/persisted_inputs.rs](../../crates/atlas-index/src/persisted_inputs.rs) | pending | — |
-| [crates/atlas-index/src/profile_tests.rs](../../crates/atlas-index/src/profile_tests.rs) | pending | — |
-| [crates/atlas-index/src/query/catalog.rs](../../crates/atlas-index/src/query/catalog.rs) | pending | — |
-| [crates/atlas-index/src/query/cel_relationship.rs](../../crates/atlas-index/src/query/cel_relationship.rs) | pending | — |
-| [crates/atlas-index/src/query/cel_semantics.rs](../../crates/atlas-index/src/query/cel_semantics.rs) | pending | — |
-| [crates/atlas-index/src/query/corpus_tests.rs](../../crates/atlas-index/src/query/corpus_tests.rs) | pending | — |
-| [crates/atlas-index/src/query/tests.rs](../../crates/atlas-index/src/query/tests.rs) | pending | — |
-| [crates/atlas-index/src/requested_config.rs](../../crates/atlas-index/src/requested_config.rs) | pending | — |
-| [crates/atlas-index/src/result_order.rs](../../crates/atlas-index/src/result_order.rs) | pending | — |
-| [crates/atlas-index/src/traits.rs](../../crates/atlas-index/src/traits.rs) | pending | — |
-| [crates/atlas-index/src/vector_allocation.rs](../../crates/atlas-index/src/vector_allocation.rs) | pending | — |
+| [crates/atlas-index/src/core_tests.rs](../../crates/atlas-index/src/core_tests.rs) | reviewed | Synthetic vectors distinguish pre-limit Core eligibility, exact identity/prose/owned masks, private and unmodelled fallbacks, trait label-only seeds and absent identity readiness. Real fault-triggered upgrades compare all retained table values, generation, recovery and idempotence; retained. |
+| [crates/atlas-index/src/discovery/value_order.rs](../../crates/atlas-index/src/discovery/value_order.rs) | reviewed | Independent ordered duration vocabulary separates timed values from conditional prose while retaining original authored spelling; retained. |
+| [crates/atlas-index/src/embedding_values_tests.rs](../../crates/atlas-index/src/embedding_values_tests.rs) | reviewed | Real workspace tests cover exact native reuse, forced pending progress without published mutation, input/model corruption, occurrence attribution, slot retention, migration rollback and trait/document value transitions. Distinct lifecycle cases retained. |
+| [crates/atlas-index/src/foundation_tests.rs](../../crates/atlas-index/src/foundation_tests.rs) | changed | Persisted preparation compares every returned record/input field directly rather than using the same private digest on both sides. Physical price projection requires 200 copper across families; renamed its formerly misleading embedded-query title. Retained snapshot/summary separation, publication rollback, marker/sidecar corruption, numeric precision, source scopes, batching and saved-reference preservation. |
+| [crates/atlas-index/src/identity.rs](../../crates/atlas-index/src/identity.rs) | reviewed | Exact internal ID survives unavailable imported/removal/reappearance states, separate keys remain separate, and final title/availability are independently checked; retained. |
+| [crates/atlas-index/src/input.rs](../../crates/atlas-index/src/input.rs) | changed | Locale and each locale/English catalog digest independently invalidate preparation identity. Existing corpus/query/profile exclusion from shared preparation and full-generation differentiation remain covered. |
+| [crates/atlas-index/src/persisted_inputs.rs](../../crates/atlas-index/src/persisted_inputs.rs) | reviewed | Selected-input EXPLAIN contract requires indexed key search and no corpus scan, then checks returned record/content and missing key. Complete reconstructed inputs are independently checked in the strengthened foundation case; retained. |
+| [crates/atlas-index/src/profile_tests.rs](../../crates/atlas-index/src/profile_tests.rs) | reviewed | Equal-dimensional profiles retain distinct KNN witnesses/seeds, complete coverage/native budgets, execution identity and segmentation digest isolation. Profile add/remove preserves exact vectors and deletes retired vec tables; retained. |
+| [crates/atlas-index/src/query/catalog.rs](../../crates/atlas-index/src/query/catalog.rs) | reviewed | Non-enum choice discovery fails explicitly while generated enum discovery supplies choices; full catalog/schema binding and exact representative choices are exercised in neighboring query tests. Retained. |
+| [crates/atlas-index/src/query/cel_relationship.rs](../../crates/atlas-index/src/query/cel_relationship.rs) | changed | Typed relationship parsing now checks exact canonical key, owner collection/identity, field and optional selection facts instead of owner count alone. Strict duplicate/unknown/invalid literal and direction/scope cases retained. |
+| [crates/atlas-index/src/query/cel_semantics.rs](../../crates/atlas-index/src/query/cel_semantics.rs) | reviewed | Dependency conformance cases intentionally execute the real CEL interpreter, documenting Boolean/unknown behavior and order-dependent Exists errors independently of Atlas SQL. Retained distinct SQL truth-table coverage. |
+| [crates/atlas-index/src/query/corpus_tests.rs](../../crates/atlas-index/src/query/corpus_tests.rs) | mixed | Reviewed independent raw JSON oracle, source-owner alignment, numeric/state comparisons, emitted trait sets and descriptor SQL execution. Condition projection branch excluded and unchanged. Historical pinned full-corpus counts/prerequisite remain explicit; not claimed rerun. |
+| [crates/atlas-index/src/query/tests.rs](../../crates/atlas-index/src/query/tests.rs) | mixed | Complete five-state identity/count partition replaces a vacuous all predicate; paged vocabulary requires the actual flying value. Retained exact SQL root sets for unknown logic, same-child Exists, facets/counterfactuals, scopes, numeric units, validation and parameterization. Condition catalog entries excluded and unchanged. |
+| [crates/atlas-index/src/requested_config.rs](../../crates/atlas-index/src/requested_config.rs) | reviewed | Real transactions prove dropped writes roll back, explicit commit persists, rejected replacement cannot overwrite committed intent and unknown/corrupt payloads fail rather than disappear; retained. |
+| [crates/atlas-index/src/result_order.rs](../../crates/atlas-index/src/result_order.rs) | reviewed | Literal fixed ordering vectors cover zero, ordinary and maximum random seeds with reverse input; database ordering behavior is reviewed again through retrieval result-order cases. Retained. |
+| [crates/atlas-index/src/traits.rs](../../crates/atlas-index/src/traits.rs) | reviewed | Exact trait seeds, independent changed centroids/definitions, complete source coverage, metadata-only versus configured profile requirements, atomic publication, corruption, reference occurrence cardinality, source ownership and source-free reads retain distinct protection. |
+| [crates/atlas-index/src/vector_allocation.rs](../../crates/atlas-index/src/vector_allocation.rs) | changed | Each filtered KNN query must return its full requested k before comparing distances, rejecting empty/truncated identical-before/after results. Retained exact vector-byte preservation, real block reclamation, eligibility and transaction rollback/commit checks. |
 
 ### crates/atlas-ingest
 
@@ -685,3 +685,8 @@ Completion requires every inventory entry to have a substantive disposition, eve
 - `cargo test -p atlas-runtime`: 53 passed, one existing native test ignored. `cargo test -p atlas-runtime -- --ignored --test-threads=1`: the retained Gemma query-session recovery test passed with verified assets.
 - The cleanup assertions reject a lying Removed report, the verification-race fixture changes file length deterministically, and rollback is inspected before a later initialization could repair partial state. These are discriminating inputs/reasoned counterexamples; no production mutation probe is claimed.
 - CI on the earlier published source-tooling head passed native Windows release tooling, Windows publication, macOS/Linux release checks, frontend unit/bundle checks, source contracts and research evidence. Rust and one browser shard were still running at inspection; this is not final-head readiness evidence.
+
+### Index milestone
+
+- `cargo test -p atlas-index`: 104 passed, two existing corpus/evidence tests ignored under their documented prerequisites. The final simplified state-partition assertion also passed a focused rerun.
+- Complete key/owner selections, exact persisted inputs, literal prices/catalog dependencies, all five discovery states and full KNN cardinality now reject plausible partial or stale outputs. Existing SQLite mutation/fault-trigger tests still validate rollback and rejection; no new production mutation probe is claimed.

@@ -224,7 +224,20 @@ mod tests {
             panic!("expected link leaf")
         };
         assert_eq!(relationship.direction, QueryRelationshipDirection::Incoming);
-        assert_eq!(relationship.selection.owners.len(), 1);
+        assert_eq!(
+            relationship.selection,
+            atlas_domain::QueryRecordSelection {
+                record_key: "items:aaaaaaaaaaaaaaaa".parse().unwrap(),
+                owners: vec![atlas_domain::OwnedContentLocator {
+                    collection: "/items".into(),
+                    identity: atlas_domain::OwnedContentIdentity::Stable("bbbbbbbbbbbbbbbb".into()),
+                }],
+                field: Some("/system/description/value".into()),
+                passage: None,
+                source_fingerprint: None,
+                spell_rank: None,
+            }
+        );
         assert!(!relationship.include_contents);
         assert!(query.predicate().clause_id.is_some());
         let root = crate::parse_where("linked_from('items:aaaaaaaaaaaaaaaa')").unwrap();
