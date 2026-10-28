@@ -1,10 +1,11 @@
+import { EncounterRecoveryModal } from "./EncounterRecoveryModal";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
 import { recordDestination, encountersDestination } from "../../app/destinations";
 import { EncounterModalProvider } from "./EncounterModal";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Grid, Spin } from "antd";
+import { Alert, Button, Grid, Space, Spin } from "antd";
 import { Edit2 } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { getEncounter, getEncounterConditionDefinitions } from "../../api/atlasApi";
@@ -70,6 +71,9 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     null,
   );
   const [editEncounterOpen, setEditEncounterOpen] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState<
+    "reset_encounter" | "rest_overnight" | { participantKey: string } | null
+  >(null);
   const [initiativeOpen, setInitiativeOpen] = useState<{
     participant?: string;
   } | null>(null);
@@ -269,14 +273,28 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             <div>
               <h2>{encounterSummary?.name ?? "Encounter"}</h2>
             </div>
-            <Button
-              aria-label="Settings"
-              disabled={disabled}
-              icon={<Edit2 size={14} />}
-              onClick={() => setEditEncounterOpen(true)}
-            >
-              Settings
-            </Button>
+            <Space wrap>
+              <Button
+                disabled={disabled}
+                onClick={() => setRecoveryMode("rest_overnight")}
+              >
+                Rest overnight
+              </Button>
+              <Button
+                disabled={disabled}
+                onClick={() => setRecoveryMode("reset_encounter")}
+              >
+                Reset encounter
+              </Button>
+              <Button
+                aria-label="Settings"
+                disabled={disabled}
+                icon={<Edit2 size={14} />}
+                onClick={() => setEditEncounterOpen(true)}
+              >
+                Settings
+              </Button>
+            </Space>
           </section>
           {encounter.error && !mutations.refreshError && (
             <ErrorNotice
@@ -469,6 +487,12 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             }
             results={
               <EncounterInspectorPane
+                onReset={
+                  selected
+                    ? () =>
+                        setRecoveryMode({ participantKey: selected.participant_key })
+                    : undefined
+                }
                 currentTurnKey={encounter.data?.current_turn_participant_key}
                 onTurnResources={async (participant, action) => {
                   if (!encounter.data) return;
@@ -725,6 +749,14 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             })
           }
         />
+        {recoveryMode && encounter.data && (
+          <EncounterRecoveryModal
+            encounter={encounter.data}
+            mode={recoveryMode}
+            mutations={mutations}
+            onClose={() => setRecoveryMode(null)}
+          />
+        )}
         {encounterSummary && (
           <EditEncounterModal
             encounter={encounterSummary}

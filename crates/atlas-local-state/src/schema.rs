@@ -30,3 +30,6 @@ pub const ABILITY_STATE_SCHEMA_SQL: &str = include_str!("ability_state.sql");
 
 /// Remove obsolete display-only strike receipts while retaining durable gameplay receipts.
 pub const STATELESS_STRIKE_ROLLS_SCHEMA_SQL: &str = include_str!("stateless_strike_rolls.sql");
+
+/// Versioned participant creation baselines and recovery idempotency.
+pub const ENCOUNTER_RECOVERY_SCHEMA_SQL: &str = include_str!("encounter_recovery.sql");

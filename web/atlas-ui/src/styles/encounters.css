@@ -8,3 +8,28 @@
 @import "./encounters/difficulty.css";
 
 @import "./encounters/ability-state.css";
+
+.encounter-recovery__participants {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.encounter-recovery__participant {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
+}
+.encounter-recovery__identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.encounter-recovery__healing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.encounter-recovery__consequences {
+  margin-top: 8px;
+}

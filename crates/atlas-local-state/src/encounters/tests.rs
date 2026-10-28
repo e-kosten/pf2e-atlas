@@ -2308,3 +2308,207 @@ fn failed_receipt_rolls_back_ability_state_and_participant_revision()
     assert!(saved.participants[0].ability_states.is_empty());
     Ok(())
 }
+
+#[test]
+fn recovery_restores_creation_state_preserves_identity_and_recovers_retries()
+-> crate::LocalStateResult<()> {
+    let store = fixture("recovery-baseline")?;
+    let one = store
+        .encounters()
+        .add_participant("test", creature("One", Some(15), 20))?;
+    let two = store
+        .encounters()
+        .add_participant("test", creature("Two", Some(15), 30))?;
+    let mut update = edit(&one);
+    update.display_name = "Renamed".into();
+    update.note = Some("Keep this".into());
+    update.hidden = true;
+    update.side = ParticipantSide::Ally;
+    update.current_hp = Some(0);
+    update.temporary_hp = 6;
+    update.defeated = true;
+    update.participant_variant = ParticipantVariant::Elite;
+    store.encounters().update_participant(update)?;
+    {
+        let mut c = store.connection()?;
+        let tx = c.transaction()?;
+        EncountersWrite::from_connection(&tx).set_turn_state(
+            "test",
+            Some(&one.participant_key),
+            4,
+            true,
+        )?;
+        tx.commit()?;
+    }
+    let snapshot = store.encounters().get_with_participants("test")?.unwrap();
+    let mut c = store.connection()?;
+    let tx = c.transaction()?;
+    let domain = EncountersWrite::from_connection(&tx);
+    let baseline = domain.participant_baseline(&one.participant_key)?.unwrap();
+    domain.apply_recovery(
+        &snapshot.encounter.encounter_key,
+        "reset-one",
+        &serde_json::json!({"reset":"one"}),
+        snapshot.encounter.revision,
+        false,
+        true,
+        &[(one.participant_key.clone(), baseline)],
+    )?;
+    tx.commit()?;
+    let saved = store.encounters().get_with_participants("test")?.unwrap();
+    let p = saved
+        .participants
+        .iter()
+        .find(|p| p.participant_key == one.participant_key)
+        .unwrap();
+    assert_eq!(
+        (
+            p.current_hp,
+            p.temporary_hp,
+            p.participant_variant,
+            p.defeated
+        ),
+        (Some(20), 0, ParticipantVariant::Normal, false)
+    );
+    assert_eq!(
+        (&p.display_name, &p.note, p.hidden, p.side),
+        (
+            &"Renamed".into(),
+            &Some("Keep this".into()),
+            true,
+            ParticipantSide::Ally
+        )
+    );
+    assert_eq!(
+        saved
+            .participants
+            .iter()
+            .find(|p| p.participant_key == two.participant_key),
+        Some(&two)
+    );
+    assert_eq!(
+        (
+            saved.encounter.current_turn_participant_key.clone(),
+            saved.encounter.round_number
+        ),
+        (None, 4)
+    );
+    let mut c = store.connection()?;
+    let tx = c.transaction()?;
+    // A retry after subsequent state is safe even with the old encounter revision.
+    let domain = EncountersWrite::from_connection(&tx);
+    domain.apply_recovery(
+        &saved.encounter.encounter_key,
+        "reset-one",
+        &serde_json::json!({"reset":"one"}),
+        snapshot.encounter.revision,
+        false,
+        true,
+        &[],
+    )?;
+    assert!(
+        domain
+            .apply_recovery(
+                &saved.encounter.encounter_key,
+                "different",
+                &serde_json::json!({}),
+                snapshot.encounter.revision,
+                false,
+                true,
+                &[]
+            )
+            .is_err()
+    );
+    assert!(
+        domain
+            .recovery_applied(
+                &saved.encounter.encounter_key,
+                "reset-one",
+                &serde_json::json!({"reset":"two"})
+            )
+            .is_err()
+    );
+    tx.commit()?;
+    assert_eq!(
+        store.encounters().get_with_participants("test")?.unwrap(),
+        saved
+    );
+    Ok(())
+}
+
+#[test]
+fn recovery_failure_rolls_back_all_participants_and_does_not_consume_request()
+-> crate::LocalStateResult<()> {
+    let store = fixture("recovery-rollback")?;
+    let one = store
+        .encounters()
+        .add_participant("test", creature("One", Some(12), 20))?;
+    let two = store
+        .encounters()
+        .add_participant("test", creature("Two", Some(10), 30))?;
+    let before = store.encounters().get_with_participants("test")?.unwrap();
+    let mut c = store.connection()?;
+    let tx = c.transaction()?;
+    let domain = EncountersWrite::from_connection(&tx);
+    let mut a = ParticipantGameplay::from(&one);
+    a.current_hp = Some(3);
+    let mut b = ParticipantGameplay::from(&two);
+    b.spell_resources.push(SpellResource {
+        key: "invalid".into(),
+        capacity: 1,
+        remaining: 2,
+        undo_remaining: None,
+    });
+    assert!(
+        domain
+            .apply_recovery(
+                &before.encounter.encounter_key,
+                "rollback",
+                &serde_json::json!({}),
+                before.encounter.revision,
+                true,
+                true,
+                &[(one.participant_key, a), (two.participant_key, b)]
+            )
+            .is_err()
+    );
+    assert!(!domain.recovery_applied(
+        &before.encounter.encounter_key,
+        "rollback",
+        &serde_json::json!({})
+    )?);
+    // The caller may still commit unrelated work after the domain savepoint fails.
+    tx.commit()?;
+    assert_eq!(
+        store.encounters().get_with_participants("test")?.unwrap(),
+        before
+    );
+    Ok(())
+}
+
+#[test]
+fn creation_baseline_captures_final_derived_hp_and_is_not_fabricated_for_legacy_rows()
+-> crate::LocalStateResult<()> {
+    let store = fixture("recovery-derived")?;
+    let mut input = creature("Drained source", None, 40);
+    input.hp_origin = ParticipantHpOrigin::DerivedPristine;
+    let p = store.encounters().add_participant("test", input)?;
+    let mut c = store.connection()?;
+    let tx = c.transaction()?;
+    let domain = EncountersWrite::from_connection(&tx);
+    domain.initialize_participant_hp(&p.participant_key, Some(30))?;
+    assert_eq!(
+        domain
+            .participant_baseline(&p.participant_key)?
+            .unwrap()
+            .current_hp,
+        Some(30)
+    );
+    tx.execute(
+        "DELETE FROM encounter_participant_baselines WHERE participant_key=?1",
+        [&p.participant_key],
+    )?;
+    assert!(domain.participant_baseline(&p.participant_key)?.is_none());
+    tx.commit()?;
+    Ok(())
+}

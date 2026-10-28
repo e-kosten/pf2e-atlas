@@ -11,6 +11,7 @@ mod schema;
 mod slug;
 mod store;
 
+pub use encounters::ParticipantGameplay;
 pub use encounters::{
     AbilityStateChange, AbilityStateValue, AddEncounterParticipant,
     AddEncounterParticipantCondition, CheckDegree, ConditionAction, ConditionDuration,
@@ -42,6 +43,7 @@ pub use saved_lists::{
     SavedListItemPlacement, SavedListItemSnapshot, SavedListItemStatus, SavedListWithItems,
     SavedListsRead, SavedListsWrite, UpdateSavedList, hydrate_saved_list_item,
 };
+pub use schema::ENCOUNTER_RECOVERY_SCHEMA_SQL;
 pub use schema::{
     ABILITY_STATE_SCHEMA_SQL, STATELESS_STRIKE_ROLLS_SCHEMA_SQL, TURN_RESOURCES_SCHEMA_SQL,
 };
