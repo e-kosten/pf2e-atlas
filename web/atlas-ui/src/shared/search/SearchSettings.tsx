@@ -454,6 +454,13 @@ export function SearchSettings({
           update the collection.
         </Typography.Paragraph>
       )}
+      {(invalidParts || staleParts) && (
+        <Typography.Paragraph type="danger" role="alert">
+          {staleParts
+            ? "Some selected sections are unavailable. Choose the sections again."
+            : "Select at least one section."}
+        </Typography.Paragraph>
+      )}
       {inventory.isFetching && <LoadingStatus label="Loading comparison sections…" />}
       {(inventory.error || inventoryRetired) && (
         <ErrorNotice
@@ -655,13 +662,6 @@ export function SearchSettings({
                               })
                             }
                           />
-                          {(invalidParts || staleParts) && (
-                            <Typography.Paragraph type="danger" role="alert">
-                              {staleParts
-                                ? "Some selected sections are unavailable. Choose the sections again."
-                                : "Select at least one section."}
-                            </Typography.Paragraph>
-                          )}
                           {allParts.some(
                             (part) => part.kind === "section" && part.label_only,
                           ) && (
