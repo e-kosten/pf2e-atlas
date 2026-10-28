@@ -753,7 +753,7 @@ it("applies reloaded B parts once while preserving the picker candidate and unsa
     Promise.resolve({ ...detailFixture(key), artifact_generation: "generation-b" }),
   );
   fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
-  fireEvent.click(screen.getByText("Sections to compare"));
+  fireEvent.click(screen.getByRole("button", { name: "Choose sections" }));
   fireEvent.click(await screen.findByRole("button", { name: "Reload sections" }));
   await screen.findByRole("checkbox", { name: "Description" });
   const selectAll = screen.getByRole("checkbox", { name: "Select all" });

@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Spin } from "antd";
 import type { SimilarityComponentView, SimilaritySeed } from "../../generated/atlas";
+import { ErrorNotice } from "../feedback/ErrorNotice";
 import { AtlasApiError, getTraitDetail } from "../../api/atlasApi";
 import { rootNavigation, useReferenceReading } from "../records/useReferenceReading";
 import { ReferenceReader } from "../records/ReferenceReader";
@@ -238,10 +239,10 @@ function TraitSourceDocument({
       aria-busy={query.isFetching}
     >
       {query.error && (
-        <Alert
-          type="error"
-          title="Unable to load this trait"
-          description={query.error.message}
+        <ErrorNotice
+          error={query.error}
+          title={detail ? "Unable to refresh this trait" : "Unable to load this trait"}
+          description={detail ? "Previously loaded content remains below." : undefined}
           action={
             <Button
               onClick={() =>

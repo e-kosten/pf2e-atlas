@@ -823,7 +823,7 @@ describe("useSearchWorkspace", () => {
     );
     client.setQueryData(["encounter", "draft"], { name: "Unsaved encounter" });
     fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
-    fireEvent.click(screen.getByText("Sections to compare"));
+    fireEvent.click(screen.getByRole("button", { name: "Choose sections" }));
     fireEvent.click(await screen.findByRole("button", { name: "Reload sections" }));
     await screen.findByRole("checkbox", { name: "Description" });
     const selectAll = screen.getByRole("checkbox", { name: "Select all" });
