@@ -1,5 +1,14 @@
 import { encodeFilterUrl, decodeFilterUrl } from "../src/shared/filters/filterUrl";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page, type Locator } from "@playwright/test";
+
+async function choose(page: Page, control: Locator, label: string) {
+  await control.click();
+  await page
+    .locator(".ant-select-dropdown:visible")
+    .getByText(label, { exact: true })
+    .last()
+    .click();
+}
 
 test("single-condition exclusion stays reversible and singleton operands follow the selected operator", async ({
   page,
@@ -17,20 +26,31 @@ test("single-condition exclusion stays reversible and singleton operands follow 
     page.getByRole("button", { name: "Advanced filters", exact: true }).click();
   await open();
   const drawer = page.getByRole("dialog", { name: "Advanced filters", exact: true });
-  const exclude = drawer.getByRole("checkbox", { name: "Exclude", exact: true });
+  const operator = drawer.getByRole("combobox", {
+    name: "Condition for Kind",
+    exact: true,
+  });
   const groups = drawer.locator(".ruleGroup");
   for (let i = 0; i < 2; i++) {
-    await exclude.uncheck();
+    await choose(page, operator, "is any of");
     await expect(groups).toHaveCount(1);
-    await exclude.check();
+    await expect
+      .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
+      .toMatchObject({ kind: "in", field: "kind", values: ["companion"] });
+    await choose(page, operator, "is none of");
     await expect(groups).toHaveCount(1);
+    await expect
+      .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
+      .toMatchObject({
+        kind: "not",
+        predicate: { kind: "in", field: "kind", values: ["companion"] },
+      });
   }
   await page.reload();
   await open();
-  await expect(exclude).toBeChecked();
-  await exclude.uncheck();
-  await drawer.getByRole("combobox", { name: "Condition for Kind" }).click();
-  await page.getByText("is not", { exact: true }).last().click();
+  await expect(operator.locator("..")).toContainText("is none of");
+  await choose(page, operator, "is any of");
+  await choose(page, operator, "is not");
   await expect
     .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
     .toMatchObject({
@@ -45,7 +65,7 @@ test("single-condition exclusion stays reversible and singleton operands follow 
   ).toBeVisible();
 });
 
-test("collection availability becomes a safe nested editor and can switch back", async ({
+test("imported collection availability becomes a safe nested editor and its original link stays restorable", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -60,19 +80,34 @@ test("collection availability becomes a safe nested editor and can switch back",
         }),
       ),
   );
+  const originalUrl = page.url();
   await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
   const drawer = page.getByRole("dialog", { name: "Advanced filters", exact: true });
   const operator = drawer.locator(".rule-operators").getByRole("combobox").first();
   await operator.click();
-  await page.getByText("has a matching entry", { exact: true }).last().click();
+  await page
+    .locator(".ant-select-dropdown:visible")
+    .getByText("has", { exact: true })
+    .click();
   await expect(drawer.locator(".ruleGroup")).toHaveCount(2);
   await expect(
     drawer.getByRole("button", { name: "Add condition", exact: true }).nth(1),
   ).toBeVisible();
-  await operator.click();
-  await page.getByText("availability is", { exact: true }).last().click();
-  await drawer.getByRole("combobox", { name: /availability$/ }).click();
-  await page.getByText("Missing from source", { exact: true }).last().click();
+  await expect
+    .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
+    .toMatchObject({
+      kind: "exists",
+      collection: "embedded.equipment",
+      predicate: { kind: "boolean_constant", value: true },
+    });
+  await page.reload();
+  await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
+  await expect(drawer.locator(".ruleGroup")).toHaveCount(2);
+  await page.goto(originalUrl);
+  await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
+  await expect(
+    drawer.getByRole("combobox", { name: /availability$/ }).locator(".."),
+  ).toContainText("Missing from source");
   await expect(drawer.locator(".ruleGroup")).toHaveCount(1);
   await expect
     .poll(() => decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!))
@@ -118,7 +153,9 @@ test("wrapped values and validation retain the advanced control grid", async ({
   await expect(
     drawer.getByText("Enter a finite numeric value", { exact: true }),
   ).toBeVisible();
-  for (const row of await drawer.locator(".rule").all()) {
+  const rows = await drawer.locator(".rule").all();
+  expect(rows).toHaveLength(2);
+  for (const row of rows) {
     await expect(row).toHaveCSS("display", "grid");
     const operator = await row.locator(".rule-operators").boundingBox();
     const value = await row.locator(".filter-rule-value").boundingBox();
@@ -179,25 +216,20 @@ test("group exclusion remains one group through edits, toggles and URL reload", 
     page.getByRole("button", { name: "Advanced filters", exact: true }).click();
   await open();
   const drawer = page.getByRole("dialog", { name: "Advanced filters", exact: true });
-  const exclude = drawer
-    .getByRole("checkbox", {
-      name: "Exclude this group",
-      exact: true,
-    })
-    .nth(1);
-  const allExclude = drawer.getByRole("checkbox", {
-    name: "Exclude this group",
+  const groupMatch = drawer.getByRole("combobox", {
+    name: "Match conditions",
     exact: true,
   });
+  const nestedMatch = groupMatch.nth(1);
   const read = () => {
     const predicate = decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!);
     if (predicate.kind !== "all_of") throw new Error("Expected conjunction");
     return predicate;
   };
   for (let index = 0; index < 3; index++) {
-    await expect(allExclude).toHaveCount(2);
-    await exclude.check();
-    await expect(exclude).toBeChecked();
+    await expect(groupMatch).toHaveCount(2);
+    await choose(page, nestedMatch, "Not all match");
+    await expect(nestedMatch.locator("..")).toContainText("Not all match");
     await drawer
       .getByRole("textbox", { name: "Maximum HP", exact: true })
       .first()
@@ -211,8 +243,8 @@ test("group exclusion remains one group through edits, toggles and URL reload", 
           children: [{ value: 81 + index }, { value: 200 }],
         },
       });
-    await expect(allExclude).toHaveCount(2);
-    await exclude.uncheck();
+    await expect(groupMatch).toHaveCount(2);
+    await choose(page, nestedMatch, "Match all");
     await expect.poll(() => read().children[1].kind).toBe("all_of");
     expect(read().children[0]).toMatchObject({
       kind: "in",
@@ -220,13 +252,13 @@ test("group exclusion remains one group through edits, toggles and URL reload", 
       values: ["creature"],
     });
   }
-  await exclude.check();
+  await choose(page, nestedMatch, "Not all match");
   await expect.poll(() => read().children[1].kind).toBe("not");
   const before = read();
   await page.reload();
   await open();
-  await expect(allExclude).toHaveCount(2);
-  await expect(exclude).toBeChecked();
+  await expect(groupMatch).toHaveCount(2);
+  await expect(nestedMatch.locator("..")).toContainText("Not all match");
   expect(read()).toEqual(before);
 });
 
@@ -325,9 +357,7 @@ test("complex conditions remain advanced with searchable fields and no unavailab
   await field.fill("Armor Class");
   await field.press("Enter");
   await expect(page.getByRole("textbox", { name: "Armor Class" })).toBeVisible();
-  await expect(
-    page.getByRole("checkbox", { name: "Exclude this group" }),
-  ).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Match conditions" })).toBeEnabled();
   await expect(page.getByRole("combobox", { name: "Match conditions" })).toBeVisible();
 });
 
@@ -381,7 +411,10 @@ test("Advanced starts with the existing Kind and adding Kind creates exactly one
         { kind: "compare", field: "kind", op: "eq", value: "creature" },
       ],
     });
-  await drawer.getByRole("button", { name: "Remove", exact: true }).nth(1).click();
+  await drawer
+    .getByRole("button", { name: "Remove condition", exact: true })
+    .nth(1)
+    .click();
   await expect(fields).toHaveCount(1);
   await drawer.getByRole("button", { name: "Close", exact: true }).click();
   await expect(
@@ -398,15 +431,19 @@ test("Advanced starts with the existing Kind and adding Kind creates exactly one
   await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
   await expect(fields).toHaveCount(1);
   await expect(
-    drawer.getByRole("checkbox", { name: "Exclude", exact: true }),
-  ).toBeChecked();
+    drawer
+      .getByRole("combobox", { name: "Condition for Kind", exact: true })
+      .locator(".."),
+  ).toContainText("is none of");
   const url = page.url();
   await page.reload();
   await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
   await expect(fields).toHaveCount(1);
   await expect(
-    drawer.getByRole("checkbox", { name: "Exclude", exact: true }),
-  ).toBeChecked();
+    drawer
+      .getByRole("combobox", { name: "Condition for Kind", exact: true })
+      .locator(".."),
+  ).toContainText("is none of");
   expect(page.url()).toBe(url);
 });
 
@@ -556,11 +593,10 @@ test("result browsing uses keyboard rows, committed highlight and native name li
   await row.press("Space");
   await expect(row).toHaveAttribute("aria-current", "true");
   const other = page.locator("[data-record-key]").nth(1);
-  if (await other.count()) {
-    await other.hover();
-    await expect(row).toHaveAttribute("aria-current", "true");
-    await expect(other).not.toHaveAttribute("aria-current");
-  }
+  await expect(other).toBeVisible();
+  await other.hover();
+  await expect(row).toHaveAttribute("aria-current", "true");
+  await expect(other).not.toHaveAttribute("aria-current");
   const searchUrl = page.url();
   const popup = page.context().waitForEvent("page");
   await name.click({ button: "middle" });
