@@ -90,7 +90,7 @@ it("blocks destructive backdrop dismissal while pending and puts its retryable f
   expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeDisabled();
   await act(async () => reject(new Error("Service unavailable")));
   expect(await within(dialog).findByRole("alert")).toHaveTextContent(
-    "Service unavailable",
+    "Delete could not be confirmed",
   );
   expect(
     within(dialog).getByText("Its saved entries will also be removed."),
@@ -136,7 +136,9 @@ describe("contextual danger confirmations", () => {
       fireEvent.keyDown(dialog, { key: "Escape", keyCode: 27 });
       expect(dialog).toBeInTheDocument();
       await act(async () => reject(new Error("Delete unavailable")));
-      expect(await screen.findByText("Delete unavailable")).toBeInTheDocument();
+      expect(
+        await screen.findByText("Remove could not be confirmed"),
+      ).toBeInTheDocument();
       expect(dialog).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Cancel" })).not.toBeDisabled();
       fireEvent.click(screen.getByRole("button", { name: /^Remove$/ }));
@@ -212,7 +214,7 @@ it("keeps the removal popover open through pending and failed writes, then permi
   expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
   await waitFor(() => expect(screen.getByText("Remove from list?")).toBeVisible());
   await act(async () => reject(new Error("Cannot remove")));
-  expect(await screen.findByText("Cannot remove")).toBeVisible();
+  expect(await screen.findByText("Unable to remove. Try again.")).toBeVisible();
   await waitFor(() => expect(screen.getByText("Remove from list?")).toBeVisible());
   fireEvent.click(screen.getByRole("button", { name: "Remove" }));
   await waitFor(() =>
@@ -240,6 +242,8 @@ it("retains synchronous removal failures for explicit retry", async () => {
   );
   fireEvent.click(screen.getByRole("button", { name: "Remove entry" }));
   fireEvent.click(await screen.findByRole("button", { name: "Remove" }));
-  await waitFor(() => expect(screen.getByText("Synchronous failure")).toBeVisible());
+  await waitFor(() =>
+    expect(screen.getByText("Unable to remove. Try again.")).toBeVisible(),
+  );
   expect(screen.getByText("Remove from list?")).toBeVisible();
 });

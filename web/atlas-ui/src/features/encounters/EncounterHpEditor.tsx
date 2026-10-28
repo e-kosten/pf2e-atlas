@@ -1,4 +1,5 @@
-import { Alert, Button, Form, Input, Space } from "antd";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
+import { Button, Form, Input, Space } from "antd";
 import { useEffect, useId, type ReactNode } from "react";
 import type {
   EncounterHpAction,
@@ -51,7 +52,11 @@ export function EncounterHpEditor({
     <>
       {recovery}
       {error && (
-        <Alert type="error" title="HP could not be updated" description={error} />
+        <ErrorNotice
+          error={error}
+          title="HP update could not be confirmed"
+          description={error}
+        />
       )}
       <Form
         name={name}

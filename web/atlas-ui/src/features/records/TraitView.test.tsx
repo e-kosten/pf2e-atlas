@@ -164,7 +164,7 @@ it("offers generation recovery only after a stale association and rereads the tr
   const recovery = await screen.findByRole("button", {
     name: "Reload trait",
   });
-  expect(screen.getByRole("alert")).toHaveTextContent("Reference collection changed");
+  expect(screen.getByRole("status")).toHaveTextContent("Reference collection changed");
   api.getTraitDetail.mockResolvedValue({
     ...definition,
     artifact_generation: "generation-two",

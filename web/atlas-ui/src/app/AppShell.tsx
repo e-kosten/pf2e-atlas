@@ -12,6 +12,13 @@ import {
   subscribeCompatibilityFailures,
 } from "../api/compatibility";
 import { reloadFrontend } from "../shared/browser/reloadFrontend";
+import {
+  AtlasConnectionError,
+  getAvailabilityFailure,
+  subscribeAvailabilityFailures,
+} from "../api/availability";
+import { errorExplanation } from "../shared/feedback/errorMessages";
+import { GlobalFeedback } from "../shared/feedback/GlobalFeedback";
 import { Alert, Button, Menu, Popover, Segmented, Space, Typography } from "antd";
 import type { MenuProps } from "antd";
 import { restoreOverlayFocus } from "../shared/ui/overlays/restoreOverlayFocus";
@@ -49,11 +56,16 @@ export function AppShell({
   const themeTrigger = useRef<HTMLButtonElement>(null);
   const themeContent = useRef<HTMLDivElement>(null);
   const selectedView = activeView;
-  const development = import.meta.env.DEV;
   const compatibilityFailure = useSyncExternalStore(
     subscribeCompatibilityFailures,
     getCompatibilityFailure,
   );
+  const availabilityFailure = useSyncExternalStore(
+    subscribeAvailabilityFailures,
+    getAvailabilityFailure,
+  );
+  const connectionFailure =
+    availabilityFailure instanceof AtlasConnectionError ? availabilityFailure : null;
   const destinations = [
     {
       key: "search",
@@ -99,8 +111,19 @@ export function AppShell({
     if (destination) void router.navigate(destination);
   };
   const availabilityError =
-    readinessError?.message ??
-    (readiness?.status === "blocked" ? readiness.message : null);
+    availabilityFailure || readinessError || readiness?.status === "blocked";
+  const connectionLost =
+    !!connectionFailure || readinessError instanceof AtlasConnectionError;
+  const availabilityTitle = connectionLost
+    ? "Unable to connect to Atlas"
+    : readinessError
+      ? "Atlas unavailable"
+      : "Reference unavailable";
+  const availabilityHelp = connectionLost
+    ? undefined
+    : availabilityFailure || readiness?.status === "blocked"
+      ? "Check Atlas setup before retrying."
+      : errorExplanation(readinessError);
   return (
     <div
       className={`atlas-app${activeView === "reference" ? " atlas-app--document" : activeView === "search" ? " atlas-app--search" : ""}`}
@@ -176,36 +199,61 @@ export function AppShell({
           </Popover>
         </Space>
       </header>
-      {compatibilityFailure && (
-        <Alert
-          className="error-banner"
-          type="error"
-          showIcon
-          title="Atlas was updated. Reload to continue."
-          description={
-            development
-              ? "Check ATLAS_API_PROXY and restart a matching backend before reloading."
-              : "Copy any unsaved edits before reloading."
-          }
-          action={<Button onClick={reloadFrontend}>Reload page</Button>}
-        />
-      )}
-      {availabilityError && !compatibilityFailure && (
-        <Alert
-          className="error-banner"
-          type="error"
-          showIcon
-          title={
-            readinessError ? "Unable to connect to Atlas" : "Reference unavailable"
-          }
-          description={availabilityError}
-          action={
-            <Button loading={checkingReadiness} onClick={onCheckReadiness}>
-              Retry
-            </Button>
-          }
-        />
-      )}
+      <GlobalFeedback>
+        {compatibilityFailure && (
+          <Alert
+            className="error-banner"
+            type="warning"
+            role="status"
+            banner
+            showIcon
+            title={
+              <>
+                Reload Atlas to continue.{" "}
+                <Typography.Text type="secondary">
+                  Copy any unsaved edits first.
+                </Typography.Text>
+              </>
+            }
+            action={
+              <Button size="small" onClick={reloadFrontend}>
+                Reload page
+              </Button>
+            }
+          />
+        )}
+        {availabilityError && !compatibilityFailure && (
+          <Alert
+            className="error-banner"
+            type={connectionLost || readinessError ? "error" : "warning"}
+            role={connectionLost || readinessError ? "alert" : "status"}
+            showIcon
+            banner
+            title={
+              <>
+                {availabilityTitle}
+                {availabilityHelp && (
+                  <>
+                    .{" "}
+                    <Typography.Text type="secondary">
+                      {availabilityHelp}
+                    </Typography.Text>
+                  </>
+                )}
+              </>
+            }
+            action={
+              <Button
+                size="small"
+                loading={checkingReadiness}
+                onClick={onCheckReadiness}
+              >
+                Retry
+              </Button>
+            }
+          />
+        )}
+      </GlobalFeedback>
       <div
         className="atlas-app__content"
         id="atlas-main"

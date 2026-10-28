@@ -1,6 +1,7 @@
+import { ErrorNotice } from "../feedback/ErrorNotice";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
-import { Alert, Button, Space, Table, Typography } from "antd";
+import { Button, Space, Table, Typography } from "antd";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getEmbeddedReading } from "../../api/atlasApi";
@@ -143,8 +144,8 @@ export function RollTableReading({
         ]}
       />
       {reading.isError && (
-        <Alert
-          type="error"
+        <ErrorNotice
+          error={reading.error}
           title="Couldn’t load table results."
           action={<Button onClick={() => void reading.refetch()}>Retry</Button>}
         />

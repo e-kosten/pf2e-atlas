@@ -748,3 +748,33 @@ it.each(["participant", "selection", "generation"])(
     client.clear();
   },
 );
+
+it("keeps a known saved outcome inside the resource editor after its refresh fails", async () => {
+  const participant = resourceParticipant();
+  const props = {
+    participant,
+    resource: participant.spellcasting!.resources[0],
+    disabled: false,
+    pending: false,
+    onAction: vi.fn().mockResolvedValue(false),
+  };
+  const { rerender } = render(<SharedResourceControl {...props} />);
+  fireEvent.click(
+    screen.getByRole("button", { name: "Rank 3 slots: 2 of 4 remaining" }),
+  );
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Restore one Rank 3 slots" }),
+  );
+  await screen.findByText("Resource change could not be confirmed");
+  rerender(
+    <SharedResourceControl
+      {...props}
+      recovery={<span role="status">Saved, but the encounter could not refresh</span>}
+    />,
+  );
+  expect(screen.getByRole("status")).toHaveTextContent(
+    "Saved, but the encounter could not refresh",
+  );
+  expect(screen.queryByText("Resource change could not be confirmed")).toBeNull();
+  expect(props.onAction).toHaveBeenCalledOnce();
+});

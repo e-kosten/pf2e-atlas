@@ -428,7 +428,9 @@ describe("list views", () => {
     expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
     expect(name).toHaveValue("Unsaved metadata");
     await act(async () => fail(new Error("Delete rejected")));
-    expect(await screen.findAllByText("Delete rejected")).not.toHaveLength(0);
+    expect(
+      await screen.findAllByText("Delete list could not be confirmed"),
+    ).not.toHaveLength(0);
     expect(name).toHaveValue("Unsaved metadata");
     fireEvent.click(screen.getByRole("button", { name: "Delete list" }));
     await waitFor(() => expect(apiMocks.deleteSavedList).toHaveBeenCalledTimes(2));
@@ -1088,7 +1090,9 @@ describe("list views", () => {
     expect(add).toBeDisabled();
     expect(input).toHaveValue("Unsubmitted search");
     await act(async () => reject(new Error("Add rejected")));
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Add rejected");
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Record could not be added",
+    );
     expect(add).toBeEnabled();
     fireEvent.click(add);
     expect(await within(dialog).findByText("Added to list.")).toBeVisible();

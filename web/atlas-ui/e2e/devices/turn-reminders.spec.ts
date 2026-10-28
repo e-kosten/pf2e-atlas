@@ -646,7 +646,9 @@ test("expired condition removal reports failure and retries without an uncaught 
     });
     if (info.project.use.hasTouch) await remove.tap();
     else await remove.click();
-    await expect(popup.getByText("Turn action failed", { exact: true })).toBeVisible();
+    await expect(
+      popup.getByText("Turn action could not be confirmed", { exact: true }),
+    ).toBeVisible();
     await expect(remove).toBeEnabled();
     expect(attempts).toBe(1);
     expect(errors).toEqual([]);

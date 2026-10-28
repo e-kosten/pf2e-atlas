@@ -1,6 +1,7 @@
+import { userErrorMessage } from "../../shared/feedback/errorMessages";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { EncounterModal } from "./EncounterModal";
 import {
-  Alert,
   Button,
   Checkbox,
   Form,
@@ -163,9 +164,9 @@ function ParticipantSettingsForm({
     <>
       {recovery}
       {error && (
-        <Alert
-          type="error"
-          title="Participant could not be saved"
+        <ErrorNotice
+          error={error}
+          title="Participant changes could not be confirmed"
           description={error}
         />
       )}
@@ -274,12 +275,12 @@ function LifeSettings({
     try {
       await onSave(settings);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not save settings.");
+      setError(userErrorMessage(cause, "Could not save settings."));
     }
   };
   return (
     <section className="encounter-life-settings" aria-label="Dying settings">
-      {error && <Alert type="error" title={error} />}
+      {error && <ErrorNotice error={error} title={error} />}
       <Checkbox
         checked={participant.track_dying}
         disabled={disabled}

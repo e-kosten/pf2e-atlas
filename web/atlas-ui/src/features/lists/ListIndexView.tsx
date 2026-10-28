@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { atlasRouter } from "../../app/router";
 import { useRouterState } from "@tanstack/react-router";
 import { listIndexSearch, type ListIndexInput } from "../../app/routeSearch";
@@ -16,7 +17,7 @@ import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
 import { ListTagSummary } from "./ListTagSummary";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { ChoicePicker } from "../../shared/ui/pickers/ChoicePicker";
-import { Alert, Button, Input, Typography } from "antd";
+import { Button, Input, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Pencil, Plus, Search } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -199,12 +200,11 @@ export function ListIndexView(_props: ListIndexViewProps) {
       title="Saved Lists"
     >
       {lists.error && (
-        <Alert
-          type="error"
+        <ErrorNotice
+          error={lists.error}
           title={
             lists.data ? "Saved lists could not refresh" : "Saved lists could not load"
           }
-          description={lists.error.message}
           action={
             <Button loading={lists.isFetching} onClick={() => void lists.refetch()}>
               Retry lists

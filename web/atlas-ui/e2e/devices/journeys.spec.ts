@@ -280,7 +280,7 @@ test("a long saved-list choice stays bounded through a pending and failed Add", 
     else await page.mouse.click(2, 2);
     await expect(dialog).toBeVisible();
     release();
-    await expect(dialog.getByRole("alert")).toContainText("Service unavailable");
+    await expect(dialog.getByRole("alert")).toContainText("Record could not be added");
     await expect(
       dialog.getByRole("button", { name: /^(?:loading\s+)?Add$/ }),
     ).toBeEnabled();
@@ -1049,7 +1049,7 @@ test("encounter references retain their owner, scroll and native destination", a
     await hp.fill("55");
     await activate(hpDialog.getByRole("button", { name: "Save", exact: true }), info);
     const feedback = hpDialog
-      .getByRole("alert")
+      .getByRole("status")
       .filter({ hasText: "Saved, but the encounter could not refresh" });
     await expect(feedback).toBeVisible();
     const settingsAction = page.getByRole("button", {

@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { EncounterModal } from "./EncounterModal";
 import { RollResult } from "../../shared/dice/RollResult";
 import { conditionDurationLabel } from "./conditionDurationLabel";
@@ -132,13 +133,16 @@ export function EncounterTurnReview({
       {receipt && <Alert type="success" title={receipt} />}
       {recovery}
       {actionError && (
-        <Alert type="error" title="Turn action failed" description={actionError} />
+        <ErrorNotice
+          error={actionError}
+          title="Turn action could not be confirmed"
+          description={actionError}
+        />
       )}
       {error && (
-        <Alert
-          type="error"
+        <ErrorNotice
+          error={error}
           title="Turn review could not load"
-          description={error.message}
           action={
             <Button loading={loading} disabled={pending} onClick={onRetry}>
               Retry turn review

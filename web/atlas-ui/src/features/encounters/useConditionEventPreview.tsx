@@ -1,5 +1,7 @@
+import { userErrorMessage } from "../../shared/feedback/errorMessages";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { ConditionHpPreview } from "./ConditionHpPreview";
-import { Alert, Button, Checkbox } from "antd";
+import { Button, Checkbox } from "antd";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
@@ -62,7 +64,7 @@ export function useConditionEventPreview(
   const loading = !!draft && (!enabled || query.isFetching);
   const error =
     enabled && query.error
-      ? query.error.message || "Could not preview this change."
+      ? userErrorMessage(query.error, "Could not preview this change.")
       : undefined;
   const consequenceIdentity = displayed ? consequencesOf(displayed) : undefined;
   const [choice, setChoice] = useState<{
@@ -227,8 +229,8 @@ export function useConditionEventPreview(
       </div>
     ) : null,
     errorNotice: error ? (
-      <Alert
-        type="error"
+      <ErrorNotice
+        error={query.error}
         title="Could not preview condition"
         description={error}
         action={

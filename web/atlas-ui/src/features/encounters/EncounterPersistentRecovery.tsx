@@ -1,3 +1,5 @@
+import { userErrorMessage } from "../../shared/feedback/errorMessages";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { Dice5 } from "lucide-react";
 import { Alert, Button, Form, InputNumber, Popover, Tooltip } from "antd";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -147,7 +149,7 @@ export function EncounterPersistentRecovery({
       });
       if (!received) resultFocus.current = null;
     } catch (cause) {
-      if (cause instanceof Error) setError(cause.message);
+      if (cause instanceof Error) setError(userErrorMessage(cause));
     }
   };
   return (
@@ -169,9 +171,13 @@ export function EncounterPersistentRecovery({
         }}
         content={
           <div ref={panel} className="atlas-dice-popover">
-            {dice.error && <Alert type="error" title={dice.error} />}
+            {dice.error && <ErrorNotice error={dice.error} title={dice.error} />}
             {error && (
-              <Alert type="error" title="Recovery failed" description={error} />
+              <ErrorNotice
+                error={error}
+                title="Recovery could not be confirmed"
+                description={error}
+              />
             )}
             {changed && !result && (
               <Alert

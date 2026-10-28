@@ -1,5 +1,8 @@
+import { isSharedFailure } from "../../shared/feedback/errorMessages";
+import { AtlasModal as Modal } from "../../shared/ui/overlays/AtlasModal";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Form, Input, Modal, Select, Space, Typography } from "antd";
+import { Button, Form, Input, Select, Space, Typography } from "antd";
 import { useMemo, useRef } from "react";
 import { createSavedList } from "../../api/atlasApi";
 import type { CreateSavedListRequest } from "../../generated/atlas";
@@ -94,7 +97,8 @@ export function CreateListModal({
           label="Tags"
           name="tags"
           extra={
-            lists.error && (
+            lists.error &&
+            !isSharedFailure(lists.error) && (
               <Space wrap>
                 <Typography.Text type="secondary">
                   Tag suggestions could not load.
@@ -119,7 +123,9 @@ export function CreateListModal({
           />
         </Form.Item>
       </Form>
-      {create.error && <Alert type="error" title={create.error.message} />}
+      {create.error && (
+        <ErrorNotice error={create.error} title="List could not be created" />
+      )}
     </Modal>
   );
 }

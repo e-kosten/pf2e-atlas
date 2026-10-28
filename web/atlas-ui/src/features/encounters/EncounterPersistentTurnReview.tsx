@@ -1,4 +1,5 @@
-import { Alert, Button, Spin } from "antd";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
+import { Button, Spin } from "antd";
 import type {
   ApplyPersistentDamageRequest,
   EncounterParticipantView,
@@ -50,8 +51,9 @@ export function EncounterPersistentTurnReview({
     <section className="encounter-turn-reminder">
       <h3>Persistent damage</h3>
       {query.error && (
-        <Alert
-          type="error"
+        <ErrorNotice
+          error={query.error}
+          compact
           title="Could not load persistent damage"
           action={<Button onClick={() => void query.refetch()}>Retry</Button>}
         />

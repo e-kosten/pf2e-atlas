@@ -92,9 +92,11 @@ export function useSearchProfileSelection(
   const profiles = readiness?.search_profiles ?? [];
   const selected = profiles.find((profile) => profile.id === id);
   const single = profiles.filter((profile) => profile.stored_vectors).length === 1;
-  const canResetLink = id !== null && (!selected || !selected.stored_vectors);
+  const metadataReady = readiness?.status === "ready";
+  const canResetLink =
+    metadataReady && id !== null && (!selected || !selected.stored_vectors);
   const error =
-    id === null
+    !metadataReady || id === null
       ? null
       : canResetLink
         ? single
@@ -110,8 +112,8 @@ export function useSearchProfileSelection(
     // Preserve explicit link intent while inference still waits for metadata.
     pendingUrlProfile: !readiness && choice?.source === "url" ? choice.id : null,
     profiles,
-    storedVectors: selected?.stored_vectors ?? false,
-    usable: selected?.usable ?? false,
+    storedVectors: metadataReady && (selected?.stored_vectors ?? false),
+    usable: metadataReady && (selected?.usable ?? false),
     loading: !readiness,
     error,
     canResetLink,

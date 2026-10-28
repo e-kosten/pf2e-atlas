@@ -160,7 +160,11 @@ it("keeps a generation conflict paused until the actual parent owner reloads", a
   );
   const reloadParent = vi.fn();
   mount({ ...context, reloadParent, reloadParentLabel: "Reload encounter" });
-  expect(await screen.findByText("The reference collection changed")).toBeVisible();
+  expect(
+    await screen.findByText(
+      "The reference collection changed. Refresh before continuing.",
+    ),
+  ).toBeVisible();
   const retry = screen.getByRole("button", { name: "Retry" });
   expect(retry).toBeDisabled();
   fireEvent.click(retry);
@@ -223,7 +227,7 @@ it("advances only for its actual scrolling host, halts on collapse, and retains 
   api.getEmbeddedReading.mockRejectedValueOnce(new Error("Late batch failed"));
   host.scrollTop = 200;
   fireEvent.scroll(host);
-  await screen.findByText("Late batch failed");
+  await screen.findByText("Unable to load ability content");
   expect(screen.getByText("Ability 0 authored explanation")).toBeVisible();
   host.scrollTop = 300;
   fireEvent.scroll(host);

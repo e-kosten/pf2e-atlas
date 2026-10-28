@@ -1,7 +1,7 @@
+import { AtlasDrawer as Drawer } from "../ui/overlays/AtlasDrawer";
+import { ErrorNotice } from "../feedback/ErrorNotice";
 import {
-  Alert,
   Button,
-  Drawer,
   Form,
   Input,
   Popover,
@@ -475,8 +475,8 @@ export function FilterControls({
         </Drawer>
         {!advanced && prepared.error && inlineError}
         {workspace.filterDiscoveryError && (
-          <Alert
-            type="error"
+          <ErrorNotice
+            error={workspace.filterDiscoveryError}
             title="Filter information could not be loaded"
             description={workspace.filterDiscoveryError}
           />

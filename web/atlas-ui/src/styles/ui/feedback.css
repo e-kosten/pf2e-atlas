@@ -1,0 +1,38 @@
+.local-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.local-feedback > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.feedback-modal-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(100dvh - 32px);
+}
+
+.global-feedback-host {
+  flex-shrink: 0;
+  pointer-events: auto;
+}
+
+.global-feedback-host:empty {
+  display: none;
+}
+
+.global-feedback-host > .error-banner {
+  margin: 0;
+}
+
+.global-feedback-host--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}

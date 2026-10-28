@@ -106,6 +106,11 @@ frontend guidelines for the shared reading implementation.
   around frequently used actions. Place contextual information beside its action;
   choose an overlay only for a focused task that needs one.
 
+Browser error changes must follow the [error feedback and recovery policy](web/atlas-ui/docs/frontend-guidelines.md#error-feedback-and-recovery):
+one owner per shared failure, reviewed task-specific copy, local persistent action
+feedback, preserved drafts and truthful save/retry outcomes. Read that policy
+before changing API error rendering or recovery behavior.
+
 ## Product UI Copy
 
 These rules apply to all user-visible copy, including text projected by Rust into

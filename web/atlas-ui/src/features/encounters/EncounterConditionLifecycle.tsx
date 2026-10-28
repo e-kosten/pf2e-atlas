@@ -1,3 +1,5 @@
+import { userErrorMessage } from "../../shared/feedback/errorMessages";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Popover, Space, Tooltip } from "antd";
 import { createContext, use, useState, type ReactNode } from "react";
@@ -133,7 +135,12 @@ export function EncounterConditionRecovery({
                   key={`${optionKey(selected.option)}:${selected.revision}`}
                   option={selected.option}
                   changed={selected.revision !== revision}
-                  disabled={disabled || query.isFetching}
+                  disabled={
+                    disabled ||
+                    query.isFetching ||
+                    query.isPlaceholderData ||
+                    !!query.error
+                  }
                   onReload={() => {
                     const option = options.find(
                       (option) => optionKey(option) === optionKey(selected.option!),
@@ -184,7 +191,13 @@ export function EncounterConditionRecovery({
             className={
               conditionId === undefined ? undefined : "encounter-condition-recovery"
             }
-            disabled={disabled || unavailable}
+            disabled={
+              disabled ||
+              unavailable ||
+              query.isFetching ||
+              query.isPlaceholderData ||
+              !!query.error
+            }
             onKeyDown={(event) => {
               if (event.key === "Escape" && !disabled) setSelected(null);
             }}
@@ -226,7 +239,9 @@ export function EncounterConditionRecovery({
               key={optionKey(option)}
               option={option}
               label={contextualTurnActions ? "Reduce by 1" : option.label}
-              disabled={disabled || query.isFetching}
+              disabled={
+                disabled || query.isFetching || query.isPlaceholderData || !!query.error
+              }
               onApply={async () => {
                 setPendingTurnOption(option);
                 try {
@@ -255,7 +270,9 @@ export function EncounterConditionRecovery({
       </Space>
     ),
     notice: query.error ? (
-      <Alert
+      <ErrorNotice
+        error={query.error}
+        compact
         type="warning"
         title="Recovery choices unavailable"
         action={
@@ -334,7 +351,11 @@ function RecoveryContent({
         />
       )}
       {dice.error && (
-        <Alert type="error" title="Recovery failed" description={dice.error} />
+        <ErrorNotice
+          error={dice.error}
+          title="Recovery could not be confirmed"
+          description={dice.error}
+        />
       )}
       {option.kind === "retch" && (
         <>
@@ -448,9 +469,7 @@ function TurnFrightenedReduction({
             try {
               await onApply();
             } catch (cause) {
-              setError(
-                cause instanceof Error ? cause.message : "Could not reduce Frightened.",
-              );
+              setError(userErrorMessage(cause, "Could not reduce Frightened."));
             } finally {
               setPending(false);
             }
@@ -459,7 +478,7 @@ function TurnFrightenedReduction({
           {label}
         </Button>
       </Tooltip>
-      {error && <Alert type="error" title={error} />}
+      {error && <ErrorNotice error={error} title={error} />}
     </>
   );
 }

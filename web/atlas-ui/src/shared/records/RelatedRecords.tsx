@@ -1,6 +1,8 @@
+import { AtlasModal as Modal } from "../ui/overlays/AtlasModal";
+import { ErrorNotice } from "../feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
 import { recordDestination, searchDestination } from "../../app/destinations";
-import { Alert, Button, Empty, Modal, Spin, Tabs, Typography } from "antd";
+import { Button, Empty, Spin, Tabs, Typography } from "antd";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
@@ -116,11 +118,9 @@ function QueryError({
     (error instanceof AtlasApiError &&
       error.appError?.recoverable_action === "reload_record");
   return (
-    <Alert
-      type="error"
-      showIcon
+    <ErrorNotice
+      error={error}
       title="Unable to load connections"
-      description={error.message}
       action={
         <Button
           size="small"
@@ -196,7 +196,6 @@ function SearchPreviewRows({
             onRefreshResults={async () => {
               onReload?.();
             }}
-
             onPreview={(anchor) => onReference(row.record.record_key, anchor)}
             matchNavigation={{
               open: open === row.record.record_key,
@@ -310,10 +309,10 @@ function OtherReferences({ detail, onReload, reloadLabel }: ExploreProps) {
     );
   if (graph?.kind === "error")
     return (
-      <Alert
-        type="error"
+      <ErrorNotice
+        error={graph.error}
+        compact
         title="Additional references could not be checked"
-        description={graph.error.message}
       />
     );
   if (!other.length) return null;
@@ -406,11 +405,11 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
       )}
       {[counterparts, variants].map((category, index) =>
         category?.kind === "error" ? (
-          <Alert
+          <ErrorNotice
+            error={category.error}
+            compact
             key={index}
-            type="error"
             title={`${index === 0 ? "Editions" : "Variants"} could not be checked`}
-            description={category.error.message}
             action={
               <Button size="small" onClick={() => void related.refetch()}>
                 Retry

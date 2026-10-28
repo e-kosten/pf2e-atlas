@@ -325,7 +325,9 @@ it("keeps unavailable actions honest and does not show a successful spend after 
     />,
   );
   fireEvent.click(screen.getByRole("button", { name: "Spend action 1" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent("Connection lost. Retry.");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Could not update turn resources.",
+  );
   expect(screen.getByRole("button", { name: "Spend action 1" })).toHaveAttribute(
     "aria-pressed",
     "true",

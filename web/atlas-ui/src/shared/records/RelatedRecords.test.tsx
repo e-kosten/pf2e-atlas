@@ -335,7 +335,9 @@ it("retries failed checks and keeps unavailable versions distinguishable from ve
   renderRelated();
   openRelated();
   await selectTab("References");
-  expect(await screen.findByRole("alert")).toHaveTextContent("Service unavailable");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Unable to load connections",
+  );
   api.getRelatedRecords.mockResolvedValue({
     ...relatedFixture(),
     variants: { kind: "unavailable", reason: "Compatibility facts are unavailable" },
@@ -571,7 +573,7 @@ it("retires preview rows after a generation conflict and retains a local recover
     await client.invalidateQueries({ queryKey: ["record-reference-preview"] });
   });
   expect(await screen.findByRole("alert")).toHaveTextContent(
-    "Reference generation changed",
+    "The reference collection changed. Refresh before continuing.",
   );
   await waitFor(() =>
     expect(screen.queryByRole("link", { name: /^Referring creature/ })).toBeNull(),

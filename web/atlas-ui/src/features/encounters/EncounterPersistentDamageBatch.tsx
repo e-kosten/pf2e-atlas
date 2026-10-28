@@ -1,3 +1,5 @@
+import { userErrorMessage } from "../../shared/feedback/errorMessages";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { Alert, Button, Form, InputNumber, Segmented, Space, Tooltip } from "antd";
 import { Undo2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -166,8 +168,7 @@ export function EncounterPersistentDamageBatch({
           if (active)
             setPreview({
               inputs: groups,
-              error:
-                cause instanceof Error ? cause.message : "Could not calculate damage.",
+              error: userErrorMessage(cause, "Could not calculate damage."),
             });
         },
       );
@@ -234,7 +235,10 @@ export function EncounterPersistentDamageBatch({
   return (
     <>
       {(error || damageRoll.error) && (
-        <Alert type="error" title={error ?? damageRoll.error} />
+        <ErrorNotice
+          error={error ?? damageRoll.error}
+          title={error ?? damageRoll.error}
+        />
       )}
       {changed && !applied && (
         <Alert
@@ -310,11 +314,7 @@ export function EncounterPersistentDamageBatch({
             });
             setResult(receipt);
           } catch (cause) {
-            setError(
-              cause instanceof Error
-                ? cause.message
-                : "Could not apply persistent damage.",
-            );
+            setError(userErrorMessage(cause, "Could not apply persistent damage."));
           }
         }}
       >
@@ -611,11 +611,7 @@ export function EncounterPersistentDamageBatch({
                             dc_override: null,
                           });
                         } catch (cause) {
-                          setError(
-                            cause instanceof Error
-                              ? cause.message
-                              : "Could not clear effect.",
-                          );
+                          setError(userErrorMessage(cause, "Could not clear effect."));
                         }
                       }}
                     >
@@ -658,8 +654,8 @@ export function EncounterPersistentDamageBatch({
           <div className="encounter-persistent-footer">
             <div aria-live="polite">
               {current?.error ? (
-                <Alert
-                  type="error"
+                <ErrorNotice
+                  error={current.error}
                   title={current.error}
                   action={
                     <Button
