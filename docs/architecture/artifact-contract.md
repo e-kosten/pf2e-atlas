@@ -54,6 +54,13 @@ one ability's state to another. Derived conditions remain reads, rather than
 materialized saved condition rows. Existing reference data, HP, saved conditions,
 action stock and receipts are preserved.
 
+Workspace migration 17 removes obsolete display-only strike rows identified by
+both the strike request and strike receipt discriminators in
+`encounter_roll_receipts`. Initiative receipts, encounter event/preparation
+receipts, boundary claims and all saved gameplay state remain unchanged. New
+display-only strike rolls perform no writes; the latest result lives only in
+browser component memory.
+
 Pre-release separate-file formats have no compatibility reader or conversion
 shim. Future workspace upgrades use ordered migrations with recorded checksums,
 a consistent backup before structural changes, and transaction-scoped validation.

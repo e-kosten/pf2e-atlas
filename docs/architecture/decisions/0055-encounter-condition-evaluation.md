@@ -124,7 +124,7 @@ Accepted boundaries also have unique participant/round/scope claims, so changing
 the request ID cannot repeat the boundary. Reads and manual turn selection are
 not lifecycle events.
 
-A direct attack roll retains backend numerical adjustments and source/receipt
+A direct attack roll retains backend numerical adjustments and source/request
 guards. Optional Target & checks assistance is read-only, stays beside the original
 roll and cannot reroll or rewrite it. The spell popover reads condition reminders
 and records a direct guarded use through the existing resource mutation owner.

@@ -16,227 +16,147 @@ impl AtlasAppService {
         )
     }
 
+    /// Display-only dice: evaluate against one checked snapshot without saved-state writes.
     pub fn roll_encounter_strike(
         &self,
         encounter_ref: &str,
         request: RollEncounterStrikeRequest,
     ) -> AppServiceResult<EncounterStrikeRollView> {
-        let intent = serde_json::json!({"action":"strike", "request":request});
-        let (encounter, recovered) = self.with_state(|session| {
-            let encounters = session.local_state().encounters();
-            let encounter = encounters
-                .get(encounter_ref)?
-                .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
-            let recovered = encounters.strike_roll_receipt(
-                &encounter.encounter_key,
-                &request.request_id,
-                &intent,
-            )?;
-            Ok((encounter, recovered))
-        })?;
-        if let Some(receipt) = recovered {
-            return Ok(strike_receipt_view(receipt));
+        if request.request_id.is_empty() || request.request_id.len() > 128 {
+            return Err(AppServiceError::invalid_request("Invalid roll request ID."));
         }
-        let key = &encounter.encounter_key;
         if !(1..=3).contains(&request.attack_number) {
             return Err(AppServiceError::invalid_request("Choose attack 1, 2 or 3"));
         }
-        let lookup_key = key.clone();
-        let lookup = EncounterStrikeOptionsRequest {
-            participant_key: request.participant_key.clone(),
-            reference: request.reference.clone(),
-        };
-        let (options, activity, reference_revision) = self.with_workspace(
+        let encounter_ref = encounter_ref.to_owned();
+        self.with_workspace(
             &crate::ReadExecutionContext::uncancellable(),
             move |workspace| {
-                let (options, activity) = resolve_strike(workspace, &lookup_key, lookup)?;
-                Ok((options, activity, workspace.reference_revision()?))
-            },
-        )?;
-        if options.expected_revision != request.expected_revision {
-            return Err(atlas_local_state::LocalStateError::StaleEncounterRevision {
-                encounter_key: key.clone(),
-                expected_revision: request.expected_revision,
-                actual_revision: options.expected_revision,
-            }
-            .into());
-        }
-        if options.expected_participant_revision != request.expected_participant_revision {
-            return Err(
-                atlas_local_state::LocalStateError::StaleParticipantRevision {
-                    participant_key: request.participant_key.clone(),
-                    expected_revision: request.expected_participant_revision,
-                    actual_revision: options.expected_participant_revision,
-                }
-                .into(),
-            );
-        }
-        if request.roll_kind == StrikeRollKind::Attack {
-            let modifier = request
-                .modifier_override
-                .or_else(|| {
-                    options
-                        .attacks
-                        .iter()
-                        .find(|attack| attack.attack_number == request.attack_number)
-                        .map(|attack| attack.modifier)
-                })
-                .filter(|modifier| (-10000..=10000).contains(modifier))
-                .ok_or_else(|| AppServiceError::invalid_request("Attack modifier unavailable."))?;
-            let die = match request.mode {
-                RollMode::Normal => "1d20",
-                RollMode::Fortune => "2d20kh1",
-                RollMode::Misfortune => "2d20kl1",
-            };
-            let roll = atlas_dice::prepare(&format!("{die}{modifier:+}"))
-                .map_err(atlas_local_state::LocalStateError::from)?;
-            return self.with_write(|session| {
-                let encounters = session.local_state().encounters();
-                if let Some(receipt) =
-                    encounters.strike_roll_receipt(key, &request.request_id, &intent)?
-                {
-                    return Ok(strike_receipt_view(receipt));
-                }
-                session.require_reference_revision(reference_revision)?;
-                let receipt = encounters.roll_strike(
-                    key,
-                    &request.request_id,
-                    &intent,
-                    atlas_local_state::ParticipantRollGuard {
-                        expected_revision: request.expected_revision,
-                        participant_key: &request.participant_key,
-                        expected_participant_revision: request.expected_participant_revision,
-                    },
-                    || {
-                        let roll = roll.roll()?;
-                        Ok(atlas_local_state::StoredStrikeRoll {
-                            title: options.title,
-                            outcome: atlas_local_state::StoredStrikeOutcome::Attack {
-                                modifier: Some(modifier),
-                                outcome: roll,
-                            },
-                        })
+                let encounter = workspace
+                    .local_state()
+                    .encounters()
+                    .get(&encounter_ref)?
+                    .ok_or_else(|| super::projection::encounter_not_found(&encounter_ref))?;
+                let (options, activity) = resolve_strike(
+                    workspace,
+                    &encounter.encounter_key,
+                    EncounterStrikeOptionsRequest {
+                        participant_key: request.participant_key.clone(),
+                        reference: request.reference,
                     },
                 )?;
-                Ok(strike_receipt_view(receipt))
-            });
-        }
-        if let Some(reason) = options.damage_unavailable {
-            return Err(AppServiceError::invalid_request(reason));
-        }
-        let damage = {
-            activity
-                .damage
-                .into_iter()
-                .filter(|part| !part.formula.trim().is_empty())
-                .map(|part| {
-                    if let Some(reason) = part.unavailable_reason {
-                        return Err(AppServiceError::invalid_request(reason));
+                if options.expected_revision != request.expected_revision {
+                    return Err(atlas_local_state::LocalStateError::StaleEncounterRevision {
+                        encounter_key: encounter.encounter_key,
+                        expected_revision: request.expected_revision,
+                        actual_revision: options.expected_revision,
                     }
-                    let formula = part.adjusted_formula.unwrap_or(part.formula);
-                    let prepared = atlas_dice::prepare(&formula)
-                        .map_err(atlas_local_state::LocalStateError::from)?;
-                    let label = [part.damage_type.clone(), part.category.clone()]
-                        .into_iter()
-                        .flatten()
-                        .collect::<Vec<_>>()
-                        .join(" ");
-                    let label = if label.is_empty() {
-                        "Untyped".into()
-                    } else {
-                        label
+                    .into());
+                }
+                if options.expected_participant_revision != request.expected_participant_revision {
+                    return Err(
+                        atlas_local_state::LocalStateError::StaleParticipantRevision {
+                            participant_key: request.participant_key,
+                            expected_revision: request.expected_participant_revision,
+                            actual_revision: options.expected_participant_revision,
+                        }
+                        .into(),
+                    );
+                }
+                let mut view = EncounterStrikeRollView {
+                    request_id: request.request_id,
+                    encounter_key: encounter.encounter_key,
+                    participant_key: request.participant_key,
+                    title: options.title,
+                    attack: None,
+                    attack_modifier: None,
+                    damage: vec![],
+                    damage_totals: vec![],
+                    damage_total: None,
+                    persistent_total: None,
+                    damage_minimum_adjustment: 0,
+                    persistent_minimum_adjustment: 0,
+                };
+                if request.roll_kind == StrikeRollKind::Attack {
+                    let modifier = request
+                        .modifier_override
+                        .or_else(|| {
+                            options
+                                .attacks
+                                .iter()
+                                .find(|attack| attack.attack_number == request.attack_number)
+                                .map(|attack| attack.modifier)
+                        })
+                        .filter(|modifier| (-10000..=10000).contains(modifier))
+                        .ok_or_else(|| {
+                            AppServiceError::invalid_request("Attack modifier unavailable.")
+                        })?;
+                    let die = match request.mode {
+                        RollMode::Normal => "1d20",
+                        RollMode::Fortune => "2d20kh1",
+                        RollMode::Misfortune => "2d20kl1",
                     };
-                    Ok((
-                        part.damage_id,
-                        label,
-                        formula,
-                        part.damage_type,
-                        part.category,
-                        prepared,
-                    ))
-                })
-                .collect::<AppServiceResult<Vec<_>>>()?
-        };
-        self.with_write(|session| {
-            let encounters = session.local_state().encounters();
-            if let Some(receipt) =
-                encounters.strike_roll_receipt(key, &request.request_id, &intent)?
-            {
-                return Ok(strike_receipt_view(receipt));
-            }
-            session.require_reference_revision(reference_revision)?;
-            let receipt = encounters.roll_strike(
-                key,
-                &request.request_id,
-                &intent,
-                atlas_local_state::ParticipantRollGuard {
-                    expected_revision: request.expected_revision,
-                    participant_key: &request.participant_key,
-                    expected_participant_revision: request.expected_participant_revision,
-                },
-                || {
-                    let components = damage
-                        .into_iter()
-                        .map(|(id, label, formula, damage_type, category, p)| {
-                            Ok(StrikeDamageRollView {
-                                id,
+                    view.attack = Some(
+                        atlas_dice::roll(&format!("{die}{modifier:+}"))
+                            .map_err(atlas_local_state::LocalStateError::from)?,
+                    );
+                    view.attack_modifier = Some(modifier);
+                    return Ok(view);
+                }
+                if let Some(reason) = options.damage_unavailable {
+                    return Err(AppServiceError::invalid_request(reason));
+                }
+                // Validate the complete pool before drawing any dice.
+                let damage = activity
+                    .damage
+                    .into_iter()
+                    .filter(|part| !part.formula.trim().is_empty())
+                    .map(|part| {
+                        if let Some(reason) = part.unavailable_reason {
+                            return Err(AppServiceError::invalid_request(reason));
+                        }
+                        let formula = part.adjusted_formula.unwrap_or(part.formula);
+                        let prepared = atlas_dice::prepare(&formula)
+                            .map_err(atlas_local_state::LocalStateError::from)?;
+                        let label = [part.damage_type.clone(), part.category.clone()]
+                            .into_iter()
+                            .flatten()
+                            .collect::<Vec<_>>()
+                            .join(" ");
+                        let mut chars = label.chars();
+                        let label = chars
+                            .next()
+                            .map(|first| format!("{}{}", first.to_uppercase(), chars.as_str()))
+                            .unwrap_or_else(|| "Untyped".into());
+                        Ok((
+                            StrikeDamageRollView {
+                                id: part.damage_id,
                                 label,
                                 formula: Some(formula),
-                                damage_type,
-                                category,
-                                outcome: Some(p.roll()?),
+                                damage_type: part.damage_type,
+                                category: part.category,
+                                outcome: None,
                                 unavailable: None,
-                            })
-                        })
-                        .collect::<atlas_local_state::LocalStateResult<Vec<_>>>()?;
-                    let damage_totals = damage_totals(&components)?;
-                    let (damage_total, damage_minimum_adjustment) =
-                        damage_sum(&damage_totals, false)?;
-                    let (persistent_total, persistent_minimum_adjustment) =
-                        damage_sum(&damage_totals, true)?;
-                    let outcome = atlas_local_state::StoredStrikeOutcome::Damage {
-                        components: components
-                            .into_iter()
-                            .map(|p| {
-                                Ok(atlas_local_state::StoredStrikeDamage {
-                                    id: p.id,
-                                    formula: p.formula.ok_or(
-                                        atlas_local_state::LocalStateError::InvalidRollRequest(
-                                            "missing prepared formula",
-                                        ),
-                                    )?,
-                                    damage_type: p.damage_type,
-                                    category: p.category,
-                                    outcome: p.outcome.ok_or(
-                                        atlas_local_state::LocalStateError::InvalidRollRequest(
-                                            "missing evaluated damage",
-                                        ),
-                                    )?,
-                                })
-                            })
-                            .collect::<atlas_local_state::LocalStateResult<Vec<_>>>()?,
-                        totals: damage_totals
-                            .into_iter()
-                            .map(|t| atlas_local_state::StoredStrikeDamageTotal {
-                                damage_type: t.damage_type,
-                                persistent: t.persistent,
-                                raw_total: t.raw_total,
-                                total: t.total,
-                            })
-                            .collect(),
-                        total: damage_total,
-                        persistent_total,
-                        minimum_adjustment: damage_minimum_adjustment,
-                        persistent_minimum_adjustment,
-                    };
-                    Ok(atlas_local_state::StoredStrikeRoll {
-                        title: options.title,
-                        outcome,
+                            },
+                            prepared,
+                        ))
                     })
-                },
-            )?;
-            Ok(strike_receipt_view(receipt))
-        })
+                    .collect::<AppServiceResult<Vec<_>>>()?;
+                view.damage = damage
+                    .into_iter()
+                    .map(|(mut component, prepared)| {
+                        component.outcome = Some(prepared.roll()?);
+                        Ok(component)
+                    })
+                    .collect::<atlas_local_state::LocalStateResult<Vec<_>>>()?;
+                view.damage_totals = damage_totals(&view.damage)?;
+                (view.damage_total, view.damage_minimum_adjustment) =
+                    damage_sum(&view.damage_totals, false)?;
+                (view.persistent_total, view.persistent_minimum_adjustment) =
+                    damage_sum(&view.damage_totals, true)?;
+                Ok(view)
+            },
+        )
     }
 }
 
@@ -559,74 +479,4 @@ pub(super) fn resolve_strike(
         },
         activity,
     ))
-}
-
-fn strike_receipt_view(receipt: atlas_local_state::StoredStrikeReceipt) -> EncounterStrikeRollView {
-    let mut view = EncounterStrikeRollView {
-        request_id: receipt.request_id,
-        encounter_key: receipt.encounter_key,
-        participant_key: receipt.participant_key,
-        title: receipt.roll.title,
-        attack: None,
-        attack_modifier: None,
-        damage: vec![],
-        damage_totals: vec![],
-        damage_total: None,
-        persistent_total: None,
-        damage_minimum_adjustment: 0,
-        persistent_minimum_adjustment: 0,
-    };
-    match receipt.roll.outcome {
-        atlas_local_state::StoredStrikeOutcome::Attack { modifier, outcome } => {
-            view.attack = Some(outcome);
-            view.attack_modifier = modifier;
-        }
-        atlas_local_state::StoredStrikeOutcome::Damage {
-            components,
-            totals,
-            total,
-            persistent_total,
-            minimum_adjustment,
-            persistent_minimum_adjustment,
-        } => {
-            view.damage = components
-                .into_iter()
-                .map(|p| {
-                    let label = [p.damage_type.clone(), p.category.clone()]
-                        .into_iter()
-                        .flatten()
-                        .collect::<Vec<_>>()
-                        .join(" ");
-                    let mut chars = label.chars();
-                    let label = chars
-                        .next()
-                        .map(|first| format!("{}{}", first.to_uppercase(), chars.as_str()))
-                        .unwrap_or_else(|| "Untyped".into());
-                    StrikeDamageRollView {
-                        id: p.id,
-                        label,
-                        formula: Some(p.formula),
-                        damage_type: p.damage_type,
-                        category: p.category,
-                        outcome: Some(p.outcome),
-                        unavailable: None,
-                    }
-                })
-                .collect();
-            view.damage_totals = totals
-                .into_iter()
-                .map(|t| StrikeDamageTotalView {
-                    damage_type: t.damage_type,
-                    persistent: t.persistent,
-                    raw_total: t.raw_total,
-                    total: t.total,
-                })
-                .collect();
-            view.damage_total = total;
-            view.persistent_total = persistent_total;
-            view.damage_minimum_adjustment = minimum_adjustment;
-            view.persistent_minimum_adjustment = persistent_minimum_adjustment;
-        }
-    }
-    view
 }
