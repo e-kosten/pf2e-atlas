@@ -6,6 +6,9 @@ describe("participantEdits", () => {
   it("keeps unknown HP unknown and preserves edit origin for unrelated edits", () => {
     const unknown = participantFixture({ current_hp: undefined, max_hp: undefined });
     expect(participantUpdate(unknown, { display_name: "Changed" })).toMatchObject({
+      current_hp: undefined,
+      max_hp: undefined,
+      display_name: "Changed",
       hp_edit: false,
       max_hp_edit: false,
       variant_edit: false,
@@ -13,6 +16,8 @@ describe("participantEdits", () => {
     });
     expect(participantUpdate(unknown, { current_hp: 0n })).toMatchObject({
       hp_edit: true,
+      current_hp: 0n,
+      max_hp: undefined,
     });
     expect(participantUpdate(unknown, { max_hp: 12n })).toMatchObject({
       max_hp_edit: true,
