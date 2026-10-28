@@ -873,6 +873,54 @@ describe("encounter views", () => {
     expect(apiMocks.getEncounter).toHaveBeenCalledTimes(3);
   });
 
+  it("dims and restores a roster row without changing initiative or the current turn", async () => {
+    const initial = encounterDetailFixture();
+    apiMocks.getEncounter.mockResolvedValue(initial);
+    apiMocks.updateEncounterParticipant.mockImplementation(async (_ref, request) => {
+      apiMocks.getEncounter.mockResolvedValue({
+        ...initial,
+        participants: initial.participants.map((p) =>
+          p.participant_key === request.participant_key
+            ? { ...p, hidden: request.hidden, revision: p.revision + 1n }
+            : p,
+        ),
+      });
+      return { encounter_key: initial.encounter.encounter_key };
+    });
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    const actions = await screen.findByRole("button", { name: "Actions for Goblin" });
+    await waitFor(() => expect(actions).toBeEnabled());
+    fireEvent.click(actions);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Dim in roster" }));
+    await waitFor(() =>
+      expect(rosterRow("Goblin")).toHaveClass("encounter-roster__row--dimmed"),
+    );
+    expect(apiMocks.updateEncounterParticipant).toHaveBeenLastCalledWith(
+      "encounter_ambush",
+      expect.objectContaining({
+        participant_key: "participant_a",
+        hidden: true,
+        initiative: 18n,
+      }),
+    );
+    expect(apiMocks.setEncounterTurn).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Goblin, Current turn, Dimmed" }),
+    ).toHaveAttribute("aria-current", "true");
+    await waitFor(() => expect(actions).toBeEnabled());
+    fireEvent.click(actions);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Show normally" }));
+    await waitFor(() =>
+      expect(rosterRow("Goblin")).not.toHaveClass("encounter-roster__row--dimmed"),
+    );
+    expect(apiMocks.updateEncounterParticipant).toHaveBeenLastCalledWith(
+      "encounter_ambush",
+      expect.objectContaining({ hidden: false, initiative: 18n }),
+    );
+  });
+
   it("reorders from the keyboard drag handle using the existing participant reorder contract", async () => {
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
       function (this: HTMLElement) {

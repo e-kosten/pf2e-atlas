@@ -270,3 +270,18 @@ pub(in crate::encounters) fn prepare(
     }
     Ok(Some(state))
 }
+
+/// GM Screen → Resting, from the pinned PF2e journal (GM Core pp.42–43).
+pub(in crate::encounters) fn rules_reference() -> atlas_app_model::RecordNavigationView {
+    atlas_app_model::RecordNavigationView {
+        spell_rank: None,
+        record_key: "journals:S55aqwWIzpQRFhcq".into(),
+        owners: vec![atlas_domain::OwnedContentLocator {
+            collection: "/pages".into(),
+            identity: atlas_domain::OwnedContentIdentity::Stable("O357iNXwHotbecK1".into()),
+        }],
+        field: None,
+        passage: None,
+        source_fingerprint: None,
+    }
+}

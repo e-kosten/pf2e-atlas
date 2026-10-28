@@ -47,8 +47,9 @@ pub struct EncounterRecoveryParticipantView {
     pub changes: Vec<String>,
     pub unavailable_reason: Option<String>,
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterRecoveryPreviewView {
+    pub rules_reference: Option<crate::RecordNavigationView>,
     pub encounter_key: String,
     pub encounter_revision: i64,
     pub participants: Vec<EncounterRecoveryParticipantView>,

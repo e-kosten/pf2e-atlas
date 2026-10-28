@@ -32,7 +32,7 @@
 }
 
 .encounter-reference__title {
-  align-items: flex-start;
+  align-items: center;
   display: flex;
   gap: var(--space-control) var(--space-group);
   min-width: 0;

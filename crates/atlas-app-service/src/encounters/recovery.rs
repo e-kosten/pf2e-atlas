@@ -200,10 +200,12 @@ impl AtlasAppService {
                 let record = p.record_key.as_ref().and_then(|k| records.get(k));
                 super::rules::overnight::prepare(p, input.healing, *healing_mode, record, &mut row)?
             } else if let Some(Some(baseline)) = baselines.get(&p.participant_key) {
-                row.resulting_hp = baseline.current_hp;
-                row.resulting_max_hp = baseline.max_hp;
-                row.changes = reset_changes(p, baseline);
-                Some(baseline.clone())
+                let mut reset = baseline.clone();
+                reset.level_override = p.level_override;
+                row.resulting_hp = reset.current_hp;
+                row.resulting_max_hp = reset.max_hp;
+                row.changes = reset_changes(p, &reset);
+                Some(reset)
             } else {
                 row.unavailable_reason=Some("No creation baseline was saved for this participant. Add it again to capture one.".into());
                 None
@@ -228,6 +230,7 @@ impl AtlasAppService {
         };
         Ok(RecoveryPlan {
             view: EncounterRecoveryPreviewView {
+                rules_reference: rest.then(super::rules::overnight::rules_reference),
                 encounter_key: snapshot.encounter.encounter_key,
                 encounter_revision: request.expected_encounter_revision,
                 can_apply: rows.iter().all(|r| r.unavailable_reason.is_none()),
@@ -272,15 +275,6 @@ fn reset_changes(
             "{} → {}",
             name(p.participant_variant),
             name(baseline.participant_variant)
-        ));
-    }
-    if p.level_override != baseline.level_override {
-        changes.push(format!(
-            "Level {} → {}",
-            number(p.level_override),
-            baseline
-                .level_override
-                .map_or("unset".into(), |v| v.to_string())
         ));
     }
     if p.temporary_hp != baseline.temporary_hp {
@@ -486,6 +480,7 @@ mod tests {
         )
         .unwrap();
         let reset = w.encounter(&key).unwrap();
+        assert_eq!(reset.participants[0].level_override, Some(1));
         assert_eq!(reset.participants[0].current_hp, Some(12));
         assert!(reset.participants[0].conditions.is_empty());
     }

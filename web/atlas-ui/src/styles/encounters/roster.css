@@ -227,3 +227,9 @@
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+
+.encounter-roster__row--dimmed .encounter-roster__name,
+.encounter-roster__row--dimmed .encounter-roster__hp {
+  color: var(--muted);
+  font-weight: 400;
+}
