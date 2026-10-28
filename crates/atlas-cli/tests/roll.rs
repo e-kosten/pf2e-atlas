@@ -18,6 +18,15 @@ fn roll_needs_no_artifact_and_returns_structured_faces() {
             .all(|die| die["sides"] == 20 && (1..=20).contains(&die["value"].as_i64().unwrap()))
     );
     assert_eq!(dice.iter().filter(|die| die["kept"] == true).count(), 1);
+    let highest = dice
+        .iter()
+        .map(|die| die["value"].as_i64().unwrap())
+        .max()
+        .unwrap();
+    assert_eq!(
+        dice.iter().find(|die| die["kept"] == true).unwrap()["value"],
+        highest
+    );
     assert_eq!(
         data["total"].as_i64().unwrap(),
         dice.iter()
