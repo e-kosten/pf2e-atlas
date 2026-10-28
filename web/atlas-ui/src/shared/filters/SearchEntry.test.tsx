@@ -26,7 +26,7 @@ it("keeps keyword edits local until Enter, then restores incoming committed crit
   fireEvent.change(input, { target: { value: "ice" } });
   expect(commit).not.toHaveBeenCalled();
   fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
-  expect(commit).toHaveBeenCalledWith("ice");
+  expect(commit).toHaveBeenCalledExactlyOnceWith("ice");
   view.rerender(<SearchEntry query="acid" onSearch={commit} />);
   expect(input).toHaveValue("acid");
 });
@@ -44,7 +44,7 @@ it("clears committed criteria when the last character is deleted", () => {
   const commit = vi.fn();
   render(<SearchEntry query="no matches" onSearch={commit} />);
   fireEvent.change(screen.getByRole("searchbox"), { target: { value: "" } });
-  expect(commit).toHaveBeenCalledWith("");
+  expect(commit).toHaveBeenCalledExactlyOnceWith("");
 });
 
 it("opens the seed reference through a native link and restores text-entry focus after Clear", async () => {
