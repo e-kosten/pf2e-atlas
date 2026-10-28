@@ -96,6 +96,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Later
 
+- [Similar search entry and source changes](items/similar-search-entry.md)
+  Revisit secondary entry points and changing an applied Similar source only when
+  concrete workflows justify the additional UI. Status: deferred.
+
 - [Device visual reference consistency](items/device-visual-reference-consistency.md)
   Investigate glyph-raster checkpoint failures reproduced identically on unchanged
   main, retaining strict comparison and reviewed reference provenance. Status: proposed.
