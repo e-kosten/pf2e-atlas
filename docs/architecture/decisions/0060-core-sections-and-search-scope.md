@@ -74,7 +74,7 @@ statistics. Intersect eligibility before FTS/KNN limits, aggregation, centroids,
 witnesses, counts and edition preference. Ordinary semantic search keeps its
 strongest-unit-per-root aggregation.
 
-Migration 18 adds metadata tables. Offline publication reconstructs membership
+Migration 19 adds metadata tables. Offline publication reconstructs membership
 from retained checked snapshots/content, validates it and advances reference
 generation atomically. The separate Core context version is excluded from
 preparation/native-input identity. Existing lexical postings, native inputs,

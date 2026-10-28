@@ -1,3 +1,8 @@
+import {
+  failedFilterTransport,
+  searchPage as urlSearchPage,
+} from "../../app/routeSearch";
+import { totalPages } from "./pageMetrics";
 import { searchDestination } from "../../app/destinations";
 import {
   useEffect,
@@ -40,6 +45,7 @@ import {
   rootNavigation,
   useReferenceReading,
   type ReferenceReading,
+  type ReadingRequest,
 } from "../../shared/records/useReferenceReading";
 import {
   useBrowsePositions,
@@ -66,6 +72,26 @@ import {
   isArtifactGenerationChanged,
   retireImmutableReferenceQueries,
 } from "../../shared/queries/immutableReferenceQueries";
+import { readingNavigationForUrl } from "../../shared/records/readingUrlNavigation";
+import { recordNavigationIdentity } from "../../shared/records/recordNavigationIdentity";
+function readingRequestIdentity(request: ReadingRequest | null) {
+  return JSON.stringify([
+    recordNavigationIdentity(
+      request?.navigation.record_key ?? null,
+      request?.navigation,
+    ),
+    recordNavigationIdentity(request?.match?.record_key ?? null, request?.match),
+    recordNavigationIdentity(request?.landing?.record_key ?? null, request?.landing),
+  ]);
+}
+
+function urlReadingIdentity(route: ReturnType<typeof currentSearchLocation>) {
+  return JSON.stringify([
+    recordNavigationIdentity(route?.selectedRecordKey ?? null, route?.selection),
+    recordNavigationIdentity(route?.landing?.record_key ?? null, route?.landing),
+  ]);
+}
+
 const SEARCH_REQUEST_DEBOUNCE_MS = 300;
 export type SearchWorkspaceState = {
   search: SearchFormState;
@@ -136,16 +162,6 @@ export function useSearchWorkspace({
     initialWorkspaceInteractionState,
   );
   const { search, selectedRecordKey, activeSearch } = interaction;
-  const [pagingProfile, setPagingProfile] = useState(searchProfile);
-  const profileChanged = pagingProfile !== searchProfile;
-  // Adjust the execution page in this render, before any new-profile query can run.
-  // This leaves the reader's artifact epoch and all draft embedded_path untouched.
-  if (profileChanged) {
-    setPagingProfile(searchProfile);
-    if (pagingProfile !== null) dispatch({ type: "resultPage.changed", pageNumber: 1 });
-  }
-  const pageNumber =
-    profileChanged && pagingProfile !== null ? 1 : interaction.pageNumber;
   const queryClient = useQueryClient();
   const seedPreparation = useRef(0);
   const [preparingSeed, setPreparingSeed] = useState(false);
@@ -164,15 +180,40 @@ export function useSearchWorkspace({
     recovering: false,
   });
   const location = useRouterState({ select: (state) => state.location });
+  const previousProfile = useRef(searchProfile);
+  const profileChanged =
+    previousProfile.current !== null &&
+    previousProfile.current !== searchProfile &&
+    atlasRouter.latestLocation.search.search_profile !== searchProfile;
+  const pageNumber = profileChanged
+    ? 1
+    : urlSearchPage(atlasRouter.latestLocation.search);
+  useLayoutEffect(() => {
+    if (previousProfile.current === searchProfile) return;
+    const shouldReset =
+      previousProfile.current !== null &&
+      atlasRouter.latestLocation.search.search_profile !== searchProfile;
+    previousProfile.current = searchProfile;
+    if (enabled && shouldReset && currentSearchLocation())
+      void atlasRouter.navigate({
+        to: ".",
+        hash: true,
+        search: (search) => ({ ...search, page: undefined }),
+        replace: true,
+        resetScroll: false,
+        state: true,
+      });
+  }, [enabled, searchProfile]);
   const initialRoute = currentSearchLocation();
+  const failedTransport =
+    initialRoute !== null &&
+    failedFilterTransport("search", atlasRouter.latestLocation.search);
   const previousUrlCriteria = useRef(urlCriteria(atlasRouter.latestLocation.searchStr));
-  const previousUrlReading = useRef(
-    JSON.stringify([
-      initialRoute?.selectedRecordKey,
-      initialRoute?.selection,
-      initialRoute?.landing,
-    ]),
-  );
+  const previousReset = useRef(atlasRouter.latestLocation.state.atlasSearchReset);
+  const resetPending =
+    previousReset.current !== atlasRouter.latestLocation.state.atlasSearchReset;
+  const previousUrlReading = useRef(urlReadingIdentity(initialRoute));
+  const pendingUrlReading = useRef<{ incoming: string; previous: string } | null>(null);
   const reading = useReferenceReading(
     initialRoute?.selectedRecordKey
       ? {
@@ -181,7 +222,12 @@ export function useSearchWorkspace({
           landing: initialRoute.landing,
         }
       : null,
-    enabled && !retrieval.recovering,
+    enabled &&
+      initialRoute !== null &&
+      !failedTransport &&
+      !resetPending &&
+      !search.filterWasReset &&
+      !retrieval.recovering,
     retrieval.epoch,
   );
   const inspectReading = reading.select;
@@ -203,6 +249,9 @@ export function useSearchWorkspace({
   );
   const canRunResultSearch =
     enabled &&
+    initialRoute !== null &&
+    !failedTransport &&
+    !resetPending &&
     searchProfile !== null &&
     (activeSearch.query.trim() ? searchProfileUsable : searchProfileStored) &&
     hasExecutableSearch(activeSearch);
@@ -228,7 +277,11 @@ export function useSearchWorkspace({
     if (!route) return;
     const restored = initialWorkspaceInteractionState(searchPreferences);
     const incomingCriteria = urlCriteria(atlasRouter.latestLocation.searchStr);
-    const criteriaChanged = previousUrlCriteria.current !== incomingCriteria;
+    const resetChanged =
+      previousReset.current !== atlasRouter.latestLocation.state.atlasSearchReset;
+    previousReset.current = atlasRouter.latestLocation.state.atlasSearchReset;
+    const criteriaChanged =
+      previousUrlCriteria.current !== incomingCriteria || resetChanged;
     if (criteriaChanged) {
       seedPreparation.current += 1;
       setPreparingSeed(false);
@@ -238,11 +291,12 @@ export function useSearchWorkspace({
     // Decoding fills an omitted ranking; that alone must not commit a local edit.
     if (
       criteriaChanged &&
-      (searchStateQueryString(restored.search) !==
-        searchStateQueryString({
-          ...search,
-          ranking: search.ranking ?? searchPreferences.ranking,
-        }) ||
+      (resetChanged ||
+        searchStateQueryString(restored.search) !==
+          searchStateQueryString({
+            ...search,
+            ranking: search.ranking ?? searchPreferences.ranking,
+          }) ||
         restored.search.filterError !== search.filterError ||
         restored.search.filterWasReset !== search.filterWasReset)
     ) {
@@ -250,7 +304,6 @@ export function useSearchWorkspace({
         type: "url.restored",
         search: restored.search,
         selectedRecordKey: route.selectedRecordKey ?? null,
-        pageNumber: restored.pageNumber,
       });
     } else {
       if (selectedRecordKey !== route.selectedRecordKey)
@@ -258,8 +311,6 @@ export function useSearchWorkspace({
           type: "record.selected",
           recordKey: route.selectedRecordKey ?? null,
         });
-      if (pageNumber !== restored.pageNumber)
-        dispatch({ type: "resultPage.changed", pageNumber: restored.pageNumber });
     }
     const request = route.selectedRecordKey
       ? {
@@ -267,25 +318,37 @@ export function useSearchWorkspace({
           landing: route.landing,
         }
       : null;
-    const incomingReading = JSON.stringify([
-      route.selectedRecordKey,
-      route.selection,
-      route.landing,
-    ]);
+    const incomingReading = urlReadingIdentity(route);
     const readingChanged = previousUrlReading.current !== incomingReading;
     previousUrlReading.current = incomingReading;
+    const currentSelection = reading.detail
+      ? readingNavigationForUrl(reading.detail.selected, reading.request)
+      : (reading.request?.match ?? reading.request?.navigation);
+    const currentLanding = reading.landing ?? reading.request?.landing;
     if (
       readingChanged &&
-      (JSON.stringify(
-        reading.detail?.selected ??
-          reading.request?.match ??
-          reading.request?.navigation ??
-          null,
-      ) !== JSON.stringify(request?.navigation ?? null) ||
-        JSON.stringify(reading.landing ?? reading.request?.landing) !==
-          JSON.stringify(request?.landing))
-    )
+      (recordNavigationIdentity(
+        currentSelection?.record_key ?? null,
+        currentSelection,
+      ) !==
+        recordNavigationIdentity(
+          request?.navigation.record_key ?? null,
+          request?.navigation,
+        ) ||
+        recordNavigationIdentity(currentLanding?.record_key ?? null, currentLanding) !==
+          recordNavigationIdentity(
+            request?.landing?.record_key ?? null,
+            request?.landing,
+          ))
+    ) {
+      pendingUrlReading.current = {
+        incoming: readingRequestIdentity(request),
+        previous: readingRequestIdentity(reading.request),
+      };
       inspectReading(request);
+    } else if (readingChanged) {
+      pendingUrlReading.current = null;
+    }
   });
   useLayoutEffect(() => {
     restoreLocation();
@@ -376,14 +439,69 @@ export function useSearchWorkspace({
       return { page, filter: activeSearch.filter };
     },
   });
+  useEffect(() => {
+    const response = resultsQuery.data?.page;
+    const route = currentSearchLocation();
+
+    if (
+      !canRunResultSearch ||
+      retrieval.recovering ||
+      !route ||
+      !response ||
+      !resultsQuery.isSuccess ||
+      resultsQuery.isFetching ||
+      resultsQuery.isPlaceholderData ||
+      activeSearchExecutionToken !== searchExecutionToken ||
+      urlSearchPage(atlasRouter.latestLocation.search) !== pageNumber ||
+      response.page.number !== pageNumber ||
+      response.page.size !== activeSearch.pageSize ||
+      response.artifact_generation !== retrieval.generation ||
+      response.search_profile !== searchProfile ||
+      urlCriteria(route.query ?? "") !==
+        urlCriteria(searchStateQueryString(activeSearch, urlProfile)) ||
+      (atlasRouter.latestLocation.search.search_profile ?? null) !== urlProfile
+    )
+      return;
+    const lastPage = response.page.total === 0n ? 1n : totalPages(response.page);
+    if (lastPage < 1n || BigInt(pageNumber) <= lastPage) return;
+    // Only the settled response for this exact request may reduce the URL page.
+    void atlasRouter.navigate({
+      ...searchDestination({ ...route, page: Number(lastPage) }),
+      hash: true,
+      replace: true,
+      resetScroll: false,
+      state: true,
+    });
+  }, [
+    canRunResultSearch,
+    retrieval.recovering,
+    retrieval.generation,
+    resultsQuery.data,
+    resultsQuery.isSuccess,
+    resultsQuery.isFetching,
+    resultsQuery.isPlaceholderData,
+    activeSearchExecutionToken,
+    searchExecutionToken,
+    activeSearch,
+    pageNumber,
+    searchProfile,
+    urlProfile,
+  ]);
   const resultsPaused = isArtifactGenerationChanged(resultsQuery.error);
   async function refreshResults() {
     if (liveRequest.current.retiring) return;
     // Retire the owner before awaiting cancellation, so a late completion cannot seed.
     liveRequest.current.retiring = true;
     setRetrieval((current) => ({ ...current, recovering: true }));
+    await atlasRouter.navigate({
+      to: ".",
+      hash: true,
+      search: (search) => ({ ...search, page: undefined }),
+      replace: true,
+      resetScroll: false,
+      state: true,
+    });
     await retireImmutableReferenceQueries(queryClient);
-    dispatch({ type: "resultPage.changed", pageNumber: 1 });
     setRetrieval((current) => ({
       epoch: current.epoch + 1,
       generation: null,
@@ -391,14 +509,22 @@ export function useSearchWorkspace({
     }));
   }
   useEffect(() => {
+    const pending = pendingUrlReading.current;
+    if (pending) {
+      const current = readingRequestIdentity(reading.request);
+      if (current !== pending.incoming && current === pending.previous) return;
+      pendingUrlReading.current = null;
+    }
+    const view = currentSearchLocation();
     if (
       !enabled ||
       !reading.detail ||
       search.filterWasReset ||
-      !currentSearchLocation()
+      !view ||
+      view.selectedRecordKey !== reading.detail.record.record_key
     )
       return;
-    const selected = reading.detail.selected;
+    const selected = readingNavigationForUrl(reading.detail.selected, reading.request);
     const selection =
       selected.spell_rank !== undefined ||
       selected.embedded_path.length ||
@@ -409,30 +535,51 @@ export function useSearchWorkspace({
         : undefined;
     const destination = searchDestination({
       selectedRecordKey: reading.detail.record.record_key,
-      query: searchStateQueryString(search, urlProfile),
+      query: view.query,
       selection,
-      landing: reading.landing,
+      landing: reading.landing ?? reading.request?.landing,
+      view: view.view,
+      tab: view.tab,
+      page: urlSearchPage(atlasRouter.latestLocation.search),
     });
     if (atlasRouter.buildLocation(destination).href !== atlasRouter.latestLocation.href)
       void atlasRouter.navigate({
         ...destination,
+        hash: true,
         replace: true,
         resetScroll: false,
-        state: (state) => ({ ...state, atlasSearchPage: pageNumber }),
+        state: true,
       });
-  }, [enabled, reading.detail, reading.landing, search, urlProfile, pageNumber]);
+  }, [
+    enabled,
+    reading.detail,
+    reading.request,
+    reading.landing,
+    search,
+    urlProfile,
+    pageNumber,
+  ]);
 
   useEffect(() => {
-    if (!enabled || urlProfile === null || !currentSearchLocation()) return;
+    if (
+      !enabled ||
+      search.filterWasReset ||
+      failedTransport ||
+      resetPending ||
+      urlProfile === null ||
+      !currentSearchLocation()
+    )
+      return;
     if (atlasRouter.latestLocation.search.search_profile === urlProfile) return;
     void atlasRouter.navigate({
       to: ".",
+      hash: true,
       search: (search) => ({ ...search, search_profile: urlProfile }),
       replace: true,
       resetScroll: false,
-      state: (state) => ({ ...state, atlasSearchPage: pageNumber }),
+      state: true,
     });
-  }, [enabled, urlProfile, pageNumber]);
+  }, [enabled, urlProfile, search.filterWasReset, failedTransport, resetPending]);
 
   const filterDiscoveryContext = useMemo(
     () =>
@@ -445,7 +592,13 @@ export function useSearchWorkspace({
   );
   const filterDiscovery = useFilterDiscovery({
     context: filterDiscoveryContext,
-    enabled: enabled && !retrieval.recovering,
+    enabled:
+      enabled &&
+      initialRoute !== null &&
+      !failedTransport &&
+      !resetPending &&
+      !search.filterWasReset &&
+      !retrieval.recovering,
     queryKeyPrefix: ["filter-discovery", retrieval.epoch],
     catalogIdentity: [retrieval.epoch],
   });
@@ -559,7 +712,7 @@ export function useSearchWorkspace({
     // Keyword entry intentionally replaces similarity, while ordinary filters retain it.
     if (next.query.trim()) next = { ...next, similarSeed: null, mode: "text_search" };
     else next = { ...next, mode: next.similarSeed ? "similar_records" : "browse" };
-    next = normalizeSortTransition(search, next);
+    next = normalizeSortTransition(search, { ...next, query: next.query.trim() });
     if (
       next.filterError === SIMILAR_QUERY_CONFLICT &&
       (next.query !== search.query || next.similarSeed !== search.similarSeed)
@@ -577,22 +730,28 @@ export function useSearchWorkspace({
     dispatch({ type: "search.changed", search: next });
     void atlasRouter.navigate({
       ...searchDestination({
+        ...currentSearchLocation(),
         selectedRecordKey,
         query: searchStateQueryString(next, urlProfile),
+        page: 1,
       }),
       replace: search.similarSeed === next.similarSeed,
       resetScroll: false,
-      state: (state) => ({ ...state, atlasSearchPage: 1 }),
+      state: true,
     });
   }
   function selectRecord(recordKey: string | null) {
     dispatch({ type: "record.selected", recordKey });
     const searchQuery = searchStateQueryString(search, urlProfile);
     void atlasRouter.navigate({
-      ...searchDestination({ selectedRecordKey: recordKey, query: searchQuery }),
+      ...searchDestination({
+        selectedRecordKey: recordKey,
+        query: searchQuery,
+        page: pageNumber,
+      }),
       replace: true,
       resetScroll: false,
-      state: (state) => ({ ...state, atlasSearchPage: pageNumber }),
+      state: true,
     });
     reading.select(recordKey ? { navigation: rootNavigation(recordKey) } : null);
   }
@@ -623,14 +782,16 @@ export function useSearchWorkspace({
       dispatch({ type: "search.settingsApplied", search: committed });
       void atlasRouter.navigate({
         ...searchDestination({
+          ...currentSearchLocation(),
           selectedRecordKey,
           query: searchStateQueryString(committed, profile),
           selection: reading.request?.navigation,
           landing: reading.landing,
+          page: 1,
         }),
         replace: true,
         resetScroll: false,
-        state: (state) => ({ ...state, atlasSearchPage: 1 }),
+        state: true,
       });
       if (collectionChanged) {
         await retireImmutableReferenceQueries(queryClient);
@@ -641,27 +802,23 @@ export function useSearchWorkspace({
         }));
       }
     },
-    recoverFilterUrl: (restored) =>
-      dispatch({
-        type: "url.restored",
-        search: restored,
-        selectedRecordKey,
-        pageNumber: 1,
-      }),
+    recoverFilterUrl: (restored) => {
+      dispatch({ type: "url.restored", search: restored, selectedRecordKey: null });
+      reading.select(null);
+    },
+
     reading,
     positions,
     selectedRecordKey,
     selectRecord,
     pageNumber,
-    setPageNumber: (pageNumber) => {
-      if (!resultsPaused && !retrieval.recovering) {
-        dispatch({ type: "resultPage.changed", pageNumber });
+    setPageNumber: (nextPage) => {
+      if (!resultsPaused && !retrieval.recovering && nextPage !== pageNumber) {
         void atlasRouter.navigate({
-          to: ".",
-          search: true,
-          replace: true,
+          ...searchDestination({ ...currentSearchLocation(), page: nextPage }),
+          replace: false,
           resetScroll: false,
-          state: (state) => ({ ...state, atlasSearchPage: pageNumber }),
+          state: true,
         });
       }
     },

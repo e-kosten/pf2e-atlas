@@ -23,10 +23,7 @@ it("keeps all recipient destinations inline with native links and drawer activat
   render(<RecordPresentation presentation={presentation} onReference={onReference} />);
   expect(screen.getAllByRole("listitem")).toHaveLength(6);
   const last = screen.getByRole("link", { name: /Benefit 5/ });
-  expect(last).toHaveAttribute(
-    "href",
-    expect.stringContaining("/records/feats:benefit5?selection="),
-  );
+  expect(last).toHaveAttribute("href", "/records/feats:benefit5");
   fireEvent.click(last, { ctrlKey: true });
   expect(onReference).not.toHaveBeenCalled();
   fireEvent.click(last);

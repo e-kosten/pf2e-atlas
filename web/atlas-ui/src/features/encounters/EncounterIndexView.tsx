@@ -3,7 +3,14 @@ import {
   destinationHref,
   isPrimaryActivation,
 } from "../../app/navigation";
-import { encounterDestination, encounterEditDestination } from "../../app/destinations";
+import {
+  encounterDestination,
+  encounterEditDestination,
+  encountersDestination,
+} from "../../app/destinations";
+import { useRouterState } from "@tanstack/react-router";
+import { atlasRouter } from "../../app/router";
+import { encounterIndexSearch } from "../../app/routeSearch";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Tabs } from "antd";
@@ -28,7 +35,11 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
   const queryClient = useQueryClient();
   const [partiesOpen, setPartiesOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const [view, setView] = useState("active");
+  const search = useRouterState({
+    router: atlasRouter,
+    select: (state) => state.location.search,
+  });
+  const { view } = encounterIndexSearch(search);
   const encounters = useQuery({ queryKey: ["encounters"], queryFn: getEncounters });
   const visible = (encounters.data?.encounters ?? []).filter(
     (encounter) => (view === "archived") === (encounter.status === "archived"),
@@ -92,7 +103,11 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
         <Tabs
           aria-label="Encounter views"
           activeKey={view}
-          onChange={setView}
+          onChange={(view) =>
+            navigateDestination(
+              encountersDestination({ view: view as "active" | "archived" }),
+            )
+          }
           items={[
             { key: "active", label: "Active" },
             { key: "archived", label: "Archived" },

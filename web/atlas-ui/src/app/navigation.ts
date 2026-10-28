@@ -2,7 +2,12 @@ import type React from "react";
 import { atlasRouter } from "./router";
 import * as destinations from "./destinations";
 import { recordDestination } from "./destinations";
-import { selectedNavigation, parseSearchParams } from "./urlState";
+import {
+  selectedNavigation,
+  parseSearchParams,
+  validateReadingSearch,
+} from "./urlState";
+import { encodeReadingAddress } from "./readingUrl";
 import type { RecordNavigationView } from "../generated/atlas";
 
 export type Destination = ReturnType<(typeof destinations)[keyof typeof destinations]>;
@@ -13,12 +18,21 @@ export function destinationHref(destination: Destination) {
 /** Full-page embedded reading remembers its checked parent context. */
 export function navigateDestination(destination: Destination) {
   const next = atlasRouter.buildLocation(destination);
-  const selection = selectedNavigation(next.search);
+  const nextRecordKey = atlasRouter
+    .matchRoutes(next.pathname, next.search)
+    .flatMap((match) =>
+      "recordKey" in match.params ? [match.params.recordKey] : [],
+    )[0];
+  const selection = nextRecordKey
+    ? selectedNavigation(next.search, nextRecordKey)
+    : undefined;
   const current = atlasRouter.latestLocation;
-  const selected = selectedNavigation(current.search);
   const currentRecordKey = atlasRouter.state.matches.flatMap((match) =>
     "recordKey" in match.params ? [match.params.recordKey] : [],
   )[0];
+  const selected = currentRecordKey
+    ? selectedNavigation(current.search, currentRecordKey)
+    : undefined;
   const inherited = current.state.atlasOwnerOrigin;
   const origin = selection?.embedded_path.length
     ? inherited?.recordKey === selection.record_key
@@ -34,22 +48,38 @@ export function ownerReturnHref(parent: string, landing: RecordNavigationView): 
   const current = atlasRouter.latestLocation;
   const fallback = destinationHref(recordDestination({ recordKey: parent, landing }));
   const origin = current.state.atlasOwnerOrigin;
-  const currentRecordKey = atlasRouter.state.matches.flatMap((match) =>
-    "recordKey" in match.params ? [match.params.recordKey] : [],
-  )[0];
-  const selected = selectedNavigation(current.search);
-  const knownParent =
-    currentRecordKey === parent && !selected?.embedded_path.length
-      ? current.href
-      : fallback;
-  const url = new URL(
+  function wholeParentUrl(href: string, requireRoot: boolean): URL | undefined {
+    try {
+      const url = new URL(href, window.location.origin);
+      if (url.origin !== window.location.origin) return undefined;
+      const search = parseSearchParams(url.search);
+      const parentMatch = atlasRouter
+        .matchRoutes(url.pathname, search)
+        .some(
+          (match) => "recordKey" in match.params && match.params.recordKey === parent,
+        );
+      if (!parentMatch) return undefined;
+      const selected = selectedNavigation(search, parent);
+      const embedded = Boolean(selected?.embedded_path.length);
+      if (requireRoot && embedded) return undefined;
+      url.searchParams.delete("at");
+      if (embedded) url.searchParams.delete("rank");
+      return url;
+    } catch {
+      return undefined;
+    }
+  }
+  const inherited =
     origin?.recordKey === parent && typeof origin.href === "string"
-      ? origin.href
-      : knownParent,
-    window.location.origin,
-  );
-  if (url.origin !== window.location.origin) return fallback;
-  url.searchParams.set("landing", JSON.stringify(landing));
+      ? wholeParentUrl(origin.href, true)
+      : undefined;
+  const url =
+    inherited ??
+    wholeParentUrl(current.href, false) ??
+    new URL(fallback, window.location.origin);
+  const focus = encodeReadingAddress(parent, landing, true);
+  if (focus === undefined) url.searchParams.delete("focus");
+  else url.searchParams.set("focus", focus);
   return url.pathname + url.search;
 }
 
@@ -57,7 +87,7 @@ export function navigatePath(path: string) {
   const url = new URL(path, window.location.origin);
   if (url.origin !== window.location.origin) return;
   // Raw native destinations have already been projected by the shared reader.
-  selectedNavigation(parseSearchParams(url.search));
+  validateReadingSearch(parseSearchParams(url.search));
   return atlasRouter.navigate({ href: url.pathname + url.search + url.hash });
 }
 

@@ -1,5 +1,5 @@
 import { ReaderMatchNavigation } from "./ReaderMatchNavigation";
-import type { RecordNavigationView } from "../../generated/atlas";
+import type { RecordNavigationView, RecordSummaryView } from "../../generated/atlas";
 import {
   destinationHref,
   isPrimaryActivation,
@@ -21,10 +21,12 @@ import { rootNavigation, type ReferenceReading } from "./useReferenceReading";
 import { usePreviewContentFocus } from "./usePreviewContentFocus";
 import { landReadingTarget } from "./landReadingTarget";
 import { BrowsePaneHeader } from "./BrowsePaneHeader";
+import { useRecordExploreLocation } from "./recordExploreLocation";
+import { readingNavigationForUrl } from "./readingUrlNavigation";
 export function ReferenceReader({
   reading,
   selectedRecordKey = null,
-  readerActions,
+  recordActions,
   readerContext,
   status,
   readerFooter,
@@ -39,7 +41,7 @@ export function ReferenceReader({
   reading: ReferenceReading;
   selectedRecordKey?: string | null;
   readerContext?: ReactNode;
-  readerActions?: ReactNode;
+  recordActions?: (record: RecordSummaryView) => ReactNode;
   status?: ReactNode;
   readerFooter?: ReactNode;
   positions?: BrowsePositions;
@@ -51,6 +53,7 @@ export function ReferenceReader({
   retryLabel?: string;
 }) {
   const preview = useRecordPreview();
+  const { mode, tab } = useRecordExploreLocation();
   const localPositions = useBrowsePositions();
   const saved = positions ?? localPositions;
   const readerRef = useRef<HTMLElement>(null);
@@ -292,7 +295,10 @@ export function ReferenceReader({
     focusMatchTarget,
   ]);
   const detail = reading.detail;
-  const fullNavigation = detail?.selected ?? reading.request?.navigation;
+  const selected = detail?.selected ?? reading.request?.navigation;
+  const fullNavigation = selected
+    ? readingNavigationForUrl(selected, reading.request)
+    : undefined;
   const fullRoute = fullNavigation
     ? recordDestination({
         recordKey: fullNavigation.record_key,
@@ -300,11 +306,13 @@ export function ReferenceReader({
           fullNavigation.embedded_path.length ||
           fullNavigation.field ||
           fullNavigation.passage ||
-          fullNavigation.spell_rank ||
+          fullNavigation.spell_rank !== undefined ||
           fullNavigation.source_fingerprint
             ? fullNavigation
             : undefined,
         landing: reading.landing ?? reading.request?.landing,
+        view: mode,
+        tab,
       })
     : null;
   return (
@@ -352,7 +360,7 @@ export function ReferenceReader({
                 {returnToSelectionLabel}
               </Button>
             )}
-          {readerActions}
+          {detail && recordActions?.(detail.record)}
           {fullRoute && (
             <Button
               type="text"
@@ -405,6 +413,7 @@ export function ReferenceReader({
       {readerFooter}
       {preview.recordKey && (
         <RecordReferenceDrawer
+          actions={preview.detail && recordActions?.(preview.detail.record)}
           anchor={preview.anchor}
           visibleOwnerRecordKey={
             detail?.selected.embedded_path.length === 0
@@ -419,6 +428,7 @@ export function ReferenceReader({
           onReference={preview.open}
           onRankChange={preview.changeRank}
           readingHistory={preview.readingHistory}
+          requestedNavigation={preview.selection}
           landing={preview.landing}
           onOpenFullPage={() => {
             navigateDestination(

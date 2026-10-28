@@ -1,3 +1,4 @@
+import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import { RouterTestContext } from "../../test/router";
 import { RecordReadingWorkspace } from "./RecordReadingWorkspace";
 import type { SearchResultsRequest, SearchResultRow } from "../../generated/atlas";
@@ -297,10 +298,9 @@ it("uses the shared Matches interaction and preserves precise native destination
   fireEvent.click(matches);
   const match = await screen.findByRole("link", { name: "Checked ability" });
   expect(
-    JSON.parse(
-      new URL(match.getAttribute("href")!, location.origin).searchParams.get(
-        "selection",
-      )!,
+    selectedNavigation(
+      parseSearchParams(new URL(match.getAttribute("href")!, location.origin).search),
+      expected.record_key,
     ),
   ).toEqual(expected);
   fireEvent.keyDown(document, { key: "Escape" });

@@ -122,7 +122,7 @@ it("keeps page filtering local, focused and source-ordered with native destinati
     "Page 19",
   ]);
   const link = screen.getByRole("link", { name: "Page 10" });
-  expect(link.getAttribute("href")).toContain("/records/journals:root?selection=");
+  expect(link.getAttribute("href")).toContain("/records/journals:root?at=1.");
   fireEvent.click(link, { ctrlKey: true });
   expect(open).not.toHaveBeenCalled();
   fireEvent.click(link);

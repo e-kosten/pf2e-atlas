@@ -274,6 +274,5 @@ fn implicit_bleed_is_projected_and_rolled_as_persistent() {
         atlas_runtime::WORKSPACE_SCHEMA_VERSION,
     )
     .unwrap();
-    let recovered = f.worker.roll_encounter_strike(&key, request).unwrap();
-    assert_eq!(recovered, result);
+    assert!(f.worker.roll_encounter_strike(&key, request).is_err());
 }

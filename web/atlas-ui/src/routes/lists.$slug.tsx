@@ -1,6 +1,11 @@
 import { createFileRoute, Outlet, useMatch } from "@tanstack/react-router";
 import { ListDetailView } from "../features/lists/ListDetailView";
-import { stringifySearchParams, selectedNavigation } from "../app/urlState";
+import {
+  stringifySearchParams,
+  selectedNavigation,
+  readingView,
+} from "../app/urlState";
+import { failedFilterTransport } from "../app/routeSearch";
 
 export const Route = createFileRoute("/lists/$slug")({
   staticData: { section: "lists" },
@@ -15,7 +20,15 @@ function ListWorkspace() {
     shouldThrow: false,
   });
   const editor = useMatch({ from: "/lists/$slug/edit", shouldThrow: false });
-  const { landing: _landing, selection: _selection, ...criteria } = search;
+  const resetting = failedFilterTransport(selected ? "list_record" : "list", search);
+  const {
+    rank: _rank,
+    at: _at,
+    focus: _focus,
+    record_view: _view,
+    record_tab: _tab,
+    ...criteria
+  } = search;
   if (editor) return <Outlet />;
   return (
     <ListDetailView
@@ -23,8 +36,16 @@ function ListWorkspace() {
       route={{
         slug,
         query: stringifySearchParams(criteria) || undefined,
-        selectedRecordKey: selected?.params.recordKey ?? null,
-        landing: selected ? selectedNavigation(search, "landing") : undefined,
+        selectedRecordKey: !resetting ? (selected?.params.recordKey ?? null) : null,
+        selection:
+          selected && !resetting
+            ? selectedNavigation(search, selected.params.recordKey)
+            : undefined,
+        landing:
+          selected && !resetting
+            ? selectedNavigation(search, selected.params.recordKey, "focus")
+            : undefined,
+        ...(!resetting ? readingView(search) : {}),
       }}
     />
   );

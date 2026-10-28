@@ -1,4 +1,4 @@
-//! Read-only condition and targeting context for a strike; rolling has its own receipt.
+//! Read-only condition and targeting context alongside a transient strike result.
 use super::rules::action_context::ActionKind;
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::*;
@@ -150,7 +150,7 @@ fn prepare(
 mod tests {
     use super::*;
     #[test]
-    fn direct_attack_receipt_survives_optional_context_checks_and_retries() {
+    fn direct_attack_uses_condition_adjustments_and_optional_context_is_read_only() {
         let fixture = crate::test_support::encounter_fixture_worker();
         let encounter = fixture
             .worker
@@ -327,13 +327,7 @@ mod tests {
             .roll_encounter_strike(&encounter.encounter_key, roll.clone())
             .unwrap();
         assert!(original.attack.is_some());
-        assert_eq!(
-            fixture
-                .worker
-                .roll_encounter_strike(&encounter.encounter_key, roll.clone())
-                .unwrap(),
-            original
-        );
+        assert_eq!(original.attack_modifier, Some(options.attacks[0].modifier));
 
         let context_request = EncounterStrikeContextRequest {
             strike: EncounterStrikeOptionsRequest {
@@ -357,13 +351,6 @@ mod tests {
         assert_eq!(
             fixture.worker.encounter(&encounter.encounter_key).unwrap(),
             before
-        );
-        assert_eq!(
-            fixture
-                .worker
-                .roll_encounter_strike(&encounter.encounter_key, roll)
-                .unwrap(),
-            original
         );
     }
 }

@@ -75,7 +75,7 @@ export function referenceReadingQueryOptions(
         navigation.embedded_path.length ||
         navigation.field ||
         navigation.passage ||
-        navigation.spell_rank ||
+        navigation.spell_rank !== undefined ||
         navigation.source_fingerprint;
       const parent = await getRecordDetail(
         navigation.record_key,

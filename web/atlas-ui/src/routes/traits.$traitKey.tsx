@@ -1,7 +1,9 @@
+import { routeSearch } from "../app/routeSearch";
 import { createFileRoute } from "@tanstack/react-router";
 import { TraitView } from "../features/records/TraitView";
 import { stringifySearchParams } from "../app/urlState";
 export const Route = createFileRoute("/traits/$traitKey")({
+  ...routeSearch("trait"),
   staticData: { section: "reference" },
   component: Page,
 });

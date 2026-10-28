@@ -5,7 +5,7 @@ import { recordDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { recordLayout } from "../../shared/records/recordLayout";
 import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
-import { AddToListButton } from "../lists/AddToListButton";
+import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
 import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawer";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
@@ -36,7 +36,13 @@ export function RecordView({ route }: RecordViewProps) {
         <DocumentPagePane layout={recordLayout(detail.data?.presentation)}>
           <RecordDetailPane
             sectionLanding={route.section}
-            identityActions={<AddToListButton recordKey={route.recordKey} />}
+            identityActions={
+              <AddToRecordButton
+                key={route.recordKey}
+                recordKey={route.recordKey}
+                record={detail.data?.record}
+              />
+            }
             readingKey={recordReadingIdentity(route.recordKey, route.selection)}
             landing={
               route.landing?.record_key === route.recordKey ? route.landing : undefined
@@ -52,7 +58,12 @@ export function RecordView({ route }: RecordViewProps) {
       </main>
       {preview.recordKey && (
         <RecordReferenceDrawer
-          actions={<AddToListButton recordKey={preview.recordKey} />}
+          actions={
+            <AddToRecordButton
+              recordKey={preview.recordKey}
+              record={preview.detail?.record}
+            />
+          }
           visibleOwnerRecordKey={
             detail.data?.selected.embedded_path.length === 0
               ? detail.data.record.record_key
@@ -60,6 +71,7 @@ export function RecordView({ route }: RecordViewProps) {
           }
           anchor={preview.anchor}
           readingHistory={preview.readingHistory}
+          requestedNavigation={preview.selection}
           landing={preview.landing}
           detail={preview.detail}
           loading={preview.loading}

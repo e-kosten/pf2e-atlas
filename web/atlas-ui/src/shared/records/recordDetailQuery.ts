@@ -9,12 +9,13 @@ export function recordDetailQueryOptions(
 ) {
   const request =
     selection &&
+    recordKey !== null &&
     (selection.embedded_path.length ||
       selection.field ||
       selection.passage ||
-      selection.spell_rank ||
+      selection.spell_rank !== undefined ||
       selection.source_fingerprint)
-      ? recordDetailRequest(selection)
+      ? recordDetailRequest({ ...selection, record_key: recordKey })
       : undefined;
   return queryOptions({
     queryKey: [

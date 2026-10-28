@@ -15,6 +15,7 @@ export type RecordPreviewContentProps = {
     restore: { scroll: number; focusHref?: string };
   };
   fullPageHref?: string;
+  requestedNavigation?: import("../../generated/atlas").RecordNavigationView;
   landing?: import("../../generated/atlas").RecordNavigationView;
   detail: RecordDetailView | undefined;
   loading: boolean;

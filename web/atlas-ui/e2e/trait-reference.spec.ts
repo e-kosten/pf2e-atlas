@@ -1,3 +1,4 @@
+import { recordUrl, readUrl } from "./readingUrl";
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import type {
   TraitDetailView,
@@ -29,7 +30,7 @@ async function memberships(request: APIRequestContext, detail: TraitDetailView) 
   return (await response.json()) as TraitRecordsPage;
 }
 function recordPath(navigation: RecordNavigationView) {
-  return `/records/${encodeURIComponent(navigation.record_key).replace(/%3A/g, ":")}?selection=${encodeURIComponent(JSON.stringify(navigation))}`;
+  return recordUrl(navigation);
 }
 
 test("real trait chip opens its definition and Back returns to the selected source", async ({
@@ -175,9 +176,7 @@ test("trait membership opens the exact embedded source", async ({
     .getByRole("dialog")
     .getByRole("link", { name: "Open reference full page", exact: true })
     .click();
-  await expect
-    .poll(() => JSON.parse(new URL(page.url()).searchParams.get("selection") ?? "null"))
-    .toEqual(member!.navigation);
+  await expect.poll(() => readUrl(new URL(page.url()))).toEqual(member!.navigation);
   await expect(page.locator('a[href="/traits/trait:agile"]').first()).toBeVisible();
   await expect(page.locator(".record-reference__kind").first()).toHaveText(
     /^Melee(?:$|\s)/,

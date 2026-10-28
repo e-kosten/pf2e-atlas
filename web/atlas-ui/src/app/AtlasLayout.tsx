@@ -1,6 +1,13 @@
-import { usePageTitle } from "../shared/browser/usePageTitle";
-import { ConfigProvider, Alert, App } from "antd";
-import { Activity, Suspense, lazy, useEffect, useLayoutEffect, useState } from "react";
+import { ConfigProvider, App } from "antd";
+import {
+  Activity,
+  Suspense,
+  lazy,
+  useEffect,
+  useLayoutEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import { Outlet, useRouterState } from "@tanstack/react-router";
 import {
   COLOR_SCHEME_STORAGE_KEY,
@@ -28,7 +35,7 @@ const SearchView = lazy(() =>
   })),
 );
 
-export function AtlasLayout() {
+export function AtlasLayout({ routeError }: { routeError?: ReactNode } = {}) {
   const [colorScheme, setColorScheme] =
     useState<ColorSchemePreference>(readStoredColorScheme);
   const systemColorScheme = useSystemColorScheme();
@@ -63,6 +70,7 @@ export function AtlasLayout() {
             colorScheme={colorScheme}
             onColorSchemeChange={updateColorScheme}
             resolvedColorScheme={resolvedColorScheme}
+            routeError={routeError}
           />
         </BackendCompatibilityGate>
       </App>
@@ -74,10 +82,12 @@ function AtlasWorkspace({
   colorScheme,
   onColorSchemeChange,
   resolvedColorScheme,
+  routeError,
 }: {
   colorScheme: ColorSchemePreference;
   onColorSchemeChange: (preference: ColorSchemePreference) => void;
   resolvedColorScheme: ResolvedColorScheme;
+  routeError?: ReactNode;
 }) {
   const section = useRouterState({
     select: (state) =>
@@ -87,7 +97,7 @@ function AtlasWorkspace({
   const readiness = useQuery({ queryKey: ["readiness"], queryFn: getReadiness });
   const searchProfile = useSearchProfileSelection(readiness.data);
   const workspace = useSearchWorkspace({
-    enabled: section === "search",
+    enabled: !routeError && section === "search",
     searchProfile: searchProfile.id,
     pendingUrlProfile: searchProfile.pendingUrlProfile,
     searchProfileStored: searchProfile.storedVectors,
@@ -101,7 +111,7 @@ function AtlasWorkspace({
     <SearchProfileContext value={searchProfile}>
       <LinkPickerContext value={LinkConditionPicker}>
         <AppShell
-          activeView={section}
+          activeView={routeError ? "reference" : section}
           colorScheme={colorScheme}
           onColorSchemeChange={onColorSchemeChange}
           resolvedColorScheme={resolvedColorScheme}
@@ -111,21 +121,17 @@ function AtlasWorkspace({
           onCheckReadiness={() => void readiness.refetch()}
         >
           <>
-            <Activity mode={section === "search" ? "visible" : "hidden"}>
+            <Activity mode={!routeError && section === "search" ? "visible" : "hidden"}>
               <Suspense fallback={<main className="detail-empty">Loading</main>}>
                 <SearchView workspace={workspace} />
               </Suspense>
             </Activity>
-            <Outlet />
+            {routeError ?? <Outlet />}
           </>
         </AppShell>
       </LinkPickerContext>
     </SearchProfileContext>
   );
-}
-export function InvalidRoute({ message }: { message: string }) {
-  usePageTitle("Invalid link");
-  return <Alert type="error" title={message} />;
 }
 function readStoredColorScheme(): ColorSchemePreference {
   try {

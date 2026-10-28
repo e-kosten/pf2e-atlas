@@ -268,6 +268,7 @@ export function EncounterInspectorPane({
           visibleOwnerRecordKey={participant.record_key}
           anchor={previewAnchor}
           readingHistory={previewReadingHistory}
+          requestedNavigation={previewSelection}
           landing={previewLanding}
           detail={previewDetail}
           fullPageHref={destinationHref(

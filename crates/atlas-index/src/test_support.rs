@@ -115,6 +115,12 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 17,
+        name: "stateless-strike-rolls",
+        sql: atlas_local_state::STATELESS_STRIKE_ROLLS_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 18,
         name: "similarity-parts",
         sql: crate::SIMILARITY_SCHEMA_SQL,
         backfill: Some(atlas_storage::DataBackfill {
@@ -123,7 +129,7 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         }),
     },
     Migration {
-        version: 18,
+        version: 19,
         name: "core-section-eligibility",
         sql: crate::CORE_SECTIONS_SCHEMA_SQL,
         backfill: None,

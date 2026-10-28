@@ -1,4 +1,5 @@
 import { documentSection } from "./urlState";
+import { recordDestination } from "./destinations";
 import { describe, expect, it } from "vitest";
 import {
   parseSearchParams,
@@ -38,19 +39,22 @@ describe("Router URL transport", () => {
         { collection: "items", identity: { SnapshotLocal: { index: 0 } } },
       ],
       field: "system.description.value",
-      passage: { kind: "identity" },
+      passage: { kind: "identity" as const },
       source_fingerprint: "snapshot:abc",
       spell_rank: 0,
     };
     const landing = { ...selection, field: null, passage: null };
     const params = parseSearchParams(
-      stringifySearchParams({
-        selection: JSON.stringify(selection),
-        landing: JSON.stringify(landing),
-      }),
+      stringifySearchParams(
+        recordDestination({
+          recordKey: selection.record_key,
+          selection,
+          landing,
+        }).search,
+      ),
     );
-    expect(selectedNavigation(params)).toEqual(selection);
-    expect(selectedNavigation(params, "landing")).toEqual(landing);
+    expect(selectedNavigation(params, selection.record_key)).toEqual(selection);
+    expect(selectedNavigation(params, selection.record_key, "focus")).toEqual(landing);
   });
   it.each([
     "%",
@@ -59,8 +63,8 @@ describe("Router URL transport", () => {
     '{"record_key":"x"}',
     '{"record_key":3,"embedded_path":[]}',
   ])("rejects malformed exact navigation %s", (selection) => {
-    expect(() => selectedNavigation({ selection })).toThrow(
-      "Invalid record navigation URL",
+    expect(() => selectedNavigation({ selection }, "records:example")).toThrow(
+      "unsupported reading format",
     );
   });
 });

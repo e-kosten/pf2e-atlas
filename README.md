@@ -51,7 +51,10 @@ atlas web
 ```
 
 Use the address printed by the command to search, preview records, organize lists
-and run encounters. Encounter controls include initiative, HP, conditions, spell
+and run encounters. From search or a record, use **Add to list** to choose an
+existing list or create one and add the record without leaving the page. Creatures
+and hazards use **Add to list or encounter**, with the same create-and-add flow for
+encounters. Encounter controls include initiative, HP, conditions, spell
 resources and dice; automation covers supported mechanics rather than every
 Foundry rule. Save named parties of PCs from Encounters, then use Add Party to
 add everyone together. Party members need only a name.

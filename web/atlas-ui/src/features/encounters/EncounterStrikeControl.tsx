@@ -24,7 +24,6 @@ import { RollResult } from "../../shared/dice/RollResult";
 import type { StrikeLaunch } from "./useEncounterStrike";
 import { useDiceRoll } from "../../shared/dice/useDiceRoll";
 import { useDicePopoverFocus } from "../../shared/dice/useDicePopoverFocus";
-import { isDefiniteRollRejection } from "../../shared/dice/rollLifecycle";
 import { DamageComponents } from "../../shared/records/ActorReference";
 
 const signed = (value: number) => `${value >= 0 ? "+" : ""}${value}`;
@@ -167,7 +166,6 @@ function StrikeRollPopover({
   const [open, setOpen] = useState(false);
   const headingId = useId();
   const [mode, setMode] = useState<RollMode>("normal");
-  const [original, setOriginal] = useState<RollEncounterStrikeRequest>();
   const [contextOpen, setContextOpen] = useState(false);
   const popover = useRef<import("antd").TooltipRef>(null);
   useLayoutEffect(() => {
@@ -176,17 +174,23 @@ function StrikeRollPopover({
     return () => cancelAnimationFrame(frame);
   }, [open, contextOpen]);
   const { trigger, content, afterOpenChange } = useDicePopoverFocus(open);
-  const [retry, setRetry] = useState<RollEncounterStrikeRequest>();
-  const roll = useDiceRoll<EncounterStrikeRollView>();
+  const roll = useDiceRoll<{
+    result: EncounterStrikeRollView;
+    request: RollEncounterStrikeRequest;
+    options: EncounterStrikeOptionsView;
+  }>({ retainResultOnError: true });
+  const result = roll.result?.result;
+  const original = roll.result?.request;
+  const resultOptions = roll.result?.options ?? options;
   const attack = attackNumber !== undefined;
   const actionLabel = `${title} ${attack ? "attack" : "damage"}`;
   const act = () =>
     void roll.run(async () => {
-      const current = retry ? undefined : await refresh();
-      const request = retry ?? {
+      const current = await refresh();
+      const request: RollEncounterStrikeRequest = {
         request_id: crypto.randomUUID(),
-        expected_revision: current!.expected_revision,
-        expected_participant_revision: current!.expected_participant_revision,
+        expected_revision: current.expected_revision,
+        expected_participant_revision: current.expected_participant_revision,
         participant_key: participantKey,
         reference,
         attack_number: attackNumber ?? 1,
@@ -194,19 +198,9 @@ function StrikeRollPopover({
         modifier_override: null,
         roll_kind: attack ? ("attack" as const) : ("damage" as const),
       };
-      if (!retry) setContextOpen(false);
-      setRetry(request);
-      try {
-        const result = await rollEncounterStrike(encounterKey, request);
-        setOriginal(request);
-        setRetry(undefined);
-        return result;
-      } catch (cause) {
-        if (isDefiniteRollRejection(cause)) {
-          setRetry(undefined);
-        }
-        throw cause;
-      }
+      setContextOpen(false);
+      const result = await rollEncounterStrike(encounterKey, request);
+      return { result, request, options: current };
     });
   return (
     <Popover
@@ -221,7 +215,10 @@ function StrikeRollPopover({
       afterOpenChange={afterOpenChange}
       onOpenChange={(next) => {
         setOpen(next);
-        if (next && !disabled) act();
+        if (next) {
+          setContextOpen(false);
+          if (!disabled && !result && !roll.error) act();
+        }
       }}
       content={
         <div
@@ -249,22 +246,22 @@ function StrikeRollPopover({
                 label={title}
                 value={mode}
                 onChange={setMode}
-                disabled={disabled || roll.busy || !!retry}
+                disabled={disabled || roll.busy}
               />
             )}
           </div>
-          {!roll.result && <div>{label}</div>}
-          {roll.result?.attack && (
-            <RollResult outcome={roll.result.attack} pending={roll.animating} />
+          {!result && <div>{label}</div>}
+          {result?.attack && (
+            <RollResult outcome={result.attack} pending={roll.animating} />
           )}
           {attack &&
-            options?.applied?.map((hint) => (
+            resultOptions?.applied?.map((hint) => (
               <div key={hint.source}>
                 Applied · {hint.label} · {hint.reason}
               </div>
             ))}
           {attack &&
-            options?.conditional?.map((hint) => (
+            resultOptions?.conditional?.map((hint) => (
               <div key={hint.source}>
                 Context · {hint.label} · {hint.reason}
               </div>
@@ -273,16 +270,16 @@ function StrikeRollPopover({
             <>
               {!contextOpen && (
                 <Button
-                  disabled={disabled || roll.busy || !original || !roll.result?.attack}
+                  disabled={disabled || roll.busy || !original || !result?.attack}
                   onClick={() => {
-                    if (!original || !roll.result?.attack) return;
+                    if (!original || !result?.attack) return;
                     setContextOpen(!contextOpen);
                     if (!contextOpen)
                       onBeginStrike?.({
                         strike: { participant_key: participantKey, reference },
                         attackNumber: attackNumber!,
                         rollId: original.request_id,
-                        rolledModifier: roll.result?.attack_modifier,
+                        rolledModifier: result?.attack_modifier,
                       });
                   }}
                 >
@@ -296,7 +293,7 @@ function StrikeRollPopover({
               )}
             </>
           )}
-          {roll.result?.damage.map((component) => (
+          {result?.damage.map((component) => (
             <div key={component.id}>
               <strong>{component.label}</strong>{" "}
               {component.outcome ? (
@@ -306,17 +303,17 @@ function StrikeRollPopover({
               )}
             </div>
           ))}
-          {roll.result?.damage_total != null && !roll.animating && (
-            <strong>Damage: {roll.result.damage_total}</strong>
+          {result?.damage_total != null && !roll.animating && (
+            <strong>Damage: {result.damage_total}</strong>
           )}
-          {roll.result?.persistent_total != null && !roll.animating && (
-            <strong>Persistent damage: {roll.result.persistent_total}</strong>
+          {result?.persistent_total != null && !roll.animating && (
+            <strong>Persistent damage: {result.persistent_total}</strong>
           )}
-          {!!roll.result &&
+          {!!result &&
             !roll.animating &&
-            (roll.result.damage_minimum_adjustment > 0 ||
-              roll.result.persistent_minimum_adjustment > 0 ||
-              roll.result.damage_totals.some((t) => t.raw_total !== t.total)) && (
+            (result.damage_minimum_adjustment > 0 ||
+              result.persistent_minimum_adjustment > 0 ||
+              result.damage_totals.some((t) => t.raw_total !== t.total)) && (
               <small>Minimum damage applied.</small>
             )}
           {(attack ? options?.unavailable : options?.damage_unavailable) && (
@@ -331,8 +328,11 @@ function StrikeRollPopover({
           {roll.error && (
             <Alert
               type="warning"
-              title={
-                retry ? "Couldn’t confirm the roll. Retry to recover it." : roll.error
+              title={roll.error}
+              description={
+                result
+                  ? "Previous result shown. Roll again to make a new roll."
+                  : "Roll again to make a new roll."
               }
             />
           )}
@@ -348,7 +348,7 @@ function StrikeRollPopover({
               loading={roll.busy && !roll.animating ? { delay: 300 } : false}
               onClick={act}
             >
-              {retry && roll.error ? "Retry" : roll.result ? "Reroll" : "Roll"}
+              {roll.error ? "Roll again" : result ? "Reroll" : "Roll"}
             </Button>
           </div>
         </div>

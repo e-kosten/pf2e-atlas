@@ -2,16 +2,7 @@ import { expect, test } from "./fixtures";
 import { activate, noPageOverflow } from "./reading";
 
 const selectedSpell = (rank: number) =>
-  `/records/browser-spells:battleform000001?selection=${encodeURIComponent(
-    JSON.stringify({
-      record_key: "browser-spells:battleform000001",
-      spell_rank: rank,
-      embedded_path: [],
-      field: null,
-      passage: null,
-      source_fingerprint: null,
-    }),
-  )}`;
+  `/records/browser-spells:battleform000001?rank=${rank}`;
 
 test("spell links keep rank through effect reading, explanations and full-page navigation", async ({
   page,
@@ -65,9 +56,7 @@ test("spell links keep rank through effect reading, explanations and full-page n
   const bear = page.getByRole("link", { name: "Bear", exact: true });
   await expect(bear).toBeVisible();
   const href = await bear.getAttribute("href");
-  expect(
-    JSON.parse(new URL(href!, page.url()).searchParams.get("selection")!).spell_rank,
-  ).toBe(4);
+  expect(Number(new URL(href!, page.url()).searchParams.get("rank"))).toBe(4);
   await activate(bear, info);
   const drawer = page.getByRole("dialog", {
     name: "Spell Effect: Animal Form (Bear)",
@@ -120,11 +109,9 @@ test("spell links keep rank through effect reading, explanations and full-page n
     exact: true,
   });
   expect(
-    JSON.parse(
-      new URL((await full.getAttribute("href"))!, page.url()).searchParams.get(
-        "selection",
-      )!,
-    ).spell_rank,
+    Number(
+      new URL((await full.getAttribute("href"))!, page.url()).searchParams.get("rank"),
+    ),
   ).toBe(4);
   await activate(full, info);
   await expect(drawer).toBeHidden();

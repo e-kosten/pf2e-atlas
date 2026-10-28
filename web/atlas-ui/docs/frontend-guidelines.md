@@ -125,9 +125,18 @@ caches. Route components pass checked URL inputs to existing feature owners;
 loaders and link preloading must not initiate semantic inference. Transport values
 remain strings, with repeated sort parameters in priority order. Existing filter
 codecs and backend validation keep their responsibilities. Criteria, exact
-selection/landing and section fragments remain distinct; page and owner-return
-context use history state. A page/profile-only change must preserve local reading
+selection/landing and section fragments remain distinct. Use `rank` for explicit
+casting rank, `at` for exact selection and `focus` for independent landing; the
+path owns record identity. Search `page`, list-index `q`/`tag`/`exclude_tag` and
+encounter `view=archived` are URL state. Owner-return context and transient
+recovery notices use history state. Each route accepts only its own query schema;
+normalization replaces history, omits automatic defaults and retains explicit
+sort priority. Unknown paths show Link not found with Open Search. A page/profile-only change must preserve local reading
 and unfinished editors rather than restoring them from unchanged URL criteria.
+Root link errors reuse the existing themed application shell and disable retained
+Search requests. After in-app recovery, focus the destination content container
+without focusing an input or opening a phone keyboard. Modified links retain
+native behavior.
 Page scroll restoration belongs to Router; bounded result/reader scroll and
 Drawer Back/focus remain with shared reading components.
 
@@ -674,11 +683,16 @@ and collection scopes. Field/operator eligibility and query limits stay backend
 owned. Keep query text, similarity seed and nondefault page size as ordinary
 parameters; derive retrieval mode rather than serializing it. No CEL translation,
 saved-token registry or separate simple-filter URL dialect is introduced.
-Malformed or unsupported filter transport is cleared atomically, with one contextual
-Ant message explaining that filters were cleared. Replace the current URL entry,
-reset paging and preserve independent criteria and exact reading navigation.
-Decoded predicates remain subject to backend validation; field/record errors and
-retrieval failures never trigger automatic clearing.
+Malformed or unsupported filter transport replaces the broken entry with empty,
+idle Search. Clear all criteria, page, selected reading, Explore and local editor
+drafts together; suppress remembered kind defaults for this recovery entry. Show
+one dismissible inline Ant notice: “This link couldn’t be restored. Search has
+been reset.” Carry it in transient navigation state. Do not execute a partial or
+unfiltered search during recovery. Saved-list failures use the same destination
+without altering saved data. Decoded predicates remain subject to backend
+validation; field/record errors, stale source addresses and retrieval/network
+failures never trigger this reset. Invalid reading links instead retain their
+criteria and offer an explicit Open record or Return to results action.
 
 Result ordering uses one shared Ant Sort popover beside count and paging,
 including in search pickers and the Trait Similar tab. Browse defaults to Name
@@ -730,8 +744,12 @@ Typed parent-visible ability, strike and casting-entry matches land in that pare
 Other owners and precise fields/passages retain the exact addressed reader.
 Briefly mark an actual within-parent landing, never the owned document's primary
 heading. Search keeps its criteria, page and in-memory result/reader positions
-when navigating out and Back. Keep page in browser history state, not a new URL
-query dialect. The search owner remains mounted and ignores non-search routes;
+when navigating out and Back. Keep page solely in the `page` query parameter,
+omitting page one. Explicit pagination pushes history; Back and Forward restore
+visited pages, and copied links/reload request that page. Criteria, order, seed,
+profile and size changes reset page one. Continuous edits, rank adjustments and
+automatic page correction replace history. Generation and bounded scroll stay
+in memory; bookmarks do not freeze results. The search owner remains mounted and ignores non-search routes;
 scroll state is independent of query caches and mutable encounter drafts. Fixed
 viewport search composition and clipped non-scroll hosts keep native landing
 scrolling inside the reader. Saved lists share this browsing interaction;
