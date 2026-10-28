@@ -20,7 +20,7 @@ import { ReferenceResult } from "../../shared/records/ReferenceResult";
 import { ExploreSearchAction } from "../../shared/records/ExploreSearchAction";
 import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawer";
 import { useRecordPreview } from "../../shared/records/useRecordPreview";
-import { AddToListButton } from "../lists/AddToListButton";
+import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
 import { DocumentIdentityHeader } from "../../shared/records/DocumentIdentityHeader";
 import { useTraitDetail } from "../../shared/records/useTraitDetail";
@@ -122,7 +122,12 @@ export function TraitView({ route }: { route: TraitPageInput }) {
       </main>
       {preview.recordKey && (
         <RecordReferenceDrawer
-          actions={<AddToListButton recordKey={preview.recordKey} />}
+          actions={
+            <AddToRecordButton
+              recordKey={preview.recordKey}
+              record={preview.detail?.record}
+            />
+          }
           anchor={preview.anchor}
           readingHistory={preview.readingHistory}
           requestedNavigation={preview.selection}

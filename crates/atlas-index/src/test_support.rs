@@ -110,12 +110,18 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 17,
+        name: "stateless-strike-rolls",
+        sql: atlas_local_state::STATELESS_STRIKE_ROLLS_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 18,
         name: "reference-numeric-filters",
         sql: crate::REFERENCE_NUMERIC_FILTER_SCHEMA_SQL,
         backfill: None,
     },
     Migration {
-        version: 18,
+        version: 19,
         name: "physical-base-type",
         sql: crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL,
         backfill: None,

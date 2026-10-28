@@ -2335,7 +2335,7 @@ fn manual_participants_keep_exact_condition_notes_without_authored_statistics() 
 }
 
 #[test]
-fn strike_rolls_use_effective_damage_and_recover_before_stale_guards() {
+fn strike_rolls_are_stateless_and_use_checked_effective_damage() {
     let f = encounter_fixture_worker();
     let encounter = f
         .worker
@@ -2526,6 +2526,21 @@ fn strike_rolls_use_effective_damage_and_recover_before_stale_guards() {
         modifier_override: None,
         roll_kind: StrikeRollKind::Damage,
     };
+    let workspace = atlas_runtime::initialize_workspace(f.worker.workspace_path()).unwrap();
+    let before = f
+        .worker
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(&encounter.encounter_key)?)
+        })
+        .unwrap();
+    let write = workspace
+        .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    write.connection().execute_batch("CREATE TRIGGER reject_roll_receipt BEFORE INSERT ON encounter_roll_receipts BEGIN SELECT RAISE(ABORT,'display-only roll wrote receipt'); END; CREATE TRIGGER reject_event_receipt BEFORE INSERT ON encounter_event_receipts BEGIN SELECT RAISE(ABORT,'display-only roll wrote event'); END;").unwrap();
+    write.commit().unwrap();
     let rolled = f
         .worker
         .roll_encounter_strike(&encounter.encounter_key, request.clone())
@@ -2534,22 +2549,56 @@ fn strike_rolls_use_effective_damage_and_recover_before_stale_guards() {
     assert_eq!(rolled.damage.len(), 1);
     assert_eq!(rolled.damage[0].formula.as_deref(), Some("(1d6+4)-1"));
     assert!((4..=9).contains(&rolled.damage[0].outcome.as_ref().unwrap().total));
+    let mut attack = request.clone();
+    attack.roll_kind = StrikeRollKind::Attack;
+    attack.mode = RollMode::Fortune;
+    attack.modifier_override = Some(321);
+    // Reusing a display correlation ID neither recovers an old result nor conflicts.
+    let attack_roll = f
+        .worker
+        .roll_encounter_strike(&encounter.encounter_key, attack)
+        .unwrap();
+    assert_eq!(attack_roll.attack_modifier, Some(321));
+    assert_eq!(attack_roll.attack.unwrap().formula, "2d20kh1+321");
+    let after = f
+        .worker
+        .with_state(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .get_with_participants(&encounter.encounter_key)?)
+        })
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(before).unwrap(),
+        serde_json::to_value(after).unwrap()
+    );
+    let read = workspace
+        .read(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    let count: i64 = read
+        .connection()
+        .query_row("SELECT COUNT(*) FROM encounter_roll_receipts", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!(count, 0);
+    drop(read);
+    let mut stale_encounter = request.clone();
+    stale_encounter.expected_revision -= 1;
+    assert!(
+        f.worker
+            .roll_encounter_strike(&encounter.encounter_key, stale_encounter)
+            .is_err()
+    );
     let mut edit = update(p);
     edit.note = Some("Changed after rolling".into());
     f.worker
         .update_encounter_participant(&encounter.encounter_key, edit)
         .unwrap();
-    assert_eq!(
-        f.worker
-            .roll_encounter_strike(&encounter.encounter_key, request.clone())
-            .unwrap(),
-        rolled
-    );
-    let mut stale = request;
-    stale.request_id = "new-request".into();
     assert!(
         f.worker
-            .roll_encounter_strike(&encounter.encounter_key, stale)
+            .roll_encounter_strike(&encounter.encounter_key, request)
             .is_err()
     );
 }

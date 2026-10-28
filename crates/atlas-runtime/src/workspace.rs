@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 18;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 19;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -105,12 +105,18 @@ const MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 17,
+        name: "stateless-strike-rolls",
+        sql: atlas_local_state::STATELESS_STRIKE_ROLLS_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 18,
         name: "reference-numeric-filters",
         sql: atlas_index::REFERENCE_NUMERIC_FILTER_SCHEMA_SQL,
         backfill: None,
     },
     Migration {
-        version: 18,
+        version: 19,
         name: "physical-base-type",
         sql: atlas_index::PHYSICAL_BASE_TYPE_SCHEMA_SQL,
         backfill: None,
@@ -147,6 +153,105 @@ pub(crate) fn register_extensions() -> StorageResult<()> {
 mod tests {
     use super::*;
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
+
+    #[test]
+    fn reference_filter_upgrade_preserves_saved_lists_from_published_schema_seventeen() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("reference-upgrade.sqlite");
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace.migrate(&MIGRATIONS[..17], |_| Ok(())).unwrap();
+        let write = workspace.write(17).unwrap();
+        LocalStateWrite::new(&write)
+            .saved_lists()
+            .create(NewSavedList {
+                slug: "campaign".into(),
+                name: "Campaign".into(),
+                description: Some("Keep these notes".into()),
+                tags: vec!["review".into()],
+            })
+            .unwrap();
+        write.commit().unwrap();
+        let before = {
+            let read = workspace.read(17).unwrap();
+            serde_json::to_value(LocalStateRead::new(&read).saved_lists().list().unwrap()).unwrap()
+        };
+        let upgraded = initialize_workspace(&path).unwrap();
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let after = LocalStateRead::new(&read).saved_lists().list().unwrap();
+        assert_eq!(serde_json::to_value(after).unwrap(), before);
+    }
+
+    #[test]
+    fn stateless_strike_upgrade_removes_only_display_roll_receipts() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("stateless-strikes.sqlite");
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace.migrate(&MIGRATIONS[..16], |_| Ok(())).unwrap();
+        let write = workspace.write(16).unwrap();
+        write.connection().execute_batch(r#"
+            INSERT INTO encounters(id,encounter_key,slug,name,status,current_turn_participant_key,round_number,revision,created_at,updated_at)
+            VALUES(1,'kept','kept','Kept','running','actor',4,7,'before','before');
+            INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,current_hp,max_hp,temporary_hp,revision,created_at,updated_at)
+            VALUES(1,1,'actor','pc',0,'PC',0,13,20,3,5,'before','before');
+            INSERT INTO encounter_roll_receipts VALUES
+                (1,'attack','{"action":"strike"}','{"version":1,"payload":{"action":"strike","receipt":{"roll":{"outcome":{"kind":"attack"}}}}}'),
+                (1,'damage','{"action":"strike"}','{"version":1,"payload":{"action":"strike","receipt":{"roll":{"outcome":{"kind":"damage"}}}}}'),
+                (1,'initiative','{"participants":["actor"]}','{"version":1,"payload":{"rolls":[17]}}'),
+                (1,'unknown','{"action":"future"}','{"version":2,"payload":{"action":"future"}}'),
+                (1,'malformed','not json','not json'),
+                (1,'unidentified','{"action":"strike"}','{"version":2,"payload":{"action":"future"}}');
+            INSERT INTO encounter_event_receipts VALUES(1,'prepared','{}','{"version":1,"payload":{"prepared":"persistent_damage"}}');
+            INSERT INTO encounter_boundary_claims VALUES(1,'actor',4,'prepared_persistent_damage','fire','prepared');
+        "#).unwrap();
+        let before = LocalStateWrite::new(&write)
+            .encounters()
+            .get_with_participants("kept")
+            .unwrap();
+        let retained = |connection: &rusqlite::Connection| {
+            let mut statement = connection.prepare("SELECT request_id,request_json,receipt_json FROM encounter_roll_receipts WHERE request_id NOT IN ('attack','damage') ORDER BY request_id").unwrap();
+            statement
+                .query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
+                })
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap()
+        };
+        let receipts = retained(write.connection());
+        write.commit().unwrap();
+        let upgraded = initialize_workspace(&path).unwrap();
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let after = LocalStateRead::new(&read)
+            .encounters()
+            .get_with_participants("kept")
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(before).unwrap(),
+            serde_json::to_value(after).unwrap()
+        );
+        assert_eq!(retained(read.connection()), receipts);
+        let strike_count: i64 = read.connection().query_row("SELECT COUNT(*) FROM encounter_roll_receipts WHERE request_id IN ('attack','damage')", [], |row| row.get(0)).unwrap();
+        assert_eq!(strike_count, 0);
+        let preparation: (String,String) = read.connection().query_row("SELECT r.receipt_json,c.request_id FROM encounter_event_receipts r JOIN encounter_boundary_claims c USING(encounter_id,request_id)", [], |row| Ok((row.get(0)?,row.get(1)?))).unwrap();
+        assert_eq!(
+            preparation,
+            (
+                r#"{"version":1,"payload":{"prepared":"persistent_damage"}}"#.into(),
+                "prepared".into()
+            )
+        );
+        drop(read);
+        // Reopening an already migrated workspace preserves the surviving receipts.
+        let reopened = initialize_workspace(&path).unwrap();
+        let read = reopened.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        assert_eq!(retained(read.connection()), receipts);
+    }
 
     #[test]
     fn consumed_application_upgrade_preserves_markers_receipts_and_saved_state() {

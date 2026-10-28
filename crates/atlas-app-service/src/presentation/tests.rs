@@ -1007,6 +1007,84 @@ fn encounter_save_adjustments_restore_an_omitted_legacy_hazard_block() {
 }
 
 #[test]
+fn hazard_readouts_follow_effective_and_unresolved_participant_statistics() {
+    use crate::encounters::mechanics::{StatBlockView, StatValueView, StatisticTarget};
+    let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+        Ok(open_source_fixture(
+            vec![record(
+                "hazards",
+                "Actor",
+                json!({"_id":"aaaaaaaaaaaaaaaa","name":"Trap","type":"hazard","system":{"attributes":{"hp":{"max":25},"stealth":{"value":8}}}}),
+            )],
+            false,
+        ).unwrap())
+    });
+    let fixture = fixture_worker_with_executor(executor);
+    let detail = fixture
+        .worker
+        .record_detail("hazards:aaaaaaaaaaaaaaaa")
+        .unwrap();
+    let RecordBodyView::Hazard(authored) = &detail.presentation.body else {
+        panic!("hazard")
+    };
+    assert_eq!(authored.detection_dc.value, Some(18.into()));
+    assert_eq!(authored.broken_threshold.value, Some(12.into()));
+    let mut block = StatBlockView {
+        source_conditions: Default::default(),
+        record_key: detail.record.record_key.clone(),
+        title: "Trap".into(),
+        level: None,
+        adjusted_level: None,
+        values: [
+            (StatisticTarget::HazardStealth, 8, 15),
+            (StatisticTarget::HitPointMaximum, 25, 41),
+        ]
+        .into_iter()
+        .map(|(target, base, adjusted)| StatValueView {
+            target,
+            label: "Adjusted statistic".into(),
+            ability: None,
+            base_value: base.into(),
+            adjusted_value: adjusted.into(),
+            modifiers: vec![],
+            suppressed_modifiers: vec![],
+            notes: vec![],
+        })
+        .collect(),
+        replacements: vec![],
+        unresolved_stats: vec![],
+        senses: vec![],
+        senses_known: false,
+        sense_facts: vec![],
+        contextual_armor_class: vec![],
+        speeds: vec![],
+        action_budget: None,
+        activities: vec![],
+        unapplied_effects: vec![],
+    };
+    let RecordBodyView::Hazard(effective) =
+        compose_participant(detail.presentation.clone(), &block).body
+    else {
+        panic!("hazard")
+    };
+    assert_eq!(effective.detection_dc.value, Some(25.into()));
+    assert_eq!(effective.broken_threshold.value, Some(20.into()));
+    block.values.clear();
+    block.unresolved_stats = vec![
+        StatisticTarget::HazardStealth,
+        StatisticTarget::HitPointMaximum,
+    ];
+    let RecordBodyView::Hazard(unresolved) = compose_participant(detail.presentation, &block).body
+    else {
+        panic!("hazard")
+    };
+    assert_eq!(unresolved.detection_dc.state, QueryFieldState::Missing);
+    assert_eq!(unresolved.detection_dc.value, None);
+    assert_eq!(unresolved.broken_threshold.state, QueryFieldState::Missing);
+    assert_eq!(unresolved.broken_threshold.value, None);
+}
+
+#[test]
 fn selected_duplicate_casting_entry_does_not_guess_members_and_rejects_stale_owner() {
     let entry = json!({"_id":"eeeeeeeeeeeeeeee","type":"spellcastingEntry","name":"Duplicate entry","system":{"spelldc":{"dc":25,"value":15}}});
     let source = json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Caster","items":[entry.clone(),entry,{"_id":"ssssssssssssssss","type":"spell","name":"Unresolved local spell","system":{"level":{"value":2},"location":{"value":"eeeeeeeeeeeeeeee"}}}]});

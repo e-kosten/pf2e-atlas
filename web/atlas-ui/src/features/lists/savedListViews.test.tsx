@@ -32,7 +32,7 @@ import type {
 import { useFilterVocabulary } from "../../shared/filters/useFilterDiscovery";
 import { DEFAULT_SEARCH_STATE } from "../../shared/filters/searchState";
 import { useSavedListFilterDiscovery } from "./useSavedListFilters";
-import { AddToListButton } from "./AddToListButton";
+import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { ListDetailView } from "./ListDetailView";
 import { ListEditView } from "./ListEditView";
 import { ListIndexView } from "./ListIndexView";
@@ -1121,14 +1121,14 @@ describe("list views", () => {
   it("explains the saved-list action on keyboard focus without loading lists", async () => {
     render(
       <ConfigProvider theme={{ token: { motion: false } }}>
-        <AddToListButton recordKey="actions:testAction1" />
+        <AddToRecordButton recordKey="actions:testAction1" />
       </ConfigProvider>,
       { wrapper: queryClientWrapper() },
     );
-    const action = screen.getByRole("button", { name: "Add to saved list" });
+    const action = screen.getByRole("button", { name: "Add to list" });
     act(() => action.focus());
     expect(action).toHaveFocus();
-    expect(await screen.findByRole("tooltip")).toHaveTextContent("Add to saved list");
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Add to list");
     expect(apiMocks.getSavedLists).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     act(() => action.blur());
@@ -1136,11 +1136,11 @@ describe("list views", () => {
   });
 
   it("adds the current record to a selected list", async () => {
-    render(<AddToListButton recordKey="actions:testAction1" />, {
+    render(<AddToRecordButton recordKey="actions:testAction1" />, {
       wrapper: queryClientWrapper(),
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Add to saved list" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
 
     const selector = await screen.findByRole("combobox");
     await waitFor(() => expect(selector).toBeEnabled());
@@ -1150,7 +1150,7 @@ describe("list views", () => {
 
     await waitFor(() =>
       expect(apiMocks.addSavedListItem).toHaveBeenCalledWith({
-        list_ref: "research",
+        list_ref: "list_research",
         record_ref: "actions:testAction1",
       }),
     );
