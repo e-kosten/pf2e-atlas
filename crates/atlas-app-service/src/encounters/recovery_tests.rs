@@ -92,6 +92,7 @@ fn overnight_calculates_source_healing_and_restores_daily_but_preserves_weekly_u
         participant.ability_states.push(ParticipantAbilityState {
             owner: ability.owner.clone(),
             rule_ordinal: None,
+            declaration_identity: Some(ability.declaration_identity.clone()),
             source_fingerprint: sources.source_fingerprint.clone().unwrap(),
             value: AbilityStateValue::Uses { remaining: 0 },
         });

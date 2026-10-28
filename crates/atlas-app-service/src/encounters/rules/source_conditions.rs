@@ -342,6 +342,12 @@ pub(in crate::encounters) fn source_conditions(
                     || predicate_mentions(&condition.predicate, &option.option))
         })
     });
+    super::source_ability_state::bind_declarations(
+        &record.key().to_string(),
+        &mut options,
+        &mut uses,
+        &conditions,
+    )?;
     Ok(SourceConditions {
         immunities,
         options,
@@ -395,8 +401,7 @@ impl SourceCondition {
             let option = sources.options.iter().find(|option| {
                 option.owner == self.owner && option.ordinal == choice.option_ordinal
             })?;
-            let (active, selection) =
-                option.state(participant, sources.source_fingerprint.as_deref());
+            let (active, selection) = option.state(participant);
             if !active || selection.as_deref() != Some(choice.value.as_str()) {
                 return Some(false);
             }
@@ -443,9 +448,7 @@ fn predicate_term(
                 .iter()
                 .find(|option| &option.option == value)
             {
-                let active = option
-                    .state(participant, sources.source_fingerprint.as_deref())
-                    .0;
+                let active = option.state(participant).0;
                 return match &option.predicate {
                     SourcePresence::Missing => Some(active),
                     SourcePresence::Value(terms) if terms.is_empty() => Some(active),

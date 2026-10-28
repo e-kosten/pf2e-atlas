@@ -44,7 +44,7 @@ impl AtlasAppService {
             ));
         }
         let owner = &request.navigation.owners[0];
-        let value = match &request.action {
+        let (value, declaration_identity) = match &request.action {
             EncounterAbilityStateAction::SetOption { active, selection } => {
                 let option = sources
                     .options
@@ -67,10 +67,13 @@ impl AtlasAppService {
                         "Choose an available ability option.",
                     ));
                 }
-                AbilityStateValue::Option {
-                    active: *active,
-                    selection: selection.clone(),
-                }
+                (
+                    AbilityStateValue::Option {
+                        active: *active,
+                        selection: selection.clone(),
+                    },
+                    option.declaration_identity.clone(),
+                )
             }
             EncounterAbilityStateAction::SpendUse | EncounterAbilityStateAction::RestoreUse => {
                 let ability = sources
@@ -82,7 +85,7 @@ impl AtlasAppService {
                             "Limited-use ability is no longer available.",
                         )
                     })?;
-                let current = ability.remaining(participant, sources.source_fingerprint.as_deref());
+                let current = ability.remaining(participant);
                 let spending = matches!(request.action, EncounterAbilityStateAction::SpendUse);
                 let remaining = if spending {
                     current.checked_sub(1)
@@ -97,12 +100,16 @@ impl AtlasAppService {
                         "All uses are available."
                     })
                 })?;
-                AbilityStateValue::Uses { remaining }
+                (
+                    AbilityStateValue::Uses { remaining },
+                    ability.declaration_identity.clone(),
+                )
             }
         };
         let state = ParticipantAbilityState {
             owner: owner.clone(),
             rule_ordinal: request.rule_ordinal,
+            declaration_identity: Some(declaration_identity),
             source_fingerprint: sources
                 .source_fingerprint
                 .clone()
@@ -187,8 +194,7 @@ pub(super) fn views(
         .options
         .iter()
         .map(|option| {
-            let (active, selection) =
-                option.state(participant, sources.source_fingerprint.as_deref());
+            let (active, selection) = option.state(participant);
             EncounterAbilityStateView {
                 navigation: navigation(&option.owner),
                 rule_ordinal: Some(option.ordinal),
@@ -221,8 +227,7 @@ pub(super) fn views(
                 rule_ordinal: None,
                 label: ability.label.clone(),
                 state: EncounterAbilityStateKindView::Uses {
-                    remaining: ability
-                        .remaining(participant, sources.source_fingerprint.as_deref()),
+                    remaining: ability.remaining(participant),
                     maximum: ability.maximum,
                     interval: match ability.per {
                         atlas_foundry_model::generated::AbilitySystemSourceFrequencyPer::Day => {
@@ -327,6 +332,7 @@ fn choice_consequence(
     after.ability_states.push(ParticipantAbilityState {
         owner: option.owner.clone(),
         rule_ordinal: Some(option.ordinal),
+        declaration_identity: Some(option.declaration_identity.clone()),
         source_fingerprint: sources.source_fingerprint.clone()?,
         value: AbilityStateValue::Option {
             active: true,
@@ -427,10 +433,7 @@ pub(super) fn prepare_turn_sources(
                     let due = ability.per == Per::Turn
                         || (ability.per == Per::Round
                             && incoming.as_deref() == Some(participant.participant_key.as_str()));
-                    if !due
-                        || ability.remaining(participant, sources.source_fingerprint.as_deref())
-                            == ability.maximum
-                    {
+                    if !due || ability.remaining(participant) == ability.maximum {
                         continue;
                     }
                     let Some(fingerprint) = sources.source_fingerprint.as_ref() else {
@@ -442,6 +445,7 @@ pub(super) fn prepare_turn_sources(
                         state: ParticipantAbilityState {
                             owner: ability.owner.clone(),
                             rule_ordinal: None,
+                            declaration_identity: Some(ability.declaration_identity.clone()),
                             source_fingerprint: fingerprint.clone(),
                             value: AbilityStateValue::Uses {
                                 remaining: ability.maximum,
