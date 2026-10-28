@@ -265,3 +265,37 @@ it("allows clearing after a failed check at the updated encounter revision", asy
   );
   await waitFor(() => expect(screen.getByText("Recovered")).toBeVisible());
 });
+
+it("replaces a failed roll request error after a successful table clear", async () => {
+  const { onRecover } = setup();
+  onRecover.mockRejectedValueOnce(new Error("Could not confirm recovery."));
+  fireEvent.click(await screen.findByRole("button", { name: "Roll" }));
+  await screen.findByText("Couldn’t confirm the roll.");
+  onRecover.mockResolvedValueOnce({ ...receipt, dc: null });
+  fireEvent.click(screen.getByRole("button", { name: "Clear effect" }));
+  await waitFor(() => expect(screen.getByText("Recovered")).toBeVisible());
+  expect(screen.queryByText("Couldn’t confirm the roll.")).toBeNull();
+});
+
+it("retains an actual failed check when recording a subsequent table recovery", async () => {
+  const { onRecover } = setup();
+  onRecover.mockResolvedValueOnce({
+    ...receipt,
+    success: false,
+    roll: {
+      formula: "1d20",
+      total: 5,
+      expression: {
+        kind: "dice",
+        dice: [{ sides: 20, value: 5, kept: true }],
+        total: 5,
+      },
+    },
+  });
+  fireEvent.click(await screen.findByRole("button", { name: "Roll" }));
+  await screen.findByText("Still active · DC 15");
+  onRecover.mockResolvedValueOnce({ ...receipt, dc: null });
+  fireEvent.click(screen.getByRole("button", { name: "Clear effect" }));
+  await waitFor(() => expect(screen.getByText("Recovered · DC 15")).toBeVisible());
+  expect(screen.getByRole("status", { name: "1d20: 5" })).toBeVisible();
+});

@@ -63,6 +63,15 @@ export function EncounterPersistentRecovery({
   const [tableResult, setTableResult] = useState<PersistentRecoveryResultView>();
   const [clearing, setClearing] = useState(false);
   const result = tableResult ?? dice.result ?? recordedResult;
+  const check = result?.roll
+    ? result
+    : tableResult &&
+      (dice.result?.roll
+        ? dice.result
+        : recordedResult?.roll
+          ? recordedResult
+          : undefined);
+  const displayedDc = check?.dc ?? result?.dc;
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const resultFocus = useRef<{
@@ -206,7 +215,9 @@ export function EncounterPersistentRecovery({
         }}
         content={
           <div ref={panel} className="atlas-dice-popover">
-            {dice.error && <ErrorNotice error={dice.error} title={dice.error} />}
+            {dice.error && !tableResult?.success && (
+              <ErrorNotice error={dice.error} title={dice.error} />
+            )}
             {error && (
               <ErrorNotice
                 error={error}
@@ -297,8 +308,8 @@ export function EncounterPersistentRecovery({
             )}
             {result && (
               <>
-                {result.roll && (
-                  <RollResult outcome={result.roll} pending={dice.animating} />
+                {check?.roll && (
+                  <RollResult outcome={check.roll} pending={dice.animating} />
                 )}
                 {!dice.animating && (
                   <p>
@@ -309,7 +320,7 @@ export function EncounterPersistentRecovery({
                       : mode === "end_turn"
                         ? "Recovery failed"
                         : "Still active"}
-                    {result.dc == null ? "" : ` · DC ${result.dc}`}
+                    {displayedDc == null ? "" : ` · DC ${displayedDc}`}
                   </p>
                 )}
               </>

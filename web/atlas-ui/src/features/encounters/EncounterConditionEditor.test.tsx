@@ -652,3 +652,71 @@ it("switches duration Stunned to an exclusive action value", async () => {
     ),
   );
 });
+
+it("selects duration Stunned when switching from another timed condition", async () => {
+  const onSave = vi.fn().mockResolvedValue(undefined);
+  render(
+    <EncounterConditionEditor
+      definitions={[
+        {
+          condition_ref: "frightened",
+          name: "Frightened",
+          editor_kind: "frightened",
+          supports_duration_instead_of_value: false,
+          scope_label: null,
+          supports_extra_action: false,
+          eligibility: { kind: "available" },
+          has_value: true,
+          default_value: 1n,
+          automation_level: "automated",
+          applies_to: [],
+          categories: [],
+        },
+        {
+          condition_ref: "stunned",
+          name: "Stunned",
+          editor_kind: "stunned",
+          supports_duration_instead_of_value: true,
+          scope_label: null,
+          supports_extra_action: false,
+          eligibility: { kind: "available" },
+          has_value: true,
+          default_value: 1n,
+          automation_level: "automated",
+          applies_to: [],
+          categories: [],
+        },
+      ]}
+      participants={[]}
+      disabled={false}
+      pending={false}
+      onSave={onSave}
+    />,
+  );
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Add condition" }));
+  fireEvent.click(await screen.findByText("Frightened"));
+  fireEvent.click(screen.getByRole("button", { name: "Add duration" }));
+  expect(
+    await screen.findByRole("spinbutton", { name: "Duration amount" }),
+  ).toHaveValue("1");
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Add condition" }));
+  fireEvent.click(await screen.findByText("Stunned"));
+  expect(await screen.findByText("For a duration")).toBeVisible();
+  expect(screen.queryByRole("spinbutton", { name: "Condition value" })).toBeNull();
+  await apply({
+    value: undefined,
+    duration: {
+      amount: 1n,
+      unit: "rounds",
+      timing: { event: "end", participant_key: "actor" },
+    },
+  });
+  await waitFor(() =>
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        value: undefined,
+        duration: expect.objectContaining({ amount: 1n }),
+      }),
+    ),
+  );
+});
