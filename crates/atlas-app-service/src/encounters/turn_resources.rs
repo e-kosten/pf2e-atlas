@@ -7,7 +7,7 @@ use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::*;
 use atlas_local_state::{
     EncounterBoundaryClaim, EncounterBoundaryKind, EncounterParticipant, ParticipantKind,
-    PreparedConditionEvent, TurnResourceEffect, TurnResources,
+    PreparedConditionEvent, TurnResources,
 };
 
 pub(super) fn prepare_start(
@@ -20,7 +20,7 @@ pub(super) fn prepare_start(
     if participant.participant_kind == ParticipantKind::Hazard {
         return Ok((None, vec![]));
     }
-    let budget = rules::capabilities::action_budget(participant, sources);
+    let plan = rules::capabilities::RegainPlan::evaluate(participant, sources);
     let dying = participant.track_dying
         && participant.current_hp == Some(0)
         && participant.conditions.iter().any(|c| {
@@ -29,15 +29,11 @@ pub(super) fn prepare_start(
         });
     let pending_reason = if dying && !dying_completed {
         Some("Resolve Dying recovery before regaining actions.".into())
-    } else if budget.actions.adjusted_value.is_none() {
+    } else if plan.total().is_none() {
         Some(
-            budget
-                .notes
-                .first()
-                .map(|note| note.reason.clone())
-                .unwrap_or_else(|| {
-                    "Set the missing condition values before regaining actions.".into()
-                }),
+            plan.missing_reason()
+                .unwrap_or("Set the missing condition values before regaining actions.")
+                .into(),
         )
     } else {
         None
@@ -46,34 +42,17 @@ pub(super) fn prepare_start(
     let mut claims = vec![];
     let mut effects = vec![];
     if pending_reason.is_none() {
-        let lost =
-            rules::capabilities::numeric_stunned_actions_lost(participant, sources).unwrap_or(0);
-        if let Some(stunned) = participant.conditions.iter().find(|c| {
+        let lost = plan.stunned_loss().unwrap_or(0);
+        if participant.conditions.iter().any(|c| {
             condition_rule_for_key(c.condition_key.as_deref()) == Some(ConditionRule::Stunned)
                 && c.value.is_some_and(|v| v > 0)
         }) && lost > 0
         {
-            let action = ConditionLifecycleActionView::StunnedActionsLost {
-                condition_id: stunned.condition_id,
-                actions_lost: lost,
-            };
             let mut at_regain = participant.clone();
             at_regain.turn_resources = None;
-            changes = rules::lifecycle::prepare_lifecycle(&at_regain, &action, None, id, sources)?
-                .resolve(None)?;
-            for condition in participant.conditions.iter().filter(|c| {
-                condition_rule_for_key(c.condition_key.as_deref()) == Some(ConditionRule::Stunned)
-            }) {
-                if let Some(before) = condition.value {
-                    effects.push(TurnResourceEffect {
-                        condition_id: Some(condition.condition_id),
-                        name: condition.name.clone(),
-                        before: Some(before),
-                        after: Some((before - lost).max(0)),
-                        actions_lost: lost.min(before),
-                    });
-                }
-            }
+            let transition = rules::lifecycle::consume_numeric_stunned(&at_regain, lost)?;
+            changes = transition.changes;
+            effects = transition.effects;
             claims.push(EncounterBoundaryClaim {
                 participant_key: participant.participant_key.clone(),
                 round_number: round,
@@ -85,13 +64,13 @@ pub(super) fn prepare_start(
     let total = if pending_reason.is_some() {
         0
     } else {
-        budget.actions.adjusted_value.unwrap_or(0)
+        plan.total().unwrap_or(0)
     };
-    let extra = i64::from(
-        total > 0
-            && !budget.quickened_sources.is_empty()
-            && budget.extra_action_unavailable_reason.is_none(),
-    );
+    let extra = if pending_reason.is_none() {
+        plan.extra()
+    } else {
+        0
+    };
     // Permission to react is separate from owning an unspent reaction. A
     // condition ending later in the turn must not manufacture or erase stock.
     let (reactions_total, reactions_remaining) = if pending_reason.is_none() {
@@ -107,7 +86,7 @@ pub(super) fn prepare_start(
         before_first_turn: false,
         allocation: pending_reason
             .is_none()
-            .then(|| rules::capabilities::action_allocation(participant, sources))
+            .then(|| plan.allocation())
             .flatten(),
         actions_open: pending_reason.is_none(),
         participant_key: participant.participant_key.clone(),
@@ -118,21 +97,7 @@ pub(super) fn prepare_start(
         regular_remaining: total - extra,
         extra_total: extra,
         extra_remaining: extra,
-        extra_uses: participant
-            .conditions
-            .iter()
-            .filter(|c| {
-                condition_rule_for_key(c.condition_key.as_deref()) == Some(ConditionRule::Quickened)
-            })
-            .map(|c| c.extra_action.clone())
-            .chain(
-                sources
-                    .active_entries(participant)
-                    .into_iter()
-                    .filter(|c| c.rule == ConditionRule::Quickened)
-                    .map(|_| atlas_local_state::ConditionExtraAction::Unspecified),
-            )
-            .collect(),
+        extra_uses: plan.extra_uses(),
         reactions_total,
         reactions_remaining,
         effects,
@@ -309,12 +274,14 @@ impl AtlasAppService {
             ));
         }
         let mut claims = vec![];
-        let (source_conditions, reference_revision) =
-            if matches!(request.action, TurnResourceAction::Regain) {
-                source_action_context(self, participant)?
-            } else {
-                (Default::default(), None)
-            };
+        let (source_conditions, reference_revision) = if matches!(
+            request.action,
+            TurnResourceAction::Regain | TurnResourceAction::Spend { .. }
+        ) {
+            source_action_context(self, participant)?
+        } else {
+            (Default::default(), None)
+        };
         let changes = match request.action {
             TurnResourceAction::GrantReaction => {
                 if participant.turn_resources.is_some() {

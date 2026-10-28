@@ -9,6 +9,86 @@ use atlas_local_state::{
     PreparedConditionEvent, SavedPendingConsequence,
 };
 
+pub(in crate::encounters) struct StunnedTransition {
+    pub changes: PreparedConditionEvent,
+    pub effects: Vec<atlas_local_state::TurnResourceEffect>,
+}
+
+pub(in crate::encounters) fn consume_numeric_stunned(
+    participant: &EncounterParticipant,
+    actions_lost: i64,
+) -> AppServiceResult<StunnedTransition> {
+    let mut changes = PreparedConditionEvent::default();
+    let effects: Vec<_> = participant
+        .conditions
+        .iter()
+        .filter(|condition| {
+            condition_rule_for_key(condition.condition_key.as_deref())
+                == Some(ConditionRule::Stunned)
+        })
+        .filter_map(|condition| {
+            condition
+                .value
+                .map(|before| atlas_local_state::TurnResourceEffect {
+                    condition_id: Some(condition.condition_id),
+                    name: condition.name.clone(),
+                    before: Some(before),
+                    after: Some((before - actions_lost).max(0)),
+                    actions_lost: before.min(actions_lost),
+                })
+        })
+        .collect();
+    if let Some(mut resources) = participant
+        .turn_resources
+        .clone()
+        .filter(|r| r.pending_reason.is_none())
+    {
+        let extra_lost = resources.extra_remaining.min(actions_lost);
+        resources.extra_remaining -= extra_lost;
+        resources.regular_remaining -= actions_lost - extra_lost;
+        if resources.actions_open
+            && let Some(allocation) = &mut resources.allocation
+        {
+            let value = super::causes::condition_causes(
+                participant,
+                None,
+                crate::encounters::rules::source_conditions::SourceConditions::empty(),
+            )
+            .active
+            .into_iter()
+            .filter(|cause| cause.rule == ConditionRule::Stunned)
+            .filter_map(|cause| cause.value)
+            .max()
+            .ok_or_else(|| {
+                AppServiceError::invalid_request("Current Stunned value is unavailable")
+            })?;
+            allocation.adjustments.push(
+                atlas_local_state::TurnActionAdjustment::StunnedDuringTurn {
+                    value,
+                    lost: actions_lost,
+                },
+            );
+        }
+        resources.effects.extend(effects.iter().cloned());
+        changes.turn_resources.push(resources);
+    }
+    // One overlapping action loss reduces every concurrently active numeric source.
+    for condition in &participant.conditions {
+        if condition_rule_for_key(condition.condition_key.as_deref())
+            == Some(ConditionRule::Stunned)
+            && condition.value.is_some()
+        {
+            reduce_source(
+                participant,
+                condition,
+                positive_value(condition)?.saturating_sub(actions_lost),
+                &mut changes,
+            );
+        }
+    }
+    Ok(StunnedTransition { changes, effects })
+}
+
 pub(in crate::encounters) fn prepare_lifecycle<'a>(
     participant: &'a EncounterParticipant,
     action: &ConditionLifecycleActionView,
@@ -100,69 +180,7 @@ pub(in crate::encounters) fn prepare_lifecycle<'a>(
                     "Actions lost must match the available actions and current Stunned value",
                 ));
             }
-            if let Some(mut resources) = participant
-                .turn_resources
-                .clone()
-                .filter(|r| r.pending_reason.is_none())
-            {
-                let extra_lost = resources.extra_remaining.min(*actions_lost);
-                resources.extra_remaining -= extra_lost;
-                resources.regular_remaining -= *actions_lost - extra_lost;
-                if resources.actions_open
-                    && let Some(allocation) = &mut resources.allocation
-                {
-                    let value = super::causes::condition_causes(
-                        participant,
-                        None,
-                        crate::encounters::rules::source_conditions::SourceConditions::empty(),
-                    )
-                    .active
-                    .into_iter()
-                    .filter(|cause| cause.rule == ConditionRule::Stunned)
-                    .filter_map(|cause| cause.value)
-                    .max()
-                    .ok_or_else(|| {
-                        AppServiceError::invalid_request("Current Stunned value is unavailable")
-                    })?;
-                    allocation.adjustments.push(
-                        atlas_local_state::TurnActionAdjustment::StunnedDuringTurn {
-                            value,
-                            lost: *actions_lost,
-                        },
-                    );
-                }
-                for condition in &participant.conditions {
-                    if condition_rule_for_key(condition.condition_key.as_deref())
-                        == Some(ConditionRule::Stunned)
-                        && let Some(before) = condition.value
-                    {
-                        resources
-                            .effects
-                            .push(atlas_local_state::TurnResourceEffect {
-                                condition_id: Some(condition.condition_id),
-                                name: condition.name.clone(),
-                                before: Some(before),
-                                after: Some((before - *actions_lost).max(0)),
-                                actions_lost: before.min(*actions_lost),
-                            });
-                    }
-                }
-                changes.turn_resources.push(resources);
-            }
-            // One overlapping action loss reduces every concurrently active numeric source.
-            for condition in &participant.conditions {
-                if condition_rule_for_key(condition.condition_key.as_deref())
-                    == Some(ConditionRule::Stunned)
-                    && condition.value.is_some()
-                {
-                    reduce_source(
-                        participant,
-                        condition,
-                        positive_value(condition)?.saturating_sub(*actions_lost),
-                        &mut changes,
-                    );
-                }
-            }
+            changes = consume_numeric_stunned(participant, *actions_lost)?.changes;
         }
         ConditionLifecycleActionView::ConfusedDamageRecovery {
             consequence_key,
@@ -706,10 +724,8 @@ mod recovery_tests {
             }
             let actions_lost = if quickened { 4 } else { 3 };
             assert_eq!(
-                super::super::capabilities::numeric_stunned_actions_lost(
-                    &actor,
-                    &Default::default()
-                ),
+                super::super::capabilities::RegainPlan::evaluate(&actor, &Default::default())
+                    .stunned_loss(),
                 Some(actions_lost)
             );
             let changes = prepare_lifecycle(

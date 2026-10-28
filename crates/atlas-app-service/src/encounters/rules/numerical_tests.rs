@@ -401,13 +401,12 @@ fn confused_keeps_action_guidance_without_a_target_selection_workflow() {
 #[test]
 fn fascination_requires_its_subject() {
     use super::action_context::{
-        ActionContext, ActionFact, ActionIssue, ActionJudgment, ActionKind, evaluate_action,
+        ActionContext, ActionFact, ActionIssue, ActionKind, KnownActionFact, evaluate_action,
     };
     let actor = participant();
     let mut fascinated = actor;
     fascinated.conditions = vec![condition(3, ConditionRule::Fascinated, None)];
-    let facts = [ActionJudgment {
-        source_id: None,
+    let facts = [KnownActionFact {
         fact: ActionFact::Concentrate,
         value: true,
     }];
@@ -446,12 +445,11 @@ fn fascination_requires_its_subject() {
 #[test]
 fn fleeing_requires_its_explicit_subject() {
     use super::action_context::{
-        ActionContext, ActionFact, ActionIssue, ActionJudgment, ActionKind, evaluate_action,
+        ActionContext, ActionFact, ActionIssue, ActionKind, KnownActionFact, evaluate_action,
     };
     let mut actor = participant();
     actor.conditions = vec![condition(1, ConditionRule::Fleeing, None)];
-    let facts = [ActionJudgment {
-        source_id: Some(1),
+    let facts = [KnownActionFact {
         fact: ActionFact::FurthersEscape,
         value: true,
     }];
@@ -1335,7 +1333,11 @@ fn possible_suppression_cannot_establish_a_condition_gated_extra_action() {
     let resolved = super::causes::condition_causes(&p, None, &sources);
     assert!(resolved.known_presence(ConditionRule::Dazzled).is_err());
     assert!(resolved.known_presence(ConditionRule::Quickened).is_err());
-    assert!(super::capabilities::action_allocation(&p, &sources).is_none());
+    assert!(
+        super::capabilities::RegainPlan::evaluate(&p, &sources)
+            .allocation()
+            .is_none()
+    );
 }
 
 #[test]

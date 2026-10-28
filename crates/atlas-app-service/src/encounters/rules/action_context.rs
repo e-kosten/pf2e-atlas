@@ -22,15 +22,12 @@ pub(in crate::encounters) enum ActionFact {
     MentalOnly,
     RelatesToFascination,
     FurthersEscape,
-    Cantrip,
     VoluntaryIngestion,
     FollowsControllerInstructions,
 }
 
-/// A judgment is tied to its condition source; one threat's escape is not another's.
 #[derive(Debug, Clone, Copy)]
-pub(in crate::encounters) struct ActionJudgment {
-    pub source_id: Option<i64>,
+pub(in crate::encounters) struct KnownActionFact {
     pub fact: ActionFact,
     pub value: bool,
 }
@@ -39,33 +36,14 @@ pub(in crate::encounters) struct ActionContext<'a> {
     pub kind: ActionKind,
     pub reaction: Option<bool>,
     pub other_participant: Option<&'a str>,
-    pub facts: &'a [ActionJudgment],
+    pub facts: &'a [KnownActionFact],
 }
 
 impl ActionContext<'_> {
-    fn fact(&self, source_id: &ConditionSourceKey, fact: ActionFact) -> Option<bool> {
-        let scoped: Vec<_> = self
-            .facts
-            .iter()
-            .filter(|entry| {
-                entry.fact == fact
-                    && source_id.saved_id().is_some()
-                    && entry.source_id == source_id.saved_id()
-            })
-            .collect();
-        let values: Vec<_> = if scoped.is_empty() {
-            self.facts
-                .iter()
-                .filter(|entry| entry.fact == fact && entry.source_id.is_none())
-                .collect()
-        } else {
-            scoped
-        };
-        let first = values.first()?.value;
-        values
-            .iter()
-            .all(|entry| entry.value == first)
-            .then_some(first)
+    fn fact(&self, fact: ActionFact) -> Option<bool> {
+        let mut values = self.facts.iter().filter(|entry| entry.fact == fact);
+        let first = values.next()?.value;
+        values.all(|entry| entry.value == first).then_some(first)
     }
 }
 
@@ -124,7 +102,7 @@ impl ActionEvaluation {
         fact: ActionFact,
         permitted: bool,
     ) {
-        match context.fact(source_id, fact) {
+        match context.fact(fact) {
             Some(value) if value != permitted => self.prohibit(source_id, rule),
             None => self.issues.push(ActionIssue::NeedsFact {
                 source_id: source_id.clone(),
@@ -151,7 +129,7 @@ impl ActionEvaluation {
         source_id: &ConditionSourceKey,
         fact: ActionFact,
     ) {
-        match context.fact(source_id, fact) {
+        match context.fact(fact) {
             Some(true) => self.check(source_id, 5),
             Some(false) => {}
             None => self.issues.push(ActionIssue::NeedsFact {
@@ -236,7 +214,7 @@ fn evaluate_cause(
                 }),
             }
         }
-        ConditionRule::Fascinated => match context.fact(&id, ActionFact::Concentrate) {
+        ConditionRule::Fascinated => match context.fact(ActionFact::Concentrate) {
             Some(true) => {
                 if matches!(
                     cause.source.saved().map(|source| &source.parameters),
