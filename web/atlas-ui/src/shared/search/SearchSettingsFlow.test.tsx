@@ -249,3 +249,37 @@ it("offers match display for text searches without showing Similar-only weight c
   );
   expect(apply).not.toHaveBeenCalled();
 });
+
+it.each([
+  { parts: [], message: "Select at least one section." },
+  {
+    parts: ["unavailable-section"],
+    message: "Some selected sections are unavailable. Choose the sections again.",
+  },
+])(
+  "explains invalid Custom sections in the overview and lets Choose sections repair them ($parts)",
+  async ({ parts, message }) => {
+    const { apply } = setup({
+      ...search,
+      sourceSections: "custom",
+      similarityGeneration: "generation-1",
+      similarity: { ...search.similarity, parts },
+    });
+    await waitFor(() => expect(screen.getByText(message)).toBeVisible());
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Choose sections" }));
+    const all = await screen.findByRole("checkbox", { name: "Select all" });
+    fireEvent.click(all);
+    expect(screen.queryByText(message)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Back to search settings" }));
+    expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(apply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceSections: "all",
+        similarity: { ...search.similarity, parts: null },
+      }),
+      "bge-base",
+    );
+  },
+);
