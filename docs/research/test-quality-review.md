@@ -29,7 +29,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | crates/atlas-search | 15 | 0 | 15 | 0 |
 | crates/atlas-storage | 3 | 0 | 3 | 0 |
 | crates/atlas-tags | 4 | 0 | 4 | 0 |
-| crates/atlas-web | 3 | 3 | 0 | 0 |
+| crates/atlas-web | 3 | 0 | 3 | 0 |
 | dev-tools/dice-prototype | 1 | 0 | 1 | 0 |
 | dev-tools/release | 3 | 0 | 3 | 0 |
 | dev-tools/source-contracts | 28 | 0 | 26 | 2 |
@@ -349,9 +349,9 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [crates/atlas-web/src/assets.rs](../../crates/atlas-web/src/assets.rs) | pending | — |
-| [crates/atlas-web/src/tests.rs](../../crates/atlas-web/src/tests.rs) | pending | — |
-| [crates/atlas-web/src/tests/read_abandonment_tests.rs](../../crates/atlas-web/src/tests/read_abandonment_tests.rs) | pending | — |
+| [crates/atlas-web/src/assets.rs](../../crates/atlas-web/src/assets.rs) | reviewed | Embedding ownership test protects borrowed built-in assets in debug and release; real router tests own bytes, fallback and HTTP cache behavior. |
+| [crates/atlas-web/src/tests.rs](../../crates/atlas-web/src/tests.rs) | mixed | Generic transport review covers compatibility-before-admission, exact typed errors, strict fields, request path identity/revisions, cancellation, discovery, search, lists and selected reading. Assets now require exact embedded bytes and missing JavaScript requires 404 rather than SPA fallback. Condition transport cases and fixtures excluded and unchanged. |
+| [crates/atlas-web/src/tests/read_abandonment_tests.rs](../../crates/atlas-web/src/tests/read_abandonment_tests.rs) | reviewed | Real HTTP/1 disconnect, queued and running cancellation retain blocking capacity until completion and avoid post-abandonment work; dropped mutation still completes once. Existing bounded channels/deadlines protect observable concurrency behavior; retained. |
 
 ### dev-tools/dice-prototype
 
@@ -719,3 +719,5 @@ Completion requires every inventory entry to have a substantive disposition, eve
 - Every app-service entry has a substantive disposition. CLI, web transport and frontend entries remain pending; no whole-project completion or final gate/CI claim is made.
 
 CLI milestone validation: 52 unit tests; roll 3, relationships 7, source product 21, agent skills 10, help 7, completions 2, tag validation 3 and version 1 passed. The normally ignored bounded native setup/search scenario also passed explicitly (141.81 s). Frozen terminal references were not updated.
+
+Web milestone validation: complete atlas-web unit/integration and doc-test command passed, including the real TCP disconnect test. Frontend bundle rebuilt to match the contract digest before compilation; no visual references changed.
