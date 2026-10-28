@@ -125,6 +125,10 @@ fn relationship_discovery_validates_scope_and_intersects_saved_list_keys() {
     };
     assert_eq!(artifact_generation, generation);
     assert_eq!(value.options.len(), 1);
+    assert_eq!(
+        value.options[0].value,
+        QueryLiteral::String("creature".into())
+    );
     assert_eq!(value.options[0].distinct_roots, 1);
     let mut main = constraint.clone();
     main.include_contents = false;
