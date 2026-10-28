@@ -106,7 +106,7 @@ saved encounter expenditure. Use and Restore are explicit, independent of dice a
 action/reaction tracking. Initiative advancement refreshes per-turn frequencies
 for all participants and per-round frequencies at their owner's turn start, matching
 the pinned Foundry recharge policy. Longer intervals restore explicitly because
-Atlas has no game clock. Reads and source refreshes do not reset expenditure.
+Atlas has no game clock. Reads and unrelated source refreshes do not reset bound expenditure.
 Turn advancement prepares incoming source conditions and frequency refreshes in
 one reference snapshot before the guarded write; it never re-resolves a mutable
 encounter slug between preparations. Ordinary resolved damage that needs no
