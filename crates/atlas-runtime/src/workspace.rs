@@ -176,6 +176,73 @@ mod tests {
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
 
     #[test]
+    fn recovery_upgrade_from_published_twenty_one_preserves_encounters_and_migration_history() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("recovery-upgrade.sqlite");
+        register_extensions().unwrap();
+        let published = Workspace::at(&path).unwrap();
+        published.migrate(&MIGRATIONS[..21], |_| Ok(())).unwrap();
+        let write = published.write(21).unwrap();
+        write.connection().execute_batch(r#"
+            INSERT INTO encounters(id,encounter_key,slug,name,note,status,round_number,revision,created_at,updated_at)
+            VALUES(1,'legacy-encounter','legacy','Keep encounter','Encounter note','running',4,7,'before','before');
+            INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative,initiative_order,current_hp,max_hp,temporary_hp,level_override,side,hidden,note,created_at,updated_at)
+            VALUES(1,1,'legacy-participant','pc',1,'Keep participant',15,1,13,20,3,5,'ally',1,'Participant note','before','before');
+            UPDATE encounters SET current_turn_participant_key='legacy-participant' WHERE id=1;
+        "#).unwrap();
+        write.commit().unwrap();
+        let history = |connection: &rusqlite::Connection| {
+            connection
+                .prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=21 ORDER BY version")
+                .unwrap()
+                .query_map([], |row| Ok((row.get::<_, u32>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?)))
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap()
+        };
+        let (before, ledger) = {
+            let read = published.read(21).unwrap();
+            (
+                LocalStateRead::new(&read)
+                    .encounters()
+                    .get_with_participants("legacy")
+                    .unwrap()
+                    .unwrap(),
+                history(read.connection()),
+            )
+        };
+        let upgraded = initialize_workspace(&path).unwrap();
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let local = LocalStateRead::new(&read);
+        assert_eq!(
+            local
+                .encounters()
+                .get_with_participants("legacy")
+                .unwrap()
+                .unwrap(),
+            before
+        );
+        assert_eq!(history(read.connection()), ledger);
+        assert!(
+            local
+                .encounters()
+                .participant_baseline("legacy-participant")
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            read.connection()
+                .query_row(
+                    "SELECT name FROM schema_migrations WHERE version=22",
+                    [],
+                    |row| row.get::<_, String>(0)
+                )
+                .unwrap(),
+            "encounter-recovery"
+        );
+    }
+
+    #[test]
     fn reference_filter_upgrade_preserves_saved_lists_from_published_schema_seventeen() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("reference-upgrade.sqlite");
@@ -444,7 +511,7 @@ mod tests {
         write
             .connection()
             .execute_batch(
-                "DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DROP TABLE similarity_parts; DELETE FROM schema_migrations WHERE version>=20; PRAGMA user_version=19;",
+                "DROP TABLE encounter_recovery_receipts; DROP TABLE encounter_participant_baselines; DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DROP TABLE similarity_parts; DELETE FROM schema_migrations WHERE version>=20; PRAGMA user_version=19;",
             )
             .unwrap();
         let main_ledger = |connection: &rusqlite::Connection| {
@@ -580,7 +647,7 @@ mod tests {
                 ],
             )
             .unwrap();
-        write.connection().execute_batch("DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DELETE FROM schema_migrations WHERE version=21; PRAGMA user_version=20;").unwrap();
+        write.connection().execute_batch("DROP TABLE encounter_recovery_receipts; DROP TABLE encounter_participant_baselines; DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DELETE FROM schema_migrations WHERE version>=21; PRAGMA user_version=20;").unwrap();
         write.commit().unwrap();
         let source = directory.path().join("absent-source");
         let models = directory.path().join("absent-models");

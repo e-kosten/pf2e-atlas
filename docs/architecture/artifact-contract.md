@@ -81,7 +81,7 @@ recovery request identities. Historical participants have no baseline: migration
 never treats their current damaged/spent state as creation facts. Local-state
 captures final creation HP after source-condition initialization and persists
 reset/rest replacements under one encounter revision guard and savepoint. Names,
-notes, side, visibility and roster position remain outside the baseline.
+notes, assigned levels, sides, roster dimming and roster positions are retained.
 
 Pre-release separate-file formats have no compatibility reader or conversion
 shim. Future workspace upgrades use ordered migrations with recorded checksums,

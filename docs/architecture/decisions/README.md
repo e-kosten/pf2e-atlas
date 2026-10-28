@@ -55,7 +55,7 @@ This index is the quickest way to scan accepted architecture decision records fo
 
 - [`0058-browser-routing.md`](./0058-browser-routing.md): generated TanStack routes and typed destinations, persistent Search layout and separate request/reading lifetimes.
 
-- [`0059-encounter-recovery.md`](./0059-encounter-recovery.md): versioned creation gameplay baselines, previewed overnight recovery and atomic retry-safe replacements.
+- [`0061-encounter-recovery.md`](./0061-encounter-recovery.md): versioned creation gameplay baselines, previewed overnight recovery and atomic retry-safe replacements.
 
 ## Historical ADRs
 
