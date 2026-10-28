@@ -441,6 +441,7 @@ fn label_only_trait_baseline_and_content_oracles_match_both_product_profiles() {
             })
             .unwrap();
         assert_eq!(exact.eligible_candidates, 3);
+        assert_eq!(exact.runs.len(), variants.len());
         for (variant, run) in variants.iter().zip(&exact.runs) {
             let bounded = service
                 .configurable_similar(ConfigurableSimilarRequest {
@@ -458,6 +459,20 @@ fn label_only_trait_baseline_and_content_oracles_match_both_product_profiles() {
                 })
                 .unwrap()
                 .unwrap();
+            assert_eq!(run.rows.len(), keys.len());
+            let expected = if matches!(variant.options, SimilarityOptions::Baseline {}) {
+                &keys[..]
+            } else {
+                &keys[..2]
+            };
+            let mut actual = bounded
+                .results
+                .records
+                .iter()
+                .map(|row| row.record.key.clone())
+                .collect::<Vec<_>>();
+            actual.sort();
+            assert_eq!(actual, expected, "{}", variant.id);
             for row in bounded.results.records {
                 assert!(
                     (row.score

@@ -26,7 +26,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | crates/atlas-local-state | 7 | 7 | 0 | 0 |
 | crates/atlas-record | 18 | 0 | 18 | 0 |
 | crates/atlas-runtime | 7 | 0 | 7 | 0 |
-| crates/atlas-search | 15 | 15 | 0 | 0 |
+| crates/atlas-search | 15 | 0 | 15 | 0 |
 | crates/atlas-storage | 3 | 0 | 3 | 0 |
 | crates/atlas-tags | 4 | 0 | 4 | 0 |
 | crates/atlas-web | 3 | 3 | 0 | 0 |
@@ -312,21 +312,21 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [crates/atlas-search/src/configurable_similarity/tests.rs](../../crates/atlas-search/src/configurable_similarity/tests.rs) | pending | — |
-| [crates/atlas-search/src/core_search_tests.rs](../../crates/atlas-search/src/core_search_tests.rs) | pending | — |
-| [crates/atlas-search/src/error/tests.rs](../../crates/atlas-search/src/error/tests.rs) | pending | — |
-| [crates/atlas-search/src/fusion.rs](../../crates/atlas-search/src/fusion.rs) | pending | — |
-| [crates/atlas-search/src/page.rs](../../crates/atlas-search/src/page.rs) | pending | — |
-| [crates/atlas-search/src/reference_resolution.rs](../../crates/atlas-search/src/reference_resolution.rs) | pending | — |
-| [crates/atlas-search/src/relationship_count_tests.rs](../../crates/atlas-search/src/relationship_count_tests.rs) | pending | — |
-| [crates/atlas-search/src/relationship_tests.rs](../../crates/atlas-search/src/relationship_tests.rs) | pending | — |
-| [crates/atlas-search/src/result_order_tests.rs](../../crates/atlas-search/src/result_order_tests.rs) | pending | — |
-| [crates/atlas-search/src/similarity_evaluation/tests.rs](../../crates/atlas-search/src/similarity_evaluation/tests.rs) | pending | — |
-| [crates/atlas-search/src/similarity_scoring/tests.rs](../../crates/atlas-search/src/similarity_scoring/tests.rs) | pending | — |
-| [crates/atlas-search/src/tests.rs](../../crates/atlas-search/src/tests.rs) | pending | — |
-| [crates/atlas-search/src/text.rs](../../crates/atlas-search/src/text.rs) | pending | — |
-| [crates/atlas-search/src/text_inference_tests.rs](../../crates/atlas-search/src/text_inference_tests.rs) | pending | — |
-| [crates/atlas-search/src/traits.rs](../../crates/atlas-search/src/traits.rs) | pending | — |
+| [crates/atlas-search/src/configurable_similarity/tests.rs](../../crates/atlas-search/src/configurable_similarity/tests.rs) | changed | Literal selected/hydrated source prose replaces nonempty assertions; compact allocation checks its actual 32-row bound rather than exact spare capacity. Retained exact work limits, >4096 candidate union, 65-component ranking, source/profile bindings, cancellation and batched hydration cases. |
+| [crates/atlas-search/src/core_search_tests.rs](../../crates/atlas-search/src/core_search_tests.rs) | reviewed | Independent synthetic vectors verify carried/private versus Core witnesses, identity inclusion and fallbacks, conflicting sources, 127/128 section boundary, profile/ranking composition, edition suppression and stable sorted pages. Retained distinct composition cases. |
+| [crates/atlas-search/src/error/tests.rs](../../crates/atlas-search/src/error/tests.rs) | reviewed | Literal query repair text/token counts and exact typed error classes preserve user-actionable failures; forwarded dependency messages intentionally test context retention. Retained. |
+| [crates/atlas-search/src/fusion.rs](../../crates/atlas-search/src/fusion.rs) | reviewed | Literal empty, constant, unequal weighted lane and RRF expectations distinguish missing evidence from a constant lane and preserve weighting; retained. |
+| [crates/atlas-search/src/page.rs](../../crates/atlas-search/src/page.rs) | changed | Offset cases now include first/maximum valid arithmetic and multiplication overflow; page metadata covers empty, partial final, beyond-end and next-page overflow cases alongside the original ordinary continuation. |
+| [crates/atlas-search/src/reference_resolution.rs](../../crates/atlas-search/src/reference_resolution.rs) | changed | Exact reference target key is required in addition to display/family metadata. Retained collision, wrong pack/kind, bare name and nested-looking name rejections. |
+| [crates/atlas-search/src/relationship_count_tests.rs](../../crates/atlas-search/src/relationship_count_tests.rs) | reviewed | Independent literal root/occurrence counts cover >100 related roots, duplicate references, self-excluding scalar and child facets, numeric stats, empty/key scopes, direction/owners and edition preference; retained. |
+| [crates/atlas-search/src/relationship_tests.rs](../../crates/atlas-search/src/relationship_tests.rs) | changed | Beyond-cap filtered result must be the exact expected root; the complete 125 occurrence sequence must cross pages without gaps or duplicates. Retained conjunctive eligibility, exact owner/direction, source-content scope, proof polarity and admission validation. |
+| [crates/atlas-search/src/result_order_tests.rs](../../crates/atlas-search/src/result_order_tests.rs) | changed | Semantic paging must enumerate all 320 unique candidates; map insertion cannot conceal duplicates. Dense-window sorting retains exactly both expected roots. Retained native prices, unavailable ties, complete >1000 root paging, random seeds, scopes and immutable witnesses. |
+| [crates/atlas-search/src/similarity_evaluation/tests.rs](../../crates/atlas-search/src/similarity_evaluation/tests.rs) | changed | Trait evaluation requires all variant runs, every candidate row and exact product key sets, distinguishing raw baseline from positive content-score selection. Retained exact versus bounded product equivalence, direct winner beyond KNN lanes, filtered/undefined dispositions, identity and cancellation. |
+| [crates/atlas-search/src/similarity_scoring/tests.rs](../../crates/atlas-search/src/similarity_scoring/tests.rs) | changed | Cached/direct maxima equivalence gains an independent literal zero-decay score and tied contributor selector. Retained overlap/duplicates, role masks, negative floor, cancellation, centroid cancellation, identity weighting and invalid component-address protection. |
+| [crates/atlas-search/src/tests.rs](../../crates/atlas-search/src/tests.rs) | changed | Alias resolution requires the exact key/evidence and physical variants require the exact compatible keys including cardinality. Retained identity tiers, row-coherent lexical matches, remaster policy, seed/scope eligibility, body-free batching, graph attribution, generation and complete/unknown/truncated variant distinctions. |
+| [crates/atlas-search/src/text.rs](../../crates/atlas-search/src/text.rs) | changed | Excerpts require exact Unicode word-preserving output and independent 240/241 character unbroken Unicode boundaries; short text remains exact, beyond merely ending in an ellipsis. |
+| [crates/atlas-search/src/text_inference_tests.rs](../../crates/atlas-search/src/text_inference_tests.rs) | changed | Removed self-incremented invocation counter/assertions and renamed the native test to its actual evidence. Real native filtered vector/hybrid paging remains; FTS and stored-vector Similar require complete literal eligible key sets without a prepared query. No exact invocation-count claim remains. |
+| [crates/atlas-search/src/traits.rs](../../crates/atlas-search/src/traits.rs) | changed | Missing configured seed vectors must return the typed readiness failure, beyond any error. Retained exact stored-trait seed, ordinary candidate key and bounded-window result. |
 
 ### crates/atlas-storage
 
@@ -690,3 +690,9 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 - `cargo test -p atlas-index`: 104 passed, two existing corpus/evidence tests ignored under their documented prerequisites. The final simplified state-partition assertion also passed a focused rerun.
 - Complete key/owner selections, exact persisted inputs, literal prices/catalog dependencies, all five discovery states and full KNN cardinality now reject plausible partial or stale outputs. Existing SQLite mutation/fault-trigger tests still validate rollback and rejection; no new production mutation probe is claimed.
+
+### Retrieval/search milestone
+
+- Initial candidate `cargo test -p atlas-search`: 99 passed, three existing ignored tests. Native BGE prepared-query/filtered paging test passed explicitly against verified assets.
+- The final sweep passed 98 cases and exposed an overly broad new trait expectation: baseline accepts its positive identity, while content methods correctly omit its nonpositive prose. The corrected test now requires literal method-specific key sets and passed its focused rerun. Final dense-window sorting and physical-variant refinements also passed focused reruns; unchanged successful cases were reused.
+- No production changes or skipped failures were used. Corpus navigation checks retain their existing explicit prerequisites. The removed counter measured only the test loop, so it never proved native invocation frequency; actual native retrieval and no-prepared-query FTS/Similar success remain protected.
