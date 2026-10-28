@@ -14,6 +14,11 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Now
 
+- [Encounter reset and overnight recovery](items/encounter-participant-baseline-reset.md)
+  Restore creation gameplay baselines and preview selected participants' full-night
+  recovery. Implementation, UX review and local validation complete; under review
+  in [PR140](https://github.com/e-kosten/pf2e-atlas/pull/140). Status: in_progress.
+
 - [Browser URL improvements](items/browser-url-improvements.md)
   Implement concise record links, stable list navigation, shareable view state,
   and clear link recovery. Status: in_progress.
@@ -111,9 +116,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Exclude unwanted indexed text consistently across retrieval modes and paging.
   Status: deferred.
 
-- [Participant baseline reset](items/encounter-participant-baseline-reset.md)
-  Reset defined encounter mechanics atomically while preserving participant
-  identity and authored notes. Status: deferred.
 
 - Table-roll preflight
   Show unusable formulas and incomplete result coverage before rolling, retaining

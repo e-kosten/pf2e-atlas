@@ -150,7 +150,7 @@ pub(super) fn initialize_participant_hp(
             "participant is no longer pristine for initialization",
         ));
     }
-    Ok(())
+    super::recovery::capture_baseline(connection, participant_key)
 }
 
 pub(crate) fn add_participant(
@@ -216,6 +216,7 @@ pub(crate) fn add_participant(
                 for resource in &participant.spell_resources {
                     connection.execute("INSERT INTO encounter_spell_resources(participant_id,resource_key,capacity,remaining,undo_remaining) VALUES(?1,?2,?3,?3,NULL)", params![id, resource.key, resource.capacity])?;
                 }
+                super::recovery::capture_baseline(connection, &participant_key)?;
                 touch_encounter(connection, encounter_id)?;
                 return Ok(participant_key);
             }

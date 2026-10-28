@@ -31,6 +31,7 @@ pub use encounters::{
     ResolvedInitiativeRoll, SavedHpEventContext, SavedPendingConsequence, SpellResource,
     UpdateEncounter, UpdateEncounterParticipant, UpdateEncounterParticipantCondition, WakingRule,
 };
+pub use encounters::{ApplyEncounterRecovery, ParticipantGameplay};
 pub use encounters::{
     EncounterDifficultyReference, SavedOutgoingTurn, TurnActionAdjustment, TurnActionAllocation,
     TurnResourceEffect, TurnResources,
@@ -42,6 +43,7 @@ pub use saved_lists::{
     SavedListItemPlacement, SavedListItemSnapshot, SavedListItemStatus, SavedListWithItems,
     SavedListsRead, SavedListsWrite, UpdateSavedList, hydrate_saved_list_item,
 };
+pub use schema::ENCOUNTER_RECOVERY_SCHEMA_SQL;
 pub use schema::{
     ABILITY_STATE_SCHEMA_SQL, STATELESS_STRIKE_ROLLS_SCHEMA_SQL, TURN_RESOURCES_SCHEMA_SQL,
 };

@@ -1,4 +1,10 @@
 #![deny(unsafe_code)]
+mod encounter_recovery;
+pub use encounter_recovery::{
+    ApplyEncounterRecoveryRequest, EncounterRecoveryAction, EncounterRecoveryParticipantView,
+    EncounterRecoveryPreviewView, OvernightHealingMode, OvernightParticipantInput,
+    PreviewEncounterRecoveryRequest,
+};
 mod encounter_difficulty;
 pub use encounter_difficulty::{
     EncounterDifficultyAddition, EncounterDifficultyBudgetView, EncounterDifficultyOpponentView,
@@ -304,6 +310,9 @@ mod tests {
         PersistentRecoveryResultView::export_all_to(path).expect("persistent recovery result");
         PersistentReviewView::export_all_to(path).expect("persistent review");
         EncounterTurnReviewView::export_all_to(path).expect("turn review bindings");
+        PreviewEncounterRecoveryRequest::export_all_to(path).expect("recovery preview request");
+        ApplyEncounterRecoveryRequest::export_all_to(path).expect("recovery request");
+        EncounterRecoveryPreviewView::export_all_to(path).expect("recovery preview");
         AdvanceEncounterTurnRequest::export_all_to(path).expect("turn advance bindings");
         ApplyEncounterSpellActionRequest::export_all_to(path).expect("spell action bindings");
         EncounterCastingRemindersRequest::export_all_to(path).expect("casting preview bindings");
