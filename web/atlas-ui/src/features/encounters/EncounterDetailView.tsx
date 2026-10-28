@@ -1,9 +1,10 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
 import { recordDestination, encountersDestination } from "../../app/destinations";
 import { EncounterModalProvider } from "./EncounterModal";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Grid } from "antd";
+import { Alert, Button, Grid, Spin } from "antd";
 import { Edit2 } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { getEncounter, getEncounterConditionDefinitions } from "../../api/atlasApi";
@@ -231,10 +232,11 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
       }
     : undefined;
   const recovery = mutations.refreshError ? (
-    <Alert
-      type="error"
+    <ErrorNotice
+      error={mutations.refreshError}
+      outcome={mutations.refreshOutcome}
+      type="warning"
       title={mutations.refreshMessage}
-      description={mutations.refreshError.message}
       action={
         <Button
           loading={mutations.pending}
@@ -265,7 +267,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
         <div>
           <section className="encounter-detail-header">
             <div>
-              <h2>{encounterSummary?.name ?? route.slug}</h2>
+              <h2>{encounterSummary?.name ?? "Encounter"}</h2>
             </div>
             <Button
               aria-label="Settings"
@@ -277,10 +279,16 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             </Button>
           </section>
           {encounter.error && !mutations.refreshError && (
-            <Alert
-              type="error"
-              title="Encounter could not load"
-              description={encounter.error.message}
+            <ErrorNotice
+              error={encounter.error}
+              title={
+                encounter.data
+                  ? "Encounter could not refresh"
+                  : "Encounter could not load"
+              }
+              description={
+                encounter.data ? "Previously loaded encounter shown." : undefined
+              }
               action={
                 <Button
                   loading={encounter.isFetching}
@@ -292,11 +300,11 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             />
           )}
           {recovery}
-          {turnReview.error && !turnReview.open && (
-            <Alert
-              type="error"
-              title="Turn review could not load"
-              description={turnReview.error.message}
+          {turnReview.error && !turnReview.open && !encounter.error && (
+            <ErrorNotice
+              error={turnReview.error}
+              compact
+              title="Turn reminders unavailable"
               action={
                 <Button
                   loading={turnReview.loading}
@@ -307,25 +315,37 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               }
             />
           )}
-          {mutations.error &&
-            mutations.errorKind !== "spell" &&
-            mutations.errorKind !== "remove" && (
-              <Alert
-                type="error"
-                title="Encounter action failed"
+          {mutations.errorMessage &&
+            ["turn", "advance", "reorder", "participant", "add-party"].includes(
+              mutations.errorKind ?? "",
+            ) && (
+              <ErrorNotice
+                error={mutations.error}
+                title={
+                  mutations.errorKind === "reorder"
+                    ? "Roster order could not be changed"
+                    : mutations.errorKind === "participant"
+                      ? "Participant could not be updated"
+                      : mutations.errorKind === "add-party"
+                        ? "Party could not be added"
+                        : "Turn could not be changed"
+                }
                 description={mutations.errorMessage}
               />
             )}
-          {turnReview.data?.next_turn_unavailable_reason ===
-            "no_initiative_participants" && (
-            <Alert
-              type="info"
-              title="Assign initiative to start turn progression."
-              action={
-                <Button onClick={() => setInitiativeOpen({})}>Assign initiative</Button>
-              }
-            />
-          )}
+          {encounter.data &&
+            turnReview.data?.next_turn_unavailable_reason ===
+              "no_initiative_participants" && (
+              <Alert
+                type="info"
+                title="Assign initiative to start turn progression."
+                action={
+                  <Button onClick={() => setInitiativeOpen({})}>
+                    Assign initiative
+                  </Button>
+                }
+              />
+            )}
         </div>
         {narrow && participantOpen && (
           <div className="encounter-mobile-navigation">
@@ -347,293 +367,305 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             </Button>
           </div>
         )}
-        <WorkspaceLayout
-          filterHeaderActions={difficulty && <EncounterDifficulty {...difficulty} />}
-          filter={
-            <EncounterRosterPane
-              encounterSummary={encounterSummary ?? undefined}
-              difficulty={difficulty}
-              removeError={
-                mutations.errorKind === "remove" && mutations.errorMessage && removalKey
-                  ? { participantKey: removalKey, message: mutations.errorMessage }
-                  : undefined
-              }
-              onRoll={async (request) => {
-                const result = await mutations.run({ kind: "initiative", request });
-                if (!("rolls" in result.receipt))
-                  throw new Error("Missing roll receipt");
-                return result.receipt;
-              }}
-              onRollInitiative={(participant) => setInitiativeOpen({ participant })}
-              recovery={recovery}
-              disabled={disabled}
-              error={
-                mutations.errorKind === "spell" || mutations.errorKind === "remove"
-                  ? undefined
-                  : mutations.errorMessage
-              }
-              currentTurnParticipantKey={
-                encounter.data?.current_turn_participant_key ?? null
-              }
-              loading={encounter.isLoading}
-              onAddRecord={async (request) => {
-                const result = await mutations.run({ kind: "add-record", request });
-                return result.active && result.refreshed;
-              }}
-              onAddParty={async (request) => {
-                await mutations.run({ kind: "add-party", request });
-              }}
-              onAddManual={async (request) => {
-                const result = await mutations.run({ kind: "add-manual", request });
-                return result.active && result.refreshed;
-              }}
-              advanceDisabled={!!turnReview.data?.next_turn_unavailable_reason}
-              advanceLoading={turnReview.preparing}
-              onAdvanceTurn={() => void turnReview.begin()}
-              onRemove={(participant) => {
-                if (removedParticipantFocus.current) return;
-                setRemovalKey(participant.participant_key);
-                removedParticipantFocus.current = {
-                  key: participant.participant_key,
-                  index: encounter.data!.participants.findIndex(
-                    (p) => p.participant_key === participant.participant_key,
-                  ),
-                  opener: document.activeElement,
-                };
-                void mutations
-                  .run({
-                    kind: "remove",
-                    participantKey: participant.participant_key,
-                  })
-                  .catch(() => {
-                    removedParticipantFocus.current = null;
-                    // The mutation owner retains the row and displays the failure.
-                  });
-              }}
-              onSelect={revealParticipant}
-              onReorder={async (participantKey, targetParticipantKey, placement) => {
-                const result = await mutations.run({
-                  kind: "reorder",
-                  request: {
-                    participant_key: participantKey,
-                    target_participant_key: targetParticipantKey,
-                    placement,
-                  },
-                });
-                return result.active && result.refreshed;
-              }}
-              onSetTurn={(participant) => {
-                followAfterRefresh.current = true;
-                void mutations
-                  .run({ kind: "turn", participantKey: participant.participant_key })
-                  .then((result) => {
-                    if (result.active && result.refreshed) followTurn(result.view);
-                  })
-                  .catch(() => {
-                    followAfterRefresh.current = false;
-                  });
-              }}
-              onUpdate={(request) => mutations.run({ kind: "participant", request })}
-              participants={encounter.data?.participants ?? []}
-              selectedParticipantKey={selected?.participant_key ?? null}
-              slug={encounterSummary?.encounter_key ?? route.slug}
-            />
-          }
-          results={
-            <EncounterInspectorPane
-              currentTurnKey={encounter.data?.current_turn_participant_key}
-              onTurnResources={async (participant, action) => {
-                if (!encounter.data) return;
-                await mutations.run({
-                  kind: "turn-resources",
-                  request: {
-                    participant_key: participant.participant_key,
-                    expected_encounter_revision: encounter.data.revision,
-                    turn_key: participant.turn_resources?.turn_key ?? null,
-                    action,
-                  },
-                });
-              }}
-              onBeginStrike={strikes.launch}
-              renderStrikeContext={strikes.renderContext}
-              onConditionRecovery={async (request) => {
-                const result = await mutations.run({
-                  kind: "condition-lifecycle",
-                  request,
-                });
-                if (!("check" in result.receipt))
-                  throw new Error("Recovery result unavailable.");
-                return result.receipt;
-              }}
-              onResolveHpLifecycle={async (request) => {
-                const result = await mutations.run({
-                  kind: "resolve-hp-lifecycle",
-                  request,
-                });
-                return result.active && result.refreshed;
-              }}
-              encounterKey={encounter.data?.encounter.encounter_key ?? route.slug}
-              artifactGeneration={encounter.data?.artifact_generation ?? null}
-              encounterRevision={encounter.data?.revision ?? 0n}
-              pending={mutations.pending}
-              recovery={recovery}
-              spellError={
-                mutations.errorKind === "spell" ? mutations.errorMessage : undefined
-              }
-              onAbilityState={async (ability, action) => {
-                const participant = selected;
-                if (!participant || !encounter.data) return false;
-                const result = await mutations.run({
-                  kind: "ability-state",
-                  request: {
-                    expected_encounter_revision: encounter.data.revision,
-                    expected_participant_revision: participant.revision,
-                    participant_key: participant.participant_key,
-                    navigation: ability.navigation,
-                    rule_ordinal: ability.rule_ordinal,
-                    action,
-                  },
-                });
-                return result.active && result.refreshed;
-              }}
-              onSpellAction={async (participant, action, expectedRevision) => {
-                try {
+        {!encounter.data && encounter.isPending && (
+          <div className="detail-empty" role="status" aria-label="Loading encounter">
+            <Spin delay={250} />
+          </div>
+        )}
+        {encounter.data && (
+          <WorkspaceLayout
+            filterHeaderActions={difficulty && <EncounterDifficulty {...difficulty} />}
+            filter={
+              <EncounterRosterPane
+                encounterSummary={encounterSummary ?? undefined}
+                difficulty={difficulty}
+                removeError={
+                  mutations.errorKind === "remove" &&
+                  mutations.errorMessage &&
+                  removalKey
+                    ? { participantKey: removalKey, message: mutations.errorMessage }
+                    : undefined
+                }
+                onRoll={async (request) => {
+                  const result = await mutations.run({ kind: "initiative", request });
+                  if (!("rolls" in result.receipt))
+                    throw new Error("Missing roll receipt");
+                  return result.receipt;
+                }}
+                onRollInitiative={(participant) => setInitiativeOpen({ participant })}
+                recovery={recovery}
+                disabled={disabled}
+                error={
+                  ["add-record", "add-manual"].includes(mutations.errorKind ?? "")
+                    ? mutations.errorMessage
+                    : undefined
+                }
+                currentTurnParticipantKey={
+                  encounter.data?.current_turn_participant_key ?? null
+                }
+                loading={encounter.isLoading}
+                onAddRecord={async (request) => {
+                  const result = await mutations.run({ kind: "add-record", request });
+                  return result.active && result.refreshed;
+                }}
+                onAddParty={async (request) => {
+                  await mutations.run({ kind: "add-party", request });
+                }}
+                onAddManual={async (request) => {
+                  const result = await mutations.run({ kind: "add-manual", request });
+                  return result.active && result.refreshed;
+                }}
+                advanceDisabled={!!turnReview.data?.next_turn_unavailable_reason}
+                advanceLoading={turnReview.preparing}
+                onAdvanceTurn={() => void turnReview.begin()}
+                onRemove={(participant) => {
+                  if (removedParticipantFocus.current) return;
+                  setRemovalKey(participant.participant_key);
+                  removedParticipantFocus.current = {
+                    key: participant.participant_key,
+                    index: encounter.data!.participants.findIndex(
+                      (p) => p.participant_key === participant.participant_key,
+                    ),
+                    opener: document.activeElement,
+                  };
+                  void mutations
+                    .run({
+                      kind: "remove",
+                      participantKey: participant.participant_key,
+                    })
+                    .catch(() => {
+                      removedParticipantFocus.current = null;
+                      // The mutation owner retains the row and displays the failure.
+                    });
+                }}
+                onSelect={revealParticipant}
+                onReorder={async (participantKey, targetParticipantKey, placement) => {
                   const result = await mutations.run({
-                    kind: "spell",
+                    kind: "reorder",
+                    request: {
+                      participant_key: participantKey,
+                      target_participant_key: targetParticipantKey,
+                      placement,
+                    },
+                  });
+                  return result.active && result.refreshed;
+                }}
+                onSetTurn={(participant) => {
+                  followAfterRefresh.current = true;
+                  void mutations
+                    .run({ kind: "turn", participantKey: participant.participant_key })
+                    .then((result) => {
+                      if (result.active && result.refreshed) followTurn(result.view);
+                    })
+                    .catch(() => {
+                      followAfterRefresh.current = false;
+                    });
+                }}
+                onUpdate={(request) => mutations.run({ kind: "participant", request })}
+                participants={encounter.data?.participants ?? []}
+                selectedParticipantKey={selected?.participant_key ?? null}
+                slug={encounterSummary?.encounter_key ?? route.slug}
+              />
+            }
+            results={
+              <EncounterInspectorPane
+                currentTurnKey={encounter.data?.current_turn_participant_key}
+                onTurnResources={async (participant, action) => {
+                  if (!encounter.data) return;
+                  await mutations.run({
+                    kind: "turn-resources",
                     request: {
                       participant_key: participant.participant_key,
-                      expected_revision: expectedRevision ?? participant.revision,
+                      expected_encounter_revision: encounter.data.revision,
+                      turn_key: participant.turn_resources?.turn_key ?? null,
+                      action,
+                    },
+                  });
+                }}
+                onBeginStrike={strikes.launch}
+                onPrepareStrike={strikes.prepare}
+                renderStrikeContext={strikes.renderContext}
+                onConditionRecovery={async (request) => {
+                  const result = await mutations.run({
+                    kind: "condition-lifecycle",
+                    request,
+                  });
+                  if (!("check" in result.receipt))
+                    throw new Error("Recovery result unavailable.");
+                  return result.receipt;
+                }}
+                onResolveHpLifecycle={async (request) => {
+                  const result = await mutations.run({
+                    kind: "resolve-hp-lifecycle",
+                    request,
+                  });
+                  return result.active && result.refreshed;
+                }}
+                encounterKey={encounter.data?.encounter.encounter_key ?? route.slug}
+                artifactGeneration={encounter.data?.artifact_generation ?? null}
+                encounterRevision={encounter.data?.revision ?? 0n}
+                pending={mutations.pending}
+                recovery={recovery}
+                spellError={
+                  mutations.errorKind === "spell" ? mutations.errorMessage : undefined
+                }
+                onAbilityState={async (ability, action) => {
+                  const participant = selected;
+                  if (!participant || !encounter.data) return false;
+                  const result = await mutations.run({
+                    kind: "ability-state",
+                    request: {
+                      expected_encounter_revision: encounter.data.revision,
+                      expected_participant_revision: participant.revision,
+                      participant_key: participant.participant_key,
+                      navigation: ability.navigation,
+                      rule_ordinal: ability.rule_ordinal,
                       action,
                     },
                   });
                   return result.active && result.refreshed;
-                } catch {
-                  return false;
+                }}
+                onSpellAction={async (participant, action, expectedRevision) => {
+                  try {
+                    const result = await mutations.run({
+                      kind: "spell",
+                      request: {
+                        participant_key: participant.participant_key,
+                        expected_revision: expectedRevision ?? participant.revision,
+                        action,
+                      },
+                    });
+                    return result.active && result.refreshed;
+                  } catch {
+                    return false;
+                  }
+                }}
+                onHpAction={async (participant, action) => {
+                  const result = await mutations.run({
+                    kind: "hp",
+                    request: {
+                      participant_key: participant.participant_key,
+                      expected_revision: participant.revision,
+                      action,
+                    },
+                  });
+                  return result.active && result.refreshed;
+                }}
+                disabled={disabled}
+                conditionsDisabled={
+                  conditionDefinitions.isPending ||
+                  conditionDefinitions.isPlaceholderData ||
+                  !!conditionDefinitions.error
                 }
-              }}
-              onHpAction={async (participant, action) => {
-                const result = await mutations.run({
-                  kind: "hp",
-                  request: {
-                    participant_key: participant.participant_key,
-                    expected_revision: participant.revision,
-                    action,
-                  },
-                });
-                return result.active && result.refreshed;
-              }}
-              disabled={disabled}
-              conditionsDisabled={
-                conditionDefinitions.isPending ||
-                conditionDefinitions.isPlaceholderData ||
-                !!conditionDefinitions.error
-              }
-              conditionError={conditionDefinitions.error}
-              onRetryConditions={() => void conditionDefinitions.refetch()}
-              error={
-                mutations.errorKind === "spell" || mutations.errorKind === "remove"
-                  ? undefined
-                  : mutations.errorMessage
-              }
-              onAddCondition={async (request) => {
-                const result = await mutations.run({ kind: "add-condition", request });
-                return result.active && result.refreshed;
-              }}
-              onCloseRecordPreview={recordPreview.close}
-              onOpenRecordFullPage={(recordKey) =>
-                navigateDestination(
-                  recordDestination({
-                    recordKey,
-                    selection: recordPreview.selection,
-                  }),
-                )
-              }
-              onReference={recordPreview.open}
-              onPreviewRankChange={recordPreview.changeRank}
-              onRemoveCondition={async (
-                participantKey,
-                conditionId,
-                expectedRevision,
-              ) => {
-                const result = await mutations.run({
-                  kind: "remove-condition",
+                conditionError={conditionDefinitions.error}
+                errorKind={mutations.errorKind}
+                onRetryConditions={() => void conditionDefinitions.refetch()}
+                error={mutations.errorMessage}
+                onAddCondition={async (request) => {
+                  const result = await mutations.run({
+                    kind: "add-condition",
+                    request,
+                  });
+                  return result.active && result.refreshed;
+                }}
+                onCloseRecordPreview={recordPreview.close}
+                onOpenRecordFullPage={(recordKey) =>
+                  navigateDestination(
+                    recordDestination({
+                      recordKey,
+                      selection: recordPreview.selection,
+                    }),
+                  )
+                }
+                onReference={recordPreview.open}
+                onPreviewRankChange={recordPreview.changeRank}
+                onRemoveCondition={async (
                   participantKey,
                   conditionId,
                   expectedRevision,
-                });
-                return result.active && result.refreshed;
-              }}
-              onPreviewCondition={mutations.previewCondition}
-              onResolveDrained={async (request) => {
-                const result = await mutations.run({
-                  kind: "resolve-drained",
-                  request,
-                });
-                return result.active && result.refreshed;
-              }}
-              onLifeSettings={async (participantKey, settings) => {
-                const result = await mutations.run({
-                  kind: "life-settings",
-                  participantKey,
-                  request: {
-                    expected_encounter_revision: encounter.data!.revision,
-                    ...settings,
-                  },
-                });
-                return result.active && result.refreshed;
-              }}
-              onRecoverPersistent={async (request) => {
-                const result = await mutations.run({
-                  kind: "persistent-recovery",
-                  request,
-                });
-                if (!("success" in result.receipt))
-                  throw new Error("Recovery result unavailable.");
-                return result.receipt;
-              }}
-              onUpdate={async (request) => {
-                const result = await mutations.run({ kind: "participant", request });
-                return result.active && result.refreshed;
-              }}
-              onUpdateCondition={async (participantKey, condition) => {
-                const result = await mutations.run({
-                  kind: "update-condition",
-                  participantKey,
-                  request: condition,
-                });
-                return result.active && result.refreshed;
-              }}
-              participant={selected}
-              participants={encounter.data?.participants ?? []}
-              conditionDefinitions={conditionDefinitions.data?.conditions ?? []}
-              damageTypes={conditionDefinitions.data?.damage_types ?? []}
-              standardRecoveryDc={
-                conditionDefinitions.data?.standard_persistent_recovery_dc
-              }
-              previewAnchor={recordPreview.anchor}
-              previewReadingHistory={recordPreview.readingHistory}
-              previewLanding={recordPreview.landing}
-              previewDetail={recordPreview.detail}
-              previewSelection={recordPreview.selection}
-              previewLoading={recordPreview.loading}
-              previewError={recordPreview.error}
-              onRetryPreview={recordPreview.retry}
-              onReloadPreview={recordPreview.reload}
-              reloadPreviewLabel={recordPreview.reloadLabel}
-              retryPreviewLabel={recordPreview.retryLabel}
-              previewRecordKey={recordPreview.recordKey}
-            />
-          }
-          collapsiblePanes={[]}
-          labels={{
-            filter: encounterSummary
-              ? `Roster (${encounterSummary.participant_count})`
-              : "Roster",
-            results: "Participant",
-          }}
-          selectedRecordKey={selected?.record_key ?? selected?.participant_key ?? null}
-          widthSpecs={ENCOUNTER_WIDTH_SPECS}
-        />
+                ) => {
+                  const result = await mutations.run({
+                    kind: "remove-condition",
+                    participantKey,
+                    conditionId,
+                    expectedRevision,
+                  });
+                  return result.active && result.refreshed;
+                }}
+                onPreviewCondition={mutations.previewCondition}
+                onResolveDrained={async (request) => {
+                  const result = await mutations.run({
+                    kind: "resolve-drained",
+                    request,
+                  });
+                  return result.active && result.refreshed;
+                }}
+                onLifeSettings={async (participantKey, settings) => {
+                  const result = await mutations.run({
+                    kind: "life-settings",
+                    participantKey,
+                    request: {
+                      expected_encounter_revision: encounter.data!.revision,
+                      ...settings,
+                    },
+                  });
+                  return result.active && result.refreshed;
+                }}
+                onRecoverPersistent={async (request) => {
+                  const result = await mutations.run({
+                    kind: "persistent-recovery",
+                    request,
+                  });
+                  if (!("success" in result.receipt))
+                    throw new Error("Recovery result unavailable.");
+                  return result.receipt;
+                }}
+                onUpdate={async (request) => {
+                  const result = await mutations.run({ kind: "participant", request });
+                  return result.active && result.refreshed;
+                }}
+                onUpdateCondition={async (participantKey, condition) => {
+                  const result = await mutations.run({
+                    kind: "update-condition",
+                    participantKey,
+                    request: condition,
+                  });
+                  return result.active && result.refreshed;
+                }}
+                participant={selected}
+                participants={encounter.data?.participants ?? []}
+                conditionDefinitions={conditionDefinitions.data?.conditions ?? []}
+                damageTypes={conditionDefinitions.data?.damage_types ?? []}
+                standardRecoveryDc={
+                  conditionDefinitions.data?.standard_persistent_recovery_dc
+                }
+                previewAnchor={recordPreview.anchor}
+                previewReadingHistory={recordPreview.readingHistory}
+                previewLanding={recordPreview.landing}
+                previewDetail={recordPreview.detail}
+                previewSelection={recordPreview.selection}
+                previewLoading={recordPreview.loading}
+                previewError={recordPreview.error}
+                onRetryPreview={recordPreview.retry}
+                onReloadPreview={recordPreview.reload}
+                reloadPreviewLabel={recordPreview.reloadLabel}
+                retryPreviewLabel={recordPreview.retryLabel}
+                previewRecordKey={recordPreview.recordKey}
+              />
+            }
+            collapsiblePanes={[]}
+            labels={{
+              filter: encounterSummary
+                ? `Roster (${encounterSummary.participant_count})`
+                : "Roster",
+              results: "Participant",
+            }}
+            selectedRecordKey={
+              selected?.record_key ?? selected?.participant_key ?? null
+            }
+            widthSpecs={ENCOUNTER_WIDTH_SPECS}
+          />
+        )}
         <EncounterTurnReview
           key={turnReview.contextKey}
           open={turnReview.open}
@@ -644,7 +676,11 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
           disabled={disabled}
           loading={turnReview.loading}
           error={turnReview.error}
-          actionError={mutations.errorMessage}
+          actionError={
+            mutations.errorKind === "remove-condition"
+              ? mutations.errorMessage
+              : undefined
+          }
           recovery={recovery}
           receipt={turnReview.receipt}
           outcomes={turnReview.outcomes}
@@ -695,9 +731,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             disabled={disabled}
             pending={mutations.pending}
             error={
-              mutations.errorKind === "spell" || mutations.errorKind === "remove"
-                ? undefined
-                : mutations.errorMessage
+              mutations.errorKind === "metadata" ? mutations.errorMessage : undefined
             }
             encounterNote={encounter.data?.note}
             open={editEncounterOpen}

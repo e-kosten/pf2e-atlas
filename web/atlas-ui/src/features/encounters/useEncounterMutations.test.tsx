@@ -165,7 +165,11 @@ it("does not treat an unrelated metadata 409 as a participant conflict", async (
       }),
     ).rejects.toBe(error);
   });
-  await waitFor(() => expect(result.current.errorMessage).toBe("Slug already exists"));
+  await waitFor(() =>
+    expect(result.current.errorMessage).toBe(
+      "An encounter with this name already exists. Choose another name.",
+    ),
+  );
   expect(api.getEncounter).not.toHaveBeenCalled();
 });
 
@@ -211,8 +215,9 @@ it.each([false, true])(
     expect(api.applyEncounterSpellAction).toHaveBeenCalledOnce();
     expect(api.getEncounter).toHaveBeenCalledOnce();
     expect(feedback.error).not.toHaveBeenCalled();
-    if (alreadyRestored) expect(feedback.info).not.toHaveBeenCalled();
-    else expect(feedback.info).toHaveBeenCalledWith("Encounter updated. Try again.", 4);
+    expect(feedback.info).not.toHaveBeenCalled();
+    if (!alreadyRestored)
+      expect(result.current.errorMessage).toContain("Encounter changed.");
   },
 );
 
@@ -244,10 +249,13 @@ it.each(["cast"] as const)(
         }),
       ).rejects.toThrow();
     });
-    expect(feedback.error).toHaveBeenCalledWith(
-      "Couldn’t record spell use. Try again.",
-      4,
+    expect(feedback.error).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(result.current.errorMessage).toBe(
+        "Couldn’t confirm this change. Check the current values before trying again.",
+      ),
     );
+    expect(result.current.errorMessage).not.toContain("Internal database details");
     expect(api.getEncounter).not.toHaveBeenCalled();
   },
 );

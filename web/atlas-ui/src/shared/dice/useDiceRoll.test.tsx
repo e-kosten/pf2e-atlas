@@ -1,3 +1,8 @@
+import {
+  AtlasConnectionError,
+  clearAvailabilityFailure,
+  getAvailabilityFailure,
+} from "../../api/availability";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AtlasApiError } from "../../api/atlasApi";
@@ -60,7 +65,7 @@ describe("useDiceRoll", () => {
     expect(result.current.animating).toBe(false);
   });
 
-  it("removes the previous outcome after failure and preserves actionable API errors", async () => {
+  it("removes the previous outcome after failure and uses reviewed error copy", async () => {
     reducedMotion();
     const { result } = renderHook(() => useDiceRoll<number>());
     await act(async () => {
@@ -72,7 +77,7 @@ describe("useDiceRoll", () => {
       });
     });
     expect(result.current.result).toBeUndefined();
-    expect(result.current.error).toBe("Reopen this table.");
+    expect(result.current.error).toBe("Couldn’t confirm the roll.");
     expect(result.current.busy).toBe(false);
     await act(async () => {
       await result.current.run(async () => 9);
@@ -134,4 +139,20 @@ describe("useDiceRoll", () => {
     expect(action).toHaveBeenCalledTimes(1);
     expect(vi.getTimerCount()).toBe(0);
   });
+});
+
+it("reports an imperative roll transport failure once while preserving its unknown outcome locally", async () => {
+  reducedMotion();
+  clearAvailabilityFailure();
+  const cause = new AtlasConnectionError(true, new Error("private transport detail"));
+  const { result } = renderHook(() => useDiceRoll<number>());
+  await act(async () => {
+    await result.current.run(async () => {
+      throw cause;
+    });
+  });
+  expect(getAvailabilityFailure()).toBe(cause);
+  expect(result.current.error).toBe("Couldn’t confirm the roll.");
+  expect(result.current.result).toBeUndefined();
+  clearAvailabilityFailure();
 });

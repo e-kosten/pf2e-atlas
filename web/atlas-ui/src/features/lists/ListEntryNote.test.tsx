@@ -77,7 +77,7 @@ it("retains the draft on failure, retries, and clears a blank note without losin
   fireEvent.change(screen.getByRole("textbox"), { target: { value: "New purpose" } });
   api.updateSavedListItemNote.mockRejectedValueOnce(new Error("Write failed"));
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
-  expect(await screen.findByText("Write failed")).toBeVisible();
+  expect(await screen.findByText("Unable to save note")).toBeVisible();
   expect(screen.getByRole("textbox")).toHaveValue("New purpose");
   // Keep the refreshed server value aligned with the successful mutation.
   api.getSavedListItemNote.mockResolvedValue({ ...entry, note: "New purpose" });

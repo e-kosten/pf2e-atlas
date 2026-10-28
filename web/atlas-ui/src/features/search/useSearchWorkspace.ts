@@ -1,3 +1,4 @@
+import { userErrorMessage, isSharedFailure } from "../../shared/feedback/errorMessages";
 import {
   failedFilterTransport,
   searchPage as urlSearchPage,
@@ -119,6 +120,7 @@ export type SearchWorkspaceState = {
   vocabularyScope: import("../../generated/atlas").FilterVocabularyScope;
   filterDiscoveryError: string | null;
   errorMessage: string | null;
+  resultsFailed?: boolean;
   refresh: () => void;
 };
 type UseAtlasWorkspaceOptions = {
@@ -848,6 +850,7 @@ export function useSearchWorkspace({
     refreshResults,
     filterDiscoveryLoading: filterDiscovery.loading,
     errorMessage,
+    resultsFailed: !!resultsQuery.error,
     refresh: () => {
       if (!enabled) {
         return;
@@ -867,10 +870,8 @@ function messageFromError(error: unknown): string | null {
   if (!error) {
     return null;
   }
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return String(error);
+  if (isSharedFailure(error)) return null;
+  return userErrorMessage(error, "Try searching again.");
 }
 export function resetSearchState(): SearchFormState {
   return DEFAULT_SEARCH_STATE;

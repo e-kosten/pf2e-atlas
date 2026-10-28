@@ -13,6 +13,21 @@ import { InvalidUrl, LinkNotFound } from "./InvalidUrl";
 import { ReadingUrlError } from "./readingUrl";
 import { createAtlasRouter } from "./router";
 
+it("offers page recovery for unexpected failures without exposing the exception or blaming the link", () => {
+  render(
+    <RouterTestContext>
+      <InvalidUrl error={new Error("decoder at /private/reference.sqlite")} />
+    </RouterTestContext>,
+  );
+  expect(screen.getByRole("alert")).toHaveTextContent("This page couldn’t open");
+  expect(screen.getByRole("button", { name: "Reload page" })).toBeVisible();
+  expect(
+    screen.queryByText(
+      /decoder|private\/reference.sqlite|This link couldn’t be restored/,
+    ),
+  ).toBeNull();
+});
+
 it.each(["search", "list"])(
   "offers native whole-record and independent %s criteria recovery for an invalid reading address",
   async (kind) => {

@@ -1,4 +1,5 @@
-import { Alert, Button, Empty, Spin, theme } from "antd";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
+import { Button, Empty, Spin, theme } from "antd";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { GripVertical, Trash2 } from "lucide-react";
@@ -10,6 +11,7 @@ import {
 import type { SavedListItemView } from "../../generated/atlas";
 import { DangerActionButton } from "../../shared/ui/actions/DangerActionButton";
 import { RecordBrowseSummary } from "../../shared/records/RecordBrowseSummary";
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 
 export function ListItemsPane({
   error,
@@ -121,20 +123,14 @@ export function ListItemsPane({
       data-sorting={Boolean(sortable.activeItem) || sortable.saving || mutating}
     >
       {error && (
-        <Alert
-          type="error"
-          showIcon
+        <ErrorNotice
+          error={error}
           title="Unable to remove record"
-          description={`${error.message} Use the record’s Remove button to try again.`}
+          description="Use the record’s Remove button to try again."
         />
       )}
       {reorderError && (
-        <Alert
-          type="error"
-          showIcon
-          title="Unable to reorder records"
-          description={reorderError.message}
-        />
+        <ErrorNotice error={reorderError} title="Unable to reorder records" />
       )}
       {loading && items.length > 0 && (
         <div className="list-items__refresh" aria-label="Updating saved records">
@@ -142,7 +138,7 @@ export function ListItemsPane({
         </div>
       )}
       {loading && !items.length ? (
-        <Spin className="reference-loading" aria-label="Loading saved records" />
+        <LoadingStatus className="reference-loading" label="Loading saved records" />
       ) : !items.length ? (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}

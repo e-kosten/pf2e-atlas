@@ -40,7 +40,7 @@ describe("search pane composition", () => {
     fireEvent.click(dialog.getByRole("button", { name: "Cancel" }));
   });
 
-  it("distinguishes idle drafts, pending search, completed empty and local error without a zero pager", () => {
+  it("distinguishes idle drafts, pending search, completed empty and local error without a zero pager", async () => {
     const state = workspace({ resultPage: undefined });
     const content = (next: SearchWorkspaceState) => (
       <SearchProfileProvider>
@@ -62,7 +62,7 @@ describe("search pane composition", () => {
       resultsLoading: true,
     };
     rerender(content(searching));
-    expect(screen.getByRole("status", { name: "Searching…" })).toBeVisible();
+    expect(await screen.findByRole("status", { name: "Searching…" })).toBeVisible();
     expect(screen.queryByText("No matching records.")).toBeNull();
     expect(screen.queryByRole("textbox", { name: "Current page" })).toBeNull();
 
@@ -103,7 +103,7 @@ describe("search pane composition", () => {
       ...DEFAULT_SEARCH_STATE,
       filter: { kind: "boolean_constant" as const, value: false },
     },
-  ])("treats committed Similar or filter-only criteria as a search", (search) => {
+  ])("treats committed Similar or filter-only criteria as a search", async (search) => {
     render(
       <SearchProfileProvider>
         <SearchView
@@ -111,7 +111,7 @@ describe("search pane composition", () => {
         />
       </SearchProfileProvider>,
     );
-    expect(screen.getByRole("status", { name: "Searching…" })).toBeVisible();
+    expect(await screen.findByRole("status", { name: "Searching…" })).toBeVisible();
     expect(screen.queryByText("Search or choose filters.")).toBeNull();
   });
 

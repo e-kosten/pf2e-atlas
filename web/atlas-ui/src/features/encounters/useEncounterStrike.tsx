@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Form, Select, Spin } from "antd";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
+import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button, Form, Select, Spin } from "antd";
 import { useState } from "react";
 import { previewEncounterStrikeContext } from "../../api/atlasApi";
 import type {
@@ -7,14 +8,49 @@ import type {
   EncounterStrikeOptionsRequest,
 } from "../../generated/atlas";
 import { FlatCheckRoll } from "../../shared/dice/FlatCheckRoll";
+import { useRetainedRecord } from "../../shared/records/useRetainedRecord";
+import { isArtifactGenerationChanged } from "../../shared/queries/immutableReferenceQueries";
 import { actionIssueSourceLabel } from "./actionIssueLabels";
 import type { useEncounterMutations } from "./useEncounterMutations";
+const checkIdentity = (check: unknown) =>
+  JSON.stringify(check, (_key, value) =>
+    typeof value === "bigint" ? value.toString() : value,
+  );
+
 export type StrikeLaunch = {
   strike: EncounterStrikeOptionsRequest;
   attackNumber: number;
   rollId: string;
   rolledModifier?: number | null;
 };
+
+function strikeContextQuery(
+  encounterRef: string,
+  revision: bigint,
+  generation: string | null,
+  strike: EncounterStrikeOptionsRequest | null,
+  targetKey?: string,
+) {
+  return queryOptions({
+    queryKey: [
+      "strike-assistance",
+      encounterRef,
+      revision.toString(),
+      generation,
+      strike,
+      targetKey,
+    ],
+    queryFn: () =>
+      previewEncounterStrikeContext(encounterRef, {
+        strike: strike!,
+        target_key: targetKey ?? null,
+      }),
+    enabled: !!strike,
+    staleTime: Infinity,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+}
 
 export function useEncounterStrike({
   encounterRef,
@@ -31,30 +67,59 @@ export function useEncounterStrike({
 }) {
   const [launch, setLaunch] = useState<StrikeLaunch | null>(null);
   const [targetKey, setTargetKey] = useState<string>();
-  const preview = useQuery({
-    queryKey: [
-      "strike-assistance",
+  const client = useQueryClient();
+  const preview = useQuery(
+    strikeContextQuery(
       encounterRef,
-      revision.toString(),
+      revision,
       generation,
-      launch?.strike,
+      launch?.strike ?? null,
       targetKey,
-    ],
-    queryFn: () =>
-      previewEncounterStrikeContext(encounterRef, {
-        strike: launch!.strike,
-        target_key: targetKey ?? null,
-      }),
-    enabled: !!launch,
-  });
-  const blocked = mutations.pending || !!mutations.refreshError || preview.isFetching;
-  const action = preview.data?.action;
+    ),
+  );
+  // A new revision updates the same target. A different target, strike or source
+  // cannot borrow checks or optional dice results from the previous subject.
+  const identity = JSON.stringify([
+    encounterRef,
+    generation,
+    launch?.strike,
+    launch?.rollId,
+    targetKey,
+  ]);
+  const retained = useRetainedRecord(identity, preview.data, preview.error);
+  const generationIdentity = JSON.stringify([encounterRef, generation]);
+  const [retired, setRetired] = useState<{ identity: string; error: Error }>();
+  if (
+    isArtifactGenerationChanged(preview.error) &&
+    retired?.identity !== generationIdentity
+  )
+    setRetired({ identity: generationIdentity, error: preview.error! });
+  const generationError =
+    retired?.identity === generationIdentity ? retired.error : null;
+  const displayed = generationError ? undefined : retained;
+  const session = JSON.stringify([encounterRef, generation, launch?.rollId]);
+  const [readySession, setReadySession] = useState<string>();
+  if ((displayed || generationError || preview.error) && readySession !== session)
+    setReadySession(session);
+  const blocked =
+    mutations.pending ||
+    !!mutations.refreshError ||
+    preview.isFetching ||
+    !!preview.error ||
+    !!generationError ||
+    !preview.data;
+  const action = displayed?.action;
   const targeting = action?.targeting;
-  const currentModifier = preview.data?.options.attacks.find(
+  const currentModifier = displayed?.options.attacks.find(
     (a) => a.attack_number === launch?.attackNumber,
   )?.modifier;
   const content = (
-    <div className="strike-assistance">
+    <div className="strike-assistance" aria-busy={preview.isFetching}>
+      {preview.isFetching && (
+        <div className="detail-refresh" aria-label="Updating attack context">
+          <Spin size="small" delay={500} />
+        </div>
+      )}
       <Form layout="vertical" className="strike-assistance__target">
         <Form.Item label="Target" style={{ marginBottom: 0 }}>
           <Select
@@ -70,15 +135,26 @@ export function useEncounterStrike({
           />
         </Form.Item>
       </Form>
-      {preview.isPending && <Spin />}
-      {preview.error && (
-        <Alert
-          type="error"
-          title="Could not load attack context"
-          action={<Button onClick={() => void preview.refetch()}>Retry</Button>}
+      {(generationError || preview.error) && (
+        <ErrorNotice
+          error={generationError ?? preview.error}
+          compact
+          title={
+            generationError
+              ? "Reference changed. Reload the encounter."
+              : "Could not load attack context"
+          }
+          description={displayed ? "Previous checks shown." : undefined}
+          action={
+            generationError ? (
+              <Button onClick={() => window.location.reload()}>Reload encounter</Button>
+            ) : (
+              <Button onClick={() => void preview.refetch()}>Retry</Button>
+            )
+          }
         />
       )}
-      {preview.data && !preview.isFetching && (
+      {displayed && (
         <>
           {launch?.rolledModifier != null &&
             currentModifier != null &&
@@ -97,7 +173,7 @@ export function useEncounterStrike({
           {action?.confused && <p>Confused · Choose the attack target at the table.</p>}
           {action?.disruption && (
             <FlatCheckRoll
-              key={`disruption:${revision}`}
+              key={`disruption:${identity}:${checkIdentity(action.disruption)}`}
               dc={action.disruption.dc}
               label={
                 action.disruption.sources.map((s) => s.name).join(", ") || "Disruption"
@@ -112,12 +188,12 @@ export function useEncounterStrike({
               target isn’t there.
             </p>
           )}
-          {preview.data.targeting_check && (
+          {displayed.targeting_check && (
             <FlatCheckRoll
-              key={`target:${targetKey}:${revision}`}
-              dc={preview.data.targeting_check.dc}
+              key={`target:${identity}:${checkIdentity(displayed.targeting_check)}`}
+              dc={displayed.targeting_check.dc}
               label={
-                preview.data.targeting_check.sources
+                displayed.targeting_check.sources
                   .map((s) => s.name)
                   .filter(Boolean)
                   .join(", ") || "Check detection"
@@ -128,17 +204,15 @@ export function useEncounterStrike({
           {targeting?.check_senses && (
             <p>Check detection · Consider usable senses and range.</p>
           )}
-          {preview.data.options.unavailable && (
-            <p>{preview.data.options.unavailable}</p>
-          )}
+          {displayed.options.unavailable && <p>{displayed.options.unavailable}</p>}
           {!action?.issues.length &&
             !action?.confused &&
             !action?.disruption &&
             !targeting?.prevents_effect &&
             !targeting?.requires_guessed_location &&
             !targeting?.check_senses &&
-            !preview.data.targeting_check &&
-            !preview.data.options.unavailable && (
+            !displayed.targeting_check &&
+            !displayed.options.unavailable && (
               <p>
                 {targetKey
                   ? "No additional checks from tracked conditions."
@@ -150,12 +224,17 @@ export function useEncounterStrike({
     </div>
   );
   return {
+    prepare: (request: StrikeLaunch) => {
+      void client.prefetchQuery(
+        strikeContextQuery(encounterRef, revision, generation, request.strike),
+      );
+    },
     launch: (request: StrikeLaunch) => {
       if (request.rollId === launch?.rollId) return;
       setTargetKey(undefined);
       setLaunch(request);
     },
     renderContext: (requestId: string) =>
-      launch?.rollId === requestId ? content : null,
+      launch?.rollId === requestId && readySession === session ? content : null,
   };
 }

@@ -210,3 +210,26 @@ it("sets current and temporary HP directly, with Escape cancelling and no damage
   );
   expect(onAction).toHaveBeenCalledTimes(2);
 });
+
+it("uses uncertainty-safe HP copy in the retained editor after a lost write response", async () => {
+  const current = encounterParticipant();
+  const onAction = vi.fn().mockResolvedValue(false);
+  const { rerender } = render(
+    <EncounterHpControls current={current} onAction={onAction} />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Edit HP" }));
+  const input = screen.getByRole("textbox", { name: "Current HP" });
+  fireEvent.change(input, { target: { value: "55" } });
+  rerender(
+    <EncounterHpControls
+      current={current}
+      onAction={onAction}
+      error="The change could not be confirmed. Check the current values after reconnecting before trying again."
+    />,
+  );
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "HP update could not be confirmed",
+  );
+  expect(screen.queryByText("HP could not be updated")).toBeNull();
+  expect(input).toHaveValue("55");
+});

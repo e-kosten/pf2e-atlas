@@ -1,4 +1,5 @@
-import { Alert, AutoComplete, Button, Checkbox, Input, Select, Space } from "antd";
+import { ErrorNotice } from "../feedback/ErrorNotice";
+import { AutoComplete, Button, Checkbox, Input, Select, Space } from "antd";
 import { useEffect, useState } from "react";
 import { actorMetric } from "./actorMetricFields";
 import { ProficiencyRankInput } from "./ProficiencyRankInput";
@@ -352,10 +353,10 @@ function OpenVocabularyInput({
         />
       )}
       {query.error && (
-        <Alert
-          type="error"
+        <ErrorNotice
+          error={query.error}
+          compact
           title="Values could not be loaded"
-          description={query.error.message}
           action={
             <Button size="small" onClick={() => void query.refetch()}>
               Retry values

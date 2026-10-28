@@ -1,3 +1,5 @@
+import { userErrorMessage } from "../feedback/errorMessages";
+import { isSharedFailure } from "../feedback/errorMessages";
 import { useQuery } from "@tanstack/react-query";
 import { assertSearchIdentity } from "../search/searchIdentity";
 import {
@@ -90,7 +92,10 @@ export function useFilterDiscovery({
     filterDiscoveryContext: context,
     vocabularyScope,
     loading: editor.isLoading,
-    errorMessage: editor.error?.message ?? null,
+    errorMessage:
+      editor.error && !isSharedFailure(editor.error)
+        ? userErrorMessage(editor.error, "Retry loading the available filters.")
+        : null,
   };
 }
 

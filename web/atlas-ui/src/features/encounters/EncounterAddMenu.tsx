@@ -1,9 +1,11 @@
+import { isSharedFailure } from "../../shared/feedback/errorMessages";
 import { Button, Dropdown, type MenuProps } from "antd";
 import { ChevronDown } from "lucide-react";
 import { useRef, useState } from "react";
 import type { AddEncounterPartyRequest, PartyView } from "../../generated/atlas";
 import { PartyManager } from "../parties/PartyManager";
 import { useParties } from "../parties/useParties";
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 
 export function EncounterAddMenu({
   onAdd,
@@ -51,8 +53,12 @@ export function EncounterAddMenu({
       onClick: () => void add(party),
     })) ?? [];
   if (parties.isLoading)
-    items.push({ key: "loading", disabled: true, label: "Loading parties…" });
-  if (parties.error)
+    items.push({
+      key: "loading",
+      disabled: true,
+      label: <LoadingStatus label="Loading parties…" />,
+    });
+  if (parties.error && !isSharedFailure(parties.error))
     items.push({
       key: "retry",
       label: "Parties could not load. Retry",

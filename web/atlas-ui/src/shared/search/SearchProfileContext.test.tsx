@@ -43,6 +43,26 @@ it.each([
   },
 );
 
+it("defers model warnings and retains explicit link intent while the reference is blocked", () => {
+  history.replaceState(null, "", "/search?search_profile=unknown");
+  const ready = readinessFixture();
+  const { result, rerender } = renderHook(
+    ({ readiness }: { readiness: AppReadinessView }) =>
+      useSearchProfileSelection(readiness),
+    {
+      initialProps: { readiness: { ...ready, status: "blocked" } as AppReadinessView },
+    },
+  );
+  expect(result.current.id).toBe("unknown");
+  expect(result.current.usable).toBe(false);
+  expect(result.current.storedVectors).toBe(false);
+  expect(result.current.error).toBeNull();
+  expect(result.current.canResetLink).toBe(false);
+  rerender({ readiness: ready });
+  expect(result.current.id).toBe("unknown");
+  expect(result.current.error).toContain("not stored");
+});
+
 it("uses the server launch default and keeps unavailable explicit choices visible", async () => {
   const readiness = readinessFixture();
   readiness.default_search_profile = "embeddinggemma";

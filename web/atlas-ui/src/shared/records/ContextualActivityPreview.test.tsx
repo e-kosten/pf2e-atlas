@@ -313,7 +313,7 @@ it("keeps the mounted document and reading position through a pending contextual
   expect(screen.getByText(/Exact local Jaws prose/)).toBe(prose);
   expect(body.scrollTop).toBe(180);
   await act(async () => reject(new Error("Context refresh failed")));
-  await screen.findByText(/Context refresh failed/);
+  await screen.findByText(/Unable to refresh this record/);
   expect(screen.getByText(/Exact local Jaws prose/)).toBe(prose);
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Retry" })).toBeVisible(),
@@ -383,7 +383,7 @@ it("retries a failed encounter refresh through its owner and reopens an initial 
   fireEvent.click(screen.getByRole("button", { name: "Jaws quick lookup" }));
   fireEvent.click(await screen.findByRole("button", { name: "Reload encounter" }));
   await waitFor(() =>
-    expect(screen.getByText("Encounter refresh unavailable")).toBeVisible(),
+    expect(screen.getByText("Unable to load this record")).toBeVisible(),
   );
   fireEvent.click(screen.getByRole("button", { name: "Reload encounter" }));
   const activityB = {

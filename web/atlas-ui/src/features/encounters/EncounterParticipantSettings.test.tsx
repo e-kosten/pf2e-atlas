@@ -339,5 +339,5 @@ it("restores the confirmed mortality after a failed write", async () => {
   expect(screen.getByRole("radio", { name: "Dead" })).toBeChecked();
   await act(async () => fail(new Error("Conflict")));
   expect(screen.getByRole("radio", { name: "Alive" })).toBeChecked();
-  expect(await screen.findByText("Conflict")).toBeVisible();
+  expect(await screen.findByText("Could not save settings.")).toBeVisible();
 });

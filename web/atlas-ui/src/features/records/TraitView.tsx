@@ -1,3 +1,5 @@
+import { LoadingStatus } from "../../shared/ui/LoadingStatus";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { traitDestination, searchDestination } from "../../app/destinations";
 import type { TraitPageInput } from "../../app/destinations";
 import { navigateDestination } from "../../app/navigation";
@@ -5,10 +7,10 @@ import { canonicalRouteSearch } from "../../app/routeSearch";
 import { parseSearchParams } from "../../app/urlState";
 import { recordDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
-import { Alert, Button, Empty, Spin, Tabs, Typography } from "antd";
+import { Alert, Button, Empty, Tabs, Typography } from "antd";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { getTraitRecords, searchPage } from "../../api/atlasApi";
+import { AtlasApiError, getTraitRecords, searchPage } from "../../api/atlasApi";
 import type {
   TraitAssociationKind,
   TraitDetailView,
@@ -63,23 +65,19 @@ export function TraitView({ route }: { route: TraitPageInput }) {
           <section className="detail-panel" aria-busy={query.isFetching}>
             {query.data && query.isFetching && (
               <div className="detail-refresh" aria-label="Updating trait">
-                <Spin size="small" delay={500} />
+                <LoadingStatus label="Updating trait…" />
               </div>
             )}
             {query.error && (
-              <Alert
-                showIcon
-                type="error"
+              <ErrorNotice
+                error={query.error}
                 title={
                   query.data
                     ? "Unable to refresh this trait"
                     : "Unable to load this trait"
                 }
                 description={
-                  <>
-                    {query.data && "Previously loaded content remains below. "}
-                    {query.error.message}
-                  </>
+                  query.data ? "Previously loaded content remains below." : undefined
                 }
                 action={
                   <Button
@@ -122,7 +120,7 @@ export function TraitView({ route }: { route: TraitPageInput }) {
               </article>
             ) : query.isLoading ? (
               <div className="detail-empty">
-                <Spin delay={500} description="Loading trait…" />
+                <LoadingStatus label="Loading trait…" />
               </div>
             ) : null}
           </section>
@@ -228,11 +226,7 @@ function TraitAssociations({
       availability[index].data.rows.length > 0,
   );
   if (availability.some((query) => query.isPending))
-    return (
-      <div role="status">
-        <Spin delay={400} size="small" /> Loading connections…
-      </div>
-    );
+    return <LoadingStatus label="Loading connections…" />;
   return (
     <section className="record-explore" aria-label="Explore trait">
       <Tabs
@@ -337,7 +331,10 @@ function TraitSimilarRecords({
     },
   });
   const changed = isArtifactGenerationChanged(query.error);
-  const data = changed ? undefined : query.data;
+  const unavailable =
+    query.error instanceof AtlasApiError &&
+    query.error.appError?.code === "vector_readiness_required";
+  const data = changed || unavailable ? undefined : query.data;
   const route = searchDestination({
     query: searchStateQueryString(
       {
@@ -357,14 +354,20 @@ function TraitSimilarRecords({
       <ExploreSearchAction route={route} summary="Top matches">
         Search similar records
       </ExploreSearchAction>
-      {search.filterError && <Alert type="error" title={search.filterError} />}
+      {search.filterError && (
+        <ErrorNotice error={search.filterError} title={search.filterError} />
+      )}
       {query.error && (
-        <Alert
-          type="error"
+        <ErrorNotice
+          error={query.error}
+          type={unavailable ? "info" : "error"}
           title={
-            changed ? "Reference collection changed" : "Unable to load similar records"
+            changed
+              ? "Reference collection changed"
+              : unavailable
+                ? "Similar unavailable for this trait with the selected search model"
+                : "Unable to load similar records"
           }
-          description={query.error.message}
           action={
             <Button onClick={() => (changed ? onReload() : void query.refetch())}>
               {changed ? "Reload trait" : "Retry"}
@@ -377,7 +380,7 @@ function TraitSimilarRecords({
           Similar records require stored vectors for the selected model.
         </Typography.Paragraph>
       )}
-      {query.isFetching && <Spin delay={400} />}
+      {query.isFetching && <LoadingStatus label="Loading similar records…" />}
       {data &&
         (data.rows.length ? (
           <SearchPreviewRows
@@ -463,18 +466,13 @@ function TraitAssociatedRecords({
           : "Search trait references"}
       </ExploreSearchAction>
       {query.error && (
-        <Alert
-          showIcon
+        <ErrorNotice
+          error={query.error}
           type={changed ? "warning" : "error"}
           title={
             changed ? "Reference collection changed" : "Unable to load these records"
           }
-          description={
-            <>
-              {data && "Previously loaded records remain below. "}
-              {query.error.message}
-            </>
-          }
+          description={data ? "Previously loaded records remain below." : undefined}
           action={
             <Button onClick={() => (changed ? onReload() : void query.refetch())}>
               {changed ? "Reload trait" : "Retry"}
@@ -484,10 +482,10 @@ function TraitAssociatedRecords({
       )}
       {data && query.isFetching && (
         <div className="detail-refresh" aria-label="Updating associated records">
-          <Spin size="small" delay={500} />
+          <LoadingStatus label="Updating associated records…" />
         </div>
       )}
-      {query.isLoading && <Spin delay={500} />}
+      {query.isLoading && <LoadingStatus label="Loading records…" />}
       {data && (
         <>
           {data.coverage && !data.coverage.exhaustive && (

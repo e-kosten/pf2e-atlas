@@ -1,7 +1,7 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { encounterStatusLabels } from "./encounterStatus";
 import { EncounterModal } from "./EncounterModal";
 import {
-  Alert,
   Button,
   Dropdown,
   Form,
@@ -444,8 +444,8 @@ export function EncounterRosterPane({
           <>
             {recovery}
             {error && (
-              <Alert
-                type="error"
+              <ErrorNotice
+                error={error}
                 title="Participant could not be added"
                 description={error}
               />
@@ -500,8 +500,8 @@ export function EncounterRosterPane({
         >
           {recovery}
           {error && (
-            <Alert
-              type="error"
+            <ErrorNotice
+              error={error}
               title="Participant could not be added"
               description={error}
             />

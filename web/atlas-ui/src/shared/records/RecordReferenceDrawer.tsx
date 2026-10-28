@@ -1,7 +1,8 @@
+import { AtlasDrawer as Drawer } from "../ui/overlays/AtlasDrawer";
 import { destinationHref, navigateDestination } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { usePreviewReadingPosition } from "./usePreviewReadingPosition";
-import { ConfigProvider, Drawer } from "antd";
+import { ConfigProvider } from "antd";
 import { useId, useRef, useState } from "react";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { RecordPreviewActions } from "./RecordPreviewActions";
