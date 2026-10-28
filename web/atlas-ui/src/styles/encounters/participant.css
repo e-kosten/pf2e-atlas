@@ -219,6 +219,13 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+@supports (text-box: trim-both cap text) {
+  .encounter-reference__name h2 {
+    text-box: trim-both cap text;
+  }
+}
+
 .encounter-reference__name > button {
   flex-shrink: 0;
 }
