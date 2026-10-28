@@ -322,7 +322,7 @@ pub(in crate::encounters) fn authored_stat_baseline(
         let owners = vec![owner.clone()];
         let navigation = atlas_app_model::RecordNavigationView {spell_rank: None, record_key: record.key().to_string(), source_fingerprint: crate::projection::navigation_fingerprint(&owners, fingerprint), owners, field: None, passage: None};
         let traits = SourceQueryView {source: node, pack_id: "", pack_label: ""}.traits().value().map(<[String]>::to_vec);
-        let ranged = match item {ItemSourceView::MeleeSource(source) => match SourceFieldView::from(&source.system).and_then(|s| (&s.range).into()) {SourceFieldView::Value(_) => Some(true), SourceFieldView::Null => Some(false), _ => None}, _ => None};
+        let ranged = match item {ItemSourceView::MeleeSource(source) => match SourceFieldView::from(&source.system).and_then(|s| (&s.range).into()) {SourceFieldView::Value(_) => Some(true), SourceFieldView::Null | SourceFieldView::Missing => Some(false), _ => None}, _ => None};
         let (attack_ability, damage_ability) = strike_abilities(ranged, traits.as_deref());
         let entry = match item {
             ItemSourceView::SpellcastingEntrySource(_) => Some(item),
@@ -611,5 +611,38 @@ mod immunity_tests {
             immunity_coverage(&SourcePresence::Value(vec!["critical-hits"]), true),
             Conditional
         );
+    }
+}
+
+#[cfg(test)]
+mod strike_default_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn omitted_melee_range_uses_the_source_default_but_invalid_range_stays_unknown() {
+        for (range, expected) in [
+            (None, Some(false)),
+            (Some(json!(null)), Some(false)),
+            (Some(json!({"increment":30,"max":null})), Some(true)),
+            (Some(json!("invalid")), None),
+        ] {
+            let mut item = json!({"_id":"bbbbbbbbbbbbbbbb","type":"melee","name":"Claw","system":{"bonus":{"value":12},"traits":{"value":[]},"damageRolls":{"main":{"damage":"1d6+4","damageType":"slashing"}}}});
+            if let Some(range) = range {
+                item["system"]["range"] = range;
+            }
+            let source = atlas_search::test_support::record("actors","Actor",json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Range actor","system":{"details":{"level":{"value":4}},"attributes":{"adjustment":null}},"items":[item]})).record;
+            let baseline = authored_stat_baseline(&source, "fixture", None).unwrap();
+            let strike = &baseline.activities[0];
+            assert_eq!(strike.is_ranged, expected);
+            assert_eq!(
+                strike.attack_ability,
+                expected.map(|ranged| if ranged {
+                    super::super::super::stat_block::Ability::Dexterity
+                } else {
+                    super::super::super::stat_block::Ability::Strength
+                })
+            );
+        }
     }
 }

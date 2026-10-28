@@ -33,7 +33,7 @@ pub(super) fn value(
 pub(super) enum Target<'a> {
     Statistic(&'a StatisticTarget),
     Attack,
-    Damage,
+    Damage { ability_known: bool },
     Speed,
 }
 pub(super) struct Context<'a> {
@@ -52,38 +52,59 @@ impl<'a> Context<'a> {
             auditory: Some(false),
         }
     }
-    fn selector(&self, selector: &str) -> bool {
+    fn selector(&self, selector: &str) -> Option<bool> {
         let statistic = match self.target {
             Target::Statistic(target) => Some(target),
             _ => None,
         };
         let check = matches!(self.target, Target::Attack)
             || statistic.is_some_and(StatisticTarget::check_or_dc);
-        let ability_based = matches!(self.target, Target::Attack)
-            || statistic.is_some_and(|target| {
-                target.check_or_dc() || matches!(target, StatisticTarget::Ability(_))
+        let ability_based = check || matches!(self.target, Target::Damage { .. });
+        let ability = match selector {
+            "str-based" | "str-damage" => Some(Ability::Strength),
+            "dex-based" => Some(Ability::Dexterity),
+            "con-based" => Some(Ability::Constitution),
+            "int-based" => Some(Ability::Intelligence),
+            "wis-based" => Some(Ability::Wisdom),
+            "cha-based" => Some(Ability::Charisma),
+            _ => None,
+        };
+        if let Some(ability) = ability {
+            if !ability_based
+                || (selector == "str-damage" && !matches!(self.target, Target::Damage { .. }))
+            {
+                return Some(false);
+            }
+            if matches!(
+                self.target,
+                Target::Damage {
+                    ability_known: false
+                }
+            ) {
+                return None;
+            }
+            return self.ability.map(|actual| actual == ability).or_else(|| {
+                matches!(
+                    self.target,
+                    Target::Damage {
+                        ability_known: true
+                    }
+                )
+                .then_some(false)
             });
-        match selector {
+        }
+        Some(match selector {
             "all" => check,
             "all-speeds" => matches!(self.target, Target::Speed),
             "attack-roll" => matches!(self.target, Target::Attack),
-            "str-damage" => {
-                matches!(self.target, Target::Damage) && self.ability == Some(Ability::Strength)
-            }
-            "str-based" => ability_based && self.ability == Some(Ability::Strength),
-            "dex-based" => ability_based && self.ability == Some(Ability::Dexterity),
-            "con-based" => ability_based && self.ability == Some(Ability::Constitution),
-            "int-based" => ability_based && self.ability == Some(Ability::Intelligence),
-            "wis-based" => ability_based && self.ability == Some(Ability::Wisdom),
-            "cha-based" => ability_based && self.ability == Some(Ability::Charisma),
             "ac" => statistic == Some(&StatisticTarget::ArmorClass),
             "hp" => statistic == Some(&StatisticTarget::HitPointMaximum),
             "perception" => statistic == Some(&StatisticTarget::Perception),
             "reflex" => statistic == Some(&StatisticTarget::Save(StatisticSave::Reflex)),
             "skill-check" => statistic.is_some_and(StatisticTarget::skill),
             "saving-throw" => statistic.is_some_and(StatisticTarget::save),
-            _ => false, // Generation rejects unsupported domains.
-        }
+            _ => false,
+        })
     }
     pub fn predicate(&self, predicate: ConditionPredicate) -> Option<bool> {
         match predicate {
@@ -136,16 +157,22 @@ pub(super) fn modifiers<'a>(
     rule.definition()
         .modifiers
         .iter()
-        .filter(move |effect| {
-            effect
-                .selectors
-                .iter()
-                .any(|selector| context.selector(selector))
-        })
         .filter_map(move |effect| {
-            let known = match context.predicate(effect.predicate) {
-                Some(false) => return None,
-                result => result,
+            let mut selected = Some(false);
+            for selector in effect.selectors {
+                match context.selector(selector) {
+                    Some(true) => {
+                        selected = Some(true);
+                        break;
+                    }
+                    None => selected = None,
+                    Some(false) => {}
+                }
+            }
+            let known = match (selected, context.predicate(effect.predicate)) {
+                (Some(false), _) | (_, Some(false)) => return None,
+                (Some(true), Some(true)) => Some(true),
+                _ => None,
             };
             let modifier_type = match effect.modifier_type {
                 ConditionModifierType::Status => ModifierType::Status,
@@ -173,7 +200,9 @@ mod tests {
     #[test]
     fn native_strength_selectors_apply_once_to_each_matching_target() {
         let context = Context {
-            target: Target::Damage,
+            target: Target::Damage {
+                ability_known: true,
+            },
             ability: Some(Ability::Strength),
             initiative: false,
             auditory: Some(false),
@@ -196,7 +225,9 @@ mod tests {
                 Some(2),
                 None,
                 &Context {
-                    target: Target::Damage,
+                    target: Target::Damage {
+                        ability_known: true
+                    },
                     ..context
                 }
             )

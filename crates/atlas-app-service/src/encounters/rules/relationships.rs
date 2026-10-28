@@ -19,12 +19,6 @@ pub(in crate::encounters) fn detection_state(
         Some(observer),
         crate::encounters::rules::source_conditions::SourceConditions::empty(),
     );
-    if causes
-        .iter()
-        .any(|cause| cause.rule == ConditionRule::Invisible)
-    {
-        return None;
-    }
     if causes.iter().any(|cause| {
         matches!(
             cause.rule,
