@@ -45,6 +45,7 @@ import { selectedNavigation } from "../../app/urlState";
 import { atlasRouter } from "../../app/router";
 
 const apiMocks = vi.hoisted(() => ({
+  previewEncounterRecovery: vi.fn(),
   applyEncounterSpellAction: vi.fn(),
   applyEncounterHpAction: vi.fn(),
   getEncounterPersistentReview: vi.fn(),
@@ -927,7 +928,8 @@ describe("encounter views", () => {
     const add = await screen.findByRole("dialog", { name: "Add PC" });
     const previousId = within(add).getByLabelText("Name").id;
     fireEvent.click(within(add).getByRole("button", { name: "Cancel" }));
-    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Encounter settings" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit encounter" }));
     const edit = await screen.findByRole("dialog", { name: "Settings" });
     const input = within(edit).getByLabelText("Name");
     expect(input.id).not.toBe(previousId);
@@ -1110,6 +1112,7 @@ describe("encounter views", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: "Participant settings" }),
     );
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit participant" }));
     const dialog = await screen.findByRole("dialog", { name: "Participant settings" });
     fireEvent.change(within(dialog).getByLabelText("Participant name"), {
       target: { value: "Goblin Scout" },
@@ -1175,6 +1178,7 @@ describe("encounter views", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: "Participant settings" }),
     );
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit participant" }));
     await selectOption(conditionCombobox("Adjustment"), "Elite");
     fireEvent.click(
       within(screen.getByRole("dialog", { name: "Participant settings" })).getByRole(
@@ -1242,15 +1246,38 @@ describe("encounter views", () => {
     expect(apiMocks.applyEncounterHpAction).not.toHaveBeenCalled();
   });
 
+  it("returns focus to the encounter cog when a recovery review is canceled", async () => {
+    apiMocks.previewEncounterRecovery.mockResolvedValue({
+      encounter_key: "encounter",
+      encounter_revision: 0n,
+      participants: [],
+      changes: [],
+      can_apply: false,
+    });
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    const cog = screen.getByRole("button", { name: "Encounter settings" });
+    await waitFor(() => expect(cog).toBeEnabled());
+    fireEvent.click(cog);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Rest overnight" }));
+    const dialog = await screen.findByRole("dialog", { name: "Rest overnight" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(cog).toHaveFocus());
+  });
+
   it("keeps encounter lifecycle actions in the edit modal", async () => {
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Settings" })).not.toBeDisabled(),
+      expect(
+        screen.getByRole("button", { name: "Encounter settings" }),
+      ).not.toBeDisabled(),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Encounter settings" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit encounter" }));
     const dialog = await screen.findByRole("dialog", { name: "Settings" });
     await selectOption(within(dialog).getByRole("combobox"), "Complete");
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
@@ -2491,8 +2518,11 @@ describe("encounter views", () => {
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
-    await waitFor(() => expect(screen.getByLabelText("Settings")).not.toBeDisabled());
-    fireEvent.click(screen.getByLabelText("Settings"));
+    await waitFor(() =>
+      expect(screen.getByLabelText("Encounter settings")).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByLabelText("Encounter settings"));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit encounter" }));
     const dialog = await screen.findByRole("dialog", { name: "Settings" });
     const name = within(dialog).getByLabelText("Name");
     fireEvent.change(name, { target: { value: "Unsaved ambush" } });
@@ -2520,9 +2550,10 @@ describe("encounter views", () => {
     render(<EncounterDetailView route={{ slug: "ambush" }} />, {
       wrapper: queryClientWrapper(),
     });
-    const edit = screen.getByRole("button", { name: "Settings" });
+    const edit = screen.getByRole("button", { name: "Encounter settings" });
     await waitFor(() => expect(edit).not.toBeDisabled());
     fireEvent.click(edit);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit encounter" }));
     const dialog = await screen.findByRole("dialog", { name: "Settings" });
     const name = within(dialog).getByLabelText("Name");
     const savedName = encounterIndexFixture().encounters[0].name;
@@ -2534,7 +2565,9 @@ describe("encounter views", () => {
         screen.queryByRole("dialog", { name: "Settings" }),
       ).not.toBeInTheDocument(),
     );
+    await waitFor(() => expect(edit).toHaveFocus());
     fireEvent.click(edit);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit encounter" }));
     const reopened = await screen.findByRole("dialog", { name: "Settings" });
     await waitFor(() =>
       expect(within(reopened).getByLabelText("Name")).toHaveValue(savedName),
@@ -2595,7 +2628,7 @@ describe("encounter views", () => {
       wrapper: queryClientWrapper(),
     });
     expect(await screen.findByText("Encounter could not load")).toBeInTheDocument();
-    expect(screen.getByLabelText("Settings")).toBeDisabled();
+    expect(screen.getByLabelText("Encounter settings")).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Retry encounter" }));
     expect(
       await screen.findByText("Condition choices unavailable"),

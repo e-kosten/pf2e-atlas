@@ -1579,6 +1579,8 @@ export async function previewEncounterRecovery(
       ...p,
       current_hp: p.current_hp === null ? null : toBigInt(p.current_hp),
       resulting_hp: p.resulting_hp === null ? null : toBigInt(p.resulting_hp),
+      resulting_max_hp:
+        p.resulting_max_hp === null ? null : toBigInt(p.resulting_max_hp),
       healing: p.healing === null ? null : toBigInt(p.healing),
     })),
   };

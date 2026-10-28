@@ -14,7 +14,7 @@ facts and are not copied into mutable condition rows.
 
 App-service owns the distinct reset and eight-hour overnight policies and projects
 consequences before submission. The browser collects selected participants and
-explicit healing amounts, without reimplementing recovery arithmetic. A full
+explicit healing amounts or a full-HP policy, without reimplementing recovery arithmetic. A full
 encounter revision guards the complete snapshot; source-derived rest plans also
 guard the reference revision. One local-state savepoint writes all replacements,
 invalidates superseded decisions and saves a request identity. Identical retries

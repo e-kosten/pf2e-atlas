@@ -2,7 +2,8 @@
 mod encounter_recovery;
 pub use encounter_recovery::{
     ApplyEncounterRecoveryRequest, EncounterRecoveryAction, EncounterRecoveryParticipantView,
-    EncounterRecoveryPreviewView, OvernightParticipantInput, PreviewEncounterRecoveryRequest,
+    EncounterRecoveryPreviewView, OvernightHealingMode, OvernightParticipantInput,
+    PreviewEncounterRecoveryRequest,
 };
 mod encounter_difficulty;
 pub use encounter_difficulty::{

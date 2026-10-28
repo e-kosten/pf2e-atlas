@@ -121,7 +121,7 @@ impl AtlasAppService {
             EncounterRecoveryAction::ResetParticipant { participant_key } => {
                 keys.insert(participant_key.as_str());
             }
-            EncounterRecoveryAction::RestOvernight { participants } => {
+            EncounterRecoveryAction::RestOvernight { participants, .. } => {
                 if participants.is_empty() {
                     return Err(AppServiceError::invalid_request(
                         "Choose at least one participant to rest",
@@ -183,26 +183,26 @@ impl AtlasAppService {
                 display_name: p.display_name.clone(),
                 current_hp: p.current_hp,
                 resulting_hp: p.current_hp,
+                resulting_max_hp: p.max_hp,
                 healing: None,
                 changes: vec![],
                 unavailable_reason: None,
             };
-            let state = if let EncounterRecoveryAction::RestOvernight { participants } =
-                &request.action
+            let state = if let EncounterRecoveryAction::RestOvernight {
+                participants,
+                healing_mode,
+            } = &request.action
             {
                 let input = participants
                     .iter()
                     .find(|v| v.participant_key == p.participant_key)
                     .ok_or_else(|| AppServiceError::invalid_request("Missing rest participant"))?;
                 let record = p.record_key.as_ref().and_then(|k| records.get(k));
-                super::rules::overnight::prepare(p, input.healing, record, &mut row)?
+                super::rules::overnight::prepare(p, input.healing, *healing_mode, record, &mut row)?
             } else if let Some(Some(baseline)) = baselines.get(&p.participant_key) {
                 row.resulting_hp = baseline.current_hp;
-                row.changes.push(format!(
-                    "Restore creation HP ({} / {}), initiative, variant, conditions and resources",
-                    baseline.current_hp.map_or("—".into(), |n| n.to_string()),
-                    baseline.max_hp.map_or("—".into(), |n| n.to_string())
-                ));
+                row.resulting_max_hp = baseline.max_hp;
+                row.changes = reset_changes(p, baseline);
                 Some(baseline.clone())
             } else {
                 row.unavailable_reason=Some("No creation baseline was saved for this participant. Add it again to capture one.".into());
@@ -220,11 +220,11 @@ impl AtlasAppService {
                 .as_deref()
                 .is_some_and(|k| keys.contains(k));
         let changes = if reset_encounter {
-            vec!["Return encounter to Draft, round 1; clear the current turn and pending turn decisions.".into()]
-        } else if end_turn {
-            vec!["End the current turn and clear pending turn decisions.".into()]
+            vec!["Return to Draft at round 1 and clear turn reminders.".into()]
+        } else if end_turn && snapshot.encounter.current_turn_participant_key.is_some() {
+            vec!["End the current turn and clear turn reminders.".into()]
         } else {
-            vec!["Clear pending turn decisions for the reset participant.".into()]
+            vec![]
         };
         Ok(RecoveryPlan {
             view: EncounterRecoveryPreviewView {
@@ -240,6 +240,86 @@ impl AtlasAppService {
             reference_revision,
         })
     }
+}
+fn reset_changes(
+    p: &atlas_local_state::EncounterParticipant,
+    baseline: &ParticipantGameplay,
+) -> Vec<String> {
+    let mut changes = vec![];
+    let number = |n: Option<i64>| n.map_or("—".into(), |v| v.to_string());
+    if p.max_hp != baseline.max_hp {
+        changes.push(format!(
+            "Maximum HP {} → {}",
+            number(p.max_hp),
+            number(baseline.max_hp)
+        ));
+    }
+    if p.initiative != baseline.initiative {
+        changes.push(format!(
+            "Initiative {} → {}",
+            number(p.initiative),
+            number(baseline.initiative)
+        ));
+    }
+    if p.participant_variant != baseline.participant_variant {
+        use atlas_local_state::ParticipantVariant as V;
+        let name = |v| match v {
+            V::Normal => "Normal",
+            V::Elite => "Elite",
+            V::Weak => "Weak",
+        };
+        changes.push(format!(
+            "{} → {}",
+            name(p.participant_variant),
+            name(baseline.participant_variant)
+        ));
+    }
+    if p.level_override != baseline.level_override {
+        changes.push(format!(
+            "Level {} → {}",
+            number(p.level_override),
+            baseline
+                .level_override
+                .map_or("unset".into(), |v| v.to_string())
+        ));
+    }
+    if p.temporary_hp != baseline.temporary_hp {
+        changes.push(format!(
+            "Temporary HP {} → {}",
+            p.temporary_hp, baseline.temporary_hp
+        ));
+    }
+    if p.conditions != baseline.conditions && !p.conditions.is_empty() {
+        changes.push(format!(
+            "Remove {}",
+            p.conditions
+                .iter()
+                .map(|c| c.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+    if p.mortality != baseline.mortality {
+        changes.push("Return to Alive".into());
+    }
+    if p.hazard_disabled != baseline.hazard_disabled {
+        changes.push("Reactivate hazard".into());
+    }
+    if p.defeated != baseline.defeated {
+        changes.push("Clear defeated status".into());
+    }
+    if p.track_dying != baseline.track_dying
+        || p.base_death_threshold != baseline.base_death_threshold
+    {
+        changes.push("Restore dying settings".into());
+    }
+    if p.spell_resources != baseline.spell_resources
+        || p.expended_spells != baseline.expended_spells
+        || p.ability_states != baseline.ability_states
+    {
+        changes.push("Restore spell and ability resources".into());
+    }
+    changes
 }
 fn require_revision(snapshot: &EncounterWithParticipants, expected: i64) -> AppServiceResult<()> {
     if snapshot.encounter.revision != expected {
@@ -323,6 +403,7 @@ mod tests {
         .unwrap();
         let revision = w.encounter(&key).unwrap().revision;
         let action = EncounterRecoveryAction::RestOvernight {
+            healing_mode: OvernightHealingMode::Natural,
             participants: vec![OvernightParticipantInput {
                 participant_key: p.participant_key.clone(),
                 healing: None,
@@ -340,6 +421,7 @@ mod tests {
             .can_apply
         );
         let action = EncounterRecoveryAction::RestOvernight {
+            healing_mode: OvernightHealingMode::Natural,
             participants: vec![OvernightParticipantInput {
                 participant_key: p.participant_key.clone(),
                 healing: Some(100),
@@ -356,10 +438,34 @@ mod tests {
             .unwrap();
         assert!(preview.can_apply);
         assert_eq!(preview.participants[0].resulting_hp, Some(19));
+        let full_action = EncounterRecoveryAction::RestOvernight {
+            healing_mode: OvernightHealingMode::Full,
+            participants: vec![OvernightParticipantInput {
+                participant_key: p.participant_key.clone(),
+                healing: None,
+            }],
+        };
+        let full = w
+            .preview_encounter_recovery(
+                &key,
+                PreviewEncounterRecoveryRequest {
+                    expected_encounter_revision: revision,
+                    action: full_action.clone(),
+                },
+            )
+            .unwrap();
+        assert!(full.can_apply);
+        assert_eq!(
+            (
+                full.participants[0].resulting_hp,
+                full.participants[0].resulting_max_hp
+            ),
+            (Some(19), Some(19))
+        );
         let request = ApplyEncounterRecoveryRequest {
             request_id: "night-one".into(),
             expected_encounter_revision: revision,
-            action,
+            action: full_action,
         };
         w.apply_encounter_recovery(&key, request.clone()).unwrap();
         let after = w.encounter(&key).unwrap();

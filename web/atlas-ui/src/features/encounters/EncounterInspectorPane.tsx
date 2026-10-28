@@ -556,12 +556,8 @@ function EncounterParticipantSurface({
           <div className="encounter-reference__title">
             <div className="encounter-reference__name">
               <h2>{participant.display_name}</h2>
-              {onReset && (
-                <Button type="text" disabled={disabled} onClick={onReset}>
-                  Reset
-                </Button>
-              )}
               <EncounterParticipantSettings
+                onReset={onReset}
                 participant={participant}
                 disabled={disabled}
                 pending={pending}
