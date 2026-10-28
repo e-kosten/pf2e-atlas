@@ -369,7 +369,7 @@ build contract, which includes the domain recipe constants; recipe changes requi
 a matching frontend before requests are admitted. The browser does not infer
 correspondence roles or calculate scores. Inventory can report missing vectors without requiring
 model weights. The index-owned section/role projection is backfilled from retained
-checked data by workspace migration 18 and refreshed during publication. Existing
+checked data by workspace migration 20 and refreshed during publication. Existing
 record and trait algorithms remain explicit `baseline` methods, labeled Name and
 identity and Trait definition respectively; the new passage and centroid recipes
 reuse stored vectors. See

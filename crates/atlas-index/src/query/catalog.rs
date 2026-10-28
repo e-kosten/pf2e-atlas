@@ -4,7 +4,7 @@ use atlas_foundry_model::generated::*;
 use serde::de::{self, DeserializeOwned};
 use std::{fmt, sync::OnceLock};
 
-pub const QUERY_CAPABILITY_VERSION: u32 = 6;
+pub const QUERY_CAPABILITY_VERSION: u32 = 8;
 const ACTORS: &[&str] = &[
     "npc",
     "hazard",
@@ -304,6 +304,8 @@ fn field(
                 "level_or_rank" => "authored spell rank and rank state for spells; authored record level and level state for other applicable families; no fallback from unavailable rank",
                 "physical.unit_price_gp" => "authored coin value divided by authored per; denomination omissions=0, per omission=1; converted from copper to gp",
                 "physical.bulk" => "authored normal Bulk; 0 negligible, 0.1 Light; no encumbrance or per-individual adjustment",
+                "shield.broken_threshold" => "half positive authored maximum HP, rounded down; no rune preparation; zero maximum is not applicable",
+                "weapon.damage.die_faces" => "authored base damage die faces; an empty die is not applicable",
                 "spell.casting_form" => "upstream trim/lowercase glyph lookup; unmatched authored time is other",
                 "spell.focus" => "authored focus OR cantrip with known-empty traditions",
                 "spell.ritual" => "typed ritual object true; explicit null false; omission unavailable",
@@ -511,6 +513,7 @@ fn build() -> Result<Vec<Descriptor>, String> {
         ("perception", "perception", &["npc"][..], None),
         ("movement.land", "land_speed", &["npc"][..], Some("feet")),
         ("hazard.hardness", "hardness", &["hazard"][..], None),
+        ("hazard.stealth", "stealth", &["hazard"][..], None),
     ] {
         fields.push(field(
             path,
@@ -519,6 +522,34 @@ fn build() -> Result<Vec<Descriptor>, String> {
             family("actor_projection", column),
             Vec::new(),
             unit,
+        ));
+    }
+    for (key, column) in crate::projections::ABILITY_FIELDS {
+        fields.push(field(
+            &format!("abilities.{key}.modifier"),
+            Number,
+            &["npc", "character"],
+            family("actor_projection", column),
+            Vec::new(),
+            None,
+        ));
+    }
+    for (key, modifier, rank) in crate::projections::SKILL_FIELDS {
+        fields.push(field(
+            &format!("skills.{key}.modifier"),
+            Number,
+            &["npc"],
+            family("actor_projection", modifier),
+            Vec::new(),
+            None,
+        ));
+        fields.push(field(
+            &format!("skills.{key}.rank"),
+            Number,
+            &["character"],
+            family("actor_projection", rank),
+            Vec::new(),
+            Some("proficiency rank"),
         ));
     }
     fields.push(field(
@@ -718,6 +749,14 @@ fn build() -> Result<Vec<Descriptor>, String> {
             Some("authored bulk"),
         ),
         (
+            "physical.base_type",
+            "base_type",
+            String,
+            PHYSICAL,
+            Vec::new(),
+            None,
+        ),
+        (
             "physical.usage",
             "usage",
             String,
@@ -811,6 +850,69 @@ fn build() -> Result<Vec<Descriptor>, String> {
             String,
             choices::<WeaponSystemSourceReloadValue>()?,
             None,
+        ),
+        (
+            "weapon.damage.dice",
+            "weapon_projection",
+            "damage_dice",
+            &["weapon"][..],
+            Number,
+            Vec::new(),
+            None,
+        ),
+        (
+            "weapon.damage.die_faces",
+            "weapon_projection",
+            "damage_die_faces",
+            &["weapon"][..],
+            Number,
+            Vec::new(),
+            None,
+        ),
+        (
+            "armor.strength",
+            "armor_projection",
+            "strength",
+            &["armor"][..],
+            Number,
+            Vec::new(),
+            None,
+        ),
+        (
+            "armor.check_penalty",
+            "armor_projection",
+            "check_penalty",
+            &["armor"][..],
+            Number,
+            Vec::new(),
+            None,
+        ),
+        (
+            "armor.speed_penalty",
+            "armor_projection",
+            "speed_penalty",
+            &["armor"][..],
+            Number,
+            Vec::new(),
+            Some("feet"),
+        ),
+        (
+            "shield.ac_bonus",
+            "shield_projection",
+            "ac_bonus",
+            &["shield"][..],
+            Number,
+            Vec::new(),
+            None,
+        ),
+        (
+            "shield.broken_threshold",
+            "shield_projection",
+            "broken_threshold",
+            &["shield"][..],
+            Number,
+            Vec::new(),
+            Some("hit points"),
         ),
         (
             "armor.category",

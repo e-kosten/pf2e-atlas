@@ -64,14 +64,22 @@ relevance and decay study has not run.
 
 The retained research and preview artifacts above use unpublished feature-branch
 migration numbers. They are bound to their recorded executables, not portable
-inputs for a newer runtime. After integration with main's stateless strike-roll
-migration, the canonical history is migration 17 for stateless strike rolls,
-18 for Similar metadata, and 19 for Core eligibility. Migrations 1–17 retain
-main's published names and checksums. Do not open an older task artifact with a
-migrating canonical runtime or relabel historical validation as current evidence.
-Fresh workspaces and supported main workspaces follow the canonical migration
-history. A task-only data conversion, if needed for preview continuity, must be
-explicitly recorded separately from product upgrade compatibility.
+inputs for a newer runtime. The first latest-main reconciliation retained main17
+for stateless strike rolls and placed Similar/Core at18/19; its canonical task
+copy is `.atlas/core-preview-main19.sqlite`, paired with the frozen facfb227
+executable and generation9.
+
+After main d957 added numeric filters and physical base-type metadata at18/19,
+the current source preserves main's published migrations1–19 and appends Similar20
+and Core21. Do not open an older task artifact with that migrating runtime or
+relabel historical validation as current evidence. Fresh workspaces and supported
+main workspaces follow the canonical history. Any task-only conversion must use a
+consistent new copy, authenticate the exact ledger, preserve native/prepared/FTS/
+Core/saved data and separately verify the supported query-projection refresh.
+Its expected reference-generation advance is9→10; it creates no new embeddings.
+The guarded task procedure and independent review live under
+`scratch/core-sections/main-sync/main-d957-schema/`. This is a developer-artifact
+conversion, not product compatibility with unpublished migration histories.
 
 ## Reanalysis rules
 

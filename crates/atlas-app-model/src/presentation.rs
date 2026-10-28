@@ -159,6 +159,7 @@ pub struct ActorSkillView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ConditionalSkillView {
+    pub qualification: FactView<String>,
     pub label: FactView<String>,
     pub modifier: NumberFactView,
 }
@@ -189,6 +190,8 @@ pub struct ActorRuntimeView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct HazardPresentationView {
+    pub detection_dc: NumberFactView,
+    pub broken_threshold: NumberFactView,
     pub actor: ActorPresentationView,
     // Known authored HP max and AC determine the primary HP/AC/hardness block.
     // Raw defense facts and independently applicable saves remain available.
@@ -449,6 +452,7 @@ pub struct SpellFormView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct PhysicalPresentationView {
+    pub base_type: FactView<PhysicalBaseTypeView>,
     pub details: Option<PhysicalDetailsView>,
     pub quantity: NumberFactView,
     pub material: FactView<PhysicalMaterialReferenceView>,
@@ -458,6 +462,11 @@ pub struct PhysicalPresentationView {
     pub bulk: NumberFactView,
     pub price: FactView<PhysicalPriceView>,
     pub price_per: NumberFactView,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct PhysicalBaseTypeView {
+    pub value: String,
+    pub label: String,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
@@ -568,6 +577,9 @@ pub struct PhysicalPriceView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ConsumablePresentationView {
+    pub maximum_hp: NumberFactView,
+    pub hardness: NumberFactView,
+    pub auto_destroy: FactView<bool>,
     pub spell: FactView<EmbeddedRecordLinkView>,
     pub spell_presented_inline: bool,
     pub category: FactView<String>,

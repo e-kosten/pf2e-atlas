@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 pub const ARTIFACT_FORMAT_VERSION: u32 = 3;
 pub const ARTIFACT_CONTRACT_VERSION: &str = "pf2e-atlas-source-artifact/v3";
 pub const EXPECTED_SOURCE_KIND: &str = "foundry-pf2e";
-pub const SOURCE_PROJECTION_VERSION: &str = "authored-query/v3";
+pub const SOURCE_PROJECTION_VERSION: &str = "authored-query/v5";
 pub const SOURCE_LOOKUP_VERSION: &str = "nfc-lowercase-whitespace/v1";
 pub const LEXICAL_SELECTION_VERSION: &str = "curated-lexical/v2";
 pub const LOCALIZATION_POLICY_VERSION: &str = "selected-source-catalog/english-fallback/v2";

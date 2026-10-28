@@ -120,6 +120,19 @@ is separate from saved encounter timing: encounter/unlimited units ignore numeri
 sentinels and inapplicable turn-expiry metadata, matching the pinned system policy.
 These facts are projected once in app-service for CLI and shared browser readers.
 
+Hazard Detection DC and Broken Threshold are bounded readouts derived from the
+same displayed Stealth and maximum HP used by the reader. Encounter composition
+refreshes them after participant overlays; current HP does not determine BT.
+Zero maximum HP has no BT, while unavailable or invalid inputs stay explicit.
+Conditional skill summaries retain the authored label and supplied modifier;
+checked predicate text is available through Condition details (CLI full detail),
+without evaluating applicability. Physical base types retain exact authored
+identifiers with separate readable labels. Their links open a fresh Search with
+the shared `physical.base_type` equality predicate, preserving the selected search
+profile. The same field applies to root and immediate embedded equipment.
+Consumable reading includes meaningful intrinsic durability and After final use
+facts (Consumed/Retained), without interpreting them as mutable inventory state.
+
 Ancestry, class, deity, vehicle and army reference profiles project supplied facts
 without character building or gameplay execution. Class proficiencies are initial
 ranks; grants retain source levels and deity spells retain granted ranks. Verified
@@ -144,6 +157,11 @@ Product field discovery omits source UUID references and groups unit-specific
 effect duration fields into one editor control. The executable artifact catalog
 retains technical bindings. Applicability uses one family inventory under the
 committed filter, and Kind choices omit categories absent from the artifact.
+The web builder presents authored ability and skill fields through Ability/Skill
+entity pickers, with a skill modifier/proficiency-rank choice. Proficiency operands
+use Untrained through Legendary labels. These controls retain the concrete typed
+field IDs and numeric rank values in saved queries, URLs and CLI predicates;
+choosing a UI family alone does not commit a predicate.
 These hints reference existing catalog fields; they do not define new predicates
 or aliases. Index owns contextual option eligibility and applies matching-only
 enumeration before pagination, retaining selected values. Unsupported count

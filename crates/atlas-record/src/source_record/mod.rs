@@ -39,7 +39,7 @@ pub use content::{
 };
 pub use core_sections::{CoreSearchSelection, core_search_selection};
 pub use identity::{SourceIdentityError, source_record_key};
-pub use item_query::spell_casting_form;
+pub use item_query::{PhysicalBaseType, spell_casting_form};
 pub use model::{SourceBackedRecord, SourceRecordConstructionError, source_owned_document_count};
 pub use nodes::{ItemSourceView, SourceNodeView};
 pub use query::{SourceQueryView, source_family_record_kind};

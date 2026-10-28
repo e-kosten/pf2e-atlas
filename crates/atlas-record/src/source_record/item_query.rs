@@ -3,6 +3,17 @@ use super::{ItemSourceView, SourceFieldView};
 use atlas_foundry_model::{SourcePresence, generated::*};
 use serde_json::Number;
 
+/// Borrowed base identifiers retain each family's generated source type.
+#[derive(Debug, Clone, Copy, serde::Serialize)]
+#[serde(untagged)]
+pub enum PhysicalBaseType<'a> {
+    Text(&'a str),
+    Weapon(&'a WeaponSystemSourceBaseItem),
+    Armor(&'a ArmorSystemSourceBaseItem),
+    Shield(&'a ShieldSystemSourceBaseItem),
+    Ammunition(&'a AmmoSystemSourceBaseItem),
+}
+
 /// Exact upstream spell glyph classes; never guess a duration from prose.
 pub fn spell_casting_form(value: &str) -> &'static str {
     match value.trim().to_lowercase().as_str() {
@@ -32,6 +43,32 @@ macro_rules! family_field {
     };
 }
 impl<'a> ItemSourceView<'a> {
+    pub fn physical_base_type(self) -> SourceFieldView<'a, PhysicalBaseType<'a>> {
+        macro_rules! base {
+            ($source:ident, $variant:ident) => {
+                SourceFieldView::from(&$source.system)
+                    .and_then(|system| (&system.base_item).into())
+                    .map(PhysicalBaseType::$variant)
+            };
+            ($source:ident) => {
+                SourceFieldView::from(&$source.system)
+                    .and_then(|system| (&system.base_item).into())
+                    .map(|value| PhysicalBaseType::Text(value.as_str()))
+            };
+        }
+        match self {
+            Self::WeaponSource(source) => base!(source, Weapon),
+            Self::ArmorSource(source) => base!(source, Armor),
+            Self::ShieldSource(source) => base!(source, Shield),
+            Self::AmmoSource(source) => base!(source, Ammunition),
+            Self::ContainerSource(source) => base!(source),
+            Self::BookSource(source) => base!(source),
+            Self::ConsumableSource(source) => base!(source),
+            Self::EquipmentSource(source) => base!(source),
+            Self::TreasureSource(source) => base!(source),
+            _ => SourceFieldView::NotApplicable,
+        }
+    }
     /// Retained rule nodes; specific interpretation is atomic and model-owned.
     pub fn rules(self) -> SourceFieldView<'a, &'a [RuleElementSource]> {
         super::nodes::item_fields!(
@@ -313,6 +350,73 @@ impl<'a> ItemSourceView<'a> {
             .and_then(|s| (&s.hp).into())
             .and_then(|s| (&s.max).into())
     );
+    family_field!(
+        weapon_damage_dice,
+        &'a Number,
+        [WeaponSource],
+        s,
+        SourceFieldView::from(&s.system)
+            .and_then(|s| (&s.damage).into())
+            .and_then(|d| (&d.dice).into())
+    );
+    family_field!(
+        armor_strength,
+        &'a Number,
+        [ArmorSource],
+        s,
+        SourceFieldView::from(&s.system).and_then(|s| (&s.strength).into())
+    );
+    family_field!(
+        armor_check_penalty,
+        &'a Number,
+        [ArmorSource],
+        s,
+        SourceFieldView::from(&s.system).and_then(|s| (&s.check_penalty).into())
+    );
+    family_field!(
+        armor_speed_penalty,
+        &'a Number,
+        [ArmorSource],
+        s,
+        SourceFieldView::from(&s.system).and_then(|s| (&s.speed_penalty).into())
+    );
+    family_field!(
+        shield_ac_bonus,
+        &'a Number,
+        [ShieldSource],
+        s,
+        SourceFieldView::from(&s.system).and_then(|s| (&s.ac_bonus).into())
+    );
+    pub fn weapon_damage_die_faces(self) -> SourceFieldView<'a, Number> {
+        let Self::WeaponSource(source) = self else {
+            return SourceFieldView::NotApplicable;
+        };
+        SourceFieldView::from(&source.system)
+            .and_then(|s| (&s.damage).into())
+            .and_then(|d| (&d.die).into())
+            .and_then(|die| {
+                let faces = match die {
+                    WeaponDamageDie::D4 => 4,
+                    WeaponDamageDie::D6 => 6,
+                    WeaponDamageDie::D8 => 8,
+                    WeaponDamageDie::D10 => 10,
+                    WeaponDamageDie::D12 => 12,
+                    WeaponDamageDie::Empty => return SourceFieldView::NotApplicable,
+                };
+                SourceFieldView::Value(Number::from(faces))
+            })
+    }
+    pub fn shield_broken_threshold(self) -> SourceFieldView<'a, Number> {
+        self.shield_hp_maximum()
+            .and_then(|value| match value.as_i64() {
+                Some(0) => SourceFieldView::NotApplicable,
+                Some(value) if value > 0 => SourceFieldView::Value(Number::from(value / 2)),
+                _ => SourceFieldView::ProjectionInvalid {
+                    source_path: "/system/hp/max",
+                    reason: "Broken threshold requires nonnegative integer maximum HP",
+                },
+            })
+    }
     family_field!(
         consumable_damage,
         &'a ConsumableDamageHealing,

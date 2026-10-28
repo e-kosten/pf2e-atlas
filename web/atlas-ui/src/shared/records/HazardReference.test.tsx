@@ -51,6 +51,8 @@ it.each([false, true])(
           complex: knownFact(true),
           stealth: numberFact(12),
           hardness: numberFact(5),
+          detection_dc: numberFact(22),
+          broken_threshold: numberFact(20),
           defense_block: knownFact(true),
           show_saves: true,
         }}
@@ -90,6 +92,11 @@ it.each([false, true])(
     for (let i = 1; i < ordered.length; i++)
       expect(headings.indexOf(ordered[i - 1])).toBeLessThan(
         headings.indexOf(ordered[i]),
+      );
+    expect(screen.getByText("Detection DC").parentElement).toHaveTextContent("22");
+    if (!encounter)
+      expect(screen.getByText("Broken Threshold").parentElement).toHaveTextContent(
+        "20",
       );
     expect(screen.getByText("Echoes of Defeat")).toBeVisible();
     expect(screen.getByText("Pitfall")).toBeVisible();
@@ -135,6 +142,8 @@ it.each([false, true, null])(
             complex === null ? { state: "missing", value: null } : knownFact(complex),
           stealth: numberFact(12),
           hardness: numberFact(5),
+          detection_dc: { state: "not_applicable", value: null, adjustment: null },
+          broken_threshold: { state: "not_applicable", value: null, adjustment: null },
           defense_block: knownFact(true),
           show_saves: true,
         }}

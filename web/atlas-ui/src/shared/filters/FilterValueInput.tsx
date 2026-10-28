@@ -1,5 +1,7 @@
 import { Alert, AutoComplete, Button, Checkbox, Input, Select, Space } from "antd";
 import { useEffect, useState } from "react";
+import { actorMetric } from "./actorMetricFields";
+import { ProficiencyRankInput } from "./ProficiencyRankInput";
 import type {
   FilterEditorFieldView,
   FilterVocabularyScope,
@@ -72,6 +74,15 @@ export function FilterValueInput({
           { value: "invalid", label: "Could not be parsed" },
           { value: "not_applicable", label: "Does not apply" },
         ]}
+        onChange={onChange}
+      />
+    );
+  if (actorMetric(definition.id)?.measure === "rank")
+    return (
+      <ProficiencyRankInput
+        label={label}
+        value={value}
+        range={operand === "range"}
         onChange={onChange}
       />
     );

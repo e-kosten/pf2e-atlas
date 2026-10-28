@@ -45,7 +45,7 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
         "Actor",
         json!({
             "_id":"testCreature1000","type":"npc","name":"Test Creature",
-            "system":{"details":{"publicNotes":"<h2>Frozen Grave</h2><p>A patient guardian.</p>"}},
+            "system":{"details":{"publicNotes":"<h2>Frozen Grave</h2><p>A patient guardian.</p>"},"abilities":{"str":{"mod":0}},"skills":{"athletics":{"base":25}}},
             "items":[{"_id":"dddddddddddddddd","name":"Flame Lance","type":"spell",
                 "system":{"traits":{"value":["fire"]}}}]
         }),
@@ -412,6 +412,31 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
         assert_eq!(checkpoints[&checkpoint.reuse_key], unit.vector);
     }
     assert!(!paths.source_root.exists());
+    {
+        let read = workspace.read(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
+        if historical {
+            // Schema upgrade cannot make old content preparation queryable.
+            let states: (String, String) = read
+                .connection()
+                .query_row(
+                    "SELECT ability_str_state,skill_athletics_modifier_state FROM actor_projection",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .unwrap();
+            assert_eq!(states, ("missing".into(), "missing".into()));
+        } else {
+            let facts: (i64, i64) = read
+                .connection()
+                .query_row(
+                    "SELECT ability_str,skill_athletics_modifier FROM actor_projection",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .unwrap();
+            assert_eq!(facts, (0, 25));
+        }
+    }
     assert!(!paths.embedding_cache_root.exists());
     assert!(runtime.inference.loaded_profiles().is_empty());
     if !historical {

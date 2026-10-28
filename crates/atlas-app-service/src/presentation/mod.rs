@@ -3,9 +3,11 @@ mod action_cost;
 mod activity_references;
 pub(crate) mod actor;
 mod facts;
+mod hazard_readouts;
 mod item_reference;
 mod physical_reference;
 mod reference_profiles;
+mod skill_qualification;
 mod spell;
 mod spell_changes;
 pub(crate) mod spell_context;
@@ -160,6 +162,8 @@ pub(crate) fn record_presentation(
     let mut body = profile.unwrap_or_else(|| match node {
         SourceNodeView::Actor(atlas_foundry_model::ActorSourcePF2e::HazardSource(source)) => {
             RecordBodyView::Hazard(Box::new(HazardPresentationView {
+                detection_dc: number(SourceFieldView::NotApplicable),
+                broken_threshold: number(SourceFieldView::NotApplicable),
                 defense_block: hazard_defense_block(node),
                 show_saves: hazard_show_saves(node),
                 actor: actor::authored_actor(record, node, retrieval.source_fingerprint()),
@@ -307,6 +311,7 @@ pub(crate) fn record_presentation(
         }
         _ => RecordBodyView::Content,
     });
+    hazard_readouts::refresh(&mut body);
     let label_traits = |activity: &mut ActorActivityView| {
         for badge in &mut activity.traits {
             badge.label = retrieval
@@ -654,6 +659,19 @@ pub(super) fn item_usage(item: ItemSourceView<'_>) -> Option<String> {
 fn physical(item: ItemSourceView<'_>) -> PhysicalPresentationView {
     let price = item.physical_price();
     PhysicalPresentationView {
+        base_type: fact(item.physical_base_type().and_then(|value| {
+            token(&value)
+                .map(|value| {
+                    SourceFieldView::Value(PhysicalBaseTypeView {
+                        label: crate::physical_labels::base_type(&value),
+                        value,
+                    })
+                })
+                .unwrap_or(SourceFieldView::ProjectionInvalid {
+                    source_path: "/system/baseItem",
+                    reason: "Base type cannot be represented as an identifier",
+                })
+        })),
         details: physical_reference::details(item),
         quantity: physical_reference::quantity(item),
         material: physical_reference::material(item),
