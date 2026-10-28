@@ -8,3 +8,63 @@
 @import "./encounters/difficulty.css";
 
 @import "./encounters/ability-state.css";
+
+.encounter-recovery {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+}
+.encounter-recovery__intro,
+.encounter-recovery__notice {
+  margin: 0;
+}
+.encounter-recovery__policy {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.encounter-recovery__hp {
+  display: grid;
+  gap: 8px;
+}
+.encounter-recovery__hp-result {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: normal;
+}
+.encounter-recovery__amount {
+  width: 120px;
+}
+.encounter-recovery__changes,
+.encounter-recovery__summary {
+  display: grid;
+  gap: 4px;
+}
+.encounter-recovery__summary {
+  color: var(--muted);
+}
+.encounter-recovery__compact-changes {
+  margin-top: 8px;
+  font-weight: normal;
+}
+@media (min-width: 768px) {
+  .encounter-recovery__compact-changes {
+    display: none;
+  }
+}
+
+.encounter-recovery__table,
+.encounter-recovery__hp {
+  min-width: 0;
+}
+.encounter-recovery__table {
+  overflow-wrap: anywhere;
+}
+
+.encounter-recovery__intro-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}

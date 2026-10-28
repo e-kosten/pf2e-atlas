@@ -1767,6 +1767,21 @@ impl AtlasWebService for MockService {
             "casting mock not configured",
         ))
     }
+    fn preview_encounter_recovery(
+        &self,
+        _: &str,
+        _: atlas_app_model::PreviewEncounterRecoveryRequest,
+    ) -> Result<atlas_app_model::EncounterRecoveryPreviewView, atlas_app_service::AppServiceError>
+    {
+        unimplemented!()
+    }
+    fn apply_encounter_recovery(
+        &self,
+        _: &str,
+        _: atlas_app_model::ApplyEncounterRecoveryRequest,
+    ) -> Result<atlas_app_model::EncounterMutationView, atlas_app_service::AppServiceError> {
+        unimplemented!()
+    }
     fn apply_encounter_spell_action(
         &self,
         encounter_ref: &str,

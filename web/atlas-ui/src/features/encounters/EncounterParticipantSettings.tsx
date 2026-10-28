@@ -4,6 +4,7 @@ import { EncounterModal } from "./EncounterModal";
 import {
   Button,
   Checkbox,
+  Dropdown,
   Form,
   Input,
   InputNumber,
@@ -11,12 +12,12 @@ import {
   Segmented,
   Space,
 } from "antd";
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type {
   EncounterParticipantView,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
-import { Pencil } from "lucide-react";
+import { Settings } from "lucide-react";
 import { optionalBigIntInput, participantUpdate } from "./participantEdits";
 
 type ParticipantValues = {
@@ -35,8 +36,10 @@ export function EncounterParticipantSettings({
   recovery,
   onUpdate,
   onLifeSettings,
+  onReset,
 }: {
   participant: EncounterParticipantView;
+  onReset?: () => void;
   disabled: boolean;
   pending: boolean;
   error?: string;
@@ -50,22 +53,43 @@ export function EncounterParticipantSettings({
   ) => Promise<boolean>;
 }) {
   const formId = useId();
+  const settingsTrigger = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [committed, setCommitted] = useState(false);
   const [savingLifeSettings, setSavingLifeSettings] = useState(false);
   return (
     <>
-      <Button
-        type="text"
-        aria-label="Participant settings"
-        title="Participant settings"
-        icon={<Pencil size={16} aria-hidden="true" />}
-        disabled={disabled}
-        onClick={() => {
-          setCommitted(false);
-          setOpen(true);
+      <Dropdown
+        trigger={["click"]}
+        menu={{
+          items: [
+            { key: "edit", label: "Edit participant" },
+            ...(onReset
+              ? [
+                  { type: "divider" as const },
+                  { key: "reset", label: "Reset to baseline" },
+                ]
+              : []),
+          ],
+          onClick: ({ key }) => {
+            settingsTrigger.current?.focus({ preventScroll: true });
+            if (key === "reset") onReset?.();
+            else {
+              setCommitted(false);
+              setOpen(true);
+            }
+          },
         }}
-      />
+      >
+        <Button
+          type="text"
+          ref={settingsTrigger}
+          aria-label="Participant settings"
+          title="Participant settings"
+          icon={<Settings size={16} aria-hidden="true" />}
+          disabled={disabled}
+        />
+      </Dropdown>
       <EncounterModal
         title="Participant settings"
         open={open && !(committed && !disabled)}
@@ -223,10 +247,13 @@ function ParticipantSettingsForm({
         <Form.Item name="side" label="Side" rules={[{ required: true }]}>
           <Select
             aria-label="Participant side"
-            options={["pc", "ally", "enemy", "neutral", "hazard"].map((value) => ({
-              value,
-              label: value,
-            }))}
+            options={[
+              { value: "pc", label: "Player Characters" },
+              { value: "ally", label: "Ally" },
+              { value: "enemy", label: "Enemy" },
+              { value: "neutral", label: "Neutral" },
+              { value: "hazard", label: "Hazard" },
+            ]}
           />
         </Form.Item>
         {participant.participant_kind === "creature" && (

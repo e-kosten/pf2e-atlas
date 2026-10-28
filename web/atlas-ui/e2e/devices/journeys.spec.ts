@@ -1064,7 +1064,7 @@ test("encounter references retain their owner, scroll and native destination", a
       .filter({ hasText: "Saved, but the encounter could not refresh" });
     await expect(feedback).toBeVisible();
     const settingsAction = page.getByRole("button", {
-      name: "Settings",
+      name: "Encounter settings",
       exact: true,
     });
     await expect(settingsAction).toBeVisible();
@@ -1181,7 +1181,14 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
         .getByRole("button", { name: "Cancel", exact: true }),
       info,
     );
-    await activate(page.getByRole("button", { name: "Settings", exact: true }), info);
+    await activate(
+      page.getByRole("button", { name: "Encounter settings", exact: true }),
+      info,
+    );
+    await activate(
+      page.getByRole("menuitem", { name: "Edit encounter", exact: true }),
+      info,
+    );
     const settings = page.getByRole("dialog", {
       name: "Settings",
       exact: true,
