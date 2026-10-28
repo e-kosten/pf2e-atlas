@@ -71,8 +71,14 @@ magnitudes. Missing values and uncertain activation remain explicit. Conditions
 owned by a creature, such as Sickened Doprillu's Sickened, remain source-linked
 and read-only; a separate temporary condition remains independently editable. A higher
 temporary Slowed value does not erase the inherent source; removing it exposes
-the inherited value again. Turn-start and explicit regain prepare reference facts
-before the guarded write and check the reference revision before allocating stock.
+the inherited value again. Turn-start, explicit regain and Spend prepare reference
+facts before the guarded write and check the reference revision. Spend honors known
+source restrictions without reallocating stock; Restore and Correct remain manual
+corrections. Unavailable source facts retain manual tracking when no known prohibition
+applies. A rules-owned RegainPlan evaluates allowance, Stunned loss, allocation,
+Quickened restrictions and typed missing facts together. Presentation adapts that
+plan; allocation never consumes display notes or DTOs. Regain and validated explicit
+Stunned recovery use one pure consumption reducer.
 Matching turn receipts recover before reference loading or that guard. Recorded
 stock survives later source changes; subsequent forecasts use the current source.
 Each successful allocation also saves typed calculation facts with the turn stock,
@@ -318,7 +324,9 @@ row rather than becoming an unrelated action/disclosure collection there.
 Recovery hints/results remain anchored to the requested action, including while
 successful resolution removes the associated condition. Listing and check
 submission share the offered source facts. Known checks use the shared dice
-surface; table outcomes use direct controls without raw-result entry. Missing DCs,
+surface; table outcomes use direct controls without raw-result entry. The recovery
+API accepts Roll or a table degree; the unused raw total/natural input is retired.
+Historical check outcomes retain their stored table totals. Missing DCs,
 modifiers, elapsed time and recovery reasons never become required recovery fields.
 Wounded, waking and overnight recovery use hints and existing row controls rather
 than separate validation commands. Broken uses its derived/source threshold and
