@@ -1168,7 +1168,7 @@ fn explicit_collections_share_grouping_and_movement_uses_feet() {
         vec![],
     )
     .unwrap();
-    assert_eq!(editor.catalog_version, 6);
+    assert_eq!(editor.catalog_version, 8);
     let embedded = editor.groups.iter().find(|g| g.id == "embedded").unwrap();
     assert_eq!(
         embedded

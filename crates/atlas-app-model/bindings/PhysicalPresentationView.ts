@@ -2,8 +2,9 @@
 import type { ConsumablePresentationView } from "./ConsumablePresentationView";
 import type { FactView } from "./FactView";
 import type { NumberFactView } from "./NumberFactView";
+import type { PhysicalBaseTypeView } from "./PhysicalBaseTypeView";
 import type { PhysicalDetailsView } from "./PhysicalDetailsView";
 import type { PhysicalMaterialReferenceView } from "./PhysicalMaterialReferenceView";
 import type { PhysicalPriceView } from "./PhysicalPriceView";
 
-export type PhysicalPresentationView = { details: PhysicalDetailsView | null, quantity: NumberFactView, material: FactView<PhysicalMaterialReferenceView>, size: FactView<string>, consumable: ConsumablePresentationView | null, usage: FactView<string>, bulk: NumberFactView, price: FactView<PhysicalPriceView>, price_per: NumberFactView, };
+export type PhysicalPresentationView = { base_type: FactView<PhysicalBaseTypeView>, details: PhysicalDetailsView | null, quantity: NumberFactView, material: FactView<PhysicalMaterialReferenceView>, size: FactView<string>, consumable: ConsumablePresentationView | null, usage: FactView<string>, bulk: NumberFactView, price: FactView<PhysicalPriceView>, price_per: NumberFactView, };

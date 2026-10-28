@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 19;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 21;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -111,6 +111,18 @@ const MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 18,
+        name: "reference-numeric-filters",
+        sql: atlas_index::REFERENCE_NUMERIC_FILTER_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 19,
+        name: "physical-base-type",
+        sql: atlas_index::PHYSICAL_BASE_TYPE_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 20,
         name: "similarity-parts",
         sql: atlas_index::SIMILARITY_SCHEMA_SQL,
         backfill: Some(atlas_storage::DataBackfill {
@@ -119,7 +131,7 @@ const MIGRATIONS: &[Migration] = &[
         }),
     },
     Migration {
-        version: 19,
+        version: 21,
         name: "core-section-eligibility",
         sql: atlas_index::CORE_SECTIONS_SCHEMA_SQL,
         backfill: None,
@@ -156,6 +168,34 @@ pub(crate) fn register_extensions() -> StorageResult<()> {
 mod tests {
     use super::*;
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
+
+    #[test]
+    fn reference_filter_upgrade_preserves_saved_lists_from_published_schema_seventeen() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("reference-upgrade.sqlite");
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace.migrate(&MIGRATIONS[..17], |_| Ok(())).unwrap();
+        let write = workspace.write(17).unwrap();
+        LocalStateWrite::new(&write)
+            .saved_lists()
+            .create(NewSavedList {
+                slug: "campaign".into(),
+                name: "Campaign".into(),
+                description: Some("Keep these notes".into()),
+                tags: vec!["review".into()],
+            })
+            .unwrap();
+        write.commit().unwrap();
+        let before = {
+            let read = workspace.read(17).unwrap();
+            serde_json::to_value(LocalStateRead::new(&read).saved_lists().list().unwrap()).unwrap()
+        };
+        let upgraded = initialize_workspace(&path).unwrap();
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let after = LocalStateRead::new(&read).saved_lists().list().unwrap();
+        assert_eq!(serde_json::to_value(after).unwrap(), before);
+    }
 
     #[test]
     fn stateless_strike_upgrade_removes_only_display_roll_receipts() {
@@ -280,19 +320,19 @@ mod tests {
     }
 
     #[test]
-    fn similarity_metadata_upgrade_preserves_saved_state_and_exact_vectors() {
+    fn similarity_metadata_upgrade_from_published_nineteen_preserves_saved_state_and_exact_vectors()
+    {
         use atlas_index::IndexArtifactWriter;
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("similarity-upgrade.sqlite");
         let workspace = initialize_workspace(&path).unwrap();
-        let input = atlas_search::test_support::input(
-            vec![atlas_search::test_support::record(
+        let input = atlas_search::test_support::input_with_both_profiles(vec![
+            atlas_search::test_support::record(
                 "hazards",
                 "Actor",
                 serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","name":"Hazard","type":"hazard","system":{"details":{"description":"<p>A narrow fissure</p>","reset":"<p>Returns at dawn</p>"}}}),
-            )],
-            true,
-        );
+            ),
+        ]);
         {
             let owner = workspace.update_owner().unwrap();
             let maintenance = owner
@@ -345,26 +385,33 @@ mod tests {
                 ],
             )
             .unwrap();
-        let table: String = write
+        let tables = write
             .connection()
-            .query_row(
-                "SELECT name FROM sqlite_master WHERE type='table' AND sql LIKE '%USING vec0%'",
-                [],
-                |row| row.get(0),
-            )
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' AND sql LIKE '%USING vec0%' ORDER BY name")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
             .unwrap();
+        assert_eq!(tables.len(), 2);
         let vectors = |connection: &rusqlite::Connection| {
-            connection
-                .prepare(&format!(
-                    "SELECT unit_id,embedding FROM {table} ORDER BY unit_id"
-                ))
-                .unwrap()
-                .query_map([], |row| {
-                    Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
+            tables
+                .iter()
+                .map(|table| {
+                    let values = connection
+                        .prepare(&format!(
+                            "SELECT unit_id,embedding FROM {table} ORDER BY unit_id"
+                        ))
+                        .unwrap()
+                        .query_map([], |row| {
+                            Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
+                        })
+                        .unwrap()
+                        .collect::<Result<Vec<_>, _>>()
+                        .unwrap();
+                    (table.clone(), values)
                 })
-                .unwrap()
-                .collect::<Result<Vec<_>, _>>()
-                .unwrap()
+                .collect::<Vec<_>>()
         };
         let before = vectors(write.connection());
         let revision = write
@@ -375,7 +422,7 @@ mod tests {
                 |row| row.get::<_, i64>(0),
             )
             .unwrap();
-        // Model main's stateless-strike schema before adding the Similar projection.
+        // Model published main's numeric/base-type schema before adding Similar.
         let mut historical_context = input.context.clone();
         historical_context.core_sections_recipe.clear();
         write
@@ -391,12 +438,12 @@ mod tests {
         write
             .connection()
             .execute_batch(
-                "DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DROP TABLE similarity_parts; DELETE FROM schema_migrations WHERE version>=18; PRAGMA user_version=17;",
+                "DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DROP TABLE similarity_parts; DELETE FROM schema_migrations WHERE version>=20; PRAGMA user_version=19;",
             )
             .unwrap();
         let main_ledger = |connection: &rusqlite::Connection| {
             connection
-                .prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=17 ORDER BY version")
+                .prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=19 ORDER BY version")
                 .unwrap()
                 .query_map([], |row| Ok((row.get::<_, u32>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?)))
                 .unwrap()
@@ -514,7 +561,7 @@ mod tests {
                 .collect::<Vec<_>>()
         };
         let before = stable_values(write.connection());
-        let ledger=write.connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=18 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+        let ledger=write.connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=20 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
         let mut historical_context = input.context.clone();
         historical_context.core_sections_recipe.clear();
         write
@@ -527,7 +574,7 @@ mod tests {
                 ],
             )
             .unwrap();
-        write.connection().execute_batch("DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DELETE FROM schema_migrations WHERE version=19; PRAGMA user_version=18;").unwrap();
+        write.connection().execute_batch("DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DELETE FROM schema_migrations WHERE version=21; PRAGMA user_version=20;").unwrap();
         write.commit().unwrap();
         let source = directory.path().join("absent-source");
         let models = directory.path().join("absent-models");
@@ -553,7 +600,7 @@ mod tests {
             stable_values(reader.workspace_session().connection()),
             before
         );
-        let actual_ledger=reader.workspace_session().connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=18 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+        let actual_ledger=reader.workspace_session().connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=20 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
         assert_eq!(actual_ledger, ledger);
         assert_eq!(
             reader

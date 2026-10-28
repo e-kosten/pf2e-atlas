@@ -32,6 +32,11 @@ export function HazardDefenses({
                   <ReferenceFact label="HP" fact={hazard.actor.maximum_hp} />
                 )}
                 <ReferenceFact label="Hardness" fact={hazard.hardness} />
+                <ReferenceFact
+                  label="Broken Threshold"
+                  fact={hazard.broken_threshold}
+                  optional
+                />
               </div>
             )}
             {hazard.show_saves && (

@@ -55,32 +55,38 @@ pub(super) fn render(
     }
     if let Some(skills) = collection(out, "Skills", &actor.skills) {
         for skill in skills {
-            number(out, &skill.label, &skill.modifier, true, "");
-            optional_text(out, "  Context", &skill.note);
-            if skill.conditional.state == QueryFieldState::Value {
-                if let Some(conditional) = &skill.conditional.value {
-                    for value in conditional {
-                        line(
-                            out,
-                            format!(
-                                "  {}: {}",
-                                fact_string(&value.label, Clone::clone),
-                                number_text(&value.modifier, true, "")
-                            ),
-                        );
-                    }
+            let mut summary = format!(
+                "{}: {}",
+                skill.label,
+                number_text(&skill.modifier, true, "")
+            );
+            if let Some(conditional) = &skill.conditional.value {
+                for value in conditional {
+                    summary.push_str(&format!(
+                        "; {} {}",
+                        number_text(&value.modifier, true, ""),
+                        fact_string(&value.label, Clone::clone)
+                    ));
                 }
             } else if !matches!(
                 skill.conditional.state,
-                QueryFieldState::Missing | QueryFieldState::NotApplicable
+                QueryFieldState::Missing | QueryFieldState::NotApplicable | QueryFieldState::Value
             ) {
-                line(
-                    out,
-                    format!(
-                        "  Conditional modifiers: {}",
-                        unavailable(skill.conditional.state)
-                    ),
-                );
+                summary.push_str(&format!(
+                    "; conditional modifiers {}",
+                    unavailable(skill.conditional.state)
+                ));
+            }
+            line(out, summary);
+            optional_text(out, "  Context", &skill.note);
+            if let Some(conditional) = &skill.conditional.value {
+                for value in conditional {
+                    if detail == TerminalDetail::Full
+                        || value.qualification.state == QueryFieldState::Invalid
+                    {
+                        optional_text(out, "  Condition details", &value.qualification);
+                    }
+                }
             }
         }
     }

@@ -121,6 +121,18 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 18,
+        name: "reference-numeric-filters",
+        sql: crate::REFERENCE_NUMERIC_FILTER_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 19,
+        name: "physical-base-type",
+        sql: crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 20,
         name: "similarity-parts",
         sql: crate::SIMILARITY_SCHEMA_SQL,
         backfill: Some(atlas_storage::DataBackfill {
@@ -129,7 +141,7 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         }),
     },
     Migration {
-        version: 19,
+        version: 21,
         name: "core-section-eligibility",
         sql: crate::CORE_SECTIONS_SCHEMA_SQL,
         backfill: None,
@@ -175,7 +187,22 @@ pub fn publish_historical_record_fixture(
         // historical physical shape under test. No legacy runtime writer.
         connection.execute_batch(crate::TRAIT_SCHEMA_SQL)?;
         connection.execute_batch(crate::EMBEDDING_STORAGE_SCHEMA_SQL)?;
+        let tables = ["actor_projection", "physical_projection", "weapon_projection", "armor_projection", "shield_projection"];
+        let columns = |table: &str| -> Result<Vec<String>, IndexError> {
+            let mut statement = connection.prepare(&format!("PRAGMA table_info({table})"))?;
+            Ok(statement.query_map([], |row| row.get(1))?.collect::<Result<Vec<_>, _>>()?)
+        };
+        let historical_columns = tables.iter().map(|table| columns(table)).collect::<Result<Vec<_>, _>>()?;
+        connection.execute_batch(crate::REFERENCE_NUMERIC_FILTER_SCHEMA_SQL)?;
+        connection.execute_batch(crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL)?;
         crate::writer::write_record_rows(connection, input)?;
+        // Modern projection columns are fixture scaffolding, not part of the
+        // historical schema exercised by the embedding conversion/rollback.
+        for (table, historical) in tables.iter().zip(historical_columns) {
+            for column in columns(table)?.into_iter().rev().filter(|column| !historical.contains(column)) {
+                connection.execute_batch(&format!("ALTER TABLE {table} DROP COLUMN {column}"))?;
+            }
+        }
         connection.execute_batch("INSERT INTO legacy_semantic_units SELECT u.unit_id,u.record_id,u.profile_id,l.owners_json,u.unit_kind,l.field_path,l.section_json,l.chunk_ordinal,i.token_count,lower(hex(i.input_hash)) FROM semantic_units u JOIN semantic_locations l USING(location_id) JOIN embedding_inputs i USING(input_id);
 DROP TABLE semantic_units;
 ALTER TABLE legacy_semantic_units RENAME TO semantic_units;

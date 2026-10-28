@@ -282,6 +282,10 @@ fn pinned_corpus_item_and_common_projection_oracle() {
     .unwrap();
     db.execute_batch(crate::CONSUMABLE_FILTER_SCHEMA_SQL)
         .unwrap();
+    db.execute_batch(crate::REFERENCE_NUMERIC_FILTER_SCHEMA_SQL)
+        .unwrap();
+    db.execute_batch(crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL)
+        .unwrap();
     let mut families = BTreeMap::new();
     let mut counts = [0; 2];
     let mut roots = 0;

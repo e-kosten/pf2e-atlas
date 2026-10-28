@@ -4,7 +4,8 @@ import { ValueExplanation } from "../ui/ValueExplanation";
 import { RuntimeCountCalculation } from "./RuntimeCountCalculation";
 import { statusReasonLabel } from "./statusReasonLabel";
 import { TraitBadge } from "./TraitBadge";
-import { Alert, Button, Collapse, Typography } from "antd";
+import { Alert, Button, Collapse, Popover, Typography } from "antd";
+import { InfoCircleOutlined } from "@ant-design/icons";
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import type {
   ActorActivityView,
@@ -480,21 +481,38 @@ export function ActorSkills({ actor }: { actor: ActorPresentationView }) {
                 <FactRow label={sentenceCase(skill.label)}>
                   <NumberFact fact={skill.modifier} signed />
                   {skill.note.state !== "missing" && hasReadingFact(skill.note)
-                    ? `; ${factText(skill.note)}`
+                    ? ` · ${factText(skill.note)}`
                     : ""}
                   {!["missing", "value", "not_applicable"].includes(
                     skill.conditional.state,
                   )
-                    ? `; conditional modifiers ${factText(skill.conditional)}`
+                    ? ` · conditional modifiers ${factText(skill.conditional)}`
                     : ""}
                   {skill.conditional.value?.map((conditional, index) => (
                     <span key={index}>
-                      ;{" "}
+                      {" · "}
+                      <NumberFact fact={conditional.modifier} signed />{" "}
                       {conditional.label.state === "value" &&
                       !conditional.label.value?.trim()
                         ? "Unspecified condition"
-                        : factText(conditional.label)}{" "}
-                      <NumberFact fact={conditional.modifier} signed />
+                        : factText(conditional.label)}
+                      {!["missing", "not_applicable"].includes(
+                        conditional.qualification.state,
+                      ) &&
+                        hasReadingFact(conditional.qualification) && (
+                          <Popover
+                            title="Condition details"
+                            content={factText(conditional.qualification)}
+                            trigger="click"
+                          >
+                            <Button
+                              type="text"
+                              size="small"
+                              icon={<InfoCircleOutlined />}
+                              aria-label={`${sentenceCase(skill.label)}: condition details`}
+                            />
+                          </Popover>
+                        )}
                     </span>
                   ))}
                 </FactRow>

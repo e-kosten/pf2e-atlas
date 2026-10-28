@@ -247,7 +247,7 @@ fn product_group(d: &QueryFieldDefinition) -> ProductGroup {
         return ProductGroup::Defenses;
     }
     match path.split('.').next().unwrap_or("") {
-        "body" => ProductGroup::Creatures,
+        "body" | "abilities" | "skills" => ProductGroup::Creatures,
         "level" => ProductGroup::Common,
         "hazard" => ProductGroup::Hazards,
         "physical" | "ammo" | "weapon" | "armor" | "shield" | "consumable" | "equipment"

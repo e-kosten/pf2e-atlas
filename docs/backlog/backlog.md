@@ -87,9 +87,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Prioritize combat state and actions, improve roster readability, and reuse
   shared family layouts beyond the completed workflow/dice passes. Status: proposed.
 
-- [Spell form preview](items/rust-spell-rank-preview.md)
-  Add interactive alternate-form selection over checked source, composing with
-  rank preview and preserving embedded customizations. Status: deferred.
+- [Spell casting variant preview](items/rust-spell-rank-preview.md)
+  Select a casting variant and rank together, presenting the effective spell
+  while preserving embedded customizations. Status: deferred.
 
 - [Rust web keyboard navigation and focus](items/rust-web-keyboard-navigation-focus.md)
   Define a coherent keyboard-driven web workflow across search, filters, results, detail panes, and editable controls. Status: proposed.
@@ -98,6 +98,30 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Standardize accessible labels and form semantics across Ant Design forms and compact editable controls. Status: proposed.
 
 ## Later
+
+- [Device visual reference consistency](items/device-visual-reference-consistency.md)
+  Investigate glyph-raster checkpoint failures reproduced identically on unchanged
+  main, retaining strict comparison and reviewed reference provenance. Status: proposed.
+
+- [Search text exclusion](items/search-text-exclusion.md)
+  Exclude unwanted indexed text consistently across retrieval modes and paging.
+  Status: deferred.
+
+- [Participant baseline reset](items/encounter-participant-baseline-reset.md)
+  Reset defined encounter mechanics atomically while preserving participant
+  identity and authored notes. Status: deferred.
+
+- Table-roll preflight
+  Show unusable formulas and incomplete result coverage before rolling, retaining
+  the current broader formulas and explicit partial-result behavior. Status: deferred.
+
+- [Browser numeric precision](items/browser-numeric-precision.md)
+  Preserve exact meaning for admitted values outside JavaScript's safe numeric
+  range without silently rounding. Status: deferred.
+
+- [Embedded document failure isolation](items/embedded-document-failure-isolation.md)
+  Keep healthy embedded documents usable beside unavailable entries, preserving
+  authored positions, identity and explicit incompleteness. Status: deferred.
 
 - [Source query catalog expansion](items/source-query-catalog-expansion.md)
   Add useful authored fields and collection scopes with shared catalog semantics

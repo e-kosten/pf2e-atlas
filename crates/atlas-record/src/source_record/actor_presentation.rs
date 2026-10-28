@@ -1,5 +1,5 @@
 //! Consumer-required borrowed authored facts; no runtime defaults or rule execution.
-use super::{ActorQueryView, ItemSourceView, SourceFieldView};
+use super::{ActorQueryView, ItemSourceView, SourceFieldView, SourceNodeView};
 use atlas_foundry_model::generated::*;
 use serde_json::Number;
 
@@ -260,6 +260,68 @@ impl<'a> ActorQueryView<'a> {
             }
         })
     }
+    pub fn ability_modifier(self, key: &str) -> SourceFieldView<'a, &'a Number> {
+        macro_rules! project {
+            ($source:expr) => {
+                SourceFieldView::from(&$source.system)
+                    .and_then(|s| (&s.abilities).into())
+                    .and_then(|a| match key {
+                        "str" => SourceFieldView::from(&a.str).and_then(|v| (&v.r#mod).into()),
+                        "dex" => SourceFieldView::from(&a.dex).and_then(|v| (&v.r#mod).into()),
+                        "con" => SourceFieldView::from(&a.con).and_then(|v| (&v.r#mod).into()),
+                        "int" => SourceFieldView::from(&a.int).and_then(|v| (&v.r#mod).into()),
+                        "wis" => SourceFieldView::from(&a.wis).and_then(|v| (&v.r#mod).into()),
+                        "cha" => SourceFieldView::from(&a.cha).and_then(|v| (&v.r#mod).into()),
+                        _ => SourceFieldView::NotApplicable,
+                    })
+            };
+        }
+        match self.source {
+            SourceNodeView::Actor(ActorSourcePF2e::NPCSource(source)) => project!(source),
+            SourceNodeView::Actor(ActorSourcePF2e::CharacterSource(source)) => project!(source),
+            _ => SourceFieldView::NotApplicable,
+        }
+    }
+
+    pub fn skill_modifier(self, key: &str) -> SourceFieldView<'a, &'a Number> {
+        self.npc_skills().and_then(|skills| {
+            match skills.entries.iter().find(|(name, _)| name == key) {
+                Some((_, skill)) => SourceFieldView::from(&skill.base),
+                None => SourceFieldView::Missing,
+            }
+        })
+    }
+
+    pub fn skill_rank(self, key: &str) -> SourceFieldView<'a, &'a Number> {
+        let SourceNodeView::Actor(ActorSourcePF2e::CharacterSource(source)) = self.source else {
+            return SourceFieldView::NotApplicable;
+        };
+        SourceFieldView::from(&source.system)
+            .and_then(|s| (&s.skills).into())
+            .and_then(|skills| match key {
+                "acrobatics" => SourceFieldView::from(&skills.acrobatics),
+                "arcana" => SourceFieldView::from(&skills.arcana),
+                "athletics" => SourceFieldView::from(&skills.athletics),
+                "computers" => SourceFieldView::from(&skills.computers),
+                "crafting" => SourceFieldView::from(&skills.crafting),
+                "deception" => SourceFieldView::from(&skills.deception),
+                "diplomacy" => SourceFieldView::from(&skills.diplomacy),
+                "intimidation" => SourceFieldView::from(&skills.intimidation),
+                "medicine" => SourceFieldView::from(&skills.medicine),
+                "nature" => SourceFieldView::from(&skills.nature),
+                "occultism" => SourceFieldView::from(&skills.occultism),
+                "performance" => SourceFieldView::from(&skills.performance),
+                "piloting" => SourceFieldView::from(&skills.piloting),
+                "religion" => SourceFieldView::from(&skills.religion),
+                "society" => SourceFieldView::from(&skills.society),
+                "stealth" => SourceFieldView::from(&skills.stealth),
+                "survival" => SourceFieldView::from(&skills.survival),
+                "thievery" => SourceFieldView::from(&skills.thievery),
+                _ => SourceFieldView::NotApplicable,
+            })
+            .and_then(|skill| (&skill.rank).into())
+    }
+
     pub fn visit_skills(
         self,
         mut visit: impl FnMut(&'a str, SourceFieldView<'a, &'a NPCSkillSource>),

@@ -505,7 +505,7 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
             rusqlite::params![crate::codec::sha256(json.as_bytes()), json],
         )
         .unwrap();
-    write.connection().execute_batch("DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DELETE FROM schema_migrations WHERE version=19; PRAGMA user_version=18;").unwrap();
+    write.connection().execute_batch("DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DELETE FROM schema_migrations WHERE version=21; PRAGMA user_version=20;").unwrap();
     let before = table_values(write.connection());
     write.commit().unwrap();
     let upgraded = crate::test_support::initialize_workspace(&path).unwrap();
