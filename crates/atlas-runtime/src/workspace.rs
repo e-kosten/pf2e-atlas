@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 17;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 19;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -109,6 +109,18 @@ const MIGRATIONS: &[Migration] = &[
         sql: atlas_local_state::STATELESS_STRIKE_ROLLS_SCHEMA_SQL,
         backfill: None,
     },
+    Migration {
+        version: 18,
+        name: "reference-numeric-filters",
+        sql: atlas_index::REFERENCE_NUMERIC_FILTER_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 19,
+        name: "physical-base-type",
+        sql: atlas_index::PHYSICAL_BASE_TYPE_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 
 /// Initialize or upgrade one workspace. Reference readiness is independent:
@@ -141,6 +153,34 @@ pub(crate) fn register_extensions() -> StorageResult<()> {
 mod tests {
     use super::*;
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
+
+    #[test]
+    fn reference_filter_upgrade_preserves_saved_lists_from_published_schema_seventeen() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("reference-upgrade.sqlite");
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace.migrate(&MIGRATIONS[..17], |_| Ok(())).unwrap();
+        let write = workspace.write(17).unwrap();
+        LocalStateWrite::new(&write)
+            .saved_lists()
+            .create(NewSavedList {
+                slug: "campaign".into(),
+                name: "Campaign".into(),
+                description: Some("Keep these notes".into()),
+                tags: vec!["review".into()],
+            })
+            .unwrap();
+        write.commit().unwrap();
+        let before = {
+            let read = workspace.read(17).unwrap();
+            serde_json::to_value(LocalStateRead::new(&read).saved_lists().list().unwrap()).unwrap()
+        };
+        let upgraded = initialize_workspace(&path).unwrap();
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let after = LocalStateRead::new(&read).saved_lists().list().unwrap();
+        assert_eq!(serde_json::to_value(after).unwrap(), before);
+    }
 
     #[test]
     fn stateless_strike_upgrade_removes_only_display_roll_receipts() {

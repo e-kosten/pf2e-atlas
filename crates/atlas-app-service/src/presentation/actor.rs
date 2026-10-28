@@ -53,6 +53,7 @@ pub(crate) fn authored_actor(
                 entries
                     .iter()
                     .map(|e| ConditionalSkillView {
+                        qualification: super::skill_qualification::project((&e.predicate).into()),
                         label: text((&e.label).into()),
                         modifier: number((&e.base).into()),
                     })
@@ -833,6 +834,7 @@ pub(crate) fn compose_participant(
                 || save.adjustment.is_some()
         });
     }
+    super::hazard_readouts::refresh(&mut presentation.body);
     presentation
 }
 pub(crate) fn manual_presentation(

@@ -173,6 +173,18 @@
   grid-column: 1 / -1;
   grid-row: 1;
 }
+.filter-field-family {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.filter-field-family > .ant-select {
+  min-width: 0;
+  flex: 1 1 140px;
+}
+.filter-field-family > .ant-select:first-child {
+  flex: 0 0 110px;
+}
 .advanced-filters .rule > .rule-operators {
   grid-column: 1;
   grid-row: 2;

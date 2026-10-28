@@ -63,6 +63,8 @@ function presentation(): RecordPresentationView {
         complex: { state: "value", value: true },
         stealth: numberFact(12),
         hardness: numberFact(5),
+        detection_dc: { state: "not_applicable", value: null, adjustment: null },
+        broken_threshold: { state: "not_applicable", value: null, adjustment: null },
         defense_block: { state: "value", value: true },
         show_saves: true,
       },

@@ -82,6 +82,13 @@ import {
 import { LinkFilterControls, linkClauses, type LinkLeaf } from "./LinkFilterControls";
 import { sameRelationship } from "./linkPredicates";
 import { CollectionValueInput, isCompactCollection } from "./CollectionValueInput";
+import { ActorMetricPicker } from "./ActorMetricPicker";
+import {
+  ACTOR_METRIC_CHOOSERS,
+  actorMetricKind,
+  isActorMetricChooser,
+  type ActorMetricKind,
+} from "./actorMetricFields";
 
 const LinkEditingContext = createContext<{
   open: (rule: PredicateRule, replace: (next: PredicateRule) => void) => void;
@@ -806,6 +813,9 @@ function isPositiveConjunction(group: RuleGroupType): boolean {
 }
 function BuilderFieldSelector(props: FieldSelectorProps) {
   const { editor, scope, narrowFields } = props.context as BuilderContext;
+  const editing = useContext(RuleEditContext);
+  const selectedKind = scope === null ? actorMetricKind(props.value ?? "~") : null;
+  const seenKinds = new Set<ActorMetricKind>();
   const groups = [
     ...editor.groups
       .map((group) => ({
@@ -822,14 +832,50 @@ function BuilderFieldSelector(props: FieldSelectorProps) {
               (!field.unit_fields.length ||
                 field.unit_fields[0].field_id === field.definition.id),
           )
-          .map((field) => ({ value: field.definition.id, label: field.label })),
+          .flatMap((field) => {
+            const kind = scope === null ? actorMetricKind(field.definition.id) : null;
+            if (kind) {
+              if (seenKinds.has(kind)) return [];
+              seenKinds.add(kind);
+              const label = kind === "ability" ? "Ability" : "Skill";
+              return [
+                {
+                  value: ACTOR_METRIC_CHOOSERS[kind],
+                  label,
+                  searchText:
+                    label +
+                    " " +
+                    group.fields
+                      .filter(
+                        (candidate) =>
+                          actorMetricKind(candidate.definition.id) === kind,
+                      )
+                      .map((candidate) => candidate.label)
+                      .join(" "),
+                },
+              ];
+            }
+            return [
+              {
+                value: field.definition.id,
+                label: field.label,
+                searchText: field.label,
+              },
+            ];
+          }),
       }))
       .filter((group) => group.options.length),
     ...(scope === null
       ? [
           {
             label: "Record links",
-            options: [{ value: LINK_CONDITION, label: "Record links" }],
+            options: [
+              {
+                value: LINK_CONDITION,
+                label: "Record links",
+                searchText: "Record links",
+              },
+            ],
           },
         ]
       : []),
@@ -837,29 +883,69 @@ function BuilderFieldSelector(props: FieldSelectorProps) {
       ? [
           {
             label: "Technical condition",
-            options: [{ value: BOOLEAN_CONDITION, label: "Constant condition" }],
+            options: [
+              {
+                value: BOOLEAN_CONDITION,
+                label: "Constant condition",
+                searchText: "Constant condition",
+              },
+            ],
           },
         ]
       : []),
   ];
-  return (
+  const chooser = (
     <Select
-      className={props.className}
+      className={selectedKind ? undefined : props.className}
       aria-label="Filter field"
       placeholder="Choose a filter…"
-      showSearch={{ optionFilterProp: "label" }}
+      showSearch={{ optionFilterProp: "searchText" }}
       options={groups}
       value={
-        props.value === "~"
-          ? undefined
-          : (editor.groups
-              .flatMap((group) => group.fields)
-              .find((field) => field.definition.id === props.value)?.unit_fields[0]
-              ?.field_id ?? props.value)
+        selectedKind
+          ? ACTOR_METRIC_CHOOSERS[selectedKind]
+          : props.value === "~"
+            ? undefined
+            : (editor.groups
+                .flatMap((group) => group.fields)
+                .find((field) => field.definition.id === props.value)?.unit_fields[0]
+                ?.field_id ?? props.value)
       }
-      onChange={props.handleOnChange}
+      onChange={(value) => {
+        if (isActorMetricChooser(value) && editing) {
+          if (actorMetricKind(value) === selectedKind) return;
+          editing.replace({
+            ...editing.rule,
+            field: value,
+            operator: "eq",
+            value: "",
+            meta: { ...editing.rule.meta, atlasExcluded: false },
+          });
+        } else props.handleOnChange(value);
+      }}
       disabled={props.disabled}
     />
+  );
+  if (!selectedKind) return chooser;
+  return (
+    <div className={`${props.className ?? ""} filter-field-family`}>
+      {chooser}
+      <ActorMetricPicker
+        kind={selectedKind}
+        fields={editor.groups
+          .flatMap((group) => group.fields)
+          .filter((field) => field.definition.scope === scope)}
+        value={props.value ?? "~"}
+        disabled={props.disabled}
+        onChange={(field) =>
+          editing?.replace({
+            ...editing.rule,
+            field,
+            operator: editing.rule.operator || "eq",
+          })
+        }
+      />
+    </div>
   );
 }
 function RemoveCondition(props: ActionProps) {
@@ -931,6 +1017,7 @@ function FilterGroupBody(props: UseRuleGroup) {
 }
 function BuilderOperatorSelector(props: OperatorSelectorProps) {
   const editing = useContext(RuleEditContext);
+  if (isActorMetricChooser(props.field)) return null;
   if (props.field === LINK_CONDITION)
     return (
       <Select
@@ -1080,7 +1167,7 @@ function BuilderValueEditor(props: ValueEditorProps) {
         field.definition.id === props.field && field.definition.scope === scope,
     );
   if (!field)
-    return props.field === "~" ? null : (
+    return props.field === "~" || isActorMetricChooser(props.field) ? null : (
       <Typography.Text type="danger" role="status" className="filter-rule-value">
         This field is unavailable. Choose another field or remove this condition.
       </Typography.Text>

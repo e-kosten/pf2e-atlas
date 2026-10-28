@@ -72,6 +72,60 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
             apply: crate::backfill_embedding_storage,
         }),
     },
+    Migration {
+        version: 11,
+        name: "persistent-preparation",
+        sql: atlas_local_state::PERSISTENT_PREPARATION_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 12,
+        name: "turn-resources",
+        sql: atlas_local_state::TURN_RESOURCES_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 13,
+        name: "consumed-condition-applications",
+        sql: atlas_local_state::CONSUMED_CONDITION_APPLICATIONS_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 14,
+        name: "party-member-levels",
+        sql: atlas_local_state::PARTY_LEVELS_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 15,
+        name: "encounter-difficulty",
+        sql: atlas_local_state::ENCOUNTER_DIFFICULTY_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 16,
+        name: "encounter-ability-state",
+        sql: atlas_local_state::ABILITY_STATE_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 17,
+        name: "stateless-strike-rolls",
+        sql: atlas_local_state::STATELESS_STRIKE_ROLLS_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 18,
+        name: "reference-numeric-filters",
+        sql: crate::REFERENCE_NUMERIC_FILTER_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 19,
+        name: "physical-base-type",
+        sql: crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
@@ -113,7 +167,22 @@ pub fn publish_historical_record_fixture(
         // historical physical shape under test. No legacy runtime writer.
         connection.execute_batch(crate::TRAIT_SCHEMA_SQL)?;
         connection.execute_batch(crate::EMBEDDING_STORAGE_SCHEMA_SQL)?;
+        let tables = ["actor_projection", "physical_projection", "weapon_projection", "armor_projection", "shield_projection"];
+        let columns = |table: &str| -> Result<Vec<String>, IndexError> {
+            let mut statement = connection.prepare(&format!("PRAGMA table_info({table})"))?;
+            Ok(statement.query_map([], |row| row.get(1))?.collect::<Result<Vec<_>, _>>()?)
+        };
+        let historical_columns = tables.iter().map(|table| columns(table)).collect::<Result<Vec<_>, _>>()?;
+        connection.execute_batch(crate::REFERENCE_NUMERIC_FILTER_SCHEMA_SQL)?;
+        connection.execute_batch(crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL)?;
         crate::writer::write_record_rows(connection, input)?;
+        // Modern projection columns are fixture scaffolding, not part of the
+        // historical schema exercised by the embedding conversion/rollback.
+        for (table, historical) in tables.iter().zip(historical_columns) {
+            for column in columns(table)?.into_iter().rev().filter(|column| !historical.contains(column)) {
+                connection.execute_batch(&format!("ALTER TABLE {table} DROP COLUMN {column}"))?;
+            }
+        }
         connection.execute_batch("INSERT INTO legacy_semantic_units SELECT u.unit_id,u.record_id,u.profile_id,l.owners_json,u.unit_kind,l.field_path,l.section_json,l.chunk_ordinal,i.token_count,lower(hex(i.input_hash)) FROM semantic_units u JOIN semantic_locations l USING(location_id) JOIN embedding_inputs i USING(input_id);
 DROP TABLE semantic_units;
 ALTER TABLE legacy_semantic_units RENAME TO semantic_units;

@@ -2,6 +2,7 @@ import type { RuleGroupType, RuleType } from "react-querybuilder";
 import type { FilterEditorFieldView } from "../../generated/atlas";
 import { BOOLEAN_CONDITION, LINK_CONDITION } from "./queryBuilder";
 import { transitionOperand } from "./operatorTransitions";
+import { sameActorMetricMeasure } from "./actorMetricFields";
 
 /** Apply an operator/field change atomically before the new control is rendered. */
 export function normalizeBuilderEdit(
@@ -45,7 +46,8 @@ export function normalizeBuilderEdit(
       const changedField = oldRule?.field !== node.field;
       if (
         changedField &&
-        field?.unit_fields.some((option) => option.field_id === oldRule.field)
+        (field?.unit_fields.some((option) => option.field_id === oldRule.field) ||
+          sameActorMetricMeasure(oldRule.field, node.field))
       )
         return node;
       if (changedField || oldRule?.operator !== node.operator) {

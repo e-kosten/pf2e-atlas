@@ -1,8 +1,13 @@
-import { destinationHref, isPrimaryActivation } from "../../app/navigation";
-import { recordDestination } from "../../app/destinations";
+import {
+  destinationHref,
+  isPrimaryActivation,
+  navigateDestination,
+} from "../../app/navigation";
+import { recordDestination, searchDestination } from "../../app/destinations";
 import type { ReactNode } from "react";
 import { PhysicalDetails } from "./PhysicalDetails";
-import { Button } from "antd";
+import { Button, Typography } from "antd";
+import { DEFAULT_SEARCH_STATE, searchStateQueryString } from "../filters/searchState";
 import type {
   FactView,
   PhysicalPresentationView,
@@ -31,8 +36,46 @@ export function PhysicalReference({
 }) {
   const consumable = item.consumable;
   const spell = consumable?.spell.value;
+  const baseType = item.base_type.value;
+  const baseRoute = baseType?.value.trim()
+    ? searchDestination({
+        query: searchStateQueryString(
+          {
+            ...DEFAULT_SEARCH_STATE,
+            filter: {
+              kind: "compare",
+              field: "physical.base_type",
+              op: "eq",
+              value: baseType.value,
+            },
+          },
+          new URLSearchParams(window.location.search).get("search_profile"),
+        ),
+      })
+    : null;
   const details = consumable
     ? [
+        ...(
+          [
+            ["Maximum HP", consumable.maximum_hp],
+            ["Hardness", consumable.hardness],
+          ] as const
+        ).map(
+          ([label, fact]) =>
+            ((fact.state === "value" && fact.value !== 0) ||
+              ["invalid", "null"].includes(fact.state)) && (
+              <FactLine key={label} label={label} fact={fact} />
+            ),
+        ),
+        (consumable.auto_destroy.state === "value" ||
+          ["invalid", "null"].includes(consumable.auto_destroy.state)) && (
+          <FactLine
+            key="consumed"
+            label="After final use"
+            fact={consumable.auto_destroy}
+            format={(value) => (value ? "Consumed" : "Retained")}
+          />
+        ),
         hasReadingFact(consumable.category) &&
           !identity.traits.some(
             (trait) => trait.value === consumable.category.value,
@@ -124,6 +167,27 @@ export function PhysicalReference({
             format={(value) => (value === 0.1 ? "L" : String(value))}
           />
           <FactLine label="Usage" fact={item.usage} />
+          {baseRoute && baseType ? (
+            <FactRow label="Base type">
+              <Typography.Link
+                href={destinationHref(baseRoute)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (!isPrimaryActivation(event)) return;
+                  event.preventDefault();
+                  navigateDestination(baseRoute);
+                }}
+              >
+                {baseType.label}
+              </Typography.Link>
+            </FactRow>
+          ) : item.base_type.state === "invalid" ? (
+            <FactLine
+              label="Base type"
+              fact={item.base_type}
+              format={(value) => value.label}
+            />
+          ) : null}
           {((item.quantity.state === "value" && item.quantity.value !== 1) ||
             ["invalid", "null"].includes(item.quantity.state)) && (
             <FactLine label="Quantity" fact={item.quantity} />

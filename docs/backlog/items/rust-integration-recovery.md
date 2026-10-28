@@ -338,10 +338,23 @@ previous counts. Existing text/Similar count availability rules remain unchanged
 
 ## Separate conditional or deferred work
 
-Alternate spell forms remain in [Spell form preview](rust-spell-rank-preview.md).
-Participant reset/replay, variant-family discovery, copy comparison, container/book
-reading, stateful inventory/decks and any valuable legacy-state import require
-separate scope decisions. Ranking changes remain in the existing
+The 2026-10-27 parity follow-through implements useful authored numeric
+filters, hazard Detection DC/Broken Threshold readouts, conditional-skill
+qualifications and meaningful consumable details. Shared physical base types
+provide readable exact-filter Search links; Ability/Skill UI conditions combine
+entity selection while preserving the explicit CLI fields. Local-copy
+difference warnings and extra journal/table configuration metadata are skipped for
+this changeset; keep the current broader table-roll behavior. This does not
+authorize restoring the abandoned implementation or closing its PRs.
+
+Alternate spell forms remain in
+[Spell casting variant preview](rust-spell-rank-preview.md). Also deferred are
+[participant baseline reset](encounter-participant-baseline-reset.md),
+[negative text search](search-text-exclusion.md),
+[browser numeric precision](browser-numeric-precision.md) and table-roll
+preflight (tracked in the backlog index). Variant-family discovery, container/book
+reading, stateful inventory/decks and any valuable legacy-state import retain
+their separate scope decisions. Ranking changes remain in the existing
 [search-quality evaluation](rust-search-quality-tuning.md). Removed raw-rule
 panels, ranking knobs, synthetic affliction identities, generic metric authority
 and macro product access are not implicitly scheduled for restoration.
@@ -389,4 +402,7 @@ in 7.12.2. Keep these follow-ups distinct from CF-03 through CF-10:
   Schedule a separate upgrade review before implementation. No 8.6.1 model changes
   are included in SV-01.
 
-Embedded-document failure isolation is a separate unapproved policy decision.
+Embedded-document failure isolation is tracked as
+[deferred backlog work](embedded-document-failure-isolation.md). Tracking is
+approved; collection scope and admission-policy changes require a separate
+implementation design.
