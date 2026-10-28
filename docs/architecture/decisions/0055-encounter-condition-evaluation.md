@@ -49,9 +49,14 @@ saving duplicate child rows. The resolver carries known and uncertain causes
 together, applies recipient immunity to every maintained child and observer-relative
 grant, and retains the parent when only its child is immune. A saved immunity
 override admits that source only; it does not waive a different child immunity.
-Predicate cycles make the varying causes uncertain without dropping unrelated
-known causes. Removing one source cannot remove an independent effect. Persistent consequences, such as Drained HP loss and falling Prone, use
-explicit event plans. Correcting an entry differs from applying an effect now.
+Possible overrides make the affected root and its maintained children uncertain
+before downstream predicates are evaluated. The two-stage expansion is bounded
+by a catalog contract: an effective override target and its maintained descendants
+cannot themselves supply an effective suppressor. A graph test guards this
+assumption when the pin changes. Predicate cycles make the varying causes uncertain
+without dropping unrelated known causes. Removing one source cannot remove an
+independent effect. Persistent consequences, such as Drained HP loss and falling
+Prone, use explicit event plans. Correcting an entry differs from applying an effect now.
 Behavioral subjects, such as a fascination or threat, are distinct from the source
 that applied the condition. Missing subjects require context only when an action
 depends on them; the causal source is not an implicit substitute.

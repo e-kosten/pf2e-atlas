@@ -293,27 +293,13 @@ fn expand_and_suppress<'a>(
     sources: &SourceConditions,
 ) -> ConditionResolution<'a> {
     let reachable = expand(active.clone(), uncertain.clone(), sources);
-    let active = active
-        .into_iter()
-        .filter(|cause| {
-            !reachable
-                .active
-                .iter()
-                .any(|other| suppresses(other.rule, cause.rule))
-        })
-        .collect();
-    let mut result = expand(active, uncertain, sources);
-    let suppressors = result
-        .active
-        .iter()
-        .map(|cause| cause.rule)
-        .collect::<Vec<_>>();
-    result
-        .active
-        .retain(|cause| !suppressors.iter().any(|rule| suppresses(*rule, cause.rule)));
-    result
-        .uncertain
-        .retain(|cause| !suppressors.iter().any(|rule| suppresses(*rule, cause.rule)));
+    let roots = apply_overrides(active, uncertain, &reachable);
+    let expanded = expand(roots.active, roots.uncertain, sources);
+    let mut result = apply_overrides(
+        expanded.active.clone(),
+        expanded.uncertain.clone(),
+        &expanded,
+    );
     result.active.sort_by_key(|cause| {
         (
             cause.source.condition_id().is_none(),
@@ -321,6 +307,42 @@ fn expand_and_suppress<'a>(
             cause.rule,
         )
     });
+    result
+}
+
+fn apply_overrides<'a>(
+    active: Vec<ConditionCause<'a>>,
+    uncertain: Vec<ConditionCause<'a>>,
+    suppressors: &ConditionResolution<'a>,
+) -> ConditionResolution<'a> {
+    let suppressed = |rule| {
+        suppressors
+            .active
+            .iter()
+            .any(|other| suppresses(other.rule, rule))
+    };
+    let mut result = ConditionResolution {
+        active: vec![],
+        uncertain: uncertain
+            .into_iter()
+            .filter(|cause| !suppressed(cause.rule))
+            .collect(),
+        source_unavailable: suppressors.source_unavailable,
+    };
+    for cause in active {
+        if suppressed(cause.rule) {
+            continue;
+        }
+        if suppressors
+            .uncertain
+            .iter()
+            .any(|other| suppresses(other.rule, cause.rule))
+        {
+            push_unique(&mut result.uncertain, cause);
+        } else {
+            push_unique(&mut result.active, cause);
+        }
+    }
     result
 }
 
@@ -407,6 +429,43 @@ fn expand<'a>(
 mod tests {
     use super::*;
     use atlas_foundry_model::generated::condition_definitions::CONDITION_DEFINITIONS;
+    #[test]
+    fn overridden_causes_cannot_supply_an_effective_suppressor() {
+        for definition in CONDITION_DEFINITIONS {
+            for target in definition
+                .overrides
+                .iter()
+                .copied()
+                .filter(|target| suppresses(definition.id, *target))
+            {
+                let mut descendants = vec![target];
+                let mut cursor = 0;
+                while cursor < descendants.len() {
+                    let rule = descendants[cursor];
+                    cursor += 1;
+                    assert!(
+                        !rule
+                            .definition()
+                            .overrides
+                            .iter()
+                            .any(|target| suppresses(rule, *target)),
+                        "{rule:?} can invalidate the two-stage override closure"
+                    );
+                    for grant in rule
+                        .definition()
+                        .grants
+                        .iter()
+                        .filter(|grant| maintained(rule, grant))
+                    {
+                        if !descendants.contains(&grant.target) {
+                            descendants.push(grant.target);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     #[test]
     fn every_persistent_grant_has_an_explicit_atlas_lifetime() {
         let mut count = 0;
