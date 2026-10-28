@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import {
   navigateDestination,
   destinationHref,
@@ -13,7 +14,7 @@ import { atlasRouter } from "../../app/router";
 import { encounterIndexSearch } from "../../app/routeSearch";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Tabs } from "antd";
+import { Button, Tabs } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Edit2, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -117,10 +118,9 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
       title="Encounters"
     >
       {encounters.error && (
-        <Alert
-          type="error"
+        <ErrorNotice
+          error={encounters.error}
           title="Encounters could not load"
-          description={encounters.error.message}
           action={
             <Button
               onClick={() => void encounters.refetch()}
@@ -132,10 +132,9 @@ export function EncounterIndexView(_props: EncounterIndexViewProps) {
         />
       )}
       {deleteMutation.error && (
-        <Alert
-          type="error"
+        <ErrorNotice
+          error={deleteMutation.error}
           title="Encounter could not be deleted"
-          description={deleteMutation.error.message}
         />
       )}
       <IndexTable

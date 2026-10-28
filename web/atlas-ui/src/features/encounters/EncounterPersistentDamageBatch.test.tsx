@@ -191,7 +191,7 @@ it("submits all damage types together and retains table totals across an uncerta
   );
   expect(screen.queryByRole("combobox", { name: "Acid damage source" })).toBeNull();
   fireEvent.click(await screen.findByRole("button", { name: "Apply 8 damage" }));
-  await screen.findByText("Connection lost");
+  await screen.findByText("Could not apply persistent damage.");
   expect(screen.getByRole("spinbutton", { name: "Fire damage amount" })).toHaveValue(
     "5",
   );

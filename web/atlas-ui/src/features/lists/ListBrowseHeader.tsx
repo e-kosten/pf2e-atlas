@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import {
   isPrimaryActivation,
   navigateDestination,
@@ -5,7 +6,7 @@ import {
 } from "../../app/navigation";
 import { listsDestination, listEditDestination } from "../../app/destinations";
 import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
-import { Alert, Button, Spin, Typography } from "antd";
+import { Button, Spin, Typography } from "antd";
 import { ArrowLeft, Pencil, Plus } from "lucide-react";
 import { ListTagSummary } from "./ListTagSummary";
 import type { SavedListSummaryView } from "../../generated/atlas";
@@ -27,11 +28,9 @@ export function ListBrowseHeader({
   onRetry: () => void;
 }) {
   const errorNotice = error ? (
-    <Alert
-      type="error"
-      showIcon
+    <ErrorNotice
+      error={error}
       title={list ? "Unable to refresh this list" : "Unable to load this list"}
-      description={error.message}
       action={<Button onClick={onRetry}>Retry list</Button>}
     />
   ) : null;

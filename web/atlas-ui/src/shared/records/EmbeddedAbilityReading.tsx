@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../feedback/ErrorNotice";
 import { Alert, Button, Collapse, Space, Spin } from "antd";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -266,10 +267,9 @@ function OwnedAbilityBatch({
         );
       })}
       {reading.isError && (
-        <Alert
-          type="error"
+        <ErrorNotice
+          error={reading.error}
           title="Unable to load ability content"
-          description={reading.error.message}
           action={
             <Space wrap>
               <Button

@@ -1,5 +1,6 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Input, Space, Typography } from "antd";
+import { Button, Input, Space, Typography } from "antd";
 import type { GetRef } from "antd";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getSavedListItemNote, updateSavedListItemNote } from "../../api/atlasApi";
@@ -74,20 +75,13 @@ export function ListEntryNote({
         )}
       </div>
       {note.error && (
-        <Alert
-          type="error"
+        <ErrorNotice
+          error={note.error}
           title={note.data ? "Unable to refresh note" : "Unable to load note"}
-          description={note.error.message}
           action={<Button onClick={() => void note.refetch()}>Retry</Button>}
         />
       )}
-      {save.error && (
-        <Alert
-          type="error"
-          title="Unable to save note"
-          description={save.error.message}
-        />
-      )}
+      {save.error && <ErrorNotice error={save.error} title="Unable to save note" />}
       {draft !== null ? (
         <>
           <Input.TextArea

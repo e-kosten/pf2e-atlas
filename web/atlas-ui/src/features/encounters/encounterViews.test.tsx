@@ -676,7 +676,9 @@ describe("encounter views", () => {
     });
     remove.focus();
     fireEvent.click(remove);
-    await screen.findByText("Removal did not save");
+    await screen.findByText(
+      "Couldn’t confirm this change. Check the current values before trying again.",
+    );
     expect(within(rosterRow("Goblin")).getByRole("alert")).toHaveTextContent(
       "Try removing again.",
     );
@@ -2408,7 +2410,7 @@ describe("encounter views", () => {
     await act(async () => pending.reject(new Error("Write unavailable")));
     expect(
       await within(screen.getByRole("dialog", { name: "Edit HP" })).findByText(
-        "Write unavailable",
+        "Couldn’t confirm this change. Check the current values before trying again.",
       ),
     ).toBeInTheDocument();
     expect(hp).toHaveValue("3");
@@ -2500,7 +2502,11 @@ describe("encounter views", () => {
     await act(async () => saving.reject(new Error("Save unavailable")));
     await waitFor(() => expect(name).not.toBeDisabled());
     expect(name).toHaveValue("Unsaved ambush");
-    expect(within(dialog).getByText("Save unavailable")).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(
+        "Couldn’t confirm this change. Check the current values before trying again.",
+      ),
+    ).toBeInTheDocument();
     apiMocks.updateEncounter.mockResolvedValue({ encounter_key: "encounter_ambush" });
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
     await waitFor(() =>
@@ -2597,7 +2603,7 @@ describe("encounter views", () => {
     expect(screen.getByRole("button", { name: "Add Condition" })).toBeDisabled();
     const choicesAlert = screen
       .getByText("Condition choices unavailable")
-      .closest<HTMLElement>('[role="alert"]')!;
+      .closest<HTMLElement>(".local-feedback")!;
     fireEvent.click(within(choicesAlert).getByRole("button", { name: "Retry" }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Add Condition" })).not.toBeDisabled(),
@@ -2652,7 +2658,9 @@ describe("encounter views", () => {
       expect(screen.getByLabelText("Delete Ambush")).not.toBeDisabled(),
     );
     expect(dialog).toBeInTheDocument();
-    expect(screen.getAllByText("Delete unavailable").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Delete could not be confirmed").length).toBeGreaterThan(
+      0,
+    );
     fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
@@ -2734,7 +2742,11 @@ describe("encounter views", () => {
     await act(async () => adding.reject(new Error("Add unavailable")));
     await waitFor(() => expect(name).not.toBeDisabled());
     expect(name).toHaveValue("My PC");
-    expect(within(dialog).getByText("Add unavailable")).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(
+        "Couldn’t confirm this change. Check the current values before trying again.",
+      ),
+    ).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("button", { name: "OK" }));
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Add PC" })).not.toBeInTheDocument(),
@@ -2753,7 +2765,7 @@ describe("encounter views", () => {
     fireEvent.change(note, { target: { value: "My note" } });
     await clickConditionApply();
     await waitFor(() =>
-      expect(screen.getAllByText("Condition unavailable").length).toBeGreaterThan(0),
+      expect(screen.getAllByText("Condition action failed").length).toBeGreaterThan(0),
     );
     expect(note).toHaveValue("My note");
     expect(screen.getByRole("button", { name: "Apply" })).toBeInTheDocument();

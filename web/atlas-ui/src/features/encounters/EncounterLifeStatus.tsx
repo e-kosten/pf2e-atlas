@@ -1,4 +1,6 @@
-import { Alert, Button, Popover, Space, Tooltip } from "antd";
+import { userErrorMessage } from "../../shared/feedback/errorMessages";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
+import { Button, Popover, Space, Tooltip } from "antd";
 import { ChevronDown } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -72,7 +74,7 @@ export function EncounterLifeStatus({
     try {
       if (await onSave(request)) close();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save status.");
+      setError(userErrorMessage(e, "Could not save status."));
     }
   };
   const resolve = async (
@@ -91,7 +93,7 @@ export function EncounterLifeStatus({
       )
         close();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save knockout.");
+      setError(userErrorMessage(e, "Could not save knockout."));
     }
   };
   const mainAction = (
@@ -131,7 +133,19 @@ export function EncounterLifeStatus({
         }
         content={
           <div className="encounter-knockout">
-            {error && <Alert type="error" title={error} />}
+            {error && <ErrorNotice error={error} title={error} />}
+            {query.error && (
+              <ErrorNotice
+                error={query.error}
+                compact
+                title="Knockout options unavailable"
+                action={
+                  <Button size="small" onClick={() => void query.refetch()}>
+                    Retry knockout
+                  </Button>
+                }
+              />
+            )}
             {row ? (
               <EncounterKnockout
                 key={row.consequence_key}
@@ -140,7 +154,7 @@ export function EncounterLifeStatus({
                 currentTurnKey={currentTurnKey}
                 initialContext={row.context}
                 initiativeOnly={row.initiative_only}
-                disabled={disabled || query.isFetching}
+                disabled={disabled || query.isFetching || !!query.error}
                 onApply={(context) => resolve(row, context)}
               />
             ) : opened === "tracking" ? (
@@ -155,11 +169,6 @@ export function EncounterLifeStatus({
               />
             ) : (
               <>
-                {query.error && (
-                  <Button size="small" onClick={() => void query.refetch()}>
-                    Retry knockout
-                  </Button>
-                )}
                 {canTrack && (
                   <Tooltip
                     title={participant.knockout_unavailable_reason}

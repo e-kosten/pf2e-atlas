@@ -1,10 +1,11 @@
+import { ErrorNotice } from "../feedback/ErrorNotice";
 import {
   destinationHref,
   isPrimaryActivation,
   navigateDestination,
 } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
-import { Alert, Button, Pagination, Space, Typography } from "antd";
+import { Button, Pagination, Space, Typography } from "antd";
 import { cloneElement, isValidElement, useState, type AriaAttributes } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AtlasApiError, getRelationshipOccurrences } from "../../api/atlasApi";
@@ -113,8 +114,8 @@ function EvidencePage({
   return (
     <div className="relationship-evidence__body" aria-busy={query.isFetching}>
       {query.error && (
-        <Alert
-          type="error"
+        <ErrorNotice
+          error={query.error}
           title="Unable to update links"
           description="Previously loaded links remain below."
           action={

@@ -1,4 +1,6 @@
-import { Alert, Button, Popconfirm } from "antd";
+import { userErrorMessage } from "../../feedback/errorMessages";
+import { ErrorNotice } from "../../feedback/ErrorNotice";
+import { Button, Popconfirm } from "antd";
 import { useRef, useState } from "react";
 import type { ButtonProps, GetRef } from "antd";
 import { useConfirmDangerAction } from "./useConfirmDangerAction";
@@ -68,7 +70,7 @@ function PopoverDangerActionButton({
     <Popconfirm
       ref={popup}
       title={confirmTitle}
-      description={error ? <Alert type="error" title={error} /> : confirmContent}
+      description={error ? <ErrorNotice error={error} title={error} /> : confirmContent}
       icon={null}
       open={open}
       afterOpenChange={(visible) => {
@@ -95,11 +97,7 @@ function PopoverDangerActionButton({
             await Promise.resolve().then(onConfirm);
             setOpen(false);
           } catch (failure) {
-            setError(
-              failure instanceof Error
-                ? failure.message
-                : "Unable to remove. Try again.",
-            );
+            setError(userErrorMessage(failure, "Unable to remove. Try again."));
           } finally {
             pendingRef.current = false;
             setPending(false);

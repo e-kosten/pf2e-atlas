@@ -259,7 +259,7 @@ it.each([400, 409])(
       .mockImplementation(async (_key, request) => strikeReceipt(request));
     renderStrike();
     fireEvent.click(screen.getByRole("button", { name: "Roll Jaws damage" }));
-    await screen.findByText("Review the current attack.");
+    await screen.findByText("Couldn’t confirm the roll.");
     expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Roll again" }));
     await screen.findByRole("button", { name: "Reroll" });

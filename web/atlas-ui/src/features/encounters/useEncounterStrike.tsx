@@ -1,5 +1,6 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Form, Select, Spin } from "antd";
+import { Button, Form, Select, Spin } from "antd";
 import { useState } from "react";
 import { previewEncounterStrikeContext } from "../../api/atlasApi";
 import type {
@@ -72,8 +73,9 @@ export function useEncounterStrike({
       </Form>
       {preview.isPending && <Spin />}
       {preview.error && (
-        <Alert
-          type="error"
+        <ErrorNotice
+          error={preview.error}
+          compact
           title="Could not load attack context"
           action={<Button onClick={() => void preview.refetch()}>Retry</Button>}
         />

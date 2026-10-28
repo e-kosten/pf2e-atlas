@@ -85,7 +85,7 @@ it("combines the projected knockout outcome and suggested initiative and retains
   await screen.findByText("Initiative · Before Ogre");
   expect(screen.queryByRole("combobox", { name: "Damage lethality" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-  await screen.findByText("Connection lost");
+  await screen.findByText("Could not save knockout.");
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
   await waitFor(() => expect(onResolve).toHaveBeenCalledTimes(2));
   expect(onResolve.mock.calls[0][0]).toEqual(onResolve.mock.calls[1][0]);

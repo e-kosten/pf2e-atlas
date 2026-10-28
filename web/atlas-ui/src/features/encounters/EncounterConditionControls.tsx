@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { useQuery } from "@tanstack/react-query";
@@ -10,7 +11,7 @@ import { EncounterPersistentRecovery } from "./EncounterPersistentRecovery";
 import { useConditionEventPreview } from "./useConditionEventPreview";
 import { conditionDurationLabel } from "./conditionDurationLabel";
 import { Pencil, Plus, X } from "lucide-react";
-import { Alert, Button, ConfigProvider, Popover, Space, Tooltip } from "antd";
+import { Button, ConfigProvider, Popover, Space, Tooltip } from "antd";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type {
   AddEncounterParticipantConditionRequest,
@@ -518,8 +519,9 @@ export function EncounterConditionControls({
     <section className="encounter-conditions">
       {!open && preview.errorNotice}
       {consequences.error && (
-        <Alert
-          type="error"
+        <ErrorNotice
+          error={consequences.error}
+          compact
           title="HP changes unavailable"
           action={<Button onClick={() => void consequences.refetch()}>Retry</Button>}
         />
@@ -548,7 +550,11 @@ export function EncounterConditionControls({
         </p>
       )}
       {error && !open && (
-        <Alert type="error" title="Condition action failed" description={error} />
+        <ErrorNotice
+          error={error}
+          title="Condition action failed"
+          description={error}
+        />
       )}
       {current.conditions.length === 0 &&
       !inherent?.unavailable_reason &&

@@ -1,3 +1,5 @@
+import { AtlasConnectionError } from "../../api/availability";
+import { AtlasCompatibilityError } from "../../api/compatibility";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { EncounterActorReading } from "./EncounterActorReading";
@@ -193,3 +195,24 @@ it("drops explicitly retired root text while its replacement is pending", async 
   );
   expect(screen.getByRole("textbox", { name: "Current HP" })).toBeEnabled();
 });
+
+it.each([
+  new AtlasConnectionError(false, "private connection detail"),
+  new AtlasCompatibilityError("old contract"),
+  new AtlasApiError(503, "private schema detail", {
+    code: "artifact_not_ready",
+    message: "private schema detail",
+  }),
+])(
+  "leaves a shared rules-text failure to the shell while keeping runtime controls usable ($name)",
+  async (error) => {
+    api.getEmbeddedReading.mockRejectedValue(error);
+    const { client, renderReading } = setup();
+    render(renderReading());
+    await waitFor(() => expect(api.getEmbeddedReading).toHaveBeenCalledOnce());
+    await waitFor(() => expect(client.isFetching()).toBe(0));
+    expect(screen.queryByText("Rules text unavailable.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+    expect(screen.getByRole("textbox", { name: "Current HP" })).toBeEnabled();
+  },
+);

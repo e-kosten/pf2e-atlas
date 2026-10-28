@@ -34,6 +34,7 @@ import {
 } from "../../shared/filters/searchState";
 import { KIND_PREFERENCE_KEY } from "./workspaceState";
 import { AtlasApiError } from "../../api/atlasApi";
+import { AtlasConnectionError } from "../../api/availability";
 import { useSearchWorkspace } from "./useSearchWorkspace";
 import { RelationshipEvidence } from "../../shared/records/RelationshipEvidence";
 import { linkLeaf } from "../../shared/filters/linkPredicates";
@@ -114,6 +115,20 @@ describe("useSearchWorkspace", () => {
       expect(reloaded.result.current.resultPage?.page.number).toBe(5),
     );
     expect(apiMocks.searchPage.mock.lastCall?.[0].page.number).toBe(5);
+  });
+
+  it("keeps a shared outage distinct from successful empty results", async () => {
+    history.replaceState(null, "", "/search?q=fire");
+    apiMocks.searchPage.mockRejectedValue(
+      new AtlasConnectionError(false, new TypeError("private proxy diagnostic")),
+    );
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      { wrapper: queryClientWrapper() },
+    );
+    await waitFor(() => expect(result.current.resultsFailed).toBe(true));
+    expect(result.current.errorMessage).toBeNull();
+    expect(result.current.resultPage).toBeUndefined();
   });
 
   it("restores an explicit profile and page together from browser history", async () => {
@@ -367,7 +382,7 @@ describe("useSearchWorkspace", () => {
       { wrapper: queryClientWrapper() },
     );
     await waitFor(() =>
-      expect(result.current.errorMessage).toContain("different order"),
+      expect(result.current.errorMessage).toBe("Try searching again."),
     );
     expect(result.current.resultPage).toBeUndefined();
     expect(
@@ -1019,7 +1034,7 @@ describe("useSearchWorkspace", () => {
       { initialProps: { usable: true }, wrapper: queryClientWrapper() },
     );
     await waitFor(() =>
-      expect(result.current.errorMessage).toContain("does not match this request"),
+      expect(result.current.errorMessage).toBe("Try searching again."),
     );
     expect(result.current.resultPage).toBeUndefined();
     rerender({ usable: false });

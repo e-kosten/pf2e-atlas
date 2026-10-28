@@ -1,11 +1,12 @@
+import { AtlasModal as Modal } from "../overlays/AtlasModal";
+import { isSharedFailure } from "../../feedback/errorMessages";
+import { ErrorNotice } from "../../feedback/ErrorNotice";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Alert,
   Button,
   ConfigProvider,
   Form,
   Grid,
-  Modal,
   Pagination,
   Space,
   theme,
@@ -231,7 +232,9 @@ export function SearchPickerModal<FormValues>({
     onSelectionChange(null);
   };
   const selectionStatus =
-    preparing && (preparing.slow || preparing.error) ? (
+    preparing &&
+    !isSharedFailure(preparing.error) &&
+    (preparing.slow || preparing.error) ? (
       <div className="reference-selection-status" role="status">
         <span title={preparing.name}>
           {preparing.error
@@ -313,10 +316,9 @@ export function SearchPickerModal<FormValues>({
         />
         <SearchProfileNotice />
         {recordResults.error && (
-          <Alert
-            type="error"
+          <ErrorNotice
+            error={recordResults.error}
             title="Search failed"
-            description={recordResults.error.message}
             action={
               <Button
                 onClick={() =>

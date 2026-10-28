@@ -1,3 +1,4 @@
+import { isSharedFailure } from "../../shared/feedback/errorMessages";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { Alert, Button, Popover } from "antd";
@@ -129,7 +130,7 @@ export function EncounterStrikeControl({
       ) : (
         <DamageComponents damage={activity.damage} />
       )}
-      {options.isError && (
+      {options.isError && !isSharedFailure(options.error) && (
         <Button type="link" size="small" onClick={() => void options.refetch()}>
           Retry roll controls
         </Button>

@@ -1,16 +1,9 @@
+import { userErrorMessage } from "../../shared/feedback/errorMessages";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { statusReasonLabel } from "../../shared/records/statusReasonLabel";
 import { useRetainedRecord } from "../../shared/records/useRetainedRecord";
 import { EncounterModal } from "./EncounterModal";
-import {
-  Alert,
-  App,
-  Button,
-  InputNumber,
-  Popover,
-  Space,
-  Tooltip,
-  Typography,
-} from "antd";
+import { App, Button, InputNumber, Popover, Space, Tooltip, Typography } from "antd";
 import { Minus, Plus, Settings2 } from "lucide-react";
 import type { CastingAnnotations } from "../../shared/records/ActorReference";
 import { useQuery } from "@tanstack/react-query";
@@ -144,7 +137,13 @@ export function EncounterSpellControls({
           selection={selection}
         />
       )}
-      {error && <Alert type="error" title="Could not cast" description={error} />}
+      {error && (
+        <ErrorNotice
+          error={error}
+          title="Spell change could not be confirmed"
+          description={error}
+        />
+      )}
       {recovery}
     </div>
   );
@@ -211,12 +210,16 @@ function SpellCastingReminders({
   return (
     <>
       {preview.error && (
-        <Space>
-          <Typography.Text type="secondary">Reminders unavailable</Typography.Text>
-          <Button type="link" onClick={() => void preview.refetch()}>
-            Retry
-          </Button>
-        </Space>
+        <ErrorNotice
+          error={preview.error}
+          compact
+          title="Reminders unavailable"
+          action={
+            <Button size="small" onClick={() => void preview.refetch()}>
+              Retry
+            </Button>
+          }
+        />
       )}
       {!!reminders?.advisories.length && (
         <div className="encounter-casting__reminders">
@@ -396,9 +399,10 @@ export function SharedResourceControl({
   participant,
   disabled,
   pending,
+  recovery,
   onAction,
 }: Actions & { resource: EncounterSpellResourceView }) {
-  const { message } = App.useApp();
+  const [updateError, setUpdateError] = useState<string>();
   const remaining = Number(resource.remaining);
   const capacity = Number(resource.capacity);
   const update = async (value: number) => {
@@ -408,31 +412,45 @@ export function SharedResourceControl({
       participant.spellcasting?.resources.filter(
         (r) => r.entry_id === resource.entry_id,
       ) ?? [];
-    const saved = await onAction(
-      {
-        kind: "set_entry_resources",
-        entry_id: resource.entry_id,
-        remaining: Object.fromEntries(
-          pools.map((r) => [
-            r.key,
-            r.key === resource.key ? BigInt(value) : r.remaining,
-          ]),
-        ),
-      },
-      participant.revision,
-    );
-    if (!saved)
-      void message.error(
-        "Couldn’t update resources. Check the current count and try again.",
-        4,
+    setUpdateError(undefined);
+    try {
+      const saved = await onAction(
+        {
+          kind: "set_entry_resources",
+          entry_id: resource.entry_id,
+          remaining: Object.fromEntries(
+            pools.map((r) => [
+              r.key,
+              r.key === resource.key ? BigInt(value) : r.remaining,
+            ]),
+          ),
+        },
+        participant.revision,
       );
+      if (!saved) setUpdateError("Check the current count before trying again.");
+    } catch (cause) {
+      setUpdateError(
+        userErrorMessage(cause, "Check the current count before trying again."),
+      );
+    }
   };
   return (
     <Popover
       trigger="click"
+      onOpenChange={(open) => {
+        if (!open && !pending) setUpdateError(undefined);
+      }}
       title={resource.label}
       content={
-        <Space direction="vertical">
+        <Space orientation="vertical">
+          {recovery}
+          {updateError && !recovery && (
+            <ErrorNotice
+              error={updateError}
+              title="Resource change could not be confirmed"
+              description={updateError}
+            />
+          )}
           <Space>
             <Button
               aria-label={`Expend one ${resource.label}`}

@@ -1,4 +1,5 @@
-import { Alert, Button, Checkbox, Space, Spin, Typography } from "antd";
+import { ErrorNotice } from "../feedback/ErrorNotice";
+import { Button, Checkbox, Space, Spin, Typography } from "antd";
 import { useEffect, useState } from "react";
 import type {
   FilterEditorFieldView,
@@ -169,10 +170,10 @@ export function CommonChoicePicker({
         </div>
       )}
       {query.error && !closedChoices && (
-        <Alert
-          type="error"
+        <ErrorNotice
+          error={query.error}
+          compact
           title="Values could not be loaded"
-          description={query.error.message}
           action={
             <Button size="small" onClick={() => void query.refetch()}>
               Retry values

@@ -112,7 +112,7 @@ it("keeps Apply disabled while the preview fails", async () => {
     />,
   );
   fireEvent.click(screen.getByText("Edit draft"));
-  await screen.findByText("Preview unavailable");
+  await screen.findByText("Could not preview condition");
   expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
 });
 

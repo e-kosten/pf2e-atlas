@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { EncounterHpValue } from "./EncounterHpValue";
 import { NumberFact } from "../../shared/records/presentationFacts";
 import { EncounterModal } from "./EncounterModal";
@@ -167,6 +168,13 @@ export function EncounterHpControls({
             />
           )}
         </div>
+      )}
+      {error && !editorOpen && (
+        <ErrorNotice
+          error={error}
+          title="HP could not be updated"
+          description={error}
+        />
       )}
       <EncounterHpAmount
         healUnavailableReason={

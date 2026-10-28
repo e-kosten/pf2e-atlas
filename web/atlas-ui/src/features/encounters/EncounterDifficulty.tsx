@@ -1,5 +1,6 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, InputNumber, Popover, Table, Tooltip, Typography } from "antd";
+import { Button, InputNumber, Popover, Table, Tooltip, Typography } from "antd";
 import { ChevronDown, Info } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type {
@@ -273,15 +274,18 @@ function DifficultyReference({
         {(display.party_level === null || display.party_size === null) && (
           <p>Enter party level and size, or add PCs.</p>
         )}
-        {saveError && <Alert type="error" title={saveError.message} />}
+        {saveError && (
+          <ErrorNotice error={saveError} title="Difficulty could not be saved" />
+        )}
         {!valid && (
           <p role="alert">
             Use level 1–20 and 1–100 PCs. Leave blank to use encounter PCs.
           </p>
         )}
         {!unchanged && previewError && (
-          <Alert
-            type="error"
+          <ErrorNotice
+            error={preview.error}
+            compact
             title="Difficulty preview could not update"
             action={<Button onClick={() => void preview.refetch()}>Retry</Button>}
           />

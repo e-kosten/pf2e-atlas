@@ -1,3 +1,4 @@
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { nonNegativeIntegerRule } from "../../shared/ui/forms/nonNegativeIntegerRule";
 import { conditionDraft, type ConditionFormValues } from "./conditionDraft";
 import {
@@ -308,7 +309,11 @@ export function EncounterConditionEditor({
       )}
       {recovery}
       {error && (
-        <Alert type="error" title="Condition action failed" description={error} />
+        <ErrorNotice
+          error={error}
+          title="Condition action failed"
+          description={error}
+        />
       )}
       <Form
         name={name}

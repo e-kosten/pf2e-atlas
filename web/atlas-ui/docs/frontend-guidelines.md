@@ -47,6 +47,113 @@ traits use their displayed title. Index pages use Search, Lists or Encounters.
 Saved-list contents use lexical text filtering and structured filters, preserving
 saved order. Main search and Add records retain semantic discovery.
 
+## Error feedback and recovery
+
+Show the effect on the user's task, the next useful action and any consequence
+for their work. Severity follows impact; placement follows scope. A failed
+background request is not automatically a prominent red alert.
+
+| Situation                                           | Presentation and recovery                                                                                                                                                                                                          |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Connection loss or browser/backend version mismatch | One compact shell notice, with Retry or Reload page. Suppress local notices caused by that same typed failure. Keep independent failures visible.                                                                                  |
+| A page or reader cannot open                        | One unavailable state in the affected region, with recovery. A failed read must not become an empty collection.                                                                                                                    |
+| A same-identity update fails                        | Retain valid content, drafts, focus and scroll; explicitly identify previous content and put Retry beside it. Never retain another identity or an invalidated generation.                                                          |
+| Auxiliary gameplay choices cannot refresh           | Compact status beside the affected controls: for example, Recovery choices unavailable with Retry. Disable actions that require the missing or stale data; do not imply there are no conditions, consequences or recovery choices. |
+| Optional suggestions or counts fail                 | Keep the task usable without the enrichment. Counts disappear rather than becoming zero. Add local status only when the missing capability matters to the current task.                                                            |
+| A submitted action fails                            | Persistent local error beside the action or inside its open editor. Preserve the draft and selection. Red is appropriate when the task is blocked or needs correction.                                                             |
+| A field needs correction                            | Specific field-associated validation using the field's vocabulary, such as Enter a name. A service failure is not a validation error.                                                                                              |
+
+### Shared implementation owners
+
+Use `src/shared/feedback/ErrorNotice.tsx` for local failure feedback. Pass the
+original error as `error`, an authored task-specific `title`, and a working
+recovery `action` where available. Use `compact` for secondary read availability.
+The component suppresses typed compatibility, reference-readiness and connection
+read failures owned by the shell. An unconfirmed write keeps its outcome beside the action, including
+inside an open editor; it never claims that the change was unsaved. It renders compact feedback with polite status semantics and blocking
+feedback as an Ant Alert. Do not add a feature-local error-banner component.
+
+`src/shared/feedback/errorMessages.ts` owns reviewed explanations selected by
+structured app error code. Use `userErrorMessage` when an action stores display
+text. Unknown errors receive a contextual safe fallback; they do not expose the
+exception. `Error.message`, `AppError.message`, response bodies, HTTP wording,
+SQL, file paths, internal identifiers and decoder errors are diagnostic data.
+Never interpolate them into product UI or assume a 4xx response is safe copy.
+Keep the original error/code/details/cause available for diagnosis separately.
+Do not strip diagnostic information from the API error merely to change its copy.
+A finite locally authored validation error may display its reviewed text; this
+exception does not permit arbitrary API or native exception messages.
+
+The API client classifies transport outages separately from app failures such as
+Service busy or an unavailable search model. `app/queryClient.ts` reports exhausted
+read retries and failed writes to the shared availability store. The shell owns the
+single availability notice, including an unavailable reference collection. Retry
+checks readiness. A successful read clears connection status; a ready
+readiness response clears reference unavailability. The QueryClient refreshes
+active failed reads and marks inactive failed reads stale for their next mount;
+it must never replay a mutation. Startup compatibility has its own owner before
+feature screens mount. During use, a version mismatch preserves mounted editors
+and offers deliberate reload with a reminder to copy unsaved edits.
+
+`GlobalFeedbackProvider` keeps one shared notice. It renders in the shell or moves
+inside the active dialog/drawer so its recovery action stays visible and reachable
+by keyboard and pointer. Use `AtlasModal` and `AtlasDrawer` for ordinary overlays;
+`useConfirmDangerAction` hosts contextual confirmations. Keep this host outside
+scrolling modal forms and sticky in drawer bodies. Do not duplicate shell recovery
+inside each feature, unmount editors, steal focus or obscure an action behind a mask.
+
+For example, an update may make encounter, turn reminders and condition choices
+fail together. Show one Reload Atlas to continue notice, not three Retry panels.
+A separate rejected edit still needs local feedback even when a shell notice is
+present: suppress by the error's classified cause, never by hiding every alert
+under a global CSS selector or a global boolean.
+
+### Copy, timing and outcome safety
+
+- Use the task's vocabulary. Say Knockout options unavailable rather than naming
+  an HP lifecycle endpoint. Prefer a short sentence and one useful recovery action.
+  Avoid generic headings such as Something went wrong when the affected task is known.
+- Bound automatic retries for reads and avoid flashing errors during those retries.
+  Preserve existing delayed, non-shifting loading feedback. Do not introduce a
+  new fixed delay before reporting a failed submitted action.
+- A known successful save followed by a failed refresh must say it was saved and
+  offer read recovery. Never invite repeating damage, spell use or a roll merely
+  because its display did not refresh.
+  Pass the known `outcome` to ErrorNotice so the saved/changed fact and canonical
+  read recovery stay accessible during a shared outage, including in an open
+  editor. This preserves the action outcome without repeating technical causes.
+- A lost response does not establish that a write failed. Say the change could
+  not be confirmed and ask the user to check current values before trying again.
+  Preserve the workflow's request IDs, revision guards and receipt recovery.
+  Existing receipt-aware roll recovery may retry the same request; it must not
+  create a new roll accidentally.
+- Essential action failures remain available until resolved or the task is
+  deliberately dismissed. Do not make a four-second toast the only evidence of
+  a failed spell/resource action. Toasts may confirm an optional success.
+- Use polite status announcements for secondary availability. Reserve assertive
+  alerts for important blocked work, associate field errors with inputs, and do
+  not move focus merely to announce a background failure. Color alone is insufficient.
+
+### Acceptance checks
+
+Exercise one shared failure across multiple requests and confirm one shell
+notice with the correct recovery. Exercise an independent local failure at the
+same time and confirm it remains visible. Restore the connection and confirm
+failed reads recover without submitting writes. Check malformed/unstructured
+responses and native network errors for diagnostic leakage. Check an unknown
+write outcome and a successful-save/failed-refresh separately. Verify retained
+content, drafts, focus, scroll and disabled dependent actions, including at a
+narrow viewport and with keyboard navigation. Inspect announcement roles as well
+as visible styling; successful automated checks do not establish screen-reader
+or physical-device acceptance.
+
+The policy applies these primary references to Atlas's task-based UI:
+[GOV.UK error messages](https://design-system.service.gov.uk/components/error-message/),
+[Carbon notifications](https://www.carbondesignsystem.com/building-blocks/core/components/notification/guidelines),
+[W3C status messages](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html),
+[W3C alerts](https://www.w3.org/WAI/ARIA/apg/patterns/alert/), and
+[OWASP error handling](https://cheatsheetseries.owasp.org/cheatsheets/Error_Handling_Cheat_Sheet).
+
 ## Design principles
 
 Choose by the user's task and the content's meaning. Each rule below has an

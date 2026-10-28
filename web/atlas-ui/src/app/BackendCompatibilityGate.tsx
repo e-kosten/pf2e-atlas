@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import { verifyBackendCompatibility } from "../api/atlasApi";
 import { API_CONTRACT, AtlasCompatibilityError } from "../api/compatibility";
 import { reloadFrontend } from "../shared/browser/reloadFrontend";
+import { errorExplanation } from "../shared/feedback/errorMessages";
 import {
   clearStartupReloadAttempt,
   reloadMismatchedFrontendOnce,
@@ -35,7 +36,7 @@ export function BackendCompatibilityGate({ children }: { children: ReactNode }) 
           description={
             mismatch && development
               ? "Rebuild and restart the backend from this checkout, then check ATLAS_API_PROXY."
-              : check.error.message
+              : errorExplanation(check.error)
           }
           action={
             <Button

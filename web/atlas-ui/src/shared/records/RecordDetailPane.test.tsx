@@ -97,7 +97,8 @@ describe("RecordDetailPane", () => {
         onReference={vi.fn()}
       />,
     );
-    expect(screen.getByRole("alert")).toHaveTextContent(error.message);
+    expect(screen.getByRole("alert")).toHaveTextContent("Unable to load this record");
+    expect(screen.queryByText(error.message)).toBeNull();
     expect(screen.getByRole("link", { name: "Back to search" })).toHaveAttribute(
       "href",
       "/search",

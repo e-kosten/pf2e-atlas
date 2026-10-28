@@ -1,10 +1,11 @@
+import { AtlasDrawer as Drawer } from "../overlays/AtlasDrawer";
 import {
   CloseOutlined,
   DownOutlined,
   MinusOutlined,
   PlusOutlined,
 } from "@ant-design/icons";
-import { Button, Drawer, Grid, Input, Popover, Typography, theme } from "antd";
+import { Button, Grid, Input, Popover, Typography, theme } from "antd";
 import type { InputRef } from "antd";
 import { useId, useRef, useState, type ReactNode } from "react";
 import type { KeyboardEvent } from "react";

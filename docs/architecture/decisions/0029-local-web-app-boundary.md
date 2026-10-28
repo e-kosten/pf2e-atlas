@@ -87,6 +87,32 @@ HTML remains `no-cache` so page loads validate the entry document. Content-hashe
 JavaScript/CSS/font assets retain long-lived immutable caching; recovery does not
 clear browser storage or require a cache purge.
 
+## Browser error presentation
+
+The thin API client preserves structured app errors and diagnostic messages. Browser
+presentation does not render these messages verbatim: the shared feedback owner
+selects reviewed task-specific copy from error codes, with safe fallbacks. This
+keeps the diagnostic contract useful without exposing SQL, paths, response bodies
+or decoding internals. Detailed product rules and examples live in the
+[frontend error policy](../../../web/atlas-ui/docs/frontend-guidelines.md#error-feedback-and-recovery).
+
+Transport outages have a distinct browser error type. The root QueryClient reports
+read failure only after bounded retries, and reports failed writes without replay.
+AppShell owns connection/reference availability and the compatibility notice.
+The shared feedback host moves this single notice into the active modal or drawer
+so recovery stays reachable inside its focus boundary. Shared Atlas overlay
+compositions preserve Ant behavior and release their host when closed. Local
+feedback suppresses that classified shared read failure, while independent task
+failures and unconfirmed write outcomes remain local and visible. A successful read clears connection status; a ready readiness response clears
+reference unavailability. The QueryClient invalidates failed reads only, refreshing
+active reads without replaying mutations. App error responses such as a busy
+service or unavailable model remain distinct from transport outages.
+
+These presentation decisions do not change Rust error codes, operation ownership,
+transaction/receipt semantics, revision guards or the wire compatibility contract.
+Browser recovery preserves mounted drafts and distinguishes a failed action,
+an unconfirmed write and a successful save whose follow-up read failed.
+
 ## Consequences
 
 - Web and future TUI workflows share Rust app contracts and service semantics without forcing the web frontend into WASM.

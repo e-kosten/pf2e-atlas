@@ -1,3 +1,4 @@
+import { isSharedFailure } from "../../shared/feedback/errorMessages";
 import { Button, Dropdown, type MenuProps } from "antd";
 import { ChevronDown } from "lucide-react";
 import { useRef, useState } from "react";
@@ -52,7 +53,7 @@ export function EncounterAddMenu({
     })) ?? [];
   if (parties.isLoading)
     items.push({ key: "loading", disabled: true, label: "Loading parties…" });
-  if (parties.error)
+  if (parties.error && !isSharedFailure(parties.error))
     items.push({
       key: "retry",
       label: "Parties could not load. Retry",
