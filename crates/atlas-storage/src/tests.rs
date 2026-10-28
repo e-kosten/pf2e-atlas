@@ -129,6 +129,14 @@ fn failed_upgrade_rolls_back_schema_data_and_ledger_and_keeps_backup() {
             .unwrap(),
         0
     );
+    assert_eq!(
+        reader
+            .connection()
+            .query_row("SELECT count(*) FROM schema_migrations", [], |r| r
+                .get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
     let backup = rusqlite::Connection::open(workspace.upgrade_backup_path()).unwrap();
     assert_eq!(
         backup
@@ -233,7 +241,14 @@ fn maintenance_waits_for_readers_and_failed_publication_requires_recovery() {
     recovered.unwrap();
     drop(maintenance);
     drop(owner);
-    assert_eq!(workspace.read(1).unwrap().reference_revision().unwrap(), 1);
+    let read = workspace.read(1).unwrap();
+    assert_eq!(read.reference_revision().unwrap(), 1);
+    assert_eq!(
+        read.connection()
+            .query_row("SELECT title FROM saved", [], |r| r.get::<_, String>(0))
+            .unwrap(),
+        "published"
+    );
 }
 
 #[test]
@@ -646,8 +661,32 @@ fn typed_backfill_runs_atomically_and_its_identity_is_authenticated() {
         workspace.migrate(&[FIRST, changed], |_| Ok(())),
         Err(StorageError::Migration(_))
     ));
-    // Current-schema startup must not execute a backfill again.
+    let read = workspace.read(2).unwrap();
+    assert_eq!(
+        read.connection()
+            .query_row("SELECT digest FROM saved", [], |r| r.get::<_, Vec<u8>>(0))
+            .unwrap(),
+        [1, 2, 3]
+    );
+    drop(read);
+    workspace
+        .write_action(2, |session| -> StorageResult<()> {
+            session
+                .connection()
+                .execute("UPDATE saved SET digest=?", [&[9u8][..]])?;
+            Ok(())
+        })
+        .unwrap();
     workspace.migrate(&[FIRST, second], |_| Ok(())).unwrap();
+    assert_eq!(
+        workspace
+            .read(2)
+            .unwrap()
+            .connection()
+            .query_row("SELECT digest FROM saved", [], |r| r.get::<_, Vec<u8>>(0))
+            .unwrap(),
+        [9]
+    );
 }
 
 #[test]

@@ -579,20 +579,25 @@ records:
         ])
         .expect("catalog files merge");
 
-        let ids = catalog.ids().map(|id| id.as_str()).collect::<Vec<_>>();
-        assert_eq!(ids.len(), 4);
-        assert!(ids.contains(&"problem.counteract_magic"));
-        assert!(ids.contains(&"equipment.party_support.defense"));
-        assert!(catalog.contains_id(&"problem.remove_affliction".parse().expect("id parses")));
-        assert!(
-            catalog
-                .get(
-                    &"equipment.party_support.mobility"
-                        .parse()
-                        .expect("id parses")
-                )
-                .is_some()
+        let ids = catalog
+            .ids()
+            .map(|id| id.as_str())
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(
+            ids,
+            [
+                "problem.counteract_magic",
+                "equipment.party_support.defense",
+                "problem.remove_affliction",
+                "equipment.party_support.mobility",
+            ]
+            .into()
         );
+        let mobility = catalog
+            .get(&"equipment.party_support.mobility".parse().unwrap())
+            .unwrap();
+        assert_eq!(mobility.id.as_str(), "equipment.party_support.mobility");
+        assert_eq!(mobility.label, "Mobility Party Support");
     }
 
     #[test]

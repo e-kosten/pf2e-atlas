@@ -98,13 +98,16 @@ mod tests {
                 "{value}"
             );
         }
-        for seed in [0, u32::MAX] {
+        for (seed, wire) in [
+            (0, r#"{"kind":"random","seed":0}"#),
+            (u32::MAX, r#"{"kind":"random","seed":4294967295}"#),
+        ] {
             let value = ResultSort::Random { seed };
             assert_eq!(
-                serde_json::from_str::<ResultSort>(&serde_json::to_string(&value).unwrap())
-                    .unwrap(),
-                value
+                serde_json::to_value(&value).unwrap(),
+                serde_json::from_str::<serde_json::Value>(wire).unwrap()
             );
+            assert_eq!(serde_json::from_str::<ResultSort>(wire).unwrap(), value);
         }
     }
 }
