@@ -2210,3 +2210,52 @@ fn creature_reading_preserves_supplied_movement_languages_and_exact_owned_effect
         "authored language support must not invent derived PC stats"
     );
 }
+
+#[test]
+fn parity_skill_qualifications_keep_boolean_context_and_unavailable_fields() {
+    let input = record(
+        "test",
+        "Actor",
+        json!({"_id":"actor00000000000","type":"npc","system":{"skills":{"arcana":{"base":9,"special":[
+            {"base":13,"label":"Magic","predicate":["identify-magic",{"or":["target:trait:undead",{"not":"target:trait:living"}]}]},
+            {"base":15,"label":"Incomplete","predicate":[{"or":["magic"],"unexpected":true}]},
+            {"base":10,"label":"No predicate"},
+            {"base":11,"label":"Null predicate","predicate":null},
+            {"base":12,"label":"Blank predicate","predicate":[" "]}
+        ]}}}}),
+    );
+    let body = actor::authored_actor(&input.record, input.record.node_at(&[]).unwrap(), "fixture");
+    let values = body.skills.value.unwrap()[0]
+        .conditional
+        .value
+        .clone()
+        .unwrap();
+    assert_eq!(
+        values[0].qualification.value.as_deref(),
+        Some("all of (identify-magic; any of (target:trait:undead; not (target:trait:living)))")
+    );
+    assert_eq!(values[1].qualification.state, QueryFieldState::Invalid);
+    assert_eq!(values[2].qualification.state, QueryFieldState::Missing);
+    assert_eq!(values[3].qualification.state, QueryFieldState::Null);
+    assert_eq!(values[4].qualification.state, QueryFieldState::Invalid);
+}
+
+#[test]
+fn parity_consumable_details_keep_meaningful_intrinsic_facts() {
+    let input = record(
+        "test",
+        "Item",
+        json!({"_id":"item000000000000","type":"consumable","system":{"baseItem":"alchemical-bomb","hp":{"max":12},"hardness":3,"uses":{"autoDestroy":false,"value":2,"max":3}}}),
+    );
+    let SourceNodeView::Item(item) = input.record.node_at(&[]).unwrap() else {
+        panic!("item")
+    };
+    let view = item_reference::consumable(item).unwrap();
+    let base = physical(item).base_type.value.unwrap();
+    assert_eq!(base.value, "alchemical-bomb");
+    assert_eq!(base.label, "Alchemical Bomb");
+    assert_eq!(view.maximum_hp.value, Some(12.into()));
+    assert_eq!(view.hardness.value, Some(3.into()));
+    assert_eq!(view.auto_destroy.value, Some(false));
+    assert_eq!(view.source_uses.value, Some(2.into()));
+}

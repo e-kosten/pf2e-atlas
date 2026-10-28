@@ -91,10 +91,9 @@ support. Further bounded projection/content work remains:
   permitted public/private notes (1,620 nonempty records). Review its labeling
   and overlap before adding a second summary; no new source selection is needed.
   Do not inject raw HTML or remove repeated prose by string matching.
-- `NPCSpecialSkillSource.predicate` is retained but not represented in conditional
-  skill facts. Preserve supplied label/modifier and unavailable/blank qualifiers;
-  define an honest readable predicate projection before interpreting it or
-  evaluating whether a bonus applies.
+- Conditional skill facts now include readable checked predicate structure,
+  preserving unavailable/blank qualifiers beside the supplied label/modifier.
+  Evaluating whether a conditional bonus applies remains separately scoped.
 - Owned effect badges (for example Prismhydra's Hydra Heads counter) are retained
   but lack a presentation projection. Distinguish an authored counter, formula
   and runtime reevaluation before exposing values as current encounter state.

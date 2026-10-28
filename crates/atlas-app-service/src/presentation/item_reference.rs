@@ -82,6 +82,13 @@ pub(super) fn consumable(item: ItemSourceView<'_>) -> Option<ConsumablePresentat
     let system = SourceFieldView::from(&source.system);
     let uses = system.and_then(|s| (&s.uses).into());
     Some(ConsumablePresentationView {
+        maximum_hp: number(
+            system
+                .and_then(|s| (&s.hp).into())
+                .and_then(|hp| (&hp.max).into()),
+        ),
+        hardness: number(system.and_then(|s| (&s.hardness).into())),
+        auto_destroy: fact(uses.and_then(|u| (&u.auto_destroy).into()).map(|v| *v)),
         spell: unavailable(),
         spell_presented_inline: false,
         category: identifier(item.consumable_category()),

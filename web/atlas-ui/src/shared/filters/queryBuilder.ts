@@ -1,5 +1,6 @@
 import type { RuleGroupType, RuleType } from "react-querybuilder";
 import { commonCondition, type CommonCondition } from "./filterControls";
+import { ACTOR_METRIC_CHOOSERS } from "./actorMetricFields";
 import type {
   QueryPredicate,
   QueryFieldDefinition,
@@ -307,6 +308,9 @@ export function builderPredicate(
       });
       continue;
     }
+    if (node.field === ACTOR_METRIC_CHOOSERS.ability)
+      throw new Error("Choose an ability");
+    if (node.field === ACTOR_METRIC_CHOOSERS.skill) throw new Error("Choose a skill");
     const field = fields.find((f) => f.id === node.field && f.scope === scope);
     if (!field) throw new Error("Choose an available filter field");
     if (!field.operators.includes(node.operator))
