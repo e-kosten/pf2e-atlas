@@ -92,8 +92,9 @@
   align-items: center;
 }
 .record-reference__identity {
-  flex: 1 1 12ch;
+  flex: 1 1 max-content;
   min-width: 0;
+  max-width: 100%;
 }
 .record-reference__title h2 {
   font-family: var(--theme-font);
@@ -645,4 +646,135 @@
 }
 .physical-reference__kit-items > li {
   margin-block: var(--space-control);
+}
+
+/* Source comparison keeps orientation normal and reference-only facts readable. */
+.comparison-source {
+  --comparison-normal-text: var(--text);
+  --comparison-normal-heading: var(--heading-color);
+  --comparison-normal-muted: var(--muted);
+  --comparison-normal-link: var(--link);
+  --comparison-marker-bg: var(--comparison-selected-bg);
+}
+.comparison-source .record-reference {
+  --text: var(--comparison-reference-text);
+  --muted: var(--comparison-reference-text);
+  --heading-color: var(--comparison-reference-text);
+  --link: var(--comparison-reference-text);
+  --comparison-badge-text: var(--comparison-reference-badge-text);
+  --comparison-badge-link: var(--comparison-reference-badge-text);
+  color: var(--comparison-reference-text);
+}
+.comparison-source .record-reference__header,
+.comparison-source .document-outline,
+.comparison-source .source-section-selected,
+.comparison-source .record-reference .source-owner-selected,
+.comparison-source
+  .record-reference__content:has(.source-section-selected)
+  > :is(h3, h5),
+.comparison-source
+  .embedded-ability-reading__entry:has(.source-section-selected)
+  .actor-activity__title,
+.comparison-source :is(.prepared-inclusion, .prepared-inclusion-unavailable),
+.comparison-source
+  :is(.prepared-inclusion, .prepared-inclusion-unavailable)
+  .record-reference {
+  --text: var(--comparison-normal-text);
+  --muted: var(--comparison-normal-muted);
+  --heading-color: var(--comparison-normal-heading);
+  --link: var(--comparison-normal-link);
+  --comparison-badge-text: var(--comparison-normal-text);
+  --comparison-badge-link: var(--comparison-normal-link);
+  color: var(--comparison-normal-text);
+}
+.comparison-source .source-section-selected {
+  background: var(--comparison-marker-bg);
+}
+/* A whole-section surface requires every own canonical marker to be selected.
+   Activity facts/usage stay outside it. Foreign inclusions keep their own surface. */
+.comparison-source
+  :is(
+    .record-reference__content,
+    .embedded-ability-reading__entry:not(
+      :has(
+        > .actor-activity .actor-activity__facts:not(:empty),
+        > .actor-activity .actor-activity__usage
+      )
+    )
+  ):has(.source-section-selected):not(
+    :has(
+      [data-atlas-source-section]:not(.source-section-selected):not(
+          .prepared-inclusion,
+          .prepared-inclusion *,
+          .prepared-inclusion-unavailable,
+          .prepared-inclusion-unavailable *
+        )
+    )
+  ) {
+  --comparison-marker-bg: transparent;
+  --text: var(--comparison-normal-text);
+  --muted: var(--comparison-normal-muted);
+  --heading-color: var(--comparison-normal-heading);
+  --link: var(--comparison-normal-link);
+  --comparison-badge-text: var(--comparison-normal-text);
+  --comparison-badge-link: var(--comparison-normal-link);
+  color: var(--comparison-normal-text);
+  background: var(--comparison-selected-bg);
+  box-shadow: 0 0 0 calc(var(--space-control) / 2) var(--comparison-selected-bg);
+}
+.comparison-source
+  .embedded-ability-reading__entry:not(:has(.source-section-selected))
+  .actor-activity__heading-link {
+  color: var(--comparison-reference-text);
+}
+.prepared-content--source .source-section-excluded {
+  --link: var(--comparison-reference-text);
+  --comparison-badge-text: var(--comparison-reference-badge-text);
+  --comparison-badge-link: var(--comparison-reference-badge-text);
+  color: var(--comparison-reference-text);
+}
+
+.comparison-source .record-reference a,
+.comparison-source .record-reference .effect-reference-link {
+  color: var(--link);
+}
+.comparison-source .record-reference .record-trait-badge {
+  color: var(--comparison-badge-text);
+}
+.comparison-source .record-reference .record-trait-badge a {
+  color: var(--comparison-badge-link);
+}
+/* Grants are reference links, not indexed sections of the source document. */
+.comparison-source .record-grants {
+  --rarity-common-text: var(--comparison-reference-badge-text);
+  --rarity-uncommon-text: var(--comparison-reference-badge-text);
+  --rarity-rare-text: var(--comparison-reference-badge-text);
+  --rarity-unique-text: var(--comparison-reference-badge-text);
+  --rarity-common-bg: var(--panel-subtle);
+  --rarity-uncommon-bg: var(--panel-subtle);
+  --rarity-rare-bg: var(--panel-subtle);
+  --rarity-unique-bg: var(--panel-subtle);
+  --rarity-common-border: var(--line);
+  --rarity-uncommon-border: var(--line);
+  --rarity-rare-border: var(--line);
+  --rarity-unique-border: var(--line);
+}
+.comparison-source .record-grants .reference-result__traits > span {
+  color: var(--comparison-reference-badge-text);
+  background: var(--panel-subtle);
+  border-color: var(--line);
+}
+.comparison-source .record-reference a:hover {
+  text-decoration: underline;
+}
+.comparison-source .record-reference a.source-owner-selected {
+  color: var(--comparison-normal-link);
+}
+.comparison-source .record-reference :is(a, [role="button"]):focus-visible {
+  outline: 2px solid var(--comparison-normal-link);
+  outline-offset: 2px;
+}
+
+.comparison-source :is(.prepared-inclusion, .prepared-inclusion-unavailable) {
+  background: var(--panel);
 }

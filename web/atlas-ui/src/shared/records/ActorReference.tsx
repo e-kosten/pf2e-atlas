@@ -33,6 +33,7 @@ import { EffectReferenceLink } from "./EffectReferenceLink";
 import { ActionCost } from "./ActionCost";
 import { sentenceCase } from "../ui/labels";
 import { activityAnchor } from "./embeddedNavigation";
+import { useSourceOwnerSelection } from "./SourceSectionSelectionContext";
 function qualifierText<T extends string | string[]>(
   fact: FactView<T>,
   patch = false,
@@ -780,6 +781,10 @@ export function ActorActivity({
   interactive?: boolean;
 }) {
   const id = useId();
+  const isSourceOwnerSelected = useSourceOwnerSelection();
+  const sourceOwnerClass = isSourceOwnerSelected(activity.navigation)
+    ? "source-owner-selected"
+    : undefined;
   const route = recordDestination({
     recordKey: activity.navigation.record_key,
     selection: activity.navigation,
@@ -833,6 +838,7 @@ export function ActorActivity({
               (interactive ? (
                 <Button
                   type="link"
+                  className={sourceOwnerClass}
                   style={{ paddingInline: 0, height: "auto", fontWeight: 700 }}
                   href={destinationHref(route)}
                   onClick={(event) => {
@@ -848,7 +854,7 @@ export function ActorActivity({
                   {activity.title}
                 </Button>
               ) : (
-                <strong>{activity.title}</strong>
+                <strong className={sourceOwnerClass}>{activity.title}</strong>
               ))}
             {inline && activationControls && (
               <div className="actor-activity__activation">
@@ -1387,6 +1393,7 @@ function CastingSpells({
   annotations?: CastingAnnotations;
   onReference: RecordReferenceHandler;
 }) {
+  const isSourceOwnerSelected = useSourceOwnerSelection();
   const groups = new Map<
     string,
     {
@@ -1434,9 +1441,14 @@ function CastingSpells({
                     {index > 0 && ", "}
                     <Button
                       type="link"
-                      className={
-                        annotation?.muted ? "actor-casting__spell--expended" : undefined
-                      }
+                      className={[
+                        annotation?.muted ? "actor-casting__spell--expended" : "",
+                        isSourceOwnerSelected(spell.navigation)
+                          ? "source-owner-selected"
+                          : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
                       aria-label={
                         annotation?.status
                           ? `${spell.title}: ${annotation.status}`

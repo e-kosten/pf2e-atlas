@@ -576,13 +576,15 @@ fn actual_model_build_reuses_exact_inputs_with_fresh_source_attribution() {
     let mut ids = std::collections::BTreeSet::new();
     for root in [original, other] {
         let hits = reader
-            .vector_candidates(
-                &profile,
-                &vector,
-                &all,
-                Some(std::slice::from_ref(&root)),
-                100,
-            )
+            .vector_candidates(atlas_index::SourceVectorCandidateRequest {
+                profile: &profile,
+                vector: &vector,
+                query: &all,
+                keys: Some(std::slice::from_ref(&root)),
+                exclude: None,
+                content_scope: atlas_domain::SearchContentScope::All,
+                limit: 100,
+            })
             .unwrap();
         assert_eq!(hits.len(), changed.semantic_unit_count);
         for hit in hits {

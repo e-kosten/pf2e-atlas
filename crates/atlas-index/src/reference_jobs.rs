@@ -37,6 +37,7 @@ pub fn recover_reference_publication(
                 }
                 crate::component_upgrade::ReferenceUpgrade::QueryProjections
                 | crate::component_upgrade::ReferenceUpgrade::LexicalProjections
+                | crate::component_upgrade::ReferenceUpgrade::CoreProjections
                 | crate::component_upgrade::ReferenceUpgrade::SourcePreparation => {
                     // Old derived outputs cannot be validated against new policy.
                     // Authenticate retained inputs and storage integrity; product

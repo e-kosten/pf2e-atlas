@@ -7,6 +7,11 @@ use crate::{
 use atlas_storage::{Migration, Workspace};
 use std::path::Path;
 
+/// Explicit caller-supplied task-copy diagnostic. All projection writes roll back.
+pub fn core_projection_pilot(path: &Path) -> Result<serde_json::Value, IndexError> {
+    crate::core_projection_pilot::run(path)
+}
+
 pub const TEST_WORKSPACE_SCHEMA_VERSION: u32 = TEST_MIGRATIONS.len() as u32;
 pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
     Migration {
@@ -124,6 +129,21 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         version: 19,
         name: "physical-base-type",
         sql: crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 20,
+        name: "similarity-parts",
+        sql: crate::SIMILARITY_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            id: "typed-content-correspondence/v1",
+            apply: crate::backfill_similarity_parts,
+        }),
+    },
+    Migration {
+        version: 21,
+        name: "core-section-eligibility",
+        sql: crate::CORE_SECTIONS_SCHEMA_SQL,
         backfill: None,
     },
 ];

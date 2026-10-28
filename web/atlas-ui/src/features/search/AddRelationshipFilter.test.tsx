@@ -117,6 +117,7 @@ beforeEach(() => {
     artifact_generation: "generation-a",
   }));
   vi.mocked(searchPage).mockImplementation(async (request: SearchResultsRequest) => ({
+    search_content: "all",
     artifact_generation: "generation-a",
     search_profile: "bge-base",
     ranking: "score",

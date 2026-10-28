@@ -1,4 +1,28 @@
-use clap::Args;
+use clap::{Args, ValueEnum};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum CliSearchContent {
+    All,
+    Core,
+}
+
+impl From<CliSearchContent> for atlas_domain::SearchContentScope {
+    fn from(value: CliSearchContent) -> Self {
+        match value {
+            CliSearchContent::All => Self::All,
+            CliSearchContent::Core => Self::Core,
+        }
+    }
+}
+
+impl From<CliSearchContent> for atlas_domain::SimilaritySourceSections {
+    fn from(value: CliSearchContent) -> Self {
+        match value {
+            CliSearchContent::All => Self::All,
+            CliSearchContent::Core => Self::Core,
+        }
+    }
+}
 pub(crate) fn parse_search_profile(value: &str) -> Result<atlas_domain::SearchProfileId, String> {
     let id = atlas_domain::SearchProfileId::new(value);
     atlas_embedding::search_profile(&id).map_err(|_| {

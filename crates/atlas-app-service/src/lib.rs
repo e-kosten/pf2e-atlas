@@ -33,6 +33,7 @@ mod retrieval;
 mod search_match_sections;
 mod search_pages;
 mod service;
+mod similarity;
 mod table_roll;
 mod traits;
 

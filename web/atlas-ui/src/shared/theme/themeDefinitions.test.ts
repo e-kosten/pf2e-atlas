@@ -163,6 +163,47 @@ describe("Atlas product palette", () => {
     });
   }
 
+  it.each(["light", "dark"] as const)(
+    "%s makes comparison reference text readable and visibly quieter than selected content",
+    (scheme) => {
+      const variables = atlasCssVariables(scheme);
+      const mix = String(
+        variables["--comparison-reference-text" as keyof typeof variables],
+      ).match(/color-mix\(in srgb, (#[a-f0-9]+) (\d+)%, (#[a-f0-9]+)\)/i)!;
+      expect(mix).not.toBeNull();
+      const channels = (hex: string) =>
+        hex
+          .slice(1)
+          .match(/../g)!
+          .map((part) => parseInt(part, 16));
+      const mixedHex = (match: RegExpMatchArray) => {
+        const foreground = channels(match[1]);
+        const background = channels(match[3]);
+        const weight = Number(match[2]) / 100;
+        return (
+          "#" +
+          foreground
+            .map((value, index) =>
+              Math.round(value * weight + background[index] * (1 - weight))
+                .toString(16)
+                .padStart(2, "0"),
+            )
+            .join("")
+        );
+      };
+      const color = mixedHex(mix);
+      const referenceContrast = contrast(color, mix[3]);
+      expect(referenceContrast).toBeGreaterThanOrEqual(4.5);
+      expect(referenceContrast).toBeLessThanOrEqual(5);
+      expect(contrast(mix[1], mix[3])).toBeGreaterThan(referenceContrast * 2);
+      const selectedMix = String(
+        variables["--comparison-selected-bg" as keyof typeof variables],
+      ).match(/color-mix\(in srgb, (#[a-f0-9]+) (\d+)%, (#[a-f0-9]+)\)/i)!;
+      expect(selectedMix).not.toBeNull();
+      expect(contrast(mix[1], mixedHex(selectedMix))).toBeGreaterThanOrEqual(7);
+    },
+  );
+
   it("maps one ordered ink ramp through every dark structural role", () => {
     const ramp = darkNeutralRamp;
     const palette = resolveAtlasPalette("dark");

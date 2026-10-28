@@ -162,8 +162,9 @@ includes the key, label, content, catalogs, source revision and indexing locale.
 A successful response can have `content: null`: report the missing definition
 rather than inventing text or substituting another trait. Trait membership uses
 the exact identifier; `--trait deadly` does not include `deadly-d8`. `record get`,
-`record resolve`, `graph` and CLI `similar` operate on records. Trait Members,
-References and Similar views are available in the web UI.
+`record resolve` and `graph` operate on records. `atlas similar trait:fire` accepts
+an exact typed trait seed; it searches for similar records, not similar trait names.
+Trait Members and References views remain available in the web UI.
 
 ## Search and evidence
 
@@ -173,6 +174,7 @@ returned record and matching passage:
 
 ```sh
 atlas search 'Ghoul Fever' --retrieval fts --json
+atlas search fire --search-content core --json
 atlas search 'a creature whose disease drains a victim over time' --json
 atlas search --kind creature --trait undead --json
 atlas search --kind creature --sort level_desc --json
@@ -180,11 +182,55 @@ atlas search --kind equipment --sort level_desc --sort unit_price_asc --json
 atlas search --kind creature --sort random --seed 42 --json
 atlas search --where 'defenses.hp.maximum >= 80 && "undead" in traits' --json
 atlas similar spells-srd:1xLVcA8Y1onw7toT --kind spell --json
+atlas similar 'Brown Mold' --list-parts --json
+atlas similar 'Brown Mold' --list-parts --sections core --json
+atlas similar 'Lich' --sections core --search-content core --json
+atlas similar 'Brown Mold' --method passages --decay 0.5 --explain --json
+atlas similar trait:fire --method baseline --json
 ```
+
+Similar uses stored vectors and needs no model weights. Records default to
+Passage matches; traits default to the baseline Trait definition recipe. Source
+comparison options without `--method` select Passage matches. Candidate scope
+alone (`--search-content`) keeps the seed's method default. `--method passages`
+compares selected content with geometric rank decay from the strongest logical
+part (0) through equal-part contribution (1). `--method content-average` compares
+content centroids; it does not accept decay. `--method baseline` preserves root
+identity similarity for records and definition-centroid similarity for traits;
+it does not accept parts, a source preset, candidate-part mode or decay. It can
+restrict candidate content with `--search-content core`.
+
+Use `--list-parts` to discover available source content. Copy exact selectors into
+repeatable `--part` arguments and supply `--artifact-generation` from discovery.
+For records, omission and `--sections all` select the stored root identity once plus all indexed sections;
+`--sections core` selects the stored root identity once plus the Core prose chosen
+for the seed's kind. The source preset and repeated `--part` conflict. Discover
+Core's exact resolved components with `--list-parts --sections core`; ordinary
+`--list-parts` also exposes the identity component for a Custom selection. A
+record without allowed Core prose retains identity only, with an explicit reason;
+missing required vectors are errors. Trait presets retain their existing definition
+or clearly labelled label-only representation without adding a second identity.
+Never construct selectors from labels or silently replace stale or unavailable
+explicit components. `--candidate-parts any`
+allows matches anywhere; `corresponding` restricts comparisons to shared content
+roles across kinds. Trait definitions support only any-content matching.
+`--search-content all|core` independently chooses eligible candidate content in
+Similar and ordinary text search. Each candidate uses its own kind's Core recipe,
+not the seed's recipe. For example, `atlas similar 'Lich' --sections core --search-content all` compares the Lich's identity/description with all candidate
+prose and root identities. Exact Custom selections can omit identity for a prose-only comparison.
+Core requests require current Core metadata; refresh setup on a readiness error
+rather than silently retrying with All. Candidate filters remain separate from
+seed content selection. `--explain`
+returns part contributions and paired evidence; average-method excerpts are
+representative, not an additive explanation of the centroid score. Scores are
+not percentages or calibrated relevance probabilities.
 
 FTS targets names, verified aliases, typed vocabulary, embedded names and structurally
 named definitions. Semantic search independently covers selected root and embedded
-explanatory prose. Hybrid is the default; `--retrieval fts` needs no model
+explanatory prose. Core only restricts existing eligible names, vocabulary,
+structural labels and vectors; it never makes description paragraphs FTS input.
+`--search-content` requires a text query and is rejected on query-free browsing.
+Hybrid is the default; `--retrieval fts` needs no model
 weights, and `--retrieval vector` selects semantic search alone. Hybrid
 `--ranking score` is the default; `--ranking rrf` compares rank-based fusion on
 the same data. Keep the default unless the caller asks to compare approaches.
@@ -203,7 +249,7 @@ paging. `--seed` accepts an unsigned32-bit integer only with Random; omission
 generates a seed reported in the result. Reuse it to retain the same order for
 unchanged matching records across pages. Random does not expand semantic coverage.
 A lexical-only workspace needs `--retrieval fts` for text queries.
-Similar uses the seed's stored root identity vector. Its filters constrain
+The Name and identity method uses the seed's stored root identity vector; Passage matches and Content average use the selected source components. Similar filters constrain
 candidates, not seed resolution; resolve an ambiguous seed separately.
 Similar also accepts `--page` and `--limit` for stateless result pages.
 Browse, text search and Similar JSON share `data.rows` (record, matches,

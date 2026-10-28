@@ -23,6 +23,10 @@ import type {
   RecordRelationshipView,
   RecordNavigationView,
 } from "../../generated/atlas";
+import {
+  useSourceSectionSelection,
+  type SourceContentLocation,
+} from "./SourceSectionSelectionContext";
 export type RecordReferenceHandler = (
   recordKey: string,
   anchor?: HTMLElement,
@@ -45,9 +49,20 @@ export function PreparedContent({
   relationships?: RecordRelationshipView[];
   onReference: RecordReferenceHandler;
 }) {
+  const references = useMemo(
+    () =>
+      relationships.filter(
+        (reference) =>
+          JSON.stringify(reference.source) === JSON.stringify(content.locator),
+      ),
+    [relationships, content.locator],
+  );
   return (
     <PreparedContentBody
       body={content.body}
+      sourceLocation={content.locator}
+      sourceFingerprint={content.source_fingerprint}
+      sectionRendering={content.section_rendering}
       documentNavigation={
         documentNavigation
           ? {
@@ -69,10 +84,7 @@ export function PreparedContent({
             }
           : undefined
       }
-      references={relationships.filter(
-        (reference) =>
-          JSON.stringify(reference.source) === JSON.stringify(content.locator),
-      )}
+      references={references}
       onReference={onReference}
     />
   );
@@ -82,7 +94,13 @@ export function PreparedContentBody({
   references,
   onReference,
   documentNavigation,
+  sourceLocation,
+  sectionRendering,
+  sourceFingerprint,
 }: {
+  sourceLocation?: SourceContentLocation;
+  sourceFingerprint?: string | null;
+  sectionRendering?: PreparedContentFieldView["section_rendering"];
   documentNavigation?: {
     identity: string;
     href: string;
@@ -92,6 +110,15 @@ export function PreparedContentBody({
   references: (PreparedReferenceView | RecordRelationshipView)[];
   onReference: RecordReferenceHandler;
 }) {
+  const sourceSelection = useSourceSectionSelection(sourceLocation, sourceFingerprint);
+  const supportedVersion =
+    sourceLocation && "trait_key" in sourceLocation
+      ? "trait-definition-centroid/v1"
+      : "structural-source-sections/v4";
+  const sourceHtml =
+    sourceSelection && sectionRendering?.selection_version === supportedVersion
+      ? sectionRendering.html
+      : undefined;
   const container = useRef<HTMLDivElement>(null);
   const [effectLinks, setEffectLinks] = useState<ReactPortal[]>([]);
   const rollHosts = useRef(new Map<string, HTMLElement>());
@@ -104,8 +131,13 @@ export function PreparedContentBody({
     [],
   );
   const sanitized = useMemo(
-    () => (body.kind === "html" ? sanitizePreparedHtml(body.html) : ""),
-    [body],
+    () =>
+      sourceHtml !== undefined
+        ? sanitizePreparedHtml(sourceHtml)
+        : body.kind === "html"
+          ? sanitizePreparedHtml(body.html)
+          : "",
+    [body, sourceHtml],
   );
   const documentIdentity = documentNavigation?.identity;
   const prepared = useMemo(
@@ -116,6 +148,8 @@ export function PreparedContentBody({
     [sanitized, documentIdentity],
   );
   const { html, outline } = prepared;
+  const excludedSections = JSON.stringify(sourceSelection?.excluded ?? []);
+  const selectedSections = JSON.stringify(sourceSelection?.selected ?? []);
   const sectionLanding = documentNavigation?.landing;
   const landedSection = useRef<string | null>(null);
   useLayoutEffect(() => {
@@ -244,6 +278,9 @@ export function PreparedContentBody({
       if (fact?.target && fact.effect_label) {
         const host = document.createElement("span");
         host.setAttribute("data-atlas-reference", String(ref));
+        const sourceSection = marker.getAttribute("data-atlas-source-section");
+        if (sourceSection !== null)
+          host.setAttribute("data-atlas-source-section", sourceSection);
         marker.replaceWith(host);
         effects.push(
           createPortal(
@@ -358,6 +395,27 @@ export function PreparedContentBody({
     setEffectLinks(effects);
     return () => listeners.forEach((remove) => remove());
   }, [body, references, openReference, html]);
+  useLayoutEffect(() => {
+    if (sourceHtml === undefined) return;
+    const excluded = new Set<number>(JSON.parse(excludedSections));
+    const selected = new Set<number>(JSON.parse(selectedSections));
+    container.current
+      ?.querySelectorAll<HTMLElement>("[data-atlas-source-section]")
+      .forEach((section) => {
+        const ownSection = !section.closest(
+          ".prepared-inclusion, .prepared-inclusion-unavailable",
+        );
+        const ordinal = Number(section.dataset.atlasSourceSection);
+        section.classList.toggle(
+          "source-section-excluded",
+          ownSection && excluded.has(ordinal),
+        );
+        section.classList.toggle(
+          "source-section-selected",
+          ownSection && selected.has(ordinal),
+        );
+      });
+  }, [html, sourceHtml, excludedSections, selectedSections, references]);
   if (body.kind === "unavailable")
     return (
       <Alert
@@ -369,7 +427,8 @@ export function PreparedContentBody({
     return (
       <Alert type="info" title="Content reading limit" description={body.reason} />
     );
-  if (body.kind === "plain") return <p className="prose">{body.text}</p>;
+  if (body.kind === "plain" && sourceHtml === undefined)
+    return <p className="prose">{body.text}</p>;
   const reading = (
     <>
       {outline.length > 0 && (
@@ -401,7 +460,11 @@ export function PreparedContentBody({
       )}
       <div
         ref={container}
-        className="prepared-content"
+        className={
+          sourceHtml === undefined
+            ? "prepared-content"
+            : "prepared-content prepared-content--source"
+        }
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </>

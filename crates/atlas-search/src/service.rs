@@ -126,6 +126,19 @@ pub struct PreparedQueryEmbedding {
     vector: Vec<f32>,
 }
 impl PreparedQueryEmbedding {
+    #[cfg(test)]
+    pub(crate) fn for_fixture(
+        profile: atlas_index::SourceSearchProfileIdentity,
+        text: &str,
+        vector: Vec<f32>,
+    ) -> Self {
+        Self {
+            profile,
+            text: text.into(),
+            vector,
+        }
+    }
+
     pub fn prepare(
         inference: &SharedQueryInference,
         profile: &SearchProfileId,

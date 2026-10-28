@@ -24,6 +24,7 @@ pub struct SearchPageView {
     pub next_page: Option<u32>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
 pub struct SearchResultsRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -38,15 +39,33 @@ pub struct SearchResultsRequest {
     pub expected_artifact_generation: Option<String>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SearchCriteria {
     SimilarRecords {
         seed_record_key: String,
         filter: Option<QueryPredicate>,
+        #[serde(default)]
+        #[ts(optional)]
+        similarity: Option<atlas_domain::SimilarityOptions>,
+        #[serde(default)]
+        #[ts(optional)]
+        source_sections: Option<atlas_domain::SimilaritySourceSections>,
+        #[serde(default)]
+        #[ts(optional)]
+        search_content: Option<atlas_domain::SearchContentScope>,
     },
     SimilarTraits {
         seed_trait_key: String,
         filter: Option<QueryPredicate>,
+        #[serde(default)]
+        #[ts(optional)]
+        similarity: Option<atlas_domain::SimilarityOptions>,
+        #[serde(default)]
+        #[ts(optional)]
+        source_sections: Option<atlas_domain::SimilaritySourceSections>,
+        #[serde(default)]
+        #[ts(optional)]
+        search_content: Option<atlas_domain::SearchContentScope>,
     },
     TraitReferences {
         trait_key: String,
@@ -60,6 +79,9 @@ pub enum SearchCriteria {
         query: String,
         filter: Option<QueryPredicate>,
         mode: RetrievalModeView,
+        #[serde(default)]
+        #[ts(optional)]
+        search_content: Option<atlas_domain::SearchContentScope>,
     },
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -84,6 +106,13 @@ pub enum SearchModeSummary {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultsPage {
+    pub search_content: atlas_domain::SearchContentScope,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub core_recipe: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub similarity: Option<crate::SimilarityConfigurationView>,
     pub sort: atlas_domain::ResultSort,
     pub relationship_clauses: Vec<RelationshipClauseSummaryView>,
     pub ranking: atlas_domain::SearchRanking,
@@ -96,6 +125,9 @@ pub struct SearchResultsPage {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultRow {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub similarity: Option<crate::SimilarityEvidenceView>,
     pub relationship_evidence: Vec<RelationshipEvidenceView>,
     pub record: RecordSummaryView,
     pub matches: Vec<SearchWitnessView>,

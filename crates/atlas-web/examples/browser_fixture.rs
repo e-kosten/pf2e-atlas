@@ -48,7 +48,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     };
     let index_path = run_directory.join("artifact.sqlite");
-    atlas_search::test_support::publish_input(&index_path, &input(corpus::records(), true))?;
+    let mut fixture = input(corpus::records(), true);
+    // Give distinct roots positive overlap so the default passage comparison
+    // exercises result navigation. The shared fixture's orthogonal vectors
+    // correctly produce no positive passage matches. These remain structural
+    // vectors, not model output or evidence of semantic ranking quality.
+    for unit in &mut fixture.semantic_units {
+        assert_eq!(unit.vector.last(), Some(&0.0));
+        for component in &mut unit.vector {
+            *component *= std::f32::consts::FRAC_1_SQRT_2;
+        }
+        if let Some(common) = unit.vector.last_mut() {
+            *common = std::f32::consts::FRAC_1_SQRT_2;
+        }
+    }
+    atlas_search::test_support::publish_input(&index_path, &fixture)?;
     let service = AtlasAppService::start(AtlasAppServiceOptions {
         default_search_profile: Some(SearchProfileId::new("bge-base")),
         path_mode: AtlasPathMode::Global,

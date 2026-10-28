@@ -1,18 +1,34 @@
 #![deny(unsafe_code)]
+mod configurable_similarity;
 mod discovery;
 mod error;
 mod graph;
 mod page;
+#[cfg(any(test, feature = "read-metrics"))]
+mod read_metrics;
 mod records;
 mod reference_resolution;
 mod service;
 mod similar;
+mod similarity_evaluation;
+mod similarity_scoring;
+pub use configurable_similarity::{
+    ConfigurableSimilarRequest, ConfigurableSimilarResult, SimilarityDiagnostics,
+    SimilarityEvidence, SimilarityPair, SimilarityPartScore, SimilarityRoleScore,
+    SimilarityTimings,
+};
+pub use similarity_evaluation::{
+    SimilarityEvaluationEvidence, SimilarityEvaluationRequest, SimilarityEvaluationResult,
+    SimilarityEvaluationRow, SimilarityEvaluationRun, SimilarityEvaluationVariant,
+};
 #[cfg(any(test, feature = "test-support"))]
 pub mod test_support;
 #[cfg(test)]
 mod tests;
 mod text;
 mod variants;
+#[cfg(any(test, feature = "read-metrics"))]
+pub use atlas_index::SourceReadMetrics;
 pub use atlas_index::{
     ArtifactInstance, SourcePreparedContent, SourceStoredRelationship, SourceUnitLocation,
 };
@@ -66,3 +82,6 @@ mod result_order_tests;
 
 mod relationship_selection;
 pub use relationship_selection::CheckedRelationshipSelection;
+
+#[cfg(test)]
+mod core_search_tests;

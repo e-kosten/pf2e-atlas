@@ -68,9 +68,20 @@ test("Explore keeps header geometry stable and restores mode and tab through bro
   expect(target.pathname).toBe("/search");
   expect(target.searchParams.get("similar")).toBe(key);
   await activate(search, info);
-  await expect(
-    page.getByRole("searchbox", { name: "Similar search", exact: true }),
-  ).toHaveValue("Signal Protocol");
+  const seed = page
+    .locator(".reference-search-entry--similar")
+    .getByRole("link", { name: "Signal Protocol", exact: true });
+  await expect(seed).toHaveAttribute("href", `/records/${key}`);
+  const searchUrl = page.url();
+  await activate(seed, info);
+  const drawer = page.getByRole("dialog", { name: /^Signal Protocol\b/ });
+  await expect(drawer).toBeVisible();
+  await activate(
+    drawer.getByRole("button", { name: "Close reference preview", exact: true }),
+    info,
+  );
+  await expect(drawer).toBeHidden();
+  expect(page.url()).toBe(searchUrl);
   await page.goBack();
   await expect(
     region.getByRole("tab", { name: "Similar", exact: true }),
@@ -1767,14 +1778,57 @@ test("Search linked previews add the linked record and retain the reading contex
     ).toEqual([
       expect.objectContaining({ record_key: "browser-conditions:offguard00000001" }),
     ]);
-    await activate(
-      preview.getByRole("button", { name: "Close reference preview", exact: true }),
-      info,
-    );
+    const feedbackLink = page.getByRole("link", { name, exact: true });
+    const feedback = page.getByRole("alert").filter({ has: feedbackLink });
+    await expect(feedback).toBeVisible();
+    await expect(feedbackLink).toHaveAttribute("href", `/lists/${list.slug}`);
+    const close = preview.getByRole("button", {
+      name: "Close reference preview",
+      exact: true,
+    });
+    if (info.project.name === "phone-chromium") {
+      const notice = await feedback.elementHandle();
+      const destinationLink = await feedbackLink.elementHandle();
+      await expect
+        .poll(() =>
+          close.evaluate(
+            (button, { notice, destinationLink }) => {
+              if (!notice || !destinationLink) return false;
+              const bounds = button.getBoundingClientRect();
+              const point = {
+                x: bounds.x + bounds.width / 2,
+                y: bounds.y + bounds.height / 2,
+              };
+              const contains = (rect: DOMRect) =>
+                point.x >= rect.left &&
+                point.x <= rect.right &&
+                point.y >= rect.top &&
+                point.y <= rect.bottom;
+              const overlapsPassiveFeedback =
+                contains(notice.getBoundingClientRect()) &&
+                ![...destinationLink.getClientRects()].some(contains);
+              const receiver = button.ownerDocument.elementFromPoint(point.x, point.y);
+              return (
+                overlapsPassiveFeedback &&
+                receiver !== null &&
+                button.contains(receiver)
+              );
+            },
+            { notice, destinationLink },
+          ),
+        )
+        .toBe(true);
+    }
+    await activate(close, info);
     await expect(preview).toBeHidden();
+    // Closing must succeed while feedback remains, not after it times out.
+    await expect(feedback).toBeVisible();
     await expect(link).toBeFocused();
     await expect.poll(() => host.evaluate((node) => node.scrollTop)).toBe(position);
     await noPageOverflow(page);
+    await activate(feedbackLink, info);
+    await expect(page).toHaveURL(new URL(`/lists/${list.slug}`, url).toString());
+    await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
   } finally {
     await page.request.delete(`/api/lists/${list.list_key}`);
   }

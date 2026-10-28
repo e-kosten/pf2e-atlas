@@ -11,6 +11,8 @@ import type {
   FactView,
   NumberFactView,
   SpellPresentationView,
+  SimilarityEvidenceView,
+  RecordNavigationView,
 } from "../generated/atlas";
 export function readinessFixture(): AppReadinessView {
   return {
@@ -372,3 +374,59 @@ export function valuesFixture(
   };
 }
 export const truePredicate: QueryPredicate = { kind: "boolean_constant", value: true };
+
+export function similarityEvidenceFixture(
+  candidate: RecordNavigationView,
+  seed: RecordNavigationView | null,
+): SimilarityEvidenceView {
+  return {
+    truncated: true,
+    score: 0.8,
+    aggregation: "rank_decay",
+    selected_parts: 2,
+    comparable_parts: 1,
+    parts: [],
+    roles: [
+      {
+        key: { kind: "role", role: "description" },
+        role_label: "Description",
+        score: 0.8,
+        weight: 1,
+        comparable: true,
+      },
+      {
+        key: { kind: "role", role: "ability" },
+        role_label: "Ability",
+        score: 0,
+        weight: 0.5,
+        comparable: false,
+      },
+    ],
+    representative: true,
+    pairs: [
+      {
+        seed_part: "part:seed",
+        seed: seed
+          ? {
+              navigation: seed,
+              lane: "semantic",
+              label: "Seed description",
+              snippet: "Source excerpt",
+              lexical_rank: null,
+              semantic_similarity: 0.8,
+            }
+          : null,
+        seed_text: "Source excerpt",
+        candidate: {
+          navigation: candidate,
+          lane: "semantic",
+          label: "Candidate description",
+          snippet: "Matching excerpt",
+          lexical_rank: null,
+          semantic_similarity: 0.8,
+        },
+        cosine: 0.8,
+      },
+    ],
+  };
+}

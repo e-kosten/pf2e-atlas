@@ -93,6 +93,23 @@ browser ranking picker or run `atlas search "harrowkin" --ranking score` to comp
 switching does not rebuild search data. Ranking applies to hybrid text search,
 not alphabetical browsing or Similar records.
 
+Search settings also offers **Search content: Core sections**, which focuses
+matches on each record type's main content and its name and identity. Similar
+has a separate **Sections to compare** choice: All, Core or Custom. Core includes
+description-focused creatures, hazards' descriptions/routines/intrinsic actions,
+and other type-specific selections. Records without Core prose use their stored
+name and identity. The existing All settings remain the defaults.
+
+```bash
+atlas search "forest guardian" --search-content core
+atlas similar "Lich" --sections core --search-content all
+atlas similar "Brown Mold" --list-parts --sections core --json
+```
+
+Core reuses stored vectors and restricts existing word-search content; it does
+not make descriptions searchable through FTS. Browser preferences are remembered,
+while explicit search links keep their own settings.
+
 Browse, text search and Similar results can be ordered by name, level/rank or
 unit price. Open **Sort** in the browser or pass a CLI order such as
 `atlas search "healing" --kind spell --sort level_asc`. Sorting applies before

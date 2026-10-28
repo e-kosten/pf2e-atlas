@@ -173,6 +173,7 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
     };
     let context = match o.list_ref {
         Some(list_ref) => atlas_app_model::FilterDiscoveryContext::SavedList {
+            search_content: None,
             list_ref,
             filter,
             text: o.query,
@@ -181,6 +182,7 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
             expected_artifact_generation: o.artifact_generation,
         },
         None => atlas_app_model::FilterDiscoveryContext::Filtered {
+            search_content: None,
             filter,
             text: o.query,
             mode: o.retrieval.into(),

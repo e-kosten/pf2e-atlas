@@ -59,7 +59,16 @@ pub(crate) fn compose_inline_content<'a>(
             html, inclusions, ..
         } = &mut field.body
         {
-            *html = composer.expand(html, &refs, &mut active, inclusions)?;
+            *html = composer.expand(
+                html,
+                &refs,
+                &mut active,
+                inclusions,
+                field
+                    .section_rendering
+                    .as_mut()
+                    .map(|rendering| &mut rendering.html),
+            )?;
         }
     }
     Ok(())
@@ -80,6 +89,7 @@ impl Composer<'_> {
         references: &[SourceStoredRelationship],
         active: &mut Vec<(String, Vec<atlas_domain::OwnedContentLocator>)>,
         bindings: &mut Vec<PreparedInclusionView>,
+        section_rendering: Option<&mut String>,
     ) -> AppServiceResult<String> {
         let mut insertions = BTreeMap::new();
         for reference in references {
@@ -132,6 +142,11 @@ impl Composer<'_> {
                 },
             };
             insertions.insert(reference.ordinal, html);
+        }
+        if let Some(rendering) = section_rendering
+            && !insertions.is_empty()
+        {
+            *rendering = compose_prepared_inclusions(rendering, &insertions, false);
         }
         Ok(if insertions.is_empty() {
             html.to_owned()
@@ -347,7 +362,7 @@ impl Composer<'_> {
                     {
                         *html = compose_prepared_inclusions(html, &BTreeMap::new(), true);
                     }
-                    let html = self.expand(html, &own_refs, active, bindings)?;
+                    let html = self.expand(html, &own_refs, active, bindings, None)?;
                     self.namespace += 1;
                     let namespace = self.namespace;
                     bindings.push(PreparedInclusionView {

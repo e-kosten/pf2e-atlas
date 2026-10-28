@@ -51,7 +51,10 @@ fn selected_profile_is_request_local_and_stored_similar_and_lexical_need_no_mode
     let execution = crate::ReadExecutionContext::uncancellable();
     let mut similar = request(
         SearchCriteria::SimilarRecords {
+            search_content: None,
+            source_sections: None,
             seed_record_key: "items:0000000000000000".into(),
+            similarity: Some(atlas_domain::SimilarityOptions::Baseline {}),
             filter: None,
         },
         1,
@@ -66,6 +69,7 @@ fn selected_profile_is_request_local_and_stored_similar_and_lexical_need_no_mode
     assert_eq!(base.artifact_generation, gemma.artifact_generation);
     let mut lexical = request(
         SearchCriteria::TextSearch {
+            search_content: None,
             query: "Record".into(),
             filter: None,
             mode: RetrievalModeView::Lexical,
@@ -109,6 +113,7 @@ fn selected_contextual_facets_reject_stale_generation_before_query_inference() {
         .discover_filter_counts(
             atlas_app_model::DiscoverFilterCountsRequest {
                 context: atlas_app_model::FilterDiscoveryContext::Filtered {
+                    search_content: None,
                     search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
                     expected_artifact_generation: Some("stale-generation".into()),
                     filter: None,
@@ -203,6 +208,7 @@ fn lexical_pages_preserve_filters_counts_and_exact_owned_witnesses() {
     let (f, _) = fixture(false);
     let mut criteria = request(
         SearchCriteria::TextSearch {
+            search_content: None,
             query: "Record".into(),
             filter: Some(levels_at_least_two()),
             mode: RetrievalModeView::Lexical,
@@ -235,6 +241,7 @@ fn lexical_pages_preserve_filters_counts_and_exact_owned_witnesses() {
         .search_page(
             request(
                 SearchCriteria::TextSearch {
+                    search_content: None,
                     query: "Owned flare".into(),
                     filter: None,
                     mode: RetrievalModeView::Lexical,
@@ -252,6 +259,10 @@ fn lexical_pages_preserve_filters_counts_and_exact_owned_witnesses() {
         atlas_domain::OwnedContentIdentity::Stable("owned00000000000".into())
     );
     assert_eq!(witness.label.as_deref(), Some("Owned flare"));
+    let sections = owned.rows[0].matching_sections.as_ref().unwrap();
+    assert_eq!(sections.len(), 1);
+    assert_eq!(sections[0].navigation, witness.navigation);
+    assert!(owned.rows[0].similarity.is_none());
 }
 
 #[test]
@@ -259,7 +270,10 @@ fn similar_pages_preserve_seed_exclusion_filtering_and_bounded_coverage() {
     let (f, _) = fixture(true);
     let mut criteria = request(
         SearchCriteria::SimilarRecords {
+            search_content: None,
+            source_sections: None,
             seed_record_key: "items:0000000000000000".into(),
+            similarity: Some(atlas_domain::SimilarityOptions::Baseline {}),
             filter: Some(levels_at_least_two()),
         },
         1,
@@ -313,6 +327,7 @@ fn changed_generation_rejects_semantic_and_hybrid_pages_before_query_embedding()
     for mode in [RetrievalModeView::Semantic, RetrievalModeView::Hybrid] {
         let mut query = request(
             SearchCriteria::TextSearch {
+                search_content: None,
                 query: "Record".into(),
                 filter: None,
                 mode,
@@ -355,7 +370,10 @@ fn anchored_similar_request_rejects_a_stale_detail_generation() {
     let (f, _) = fixture(true);
     let mut query = request(
         SearchCriteria::SimilarRecords {
+            search_content: None,
+            source_sections: None,
             seed_record_key: "items:0000000000000000".into(),
+            similarity: Some(atlas_domain::SimilarityOptions::Baseline {}),
             filter: None,
         },
         1,
@@ -450,7 +468,10 @@ fn invalid_pages_and_missing_similar_seeds_remain_explicit_errors() {
     );
     let missing = request(
         SearchCriteria::SimilarRecords {
+            search_content: None,
+            source_sections: None,
             seed_record_key: "items:missing000000000".into(),
+            similarity: Some(atlas_domain::SimilarityOptions::Baseline {}),
             filter: None,
         },
         1,
@@ -554,6 +575,7 @@ fn relationship_pages_label_exact_entries_and_page_evidence_with_generation_guar
         identity: atlas_domain::OwnedContentIdentity::SnapshotLocal { index: 0 },
     }];
     criteria.criteria = SearchCriteria::TextSearch {
+        search_content: None,
         query: "needs unavailable inference".into(),
         filter: Some(relationship_predicate(invalid_constraint)),
         mode: RetrievalModeView::Semantic,
@@ -782,7 +804,10 @@ fn similar_trait_search_uses_persisted_seed_and_normal_filters() {
     let execution = crate::ReadExecutionContext::uncancellable();
     let mut search = request(
         SearchCriteria::SimilarTraits {
+            search_content: None,
+            source_sections: None,
             seed_trait_key: "trait:agile".into(),
+            similarity: None,
             filter: None,
         },
         1,
@@ -800,8 +825,15 @@ fn similar_trait_search_uses_persisted_seed_and_normal_filters() {
     );
     assert!(!first.rows.is_empty());
     assert!(first.coverage.is_some());
+    assert_eq!(
+        first.similarity.unwrap().options,
+        atlas_domain::SimilarityOptions::Baseline {}
+    );
     search.criteria = SearchCriteria::SimilarTraits {
+        search_content: None,
+        source_sections: None,
         seed_trait_key: "trait:agile".into(),
+        similarity: Some(atlas_domain::SimilarityOptions::Baseline {}),
         filter: Some(
             serde_json::from_value(json!({
                 "kind": "boolean_constant", "value": false
@@ -859,4 +891,575 @@ fn trait_reference_text_search_rejects_stale_generation_before_query_inference()
         .unwrap_err()
         .into_app_error();
     assert_eq!(error.code, AppErrorCode::ArtifactGenerationChanged);
+}
+
+#[test]
+fn similarity_inventory_and_explicit_parts_share_generation_and_effective_configuration() {
+    let executor = RetrievalExecutor::from_test_fixture_factory(2, 16, || {
+        let mut data = input((0..2).map(|i| record("items", "Item", json!({
+            "_id":format!("{i:016}"),"name":format!("Related record {i}"),"type":"effect",
+            "system":{"description":{"value":"<p>Shared explanatory content</p>"}}
+        }))).collect(), true);
+        for unit in &mut data.semantic_units {
+            unit.vector.fill(0.0);
+            unit.vector[0] = 1.0;
+        }
+        Ok(open_input_fixture(data)?)
+    });
+    let fixture = fixture_worker_with_executor(executor);
+    let execution = crate::ReadExecutionContext::uncancellable();
+    let seed = atlas_domain::SimilaritySeed::Record {
+        record_key: "items:0000000000000000".parse().unwrap(),
+    };
+    let inventory = fixture
+        .worker
+        .similarity_parts(
+            atlas_app_model::SimilarityPartsRequest {
+                seed,
+                search_profile: None,
+                expected_artifact_generation: None,
+            },
+            &execution,
+        )
+        .unwrap();
+    assert!(!inventory.parts.is_empty());
+    assert!(
+        inventory
+            .parts
+            .iter()
+            .filter_map(|part| part.part())
+            .all(|part| !part.role_label.is_empty())
+    );
+    let options = atlas_domain::SimilarityOptions::Passages {
+        decay: 0.123456,
+        parts: Some(vec![
+            inventory
+                .parts
+                .iter()
+                .find_map(|part| part.part())
+                .unwrap()
+                .selector
+                .clone(),
+        ]),
+        candidate_parts: atlas_domain::SimilarityCandidateParts::Any,
+    };
+    let mut query = request(
+        SearchCriteria::SimilarRecords {
+            search_content: None,
+            source_sections: None,
+            seed_record_key: "items:0000000000000000".into(),
+            filter: None,
+            similarity: Some(options.clone()),
+        },
+        1,
+    );
+    assert_eq!(
+        fixture
+            .worker
+            .search_page(query.clone(), &execution)
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::InvalidRequest
+    );
+    query.expected_artifact_generation = Some(inventory.artifact_generation);
+    let page = fixture
+        .worker
+        .search_page(query.clone(), &execution)
+        .unwrap();
+    assert!(!page.rows.is_empty());
+    let configuration = page.similarity.as_ref().unwrap();
+    assert_eq!(configuration.options, options);
+    assert_eq!(configuration.role_recipe, inventory.role_recipe);
+    let serialized = serde_json::to_value(&page).unwrap();
+    assert_eq!(
+        serialized["similarity"]["role_recipe"],
+        inventory.role_recipe
+    );
+    assert!(page.rows.iter().all(|row| row.similarity.is_some()));
+    for row in &page.rows {
+        let destinations = row
+            .matching_sections
+            .as_ref()
+            .expect("Similar passage destinations accompany comparison evidence");
+        assert!(!destinations.is_empty());
+        assert!(destinations.iter().all(|section| {
+            row.matches
+                .iter()
+                .any(|witness| witness.navigation == section.navigation)
+        }));
+        for score in &row.similarity.as_ref().unwrap().parts {
+            let source = inventory
+                .parts
+                .iter()
+                .find(|part| part.selector() == score.part.selector())
+                .unwrap();
+            assert_eq!(&score.part, source);
+            assert!(score.part.navigation().is_some());
+        }
+    }
+    query.expected_artifact_generation = Some("stale-inventory-generation".into());
+    assert_eq!(
+        fixture
+            .worker
+            .search_page(query, &execution)
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::ArtifactGenerationChanged
+    );
+}
+
+#[test]
+fn core_source_acknowledges_identity_and_prose_and_identity_navigation_opens_the_header() {
+    let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+        let mut data = input((0..2).map(|i| record("actors", "Actor", json!({
+            "_id":format!("{i:016}"),"name":format!("Creature {i}"),"type":"npc",
+            "system":{"details":{"publicNotes":"<p>Shared description</p>"}},
+            "items":[{"_id":"aaaaaaaaaaaaaaaa","name":"Excluded ability","type":"action",
+                "system":{"description":{"value":"<p>Shared ability</p>"}}}]
+        }))).collect(), true);
+        for unit in &mut data.semantic_units {
+            unit.vector.fill(0.0);
+            unit.vector[0] = 1.0;
+        }
+        Ok(open_input_fixture(data)?)
+    });
+    let fixture = fixture_worker_with_executor(executor);
+    let execution = crate::ReadExecutionContext::uncancellable();
+    let page = fixture
+        .worker
+        .search_page(
+            request(
+                SearchCriteria::SimilarRecords {
+                    seed_record_key: "actors:0000000000000000".into(),
+                    filter: None,
+                    similarity: None,
+                    source_sections: Some(atlas_domain::SimilaritySourceSections::Core),
+                    search_content: Some(atlas_domain::SearchContentScope::All),
+                },
+                1,
+            ),
+            &execution,
+        )
+        .unwrap();
+    let config = page.similarity.as_ref().unwrap();
+    assert_eq!(
+        config.source_sections,
+        Some(atlas_domain::SimilaritySourceSections::Core)
+    );
+    assert_eq!(config.search_content, atlas_domain::SearchContentScope::All);
+    assert!(config.candidate_identity);
+    assert_eq!(
+        config.core_recipe.as_deref(),
+        Some(atlas_domain::CORE_SECTIONS_RECIPE)
+    );
+    assert_eq!(config.recipe, atlas_domain::SIMILARITY_COMPONENT_RECIPE);
+    let core = config.core.as_ref().unwrap();
+    assert_eq!(core.family, atlas_domain::CoreSectionFamily::Npc);
+    assert_eq!(
+        core.representation,
+        atlas_domain::CoreSectionRepresentation::IdentityAndProse
+    );
+    assert_eq!(core.selectors.len(), 2);
+    assert_eq!(
+        config
+            .resolved_selectors
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>(),
+        core.selectors
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>()
+    );
+    assert!(!page.rows.is_empty());
+    let evidence = page.rows[0].similarity.as_ref().unwrap();
+    assert_eq!(evidence.selected_parts, 2);
+    let identity = evidence
+        .parts
+        .iter()
+        .find(|part| {
+            matches!(
+                part.part,
+                atlas_app_model::SimilarityComponentView::Identity { .. }
+            )
+        })
+        .unwrap();
+    let navigation = identity.part.navigation().unwrap();
+    assert!(navigation.field.is_none());
+    assert!(navigation.owners.is_empty());
+    assert_eq!(
+        navigation.passage,
+        Some(atlas_domain::SourcePassageAddress::Identity {})
+    );
+    let detail = fixture
+        .worker
+        .record_detail_at(atlas_app_model::RecordDetailRequest {
+            spell_rank: None,
+            record_key: navigation.record_key.clone(),
+            owners: vec![],
+            fields: vec![],
+            passage: navigation.passage.clone(),
+            source_fingerprint: None,
+        })
+        .unwrap();
+    assert_eq!(detail.selected, *navigation);
+}
+
+#[test]
+fn core_text_scope_restricts_existing_owned_names_without_adding_paragraph_fts() {
+    let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, || {
+        Ok(open_input_fixture(input(
+            vec![record(
+                "actors",
+                "Actor",
+                json!({
+                    "_id":"0000000000000000","name":"Root Identity","type":"npc",
+                    "system":{"details":{"publicNotes":"<p>ParagraphOnlyWord</p>"}},
+                    "items":[{"_id":"aaaaaaaaaaaaaaaa","name":"ExcludedAbilityWord","type":"action",
+                        "system":{"description":{"value":"<p>Owned ability prose</p>"}}}]
+                }),
+            )],
+            false,
+        ))?)
+    });
+    let fixture = fixture_worker_with_executor(executor);
+    let run = |query: &str, scope| {
+        fixture
+            .worker
+            .search_page(
+                request(
+                    SearchCriteria::TextSearch {
+                        query: query.into(),
+                        filter: None,
+                        mode: RetrievalModeView::Lexical,
+                        search_content: Some(scope),
+                    },
+                    1,
+                ),
+                &crate::ReadExecutionContext::uncancellable(),
+            )
+            .unwrap()
+    };
+    assert_eq!(
+        run("ExcludedAbilityWord", atlas_domain::SearchContentScope::All)
+            .rows
+            .len(),
+        1
+    );
+    let core = run(
+        "ExcludedAbilityWord",
+        atlas_domain::SearchContentScope::Core,
+    );
+    assert_eq!(core.search_content, atlas_domain::SearchContentScope::Core);
+    assert_eq!(
+        core.core_recipe.as_deref(),
+        Some(atlas_domain::CORE_SECTIONS_RECIPE)
+    );
+    assert!(core.rows.is_empty());
+    assert!(
+        run("ParagraphOnlyWord", atlas_domain::SearchContentScope::Core)
+            .rows
+            .is_empty()
+    );
+    assert_eq!(
+        run("Root Identity", atlas_domain::SearchContentScope::Core)
+            .rows
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn trait_core_source_infers_passages_without_duplicate_identity_and_scope_alone_keeps_baseline() {
+    let fixture = trait_search_fixture(true, 3);
+    let execution = crate::ReadExecutionContext::uncancellable();
+    let candidate_only = fixture
+        .worker
+        .search_page(
+            request(
+                SearchCriteria::SimilarTraits {
+                    seed_trait_key: "trait:agile".into(),
+                    filter: None,
+                    similarity: None,
+                    source_sections: None,
+                    search_content: Some(atlas_domain::SearchContentScope::Core),
+                },
+                1,
+            ),
+            &execution,
+        )
+        .unwrap();
+    let config = candidate_only.similarity.unwrap();
+    assert_eq!(config.options, atlas_domain::SimilarityOptions::Baseline {});
+    assert_eq!(config.source_sections, None);
+    assert_eq!(
+        config.search_content,
+        atlas_domain::SearchContentScope::Core
+    );
+    let source_core = fixture
+        .worker
+        .search_page(
+            request(
+                SearchCriteria::SimilarTraits {
+                    seed_trait_key: "trait:agile".into(),
+                    filter: None,
+                    similarity: None,
+                    source_sections: Some(atlas_domain::SimilaritySourceSections::Core),
+                    search_content: None,
+                },
+                1,
+            ),
+            &execution,
+        )
+        .unwrap();
+    let config = source_core.similarity.unwrap();
+    assert!(matches!(
+        config.options,
+        atlas_domain::SimilarityOptions::Passages { .. }
+    ));
+    assert_eq!(config.resolved_selectors.len(), 1);
+    let core = config.core.unwrap();
+    assert_eq!(core.family, atlas_domain::CoreSectionFamily::Trait);
+    assert_eq!(
+        core.representation,
+        atlas_domain::CoreSectionRepresentation::TraitLabelOnly
+    );
+}
+
+#[test]
+fn similarity_part_inventory_remains_available_without_vectors_or_model_assets() {
+    let (fixture, _) = fixture(false);
+    let inventory = fixture
+        .worker
+        .similarity_parts(
+            atlas_app_model::SimilarityPartsRequest {
+                seed: atlas_domain::SimilaritySeed::Record {
+                    record_key: "items:0000000000000000".parse().unwrap(),
+                },
+                search_profile: None,
+                expected_artifact_generation: None,
+            },
+            &crate::ReadExecutionContext::uncancellable(),
+        )
+        .unwrap();
+    assert!(!inventory.parts.is_empty());
+    assert!(inventory.parts.iter().all(|part| !part.has_vectors()));
+}
+
+#[test]
+fn similarity_section_labels_preserve_authored_headings_and_navigate_checked_sources() {
+    for semantic in [false, true] {
+        let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, move || {
+            let sources = vec![record(
+                "actors",
+                "Actor",
+                json!({
+                    "_id":"aaaaaaaaaaaaaaaa", "name":"Seed", "type":"npc",
+                    "system":{"details":{"publicNotes":"<p>Unheaded introduction</p><h2>Public notes</h2><p>Authored heading content</p>","blurb":"Plain authored blurb"}},
+                    "items":[{"name":"Local ability","type":"action","system":{"description":{"value":"<h2>Ability heading</h2><p>Owned content</p>"}}}, {"name":"Local unheaded ability","type":"action","system":{"description":{"value":"<p>Unheaded owned content</p>"}}}]
+                }),
+            )];
+            let data = if semantic {
+                atlas_search::test_support::input_with_both_profiles(sources)
+            } else {
+                input(sources, false)
+            };
+            Ok(open_input_fixture(data)?)
+        });
+        let fixture = fixture_worker_with_executor(executor);
+        let execution = crate::ReadExecutionContext::uncancellable();
+        let request = atlas_app_model::SimilarityPartsRequest {
+            seed: atlas_domain::SimilaritySeed::Record {
+                record_key: "actors:aaaaaaaaaaaaaaaa".parse().unwrap(),
+            },
+            search_profile: None,
+            expected_artifact_generation: None,
+        };
+        let inventory = fixture
+            .worker
+            .similarity_parts(request.clone(), &execution)
+            .unwrap();
+        if semantic {
+            let mut other_profile = request.clone();
+            other_profile.search_profile =
+                Some(atlas_domain::SearchProfileId::new("embeddinggemma"));
+            other_profile.expected_artifact_generation =
+                Some(inventory.artifact_generation.clone());
+            let other = fixture
+                .worker
+                .similarity_parts(other_profile, &execution)
+                .unwrap();
+            assert_eq!(inventory.artifact_generation, other.artifact_generation);
+            assert_eq!(inventory.parts, other.parts);
+        }
+        let sections = inventory
+            .parts
+            .iter()
+            .filter_map(|part| part.part())
+            .collect::<Vec<_>>();
+        let introduction = sections
+            .iter()
+            .copied()
+            .find(|part| {
+                part.owners.is_empty()
+                    && part.field == "/system/details/publicNotes"
+                    && part.section_ordinal == 0
+            })
+            .unwrap();
+        assert_eq!(introduction.label, "Description");
+        assert_eq!(
+            introduction.navigation.as_ref().unwrap().passage.is_some(),
+            semantic
+        );
+        let heading = sections
+            .iter()
+            .copied()
+            .find(|part| part.label == "Public notes")
+            .unwrap();
+        assert!(heading.navigation.is_some());
+        let owned = sections
+            .iter()
+            .copied()
+            .find(|part| part.owner_label == "Local ability")
+            .unwrap();
+        assert_eq!(owned.label, "Ability heading");
+        assert!(
+            owned
+                .navigation
+                .as_ref()
+                .unwrap()
+                .source_fingerprint
+                .is_some()
+        );
+        let unheaded_owned = sections
+            .iter()
+            .copied()
+            .find(|part| part.owner_label == "Local unheaded ability")
+            .unwrap();
+        assert_eq!(
+            unheaded_owned
+                .navigation
+                .as_ref()
+                .unwrap()
+                .passage
+                .is_some(),
+            semantic
+        );
+        assert!(
+            unheaded_owned
+                .navigation
+                .as_ref()
+                .unwrap()
+                .source_fingerprint
+                .is_some()
+        );
+        let plain = sections
+            .iter()
+            .copied()
+            .find(|part| part.field == "/system/details/blurb")
+            .unwrap();
+        assert_eq!(
+            plain.navigation.as_ref().unwrap().passage.is_some(),
+            semantic
+        );
+        for part in [introduction, heading, owned, unheaded_owned, plain] {
+            let navigation = part.navigation.as_ref().unwrap();
+            assert_eq!(navigation.field.as_deref(), Some(part.field.as_str()));
+            assert_eq!(navigation.owners, part.owners);
+            let detail = fixture
+                .worker
+                .record_detail_at(atlas_app_model::RecordDetailRequest {
+                    spell_rank: None,
+                    record_key: navigation.record_key.clone(),
+                    owners: navigation.owners.clone(),
+                    fields: vec![part.field.clone()],
+                    passage: navigation.passage.clone(),
+                    source_fingerprint: navigation.source_fingerprint.clone(),
+                })
+                .unwrap();
+            assert_eq!(detail.artifact_generation, inventory.artifact_generation);
+            assert_eq!(&detail.selected, navigation);
+        }
+        let mut stale = request;
+        stale.expected_artifact_generation = Some("stale-source-generation".into());
+        assert_eq!(
+            fixture
+                .worker
+                .similarity_parts(stale, &execution)
+                .unwrap_err()
+                .into_app_error()
+                .code,
+            AppErrorCode::ArtifactGenerationChanged
+        );
+    }
+}
+
+#[test]
+fn similar_record_and_trait_responses_acknowledge_scoring_and_mapping_recipes() {
+    let fixture = trait_search_fixture(true, 3);
+    let execution = crate::ReadExecutionContext::uncancellable();
+    for trait_seed in [false, true] {
+        for options in [
+            atlas_domain::SimilarityOptions::Baseline {},
+            atlas_domain::SimilarityOptions::default(),
+        ] {
+            let criteria = if trait_seed {
+                SearchCriteria::SimilarTraits {
+                    search_content: None,
+                    source_sections: None,
+                    seed_trait_key: "trait:agile".into(),
+                    filter: None,
+                    similarity: Some(options.clone()),
+                }
+            } else {
+                SearchCriteria::SimilarRecords {
+                    search_content: None,
+                    source_sections: None,
+                    seed_record_key: "items:0000000000000000".into(),
+                    filter: None,
+                    similarity: Some(options.clone()),
+                }
+            };
+            let page = fixture
+                .worker
+                .search_page(request(criteria, 1), &execution)
+                .unwrap();
+            let value = serde_json::to_value(&page).unwrap();
+            assert_eq!(
+                value["similarity"]["role_recipe"],
+                atlas_domain::SIMILARITY_ROLE_RECIPE
+            );
+            assert_eq!(
+                value["similarity"]["options"],
+                serde_json::to_value(&options).unwrap()
+            );
+            assert_eq!(
+                value["similarity"]["recipe"],
+                if matches!(options, atlas_domain::SimilarityOptions::Baseline {}) {
+                    "current-baseline/v1"
+                } else if !trait_seed {
+                    atlas_domain::SIMILARITY_COMPONENT_RECIPE
+                } else {
+                    atlas_domain::SIMILARITY_RECIPE
+                }
+            );
+            if !trait_seed && !matches!(options, atlas_domain::SimilarityOptions::Baseline {}) {
+                let config = page.similarity.as_ref().unwrap();
+                assert_eq!(
+                    config.source_sections,
+                    Some(atlas_domain::SimilaritySourceSections::All)
+                );
+                assert!(config.candidate_identity);
+                assert_eq!(config.resolved_selectors.len(), 2);
+                assert_eq!(
+                    config
+                        .resolved_selectors
+                        .iter()
+                        .filter(|selector| selector.0.starts_with("identity:"))
+                        .count(),
+                    1
+                );
+            }
+        }
+    }
 }

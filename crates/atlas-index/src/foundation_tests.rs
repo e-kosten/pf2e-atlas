@@ -84,6 +84,7 @@ fn audience() -> ContentAudience {
 }
 fn context(n: usize, semantic: bool) -> SourceArtifactBuildContext {
     SourceArtifactBuildContext {
+        core_sections_recipe: atlas_domain::CORE_SECTIONS_RECIPE.into(),
         trait_policy: "trait-definition-centroid/v1".into(),
         format_version: ARTIFACT_FORMAT_VERSION,
         snapshot_version: SNAPSHOT_VERSION,
@@ -471,7 +472,7 @@ fn roundtrip_summary_content_and_macro_scope() {
     );
     assert_eq!(
         reader
-            .lexical_root_candidates("dragon", &all, None)
+            .lexical_root_candidates("dragon", &all, None, atlas_domain::SearchContentScope::All)
             .unwrap()
             .len(),
         3
@@ -484,41 +485,53 @@ fn filtering_happens_before_vector_top_k_and_uses_numbered_bindings() {
     let reader = crate::test_support::open_reader(path).unwrap();
     let query = parse_where("kind == 'spell'").unwrap();
     let hits = reader
-        .vector_candidates(
-            &atlas_domain::SearchProfileId::new("bge-base"),
-            &input.semantic_units[0].vector,
-            &query,
-            None,
-            1,
-        )
+        .vector_candidates(crate::SourceVectorCandidateRequest {
+            profile: &atlas_domain::SearchProfileId::new("bge-base"),
+            vector: &input.semantic_units[0].vector,
+            query: &query,
+            keys: None,
+            exclude: None,
+            content_scope: atlas_domain::SearchContentScope::All,
+            limit: 1,
+        })
         .unwrap();
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].location.record, *input.records[2].record.key());
     let lexical = reader
-        .lexical_candidates("dragon", &query, None, 10)
+        .lexical_candidates(
+            "dragon",
+            &query,
+            None,
+            atlas_domain::SearchContentScope::All,
+            10,
+        )
         .unwrap();
     assert_eq!(lexical.len(), 1);
     assert_eq!(lexical[0].location.record, *input.records[2].record.key());
     let all = validate_query(&QueryPredicate::boolean(true)).unwrap();
     let scoped = reader
-        .vector_candidates(
-            &atlas_domain::SearchProfileId::new("bge-base"),
-            &input.semantic_units[0].vector,
-            &all,
-            Some(std::slice::from_ref(input.records[1].record.key())),
-            1,
-        )
+        .vector_candidates(crate::SourceVectorCandidateRequest {
+            profile: &atlas_domain::SearchProfileId::new("bge-base"),
+            vector: &input.semantic_units[0].vector,
+            query: &all,
+            keys: Some(std::slice::from_ref(input.records[1].record.key())),
+            exclude: None,
+            content_scope: atlas_domain::SearchContentScope::All,
+            limit: 1,
+        })
         .unwrap();
     assert_eq!(scoped[0].location.record, *input.records[1].record.key());
     assert!(
         reader
-            .vector_candidates(
-                &atlas_domain::SearchProfileId::new("bge-base"),
-                &input.semantic_units[0].vector,
-                &all,
-                None,
-                4097
-            )
+            .vector_candidates(crate::SourceVectorCandidateRequest {
+                profile: &atlas_domain::SearchProfileId::new("bge-base"),
+                vector: &input.semantic_units[0].vector,
+                query: &all,
+                keys: None,
+                exclude: None,
+                content_scope: atlas_domain::SearchContentScope::All,
+                limit: 4097
+            })
             .is_err()
     );
     let seed = reader
@@ -1135,21 +1148,24 @@ fn source_exclusion_is_inside_knn_and_lexical_labels_keep_source_kind() {
     let reader = crate::test_support::open_reader(path).unwrap();
     let all = validate_query(&QueryPredicate::boolean(true)).unwrap();
     let hits = reader
-        .vector_candidates_excluding(
-            &atlas_domain::SearchProfileId::new("bge-base"),
-            &input.semantic_units[0].vector,
-            &all,
-            None,
-            input.records[0].record.key(),
-            1,
-        )
+        .vector_candidates(crate::SourceVectorCandidateRequest {
+            profile: &atlas_domain::SearchProfileId::new("bge-base"),
+            vector: &input.semantic_units[0].vector,
+            query: &all,
+            keys: None,
+            exclude: Some(input.records[0].record.key()),
+            content_scope: atlas_domain::SearchContentScope::All,
+            limit: 1,
+        })
         .unwrap();
     assert!(!hits.is_empty());
     assert!(
         hits.iter()
             .all(|h| h.location.record != *input.records[0].record.key())
     );
-    let hits = reader.lexical_root_candidates("Flame", &all, None).unwrap();
+    let hits = reader
+        .lexical_root_candidates("Flame", &all, None, atlas_domain::SearchContentScope::All)
+        .unwrap();
     assert_eq!(hits.len(), 1);
     assert!(
         hits[0]

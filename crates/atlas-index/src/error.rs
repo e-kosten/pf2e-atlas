@@ -1,6 +1,8 @@
 use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum IndexError {
+    #[error("similarity resource limit: {0}")]
+    Limit(String),
     #[error("artifact unavailable: {0}")]
     Unavailable(String),
     #[error("unsupported artifact: {0}; rebuild with atlas index build")]

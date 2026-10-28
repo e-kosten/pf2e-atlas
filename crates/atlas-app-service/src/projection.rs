@@ -196,6 +196,7 @@ pub(crate) fn search_results_view(
                     .map(|w| search_witness_view(w, retrieval.source_fingerprint()))
                     .collect();
                 atlas_app_model::SearchResultRow {
+                    similarity: None,
                     relationship_evidence: vec![],
                     record: localized_summary_view(&r.record, retrieval),
                     matching_sections: crate::search_match_sections::matching_sections(&matches),

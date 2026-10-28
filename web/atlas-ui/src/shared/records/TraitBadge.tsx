@@ -16,7 +16,7 @@ export function TraitBadge({ trait }: { trait: RecordBadgeView }) {
       })
     : null;
   return (
-    <Tag>
+    <Tag className="record-trait-badge">
       {route ? (
         <Typography.Link
           href={destinationHref(route)}

@@ -356,6 +356,62 @@ per-field/per-marker body reads. Reader connections stay on one generation while
 the writer atomically publishes later artifacts.
 
 App-service search pages reuse browse, text and stored-vector Similar retrieval.
+An omitted record method selects Passage matches, Any content and decay 0.5; an
+omitted trait method selects the baseline Trait definition recipe. Domain owns
+that seed-aware default; explicit options and valid browser preferences retain
+their meaning. CLI source-comparison flags without a method explicitly select
+Passage matches; destination scope alone preserves the seed-aware default.
+Configurable Similar carries typed method/decay/part/candidate-role options for
+record or trait seeds. The same app workflow projects an exact part inventory and
+paired match evidence for CLI and web. Configured responses acknowledge both the
+scoring and role-mapping recipes. Browser result caches are ephemeral within the
+build contract, which includes the domain recipe constants; recipe changes require
+a matching frontend before requests are admitted. The browser does not infer
+correspondence roles or calculate scores. Inventory can report missing vectors without requiring
+model weights. The index-owned section/role projection is backfilled from retained
+checked data by workspace migration 20 and refreshed during publication. Existing
+record and trait algorithms remain explicit `baseline` methods, labeled Name and
+identity and Trait definition respectively; the new passage and centroid recipes
+reuse stored vectors. See
+[ADR0059](./decisions/0059-configurable-similarity.md).
+
+Core source presets and result scope are independent typed request choices.
+`atlas-record` classifies exact admitted fields/owners; index-owned membership
+restricts existing lexical/vector units before bounded admission and scoring.
+Core includes one native record identity component plus its selected prose,
+with explicit identity-only resolution when no allowed prose exists. Traits keep
+their existing definition/label representation. The same scorer handles typed
+Identity/Section components; correspondence does not invent an Identity prose
+role. Both All and Core source presets include root identity; Custom uses exactly
+the selected components. Explicit prose-only Custom and baseline methods retain
+their scoring contracts. Query-backed
+discovery shares scope, while unsupported browse/membership requests reject it.
+Offline Core metadata publication is separately versioned and generation-atomic,
+without source/model access or new vector inference. The browser remembers one
+result scope across text/Similar and source presets by projected family; exact
+Custom selections remain local to a seed/generation. See
+[ADR0060](./decisions/0060-core-sections-and-search-scope.md).
+
+Developer similarity evaluation uses `atlas-search`'s direct candidate-scoring
+workflow over an explicit eligible key universe. It bypasses KNN and scores every
+supplied key, reporting unavailable comparisons rather than silently dropping
+records. Restricting a product search with `RecordScope::Keys` is still bounded
+retrieval, not an exhaustive scorer. Exact baseline scores use the legacy SQLite
+cosine over all semantic units, including identities; content methods use the same
+logical-part scorer and role masks as product search. Evaluation batches share
+stored vector reads and complete passage maxima across decay variants, then
+reselect explanation pairs for each variant. Evidence remains bounded to the raw
+top ten scored rows; a later remaster preference may require source lookup for a
+promoted row. Evaluation preparation/aggregation timings are not product latency.
+
+Product content-method diagnostics separate seed preparation, candidate generation,
+vector reads, scoring, and evidence hydration. Their complete pre-reranking root
+union is available to the developer runner for admission-recall measurement. The
+legacy baseline reports total latency without claiming a complete candidate union.
+The direct scorer reports baseline read-plus-SQL-scoring separately because SQLite
+calculates the legacy distance while reading; it is not pure vector I/O. No extra
+embedding inference, artifact rebuild, or persistent centroid projection is needed.
+
 For query-backed reader context, app-service also projects `matching_sections`:
 whole-entry and precise witnesses for the same checked entry share one useful
 destination, while distinct embedded identities and passages remain separate.
@@ -365,8 +421,18 @@ responses mark the checked section start using the same source selection policy;
 the reader lands, focuses and briefly highlights that marker while retaining the
 complete field. The marker is added only to the response after passage validation;
 stored HTML, passage hashes and artifact policy identities remain unchanged.
-Cross-record reference evidence uses the shared linked-record Drawer, preserving
-the selected result and its return context.
+Match display is a remembered browser preference with Hidden, Matching sections
+and Detailed modes. Matching sections is the default and shows section links and
+excerpts. Hidden omits the complete reader match context. Detailed also shows
+Similarity coverage, section/role contributions and paired seed/result excerpts
+when Similar evidence is available; text searches retain their matching sections.
+The detailed weight table hides rows rounding to 0.0% unless Show smaller weights
+is enabled. That option defaults off and is shown only for Detailed Similar results.
+Display-only changes do not submit a new search, change ranking or remove scoring
+contributions. Existing saved detail booleans migrate to Matching sections/Detailed.
+Same-record evidence navigates through the reader; cross-record seed or reference evidence uses the shared linked-record
+Drawer, preserving the selected result and its return context.
+
 Record Similar carries the exact root seed and canonical filters, and returns a
 body-free seed summary beside bounded candidate pages. Trait Similar carries its
 typed trait key and projected label through the same search-page workflow. It adds no ranking lane or

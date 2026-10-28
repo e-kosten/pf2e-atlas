@@ -70,6 +70,12 @@ embedding inputs/vectors are preserved; no source re-ingest or inference is
 required for this projection-only upgrade. Missing, null, invalid and
 inapplicable values remain distinct rather than receiving template defaults.
 
+Workspace migration 20 adds the index-owned logical section and role projection;
+its typed backfill reuses checked snapshots without changing native vectors.
+Workspace migration 21 adds Core eligibility metadata. The separately versioned
+Core projection is published from checked snapshots as one reference generation,
+without source access, inference or changed lexical coverage.
+
 Pre-release separate-file formats have no compatibility reader or conversion
 shim. Future workspace upgrades use ordered migrations with recorded checksums,
 a consistent backup before structural changes, and transaction-scoped validation.
@@ -362,7 +368,7 @@ Exact primary names and verified aliases retain priority ahead of fused results.
 Lexical-policy upgrades rebuild these rows from retained records and content in a
 maintenance transaction without replacing semantic vectors or saved state.
 
-Search collapses semantic units by maximum similarity per root. Hybrid offers
+Text search collapses semantic units by maximum similarity per root. Hybrid offers
 one rank per root per lane with RRF60 as a dogfooding alternative. The default
 `score` strategy min-max normalizes each candidate lane and combines lexical .25 with semantic .75;
 a constant nonempty lane receives its full lane weight. Neither strategy adds
@@ -371,10 +377,66 @@ profile and requires no persisted projection changes. See ADR0053.
 Semantic candidate windows are bounded and reported as such. Selection among
 exact equal-distance hits at a KNN cutoff is arbitrary and may change with physical
 layout. Existing outer ordering sorts the selected hits, not excluded ties. Do not
-enumerate boundary ties or expand windows to enforce reproducibility. Similar uses the
-stored root identity seed and semantic candidates, excluding the seed. No invented
-trait/graph reranking weights apply. App search pages expose the same bounded
-Similar request and body-free seed summary; they do not extend the stored schema.
+enumerate boundary ties or expand windows to enforce reproducibility. Current
+baseline Similar uses the stored root identity seed and semantic candidates,
+excluding the seed; trait baseline Similar uses its stored definition centroid.
+No invented trait/graph reranking weights apply.
+
+Configurable Similar also supports passage matching and content averages over
+selected existing source sections. Schema 17 adds similarity_parts metadata with
+typed comparison roles and exact source/preparation-bound selectors. Its backfill
+reads retained checked snapshots and prepared content, without new embeddings.
+Publication refreshes this metadata with its owning record. Corresponding-role
+eligibility constrains KNN before bounded candidates are selected.
+
+Section inventory and comparison evidence project reader destinations from the
+checked lexical and semantic-location metadata. The index combines full-section
+addresses and contiguous chunk coverage without loading vectors or source bodies.
+App-service preserves authored section headings and supplies field-title fallbacks
+such as Description for NPC public notes. These display labels do not rewrite
+stored selectors or comparison metadata. Reader destinations retain the exact
+owner and field, canonical passage when available, and snapshot-local fingerprint
+where required. A section without a canonical passage can open its containing
+field; it does not receive an invented section address. The source reader checks
+the same artifact generation as the section inventory.
+
+Passage matching averages best allowed chunk matches within each source section
+using overlap-adjusted coverage, then combines sorted section scores with
+normalized geometric rank decay. Content average either compares global
+centroids or keeps separate corresponding-role centroids. Missing counterparts
+remain explicit zero contributions under the new positive-cosine score recipe.
+Baseline scores remain unchanged. Aggregate scores are ranking values, not
+probabilities. App search pages acknowledge effective options, recipes, profile,
+generation and diagnostics and project bounded paired source evidence. Evidence
+limits do not alter ranking. All methods use stored vectors without query-model
+weights. See [ADR0059](./decisions/0059-configurable-similarity.md).
+
+Core eligibility is a separately versioned metadata projection. Migration18 adds
+`core_roots`, `core_parts`, `core_lexical_units` and `core_semantic_locations`.
+The pure record policy selects exact admitted owners/fields; index binds their
+existing section addresses and unit IDs. Root/alias lexical rows retain their
+current vocabulary. Allowed owned names remain eligible even without prose;
+section labels require exact section membership. No descriptive prose or other
+new term is added to FTS, and both scopes use the same BM25 corpus statistics.
+
+`core_sections_recipe` is excluded from preparation/native-input identity.
+Offline maintenance rebuilds membership from retained checked snapshots and
+content, validates it and publishes the context/reference generation atomically.
+It preserves existing lexical rows/postings, semantic locations/native inputs,
+vector bytes and saved state. Source-preparation upgrades take precedence over
+metadata upgrades; an unrelated preparation-version change must not be presented
+as evidence that Core regenerated embeddings.
+
+Core includes one stored root identity plus the permitted prose for each record
+type. Missing/unmodelled prose resolves identity-only with a reason; required
+missing vectors remain readiness errors. Traits retain their single existing
+definition/label-only representation. Identity components use their native
+header address, without a fake section or comparison role. Scoped SQL filters
+before candidate limits and final aggregation. All and Core source presets include
+root identity once; Custom can select identity or prose independently. Explicit
+prose-only Custom scores and baselines retain their original contracts; component-aware requests
+acknowledge their effective representation and recipe. See
+[ADR0060](./decisions/0060-core-sections-and-search-scope.md).
 
 Attribute ordering uses the existing root name, level/rank and per-item-price
 projections. Index shares one comparison contract between complete browse SQL
@@ -499,6 +561,21 @@ with silently missing links. Non-content relationship discovery stays a separate
 bounded operation. App-service embedded-reading batches check one parent, select at
 most 32 immediate Ability-class activities or table results and reuse this prepared batch without
 recursive detail projection or a second fact authority.
+
+Prepared-content views may carry an optional transient section-rendering HTML
+sidecar. `atlas-record` derives record annotations from the same canonical section
+partition as search (`structural-source-sections/v4`); a trait definition
+(`trait-definition-centroid/v1`) and a plain field each retain their one logical
+section. Reserved authored annotation attributes are stripped from the rendering
+copy before canonical annotations are applied. The original prepared HTML, passage
+hashes and persisted content remain unchanged. The sidecar preserves container, list and table topology, and
+annotates block nodes by ordinal, wrapping substantive bare text only when needed.
+App-service reuses each already-computed inline-inclusion insertion map for both
+renderings; included foreign content retains its own namespaces without inheriting
+source annotations. This adds one bounded, constant-factor rendering string and
+linear parsing per selected field, without extra source lookups or stored metadata.
+Consumers require the supported selection version and matching seed, generation,
+owner and field identity before applying draft-only source emphasis.
 
 Structured ability/feat self-effect UUIDs use the same attributed relationship
 preparation and exact identity resolution as other authored links. The relationship

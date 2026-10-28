@@ -32,6 +32,8 @@ enum Command {
     Source(SourceArgs),
     #[command(about = "Inspect built Atlas artifacts")]
     Index(IndexArgs),
+    /// Evaluate stored-vector Similar methods with frozen inputs.
+    Similarity(commands::similarity::args::SimilarityArgs),
 }
 
 pub(crate) fn main() -> ExitCode {
@@ -48,6 +50,7 @@ pub(crate) fn main() -> ExitCode {
     };
     let json = match &cli.command {
         Command::Baseline(args) => args.json,
+        Command::Similarity(args) => args.json(),
         Command::Source(args) => match &args.command {
             SourceCommand::Load(options) => options.json,
             SourceCommand::Analyze(options) => options.json,
@@ -66,6 +69,7 @@ pub(crate) fn main() -> ExitCode {
     });
     let result = match cli.command {
         Command::Baseline(args) => commands::baseline::run(args),
+        Command::Similarity(args) => commands::similarity::run(args),
         Command::Source(args) => match args.command {
             SourceCommand::Load(options) => commands::source::run_source_load(options),
             SourceCommand::Analyze(options) => commands::source::run_source_analyze(options),

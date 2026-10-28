@@ -2,12 +2,18 @@
 mod artifact_instance;
 mod codec;
 mod component_upgrade;
+mod core_projection;
+#[cfg(any(test, feature = "test-support"))]
+mod core_projection_pilot;
+pub use core_projection::CORE_SECTIONS_SCHEMA_SQL;
 mod discovery;
 mod embedding_storage_migration;
 mod embedding_values;
 mod persisted_inputs;
 mod reference_jobs;
 mod semantic_locations;
+mod similarity_projection;
+pub use similarity_projection::{SIMILARITY_SCHEMA_SQL, backfill_similarity_parts};
 mod vector_allocation;
 pub use component_upgrade::{
     ReferenceUpgrade, classify_reference_upgrade, ensure_reference_projections,
@@ -18,6 +24,8 @@ mod requested_config;
 pub use requested_config::{
     RequestedReferenceConfig, read_requested_reference_config, write_requested_reference_config,
 };
+#[cfg(test)]
+mod core_tests;
 mod error;
 #[cfg(test)]
 mod foundation_tests;
@@ -31,6 +39,10 @@ mod projections;
 mod publication_delta;
 pub mod query;
 mod read_content;
+mod read_core;
+mod read_similarity;
+mod read_similarity_sections;
+pub use read_similarity::{SourceSimilarityCandidateRequest, SourceSimilarityUnit};
 mod read_units;
 mod reader;
 mod schema;
@@ -65,7 +77,7 @@ pub use read_content::{
 };
 pub use read_units::{
     SourceIdentityMatch, SourceIdentityVector, SourceKeyPage, SourceLexicalHit,
-    SourceLexicalRootHit, SourceRemasterPair, SourceVectorHit,
+    SourceLexicalRootHit, SourceRemasterPair, SourceVectorCandidateRequest, SourceVectorHit,
 };
 #[cfg(any(test, feature = "test-support"))]
 pub use reader::SourceReadMetrics;

@@ -106,6 +106,12 @@ pub use reference_profiles::{
 mod readiness;
 mod record;
 mod search;
+mod similarity;
+pub use similarity::{
+    SimilarityComponentView, SimilarityConfigurationView, SimilarityDiagnosticsView,
+    SimilarityEvidenceView, SimilarityPairView, SimilarityPartScoreView, SimilarityPartView,
+    SimilarityPartsRequest, SimilarityPartsView, SimilarityRoleScoreView,
+};
 
 pub use embedded_reading::{
     EmbeddedReadingBatchView, EmbeddedReadingCursor, EmbeddedReadingEntryView,
@@ -165,7 +171,7 @@ pub use prepared_content::{
     ContentControlKindView, ContentControlView, ContentRollComponentResultView,
     ContentRollComponentView, ContentRollEncounterContext, ContentRollPresentationView,
     ContentRollResultView, PreparedContentFieldView, PreparedFieldBodyView, PreparedInclusionView,
-    PreparedReferenceView, RollContentRequest, RollUnitView,
+    PreparedReferenceView, PreparedSectionRenderingView, RollContentRequest, RollUnitView,
 };
 pub use presentation::{
     ActionCostView, ActionGlyphView, ActivityEffectReferenceView, ActivityFrequencyView,
@@ -242,6 +248,11 @@ mod tests {
     }
 
     fn export_bindings_to(path: &Path) {
+        SimilarityPartsRequest::export_all_to(path).expect("similarity inventory request bindings");
+        SimilarityPartsView::export_all_to(path).expect("similarity inventory bindings");
+        SimilarityPartView::export_all_to(path).expect("similarity section bindings");
+        SimilarityConfigurationView::export_all_to(path)
+            .expect("similarity configuration bindings");
         RollContentRequest::export_all_to(path).expect("content roll request bindings");
         ContentRollResultView::export_all_to(path).expect("content roll result bindings");
         UpdateEncounterAbilityStateRequest::export_all_to(path).expect("ability state bindings");

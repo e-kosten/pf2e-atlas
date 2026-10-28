@@ -58,10 +58,26 @@ fn equal_dimension_profiles_isolate_knn_seeds_and_witnesses_before_top_k() {
     let mut needle = vec![0.0; 768];
     needle[0] = 1.0;
     let b = reader
-        .vector_candidates(&base, &needle, &query, None, 1)
+        .vector_candidates(crate::SourceVectorCandidateRequest {
+            profile: &base,
+            vector: &needle,
+            query: &query,
+            keys: None,
+            exclude: None,
+            content_scope: atlas_domain::SearchContentScope::All,
+            limit: 1,
+        })
         .unwrap();
     let g = reader
-        .vector_candidates(&gemma, &needle, &query, None, 1)
+        .vector_candidates(crate::SourceVectorCandidateRequest {
+            profile: &gemma,
+            vector: &needle,
+            query: &query,
+            keys: None,
+            exclude: None,
+            content_scope: atlas_domain::SearchContentScope::All,
+            limit: 1,
+        })
         .unwrap();
     assert_eq!(b[0].location.record, *input.records[0].record.key());
     assert_eq!(g[0].location.record, *input.records[1].record.key());
@@ -74,7 +90,15 @@ fn equal_dimension_profiles_isolate_knn_seeds_and_witnesses_before_top_k() {
     assert_eq!(gemma_seed.model.profile_id, gemma);
     assert!(
         reader
-            .vector_candidates(&SearchProfileId::new("missing"), &needle, &query, None, 1)
+            .vector_candidates(crate::SourceVectorCandidateRequest {
+                profile: &SearchProfileId::new("missing"),
+                vector: &needle,
+                query: &query,
+                keys: None,
+                exclude: None,
+                content_scope: atlas_domain::SearchContentScope::All,
+                limit: 1
+            })
             .is_err()
     );
 }

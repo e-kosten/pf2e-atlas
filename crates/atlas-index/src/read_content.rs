@@ -511,35 +511,77 @@ impl SqliteIndexReader {
         &self,
         location: &crate::SourceUnitLocation,
     ) -> Result<Option<String>, IndexError> {
-        let Some(address) = &location.address else {
-            return Ok(None);
-        };
-        if matches!(address, SourcePassageAddress::Identity {}) {
-            return Ok(None);
-        };
-        let field = location
-            .field
-            .clone()
-            .ok_or_else(|| IndexError::Invalid("passage has no field".into()))?;
-        let locator = SourceContentLocator {
-            record: location.record.clone(),
-            owners: location.owners.clone(),
-            field,
-        };
-        let content = self.read_content(std::slice::from_ref(&locator))?;
-        let html = content.fields.first().and_then(|f| f.html.as_deref());
-        let record = if matches!(address, SourcePassageAddress::PlainSection { .. }) {
-            self.read_source_record(&location.record)?
-        } else {
-            None
-        };
-        let text = record
-            .as_ref()
-            .and_then(|r| r.authored_content_at(&locator).value());
-        Ok(Some(
-            atlas_record::source_record::recover_source_passage(html, text, address)
-                .map_err(|e| IndexError::Invalid(e.to_string()))?,
-        ))
+        Ok(self
+            .recover_passages(std::slice::from_ref(location))?
+            .pop()
+            .flatten())
+    }
+    /// Recover a bounded group from shared prepared fields and checked snapshots.
+    /// Results retain input order; repeated locations and fields share reads.
+    pub fn recover_passages(
+        &self,
+        locations: &[crate::SourceUnitLocation],
+    ) -> Result<Vec<Option<String>>, IndexError> {
+        if locations.len() > 4096 {
+            return Err(IndexError::Limit(
+                "passage recovery request exceeds 4096 locations".into(),
+            ));
+        }
+        let mut locators = Vec::new();
+        let mut plain_keys = std::collections::BTreeSet::new();
+        for location in locations {
+            if matches!(
+                location.address,
+                Some(SourcePassageAddress::HtmlSection { .. })
+            ) {
+                let locator = passage_locator(location)?;
+                if !locators.contains(&locator) {
+                    locators.push(locator);
+                }
+            } else if matches!(
+                location.address,
+                Some(SourcePassageAddress::PlainSection { .. })
+            ) {
+                plain_keys.insert(location.record.clone());
+            }
+        }
+        let mut fields = Vec::new();
+        for batch in locators.chunks(256) {
+            fields.extend(self.read_content(batch)?.fields);
+        }
+        let mut snapshots = Vec::new();
+        for batch in plain_keys.into_iter().collect::<Vec<_>>().chunks(256) {
+            snapshots.extend(self.read_source_records(batch)?);
+        }
+        let mut recovered = Vec::<(crate::SourceUnitLocation, Option<String>)>::new();
+        let mut results = Vec::with_capacity(locations.len());
+        for location in locations {
+            if let Some((_, text)) = recovered.iter().find(|(cached, _)| cached == location) {
+                results.push(text.clone());
+                continue;
+            }
+            let text = match &location.address {
+                None | Some(SourcePassageAddress::Identity {}) => None,
+                Some(address) => {
+                    let locator = passage_locator(location)?;
+                    let html = fields
+                        .iter()
+                        .find(|field| field.locator == locator)
+                        .and_then(|field| field.html.as_deref());
+                    let plain = snapshots
+                        .iter()
+                        .find(|source| source.key() == &location.record)
+                        .and_then(|source| source.authored_content_at(&locator).value());
+                    Some(
+                        atlas_record::source_record::recover_source_passage(html, plain, address)
+                            .map_err(|error| IndexError::Invalid(error.to_string()))?,
+                    )
+                }
+            };
+            recovered.push((location.clone(), text.clone()));
+            results.push(text);
+        }
+        Ok(results)
     }
     pub fn field_counts(
         &self,
@@ -604,4 +646,17 @@ pub(crate) struct DiagnosticDetails {
     pub source_diagnostic: Option<atlas_foundry_model::SourceDiagnostic>,
     pub code: String,
     pub message: String,
+}
+
+fn passage_locator(
+    location: &crate::SourceUnitLocation,
+) -> Result<SourceContentLocator, IndexError> {
+    Ok(SourceContentLocator {
+        record: location.record.clone(),
+        owners: location.owners.clone(),
+        field: location
+            .field
+            .clone()
+            .ok_or_else(|| IndexError::Invalid("passage has no field".into()))?,
+    })
 }

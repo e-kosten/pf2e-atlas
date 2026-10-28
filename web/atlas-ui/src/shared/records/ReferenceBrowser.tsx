@@ -1,3 +1,4 @@
+import { DEFAULT_MATCH_DISPLAY, type MatchDisplay } from "../search/searchPreferences";
 import { Empty } from "antd";
 import { LoadingStatus } from "../ui/LoadingStatus";
 import type { ReactNode } from "react";
@@ -33,9 +34,13 @@ export function ReferenceBrowser({
   generation,
   onRefreshResults,
   query,
+  matchDisplay = DEFAULT_MATCH_DISPLAY,
+  showSmallerWeights = false,
 }: {
   rows: SearchResultRow[];
   query?: string;
+  matchDisplay?: MatchDisplay;
+  showSmallerWeights?: boolean;
   loading: boolean;
   selectedRecordKey: string | null;
   onSelect: (row: SearchResultRow, request: ReadingRequest) => void;
@@ -78,6 +83,8 @@ export function ReferenceBrowser({
         showContext ? (
           <SearchMatchContext
             row={selected}
+            matchDisplay={matchDisplay}
+            showSmallerWeights={showSmallerWeights}
             query={query}
             clauses={relationshipClauses}
             filter={filter}

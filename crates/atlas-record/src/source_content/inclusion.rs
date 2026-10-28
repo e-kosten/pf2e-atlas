@@ -113,6 +113,11 @@ fn render(
     }
     if let Some(ordinal) = isolated_marker(node) {
         if let Some(html) = insertions.get(&ordinal) {
+            if ElementRef::wrap(node)
+                .is_some_and(|element| element.value().attr("data-atlas-passage-target").is_some())
+            {
+                return inclusion_at_passage_target(&html.html);
+            }
             return html.html.clone();
         }
         // Caller verifies this ordinal is a terminal UUID reference, not an Embed.
@@ -160,6 +165,31 @@ fn render(
         }
         _ => String::new(),
     }
+}
+
+// Replacing an isolated Embed paragraph must retain its checked landing location.
+// Only transient navigation metadata transfers to the insertion's existing root.
+fn inclusion_at_passage_target(html: &str) -> String {
+    let mut fragment = Html::parse_fragment(html);
+    let start = fragment
+        .root_element()
+        .children()
+        .find_map(ElementRef::wrap)
+        .map(|element| element.id());
+    if let Some(start) = start
+        && let Some(mut node) = fragment.tree.get_mut(start)
+        && let Node::Element(element) = node.value()
+    {
+        element
+            .attrs
+            .retain(|(name, _)| name.local.as_ref() != "data-atlas-passage-target");
+        let mut name = element.name.clone();
+        name.prefix = None;
+        name.ns = Default::default();
+        name.local = "data-atlas-passage-target".into();
+        element.attrs.push((name, "".into()));
+    }
+    fragment.root_element().inner_html()
 }
 
 fn adjacent_element(node: NodeRef<'_, Node>, backwards: bool) -> Option<ElementRef<'_>> {

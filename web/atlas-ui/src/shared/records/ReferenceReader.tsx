@@ -33,6 +33,10 @@ export function ReferenceReader({
   positions,
   onResults,
   active = true,
+  label = "Preview",
+  returnToSelectionLabel = "Return to selection",
+  showRelated = true,
+  retryLabel,
 }: {
   reading: ReferenceReading;
   selectedRecordKey?: string | null;
@@ -43,6 +47,10 @@ export function ReferenceReader({
   positions?: BrowsePositions;
   onResults?: () => void;
   active?: boolean;
+  label?: string;
+  returnToSelectionLabel?: string;
+  showRelated?: boolean;
+  retryLabel?: string;
 }) {
   const preview = useRecordPreview();
   const { mode, tab } = useRecordExploreLocation();
@@ -319,7 +327,7 @@ export function ReferenceReader({
               Results
             </Button>
           ) : (
-            <Typography.Text type="secondary">Preview</Typography.Text>
+            <Typography.Text type="secondary">{label}</Typography.Text>
           )}
           {status}
         </div>
@@ -349,7 +357,7 @@ export function ReferenceReader({
                   reading.select({ navigation: rootNavigation(selectedRecordKey) });
                 }}
               >
-                Return to selection
+                {returnToSelectionLabel}
               </Button>
             )}
           {detail && recordActions?.(detail.record)}
@@ -376,11 +384,13 @@ export function ReferenceReader({
       >
         <ReaderMatchNavigation.Provider value={navigateToMatch}>
           <RecordDetailPane
+            showRelated={showRelated}
             detail={detail}
             readingContext={detail && readerContext}
             loading={reading.loading}
             error={reading.error}
             onRetry={reading.retry}
+            retryLabel={retryLabel}
             landing={reading.landing}
             onLandingReady={onLandingReady}
             onReference={(recordKey, anchor, selection) => {

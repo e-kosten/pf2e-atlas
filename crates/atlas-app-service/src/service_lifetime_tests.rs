@@ -119,7 +119,10 @@ fn sole_gemma_manifest_resolves_omitted_requests_and_readiness_without_model_ass
                 ranking: None,
                 search_profile: None,
                 criteria: atlas_app_model::SearchCriteria::SimilarRecords {
+                    search_content: None,
+                    source_sections: None,
                     seed_record_key: "items:0000000000000000".into(),
+                    similarity: Some(atlas_domain::SimilarityOptions::Baseline {}),
                     filter: None,
                 },
                 page: SearchPageRequest {

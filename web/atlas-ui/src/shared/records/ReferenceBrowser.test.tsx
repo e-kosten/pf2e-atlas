@@ -1,3 +1,4 @@
+import type { MatchDisplay } from "../search/searchPreferences";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
@@ -18,6 +19,7 @@ import {
   detailFixture,
   summaryFixture,
   knownFact,
+  similarityEvidenceFixture,
 } from "../../test/fixtures";
 import { ReferenceBrowser } from "./ReferenceBrowser";
 import type { BrowsePositions } from "./useBrowsePositions";
@@ -66,12 +68,14 @@ function Harness({
   relationships,
   generation = "test-generation",
   query = "jaws",
+  matchDisplay = "sections",
 }: {
   positions?: BrowsePositions;
   resultRows?: SearchResultRow[];
   relationships?: RelationshipClauseSummaryView[];
   generation?: string;
   query?: string;
+  matchDisplay?: MatchDisplay;
 }) {
   const [selected, select] = useState<string | null>(null);
   const reading = useReferenceReading();
@@ -79,6 +83,7 @@ function Harness({
     <ReferenceBrowser
       positions={positions}
       query={query}
+      matchDisplay={matchDisplay}
       rows={resultRows}
       relationshipClauses={relationships}
       filter={
@@ -480,4 +485,142 @@ it("shows text and reference-link evidence in the selected reader without a resu
   expect(
     view.container.querySelector('[data-record-key="actors:ghoul"]'),
   ).toHaveAttribute("aria-current", "true");
+});
+
+it("keeps similarity evidence in the selected reader and uses shared exact match navigation and seed Drawer return", async () => {
+  const candidate = {
+    ...rows[0].matches[0].navigation,
+    embedded_path: [],
+    field: "/system/description/value",
+    source_fingerprint: "candidate-source",
+  };
+  const seed = {
+    ...candidate,
+    record_key: "hazards:brown-mold",
+    source_fingerprint: "seed-source",
+  };
+  const resultRows = [
+    { ...rows[0], similarity: similarityEvidenceFixture(candidate, seed) },
+  ];
+  getDetail.mockImplementation((key, request) => {
+    const detail = detailFixture(key, key === seed.record_key ? "Brown Mold" : "Ghoul");
+    if (request?.fields?.includes(candidate.field))
+      detail.selected = key === seed.record_key ? seed : candidate;
+    return Promise.resolve(detail);
+  });
+  const view = render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <Harness matchDisplay="detailed" resultRows={resultRows} query="" />
+      </QueryClientProvider>
+    </ConfigProvider>,
+  );
+  expect(
+    screen.queryByRole("button", { name: /Why this match|matches in/ }),
+  ).toBeNull();
+  expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull();
+  fireEvent.click(screen.getByRole("link", { name: /^Ghoul/ }));
+  let context = await screen.findByRole("region", { name: "Similarity comparison" });
+  const seedLink = within(context).getByRole("link", { name: "Seed description" });
+  seedLink.focus();
+  fireEvent.click(seedLink);
+  const drawer = await screen.findByRole("dialog", { name: "Reference" });
+  expect(
+    await within(drawer).findByRole("heading", { name: "Brown Mold" }),
+  ).toBeVisible();
+  expect(getDetail).toHaveBeenCalledWith(
+    seed.record_key,
+    expect.objectContaining({
+      fields: [seed.field],
+      source_fingerprint: seed.source_fingerprint,
+    }),
+    expect.any(AbortSignal),
+  );
+  expect(
+    view.container.querySelector('[data-record-key="actors:ghoul"]'),
+  ).toHaveAttribute("aria-current", "true");
+  fireEvent.click(
+    within(drawer).getByRole("button", { name: "Close reference preview" }),
+  );
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await waitFor(() => expect(seedLink).toHaveFocus());
+  const candidateLink = within(context).getByRole("link", {
+    name: "Candidate description",
+  });
+  candidateLink.focus();
+  fireEvent.click(candidateLink);
+  await waitFor(() =>
+    expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull(),
+  );
+  expect(getDetail).toHaveBeenCalledWith(
+    candidate.record_key,
+    expect.objectContaining({
+      fields: [candidate.field],
+      source_fingerprint: candidate.source_fingerprint,
+    }),
+    expect.any(AbortSignal),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  context = await screen.findByRole("region", { name: "Similarity comparison" });
+  await waitFor(() =>
+    expect(
+      within(context).getByRole("link", { name: "Candidate description" }),
+    ).toHaveFocus(),
+  );
+});
+
+it("withholds similarity reader context from an unmatched result generation", async () => {
+  const resultRows = [
+    { ...rows[0], similarity: similarityEvidenceFixture(navigation, null) },
+  ];
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const browser = (generation: string) => (
+    <QueryClientProvider client={client}>
+      <Harness
+        matchDisplay="detailed"
+        resultRows={resultRows}
+        query=""
+        generation={generation}
+      />
+    </QueryClientProvider>
+  );
+  const view = render(browser("test-generation"));
+  fireEvent.click(screen.getByRole("link", { name: /^Ghoul/ }));
+  await screen.findByRole("region", { name: "Similarity comparison" });
+  view.rerender(browser("another-generation"));
+  expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull();
+  view.rerender(browser("test-generation"));
+  expect(screen.getByRole("region", { name: "Similarity comparison" })).toBeVisible();
+});
+
+it("hides reader match context without refetching or replacing the selected document", async () => {
+  getDetail.mockResolvedValue(detailFixture("actors:ghoul", "Ghoul"));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const view = render(
+    <QueryClientProvider client={client}>
+      <Harness />
+    </QueryClientProvider>,
+  );
+  fireEvent.click(screen.getByRole("link", { name: /^Ghoul/ }));
+  expect(await screen.findByRole("heading", { name: "Ghoul" })).toBeVisible();
+  expect(await screen.findByRole("region", { name: "Search matches" })).toBeVisible();
+  const calls = getDetail.mock.calls.length;
+  view.rerender(
+    <QueryClientProvider client={client}>
+      <Harness matchDisplay="hidden" />
+    </QueryClientProvider>,
+  );
+  expect(screen.getByRole("heading", { name: "Ghoul" })).toBeVisible();
+  expect(screen.queryByRole("region", { name: "Search matches" })).toBeNull();
+  expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull();
+  expect(getDetail).toHaveBeenCalledTimes(calls);
+  view.rerender(
+    <QueryClientProvider client={client}>
+      <Harness />
+    </QueryClientProvider>,
+  );
+  expect(screen.getByRole("region", { name: "Search matches" })).toBeVisible();
+  expect(getDetail).toHaveBeenCalledTimes(calls);
 });

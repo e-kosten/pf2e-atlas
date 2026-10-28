@@ -1316,3 +1316,91 @@ fn dynamic_completion_uses_the_explicit_workspace_and_excludes_macros() {
     );
     assert!(!missing.exists());
 }
+
+#[test]
+fn similar_discovers_exact_record_and_trait_parts_without_stored_vectors() {
+    let fixture = Fixture::new();
+    let record = fixture.data(&["similar", "Treat Wounds", "--list-parts", "--json"]);
+    assert_eq!(record["seed"]["kind"], "record");
+    assert!(record["artifact_generation"].as_str().is_some());
+    let parts = record["parts"].as_array().unwrap();
+    assert!(!parts.is_empty());
+    assert!(parts.iter().all(|part| part["has_vectors"] == false));
+    assert!(
+        parts
+            .iter()
+            .filter(|part| part["kind"] == "section")
+            .all(|part| part["selector"].as_str().unwrap().starts_with("part:"))
+    );
+    assert_eq!(
+        parts
+            .iter()
+            .filter(|part| part["kind"] == "identity")
+            .count(),
+        1
+    );
+    let all = fixture.data(&[
+        "similar",
+        "Treat Wounds",
+        "--list-parts",
+        "--sections",
+        "all",
+        "--json",
+    ]);
+    assert_eq!(
+        all["parts"], record["parts"],
+        "All discovery includes every source component, including identity"
+    );
+    assert!(parts.iter().any(|part| part["role_label"] == "Ability"));
+
+    let trait_parts = fixture.data(&["similar", "trait:fire", "--list-parts", "--json"]);
+    assert_eq!(
+        trait_parts["seed"],
+        serde_json::json!({"kind":"trait","trait_key":"trait:fire"})
+    );
+    assert_eq!(trait_parts["supports_corresponding_parts"], false);
+    assert_eq!(trait_parts["parts"][0]["label_only"], true);
+}
+
+#[test]
+fn similar_guard_errors_keep_json_pure_and_include_copyable_rediscovery() {
+    let fixture = Fixture::new();
+    for (extra, expected_code, expected_seed) in [
+        (
+            vec!["--part", "part:unavailable"],
+            "invalid_input",
+            "'Treat Wounds'",
+        ),
+        (
+            vec![
+                "--part",
+                "part:unavailable",
+                "--artifact-generation",
+                "retired-generation",
+            ],
+            "artifact_generation_changed",
+            "actions:aaaaaaaaaaaaaaaa",
+        ),
+    ] {
+        let mut arguments = vec!["similar", "Treat Wounds", "--path-mode", "repo", "--json"];
+        arguments.extend(extra);
+        let output = fixture.command(&arguments, false);
+        assert!(!output.status.success());
+        let envelope: Value =
+            serde_json::from_slice(&output.stdout).expect("one JSON envelope, no text prefix");
+        assert_eq!(envelope["status"], "error");
+        assert_eq!(envelope["error"]["code"], expected_code);
+        let message = envelope["error"]["message"].as_str().unwrap();
+        assert!(
+            message.contains(&format!(
+                "atlas similar {expected_seed} --list-parts --path-mode repo --index "
+            )),
+            "{message}"
+        );
+        assert!(
+            message.contains(fixture.index.to_str().unwrap()),
+            "{message}"
+        );
+        assert!(message.ends_with(" --json"), "{message}");
+    }
+}
