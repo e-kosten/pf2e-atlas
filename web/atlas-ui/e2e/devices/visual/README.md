@@ -14,10 +14,25 @@ settings cog and optically aligned title/classification. Parent reviewed desktop
 diffs; independent Astra reviewed before/after pairs across all four projects and
 two additional phone frames. Modal bounds, wrapped choices, recovery anchors and
 source-list geometry remain stable. Sparse glyph-edge raster differences outside
-the headers do not move controls or change content. Linux references require
-separate Ubuntu capture; macOS pixels are not reused for Linux.
+the headers do not move controls or change content. The Linux references below
+come from a separate Ubuntu capture; macOS pixels are not reused for Linux.
 Ordinary comparison with updates disabled passes the 187 other device cases;
 all four life-status cases pass after updating their participant menu interaction.
+
+Linux x64, Ubuntu 24.04, Playwright 1.62.1:
+[capture 40717852651](https://github.com/e-kosten/pf2e-atlas/actions/runs/40717852651)
+passed all 12 focused interaction/geometry cases using CI40717173268's fixture.
+The fixture source is merge `acc5cb5a74fa19f0d19c603e494e1a9bee65a4e5`, with parents
+main `bb80d85f` and reviewed PR140 head `0f48210e`. Binary SHA-256:
+`5ebf6522dd13fcc45ba380ca0d7dcacea26dbab6873ac6b6f115eed835b61658`;
+frontend index SHA-256:
+`e404bd492ce271195a7ae2dcf5ad9a085c09ab61b5868e958173e774f02d0b2b`.
+All 40 Linux images retain their original dimensions; parent pixel review found
+meaningful differences confined to the changed heading regions. Independent
+Astra review compared one before/after pair per project and four additional
+phone/tablet frames. Modal bounds, wrapping, recovery anchors, source-list spacing
+and focus outlines remain stable. Ordinary CI comparison keeps updates disabled
+and exact pixel tolerance zero.
 
 ## Intrinsic dice-popover recovery references
 
