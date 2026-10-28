@@ -1,13 +1,15 @@
-use super::{hydration, rules};
-use crate::{executor::RetrievalExecutor, test_support::fixture_worker_with_executor};
+use super::{conditions::ConditionRule, hydration, rules};
+use crate::{
+    executor::RetrievalExecutor,
+    test_support::{FixtureWorker, fixture_worker_with_executor},
+};
 use atlas_app_model::*;
 use atlas_local_state::{AbilityStateValue, ParticipantAbilityState};
 use atlas_search::test_support::{open_source_fixture, record};
 use serde_json::json;
 
-#[test]
-fn overnight_calculates_source_healing_and_restores_daily_but_preserves_weekly_uses() {
-    let source = json!({
+fn resting_creature(extra_items: Vec<serde_json::Value>) -> (FixtureWorker, EncounterSummaryView) {
+    let mut source = json!({
         "_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Resting creature",
         "system":{
             "details":{"level":{"value":5}},
@@ -21,6 +23,7 @@ fn overnight_calculates_source_healing_and_restores_daily_but_preserves_weekly_u
              "system":{"frequency":{"max":2,"value":0,"per":"P1W"}}}
         ]
     });
+    source["items"].as_array_mut().unwrap().extend(extra_items);
     let fixture = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
         1,
         16,
@@ -49,6 +52,13 @@ fn overnight_calculates_source_healing_and_restores_daily_but_preserves_weekly_u
             initiative: Some(12),
         })
         .unwrap();
+    (fixture, encounter)
+}
+
+#[test]
+fn overnight_calculates_source_healing_and_restores_daily_but_preserves_weekly_uses() {
+    let (fixture, encounter) = resting_creature(vec![]);
+    let worker = &fixture.worker;
     let mut participant = worker
         .with_state(|session| {
             Ok(session
@@ -124,4 +134,210 @@ fn overnight_calculates_source_healing_and_restores_daily_but_preserves_weekly_u
             }
         );
     }
+}
+
+fn add_condition(
+    fixture: &FixtureWorker,
+    participant: &str,
+    rule: ConditionRule,
+    value: Option<i64>,
+) {
+    let definition = rule.definition();
+    fixture
+        .worker
+        .with_write(|session| {
+            session.local_state().encounters().add_condition(
+                atlas_local_state::AddEncounterParticipantCondition {
+                    participant_key: participant.into(),
+                    condition_key: Some(definition.record_key.into()),
+                    name: definition.name.into(),
+                    value,
+                    source_participant_key: None,
+                    scope: Default::default(),
+                    extra_action: Default::default(),
+                    immunity_override: false,
+                    parameters: Default::default(),
+                    origin: None,
+                    duration: None,
+                    note: None,
+                },
+            )?;
+            Ok(())
+        })
+        .unwrap();
+}
+
+fn rest_request(participant: &str, mode: OvernightHealingMode) -> EncounterRecoveryAction {
+    EncounterRecoveryAction::RestOvernight {
+        healing_mode: mode,
+        participants: vec![OvernightParticipantInput {
+            participant_key: participant.into(),
+            healing: None,
+        }],
+    }
+}
+
+#[test]
+fn overnight_uses_constitution_modifier_without_drained_check_penalties() {
+    let (fixture, encounter) = resting_creature(vec![]);
+    let worker = &fixture.worker;
+    let participant = worker
+        .encounter(&encounter.encounter_key)
+        .unwrap()
+        .participants
+        .remove(0);
+    add_condition(
+        &fixture,
+        &participant.participant_key,
+        ConditionRule::Drained,
+        Some(2),
+    );
+    let before = worker.encounter(&encounter.encounter_key).unwrap();
+    let preview = worker
+        .preview_encounter_recovery(
+            &encounter.encounter_key,
+            PreviewEncounterRecoveryRequest {
+                expected_encounter_revision: before.revision,
+                action: rest_request(&participant.participant_key, OvernightHealingMode::Natural),
+            },
+        )
+        .unwrap();
+    assert_eq!(preview.participants[0].healing, Some(10));
+}
+
+#[test]
+fn overnight_rejects_authored_dying_and_petrified_without_mutating_the_encounter() {
+    for rule in [ConditionRule::Dying, ConditionRule::Petrified] {
+        let definition = rule.definition();
+        let (fixture, encounter) = resting_creature(vec![json!({
+            "_id":"dddddddddddddddd", "type":"condition", "name":definition.name,
+            "system":{"slug":definition.slug,"value":{"isValued":definition.has_value,"value":definition.default_value}}
+        })]);
+        let worker = &fixture.worker;
+        let before = worker.encounter(&encounter.encounter_key).unwrap();
+        let participant = &before.participants[0];
+        assert!(participant.conditions.is_empty());
+        let action = rest_request(&participant.participant_key, OvernightHealingMode::Full);
+        let preview = worker
+            .preview_encounter_recovery(
+                &encounter.encounter_key,
+                PreviewEncounterRecoveryRequest {
+                    expected_encounter_revision: before.revision,
+                    action: action.clone(),
+                },
+            )
+            .unwrap();
+        assert!(!preview.can_apply, "{} must prevent rest", definition.name);
+        assert!(preview.participants[0].unavailable_reason.is_some());
+        assert!(
+            worker
+                .apply_encounter_recovery(
+                    &encounter.encounter_key,
+                    ApplyEncounterRecoveryRequest {
+                        request_id: format!("rest-with-{}", definition.slug),
+                        expected_encounter_revision: before.revision,
+                        action,
+                    }
+                )
+                .is_err()
+        );
+        assert_eq!(worker.encounter(&encounter.encounter_key).unwrap(), before);
+    }
+}
+
+#[test]
+fn resting_other_participants_releases_ended_turn_claims_before_resuming() {
+    let (fixture, encounter) = resting_creature(vec![]);
+    let worker = &fixture.worker;
+    let key = &encounter.encounter_key;
+    let stunned = worker.encounter(key).unwrap().participants[0]
+        .participant_key
+        .clone();
+    worker
+        .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
+            encounter_ref: key.clone(),
+            display_name: "Resting PC".into(),
+            max_hp: Some(20),
+            current_hp: Some(10),
+            initiative: Some(5),
+        })
+        .unwrap();
+    let resting = worker
+        .encounter(key)
+        .unwrap()
+        .participants
+        .iter()
+        .find(|p| p.participant_key != stunned)
+        .unwrap()
+        .participant_key
+        .clone();
+    add_condition(&fixture, &stunned, ConditionRule::Stunned, Some(4));
+    worker
+        .advance_encounter_turn(
+            key,
+            AdvanceEncounterTurnRequest {
+                request_id: "first-stunned-turn".into(),
+                expected_revision: worker.encounter(key).unwrap().revision,
+            },
+        )
+        .unwrap();
+    let first_turn = worker.encounter(key).unwrap();
+    assert_eq!(
+        first_turn.current_turn_participant_key.as_deref(),
+        Some(stunned.as_str())
+    );
+    assert_eq!(
+        first_turn
+            .participants
+            .iter()
+            .find(|p| p.participant_key == stunned)
+            .unwrap()
+            .conditions[0]
+            .value,
+        Some(1)
+    );
+    worker
+        .apply_encounter_recovery(
+            key,
+            ApplyEncounterRecoveryRequest {
+                request_id: "rest-other-participant".into(),
+                expected_encounter_revision: first_turn.revision,
+                action: rest_request(&resting, OvernightHealingMode::Full),
+            },
+        )
+        .unwrap();
+    let rested = worker.encounter(key).unwrap();
+    assert!(rested.current_turn_participant_key.is_none());
+    assert_eq!(
+        rested.encounter.round_number,
+        first_turn.encounter.round_number
+    );
+    worker
+        .advance_encounter_turn(
+            key,
+            AdvanceEncounterTurnRequest {
+                request_id: "resume-after-rest".into(),
+                expected_revision: rested.revision,
+            },
+        )
+        .unwrap();
+    let resumed = worker.encounter(key).unwrap();
+    assert_eq!(
+        resumed.current_turn_participant_key.as_deref(),
+        Some(stunned.as_str())
+    );
+    let participant = resumed
+        .participants
+        .iter()
+        .find(|p| p.participant_key == stunned)
+        .unwrap();
+    assert!(participant.conditions.is_empty());
+    assert_eq!(
+        participant
+            .turn_resources
+            .as_ref()
+            .unwrap()
+            .regular_remaining,
+        Some(2)
+    );
 }

@@ -138,9 +138,14 @@ impl EncountersWrite<'_> {
                     ));
                 }
             }
-            // Vacate initiative groups before assigning fresh tie positions.
-            for (participant, _) in replacements {
-                self.connection.execute("UPDATE encounter_participants SET initiative=NULL,initiative_order=-id WHERE participant_key=?1", [participant])?;
+            for (participant, state) in replacements {
+                if snapshot
+                    .participants
+                    .iter()
+                    .any(|p| &p.participant_key == participant && p.initiative != state.initiative)
+                {
+                    self.connection.execute("UPDATE encounter_participants SET initiative=NULL,initiative_order=-id WHERE participant_key=?1", [participant])?;
+                }
             }
             for (participant, state) in replacements {
                 let order = snapshot
@@ -165,7 +170,7 @@ impl EncountersWrite<'_> {
             if end_turn || reset_encounter {
                 self.connection.execute("UPDATE encounter_participants SET turn_resources_json=NULL,revision=revision+1 WHERE turn_resources_json IS NOT NULL AND encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1)", [key])?;
             }
-            if reset_encounter {
+            if end_turn || reset_encounter {
                 self.connection.execute("DELETE FROM encounter_boundary_claims WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1)", [key])?;
             }
             self.connection.execute("UPDATE encounters SET revision=revision+1,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),status=CASE WHEN ?2 THEN 'draft' ELSE status END,round_number=CASE WHEN ?2 THEN 1 ELSE round_number END,current_turn_participant_key=CASE WHEN ?3 OR ?2 THEN NULL ELSE current_turn_participant_key END WHERE encounter_key=?1", params![key,reset_encounter,end_turn])?;

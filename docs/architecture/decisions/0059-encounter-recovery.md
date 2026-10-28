@@ -28,6 +28,8 @@ reset preserves the encounter's round and ends its active turn only when that
 participant owns it. Rest ends the active turn while preserving encounter status,
 round and initiative. Outgoing turn snapshots include the roster and are cleared
 by either operation. Turn allocations are cleared when their turn ends.
+Ending the turn also clears encounter boundary claims so restarting the retained
+round can allocate actions and process remaining conditions without stale claims.
 
 ## Consequences
 
