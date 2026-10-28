@@ -219,6 +219,10 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     onFinish: () =>
       followTurn(client.getQueryData<typeof encounter.data>(["encounter", route.slug])),
     expectedRevision: encounter.data?.revision ?? 0n,
+    turn: {
+      participantKey: encounter.data?.current_turn_participant_key ?? null,
+      roundNumber: encounter.data?.encounter.round_number ?? 1n,
+    },
   });
   const disabled = mutationDisabled || turnReview.preparing;
   const encounterSummary = encounter.data?.encounter ?? null;

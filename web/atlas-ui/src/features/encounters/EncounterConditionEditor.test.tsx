@@ -599,3 +599,56 @@ it("accepts incomplete persistent damage without eager required-field errors", a
     ),
   );
 });
+
+it("switches duration Stunned to an exclusive action value", async () => {
+  const onSave = vi.fn().mockResolvedValue(undefined);
+  render(
+    <EncounterConditionEditor
+      condition={{
+        condition_id: 91n,
+        condition_key: "conditionitems:stunned",
+        name: "Stunned",
+        immunity_override: false,
+        parameters: { kind: "none" },
+        scope: { kind: "everyone" },
+        extra_action: { kind: "unspecified" },
+        duration: { amount: 1n, unit: "minutes", timing: null },
+        created_at: "now",
+        updated_at: "now",
+      }}
+      definitions={[
+        {
+          condition_ref: "conditionitems:stunned",
+          name: "Stunned",
+          editor_kind: "stunned",
+          supports_duration_instead_of_value: true,
+          scope_label: null,
+          supports_extra_action: false,
+          eligibility: { kind: "available" },
+          has_value: true,
+          default_value: 1n,
+          automation_level: "automated",
+          applies_to: [],
+          categories: [],
+        },
+      ]}
+      participants={[]}
+      disabled={false}
+      pending={false}
+      onSave={onSave}
+    />,
+  );
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Stunned mode" }));
+  fireEvent.click(await screen.findByText("Lose actions"));
+  expect(
+    await screen.findByRole("spinbutton", { name: "Condition value" }),
+  ).toHaveValue("1");
+  expect(screen.queryByRole("button", { name: "Add duration" })).toBeNull();
+  expect(screen.queryByRole("spinbutton", { name: "Duration amount" })).toBeNull();
+  await apply({ value: 1n, duration: undefined });
+  await waitFor(() =>
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ value: 1n, duration: undefined }),
+    ),
+  );
+});

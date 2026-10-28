@@ -15,10 +15,12 @@ export function useEncounterTurnReview({
   mutations,
   onAdvance,
   expectedRevision,
+  turn,
   onFinish,
 }: {
   encounterRef: string;
   expectedRevision: bigint;
+  turn: { participantKey: string | null; roundNumber: bigint };
   mutations: ReturnType<typeof useEncounterMutations>;
   onAdvance: (expectedRevision: bigint) => Promise<boolean>;
   onFinish?: () => void;
@@ -34,6 +36,12 @@ export function useEncounterTurnReview({
   const [outcomes, setOutcomes] = useState<RollOutcome[]>([]);
   const active = useRef(true);
   const advancing = useRef(false);
+  const unseen = useRef<{
+    encounterRef: string;
+    participantKey: string | null;
+    roundNumber: bigint;
+    previousBoundary?: string;
+  } | null>(null);
   useEffect(() => {
     active.current = true;
     return () => {
@@ -47,6 +55,59 @@ export function useEncounterTurnReview({
     placeholderData: (previous, query) =>
       query?.queryKey[1] === encounterRef ? previous : undefined,
   });
+  const presentUnseen = async (
+    data: import("../../generated/atlas").EncounterTurnReviewView,
+  ) => {
+    const pending = unseen.current;
+    if (!pending) return;
+    const outgoing = data.outgoing;
+    if (
+      pending.encounterRef !== encounterRef ||
+      !outgoing ||
+      outgoing.participant_key !== pending.participantKey ||
+      outgoing.round_number !== pending.roundNumber ||
+      outgoing.boundary_key === pending.previousBoundary ||
+      (!outgoing.reminders.length && !outgoing.persistent_damage_groups.length)
+    ) {
+      unseen.current = null;
+      onFinish?.();
+      return;
+    }
+    const reads: Promise<unknown>[] = [];
+    if (!outgoing.participant_removed && outgoing.persistent_damage_groups.length)
+      reads.push(
+        client.fetchQuery(
+          persistentReviewQuery(
+            encounterRef,
+            outgoing.participant_key,
+            data.expected_revision,
+            outgoing.boundary_key,
+          ),
+        ),
+      );
+    for (const participantKey of new Set(
+      outgoing.reminders
+        .filter((r) => r.kind === "condition_recovery")
+        .map((r) => r.participant_key),
+    )) {
+      reads.push(
+        client.fetchQuery(
+          conditionLifecycleQuery(
+            encounterRef,
+            participantKey,
+            data.expected_revision,
+            outgoing.boundary_key,
+          ),
+        ),
+      );
+    }
+    await Promise.allSettled(reads);
+    if (!active.current || unseen.current !== pending) return;
+    unseen.current = null;
+    setContextKey((value) => value + 1);
+    setBoundaryKey(outgoing.boundary_key);
+    setOpen(true);
+  };
   const refresh = async () => {
     try {
       const data = await client.fetchQuery({
@@ -54,7 +115,10 @@ export function useEncounterTurnReview({
         queryFn: () => getEncounterTurnReview(encounterRef),
         staleTime: 0,
       });
-      if (active.current) setReadError(null);
+      if (active.current) {
+        setReadError(null);
+        await presentUnseen(data);
+      }
       return data;
     } catch (cause) {
       if (active.current)
@@ -67,6 +131,7 @@ export function useEncounterTurnReview({
   const begin = async () => {
     if (mutations.pending || advancing.current) return;
     advancing.current = true;
+    unseen.current = null;
     setPreparing(true);
     setOpen(false);
     setBoundaryKey(undefined);
@@ -76,53 +141,14 @@ export function useEncounterTurnReview({
       const before = review.data ?? (await refresh());
       if (!active.current || !(await onAdvance(expectedRevision)) || !active.current)
         return;
+      if (before)
+        unseen.current = {
+          encounterRef,
+          ...turn,
+          previousBoundary: before.outgoing?.boundary_key,
+        };
       const after = await refresh();
-      if (!active.current) return;
-      const outgoing = after?.outgoing;
-      setContextKey((value) => value + 1);
-      if (
-        before &&
-        outgoing &&
-        outgoing.boundary_key !== before.outgoing?.boundary_key &&
-        (outgoing.reminders.length > 0 || outgoing.persistent_damage_groups.length > 0)
-      ) {
-        // Load dependent read models before the first visible dialog frame.
-        // Rejections remain in their query cache for each section's Retry UI.
-        const reads: Promise<unknown>[] = [];
-        if (!outgoing.participant_removed && outgoing.persistent_damage_groups.length)
-          reads.push(
-            client.fetchQuery(
-              persistentReviewQuery(
-                encounterRef,
-                outgoing.participant_key,
-                after.expected_revision,
-                outgoing.boundary_key,
-              ),
-            ),
-          );
-        for (const participantKey of new Set(
-          outgoing.reminders
-            .filter((r) => r.kind === "condition_recovery")
-            .map((r) => r.participant_key),
-        )) {
-          reads.push(
-            client.fetchQuery(
-              conditionLifecycleQuery(
-                encounterRef,
-                participantKey,
-                after.expected_revision,
-                outgoing.boundary_key,
-              ),
-            ),
-          );
-        }
-        await Promise.allSettled(reads);
-        if (!active.current) return;
-        setBoundaryKey(outgoing.boundary_key);
-        setOpen(true);
-      } else {
-        onFinish?.();
-      }
+      if ((!after || !before) && active.current) onFinish?.();
     } finally {
       advancing.current = false;
       if (active.current) setPreparing(false);
@@ -175,6 +201,7 @@ export function useEncounterTurnReview({
     loading: review.isFetching,
     close: () => {
       if (!open) return;
+      unseen.current = null;
       onFinish?.();
       setOpen(false);
       setBoundaryKey(undefined);

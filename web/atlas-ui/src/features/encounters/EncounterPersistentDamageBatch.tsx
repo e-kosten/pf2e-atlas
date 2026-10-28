@@ -389,7 +389,13 @@ export function EncounterPersistentDamageBatch({
                 ) : !applied && active ? (
                   <div className="encounter-persistent-damage-control">
                     <span className="encounter-persistent-damage-control__label">
-                      Damage
+                      {mode === "table" ? (
+                        <Tooltip title="After IWR" trigger={["hover", "focus"]}>
+                          <span>Damage taken</span>
+                        </Tooltip>
+                      ) : (
+                        "Damage"
+                      )}
                     </span>
                     <div className="encounter-persistent-damage-control__value">
                       {mode === "table" && selectedSource?.roll_preview && (

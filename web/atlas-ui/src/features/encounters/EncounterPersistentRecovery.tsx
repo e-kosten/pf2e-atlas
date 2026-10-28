@@ -60,7 +60,9 @@ export function EncounterPersistentRecovery({
   const [revision, setRevision] = useState(encounterRevision);
   const [error, setError] = useState<string>();
   const dice = useDiceRoll<PersistentRecoveryResultView>();
-  const result = dice.result ?? recordedResult;
+  const [tableResult, setTableResult] = useState<PersistentRecoveryResultView>();
+  const [clearing, setClearing] = useState(false);
+  const result = tableResult ?? dice.result ?? recordedResult;
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const resultFocus = useRef<{
@@ -111,6 +113,8 @@ export function EncounterPersistentRecovery({
     if (
       disabled ||
       pending ||
+      clearing ||
+      dice.busy ||
       result?.success ||
       (changed && !result) ||
       !available ||
@@ -152,6 +156,37 @@ export function EncounterPersistentRecovery({
       if (cause instanceof Error) setError(userErrorMessage(cause));
     }
   };
+  const clear = async () => {
+    if (
+      disabled ||
+      pending ||
+      clearing ||
+      dice.busy ||
+      result?.success ||
+      (changed && !result) ||
+      !available
+    )
+      return;
+    setClearing(true);
+    setError(undefined);
+    try {
+      const completed = await onRecover({
+        resolution: "clear",
+        mode,
+        boundary_key: boundaryKey,
+        expected_encounter_revision: result ? encounterRevision : revision,
+        participant_key: participantKey,
+        episode_id: group.episode_id,
+        dc_override: null,
+      });
+      setTableResult(completed);
+      onResult?.(completed);
+    } catch (cause) {
+      setError(userErrorMessage(cause, "Could not clear the effect."));
+    } finally {
+      setClearing(false);
+    }
+  };
   return (
     <>
       <Popover
@@ -160,7 +195,7 @@ export function EncounterPersistentRecovery({
         open={open}
         trigger="click"
         onOpenChange={(next) => {
-          if (pending) return;
+          if (pending || clearing || dice.busy) return;
           if (next) {
             resetFields();
             setRevision(encounterRevision);
@@ -224,6 +259,7 @@ export function EncounterPersistentRecovery({
                     disabled={
                       disabled ||
                       pending ||
+                      clearing ||
                       result?.success ||
                       (changed && !result) ||
                       !rollAvailable ||
@@ -236,6 +272,23 @@ export function EncounterPersistentRecovery({
                       ? "Reroll"
                       : "Roll"}
                   </Button>
+                  {mode === "explicit" && (
+                    <Button
+                      disabled={
+                        disabled ||
+                        pending ||
+                        clearing ||
+                        dice.busy ||
+                        result?.success ||
+                        (changed && !result) ||
+                        !available
+                      }
+                      loading={clearing}
+                      onClick={() => void clear()}
+                    >
+                      Clear effect
+                    </Button>
+                  )}
                 </div>
                 {!rollAvailable && rollUnavailableReason && (
                   <p>{rollUnavailableReason}</p>
