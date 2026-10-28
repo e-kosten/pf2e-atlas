@@ -1,6 +1,89 @@
 import { expect, test } from "./fixtures";
 import { activate, noPageOverflow } from "./reading";
 
+test("overnight review preserves a conflicting draft and reopens against the current roster", async ({
+  page,
+}, info) => {
+  const { encounter } = await (
+    await page.request.post("/api/encounters", {
+      data: { name: `Recovery conflict ${info.project.name} ${Date.now()}` },
+    })
+  ).json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  const add = async (name: string, hp: number) => {
+    const response = await page.request.post(`${path}/participants/manual`, {
+      data: {
+        encounter_ref: encounter.encounter_key,
+        display_name: name,
+        max_hp: 30,
+        current_hp: hp,
+        initiative: 15,
+      },
+    });
+    expect(response.ok()).toBeTruthy();
+  };
+  try {
+    await add("Resting hero", 10);
+    await page.goto(`/encounters/${encounter.slug}`);
+    const cog = page.getByRole("button", { name: "Encounter settings", exact: true });
+    const open = async () => {
+      await activate(cog, info);
+      await activate(
+        page.getByRole("menuitem", { name: "Rest overnight", exact: true }),
+        info,
+      );
+      return page.getByRole("dialog", { name: "Rest overnight", exact: true });
+    };
+    const dialog = await open();
+    const amount = dialog.getByRole("spinbutton", {
+      name: "HP recovery for Resting hero",
+      exact: true,
+    });
+    const apply = dialog.getByRole("button", { name: "Rest overnight", exact: true });
+    await amount.fill("7");
+    await expect(apply).toBeEnabled();
+    await add("Later arrival", 1);
+    await amount.fill("8");
+    await expect(dialog.getByRole("alert")).toHaveText(
+      /Close this review and reopen it/,
+    );
+    await expect(amount).toHaveValue("8");
+    await expect(apply).toBeDisabled();
+    await expect(
+      dialog.getByRole("checkbox", { name: "Rest Resting hero", exact: true }),
+    ).toBeChecked();
+    await expect(
+      dialog.getByRole("checkbox", { name: "Rest Later arrival", exact: true }),
+    ).toHaveCount(0);
+    await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
+    await expect(cog).toBeFocused();
+    const reopened = await open();
+    await expect(
+      reopened.getByRole("checkbox", { name: "Rest Later arrival", exact: true }),
+    ).toBeChecked();
+    await reopened
+      .getByRole("spinbutton", { name: "HP recovery for Resting hero", exact: true })
+      .fill("8");
+    await reopened
+      .getByRole("spinbutton", { name: "HP recovery for Later arrival", exact: true })
+      .fill("5");
+    const submit = reopened.getByRole("button", {
+      name: "Rest overnight",
+      exact: true,
+    });
+    await expect(submit).toBeEnabled();
+    await noPageOverflow(page);
+    await activate(submit, info);
+    await expect(reopened).toBeHidden();
+    const saved = await (await page.request.get(path)).json();
+    expect(saved.participants.map((p: { current_hp: number }) => p.current_hp)).toEqual(
+      [18, 6],
+    );
+  } finally {
+    await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
+  }
+});
+
 test("inline HP formulas stay bounded without displacing facts or actions", async ({
   page,
 }, info) => {
