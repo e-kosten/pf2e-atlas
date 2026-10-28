@@ -81,6 +81,11 @@ preparation/native-input identity. Existing lexical postings, native inputs,
 vectors and saved state are preserved. Query paths read membership without
 decoding source bodies.
 
+Core lexical membership references concrete lexical-unit IDs. Any lexical
+projection rebuild must refresh that membership within the same publication,
+even when the Core recipe itself is unchanged. Validation and the single
+reference-generation advance cover both projections together.
+
 App-service projects component inventory, exact navigation, effective scope,
 selection and recipe acknowledgements. CLI and web transport these choices
 without inferring field policy or calculating scores. The shared Search settings

@@ -783,6 +783,111 @@ fn metadata_publication_failure_rolls_back_core_and_keeps_the_old_generation() {
 }
 
 #[test]
+fn lexical_backfill_refreshes_current_core_atomically_without_rewriting_other_data() {
+    let input = nested_fixture(false);
+    let (_directory, path) = crate::foundation_tests::build(&input);
+    let workspace = atlas_storage::Workspace::at(&path).unwrap();
+    let schema = crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
+    let write = workspace.write(schema).unwrap();
+    let revision = write.reference_revision().unwrap();
+    let mut context = input.context.clone();
+    assert_eq!(context.core_sections_recipe, CORE_SECTIONS_RECIPE);
+    context.lexical_selection_version = "curated-lexical/v1".into();
+    write
+        .connection()
+        .execute(
+            "UPDATE artifact_context SET context_hash=?,context_json=?",
+            rusqlite::params![
+                context.sha256().unwrap(),
+                serde_json::to_string(&context).unwrap()
+            ],
+        )
+        .unwrap();
+    write.connection().execute(
+        "INSERT INTO verified_aliases(record_id,alias,alias_lookup_key,evidence_json) SELECT record_id,'Snow Keeper','snow keeper','\"source redirect\"' FROM records WHERE key=?",
+        [input.records[0].record.key().to_string()],
+    ).unwrap();
+    let before = table_values(write.connection());
+    let core_values = |c: &rusqlite::Connection| {
+        [
+            "core_roots",
+            "core_parts",
+            "core_lexical_units",
+            "core_semantic_locations",
+        ]
+        .into_iter()
+        .map(|table| {
+            let mut statement = c
+                .prepare(&format!("SELECT * FROM {table} ORDER BY 1"))
+                .unwrap();
+            let columns = statement.column_count();
+            let rows = statement
+                .query_map([], |row| {
+                    (0..columns)
+                        .map(|column| row.get::<_, rusqlite::types::Value>(column))
+                        .collect::<rusqlite::Result<Vec<_>>>()
+                })
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap();
+            (table, rows)
+        })
+        .collect::<BTreeMap<_, _>>()
+    };
+    let core_before = core_values(write.connection());
+    assert!(core_before.values().all(|rows| !rows.is_empty()));
+    write.connection().execute_batch("CREATE TRIGGER reject_core_insert BEFORE INSERT ON core_parts BEGIN SELECT RAISE(ABORT,'core publication fault'); END;").unwrap();
+    write.commit().unwrap();
+
+    let error = ensure_reference_projections(&workspace, schema).unwrap_err();
+    assert!(error.to_string().contains("core publication fault"));
+    // The Core refresh is part of the lexical publication, not a later repair.
+    let c = rusqlite::Connection::open(&path).unwrap();
+    assert_eq!(table_values(&c), before);
+    assert_eq!(core_values(&c), core_before);
+    assert_eq!(read_stored_reference_context(&c).unwrap().unwrap(), context);
+    assert_eq!(
+        c.query_row("SELECT reference_revision FROM workspace", [], |row| row
+            .get::<_, u64>(0))
+            .unwrap(),
+        revision
+    );
+    c.execute_batch("DROP TRIGGER reject_core_insert;").unwrap();
+    drop(c);
+    {
+        let owner = workspace.update_owner().unwrap();
+        assert!(recover_reference_publication(&owner, schema).unwrap());
+    }
+    assert!(ensure_reference_projections(&workspace, schema).unwrap());
+    let read = workspace.read(schema).unwrap();
+    assert_eq!(read.reference_revision().unwrap(), revision + 1);
+    let alias_members: usize = read.connection().query_row(
+        "SELECT count(*) FROM core_lexical_units cl JOIN lexical_units lu USING(unit_id) WHERE lu.unit_kind='root_alias' AND lu.alias_terms='Snow Keeper'",
+        [], |row| row.get(0),
+    ).unwrap();
+    assert_eq!(alias_members, 1);
+    let nonlexical = |values: BTreeMap<String, Vec<Vec<rusqlite::types::Value>>>| {
+        values
+            .into_iter()
+            .filter(|(table, _)| !table.starts_with("lexical_"))
+            .collect::<BTreeMap<_, _>>()
+    };
+    assert_eq!(
+        nonlexical(table_values(read.connection())),
+        nonlexical(before)
+    );
+    assert_eq!(
+        read_stored_reference_context(read.connection())
+            .unwrap()
+            .unwrap()
+            .core_sections_recipe,
+        CORE_SECTIONS_RECIPE
+    );
+    drop(read);
+    assert!(!ensure_reference_projections(&workspace, schema).unwrap());
+}
+
+#[test]
 fn core_upgrade_classification_preserves_preparation_precedence_and_rejects_newer_policies() {
     for (core, preparation, expected) in [
         (
