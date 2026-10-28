@@ -655,12 +655,12 @@ and explicit regain allocate retained action/reaction stock through the guarded
 event owner. Explicit Stunned loss uses that recorded remaining stock or the same
 source-backed regain forecast. Turn receipts recover before reference loading;
 new source-dependent allocations check the prepared reference revision. Ordinary
-strikes retain direct guarded rolls with optional reference
-checks; ordinary casting records table-resolved use from the spell popover. Casting reminders and optional strike context are read-only, with no durable
+strikes evaluate display-only dice in a checked workspace read, retain the latest
+result in browser component memory, and write no database receipts; ordinary casting records table-resolved use from the spell popover. Casting reminders and optional strike context are read-only, with no durable
 action-attempt workflow. Source-specific judgments support the actual Retch
 lifecycle action. Scoped detection effects derive from active conditions, without
-a saved relationship baseline or editing API. Spell use, resource corrections and
-retained dice keep their existing guarded write owners. See ADR 0048 and ADR 0055.
+a saved relationship baseline or editing API. Spell use, resource corrections and rolls that update state or prepare outcomes
+for later application keep their existing guarded write owners. See ADR 0048 and ADR 0055.
 
 Hazards use Active/Disabled in place of creature Active/Defeated. Damage reaching
 zero disables a hazard; healing does not reactivate it. HP remains separate. Automatic turns

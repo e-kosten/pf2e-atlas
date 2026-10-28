@@ -23,15 +23,13 @@ pub use encounters::{
     EncounterWithParticipants, EncountersRead, EncountersWrite, FrightenedRecovery,
     InitiativeRollReceipt, LifecycleCheckPurpose, MortalityState, NewEncounter,
     ParticipantAbilityState, ParticipantEventChange, ParticipantHpOrigin,
-    ParticipantInitiativeRoll, ParticipantKind, ParticipantRollGuard, ParticipantSide,
-    ParticipantVariant, ParticipantVariantOrigin, PendingConsequence, PersistentDamageOutcome,
+    ParticipantInitiativeRoll, ParticipantKind, ParticipantSide, ParticipantVariant,
+    ParticipantVariantOrigin, PendingConsequence, PersistentDamageOutcome,
     PersistentDamageProtection, PersistentPrecedenceChange, PersistentPreparationContext,
     PersistentRecovery, PersistentSourcePrecedence, PreparedConditionEvent,
     PreparedPersistentRecovery, ReorderEncounterParticipant, ReorderPlacement,
     ResolvedInitiativeRoll, SavedHpEventContext, SavedPendingConsequence, SpellResource,
-    StoredStrikeDamage, StoredStrikeDamageTotal, StoredStrikeOutcome, StoredStrikeReceipt,
-    StoredStrikeRoll, UpdateEncounter, UpdateEncounterParticipant,
-    UpdateEncounterParticipantCondition, WakingRule,
+    UpdateEncounter, UpdateEncounterParticipant, UpdateEncounterParticipantCondition, WakingRule,
 };
 pub use encounters::{
     EncounterDifficultyReference, SavedOutgoingTurn, TurnActionAdjustment, TurnActionAllocation,
@@ -44,7 +42,9 @@ pub use saved_lists::{
     SavedListItemPlacement, SavedListItemSnapshot, SavedListItemStatus, SavedListWithItems,
     SavedListsRead, SavedListsWrite, UpdateSavedList, hydrate_saved_list_item,
 };
-pub use schema::{ABILITY_STATE_SCHEMA_SQL, TURN_RESOURCES_SCHEMA_SQL};
+pub use schema::{
+    ABILITY_STATE_SCHEMA_SQL, STATELESS_STRIKE_ROLLS_SCHEMA_SQL, TURN_RESOURCES_SCHEMA_SQL,
+};
 pub use schema::{
     CONDITION_SYSTEM_SCHEMA_SQL, CONSUMED_CONDITION_APPLICATIONS_SCHEMA_SQL,
     ENCOUNTER_DIFFICULTY_SCHEMA_SQL, ENCOUNTER_STATUS_SCHEMA_SQL, HAZARD_PARTICIPATION_SCHEMA_SQL,
