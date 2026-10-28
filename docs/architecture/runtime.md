@@ -421,14 +421,16 @@ responses mark the checked section start using the same source selection policy;
 the reader lands, focuses and briefly highlights that marker while retaining the
 complete field. The marker is added only to the response after passage validation;
 stored HTML, passage hashes and artifact policy identities remain unchanged.
+Match display is a remembered browser preference with Hidden, Matching sections
+and Detailed modes. Matching sections is the default and shows section links and
+excerpts. Hidden omits the complete reader match context. Detailed also shows
 Similarity coverage, section/role contributions and paired seed/result excerpts
-use this same selected-reader match context when Show similarity details is enabled.
-When disabled, Similar results retain the compact matching-section links and excerpts.
+when Similar evidence is available; text searches retain their matching sections.
 The detailed weight table hides rows rounding to 0.0% unless Show smaller weights
-is enabled. This saved presentation preference never removes scoring contributions.
-This browser preference defaults off, persists with the other search preferences,
-and does not alter retrieval or ranking. Same-record evidence navigates through
-the reader; cross-record seed or reference evidence uses the shared linked-record
+is enabled. That option defaults off and is shown only for Detailed Similar results.
+Display-only changes do not submit a new search, change ranking or remove scoring
+contributions. Existing saved detail booleans migrate to Matching sections/Detailed.
+Same-record evidence navigates through the reader; cross-record seed or reference evidence uses the shared linked-record
 Drawer, preserving the selected result and its return context.
 
 Record Similar carries the exact root seed and canonical filters, and returns a

@@ -88,7 +88,7 @@ it("keeps advanced controls optional and preserves section edits when returning 
   const { apply } = setup();
   expect(screen.getByRole("combobox", { name: "Source sections" })).toBeInTheDocument();
   expect(screen.queryByRole("spinbutton", { name: "Match decay" })).toBeNull();
-  expect(screen.queryByRole("switch", { name: "Show similarity details" })).toBeNull();
+  expect(screen.queryByRole("combobox", { name: "Match display" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Choose sections" }));
   fireEvent.click(await screen.findByRole("checkbox", { name: "Reset" }));
   fireEvent.click(screen.getByRole("button", { name: "Back to search settings" }));
@@ -110,7 +110,7 @@ it("keeps advanced controls optional and preserves section edits when returning 
 it("resets only the draft until Apply and preserves other family preferences", async () => {
   const preferences: SearchPreferences = {
     ...DEFAULT_SEARCH_PREFERENCES,
-    showSimilarityDetails: true,
+    matchDisplay: "detailed" as const,
     showSmallerWeights: true,
     searchContent: "core",
     sourceSectionsByFamily: { hazard: "core", npc: "core" },
@@ -160,7 +160,7 @@ it("resets only the draft until Apply and preserves other family preferences", a
   );
   expect(remember).toHaveBeenCalledWith(
     expect.objectContaining({
-      showSimilarityDetails: false,
+      matchDisplay: "sections" as const,
       showSmallerWeights: false,
       sourceSectionsByFamily: { hazard: "all", npc: "core" },
       traitSimilarity: preferences.traitSimilarity,
@@ -206,4 +206,46 @@ it("keeps Trait definition as the reset method without opening a section editor"
     }),
     "bge-base",
   );
+});
+
+it.each(["hidden", "sections", "detailed"] as const)(
+  "applies %s without rerunning the search",
+  async (matchDisplay) => {
+    const { apply, remember } = setup(search, {
+      ...DEFAULT_SEARCH_PREFERENCES,
+      matchDisplay: matchDisplay === "detailed" ? "sections" : "detailed",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Explanation details" }));
+    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Match display" }));
+    fireEvent.click(
+      screen.getByText(
+        { hidden: "Hidden", sections: "Matching sections", detailed: "Detailed" }[
+          matchDisplay
+        ],
+        { exact: true },
+      ),
+    );
+    expect(
+      screen.queryByRole("switch", { name: "Show smaller weights" }) !== null,
+    ).toBe(matchDisplay === "detailed");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(remember).toHaveBeenCalledWith(expect.objectContaining({ matchDisplay }));
+    expect(apply).not.toHaveBeenCalled();
+  },
+);
+it("offers match display for text searches without showing Similar-only weight controls", () => {
+  const { apply, remember } = setup({ ...DEFAULT_SEARCH_STATE, query: "fire" });
+  expect(screen.queryByText("Content searched for your query.")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Explanation details" }));
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Match display" }));
+  fireEvent.click(screen.getByText("Hidden", { exact: true }));
+  expect(screen.queryByRole("switch", { name: "Show smaller weights" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(remember).toHaveBeenCalledWith(
+    expect.objectContaining({ matchDisplay: "hidden" }),
+  );
+  expect(apply).not.toHaveBeenCalled();
 });

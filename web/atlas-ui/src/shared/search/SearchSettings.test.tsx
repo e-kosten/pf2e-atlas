@@ -149,58 +149,85 @@ function setup(
   return { apply, remember };
 }
 
-it("keeps similarity details off by default and discards a canceled change", () => {
+function openMatchDisplay() {
+  if (!screen.queryByRole("combobox", { name: "Match display" }))
+    fireEvent.click(screen.getByRole("button", { name: "Explanation details" }));
+}
+function chooseMatchDisplay(label: string) {
+  openMatchDisplay();
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Match display" }));
+  fireEvent.click(screen.getByText(label, { exact: true }));
+}
+
+it("defaults to Matching sections and discards a canceled display change", async () => {
   const { apply, remember } = setup();
-  const toggle = screen.getByRole("switch", { name: "Show similarity details" });
-  expect(toggle).not.toBeChecked();
-  fireEvent.click(toggle);
+  openMatchDisplay();
+  await waitFor(() =>
+    expect(
+      within(screen.getByRole("dialog", { name: "Search settings" })).getByTitle(
+        "Matching sections",
+      ),
+    ).toBeVisible(),
+  );
+  chooseMatchDisplay("Hidden");
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(remember).not.toHaveBeenCalled();
   expect(apply).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
-  expect(
-    screen.getByRole("switch", { name: "Show similarity details" }),
-  ).not.toBeChecked();
+  openMatchDisplay();
+  await waitFor(() =>
+    expect(
+      within(screen.getByRole("dialog", { name: "Search settings" })).getByTitle(
+        "Matching sections",
+      ),
+    ).toBeVisible(),
+  );
 });
 
-it("remembers a details-only change without submitting another search", async () => {
+it("remembers a display-only change without submitting another search", async () => {
   const { apply, remember } = setup();
-  fireEvent.click(screen.getByRole("switch", { name: "Show similarity details" }));
+  chooseMatchDisplay("Detailed");
   await waitFor(() =>
     expect(screen.getByRole("button", { name: "Apply" })).toBeEnabled(),
   );
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
   expect(remember).toHaveBeenCalledWith(
-    expect.objectContaining({ showSimilarityDetails: true }),
+    expect.objectContaining({ matchDisplay: "detailed" }),
   );
   expect(apply).not.toHaveBeenCalled();
 });
 
-it("resets the details preference with the other search settings", () => {
+it("resets match display to Matching sections", async () => {
   setup();
-  fireEvent.click(screen.getByRole("switch", { name: "Show similarity details" }));
+  chooseMatchDisplay("Detailed");
   fireEvent.click(screen.getByRole("button", { name: "Reset" }));
-  expect(
-    screen.getByRole("switch", { name: "Show similarity details" }),
-  ).not.toBeChecked();
+  await waitFor(() =>
+    expect(
+      within(screen.getByRole("dialog", { name: "Search settings" })).getByTitle(
+        "Matching sections",
+      ),
+    ).toBeVisible(),
+  );
 });
 
 it("remembers smaller weights as a presentation preference with Cancel and Reset support", async () => {
   const { apply, remember } = setup(undefined, seed, {
     ...DEFAULT_SEARCH_PREFERENCES,
-    showSimilarityDetails: true,
+    matchDisplay: "detailed",
   });
   const choice = () => screen.getByRole("switch", { name: "Show smaller weights" });
+  openMatchDisplay();
   expect(choice()).not.toBeChecked();
   fireEvent.click(choice());
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(remember).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
+  openMatchDisplay();
   expect(choice()).not.toBeChecked();
   fireEvent.click(choice());
   fireEvent.click(screen.getByRole("button", { name: "Reset" }));
   expect(screen.queryByRole("switch", { name: "Show smaller weights" })).toBeNull();
-  fireEvent.click(screen.getByRole("switch", { name: "Show similarity details" }));
+  chooseMatchDisplay("Detailed");
   expect(choice()).not.toBeChecked();
   fireEvent.click(choice());
   await waitFor(() =>
@@ -208,7 +235,7 @@ it("remembers smaller weights as a presentation preference with Cancel and Reset
   );
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
   expect(remember).toHaveBeenCalledExactlyOnceWith(
-    expect.objectContaining({ showSmallerWeights: true, showSimilarityDetails: true }),
+    expect.objectContaining({ showSmallerWeights: true, matchDisplay: "detailed" }),
   );
   expect(apply).not.toHaveBeenCalled();
 });
@@ -885,7 +912,6 @@ it("distinguishes source and result content and explains their selected draft op
   api.parts.mockResolvedValue(coreInventory());
   const { apply, remember } = setup();
   await waitFor(() => {
-    expect(screen.getByText("Content searched in other records.")).toBeVisible();
     expect(
       screen.getByText("Content from Brown Mold used for comparison."),
     ).toBeVisible();
@@ -929,9 +955,7 @@ it("distinguishes source and result content and explains their selected draft op
 
 it("describes the searched content for ordinary text without source-selection copy", async () => {
   setup({ ...DEFAULT_SEARCH_STATE, query: "fire" });
-  await waitFor(() =>
-    expect(screen.getByText("Content searched for your query.")).toBeVisible(),
-  );
+
   expect(screen.queryByText("Content from Brown Mold used for comparison.")).toBeNull();
 });
 

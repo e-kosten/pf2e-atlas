@@ -81,7 +81,7 @@ it("shows similarity coverage, contributions, caveats and both exact passage des
   const similarity = similarityEvidenceFixture(navigation, seed);
   const { onNavigate } = renderMatches({
     row: { ...row, similarity },
-    showSimilarityDetails: true,
+    matchDisplay: "detailed" as const,
   });
   const context = screen.getByRole("region", { name: "Similarity comparison" });
   expect(
@@ -125,7 +125,7 @@ it("shows similarity coverage, contributions, caveats and both exact passage des
 it("leaves trait seed excerpts without fabricated record links and native candidates work without a reader host", () => {
   render(
     <SearchMatchContext
-      showSimilarityDetails
+      matchDisplay="detailed"
       row={{ ...row, similarity: similarityEvidenceFixture(navigation, null) }}
     />,
   );
@@ -146,9 +146,9 @@ it("hides similarity details by default while preserving ordinary text match con
   const view = render(<SearchMatchContext {...props} />);
   expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull();
   expect(screen.getByRole("region", { name: "Search matches" })).toBeVisible();
-  view.rerender(<SearchMatchContext {...props} showSimilarityDetails />);
+  view.rerender(<SearchMatchContext {...props} matchDisplay="detailed" />);
   expect(screen.getByRole("region", { name: "Similarity comparison" })).toBeVisible();
-  view.rerender(<SearchMatchContext {...props} showSimilarityDetails={false} />);
+  view.rerender(<SearchMatchContext {...props} matchDisplay="sections" />);
   expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull();
   expect(screen.getByRole("region", { name: "Search matches" })).toBeVisible();
 });
@@ -166,12 +166,12 @@ it("switches Similar results between compact matches and details without hiding 
   expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull();
   expect(screen.queryByRole("table")).toBeNull();
 
-  view.rerender(<SearchMatchContext {...props} showSimilarityDetails />);
+  view.rerender(<SearchMatchContext {...props} matchDisplay="detailed" />);
   expect(screen.queryByRole("region", { name: "Search matches" })).toBeNull();
   context = screen.getByRole("region", { name: "Similarity comparison" });
   expect(within(context).getByRole("table")).toBeVisible();
 
-  view.rerender(<SearchMatchContext {...props} showSimilarityDetails={false} />);
+  view.rerender(<SearchMatchContext {...props} matchDisplay="sections" />);
   context = screen.getByRole("region", { name: "Search matches" });
   expect(within(context).getByRole("link", { name: "Breath Fire" })).toHaveAttribute(
     "href",
@@ -223,7 +223,7 @@ it.each(["parts", "roles"] as const)(
       }));
     }
     const original = JSON.stringify(similarity);
-    const props = { row: { ...row, similarity }, showSimilarityDetails: true };
+    const props = { row: { ...row, similarity }, matchDisplay: "detailed" as const };
     const view = render(<SearchMatchContext {...props} />);
     expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(3);
     expect(screen.getByText("99.9%")).toBeVisible();
@@ -240,5 +240,36 @@ it.each(["parts", "roles"] as const)(
     expect(JSON.stringify(similarity)).toBe(original);
     view.rerender(<SearchMatchContext {...props} />);
     expect(screen.queryByText("0.0%")).toBeNull();
+  },
+);
+
+it.each([undefined, "fire"])(
+  "hides match information without changing the result data (%s)",
+  (query) => {
+    const result = { ...row, similarity: similarityEvidenceFixture(navigation, null) };
+    const original = JSON.stringify(result);
+    const view = render(
+      <SearchMatchContext
+        row={result}
+        query={query}
+        matchDisplay="hidden"
+        showSmallerWeights
+      />,
+    );
+    expect(view.container).toBeEmptyDOMElement();
+    view.rerender(
+      <SearchMatchContext row={result} query={query} matchDisplay="sections" />,
+    );
+    expect(screen.getByRole("region", { name: "Search matches" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Similarity comparison" })).toBeNull();
+    view.rerender(
+      <SearchMatchContext row={result} query={query} matchDisplay="detailed" />,
+    );
+    expect(screen.getByRole("region", { name: "Similarity comparison" })).toBeVisible();
+    view.rerender(
+      <SearchMatchContext row={result} query={query} matchDisplay="hidden" />,
+    );
+    expect(view.container).toBeEmptyDOMElement();
+    expect(JSON.stringify(result)).toBe(original);
   },
 );

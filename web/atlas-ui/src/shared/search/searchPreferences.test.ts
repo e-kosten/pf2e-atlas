@@ -32,7 +32,7 @@ it("remembers general preferences across browser-owner launches", () => {
     ...DEFAULT_SEARCH_PREFERENCES,
     model: "embeddinggemma",
     ranking: "rrf" as const,
-    showSimilarityDetails: true,
+    matchDisplay: "detailed" as const,
     showSmallerWeights: true,
     recordSimilarity: {
       method: "content-average" as const,
@@ -44,7 +44,7 @@ it("remembers general preferences across browser-owner launches", () => {
   expect(readSearchPreferences()).toEqual(preferences);
 });
 
-it("defaults similarity details off without losing existing browser preferences", () => {
+it("defaults to Matching sections without losing existing browser preferences", () => {
   localStorage.setItem(
     SEARCH_PREFERENCES_KEY,
     JSON.stringify({ version: 1, model: "embeddinggemma", ranking: "rrf" }),
@@ -52,7 +52,7 @@ it("defaults similarity details off without losing existing browser preferences"
   expect(readSearchPreferences()).toMatchObject({
     model: "embeddinggemma",
     ranking: "rrf",
-    showSimilarityDetails: false,
+    matchDisplay: "sections",
     showSmallerWeights: false,
   });
 });
@@ -133,7 +133,7 @@ it("extends existing browser preferences with independent content and family pre
   expect(preferences).toMatchObject({
     model: "embeddinggemma",
     ranking: "rrf",
-    showSimilarityDetails: true,
+    matchDisplay: "detailed" as const,
     showSmallerWeights: true,
     searchContent: "core",
     sourceSectionsByFamily: { npc: "core", hazard: "all" },
@@ -142,4 +142,48 @@ it("extends existing browser preferences with independent content and family pre
   expect(preferences.sourceSectionsByFamily).not.toHaveProperty("equipment");
   expect(writeSearchPreferences(preferences)).toBe(true);
   expect(readSearchPreferences()).toEqual(preferences);
+});
+
+it.each(["hidden", "sections", "detailed"] as const)(
+  "remembers the %s match display independently of legacy details",
+  (matchDisplay) => {
+    localStorage.setItem(
+      SEARCH_PREFERENCES_KEY,
+      JSON.stringify({ version: 1, matchDisplay, showSimilarityDetails: true }),
+    );
+    const preferences = readSearchPreferences();
+    expect(preferences.matchDisplay).toBe(matchDisplay);
+    expect(writeSearchPreferences(preferences)).toBe(true);
+    expect(readSearchPreferences().matchDisplay).toBe(matchDisplay);
+    expect(
+      JSON.parse(localStorage.getItem(SEARCH_PREFERENCES_KEY)!),
+    ).not.toHaveProperty("showSimilarityDetails");
+  },
+);
+it.each([
+  [true, "detailed"],
+  [false, "sections"],
+  [undefined, "sections"],
+])("migrates legacy details %s to %s", (legacy, expected) => {
+  localStorage.setItem(
+    SEARCH_PREFERENCES_KEY,
+    JSON.stringify({
+      version: 1,
+      showSimilarityDetails: legacy,
+      model: "embeddinggemma",
+      ranking: "rrf",
+    }),
+  );
+  expect(readSearchPreferences()).toMatchObject({
+    matchDisplay: expected,
+    model: "embeddinggemma",
+    ranking: "rrf",
+  });
+});
+it("recovers an invalid display preference without accepting arbitrary values", () => {
+  localStorage.setItem(
+    SEARCH_PREFERENCES_KEY,
+    JSON.stringify({ version: 1, matchDisplay: "invalid" }),
+  );
+  expect(readSearchPreferences().matchDisplay).toBe("sections");
 });
