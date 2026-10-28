@@ -43,6 +43,22 @@ The other 28 Linux references stay intact, including incidental phone Chromium
 fallback raster differences excluded from adoption. Ordinary final-head CI with
 snapshot updates disabled remains required; capture is separate evidence.
 
+The follow-up device harness gives the long precedence/recovery scenario its own
+90-second budget, including cold browser setup; individual assertion timeouts and
+pixel/geometry thresholds remain unchanged. An API-request-owned encounter fixture
+performs bounded, asserted cleanup after page teardown. A cancellation probe
+recorded DELETE200 after an intentional timeout and a successful following run
+with the same encounter name.
+
+The post-edit document checkpoint now deliberately focuses the updated 1d12
+condition-name link and dismisses passive hints. This defines the screenshot state;
+it does not certify automatic modal focus restoration. Four macOS
+`precedence-sources` frames change only their focus cues. Parent and independent
+Astra reviewed every pair; other frames retain their preceding references,
+including excluded incidental 1/255 raster changes. All four capture cases and the subsequent twelve ordinary repetitions pass with
+snapshot updates disabled. The product source remains `f777261b`; this follow-up changes the test harness and
+reference focus state only. Linux focus references require separate hosted capture.
+
 ## Encounter settings and participant title alignment
 
 macOS arm64, Playwright 1.62.1, product source
