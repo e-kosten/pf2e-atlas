@@ -1204,18 +1204,28 @@ fn fleeing_hint_uses_feared_subject_instead_of_causal_source() {
 fn child_immunity_keeps_the_parent_and_independent_saved_causes() {
     use super::{ConditionImmunity, ImmunityCoverage};
     for (parent, child) in [
-        (ConditionRule::Prone, ConditionRule::OffGuard),
-        (ConditionRule::Grabbed, ConditionRule::Immobilized),
+        (ConditionRule::Confused, ConditionRule::OffGuard),
+        (ConditionRule::Dying, ConditionRule::Unconscious),
         (ConditionRule::Encumbered, ConditionRule::Clumsy),
+        (ConditionRule::Grabbed, ConditionRule::OffGuard),
+        (ConditionRule::Grabbed, ConditionRule::Immobilized),
+        (ConditionRule::Paralyzed, ConditionRule::OffGuard),
+        (ConditionRule::Prone, ConditionRule::OffGuard),
+        (ConditionRule::Restrained, ConditionRule::OffGuard),
+        (ConditionRule::Restrained, ConditionRule::Immobilized),
+        (ConditionRule::Unconscious, ConditionRule::Blinded),
+        (ConditionRule::Unconscious, ConditionRule::OffGuard),
     ] {
         let mut p = participant();
         p.conditions = vec![condition(1, parent, None)];
-        let mut sources = super::source_conditions::SourceConditions::default();
-        sources.immunities = vec![ConditionImmunity {
-            slug: child.definition().slug.into(),
-            coverage: ImmunityCoverage::Unconditional,
-        }]
-        .into();
+        let sources = super::source_conditions::SourceConditions {
+            immunities: vec![ConditionImmunity {
+                slug: child.definition().slug.into(),
+                coverage: ImmunityCoverage::Unconditional,
+            }]
+            .into(),
+            ..Default::default()
+        };
         let resolved = super::causes::condition_causes(&p, None, &sources);
         assert!(resolved.known_presence(parent).unwrap());
         assert!(!resolved.known_presence(child).unwrap());
@@ -1297,4 +1307,61 @@ fn cyclic_activation_retains_unrelated_known_grants_and_reports_uncertainty() {
     let resolved = super::causes::condition_causes(&p, None, &sources);
     assert!(resolved.known_presence(ConditionRule::Quickened).unwrap());
     assert!(resolved.known_presence(ConditionRule::Slowed).is_err());
+}
+
+#[test]
+fn possible_suppression_cannot_establish_a_condition_gated_extra_action() {
+    let mut p = participant();
+    p.conditions
+        .push(condition(1, ConditionRule::Dazzled, None));
+    let record = atlas_search::test_support::record("actors", "Actor", json!({
+        "_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Conditional senses",
+        "system":{"traits":{"value":[]},"attributes":{"immunities":[]}},
+        "items":[{"_id":"bbbbbbbbbbbbbbbb","type":"action","system":{
+            "actionType":{"value":"passive"},"rules":[
+                {"key":"GrantItem","inMemoryOnly":true,"uuid":"fixture:blinded","predicate":["unknown-context"]},
+                {"key":"GrantItem","inMemoryOnly":true,"uuid":"fixture:quickened","predicate":["self:condition:dazzled"]}
+            ]}}
+        ]
+    })).record;
+    let sources = super::source_conditions::source_conditions(&record, |uuid| {
+        Ok(Some(if uuid.ends_with("blinded") {
+            ConditionRule::Blinded
+        } else {
+            ConditionRule::Quickened
+        }))
+    })
+    .unwrap();
+    let resolved = super::causes::condition_causes(&p, None, &sources);
+    assert!(resolved.known_presence(ConditionRule::Dazzled).is_err());
+    assert!(resolved.known_presence(ConditionRule::Quickened).is_err());
+    assert!(super::capabilities::action_allocation(&p, &sources).is_none());
+}
+
+#[test]
+fn possible_restrained_demotes_grabbed_but_keeps_independent_known_off_guard() {
+    let mut p = participant();
+    p.conditions = vec![
+        condition(1, ConditionRule::Grabbed, None),
+        condition(2, ConditionRule::OffGuard, None),
+    ];
+    let record = atlas_search::test_support::record("actors","Actor",json!({
+        "_id":"aaaaaaaaaaaaaaaa","type":"npc","system":{"traits":{"value":[]},"attributes":{"immunities":[]}},
+        "items":[{"_id":"bbbbbbbbbbbbbbbb","type":"action","system":{"actionType":{"value":"passive"},"rules":[
+            {"key":"GrantItem","inMemoryOnly":true,"uuid":"fixture:restrained","predicate":["unknown-context"]}
+        ]}}]
+    })).record;
+    let sources = super::source_conditions::source_conditions(&record, |_| {
+        Ok(Some(ConditionRule::Restrained))
+    })
+    .unwrap();
+    let resolved = super::causes::condition_causes(&p, None, &sources);
+    assert!(resolved.known_presence(ConditionRule::Grabbed).is_err());
+    assert!(resolved.known_presence(ConditionRule::OffGuard).unwrap());
+    assert!(resolved.known_presence(ConditionRule::Immobilized).is_err());
+    p.conditions
+        .push(condition(3, ConditionRule::Restrained, None));
+    let known = super::causes::condition_causes(&p, None, &sources);
+    assert!(!known.known_presence(ConditionRule::Grabbed).unwrap());
+    assert!(known.known_presence(ConditionRule::Immobilized).unwrap());
 }
