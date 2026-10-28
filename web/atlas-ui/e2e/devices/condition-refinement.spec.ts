@@ -179,6 +179,7 @@ test.describe(() => {
     await checkpoint(page, info, "precedence-editor.png");
     await activate(editor.getByRole("button", { name: "Apply", exact: true }), info);
     await expect(editor).toHaveCount(0);
+    if (!info.project.use.hasTouch) await expect(edit).toBeFocused();
     const updatedSource = page.getByRole("link", {
       name: /Persistent Damage.*1d12/,
     });
