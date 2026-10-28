@@ -202,21 +202,26 @@ function AddToRecordModal({
         kind === "list"
           ? listDestination({ slug: destination.slug, selectedRecordKey: null })
           : encounterDestination({ slug: destination.slug });
-      void message.success(
-        <>
-          {alreadyPresent ? "Already in " : "Added to "}
-          <Typography.Link
-            href={destinationHref(target)}
-            onClick={(event) => {
-              if (!isPrimaryActivation(event)) return;
-              event.preventDefault();
-              navigateDestination(target);
-            }}
-          >
-            {destination.name}
-          </Typography.Link>
-        </>,
-      );
+      void message.success({
+        // Feedback chrome must not intercept the next action beneath it.
+        styles: { root: { pointerEvents: "none" } },
+        content: (
+          <>
+            {alreadyPresent ? "Already in " : "Added to "}
+            <Typography.Link
+              style={{ pointerEvents: "auto" }}
+              href={destinationHref(target)}
+              onClick={(event) => {
+                if (!isPrimaryActivation(event)) return;
+                event.preventDefault();
+                navigateDestination(target);
+              }}
+            >
+              {destination.name}
+            </Typography.Link>
+          </>
+        ),
+      });
       onClose();
     },
     onError: () => {
