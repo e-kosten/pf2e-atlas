@@ -89,10 +89,9 @@ it.each([false, true])(
       "Special abilities",
       "Reset",
     ];
-    for (let i = 1; i < ordered.length; i++)
-      expect(headings.indexOf(ordered[i - 1])).toBeLessThan(
-        headings.indexOf(ordered[i]),
-      );
+    expect(headings.filter((heading) => ordered.includes(heading ?? ""))).toEqual(
+      ordered,
+    );
     expect(screen.getByText("Detection DC").parentElement).toHaveTextContent("22");
     if (!encounter)
       expect(screen.getByText("Broken Threshold").parentElement).toHaveTextContent(
