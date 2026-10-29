@@ -434,12 +434,12 @@ fn actual_complete_source_build_has_typed_projection_content_and_navigation_cove
         embedding_batch_size: 16,
     })
     .unwrap();
-    assert_eq!(report.record_count, 25641);
-    assert_eq!(report.product_record_count, 25560);
+    assert_eq!(report.record_count, 29894);
+    assert_eq!(report.product_record_count, 29813);
     assert_eq!(report.source_report.quarantined_files, 0);
     assert!(report.source_report.identity_unavailable.is_empty());
     let validation = atlas_index::validate_artifact(&report.output_path).unwrap();
-    assert_eq!(validation.checked_snapshots, 25641);
+    assert_eq!(validation.checked_snapshots, 29894);
     let reader = atlas_index::test_support::open_reader(&report.output_path).unwrap();
     fs::write(evidence.join("full-lexical-census.json"),serde_json::to_vec_pretty(&serde_json::json!({"records":report.record_count,"product_records":report.product_record_count,"source_report":report.source_report,"validation":validation,"duration_ms":report.build_duration_ms,"source_fingerprint":report.source_fingerprint,"context":reader.context()})).unwrap()).unwrap();
     eprintln!(
@@ -490,7 +490,7 @@ fn complete_artifact_snapshots_equal_independently_reloaded_source_models() {
             roots += 1;
         }
     }
-    assert_eq!(roots, 25641);
+    assert_eq!(roots, 29894);
     assert_eq!(macros, 81);
     assert_eq!(reader.statistics().unwrap().records, roots);
     fs::write(
