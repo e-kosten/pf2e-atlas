@@ -240,7 +240,7 @@ test("unknown manual HP stays unknown until corrected and survives reload", asyn
   }
 });
 
-test("saved list creation and unknown manual participant HP use actual local-state workflows", async ({
+test("saved list creation and adding an exact source survive reload", async ({
   page,
 }) => {
   const suffix = Date.now().toString();
@@ -258,202 +258,165 @@ test("saved list creation and unknown manual participant HP use actual local-sta
   await expect(
     page.getByText("Browser List " + suffix, { exact: true }).first(),
   ).toBeVisible();
-  await page.goto("/records/pathfinder-bestiary%3ALHHgGSs0ELCR4CYK");
-  await page
-    .getByRole("button", { name: "Add to list or encounter", exact: true })
-    .click();
-  await page.getByRole("dialog").getByRole("combobox").click();
-  // Ant virtualizes long lists; reveal the option rather than assuming it is mounted.
-  const listPopup = page.locator(".atlas-select-popup:visible");
-  const listOption = listPopup.getByText("Browser List " + suffix, { exact: true });
-  await expect
-    .poll(async () => {
-      if (await listOption.isVisible()) return true;
-      await listPopup
-        .locator(".ant-select-dropdown-list-holder")
-        .evaluate((element) => {
-          element.scrollTop += element.clientHeight;
-        });
-      return false;
-    })
-    .toBe(true);
-  await listOption.click();
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Add", exact: true })
-    .click();
-  await expect(page.getByRole("dialog")).not.toBeVisible();
-  await page.goto(listUrl);
-  await expect(page.getByText("Ghoul", { exact: true }).first()).toBeVisible();
-  await page.reload();
-  await expect(page.getByText("Ghoul", { exact: true }).first()).toBeVisible();
-  await page.goto("/encounters");
-  await page.getByRole("button", { name: /New Encounter/i }).click();
-  const encounterDialog = page.getByRole("dialog");
-  await encounterDialog
-    .getByLabel("Name", { exact: true })
-    .fill("Browser Encounter " + suffix);
-  await encounterDialog.getByRole("button", { name: "OK", exact: true }).click();
-  await expect(page).toHaveURL(/\/encounters\/browser-encounter-/);
-  await page.getByRole("button", { name: "Add participants", exact: true }).click();
-  await page.getByRole("menuitem", { name: "Add PC…", exact: true }).click();
-  const pcDialog = page.getByRole("dialog");
-  await pcDialog.getByLabel("Name", { exact: true }).fill("Unknown Hero");
-  await pcDialog.getByRole("button", { name: "OK", exact: true }).click();
-  const hp = page.getByRole("textbox", { name: "HP", exact: true });
-  await expect(hp).toBeVisible();
-  await expect(hp).toHaveValue("");
-  await expect(
-    page.getByRole("button", { name: "Damage", exact: true }),
-  ).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Heal", exact: true })).toBeDisabled();
-  await hp.fill("12");
-  await page.getByRole("button", { name: "Set", exact: true }).first().click();
-  await expect(hp).toHaveValue("12");
-  await expect(page.getByRole("button", { name: "Damage", exact: true })).toBeEnabled();
-  await page.reload();
-  await page.getByText("Unknown Hero", { exact: true }).first().click();
-  await expect(page.getByRole("textbox", { name: "HP", exact: true })).toHaveValue(
-    "12",
-  );
-  await page.screenshot({
-    path: "../../scratch/browser-validation/manual-hp.png",
-    fullPage: true,
-  });
-  await page.getByRole("button", { name: "Add participants", exact: true }).click();
-  await page
-    .getByRole("menuitem", { name: "Add creature or hazard…", exact: true })
-    .click();
-  const creatureDialog = page.getByRole("dialog");
-  await creatureDialog
-    .getByRole("searchbox", { name: "Search records", exact: true })
-    .fill("Ghoul");
-  await creatureDialog
-    .getByRole("searchbox", { name: "Search records", exact: true })
-    .press("Enter");
-  await creatureDialog
-    .locator("[data-record-key]")
-    .filter({ hasText: "Ghoul" })
-    .click();
-  await creatureDialog.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(page.getByRole("dialog")).not.toBeVisible();
-  await page.getByText("Ghoul", { exact: true }).first().click();
-  await expect(page.getByRole("textbox", { name: "HP", exact: true })).toHaveValue(
-    "20",
-  );
-  const reference = page.locator(".encounter-reference");
-  for (const [label, value] of [
-    ["AC", "16"],
-    ["Fortitude", "+4"],
-    ["Speed", "30 feet"],
-  ]) {
-    const fact = reference.locator(".record-fact").filter({
-      has: page.getByText(label, { exact: true }),
-    });
-    await expect(fact).toBeVisible();
-    await expect(fact.locator("span").first()).toHaveText(value);
+  try {
+    await page.goto("/records/pathfinder-bestiary%3ALHHgGSs0ELCR4CYK");
+    await page
+      .getByRole("button", { name: "Add to list or encounter", exact: true })
+      .click();
+    await page.getByRole("dialog").getByRole("combobox").click();
+    // Ant virtualizes long lists; reveal the option rather than assuming it is mounted.
+    const listPopup = page.locator(".atlas-select-popup:visible");
+    const listOption = listPopup.getByText("Browser List " + suffix, { exact: true });
+    await expect
+      .poll(async () => {
+        if (await listOption.isVisible()) return true;
+        await listPopup
+          .locator(".ant-select-dropdown-list-holder")
+          .evaluate((element) => {
+            element.scrollTop += element.clientHeight;
+          });
+        return false;
+      })
+      .toBe(true);
+    await listOption.click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Add", exact: true })
+      .click();
+    await expect(page.getByRole("dialog")).not.toBeVisible();
+    await page.goto(listUrl);
+    await expect(page.getByText("Ghoul", { exact: true }).first()).toBeVisible();
+    await page.reload();
+    await expect(page.getByText("Ghoul", { exact: true }).first()).toBeVisible();
+  } finally {
+    const slug = new URL(listUrl).pathname.split("/")[2];
+    expect((await page.request.delete(`/api/lists/${slug}`)).ok()).toBe(true);
   }
-  await expect(
-    reference.getByRole("heading", { name: "Strikes", exact: true }),
-  ).toBeVisible();
-  await expect(
-    reference.getByRole("heading", { name: "Abilities", exact: true }),
-  ).toBeVisible();
-  await expect(
-    reference.getByRole("button", { name: "Jaws", exact: true }),
-  ).toBeVisible();
-  await expect(reference.getByRole("button", { name: /^Ghoul Fever/ })).toBeVisible();
-  await reference
-    .getByRole("button", { name: "More creature facts", exact: true })
-    .click();
-  const stealth = reference
-    .locator(".record-fact")
-    .filter({ has: page.getByText("stealth", { exact: true }) });
-  await expect(stealth).toBeVisible();
-  await expect(stealth.locator("span").first()).toHaveText("+7");
-  await reference
-    .getByRole("button", { name: "More creature facts", exact: true })
-    .click();
-  await page.getByRole("textbox", { name: "HP", exact: true }).fill("13");
-  await page.getByRole("button", { name: "Set", exact: true }).first().click();
-  await expect(
-    page.getByRole("textbox", { name: "Ghoul current HP", exact: true }),
-  ).toHaveValue("13");
-  const variant = page.getByRole("combobox", { name: "Variant", exact: true });
-  await expect(variant).toBeEnabled();
-  await variant.press("ArrowDown");
-  await page
-    .locator(".atlas-select-popup:visible")
-    .getByText("Elite", { exact: true })
-    .click();
-  await expect(page.getByRole("textbox", { name: "HP", exact: true })).toHaveValue(
-    "23",
-  );
-  await page.getByRole("button", { name: "Add Condition", exact: true }).click();
-  const conditionPicker = page.getByRole("combobox", {
-    name: "Add condition",
-    exact: true,
+});
+test("Ghoul condition-adjusted facts and damaged elite HP survive reload", async ({
+  page,
+}) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Ghoul conditions ${Date.now()}` },
   });
-  await conditionPicker.fill("Clumsy");
-  await conditionPicker.press("Enter");
-  await expect(page.locator(".encounter-add-condition__row")).toContainText("Clumsy");
-  await page.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(page.locator(".encounter-condition-list")).toContainText("Clumsy");
-  await expect(page.getByRole("textbox", { name: "HP", exact: true })).toHaveValue(
-    "23",
-  );
-  const encounterResponse = await page.request.get(
-    `/api/encounters/${encodeURIComponent(new URL(page.url()).pathname.split("/")[2])}`,
-  );
-  expect(encounterResponse.ok()).toBeTruthy();
-  const currentEncounter = await encounterResponse.json();
-  const ghoulParticipant = currentEncounter.participants.find(
-    (participant: { display_name: string }) => participant.display_name === "Ghoul",
-  );
-  const jawsActivity = ghoulParticipant.presentation.body.value.activities.value.find(
-    (activity: { title: string }) => activity.title === "Jaws",
-  );
-  await reference.getByRole("button", { name: "Jaws", exact: true }).click();
-  const activityPreview = page.getByRole("dialog", {
-    name: "Reference preview",
-    exact: true,
-  });
-  await expect(
-    activityPreview.getByRole("heading", { name: "Jaws", exact: true }),
-  ).toBeVisible();
-  await expect(
-    activityPreview
-      .locator(".record-fact")
-      .filter({ has: page.getByText("Attack", { exact: true }) }),
-  ).toContainText("+" + jawsActivity.attack.value);
-  await expect(
-    activityPreview.getByRole("heading", { name: "Description", exact: true }),
-  ).toHaveCount(0);
-  for (const note of jawsActivity.notes)
-    await expect(activityPreview).toContainText(note.reason);
-  await page
-    .getByRole("button", { name: "Close reference preview", exact: true })
-    .click();
-  await page.getByRole("spinbutton", { name: "HP change", exact: true }).fill("3");
-  await page.getByRole("button", { name: "Damage", exact: true }).click();
-  await expect(page.getByRole("textbox", { name: "HP", exact: true })).toHaveValue(
-    "20",
-  );
-  await page.getByRole("spinbutton", { name: "HP change", exact: true }).fill("3");
-  await page.getByRole("button", { name: "Heal", exact: true }).click();
-  await expect(page.getByRole("textbox", { name: "HP", exact: true })).toHaveValue(
-    "23",
-  );
-  await page.reload();
-  await page.getByText("Ghoul", { exact: true }).first().click();
-  await expect(page.locator(".encounter-condition-list")).toContainText("Clumsy");
-  await expect(page.getByRole("textbox", { name: "HP", exact: true })).toHaveValue(
-    "23",
-  );
-  await page.screenshot({
-    path: "../../scratch/browser-validation/ghoul-encounter.png",
-    fullPage: true,
-  });
+  expect(created.ok()).toBe(true);
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    const added = await page.request.post(`${path}/participants/record`, {
+      data: {
+        encounter_ref: encounter.encounter_key,
+        record_ref: "pathfinder-bestiary:LHHgGSs0ELCR4CYK",
+        quantity: 1,
+      },
+    });
+    expect(added.ok()).toBe(true);
+    await page.goto(`/encounters/${encounter.slug}`);
+    await page.getByRole("button", { name: "Ghoul", exact: true }).click();
+    const reference = page.locator(".encounter-reference");
+    const current = page.getByRole("button", { name: "Edit Current HP", exact: true });
+    await expect(current).toHaveText("20");
+    for (const [label, value] of [
+      ["AC", "16"],
+      ["Fortitude", "+4"],
+      ["Speed", "30 feet"],
+    ]) {
+      await expect(
+        reference
+          .locator(".record-fact")
+          .filter({ has: page.getByText(label, { exact: true }) }),
+      ).toContainText(value);
+    }
+    await expect(
+      reference.getByRole("heading", { name: "Strikes", exact: true }),
+    ).toBeVisible();
+    await expect(
+      reference.getByRole("heading", { name: "Special abilities", exact: true }),
+    ).toBeVisible();
+    await expect(
+      reference.getByRole("link", { name: /^Ghoul Fever/ }).first(),
+    ).toBeVisible();
+    await expect(
+      reference
+        .locator(".record-fact")
+        .filter({ has: page.getByText("Stealth", { exact: true }) }),
+    ).toContainText("+7");
+    await current.click();
+    const hp = page.getByRole("textbox", { name: "Current HP", exact: true });
+    await hp.fill("13");
+    await hp.press("Enter");
+    await expect(current).toHaveText("13");
+    await page
+      .getByRole("button", { name: "Participant settings", exact: true })
+      .click();
+    await page.getByRole("menuitem", { name: "Edit participant", exact: true }).click();
+    const settings = page.getByRole("dialog", {
+      name: "Participant settings",
+      exact: true,
+    });
+    await settings.getByRole("combobox", { name: "Adjustment", exact: true }).click();
+    await page
+      .locator(".ant-select-dropdown:visible")
+      .getByText("Elite", { exact: true })
+      .click();
+    await settings.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(settings).toBeHidden();
+    await expect(current).toHaveText("23");
+    await page.getByRole("button", { name: "Add Condition", exact: true }).click();
+    const editor = page.getByRole("dialog", { name: "Add condition", exact: true });
+    await editor
+      .getByRole("combobox", { name: "Add condition", exact: true })
+      .fill("Clumsy");
+    await page
+      .locator(".ant-select-dropdown:visible")
+      .getByText("Clumsy", { exact: true })
+      .click();
+    await editor.getByRole("button", { name: "Apply", exact: true }).click();
+    await expect(editor).toBeHidden();
+    await expect(
+      page.getByRole("spinbutton", { name: "Clumsy value", exact: true }),
+    ).toHaveValue("1");
+    await expect(current).toHaveText("23");
+    await expect(
+      reference
+        .locator(".record-fact")
+        .filter({ has: page.getByText("AC", { exact: true }) })
+        .getByRole("button", { name: "Show value explanation: 17", exact: true }),
+    ).toBeVisible();
+    await expect(
+      reference.getByRole("button", {
+        name: "Strike Jaws attack +10",
+        exact: true,
+      }),
+    ).toBeVisible();
+    const amount = page.getByRole("textbox", { name: "HP change", exact: true });
+    await amount.fill("3");
+    await page.getByRole("button", { name: "Damage", exact: true }).click();
+    await expect(current).toHaveText("20");
+    await amount.fill("3");
+    await page.getByRole("button", { name: "Heal", exact: true }).click();
+    await expect(current).toHaveText("23");
+    await page.reload();
+    await page.getByRole("button", { name: "Ghoul", exact: true }).click();
+    await expect(
+      page.getByRole("spinbutton", { name: "Clumsy value", exact: true }),
+    ).toHaveValue("1");
+    await expect(current).toHaveText("23");
+    const saved = await (await page.request.get(path)).json();
+    expect(saved.participants).toHaveLength(1);
+    expect(saved.participants[0]).toMatchObject({
+      current_hp: 23,
+      max_hp: 30,
+      participant_variant: "elite",
+    });
+    expect(saved.participants[0].conditions).toHaveLength(1);
+    expect(saved.participants[0].conditions[0]).toMatchObject({
+      name: "Clumsy",
+      value: 1,
+    });
+  } finally {
+    expect((await page.request.delete(path)).ok()).toBe(true);
+  }
 });
 test("owned Ghoul Fever and named GM passage use actual selected detail routes", async ({
   page,

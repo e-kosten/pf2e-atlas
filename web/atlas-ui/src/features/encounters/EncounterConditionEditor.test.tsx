@@ -595,7 +595,16 @@ it("accepts incomplete persistent damage without eager required-field errors", a
   await apply();
   await waitFor(() =>
     expect(onSave).toHaveBeenCalledWith(
-      expect.objectContaining({ note: "Burning until the blessing ends" }),
+      expect.objectContaining({
+        note: "Burning until the blessing ends",
+        parameters: {
+          kind: "persistent_damage",
+          formula: null,
+          damage_type: null,
+          multiplier: "normal",
+          recovery: { kind: "specified", dc: 15n },
+        },
+      }),
     ),
   );
 });

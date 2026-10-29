@@ -1170,16 +1170,24 @@ mod modifier_tests {
     }
     #[test]
     fn strongest_bonus_and_penalty_both_apply_in_either_order() {
-        for values in [[2, -3, 1, -1], [-1, 1, -3, 2]] {
+        for values in [[2, -7, 5, -1], [-1, 5, -7, 2]] {
             let mut value = Number::from(10);
             let mut applied = vec![];
             let mut suppressed = vec![];
             for amount in values {
                 apply_modifier(&mut value, &mut applied, &mut suppressed, modifier(amount));
             }
-            assert_eq!(value, Number::from(9));
-            assert_eq!(applied.len(), 2);
-            assert_eq!(suppressed.len(), 2);
+            assert_eq!(value, Number::from(8));
+            applied.sort_by_key(|row| row.value);
+            suppressed.sort_by_key(|row| row.value);
+            assert_eq!(
+                applied.iter().map(|row| row.value).collect::<Vec<_>>(),
+                [-7, 5]
+            );
+            assert_eq!(
+                suppressed.iter().map(|row| row.value).collect::<Vec<_>>(),
+                [-1, 2]
+            );
         }
     }
     #[test]

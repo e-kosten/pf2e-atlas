@@ -36,7 +36,7 @@ fn corpus_projection_and_selected_read_plans() -> Result<(), Box<dyn std::error:
         ),
         (
             "same-child-spell",
-            "embedded.spells.exists(i,i.rank>=3 && 'fire' in i.traits)",
+            "embedded.spells.exists(i,i.spell.rank>=3 && 'fire' in i.traits)",
         ),
     ] {
         let query = parse_where(expression)?;

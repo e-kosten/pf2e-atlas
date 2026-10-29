@@ -169,7 +169,7 @@ it("saves the latest edit during debounce when there are no application conseque
   fireEvent.click(screen.getByText("Edit value"));
   fireEvent.click(screen.getByText("Save immediately"));
   await waitFor(() =>
-    expect(commit).toHaveBeenCalledWith(expect.objectContaining({ value: 2n })),
+    expect(commit).toHaveBeenCalledExactlyOnceWith({ ...request, value: 2n }),
   );
 });
 it("shows newly changed consequences before allowing an immediate save", async () => {
@@ -188,7 +188,7 @@ it("shows newly changed consequences before allowing an immediate save", async (
   expect(commit).not.toHaveBeenCalled();
   fireEvent.click(screen.getByText("Save immediately"));
   await waitFor(() =>
-    expect(commit).toHaveBeenCalledWith(expect.objectContaining({ value: 2n })),
+    expect(commit).toHaveBeenCalledExactlyOnceWith({ ...request, value: 2n }),
   );
 });
 

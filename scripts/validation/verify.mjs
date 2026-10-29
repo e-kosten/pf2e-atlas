@@ -46,9 +46,12 @@ const clippy = (scope) => [
   ),
 ];
 const rust = [
+  cargo("nextest availability", "nextest", "--version"),
+  cargo("nextest configuration", "nextest", "show-config", "version"),
   fmt,
   ...clippy(["--workspace"]),
-  cargo("workspace tests", "test", "--workspace"),
+  cargo("workspace tests", "nextest", "run", "--workspace"),
+  cargo("workspace doctests", "test", "--workspace", "--doc"),
   cargo("workspace build", "build", "--workspace"),
 ];
 const developer = [
@@ -99,7 +102,7 @@ try {
       throw new Error(`Unknown verify option: ${argument}`);
   if (args.includes("--help") || args.includes("-h")) {
     console.log(
-      "Usage: scripts/verify.sh [--verbose]\nRun the full Rust fmt, clippy, test, and build gate.",
+      "Usage: scripts/verify.sh [--verbose]\nRun the full Rust fmt, clippy, nextest, doctest, and build gate.",
     );
   } else {
     const full = args.includes("--full") || mode === "--rust";

@@ -1057,22 +1057,21 @@ mod tests {
     #[test]
     #[ignore = "requires the pinned PF2e source export; run explicitly"]
     fn actual_owned_ghoul_fever_and_gm_soul_degradation_have_source_navigation() {
-        let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .ancestors()
-            .map(|parent| parent.join("scratch/source-contracts-full/pf2e"))
-            .find(|path| path.join("packs/pathfinder-bestiary/ghoul.json").is_file())
-            .expect("pinned source export required");
+        let source = std::path::PathBuf::from(
+            std::env::var("ATLAS_PF2E_SOURCE")
+                .expect("set ATLAS_PF2E_SOURCE to the pinned source export"),
+        );
         for (kind, pack, file, expected) in [
             (
                 "Actor",
                 "pathfinder-bestiary",
-                "packs/pathfinder-bestiary/ghoul.json",
+                "packs/pf2e/pathfinder-bestiary/ghoul.json",
                 "Ghoul Fever",
             ),
             (
                 "Item",
                 "campaign-effects",
-                "packs/campaign-effects/season-of-ghosts/effect-spirit-powers.json",
+                "packs/pf2e/campaign-effects/season-of-ghosts/effect-spirit-powers.json",
                 "Soul Degradation",
             ),
         ] {

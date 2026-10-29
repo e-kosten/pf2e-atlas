@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
   copyFileSync,
@@ -148,8 +149,14 @@ test("Rust-only and frontend test/doc changes reuse the verified UI bundle", (t)
   success(second);
   assert.deepEqual(f.calls(), ["npm", "cargo", "cargo"]);
   const receipt = JSON.parse(f.receipt());
-  assert.equal(receipt.binary_sha256.length, 64);
-  assert.equal(receipt.frontend_sha256.length, 64);
+  assert.equal(
+    receipt.binary_sha256,
+    createHash("sha256").update("fixture executable").digest("hex"),
+  );
+  assert.equal(
+    receipt.frontend_sha256,
+    createHash("sha256").update("<html>fixture</html>").digest("hex"),
+  );
   assert.equal(receipt.source.dirty, true);
   assert.match(receipt.api_contract, /^atlas-web-v2-/);
 });

@@ -167,17 +167,21 @@ export async function runChecks(
       );
       writeFileSync(join(check, "phase.pid"), `${process.pid}\n`);
       let toolchain = `${process.version}\n`;
-      for (const tool of command === "cargo"
-        ? ["rustc", "cargo"]
+      for (const [tool, ...toolArguments] of command === "cargo"
+        ? [
+            ["rustc"],
+            ["cargo"],
+            ...(args[0] === "nextest" ? [["cargo", "nextest"]] : []),
+          ]
         : command === "npm"
-          ? ["npm"]
+          ? [["npm"]]
           : []) {
         try {
           const result = execFileSync(
             process.platform === "win32" ? "sh" : tool,
             process.platform === "win32"
-              ? ["-c", '"$@" --version', "sh", tool]
-              : ["--version"],
+              ? ["-c", '"$@" --version', "sh", tool, ...toolArguments]
+              : [...toolArguments, "--version"],
             { encoding: "utf8", timeout: 5000 },
           );
           toolchain += result;

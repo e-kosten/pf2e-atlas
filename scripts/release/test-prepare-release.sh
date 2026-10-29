@@ -335,8 +335,12 @@ grep -q 'cargo clippy --workspace --lib --bins -- -D warnings -D clippy::unwrap_
   echo "prepare-release --open-pr did not run strict runtime clippy validation" >&2
   exit 1
 }
-grep -q 'cargo test --workspace' "$log" || {
-  echo "prepare-release --open-pr did not run cargo tests" >&2
+grep -q '^cargo nextest run --workspace$' "$log" || {
+  echo "prepare-release --open-pr did not run workspace tests" >&2
+  exit 1
+}
+grep -q '^cargo test --workspace --doc$' "$log" || {
+  echo "prepare-release --open-pr did not run doctests" >&2
   exit 1
 }
 grep -q 'git add Cargo.lock THIRD-PARTY-NOTICES.md crates/atlas-cli/Cargo.toml docs/releases/v0.1.0.md' "$log" || {

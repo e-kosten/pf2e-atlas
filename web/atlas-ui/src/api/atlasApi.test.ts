@@ -308,14 +308,13 @@ describe("source-backed API transport", () => {
     });
     const result = await getEncounter("ambush");
     const participant = result.participants[0];
+    expect(participant.conditions[0].condition_id).toBe(9n);
     expect(participant.conditions[0].parameters).toMatchObject({
       recovery: { kind: "specified", dc: 12n },
     });
     expect(participant.persistent_damage_groups[0]).toMatchObject({
       selected_source_id: 9n,
-      sources: [
-        { condition_id: participant.conditions[0].condition_id, recovery_dc: 12n },
-      ],
+      sources: [{ condition_id: 9n, recovery_dc: 12n }],
     });
   });
   it.each(["creature", "hazard"] as const)(
@@ -343,7 +342,7 @@ describe("source-backed API transport", () => {
       const expected = [
         {
           ...notes[0],
-          condition_id: encounter.participants[0].conditions[0].condition_id,
+          condition_id: 9n,
         },
         notes[1],
       ];

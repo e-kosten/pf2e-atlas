@@ -1414,8 +1414,8 @@ mod lifecycle_event_tests {
     #[test]
     fn actual_dying_removal_increases_wounded_but_correction_does_not() {
         for (suffix, intent, expected) in [
-            ("effect", ConditionRemovalIntentView::RemoveEffect, true),
-            ("correction", ConditionRemovalIntentView::Correction, false),
+            ("effect", ConditionRemovalIntentView::RemoveEffect, Some(1)),
+            ("correction", ConditionRemovalIntentView::Correction, None),
         ] {
             let (worker, key, participant) = fixture();
             add(
@@ -1449,7 +1449,8 @@ mod lifecycle_event_tests {
                 worker.encounter(&key).unwrap().participants[0]
                     .conditions
                     .iter()
-                    .any(|condition| condition.condition_key.as_deref() == Some(wounded)),
+                    .find(|condition| condition.condition_key.as_deref() == Some(wounded))
+                    .map(|condition| condition.value.unwrap()),
                 expected
             );
         }
