@@ -163,6 +163,32 @@ test("receipt inspection explains environment and source changes without exposin
   assert.match(result.stdout, /source inputs changed/);
 });
 
+test("receipt status ignores launch identifiers but keeps compiler environment changes", (t) => {
+  const f = fixture(t);
+  const result = execute(
+    f,
+    `
+    const task=['receipt','sh','-c','true'];await runChecks([task]);
+    process.env.CODEX_TOOL_CALL_ID='new invocation';process.env.XPC_SERVICE_NAME='new launch';
+    console.log('META:'+JSON.stringify(inspectEvidence([task])));
+    process.env.LIBRARY_PATH='private-compiler-input-value';
+    console.log('BUILD:'+JSON.stringify(inspectEvidence([task])));
+  `,
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const reports = result.stdout.split("\n");
+  assert.match(
+    reports.find((line) => line.startsWith("META:")),
+    /matching evidence/,
+  );
+  assert.match(
+    reports.find((line) => line.startsWith("BUILD:")),
+    /invalidated/,
+  );
+  assert.match(result.stdout, /LIBRARY_PATH/);
+  assert.doesNotMatch(result.stdout, /private-compiler-input-value/);
+});
+
 for (const kind of ["npm", "cargo"])
   test(`${kind} input artifacts changing during a successful check invalidate its evidence`, (t) => {
     const f = fixture(t);

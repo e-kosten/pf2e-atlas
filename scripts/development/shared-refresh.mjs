@@ -144,6 +144,8 @@ try {
       "--embedding-cache-path",
       models,
       "--json",
+      "--progress",
+      "always",
     ],
     [
       "publish validated shared seed",
@@ -169,6 +171,8 @@ try {
       "--embedding-cache-path",
       models,
       "--json",
+      "--progress",
+      "always",
     ],
   ]);
   process.exitCode = code;
