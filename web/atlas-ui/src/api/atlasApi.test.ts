@@ -1,3 +1,5 @@
+import { expectTypeOf } from "vitest";
+import type { AtlasRequestInit } from "./atlasApi";
 import {
   applyEncounterHpAction,
   getEncounterTurnReview,
@@ -1514,3 +1516,14 @@ it.each([0, 2, null])(
     ]);
   },
 );
+
+it("requires deliberate intent for non-GET transport requests", () => {
+  expectTypeOf<{ method: "POST"; body: string }>().not.toExtend<AtlasRequestInit>();
+  expectTypeOf<{ method: "PATCH" }>().not.toExtend<AtlasRequestInit>();
+  expectTypeOf<{ method: "DELETE" }>().not.toExtend<AtlasRequestInit>();
+  expectTypeOf<{ method: "POST"; readOnly: true }>().not.toExtend<AtlasRequestInit>();
+  expectTypeOf<{ method: string; intent: "read" }>().not.toExtend<AtlasRequestInit>();
+  expectTypeOf<{ method: "POST"; intent: "read" }>().toExtend<AtlasRequestInit>();
+  expectTypeOf<{ method: "POST"; intent: "action" }>().toExtend<AtlasRequestInit>();
+  expectTypeOf<{ signal: AbortSignal }>().toExtend<AtlasRequestInit>();
+});
