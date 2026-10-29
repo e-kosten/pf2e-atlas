@@ -675,12 +675,35 @@ npm --prefix web/atlas-ui run test -- src/features/encounters/encounterViews.tes
 ```
 
 Run focused tests for the actual changed owner; the encounter example is not a
-universal smoke test. At a coherent final candidate, run the full frontend gate:
+universal smoke test. Keep related validated commits in a coherent publication
+batch when immediate CI feedback is unnecessary: PR selection uses the complete
+base-to-head diff, so another push can repeat gates for earlier unchanged work.
+Reuse successful checks while their inputs remain unchanged; after substantive
+changes, rerun affected checks and require final-head CI before readiness.
+
+At a coherent final candidate, run the full frontend gate:
 
 ```bash
 just web-ui-verify
 # or: npm --prefix web/atlas-ui run verify
 ```
+
+`verify` performs route preparation and TypeScript checking once, then runs
+Vitest and the production bundle. `check`, `test` and `build` remain self-contained
+standalone commands. `verify:bundle` performs checks and builds without unit tests;
+CI uses it alongside the independent unit-test job. Vite retains its production
+router generation/code splitting; the separate Vitest configuration needs no
+route watcher or splitter.
+
+`vitest.config.ts` explicitly assigns reviewed value/request tests to the `node`
+project. Other tests default to the `dom` project with JSDOM, browser storage and
+React Testing Library setup. Review runtime imports and exercised behavior before
+moving a file to Node: a URL codec is suitable, but a `.test.ts` suffix alone is
+insufficient (storage preferences and `renderHook` tests still need JSDOM).
+Run a project directly with
+`npm --prefix web/atlas-ui run test -- --project node` or select a file normally.
+Both projects share the existing one-worker limit; environment selection does not
+relax assertions or remove cases.
 
 Shared browser layout, navigation, overlays and forms also use the maintained
 device acceptance suite:
@@ -711,9 +734,27 @@ phone/tablet/desktop matrix exercises real touch and keyboard flows. It is separ
 from `npm --prefix web/atlas-ui run test:e2e`, whose broader scenarios require a
 caller-supplied real corpus server.
 
+Browser project selection is explicit in `playwright.devices.config.ts`:
+
+| Scenarios | Projects | Protection |
+| --- | --- | --- |
+| `journeys` Search pagination URLs/history, list query/include/exclude tags, encounter archive history, unreadable-filter recovery (`@engine`) | desktop-chromium, phone-webkit | Both engines; reload/copied links, native history and persisted state |
+| `list-metadata` measurement/disclosure (`@engine`) | desktop-chromium, phone-webkit; each checks the 390px phone viewport | MutationObserver catches visible measurement chips; complete long tags, popup bounds, Escape and focus |
+| Other journeys, feedback, spell effects, conditions/refinement, encounter forms and turn reminders | All four existing desktop/phone/tablet projects | Original touch, geometry, scrolling, focus, theme, motion and visual checks |
+| Compatibility and transition specs | desktop-chromium | Original desktop-only integration checks |
+
+Use `@engine` only for an explicitly reviewed scenario whose meaningful failures
+are covered on the two selected engines. Keep viewport-sensitive cases on their
+existing projects; do not tag a whole spec merely because some tests exercise
+URLs. New untagged cases retain the spec's original matrix. Inspect assignments
+with `npm --prefix web/atlas-ui exec -- playwright test --config web/atlas-ui/playwright.devices.config.ts --list`
+from the repository root, or run the equivalent command inside `web/atlas-ui`
+with `--config playwright.devices.config.ts`.
+
 CI builds the frontend once after fast checks. Full Rust verification and a
-browser-fixture build then run independently. Two browser shards reuse that
-compiled fixture; each runner starts its own disposable SQLite workspace and one
+browser-fixture build then run independently. Unit tests can start alongside the
+frontend checks/build because they do not consume the bundle. Two browser shards reuse
+that compiled fixture; each runner starts its own disposable SQLite workspace and one
 Playwright worker. No mutable database or live Cargo target is shared between
 runners. The
 `validation complete` check requires both shards, the fixture build, the frontend
