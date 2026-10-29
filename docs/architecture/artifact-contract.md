@@ -551,6 +551,11 @@ Within a validation pass, each root's checked prepared content feeds search
 selection directly. Its bytes and sidecars are validated once in the caller's
 transaction and discarded after that root; no cross-transaction validation cache
 or weaker publication check is introduced.
+Trait membership and reference evidence is accumulated with the compact checked
+record identity traversal. Deep validation does not reconstruct whole-corpus
+build inputs for those comparisons. Cached-row metadata, including unpublished
+rows, and admission diagnostics remain validated per record; full build-input
+reconstruction stays available to projection upgrades that need its output.
 Complete vector validation scans unit IDs in storage order rather than following
 the input-hash reuse index. Workspace sessions use an 8 MiB demand-filled SQLite
 page-cache target so sequential vec0 chunks fit without repeated eviction; this

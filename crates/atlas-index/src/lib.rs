@@ -49,6 +49,8 @@ mod schema;
 #[cfg(any(test, feature = "test-support"))]
 pub mod test_support;
 mod validation;
+#[cfg(test)]
+mod validation_tests;
 mod validation_units;
 mod writer;
 
