@@ -3,7 +3,10 @@ import {
   createSavedList,
   getReadiness,
   getRecordDetail,
+  getSimilarityParts,
+  searchPage,
 } from "./atlasApi";
+import { errorExplanation } from "../shared/feedback/errorMessages";
 import {
   API_CONTRACT,
   API_CONTRACT_HEADER,
@@ -40,7 +43,7 @@ it("keeps native transport diagnostics while distinguishing read-only POSTs from
       source_fingerprint: null,
     }),
   ).rejects.toMatchObject({ write: false, cause });
-  expect(fetchMock.mock.calls[0][1]).not.toHaveProperty("readOnly");
+  expect(fetchMock.mock.calls[0][1]).not.toHaveProperty("intent");
   await expect(
     createSavedList({ name: "Research", slug: "research", tags: [] }),
   ).rejects.toMatchObject({ write: true, cause });
@@ -96,5 +99,77 @@ it.each([false, true])(
       cause,
     });
     expect(fetchMock).toHaveBeenCalledOnce();
+  },
+);
+
+const similarityRequest = {
+  seed: { kind: "record" as const, record_key: "actors:ghoul" },
+  expected_artifact_generation: null,
+};
+
+it.each(["network", "stream", "gateway"] as const)(
+  "Similarity inventory %s failure stays a read without uncertain-change feedback",
+  async (failure) => {
+    const cause = new TypeError("private transport diagnostic");
+    if (failure === "network") fetchMock.mockRejectedValue(cause);
+    else if (failure === "stream") {
+      const response = new Response(null, {
+        headers: { [API_CONTRACT_HEADER]: API_CONTRACT },
+      });
+      vi.spyOn(response, "text").mockRejectedValue(cause);
+      fetchMock.mockResolvedValue(response);
+    } else
+      fetchMock.mockResolvedValue(
+        new Response("upstream unavailable", { status: 504 }),
+      );
+    const error = await getSimilarityParts(similarityRequest).catch(
+      (error: unknown) => error,
+    );
+    expect(error).toBeInstanceOf(AtlasConnectionError);
+    expect(error).toMatchObject({ write: false });
+    if (failure !== "gateway") expect(error).toHaveProperty("cause", cause);
+    expect(errorExplanation(error)).toBeUndefined();
+    reportAvailabilityFailure(error);
+    expect(getAvailabilityFailure()).toBe(error);
+    const write = new AtlasConnectionError(true, "uncertain save");
+    reportAvailabilityFailure(write);
+    reportAvailabilityFailure(error);
+    expect(getAvailabilityFailure()).toBe(write);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  },
+);
+
+it("keeps search POST outages read-only through the real adapter", async () => {
+  const cause = new TypeError("connection lost");
+  fetchMock.mockRejectedValue(cause);
+  await expect(
+    searchPage({
+      criteria: { kind: "list_records", filter: null },
+      page: { number: 1, size: 20 },
+      expected_artifact_generation: null,
+    }),
+  ).rejects.toMatchObject({ write: false, cause });
+});
+
+it.each(["network", "stream"] as const)(
+  "preserves abandoned Similarity %s failures",
+  async (failure) => {
+    const controller = new AbortController();
+    const cause = new DOMException("abandoned", "AbortError");
+    if (failure === "network") fetchMock.mockRejectedValue(cause);
+    else {
+      const response = new Response(null, {
+        headers: { [API_CONTRACT_HEADER]: API_CONTRACT },
+      });
+      vi.spyOn(response, "text").mockImplementation(async () => {
+        controller.abort();
+        throw cause;
+      });
+      fetchMock.mockResolvedValue(response);
+    }
+    await expect(getSimilarityParts(similarityRequest, controller.signal)).rejects.toBe(
+      cause,
+    );
+    expect(getAvailabilityFailure()).toBeNull();
   },
 );
