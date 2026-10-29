@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Build orchestration stays outside the build-independent Rust developer tool.
+import { buildProfile, selectedProfile } from "./build-profile.mjs";
 import { requireReadiness } from "./preflight.mjs";
 import { createHash } from "node:crypto";
 import {
@@ -19,6 +20,7 @@ const checkout = execFileSync(
   ["-C", process.argv[2] ?? ".", "rev-parse", "--show-toplevel"],
   { encoding: "utf8" },
 ).trim();
+const profile = buildProfile(checkout, selectedProfile(process.argv.slice(3)));
 const run = (program, args) => {
   const result = spawnSync(program, args, { cwd: checkout, stdio: "inherit" });
   if (result.error) throw result.error;
@@ -87,6 +89,7 @@ try {
 console.error("Using checksum-verified current frontend bundle");
 run("cargo", [
   "build",
+  ...profile.cargoArgs,
   "--locked",
   "-p",
   "atlas-cli",
@@ -103,12 +106,10 @@ if (
     "Source or frontend changed during the build; existing preview preserved. Finish those changes and retry.",
   );
 }
-const binary = resolve(
-  checkout,
-  `target/debug/atlas${process.platform === "win32" ? ".exe" : ""}`,
-);
+const binary = profile.binary;
 const receipt = {
   version: 1,
+  profile: profile.name,
   binary_sha256: hash(readFileSync(binary)),
   frontend_sha256: frontend.sha256["index.html"],
   api_contract: frontend.api_contract,
@@ -117,7 +118,7 @@ const receipt = {
   node: process.version,
   created_at: new Date().toISOString(),
 };
-const destination = resolve(directory, "preview-build.json");
+const destination = profile.receipt;
 const temporary = `${destination}.${process.pid}.tmp`;
 writeFileSync(temporary, `${JSON.stringify(receipt, null, 2)}\n`, {
   mode: 0o600,
