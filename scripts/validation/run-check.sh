@@ -191,7 +191,10 @@ atlas_validation_check() {
 # A composite keeps its own phase supervisors, rather than another detached group.
 atlas_validation_run_owned() {
   atlas_validation_interrupt_signal=$1; shift
-  atlas_validation_saved_traps=$(trap)
+  # dash resets traps in command substitutions. Capture them in the caller's
+  # shell instead, then source the builtin's shell-quoted restoration commands.
+  atlas_validation_saved_traps_file=$(mktemp "${TMPDIR:-/tmp}/atlas-caller-traps.XXXXXX")
+  trap >"$atlas_validation_saved_traps_file"
   atlas_validation_phase_pid=
   atlas_validation_interrupted=0
   trap 'atlas_validation_interrupted=129; [ -z "$atlas_validation_phase_pid" ] || kill -HUP "$atlas_validation_phase_pid" 2>/dev/null || true' HUP
@@ -207,7 +210,10 @@ atlas_validation_run_owned() {
   done
   atlas_validation_phase_pid=
   trap - HUP INT TERM
-  eval "$atlas_validation_saved_traps"
+  # The private file contains only freshly captured builtin trap output.
+  # shellcheck disable=SC1090
+  . "$atlas_validation_saved_traps_file"
+  rm -f "$atlas_validation_saved_traps_file"
   if [ "$atlas_validation_interrupted" -ne 0 ]; then return "$atlas_validation_interrupted"; fi
   return "$atlas_validation_phase_status"
 }
