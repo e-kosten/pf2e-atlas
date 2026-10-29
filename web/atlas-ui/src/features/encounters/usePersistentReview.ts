@@ -1,3 +1,4 @@
+import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { getEncounterPersistentReview } from "../../api/atlasApi";
 export function persistentReviewQuery(
@@ -7,6 +8,7 @@ export function persistentReviewQuery(
   boundaryKey: string | null = null,
 ) {
   return queryOptions({
+    meta: referenceQueryMeta,
     queryKey: [
       "persistent-review",
       encounterRef,

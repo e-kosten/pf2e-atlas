@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Spin } from "antd";
 import type { SimilarityComponentView, SimilaritySeed } from "../../generated/atlas";
 import { ErrorNotice } from "../feedback/ErrorNotice";
-import { AtlasApiError, getTraitDetail } from "../../api/atlasApi";
+import { similarityTraitSourceQueryOptions } from "./similarityQueries";
 import { rootNavigation, useReferenceReading } from "../records/useReferenceReading";
 import { ReferenceReader } from "../records/ReferenceReader";
 import { DocumentIdentityHeader } from "../records/DocumentIdentityHeader";
@@ -12,7 +12,7 @@ import { useRecordPreview } from "../records/useRecordPreview";
 import { RecordReferenceDrawer } from "../records/RecordReferenceDrawer";
 import { recordDestination } from "../../app/destinations";
 import { navigateDestination } from "../../app/navigation";
-import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
+import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 import { recordReadingIdentity, useRetainedRecord } from "../records/useRetainedRecord";
 import {
   SourceSectionSelectionContext,
@@ -192,23 +192,7 @@ function TraitSourceDocument({
   selection?: SourceSectionSelection | null;
   onReloadSections: () => void;
 }) {
-  const query = useQuery({
-    queryKey: ["similarity-trait-source", traitKey, generation],
-    queryFn: async ({ signal }) => {
-      const detail = await getTraitDetail(
-        { trait_key: traitKey, expected_artifact_generation: generation },
-        signal,
-      );
-      if (generation && detail.artifact_generation !== generation)
-        throw new AtlasApiError(409, "The reference collection changed.", {
-          code: "artifact_generation_changed",
-          message: "The reference collection changed.",
-          recoverable_action: "refresh_results",
-        });
-      return detail;
-    },
-    staleTime: Infinity,
-  });
+  const query = useQuery(similarityTraitSourceQueryOptions(traitKey, generation));
   const detail = useRetainedRecord(
     JSON.stringify([traitKey, generation]),
     query.data,

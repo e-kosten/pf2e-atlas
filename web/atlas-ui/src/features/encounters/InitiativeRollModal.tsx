@@ -1,3 +1,4 @@
+import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { EncounterModal } from "./EncounterModal";
@@ -155,6 +156,7 @@ function useInitiativeOptions(
   enabled = true,
 ) {
   return useQuery({
+    meta: referenceQueryMeta,
     queryKey: ["initiative-options", encounterKey, participantKey ?? "batch"],
     queryFn: () => getInitiativeOptions(encounterKey),
     enabled,

@@ -1,3 +1,4 @@
+import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { queryOptions } from "@tanstack/react-query";
 import { getEncounterConditionLifecycleActions } from "../../api/atlasApi";
 
@@ -8,6 +9,7 @@ export function conditionLifecycleQuery(
   boundaryKey: string | null,
 ) {
   return queryOptions({
+    meta: referenceQueryMeta,
     queryKey: [
       "condition-lifecycle-actions",
       encounterRef,

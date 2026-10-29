@@ -1,3 +1,4 @@
+import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { Button, Popover, Space, Tooltip } from "antd";
@@ -45,6 +46,7 @@ export function EncounterLifeStatus({
     [error, setError] = useState<string>();
   const seen = useRef<Set<string> | undefined>(undefined);
   const query = useQuery({
+    meta: referenceQueryMeta,
     queryKey: ["hp-lifecycle", encounterRef, revision.toString()],
     queryFn: () => getEncounterHpLifecycle(encounterRef),
     placeholderData: (previous, previousQuery) =>

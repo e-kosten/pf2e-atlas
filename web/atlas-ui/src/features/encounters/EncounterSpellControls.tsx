@@ -1,3 +1,4 @@
+import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { statusReasonLabel } from "../../shared/records/statusReasonLabel";
@@ -189,6 +190,7 @@ function SpellCastingReminders({
     (_key, value) => (typeof value === "bigint" ? value.toString() : value),
   );
   const preview = useQuery({
+    meta: referenceQueryMeta,
     queryKey: [
       "spell-casting-reminders",
       generation,

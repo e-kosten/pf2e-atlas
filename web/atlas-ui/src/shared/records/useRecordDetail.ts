@@ -1,8 +1,5 @@
-import {
-  recordReadingIdentity,
-  useRetainedRecord,
-  useReferenceQueryRetirement,
-} from "./useRetainedRecord";
+import { useReferenceQueryRetirement } from "../queries/useReferenceQueryRetirement";
+import { recordReadingIdentity, useRetainedRecord } from "./useRetainedRecord";
 import { useQuery } from "@tanstack/react-query";
 import { recordDetailQueryOptions } from "./recordDetailQuery";
 

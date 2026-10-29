@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
-import { useQueryClient, type QueryKey } from "@tanstack/react-query";
+import { useState } from "react";
 import type { RecordNavigationView } from "../../generated/atlas";
-import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
+import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 import { recordNavigationIdentity } from "./recordNavigationIdentity";
 
 // Rank is a view parameter, not a different source document. Keep every other
@@ -37,20 +36,4 @@ export function useRetainedRecord<T>(
   return invalid
     ? undefined
     : (data ?? (retained.key === key ? retained.data : undefined));
-}
-
-/** An explicitly retired immutable query cannot lend retained display data. */
-export function useReferenceQueryRetirement(queryKey: QueryKey) {
-  const client = useQueryClient();
-  const sourceQuery = client.getQueryCache().find({ queryKey, exact: true });
-  const [epoch, setEpoch] = useState(0);
-  useEffect(
-    () =>
-      client.getQueryCache().subscribe((event) => {
-        if (event.type === "removed" && event.query === sourceQuery)
-          setEpoch((value) => value + 1);
-      }),
-    [client, sourceQuery],
-  );
-  return epoch;
 }
