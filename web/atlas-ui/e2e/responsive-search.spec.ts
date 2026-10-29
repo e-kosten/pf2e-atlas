@@ -276,6 +276,10 @@ test("Back keeps page, selected result and nonzero list/reader positions", async
   await page.locator("[data-record-key]").first().waitFor();
   await page.getByRole("button", { name: "Next page", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "Current page" })).toHaveValue("2");
+  await expect(page.locator(".reference-results__scroll")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
   const row = page.locator("[data-record-key]").nth(4);
   await row.click();
   await expect(
@@ -283,8 +287,11 @@ test("Back keeps page, selected result and nonzero list/reader positions", async
   ).toBeVisible();
   const listPosition = await page
     .locator(".reference-results__scroll")
-    .evaluate((node) => {
-      node.scrollTop = 200;
+    .evaluate(async (node) => {
+      await new Promise<void>((resolve) => {
+        node.addEventListener("scrollend", () => resolve(), { once: true });
+        node.scrollBy({ top: 200, behavior: "smooth" });
+      });
       return node.scrollTop;
     });
   expect(listPosition).toBeGreaterThan(0);
