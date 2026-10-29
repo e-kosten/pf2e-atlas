@@ -44,7 +44,7 @@ cp "$repo_root/.githooks/pre-commit" "$repo_root/.githooks/pre-merge-commit" "$f
 cp "$repo_root/scripts/git-hooks/common.sh" "$fixture/scripts/git-hooks/common.sh"
 cp "$repo_root/scripts/verify-changed.sh" "$repo_root/scripts/verify.sh" "$fixture/scripts/"
 mkdir -p "$fixture/scripts/validation" "$fixture/scripts/release"
-cp "$repo_root/scripts/validation/run-check.sh" "$repo_root/scripts/validation/run-process.mjs" "$fixture/scripts/validation/"
+cp "$repo_root/scripts/validation/run-check.mjs" "$repo_root/scripts/validation/run-process.mjs" "$repo_root/scripts/validation/verify.mjs" "$repo_root/scripts/validation/run-check.sh" "$repo_root/scripts/validation/launch.sh" "$fixture/scripts/validation/"
 for skill_check in skill.ts skill.test.ts; do
   printf 'import { appendFileSync } from "node:fs"; appendFileSync(process.env.ATLAS_TEST_COMMAND_LOG, "skill check\\n");\n' >"$fixture/scripts/validation/$skill_check"
 done
@@ -117,13 +117,19 @@ for command in 'nextest run --workspace' 'test --workspace --doc'; do
   [ "$status" -eq 19 ] || { echo "test phase failure was hidden: $command" >&2; exit 1; }
   grep -Fq "cargo detail output for $command" "$tmp/test-failure"
 done
-: >"$log"
-if (cd "$fixture"; ATLAS_TEST_FAIL_CARGO_COMMAND='nextest --version' ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" \
-  scripts/verify.sh) >"$tmp/missing-runner" 2>&1; then
-  echo 'missing runner was accepted' >&2; exit 1
-fi
-grep -q 'requires cargo-nextest' "$tmp/missing-runner"
-! grep -q '^cargo fmt' "$log"
+# Missing or incompatible nextest must fail before formatting starts.
+for command in 'nextest --version' 'nextest show-config version'; do
+  : >"$log"
+  set +e
+  (cd "$fixture"; ATLAS_TEST_FAIL_CARGO_COMMAND="$command" ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" \
+    scripts/verify.sh) >"$tmp/missing-runner" 2>&1
+  status=$?
+  set -e
+  [ "$status" -eq 19 ] || { echo "nextest prerequisite failure was hidden: $command" >&2; exit 1; }
+  grep -Fq "cargo detail output for $command" "$tmp/missing-runner"
+  grep -Eq 'Failed nextest (availability|configuration)' "$tmp/missing-runner"
+  ! grep -q '^cargo fmt' "$log"
+done
 
 case_count=0
 check_output="$tmp/check-output"
@@ -326,11 +332,9 @@ summary="$tmp/timing-summary"
 set +e
 (
   cd "$fixture"
-  verbose=0
   GITHUB_STEP_SUMMARY="$summary"
   export GITHUB_STEP_SUMMARY
-  . "$repo_root/scripts/validation/run-check.sh"
-  run_check 'failure fixture' sh -c 'echo required-diagnostic; exit 23'
+  sh "$repo_root/scripts/validation/run-check.sh" 'failure fixture' sh -c 'echo required-diagnostic; exit 23'
 ) >"$check_output" 2>&1
 status=$?
 set -e
