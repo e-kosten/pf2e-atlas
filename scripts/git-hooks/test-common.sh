@@ -43,7 +43,7 @@ cp "$repo_root/.githooks/pre-commit" "$repo_root/.githooks/pre-merge-commit" "$f
 cp "$repo_root/scripts/git-hooks/common.sh" "$fixture/scripts/git-hooks/common.sh"
 cp "$repo_root/scripts/verify-changed.sh" "$repo_root/scripts/verify.sh" "$fixture/scripts/"
 mkdir -p "$fixture/scripts/validation" "$fixture/scripts/release"
-cp "$repo_root/scripts/validation/run-check.sh" "$repo_root/scripts/validation/run-process.mjs" "$fixture/scripts/validation/"
+cp "$repo_root/scripts/validation/run-check.mjs" "$repo_root/scripts/validation/run-process.mjs" "$repo_root/scripts/validation/verify.mjs" "$repo_root/scripts/validation/run-check.sh" "$repo_root/scripts/validation/launch.sh" "$fixture/scripts/validation/"
 for skill_check in skill.ts skill.test.ts; do
   printf 'import { appendFileSync } from "node:fs"; appendFileSync(process.env.ATLAS_TEST_COMMAND_LOG, "skill check\\n");\n' >"$fixture/scripts/validation/$skill_check"
 done
@@ -300,11 +300,9 @@ printf 'Validation surface, rename, mode and research failure regressions passed
 summary="$tmp/timing-summary"
 set +e
 (
-  verbose=0
   GITHUB_STEP_SUMMARY="$summary"
   export GITHUB_STEP_SUMMARY
-  . "$repo_root/scripts/validation/run-check.sh"
-  run_check 'failure fixture' sh -c 'echo required-diagnostic; exit 23'
+  sh "$repo_root/scripts/validation/run-check.sh" 'failure fixture' sh -c 'echo required-diagnostic; exit 23'
 ) >"$check_output" 2>&1
 status=$?
 set -e

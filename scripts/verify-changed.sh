@@ -116,8 +116,6 @@ case "$mode" in
     ;;
 esac
 
-. "$REPO_ROOT/scripts/validation/run-check.sh"
-
 rust_touched=0
 web_touched=0
 source_touched=0
@@ -153,68 +151,18 @@ if [ "$list" -eq 1 ]; then
   exit 0
 fi
 
-atlas_validation_kind=final
-[ "$full" -eq 1 ] || atlas_validation_kind=iteration
-
 if [ "$docs_only" -eq 1 ]; then
   echo "Docs-only change detected; skipping code validation." >&2
   exit 0
 fi
 
-if [ "$web_touched" -eq 1 ] || [ "$web_format_touched" -eq 1 ] || { [ "$full" -eq 1 ] && [ "$browser_touched" -eq 1 ] && [ "$rust_touched" -eq 0 ]; }; then
-  if [ "$full" -eq 1 ] && [ "$web_touched" -eq 1 ]; then
-    run_check "web UI verify" npm --prefix web/atlas-ui run verify
-  elif [ "$full" -eq 1 ]; then
-    run_check "browser checks and bundle" npm --prefix web/atlas-ui run verify:bundle
-  else
-    run_check "web UI format" npm --prefix web/atlas-ui run format:check
-  fi
-fi
-
-if [ "$full" -eq 1 ] && [ "$rust_touched" -eq 1 ] && [ "$web_touched" -eq 0 ]; then
-  run_check "web bundle for Rust" npm --prefix web/atlas-ui run build
-fi
-
-if [ "$rust_touched" -eq 1 ]; then
-  if [ "$full" -eq 1 ]; then
-    if [ "$verbose" -eq 1 ]; then
-      run_composite "$REPO_ROOT/scripts/verify.sh" --verbose
-    else
-      run_composite "$REPO_ROOT/scripts/verify.sh"
-    fi
-  else
-    run_check "cargo fmt" cargo fmt --check
-  fi
-fi
-
-if [ "$dev_touched" -eq 1 ] && [ "$rust_touched" -eq 0 ]; then
-  if [ "$full" -eq 1 ]; then
-    run_check "developer formatting" cargo fmt --check
-    run_check "developer clippy" cargo clippy -p atlas-dev -p atlas-cli-support --all-targets -- -D warnings -D clippy::dbg_macro
-    run_check "developer runtime clippy" cargo clippy -p atlas-dev -p atlas-cli-support --lib --bins -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unimplemented -D clippy::todo -D clippy::unreachable
-    run_check "developer tests" cargo test -p atlas-dev -p atlas-cli-support --locked
-    run_check "developer build" cargo build -p atlas-dev --locked
-  else
-    run_check "cargo fmt" cargo fmt --check
-  fi
-fi
-
-# Contributor packages have no formatting gate; substantive checks are explicit.
-if [ "$full" -eq 1 ]; then
-  if [ "$skill_touched" -eq 1 ]; then
-    run_check "bundled skill" node --test scripts/validation/skill.test.ts
-    run_check "skill package" node scripts/validation/skill.ts
-  fi
-  if [ "$source_touched" -eq 1 ]; then
-    run_check "source contract fixtures" npm --prefix dev-tools/source-contracts run verify
-    run_check "pinned source generation" npm --prefix dev-tools/source-contracts run verify-generated
-  fi
-  if [ "$release_touched" -eq 1 ]; then
-    run_check "release tooling and static checks" sh scripts/release/validate-release-tooling.sh
-    run_check "release smoke tests" sh scripts/release/test-release-tools.sh
-    run_check "release preparation tests" sh scripts/release/test-prepare-release.sh
-  fi
-  if [ "$research_touched" -eq 1 ]; then
-    run_check "research evidence" sh scripts/validation/research.sh
-  fi
-fi
+selected=
+for entry in "rust:$rust_touched" "web:$web_touched" "source:$source_touched" "release:$release_touched" "research:$research_touched" "skill:$skill_touched" "browser:$browser_touched" "web-format:$web_format_touched" "dev:$dev_touched"; do
+  [ "${entry#*:}" -eq 0 ] || selected="$selected ${entry%%:*}"
+done
+rm -rf "$tmp_dir"
+trap - EXIT HUP INT TERM
+set -- --selected "$selected"
+[ "$full" -eq 0 ] || set -- "$@" --full
+[ "$verbose" -eq 0 ] || set -- "$@" --verbose
+exec sh "$REPO_ROOT/scripts/validation/launch.sh" "$REPO_ROOT/scripts/validation/verify.mjs" "$@"
