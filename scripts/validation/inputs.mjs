@@ -103,6 +103,8 @@ export function environmentState() {
     "ATLAS_VALIDATION_HEARTBEAT_SECONDS",
     "ATLAS_VALIDATION_CANCEL_FILE",
     "GITHUB_STEP_SUMMARY",
+    "CODEX_TOOL_CALL_ID",
+    "XPC_SERVICE_NAME",
   ]);
   return Object.fromEntries(
     Object.entries(process.env)
