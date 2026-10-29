@@ -7,12 +7,20 @@ use std::task::{Context, Poll, Waker};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use super::*;
+use atlas_app_model::{
+    AppErrorCode, InitiativeParticipantRequest, RollInitiativeRequest, RollMode,
+};
+use atlas_app_service::{AppServiceError, ReadExecutionContext};
+use axum::{Json, Router};
+use serde_json::{Value, json};
+
+use super::fixture::Fixture;
 use crate::service::call_read_service;
+use crate::service::{AtlasWebState, call_service};
 
 const DEADLINE: Duration = Duration::from_secs(5);
 
-pub(super) struct ReadProbe {
+struct ReadProbe {
     first: AtomicBool,
     entered: mpsc::Sender<ReadExecutionContext>,
     release: Mutex<mpsc::Receiver<()>>,
@@ -20,7 +28,7 @@ pub(super) struct ReadProbe {
 }
 
 impl ReadProbe {
-    pub(super) fn observe(&self, execution: &ReadExecutionContext) -> Result<(), AppServiceError> {
+    fn observe(&self, execution: &ReadExecutionContext) -> Result<(), AppServiceError> {
         if !self.first.swap(false, Ordering::AcqRel) {
             return Ok(());
         }
@@ -56,7 +64,8 @@ async fn await_live_slot(state: AtlasWebState) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn dropped_read_future_abandons_context_but_running_work_retains_permit() {
-    let state = AtlasWebState::from_service_with_blocking_capacity(MockService::default(), 1);
+    let fixture = Fixture::new();
+    let state = fixture.state(1);
     let (entered, entry) = mpsc::channel();
     let (release, released) = mpsc::channel();
     let (finished, finish) = mpsc::channel();
@@ -97,7 +106,8 @@ fn dropped_read_before_blocking_callback_starts_skips_app_callback() {
         .build()
         .unwrap();
     runtime.block_on(async {
-        let state = AtlasWebState::from_service_with_blocking_capacity(MockService::default(), 1);
+        let fixture = Fixture::new();
+        let state = fixture.state(1);
         let (entered, entry) = mpsc::channel();
         let (release, released) = mpsc::channel();
         let occupying = tokio::task::spawn_blocking(move || {
@@ -130,21 +140,38 @@ fn dropped_read_before_blocking_callback_starts_skips_app_callback() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn dropped_mutation_future_keeps_one_write_and_canonical_receipt() {
-    let state = AtlasWebState::from_service_with_blocking_capacity(MockService::default(), 1);
+    let fixture = Fixture::new();
+    let state = fixture.state(1);
+    let initial = fixture.service.encounter("ambush").unwrap();
+    let participant = initial
+        .participants
+        .iter()
+        .find(|participant| participant.participant_key == fixture.participant_key)
+        .unwrap();
+    let request = RollInitiativeRequest {
+        artifact_generation: None,
+        request_id: "abandoned-initiative".into(),
+        expected_revision: initial.revision,
+        participants: vec![InitiativeParticipantRequest {
+            participant_key: participant.participant_key.clone(),
+            expected_revision: participant.revision,
+            statistic: "manual".into(),
+            modifier_override: Some(7),
+            mode: RollMode::Normal,
+        }],
+    };
+    let service = fixture.service.clone();
+    let submitted = request.clone();
     let (entered, entry) = mpsc::channel();
     let (release, released) = mpsc::channel();
     let (receipt, receipts) = mpsc::channel();
-    let writes = Arc::new(AtomicUsize::new(0));
-    let callback_writes = Arc::clone(&writes);
     let task = tokio::spawn(call_service(state.clone(), move || {
         let _ = entered.send(());
         released.recv_timeout(DEADLINE).map_err(|_| {
             AppServiceError::new(AppErrorCode::OperationTimeout, "mutation release timed out")
         })?;
-        callback_writes.fetch_add(1, Ordering::AcqRel);
-        let result = EncounterMutationView {
-            encounter_key: "canonical-encounter".into(),
-        };
+        // This is an actual accepted storage mutation, not a synthetic write counter.
+        let result = service.roll_encounter_initiative("ambush", submitted)?;
         let _ = receipt.send(result.clone());
         Ok(result)
     }));
@@ -154,32 +181,66 @@ async fn dropped_mutation_future_keeps_one_write_and_canonical_receipt() {
     let busy = call_service(state.clone(), || Ok::<_, AppServiceError>(())).await;
     let _ = release.send(());
     let receipt = receipts.recv_timeout(DEADLINE);
-    await_live_slot(state).await;
+    await_live_slot(state.clone()).await;
     entered.unwrap();
     assert!(dropped.unwrap_err().is_cancelled());
     assert_eq!(busy.unwrap_err().0.code, AppErrorCode::ServiceBusy);
-    assert_eq!(writes.load(Ordering::Acquire), 1);
-    assert_eq!(receipt.unwrap().encounter_key, "canonical-encounter");
+    let receipt = receipt.unwrap();
+    assert_eq!(receipt.encounter_key, fixture.encounter_key);
+    let committed = fixture.service.encounter(&receipt.encounter_key).unwrap();
+    assert_eq!(committed.revision, initial.revision + 1);
+    let participant = committed
+        .participants
+        .iter()
+        .find(|participant| participant.participant_key == fixture.participant_key)
+        .unwrap();
+    assert_eq!(
+        participant.initiative,
+        Some(i64::from(receipt.rolls[0].outcome.total))
+    );
+    assert_eq!(
+        participant.revision,
+        request.participants[0].expected_revision + 1
+    );
+
+    // Recover the persisted receipt with the now-stale original revisions. A retry
+    // must preserve both the exact dice result and the one committed mutation.
+    let service = fixture.service.clone();
+    let retry = request.clone();
+    let recovered = call_service(state.clone(), move || {
+        service.roll_encounter_initiative("ambush", retry)
+    })
+    .await
+    .unwrap();
+    assert_eq!(recovered, receipt);
+    let after_retry = fixture.service.encounter("ambush").unwrap();
+    assert_eq!(after_retry.revision, committed.revision);
+    assert_eq!(after_retry.participants, committed.participants);
+
+    let service = fixture.service.clone();
+    let mut conflicting = request;
+    conflicting.participants[0].modifier_override = Some(8);
+    let conflict = call_service(state, move || {
+        service.roll_encounter_initiative("ambush", conflicting)
+    })
+    .await
+    .unwrap_err();
+    assert_eq!(conflict.0.code, AppErrorCode::InvalidRequest);
 }
 
-fn send_page(address: SocketAddr, keep_alive: bool) -> TcpStream {
+fn send_probe(address: SocketAddr, keep_alive: bool) -> TcpStream {
     let mut client = TcpStream::connect_timeout(&address, DEADLINE).unwrap();
     client.set_read_timeout(Some(DEADLINE)).unwrap();
     client.set_write_timeout(Some(DEADLINE)).unwrap();
-    let body = serde_json::to_string(&json!({
-        "criteria": {"kind":"list_records", "filter":null},
-        "page": {"number":1, "size":10},
-        "expected_artifact_generation":null
-    }))
-    .unwrap();
-    write!(client, "POST /api/search/page HTTP/1.1\r\nHost: {address}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: {}\r\n\r\n{body}",
+    let body = "{}";
+    write!(client, "POST /probe HTTP/1.1\r\nHost: {address}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: {}\r\n\r\n{body}",
         body.len(), if keep_alive { "keep-alive" } else { "close" }).unwrap();
     client.flush().unwrap();
     client
 }
 
-fn page_response(address: SocketAddr) -> String {
-    let mut client = send_page(address, false);
+fn probe_response(address: SocketAddr) -> String {
+    let mut client = send_probe(address, false);
     let mut response = String::new();
     client.read_to_string(&mut response).unwrap();
     response
@@ -196,24 +257,38 @@ async fn complete_http1_disconnect_abandons_handler_before_running_read_is_relea
         release: Mutex::new(released),
         completed,
     });
-    let state = AtlasWebState::from_service_with_blocking_capacity(
-        MockService {
-            read_probe: Some(probe),
-        },
-        1,
+    let fixture = Fixture::new();
+    let state = fixture.state(1);
+    // The test-only route exercises the real HTTP handler future and production
+    // execution adapters. The one-shot barrier belongs to this harness, not the
+    // app-service API or any product endpoint.
+    let route_state = state.clone();
+    let app = Router::new().route(
+        "/probe",
+        axum::routing::post(move |_: Json<Value>| {
+            let state = route_state.clone();
+            let probe = Arc::clone(&probe);
+            async move {
+                call_read_service(state, move |execution| {
+                    probe.observe(&execution)?;
+                    Ok(Json(json!({"completed": true})))
+                })
+                .await
+            }
+        }),
     );
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
     let (stop, stopped) = tokio::sync::oneshot::channel();
     let server = tokio::spawn(async move {
-        axum::serve(listener, router_with_state(state))
+        axum::serve(listener, app)
             .with_graceful_shutdown(async {
                 let _ = stopped.await;
             })
             .await
     });
 
-    let client = thread::spawn(move || send_page(address, true))
+    let client = thread::spawn(move || send_probe(address, true))
         .join()
         .unwrap();
     let entered = entry.recv_timeout(DEADLINE);
@@ -230,24 +305,15 @@ async fn complete_http1_disconnect_abandons_handler_before_running_read_is_relea
             if Instant::now() >= deadline {
                 break;
             }
-            thread::sleep(Duration::from_millis(5));
+            tokio::task::yield_now().await;
         }
     }
-    let busy = thread::spawn(move || page_response(address)).join();
+    let busy = thread::spawn(move || probe_response(address)).join();
     // Release before evaluating outcomes, including a negative disconnect observation.
     let _ = release.send(());
     let completed = completion.recv_timeout(DEADLINE);
-    let fresh = thread::spawn(move || {
-        let deadline = Instant::now() + DEADLINE;
-        loop {
-            let response = page_response(address);
-            if !response.starts_with("HTTP/1.1 503") || Instant::now() >= deadline {
-                return response;
-            }
-            thread::sleep(Duration::from_millis(5));
-        }
-    })
-    .join();
+    await_live_slot(state).await;
+    let fresh = thread::spawn(move || probe_response(address)).join();
     let _ = stop.send(());
     let join_deadline = Instant::now() + DEADLINE;
     while !server.is_finished() && Instant::now() < join_deadline {
