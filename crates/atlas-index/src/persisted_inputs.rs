@@ -30,6 +30,10 @@ enum PreparationStatus {
     PreparationFailed(String),
 }
 impl PreparationMetadata {
+    pub(crate) fn is_prepared(&self) -> bool {
+        matches!(self.status, PreparationStatus::Prepared { .. })
+    }
+
     pub(crate) fn from_outcome(outcome: &SourceContentOutcome) -> Self {
         Self {
             visibility_availability: outcome.visibility_availability.clone(),

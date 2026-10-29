@@ -1530,8 +1530,7 @@ fn incremental_publication_preserves_unchanged_rows_and_saved_references() {
     );
 }
 
-#[test]
-fn persisted_preparation_reconstructs_exact_publication_inputs_without_query_catalog() {
+pub(super) fn hidden_preparation_fixture() -> IndexBuildInput {
     let mut input = fixture(false);
     input.context.audience.include_gm = false;
     input.records[0] = record(
@@ -1544,6 +1543,12 @@ fn persisted_preparation_reconstructs_exact_publication_inputs_without_query_cat
         record.content = prepare_record_content(&record.record, input.context.audience, None, None);
     }
     synchronize_fixture_terms(&mut input);
+    input
+}
+
+#[test]
+fn persisted_preparation_reconstructs_exact_publication_inputs_without_query_catalog() {
+    let input = hidden_preparation_fixture();
     let (_directory, path) = build(&input);
     let connection = Connection::open(&path).unwrap();
     let hidden: usize = connection

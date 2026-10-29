@@ -86,7 +86,7 @@ pub fn validate_artifact(path: impl AsRef<Path>) -> Result<ArtifactValidationRep
 /// This does not start or commit a transaction or reopen the database by path.
 pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, IndexError> {
     let context = validate_open(c)?;
-    crate::traits::validate_traits(c, &context)?;
+    let mut trait_evidence = crate::traits::validate_trait_definitions(c, &context)?;
     tracing::info!(target:"atlas_progress",phase="artifact_integrity","Checking database integrity");
     let integrity: String = c.query_row("PRAGMA integrity_check", [], |r| r.get(0))?;
     if integrity != "ok" {
@@ -112,6 +112,7 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
         let mut checked = 0usize;
         while let Some(row) = cursor.next()? {
             let record = checked_record_row(row)?;
+            trait_evidence.add_record(&record, context.audience)?;
             reference_index.insert_source(record.key(), record.source());
             checked += 1;
             if checked.is_multiple_of(500) || checked == total_roots {
@@ -119,6 +120,7 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
             }
         }
     }
+    trait_evidence.validate(c)?;
     let mut cursor = root_query.query([])?;
     while let Some(row) = cursor.next()? {
         roots += 1;
@@ -186,6 +188,7 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
         }
         let (field_count, content) = validate_content(c, id, &input.record, &context)?;
         prepared_fields += field_count;
+        validate_admission_diagnostics(c, id)?;
         relationships += validate_relationships(c, id, &input.record, &reference_index)?;
         crate::validation_units::validate_selection(
             c,
@@ -333,14 +336,10 @@ fn validate_content(
     }
     let preparation_hash = context.preparation_sha256()?;
     let mut content = Vec::new();
-    let mut s=c.prepare("SELECT owners_json,field_path,authored_markup_sha256,preparation_context_hash,outcome,html_gzip,interactions_json,visibility,role,published FROM prepared_content WHERE record_id=? AND (published=1 OR outcome='prepared')")?;
+    let mut s=c.prepare("SELECT owners_json,field_path,authored_markup_sha256,preparation_context_hash,outcome,html_gzip,interactions_json,visibility,role,published,metadata_json FROM prepared_content WHERE record_id=?")?;
     let mut rows = s.query([id])?;
     let mut n = 0;
     while let Some(r) = rows.next()? {
-        if !r.get::<_, bool>(9)? {
-            return Err(bad("unpublished content has prepared search HTML"));
-        }
-        n += 1;
         let chain = owners(&r.get::<_, String>(0)?)?;
         let field: String = r.get(1)?;
         let locator = SourceContentLocator {
@@ -348,6 +347,50 @@ fn validate_content(
             owners: chain,
             field,
         };
+        let authored = record
+            .authored_content_at(&locator)
+            .value()
+            .ok_or_else(|| bad("persisted content field is absent from DTO"))?;
+        let hash: String = r.get(2)?;
+        let preparation: String = r.get(3)?;
+        if hash != sha256(authored.as_bytes()) || preparation != preparation_hash {
+            return Err(bad("prepared cache input/context mismatch"));
+        }
+        let metadata: crate::persisted_inputs::PreparationMetadata =
+            serde_json::from_str(&r.get::<_, String>(10)?)?;
+        let outcome: String = r.get(4)?;
+        let bytes: Option<Vec<u8>> = r.get(5)?;
+        let controls: Vec<ContentInteraction> = serde_json::from_str(&r.get::<_, String>(6)?)?;
+        let visibility: atlas_record::source_content::ContentVisibilityRule =
+            serde_json::from_value(serde_json::Value::String(r.get(7)?))?;
+        let role: atlas_record::source_record::SourceContentRole =
+            serde_json::from_value(serde_json::Value::String(r.get(8)?))?;
+        let html = if metadata.is_prepared() || outcome == "prepared" {
+            let html = bytes
+                .as_deref()
+                .map(gunzip)
+                .transpose()?
+                .map(String::from_utf8)
+                .transpose()
+                .map_err(|e| bad(e.to_string()))?
+                .unwrap_or_default();
+            if metadata.is_prepared() {
+                drop(
+                    atlas_record::source_content::prepared_plain_text(&html)
+                        .map_err(|e| bad(e.to_string()))?,
+                );
+            }
+            html
+        } else {
+            String::new()
+        };
+        if !r.get::<_, bool>(9)? {
+            if outcome == "prepared" {
+                return Err(bad("unpublished content has prepared search HTML"));
+            }
+            continue;
+        }
+        n += 1;
         let field_references = references
             .remove(&crate::read_content::content_reference_key(&locator)?)
             .unwrap_or_default();
@@ -357,27 +400,10 @@ fn validate_content(
                 locator.field.clone(),
             ))
             .ok_or_else(|| bad("unexpected prepared cache field"))?;
-        let authored = selection
-            .text
-            .value()
-            .ok_or_else(|| bad("cache does not address admitted selected content"))?;
-        let hash: String = r.get(2)?;
-        let preparation: String = r.get(3)?;
-        if hash != sha256(authored.as_bytes()) || preparation != preparation_hash {
-            return Err(bad("prepared cache input/context mismatch"));
-        }
-        let outcome: String = r.get(4)?;
-        let bytes: Option<Vec<u8>> = r.get(5)?;
-        let controls: Vec<ContentInteraction> = serde_json::from_str(&r.get::<_, String>(6)?)?;
-        let visibility: atlas_record::source_content::ContentVisibilityRule =
-            serde_json::from_str(&format!("\"{}\"", r.get::<_, String>(7)?))?;
         if !crate::writer::permits(context.audience, visibility) {
             return Err(bad("hidden cache in product content"));
         }
-        let role: String = r.get(8)?;
-        if selection.visibility.value() != Some(visibility)
-            || role != serde_json::from_str::<String>(&serde_json::to_string(&selection.role)?)?
-        {
+        if selection.visibility.value() != Some(visibility) || role != selection.role {
             return Err(bad("cache declared role/visibility mismatch"));
         }
         use atlas_record::source_record::{SourceContentFormat, SourceFieldView};
@@ -394,8 +420,7 @@ fn validate_content(
             return Err(bad("cache outcome disagrees with authored format"));
         }
         match (outcome.as_str(), bytes) {
-            ("prepared", Some(b)) => {
-                let html = String::from_utf8(gunzip(&b)?).map_err(|e| bad(e.to_string()))?;
+            ("prepared", Some(_)) => {
                 validate_prepared_markers(&html, &controls).map_err(|e| bad(e.to_string()))?;
                 validate_prepared_reference_bindings(&html, &locator, &hash, &field_references)
                     .map_err(|e| bad(e.to_string()))?;
@@ -427,6 +452,22 @@ fn validate_content(
         return Err(bad("selected content cache coverage is incomplete"));
     }
     Ok((n, content))
+}
+
+fn validate_admission_diagnostics(c: &Connection, id: i64) -> Result<(), IndexError> {
+    let mut statement = c.prepare(
+        "SELECT owners_json,details_json FROM developer_diagnostics WHERE record_id=? AND stage='admission'",
+    )?;
+    let mut rows = statement.query([id])?;
+    while let Some(row) = rows.next()? {
+        if let Some(owners) = row.get::<_, Option<String>>(0)? {
+            drop(serde_json::from_str::<Vec<OwnedContentLocator>>(&owners)?);
+        }
+        drop(serde_json::from_str::<
+            crate::read_content::DiagnosticDetails,
+        >(&row.get::<_, String>(1)?)?);
+    }
+    Ok(())
 }
 fn validate_relationships(
     c: &Connection,
