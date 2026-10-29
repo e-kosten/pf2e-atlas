@@ -13,7 +13,7 @@ fn client(
 ) -> Result<AtlasAppService, atlas_app_model::AppError> {
     connect(ClientOptions {
         search_profile: None,
-        path_mode: mode.into(),
+        path_mode: crate::cli::runtime_path_mode(mode),
         index,
         embedding_cache: None,
         retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,

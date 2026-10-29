@@ -9,7 +9,7 @@ use args::{FiltersFieldsOptions, FiltersValuesOptions};
 pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, String> {
     let s = match connect(ClientOptions {
         search_profile: None,
-        path_mode: o.path_mode.into(),
+        path_mode: crate::cli::runtime_path_mode(o.path_mode),
         index: o.index,
         embedding_cache: None,
         retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
@@ -153,7 +153,7 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
 pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, String> {
     let s = match connect(ClientOptions {
         search_profile: o.search_profile.clone(),
-        path_mode: o.path_mode.into(),
+        path_mode: crate::cli::runtime_path_mode(o.path_mode),
         index: o.index,
         embedding_cache: None,
         retrieval_mode: if o.query.is_some()

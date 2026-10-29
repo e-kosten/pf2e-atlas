@@ -446,6 +446,14 @@ fn embedded_feat_prerequisites_keep_addresses_links_and_unavailable_members() {
         fields[0].locator.field,
         "/system/prerequisites/value/0/value"
     );
+    assert_eq!(
+        serde_json::to_value(&fields[0].locator).unwrap(),
+        json!({
+            "record": ACTOR,
+            "embedded_path": [{"collection":"/items", "identity":{"Stable":"testFeat10000000"}}],
+            "field": "/system/prerequisites/value/0/value",
+        })
+    );
     assert!(matches!(
         fields[1].body,
         PreparedFieldBodyView::Unavailable {

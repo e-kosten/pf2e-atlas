@@ -94,6 +94,52 @@ fn rust_source_commands_need_no_node_and_report_discovery_without_model_owner_re
     assert!(!f.0.join("artifact.sqlite").exists());
 }
 #[test]
+fn repo_mode_requires_a_checkout_while_global_default_and_source_override_work_without_node() {
+    let f = Fixture::new();
+    // Outside a checkout, explicit repo mode must not silently become global.
+    let invoke = |flags: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_atlas-dev"))
+            .current_dir(std::env::temp_dir())
+            .args(["source", "load", "--json"])
+            .args(flags)
+            .arg("--source")
+            .arg(&f.0)
+            .env("PATH", "")
+            .output()
+            .unwrap()
+    };
+    for flags in [vec![], vec!["--path-mode", "global"]] {
+        let value = data(invoke(&flags));
+        assert_eq!(value["counts"]["retained_documents"], 1);
+    }
+    let repo = invoke(&["--path-mode", "repo"]);
+    assert_eq!(repo.status.code(), Some(2));
+    let envelope: Value = serde_json::from_slice(&repo.stdout).unwrap();
+    assert_eq!(envelope["error"]["code"], "command_failed");
+    assert!(
+        envelope["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("checkout")
+    );
+
+    let repo = Command::new(env!("CARGO_BIN_EXE_atlas-dev"))
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .args([
+            "source",
+            "load",
+            "--path-mode",
+            "repo",
+            "--json",
+            "--source",
+        ])
+        .arg(&f.0)
+        .output()
+        .unwrap();
+    assert_eq!(data(repo)["counts"]["retained_documents"], 1);
+}
+
+#[test]
 fn developer_inspection_decodes_checked_snapshot_and_only_reads_verified_original_on_request() {
     let f = Fixture::new();
     let index = f.artifact();

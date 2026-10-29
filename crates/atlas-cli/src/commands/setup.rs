@@ -49,7 +49,7 @@ pub(crate) fn run_setup(args: SetupArgs) -> Result<ExitCode, String> {
 fn setup_runtime(options: SetupPathOptions) -> Result<AtlasRuntime, String> {
     AtlasRuntime::resolve(AtlasRuntimeOptions {
         default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
-        path_mode: options.path_mode.into(),
+        path_mode: crate::cli::runtime_path_mode(options.path_mode),
         overrides: AtlasPathOverrides {
             source_root: options.source,
             embedding_cache_root: options.embedding_cache_path,

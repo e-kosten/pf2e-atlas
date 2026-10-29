@@ -26,7 +26,7 @@ async fn run_web_async(args: WebArgs) -> Result<std::process::ExitCode, String> 
         .map_err(|error| format!("failed to read web bind address: {error}"))?;
     let service = AtlasAppService::start(AtlasAppServiceOptions {
         default_search_profile: args.search_profile,
-        path_mode: args.path_mode.into(),
+        path_mode: crate::cli::runtime_path_mode(args.path_mode),
         source_root: args.source,
         embedding_cache_root: args.embedding_cache_path,
         index_path: args.index,

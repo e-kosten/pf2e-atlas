@@ -1,4 +1,3 @@
-use atlas_runtime::AtlasPathMode;
 use clap::ValueEnum;
 
 use crate::ProgressMode;
@@ -14,15 +13,6 @@ pub enum CliProgressMode {
     Auto,
     Always,
     Never,
-}
-
-impl From<CliPathMode> for AtlasPathMode {
-    fn from(mode: CliPathMode) -> Self {
-        match mode {
-            CliPathMode::Repo => Self::Repo,
-            CliPathMode::Global => Self::Global,
-        }
-    }
 }
 
 impl From<CliProgressMode> for ProgressMode {
