@@ -38,6 +38,8 @@ pub(super) fn encounter_detail_from_records(
     artifact_generation: Option<String>,
     records_by_key: BTreeMap<String, super::hydration::HydratedParticipantRecord>,
 ) -> EncounterDetailView {
+    let condition_sources =
+        super::hydration::roster_source_conditions(&participants, &records_by_key);
     let participant_count = participants.len() as u32;
     let current_turn_participant_key = encounter.current_turn_participant_key.clone();
     let note = encounter.note.clone();
@@ -56,8 +58,12 @@ pub(super) fn encounter_detail_from_records(
         participants: participants
             .iter()
             .map(|participant| {
-                let mut view =
-                    participant_view(participant.clone(), &records_by_key, &participants);
+                let mut view = participant_view(
+                    participant.clone(),
+                    &records_by_key,
+                    &participants,
+                    &condition_sources,
+                );
                 view.turn_resources = super::turn_resources::view(
                     participant,
                     current_turn_participant_key.as_deref(),
@@ -86,14 +92,16 @@ pub(super) fn encounter_summary(
     }
 }
 
-pub(super) fn participant_view(
+fn participant_view(
     participant: EncounterParticipant,
     records_by_key: &BTreeMap<String, super::hydration::HydratedParticipantRecord>,
     participants: &[EncounterParticipant],
+    condition_sources: &BTreeMap<String, super::rules::source_conditions::SourceConditions>,
 ) -> EncounterParticipantView {
     let relationship_causes = super::rules::relationships::observer_defense_causes(
         &participant.participant_key,
         participants,
+        condition_sources,
     );
     let record_detail = participant
         .record_key
@@ -141,10 +149,10 @@ pub(super) fn participant_view(
                 .as_ref()
                 .map(|block| crate::presentation::actor::manual_presentation(&participant, block))
         });
-    let sources = record_detail
-        .and_then(|record| record.arithmetic_baseline.as_ref())
-        .map(|baseline| &baseline.source_conditions)
-        .unwrap_or_else(|| super::rules::source_conditions::SourceConditions::empty());
+    let unknown = super::rules::source_conditions::SourceConditions::unavailable();
+    let sources = condition_sources
+        .get(&participant.participant_key)
+        .unwrap_or(&unknown);
     let effective_max_hp = super::rules::hp_maximum_stat(
         &participant,
         sources,
@@ -200,10 +208,15 @@ pub(super) fn participant_view(
     } else {
         None
     };
-    let knockout_unavailable_reason = petrified_knockout.or_else(|| {
+    let mut knockout_unavailable_reason = petrified_knockout.or_else(|| {
         super::conditions::modeled_condition_by_rule(super::conditions::ConditionRule::Dying)
             .and_then(|dying| {
-                match super::rules::condition_applicability(dying, &participant, &knockout_facts) {
+                match super::rules::condition_applicability(
+                    dying,
+                    &participant,
+                    &knockout_facts,
+                    &sources,
+                ) {
                     Some(atlas_app_model::EncounterConditionEligibilityView::Immune { reason }) => {
                         Some(reason)
                     }
@@ -213,7 +226,9 @@ pub(super) fn participant_view(
             })
     });
     let knockout_options = if knockout_unavailable_reason.is_none() {
-        super::rules::hp_events::knockout_options(&participant, None)
+        let choices = super::rules::hp_events::knockout_options(&participant, sources, None);
+        knockout_unavailable_reason = choices.unavailable_reason;
+        choices.options
     } else {
         vec![]
     };

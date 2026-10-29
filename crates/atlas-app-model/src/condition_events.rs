@@ -179,7 +179,7 @@ pub enum ConditionEventConsequenceView {
         participant_key: String,
         before: i64,
         after: i64,
-        stunned_after: i64,
+        stunned_after: Option<i64>,
     },
     PronePrevented {
         participant_key: String,

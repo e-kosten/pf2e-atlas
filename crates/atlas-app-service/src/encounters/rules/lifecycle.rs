@@ -1,6 +1,6 @@
 //! Explicit, pure lifecycle consequences; source preparation and dice stay outside.
 use super::super::conditions::{ConditionRule, condition_rule_for_key};
-use super::hp_events::{add_condition, clear, has, replace_counter, set_counter};
+use super::hp_events::{add_condition, clear, has_saved_condition, replace_counter, set_counter};
 use crate::{AppServiceError, AppServiceResult};
 use atlas_app_model::*;
 use atlas_local_state::{
@@ -17,14 +17,23 @@ pub(in crate::encounters) struct StunnedTransition {
 pub(in crate::encounters) fn consume_numeric_stunned(
     participant: &EncounterParticipant,
     actions_lost: i64,
+    sources: &super::source_conditions::SourceConditions,
 ) -> AppServiceResult<StunnedTransition> {
     let mut changes = PreparedConditionEvent::default();
+    let resolved = super::causes::condition_causes(participant, None, sources);
+    let active_ids: std::collections::BTreeSet<_> = resolved
+        .active
+        .iter()
+        .filter(|cause| cause.rule == ConditionRule::Stunned)
+        .filter_map(|cause| cause.source.saved().map(|row| row.condition_id))
+        .collect();
     let effects: Vec<_> = participant
         .conditions
         .iter()
         .filter(|condition| {
             condition_rule_for_key(condition.condition_key.as_deref())
                 == Some(ConditionRule::Stunned)
+                && active_ids.contains(&condition.condition_id)
         })
         .filter_map(|condition| {
             condition
@@ -49,19 +58,7 @@ pub(in crate::encounters) fn consume_numeric_stunned(
         if resources.actions_open
             && let Some(allocation) = &mut resources.allocation
         {
-            let value = super::causes::condition_causes(
-                participant,
-                None,
-                crate::encounters::rules::source_conditions::SourceConditions::empty(),
-            )
-            .active
-            .into_iter()
-            .filter(|cause| cause.rule == ConditionRule::Stunned)
-            .filter_map(|cause| cause.value)
-            .max()
-            .ok_or_else(|| {
-                AppServiceError::invalid_request("Current Stunned value is unavailable")
-            })?;
+            let value = resolved.known_value(ConditionRule::Stunned).ok();
             allocation.adjustments.push(
                 atlas_local_state::TurnActionAdjustment::StunnedDuringTurn {
                     value,
@@ -77,6 +74,7 @@ pub(in crate::encounters) fn consume_numeric_stunned(
         if condition_rule_for_key(condition.condition_key.as_deref())
             == Some(ConditionRule::Stunned)
             && condition.value.is_some()
+            && active_ids.contains(&condition.condition_id)
         {
             reduce_source(
                 participant,
@@ -99,7 +97,7 @@ pub(in crate::encounters) fn prepare_lifecycle<'a>(
     let mut changes = PreparedConditionEvent::default();
     let mut effect = None;
     match action {
-        ConditionLifecycleActionView::DyingRecovery { .. } => {
+        ConditionLifecycleActionView::DyingRecovery { check } => {
             if !participant.track_dying
                 || participant.mortality == MortalityState::Dead
                 || participant.current_hp != Some(0)
@@ -108,12 +106,28 @@ pub(in crate::encounters) fn prepare_lifecycle<'a>(
                     "Dying recovery requires a living participant at 0 HP who tracks dying",
                 ));
             }
-            let dying = known_effective(participant, ConditionRule::Dying)?;
+            let dying = super::causes::condition_causes(participant, None, sources)
+                .known_value(ConditionRule::Dying)?;
             if dying < 1 {
                 return Err(AppServiceError::invalid_request("participant is not dying"));
             }
-            known_effective(participant, ConditionRule::Doomed)?;
-            effect = Some(CheckEffect::Dying { dying });
+            let degrees = match check {
+                LifecycleCheckInputView::Roll => vec![
+                    CheckDegreeView::CriticalFailure,
+                    CheckDegreeView::Failure,
+                    CheckDegreeView::Success,
+                    CheckDegreeView::CriticalSuccess,
+                ],
+                LifecycleCheckInputView::TableDegree { degree } => vec![*degree],
+            };
+            let outcomes = degrees
+                .into_iter()
+                .map(|degree| {
+                    dying_recovery_changes(participant, sources, dying, degree, request_id)
+                        .map(|changes| (degree, changes))
+                })
+                .collect::<AppServiceResult<Vec<_>>>()?;
+            effect = Some(CheckEffect::Dying { outcomes });
         }
         ConditionLifecycleActionView::Retch { condition_id, .. } => {
             let condition = source(participant, *condition_id, ConditionRule::Sickened)?;
@@ -180,7 +194,7 @@ pub(in crate::encounters) fn prepare_lifecycle<'a>(
                     "Actions lost must match the available actions and current Stunned value",
                 ));
             }
-            changes = consume_numeric_stunned(participant, *actions_lost)?.changes;
+            changes = consume_numeric_stunned(participant, *actions_lost, sources)?.changes;
         }
         ConditionLifecycleActionView::ConfusedDamageRecovery {
             consequence_key,
@@ -237,7 +251,6 @@ pub(in crate::encounters) fn prepare_lifecycle<'a>(
     }
     Ok(PreparedLifecycle {
         participant,
-        request_id,
         changes,
         effect,
     })
@@ -245,13 +258,12 @@ pub(in crate::encounters) fn prepare_lifecycle<'a>(
 
 pub(in crate::encounters) struct PreparedLifecycle<'a> {
     participant: &'a EncounterParticipant,
-    request_id: &'a str,
     changes: PreparedConditionEvent,
     effect: Option<CheckEffect<'a>>,
 }
 enum CheckEffect<'a> {
     Dying {
-        dying: i64,
+        outcomes: Vec<(CheckDegreeView, PreparedConditionEvent)>,
     },
     Retch {
         condition: &'a EncounterParticipantCondition,
@@ -268,7 +280,6 @@ impl PreparedLifecycle<'_> {
     ) -> AppServiceResult<PreparedConditionEvent> {
         let Self {
             participant,
-            request_id,
             mut changes,
             effect,
         } = self;
@@ -278,68 +289,14 @@ impl PreparedLifecycle<'_> {
         let degree = degree
             .ok_or_else(|| AppServiceError::invalid_request("Record or roll the required check"))?;
         match effect {
-            CheckEffect::Dying { dying } => {
-                let delta = match degree {
-                    CheckDegreeView::CriticalSuccess => -2,
-                    CheckDegreeView::Success => -1,
-                    CheckDegreeView::Failure => 1,
-                    CheckDegreeView::CriticalFailure => 2,
-                };
-                let next = dying.checked_add(delta).ok_or_else(|| {
-                    AppServiceError::invalid_request("Dying value exceeds the supported range")
-                })?;
-                let threshold = participant
-                    .base_death_threshold
-                    .saturating_sub(known_effective(participant, ConditionRule::Doomed)?);
-                if next >= threshold || threshold <= 0 {
-                    let mut update = ParticipantEventChange::preserving(participant);
-                    update.mortality = MortalityState::Dead;
-                    changes.participant_changes.push(update);
-                    clear(participant, ConditionRule::Dying, &mut changes);
-                    clear(participant, ConditionRule::Doomed, &mut changes);
-                } else if next <= 0 {
-                    clear(participant, ConditionRule::Dying, &mut changes);
-                    set_counter(
-                        participant,
-                        ConditionRule::Wounded,
-                        known_effective(participant, ConditionRule::Wounded)?
-                            .checked_add(1)
-                            .ok_or_else(|| {
-                                AppServiceError::invalid_request(
-                                    "Wounded value exceeds the supported range",
-                                )
-                            })?,
-                        request_id,
-                        &mut changes,
-                    )?;
-                    if !participant.conditions.iter().any(|c| {
-                        condition_rule_for_key(c.condition_key.as_deref())
-                            == Some(ConditionRule::Unconscious)
-                            && !matches!(
-                                c.parameters,
-                                ConditionParameters::Unconscious {
-                                    waking: atlas_local_state::WakingRule::SourceControlled
-                                }
-                            )
-                    }) {
-                        add_condition(
-                            participant,
-                            ConditionRule::Unconscious,
-                            None,
-                            request_id,
-                            "stable-unconscious",
-                            &mut changes,
-                        )?;
-                    }
-                } else {
-                    set_counter(
-                        participant,
-                        ConditionRule::Dying,
-                        next,
-                        request_id,
-                        &mut changes,
-                    )?;
-                }
+            CheckEffect::Dying { outcomes } => {
+                return outcomes
+                    .into_iter()
+                    .find(|(prepared, _)| *prepared == degree)
+                    .map(|(_, changes)| changes)
+                    .ok_or_else(|| {
+                        AppServiceError::invalid_request("Recovery outcome was not prepared")
+                    });
             }
             CheckEffect::Retch { condition, value } => {
                 let reduction = match degree {
@@ -375,6 +332,75 @@ impl PreparedLifecycle<'_> {
         Ok(changes)
     }
 }
+fn dying_recovery_changes(
+    participant: &EncounterParticipant,
+    sources: &super::source_conditions::SourceConditions,
+    dying: i64,
+    degree: CheckDegreeView,
+    request_id: &str,
+) -> AppServiceResult<PreparedConditionEvent> {
+    let conditions = super::causes::condition_causes(participant, None, sources);
+    let delta = match degree {
+        CheckDegreeView::CriticalSuccess => -2,
+        CheckDegreeView::Success => -1,
+        CheckDegreeView::Failure => 1,
+        CheckDegreeView::CriticalFailure => 2,
+    };
+    let next = dying.checked_add(delta).ok_or_else(|| {
+        AppServiceError::invalid_request("Dying value exceeds the supported range")
+    })?;
+    let mut changes = PreparedConditionEvent::default();
+    if conditions.known_at_least(
+        ConditionRule::Doomed,
+        participant.base_death_threshold.saturating_sub(next.max(0)),
+    )? {
+        let mut update = ParticipantEventChange::preserving(participant);
+        update.mortality = MortalityState::Dead;
+        changes.participant_changes.push(update);
+        clear(participant, ConditionRule::Dying, &mut changes);
+        clear(participant, ConditionRule::Doomed, &mut changes);
+        return Ok(changes);
+    }
+    if next <= 0 {
+        clear(participant, ConditionRule::Dying, &mut changes);
+    } else if next > dying || has_saved_condition(participant, ConditionRule::Dying) {
+        set_counter(
+            participant,
+            ConditionRule::Dying,
+            next,
+            request_id,
+            &mut changes,
+        )?;
+    }
+    let after = super::events::subject_after_changes(participant, &changes.condition_changes)?;
+    let after_conditions = super::causes::condition_causes(&after, None, sources);
+    if after_conditions.known_value(ConditionRule::Dying)? == 0 {
+        set_counter(
+            participant,
+            ConditionRule::Wounded,
+            after_conditions
+                .known_value(ConditionRule::Wounded)?
+                .checked_add(1)
+                .ok_or_else(|| {
+                    AppServiceError::invalid_request("Wounded value exceeds the supported range")
+                })?,
+            request_id,
+            &mut changes,
+        )?;
+        if !after_conditions.known_presence(ConditionRule::Unconscious)? {
+            add_condition(
+                participant,
+                ConditionRule::Unconscious,
+                None,
+                request_id,
+                "stable-unconscious",
+                &mut changes,
+            )?;
+        }
+    }
+    Ok(changes)
+}
+
 pub(in crate::encounters) fn source(
     participant: &EncounterParticipant,
     id: i64,
@@ -396,18 +422,6 @@ fn positive_value(condition: &EncounterParticipantCondition) -> AppServiceResult
             "Set the condition's positive numeric value before resolving recovery",
         )
     })
-}
-pub(in crate::encounters) fn known_effective(
-    participant: &EncounterParticipant,
-    rule: ConditionRule,
-) -> AppServiceResult<i64> {
-    let mut value = 0;
-    for condition in &participant.conditions {
-        if condition_rule_for_key(condition.condition_key.as_deref()) == Some(rule) {
-            value = value.max(positive_value(condition)?);
-        }
-    }
-    Ok(value)
 }
 fn reduce_source(
     participant: &EncounterParticipant,
@@ -457,7 +471,9 @@ pub(in crate::encounters) fn available_actions(
             unavailable_reason: claimed.then(|| "Already resolved this round".into()),
         });
     };
-    if has(participant, ConditionRule::Dying)
+    if super::causes::condition_causes(participant, None, source_conditions)
+        .known_presence(ConditionRule::Dying)
+        .unwrap_or_else(|_| has_saved_condition(participant, ConditionRule::Dying))
         && participant.track_dying
         && participant.mortality == MortalityState::Alive
         && participant.current_hp == Some(0)
@@ -465,7 +481,8 @@ pub(in crate::encounters) fn available_actions(
         add(
             Offer::DyingRecovery {
                 check: LifecycleCheckFactsView {
-                    dc: known_effective(participant, ConditionRule::Dying)
+                    dc: super::causes::condition_causes(participant, None, source_conditions)
+                        .known_value(ConditionRule::Dying)
                         .ok()
                         .and_then(|value| value.checked_add(10)),
                     modifier: Some(0),

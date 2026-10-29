@@ -40,14 +40,14 @@ pub(in crate::encounters) fn plan_hp_event(
         ));
     }
     let conditions = super::causes::condition_causes(participant, None, sources);
-    let petrified = conditions.known_presence(ConditionRule::Petrified)?;
+
     let mut update = ParticipantEventChange::preserving(participant);
     let mut changes = PreparedConditionEvent::default();
     match input {
         HpEventInput::DirectLoss { .. } => {
             update.current_hp = Some(current.saturating_sub(amount).max(0));
             if current > 0 && update.current_hp == Some(0) {
-                if petrified {
+                if conditions.known_presence(ConditionRule::Petrified)? {
                     update.mortality = MortalityState::Dead;
                     clear(participant, ConditionRule::Dying, &mut changes);
                     clear(participant, ConditionRule::Doomed, &mut changes);
@@ -59,18 +59,9 @@ pub(in crate::encounters) fn plan_hp_event(
                             before_hp: current,
                             after_hp: 0,
                             damage_amount: 0,
-                            was_dying: super::lifecycle::known_effective(
-                                participant,
-                                ConditionRule::Dying,
-                            )?,
-                            was_wounded: super::lifecycle::known_effective(
-                                participant,
-                                ConditionRule::Wounded,
-                            )?,
-                            was_doomed: super::lifecycle::known_effective(
-                                participant,
-                                ConditionRule::Doomed,
-                            )?,
+                            was_dying: conditions.known_value(ConditionRule::Dying)?,
+                            was_wounded: conditions.known_value(ConditionRule::Wounded)?,
+                            was_doomed: conditions.known_value(ConditionRule::Doomed)?,
                             context: context.clone(),
                         },
                     });
@@ -91,26 +82,36 @@ pub(in crate::encounters) fn plan_hp_event(
             if amount > 0
                 && update.current_hp.is_some_and(|hp| hp >= 1)
                 && participant.mortality != MortalityState::Dead
-                && !petrified
+                && !conditions.known_presence(ConditionRule::Petrified)?
             {
-                if super::lifecycle::known_effective(participant, ConditionRule::Dying)? > 0 {
+                if conditions.known_value(ConditionRule::Dying)? > 0 {
                     clear(participant, ConditionRule::Dying, &mut changes);
-                    set_counter(
+                    let after = super::events::subject_after_changes(
                         participant,
-                        ConditionRule::Wounded,
-                        super::lifecycle::known_effective(participant, ConditionRule::Wounded)?
-                            .checked_add(1)
-                            .ok_or_else(|| {
-                                AppServiceError::invalid_request(
-                                    "Wounded value exceeds the supported range",
-                                )
-                            })?,
-                        request_id,
-                        &mut changes,
+                        &changes.condition_changes,
                     )?;
+                    if super::causes::condition_causes(&after, None, sources)
+                        .known_value(ConditionRule::Dying)?
+                        == 0
+                    {
+                        set_counter(
+                            participant,
+                            ConditionRule::Wounded,
+                            super::causes::condition_causes(&after, None, sources)
+                                .known_value(ConditionRule::Wounded)?
+                                .checked_add(1)
+                                .ok_or_else(|| {
+                                    AppServiceError::invalid_request(
+                                        "Wounded value exceeds the supported range",
+                                    )
+                                })?,
+                            request_id,
+                            &mut changes,
+                        )?;
+                    }
                 }
                 if context.natural_rest_healing != Some(true)
-                    || super::lifecycle::known_effective(participant, ConditionRule::Dying)? > 0
+                    || conditions.known_value(ConditionRule::Dying)? > 0
                 {
                     clear_normal_unconscious(participant, &mut changes);
                 }
@@ -121,6 +122,27 @@ pub(in crate::encounters) fn plan_hp_event(
             update.temporary_hp -= temporary_damage;
             update.current_hp = Some(current.saturating_sub(amount - temporary_damage).max(0));
             let after = update.current_hp.unwrap_or(0);
+            let petrified_changes_consequences = participant.mortality != MortalityState::Dead
+                && (after == 0
+                    || participant.track_dying
+                    || participant.participant_kind == atlas_local_state::ParticipantKind::Hazard
+                        && context
+                            .broken_threshold
+                            .is_some_and(|threshold| after <= threshold)
+                    || participant.conditions.iter().any(|row| {
+                        matches!(
+                            condition_rule_for_key(row.condition_key.as_deref()),
+                            Some(ConditionRule::Unconscious | ConditionRule::Confused)
+                        )
+                    }));
+            let petrified = if petrified_changes_consequences {
+                conditions.known_presence(ConditionRule::Petrified)?
+            } else {
+                conditions
+                    .active
+                    .iter()
+                    .any(|cause| cause.rule == ConditionRule::Petrified)
+            };
             if petrified {
                 if after == 0 {
                     update.mortality = MortalityState::Dead;
@@ -132,7 +154,7 @@ pub(in crate::encounters) fn plan_hp_event(
             }
             if amount > 0
                 && participant.participant_kind == atlas_local_state::ParticipantKind::Hazard
-                && !has(participant, ConditionRule::Broken)
+                && !conditions.known_presence(ConditionRule::Broken)?
                 && context
                     .broken_threshold
                     .is_some_and(|threshold| after <= threshold)
@@ -184,7 +206,7 @@ pub(in crate::encounters) fn plan_hp_event(
                 && participant.mortality != MortalityState::Dead
                 && amount > 0
             {
-                let dying = super::lifecycle::known_effective(participant, ConditionRule::Dying)?;
+                let dying = conditions.known_value(ConditionRule::Dying)?;
                 if dying > 0 || after == 0 {
                     if lifecycle_needs_context(dying, context) {
                         changes.pending.push(SavedPendingConsequence {
@@ -195,20 +217,15 @@ pub(in crate::encounters) fn plan_hp_event(
                                 after_hp: after,
                                 damage_amount: amount,
                                 was_dying: dying,
-                                was_wounded: super::lifecycle::known_effective(
-                                    participant,
-                                    ConditionRule::Wounded,
-                                )?,
-                                was_doomed: super::lifecycle::known_effective(
-                                    participant,
-                                    ConditionRule::Doomed,
-                                )?,
+                                was_wounded: conditions.known_value(ConditionRule::Wounded)?,
+                                was_doomed: conditions.known_value(ConditionRule::Doomed)?,
                                 context: context.clone(),
                             },
                         });
                     } else {
                         plan_damage_lifecycle(
                             participant,
+                            sources,
                             context,
                             request_id,
                             &mut changes,
@@ -253,13 +270,15 @@ fn lifecycle_needs_context(dying: i64, context: &SavedHpEventContext) -> bool {
 }
 fn plan_damage_lifecycle(
     participant: &EncounterParticipant,
+    sources: &super::source_conditions::SourceConditions,
     context: &SavedHpEventContext,
     request_id: &str,
     changes: &mut PreparedConditionEvent,
     update: &mut ParticipantEventChange,
     relocate: bool,
 ) -> AppServiceResult<()> {
-    let dying = super::lifecycle::known_effective(participant, ConditionRule::Dying)?;
+    let conditions = super::causes::condition_causes(participant, None, sources);
+    let dying = conditions.known_value(ConditionRule::Dying)?;
     if relocate && context.keep_current_initiative != Some(true) {
         if let Some(source) = &context.responsible_participant_key {
             changes
@@ -297,10 +316,10 @@ fn plan_damage_lifecycle(
         } else {
             1_i64
         })
-        .checked_add(super::lifecycle::known_effective(
-            participant,
-            ConditionRule::Wounded,
-        )?)
+        .checked_add(
+            super::causes::condition_causes(participant, None, sources)
+                .known_value(ConditionRule::Wounded)?,
+        )
     };
     if next.is_none() && (dying > 0 || context.lethality == Some(DamageLethality::Lethal)) {
         return Err(AppServiceError::invalid_request(
@@ -315,10 +334,10 @@ fn plan_damage_lifecycle(
             "base death threshold must be positive",
         ));
     }
-    let threshold = base.saturating_sub(super::lifecycle::known_effective(
-        participant,
-        ConditionRule::Doomed,
-    )?);
+    let threshold = base.saturating_sub(
+        super::causes::condition_causes(participant, None, sources)
+            .known_value(ConditionRule::Doomed)?,
+    );
     if next.is_some_and(|value| value >= threshold) || threshold <= 0 {
         update.mortality = MortalityState::Dead;
         clear(participant, ConditionRule::Dying, changes);
@@ -331,7 +350,7 @@ fn plan_damage_lifecycle(
             request_id,
             changes,
         )?;
-    } else if !has(participant, ConditionRule::Unconscious) {
+    } else if !conditions.known_presence(ConditionRule::Unconscious)? {
         add_condition(
             participant,
             ConditionRule::Unconscious,
@@ -343,7 +362,7 @@ fn plan_damage_lifecycle(
     }
     if context.keep_upright != Some(true)
         && super::causes::application_grants(ConditionRule::Unconscious, ConditionRule::Prone)
-        && !has(participant, ConditionRule::Prone)
+        && !conditions.known_presence(ConditionRule::Prone)?
     {
         add_condition(
             participant,
@@ -413,10 +432,11 @@ pub(in crate::encounters) fn merge_pending_context(
 /// Pending HP decisions describe one recorded event, never a later knockout.
 pub(in crate::encounters) fn pending_is_current(
     participant: &EncounterParticipant,
+    sources: &super::source_conditions::SourceConditions,
     pending: &PendingConsequence,
-) -> bool {
+) -> AppServiceResult<bool> {
     if !participant.track_dying || participant.mortality == MortalityState::Dead {
-        return false;
+        return Ok(false);
     }
     match pending {
         PendingConsequence::HpLifecycle {
@@ -426,27 +446,31 @@ pub(in crate::encounters) fn pending_is_current(
             was_doomed,
             ..
         } => {
-            participant.current_hp == Some(*after_hp)
-                && [
-                    (ConditionRule::Dying, *was_dying),
-                    (ConditionRule::Wounded, *was_wounded),
-                    (ConditionRule::Doomed, *was_doomed),
-                ]
-                .into_iter()
-                .all(|(rule, expected)| {
-                    super::lifecycle::known_effective(participant, rule)
-                        .is_ok_and(|value| value == expected)
-                })
+            if participant.current_hp != Some(*after_hp) {
+                return Ok(false);
+            }
+            let conditions = super::causes::condition_causes(participant, None, sources);
+            for (rule, expected) in [
+                (ConditionRule::Dying, *was_dying),
+                (ConditionRule::Wounded, *was_wounded),
+                (ConditionRule::Doomed, *was_doomed),
+            ] {
+                if conditions.known_value(rule)? != expected {
+                    return Ok(false);
+                }
+            }
+            Ok(true)
         }
         PendingConsequence::InitiativePlacement { after_hp, .. } => {
-            participant.current_hp == Some(*after_hp)
+            Ok(participant.current_hp == Some(*after_hp))
         }
-        _ => true,
+        _ => Ok(true),
     }
 }
 
 pub(in crate::encounters) fn resolve_pending_lifecycle(
     participant: &EncounterParticipant,
+    sources: &super::source_conditions::SourceConditions,
     pending: &PendingConsequence,
     context: &SavedHpEventContext,
     request_id: &str,
@@ -464,7 +488,7 @@ pub(in crate::encounters) fn resolve_pending_lifecycle(
     };
     let merged_context = merge_pending_context(saved_context, context)?;
     let context = &merged_context;
-    if !pending_is_current(participant, pending) {
+    if !pending_is_current(participant, sources, pending)? {
         return Err(AppServiceError::invalid_request(
             "This knockout is no longer current. Refresh the encounter.",
         ));
@@ -480,6 +504,7 @@ pub(in crate::encounters) fn resolve_pending_lifecycle(
     historical.current_hp = Some(*before_hp);
     plan_damage_lifecycle(
         &historical,
+        sources,
         context,
         request_id,
         &mut changes,
@@ -492,6 +517,7 @@ pub(in crate::encounters) fn resolve_pending_lifecycle(
 /// Explicitly choosing dying rules at 0 HP never replays the damage event.
 pub(in crate::encounters) fn plan_knockout(
     participant: &EncounterParticipant,
+    sources: &super::source_conditions::SourceConditions,
     context: &SavedHpEventContext,
     request_id: &str,
 ) -> AppServiceResult<PreparedConditionEvent> {
@@ -502,13 +528,16 @@ pub(in crate::encounters) fn plan_knockout(
     update.defeated = false;
     let mut changes = PreparedConditionEvent::default();
     if !participant.track_dying
-        && super::lifecycle::known_effective(participant, ConditionRule::Dying)? > 0
+        && super::causes::condition_causes(participant, None, sources)
+            .known_value(ConditionRule::Dying)?
+            > 0
     {
         changes.participant_changes.push(update);
         return Ok(changes);
     }
     if lifecycle_needs_context(
-        super::lifecycle::known_effective(&subject, ConditionRule::Dying)?,
+        super::causes::condition_causes(&subject, None, sources)
+            .known_value(ConditionRule::Dying)?,
         context,
     ) {
         return Err(AppServiceError::invalid_request(
@@ -517,6 +546,7 @@ pub(in crate::encounters) fn plan_knockout(
     }
     plan_damage_lifecycle(
         &subject,
+        sources,
         context,
         request_id,
         &mut changes,
@@ -530,29 +560,41 @@ pub(in crate::encounters) fn plan_knockout(
     Ok(changes)
 }
 
+#[derive(Default)]
+pub(in crate::encounters) struct KnockoutOptions {
+    pub options: Vec<atlas_app_model::KnockoutOptionView>,
+    pub unavailable_reason: Option<String>,
+}
+
 pub(in crate::encounters) fn knockout_options(
     participant: &EncounterParticipant,
+    sources: &super::source_conditions::SourceConditions,
     known: Option<&SavedHpEventContext>,
-) -> Vec<atlas_app_model::KnockoutOptionView> {
+) -> KnockoutOptions {
     if participant.participant_kind == atlas_local_state::ParticipantKind::Hazard {
-        return vec![];
+        return KnockoutOptions::default();
     }
     if !participant.track_dying
-        && let Ok(value) = super::lifecycle::known_effective(participant, ConditionRule::Dying)
+        && let Ok(value) = super::causes::condition_causes(participant, None, sources)
+            .known_value(ConditionRule::Dying)
         && value > 0
     {
-        return vec![atlas_app_model::KnockoutOptionView {
-            label: "Track existing Dying".into(),
-            result: format!("Dying {value}"),
-            context: atlas_app_model::HpEventContextView {
-                lethality: Some(atlas_app_model::DamageLethalityView::Lethal),
-                critical: Some(false),
-                keep_current_initiative: Some(true),
-                ..Default::default()
-            },
-        }];
+        return KnockoutOptions {
+            options: vec![atlas_app_model::KnockoutOptionView {
+                label: "Track existing Dying".into(),
+                result: format!("Dying {value}"),
+                context: atlas_app_model::HpEventContextView {
+                    lethality: Some(atlas_app_model::DamageLethalityView::Lethal),
+                    critical: Some(false),
+                    keep_current_initiative: Some(true),
+                    ..Default::default()
+                },
+            }],
+            unavailable_reason: None,
+        };
     }
-    [
+    let mut unavailable_reason = None;
+    let options = [
         ("Normal", false, false),
         ("Critical", true, false),
         ("Nonlethal", false, true),
@@ -562,8 +604,15 @@ pub(in crate::encounters) fn knockout_options(
     ]
     .into_iter()
     .filter_map(|(label, critical, nonlethal)| {
-        let already_dying =
-            super::lifecycle::known_effective(participant, ConditionRule::Dying).ok()? > 0;
+        let already_dying = match super::causes::condition_causes(participant, None, sources)
+            .known_value(ConditionRule::Dying)
+        {
+            Ok(value) => value > 0,
+            Err(error) => {
+                unavailable_reason = Some(error.into_app_error().message);
+                return None;
+            }
+        };
         if label.ends_with("(other)") && !already_dying {
             return None;
         }
@@ -605,7 +654,13 @@ pub(in crate::encounters) fn knockout_options(
             context.base_death_threshold = known.base_death_threshold;
             context.keep_upright = known.keep_upright;
         }
-        let changes = plan_knockout(participant, &context, "knockout-preview").ok()?;
+        let changes = match plan_knockout(participant, sources, &context, "knockout-preview") {
+            Ok(changes) => changes,
+            Err(error) => {
+                unavailable_reason = Some(error.into_app_error().message);
+                return None;
+            }
+        };
         let result = if changes
             .participant_changes
             .iter()
@@ -650,10 +705,17 @@ pub(in crate::encounters) fn knockout_options(
             context: crate::encounters::hp_events::hp_context_view(context),
         })
     })
-    .collect()
+    .collect::<Vec<_>>();
+    KnockoutOptions {
+        unavailable_reason: options.is_empty().then_some(unavailable_reason).flatten(),
+        options,
+    }
 }
 
-pub(in crate::encounters) fn has(participant: &EncounterParticipant, rule: ConditionRule) -> bool {
+pub(in crate::encounters) fn has_saved_condition(
+    participant: &EncounterParticipant,
+    rule: ConditionRule,
+) -> bool {
     participant
         .conditions
         .iter()

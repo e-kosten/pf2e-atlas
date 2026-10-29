@@ -1,15 +1,13 @@
 //! Own-turn Stunned application uses the same reducer as explicit lifecycle recovery.
-use super::super::conditions::{ConditionRule, condition_rule_for_key};
-use super::events::{ConditionConsequence, ConditionConsequences, subject_after_change};
-use crate::AppServiceResult;
-use atlas_app_model::ConditionLifecycleActionView;
+use super::super::conditions::ConditionRule;
+use super::events::{ConditionConsequence, ConditionConsequences, subject_after_event};
+use crate::{AppServiceError, AppServiceResult};
 use atlas_local_state::{ConditionEventChange, EncounterParticipant};
 
-/// The caller establishes actual current-turn identity; this function performs no I/O.
 pub(in crate::encounters) fn apply(
     participant: &EncounterParticipant,
+    sources: &super::source_conditions::SourceConditions,
     planned: &mut ConditionConsequences,
-    request_id: &str,
 ) -> AppServiceResult<()> {
     let Some(resources) = participant
         .turn_resources
@@ -18,94 +16,141 @@ pub(in crate::encounters) fn apply(
     else {
         return Ok(());
     };
-    let Some(change) = planned.changes.condition_changes.first() else {
-        return Ok(());
+    let after = subject_after_event(participant, &planned.changes)?;
+    let before_causes = super::causes::condition_causes(participant, None, sources);
+    let after_causes = super::causes::condition_causes(&after, None, sources);
+    let same_cause = |before: &super::causes::ConditionCause<'_>,
+                      after: &super::causes::ConditionCause<'_>| {
+        before.rule == after.rule
+            && before.source.key() == after.source.key()
+            && before.value == after.value
     };
-    let (condition_id, key, value) = match change {
-        ConditionEventChange::Add(input) => (-1, input.condition_key.as_deref(), input.value),
-        ConditionEventChange::Replace(input) => {
-            let prior = participant
-                .conditions
-                .iter()
-                .find(|c| c.condition_id == input.condition_id);
-            // Notes, duration and source edits do not replay an already applied loss.
-            if prior
-                .is_some_and(|p| p.condition_key == input.condition_key && p.value == input.value)
-            {
-                return Ok(());
-            }
-            (
-                input.condition_id,
-                input.condition_key.as_deref(),
-                input.value,
-            )
+    let mut new_stunned = false;
+    for cause in after_causes
+        .active
+        .iter()
+        .filter(|cause| cause.rule == ConditionRule::Stunned)
+    {
+        if before_causes
+            .active
+            .iter()
+            .any(|before| same_cause(before, cause))
+        {
+            continue;
         }
-        ConditionEventChange::Remove { .. } => return Ok(()),
-    };
-    if condition_rule_for_key(key) != Some(ConditionRule::Stunned) || value.is_none_or(|v| v <= 0) {
+        if before_causes
+            .uncertain
+            .iter()
+            .any(|before| same_cause(before, cause))
+        {
+            let label = match cause.source {
+                super::causes::ConditionSource::Authored(source, ..) => {
+                    source.source_label.as_str()
+                }
+                super::causes::ConditionSource::Saved(source) => source.name.as_str(),
+            };
+            return Err(AppServiceError::invalid_request(format!(
+                "Check whether Stunned from {label} already applied before resolving action loss."
+            )));
+        }
+        new_stunned = true;
+    }
+    if after_causes.uncertain.iter().any(|cause| {
+        cause.rule == ConditionRule::Stunned
+            && !before_causes
+                .active
+                .iter()
+                .chain(&before_causes.uncertain)
+                .any(|before| same_cause(before, cause))
+    }) {
+        return Err(after_causes
+            .known_value(ConditionRule::Stunned)
+            .err()
+            .unwrap_or_else(|| {
+                AppServiceError::invalid_request(
+                    "Check whether the new source Stunned applies before resolving action loss.",
+                )
+            }));
+    }
+    if !new_stunned {
         return Ok(());
     }
-    let after = subject_after_change(participant, change)?;
-    // Source limits were applied at regain; own-turn loss uses recorded remaining stock.
-    let source_free = Default::default();
-    let Some(lost) =
-        super::capabilities::stunned_resolution_loss(&after, &source_free).filter(|n| *n > 0)
-    else {
+    let lost = super::capabilities::stunned_resolution_loss(&after, sources).ok_or_else(|| {
+        after_causes
+            .known_value(ConditionRule::Stunned)
+            .err()
+            .unwrap_or_else(|| {
+                AppServiceError::invalid_request(
+                    "Check source conditions before resolving Stunned action loss.",
+                )
+            })
+    })?;
+    if lost <= 0 {
         return Ok(());
-    };
-    let mut resolved = super::lifecycle::prepare_lifecycle(
-        &after,
-        &ConditionLifecycleActionView::StunnedActionsLost {
-            condition_id,
-            actions_lost: lost,
-        },
-        None,
-        request_id,
-        &source_free,
-    )?
-    .resolve(None)?;
+    }
+    let mut resolved = super::lifecycle::consume_numeric_stunned(&after, lost, sources)?.changes;
+    let reduced_subject =
+        super::events::subject_after_changes(&after, &resolved.condition_changes)?;
+    let stunned_after = super::causes::condition_causes(&reduced_subject, None, sources)
+        .known_value(ConditionRule::Stunned)
+        .ok();
+    let mut reductions = std::collections::BTreeMap::new();
     for reduction in resolved.condition_changes {
-        let reduced_id = match &reduction {
-            ConditionEventChange::Replace(input) => input.condition_id,
+        let id = match &reduction {
+            ConditionEventChange::Replace(row) => row.condition_id,
             ConditionEventChange::Remove { condition_id, .. } => *condition_id,
             ConditionEventChange::Add(_) => continue,
         };
-        if reduced_id != condition_id {
-            planned.changes.condition_changes.push(reduction);
-        } else {
-            match reduction {
-                ConditionEventChange::Replace(reduced) => {
-                    match &mut planned.changes.condition_changes[0] {
-                        ConditionEventChange::Add(input) => input.value = reduced.value,
-                        ConditionEventChange::Replace(input) => input.value = reduced.value,
-                        ConditionEventChange::Remove { .. } => {}
-                    }
+        reductions.insert(id, reduction);
+    }
+    let mut next_id = participant
+        .conditions
+        .iter()
+        .map(|row| row.condition_id)
+        .min()
+        .unwrap_or(0)
+        .min(0);
+    planned.changes.condition_changes = std::mem::take(&mut planned.changes.condition_changes)
+        .into_iter()
+        .filter_map(|mut change| {
+            let id = match &change {
+                ConditionEventChange::Add(_) => {
+                    next_id -= 1;
+                    next_id
                 }
-                ConditionEventChange::Remove { .. } if condition_id == -1 => {
-                    if let ConditionEventChange::Add(input) =
-                        planned.changes.condition_changes.remove(0)
-                        && let Some(origin) = input.origin
-                    {
+                ConditionEventChange::Replace(row) => row.condition_id,
+                ConditionEventChange::Remove { condition_id, .. } => *condition_id,
+            };
+            let Some(reduction) = reductions.remove(&id) else {
+                return Some(change);
+            };
+            match (&mut change, reduction) {
+                (ConditionEventChange::Add(row), ConditionEventChange::Replace(reduced)) => {
+                    row.value = reduced.value;
+                    Some(change)
+                }
+                (ConditionEventChange::Add(row), ConditionEventChange::Remove { .. }) => {
+                    if let Some(origin) = row.origin.take() {
                         planned.changes.consumed_applications.push(
                             atlas_local_state::ConsumedConditionApplication {
-                                participant_key: input.participant_key,
+                                participant_key: row.participant_key.clone(),
                                 origin,
                             },
                         );
                     }
+                    None
                 }
-                ConditionEventChange::Remove { .. } => {
-                    planned.changes.condition_changes[0] = reduction
-                }
-                ConditionEventChange::Add(_) => {}
+                (_, reduction) => Some(reduction),
             }
-        }
-    }
-    // -1 belongs only to the borrowed preview subject. A source consumed before
-    // insertion has no saved row ID; its request and retained result identify it.
+        })
+        .collect();
+    planned
+        .changes
+        .condition_changes
+        .extend(reductions.into_values());
     for resource in &mut resolved.turn_resources {
         for effect in &mut resource.effects {
-            if effect.condition_id == Some(-1) {
+            if effect.condition_id.is_some_and(|id| id < 0) {
                 effect.condition_id = None;
             }
         }
@@ -119,17 +164,7 @@ pub(in crate::encounters) fn apply(
         .push(ConditionConsequence::StunnedActionsLost {
             before: resources.regular_remaining + resources.extra_remaining,
             after: resources.regular_remaining + resources.extra_remaining - lost,
-            stunned_after: after
-                .conditions
-                .iter()
-                .filter(|c| {
-                    condition_rule_for_key(c.condition_key.as_deref())
-                        == Some(ConditionRule::Stunned)
-                })
-                .filter_map(|c| c.value)
-                .max()
-                .unwrap_or(0)
-                .saturating_sub(lost),
+            stunned_after,
         });
     Ok(())
 }

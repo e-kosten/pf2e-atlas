@@ -33,6 +33,9 @@ pub struct ResolveEncounterHpLifecycleRequest {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PendingHpLifecycleView {
+    #[serde(default)]
+    #[ts(optional)]
+    pub unavailable_reason: Option<String>,
     pub knockout_options: Vec<KnockoutOptionView>,
     pub required_facts: Vec<HpLifecycleRequiredFactView>,
     pub initiative_only: bool,

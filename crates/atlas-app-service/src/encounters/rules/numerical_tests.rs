@@ -64,7 +64,7 @@ pub(super) fn condition(
         updated_at: String::new(),
     }
 }
-fn source_baseline() -> super::super::stat_block::StatBlockView {
+pub(super) fn source_baseline() -> super::super::stat_block::StatBlockView {
     let input = atlas_search::test_support::record(
         "actors",
         "Actor",
@@ -1155,23 +1155,45 @@ fn unknown_strike_attribute_does_not_silently_ignore_a_penalty() {
 
 #[test]
 fn invisible_preserves_explicit_observer_detection() {
-    use super::relationships::{DetectionState, detection_state};
+    use super::relationships::targeting_requirements;
     let mut p = participant();
-    for (rule, expected) in [
-        (ConditionRule::Hidden, DetectionState::Hidden),
-        (ConditionRule::Undetected, DetectionState::Undetected),
-        (ConditionRule::Unnoticed, DetectionState::Undetected),
+    for (rule, guessed) in [
+        (ConditionRule::Hidden, false),
+        (ConditionRule::Undetected, true),
+        (ConditionRule::Unnoticed, true),
     ] {
         let mut scoped = condition(1, rule, None);
         scoped.scope = ConditionScope::SelectedParticipants {
             participant_keys: vec!["observer".into()],
         };
         p.conditions = vec![scoped, condition(2, ConditionRule::Invisible, None)];
-        assert_eq!(detection_state(&p, "observer"), Some(expected));
-        assert_eq!(detection_state(&p, "other"), None);
+        let requirements = targeting_requirements(
+            &p,
+            "observer",
+            super::source_conditions::SourceConditions::empty(),
+        );
+        assert_eq!(requirements.flat_check_dc, Some(11));
+        assert_eq!(requirements.requires_guessed_location, guessed);
+        assert_eq!(
+            targeting_requirements(
+                &p,
+                "other",
+                super::source_conditions::SourceConditions::empty()
+            )
+            .flat_check_dc,
+            None
+        );
     }
     p.conditions = vec![condition(2, ConditionRule::Invisible, None)];
-    assert_eq!(detection_state(&p, "observer"), None);
+    assert_eq!(
+        targeting_requirements(
+            &p,
+            "observer",
+            super::source_conditions::SourceConditions::empty()
+        )
+        .flat_check_dc,
+        None
+    );
 }
 
 #[test]
@@ -1266,8 +1288,12 @@ fn relationship_off_guard_uses_the_observers_immunity() {
     attacker.participant_key = "attacker".into();
     attacker.conditions = vec![condition(1, ConditionRule::Hidden, None)];
     let roster = vec![observer.clone(), attacker];
-    let additional =
-        super::relationships::observer_defense_causes(&observer.participant_key, &roster);
+    let source_sets = Default::default();
+    let additional = super::relationships::observer_defense_causes(
+        &observer.participant_key,
+        &roster,
+        &source_sets,
+    );
     let mut baseline = source_baseline();
     baseline.source_conditions.immunities = vec![ConditionImmunity {
         slug: "off-guard".into(),

@@ -21,14 +21,24 @@ pub(super) fn prepare_start(
         return Ok((None, vec![]));
     }
     let plan = rules::capabilities::RegainPlan::evaluate(participant, sources);
-    let dying = participant.track_dying
+    let recovery = if participant.track_dying
         && participant.current_hp == Some(0)
-        && participant.conditions.iter().any(|c| {
-            condition_rule_for_key(c.condition_key.as_deref()) == Some(ConditionRule::Dying)
-                && c.value.is_some_and(|v| v > 0)
-        });
-    let pending_reason = if dying && !dying_completed {
-        Some("Resolve Dying recovery before regaining actions.".into())
+        && participant.mortality != atlas_local_state::MortalityState::Dead
+        && !dying_completed
+    {
+        rules::causes::condition_causes(participant, None, sources)
+            .known_value(ConditionRule::Dying)
+            .map(|value| value > 0)
+    } else {
+        Ok(false)
+    };
+    let recovery_reason = match recovery {
+        Err(error) => Some(error.into_app_error().message),
+        Ok(true) => Some("Resolve Dying recovery before regaining actions.".into()),
+        Ok(false) => None,
+    };
+    let pending_reason = if recovery_reason.is_some() {
+        recovery_reason
     } else if plan.total().is_none() {
         Some(
             plan.missing_reason()
@@ -50,7 +60,7 @@ pub(super) fn prepare_start(
         {
             let mut at_regain = participant.clone();
             at_regain.turn_resources = None;
-            let transition = rules::lifecycle::consume_numeric_stunned(&at_regain, lost)?;
+            let transition = rules::lifecycle::consume_numeric_stunned(&at_regain, lost, sources)?;
             changes = transition.changes;
             effects = transition.effects;
             claims.push(EncounterBoundaryClaim {
@@ -278,7 +288,7 @@ impl AtlasAppService {
             request.action,
             TurnResourceAction::Regain | TurnResourceAction::Spend { .. }
         ) {
-            source_action_context(self, participant)?
+            super::workflow::condition_sources_context(self, participant)?
         } else {
             (Default::default(), None)
         };
@@ -419,6 +429,7 @@ impl AtlasAppService {
             }
         };
         let receipt = event_execution::EncounterEvent {
+            condition_sources: &[(&participant.participant_key, &source_conditions)],
             encounter_key: &snapshot.encounter.encounter_key,
             request_id: &request.request_id,
             intent: &intent,
@@ -437,36 +448,6 @@ impl AtlasAppService {
         Ok(EncounterMutationView {
             encounter_key: receipt.encounter_key,
         })
-    }
-}
-
-pub(super) fn source_action_context(
-    service: &AtlasAppService,
-    participant: &EncounterParticipant,
-) -> AppServiceResult<(rules::source_conditions::SourceConditions, Option<u64>)> {
-    if participant.record_key.is_none() || participant.participant_kind == ParticipantKind::Hazard {
-        return Ok((Default::default(), None));
-    }
-    match super::workflow::condition_subject_context(service, participant) {
-        Ok(subject) => Ok((subject.source_conditions, subject.reference_revision)),
-        Err(error) => {
-            let error = error.into_app_error();
-            if matches!(
-                error.code,
-                AppErrorCode::SetupRequired
-                    | AppErrorCode::ArtifactIncompatible
-                    | AppErrorCode::ArtifactGenerationChanged
-                    | AppErrorCode::IndexUnavailable
-                    | AppErrorCode::ArtifactNotReady
-            ) {
-                Ok((
-                    rules::source_conditions::SourceConditions::unavailable(),
-                    None,
-                ))
-            } else {
-                Err(error.into())
-            }
-        }
     }
 }
 

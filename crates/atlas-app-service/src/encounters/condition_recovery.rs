@@ -94,15 +94,7 @@ impl AtlasAppService {
         if let Some(saved) = &saved_boundary {
             retain_outgoing_frightened(&mut participant, saved);
         }
-        let subject = if action_needs_source(&request.action)
-            || (matches!(
-                request.action,
-                ConditionLifecycleActionView::StunnedActionsLost { .. }
-            ) && participant
-                .turn_resources
-                .as_ref()
-                .is_none_or(|r| r.pending_reason.is_some() || !r.actions_open))
-        {
+        let subject = if action_needs_source(&request.action) {
             workflow::condition_subject_context(self, &participant)?
         } else {
             workflow::ConditionSubjectContext::from_saved(&participant)
@@ -151,6 +143,7 @@ impl AtlasAppService {
             )
         };
         let receipt = EncounterEvent {
+            condition_sources: &[(&participant.participant_key, &subject.source_conditions)],
             encounter_key: &snapshot.encounter.encounter_key,
             request_id: &request.request_id,
             intent: &intent,
@@ -305,17 +298,15 @@ impl AtlasAppService {
         };
         let mut action_sources = rules::source_conditions::SourceConditions::default();
         let mut actions = options(&workflow::ConditionSubjectContext::from_saved(participant));
-        let needs_source = actions.iter().any(|option| {
-            offer_needs_source(&option.action)
-                || (matches!(
-                    option.action,
-                    ConditionRecoveryOfferView::StunnedActionsLost { .. }
-                ) && participant
-                    .turn_resources
-                    .as_ref()
-                    .is_none_or(|r| r.pending_reason.is_some() || !r.actions_open))
-        });
-        if boundary.is_none() && needs_source {
+        let needs_source = participant.track_dying
+            && participant.current_hp == Some(0)
+            && participant.record_key.is_some()
+            || actions
+                .iter()
+                .any(|option| offer_needs_source(&option.action));
+        if needs_source
+            && (boundary.is_none() || participant.track_dying && participant.current_hp == Some(0))
+        {
             match workflow::condition_subject_context(self, participant) {
                 Ok(source) => {
                     actions = options(&source);
@@ -333,22 +324,10 @@ impl AtlasAppService {
                     ) {
                         return Err(error.into());
                     }
-                    // Other hints and table outcomes remain usable. An unrecorded
-                    // action allowance cannot be guessed for Stunned resolution.
-                    for option in &mut actions {
-                        if let ConditionRecoveryOfferView::StunnedActionsLost {
-                            actions_lost, ..
-                        } = &mut option.action
-                            && participant
-                                .turn_resources
-                                .as_ref()
-                                .is_none_or(|r| r.pending_reason.is_some() || !r.actions_open)
-                        {
-                            *actions_lost = None;
-                            option.available = false;
-                            option.unavailable_reason = Some("This creature's action allotment is unavailable. Refresh reference data before resolving Stunned.".into());
-                        }
-                    }
+                    action_sources = rules::source_conditions::SourceConditions::unavailable();
+                    let mut subject = workflow::ConditionSubjectContext::from_saved(participant);
+                    subject.source_conditions = action_sources.clone();
+                    actions = options(&subject);
                 }
             }
         }
@@ -380,14 +359,21 @@ impl AtlasAppService {
 fn action_needs_source(action: &ConditionLifecycleActionView) -> bool {
     matches!(
         action,
-        ConditionLifecycleActionView::Retch {
-            check: LifecycleCheckInputView::Roll,
-            ..
-        }
+        ConditionLifecycleActionView::DyingRecovery { .. }
+            | ConditionLifecycleActionView::StunnedActionsLost { .. }
+            | ConditionLifecycleActionView::Retch {
+                check: LifecycleCheckInputView::Roll,
+                ..
+            }
     )
 }
 fn offer_needs_source(offer: &ConditionRecoveryOfferView) -> bool {
-    matches!(offer, ConditionRecoveryOfferView::Retch { .. })
+    matches!(
+        offer,
+        ConditionRecoveryOfferView::Retch { .. }
+            | ConditionRecoveryOfferView::DyingRecovery { .. }
+            | ConditionRecoveryOfferView::StunnedActionsLost { .. }
+    )
 }
 
 fn pending_for_action<'a>(

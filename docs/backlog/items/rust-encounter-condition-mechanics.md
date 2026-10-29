@@ -34,13 +34,16 @@ The shared evaluation and event boundaries are described in
 ## Open follow-through
 
 - Complete PR review of the current correction batch.
-- The source lifecycle audit covered 7,838 pinned actors and found no known-active
-  inherited Dying, Wounded, Doomed, Confused or Unconscious case. Some valued
-  lifecycle arithmetic still reads saved rows only. Pharasma's standalone Major
-  Curse can supply supported Doomed 2, but no pinned carrier or current attachment
-  workflow was established. A future supported immutable-source recovery workflow
-  needs a product decision; saved-row selectors and historical decoders remain
-  legitimate and should not be deleted speculatively.
+- Finish validation of the reopened effective-source repair in PR142. HP, recovery,
+  before/after condition transitions, own-turn Stunned, targeting, senses and rest
+  now use shared effective facts. Known inherited Dying/Wounded/Doomed participate
+  without requiring an attachment or source-editing workflow. Saved selectors and
+  historical results remain deliberately distinct. Supported Go Dark and Smoke
+  Exhalation declarations have public service regressions for Hidden/Concealed.
+- Verify the agreed uncertainty presentation in the updated preview, then complete
+  final gates and review. Unknown relevant facts explain the affected calculation;
+  independent known facts and manual correction remain usable. No new adjudication
+  form or arbitrary Foundry effect runtime is introduced.
 
 ## Boundaries
 

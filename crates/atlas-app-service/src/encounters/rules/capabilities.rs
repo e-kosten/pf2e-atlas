@@ -70,13 +70,14 @@ impl RegainPlan {
         let mut quickened = false;
         let mut duration_stun = false;
         let resolution = super::causes::condition_causes(p, None, sources);
-        let mut unknown = sources.unavailable_reason.is_some()
-            || resolution.uncertain.iter().any(|source| {
-                matches!(
-                    source.rule,
-                    ConditionRule::Slowed | ConditionRule::Quickened | ConditionRule::Stunned
-                )
-            });
+        let duration_known = resolution.active.iter().any(|cause| {
+            cause.rule == ConditionRule::Stunned
+                && cause.value.is_none()
+                && cause.source.has_duration()
+        });
+        let mut unknown = resolution.known_value(ConditionRule::Slowed).is_err()
+            || resolution.known_presence(ConditionRule::Quickened).is_err()
+            || !duration_known && resolution.known_value(ConditionRule::Stunned).is_err();
         for cause in resolution.active {
             let (rule, value, has_duration) =
                 (cause.rule, cause.value, cause.source.has_duration());
@@ -210,19 +211,17 @@ pub(in crate::encounters) fn stunned_resolution_loss(
         .filter(|r| r.pending_reason.is_none() && r.actions_open)
     {
         let remaining = resources.regular_remaining + resources.extra_remaining;
-        let mut stunned = 0;
-        for cause in super::causes::condition_causes(p, None, sources)
-            .active
-            .into_iter()
-            .filter(|c| c.rule == ConditionRule::Stunned)
-        {
-            match cause.value {
-                Some(v) if v >= 0 => stunned = stunned.max(v),
-                None if cause.source.has_duration() => return Some(remaining),
-                _ => return None,
-            }
+        let conditions = super::causes::condition_causes(p, None, sources);
+        if conditions.active.iter().any(|cause| {
+            cause.rule == ConditionRule::Stunned
+                && cause.value.is_none()
+                && cause.source.has_duration()
+        }) {
+            return Some(remaining);
         }
-        return Some(stunned.min(remaining));
+        return conditions
+            .known_capped_value(ConditionRule::Stunned, remaining)
+            .ok();
     }
     RegainPlan::evaluate(p, sources).stunned_loss()
 }
@@ -386,7 +385,9 @@ pub(in crate::encounters) fn allocation_changes(
             if let TurnActionAdjustment::StunnedDuringTurn { value, lost } = change {
                 Some(adjustment(
                     &format!("stunned-during-{index}"),
-                    &format!("Stunned {value}"),
+                    &value
+                        .map(|value| format!("Stunned {value}"))
+                        .unwrap_or_else(|| "Stunned".into()),
                     -*lost,
                     None,
                 ))
@@ -758,13 +759,13 @@ mod tests {
             broken_threshold_known_absent: false,
         };
         assert!(matches!(
-            condition_applicability(rule, &p, &facts),
+            condition_applicability(rule, &p, &facts, SourceConditions::empty()),
             Some(atlas_app_model::EncounterConditionEligibilityView::NeedsContext { .. })
         ));
         facts.immunities.entries[0].coverage =
             crate::encounters::rules::ImmunityCoverage::Unconditional;
         assert!(matches!(
-            condition_applicability(rule, &p, &facts),
+            condition_applicability(rule, &p, &facts, SourceConditions::empty()),
             Some(atlas_app_model::EncounterConditionEligibilityView::Immune { .. })
         ));
     }
@@ -929,14 +930,20 @@ mod tests {
         };
         subject.conditions.push(hidden);
         let roster = vec![subject];
-        let causes = observer_defense_causes("observer", &roster);
+        let source_sets = Default::default();
+        let causes = observer_defense_causes("observer", &roster, &source_sets);
         assert_eq!(causes.len(), 1);
         assert_eq!(causes[0].against, Some("subject"));
         assert_eq!(causes[0].rule, ConditionRule::OffGuard);
-        assert!(observer_defense_causes("other", &roster).is_empty());
-        assert!(observer_defense_causes("subject", &roster).is_empty());
+        assert!(observer_defense_causes("other", &roster, &source_sets).is_empty());
+        assert!(observer_defense_causes("subject", &roster, &source_sets).is_empty());
         assert_eq!(
-            targeting_requirements(&roster[0], "observer").flat_check_dc,
+            targeting_requirements(
+                &roster[0],
+                "observer",
+                crate::encounters::rules::source_conditions::SourceConditions::empty()
+            )
+            .flat_check_dc,
             Some(11)
         );
     }
@@ -946,7 +953,11 @@ mod tests {
         use super::super::relationships::*;
         let mut subject = participant();
         subject.conditions = vec![condition("Undetected", None), condition("Concealed", None)];
-        let direct = targeting_requirements(&subject, "observer");
+        let direct = targeting_requirements(
+            &subject,
+            "observer",
+            crate::encounters::rules::source_conditions::SourceConditions::empty(),
+        );
         assert!(direct.requires_guessed_location);
         assert_eq!(direct.flat_check_dc, Some(11));
     }

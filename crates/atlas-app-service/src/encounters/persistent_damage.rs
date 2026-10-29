@@ -335,6 +335,7 @@ impl AtlasAppService {
                 vec![]
             };
             let receipt = EncounterEvent {
+            condition_sources: &[],
                 encounter_key: &encounter.encounter_key, request_id: &request.request_id, intent: &intent,
                 expected_revision: request.expected_encounter_revision, reference_revision: None, participant_revision: None,
             }.evaluate_in(session, atlas_local_state::ConditionEventBoundary { claims: &claims, outgoing_boundary_key: request.boundary_key.as_deref() },
