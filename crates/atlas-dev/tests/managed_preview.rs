@@ -441,3 +441,25 @@ fn incomplete_profile_preflight_never_stops_or_restarts_the_working_preview() {
         );
     }
 }
+
+#[test]
+fn capabilities_do_not_require_an_existing_checkout_or_workspace() {
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_atlas-dev"))
+        .args([
+            "baseline",
+            "capabilities",
+            "--checkout",
+            "/atlas-nonexistent-checkout",
+        ])
+        .output()
+        .expect("capability command");
+    assert!(output.status.success());
+    let report: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("capability JSON");
+    assert_eq!(report["version"], 1);
+    assert_eq!(report["managed_preview"], true);
+    assert_eq!(
+        report["workspace_schema_version"],
+        atlas_runtime::WORKSPACE_SCHEMA_VERSION
+    );
+}

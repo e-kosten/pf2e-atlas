@@ -20,6 +20,10 @@ pub(crate) fn run(args: BaselineArgs) -> std::result::Result<ExitCode, String> {
     execute(args).map_err(|error| error.to_string())
 }
 fn execute(args: BaselineArgs) -> Result<ExitCode> {
+    if matches!(args.command, BaselineCommand::Capabilities) {
+        println!("{}", serde_json::to_string_pretty(&capabilities())?);
+        return Ok(ExitCode::SUCCESS);
+    }
     let checkout = PathBuf::from(files::git(
         &args.checkout,
         &["rev-parse", "--show-toplevel"],
@@ -36,6 +40,7 @@ fn execute(args: BaselineArgs) -> Result<ExitCode> {
             .join(".atlas/dev-baselines"),
     );
     let (report, code) = match args.command {
+        BaselineCommand::Capabilities => (capabilities(), ExitCode::SUCCESS),
         BaselineCommand::Publish(options) => (
             publish::publish(&options, &checkout, &store)?,
             ExitCode::SUCCESS,
@@ -90,6 +95,10 @@ fn execute(args: BaselineArgs) -> Result<ExitCode> {
     }
     Ok(code)
 }
+fn capabilities() -> Value {
+    json!({"version":1,"managed_preview":true,"workspace_schema_version":atlas_runtime::WORKSPACE_SCHEMA_VERSION})
+}
+
 fn load(store: &Path, selected: Option<&str>, verify_data: bool) -> Result<(PathBuf, Manifest)> {
     let selected = match selected {
         Some(id) => id.to_owned(),
