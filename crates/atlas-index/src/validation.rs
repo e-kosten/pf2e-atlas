@@ -681,21 +681,26 @@ pub(crate) fn check_vector(vector: &[f32], dimensions: usize) -> Result<(), Inde
 }
 // Compare index postings against SQLite's own tokenizer output, without writing the artifact.
 fn validate_fts(c: &Connection) -> Result<(), IndexError> {
-    let expected = Connection::open_in_memory()?;
+    let mut expected = Connection::open_in_memory()?;
     expected.execute_batch("CREATE VIRTUAL TABLE expected_fts USING fts5(identity_terms,alias_terms,structured_terms,definition_terms,tokenize='unicode61 remove_diacritics 2'); CREATE VIRTUAL TABLE expected_vocab USING fts5vocab(expected_fts,instance);")?;
-    let mut s=c.prepare("SELECT unit_id,identity_terms,alias_terms,structured_terms,definition_terms FROM lexical_units")?;
-    for row in s.query_map([], |r| {
-        Ok((
-            r.get::<_, i64>(0)?,
-            r.get::<_, String>(1)?,
-            r.get::<_, String>(2)?,
-            r.get::<_, String>(3)?,
-            r.get::<_, String>(4)?,
-        ))
-    })? {
-        let (id, a, b, d, e) = row?;
-        expected.execute("INSERT INTO expected_fts(rowid,identity_terms,alias_terms,structured_terms,definition_terms) VALUES(?,?,?,?,?)",rusqlite::params![id,a,b,d,e])?;
+    let transaction = expected.transaction()?;
+    {
+        let mut insert=transaction.prepare("INSERT INTO expected_fts(rowid,identity_terms,alias_terms,structured_terms,definition_terms) VALUES(?,?,?,?,?)")?;
+        let mut s=c.prepare("SELECT unit_id,identity_terms,alias_terms,structured_terms,definition_terms FROM lexical_units")?;
+        for row in s.query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, String>(3)?,
+                r.get::<_, String>(4)?,
+            ))
+        })? {
+            let (id, a, b, d, e) = row?;
+            insert.execute(rusqlite::params![id, a, b, d, e])?;
+        }
     }
+    transaction.commit()?;
     c.execute_batch(
         "CREATE VIRTUAL TABLE temp.actual_vocab USING fts5vocab(main,lexical_fts,instance);",
     )?;
