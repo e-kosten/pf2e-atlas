@@ -2,7 +2,7 @@
 use crate::{EnrichedDocumentOutcome, EnrichedFoundrySource, IngestError};
 use atlas_embedding::{
     IDENTITY_TOKEN_BUDGET, PassageSection, PreparedEmbeddingInput, TextEmbeddingTokenizer,
-    prepare_embedding_section,
+    prepare_embedding_section, reuse_embedding_section,
 };
 use atlas_index::{
     IndexBuildInput, IndexBuildPack, SourceArtifactBuildContext, SourceArtifactDiagnostic,
@@ -11,9 +11,10 @@ use atlas_index::{
 use atlas_record::source_record::{
     SOURCE_CONTENT_SELECTION_VERSION, SourceSearchSelection, select_record_search,
 };
+use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct PendingSemanticUnit {
     pub(crate) input: PreparedEmbeddingInput,
     pub(crate) unit: SourceSemanticUnitInput,
@@ -23,12 +24,14 @@ pub(crate) struct PreparedBuildInput {
     pub(crate) pending: Vec<PendingSemanticUnit>,
     pub(crate) trait_pending: Vec<crate::traits::PendingTraitInput>,
     pub(crate) context_shortened: usize,
+    pub(crate) reused_sections: usize,
 }
 pub(crate) fn index_build_input(
     source: EnrichedFoundrySource,
     context: SourceArtifactBuildContext,
     tokenizer: Option<&TextEmbeddingTokenizer>,
     capture: &crate::source_fingerprint::SourceCapture,
+    mut layouts: BTreeMap<atlas_domain::RecordKey, Vec<atlas_index::SourcePassageLayout>>,
 ) -> Result<PreparedBuildInput, IngestError> {
     tracing::info!(target:"atlas_progress",phase="select_search","Selecting searchable text");
     let source_root = source.metadata.source_root.clone();
@@ -51,6 +54,7 @@ pub(crate) fn index_build_input(
         pending: vec![],
         trait_pending: vec![],
         context_shortened: 0,
+        reused_sections: 0,
     };
     for pack in source.packs {
         output.index.packs.push(IndexBuildPack {
@@ -129,14 +133,16 @@ pub(crate) fn index_build_input(
                     .filter(|alias| alias.record == selection.root)
                     .map(|alias| alias.alias.clone()),
             );
-            semantic_units(
+            let previous = layouts.remove(&selection.root).unwrap_or_default();
+            output.reused_sections += semantic_units(
                 &selection,
                 tokenizer,
                 &mut output.pending,
                 &mut output.context_shortened,
+                &previous,
             )?;
             if last_progress.elapsed() >= Duration::from_secs(1) || ordinal + 1 == total {
-                tracing::info!(target:"atlas_progress",phase="prepare_passages",current=(ordinal+1) as u64,total=total as u64,unit="records",semantic_units=output.pending.len(),record=%selection.root,"Splitting text into search passages");
+                tracing::info!(target:"atlas_progress",phase="prepare_passages",current=(ordinal+1) as u64,total=total as u64,unit="records",semantic_units=output.pending.len(),reused_sections=output.reused_sections,record=%selection.root,"Splitting text into search passages");
                 last_progress = Instant::now();
             }
         }
@@ -148,9 +154,10 @@ pub(crate) fn semantic_units(
     tokenizer: &TextEmbeddingTokenizer,
     output: &mut Vec<PendingSemanticUnit>,
     shortened: &mut usize,
-) -> Result<(), IngestError> {
+    layouts: &[atlas_index::SourcePassageLayout],
+) -> Result<usize, IngestError> {
     if selection.identities.is_empty() {
-        return Ok(());
+        return Ok(0);
     }
     let mut identity = selection.identity_required.clone();
     if tokenizer
@@ -180,6 +187,7 @@ pub(crate) fn semantic_units(
     {
         push_pending(output, selection, vec![], None, 0, input);
     }
+    let mut reused = 0;
     for field in &selection.fields {
         for section in &field.sections {
             let owner_name = selection
@@ -222,11 +230,50 @@ pub(crate) fn semantic_units(
                     label: section.label.as_deref(),
                 }
             };
-            for (ordinal, input) in prepare_embedding_section(tokenizer, passage)
-                .map_err(embedding_error)?
-                .into_iter()
+            let mut candidates = layouts
+                .iter()
+                .filter(|layout| {
+                    layout.owners == field.locator.owners
+                        && layout.field == field.locator.field
+                        && match &layout.passage.address {
+                            atlas_domain::SourcePassageAddress::HtmlSection {
+                                section_ordinal,
+                                ..
+                            }
+                            | atlas_domain::SourcePassageAddress::PlainSection {
+                                section_ordinal,
+                                ..
+                            } => *section_ordinal == section.section_ordinal,
+                            atlas_domain::SourcePassageAddress::Identity {} => false,
+                        }
+                })
+                .collect::<Vec<_>>();
+            candidates.sort_by_key(|layout| layout.chunk_ordinal);
+            let cached = if candidates
+                .iter()
                 .enumerate()
+                .all(|(ordinal, layout)| ordinal == layout.chunk_ordinal)
             {
+                reuse_embedding_section(
+                    tokenizer,
+                    passage,
+                    &candidates
+                        .iter()
+                        .map(|layout| layout.passage.clone())
+                        .collect::<Vec<_>>(),
+                )
+                .map_err(embedding_error)?
+            } else {
+                None
+            };
+            let inputs = match cached {
+                Some(inputs) => {
+                    reused += 1;
+                    inputs
+                }
+                None => prepare_embedding_section(tokenizer, passage).map_err(embedding_error)?,
+            };
+            for (ordinal, input) in inputs.into_iter().enumerate() {
                 *shortened += usize::from(input.context_shortened);
                 push_pending(
                     output,
@@ -239,7 +286,7 @@ pub(crate) fn semantic_units(
             }
         }
     }
-    Ok(())
+    Ok(reused)
 }
 fn push_pending(
     output: &mut Vec<PendingSemanticUnit>,
