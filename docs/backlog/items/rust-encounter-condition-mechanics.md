@@ -31,19 +31,21 @@ totals, historical outcomes and manual Stunned reconciliation remain supported.
 The shared evaluation and event boundaries are described in
 [ADR0055](../../architecture/decisions/0055-encounter-condition-evaluation.md).
 
-## Open follow-through
+## Delivery
 
-- Complete PR review of the current correction batch.
-- Finish validation of the reopened effective-source repair in PR142. HP, recovery,
-  before/after condition transitions, own-turn Stunned, targeting, senses and rest
-  now use shared effective facts. Known inherited Dying/Wounded/Doomed participate
-  without requiring an attachment or source-editing workflow. Saved selectors and
-  historical results remain deliberately distinct. Supported Go Dark and Smoke
-  Exhalation declarations have public service regressions for Hidden/Concealed.
-- Verify the agreed uncertainty presentation in the updated preview, then complete
-  final gates and review. Unknown relevant facts explain the affected calculation;
-  independent known facts and manual correction remain usable. No new adjudication
-  form or arbitrary Foundry effect runtime is introduced.
+PR142 completes the effective-source repair as part of the correction batch. HP,
+recovery, condition and ability transitions, own-turn Stunned, targeting, senses
+and rest use the shared effective-condition resolver. Known inherited
+Dying/Wounded/Doomed participate without an attachment or source-editing workflow;
+saved selectors and historical results remain deliberately distinct. Supported
+Go Dark and Smoke Exhalation declarations have public-service regressions for
+Hidden/Concealed.
+
+Unknown relevant facts explain the affected calculation; independent known facts
+and manual correction remain usable. There is no new adjudication form or
+arbitrary Foundry effect runtime. The reviewed UI direction is accepted; the PR's
+checks and validation report track final delivery evidence. Merge remains under
+the user's control.
 
 ## Boundaries
 
