@@ -35,6 +35,32 @@ Use corruption/rollback cases and unchanged data digests to verify any optimizat
 This work is separate from preview admission, model verification reuse and frozen
 maintenance orchestration in the development workflow.
 
+### Trait validation corpus loading
+
+Trait association validation now accumulates compact evidence during the existing
+checked-record identity pass. It no longer reconstructs and retains whole-corpus
+build inputs. Required cached-row metadata and admission diagnostics are validated
+per record, including unpublished fields; exact trait evidence and whole-field
+rendering-success checks remain.
+
+Serial macOS ARM64 measurements, Rust1.95.0, schema22, the same29,894-record
+two-profile corpus (BGE Base and EmbeddingGemma), baseline965f8123 and candidate
+a3b191f2:
+
+| Deep validation | Baseline | Candidate |
+| --- | ---: | ---: |
+| Dev elapsed |273.26s|260.09s|
+| Dev observed peak RSS |1,573.7MiB|362.8MiB|
+| Release elapsed |49.99s|48.11s|
+| Release observed peak RSS |1,619.9MiB|404.4MiB|
+
+Memory was sampled once per second; these are local observations, not portable
+limits. The measured memory reduction is75–77%. Elapsed differences are small
+enough that these runs do not establish a dependable speedup. The full16-minute
+maintenance operation was not rerun. All validation reports/counts/source
+fingerprints matched, and the database, including saved state, remained
+byte-identical. No corpus embedding regeneration was used.
+
 ## Original observation
 
 The full-corpus FTS preview build took 2,139,209 ms (about 36 minutes) for
