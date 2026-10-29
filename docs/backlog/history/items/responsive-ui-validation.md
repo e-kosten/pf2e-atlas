@@ -32,4 +32,4 @@ not establish those outcomes. Broad accessibility remediation or new mobile
 interaction designs need their own evidence and agreed scope.
 
 See [frontend guidance](../../../../web/atlas-ui/docs/frontend-guidelines.md#responsive-design-and-acceptance)
-and [contributor validation](../../../../CONTRIBUTING.md#validation-at-commits-and-review).
+and [contributor validation](../../../development/validation.md).

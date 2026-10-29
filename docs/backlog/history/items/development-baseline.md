@@ -12,7 +12,7 @@ Acceptance: consistent live SQLite snapshot, atomic publication after validation
 independent writable copies, candidate readiness without implicit migration,
 provenance/status commands, focused regression tests and real two-profile smoke.
 
-See [the contributor workflow](../../../../CONTRIBUTING.md#reusable-development-baseline) for commands and retention guidance.
+See [the contributor workflow](../../../development/setup-and-preview.md#reusable-development-baseline) for commands and retention guidance.
 
 The baseline manifest and existing private databases remain reusable across tooling
 updates. Snapshot admission belongs to atlas-storage; atlas-dev owns orchestration
