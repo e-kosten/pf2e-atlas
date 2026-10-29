@@ -215,7 +215,7 @@ fn participant_view(
                     dying,
                     &participant,
                     &knockout_facts,
-                    &sources,
+                    sources,
                 ) {
                     Some(atlas_app_model::EncounterConditionEligibilityView::Immune { reason }) => {
                         Some(reason)
