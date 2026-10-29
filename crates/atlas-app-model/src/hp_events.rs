@@ -33,7 +33,7 @@ pub struct ResolveEncounterHpLifecycleRequest {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PendingHpLifecycleView {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub unavailable_reason: Option<String>,
     pub knockout_options: Vec<KnockoutOptionView>,
@@ -68,4 +68,40 @@ pub struct KnockoutOptionView {
     pub label: String,
     pub result: String,
     pub context: HpEventContextView,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pending_reason_matches_optional_nonnullable_wire_contract() {
+        let mut view = PendingHpLifecycleView {
+            unavailable_reason: None,
+            knockout_options: vec![],
+            required_facts: vec![],
+            initiative_only: false,
+            consequence_key: "knockout".into(),
+            participant_key: "actor".into(),
+            before_hp: 5,
+            after_hp: 0,
+            context: Default::default(),
+        };
+        let known = serde_json::to_value(&view).unwrap();
+        assert!(known.get("unavailable_reason").is_none());
+        assert_eq!(
+            serde_json::from_value::<PendingHpLifecycleView>(known).unwrap(),
+            view
+        );
+        view.unavailable_reason = Some("Check Doomed from the source ability.".into());
+        let unknown = serde_json::to_value(&view).unwrap();
+        assert_eq!(
+            unknown["unavailable_reason"],
+            "Check Doomed from the source ability."
+        );
+        assert_eq!(
+            serde_json::from_value::<PendingHpLifecycleView>(unknown).unwrap(),
+            view
+        );
+    }
 }
