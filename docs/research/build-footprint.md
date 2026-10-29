@@ -16,7 +16,7 @@ and release settings are unchanged. Tests inherit development settings.
 Limited debug preserves file/line backtraces and qualified function names. Full
 local-variable/type debugging is available through `--profile debug-full`.
 Incremental application builds use the same defaults in hooks and manual checks.
-See [contributor workflow](../../CONTRIBUTING.md#build-profiles-and-disk-budget).
+See [contributor workflow](../development/worktrees-and-cleanup.md#build-profiles-and-disk-budget).
 [Cargo documents these profile settings](https://doc.rust-lang.org/cargo/reference/profiles.html).
 
 ## Comparable clean builds

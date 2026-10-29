@@ -25,17 +25,21 @@ const head = () =>
   }).trim();
 const quote = (value) => `'${value.replaceAll("'", "'\\''")}'`;
 
-export function browserFixture(directory = process.env.ATLAS_BROWSER_ARTIFACT) {
-  if (!directory)
-    return {
-      command: `cargo run ${cargoArgs.join(" ")} --`,
-      index: resolve(root, "web/atlas-ui/dist", indexName),
-    };
+export function verifyBrowserArtifact(directory, commit) {
   const path = resolve(directory);
   const manifest = JSON.parse(
     readFileSync(resolve(path, "manifest.json"), "utf8"),
   );
-  if (manifest.commit !== head())
+  if (
+    manifest.version !== 2 ||
+    !/^[a-f0-9]{64}$/.test(manifest.frontend?.input_sha256) ||
+    !/^[a-f0-9]{64}$/.test(manifest.frontend?.bundle_sha256) ||
+    typeof manifest.frontend?.api_contract !== "string"
+  )
+    throw new Error(
+      "Browser artifact has no verified frontend build provenance; rebuild the candidate.",
+    );
+  if (manifest.commit !== commit)
     throw new Error("Browser artifact belongs to another commit.");
   if (manifest.platform !== process.platform || manifest.arch !== process.arch)
     throw new Error(
@@ -45,6 +49,17 @@ export function browserFixture(directory = process.env.ATLAS_BROWSER_ARTIFACT) {
     if (manifest.sha256?.[name] !== hash(resolve(path, name)))
       throw new Error(`Browser artifact checksum mismatch: ${name}`);
   }
+  return manifest;
+}
+
+export function browserFixture(directory = process.env.ATLAS_BROWSER_ARTIFACT) {
+  if (!directory)
+    return {
+      command: `cargo run ${cargoArgs.join(" ")} --`,
+      index: resolve(root, "web/atlas-ui/dist", indexName),
+    };
+  const path = resolve(directory);
+  verifyBrowserArtifact(path, head());
   return {
     command: quote(resolve(path, executableName)),
     index: resolve(path, indexName),
@@ -59,7 +74,7 @@ if (
   if (!directory)
     throw new Error("Usage: node scripts/browser-fixture.mjs OUTPUT_DIRECTORY");
   if (
-    execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], {
+    execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], {
       cwd: root,
       encoding: "utf8",
     }).trim()
@@ -67,10 +82,33 @@ if (
     throw new Error(
       "Commit source changes before packaging a browser fixture.",
     );
+  const commit = head();
+  const { verifyFrontendBuild } = await import(
+    new URL("../web/atlas-ui/apiContract.ts", import.meta.url)
+  );
+  const frontendBuild = verifyFrontendBuild(root);
+  const indexBeforeBuild = hash(resolve(root, "web/atlas-ui/dist", indexName));
   execFileSync("cargo", ["build", ...cargoArgs], {
     cwd: root,
     stdio: "inherit",
   });
+  const assertFixedCandidate = () => {
+    if (
+      head() !== commit ||
+      execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], {
+        cwd: root,
+        encoding: "utf8",
+      }).trim() ||
+      hash(resolve(root, "web/atlas-ui/dist", indexName)) !==
+        indexBeforeBuild ||
+      JSON.stringify(verifyFrontendBuild(root)) !==
+        JSON.stringify(frontendBuild)
+    )
+      throw new Error(
+        "Candidate changed while building the browser fixture; package a fixed candidate.",
+      );
+  };
+  assertFixedCandidate();
   if (process.platform === "linux")
     execFileSync(
       "strip",
@@ -87,11 +125,22 @@ if (
     resolve(root, "web/atlas-ui/dist", indexName),
     resolve(directory, indexName),
   );
+  assertFixedCandidate();
+  if (hash(resolve(directory, indexName)) !== frontendBuild.sha256[indexName])
+    throw new Error("Copied frontend differs from the selected build receipt.");
   writeFileSync(
     resolve(directory, "manifest.json"),
     JSON.stringify(
       {
-        commit: head(),
+        version: 2,
+        commit,
+        frontend: {
+          input_sha256: frontendBuild.input_sha256,
+          api_contract: frontendBuild.api_contract,
+          bundle_sha256: createHash("sha256")
+            .update(JSON.stringify(frontendBuild.sha256))
+            .digest("hex"),
+        },
         platform: process.platform,
         arch: process.arch,
         sha256: Object.fromEntries(

@@ -5,6 +5,7 @@ import { atlasApiContract } from "./apiContract.ts";
 // These cases exercise values and requests without storage, rendering or hooks.
 // New tests use the DOM project until their runtime dependencies are reviewed.
 const nodeTests = [
+  "apiContract.test.ts",
   "src/app/readingUrl.test.ts",
   "src/app/urlState.test.ts",
   "src/features/search/pageMetrics.test.ts",

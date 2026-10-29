@@ -3,6 +3,7 @@ pub(crate) mod args;
 mod checks;
 mod files;
 mod model;
+mod preview;
 mod publish;
 #[cfg(test)]
 mod tests;
@@ -59,7 +60,28 @@ fn execute(args: BaselineArgs) -> Result<ExitCode> {
                 },
             )
         }
-        BaselineCommand::Web(candidate) => return web(&checkout, &store, &candidate),
+        BaselineCommand::Web(options) => {
+            return if options.managed {
+                preview::run(&checkout, &store, &options)
+            } else {
+                web(&checkout, &store, &options.candidate)
+            };
+        }
+        BaselineCommand::Refresh(options) => (
+            preview::request(
+                &checkout,
+                preview::Action::Refresh {
+                    binary: checkout.join(options.binary),
+                    frontend_index: checkout.join(options.frontend_index),
+                    build_provenance: options.build_provenance.map(|path| checkout.join(path)),
+                },
+            )?,
+            ExitCode::SUCCESS,
+        ),
+        BaselineCommand::Stop => (
+            preview::request(&checkout, preview::Action::Stop)?,
+            ExitCode::SUCCESS,
+        ),
     };
     if args.json {
         println!("{}", serde_json::to_string_pretty(&report)?);
@@ -191,7 +213,7 @@ fn status(checkout: &Path, store: &Path, candidate: &Candidate) -> Result<Value>
     let (index, directory, manifest) =
         workspace_baseline(checkout, store, candidate.selection.baseline.as_deref())?;
     let binary = binary(checkout, &directory, candidate)?;
-    let mut result = json!({"baseline":manifest.id,"baseline_directory":directory,"build":manifest.build,"seed":manifest.database,"assets":manifest.assets,"checkout":checkout,"checkout_commit":files::git(checkout,&["rev-parse","HEAD"])? ,"binary":binary,"binary_selection":if candidate.binary.is_some(){"explicit candidate"}else{"frozen baseline build (use --binary for a candidate)"},"index":index,"exists":index.is_file()});
+    let mut result = json!({"baseline":manifest.id,"baseline_directory":directory,"baseline_build":manifest.build,"seed":manifest.database,"assets":manifest.assets,"checkout":checkout,"checkout_commit":files::git(checkout,&["rev-parse","HEAD"])? ,"binary":binary,"binary_sha256":files::hash(&binary)?,"binary_selection":if candidate.binary.is_some(){"explicit candidate; checkout commit is not executable provenance"}else{"frozen baseline build (use --binary for a candidate)"},"index":index,"exists":index.is_file(),"managed_preview":preview::status(checkout)?});
     if index.is_file() {
         result["readiness"] = checks::readiness(&binary, &index, &manifest.assets, checkout)?;
         result["compatibility"] = checks::invoke(
@@ -265,6 +287,26 @@ fn web(checkout: &Path, store: &Path, candidate: &Candidate) -> Result<ExitCode>
     }
 }
 fn print_report(report: &Value) {
+    let managed = report
+        .get("managed_preview")
+        .filter(|value| value.is_object())
+        .or_else(|| report.get("session").map(|_| report));
+    if let Some(managed) = managed {
+        println!(
+            "Managed preview: {} ({}; owner running: {})",
+            managed["url"].as_str().unwrap_or("unknown"),
+            managed["state"].as_str().unwrap_or("unknown"),
+            managed["owner_running"]
+                .as_bool()
+                .unwrap_or(managed["state"] == "ready")
+        );
+        if let Some(log) = managed["log"].as_str() {
+            println!("Log: {log}");
+        }
+        if let Some(hash) = managed["selected_build"]["binary_sha256"].as_str() {
+            println!("Running executable SHA-256: {hash}");
+        }
+    }
     for key in [
         "published",
         "directory",
