@@ -365,11 +365,13 @@ fn inherited_detection_reaches_both_targeting_and_observer_defense_with_provenan
         let roster = vec![p.clone()];
         let map = [(p.participant_key.clone(), sources)].into_iter().collect();
         let causes = super::relationships::observer_defense_causes("observer", &roster, &map);
-        assert_eq!(!causes.is_empty(), off_guard);
+        assert_eq!(causes.len(), usize::from(off_guard));
         assert!(
             causes
                 .iter()
-                .all(|cause| cause.rule == ConditionRule::OffGuard && !cause.uncertain)
+                .all(|cause| cause.rule == ConditionRule::OffGuard
+                    && !cause.uncertain
+                    && matches!(cause.source, super::causes::ConditionSource::Authored(..)))
         );
     }
 }
@@ -554,10 +556,11 @@ fn uncertain_deafened_marks_only_relevant_initiative_and_stupefied_hint_stays_un
     let mut baseline = super::numerical_tests::source_baseline();
     baseline.source_conditions = possible(ConditionRule::Deafened, 0);
     let ordinary = super::project_participant(&p, &baseline, false, &[]);
-    assert!(
+    assert_eq!(
         ordinary
             .effective_stat(&StatisticTarget::Perception)
-            .is_some()
+            .and_then(serde_json::Number::as_i64),
+        Some(11)
     );
     let initiative = super::project_initiative(ordinary, &p);
     assert!(

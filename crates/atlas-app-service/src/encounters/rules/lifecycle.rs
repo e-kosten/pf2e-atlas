@@ -800,6 +800,7 @@ mod recovery_tests {
         assert_eq!(actor, before);
         actor.current_hp = Some(0);
         let offers = available_actions(&actor, None, &[], &[], &Default::default());
+        assert_eq!(offers.len(), 5);
         assert!(
             offers
                 .iter()
