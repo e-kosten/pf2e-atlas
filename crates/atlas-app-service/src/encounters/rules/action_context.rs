@@ -347,18 +347,10 @@ pub(in crate::encounters) fn stupefied_casting_hint(
     opponent: Option<&str>,
     sources: &SourceConditions,
 ) -> Option<Result<i64, ()>> {
-    let mut checks = condition_causes(participant, opponent, sources)
-        .active
-        .into_iter()
-        .filter(|cause| cause.rule == ConditionRule::Stupefied)
-        .peekable();
-    checks.peek()?;
-    let mut result = ActionEvaluation::default();
-    for cause in checks {
-        match stupefied_dc(cause.value) {
-            Some(dc) => result.check(&cause.source.key(), dc),
-            None => return Some(Err(())),
-        }
+    let resolved = condition_causes(participant, opponent, sources);
+    match resolved.known_value(ConditionRule::Stupefied) {
+        Ok(0) => None,
+        Ok(value) => Some(stupefied_dc(Some(value)).ok_or(())),
+        Err(_) => Some(Err(())),
     }
-    result.disruption.map(|check| Ok(check.dc))
 }

@@ -107,6 +107,7 @@ pub(in crate::encounters) struct ScopedConditionCause<'a> {
     pub value: Option<i64>,
     /// The participant against whom this cause applies; None is universal.
     pub against: Option<&'a str>,
+    pub uncertain: bool,
 }
 
 pub(in crate::encounters) struct ConditionResolution<'a> {
@@ -115,36 +116,144 @@ pub(in crate::encounters) struct ConditionResolution<'a> {
     source_unavailable: bool,
 }
 impl ConditionResolution<'_> {
+    pub fn may_increase_from(&self, before: &Self, rule: ConditionRule) -> bool {
+        let lower = before
+            .active
+            .iter()
+            .filter(|cause| cause.rule == rule)
+            .filter_map(|cause| cause.value)
+            .max()
+            .unwrap_or(0);
+        self.active
+            .iter()
+            .map(|cause| (cause, false))
+            .chain(self.uncertain.iter().map(|cause| (cause, true)))
+            .filter(|(cause, _)| cause.rule == rule)
+            .any(|(cause, uncertain)| {
+                cause.value.is_none_or(|value| value > lower)
+                    && !before
+                        .active
+                        .iter()
+                        .map(|prior| (prior, false))
+                        .chain(before.uncertain.iter().map(|prior| (prior, true)))
+                        .any(|(prior, prior_uncertain)| {
+                            prior.rule == rule
+                                && prior.source.key() == cause.source.key()
+                                && prior.value == cause.value
+                                && prior_uncertain == uncertain
+                        })
+            })
+    }
     pub fn known_presence(&self, rule: ConditionRule) -> crate::AppServiceResult<bool> {
         if self.active.iter().any(|cause| cause.rule == rule) {
             return Ok(true);
         }
         if self.source_unavailable || self.uncertain.iter().any(|cause| cause.rule == rule) {
             return Err(crate::AppServiceError::invalid_request(format!(
-                "Check whether {} applies before resolving this event.",
-                rule.definition().name
+                "Check whether {} applies before resolving this event.{}",
+                rule.definition().name,
+                self.source_hint(rule)
             )));
         }
         Ok(false)
     }
+    pub fn known_at_least(
+        &self,
+        rule: ConditionRule,
+        threshold: i64,
+    ) -> crate::AppServiceResult<bool> {
+        if threshold <= 0
+            || self.active.iter().any(|cause| {
+                cause.rule == rule && cause.value.is_some_and(|value| value >= threshold)
+            })
+        {
+            return Ok(true);
+        }
+        if !self.source_unavailable
+            && self
+                .active
+                .iter()
+                .chain(&self.uncertain)
+                .filter(|cause| cause.rule == rule)
+                .all(|cause| {
+                    cause
+                        .value
+                        .is_some_and(|value| value >= 0 && value < threshold)
+                })
+        {
+            return Ok(false);
+        }
+        self.known_capped_value(rule, threshold)
+            .map(|value| value >= threshold)
+    }
+    fn source_hint(&self, rule: ConditionRule) -> String {
+        let labels: std::collections::BTreeSet<_> = self
+            .active
+            .iter()
+            .chain(&self.uncertain)
+            .filter(|cause| cause.rule == rule)
+            .filter_map(|cause| match cause.source {
+                ConditionSource::Authored(source, ..) => Some(source.source_label.as_str()),
+                ConditionSource::Saved(_) => None,
+            })
+            .collect();
+        if labels.is_empty() {
+            if self.source_unavailable {
+                " Refresh this creature's reference data.".into()
+            } else {
+                String::new()
+            }
+        } else {
+            format!(
+                " Source: {}.",
+                labels.into_iter().collect::<Vec<_>>().join(", ")
+            )
+        }
+    }
     pub fn known_value(&self, rule: ConditionRule) -> crate::AppServiceResult<i64> {
+        self.known_capped_value(rule, i64::MAX)
+    }
+    pub fn known_capped_value(
+        &self,
+        rule: ConditionRule,
+        maximum: i64,
+    ) -> crate::AppServiceResult<i64> {
+        if maximum < 0 {
+            return Err(crate::AppServiceError::invalid_request(
+                "Condition-value cap must be nonnegative",
+            ));
+        }
         let mut value = 0;
+        let mut missing_value = false;
         for cause in self.active.iter().filter(|cause| cause.rule == rule) {
-            value = value.max(cause.value.filter(|value| *value >= 0).ok_or_else(|| {
-                crate::AppServiceError::invalid_request(format!(
-                    "Set the {} value before resolving this event.",
-                    rule.definition().name
-                ))
-            })?);
+            if let Some(known) = cause.value.filter(|value| *value >= 0) {
+                value = value.max(known.min(maximum));
+            } else {
+                missing_value = true;
+            }
+        }
+        if value == maximum {
+            return Ok(value);
+        }
+        if missing_value {
+            return Err(crate::AppServiceError::invalid_request(format!(
+                "Set the {} value before resolving this event.{}",
+                rule.definition().name,
+                self.source_hint(rule)
+            )));
         }
         if self.source_unavailable
             || self.uncertain.iter().any(|cause| {
-                cause.rule == rule && cause.value.is_none_or(|possible| possible > value)
+                cause.rule == rule
+                    && cause
+                        .value
+                        .is_none_or(|possible| possible.min(maximum) > value)
             })
         {
             return Err(crate::AppServiceError::invalid_request(format!(
-                "Check the {} value and source before resolving this event.",
-                rule.definition().name
+                "Check the {} value and source before resolving this event.{}",
+                rule.definition().name,
+                self.source_hint(rule)
             )));
         }
         Ok(value)
@@ -193,7 +302,7 @@ pub(in crate::encounters) fn resolve_causes<'a>(
                 rule: cause.rule,
                 value: cause.value,
             },
-            false,
+            cause.uncertain,
             sources,
         );
     }

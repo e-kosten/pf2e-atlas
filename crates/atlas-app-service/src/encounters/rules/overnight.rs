@@ -20,22 +20,38 @@ pub(in crate::encounters) fn prepare(
     row: &mut EncounterRecoveryParticipantView,
 ) -> AppServiceResult<Option<ParticipantGameplay>> {
     let baseline = record.and_then(|r| r.arithmetic_baseline.as_ref());
-    let sources = baseline.map(|b| &b.source_conditions);
-    let conditions = super::causes::condition_causes(
-        p,
-        None,
-        sources.unwrap_or(super::source_conditions::SourceConditions::empty()),
-    )
-    .active;
-    if p.participant_kind == ParticipantKind::Hazard
-        || p.mortality == MortalityState::Dead
-        || conditions
-            .iter()
-            .any(|c| matches!(c.rule, ConditionRule::Dying | ConditionRule::Petrified))
-    {
+    let unavailable = super::source_conditions::SourceConditions::unavailable();
+    let sources = baseline.map(|b| &b.source_conditions).unwrap_or_else(|| {
+        if p.record_key.is_none() {
+            super::source_conditions::SourceConditions::empty()
+        } else {
+            &unavailable
+        }
+    });
+    if p.participant_kind == ParticipantKind::Hazard || p.mortality == MortalityState::Dead {
         row.unavailable_reason =
             Some("Choose a living creature that isn't dying or petrified.".into());
         return Ok(None);
+    }
+    let conditions = super::causes::condition_causes(p, None, sources);
+    let admission = conditions
+        .known_presence(ConditionRule::Dying)
+        .and_then(|dying| {
+            conditions
+                .known_presence(ConditionRule::Petrified)
+                .map(|petrified| dying || petrified)
+        });
+    match admission {
+        Ok(false) => {}
+        Ok(true) => {
+            row.unavailable_reason =
+                Some("Choose a living creature that isn't dying or petrified.".into());
+            return Ok(None);
+        }
+        Err(error) => {
+            row.unavailable_reason = Some(error.into_app_error().message);
+            return Ok(None);
+        }
     }
     let block = record.and_then(|r| {
         r.arithmetic_baseline
@@ -119,11 +135,7 @@ pub(in crate::encounters) fn prepare(
     });
     let mut after = p.clone();
     after.conditions = state.conditions.clone();
-    let maximum = super::effective_hp_maximum(
-        &after,
-        sources.unwrap_or(super::source_conditions::SourceConditions::empty()),
-        level,
-    );
+    let maximum = super::effective_hp_maximum(&after, sources, level);
     row.resulting_max_hp = maximum;
     if row.healing.is_none() && p.current_hp.zip(maximum).is_some_and(|(hp, max)| hp >= max) {
         row.healing = Some(0);
@@ -222,7 +234,7 @@ pub(in crate::encounters) fn prepare(
         }
     }
     state.expended_spells.clear();
-    if let Some(sources) = sources {
+    if baseline.is_some() {
         for ability in &sources.uses {
             if matches!(
                 ability.per,

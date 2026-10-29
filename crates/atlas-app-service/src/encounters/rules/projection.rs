@@ -65,17 +65,19 @@ fn project_for_opponent(
         block.unapplied_effects.push(note);
     }
     let mut movement_restriction = None;
-    let deafened = super::causes::resolve_causes(participant, opponent, additional, &sources)
-        .active
-        .iter()
-        .any(|cause| cause.rule == ConditionRule::Deafened);
+    let conditions = super::causes::resolve_causes(participant, opponent, additional, &sources);
+    let deafened = conditions.known_presence(ConditionRule::Deafened).ok();
     let available_senses = block
         .sense_facts
         .iter()
         .copied()
         .map(|mut facts| {
-            if deafened && facts.auditory {
-                facts.available = Some(false);
+            if facts.auditory && facts.available != Some(false) {
+                facts.available = match deafened {
+                    Some(true) => Some(false),
+                    Some(false) => facts.available,
+                    None => None,
+                };
             }
             facts
         })
@@ -343,9 +345,7 @@ fn project_for_opponent(
             .unresolved_stats
             .push(StatisticTarget::HitPointMaximum);
     }
-    let blinded = causes
-        .iter()
-        .any(|cause| cause.rule == ConditionRule::Blinded);
+    let blinded = conditions.known_presence(ConditionRule::Blinded).ok();
     if let Some(cause) = causes
         .iter()
         .find(|cause| cause.rule == ConditionRule::Blinded)
@@ -366,9 +366,7 @@ fn project_for_opponent(
             }.into(),
         });
     }
-    let petrified = causes
-        .iter()
-        .any(|cause| cause.rule == ConditionRule::Petrified);
+    let petrified = conditions.known_presence(ConditionRule::Petrified).ok();
     if let Some(cause) = causes
         .iter()
         .find(|cause| cause.rule == ConditionRule::Petrified)
@@ -398,12 +396,17 @@ fn project_for_opponent(
         .and_then(Number::as_f64);
     for (sense, facts) in block.senses.iter_mut().zip(&block.sense_facts) {
         // This overview has no target or distance: show intrinsic availability.
-        let available = if petrified
+        let available = if petrified == Some(true)
             || facts.available == Some(false)
-            || (blinded && facts.visual)
-            || (deafened && facts.auditory)
+            || (blinded == Some(true) && facts.visual)
+            || (deafened == Some(true) && facts.auditory)
         {
             super::senses::Availability::Unavailable
+        } else if petrified.is_none()
+            || blinded.is_none() && facts.visual
+            || deafened.is_none() && facts.auditory
+        {
+            super::senses::Availability::NeedsContext
         } else if facts.available == Some(true) {
             super::senses::Availability::Available
         } else {
@@ -416,15 +419,18 @@ fn project_for_opponent(
         };
         if available == super::senses::Availability::Unavailable {
             sense.perception = None;
-            sense.reason = if petrified {
+            sense.reason = if petrified == Some(true) {
                 Some("Petrified".into())
-            } else if deafened && facts.auditory {
+            } else if deafened == Some(true) && facts.auditory {
                 Some("Deafened".into())
             } else {
-                (blinded && facts.visual).then(|| "Blinded".into())
+                (blinded == Some(true) && facts.visual).then(|| "Blinded".into())
             };
         } else {
             sense.perception = perception.and_then(Number::from_f64);
+            if available == super::senses::Availability::NeedsContext {
+                sense.reason = Some("Check source conditions and sense availability.".into());
+            }
         }
     }
     block.action_budget = Some(super::capabilities::action_budget(
@@ -1024,8 +1030,17 @@ fn projected_hp_maximum(
         notes: vec![],
     };
     let context = Context::statistic(&stat.target, None);
+    let conditions = super::causes::condition_causes(participant, None, sources);
     let mut uncertain = false;
-    for cause in super::causes::condition_causes(participant, None, sources).active {
+    if let Err(error) = conditions.known_value(ConditionRule::Drained) {
+        uncertain = true;
+        stat.notes.push(RuntimeEffectNoteView {
+            source: "source-conditions".into(),
+            label: "Source conditions".into(),
+            reason: error.into_app_error().message,
+        });
+    }
+    for cause in conditions.active {
         for (modifier_type, value) in modifiers(
             cause.rule,
             cause.value,
@@ -1054,7 +1069,7 @@ fn projected_hp_maximum(
             );
         }
     }
-    for cause in super::causes::condition_causes(participant, None, sources).uncertain {
+    for cause in conditions.uncertain {
         if modifiers(
             cause.rule,
             cause.value,
@@ -1098,7 +1113,8 @@ pub(in crate::encounters) fn project_initiative(
         ..Context::statistic(&target, None)
     };
     let level = block.adjusted_level.as_ref().and_then(Number::as_i64);
-    for cause in super::causes::condition_causes(participant, None, &sources).active {
+    let conditions = super::causes::condition_causes(participant, None, &sources);
+    for cause in conditions.active {
         if !cause.rule.definition().modifiers.iter().any(|effect| {
             !matches!(
                 effect.predicate,
@@ -1121,6 +1137,21 @@ pub(in crate::encounters) fn project_initiative(
                     },
                 );
             }
+        }
+    }
+    for cause in conditions.uncertain {
+        if let Some(stat) = block.values.iter_mut().find(|stat| stat.target == target)
+            && modifiers(cause.rule, cause.value, level, &context)
+                .any(|(kind, value)| modifier_can_change(&stat.modifiers, kind, value))
+        {
+            if !block.unresolved_stats.contains(&target) {
+                block.unresolved_stats.push(target.clone());
+            }
+            stat.notes.push(RuntimeEffectNoteView {
+                source: cause.source.explanation_key(),
+                label: cause.source.name().into(),
+                reason: "Check whether this source condition changes initiative.".into(),
+            });
         }
     }
     block

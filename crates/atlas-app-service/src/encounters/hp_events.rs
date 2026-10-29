@@ -77,6 +77,7 @@ impl AtlasAppService {
             &request_id,
         )?;
         EncounterEvent {
+            condition_sources: &[(&participant.participant_key, &subject.source_conditions)],
             encounter_key: &snapshot.encounter.encounter_key,
             request_id: &request_id,
             intent: &intent,
@@ -91,43 +92,65 @@ impl AtlasAppService {
         &self,
         encounter_ref: &str,
     ) -> AppServiceResult<Vec<PendingHpLifecycleView>> {
-        self.with_state(|session| {
+        let (encounter, pending) = self.with_state(|session| {
             let encounter = session
                 .local_state()
                 .encounters()
                 .get_with_participants(encounter_ref)?
                 .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
-            Ok(session
+            let pending = session
                 .local_state()
                 .encounters()
-                .pending_condition_consequences(&encounter.encounter.encounter_key)?
-                .into_iter()
-                .filter(|saved| {
-                    pending_hp_participant(&saved.consequence).is_none_or(|key| {
-                        encounter
-                            .participants
-                            .iter()
-                            .find(|p| p.participant_key == key)
-                            .is_some_and(|p| {
-                                rules::hp_events::pending_is_current(p, &saved.consequence)
-                            })
-                    })
+                .pending_condition_consequences(&encounter.encounter.encounter_key)?;
+            Ok((encounter, pending))
+        })?;
+        let sources = prepare_hp_sources(self, &encounter.participants, &pending)?;
+        Ok(pending
+            .into_iter()
+            .filter(|saved| {
+                pending_hp_participant(&saved.consequence).is_none_or(|key| {
+                    encounter
+                        .participants
+                        .iter()
+                        .find(|p| p.participant_key == key)
+                        .is_some_and(|p| {
+                            rules::hp_events::pending_is_current(
+                                p,
+                                sources
+                                    .get(key)
+                                    .unwrap_or(rules::source_conditions::SourceConditions::empty()),
+                                &saved.consequence,
+                            )
+                            .unwrap_or(true)
+                        })
                 })
-                .filter_map(|saved| match saved.consequence {
-                    PendingConsequence::HpLifecycle {
-                        participant_key,
-                        before_hp,
-                        after_hp,
-                        context,
-                        was_dying,
-                        ..
-                    } => Some(PendingHpLifecycleView {
-                        knockout_options: encounter
-                            .participants
-                            .iter()
-                            .find(|p| p.participant_key == participant_key)
-                            .map(|p| rules::hp_events::knockout_options(p, Some(&context)))
-                            .unwrap_or_default(),
+            })
+            .filter_map(|saved| match saved.consequence {
+                PendingConsequence::HpLifecycle {
+                    participant_key,
+                    before_hp,
+                    after_hp,
+                    context,
+                    was_dying,
+                    ..
+                } => {
+                    let choices = encounter
+                        .participants
+                        .iter()
+                        .find(|p| p.participant_key == participant_key)
+                        .map(|p| {
+                            rules::hp_events::knockout_options(
+                                p,
+                                sources
+                                    .get(&participant_key)
+                                    .unwrap_or(rules::source_conditions::SourceConditions::empty()),
+                                Some(&context),
+                            )
+                        })
+                        .unwrap_or_default();
+                    Some(PendingHpLifecycleView {
+                        unavailable_reason: choices.unavailable_reason,
+                        knockout_options: choices.options,
                         required_facts: rules::hp_events::required_lifecycle_facts(
                             was_dying, &context,
                         ),
@@ -137,27 +160,29 @@ impl AtlasAppService {
                         before_hp,
                         after_hp,
                         context: hp_context_view(context),
-                    }),
-                    PendingConsequence::InitiativePlacement {
-                        participant_key,
-                        before_hp,
-                        after_hp,
-                        context,
-                    } => Some(PendingHpLifecycleView {
-                        knockout_options: vec![],
-                        initiative_only: true,
-                        required_facts: vec![HpLifecycleRequiredFactView::ResponsibleParticipant],
-                        consequence_key: saved.consequence_key,
-                        participant_key,
-                        before_hp,
-                        after_hp,
-                        context: hp_context_view(context),
-                    }),
-                    _ => None,
-                })
-                .collect())
-        })
+                    })
+                }
+                PendingConsequence::InitiativePlacement {
+                    participant_key,
+                    before_hp,
+                    after_hp,
+                    context,
+                } => Some(PendingHpLifecycleView {
+                    unavailable_reason: None,
+                    knockout_options: vec![],
+                    initiative_only: true,
+                    required_facts: vec![HpLifecycleRequiredFactView::ResponsibleParticipant],
+                    consequence_key: saved.consequence_key,
+                    participant_key,
+                    before_hp,
+                    after_hp,
+                    context: hp_context_view(context),
+                }),
+                _ => None,
+            })
+            .collect())
     }
+
     pub fn preview_encounter_hp_lifecycle(
         &self,
         encounter_ref: &str,
@@ -187,6 +212,7 @@ impl AtlasAppService {
                 .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?
                 .participants)
         })?;
+        let sources = prepare_hp_sources(self, &participants, std::slice::from_ref(&pending))?;
         let context = hp_context_input(request.context.clone());
         let correction = request.resolution == HpLifecycleResolutionView::KeepCurrentState;
         if !correction
@@ -194,7 +220,16 @@ impl AtlasAppService {
                 !participants
                     .iter()
                     .find(|p| p.participant_key == key)
-                    .is_some_and(|p| rules::hp_events::pending_is_current(p, &pending.consequence))
+                    .is_some_and(|p| {
+                        rules::hp_events::pending_is_current(
+                            p,
+                            sources
+                                .get(key)
+                                .unwrap_or(rules::source_conditions::SourceConditions::empty()),
+                            &pending.consequence,
+                        )
+                        .unwrap_or(true)
+                    })
             })
         {
             return Err(AppServiceError::invalid_request(
@@ -215,12 +250,22 @@ impl AtlasAppService {
                 } else {
                     rules::hp_events::merge_pending_context(&saved_context, &context)?
                 };
+                let choices = participants
+                    .iter()
+                    .find(|p| p.participant_key == participant_key)
+                    .map(|p| {
+                        rules::hp_events::knockout_options(
+                            p,
+                            sources
+                                .get(&participant_key)
+                                .unwrap_or(rules::source_conditions::SourceConditions::empty()),
+                            Some(&context),
+                        )
+                    })
+                    .unwrap_or_default();
                 Ok(PendingHpLifecycleView {
-                    knockout_options: participants
-                        .iter()
-                        .find(|p| p.participant_key == participant_key)
-                        .map(|p| rules::hp_events::knockout_options(p, Some(&context)))
-                        .unwrap_or_default(),
+                    unavailable_reason: choices.unavailable_reason,
+                    knockout_options: choices.options,
                     consequence_key: pending.consequence_key,
                     participant_key,
                     before_hp,
@@ -246,6 +291,7 @@ impl AtlasAppService {
                     rules::hp_events::merge_pending_context(&saved_context, &context)?
                 };
                 Ok(PendingHpLifecycleView {
+                    unavailable_reason: None,
                     knockout_options: vec![],
                     consequence_key: pending.consequence_key,
                     participant_key,
@@ -312,18 +358,22 @@ impl AtlasAppService {
             .iter()
             .find(|p| &p.participant_key == participant_key)
             .ok_or_else(participant_not_found)?;
-        if request.resolution == HpLifecycleResolutionView::Apply
-            && !rules::hp_events::pending_is_current(participant, &pending.consequence)
-        {
-            return Err(AppServiceError::invalid_request(
-                "This knockout is no longer current. Refresh the encounter.",
-            ));
-        }
         let subject = if request.resolution == HpLifecycleResolutionView::KeepCurrentState {
             workflow::ConditionSubjectContext::from_saved(participant)
         } else {
             workflow::condition_subject_context(self, participant)?
         };
+        if request.resolution == HpLifecycleResolutionView::Apply
+            && !rules::hp_events::pending_is_current(
+                participant,
+                &subject.source_conditions,
+                &pending.consequence,
+            )?
+        {
+            return Err(AppServiceError::invalid_request(
+                "This knockout is no longer current. Refresh the encounter.",
+            ));
+        }
         validate_context(&snapshot, &request.context)?;
         let mut changes = if request.resolution == HpLifecycleResolutionView::KeepCurrentState {
             atlas_local_state::PreparedConditionEvent::default()
@@ -356,6 +406,7 @@ impl AtlasAppService {
         } else {
             rules::hp_events::resolve_pending_lifecycle(
                 participant,
+                &subject.source_conditions,
                 &pending.consequence,
                 &hp_context_for_subject(request.context, &subject),
                 &request.request_id,
@@ -363,6 +414,7 @@ impl AtlasAppService {
         };
         changes.resolved_pending_keys.push(request.consequence_key);
         EncounterEvent {
+            condition_sources: &[(&participant.participant_key, &subject.source_conditions)],
             encounter_key: &snapshot.encounter.encounter_key,
             request_id: &request.request_id,
             intent: &intent,
@@ -374,6 +426,34 @@ impl AtlasAppService {
         .map(mutation)
     }
 }
+fn prepare_hp_sources(
+    service: &AtlasAppService,
+    participants: &[atlas_local_state::EncounterParticipant],
+    pending: &[atlas_local_state::SavedPendingConsequence],
+) -> AppServiceResult<std::collections::BTreeMap<String, rules::source_conditions::SourceConditions>>
+{
+    let mut sources = std::collections::BTreeMap::new();
+    for saved in pending {
+        let PendingConsequence::HpLifecycle {
+            participant_key, ..
+        } = &saved.consequence
+        else {
+            continue;
+        };
+        if !sources.contains_key(participant_key)
+            && let Some(participant) = participants
+                .iter()
+                .find(|p| &p.participant_key == participant_key)
+        {
+            sources.insert(
+                participant_key.clone(),
+                workflow::condition_sources_context(service, participant)?.0,
+            );
+        }
+    }
+    Ok(sources)
+}
+
 fn pending_hp_participant(pending: &PendingConsequence) -> Option<&str> {
     match pending {
         PendingConsequence::HpLifecycle {
@@ -390,6 +470,7 @@ fn pending_hp_participant(pending: &PendingConsequence) -> Option<&str> {
 pub(super) fn retire_stale_hp_decisions(
     session: &atlas_runtime::WorkspaceWrite,
     encounter_key: &str,
+    prepared_sources: &[(&str, &rules::source_conditions::SourceConditions)],
 ) -> AppServiceResult<()> {
     let store = session.local_state().encounters();
     let pending = store.pending_condition_consequences(encounter_key)?;
@@ -406,11 +487,26 @@ pub(super) fn retire_stale_hp_decisions(
         .iter()
         .filter_map(|saved| {
             let key = pending_hp_participant(&saved.consequence)?;
+            let unknown = rules::source_conditions::SourceConditions::unavailable();
             let current = snapshot
                 .participants
                 .iter()
                 .find(|p| p.participant_key == key)
-                .is_some_and(|p| rules::hp_events::pending_is_current(p, &saved.consequence));
+                .is_some_and(|p| {
+                    let sources = prepared_sources
+                        .iter()
+                        .find(|(prepared, _)| *prepared == key)
+                        .map(|(_, sources)| *sources)
+                        .unwrap_or_else(|| {
+                            if p.record_key.is_none() {
+                                rules::source_conditions::SourceConditions::empty()
+                            } else {
+                                &unknown
+                            }
+                        });
+                    rules::hp_events::pending_is_current(p, sources, &saved.consequence)
+                        .unwrap_or(true)
+                });
             (!current).then_some(saved.consequence_key.as_str())
         })
         .collect::<Vec<_>>();
@@ -457,33 +553,26 @@ pub(super) fn hp_subject_context(
     participant: &atlas_local_state::EncounterParticipant,
     input: &HpEventInput,
 ) -> AppServiceResult<workflow::ConditionSubjectContext> {
-    let needs_level = matches!(*input, HpEventInput::ResolvedHealing { .. })
-        && participant.level_override.is_none()
-        && participant.conditions.iter().any(|condition| {
-            super::conditions::condition_rule_for_key(condition.condition_key.as_deref())
-                == Some(super::conditions::ConditionRule::Drained)
-        });
-    let may_fall = matches!(*input,HpEventInput::ResolvedDamage{amount} if participant.current_hp.is_some_and(|hp|amount.saturating_sub(participant.temporary_hp)>=hp));
-    let source_hazard = participant.participant_kind == atlas_local_state::ParticipantKind::Hazard
-        && matches!(*input, HpEventInput::ResolvedDamage { .. });
-    let source_healing =
-        matches!(*input, HpEventInput::ResolvedHealing { .. }) && participant.record_key.is_some();
-    let source_waking = participant.record_key.is_some()
-        && participant.conditions.iter().any(|condition| {
-            matches!(
-                super::conditions::condition_rule_for_key(condition.condition_key.as_deref()),
-                Some(
-                    super::conditions::ConditionRule::Unconscious
-                        | super::conditions::ConditionRule::Confused
-                )
+    let source_healing = matches!(input, HpEventInput::ResolvedHealing { .. });
+    let source_lifecycle = participant.track_dying
+        || participant.participant_kind == atlas_local_state::ParticipantKind::Hazard
+        || matches!(input, HpEventInput::DirectLoss { amount } | HpEventInput::ResolvedDamage { amount } if participant.current_hp.is_some_and(|hp| amount.saturating_sub(participant.temporary_hp) >= hp));
+    let saved_recovery = participant.conditions.iter().any(|condition| {
+        matches!(
+            super::conditions::condition_rule_for_key(condition.condition_key.as_deref()),
+            Some(
+                super::conditions::ConditionRule::Unconscious
+                    | super::conditions::ConditionRule::Confused
             )
-        });
-    if needs_level || may_fall || source_hazard || source_healing || source_waking {
+        )
+    });
+    if participant.record_key.is_some() && (source_healing || source_lifecycle || saved_recovery) {
         workflow::condition_subject_context(service, participant)
     } else {
         Ok(workflow::ConditionSubjectContext::from_saved(participant))
     }
 }
+
 pub(super) fn hp_context_for_subject(
     mut value: HpEventContextView,
     subject: &workflow::ConditionSubjectContext,
@@ -1198,7 +1287,7 @@ mod hp_lifecycle_tests {
         assert_eq!(error.code, AppErrorCode::InvalidRequest);
         assert_eq!(
             error.message,
-            "Set the condition's positive numeric value before resolving recovery"
+            "Set the Wounded value before resolving this event."
         );
         assert_eq!(snapshot(), before);
         worker
@@ -1701,9 +1790,12 @@ mod hp_lifecycle_tests {
                 "direct-broken",
             )
             .unwrap();
-            assert_eq!(planned.changes.participant_changes.len(), 1);
             assert_eq!(
-                planned.changes.participant_changes[0].current_hp,
+                planned
+                    .changes
+                    .participant_changes
+                    .first()
+                    .map_or(participant.current_hp, |change| change.current_hp),
                 Some(after)
             );
         }

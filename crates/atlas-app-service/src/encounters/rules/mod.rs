@@ -51,3 +51,6 @@ mod condition_effects;
 pub(super) use condition_effects::hp_loss as condition_hp_loss;
 
 mod effective_immunities;
+
+#[cfg(test)]
+mod lifecycle_sources_tests;

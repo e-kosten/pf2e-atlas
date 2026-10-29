@@ -64,7 +64,11 @@ depends on them; the causal source is not an implicit substitute.
 Source-owned conditions are distinct, read-only causes. Checked owned conditions,
 maintained in-memory grants and unlimited owned effects feed the same cause
 resolver as temporary saved conditions. Statistics, HP limits, senses, action
-restrictions and regain forecasts consume those resolved causes. They retain the
+restrictions, regain forecasts, targeting and lifecycle calculations consume those
+resolved causes. `condition_causes` is the shared effective-condition accessor;
+`known_presence`, `known_value` and bounded comparisons preserve uncertainty.
+Saved-row lookups select edits or captured history rather than effective arithmetic.
+They retain the
 participant, root, checked owner, rule ordinal and source fingerprint; they never
 receive synthetic saved condition IDs. Constant badge overrides preserve supplied
 magnitudes. Missing values and uncertain activation remain explicit. Conditions
@@ -130,8 +134,19 @@ remain after protections and are never reduced by IWR a second time. Unknown
 Petrified applicability blocks that mortality decision rather than inventing an
 ordinary knockout. Saved-row recovery selectors remain separate from effective
 condition truth; source-owned conditions are read-only.
-A source-option transition that increases effective Drained charges the increase
-once through the existing guarded HP event; switching it off does not heal HP.
+Explicit saved-condition and source-option changes share one before/after
+consequence planner. It resolves supported predicates after generated condition
+changes before calculating Drained loss and mortality; switching Drained off does
+not heal HP. Own-turn Stunned changes use effective sources with the recorded
+remaining allowance and the same saved-source consumption reducer. Immutable
+causes are never reduced through fabricated saved rows. Healing or recovery awards
+Wounded only when effective Dying actually ends, using the resulting condition facts.
+Unknown facts block only calculations whose result depends on them, before RNG or
+writes. A table degree still needs condition facts to calculate its consequences.
+Pending decisions with unproven freshness remain available with an explanation;
+source-independent correction remains possible. Exact maximum HP and overnight
+admission cannot treat unavailable source data as known empty. Dominated or capped
+uncertain values do not hide a result that is already established.
 New source-derived participants start at their effective capacity while retaining
 baseline maximum HP. Initialization completes inside the creation transaction and
 never rewrites an existing participant. Source-derived capacity is never charged
@@ -298,8 +313,9 @@ path is replayed by reading an outgoing event.
 Waking from
 noise is guidance alongside the existing Perception roller, not a DC-entry form.
 
-Observer-relative effects derive directly from active condition sources and their
-scope. Hidden/Undetected produce only the affected observer's defense and targeting
+Observer-relative effects derive directly from resolved saved and authored condition
+sources and their scope. Possible causes remain uncertain through recipient immunity.
+Hidden/Undetected produce only the affected observer's defense and targeting
 context; absence never means Observed. Invisible alone does not establish detection.
 Controlled retains source attribution and instructions; conflicting instructions
 remain a table decision. There are no saved baseline/adjudication layers, relationship
@@ -336,14 +352,16 @@ resolves the actual check outcome once; it is never saved as an attempt. The con
 encounter event executor owns receipt recovery, reference/participant checks and
 entry to local-state's guarded callback. Storage remains the sole atomic write owner.
 
-Recovery reads reference facts for an integrated Retch roll's current Fortitude
-and for Stunned action loss when no usable current stock has been recorded.
-Known recorded stock, other hints, table outcomes and saved-counter recovery have
-no reference dependency or reference revision guard. When reference facts are
-unavailable, those other offers remain usable; an integrated Retch roll or an
-unrecorded Stunned allowance is not guessed. Outcome
-validation retains the specific rule message through the atomic boundary; failed
-outcomes save no receipt or boundary claim.
+Recovery prepares checked source facts for Dying consequences and Stunned action
+loss, including when the remaining action stock is already recorded. An integrated
+Retch roll also needs current Fortitude. Retch table degrees and saved-only
+Frightened recovery retain their independent input policy. When required source
+facts are unavailable, unrelated offers and manual corrections remain usable;
+Atlas does not invent a condition value or an action allowance. Outcome validation
+retains the specific rule message and authored source label through the atomic
+boundary; failed outcomes save no receipt or boundary claim. A bounded known loss
+can be recorded without claiming an exact Stunned magnitude; its historical
+adjustment and remaining-condition preview preserve that distinction.
 
 Condition editing has one control-to-command adapter and one session owner for its
 request draft, query-backed preview and submission. Semantic preview effects identify

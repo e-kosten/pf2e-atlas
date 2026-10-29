@@ -12,6 +12,7 @@ use atlas_local_state::{
 };
 
 struct Prepared {
+    source_conditions: super::rules::source_conditions::SourceConditions,
     encounter_key: String,
     request_id: String,
     intent: serde_json::Value,
@@ -68,6 +69,7 @@ impl AtlasAppService {
             )?;
             super::rules::hp_events::plan_knockout(
                 participant,
+                &subject.source_conditions,
                 &super::hp_events::hp_context_for_subject(context, &subject),
                 &request.request_id,
             )?
@@ -134,6 +136,7 @@ impl AtlasAppService {
         changes.participant_changes.push(update);
 
         EncounterEvent {
+            condition_sources: &[],
             encounter_key: &snapshot.encounter.encounter_key,
             request_id: &request.request_id,
             intent: &intent,
@@ -217,7 +220,7 @@ impl AtlasAppService {
         } else {
             workflow::condition_subject_context(self, participant)?
         };
-        let consequences = plan_condition_change(
+        let mut consequences = plan_condition_change(
             participant,
             &subject.source_conditions,
             ConditionEventChange::Remove {
@@ -229,9 +232,20 @@ impl AtlasAppService {
             subject.level,
             &request.request_id,
         )?;
+        if request.intent == ConditionRemovalIntentView::RemoveEffect
+            && snapshot.encounter.current_turn_participant_key.as_deref()
+                == Some(participant.participant_key.as_str())
+        {
+            super::rules::stunned_arrival::apply(
+                participant,
+                &subject.source_conditions,
+                &mut consequences,
+            )?;
+        }
         commit(
             self,
             Prepared {
+                source_conditions: subject.source_conditions,
                 encounter_key: snapshot.encounter.encounter_key,
                 request_id: request.request_id,
                 intent,
@@ -282,17 +296,20 @@ impl AtlasAppService {
         if let Some(receipt) = recover(self, encounter_ref, &request.request_id, &intent)? {
             return Ok(mutation(receipt));
         }
-        let (encounter_key, changes, _, reference_revision) =
-            prepare_drained(self, encounter_ref, &request)?;
+        let prepared = prepare_drained(self, encounter_ref, &request)?;
         EncounterEvent {
-            encounter_key: &encounter_key,
+            condition_sources: &[(
+                &prepared.subject.participant.participant_key,
+                &prepared.subject.source_conditions,
+            )],
+            encounter_key: &prepared.encounter_key,
             request_id: &request.request_id,
             intent: &intent,
             expected_revision: request.expected_encounter_revision,
-            reference_revision,
+            reference_revision: prepared.subject.reference_revision,
             participant_revision: None,
         }
-        .commit(self, changes)
+        .commit(self, prepared.changes)
         .map(mutation)
     }
     pub fn preview_encounter_drained_consequence(
@@ -300,19 +317,21 @@ impl AtlasAppService {
         encounter_ref: &str,
         request: ResolveDrainedConsequenceRequest,
     ) -> AppServiceResult<ConditionHpChangeView> {
-        prepare_drained(self, encounter_ref, &request).map(|(_, _, preview, _)| preview)
+        prepare_drained(self, encounter_ref, &request).map(|prepared| prepared.hp_change)
     }
 }
+struct PreparedDrained {
+    encounter_key: String,
+    changes: atlas_local_state::PreparedConditionEvent,
+    hp_change: ConditionHpChangeView,
+    subject: workflow::ConditionSubjectContext,
+}
+
 fn prepare_drained(
     service: &AtlasAppService,
     encounter_ref: &str,
     request: &ResolveDrainedConsequenceRequest,
-) -> AppServiceResult<(
-    String,
-    atlas_local_state::PreparedConditionEvent,
-    ConditionHpChangeView,
-    Option<u64>,
-)> {
+) -> AppServiceResult<PreparedDrained> {
     if !(-9_007_199_254_740_991..=9_007_199_254_740_991).contains(&request.level) {
         return Err(AppServiceError::invalid_request(
             "Level must be a safe integer",
@@ -395,12 +414,12 @@ fn prepare_drained(
             Some(request.level),
         ),
     };
-    Ok((
-        snapshot.encounter.encounter_key,
+    Ok(PreparedDrained {
+        encounter_key: snapshot.encounter.encounter_key,
         changes,
-        preview,
-        subject.reference_revision,
-    ))
+        hp_change: preview,
+        subject,
+    })
 }
 
 fn commit(
@@ -408,6 +427,10 @@ fn commit(
     prepared: Prepared,
 ) -> AppServiceResult<EncounterMutationView> {
     EncounterEvent {
+        condition_sources: &[(
+            &prepared.consequences.participant_key,
+            &prepared.source_conditions,
+        )],
         encounter_key: &prepared.encounter_key,
         request_id: &prepared.request_id,
         intent: &prepared.intent,
@@ -551,12 +574,13 @@ fn prepare_add(
     {
         super::rules::stunned_arrival::apply(
             &subject.participant,
+            &subject.source_conditions,
             &mut consequences,
-            &request.request_id,
         )?;
     }
     consequences.changes.precedence_changes.extend(selection);
     Ok(Prepared {
+        source_conditions: subject.source_conditions,
         persistent_precedence,
         encounter_key: snapshot.encounter.encounter_key,
         request_id: request.request_id,
@@ -691,12 +715,13 @@ fn prepare_update(
     {
         super::rules::stunned_arrival::apply(
             &subject.participant,
+            &subject.source_conditions,
             &mut consequences,
-            &request.request_id,
         )?;
     }
     consequences.changes.precedence_changes.extend(selection);
     Ok(Prepared {
+        source_conditions: subject.source_conditions,
         persistent_precedence,
         encounter_key: snapshot.encounter.encounter_key,
         request_id: request.request_id,
@@ -1050,7 +1075,12 @@ pub(super) fn prone_exception(
         ));
     }
     let prone = super::conditions::modeled_condition_by_rule(ConditionRule::Prone)?;
-    match super::rules::condition_applicability(prone, &subject.participant, &subject.facts) {
+    match super::rules::condition_applicability(
+        prone,
+        &subject.participant,
+        &subject.facts,
+        &subject.source_conditions,
+    ) {
         Some(EncounterConditionEligibilityView::Immune { reason }) => {
             Some((subject.participant.participant_key.clone(), reason))
         }

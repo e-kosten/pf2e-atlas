@@ -38,16 +38,21 @@ export function EncounterKnockout({
     <div className="encounter-knockout">
       {!initiativeOnly && (
         <>
-          <Select
-            aria-label="Knockout outcome"
-            disabled={disabled}
-            value={selected}
-            onChange={setSelected}
-            options={options.map((entry, index) => ({
-              value: index,
-              label: entry.label,
-            }))}
-          />
+          {participant.knockout_unavailable_reason && (
+            <span role="status">{participant.knockout_unavailable_reason}</span>
+          )}
+          {options.length > 0 && (
+            <Select
+              aria-label="Knockout outcome"
+              disabled={disabled}
+              value={selected}
+              onChange={setSelected}
+              options={options.map((entry, index) => ({
+                value: index,
+                label: entry.label,
+              }))}
+            />
+          )}
           <span>{option?.result}</span>
         </>
       )}

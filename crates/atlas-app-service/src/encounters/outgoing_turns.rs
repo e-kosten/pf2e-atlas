@@ -195,10 +195,12 @@ fn retain_reminder(
                         .any(|c| condition_ids.contains(&c.condition_id))
                 })
             {
-                let condition_value = super::rules::lifecycle::known_effective(
+                let condition_value = super::rules::causes::condition_causes(
                     live,
-                    super::conditions::ConditionRule::Frightened,
+                    None,
+                    super::rules::source_conditions::SourceConditions::empty(),
                 )
+                .known_value(super::conditions::ConditionRule::Frightened)
                 .ok();
                 return Some(R::ConditionRecovery {
                     participant_key: participant_key.clone(),
