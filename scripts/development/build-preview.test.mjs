@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -36,6 +37,10 @@ function fixture(t) {
     '{"type":"module","engines":{"node":"^22.18.0 || ^24.0.0"}}',
   );
   put("web/atlas-ui/node_modules/.package-lock.json", "{}");
+  put(
+    "scripts/development/build-profile.mjs",
+    readFileSync(resolve(scripts, "build-profile.mjs")),
+  );
   put(
     "scripts/development/preflight.mjs",
     readFileSync(resolve(scripts, "preflight.mjs")),
@@ -87,8 +92,9 @@ if(kind==='npm'){
  for(const name of ['api-contract.txt','assets/app.js','index.html'])sha256[name]=createHash('sha256').update(readFileSync(resolve(root,'web/atlas-ui/dist',name))).digest('hex');
  writeFileSync(resolve(root,'web/atlas-ui/dist/build-provenance.json'),JSON.stringify({version:1,input_sha256:frontendInputIdentity(root),api_contract:id,sha256}));
 }else if(kind==='cargo'){
- mkdirSync(resolve(root,'target/debug'),{recursive:true});
- writeFileSync(resolve(root,'target/debug/atlas'),'fixture executable');
+ const profile=process.argv.includes('--release')?'release':'debug';
+ mkdirSync(resolve(root,'target',profile),{recursive:true});
+ writeFileSync(resolve(root,'target',profile,'atlas'),'fixture executable'+(profile==='release'?' optimized':''));
  if(process.env.ATLAS_BUILD_TEST_MUTATE==='1')appendFileSync(resolve(root,'crates/example/src/lib.rs'),'// changed while compiling\\n');
  if(process.env.ATLAS_BUILD_TEST_COMMIT==='1')execFileSync('git',['-c','core.hooksPath=/dev/null','-c','user.name=Fixture','-c','user.email=fixture@example.com','commit','--allow-empty','-qm','checkpoint']);
 }
@@ -120,13 +126,14 @@ if(kind==='npm'){
   return {
     root,
     put,
-    build(extra = {}) {
+    build(extra = {}, args = []) {
       return spawnSync(
         process.execPath,
         [
           "--experimental-strip-types",
           resolve(root, "scripts/development/build-preview.mjs"),
           root,
+          ...args,
         ],
         {
           cwd: root,
@@ -144,8 +151,16 @@ if(kind==='npm'){
         .trim()
         .split("\n");
     },
-    receipt() {
-      return readFileSync(resolve(root, ".atlas/preview-build.json"), "utf8");
+    receipt(profile = "dev") {
+      return readFileSync(
+        resolve(
+          root,
+          profile === "release"
+            ? ".atlas/maintenance-build.json"
+            : ".atlas/preview-build.json",
+        ),
+        "utf8",
+      );
     },
   };
 }
@@ -216,4 +231,36 @@ test("a logical commit with unchanged inputs does not invalidate compilation", (
     source.observed_start.input_sha256,
     source.observed_finish.input_sha256,
   );
+});
+
+test("explicit release builds reuse the UI and retain separate, accurate profile receipts", (t) => {
+  const f = fixture(t);
+  success(f.build());
+  const dev = f.receipt();
+  success(f.build({}, ["--profile", "release"]));
+  assert.deepEqual(f.calls(), ["npm", "cargo", "cargo"]);
+  const release = JSON.parse(f.receipt("release"));
+  assert.equal(release.profile, "release");
+  assert.equal(
+    release.binary_sha256,
+    createHash("sha256")
+      .update(readFileSync(resolve(f.root, "target/release/atlas")))
+      .digest("hex"),
+  );
+  assert.equal(f.receipt(), dev);
+  assert.equal(JSON.parse(dev).profile, "dev");
+});
+
+test("unsupported or ambiguous build profiles fail before compilation", (t) => {
+  const f = fixture(t);
+  for (const args of [
+    ["--profile", "fast"],
+    ["--profile"],
+    ["--profile", "dev", "--profile", "release"],
+  ]) {
+    const result = f.build({}, args);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Expected --profile dev or release/);
+    assert.equal(existsSync(resolve(f.root, ".atlas/calls")), false);
+  }
 });

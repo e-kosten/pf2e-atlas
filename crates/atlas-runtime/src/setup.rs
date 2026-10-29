@@ -91,11 +91,12 @@ pub(crate) fn ensure_setup(
         ));
     }
     progress("check_setup", "Checking setup");
+    let profile_assets = crate::profile_assets::ProfileAssets::default();
     let mut model_ready = prepare_embeddings
         && profile_error.is_none()
-        && configurations
-            .iter()
-            .all(|c| atlas_embedding::validate_embedding_model_cache(c).is_ok())
+        && configurations.iter().all(|c| {
+            profile_assets.ready(&atlas_embedding::profile_for_model(c.model).profile_id(), c)
+        })
         && atlas_embedding::TextEmbeddingTokenizer::load_baseline(&paths.embedding_cache_root)
             .is_ok();
     let mut source_issue = None;
@@ -412,7 +413,7 @@ pub(crate) fn ensure_setup(
                     model_path: config.model_dir().display().to_string(),
                     cache_root: paths.embedding_cache_root.display().to_string(),
                     ready: options.target.requires_embeddings()
-                        && atlas_embedding::validate_embedding_model_cache(config).is_ok(),
+                        && profile_assets.ready(&profile.profile_id(), config),
                     missing_files: required_embedding_model_cache_files(config)
                         .iter()
                         .filter(|file| !file.local_path.is_file())

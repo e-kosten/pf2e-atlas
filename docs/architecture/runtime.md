@@ -214,6 +214,12 @@ Fresh semantic setup selects BGE Base. Cache packages use model-ID/revision
 directories; missing or corrupt files are repaired through verified temporary
 download and rename. Old package revisions remain untouched.
 
+One setup operation shares runtime's profile-asset witness cache across readiness
+and per-profile reporting. A cache hit rechecks package metadata; replacement or
+repair invalidates the witness. Native model loading still verifies package
+bytes independently. This removes repeated hashing within the operation without
+persisting checksum trust across processes.
+
 Explicit setup freshness may compare the source fingerprint. Ordinary lookup,
 search, lists and encounters do not scan the source checkout. Cheap index checks
 validate the executable contract/capability; deep coherence validation is an
@@ -755,10 +761,14 @@ remain shared, while compiler targets stay checkout-local. See
 For a refreshable candidate preview, `atlas-dev baseline web --managed` owns one
 foreground supervisor and its live app child. Checkout-local serialized requests
 refresh or stop that owned child; stored process IDs never authorize signaling.
-Refresh preflights the replacement while the old server remains available, then
-checks HTTP readiness and the served UI against the supplied index checksum at
-the same explicit port. A failed start attempts to restore the previous frozen
-executable. Runtime copies expire when superseded or the owner stops; the task
+Refresh checks the index contract while the old server remains available. Changed
+candidates pass a private cold web-start/HTTP readiness/UI probe, which is reaped
+before stable-port replacement. Initial startup checks its actual child; an
+unchanged executable/UI checks the current child directly. Web startup authenticates
+the migration ledger, and readiness requires every stored profile usable.
+Preview admission serves the published artifact; setup intent/source freshness
+remain explicit maintenance checks. A failed replacement attempts to restore the
+previous frozen executable. Runtime copies expire when superseded or the owner stops; the task
 database, source/model selection and review edits remain in place.
 
 Normal init/status/web remain build-free. Separate candidate-build orchestration
@@ -768,6 +778,12 @@ observed source provenance, rejecting source mutation during compilation before
 requesting refresh. These receipts do not replace independent final validation;
 the baseline publication's deep validation/inference probes are not repeated on
 ordinary preview refresh.
+
+Shared maintenance selects an explicit build profile (release by default), freezes
+the source checkout and verified app/tool executables, then stages and upgrades a
+controlled seed. Long validation runs against that frozen source; caller edits
+may resume after capture. Rust retains deep snapshot validation and per-profile
+query probes before atomic publication. Evidence remains in the caller checkout.
 
 
 ### Authored content reference rolls

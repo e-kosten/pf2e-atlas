@@ -20,11 +20,9 @@ use std::{
 
 const POLL: Duration = Duration::from_millis(50);
 const START_TIMEOUT: Duration = Duration::from_secs(20);
-// Setup readiness hashes every configured model package. The real two-profile
-// corpus exceeds 20s in a normal dev build even when healthy.
-const CHECK_TIMEOUT: Duration = Duration::from_secs(60);
+const CHECK_TIMEOUT: Duration = Duration::from_secs(20);
 const REQUEST_TIMEOUT: Duration =
-    Duration::from_secs(2 * CHECK_TIMEOUT.as_secs() + 2 * START_TIMEOUT.as_secs() + 40);
+    Duration::from_secs(CHECK_TIMEOUT.as_secs() + 3 * START_TIMEOUT.as_secs() + 40);
 
 struct Preview {
     checkout: PathBuf,
@@ -124,23 +122,46 @@ impl Preview {
     }
 
     fn start(&self, snapshot: &Snapshot) -> Result<OwnedChild> {
+        self.start_at(snapshot, self.port, &self.log)
+    }
+
+    fn probe(&self, snapshot: &Snapshot) -> Result<()> {
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0))?;
+        let port = listener.local_addr()?.port();
+        drop(listener);
+        let mut child = self.start_at(snapshot, port, &self.directory.join("probe.log"))?;
+        child.stop()
+    }
+
+    fn start_at(&self, snapshot: &Snapshot, port: u16, log_path: &Path) -> Result<OwnedChild> {
         // Never adopt or signal a listener discovered through the requested URL.
         drop(
-            std::net::TcpListener::bind(("127.0.0.1", self.port))
-                .map_err(|error| format!("Preview port {} is occupied: {error}", self.port))?,
+            std::net::TcpListener::bind(("127.0.0.1", port))
+                .map_err(|error| format!("Preview port {} is occupied: {error}", port))?,
         );
         let log = OpenOptions::new()
             .create(true)
             .append(true)
-            .open(&self.log)?;
+            .open(log_path)?;
         let child = Command::new(&snapshot.binary)
-            .args(web_arguments(&self.index, &self.manifest, self.port))
+            .args(web_arguments(&self.index, &self.manifest, port))
             .current_dir(&self.checkout)
             .stdin(Stdio::null())
             .stdout(log.try_clone()?)
             .stderr(log)
             .spawn()?;
         let mut child = OwnedChild(Some(child));
+        self.wait_ready(&mut child, snapshot, port, log_path)?;
+        Ok(child)
+    }
+
+    fn wait_ready(
+        &self,
+        child: &mut OwnedChild,
+        snapshot: &Snapshot,
+        port: u16,
+        log_path: &Path,
+    ) -> Result<()> {
         let deadline = Instant::now() + START_TIMEOUT;
         let mut last_error = "Waiting for HTTP readiness".to_owned();
         while Instant::now() < deadline {
@@ -150,23 +171,24 @@ impl Preview {
             if let Some(status) = child.exited()? {
                 return Err(format!(
                     "Preview exited before readiness ({status}); see {}",
-                    self.log.display()
+                    log_path.display()
                 )
                 .into());
             }
-            match snapshot::health(self.port, &snapshot.frontend_sha256) {
-                Ok(()) => {
+            match snapshot::health(port, &snapshot.frontend_sha256) {
+                Ok(snapshot::Health::Ready) => {
                     if child.exited()?.is_none() {
-                        return Ok(child);
+                        return Ok(());
                     }
                 }
-                Err(error) => last_error = error.to_string(),
+                Ok(snapshot::Health::Pending(reason)) => last_error = reason,
+                Err(error) => return Err(error),
             }
             thread::sleep(POLL);
         }
         Err(format!(
             "Preview did not become ready: {last_error}; see {}",
-            self.log.display()
+            log_path.display()
         )
         .into())
     }
@@ -240,7 +262,7 @@ impl Preview {
         if replacement.binary_sha256 == current.binary_sha256
             && replacement.frontend_sha256 == current.frontend_sha256
         {
-            snapshot::health(self.port, &current.frontend_sha256)?;
+            self.wait_ready(child, current, self.port, &self.log)?;
             current.adopt_provenance(&replacement);
             return self.report(
                 "ready",
@@ -248,6 +270,7 @@ impl Preview {
                 json!({"refreshed":false,"reason":"Same executable and UI already running"}),
             );
         }
+        self.probe(&replacement)?;
         self.report("refreshing", current, Value::Null)?;
         child.stop()?;
         match self.start(&replacement) {
