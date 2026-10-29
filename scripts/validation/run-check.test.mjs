@@ -383,18 +383,27 @@ test("public runner forwards HUP and INT to owned nested commands", async (t) =>
     await t.test(signal, async (t) => nestedCancellation(t, { signal }));
 });
 
-test("run_check restores the caller's signal traps after a completed phase", (t) => {
-  const f = fixture(t);
-  const marker = join(f.cwd, "..", "trap-marker");
-  const script = `set -eu; . "$ATLAS_CHECK_HELPER"; trap 'printf restored >"$TRAP_MARKER"' TERM; run_check first true; kill -TERM $$; test -f "$TRAP_MARKER"`;
-  const result = spawnSync("sh", ["-c", script], {
-    cwd: f.cwd,
-    env: { ...f.env, TRAP_MARKER: marker },
-    encoding: "utf8",
-    timeout: 5000,
-  });
-  assert.equal(result.status, 0, result.stderr);
-  assert.equal(readFileSync(marker, "utf8"), "restored");
+test("run_check restores the caller's signal traps after a completed phase", async (t) => {
+  for (const shellName of ["sh", "bash", "dash"]) {
+    await t.test(shellName, (t) => {
+      const available = spawnSync(shellName, ["-c", "exit 0"]);
+      if (available.error?.code === "ENOENT") {
+        t.skip(`${shellName} is not installed`);
+        return;
+      }
+      const f = fixture(t);
+      const marker = join(f.cwd, "..", "trap-marker");
+      const script = `set -eu; . "$ATLAS_CHECK_HELPER"; trap 'printf restored >"$TRAP_MARKER"' TERM; run_check first true; kill -TERM $$; test -f "$TRAP_MARKER"`;
+      const result = spawnSync(shellName, ["-c", script], {
+        cwd: f.cwd,
+        env: { ...f.env, TRAP_MARKER: marker },
+        encoding: "utf8",
+        timeout: 5000,
+      });
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(readFileSync(marker, "utf8"), "restored");
+    });
+  }
 });
 
 test("successful command exit also cleans an owned background descendant", (t) => {
