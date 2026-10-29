@@ -21,12 +21,14 @@ export function output(command, args, root) {
           cwd: root,
           encoding: "utf8",
           timeout: 10000,
+          maxBuffer: 32 * 1024 * 1024,
           env: { ...process.env, RUSTUP_AUTO_INSTALL: "0" },
         })
       : spawnSync(command, args, {
           cwd: root,
           encoding: "utf8",
           timeout: 10000,
+          maxBuffer: 32 * 1024 * 1024,
           env: { ...process.env, RUSTUP_AUTO_INSTALL: "0" },
         });
   if (result.error || result.status !== 0)
@@ -379,6 +381,7 @@ export async function requireReadiness(root, options) {
 }
 if (
   process.argv[1] &&
+  existsSync(process.argv[1]) &&
   import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href
 ) {
   const mode = process.argv[2];

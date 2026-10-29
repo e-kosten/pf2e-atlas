@@ -134,3 +134,9 @@ matches the fetched remote. Preserve local changes or divergence and report any
 blocked update; do not reset or stash work to force cleanup. This does not
 provide permission to merge a PR or push to `main`. Serialize Git mutations
 within the repository, including worktree creation/removal and commits.
+
+At a schema/reference-contract or developer-capability milestone, also inspect
+the shared tool/seed readiness. Refresh explicitly from a validated clean build
+with the [shared refresh procedure](setup-and-preview.md#reusable-development-baseline).
+Updating Git alone does not update retained executables or seeds. Ordinary UI or
+prose changes do not require republication, and existing task receipts stay pinned.

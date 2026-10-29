@@ -40,6 +40,7 @@ const args=process.argv.slice(2),get=name=>args[args.indexOf(name)+1];
 if(args[1]==='capabilities'){console.log(JSON.stringify({version:1,managed_preview:true,workspace_schema_version:22}));process.exit(0);}
 if(args[1]==='init'){
  const index=path.join(get('--checkout'),'.atlas/workspace.sqlite');fs.mkdirSync(path.dirname(index),{recursive:true});fs.writeFileSync(index,'controlled seed');
+ fs.writeFileSync(process.env.MUTABLE_TOOL,'#!/bin/sh\\nexit 92\\n');
  fs.writeFileSync(process.env.MUTABLE_APP,'#!/bin/sh\\nexit 91\\n');
 }else if(args[1]==='publish'){
  fs.appendFileSync(process.env.MAINTENANCE_LOG,JSON.stringify({index:get('--index'),binary:get('--binary')})+'\\n');
@@ -100,6 +101,7 @@ for (const fail of [false, true])
           ...process.env,
           MAINTENANCE_LOG: f.log,
           MUTABLE_APP: f.app,
+          MUTABLE_TOOL: f.tool,
           EXPECTED_APP_SHA: f.sha,
           ...(fail ? { FAIL_PUBLICATION: "1" } : {}),
         },

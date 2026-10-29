@@ -4,13 +4,13 @@ default:
 [doc('Install tracked hooks and verify this linked worktree is ready for development')]
 [group('development')]
 dev-setup:
-    scripts/install-git-hooks.sh
     scripts/preflight.sh
+    scripts/install-git-hooks.sh
 
 [doc('Verify this checkout is a linked worktree on a non-main branch')]
 [group('development')]
-preflight:
-    scripts/preflight.sh
+preflight *args:
+    scripts/preflight.sh {{ args }}
 
 [doc('Publish an existing validated Atlas build and database as the shared development baseline')]
 [group('development')]
@@ -36,6 +36,16 @@ dev-status *args:
 dev-web *args:
     sh {{ quote(justfile_directory() / "scripts/development/atlas-dev.sh") }} web --checkout {{ quote(invocation_directory()) }} "$@"
 
+[doc('Build a candidate without starting a preview; reuse verified frontend output')]
+[group('development')]
+dev-build:
+    node {{ quote(justfile_directory() / "scripts/development/build-preview.mjs") }} {{ quote(invocation_directory()) }}
+
+[doc('Explicitly migrate a private controlled seed and publish a validated shared baseline')]
+[group('development')]
+dev-shared-refresh:
+    node {{ quote(justfile_directory() / "scripts/development/shared-refresh.mjs") }}
+
 [doc('Build and start a managed candidate preview, preserving one task URL and database')]
 [group('development')]
 [positional-arguments]
@@ -52,6 +62,12 @@ dev-refresh *args:
 [group('development')]
 dev-preview-stop:
     sh {{ quote(justfile_directory() / "scripts/development/atlas-dev.sh") }} stop --checkout {{ quote(invocation_directory()) }}
+
+[doc('Verify/reuse the UI, package a fixed candidate and run isolated final browser validation')]
+[group('validation')]
+[positional-arguments]
+validate-browser *args:
+    node {{ quote(justfile_directory() / "scripts/validate-browser.mjs") }} "$@"
 
 [doc('Run authenticated browser candidate with isolated committed tests and locked dependencies')]
 [group('validation')]
