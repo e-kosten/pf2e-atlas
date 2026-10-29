@@ -12,7 +12,7 @@ use args::{BuildIndexOptions, CheckIndexOptions, ValidateIndexOptions};
 pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
         default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
-        path_mode: options.path_mode.into(),
+        path_mode: crate::cli::runtime_path_mode(options.path_mode),
         overrides: AtlasPathOverrides {
             source_root: options.source,
             embedding_cache_root: options.embedding_cache_path,
@@ -101,7 +101,10 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
     Ok(ExitCode::SUCCESS)
 }
 pub(crate) fn run_index_check(options: CheckIndexOptions) -> Result<ExitCode, String> {
-    let runtime = index_runtime(options.path_mode.into(), options.index)?;
+    let runtime = index_runtime(
+        crate::cli::runtime_path_mode(options.path_mode),
+        options.index,
+    )?;
     let report = runtime
         .check_index_report(if options.no_embeddings {
             SetupTarget::Records
@@ -125,7 +128,10 @@ pub(crate) fn run_index_check(options: CheckIndexOptions) -> Result<ExitCode, St
     Ok(ExitCode::SUCCESS)
 }
 pub(crate) fn run_index_validate(options: ValidateIndexOptions) -> Result<ExitCode, String> {
-    let runtime = index_runtime(options.path_mode.into(), options.index)?;
+    let runtime = index_runtime(
+        crate::cli::runtime_path_mode(options.path_mode),
+        options.index,
+    )?;
     let report = runtime
         .validate_index_report(if options.no_embeddings {
             SetupTarget::Records

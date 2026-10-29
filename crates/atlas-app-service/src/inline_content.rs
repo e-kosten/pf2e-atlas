@@ -263,7 +263,7 @@ impl Composer<'_> {
         source.effect_label = None;
         bindings.push(PreparedInclusionView {
             namespace: source_namespace,
-            source: reference.locator.clone().into(),
+            source: crate::projection::content_location(reference.locator.clone()),
             controls: vec![],
             references: vec![source],
         });

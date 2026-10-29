@@ -17,7 +17,7 @@ use args::*;
 fn client(paths: ListsPathOptions) -> Result<AtlasAppService, atlas_app_model::AppError> {
     connect(ClientOptions {
         search_profile: None,
-        path_mode: paths.path_mode.into(),
+        path_mode: crate::cli::runtime_path_mode(paths.path_mode),
         index: paths.index,
         embedding_cache: None,
         retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,

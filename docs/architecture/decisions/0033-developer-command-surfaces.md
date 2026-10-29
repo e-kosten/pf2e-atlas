@@ -81,8 +81,10 @@ commands continue to live in the owning Cargo crates.
 atlas-cli-support owns the presentation primitives used by both Rust CLIs:
 path/progress argument vocabulary, JSON envelopes, and progress rendering.
 The binary crates own command-specific grammar, routing, report presentation,
-and exit mapping. Runtime path policy remains in atlas-runtime, source analysis
-and audits remain in atlas-ingest, and artifact inspection remains in atlas-index.
+and exit mapping. Each binary maps shared path arguments to runtime path modes;
+atlas-cli-support has no runtime dependency. Runtime path policy remains in
+atlas-runtime, source analysis and audits remain in atlas-ingest, and artifact
+inspection remains in atlas-index.
 The support crate does not become a command dispatcher or business-logic facade.
 
 ## Consequences

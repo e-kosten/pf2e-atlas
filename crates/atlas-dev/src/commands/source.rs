@@ -13,7 +13,7 @@ use args::{AnalyzeOptions, AuditPathsOptions, LoadOptions};
 pub(crate) fn run_source_load(options: LoadOptions) -> Result<ExitCode, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
         default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
-        path_mode: options.path_mode.into(),
+        path_mode: crate::cli::runtime_path_mode(options.path_mode),
         overrides: AtlasPathOverrides {
             source_root: options.source,
             embedding_cache_root: None,
@@ -77,7 +77,7 @@ pub(crate) fn run_source_load(options: LoadOptions) -> Result<ExitCode, String> 
 pub(crate) fn run_source_analyze(options: AnalyzeOptions) -> Result<ExitCode, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
         default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
-        path_mode: options.path_mode.into(),
+        path_mode: crate::cli::runtime_path_mode(options.path_mode),
         overrides: AtlasPathOverrides {
             source_root: options.source,
             embedding_cache_root: None,
@@ -120,7 +120,7 @@ pub(crate) fn run_source_analyze(options: AnalyzeOptions) -> Result<ExitCode, St
 pub(crate) fn run_source_audit_paths(options: AuditPathsOptions) -> Result<ExitCode, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
         default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
-        path_mode: options.path_mode.into(),
+        path_mode: crate::cli::runtime_path_mode(options.path_mode),
         overrides: AtlasPathOverrides {
             source_root: options.source,
             embedding_cache_root: None,

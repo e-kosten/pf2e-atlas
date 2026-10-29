@@ -28,7 +28,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
     let mode: RetrievalModeView = o.retrieval.into();
     let service = match connect(ClientOptions {
         search_profile: o.search_profile.clone(),
-        path_mode: o.path_mode.into(),
+        path_mode: crate::cli::runtime_path_mode(o.path_mode),
         index: o.index,
         embedding_cache: o.embedding_cache_path,
         retrieval_mode: if o.query.is_some() && mode != RetrievalModeView::Lexical {

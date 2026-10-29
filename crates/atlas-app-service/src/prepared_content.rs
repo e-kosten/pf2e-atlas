@@ -1,5 +1,5 @@
 //! Selected source presentation, using the same authored DTO for roots and children.
-use crate::projection::{field_state, navigation_fingerprint};
+use crate::projection::{content_location, field_state, navigation_fingerprint};
 use crate::{AppServiceError, AppServiceResult};
 use atlas_app_model::*;
 use atlas_domain::OwnedContentLocator;
@@ -107,7 +107,7 @@ pub(crate) fn prepared_fields(
             (SourceFieldView::Value(_), SourceFieldView::Value(SourceContentFormat::Html)) => {
                 if bounded.contains(&locator) {
                     fields.push(PreparedContentFieldView {
-                        locator: locator.into(),
+                        locator: content_location(locator),
                         role: format!("{:?}", s.role).to_lowercase(),
                         source_fingerprint: navigation_fingerprint(owners, context.fingerprint),
                         section_rendering: None,
@@ -171,7 +171,7 @@ pub(crate) fn prepared_fields(
         };
         fields.push(PreparedContentFieldView {
             section_rendering,
-            locator: locator.into(),
+            locator: content_location(locator),
             role: format!("{:?}", s.role).to_lowercase(),
             source_fingerprint: navigation_fingerprint(owners, context.fingerprint),
             body,
@@ -225,7 +225,7 @@ pub(crate) fn content_controls(
                         .then(|| RollContentRequest {
                             content_interpretation_version:
                                 atlas_record::source_content::CONTENT_INTERPRETATION_VERSION.into(),
-                            source: locator.clone().into(),
+                            source: content_location(locator.clone()),
                             source_fingerprint: context.fingerprint.to_owned(),
                             spell_rank: context.spell_rank,
                             encounter: context.encounter.clone(),
@@ -262,7 +262,7 @@ pub(crate) fn content_controls(
                         Some(RollContentRequest {
                             content_interpretation_version:
                                 atlas_record::source_content::CONTENT_INTERPRETATION_VERSION.into(),
-                            source: locator.clone().into(),
+                            source: content_location(locator.clone()),
                             source_fingerprint: context.fingerprint.to_owned(),
                             spell_rank: context.spell_rank,
                             encounter: context.encounter.clone(),

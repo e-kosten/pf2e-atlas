@@ -221,3 +221,13 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
         Command::Completions(args) => commands::completions::run_completions(args, Cli::command()),
     }
 }
+
+/// Compose shared argument vocabulary with this binary's runtime dependency.
+pub(crate) fn runtime_path_mode(
+    mode: atlas_cli_support::CliPathMode,
+) -> atlas_runtime::AtlasPathMode {
+    match mode {
+        atlas_cli_support::CliPathMode::Repo => atlas_runtime::AtlasPathMode::Repo,
+        atlas_cli_support::CliPathMode::Global => atlas_runtime::AtlasPathMode::Global,
+    }
+}

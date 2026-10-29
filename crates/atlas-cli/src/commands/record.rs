@@ -18,7 +18,7 @@ use terminal::render_html;
 pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
     let connection = connect(ClientOptions {
         search_profile: None,
-        path_mode: o.path_mode.into(),
+        path_mode: crate::cli::runtime_path_mode(o.path_mode),
         index: o.index,
         embedding_cache: None,
         retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
@@ -100,7 +100,7 @@ pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
 pub(crate) fn run_record_resolve(o: RecordResolveOptions) -> Result<ExitCode, String> {
     let s = match connect(ClientOptions {
         search_profile: None,
-        path_mode: o.path_mode.into(),
+        path_mode: crate::cli::runtime_path_mode(o.path_mode),
         index: o.index,
         embedding_cache: None,
         retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,

@@ -31,7 +31,7 @@ fn open_service(
 ) -> Result<AtlasRetrievalService, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
         default_search_profile: Some(profile.clone()),
-        path_mode: options.path_mode.into(),
+        path_mode: crate::cli::runtime_path_mode(options.path_mode),
         overrides: AtlasPathOverrides {
             source_root: None,
             embedding_cache_root: None,
