@@ -173,7 +173,7 @@ impl Fixture {
         }
     }
     pub fn state(&self, capacity: usize) -> AtlasWebState {
-        AtlasWebState::from_service_with_blocking_capacity(self.service.clone(), capacity)
+        AtlasWebState::with_blocking_capacity(self.service.clone(), capacity)
     }
     pub fn router(&self) -> axum::Router {
         crate::router(self.service.clone())
