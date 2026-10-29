@@ -3,7 +3,7 @@
 Status: proposed
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-23
+Last reviewed: 2026-10-29
 
 ## Remaining work
 
@@ -14,6 +14,26 @@ the original full build or imply that its debug timing measures release behavior
 New optimization requires a measured hypothesis and unchanged output/state checks.
 PR103 removes duplicate native-vector storage and sparse index capacity; its
 measurement is below. Shared segmentation/tokenization remains separate follow-up.
+
+### Deep artifact validation during maintenance
+
+A schema19-to22 shared-seed refresh on macOS ARM64 used 22s for private staging,
+594s for controlled setup/upgrade and 336s for snapshot publication (952s total).
+This used a dev executable and reused the published corpus/vectors, with no corpus
+embedding regeneration. Publication still ran query inference for its per-profile
+smoke tests. Sampling during upgrade placed the main thread in
+reference validation. These observations motivate profiling, not a release timing
+claim or evidence that every validation pass is redundant.
+
+Measure deep-validation components and SQL plans on the same snapshot with
+matched dev/release binaries before changing algorithms. Investigate repeated
+record decoding, field/embedding attribution checks and row-at-a-time access
+where measurements support it. Keep atomic migration and reference-projection
+upgrade validation, validation of the exact copied publication snapshot, saved
+state and per-profile query probes.
+Use corruption/rollback cases and unchanged data digests to verify any optimization.
+This work is separate from preview admission, model verification reuse and frozen
+maintenance orchestration in the development workflow.
 
 ## Original observation
 
