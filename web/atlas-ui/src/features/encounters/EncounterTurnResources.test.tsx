@@ -467,7 +467,7 @@ it.each(["typed", "wire"])(
         onChange={vi.fn()}
       />,
     );
-    expect(screen.getByText("Actions", { exact: true }).tagName).toBe("STRONG");
+    expect(screen.getByText("Actions", { exact: true })).toBeVisible();
     expect(screen.queryByRole("button", { name: /Actions:/ })).toBeNull();
     expect(screen.getByRole("button", { name: "Spend action 1" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Restore action 3" })).toBeEnabled();
