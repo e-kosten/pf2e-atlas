@@ -150,7 +150,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
             participant_variant: None,
             encounter_ref: encounter.slug.clone(),
             record_ref: "actors:aaaaaaaaaaaaaaaa".into(),
-            quantity: 1,
+            quantity: 2,
             initiative: None,
         })
         .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
@@ -278,6 +278,7 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
             .worker
             .encounter_reference(&encounter.slug, &participant.participant_key, request(id))
             .unwrap();
+        assert_eq!(f.worker.last_read_metrics().source_body_decodes, 1);
         assert_eq!(selected.selected.owners, request(id).selection.owners);
         match selected.presentation.body {
             RecordBodyView::Activity(entry) => {
@@ -302,6 +303,20 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
             _ => panic!("selected family"),
         }
     }
+    let twin = f
+        .worker
+        .encounter_reference(
+            &encounter.slug,
+            &updated.participants[1].participant_key,
+            request("cccccccccccccccc"),
+        )
+        .unwrap();
+    assert_eq!(f.worker.last_read_metrics().source_body_decodes, 1);
+    let RecordBodyView::Activity(twin) = twin.presentation.body else {
+        panic!("twin strike")
+    };
+    assert_eq!(twin.attack.value, Some(12.into()));
+    assert_eq!(f.worker.encounter(&encounter.slug).unwrap(), updated);
     let mut stale = request("eeeeeeeeeeeeeeee");
     stale.artifact_generation = "old-generation".into();
     let error = f

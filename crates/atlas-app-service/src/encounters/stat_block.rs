@@ -5,8 +5,6 @@ use atlas_app_model::*;
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct StatBlockView {
     pub(crate) source_conditions: super::rules::source_conditions::SourceConditions,
-    pub record_key: String,
-    pub title: String,
     pub level: Option<serde_json::Number>,
     pub adjusted_level: Option<serde_json::Number>,
     pub values: Vec<StatValueView>,

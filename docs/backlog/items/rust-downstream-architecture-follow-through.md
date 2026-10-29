@@ -22,9 +22,10 @@ typed query-input errors are described in
 - Make shell Refresh target the active view.
 - Explain partially supported condition effects on casting attack/DC without
   expanding gameplay automation implicitly.
-- Shrink the private encounter arithmetic workspace to fields actually used by
-  bounded mechanics. Evaluate removal of duplicate SQLite read connections or
-  the private mirrored web-service trait only for demonstrated consumer benefit.
+- Evaluate removal of duplicate SQLite read connections or the private mirrored
+  web-service trait only for demonstrated consumer benefit. Encounter read
+  preparation and arithmetic-field ownership follow the current
+  [runtime boundaries](../../architecture/runtime.md#retrieval-and-application-workflows).
 
 ## Non-goals
 

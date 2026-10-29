@@ -167,7 +167,7 @@ impl AtlasAppService {
                 self.with_workspace(
                     &crate::ReadExecutionContext::uncancellable(),
                     move |session| {
-                        let (_, records) = hydration::hydrate_participant_records(
+                        let (_, records) = hydration::prepare_participant_records(
                             session.retrieval_mut(),
                             &source_participants,
                         )?;

@@ -202,6 +202,11 @@ falls back to record IDs for labels. See
 App-service owns useful catalog control presentation, search pages, semantic
 family presentation and hydration. Reference reads project authored facts directly;
 encounters compose the existing bounded runtime overlays into one presentation.
+Encounter operations select checked-source rules preparation separately from
+semantic presentation for display. Composed reads reuse distinct checked
+roots within one workspace snapshot while keeping participant and selected-rank
+overlays independent. Local-state supplies encounter-index participant counts without
+hydrating roster details.
 There is no generic section/value/profile layout interpreter or second encounter
 stat-block response. App-model stays a transient DTO/export boundary; run
 `cargo test -p atlas-app-model` and regenerate checked bindings intentionally

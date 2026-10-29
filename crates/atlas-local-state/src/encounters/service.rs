@@ -320,6 +320,12 @@ impl EncountersRead<'_> {
     pub fn list(&self) -> LocalStateResult<Vec<Encounter>> {
         storage::list(self.connection)
     }
+    /// List metadata and roster counts in one read, without hydrating participants.
+    pub fn list_with_participant_counts(
+        &self,
+    ) -> LocalStateResult<Vec<super::EncounterWithParticipantCount>> {
+        storage::list_with_participant_counts(self.connection)
+    }
     pub fn get(&self, encounter_ref: &str) -> LocalStateResult<Option<Encounter>> {
         validate_ref(encounter_ref)?;
         storage::get(self.connection, encounter_ref)

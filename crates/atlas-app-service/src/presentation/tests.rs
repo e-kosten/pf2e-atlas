@@ -959,8 +959,6 @@ fn encounter_save_adjustments_restore_an_omitted_legacy_hazard_block() {
             senses: vec![],
             sense_facts: vec![],
             contextual_armor_class: vec![],
-            record_key: detail.record.record_key.clone(),
-            title: "Haunt".into(),
             level: None,
             adjusted_level: None,
             replacements: vec![],
@@ -1025,8 +1023,6 @@ fn hazard_readouts_follow_effective_and_unresolved_participant_statistics() {
     assert_eq!(authored.broken_threshold.value, Some(12.into()));
     let mut block = StatBlockView {
         source_conditions: Default::default(),
-        record_key: detail.record.record_key.clone(),
-        title: "Trap".into(),
         level: None,
         adjusted_level: None,
         values: [

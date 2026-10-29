@@ -40,10 +40,10 @@ pub use model::{
     ConditionDurationUnit, ConditionExtraAction, ConditionScope, ConditionTiming,
     ConditionTurnEvent, Encounter, EncounterDifficultyReference, EncounterParticipant,
     EncounterParticipantCondition, EncounterStatus, EncounterTurnState, EncounterTurnUpdate,
-    EncounterWithParticipants, NewEncounter, ParticipantHpOrigin, ParticipantKind, ParticipantSide,
-    ParticipantVariant, ParticipantVariantOrigin, ReorderEncounterParticipant, ReorderPlacement,
-    SpellResource, UpdateEncounter, UpdateEncounterParticipant,
-    UpdateEncounterParticipantCondition,
+    EncounterWithParticipantCount, EncounterWithParticipants, NewEncounter, ParticipantHpOrigin,
+    ParticipantKind, ParticipantSide, ParticipantVariant, ParticipantVariantOrigin,
+    ReorderEncounterParticipant, ReorderPlacement, SpellResource, UpdateEncounter,
+    UpdateEncounterParticipant, UpdateEncounterParticipantCondition,
 };
 pub use service::{EncountersRead, EncountersWrite};
 
