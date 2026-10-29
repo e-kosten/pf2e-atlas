@@ -528,6 +528,22 @@ one composed presentation beside their durable local state, with explanations
 attached to adjusted facts. Fact availability distinguishes missing, null, invalid
 and not-applicable parents from known zero, false and empty collections.
 
+Encounter read preparation separates checked roots, bounded rules facts and semantic
+presentation. Participant preparation loads each distinct source root once in its
+workspace snapshot. Difficulty reads typed level and hazard complexity; condition
+and relationship context reads source conditions through their rules owner. Mechanics
+consumers retain the shared numerical baseline, including its typed context, without
+composing presentation. Full encounter display
+adds localized summaries and semantic presentation for each distinct root, then
+applies independent participant overlays. Selected reference and strike-context
+reads reuse the checked selected root alongside the same roster snapshot; selected
+owner paths and spell rank remain inputs to their own projections. This reuse is
+request-local and does not retain checked sources between workspace operations.
+
+The encounter index uses a local-state aggregate of saved participant rows. It
+preserves encounter owner scope and ordering without decoding roster state or
+reading participant condition, ability or spell-resource details.
+
 Transient physical price facts retain availability for each currency, and table
 results retain collection availability with one owned-link collection in the
 table body. App-service supplies compact kind/level/rank captions from typed
