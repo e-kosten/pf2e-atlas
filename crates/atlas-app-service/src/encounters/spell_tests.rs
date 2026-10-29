@@ -499,14 +499,16 @@ fn resource_editor_saves_one_complete_entry_atomically() {
     let valid = resources.iter().map(|r| (r.key.clone(), 1)).collect();
     save(valid).unwrap();
     let saved = read();
-    assert!(
+    assert_eq!(
         saved.participants[0]
             .spellcasting
             .as_ref()
             .unwrap()
             .resources
             .iter()
-            .all(|r| r.remaining == 1)
+            .map(|resource| (&resource.key, resource.remaining))
+            .collect::<Vec<_>>(),
+        [(&resources[0].key, 1), (&resources[1].key, 1)]
     );
     assert_eq!(saved.participants[0].revision, p.revision + 1);
     assert!(

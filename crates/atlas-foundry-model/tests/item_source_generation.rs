@@ -1,7 +1,9 @@
 #[path = "../examples/support/model_inspection.rs"]
 mod inspection;
 
-use atlas_foundry_model::{ItemTraits, SourceContext, SourcePresence, parse_item_source_slice};
+use atlas_foundry_model::{
+    ItemTraits, SourceContext, SourcePresence, SourceValue, parse_item_source_slice,
+};
 
 fn parse(text: &str) -> atlas_foundry_model::ItemSourceSlice {
     parse_item_source_slice(
@@ -268,16 +270,23 @@ fn complete_flags_model_grants_selections_and_open_namespaces() {
         serde_json::json!(18446744073709551615u64)
     );
     assert_eq!(
-        serialized["entries"][2][1]["Object"]["fields"]
-            .as_array()
-            .unwrap()
-            .len(),
-        2
+        serialized["entries"][2][1]["Object"]["fields"],
+        serde_json::json!([["x", {"Number":1}], ["x", {"Number":2}]])
     );
-    let atlas_foundry_model::SourceValue::Object(future) = &pf2e.indexed_fields.entries[0].1 else {
+    assert_eq!(
+        serialized["entries"][3][1],
+        serde_json::json!({"Array":["Null", {"Number":3}]})
+    );
+    let SourceValue::Object(future) = &pf2e.indexed_fields.entries[0].1 else {
         panic!()
     };
-    assert_eq!(future.fields().len(), 2);
+    assert_eq!(
+        future.fields(),
+        &[
+            ("x".into(), SourceValue::Number(1.into())),
+            ("x".into(), SourceValue::Number(2.into())),
+        ]
+    );
     let module = &flags.entries[0].1.indexed_fields;
     assert_eq!(
         module
@@ -287,10 +296,7 @@ fn complete_flags_model_grants_selections_and_open_namespaces() {
             .collect::<Vec<_>>(),
         vec!["enabled", "payload", "values"]
     );
-    assert!(matches!(
-        module.entries[1].1,
-        atlas_foundry_model::SourceValue::Null
-    ));
+    assert!(matches!(module.entries[1].1, SourceValue::Null));
 }
 
 #[test]

@@ -1567,15 +1567,25 @@ fn persisted_preparation_reconstructs_exact_publication_inputs_without_query_cat
             .iter()
             .find(|record| record.record.key() == original.record.key())
             .unwrap();
-        let label = &input
-            .packs
-            .iter()
-            .find(|pack| pack.pack_id == original.record.key().pack().as_str())
-            .unwrap()
-            .label;
         assert_eq!(
-            crate::publication_delta::root_digest(original, label).unwrap(),
-            crate::publication_delta::root_digest(restored, label).unwrap(),
+            (
+                &restored.record,
+                &restored.source_path,
+                &restored.content_hash,
+                &restored.preparation_context_hash,
+                &restored.content,
+                &restored.relationships,
+                &restored.diagnostics
+            ),
+            (
+                &original.record,
+                &original.source_path,
+                &original.content_hash,
+                &original.preparation_context_hash,
+                &original.content,
+                &original.relationships,
+                &original.diagnostics
+            ),
             "{}",
             original.record.key()
         );
@@ -1583,7 +1593,7 @@ fn persisted_preparation_reconstructs_exact_publication_inputs_without_query_cat
 }
 
 #[test]
-fn ammunition_projects_physical_values_for_root_and_embedded_queries() {
+fn physical_projection_keeps_price_state_and_amount_across_equipment_families() {
     for family in [
         "ammo",
         "armor",
@@ -1614,6 +1624,16 @@ fn ammunition_projects_physical_values_for_root_and_embedded_queries() {
         assert_eq!(
             physical.values[column],
             rusqlite::types::Value::Text("value".into()),
+            "{family}"
+        );
+        let amount = physical
+            .columns
+            .iter()
+            .position(|name| name == "price_per_item_cp")
+            .unwrap();
+        assert_eq!(
+            physical.values[amount],
+            rusqlite::types::Value::Real(200.0),
             "{family}"
         );
     }

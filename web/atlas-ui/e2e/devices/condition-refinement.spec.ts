@@ -28,6 +28,17 @@ async function checkpoint(page: Page, info: TestInfo, name: string) {
   await noPageOverflow(page);
   if (name === "precedence-sources.png" || name === "precedence-fallback.png") {
     await page.mouse.move(0, 0);
+    if (
+      name === "precedence-sources.png" &&
+      process.platform === "linux" &&
+      info.project.name === "tablet-webkit"
+    ) {
+      await page
+        .getByRole("link", { name: /Persistent Damage.*1d12/ })
+        .locator("..")
+        .getByRole("button", { name: "Edit Persistent Damage", exact: true })
+        .focus();
+    }
     const tooltips = page.getByRole("tooltip");
     let remaining = await tooltips.count();
     do {

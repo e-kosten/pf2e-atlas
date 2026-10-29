@@ -309,7 +309,7 @@ fn compact_scores_preserve_source_bindings_and_bound_the_allocation_at_32_rows()
         let (compact, actual_truncated) = compact_part_scores(scores, &source_indices).unwrap();
         assert_eq!(actual_truncated, truncated, "{count} parts");
         assert_eq!(compact.len(), retained, "{count} parts");
-        assert_eq!(compact.capacity(), retained, "{count} parts");
+        assert!(compact.capacity() <= 32, "{count} parts");
         assert_eq!(
             compact
                 .iter()
@@ -524,7 +524,7 @@ fn exact_part_inventory_is_profile_independent_and_models_are_not_loaded() {
         .unwrap()
         .unwrap();
     assert_eq!(result.evidence[0].1.selected_parts, 1);
-    assert!(!result.evidence[0].1.pairs[0].seed_text.is_empty());
+    assert_eq!(result.evidence[0].1.pairs[0].seed_text, "Returns at dawn");
     assert!(
         result
             .results
@@ -921,10 +921,13 @@ fn page_explanations_share_prepared_fields_and_plain_snapshots_and_reuse_candida
     );
     assert_eq!(metrics.prepared_content_batches, 1);
     assert_eq!(metrics.source_body_decodes, 3);
-    assert!(repeated.iter().all(|witness| {
-        witness
-            .snippet
-            .as_ref()
-            .is_some_and(|text| !text.is_empty())
-    }));
+    for witness in repeated {
+        let expected = match witness.location.field.as_deref().unwrap() {
+            "/system/details/biography/appearance" => "A tall traveler",
+            "/system/details/biography/attitude" => "Patient with travelers",
+            "/system/details/biography/beliefs" => "Travel brings wisdom",
+            other => panic!("unexpected witness field: {other}"),
+        };
+        assert_eq!(witness.snippet.as_deref(), Some(expected));
+    }
 }

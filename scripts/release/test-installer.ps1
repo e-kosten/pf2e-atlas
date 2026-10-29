@@ -155,8 +155,14 @@ function Invoke-WebRequest {
   if ($urls[0] -ne "https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/nightly-version.txt") {
     throw "nightly installer did not fetch the channel pointer"
   }
-  if (@($urls | Select-Object -Skip 1 | Where-Object { $_ -like "*/download/$nightlyTag/*" }).Count -ne 3) {
-    throw "nightly installer did not pin all downloads to the resolved release"
+  $expectedUrls = @(
+    "https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/nightly-version.txt"
+    "https://github.com/e-kosten/pf2e-atlas/releases/download/$nightlyTag/SHA256SUMS"
+    "https://github.com/e-kosten/pf2e-atlas/releases/download/$nightlyTag/atlas-release-manifest.json"
+    "https://github.com/e-kosten/pf2e-atlas/releases/download/$nightlyTag/atlas-cli-x86_64-pc-windows-msvc.zip"
+  )
+  if ((($urls | Sort-Object) -join "`n") -ne (($expectedUrls | Sort-Object) -join "`n")) {
+    throw "nightly installer requested unexpected release assets"
   }
   Set-Content -Path (Join-Path $dist "nightly-version.txt") -Value "v9.9.9"
   $failed = $false

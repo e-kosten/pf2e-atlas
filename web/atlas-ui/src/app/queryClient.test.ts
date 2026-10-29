@@ -1,3 +1,4 @@
+import { AtlasCompatibilityError } from "../api/compatibility";
 import { createAtlasQueryClient } from "./queryClient";
 import { AtlasApiError } from "../api/atlasApi";
 import { QueryObserver } from "@tanstack/react-query";
@@ -112,5 +113,19 @@ it("recovers visible failed reads when another read proves reconnection", async 
   expect(getAvailabilityFailure()).toBeNull();
   expect(read).toHaveBeenCalledTimes(2);
   unsubscribe();
+  client.clear();
+});
+
+it.each([
+  new AtlasApiError(400, "Invalid query"),
+  new AtlasCompatibilityError("other-contract"),
+])("does not retry a permanent read failure: %s", async (error) => {
+  const client = createAtlasQueryClient();
+  const read = vi.fn().mockRejectedValue(error);
+  await expect(
+    client.fetchQuery({ queryKey: ["permanent"], retryDelay: 0, queryFn: read }),
+  ).rejects.toBe(error);
+  expect(read).toHaveBeenCalledOnce();
+  expect(getAvailabilityFailure()).toBeNull();
   client.clear();
 });

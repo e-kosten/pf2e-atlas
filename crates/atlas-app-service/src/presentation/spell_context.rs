@@ -227,11 +227,14 @@ mod tests {
                     ]
                 }),
             );
+            let mut visited = 0;
             input.record.visit_immediate_actor_items(|_, _, item| {
                 if let ItemSourceView::SpellSource(spell) = item {
+                    visited += 1;
                     assert_eq!(ranks(&input.record, spell), expected, "{location}");
                 }
             });
+            assert_eq!(visited, 1);
         }
     }
 }

@@ -897,7 +897,7 @@ mod tests {
         workspace.migrate(&MIGRATIONS[..2], |_| Ok(())).unwrap();
         let write = workspace.write(2).unwrap();
         let state = LocalStateWrite::new(&write);
-        state
+        let list = state
             .saved_lists()
             .create(NewSavedList {
                 slug: "campaign".into(),
@@ -911,8 +911,11 @@ mod tests {
         let workspace = initialize_workspace(&path).unwrap();
         let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         let state = LocalStateRead::new(&read);
-        assert_eq!(state.saved_lists().list().unwrap().len(), 1);
-        assert_eq!(state.encounters().list().unwrap().len(), 1);
+        assert_eq!(state.saved_lists().list().unwrap(), vec![list]);
+        let encounters = state.encounters().list().unwrap();
+        assert_eq!(encounters.len(), 1);
+        assert_eq!(encounters[0].encounter_key, "ambush-key");
+        assert_eq!(encounters[0].name, "Ambush");
         assert_eq!(read.reference_revision().unwrap(), 0);
     }
 
@@ -1011,6 +1014,15 @@ mod tests {
             sql: "INSERT INTO missing_table VALUES(1);",
         });
         assert!(workspace.migrate(&migrations, |_| Ok(())).is_err());
+        let connection = rusqlite::Connection::open(workspace.path()).unwrap();
+        assert_eq!(connection.query_row("SELECT count(*) FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%'", [], |row| row.get::<_, u32>(0)).unwrap(), 0);
+        assert_eq!(
+            connection
+                .query_row("PRAGMA user_version", [], |row| row.get::<_, u32>(0))
+                .unwrap(),
+            0
+        );
+        drop(connection);
         // A failed fresh initialization leaves no partially usable reference-only DB.
         let recovered = initialize_workspace(workspace.path()).unwrap();
         let read = recovered.read(WORKSPACE_SCHEMA_VERSION).unwrap();

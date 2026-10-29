@@ -210,3 +210,62 @@ it("treats a response generation mismatch as explicit result refresh recovery", 
   fireEvent.click(await screen.findByRole("button", { name: "Refresh results" }));
   await waitFor(() => expect(view.refresh).toHaveBeenCalledOnce());
 });
+
+it.each([
+  { name: "result record", resultKey: "actors:other", clause: constraint },
+  {
+    name: "clause occurrence",
+    resultKey: "actors:goblin",
+    clause: { ...constraint, clause_id: "other" },
+  },
+  {
+    name: "direction",
+    resultKey: "actors:goblin",
+    clause: {
+      ...constraint,
+      relationship: { ...constraint.relationship, direction: "outgoing" as const },
+    },
+  },
+  {
+    name: "contents scope",
+    resultKey: "actors:goblin",
+    clause: {
+      ...constraint,
+      relationship: { ...constraint.relationship, include_contents: false },
+    },
+  },
+  {
+    name: "source fingerprint",
+    resultKey: "actors:goblin",
+    clause: {
+      ...constraint,
+      relationship: {
+        ...constraint.relationship,
+        selection: {
+          ...constraint.relationship.selection,
+          source_fingerprint: "foreign",
+        },
+      },
+    },
+  },
+])(
+  "rejects evidence for a different $name while retaining the prior page",
+  async ({ resultKey, clause }) => {
+    api.mockResolvedValue({
+      artifact_generation: "generation-a",
+      clause,
+      result_record: summaryFixture(resultKey, "Foreign result"),
+      occurrences: [{ ...occurrence, source_title: "Foreign evidence" }],
+      page: { ...evidence.page, number: 2, has_more: false, next_page: null },
+    });
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: "Next links page" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Unable to update links",
+    );
+    expect(screen.getByRole("link", { name: "Goblin" })).toBeVisible();
+    expect(screen.queryByRole("link", { name: "Foreign evidence" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeEnabled();
+    expect(api).toHaveBeenCalledOnce();
+  },
+);

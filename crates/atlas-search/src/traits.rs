@@ -195,6 +195,9 @@ mod tests {
             prefer_remaster: true,
             ranking: SearchRanking::Score,
         });
-        assert!(result.is_err());
+        assert_eq!(
+            result.err().unwrap().kind(),
+            crate::SearchErrorKind::VectorReadinessRequired
+        );
     }
 }

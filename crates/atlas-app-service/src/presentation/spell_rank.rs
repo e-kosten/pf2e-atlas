@@ -429,20 +429,30 @@ mod tests {
         else {
             panic!("spell");
         };
-        let effective = heighten(source, 4).unwrap();
-        let system = effective.system.as_value().unwrap();
-        assert_eq!(
-            system.damage.as_value().unwrap().entries[0]
-                .1
-                .formula
-                .as_value()
-                .unwrap(),
-            "3d6"
-        );
-        assert_eq!(
-            system.area.as_value().unwrap().value.as_value(),
-            Some(&StringOrNumber::Number(15.into()))
-        );
+        for (rank, formula, area) in [
+            (1, "2d6", 10),
+            (2, "2d6", 10),
+            (3, "3d6", 15),
+            (4, "3d6", 15),
+            (5, "4d6", 20),
+        ] {
+            let effective = heighten(source, rank).unwrap();
+            let system = effective.system.as_value().unwrap();
+            assert_eq!(
+                system.damage.as_value().unwrap().entries[0]
+                    .1
+                    .formula
+                    .as_value()
+                    .unwrap(),
+                formula,
+                "rank {rank}"
+            );
+            assert_eq!(
+                system.area.as_value().unwrap().value.as_value(),
+                Some(&StringOrNumber::Number(area.into())),
+                "rank {rank}"
+            );
+        }
         assert!(heighten(source, 0).is_err());
         assert!(heighten(source, 11).is_err());
     }

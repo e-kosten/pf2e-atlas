@@ -239,7 +239,15 @@ fn family_applicability_is_authored_not_runtime() {
         );
         let q = query(&source);
         let applicable = |state: FieldAvailability, yes: bool| {
-            assert_eq!(state == FieldAvailability::NotApplicable, !yes, "{family}")
+            assert_eq!(
+                state,
+                if yes {
+                    FieldAvailability::Value
+                } else {
+                    FieldAvailability::NotApplicable
+                },
+                "{family}"
+            )
         };
         applicable(
             q.level().availability(),
@@ -434,6 +442,32 @@ fn collection_members_keep_same_entry_availability_and_authored_order() {
         );
         let entries = query(&source).speeds().value().unwrap();
         assert_eq!(entries.len(), 4);
+        assert_eq!(
+            entries.get(0).unwrap().speed_type().value(),
+            Some(&LabeledSpeedType::Fly)
+        );
+        assert_eq!(
+            entries
+                .get(0)
+                .unwrap()
+                .value()
+                .value()
+                .and_then(Number::as_i64),
+            Some(10)
+        );
+        assert_eq!(
+            entries.get(1).unwrap().speed_type().value(),
+            Some(&LabeledSpeedType::Swim)
+        );
+        assert_eq!(
+            entries
+                .get(1)
+                .unwrap()
+                .value()
+                .value()
+                .and_then(Number::as_i64),
+            Some(40)
+        );
         assert!(!entries.iter().any(|s| {
             matches!(s.speed_type().value(), Some(LabeledSpeedType::Fly))
                 && s.value()

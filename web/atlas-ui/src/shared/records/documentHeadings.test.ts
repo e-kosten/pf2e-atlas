@@ -4,7 +4,7 @@ import { documentHeadings } from "./documentHeadings";
 describe("journal document headings", () => {
   it("keeps source content and controls while making major sections subordinate to identity", () => {
     const original =
-      '<h1>Overview</h1><p>Keep <a href="/exact">the exact reference</a>.</p><h2>Detail</h2><p data-atlas-control-id="roll">Roll text</p><h1>Training</h1><h1>Features</h1>';
+      '<h1 id="authored-overview">Overview</h1><p>Keep <a href="/exact">the exact reference</a>.</p><h2>Detail</h2><p data-atlas-control-id="roll">Roll text</p><h1>Training</h1><h1>Features</h1>';
     const first = documentHeadings(original, "journal/page");
     const parsed = new DOMParser().parseFromString(first.html, "text/html");
     expect([...parsed.querySelectorAll("h3")].map((h) => h.textContent)).toEqual([
@@ -13,6 +13,8 @@ describe("journal document headings", () => {
       "Features",
     ]);
     expect(parsed.querySelector("h4")?.textContent).toBe("Detail");
+    expect(parsed.querySelector("h3")?.id).toBe("authored-overview");
+    expect(first.outline[0].id).toBe("authored-overview");
     expect(parsed.querySelector("a")?.getAttribute("href")).toBe("/exact");
     expect(parsed.querySelector('[data-atlas-control-id="roll"]')?.textContent).toBe(
       "Roll text",
@@ -23,8 +25,8 @@ describe("journal document headings", () => {
       "Features",
     ]);
     expect(documentHeadings(original, "journal/page")).toEqual(first);
-    expect(documentHeadings(original, "other/page").outline[0].id).not.toBe(
-      first.outline[0].id,
+    expect(documentHeadings(original, "other/page").outline[1].id).not.toBe(
+      first.outline[1].id,
     );
   });
 });
@@ -59,4 +61,21 @@ it("keeps existing section anchors and outline after promoting a standalone acti
     beforeDocument.querySelector("h4")?.id,
   );
   expect(document.querySelector("[data-atlas-inclusion-heading]")?.tagName).toBe("H5");
+});
+
+it.each([
+  [2, 0],
+  [3, 3],
+  [12, 12],
+  [13, 0],
+])("shows an outline for %s major headings with %s entries", (count, expected) => {
+  const html = Array.from(
+    { length: count },
+    (_, index) => `<h1>Section ${index + 1}</h1>`,
+  ).join("");
+  const result = documentHeadings(html, "outline-boundary");
+  expect(result.outline).toHaveLength(expected);
+  const parsed = new DOMParser().parseFromString(result.html, "text/html");
+  expect(parsed.querySelectorAll("h3")).toHaveLength(count);
+  expect(parsed.body.lastElementChild?.textContent).toBe(`Section ${count}`);
 });

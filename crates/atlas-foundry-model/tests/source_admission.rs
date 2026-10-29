@@ -28,6 +28,15 @@ fn valid_sources_have_identical_models_and_preserve_large_numbers_and_repeated_u
         admitted.raw,
         atlas_foundry_model::parse_source_value(bytes).unwrap()
     );
+    let typed = model(&admitted);
+    assert_eq!(
+        typed["system"]["value"]["additional_fields"]["fields"],
+        json!([["future", {"Number":9007199254740993u64}], ["future", "Null"]])
+    );
+    assert_eq!(
+        typed["additional_fields"]["fields"],
+        json!([["extra", {"Number":1}], ["extra", {"Number":2}]])
+    );
     for admitted in [
         inspection::to_value(admit_journal_entry_source(context(), br#"{"pages":[]}"#).unwrap())
             .unwrap(),
@@ -72,7 +81,7 @@ fn unsupported_vocabularies_preserve_the_parent_and_raw_collection() {
     let model = model(&admitted);
     assert_eq!(model["name"]["value"], "Desna");
     let domains = &model["system"]["value"]["domains"]["value"];
-    assert!(domains["primary"].get("value").is_some());
+    assert_eq!(domains["primary"]["value"], json!(["luck"]));
     assert_eq!(
         domains["alternate"]["invalid"]["values"],
         json!([{"Array":[{"String":"nothingness"},{"String":"travel"}]}])
@@ -100,11 +109,11 @@ fn embedded_spellcasting_entries_and_spell_references_survive_multiple_invalid_f
     assert!(slot["max"].get("invalid").is_some());
     assert_eq!(slot["value"]["value"], 0);
     assert_eq!(
-        slot["prepared"]["invalid"]["values"][0]["Array"]
-            .as_array()
-            .unwrap()
-            .len(),
-        2
+        slot["prepared"]["invalid"]["values"][0]["Array"],
+        json!([
+            {"String":"darkness (at will)"},
+            {"Object":{"fields":[["id", {"String":"spell"}]]}},
+        ])
     );
     assert_eq!(admitted.diagnostics.len(), 4);
     assert_eq!(

@@ -201,22 +201,34 @@ mod tests {
 
     #[test]
     fn rejects_malformed_record_keys() {
-        assert_eq!(
-            RecordKey::parse("abc").expect_err("missing separator should fail"),
-            RecordKeyParseError::MissingSeparator
-        );
-        assert_eq!(
-            RecordKey::parse(":abc").expect_err("empty pack should fail"),
-            RecordKeyParseError::EmptyPart { part: "pack" }
-        );
-        assert_eq!(
-            RecordKey::parse("pack:").expect_err("empty id should fail"),
-            RecordKeyParseError::EmptyPart { part: "record id" }
-        );
-        assert_eq!(
-            RecordKey::parse("pack:id:extra").expect_err("extra separator should fail"),
-            RecordKeyParseError::TooManySeparators
-        );
+        for (input, expected) in [
+            ("abc", RecordKeyParseError::MissingSeparator),
+            (":abc", RecordKeyParseError::EmptyPart { part: "pack" }),
+            (
+                "pack:",
+                RecordKeyParseError::EmptyPart { part: "record id" },
+            ),
+            ("pack:id:extra", RecordKeyParseError::TooManySeparators),
+            ("pa ck:id", RecordKeyParseError::Whitespace { part: "pack" }),
+            (
+                "pack:i\td",
+                RecordKeyParseError::Whitespace { part: "record id" },
+            ),
+            (
+                "pa\u{2003}ck:id",
+                RecordKeyParseError::Whitespace { part: "pack" },
+            ),
+            (
+                "pack:i\u{2003}d",
+                RecordKeyParseError::Whitespace { part: "record id" },
+            ),
+        ] {
+            assert_eq!(RecordKey::parse(input), Err(expected), "{input:?}");
+            assert!(
+                serde_json::from_value::<RecordKey>(serde_json::json!(input)).is_err(),
+                "{input:?}"
+            );
+        }
     }
 
     #[test]

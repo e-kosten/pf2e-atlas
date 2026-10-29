@@ -25,23 +25,29 @@ const command = (name: string) => fileURLToPath(new URL(`../src/cli/${name}.js`,
 
 test('manifest and checksums cover supported packages and release extras deterministically', async (t) => {
   const dist = temporary(t);
-  for (const target of Object.keys(targets)) writeFileSync(path.join(dist, `atlas-cli-${target}${target.includes('windows') ? '.zip' : '.tar.xz'}`), target);
+  const packages = [
+    { target: 'aarch64-apple-darwin', os: 'macos', arch: 'aarch64', name: 'atlas-cli-aarch64-apple-darwin.tar.xz' },
+    { target: 'aarch64-unknown-linux-gnu', os: 'linux', arch: 'aarch64', name: 'atlas-cli-aarch64-unknown-linux-gnu.tar.xz' },
+    { target: 'x86_64-pc-windows-msvc', os: 'windows', arch: 'x86_64', name: 'atlas-cli-x86_64-pc-windows-msvc.zip' },
+    { target: 'x86_64-unknown-linux-gnu', os: 'linux', arch: 'x86_64', name: 'atlas-cli-x86_64-unknown-linux-gnu.tar.xz' },
+  ];
+  for (const item of packages) writeFileSync(path.join(dist, item.name), item.target);
   writeFileSync(path.join(dist, 'unrecognized.zip'), 'ignored');
-  writeFileSync(path.join(dist, 'atlas-installer.sh'), 'installer\n');
+  for (const name of ['atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md']) writeFileSync(path.join(dist, name), 'installer\n');
   await generateManifest('v9.9.9', dist);
   const manifestText = readFileSync(path.join(dist, 'atlas-release-manifest.json'), 'utf8');
   const manifest = object(readJson(path.join(dist, 'atlas-release-manifest.json')));
   assert.equal(manifest.version, 'v9.9.9');
-  assert.ok(Array.isArray(manifest.assets));
-  assert.equal(manifest.assets.length, 4);
+  const expectedAssets = packages.map((item) => ({ ...item, sha256: createHash('sha256').update(item.target).digest('hex') }));
+  assert.deepEqual(manifest.assets, expectedAssets);
   assert.ok(manifestText.indexOf('"arch"') < manifestText.indexOf('"target"'));
   const sums = readFileSync(path.join(dist, 'SHA256SUMS'), 'utf8');
-  for (const item of manifest.assets.map(object)) {
-    assert.equal(item.sha256, createHash('sha256').update(String(item.target)).digest('hex'));
-    assert.ok(sums.includes(`${item.sha256}  ${item.name}\n`));
-  }
-  assert.ok(sums.includes(`${createHash('sha256').update(manifestText).digest('hex')}  atlas-release-manifest.json\n`));
-  assert.ok(!sums.includes('unrecognized'));
+  const expectedSums = [
+    ...expectedAssets.map((item) => `${item.sha256}  ${item.name}`),
+    ...['atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md'].map((name) => `${createHash('sha256').update('installer\n').digest('hex')}  ${name}`),
+    `${createHash('sha256').update(manifestText).digest('hex')}  atlas-release-manifest.json`,
+  ].sort().join('\n') + '\n';
+  assert.equal(sums, expectedSums);
   await generateManifest('v9.9.9', dist);
   assert.equal(readFileSync(path.join(dist, 'atlas-release-manifest.json'), 'utf8'), manifestText);
   assert.equal(readFileSync(path.join(dist, 'SHA256SUMS'), 'utf8'), sums);
@@ -75,8 +81,8 @@ test('notices preserve dependency ordering, unknown licenses and native notices'
     { name: 'Alpha', version: '2.0', license: 'MIT', source: 'registry' },
     { name: 'Alpha', version: '1.0', license: 'Apache-2.0', source: null },
   ] }, noticeFixture, noticeFixturePin);
-  assert.ok(content.indexOf('- Alpha 1.0: Apache-2.0 (workspace)') < content.indexOf('- Alpha 2.0: MIT (registry)'));
-  assert.ok(content.includes('- zeta 1.0: UNKNOWN (workspace)'));
+  const dependencies = content.split('## Rust Dependencies\n\n')[1].split('\n\n## Bundled Native Libraries')[0];
+  assert.equal(dependencies, '- Alpha 1.0: Apache-2.0 (workspace)\n- Alpha 2.0: MIT (registry)\n- zeta 1.0: UNKNOWN (workspace)');
   assert.ok(content.includes('- PF2e Atlas: Apache-2.0'));
   assert.ok(content.includes('- ONNX Runtime: MIT'));
   assert.ok(content.endsWith('section before publishing the release.\n'));

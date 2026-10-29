@@ -83,6 +83,7 @@ mod tests {
         assert_eq!(saved.regular_total, 2);
         assert_eq!(saved.regular_remaining, 1);
         assert!(saved.allocation.is_none());
+        assert!(!saved.before_first_turn);
         assert_eq!(
             receipt_codec::decode::<TurnResources>(&receipt_codec::encode(&saved).unwrap())
                 .unwrap(),

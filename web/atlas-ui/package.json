@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "npm run routes:generate && tsc -b && vite build",
+    "build": "npm run typecheck && vite build",
     "check:styles": "node scripts/check-raw-colors.mjs",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
@@ -13,12 +13,13 @@
     "lint:fix": "eslint . --fix",
     "test": "npm run routes:generate && vitest run",
     "typecheck": "npm run routes:generate && tsc -b --noEmit",
-    "verify": "npm run check && npm run test && npm run build",
+    "verify": "npm run check && vitest run && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test:e2e": "playwright test",
     "test:devices": "npm run build && playwright test --config playwright.devices.config.ts",
     "check": "npm run format:check && npm run lint && npm run check:styles && npm run typecheck",
-    "routes:generate": "tsr generate"
+    "routes:generate": "tsr generate",
+    "verify:bundle": "npm run check && vite build"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.4",

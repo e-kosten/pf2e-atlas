@@ -213,17 +213,11 @@ fn classification_uses_typed_rank_and_level_including_zero_and_unavailable() {
         },
     ));
     let zero = f.worker.record_detail("items:aaaaaaaaaaaaaaaa").unwrap();
-    assert_eq!(
-        zero.presentation.classification,
-        format!("{} 0", zero.presentation.identity.kind_label)
-    );
+    assert_eq!(zero.presentation.classification, "Equipment 0");
     let unavailable = f.worker.record_detail("spells:bbbbbbbbbbbbbbbb").unwrap();
     assert_eq!(
         unavailable.presentation.classification,
-        format!(
-            "{} · rank unavailable",
-            unavailable.presentation.identity.kind_label
-        )
+        "Spell · rank unavailable"
     );
 }
 
@@ -2282,11 +2276,8 @@ fn creature_reading_preserves_supplied_movement_languages_and_exact_owned_effect
         character.languages.value,
         Some(vec!["aklo".into(), "common".into()])
     );
-    assert_ne!(
-        character.maximum_hp.value,
-        Some(0.into()),
-        "authored language support must not invent derived PC stats"
-    );
+    assert_eq!(character.maximum_hp.state, QueryFieldState::NotApplicable);
+    assert_eq!(character.maximum_hp.value, None);
 }
 
 #[test]

@@ -306,7 +306,7 @@ async fn root_serves_embedded_frontend_index() {
 }
 
 #[tokio::test]
-async fn frontend_routes_fall_back_to_index_but_api_routes_do_not() {
+async fn frontend_routes_fall_back_to_index_but_missing_resources_do_not() {
     let app = test_router();
     let response = app
         .clone()
@@ -326,16 +326,19 @@ async fn frontend_routes_fall_back_to_index_but_api_routes_do_not() {
     assert_eq!(parts.status, StatusCode::OK);
     assert!(body.contains("<div id=\"root\"></div>"));
 
-    let response = app
-        .oneshot(
-            Request::get("/api/no-such-route")
-                .body(Body::empty())
-                .expect("request should build"),
-        )
-        .await
-        .expect("route should respond");
+    for path in ["/api/no-such-route", "/assets/missing.js"] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::get(path)
+                    .body(Body::empty())
+                    .expect("request should build"),
+            )
+            .await
+            .expect("route should respond");
 
-    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}");
+    }
 }
 
 #[tokio::test]
@@ -361,6 +364,11 @@ async fn embedded_frontend_assets_get_long_cache_headers() {
     assert_eq!(
         response.headers().get(header::CONTENT_TYPE).unwrap(),
         "text/javascript; charset=utf-8"
+    );
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    assert_eq!(
+        body.as_ref(),
+        WebAssets::get(&asset_path).unwrap().data.as_ref()
     );
 }
 

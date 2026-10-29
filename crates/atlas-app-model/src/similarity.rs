@@ -191,9 +191,13 @@ mod tests {
         assert!(matches!(
             criteria,
             crate::SearchCriteria::SimilarRecords {
-                similarity: Some(SimilarityOptions::Passages { decay: 0.125, .. }),
+                similarity: Some(SimilarityOptions::Passages {
+                    decay: 0.125,
+                    parts: Some(parts),
+                    candidate_parts: atlas_domain::SimilarityCandidateParts::Corresponding,
+                }),
                 ..
-            }
+            } if parts == [SimilarityPartSelector("exact-part".into())]
         ));
     }
 

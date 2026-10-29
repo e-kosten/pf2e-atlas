@@ -889,14 +889,35 @@ describe("source-backed API transport", () => {
     respond({ items: [] });
     await createSavedList({ slug: "research", name: "Research", tags: [] });
     await filterSavedList({
-      list_ref: "Research",
+      list_ref: "Research/雪%",
       filter: { kind: "state_match", field: "level", state: "missing" },
     });
-    await deleteSavedList("Research");
-    expect(fetchMock.mock.calls.map((c) => c[1].method)).toEqual([
-      "POST",
-      "POST",
-      "DELETE",
+    await deleteSavedList("Research/雪%");
+    expect(
+      fetchMock.mock.calls.map(([path, init]) => ({
+        path,
+        method: init.method,
+        body: init.body ? JSON.parse(init.body) : null,
+      })),
+    ).toEqual([
+      {
+        path: "/api/lists",
+        method: "POST",
+        body: { slug: "research", name: "Research", tags: [] },
+      },
+      {
+        path: "/api/lists/Research%2F%E9%9B%AA%25/filter",
+        method: "POST",
+        body: {
+          list_ref: "Research/雪%",
+          filter: { kind: "state_match", field: "level", state: "missing" },
+        },
+      },
+      {
+        path: "/api/lists/Research%2F%E9%9B%AA%25",
+        method: "DELETE",
+        body: null,
+      },
     ]);
   });
   it("keeps safe saved-list JSON counts and positions as numbers with response validation", async () => {

@@ -1,3 +1,4 @@
+import { AtlasConnectionError } from "./availability";
 import { createSavedList, getReadiness, verifyBackendCompatibility } from "./atlasApi";
 import {
   API_CONTRACT,
@@ -59,8 +60,8 @@ it("preserves a proxy outage as a connection failure", async () => {
     "fetch",
     vi.fn().mockResolvedValue(new Response("Backend unavailable", { status: 502 })),
   );
-  await expect(verifyBackendCompatibility()).rejects.not.toBeInstanceOf(
-    AtlasCompatibilityError,
+  await expect(verifyBackendCompatibility()).rejects.toBeInstanceOf(
+    AtlasConnectionError,
   );
 });
 

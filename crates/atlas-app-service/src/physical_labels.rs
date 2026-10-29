@@ -398,14 +398,9 @@ mod tests {
             "Held in 1 or 2 hands"
         );
         assert_eq!(super::usage("held-in-one-plus-hands"), "Held in 1+ hands");
-        assert_ne!(
-            super::usage("held-in-one-hand"),
-            super::usage("held-in-two-hands")
-        );
-        assert_ne!(
-            super::usage("attached-to-firearm"),
-            super::usage("held-in-one-hand")
-        );
+        assert_eq!(super::usage("held-in-one-hand"), "Held in 1 hand");
+        assert_eq!(super::usage("held-in-two-hands"), "Held in 2 hands");
+        assert_eq!(super::usage("attached-to-firearm"), "Attached To Firearm");
         assert_eq!(super::usage("custom-homebrew"), "custom-homebrew");
     }
 }
