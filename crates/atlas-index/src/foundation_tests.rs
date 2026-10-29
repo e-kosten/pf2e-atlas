@@ -596,6 +596,14 @@ fn reference_validation_rejects_missing_reference_sidecar() {
     let db = Connection::open(&path).unwrap();
     let records = crate::read_persisted_inputs(&db, &input.context).unwrap();
     assert!(records.iter().any(|r| r.record.key() == &key));
+    db.execute_batch("SAVEPOINT reference_metadata").unwrap();
+    assert_eq!(db.execute(
+        r#"UPDATE prepared_content SET metadata_json=json_set(metadata_json,'$.status',json('{"PreparationFailed":"fixture"}')) WHERE outcome='prepared' AND record_id=(SELECT record_id FROM records WHERE key=?)"#,
+        [key.to_string()],
+    ).unwrap(), 1);
+    assert!(crate::validate_reference(&db).is_err());
+    db.execute_batch("ROLLBACK TO reference_metadata; RELEASE reference_metadata")
+        .unwrap();
     let deleted = db.execute(
         "DELETE FROM relationship_occurrences WHERE origin='content' AND record_id=(SELECT record_id FROM records WHERE key=?)",
         [key.to_string()],

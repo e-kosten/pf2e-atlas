@@ -2,6 +2,29 @@ use crate::foundation_tests::{build, hidden_preparation_fixture};
 use rusqlite::{Connection, params};
 
 #[test]
+fn unreferenced_prepared_content_preserves_metadata_status_acceptance() {
+    let input = crate::foundation_tests::fixture(false);
+    let (_directory, path) = build(&input);
+    let before = crate::validate_artifact(&path).unwrap();
+    let connection = Connection::open(&path).unwrap();
+    assert_eq!(
+        connection
+            .query_row(
+                "SELECT count(*) FROM relationship_occurrences WHERE origin='content'",
+                [],
+                |r| r.get::<_, usize>(0),
+            )
+            .unwrap(),
+        0
+    );
+    assert_eq!(connection.execute(
+        r#"UPDATE prepared_content SET metadata_json=json_set(metadata_json,'$.status',json('{"PreparationFailed":"fixture"}')) WHERE content_id=(SELECT content_id FROM prepared_content WHERE outcome='prepared' LIMIT 1)"#,
+        [],
+    ).unwrap(), 1);
+    assert_eq!(crate::validate_reference(&connection).unwrap(), before);
+}
+
+#[test]
 fn unpublished_cache_metadata_is_checked_without_changing_selected_field_counts() {
     let input = hidden_preparation_fixture();
     let (_directory, path) = build(&input);
