@@ -618,12 +618,26 @@ mod tests {
     }
     #[test]
     fn numeric_badge_overrides_are_used_without_evaluating_expressions() {
-        let result = facts(json!([ability(
-            json!([{"key":"GrantItem","inMemoryOnly":true,
-            "uuid":"Compendium.pf2e.conditionitems.Item.Slowed",
-            "alterations":[{"property":"badge-value","mode":"override","value":2}]}])
-        )]));
-        assert_eq!(result.entries[0].value, Some(2));
+        for (value, expected) in [
+            (json!(2), Some(2)),
+            (json!(0), Some(0)),
+            (json!(-1), None),
+            (json!("@actor.level"), None),
+        ] {
+            let result = facts(json!([ability(
+                json!([{"key":"GrantItem","inMemoryOnly":true,
+                "uuid":"Compendium.pf2e.conditionitems.Item.Slowed",
+                "alterations":[{"property":"badge-value","mode":"override","value":value}]}])
+            )]));
+            assert_eq!(
+                result
+                    .entries
+                    .iter()
+                    .map(|source| source.value)
+                    .collect::<Vec<_>>(),
+                [expected]
+            );
+        }
         let unsupported = facts(json!([ability(
             json!([{"key":"GrantItem","inMemoryOnly":true,
             "uuid":"Compendium.pf2e.conditionitems.Item.Slowed","requiresEquipped":true}])

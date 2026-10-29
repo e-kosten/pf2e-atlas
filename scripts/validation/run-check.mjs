@@ -133,7 +133,7 @@ export async function runChecks(
         [command, ...args].join("\n") + "\n",
       );
       writeFileSync(join(check, "phase.pid"), `${process.pid}\n`);
-      const toolchain = toolchainIdentity(command);
+      const toolchain = toolchainIdentity(command, args);
       const startArtifacts = artifactIdentity(command, args);
       const identity = {
         command_sha256: commandIdentity([command, ...args]),

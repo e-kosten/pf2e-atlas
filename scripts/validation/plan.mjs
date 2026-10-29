@@ -45,10 +45,15 @@ const clippy = (scope) => [
     ...strictClippy,
   ),
 ];
+const rustPrerequisites = [
+  cargo("nextest availability", "nextest", "--version"),
+  cargo("nextest configuration", "nextest", "show-config", "version"),
+];
 const rust = [
   fmt,
   ...clippy(["--workspace"]),
-  cargo("workspace tests", "test", "--workspace"),
+  cargo("workspace tests", "nextest", "run", "--workspace"),
+  cargo("workspace doctests", "test", "--workspace", "--doc"),
   cargo("workspace build", "build", "--workspace"),
 ];
 const developer = [
@@ -71,6 +76,8 @@ export function validationPlan(
   { full = true, parallel = true } = {},
 ) {
   const checks = [];
+  if (full && (!selected || selected.has("rust")))
+    checks.push(...rustPrerequisites);
   const concurrent =
     full &&
     parallel &&

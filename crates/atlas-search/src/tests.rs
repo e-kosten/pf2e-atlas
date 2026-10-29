@@ -652,16 +652,17 @@ fn suggested_physical_variants_require_known_category_and_reuse_seed_body() {
 #[test]
 #[ignore = "requires pinned local PF2e corpus"]
 fn real_ghoul_fever_and_soul_degradation_open_exact_owned_and_gm_sources() {
-    let corpus = std::path::Path::new(
-        "/Users/ekosten/projects/pathfinder-mcp/pathfinder-2e-foundry-mcp/scratch/source-contracts-full/pf2e",
+    let corpus = std::path::PathBuf::from(
+        std::env::var("ATLAS_PF2E_SOURCE")
+            .expect("set ATLAS_PF2E_SOURCE to the pinned source export"),
     );
     let ghoul = serde_json::from_slice(
-        &std::fs::read(corpus.join("packs/pathfinder-bestiary/ghoul.json")).unwrap(),
+        &std::fs::read(corpus.join("packs/pf2e/pathfinder-bestiary/ghoul.json")).unwrap(),
     )
     .unwrap();
     let spirit = serde_json::from_slice(
         &std::fs::read(
-            corpus.join("packs/campaign-effects/season-of-ghosts/effect-spirit-powers.json"),
+            corpus.join("packs/pf2e/campaign-effects/season-of-ghosts/effect-spirit-powers.json"),
         )
         .unwrap(),
     )

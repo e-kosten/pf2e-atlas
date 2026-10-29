@@ -814,11 +814,15 @@ mod tests {
                 serde_json::from_value::<AddEncounterParticipantConditionRequest>(bad).is_err()
             );
         }
+        let mut retired = request;
+        retired.as_object_mut().unwrap().remove("duration");
         assert!(
-            serde_json::from_value::<AddEncounterParticipantConditionRequest>(
-                json!({"participant_key":"p","name":"Custom","duration_rounds":2})
-            )
-            .is_err()
+            serde_json::from_value::<AddEncounterParticipantConditionRequest>(retired.clone())
+                .is_ok()
+        );
+        retired["duration_rounds"] = json!(2);
+        assert!(
+            serde_json::from_value::<AddEncounterParticipantConditionRequest>(retired).is_err()
         );
     }
 

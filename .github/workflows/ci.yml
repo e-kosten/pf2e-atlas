@@ -120,6 +120,10 @@ jobs:
         with:
           name: web-bundle
           path: web/atlas-ui/dist
+      - name: Install nextest
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2
+        with:
+          tool: cargo-nextest@0.9.150
       - name: Rust verification
         run: scripts/verify.sh
       - name: Validation evidence

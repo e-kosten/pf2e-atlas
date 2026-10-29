@@ -36,6 +36,28 @@ selects that toolchain automatically; standalone installations such as Homebrew
 use their own compiler. Check `rustc --version` and put the pinned toolchain on
 `PATH` when necessary. Validation with a different compiler is separate evidence.
 
+The full Rust gate also requires `cargo-nextest` 0.9.150 or newer. CI installs the
+pinned 0.9.150 binary. Install locally from the [official prebuilt binaries](https://nexte.st/docs/installation/pre-built-binaries/),
+or compile the same version with:
+
+```bash
+cargo install cargo-nextest --locked --version 0.9.150
+```
+
+The full gate checks runner availability and the configured minimum version before
+formatting, as ordinary phases in the same Node validation session.
+
+Focused `cargo test -p CRATE FILTER` commands still work without nextest. The full
+gate uses nextest for unit, integration and enabled example tests, then runs
+`cargo test --workspace --doc` for documentation examples. Nextest schedules cases
+across binaries in separate processes; tests retain their real isolated databases.
+`.config/nextest.toml` keeps retries disabled and runs the complete selected suite
+after a failure. Do not replace process-external resource coordination with an
+in-process mutex; tests that truly share an external resource need a bounded
+nextest group. A mutex protecting threads inside one test remains ordinary Rust
+synchronization. Rust ignore flags are preserved; no additional nextest filters or shared-resource
+groups are configured.
+
 ```bash
 just verify
 # or: scripts/verify.sh
@@ -67,6 +89,7 @@ Evidence lives in `.atlas/validation/run.*`, outside temporary directories remov
 by gate wrappers. `candidate.tsv` records the checkout, starting commit and actual
 code-input identity. `checks.tsv` indexes phase results; each phase retains
 `result.tsv`, `output.log`, `command.args` and applicable `toolchain.txt`.
+Nextest phases record the actual scheduler version alongside Rust and Cargo.
 `ATLAS_VALIDATION_OUTPUT_ROOT` selects another evidence directory. Retire obsolete
 evidence after its task/review ends under the development-data cleanup policy.
 
@@ -390,9 +413,8 @@ and validation regressions. Local full selection appends that same exported list
 to its existing session. CI invokes the bootstrap directly, so a broken validation
 runner cannot accidentally skip tests of itself. Native Windows runs its dedicated
 Bash-to-Node cancellation test; POSIX runs retain their existing signal checks.
-Two Clippy passes
-retain distinct lint policies; tests and normal builds remain separate until
-measurement establishes equivalent coverage at lower cost.
+Two Clippy passes retain distinct lint policies. Nextest preserves the Cargo
+unit/integration/enabled example case set; doctests and normal builds remain separate checks.
 
 `test:devices` builds the frontend for standalone local use. CI invokes Playwright
 directly against the authenticated fixture artifact, without rebuilding Rust or

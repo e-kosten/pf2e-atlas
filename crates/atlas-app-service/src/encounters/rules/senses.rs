@@ -72,9 +72,14 @@ mod tests {
             range_feet: Some(40.0),
             available: Some(true),
         };
-        assert_eq!(blinded_penalty_applies(&[sense], None), None);
-        assert_eq!(blinded_penalty_applies(&[sense], Some(30.0)), Some(false));
-        assert_eq!(blinded_penalty_applies(&[sense], Some(50.0)), Some(true));
+        for (distance, expected) in [
+            (None, None),
+            (Some(39.0), Some(false)),
+            (Some(40.0), Some(false)),
+            (Some(41.0), Some(true)),
+        ] {
+            assert_eq!(blinded_penalty_applies(&[sense], distance), expected);
+        }
     }
     #[test]
     fn blinded_disables_vision_without_disabling_hearing() {
