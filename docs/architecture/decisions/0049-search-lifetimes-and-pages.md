@@ -121,6 +121,16 @@ at page1, retaining criteria and mutable drafts. Old page data cannot cross that
 transition. Exact embedded addresses are never rebound to a different ordinal.
 Similar preview reloads its actual owning detail before requesting a new generation.
 
+Search and each picker use the shared browser `useReferenceGeneration` session
+for generation adoption, request eligibility and replacement. Criteria, navigation,
+form drafts and open/close policy stay with their surface. Picker closure resets
+its session immediately; an obsolete recovery cannot publish into a reopened one.
+Reference dependency is metadata beside each query definition, including imperative
+reads and seeded pages. Retirement snapshots those Query instances, cancels them
+before removal and leaves newly created sessions alone. This replaces the separate
+query-family registry. Reference-derived encounter reads retain their full mutable
+context keys; saved aggregates, receipts and drafts keep their own lifetimes.
+
 Replaceable search pages and filter discovery take an explicit app-owned
 `ReadExecutionContext` with an optional shared atomic abandonment flag. One
 retrieval submission path checks it before lazy open and admission, immediately

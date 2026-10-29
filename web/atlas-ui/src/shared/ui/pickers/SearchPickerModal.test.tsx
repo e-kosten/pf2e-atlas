@@ -1,3 +1,4 @@
+import { recordDetailQueryOptions } from "../../records/recordDetailQuery";
 import { chooseAttributeSort } from "../../../test/sortControls";
 import type { ResultSort } from "../../../generated/atlas";
 import { SearchProfileProvider } from "../../../test/SearchProfileProvider";
@@ -577,12 +578,15 @@ it("rejects a mismatched source generation before caching or selecting the new d
       .findAll({ queryKey: ["record-detail"] })
       .some(
         (query) =>
-          (
-            query.state.data as
-              { detail?: ReturnType<typeof detailFixture> } | undefined
-          )?.detail?.artifact_generation === "generation-b",
+          (query.state.data as ReturnType<typeof detailFixture> | undefined)
+            ?.artifact_generation === "generation-b",
       ),
   ).toBe(false);
+  expect(
+    client.getQueryState(
+      recordDetailQueryOptions("actors:ogre", undefined, "generation-a").queryKey,
+    ),
+  ).toMatchObject({ status: "error", data: undefined });
 });
 
 it("inherits a profile switch on page one while retaining the explicit candidate, reader and Add draft", async () => {

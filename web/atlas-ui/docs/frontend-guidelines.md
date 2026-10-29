@@ -1227,7 +1227,17 @@ fingerprint, artifact refresh epoch or encounter-context change. An explicit
 generation mismatch invalidates retained content. `RelatedRecords` is the shared
 secondary disclosure inside that pane.
 
-Record pickers prepare a new candidate through the shared exact reading query,
+`recordDetailQueryOptions` owns raw document keys and generation validation for
+ordinary previews, readers and candidate preparation. Keys retain every requested
+record/embedded owner, field, passage, fingerprint and rank plus any expected
+generation. Reader landing, local history and recovery epoch are consumer state,
+not raw fetch inputs. A reader first observes its requested parent and, when the
+parent does not display the selected activity, observes the exact fallback through
+the same raw options. Composed `{detail, parent}` values stay outside the cache.
+Participant-context responses keep separate complete context keys and never seed
+these raw document queries.
+
+Record pickers prepare a new candidate through those shared raw document queries,
 then commit its selection and displayed document together. Keep Goblin selected
 and readable while Ogre loads; disable Add until the swap completes. Do not select
 Ogre while showing Goblin's facts or borrow Goblin into Ogre's cache. Fast swaps
@@ -1556,11 +1566,24 @@ source-side semantics, with a concrete example in their explanation popover.
 Search page keys include committed criteria, the local page number, the current
 artifact generation and the search owner's recovery epoch. An artifact generation
 conflict pauses pagination until the user selects Refresh results. Recovery cancels
-affected immutable reference queries before removing them, resets to page 1 and
+affected reference-dependent queries before removing them, resets to page 1 and
 preserves filter input and mutable encounter/list drafts. Never reuse previous-page
 data across that transition or seed caches from an aborted or superseded response.
 An initial live response seeds its generation-keyed page before adopting that key,
-so adoption does not repeat inference. Related and Similar recovery reload the
+so adoption does not repeat inference. `useReferenceGeneration` owns these
+transitions for each Search/picker surface; URL/history, editing, candidate and
+Add-form policy remain local. Closing a picker resets that session before its
+close animation finishes, so pending recovery cannot change a reopened picker.
+
+Each reference-derived query declares `referenceQueryMeta` beside its options;
+imperative fetches and seeded pages must retain that metadata. `retireReferenceQueries`
+snapshots Query instances, cancels them before removing them and leaves queries
+created by newer sessions alone. There is no independent family registry.
+Reference-derived encounter previews retire while retaining full participant,
+revision and serialized presentation identity. Saved encounters/lists, receipts,
+drafts and source-free turn reviews/pending consequence reads keep their owners.
+
+Related and Similar recovery reload the
 owning record; contextual encounter previews reload their encounter and require the
 user to reopen the activity using its current checked selection. Exact source
 fingerprints and snapshot-local ordinals are never silently rebound.
