@@ -988,6 +988,10 @@ Run the standalone corpus proof against the authenticated source pin:
 cargo run -p atlas-foundry-model --example snapshot_corpus -- /path/to/pinned/pf2e
 ```
 
+It asserts exact Rust equality after encoding/decoding every root and checks
+pinned loading outcomes. It is contributor validation, not runtime loading or
+an artifact migration. Codec/source policy changes follow ADR 0043.
+
 Optional source-backed actor, Item, NPC-capacity and selected-navigation tests use
 `ATLAS_PF2E_SOURCE` for that same authenticated export root. They require the
 current pin's `packs/pf2e` layout; an older `scratch/source-contracts-full` export
@@ -997,11 +1001,6 @@ is not a substitute. For example:
 ATLAS_PF2E_SOURCE=/path/to/pinned/pf2e cargo nextest run -p atlas-record \
   --run-ignored ignored-only -E 'test(pinned_actor_corpus_matches_authored_values)'
 ```
-
-
-It asserts exact Rust equality after encoding/decoding every root and checks
-pinned loading outcomes. It is contributor validation, not runtime loading or
-an artifact migration. Codec/source policy changes follow ADR 0043.
 
 The database-independent record enrichment handoff is
 `atlas-ingest::enrich_loaded_source`. It consumes admitted models, retains source
