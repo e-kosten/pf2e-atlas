@@ -651,6 +651,25 @@ Local validation covers Rust checks, `dist plan`, release-helper dry runs, insta
 
 Before each logical commit, inspect the scoped diff and run checks appropriate to the change. Before marking a PR ready for review, run the full applicable gates. A draft PR may be opened earlier with outstanding validation clearly identified. Respect the tracked hooks; do not bypass them. Reuse successful validation for an unchanged candidate rather than manually repeating expensive checks without a reason.
 
+The full Rust gate also requires `cargo-nextest` 0.9.150 or newer. CI installs the
+pinned 0.9.150 binary. Install locally from the [official prebuilt binaries](https://nexte.st/docs/installation/pre-built-binaries/),
+or compile the same version with:
+
+```bash
+cargo install cargo-nextest --locked --version 0.9.150
+```
+
+Focused `cargo test -p CRATE FILTER` commands still work without nextest. The full
+gate uses nextest for unit, integration and enabled example tests, then runs
+`cargo test --workspace --doc` for documentation examples. Nextest schedules cases
+across binaries in separate processes; tests retain their real isolated databases.
+`.config/nextest.toml` keeps retries disabled and runs the complete selected suite
+after a failure. Do not replace process-external resource coordination with an
+in-process mutex; tests that truly share an external resource need a bounded
+nextest group. A mutex protecting threads inside one test remains ordinary Rust
+synchronization. There are currently no shared-resource groups or case exclusions
+beyond the original explicit ignored collectors.
+
 For Rust changes, run the full gate with the compiler pinned in
 `rust-toolchain.toml`. Rustup-managed Cargo
 selects that toolchain automatically; standalone installations such as Homebrew
@@ -860,8 +879,8 @@ executable/symlink mode changes select all. Main pushes and nightly verification
 run every surface. The `validation complete` job rejects failed or unexpectedly
 skipped selected jobs; use it as the aggregate required check. CI selection and
 local script stages report decisions/timings in the job summary. Two Clippy passes
-retain distinct lint policies; tests and normal builds remain separate until
-measurement establishes equivalent coverage at lower cost.
+retain distinct lint policies. Nextest preserves the Cargo unit/integration/enabled
+example case set; doctests and normal builds remain separate checks.
 
 `test:devices` builds the frontend for standalone local use. CI invokes Playwright
 directly against the authenticated fixture artifact, without rebuilding Rust or

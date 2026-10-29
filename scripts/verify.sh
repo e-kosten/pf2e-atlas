@@ -6,7 +6,7 @@ usage() {
   cat <<'EOF'
 Usage: scripts/verify.sh [--verbose]
 
-Run the full Rust fmt, clippy, test, and build gate.
+Run the full Rust fmt, clippy, nextest, doctest, and build gate.
 
 Options:
   -v, --verbose  stream detailed command output
@@ -41,6 +41,12 @@ cd "$REPO_ROOT"
 
 . "$REPO_ROOT/scripts/validation/run-check.sh"
 
+if ! cargo nextest --version >/dev/null 2>&1; then
+  echo "The Rust gate requires cargo-nextest. See CONTRIBUTING.md#validation-at-commits-and-review for installation." >&2
+  exit 1
+fi
+cargo nextest show-config version >/dev/null
+
 run_check "cargo fmt" cargo fmt --check
 run_check "broad clippy" cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro
 run_check "strict runtime clippy" cargo clippy --workspace --lib --bins -- -D warnings \
@@ -50,5 +56,6 @@ run_check "strict runtime clippy" cargo clippy --workspace --lib --bins -- -D wa
   -D clippy::unimplemented \
   -D clippy::todo \
   -D clippy::unreachable
-run_check "workspace tests" cargo test --workspace
+run_check "workspace tests" cargo nextest run --workspace
+run_check "workspace doctests" cargo test --workspace --doc
 run_check "workspace build" cargo build --workspace

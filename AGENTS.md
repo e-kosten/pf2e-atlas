@@ -190,6 +190,10 @@ Use the compiler pinned in `rust-toolchain.toml` and verify `rustc --version`
 before running the gate. Standalone Cargo installations, including Homebrew's,
 do not automatically select that pin; use a matching toolchain on `PATH`.
 
+The full Rust gate also requires `cargo-nextest`; see CONTRIBUTING.md's validation
+section for the supported version and installation. Focused Cargo tests remain
+available without it.
+
 The Rust gate is:
 
 ```bash
