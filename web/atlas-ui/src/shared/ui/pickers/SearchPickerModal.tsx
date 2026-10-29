@@ -1,7 +1,7 @@
 import { AtlasModal as Modal } from "../overlays/AtlasModal";
 import { isSharedFailure } from "../../feedback/errorMessages";
 import { ErrorNotice } from "../../feedback/ErrorNotice";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   Button,
   ConfigProvider,
@@ -13,10 +13,15 @@ import {
   Typography,
 } from "antd";
 import type { FormInstance, ModalProps } from "antd";
-import { useId, useLayoutEffect, useRef, useState } from "react";
+import { useId, useLayoutEffect, useState } from "react";
 import { RotateCw, X } from "lucide-react";
 import { searchPage } from "../../../api/atlasApi";
 import { useSearchProfile } from "../../search/SearchProfileContext";
+import {
+  useReferenceGeneration,
+  useReferenceGenerationAdoption,
+} from "../../search/useReferenceGeneration";
+import { useReferenceQueryRetirement } from "../../queries/useReferenceQueryRetirement";
 import { SearchSettings } from "../../search/SearchSettings";
 import { similarityFromPreferences } from "../../search/similarityState";
 import { SearchProfileNotice } from "../../search/SearchProfileNotice";
@@ -47,8 +52,8 @@ import { usePreparedReferenceSelection } from "../../records/usePreparedReferenc
 import { PaneIconButton } from "../actions/PaneAction";
 import {
   isArtifactGenerationChanged,
-  retireImmutableReferenceQueries,
-} from "../../queries/immutableReferenceQueries";
+  referenceQueryMeta,
+} from "../../queries/referenceQueries";
 
 export type PickerSelection = {
   record: RecordSummaryView;
@@ -105,12 +110,6 @@ export function SearchPickerModal<FormValues>({
   const pageNumber = paging.profile === profile.id ? paging.number : 1;
   if (paging.profile !== profile.id) setPaging({ profile: profile.id, number: 1 });
   const setPageNumber = (number: number) => setPaging({ profile: profile.id, number });
-  const queryClient = useQueryClient();
-  const [retrieval, setRetrieval] = useState({
-    generation: null as string | null,
-    epoch: 0,
-    recovering: false,
-  });
   const base = buildRequest(search.query);
   const filter =
     base.criteria.filter && search.filter
@@ -144,19 +143,22 @@ export function SearchPickerModal<FormValues>({
   const profileReady =
     profile.id !== null &&
     (request.criteria.kind === "text_search" ? profile.usable : profile.storedVectors);
-  const liveRequest = useRef({ token: "", epoch: 0, active: false });
+  const retrieval = useReferenceGeneration(requestToken, open && profileReady);
+  const resetGeneration = retrieval.reset;
   useLayoutEffect(() => {
-    liveRequest.current = {
-      token: requestToken,
-      epoch: retrieval.epoch,
-      active: open && profileReady && !retrieval.recovering,
-    };
-    return () => {
-      liveRequest.current.active = false;
-    };
-  }, [requestToken, retrieval.epoch, open, profileReady, retrieval.recovering]);
+    if (!open) resetGeneration();
+  }, [open, resetGeneration]);
+  const resultsKeyForGeneration = (generation: string | null) => [
+    "search-picker",
+    title,
+    request,
+    retrieval.epoch,
+    generation,
+  ];
+  const resultsKey = resultsKeyForGeneration(retrieval.generation);
   const recordResults = useQuery<SearchResultsPage>({
-    queryKey: ["search-picker", title, request, retrieval.epoch, retrieval.generation],
+    queryKey: resultsKey,
+    meta: referenceQueryMeta,
     enabled: open && profileReady && !retrieval.recovering && !search.filterError,
     staleTime: 20_000,
     placeholderData: (previous, previousQuery) =>
@@ -166,6 +168,7 @@ export function SearchPickerModal<FormValues>({
         ? previous
         : undefined,
     queryFn: async ({ signal }) => {
+      const ticket = retrieval.capture(signal);
       const page = await searchPage(
         {
           ...request,
@@ -192,26 +195,20 @@ export function SearchPickerModal<FormValues>({
         request.criteria.kind === "similar_traits"
       )
         assertSimilarityIdentity(page, request.criteria.similarity);
-      if (
-        retrieval.generation === null &&
-        !signal.aborted &&
-        liveRequest.current.active &&
-        liveRequest.current.token === requestToken &&
-        liveRequest.current.epoch === retrieval.epoch
-      ) {
-        queryClient.setQueryData(
-          ["search-picker", title, request, retrieval.epoch, page.artifact_generation],
-          page,
-        );
-        setRetrieval((current) =>
-          current.epoch === retrieval.epoch && !current.recovering
-            ? { ...current, generation: page.artifact_generation }
-            : current,
-        );
-      }
+      retrieval.adopt(ticket, page.artifact_generation, {
+        queryKey: resultsKeyForGeneration(page.artifact_generation),
+        data: page,
+      });
       return page;
     },
   });
+  useReferenceQueryRetirement(resultsKey);
+  useReferenceGenerationAdoption(
+    retrieval,
+    recordResults,
+    recordResults.data?.artifact_generation,
+    resultsKeyForGeneration(recordResults.data?.artifact_generation ?? null),
+  );
   const reading = useReferenceReading(
     null,
     open && !retrieval.recovering,
@@ -238,35 +235,14 @@ export function SearchPickerModal<FormValues>({
     catalogIdentity: [retrieval.epoch],
   });
   const generationChanged = isArtifactGenerationChanged(recordResults.error);
-  async function refreshResults() {
-    liveRequest.current.active = false;
-    setRetrieval((current) => ({ ...current, recovering: true }));
-    await retireImmutableReferenceQueries(queryClient);
-    setPageNumber(1);
-    setRetrieval((current) => ({
-      generation: null,
-      epoch: current.epoch + 1,
-      recovering: false,
-    }));
+  function refreshResults() {
+    return retrieval.refresh(() => setPageNumber(1));
   }
-  async function applySettings(next: SearchFormState) {
-    const nextGeneration = next.similarityGeneration;
-    const collectionChanged =
-      nextGeneration !== undefined && nextGeneration !== retrieval.generation;
-    if (collectionChanged) {
-      liveRequest.current.active = false;
-      setRetrieval((current) => ({ ...current, recovering: true }));
-    }
-    setSearch(next);
-    setPageNumber(1);
-    if (collectionChanged) {
-      await retireImmutableReferenceQueries(queryClient);
-      setRetrieval((current) => ({
-        epoch: current.epoch + 1,
-        generation: nextGeneration,
-        recovering: false,
-      }));
-    }
+  function applySettings(next: SearchFormState) {
+    return retrieval.applyGeneration(next.similarityGeneration, () => {
+      setSearch(next);
+      setPageNumber(1);
+    });
   }
   const currentRows =
     recordResults.error || !profileReady ? [] : (recordResults.data?.rows ?? []);
@@ -275,11 +251,6 @@ export function SearchPickerModal<FormValues>({
     setSearch({ ...DEFAULT_SEARCH_STATE, ranking: profile.preferences.ranking });
     setPageNumber(1);
     reading.inspect(null);
-    setRetrieval((current) => ({
-      generation: null,
-      epoch: current.epoch + 1,
-      recovering: false,
-    }));
     onSelectionChange(null);
   };
   const selectionStatus =

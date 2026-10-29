@@ -1,6 +1,6 @@
 import { recordDetailRequest } from "./recordDetailQuery";
 import type { ReactNode } from "react";
-import { retireImmutableReferenceQueries } from "../queries/immutableReferenceQueries";
+import { retireReferenceQueries } from "../queries/referenceQueries";
 import {
   act,
   fireEvent,
@@ -162,7 +162,7 @@ it("discards retained preview content when its reference query is retired", asyn
   });
   await waitFor(() => expect(result.current.data).toEqual(old));
   api.getRecordDetail.mockRejectedValue(new Error("New collection offline"));
-  await act(async () => retireImmutableReferenceQueries(client));
+  await act(async () => retireReferenceQueries(client));
   await waitFor(() =>
     expect(result.current.error?.message).toBe("New collection offline"),
   );

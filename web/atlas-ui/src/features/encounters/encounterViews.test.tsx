@@ -1,3 +1,4 @@
+import { recordDetailQueryOptions } from "../../shared/records/recordDetailQuery";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import {
   spellFixture,
@@ -11,7 +12,7 @@ import {
 } from "../../test/fixtures";
 import { App, ConfigProvider, Grid } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { retireImmutableReferenceQueries } from "../../shared/queries/immutableReferenceQueries";
+import { retireReferenceQueries } from "../../shared/queries/referenceQueries";
 import {
   act,
   cleanup,
@@ -2705,11 +2706,13 @@ describe("encounter views", () => {
     });
     const name = await screen.findByLabelText("Name");
     fireEvent.change(name, { target: { value: "My draft" } });
-    client.setQueryData(["record-detail", "old"], {
-      artifact_generation: "generation-a",
-    });
-    await act(async () => retireImmutableReferenceQueries(client));
-    expect(client.getQueryData(["record-detail", "old"])).toBeUndefined();
+    const oldDetail = recordDetailQueryOptions("old");
+    client
+      .getQueryCache()
+      .build(client, { queryKey: oldDetail.queryKey, meta: oldDetail.meta });
+    client.setQueryData(oldDetail.queryKey, detailFixture("old"));
+    await act(async () => retireReferenceQueries(client));
+    expect(client.getQueryData(oldDetail.queryKey)).toBeUndefined();
     expect(client.getQueryData(["encounter", "ambush"])).toBeDefined();
     expect(name).toHaveValue("My draft");
     act(() =>

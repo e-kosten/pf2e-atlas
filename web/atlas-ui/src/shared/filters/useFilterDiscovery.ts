@@ -1,3 +1,4 @@
+import { referenceQueryMeta } from "../queries/referenceQueries";
 import { userErrorMessage } from "../feedback/errorMessages";
 import { isSharedFailure } from "../feedback/errorMessages";
 import { useQuery } from "@tanstack/react-query";
@@ -61,7 +62,7 @@ export function useFilterDiscovery({
     ],
     enabled,
     staleTime: Infinity,
-    meta: { catalogIdentity },
+    meta: { ...referenceQueryMeta, catalogIdentity },
     placeholderData: (previous, previousQuery) =>
       JSON.stringify(previousQuery?.meta?.catalogIdentity) ===
       JSON.stringify(catalogIdentity)
@@ -144,6 +145,7 @@ export function useFilterOptionCounts(
       literals.length > 0 &&
       (!fieldId.includes("[]") || !!addressedClause),
     meta: {
+      ...referenceQueryMeta,
       fieldId,
       discoveryIdentity: context && discoveryIdentity({ context, clauseId: null }),
     },
@@ -218,6 +220,7 @@ export function useFilterVocabulary(
   applicable?: { context: FilterDiscoveryContext; clauseId: string | null },
 ) {
   return useQuery<OptionPage>({
+    meta: referenceQueryMeta,
     queryKey: [
       "filter-vocabulary",
       scope,

@@ -1,3 +1,4 @@
+import { referenceQueryMeta } from "../queries/referenceQueries";
 import { LoadingStatus } from "../ui/LoadingStatus";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
@@ -34,6 +35,7 @@ export function RollTableReading({
   const [result, setResult] = useState<TableRollView>();
   const [highlight, setHighlight] = useState<string[]>([]);
   const reading = useInfiniteQuery({
+    meta: referenceQueryMeta,
     queryKey: [
       "embedded-reading",
       context.generation,

@@ -1,3 +1,5 @@
+import { referenceQueryMeta } from "../queries/referenceQueries";
+import { similarityPartsQueryOptions } from "../search/similarityQueries";
 import { AtlasModal as Modal } from "../ui/overlays/AtlasModal";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import { navigateDestination } from "../../app/navigation";
@@ -9,12 +11,7 @@ import { SearchPreviewRows } from "./SearchPreviewRows";
 import { ReferenceResult } from "./ReferenceResult";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
-import {
-  AtlasApiError,
-  getRelatedRecords,
-  getSimilarityParts,
-  searchPage,
-} from "../../api/atlasApi";
+import { AtlasApiError, getRelatedRecords, searchPage } from "../../api/atlasApi";
 import { useSearchProfile } from "../search/SearchProfileContext";
 import {
   hasCoreSourcePreference,
@@ -25,7 +22,6 @@ import { SearchProfileNotice } from "../search/SearchProfileNotice";
 import {
   assertSearchIdentity,
   assertSimilarityIdentity,
-  assertSimilarityInventoryIdentity,
 } from "../search/searchIdentity";
 import { currentSearchLocation } from "../../app/searchLocation";
 import {
@@ -38,7 +34,7 @@ import type { RecordDetailView, RecordSummaryView } from "../../generated/atlas"
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { useRecordDetail } from "./useRecordDetail";
-import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
+import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 import { relationshipSearchRoute } from "./relationshipSearch";
 import { ExploreSearchAction } from "./ExploreSearchAction";
 import { useRecordExploreLocation } from "./recordExploreLocation";
@@ -156,6 +152,7 @@ function useReferencePreview(detail: RecordDetailView, incoming: boolean) {
     "record-explore-reference",
   );
   const query = useQuery({
+    meta: referenceQueryMeta,
     queryKey: [
       "record-reference-preview",
       filter,
@@ -245,6 +242,7 @@ function ReferencePreview({
 
 function useRelated(detail: RecordDetailView) {
   const query = useQuery({
+    meta: referenceQueryMeta,
     queryKey: ["related", detail.selected, detail.artifact_generation],
     staleTime: Infinity,
     retryOnMount: false,
@@ -463,33 +461,12 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
   const needsFamily =
     similarity.method !== "baseline" && hasCoreSourcePreference(profile.preferences);
   const seedInventory = useQuery({
-    queryKey: [
-      "similarity-parts",
+    ...similarityPartsQueryOptions(
       { kind: "record", record_key: seed },
       profile.id,
       detail.artifact_generation,
-      0,
-    ],
+    ),
     enabled: needsFamily && profile.id !== null && profile.storedVectors,
-    staleTime: Infinity,
-    queryFn: async ({ signal }) => {
-      const source = { kind: "record" as const, record_key: seed };
-      const inventory = await getSimilarityParts(
-        {
-          seed: source,
-          search_profile: profile.id ?? undefined,
-          expected_artifact_generation: detail.artifact_generation,
-        },
-        signal,
-      );
-      assertSimilarityInventoryIdentity(
-        inventory,
-        source,
-        profile.id!,
-        detail.artifact_generation,
-      );
-      return inventory;
-    },
   });
   const sourceSections =
     similarity.method === "baseline"
@@ -508,6 +485,7 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
   const searchContent =
     currentSearch?.searchContent ?? profile.preferences.searchContent;
   const similar = useQuery({
+    meta: referenceQueryMeta,
     queryKey: [
       "similar-preview",
       seed,

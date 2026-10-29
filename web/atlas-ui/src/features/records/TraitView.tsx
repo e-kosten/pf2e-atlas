@@ -1,3 +1,5 @@
+import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
+import { traitSimilarPreviewQueryOptions } from "../../shared/search/similarityQueries";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { traitDestination, searchDestination } from "../../app/destinations";
@@ -10,7 +12,7 @@ import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { Alert, Button, Empty, Tabs, Typography } from "antd";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { AtlasApiError, getTraitRecords, searchPage } from "../../api/atlasApi";
+import { AtlasApiError, getTraitRecords } from "../../api/atlasApi";
 import type {
   TraitAssociationKind,
   TraitDetailView,
@@ -42,20 +44,16 @@ import {
   type SearchFormState,
 } from "../../shared/filters/searchState";
 import {
-  assertSearchIdentity,
-  assertSimilarityIdentity,
-} from "../../shared/search/searchIdentity";
-import {
   isArtifactGenerationChanged,
-  retireImmutableReferenceQueries,
-} from "../../shared/queries/immutableReferenceQueries";
+  retireReferenceQueries,
+} from "../../shared/queries/referenceQueries";
 export function TraitView({ route }: { route: TraitPageInput }) {
   const query = useTraitDetail(route.traitKey);
   const preview = useRecordPreview();
   usePageTitle(query.data?.label ?? "Trait");
   const client = useQueryClient();
   const reload = async () => {
-    await retireImmutableReferenceQueries(client);
+    await retireReferenceQueries(client);
     await query.refetch();
   };
   return (
@@ -186,6 +184,7 @@ function TraitAssociations({
         ranking: "score",
       };
       return {
+        meta: referenceQueryMeta,
         queryKey: ["trait-records", request],
         queryFn: ({ signal }: { signal: AbortSignal }) =>
           getTraitRecords(request, signal),
@@ -320,15 +319,8 @@ function TraitSimilarRecords({
     sort: effectiveResultSort(search),
   };
   const query = useQuery({
-    queryKey: ["trait-similar-preview", request],
+    ...traitSimilarPreviewQueryOptions(request),
     enabled: profile.id !== null && profile.storedVectors && !search.filterError,
-    staleTime: Infinity,
-    queryFn: async ({ signal }) => {
-      const page = await searchPage(request, signal);
-      assertSearchIdentity(page, profile.id, detail.artifact_generation, request.sort);
-      assertSimilarityIdentity(page, similarity, sourceSections, searchContent);
-      return page;
-    },
   });
   const changed = isArtifactGenerationChanged(query.error);
   const unavailable =
@@ -412,6 +404,7 @@ function TraitAssociatedRecords({
     ranking: "score",
   };
   const query = useQuery<TraitRecordsPage>({
+    meta: referenceQueryMeta,
     queryKey: ["trait-records", request],
     staleTime: Infinity,
     retryOnMount: false,
