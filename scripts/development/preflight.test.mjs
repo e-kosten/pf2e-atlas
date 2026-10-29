@@ -31,6 +31,26 @@ test("supported Node ranges come from metadata and reject unsupported runtimes",
     assert.equal(nodeSupported(version, "^22.18.0 || ^24.0.0"), false);
 });
 
+test("ordinary Rust readiness works without a populated dependency cache; tool provenance still requires its graph", async (t) => {
+  const f = fixture(t);
+  f.program(
+    "cargo",
+    `case " $* " in
+  *" --no-deps "*) printf '{"target_directory":"%s/target","packages":[]}\\n' "$PWD";;
+  *) echo 'offline dependency metadata unavailable' >&2; exit 9;;
+esac`,
+  );
+  assert.deepEqual(
+    (await readiness(f.root, { commands: [["cargo", "clippy"]] })).issues,
+    [],
+  );
+  assert(
+    (await readiness(f.root, { toolBuild: true })).issues.some((issue) =>
+      issue.includes("offline dependency metadata unavailable"),
+    ),
+  );
+});
+
 test("preview reuses a verified bundle without npm dependencies; old seed is advisory", async (t) => {
   const f = fixture(t);
   const report = await readiness(f.root, { preview: true });

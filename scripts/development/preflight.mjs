@@ -69,11 +69,18 @@ export function canonical(path) {
   }
   return resolve(realpathSync(current), ...tail);
 }
-export function metadata(root) {
+export function metadata(root, { dependencies = true } = {}) {
   return JSON.parse(
     output(
       "cargo",
-      ["metadata", "--format-version", "1", "--locked", "--offline"],
+      [
+        "metadata",
+        "--format-version",
+        "1",
+        "--locked",
+        "--offline",
+        ...(dependencies ? [] : ["--no-deps"]),
+      ],
       root,
     ),
   );
@@ -272,7 +279,7 @@ export async function readiness(
           `Rust ${actual} selected; use pinned ${pinned} (rustup toolchain install ${pinned}, or put that installation on PATH).`,
         );
       else {
-        data = metadata(root);
+        data = metadata(root, { dependencies: preview || shared || toolBuild });
         if (canonical(data.target_directory) !== resolve(root, "target"))
           issues.push(
             `Cargo target is ${data.target_directory}; use this checkout's private target/ and remove shared target overrides.`,
