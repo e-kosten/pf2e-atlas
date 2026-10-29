@@ -331,22 +331,16 @@ test("Ghoul condition-adjusted facts and damaged elite HP survive reload", async
       reference.getByRole("heading", { name: "Strikes", exact: true }),
     ).toBeVisible();
     await expect(
-      reference.getByRole("heading", { name: "Abilities", exact: true }),
+      reference.getByRole("heading", { name: "Special abilities", exact: true }),
     ).toBeVisible();
     await expect(
       reference.getByRole("link", { name: /^Ghoul Fever/ }).first(),
     ).toBeVisible();
-    await reference
-      .getByRole("button", { name: "More creature facts", exact: true })
-      .click();
     await expect(
       reference
         .locator(".record-fact")
         .filter({ has: page.getByText("Stealth", { exact: true }) }),
     ).toContainText("+7");
-    await reference
-      .getByRole("button", { name: "More creature facts", exact: true })
-      .click();
     await current.click();
     const hp = page.getByRole("textbox", { name: "Current HP", exact: true });
     await hp.fill("13");
@@ -384,30 +378,17 @@ test("Ghoul condition-adjusted facts and damaged elite HP survive reload", async
     ).toHaveValue("1");
     await expect(current).toHaveText("23");
     await expect(
+      reference
+        .locator(".record-fact")
+        .filter({ has: page.getByText("AC", { exact: true }) })
+        .getByRole("button", { name: "Show value explanation: 17", exact: true }),
+    ).toBeVisible();
+    await expect(
       reference.getByRole("button", {
-        name: "Show explanation for AC: 17",
+        name: "Strike Jaws attack +10",
         exact: true,
       }),
     ).toBeVisible();
-    await reference.getByRole("link", { name: "Jaws", exact: true }).click();
-    const preview = page.getByRole("dialog").filter({
-      has: page.getByRole("button", { name: "Close reference preview", exact: true }),
-    });
-    await expect(
-      preview.getByRole("heading", { name: "Jaws", exact: true }),
-    ).toBeVisible();
-    await expect(
-      preview.getByRole("button", {
-        name: "Show explanation for Attack: +10",
-        exact: true,
-      }),
-    ).toBeVisible();
-    await expect(
-      preview.getByRole("heading", { name: "Description", exact: true }),
-    ).toHaveCount(0);
-    await preview
-      .getByRole("button", { name: "Close reference preview", exact: true })
-      .click();
     const amount = page.getByRole("textbox", { name: "HP change", exact: true });
     await amount.fill("3");
     await page.getByRole("button", { name: "Damage", exact: true }).click();
