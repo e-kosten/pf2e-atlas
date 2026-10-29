@@ -240,6 +240,9 @@ The Rust baseline owner retains the live child and a frozen executable for
 fallback; a PID receipt never authorizes killing another process. Refresh reuses
 the active port, private database and source/model selection, serializes requests,
 preflights the candidate and verifies served readiness plus expected UI bytes.
+Cached-model checksum checks can exceed 20 seconds in a dev build. Each candidate
+check has a bounded 60-second budget; the control request budget includes both
+checks, startup and fallback. Cancellation continues to poll while a check runs.
 Compilation or preflight failure preserves the current server; startup/HTTP
 verification failure attempts to restore the previous frozen executable and
 reports the failure. Incompatible data requires deliberate normal setup, never an
