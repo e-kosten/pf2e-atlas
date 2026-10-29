@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": "^22.18.0 || ^24.0.0"
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "npm run typecheck && vite build",
@@ -12,7 +15,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "npm run routes:generate && vitest run",
-    "typecheck": "npm run routes:generate && tsc -b --noEmit",
+    "typecheck": "npm run routes:generate && tsc -b --noEmit && tsc -p tsconfig.tools.json",
     "verify": "npm run check && vitest run && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test:e2e": "playwright test",

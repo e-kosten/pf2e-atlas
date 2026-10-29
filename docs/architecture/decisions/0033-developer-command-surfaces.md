@@ -27,6 +27,20 @@ or web bundle. Tools can exchange explicit JSON artifacts for future comparisons
 Both developer surfaces are validated in CI and excluded from releases.
 atlas-dev and atlas-cli-support are private Cargo packages with dist disabled.
 
+Development baseline and managed preview lifecycle belong to `atlas-dev baseline`.
+The managed foreground owner retains the selected app's live child handle and
+accepts serialized checkout-local refresh/stop requests. Receipts report state;
+they never authorize terminating a recorded PID. Replacements use private frozen
+executable copies, cheap selected-app compatibility checks and served readiness/UI
+checksum checks. Source/model assets and the task database remain unchanged;
+normal runtime/setup still owns schema updates.
+
+Candidate compilation is separate Node/shell orchestration under
+`scripts/development`, exposed through just recipes. It can build the frontend and
+product app, reuse a checksum-verified current bundle, and write source/build
+provenance. The Rust baseline commands never dispatch that build script. Source
+identity, executable/UI checksums and browser wire compatibility remain distinct.
+
 Maintained private TypeScript packages live under `dev-tools/`, with package
 configuration at the package root, implementation under `src/`, and tests under
 `tests/`. `src/cli/` owns command arguments, output and exit behavior; domain

@@ -28,7 +28,10 @@ resource limits and delivery details where they affect execution.
 Choose sections that make the work clear. Link existing repository guidance and
 research evidence; focus the plan itself on task-specific decisions and commitments.
 For delegated work, define ownership, shared contracts and coordination points.
-Choose review and validation depth according to the change's risk.
+Follow [the development sequence](../../../CONTRIBUTING.md#development-loop):
+independent subagent review and confirmed fixes precede PR creation, while local
+logical commits remain available throughout. Scale reviewer specialties and
+validation depth to risk; use the validation guide for local/CI responsibilities.
 
 Connect durable open work to the backlog. Include architecture/doc updates among
 the deliverables when the task changes ownership or intended behavior. Refactor

@@ -1,10 +1,10 @@
 # Systematic test-quality review
 
-Status: the project-wide review is complete, including all 92 previously deferred/new condition entries after PR142 and PR144. Final candidate validation and published-head CI results are tracked in [PR145](https://github.com/e-kosten/pf2e-atlas/pull/145). Every one of the 442 inventory entries has a substantive disposition; there are no pending or excluded entries. The original pass is recorded in [PR143](https://github.com/e-kosten/pf2e-atlas/pull/143), based on ce3f6442; the condition follow-up starts from 147982d3. Prior milestone: [PR141](https://github.com/e-kosten/pf2e-atlas/pull/141).
+Status: the project-wide review is complete across448 test owners, including all92 previously deferred/new condition entries and six new owners from merged PR146. Independent review findings are resolved. Integrated local gates, browser evidence and published-head CI are tracked in [PR145](https://github.com/e-kosten/pf2e-atlas/pull/145). The original pass is recorded in [PR143](https://github.com/e-kosten/pf2e-atlas/pull/143), based on ce3f6442; the condition follow-up starts from147982d3 and integrates upstream25e4cfaf. Prior milestone: [PR141](https://github.com/e-kosten/pf2e-atlas/pull/141).
 
 This ledger tracks the current project-wide review. A broad scan or a passing suite does not mark a file reviewed. Review requires reading its test scenarios and relevant production boundary, identifying the meaningful faults protected, and recording a disposition. Findings are implemented and validated in logical commits; unchanged tests retain a concrete reason. The initial pass excluded the condition system. That exclusion is now lifted and all condition rows have current dispositions. Generated source output and data fixtures are assessed through their owning contract tests.
 
-Current statuses: **reviewed** (no worthwhile change identified) and **changed** (improvement implemented; validation recorded). Earlier milestones used pending, excluded and mixed while condition work was out of scope. Deferred findings do not silently count as completed work.
+Current statuses: **pending** (new owner not yet reviewed), **reviewed** (no worthwhile change identified) and **changed** (improvement implemented; validation recorded). Earlier milestones used pending, excluded and mixed while condition work was out of scope. Deferred findings do not silently count as completed work.
 
 Completion requires every inventory entry to have a substantive disposition, every accepted improvement implemented and checked, and final required gates/CI on the published candidate. PR boundaries do not end this review.
 
@@ -16,7 +16,7 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | crates/atlas-app-service | 76 | 0 | 76 | 0 |
 | crates/atlas-cli | 23 | 0 | 23 | 0 |
 | crates/atlas-cli-support | 2 | 0 | 2 | 0 |
-| crates/atlas-dev | 7 | 0 | 7 | 0 |
+| crates/atlas-dev | 8 | 0 | 8 | 0 |
 | crates/atlas-dice | 1 | 0 | 1 | 0 |
 | crates/atlas-domain | 11 | 0 | 11 | 0 |
 | crates/atlas-embedding | 5 | 0 | 5 | 0 |
@@ -29,12 +29,13 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | crates/atlas-search | 15 | 0 | 15 | 0 |
 | crates/atlas-storage | 3 | 0 | 3 | 0 |
 | crates/atlas-tags | 4 | 0 | 4 | 0 |
-| crates/atlas-web | 3 | 0 | 3 | 0 |
+| crates/atlas-web | 4 | 0 | 4 | 0 |
 | dev-tools/dice-prototype | 1 | 0 | 1 | 0 |
 | dev-tools/release | 3 | 0 | 3 | 0 |
 | dev-tools/source-contracts | 28 | 0 | 28 | 0 |
 | research verification | 1 | 0 | 1 | 0 |
-| scripts | 8 | 0 | 8 | 0 |
+| scripts | 11 | 0 | 11 | 0 |
+| web/atlas-ui tooling | 1 | 0 | 1 | 0 |
 | web/atlas-ui/e2e | 16 | 0 | 16 | 0 |
 | web/atlas-ui/src/api | 3 | 0 | 3 | 0 |
 | web/atlas-ui/src/app | 11 | 0 | 11 | 0 |
@@ -183,6 +184,8 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | [crates/atlas-dev/tests/commands.rs](../../crates/atlas-dev/tests/commands.rs) | changed | Inspection now verifies selected record key, source path, snapshot version/content and the complete requested original payload. Kept no-Node source commands, absence of implicit artifact creation and original-source checksum rejection. |
 | [crates/atlas-dev/tests/embedding_storage.rs](../../crates/atlas-dev/tests/embedding_storage.rs) | reviewed | Explicit schema-9 full-corpus probe snapshots into disposable storage and compares saved/attributed/vector digests, kNN output, revision/key, reuse and physical reclamation. Distinct migration proof retained; historical corpus prerequisite unavailable in this task. |
 | [crates/atlas-dev/tests/retrieval_evidence.rs](../../crates/atlas-dev/tests/retrieval_evidence.rs) | reviewed | Explicit ignored judged-source harness uses real ingest/native retrieval, scoped expected top-three results and source-passage recovery, retaining unjudged output as observations. Private historical judged sample unavailable; no replacement with synthetic relevance claims. |
+| [crates/atlas-dev/tests/managed_preview.rs](../../crates/atlas-dev/tests/managed_preview.rs) | reviewed | Retain fixed URL/database preservation, frozen-binary rollback, serialized refresh, foreign-listener rejection, unchanged-child reuse, termination cleanup and malformed-profile preservation. The ignored HTTP fixture is explicitly re-executed by the owning tests. |
+
 
 ### crates/atlas-dice
 
@@ -355,8 +358,10 @@ Completion requires every inventory entry to have a substantive disposition, eve
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
 | [crates/atlas-web/src/assets.rs](../../crates/atlas-web/src/assets.rs) | reviewed | Embedding ownership test protects borrowed built-in assets in debug and release; real router tests own bytes, fallback and HTTP cache behavior. |
-| [crates/atlas-web/src/tests.rs](../../crates/atlas-web/src/tests.rs) | reviewed | Condition catalog and real router CRUD exercise path-bound participant/row identity despite contradictory body IDs, exact mutation envelope and wrong-owner404. Service behavior is covered below the transport fake; prior generic transport/asset checks retained. |
+| [crates/atlas-web/src/tests.rs](../../crates/atlas-web/src/tests.rs) | reviewed | Condition catalog and real router CRUD exercise path-bound participant/row identity despite contradictory body IDs, exact mutation envelope and wrong-owner404. Service behavior is covered below the transport fake; prior generic transport/asset checks retained. PR146 follow-up retains generated similarity-binding coverage, compiled/loaded contract equality and restricted watch inputs. |
 | [crates/atlas-web/src/tests/read_abandonment_tests.rs](../../crates/atlas-web/src/tests/read_abandonment_tests.rs) | reviewed | Real HTTP/1 disconnect, queued and running cancellation retain blocking capacity until completion and avoid post-abandonment work; dropped mutation still completes once. Existing bounded channels/deadlines protect observable concurrency behavior; retained. |
+| [crates/atlas-web/build_contract.rs](../../crates/atlas-web/build_contract.rs) | reviewed | Literal cross-language fingerprint vector, CRLF/order normalization, binding/revision invalidation, implementation independence and invalid/empty-contract rejection protect distinct wire/build boundaries; retained. |
+
 
 ### dev-tools/dice-prototype
 
@@ -415,14 +420,24 @@ Completion requires every inventory entry to have a substantive disposition, eve
 
 | File | Status | Evidence and disposition |
 | --- | --- | --- |
-| [scripts/browser-fixture.test.mjs](../../scripts/browser-fixture.test.mjs) | changed | Build/fallback assertions now require the locked atlas-web example arguments and Linux strip arguments, not just tool names or a broad regex. Retained real quoted executable invocation, content checksums, commit/host admission and dirty-source refusal. |
-| [scripts/git-hooks/test-common.sh](../../scripts/git-hooks/test-common.sh) | changed | Real isolated Git history still protects staged/range classification, renamed/deleted/mode paths, fast/full selection and timing diagnostics. Full-gate expectations now require both nextest and Cargo doctests; actual gate failures from either phase preserve the failing status/diagnostic, and a missing runner fails before formatting. External compiler doubles remain deliberate command-boundary checks. |
+| [scripts/browser-fixture.test.mjs](../../scripts/browser-fixture.test.mjs) | changed | Build/fallback assertions now require the locked atlas-web example arguments and Linux strip arguments, not just tool names or a broad regex. Retained real quoted executable invocation, content checksums, commit/host admission and dirty-source refusal. PR146 follow-up retains dirty/untracked-source, build/copy mutation and stale-but-wire-compatible UI attribution cases. |
+| [scripts/git-hooks/test-common.sh](../../scripts/git-hooks/test-common.sh) | changed | Real isolated Git history still protects staged/range classification, renamed/deleted/mode paths, fast/full selection and timing diagnostics. Full-gate expectations now require both nextest and Cargo doctests; actual gate failures from either phase preserve the failing status/diagnostic, and a missing runner fails before formatting. External compiler doubles remain deliberate command-boundary checks. PR146 integration retains its private fixture/supervisor and eight-surface dispatch. Failure, missing-runner and timing cases now run in that fixture even when invoked outside a checkout. |
 | [scripts/git-hooks/test-pre-push.sh](../../scripts/git-hooks/test-pre-push.sh) | reviewed | Offline notices command checks its exact arguments/environment, outgoing ranges and multi-ref deduplication. Distinct missing dependencies, deletion, unrelated dirt, dirty dependency inputs and checkout/head mismatch retained; exercised through test-common.sh. |
 | [scripts/release/test-installer.ps1](../../scripts/release/test-installer.ps1) | changed | Windows nightly installation now requires the complete resolved URL set and Windows archive; retained native executable install, dry-run/overwrite refusal, checksum and rollback scenarios. PowerShell syntax passed locally; native Windows execution awaits the published CI candidate. |
 | [scripts/release/test-prepare-release.sh](../../scripts/release/test-prepare-release.sh) | changed | Required-command ordering guards still fail on absence. Release preparation must now invoke nextest and separate Cargo doctests, in addition to both Clippy policies and normal build. Prepare/open-PR/publish modes, prompts, dry-run forbidden effects, dirty/tag/refusal and post-validation cleanliness remain. |
 | [scripts/release/test-release-tools.sh](../../scripts/release/test-release-tools.sh) | changed | Nightly installation now requires the complete resolved URL set and host archive, retaining pointer-first behavior. Kept real archive/hash validation, dry-run, overwrite refusal, malformed pointers and rollback to the previous binary. |
-| [scripts/validation/ci-results.test.mjs](../../scripts/validation/ci-results.test.mjs) | reviewed | Selected-job failure/cancel/skip cases, all browser prerequisites, Rust/web-only selection, docs-only and malformed flags plus real CLI exit behavior retained. Expected jobs are literal, independent of production selection map. |
+| [scripts/validation/ci-results.test.mjs](../../scripts/validation/ci-results.test.mjs) | reviewed | Selected-job failure/cancel/skip cases, all browser prerequisites, Rust/web-only selection, docs-only and malformed flags plus real CLI exit behavior retained. Expected jobs are literal, independent of production selection map. PR146 follow-up verifies eight-surface selection and browser prerequisites while separating developer-only, UI-only and core-Rust validation. |
 | [scripts/validation/skill.test.ts](../../scripts/validation/skill.test.ts) | reviewed | Temporary package fixtures distinguish malformed frontmatter/body from missing embed and unbundled resources. Structural checks are the explicit shipped single-file package contract; retained. |
+| [scripts/development/build-preview.test.mjs](../../scripts/development/build-preview.test.mjs) | changed | Successful receipt digests now equal SHA-256 of independent known executable and HTML bytes, so wrong-file and constant hashes fail. Retained reuse/rebuild partitions, tamper detection, source-mutation rejection and same-input commit acceptance. |
+| [scripts/validate-browser-candidate.test.mjs](../../scripts/validate-browser-candidate.test.mjs) | changed | Successful isolation now requires the complete spec/project/output/multiword-grep command. Retained pinned app/config/dependencies, corruption/prohibited-option rejection, copy attribution, environment mismatch, interruption and cleanup. |
+| [scripts/validation/run-check.test.mjs](../../scripts/validation/run-check.test.mjs) | changed | Retained logs now equal the diagnostic for their exact outcome; cancellation targets nextest rather than accidentally blocking doctests. A literal newer mocked scheduler version proves actual nextest provenance is retained separately from phase output. Existing exits, staleness, commit equivalence, heartbeat, process cleanup, signals, nested checkout and simulated Windows cases retained. |
+
+
+### web/atlas-ui tooling
+
+| File | Status | Evidence and disposition |
+| --- | --- | --- |
+| [web/atlas-ui/apiContract.test.ts](../../web/atlas-ui/apiContract.test.ts) | reviewed | Wire/provenance separation, normalized literal fingerprint, revision bounds, production-input partitions, mode/symlink/environment sensitivity, receipt/output corruption and build-time mutation checks protect distinct accepted contracts; retained. |
 
 ### web/atlas-ui/e2e
 
@@ -802,4 +817,6 @@ The first published runner candidate (2aeb7461) passed every selected CI job in 
 
 Current-pin source follow-through found obsolete optional collector setup: the old scratch export is PF2e6.12.4; supported source is8.6.1. Independent raw manifest inventory gives29,894 documents (7,962 Actors;21,669 Items;69 RollTables;113 Journals;81 Macros). Missing NPC adjustment is distinct from explicit normal/null:6,143 default,296 inherited-known,3 unknown across6,442 NPCs. Item/common projection, actor raw-value oracle and exact owned/GM source navigation passed on the verified current pin; the corrected NPC census also passed. Original native-model collectors already passed in the first review and their unchanged inputs do not need a redundant rerun. The schema9 storage probe still needs an authentic historical database; the existing judged retrieval collector uses its historical220-root sample, not a new search-quality evaluation. Neither is represented as freshly rerun.
 
-Final inventory reconciliation found 442 unique ledger entries, all reviewed or changed, and no omitted test-bearing Rust, frontend, tooling or shell files. Final candidate commands and CI links live in PR145 so routine validation updates do not require another source commit.
+Before PR146 integration, inventory reconciliation found 442 unique ledger entries, all reviewed or changed, and no omitted test-bearing Rust, frontend, tooling or shell files. Final candidate commands and CI links live in PR145 so routine validation updates do not require another source commit.
+
+PR146 integration adds six reviewed owners (448 total). Independent behavioral, tooling/integration and new-owner reviews completed; confirmed findings were fixed and rechecked. All54 process/tooling regressions and the hook smoke invoked outside a Git checkout passed on supported Node24.22.1. Root AGENTS/CONTRIBUTING remain identical to upstream; nextest and source-probe procedures live in the new detailed guides. Final integrated candidate results remain in PR145.

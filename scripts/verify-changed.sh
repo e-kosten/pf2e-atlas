@@ -124,6 +124,9 @@ source_touched=0
 release_touched=0
 research_touched=0
 skill_touched=0
+browser_touched=0
+web_format_touched=0
+dev_touched=0
 docs_only=0
 
 if [ "$mode" = all ]; then
@@ -133,6 +136,8 @@ if [ "$mode" = all ]; then
   release_touched=1
   research_touched=1
   skill_touched=1
+  browser_touched=1
+  dev_touched=1
 elif [ ! -s "$paths_file" ]; then
   docs_only=1
 else
@@ -140,7 +145,7 @@ else
 fi
 
 if [ "$list" -eq 1 ]; then
-  for entry in "rust:$rust_touched" "web:$web_touched" "source:$source_touched" "release:$release_touched" "research:$research_touched" "skill:$skill_touched"; do
+  for entry in "rust:$rust_touched" "web:$web_touched" "source:$source_touched" "release:$release_touched" "research:$research_touched" "skill:$skill_touched" "browser:$browser_touched" "dev:$dev_touched"; do
     value=false
     [ "${entry#*:}" -eq 0 ] || value=true
     printf '%s=%s\n' "${entry%%:*}" "$value"
@@ -148,14 +153,19 @@ if [ "$list" -eq 1 ]; then
   exit 0
 fi
 
+atlas_validation_kind=final
+[ "$full" -eq 1 ] || atlas_validation_kind=iteration
+
 if [ "$docs_only" -eq 1 ]; then
   echo "Docs-only change detected; skipping code validation." >&2
   exit 0
 fi
 
-if [ "$web_touched" -eq 1 ]; then
-  if [ "$full" -eq 1 ]; then
+if [ "$web_touched" -eq 1 ] || [ "$web_format_touched" -eq 1 ] || { [ "$full" -eq 1 ] && [ "$browser_touched" -eq 1 ] && [ "$rust_touched" -eq 0 ]; }; then
+  if [ "$full" -eq 1 ] && [ "$web_touched" -eq 1 ]; then
     run_check "web UI verify" npm --prefix web/atlas-ui run verify
+  elif [ "$full" -eq 1 ]; then
+    run_check "browser checks and bundle" npm --prefix web/atlas-ui run verify:bundle
   else
     run_check "web UI format" npm --prefix web/atlas-ui run format:check
   fi
@@ -168,10 +178,22 @@ fi
 if [ "$rust_touched" -eq 1 ]; then
   if [ "$full" -eq 1 ]; then
     if [ "$verbose" -eq 1 ]; then
-      run_check "rust full verify" "$REPO_ROOT/scripts/verify.sh" --verbose
+      run_composite "$REPO_ROOT/scripts/verify.sh" --verbose
     else
-      run_check "rust full verify" "$REPO_ROOT/scripts/verify.sh"
+      run_composite "$REPO_ROOT/scripts/verify.sh"
     fi
+  else
+    run_check "cargo fmt" cargo fmt --check
+  fi
+fi
+
+if [ "$dev_touched" -eq 1 ] && [ "$rust_touched" -eq 0 ]; then
+  if [ "$full" -eq 1 ]; then
+    run_check "developer formatting" cargo fmt --check
+    run_check "developer clippy" cargo clippy -p atlas-dev -p atlas-cli-support --all-targets -- -D warnings -D clippy::dbg_macro
+    run_check "developer runtime clippy" cargo clippy -p atlas-dev -p atlas-cli-support --lib --bins -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unimplemented -D clippy::todo -D clippy::unreachable
+    run_check "developer tests" cargo test -p atlas-dev -p atlas-cli-support --locked
+    run_check "developer build" cargo build -p atlas-dev --locked
   else
     run_check "cargo fmt" cargo fmt --check
   fi

@@ -26,6 +26,8 @@ serde.workspace = true
 atlas-storage.workspace = true
 time.workspace = true
 tempfile = "3"
+ureq.workspace = true
+signal-hook = "0.3.18"
 
 [dev-dependencies]
 atlas-index = { workspace = true, features = ["test-support"] }

@@ -42,7 +42,7 @@ cd "$REPO_ROOT"
 . "$REPO_ROOT/scripts/validation/run-check.sh"
 
 if ! cargo nextest --version >/dev/null 2>&1; then
-  echo "The Rust gate requires cargo-nextest. See CONTRIBUTING.md#validation-at-commits-and-review for installation." >&2
+  echo "The Rust gate requires cargo-nextest. See docs/development/validation.md#local-rust-gate for installation." >&2
   exit 1
 fi
 cargo nextest show-config version >/dev/null

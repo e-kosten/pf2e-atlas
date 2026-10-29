@@ -34,6 +34,8 @@ jobs:
       release: ${{ steps.select.outputs.release }}
       research: ${{ steps.select.outputs.research }}
       skill: ${{ steps.select.outputs.skill }}
+      browser: ${{ steps.select.outputs.browser }}
+      dev: ${{ steps.select.outputs.dev }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -60,7 +62,7 @@ jobs:
       - name: Validation routing regression tests
         run: |
           sh scripts/git-hooks/test-common.sh
-          node --test scripts/browser-fixture.test.mjs scripts/validation/ci-results.test.mjs
+          node --test scripts/browser-fixture.test.mjs scripts/validate-browser-candidate.test.mjs scripts/validation/ci-results.test.mjs scripts/validation/run-check.test.mjs scripts/development/build-preview.test.mjs
 
   skill:
     name: bundled skill
@@ -79,7 +81,7 @@ jobs:
 
   web-bundle:
     needs: changes
-    if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.web == 'true'
+    if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.web == 'true' || needs.changes.outputs.browser == 'true'
     name: frontend checks and bundle
     runs-on: ubuntu-24.04
     steps:
@@ -102,7 +104,7 @@ jobs:
 
   rust:
     needs: [changes, web-bundle]
-    if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.web == 'true'
+    if: needs.changes.outputs.rust == 'true'
     name: rust
     runs-on: ubuntu-24.04
     steps:
@@ -124,10 +126,18 @@ jobs:
           tool: cargo-nextest@0.9.150
       - name: Rust verification
         run: scripts/verify.sh
+      - name: Validation evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-validation-attempt-${{ github.run_attempt }}
+          path: .atlas/validation/
+          include-hidden-files: true
+          retention-days: 3
 
   browser-fixture:
     needs: [changes, web-bundle]
-    if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.web == 'true'
+    if: needs.changes.outputs.browser == 'true'
     name: build browser candidate
     runs-on: ubuntu-24.04
     steps:
@@ -216,7 +226,7 @@ jobs:
 
   atlas-dev:
     needs: changes
-    if: needs.changes.outputs.rust == 'true'
+    if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.dev == 'true'
     name: atlas dev (no web bundle)
     runs-on: ubuntu-24.04
     steps:
@@ -229,6 +239,12 @@ jobs:
           test ! -d web/atlas-ui/dist
           cargo build -p atlas-dev --locked
           cargo test -p atlas-dev -p atlas-cli-support --locked
+      - name: Developer-only formatting and lint
+        if: needs.changes.outputs.rust != 'true'
+        run: |
+          cargo fmt --check
+          cargo clippy -p atlas-dev -p atlas-cli-support --all-targets -- -D warnings -D clippy::dbg_macro
+          cargo clippy -p atlas-dev -p atlas-cli-support --lib --bins -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unimplemented -D clippy::todo -D clippy::unreachable
 
   web-ui:
     needs: changes
