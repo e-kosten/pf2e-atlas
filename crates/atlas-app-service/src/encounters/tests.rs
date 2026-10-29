@@ -2,6 +2,69 @@ use crate::test_support::encounter_fixture_worker;
 use atlas_app_model::*;
 
 #[test]
+fn encounter_index_counts_saved_participants_without_reference_reads() {
+    let executor = crate::executor::RetrievalExecutor::from_fixture_workers(1, 16);
+    let f = crate::test_support::fixture_worker_with_executor(executor.clone());
+    let encounter = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Counted".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    f.worker
+        .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+            participant_variant: None,
+            encounter_ref: encounter.encounter_key.clone(),
+            record_ref: "Test Creature 1".into(),
+            quantity: 2,
+            initiative: None,
+        })
+        .unwrap();
+    f.worker
+        .add_encounter_manual_participant(AddEncounterManualParticipantRequest {
+            encounter_ref: encounter.encounter_key.clone(),
+            display_name: "Manual PC".into(),
+            max_hp: None,
+            current_hp: None,
+            initiative: None,
+        })
+        .unwrap();
+    let empty = f
+        .worker
+        .create_encounter(CreateEncounterRequest {
+            name: "Empty".into(),
+            description: None,
+            note: None,
+        })
+        .unwrap()
+        .encounter;
+    executor.fail_after_submissions(0);
+    let index = f.worker.encounters().unwrap();
+    assert_eq!(index.encounters.len(), 2);
+    assert_eq!(
+        index
+            .encounters
+            .iter()
+            .find(|e| e.encounter_key == encounter.encounter_key)
+            .unwrap()
+            .participant_count,
+        3
+    );
+    assert_eq!(
+        index
+            .encounters
+            .iter()
+            .find(|e| e.encounter_key == empty.encounter_key)
+            .unwrap()
+            .participant_count,
+        0
+    );
+}
+
+#[test]
 fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
     let path = crate::test_support::fixture_workspace_path();
     atlas_runtime::initialize_workspace(&path).unwrap();

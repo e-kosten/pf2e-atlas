@@ -65,6 +65,30 @@ pub(crate) fn list(connection: &Connection) -> LocalStateResult<Vec<Encounter>> 
     rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
 }
 
+pub(crate) fn list_with_participant_counts(
+    connection: &Connection,
+) -> LocalStateResult<Vec<super::EncounterWithParticipantCount>> {
+    let mut statement = connection.prepare(
+        "SELECT encounter.encounter_key, encounter.slug, encounter.name, encounter.description,
+                encounter.note, encounter.status, encounter.round_number,
+                encounter.current_turn_participant_key, encounter.created_at, encounter.updated_at,
+                encounter.revision, encounter.difficulty_party_level, encounter.difficulty_party_size,
+                COUNT(participant.id)
+         FROM encounters encounter
+         LEFT JOIN encounter_participants participant ON participant.encounter_id = encounter.id
+         WHERE encounter.owner_id = 1
+         GROUP BY encounter.id
+         ORDER BY encounter.updated_at DESC, encounter.slug ASC",
+    )?;
+    let rows = statement.query_map([], |row| {
+        Ok(super::EncounterWithParticipantCount {
+            encounter: encounter_from_row(row)?,
+            participant_count: row.get(13)?,
+        })
+    })?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+}
+
 pub(crate) fn get(
     connection: &Connection,
     encounter_ref: &str,

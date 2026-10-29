@@ -26,6 +26,13 @@ pub struct Encounter {
     pub updated_at: String,
 }
 
+/// Encounter metadata and its saved roster size, without participant detail.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EncounterWithParticipantCount {
+    pub encounter: Encounter,
+    pub participant_count: u32,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EncounterStatus {
