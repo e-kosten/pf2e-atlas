@@ -26,7 +26,6 @@ function outgoing(boundary_key: string, participant_name: string) {
   };
 }
 function setup() {
-  const onHandled = vi.fn();
   const onCancel = vi.fn();
   const data: EncounterTurnReviewView = {
     encounter_key: "encounter",
@@ -62,7 +61,7 @@ function setup() {
       <EncounterTurnReview {...props} />
     </ConfigProvider>,
   );
-  return { props, onHandled, onCancel, view };
+  return { props, onCancel, view };
 }
 it("shows only the current notification and the ordinary close affordance", () => {
   const { onCancel } = setup();
@@ -77,7 +76,7 @@ it("shows only the current notification and the ordinary close affordance", () =
   expect(onCancel).toHaveBeenCalledOnce();
 });
 it("keeps removed participants' original identity and sources accessible without actionable HP or recovery controls", () => {
-  const { props, view, onHandled } = setup();
+  const { props, view, onCancel } = setup();
   view.rerender(
     <ConfigProvider theme={{ token: { motion: false } }}>
       <EncounterTurnReview
@@ -113,7 +112,10 @@ it("keeps removed participants' original identity and sources accessible without
     screen.queryByRole("button", { name: /Recover|Apply persistent damage/ }),
   ).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
-  expect(onHandled).not.toHaveBeenCalled();
+  expect(onCancel).toHaveBeenCalledOnce();
+  expect(props.onApplyPersistent).not.toHaveBeenCalled();
+  expect(props.onRecoverPersistent).not.toHaveBeenCalled();
+  expect(props.onLifecycle).not.toHaveBeenCalled();
 });
 
 it("offers direct removal beside an expired condition and retains its notice after removal", () => {
