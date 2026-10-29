@@ -30,6 +30,51 @@ pub enum PassageSection<'a> {
     },
 }
 
+impl<'a> PassageSection<'a> {
+    pub(crate) fn text_and_context(self) -> (&'a str, &'a str) {
+        match self {
+            Self::Identity { text } => (text, ""),
+            Self::Html { text, context, .. } | Self::Plain { text, context, .. } => (text, context),
+        }
+    }
+
+    pub(crate) fn address(
+        self,
+        text_hash: &str,
+        chunk_bytes: SourceByteRange,
+    ) -> Option<SourcePassageAddress> {
+        match self {
+            Self::Identity { .. } => None,
+            Self::Html {
+                prepared_html_sha256,
+                selection_version,
+                section_ordinal,
+                label,
+                ..
+            } => Some(SourcePassageAddress::HtmlSection {
+                prepared_html_sha256: prepared_html_sha256.into(),
+                canonical_text_sha256: text_hash.into(),
+                selection_version: selection_version.into(),
+                section_ordinal,
+                label: label.map(str::to_owned),
+                chunk_bytes,
+            }),
+            Self::Plain {
+                selection_version,
+                section_ordinal,
+                label,
+                ..
+            } => Some(SourcePassageAddress::PlainSection {
+                source_text_sha256: text_hash.into(),
+                selection_version: selection_version.into(),
+                section_ordinal,
+                label: label.map(str::to_owned),
+                chunk_bytes,
+            }),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PreparedEmbeddingInput {
     pub address: SourcePassageAddress,
@@ -46,11 +91,7 @@ pub fn prepare_embedding_section(
     tokenizer: &TextEmbeddingTokenizer,
     section: PassageSection<'_>,
 ) -> Result<Vec<PreparedEmbeddingInput>, EmbeddingError> {
-    let (text, context) = match section {
-        PassageSection::Identity { text } => (text, ""),
-        PassageSection::Html { text, context, .. }
-        | PassageSection::Plain { text, context, .. } => (text, context),
-    };
+    let (text, context) = section.text_and_context();
     if text.trim().is_empty() || tokenizer.count_tokens(text, false)? == 0 {
         return Ok(Vec::new());
     }
@@ -119,39 +160,9 @@ pub fn prepare_embedding_section(
             });
         }
         let chunk_bytes = SourceByteRange { start, end };
-        let address = match section {
-            PassageSection::Html {
-                prepared_html_sha256,
-                selection_version,
-                section_ordinal,
-                label,
-                ..
-            } => SourcePassageAddress::HtmlSection {
-                prepared_html_sha256: prepared_html_sha256.into(),
-                canonical_text_sha256: text_hash.clone(),
-                selection_version: selection_version.into(),
-                section_ordinal,
-                label: label.map(str::to_owned),
-                chunk_bytes,
-            },
-            PassageSection::Plain {
-                selection_version,
-                section_ordinal,
-                label,
-                ..
-            } => SourcePassageAddress::PlainSection {
-                source_text_sha256: text_hash.clone(),
-                selection_version: selection_version.into(),
-                section_ordinal,
-                label: label.map(str::to_owned),
-                chunk_bytes,
-            },
-            PassageSection::Identity { .. } => {
-                return Err(EmbeddingError::InvalidPassageAddress(
-                    "identity entered prose splitting".into(),
-                ));
-            }
-        };
+        let address = section.address(&text_hash, chunk_bytes).ok_or_else(|| {
+            EmbeddingError::InvalidPassageAddress("identity entered prose splitting".into())
+        })?;
         let input = if context.is_empty() {
             body.to_owned()
         } else {
@@ -177,7 +188,7 @@ pub fn prepare_embedding_section(
     Ok(output)
 }
 
-fn prepared(
+pub(crate) fn prepared(
     tokenizer: &TextEmbeddingTokenizer,
     address: SourcePassageAddress,
     input: String,
