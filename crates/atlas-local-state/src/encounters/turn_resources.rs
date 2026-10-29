@@ -24,7 +24,7 @@ pub enum TurnActionAdjustment {
     Stunned { value: Option<i64>, lost: i64 },
     Slowed { value: i64, lost: i64, overlap: i64 },
     Inactive { lost: i64 },
-    StunnedDuringTurn { value: i64, lost: i64 },
+    StunnedDuringTurn { value: Option<i64>, lost: i64 },
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TurnResources {

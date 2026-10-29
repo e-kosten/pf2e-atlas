@@ -64,6 +64,7 @@ function setup(onAdvance: (revision: bigint) => Promise<boolean>, onFinish = vi.
         useEncounterTurnReview({
           encounterRef: "encounter",
           expectedRevision: 7n,
+          turn: { participantKey: "actor", roundNumber: 1n },
           mutations,
           onAdvance,
           onFinish,
@@ -180,6 +181,7 @@ it("retains reminders through a revision refresh only for the same encounter", a
       useEncounterTurnReview({
         encounterRef,
         expectedRevision,
+        turn: { participantKey: "actor", roundNumber: 1n },
         mutations,
         onAdvance: vi.fn(),
       }),
@@ -269,6 +271,7 @@ it.each([false, true])(
         useEncounterTurnReview({
           encounterRef: "encounter",
           expectedRevision: revision,
+          turn: { participantKey: "actor", roundNumber: 1n },
           mutations,
           onAdvance: advance,
         }),
@@ -524,5 +527,45 @@ it("opens a retryable dependent-read failure without turning it into a turn-adva
       "failed-read",
     ])?.error?.message,
   ).toBe("Read unavailable");
+  expect(advance).toHaveBeenCalledOnce();
+});
+
+it("retry presents the unseen saved boundary without advancing again", async () => {
+  const advance = vi.fn().mockResolvedValue(true);
+  const { result } = setup(advance);
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  vi.mocked(getEncounterTurnReview).mockRejectedValue(new Error("read failed"));
+  await act(async () => {
+    await result.current.begin();
+  });
+  vi.mocked(getEncounterTurnReview).mockResolvedValue({
+    ...review,
+    outgoing: { ...review.outgoing!, boundary_key: "new" },
+  });
+  await act(async () => {
+    await result.current.refresh();
+  });
+  expect(result.current.open).toBe(true);
+  expect(result.current.boundaryKey).toBe("new");
+  expect(advance).toHaveBeenCalledOnce();
+});
+
+it("retry does not present a boundary that superseded the unseen turn", async () => {
+  const advance = vi.fn().mockResolvedValue(true);
+  const { result } = setup(advance);
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  vi.mocked(getEncounterTurnReview).mockRejectedValue(new Error("read failed"));
+  await act(async () => {
+    await result.current.begin();
+  });
+  vi.mocked(getEncounterTurnReview).mockResolvedValue({
+    ...review,
+    outgoing: { ...review.outgoing!, boundary_key: "later", round_number: 2n },
+  });
+  await act(async () => {
+    await result.current.refresh();
+  });
+  expect(result.current.open).toBe(false);
+  expect(result.current.boundaryKey).toBeUndefined();
   expect(advance).toHaveBeenCalledOnce();
 });

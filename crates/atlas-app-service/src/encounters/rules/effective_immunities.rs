@@ -263,7 +263,12 @@ mod tests {
                 crate::encounters::conditions::modeled_condition_by_rule(condition.id).unwrap();
             assert!(
                 matches!(
-                    super::super::condition_applicability(definition, &participant, &facts),
+                    super::super::condition_applicability(
+                        definition,
+                        &participant,
+                        &facts,
+                        super::super::source_conditions::SourceConditions::empty()
+                    ),
                     Some(atlas_app_model::EncounterConditionEligibilityView::Immune { .. })
                 ),
                 "{}",

@@ -1,22 +1,33 @@
-import { expect, test } from "./fixtures";
+import { expect, test as base } from "./fixtures";
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { activate, noPageOverflow } from "./reading";
+
+type RecoveryEncounter = {
+  encounter: { encounter_key: string };
+  path: string;
+};
+
+const test = base.extend<{ recoveryEncounter: RecoveryEncounter }>({
+  recoveryEncounter: async ({ request }, use) => {
+    const created = await request.post("/api/encounters", {
+      data: { name: "Precedence regression" },
+    });
+    expect(created.ok(), await created.text()).toBe(true);
+    const { encounter } = await created.json();
+    const path = `/api/encounters/${encounter.encounter_key}`;
+    try {
+      await use({ encounter, path });
+    } finally {
+      const removed = await request.delete(path, { timeout: 5000 });
+      expect(removed.ok(), await removed.text()).toBe(true);
+    }
+  },
+});
 
 async function checkpoint(page: Page, info: TestInfo, name: string) {
   await noPageOverflow(page);
   if (name === "precedence-sources.png" || name === "precedence-fallback.png") {
     await page.mouse.move(0, 0);
-    if (
-      name === "precedence-sources.png" &&
-      process.platform === "linux" &&
-      info.project.name === "tablet-webkit"
-    ) {
-      await page
-        .getByRole("link", { name: /Persistent Damage.*1d12/ })
-        .locator("..")
-        .getByRole("button", { name: "Edit Persistent Damage", exact: true })
-        .focus();
-    }
     const tooltips = page.getByRole("tooltip");
     let remaining = await tooltips.count();
     do {
@@ -55,6 +66,7 @@ async function recoveryGeometry(popup: Locator) {
     const control = input.getBoundingClientRect();
     return {
       x: bounds.x,
+      y: bounds.y,
       width: bounds.width,
       input: {
         x: control.x,
@@ -66,16 +78,13 @@ async function recoveryGeometry(popup: Locator) {
   });
 }
 
-test("precedence survives source removal and recovery retains its anchor after clearing", async ({
-  page,
-}, info) => {
-  const created = await page.request.post("/api/encounters", {
-    data: { name: "Precedence regression" },
-  });
-  expect(created.ok()).toBeTruthy();
-  const { encounter } = await created.json();
-  const path = `/api/encounters/${encounter.encounter_key}`;
-  try {
+test.describe(() => {
+  test.setTimeout(90_000);
+
+  test("precedence survives source removal and recovery retains its anchor after clearing", async ({
+    page,
+    recoveryEncounter: { encounter, path },
+  }, info) => {
     expect(
       (
         await page.request.post(`${path}/participants/manual`, {
@@ -132,10 +141,11 @@ test("precedence survives source removal and recovery retains its anchor after c
       page.getByRole("button", { name: "Precedence hero", exact: true }),
       info,
     );
-    await activate(
-      page.getByRole("button", { name: "Edit Persistent Damage", exact: true }).last(),
-      info,
-    );
+    const edit = page
+      .getByRole("link", { name: /Persistent Damage.*1d12/ })
+      .locator("..")
+      .getByRole("button", { name: "Edit Persistent Damage", exact: true });
+    await activate(edit, info);
     const editor = page.getByRole("dialog", {
       name: "Edit Persistent Damage",
       exact: true,
@@ -169,6 +179,13 @@ test("precedence survives source removal and recovery retains its anchor after c
     await checkpoint(page, info, "precedence-editor.png");
     await activate(editor.getByRole("button", { name: "Apply", exact: true }), info);
     await expect(editor).toHaveCount(0);
+    if (!info.project.use.hasTouch) await expect(edit).toBeFocused();
+    const updatedSource = page.getByRole("link", {
+      name: /Persistent Damage.*1d12/,
+    });
+    // Give the document checkpoint a deliberate focus target after editing.
+    await updatedSource.focus();
+    await expect(updatedSource).toBeFocused();
     await checkpoint(page, info, "precedence-sources.png");
     const strongest = page
       .getByRole("link", { name: /Persistent Damage.*6d12/ })
@@ -239,12 +256,25 @@ test("precedence survives source removal and recovery retains its anchor after c
     await expect(dc).toHaveValue("1");
     await expect(popup.getByRole("combobox")).toHaveCount(0);
     await expect(popup).toHaveCSS("opacity", "1");
+    await expect(
+      popup.getByRole("button", { name: "Roll", exact: true }),
+    ).toBeInViewport({ ratio: 1 });
+    await expect(
+      popup.getByRole("button", { name: "Clear effect", exact: true }),
+    ).toBeInViewport({ ratio: 1 });
     await checkpoint(page, info, "recovery-before.png");
     const before = await recoveryGeometry(popup);
+    const beforeAbove =
+      before.y <
+      (await recovery.evaluate((element) => element.getBoundingClientRect().y));
     await activate(popup.getByRole("button", { name: "Roll", exact: true }), info);
     await expect(popup.getByText("Recovered · DC 1", { exact: true })).toBeVisible();
     await expect(recovery).toBeVisible();
     const after = await recoveryGeometry(popup);
+    const afterAbove =
+      after.y <
+      (await recovery.evaluate((element) => element.getBoundingClientRect().y));
+    expect(afterAbove).toBe(beforeAbove);
     expect(Math.abs(after.x - before.x)).toBeLessThan(2);
     expect(Math.abs(after.width - before.width)).toBeLessThan(2);
     expect(after.input.x).toBe(before.input.x);
@@ -258,9 +288,7 @@ test("precedence survives source removal and recovery retains its anchor after c
     expect(
       (await (await page.request.get(path)).json()).participants[0].conditions,
     ).toHaveLength(0);
-  } finally {
-    await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
-  }
+  });
 });
 
 test("delayed condition previews retain geometry, focus and the HP opt-out", async ({

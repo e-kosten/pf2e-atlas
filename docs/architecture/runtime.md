@@ -720,11 +720,13 @@ Stunned/Slowed losses remain visible; reads never recover conditions. Turn start
 and explicit regain allocate retained action/reaction stock through the guarded
 event owner. Explicit Stunned loss uses that recorded remaining stock or the same
 source-backed regain forecast. Turn receipts recover before reference loading;
-new source-dependent allocations check the prepared reference revision. Ordinary
+new source-dependent allocations and Spend check the prepared reference revision.
+A rules-owned RegainPlan supplies allocation facts and the presentation adapter;
+regain and explicit Stunned recovery share one consumption reducer. Ordinary
 strikes evaluate display-only dice in a checked workspace read, retain the latest
 result in browser component memory, and write no database receipts; ordinary casting records table-resolved use from the spell popover. Casting reminders and optional strike context are read-only, with no durable
-action-attempt workflow. Source-specific judgments support the actual Retch
-lifecycle action. Scoped detection effects derive from active conditions, without
+action-attempt workflow. Known action traits inform the actual Retch lifecycle action;
+unknown table facts remain source-specific reminders without an answer-collection API. Scoped detection effects derive from active conditions, without
 a saved relationship baseline or editing API. Spell use, resource corrections and rolls that update state or prepare outcomes
 for later application keep their existing guarded write owners. See ADR 0048 and ADR 0055.
 

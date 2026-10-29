@@ -14,7 +14,6 @@ pub enum CheckDegreeView {
 pub enum LifecycleCheckInputView {
     Roll,
     TableDegree { degree: CheckDegreeView },
-    TableResult { total: i64, natural: Option<i64> },
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -125,4 +124,37 @@ pub struct ConditionLifecycleActionsView {
     pub encounter_revision: i64,
     pub participant_key: String,
     pub actions: Vec<ConditionLifecycleOptionView>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn recovery_inputs_accept_roll_or_table_degree_and_reject_raw_totals() {
+        assert_eq!(
+            serde_json::from_str::<LifecycleCheckInputView>(r#"{"kind":"roll"}"#).unwrap(),
+            LifecycleCheckInputView::Roll
+        );
+        assert_eq!(
+            serde_json::from_str::<LifecycleCheckInputView>(
+                r#"{"kind":"table_degree","degree":"success"}"#
+            )
+            .unwrap(),
+            LifecycleCheckInputView::TableDegree {
+                degree: CheckDegreeView::Success
+            }
+        );
+        assert!(
+            serde_json::from_str::<LifecycleCheckInputView>(
+                r#"{"kind":"table_result","total":18,"natural":12}"#
+            )
+            .is_err()
+        );
+        let historical: LifecycleCheckResultView = serde_json::from_str(
+            r#"{"dc":15,"modifier":6,"roll":null,"table_result":18,"degree":"success"}"#,
+        )
+        .unwrap();
+        assert_eq!(historical.table_result, Some(18));
+    }
 }

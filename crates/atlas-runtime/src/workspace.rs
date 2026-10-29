@@ -432,6 +432,7 @@ mod tests {
             },
             rule_ordinal: Some(0),
             source_fingerprint: "kept-source".into(),
+            declaration_identity: None,
             value: atlas_local_state::AbilityStateValue::Option {
                 active: true,
                 selection: None,

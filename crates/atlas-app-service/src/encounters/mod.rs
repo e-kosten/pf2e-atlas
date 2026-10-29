@@ -60,3 +60,6 @@ pub(crate) use rules::attack_progression;
 
 #[cfg(test)]
 mod turn_resource_tests;
+
+#[cfg(test)]
+mod effective_source_tests;

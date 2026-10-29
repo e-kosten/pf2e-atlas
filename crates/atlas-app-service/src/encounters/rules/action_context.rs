@@ -22,15 +22,12 @@ pub(in crate::encounters) enum ActionFact {
     MentalOnly,
     RelatesToFascination,
     FurthersEscape,
-    Cantrip,
     VoluntaryIngestion,
     FollowsControllerInstructions,
 }
 
-/// A judgment is tied to its condition source; one threat's escape is not another's.
 #[derive(Debug, Clone, Copy)]
-pub(in crate::encounters) struct ActionJudgment {
-    pub source_id: Option<i64>,
+pub(in crate::encounters) struct KnownActionFact {
     pub fact: ActionFact,
     pub value: bool,
 }
@@ -39,33 +36,14 @@ pub(in crate::encounters) struct ActionContext<'a> {
     pub kind: ActionKind,
     pub reaction: Option<bool>,
     pub other_participant: Option<&'a str>,
-    pub facts: &'a [ActionJudgment],
+    pub facts: &'a [KnownActionFact],
 }
 
 impl ActionContext<'_> {
-    fn fact(&self, source_id: &ConditionSourceKey, fact: ActionFact) -> Option<bool> {
-        let scoped: Vec<_> = self
-            .facts
-            .iter()
-            .filter(|entry| {
-                entry.fact == fact
-                    && source_id.saved_id().is_some()
-                    && entry.source_id == source_id.saved_id()
-            })
-            .collect();
-        let values: Vec<_> = if scoped.is_empty() {
-            self.facts
-                .iter()
-                .filter(|entry| entry.fact == fact && entry.source_id.is_none())
-                .collect()
-        } else {
-            scoped
-        };
-        let first = values.first()?.value;
-        values
-            .iter()
-            .all(|entry| entry.value == first)
-            .then_some(first)
+    fn fact(&self, fact: ActionFact) -> Option<bool> {
+        let mut values = self.facts.iter().filter(|entry| entry.fact == fact);
+        let first = values.next()?.value;
+        values.all(|entry| entry.value == first).then_some(first)
     }
 }
 
@@ -124,7 +102,7 @@ impl ActionEvaluation {
         fact: ActionFact,
         permitted: bool,
     ) {
-        match context.fact(source_id, fact) {
+        match context.fact(fact) {
             Some(value) if value != permitted => self.prohibit(source_id, rule),
             None => self.issues.push(ActionIssue::NeedsFact {
                 source_id: source_id.clone(),
@@ -151,7 +129,7 @@ impl ActionEvaluation {
         source_id: &ConditionSourceKey,
         fact: ActionFact,
     ) {
-        match context.fact(source_id, fact) {
+        match context.fact(fact) {
             Some(true) => self.check(source_id, 5),
             Some(false) => {}
             None => self.issues.push(ActionIssue::NeedsFact {
@@ -168,16 +146,12 @@ pub(in crate::encounters) fn evaluate_action(
     context: &ActionContext<'_>,
 ) -> ActionEvaluation {
     let mut result = ActionEvaluation::default();
-    let known = condition_causes(participant, context.other_participant, sources);
+    let resolution = condition_causes(participant, context.other_participant, sources);
+    let known = resolution.active;
     for cause in &known {
         evaluate_cause(&mut result, participant, sources, context, *cause);
     }
-    for cause in super::projection::uncertain_source_causes(
-        participant,
-        context.other_participant,
-        &[],
-        sources,
-    ) {
+    for cause in resolution.uncertain {
         if known
             .iter()
             .any(|active| active.rule == cause.rule && active.source.key() == cause.source.key())
@@ -240,7 +214,7 @@ fn evaluate_cause(
                 }),
             }
         }
-        ConditionRule::Fascinated => match context.fact(&id, ActionFact::Concentrate) {
+        ConditionRule::Fascinated => match context.fact(ActionFact::Concentrate) {
             Some(true) => {
                 if matches!(
                     cause.source.saved().map(|source| &source.parameters),
@@ -330,6 +304,7 @@ pub(in crate::encounters) fn is_confused(
     sources: &SourceConditions,
 ) -> bool {
     condition_causes(participant, None, sources)
+        .active
         .iter()
         .any(|cause| cause.rule == ConditionRule::Confused)
 }
@@ -343,6 +318,7 @@ pub(in crate::encounters) fn control_direction(
     let controller = source.source_participant_key.as_deref()?;
     let instructions = source.note.as_ref();
     let conflicting = condition_causes(participant, Some(controller), sources)
+        .active
         .iter()
         .any(|cause| {
             cause.rule == ConditionRule::Controlled
@@ -371,17 +347,10 @@ pub(in crate::encounters) fn stupefied_casting_hint(
     opponent: Option<&str>,
     sources: &SourceConditions,
 ) -> Option<Result<i64, ()>> {
-    let mut checks = condition_causes(participant, opponent, sources)
-        .into_iter()
-        .filter(|cause| cause.rule == ConditionRule::Stupefied)
-        .peekable();
-    checks.peek()?;
-    let mut result = ActionEvaluation::default();
-    for cause in checks {
-        match stupefied_dc(cause.value) {
-            Some(dc) => result.check(&cause.source.key(), dc),
-            None => return Some(Err(())),
-        }
+    let resolved = condition_causes(participant, opponent, sources);
+    match resolved.known_value(ConditionRule::Stupefied) {
+        Ok(0) => None,
+        Ok(value) => Some(stupefied_dc(Some(value)).ok_or(())),
+        Err(_) => Some(Err(())),
     }
-    result.disruption.map(|check| Ok(check.dc))
 }

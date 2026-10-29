@@ -76,6 +76,9 @@ test("Explore keeps header geometry stable and restores mode and tab through bro
   await activate(seed, info);
   const drawer = page.getByRole("dialog", { name: /^Signal Protocol\b/ });
   await expect(drawer).toBeVisible();
+  await expect(
+    page.locator(".record-preview-drawer-root .ant-drawer-content-wrapper"),
+  ).toHaveCSS("transform", "none");
   await activate(
     drawer.getByRole("button", { name: "Close reference preview", exact: true }),
     info,
@@ -251,6 +254,8 @@ test("a long saved-list choice stays bounded through a pending and failed Add", 
     });
     await activate(trigger, info);
     const dialog = page.getByRole("dialog", { name: "Add to…", exact: true });
+    await expect(dialog).toHaveCSS("opacity", "1");
+    await expect(dialog).toHaveCSS("transform", "none");
     const selector = dialog.getByRole("combobox", { name: "Saved list", exact: true });
     await expect(selector).toBeEnabled();
     await activate(selector, info);

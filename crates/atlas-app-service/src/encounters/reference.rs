@@ -83,14 +83,10 @@ pub(crate) fn read_encounter_reference(
             condition.condition_key.as_deref(),
         )
         .and_then(|rule| {
-            let causes = super::rules::causes::condition_causes(participant, None, &sources);
-            causes
-                .iter()
-                .filter(|c| c.rule == rule)
-                .map(|c| c.value.filter(|n| *n > 0))
-                .collect::<Option<Vec<_>>>()?
-                .into_iter()
-                .max()
+            super::rules::causes::condition_causes(participant, None, &sources)
+                .known_value(rule)
+                .ok()
+                .filter(|value| *value > 0)
         });
         crate::prepared_content::resolve_runtime_content(
             r,
@@ -153,9 +149,20 @@ pub(crate) fn read_encounter_reference(
         .authored_adjustment(),
         SourceFieldView::NotApplicable
     );
+    let other_participants = encounter
+        .participants
+        .iter()
+        .filter(|p| p.participant_key != participant_key)
+        .cloned()
+        .collect::<Vec<_>>();
+    let (_, relationship_records) =
+        super::hydration::hydrate_participant_records(r, &other_participants)?;
+    let relationship_sources =
+        super::hydration::roster_source_conditions(&encounter.participants, &relationship_records);
     let relationship_causes = super::rules::relationships::observer_defense_causes(
         participant_key,
         &encounter.participants,
+        &relationship_sources,
     );
     let block = super::rules::project_participant(
         participant,

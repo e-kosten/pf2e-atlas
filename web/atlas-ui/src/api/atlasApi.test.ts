@@ -1474,41 +1474,44 @@ it("normalizes prepared damage and recovery without changing their recorded iden
   );
 });
 
-it("normalizes the actual Stunned application preview, including its zero remainder", async () => {
-  const api = await import("./atlasApi");
-  respond({
-    encounter_key: "test",
-    encounter_revision: 2,
-    consequences: [
+it.each([0, 2, null])(
+  "normalizes the Stunned preview remainder %s",
+  async (remainder) => {
+    const api = await import("./atlasApi");
+    respond({
+      encounter_key: "test",
+      encounter_revision: 2,
+      consequences: [
+        {
+          kind: "stunned_actions_lost",
+          participant_key: "actor",
+          before: 3,
+          after: 1,
+          stunned_after: remainder,
+        },
+      ],
+    });
+    const result = await api.previewEncounterCondition("test", "actor", {
+      request_id: "preview-stunned",
+      expected_encounter_revision: 2n,
+      participant_key: "actor",
+      condition_ref: "conditionitems:dfCMdR4wnpbYNTix",
+      value: 2n,
+      event_intent: "apply",
+      decisions: { keep_upright: false },
+      scope: { kind: "everyone" },
+      extra_action: { kind: "unspecified" },
+      immunity_override: false,
+      parameters: { kind: "none" },
+    });
+    expect(result.consequences).toEqual([
       {
         kind: "stunned_actions_lost",
         participant_key: "actor",
-        before: 3,
-        after: 1,
-        stunned_after: 0,
+        before: 3n,
+        after: 1n,
+        stunned_after: remainder === null ? null : BigInt(remainder),
       },
-    ],
-  });
-  const result = await api.previewEncounterCondition("test", "actor", {
-    request_id: "preview-stunned",
-    expected_encounter_revision: 2n,
-    participant_key: "actor",
-    condition_ref: "conditionitems:dfCMdR4wnpbYNTix",
-    value: 2n,
-    event_intent: "apply",
-    decisions: { keep_upright: false },
-    scope: { kind: "everyone" },
-    extra_action: { kind: "unspecified" },
-    immunity_override: false,
-    parameters: { kind: "none" },
-  });
-  expect(result.consequences).toEqual([
-    {
-      kind: "stunned_actions_lost",
-      participant_key: "actor",
-      before: 3n,
-      after: 1n,
-      stunned_after: 0n,
-    },
-  ]);
-});
+    ]);
+  },
+);

@@ -372,12 +372,8 @@ pub(super) fn resolve_strike(
         .authored_adjustment(),
         atlas_record::source_record::SourceFieldView::NotApplicable
     );
-    let causes = super::rules::relationships::observer_defense_causes(
-        &participant.participant_key,
-        &snapshot.participants,
-    );
     let block =
-        super::rules::project_participant(participant, &baseline, adjustment_applicable, &causes);
+        super::rules::project_participant(participant, &baseline, adjustment_applicable, &[]);
     let activity = block
         .activities
         .into_iter()
@@ -455,6 +451,7 @@ pub(super) fn resolve_strike(
     }
     for cause in
         super::rules::causes::condition_causes(participant, None, &baseline.source_conditions)
+            .active
     {
         if cause.rule == super::conditions::ConditionRule::Blinded {
             conditional.push(RuntimeEffectNoteView {

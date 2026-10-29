@@ -78,9 +78,11 @@ fn prepare(
                         "Choose another participant as the strike target.",
                     )
                 })?;
+            let target_sources = super::hydration::participant_source_conditions(subject, &records);
             let requirements = super::rules::relationships::targeting_requirements(
                 subject,
                 &participant.participant_key,
+                &target_sources,
             );
             let observer_source = super::hydration::resolve_record_ref(
                 workspace.retrieval_mut(),
@@ -99,21 +101,17 @@ fn prepare(
                 None,
             );
             let mut dc = requirements.flat_check_dc;
-            let mut ids = requirements
-                .source_ids
-                .into_iter()
-                .map(Into::into)
-                .collect::<Vec<super::rules::causes::ConditionSourceKey>>();
+            let mut ids = requirements.source_ids;
             if dazzled.applies == Some(true) {
                 dc = Some(dc.unwrap_or(0).max(5));
                 ids.extend(dazzled.source_ids);
             }
-            let target_sources = super::hydration::participant_source_conditions(subject, &records);
             let causes = super::rules::causes::condition_causes(
                 subject,
                 Some(&participant.participant_key),
                 &target_sources,
-            );
+            )
+            .active;
             let prevents_effect = activity.traits_known
                 && causes.iter().any(|cause| {
                     (cause.rule == super::conditions::ConditionRule::Blinded
@@ -127,7 +125,7 @@ fn prepare(
                 Some(EncounterTargetingRequirementsView {
                     prevents_effect,
                     requires_guessed_location: requirements.requires_guessed_location,
-                    check_senses: dazzled.applies.is_none(),
+                    check_senses: dazzled.applies.is_none() || requirements.needs_context,
                 }),
                 check,
             )

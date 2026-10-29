@@ -45,9 +45,18 @@ immunity does not become blanket immunity to all conditions it could cause.
 
 Independent saved condition sources retain identity, scope, parameters, duration
 and origin. Resolve scope before suppression and derive maintained grants without
-saving duplicate child rows. Removing one source cannot remove an independent
-effect. Persistent consequences, such as Drained HP loss and falling Prone, use
-explicit event plans. Correcting an entry differs from applying an effect now.
+saving duplicate child rows. The resolver carries known and uncertain causes
+together, applies recipient immunity to every maintained child and observer-relative
+grant, and retains the parent when only its child is immune. A saved immunity
+override admits that source only; it does not waive a different child immunity.
+Possible overrides make the affected root and its maintained children uncertain
+before downstream predicates are evaluated. The two-stage expansion is bounded
+by a catalog contract: an effective override target and its maintained descendants
+cannot themselves supply an effective suppressor. A graph test guards this
+assumption when the pin changes. Predicate cycles make the varying causes uncertain
+without dropping unrelated known causes. Removing one source cannot remove an
+independent effect. Persistent consequences, such as Drained HP loss and falling
+Prone, use explicit event plans. Correcting an entry differs from applying an effect now.
 Behavioral subjects, such as a fascination or threat, are distinct from the source
 that applied the condition. Missing subjects require context only when an action
 depends on them; the causal source is not an implicit substitute.
@@ -55,15 +64,25 @@ depends on them; the causal source is not an implicit substitute.
 Source-owned conditions are distinct, read-only causes. Checked owned conditions,
 maintained in-memory grants and unlimited owned effects feed the same cause
 resolver as temporary saved conditions. Statistics, HP limits, senses, action
-restrictions and regain forecasts consume those resolved causes. They retain the
+restrictions, regain forecasts, targeting and lifecycle calculations consume those
+resolved causes. `condition_causes` is the shared effective-condition accessor;
+`known_presence`, `known_value` and bounded comparisons preserve uncertainty.
+Saved-row lookups select edits or captured history rather than effective arithmetic.
+They retain the
 participant, root, checked owner, rule ordinal and source fingerprint; they never
 receive synthetic saved condition IDs. Constant badge overrides preserve supplied
 magnitudes. Missing values and uncertain activation remain explicit. Conditions
 owned by a creature, such as Sickened Doprillu's Sickened, remain source-linked
 and read-only; a separate temporary condition remains independently editable. A higher
 temporary Slowed value does not erase the inherent source; removing it exposes
-the inherited value again. Turn-start and explicit regain prepare reference facts
-before the guarded write and check the reference revision before allocating stock.
+the inherited value again. Turn-start, explicit regain and Spend prepare reference
+facts before the guarded write and check the reference revision. Spend honors known
+source restrictions without reallocating stock; Restore and Correct remain manual
+corrections. Unavailable source facts retain manual tracking when no known prohibition
+applies. A rules-owned RegainPlan evaluates allowance, Stunned loss, allocation,
+Quickened restrictions and typed missing facts together. Presentation adapts that
+plan; allocation never consumes display notes or DTOs. Regain and validated explicit
+Stunned recovery use one pure consumption reducer.
 Matching turn receipts recover before reference loading or that guard. Recorded
 stock survives later source changes; subsequent forecasts use the current source.
 Each successful allocation also saves typed calculation facts with the turn stock,
@@ -82,7 +101,15 @@ turn, including when regaining actions is pending.
 Grant immunity uses the shared checked immunity policy. Bounded condition
 predicates and supported authored RollOption switches/finite condition choices
 select maintained causes. Participant overrides persist separately from derived
-conditions with exact source identity and guarded writes. The pinned finite-choice
+conditions with stable owner/rule slots and versioned declaration identities. The
+identity hashes supported option, choice and linked-grant semantics, or frequency
+capacity/interval; display labels, whole-corpus fingerprints and authored initial
+values are excluded. Unrelated reference edits preserve saved state. Changed or
+removed declarations, moved slots and legacy entries without that identity use
+the current authored defaults; Atlas does not silently rebind them or create a
+confirmation workflow. Navigation fingerprints still guard commands against stale
+source views. All ability-state writers, including turn and overnight refresh,
+store the current declaration identity. The pinned finite-choice
 preparer supplies its first authored choice when no selection is stored; toggles
 use the authored value or pinned default. Equipment requirements, context-dependent
 expressions and unsupported effect lifetimes remain authored rules. Prose-only
@@ -94,15 +121,32 @@ saved encounter expenditure. Use and Restore are explicit, independent of dice a
 action/reaction tracking. Initiative advancement refreshes per-turn frequencies
 for all participants and per-round frequencies at their owner's turn start, matching
 the pinned Foundry recharge policy. Longer intervals restore explicitly because
-Atlas has no game clock. Reads and source refreshes do not reset expenditure.
+Atlas has no game clock. Reads and unrelated source refreshes do not reset bound expenditure.
 Turn advancement prepares incoming source conditions and frequency refreshes in
 one reference snapshot before the guarded write; it never re-resolves a mutable
 encounter slug between preparations. Ordinary resolved damage that needs no
 source lifecycle facts, and removal of an unmodeled custom condition, remain
 state-local operations. Healing still resolves source conditions to preserve
-effective maximum HP.
-A source-option transition that increases effective Drained charges the increase
-once through the existing guarded HP event; switching it off does not heal HP.
+effective maximum HP. Events that can reach zero HP also prepare source mortality
+facts: source-owned and saved Petrified both destroy the statue at zero, including
+when dying tracking is disabled or persistent damage uses table totals. Table totals
+remain after protections and are never reduced by IWR a second time. Unknown
+Petrified applicability blocks that mortality decision rather than inventing an
+ordinary knockout. Saved-row recovery selectors remain separate from effective
+condition truth; source-owned conditions are read-only.
+Explicit saved-condition and source-option changes share one before/after
+consequence planner. It resolves supported predicates after generated condition
+changes before calculating Drained loss and mortality; switching Drained off does
+not heal HP. Own-turn Stunned changes use effective sources with the recorded
+remaining allowance and the same saved-source consumption reducer. Immutable
+causes are never reduced through fabricated saved rows. Healing or recovery awards
+Wounded only when effective Dying actually ends, using the resulting condition facts.
+Unknown facts block only calculations whose result depends on them, before RNG or
+writes. A table degree still needs condition facts to calculate its consequences.
+Pending decisions with unproven freshness remain available with an explanation;
+source-independent correction remains possible. Exact maximum HP and overnight
+admission cannot treat unavailable source data as known empty. Dominated or capped
+uncertain values do not hide a result that is already established.
 New source-derived participants start at their effective capacity while retaining
 baseline maximum HP. Initialization completes inside the creation transaction and
 never rewrites an existing participant. Source-derived capacity is never charged
@@ -269,8 +313,9 @@ path is replayed by reading an outgoing event.
 Waking from
 noise is guidance alongside the existing Perception roller, not a DC-entry form.
 
-Observer-relative effects derive directly from active condition sources and their
-scope. Hidden/Undetected produce only the affected observer's defense and targeting
+Observer-relative effects derive directly from resolved saved and authored condition
+sources and their scope. Possible causes remain uncertain through recipient immunity.
+Hidden/Undetected produce only the affected observer's defense and targeting
 context; absence never means Observed. Invisible alone does not establish detection.
 Controlled retains source attribution and instructions; conflicting instructions
 remain a table decision. There are no saved baseline/adjudication layers, relationship
@@ -295,7 +340,9 @@ row rather than becoming an unrelated action/disclosure collection there.
 Recovery hints/results remain anchored to the requested action, including while
 successful resolution removes the associated condition. Listing and check
 submission share the offered source facts. Known checks use the shared dice
-surface; table outcomes use direct controls without raw-result entry. Missing DCs,
+surface; table outcomes use direct controls without raw-result entry. The recovery
+API accepts Roll or a table degree; the unused raw total/natural input is retired.
+Historical check outcomes retain their stored table totals. Missing DCs,
 modifiers, elapsed time and recovery reasons never become required recovery fields.
 Wounded, waking and overnight recovery use hints and existing row controls rather
 than separate validation commands. Broken uses its derived/source threshold and
@@ -305,14 +352,16 @@ resolves the actual check outcome once; it is never saved as an attempt. The con
 encounter event executor owns receipt recovery, reference/participant checks and
 entry to local-state's guarded callback. Storage remains the sole atomic write owner.
 
-Recovery reads reference facts for an integrated Retch roll's current Fortitude
-and for Stunned action loss when no usable current stock has been recorded.
-Known recorded stock, other hints, table outcomes and saved-counter recovery have
-no reference dependency or reference revision guard. When reference facts are
-unavailable, those other offers remain usable; an integrated Retch roll or an
-unrecorded Stunned allowance is not guessed. Outcome
-validation retains the specific rule message through the atomic boundary; failed
-outcomes save no receipt or boundary claim.
+Recovery prepares checked source facts for Dying consequences and Stunned action
+loss, including when the remaining action stock is already recorded. An integrated
+Retch roll also needs current Fortitude. Retch table degrees and saved-only
+Frightened recovery retain their independent input policy. When required source
+facts are unavailable, unrelated offers and manual corrections remain usable;
+Atlas does not invent a condition value or an action allowance. Outcome validation
+retains the specific rule message and authored source label through the atomic
+boundary; failed outcomes save no receipt or boundary claim. A bounded known loss
+can be recorded without claiming an exact Stunned magnitude; its historical
+adjustment and remaining-condition preview preserve that distinction.
 
 Condition editing has one control-to-command adapter and one session owner for its
 request draft, query-backed preview and submission. Semantic preview effects identify

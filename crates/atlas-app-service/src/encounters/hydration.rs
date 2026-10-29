@@ -117,6 +117,21 @@ pub(super) fn participant_source_conditions(
         .map(|baseline| baseline.source_conditions.clone())
         .unwrap_or_else(super::rules::source_conditions::SourceConditions::unavailable)
 }
+pub(super) fn roster_source_conditions(
+    participants: &[EncounterParticipant],
+    records: &BTreeMap<String, HydratedParticipantRecord>,
+) -> BTreeMap<String, super::rules::source_conditions::SourceConditions> {
+    participants
+        .iter()
+        .map(|participant| {
+            (
+                participant.participant_key.clone(),
+                participant_source_conditions(participant, records),
+            )
+        })
+        .collect()
+}
+
 pub(super) fn resolve_record_ref(
     r: &mut atlas_search::AtlasRetrievalService,
     record_ref: &str,

@@ -44,7 +44,10 @@ const actor = encounterParticipant({
 });
 function setup(value = row) {
   api.getEncounterHpLifecycle.mockResolvedValue([
-    { ...value, knockout_options: actor.knockout_options },
+    {
+      ...value,
+      knockout_options: value.unavailable_reason ? [] : actor.knockout_options,
+    },
   ]);
   const onResolve = vi
     .fn()
@@ -137,4 +140,18 @@ it("closing leaves the pending knockout available without changing encounter sta
   expect(trigger).toBeVisible();
   fireEvent.click(trigger);
   await screen.findByRole("button", { name: "Apply" });
+});
+
+it("explains uncertain knockout facts while leaving unrelated status controls usable", async () => {
+  const onResolve = setup({
+    ...row,
+    unavailable_reason:
+      "Check the Doomed value and source before resolving this event. Source: Maintained condition.",
+  });
+  fireEvent.click(await screen.findByRole("button", { name: "More status actions" }));
+  expect(await screen.findByRole("status")).toHaveTextContent("Doomed");
+  expect(screen.getByRole("status")).toHaveTextContent("Maintained condition");
+  expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Mark defeated" })).toBeEnabled();
+  expect(onResolve).not.toHaveBeenCalled();
 });

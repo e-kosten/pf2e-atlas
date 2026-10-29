@@ -149,7 +149,11 @@ export function EncounterLifeStatus({
             {row ? (
               <EncounterKnockout
                 key={row.consequence_key}
-                participant={{ ...participant, knockout_options: row.knockout_options }}
+                participant={{
+                  ...participant,
+                  knockout_options: row.knockout_options,
+                  knockout_unavailable_reason: row.unavailable_reason,
+                }}
                 participants={participants}
                 currentTurnKey={currentTurnKey}
                 initialContext={row.context}

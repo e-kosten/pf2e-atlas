@@ -15,27 +15,35 @@ pub(in crate::encounters) fn dazzled_concealment(
     distance: Option<f64>,
     vision_only: Option<bool>,
 ) -> DazzledConcealment {
+    let unavailable = super::source_conditions::SourceConditions::unavailable();
     let causes = super::causes::condition_causes(
         observer,
         Some(other),
         baseline
             .map(|baseline| &baseline.source_conditions)
-            .unwrap_or_else(|| super::source_conditions::SourceConditions::empty()),
+            .unwrap_or_else(|| {
+                if observer.record_key.is_some() {
+                    &unavailable
+                } else {
+                    super::source_conditions::SourceConditions::empty()
+                }
+            }),
     );
     let source_ids = causes
+        .active
         .iter()
+        .chain(&causes.uncertain)
         .filter(|cause| cause.rule == ConditionRule::Dazzled)
         .map(|cause| cause.source.key())
         .collect::<Vec<_>>();
-    if source_ids.is_empty() {
+    let dazzled = causes.known_presence(ConditionRule::Dazzled).ok();
+    if dazzled == Some(false) {
         return DazzledConcealment {
             applies: Some(false),
             source_ids,
         };
     }
-    let deafened = causes
-        .iter()
-        .any(|cause| cause.rule == ConditionRule::Deafened);
+    let deafened = causes.known_presence(ConditionRule::Deafened).ok();
     let established = baseline.and_then(|baseline| {
         if !baseline.senses_known {
             return None;
@@ -51,7 +59,7 @@ pub(in crate::encounters) fn dazzled_concealment(
         }
         let alternative = baseline.sense_facts.iter().any(|sense| {
             !(sense.visual
-                || (deafened && sense.auditory)
+                || (deafened == Some(true) && sense.auditory)
                 || sense.available == Some(false)
                 || matches!(sense.precision, Some(super::senses::Precision::Imprecise | super::senses::Precision::Vague))
                 || matches!((sense.range_feet, distance), (Some(range), Some(distance)) if distance > range))
@@ -59,7 +67,11 @@ pub(in crate::encounters) fn dazzled_concealment(
         (!alternative).then_some(true)
     });
     DazzledConcealment {
-        applies: established.or(vision_only),
+        applies: match (dazzled, established.or(vision_only)) {
+            (_, Some(false)) => Some(false),
+            (Some(true), known) => known,
+            _ => None,
+        },
         source_ids,
     }
 }

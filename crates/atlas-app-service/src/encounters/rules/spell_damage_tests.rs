@@ -158,3 +158,30 @@ fn invalid_selected_rank_does_not_fall_back_to_an_exact_base_spell() {
             .is_some()
     );
 }
+
+#[test]
+fn stupefied_penalizes_known_mental_attribute_damage() {
+    let source = atlas_search::test_support::record("actors", "Actor", json!({
+        "_id":"aaaaaaaaaaaaaaaa", "type":"npc", "name":"Mental caster",
+        "system":{"details":{"level":{"value":4}},"attributes":{"adjustment":null},"abilities":{"int":{"mod":5}}},
+        "items":[
+            {"_id":"bbbbbbbbbbbbbbbb","type":"spellcastingEntry","name":"Arcane","system":{"ability":{"value":"int"},"spelldc":{"value":12,"dc":22}}},
+            {"_id":"cccccccccccccccc","type":"spell","name":"Bolt","system":{"level":{"value":1},"location":{"value":"bbbbbbbbbbbbbbbb"},"traits":{"value":["attack"]},"ritual":null,"damage":{"first":{"formula":"1d6","applyMod":true,"type":"fire","kinds":["damage"],"category":null}}}}
+        ]
+    })).record;
+    let baseline = super::authored_stat_baseline(&source, "fixture", None).unwrap();
+    let mut p = participant();
+    p.conditions = vec![super::numerical_tests::condition(
+        1,
+        ConditionRule::Stupefied,
+        Some(2),
+    )];
+    let projected = super::project_participant(&p, &baseline, true, &[]);
+    let spell = projected
+        .activities
+        .iter()
+        .find(|a| a.label == "Bolt")
+        .unwrap();
+    assert_eq!(spell.damage[0].adjusted_formula.as_deref(), Some("(1d6)+3"));
+    assert!(spell.damage[0].unavailable_reason.is_none());
+}

@@ -1129,13 +1129,13 @@ async function atlasFetchEncounter<T>(
         throw new AtlasApiError(200, "Invalid condition consequence");
       return {
         ...value,
-        ...optionalIntegers(value, [
-          "amount",
-          "magnitude_increase",
-          "before",
-          "after",
-          "stunned_after",
-        ]),
+        ...optionalIntegers(value, ["amount", "magnitude_increase", "before", "after"]),
+        ...(value.kind === "stunned_actions_lost"
+          ? {
+              stunned_after:
+                value.stunned_after === null ? null : toBigInt(value.stunned_after),
+            }
+          : {}),
       };
     });
   if (Array.isArray(result.encounters))

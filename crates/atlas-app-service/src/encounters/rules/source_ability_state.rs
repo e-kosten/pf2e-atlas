@@ -8,6 +8,7 @@ use atlas_record::source_record::ItemSourceView;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct SourceOption {
+    pub declaration_identity: String,
     pub owner: OwnedContentLocator,
     pub ordinal: usize,
     pub label: String,
@@ -26,6 +27,7 @@ pub(crate) struct SourceOptionChoice {
 }
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct SourceUses {
+    pub declaration_identity: String,
     pub owner: OwnedContentLocator,
     pub label: String,
     pub maximum: i64,
@@ -33,18 +35,15 @@ pub(crate) struct SourceUses {
     pub per: AbilitySystemSourceFrequencyPer,
 }
 impl SourceOption {
-    pub fn state(
-        &self,
-        participant: &EncounterParticipant,
-        fingerprint: Option<&str>,
-    ) -> (bool, Option<String>) {
+    pub fn state(&self, participant: &EncounterParticipant) -> (bool, Option<String>) {
         participant
             .ability_states
             .iter()
             .find(|state| {
                 state.owner == self.owner
                     && state.rule_ordinal == Some(self.ordinal)
-                    && Some(state.source_fingerprint.as_str()) == fingerprint
+                    && state.declaration_identity.as_deref()
+                        == Some(self.declaration_identity.as_str())
             })
             .and_then(|state| match &state.value {
                 AbilityStateValue::Option { active, selection } => {
@@ -73,14 +72,15 @@ impl SourceOption {
     }
 }
 impl SourceUses {
-    pub fn remaining(&self, participant: &EncounterParticipant, fingerprint: Option<&str>) -> i64 {
+    pub fn remaining(&self, participant: &EncounterParticipant) -> i64 {
         participant
             .ability_states
             .iter()
             .find(|state| {
                 state.owner == self.owner
                     && state.rule_ordinal.is_none()
-                    && Some(state.source_fingerprint.as_str()) == fingerprint
+                    && state.declaration_identity.as_deref()
+                        == Some(self.declaration_identity.as_str())
             })
             .and_then(|state| match state.value {
                 AbilityStateValue::Uses { remaining } => Some(remaining),
@@ -88,6 +88,68 @@ impl SourceUses {
             })
             .unwrap_or(self.initial)
     }
+}
+
+/// Identity covers supported behavior, independently of navigation generation and defaults.
+pub(super) fn bind_declarations(
+    root: &str,
+    options: &mut [SourceOption],
+    uses: &mut [SourceUses],
+    grants: &[super::source_conditions::SourceCondition],
+) -> AppServiceResult<()> {
+    for option in options {
+        let linked = grants
+            .iter()
+            .filter(|grant| grant.owner == option.owner)
+            .map(|grant| {
+                (
+                    grant.grant_ordinal,
+                    grant.rule.definition().slug,
+                    grant.value,
+                    &grant.predicate,
+                    grant
+                        .choice
+                        .as_ref()
+                        .map(|choice| (choice.option_ordinal, choice.value.as_str())),
+                )
+            })
+            .collect::<Vec<_>>();
+        let choices = option
+            .choices
+            .iter()
+            .map(|choice| (choice.value.as_str(), choice.rule.definition().slug))
+            .collect::<Vec<_>>();
+        option.declaration_identity = declaration_identity(&(
+            "option",
+            root,
+            &option.owner,
+            option.ordinal,
+            &option.option,
+            option.always_active,
+            &option.predicate,
+            choices,
+            linked,
+        ))?;
+    }
+    for ability in uses {
+        ability.declaration_identity =
+            declaration_identity(&("uses", root, &ability.owner, ability.maximum, ability.per))?;
+    }
+    Ok(())
+}
+
+fn declaration_identity(recipe: &impl serde::Serialize) -> AppServiceResult<String> {
+    use sha2::{Digest, Sha256};
+    let bytes = serde_json::to_vec(recipe).map_err(|error| {
+        crate::AppServiceError::new(
+            atlas_app_model::AppErrorCode::InternalError,
+            format!("Could not identify the ability declaration: {error}"),
+        )
+    })?;
+    Ok(format!(
+        "ability-declaration/v1:{:x}",
+        Sha256::digest(bytes)
+    ))
 }
 
 pub(super) fn options(
@@ -177,6 +239,7 @@ pub(super) fn options(
             .cloned()
             .or_else(|| choices.first().map(|choice| choice.value.clone()));
         result.push(SourceOption {
+            declaration_identity: String::new(),
             owner: owner.clone(),
             ordinal,
             label: label.into(),
@@ -217,6 +280,7 @@ pub(super) fn uses(
         _ => return None,
     };
     Some(SourceUses {
+        declaration_identity: String::new(),
         owner: owner.clone(),
         label: label.into(),
         maximum,
@@ -312,5 +376,156 @@ mod tests {
     #[test]
     fn single_switch_keeps_its_owning_ability_label() {
         assert_eq!(views(&["One star used"])[0].label, "Aeon Stars");
+    }
+    fn declaration_fixture() -> Value {
+        json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Original",
+        "system":{"traits":{"value":[]},"attributes":{"immunities":[]}},
+        "items":[{"_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Ability",
+            "system":{"actionType":{"value":"passive"},"frequency":{"max":3,"value":2,"per":"day"},"rules":[
+                {"key":"RollOption","option":"ability-active","toggleable":true,"value":false},
+                {"key":"GrantItem","inMemoryOnly":true,"uuid":"fixture:slowed","predicate":["ability-active"]}
+            ]}}]})
+    }
+    fn prepared(
+        value: Value,
+        fingerprint: &str,
+    ) -> super::super::source_conditions::SourceConditions {
+        let record = atlas_search::test_support::record("actors", "Actor", value).record;
+        let mut sources =
+            source_conditions::source_conditions(&record, |_| Ok(Some(ConditionRule::Slowed)))
+                .unwrap();
+        sources.source_fingerprint = Some(fingerprint.into());
+        sources
+    }
+    fn saved(sources: &super::super::source_conditions::SourceConditions) -> EncounterParticipant {
+        let mut participant = super::super::numerical_tests::participant();
+        let option = &sources.options[0];
+        let ability = &sources.uses[0];
+        participant.ability_states = vec![
+            atlas_local_state::ParticipantAbilityState {
+                owner: option.owner.clone(),
+                rule_ordinal: Some(option.ordinal),
+                source_fingerprint: sources.source_fingerprint.clone().unwrap(),
+                declaration_identity: Some(option.declaration_identity.clone()),
+                value: AbilityStateValue::Option {
+                    active: true,
+                    selection: None,
+                },
+            },
+            atlas_local_state::ParticipantAbilityState {
+                owner: ability.owner.clone(),
+                rule_ordinal: None,
+                source_fingerprint: sources.source_fingerprint.clone().unwrap(),
+                declaration_identity: Some(ability.declaration_identity.clone()),
+                value: AbilityStateValue::Uses { remaining: 0 },
+            },
+        ];
+        participant
+    }
+    #[test]
+    fn unrelated_source_and_label_changes_preserve_bound_options_and_expenditure() {
+        let original = prepared(declaration_fixture(), "old-generation");
+        let participant = saved(&original);
+        let mut updated = declaration_fixture();
+        updated["name"] = json!("Translated creature");
+        updated["system"]["details"] = json!({"description":"Unrelated correction"});
+        updated["items"][0]["name"] = json!("Translated ability");
+        updated["items"][0]["system"]["rules"][0]["label"] = json!("Translated switch");
+        updated["items"][0]["system"]["frequency"]["value"] = json!(3);
+        let current = prepared(updated, "new-generation");
+        assert_eq!(current.options[0].state(&participant), (true, None));
+        assert_eq!(current.uses[0].remaining(&participant), 0);
+        assert!(
+            super::super::causes::condition_causes(&participant, None, &current)
+                .known_presence(ConditionRule::Slowed)
+                .unwrap()
+        );
+    }
+    #[test]
+    fn changed_grant_capacity_and_interval_cannot_inherit_old_state() {
+        let original = prepared(declaration_fixture(), "old");
+        let participant = saved(&original);
+        let mut changed = declaration_fixture();
+        changed["items"][0]["system"]["rules"][1]["alterations"] =
+            json!([{"mode":"override","property":"badge-value","value":2}]);
+        changed["items"][0]["system"]["frequency"]["max"] = json!(4);
+        changed["items"][0]["system"]["frequency"]["value"] = json!(4);
+        let current = prepared(changed, "new");
+        assert_eq!(current.options[0].state(&participant), (false, None));
+        assert_eq!(current.uses[0].remaining(&participant), 4);
+        let mut interval = declaration_fixture();
+        interval["items"][0]["system"]["frequency"]["per"] = json!("round");
+        assert_eq!(prepared(interval, "new").uses[0].remaining(&participant), 2);
+    }
+    #[test]
+    fn legacy_and_mismatched_bindings_use_authored_defaults_without_confirmation() {
+        let sources = prepared(declaration_fixture(), "current");
+        let mut participant = saved(&sources);
+        participant.ability_states[0].declaration_identity = None;
+        participant.ability_states[1].declaration_identity =
+            Some("ability-declaration/v0:obsolete".into());
+        assert_eq!(sources.options[0].state(&participant), (false, None));
+        assert_eq!(sources.uses[0].remaining(&participant), 2);
+    }
+    #[test]
+    fn authored_default_changes_do_not_replace_an_explicit_saved_choice() {
+        let original = prepared(declaration_fixture(), "old");
+        let mut participant = saved(&original);
+        participant.ability_states[0].value = AbilityStateValue::Option {
+            active: false,
+            selection: None,
+        };
+        let mut changed = declaration_fixture();
+        changed["items"][0]["system"]["rules"][0]["value"] = json!(true);
+        assert_eq!(
+            prepared(changed, "new").options[0].state(&participant),
+            (false, None)
+        );
+    }
+    #[test]
+    fn changed_choice_membership_resets_selection_but_labels_do_not() {
+        let mut original = declaration_fixture();
+        original["items"][0]["system"]["rules"][0]["suboptions"] = json!([
+            {"label":"First","value":"fixture:first"},{"label":"Second","value":"fixture:second"}
+        ]);
+        original["items"][0]["system"]["rules"][1]["uuid"] =
+            json!("{item|flags.system.rulesSelections.abilityActive}");
+        let sources = prepared(original.clone(), "old");
+        let mut participant = saved(&sources);
+        participant.ability_states[0].value = AbilityStateValue::Option {
+            active: true,
+            selection: Some("fixture:second".into()),
+        };
+        let mut renamed = original.clone();
+        renamed["items"][0]["system"]["rules"][0]["suboptions"][1]["label"] =
+            json!("Translated second choice");
+        assert_eq!(
+            prepared(renamed, "new").options[0].state(&participant),
+            (true, Some("fixture:second".into()))
+        );
+        original["items"][0]["system"]["rules"][0]["suboptions"] =
+            json!([{"label":"First","value":"fixture:first"}]);
+        assert_eq!(
+            prepared(original, "new").options[0].state(&participant),
+            (false, Some("fixture:first".into()))
+        );
+    }
+    #[test]
+    fn moved_or_removed_option_slots_do_not_rebind_saved_switches() {
+        let original = declaration_fixture();
+        let sources = prepared(original.clone(), "old");
+        let participant = saved(&sources);
+        let mut moved = original.clone();
+        moved["items"][0]["system"]["rules"]
+            .as_array_mut()
+            .unwrap()
+            .insert(0, json!({"key":"UnmodeledRule"}));
+        let current = prepared(moved, "new");
+        assert_eq!(current.options[0].ordinal, 1);
+        assert_eq!(current.options[0].state(&participant), (false, None));
+        assert_eq!(current.uses[0].remaining(&participant), 0);
+        let mut removed = original;
+        removed["items"][0]["system"]["rules"] = json!([]);
+        assert!(prepared(removed, "new").options.is_empty());
     }
 }

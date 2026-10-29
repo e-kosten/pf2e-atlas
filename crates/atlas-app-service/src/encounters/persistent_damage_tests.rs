@@ -2136,3 +2136,232 @@ fn concurrent_preparation_cannot_be_omitted_or_lost_by_table_clear() {
         }
     }
 }
+
+#[test]
+fn source_and_saved_petrified_die_at_zero_with_or_without_dying_tracking() {
+    use serde_json::json;
+    for source_owned in [false, true] {
+        for track in [false, true] {
+            let (f, _artifact, key, participant) = source_petrified_fixture(Some(source_owned));
+            if !source_owned {
+                f.worker.add_encounter_participant_condition(&key, serde_json::from_value(json!({
+                    "request_id":"saved-statue", "expected_encounter_revision":f.worker.encounter(&key).unwrap().revision,
+                    "participant_key":participant,"condition_ref":super::conditions::ConditionRule::Petrified.definition().record_key
+                })).unwrap()).unwrap();
+            }
+            f.worker.set_encounter_life_settings(&key,&participant,serde_json::from_value(json!({
+                "request_id":"track-statue","expected_encounter_revision":f.worker.encounter(&key).unwrap().revision,"track_dying":track
+            })).unwrap()).unwrap();
+            let before = f.worker.encounter(&key).unwrap();
+            let request = serde_json::from_value(json!({"request_id":"destroy-statue","expected_revision":before.participants[0].revision,"participant_key":participant,"action":{"kind":"damage","amount":"60"},"context":{"lethality":"lethal","critical":false,"keep_current_initiative":true}})).unwrap();
+            f.worker.apply_encounter_hp_action(&key, request).unwrap();
+            let after = snapshot(&f, &key).participants.remove(0);
+            assert_eq!(after.current_hp, Some(0));
+            assert_eq!(after.mortality, atlas_local_state::MortalityState::Dead);
+            assert!(
+                !after
+                    .conditions
+                    .iter()
+                    .any(
+                        |c| super::conditions::condition_rule_for_key(c.condition_key.as_deref())
+                            == Some(super::conditions::ConditionRule::Dying)
+                    )
+            );
+        }
+    }
+}
+
+#[test]
+fn table_persistent_damage_uses_source_petrified_mortality_and_replays_before_reference_reads() {
+    let (f, artifact, key, participant) = source_petrified_fixture(Some(true));
+    let mut request = source_statue_damage(&f, &key, &participant);
+    for group in &mut request.groups {
+        group.damage = PersistentDamageInput::TableResult { amount: 20 };
+    }
+    let result = f
+        .worker
+        .apply_persistent_damage(&key, request.clone())
+        .unwrap();
+    assert_eq!(result.total, 60);
+    assert_eq!(
+        snapshot(&f, &key).participants[0].mortality,
+        atlas_local_state::MortalityState::Dead
+    );
+    atlas_search::test_support::invalidate_reference(
+        artifact.path(),
+        atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+    )
+    .unwrap();
+    assert_eq!(
+        f.worker.apply_persistent_damage(&key, request).unwrap(),
+        result
+    );
+}
+
+#[test]
+fn uncertain_petrified_does_not_silently_use_ordinary_mortality() {
+    use serde_json::json;
+    let (f, _artifact, key, participant) = source_petrified_fixture(None);
+    let before = f.worker.encounter(&key).unwrap();
+    let request = serde_json::from_value(json!({"request_id":"unknown-statue","expected_revision":before.participants[0].revision,"participant_key":participant,"action":{"kind":"damage","amount":"60"}})).unwrap();
+    assert!(f.worker.apply_encounter_hp_action(&key, request).is_err());
+    assert_eq!(snapshot(&f, &key).participants[0].current_hp, Some(60));
+}
+
+#[test]
+fn source_condition_spend_matches_live_permissions_and_preserves_corrections() {
+    let (f, _artifact, key, participant) = source_petrified_fixture(Some(false));
+    f.worker
+        .advance_encounter_turn(
+            &key,
+            AdvanceEncounterTurnRequest {
+                request_id: "review-start".into(),
+                expected_revision: f.worker.encounter(&key).unwrap().revision,
+            },
+        )
+        .unwrap();
+    let detail = f.worker.encounter(&key).unwrap();
+    let actor = &detail.participants[0];
+    let ability = actor.ability_states.as_ref().unwrap().first().unwrap();
+    f.worker
+        .update_encounter_ability_state(
+            &key,
+            UpdateEncounterAbilityStateRequest {
+                request_id: "review-petrify".into(),
+                expected_encounter_revision: detail.revision,
+                expected_participant_revision: actor.revision,
+                participant_key: participant.clone(),
+                navigation: ability.navigation.clone(),
+                rule_ordinal: ability.rule_ordinal,
+                action: EncounterAbilityStateAction::SetOption {
+                    active: true,
+                    selection: None,
+                },
+            },
+        )
+        .unwrap();
+    for resource in [TurnResourceKind::Action, TurnResourceKind::Reaction] {
+        let detail = f.worker.encounter(&key).unwrap();
+        let before = detail.participants[0].turn_resources.as_ref().unwrap();
+        let permission = if resource == TurnResourceKind::Reaction {
+            &before.can_spend_reactions
+        } else {
+            &before.can_spend_actions
+        };
+        assert!(
+            !permission.available,
+            "live source projection must prohibit spending"
+        );
+        let result = f.worker.update_turn_resources(
+            &key,
+            UpdateTurnResourcesRequest {
+                request_id: format!("review-spend-{resource:?}"),
+                expected_encounter_revision: detail.revision,
+                participant_key: participant.clone(),
+                turn_key: before.turn_key.clone(),
+                action: TurnResourceAction::Spend { resource },
+            },
+        );
+        assert!(result.unwrap_err().to_string().contains("Petrified"));
+        let unchanged = f.worker.encounter(&key).unwrap();
+        assert_eq!(unchanged.revision, detail.revision);
+        let after = unchanged.participants[0].turn_resources.as_ref().unwrap();
+        assert_eq!(after.regular_remaining, before.regular_remaining);
+        assert_eq!(after.reactions_remaining, before.reactions_remaining);
+        let correction = UpdateTurnResourcesRequest {
+            request_id: format!("correct-{resource:?}"),
+            expected_encounter_revision: detail.revision,
+            participant_key: participant.clone(),
+            turn_key: before.turn_key.clone(),
+            action: TurnResourceAction::Correct {
+                resource,
+                remaining: 0,
+            },
+        };
+        f.worker.update_turn_resources(&key, correction).unwrap();
+        let corrected = f.worker.encounter(&key).unwrap();
+        f.worker
+            .update_turn_resources(
+                &key,
+                UpdateTurnResourcesRequest {
+                    request_id: format!("restore-{resource:?}"),
+                    expected_encounter_revision: corrected.revision,
+                    participant_key: participant.clone(),
+                    turn_key: before.turn_key.clone(),
+                    action: TurnResourceAction::Restore { resource },
+                },
+            )
+            .unwrap();
+        let restored = f.worker.encounter(&key).unwrap();
+        let resources = restored.participants[0].turn_resources.as_ref().unwrap();
+        assert_eq!(
+            if resource == TurnResourceKind::Reaction {
+                resources.reactions_remaining
+            } else {
+                resources.regular_remaining
+            },
+            Some(1)
+        );
+    }
+}
+
+#[test]
+fn source_spend_recovers_before_reference_loading_and_keeps_unavailable_source_manual_tracking() {
+    let (f, artifact, key, participant) = source_petrified_fixture(Some(false));
+    f.worker
+        .advance_encounter_turn(
+            &key,
+            AdvanceEncounterTurnRequest {
+                request_id: "source-start".into(),
+                expected_revision: f.worker.encounter(&key).unwrap().revision,
+            },
+        )
+        .unwrap();
+    let detail = f.worker.encounter(&key).unwrap();
+    let request = UpdateTurnResourcesRequest {
+        request_id: "source-spend".into(),
+        expected_encounter_revision: detail.revision,
+        participant_key: participant,
+        turn_key: detail.participants[0]
+            .turn_resources
+            .as_ref()
+            .unwrap()
+            .turn_key
+            .clone(),
+        action: TurnResourceAction::Spend {
+            resource: TurnResourceKind::Action,
+        },
+    };
+    let result = f
+        .worker
+        .update_turn_resources(&key, request.clone())
+        .unwrap();
+    let spent = snapshot(&f, &key);
+    atlas_search::test_support::invalidate_reference(
+        artifact.path(),
+        atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+    )
+    .unwrap();
+    assert_eq!(
+        f.worker
+            .update_turn_resources(&key, request.clone())
+            .unwrap(),
+        result
+    );
+    assert_eq!(snapshot(&f, &key), spent);
+    let manual = UpdateTurnResourcesRequest {
+        request_id: "source-unavailable-spend".into(),
+        expected_encounter_revision: spent.encounter.revision,
+        ..request
+    };
+    f.worker.update_turn_resources(&key, manual).unwrap();
+    let after = snapshot(&f, &key);
+    assert_eq!(
+        after.participants[0]
+            .turn_resources
+            .as_ref()
+            .unwrap()
+            .regular_remaining,
+        1
+    );
+}

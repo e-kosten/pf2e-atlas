@@ -1,7 +1,7 @@
 import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { Dice5 } from "lucide-react";
-import { Alert, Button, Form, InputNumber, Popover, Tooltip } from "antd";
+import { Alert, Button, Form, InputNumber, Popover, Space, Tooltip } from "antd";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   PersistentDamageGroupView,
@@ -60,7 +60,18 @@ export function EncounterPersistentRecovery({
   const [revision, setRevision] = useState(encounterRevision);
   const [error, setError] = useState<string>();
   const dice = useDiceRoll<PersistentRecoveryResultView>();
-  const result = dice.result ?? recordedResult;
+  const [tableResult, setTableResult] = useState<PersistentRecoveryResultView>();
+  const [clearing, setClearing] = useState(false);
+  const result = tableResult ?? dice.result ?? recordedResult;
+  const check = result?.roll
+    ? result
+    : tableResult &&
+      (dice.result?.roll
+        ? dice.result
+        : recordedResult?.roll
+          ? recordedResult
+          : undefined);
+  const displayedDc = check?.dc ?? result?.dc;
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const resultFocus = useRef<{
@@ -111,6 +122,8 @@ export function EncounterPersistentRecovery({
     if (
       disabled ||
       pending ||
+      clearing ||
+      dice.busy ||
       result?.success ||
       (changed && !result) ||
       !available ||
@@ -152,15 +165,46 @@ export function EncounterPersistentRecovery({
       if (cause instanceof Error) setError(userErrorMessage(cause));
     }
   };
+  const clear = async () => {
+    if (
+      disabled ||
+      pending ||
+      clearing ||
+      dice.busy ||
+      result?.success ||
+      (changed && !result) ||
+      !available
+    )
+      return;
+    setClearing(true);
+    setError(undefined);
+    try {
+      const completed = await onRecover({
+        resolution: "clear",
+        mode,
+        boundary_key: boundaryKey,
+        expected_encounter_revision: result ? encounterRevision : revision,
+        participant_key: participantKey,
+        episode_id: group.episode_id,
+        dc_override: null,
+      });
+      setTableResult(completed);
+      onResult?.(completed);
+    } catch (cause) {
+      setError(userErrorMessage(cause, "Could not clear the effect."));
+    } finally {
+      setClearing(false);
+    }
+  };
   return (
     <>
       <Popover
         title={`${damageType} recovery`}
-        placement="bottomRight"
+        placement="top"
         open={open}
         trigger="click"
         onOpenChange={(next) => {
-          if (pending) return;
+          if (pending || clearing || dice.busy) return;
           if (next) {
             resetFields();
             setRevision(encounterRevision);
@@ -171,7 +215,9 @@ export function EncounterPersistentRecovery({
         }}
         content={
           <div ref={panel} className="atlas-dice-popover">
-            {dice.error && <ErrorNotice error={dice.error} title={dice.error} />}
+            {dice.error && !tableResult?.success && (
+              <ErrorNotice error={dice.error} title={dice.error} />
+            )}
             {error && (
               <ErrorNotice
                 error={error}
@@ -203,7 +249,7 @@ export function EncounterPersistentRecovery({
                   disabled || pending || result?.success || (changed && !result)
                 }
               >
-                <div className="encounter-recovery-roll">
+                <div className="encounter-recovery-roll encounter-persistent-recovery-roll">
                   <Form.Item
                     name="dc"
                     label="Flat check DC"
@@ -218,24 +264,44 @@ export function EncounterPersistentRecovery({
                       style={{ width: 72 }}
                     />
                   </Form.Item>
-                  <Button
-                    type="primary"
-                    className="encounter-recovery-roll__submit"
-                    disabled={
-                      disabled ||
-                      pending ||
-                      result?.success ||
-                      (changed && !result) ||
-                      !rollAvailable ||
-                      dice.busy
-                    }
-                    loading={pending || dice.busy}
-                    onClick={() => void run()}
-                  >
-                    {result && !result.success && mode === "explicit"
-                      ? "Reroll"
-                      : "Roll"}
-                  </Button>
+                  <Space size={12}>
+                    <Button
+                      type="primary"
+                      className="encounter-recovery-roll__submit"
+                      disabled={
+                        disabled ||
+                        pending ||
+                        clearing ||
+                        result?.success ||
+                        (changed && !result) ||
+                        !rollAvailable ||
+                        dice.busy
+                      }
+                      loading={pending || dice.busy}
+                      onClick={() => void run()}
+                    >
+                      {result && !result.success && mode === "explicit"
+                        ? "Reroll"
+                        : "Roll"}
+                    </Button>
+                    {mode === "explicit" && (
+                      <Button
+                        disabled={
+                          disabled ||
+                          pending ||
+                          clearing ||
+                          dice.busy ||
+                          result?.success ||
+                          (changed && !result) ||
+                          !available
+                        }
+                        loading={clearing}
+                        onClick={() => void clear()}
+                      >
+                        Clear effect
+                      </Button>
+                    )}
+                  </Space>
                 </div>
                 {!rollAvailable && rollUnavailableReason && (
                   <p>{rollUnavailableReason}</p>
@@ -244,8 +310,8 @@ export function EncounterPersistentRecovery({
             )}
             {result && (
               <>
-                {result.roll && (
-                  <RollResult outcome={result.roll} pending={dice.animating} />
+                {check?.roll && (
+                  <RollResult outcome={check.roll} pending={dice.animating} />
                 )}
                 {!dice.animating && (
                   <p>
@@ -256,7 +322,7 @@ export function EncounterPersistentRecovery({
                       : mode === "end_turn"
                         ? "Recovery failed"
                         : "Still active"}
-                    {result.dc == null ? "" : ` · DC ${result.dc}`}
+                    {displayedDc == null ? "" : ` · DC ${displayedDc}`}
                   </p>
                 )}
               </>
