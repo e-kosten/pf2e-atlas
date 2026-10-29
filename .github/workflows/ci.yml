@@ -92,8 +92,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/atlas-ui/package-lock.json
       - run: npm --prefix web/atlas-ui ci
-      - run: npm --prefix web/atlas-ui run check
-      - run: npm --prefix web/atlas-ui run build
+      - run: npm --prefix web/atlas-ui run verify:bundle
       - uses: actions/upload-artifact@v4
         with:
           name: web-bundle
@@ -228,7 +227,7 @@ jobs:
           cargo test -p atlas-dev -p atlas-cli-support --locked
 
   web-ui:
-    needs: [changes, web-bundle]
+    needs: changes
     if: needs.changes.outputs.web == 'true'
     name: web ui
     runs-on: ubuntu-24.04
