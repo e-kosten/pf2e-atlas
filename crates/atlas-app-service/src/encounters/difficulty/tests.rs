@@ -515,7 +515,7 @@ fn awards_are_size_adjusted_suggestions_separate_from_difficulty_budgets() {
                 party_size: Some(size),
             },
             &[],
-            &Default::default(),
+            |_| None,
         );
         view.opposition.push(EncounterDifficultyOpponentView {
             participant_key: None,
@@ -529,6 +529,6 @@ fn awards_are_size_adjusted_suggestions_separate_from_difficulty_budgets() {
         assert_eq!(view.xp_per_pc, Some(expected));
         assert_eq!(view.total_xp, Some(encounter_xp));
     }
-    let unknown = project(Default::default(), &[], &Default::default());
+    let unknown = project(Default::default(), &[], |_| None);
     assert_eq!(unknown.xp_per_pc, None);
 }

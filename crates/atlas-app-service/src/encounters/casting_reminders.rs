@@ -93,10 +93,7 @@ fn reminders(
             _ => None,
         });
 
-    let sources =
-        super::hydration::source_baseline(&source.source, workspace.retrieval_mut(), None)?
-            .map(|baseline| baseline.source_conditions)
-            .unwrap_or_default();
+    let sources = super::hydration::source_conditions(&source.source, workspace.retrieval_mut())?;
     let evaluated = evaluate_action(
         participant,
         &sources,

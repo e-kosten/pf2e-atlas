@@ -8,6 +8,70 @@ use super::*;
 use crate::TestStore;
 
 #[test]
+fn encounter_counts_preserve_owner_status_and_order_without_roster_hydration()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = TestStore::open(temp_path("encounter-counts"))?;
+    for slug in ["empty", "running", "archived", "other-owner"] {
+        store.encounters().create(NewEncounter {
+            slug: slug.into(),
+            name: slug.into(),
+            description: None,
+            note: None,
+        })?;
+    }
+    let first = store
+        .encounters()
+        .add_participant("running", creature("First", None, 20))?;
+    store
+        .encounters()
+        .add_participant("running", creature("Second", None, 20))?;
+    let mut manual = creature("Manual", None, 0);
+    manual.record_key = None;
+    manual.participant_kind = ParticipantKind::Pc;
+    manual.side = ParticipantSide::Pc;
+    store.encounters().add_participant("archived", manual)?;
+    store
+        .encounters()
+        .add_participant("other-owner", creature("Other", None, 20))?;
+    let connection = store.connection()?;
+    connection.execute_batch(
+        "INSERT INTO principals VALUES(2, 'other', 'Other owner');
+         UPDATE encounters SET owner_id=2 WHERE slug='other-owner';
+         UPDATE encounters SET updated_at='2026-10-29T00:00:00Z';
+         UPDATE encounters SET status='running', updated_at='2026-10-29T01:00:00Z' WHERE slug='running';
+         UPDATE encounters SET status='archived' WHERE slug='archived';",
+    )?;
+    // An unreadable child must not make roster size unavailable. The detail path
+    // demonstrably fails, so this guards against restoring count-by-hydration.
+    connection.execute(
+        "INSERT INTO encounter_ability_states(participant_key,owner_key,rule_ordinal,payload_json) VALUES(?1,'ability',-1,'invalid')",
+        [&first.participant_key],
+    )?;
+    let read = EncountersRead::from_connection(&connection);
+    assert!(read.get_with_participants("running").is_err());
+    let rows = read.list_with_participant_counts()?;
+    assert_eq!(
+        rows.iter()
+            .map(|row| (
+                row.encounter.slug.as_str(),
+                row.encounter.status,
+                row.participant_count
+            ))
+            .collect::<Vec<_>>(),
+        vec![
+            ("running", EncounterStatus::Running, 2),
+            ("archived", EncounterStatus::Archived, 1),
+            ("empty", EncounterStatus::Draft, 0),
+        ]
+    );
+    assert_eq!(
+        rows.iter().map(|row| &row.encounter).collect::<Vec<_>>(),
+        read.list()?.iter().collect::<Vec<_>>()
+    );
+    Ok(())
+}
+
+#[test]
 fn concurrent_initiative_retries_commit_one_receipt() -> Result<(), Box<dyn std::error::Error>> {
     let store = fixture("concurrent-roll")?;
     store

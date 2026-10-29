@@ -1,7 +1,7 @@
 //! Full-night recovery over known saved/source facts; independent from baseline reset.
 use super::super::{
     conditions::{ConditionRule, condition_rule_for_key},
-    hydration::HydratedParticipantRecord,
+    hydration::PreparedParticipantRecord,
     stat_block::{Ability, StatisticTarget},
 };
 use crate::{AppServiceError, AppServiceResult};
@@ -16,7 +16,7 @@ pub(in crate::encounters) fn prepare(
     p: &EncounterParticipant,
     healing: Option<i64>,
     healing_mode: OvernightHealingMode,
-    record: Option<&HydratedParticipantRecord>,
+    record: Option<&PreparedParticipantRecord>,
     row: &mut EncounterRecoveryParticipantView,
 ) -> AppServiceResult<Option<ParticipantGameplay>> {
     let baseline = record.and_then(|r| r.arithmetic_baseline.as_ref());

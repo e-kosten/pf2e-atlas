@@ -1,7 +1,6 @@
 //! Planned encounter budgets. Rules: GM Core 56–57 and 75–76 (AoN 2649/2653/2716).
 //! Defeated/disabled state never changes the planned opposition or party.
 mod preview;
-use super::hydration::HydratedParticipantRecord;
 use crate::{AppServiceResult, AtlasAppService};
 use atlas_app_model::{
     EncounterDifficultyBudgetView, EncounterDifficultyOpponentView,
@@ -11,7 +10,6 @@ use atlas_app_model::{
 use atlas_local_state::{
     EncounterDifficultyReference, EncounterParticipant, ParticipantKind, ParticipantSide,
 };
-use std::collections::BTreeMap;
 
 impl AtlasAppService {
     pub fn set_encounter_difficulty(
@@ -42,10 +40,10 @@ fn local_reference(reference: EncounterDifficultyReferenceView) -> EncounterDiff
     }
 }
 
-pub(super) fn project(
+pub(super) fn project<'a>(
     reference: EncounterDifficultyReference,
     participants: &[EncounterParticipant],
-    records: &BTreeMap<String, HydratedParticipantRecord>,
+    record_for_key: impl Fn(&str) -> Option<&'a atlas_search::SourceRecordDetail>,
 ) -> EncounterDifficultyView {
     let pcs = participants
         .iter()
@@ -86,27 +84,26 @@ pub(super) fn project(
             ParticipantKind::Pc => false,
         })
         .map(|p| {
-            let record = p.record_key.as_ref().and_then(|key| records.get(key));
+            let record = p.record_key.as_deref().and_then(&record_for_key);
+            let source = record.map(|record| {
+                atlas_record::source_record::SourceQueryView::new(
+                    record.source.source(),
+                    record.source.key().pack().as_str(),
+                    "",
+                )
+            });
             let level = super::rules::effective_participant_level(
                 p,
+                source
+                    .as_ref()
+                    .and_then(|source| source.actor().level().value()),
                 record
-                    .and_then(|r| r.arithmetic_baseline.as_ref())
-                    .and_then(|b| b.level.as_ref()),
-                record.is_some_and(|r| r.adjustment_applicable),
+                    .is_some_and(|record| super::hydration::adjustment_applicable(&record.source)),
             )
             .as_ref()
             .and_then(super::mechanics::integer)
             .and_then(|l| i32::try_from(l).ok());
-            let complexity = record.and_then(|r| {
-                atlas_record::source_record::SourceQueryView::new(
-                    r.detail.source.source(),
-                    r.detail.source.key().pack().as_str(),
-                    "",
-                )
-                .actor()
-                .hazard_complexity()
-                .value()
-            });
+            let complexity = source.and_then(|source| source.actor().hazard_complexity().value());
             opponent(
                 Some(p.participant_key.clone()),
                 p.display_name.clone(),

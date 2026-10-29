@@ -77,7 +77,7 @@ fn overnight_calculates_source_healing_and_restores_daily_but_preserves_weekly_u
         .with_workspace(
             &crate::ReadExecutionContext::uncancellable(),
             move |session| {
-                hydration::hydrate_participant_records(session.retrieval_mut(), &participants)
+                hydration::prepare_participant_records(session.retrieval_mut(), &participants)
             },
         )
         .unwrap();

@@ -13,9 +13,14 @@ use atlas_local_state::{
 
 use crate::error::{AppServiceError, AppServiceResult};
 
-use super::hydration::hydrate_participant_records;
+use super::hydration::prepare_participant_records;
 use super::rules::participant_runtime_block;
 use super::rules::project_participant;
+
+pub(super) struct ParticipantPresentation {
+    summary: atlas_app_model::RecordSummaryView,
+    presentation: atlas_app_model::RecordPresentationView,
+}
 
 pub(super) fn encounter_detail_view(
     retrieval: &mut atlas_search::AtlasRetrievalService,
@@ -23,12 +28,38 @@ pub(super) fn encounter_detail_view(
     participants: Vec<EncounterParticipant>,
 ) -> AppServiceResult<EncounterDetailView> {
     let (artifact_generation, records_by_key) =
-        hydrate_participant_records(retrieval, &participants)?;
+        prepare_participant_records(retrieval, &participants)?;
+    let mut presentations = BTreeMap::new();
+    for (key, record) in &records_by_key {
+        let summary = crate::projection::localized_summary_view(&record.detail.summary, retrieval);
+        let node = atlas_record::source_record::SourceQueryView::new(
+            record.detail.source.source(),
+            record.detail.source.key().pack().as_str(),
+            "",
+        )
+        .source;
+        let presentation = crate::presentation::record_presentation(
+            &record.detail.source,
+            node,
+            &summary,
+            &[],
+            vec![],
+            retrieval,
+        )?;
+        presentations.insert(
+            key.clone(),
+            ParticipantPresentation {
+                summary,
+                presentation,
+            },
+        );
+    }
     Ok(encounter_detail_from_records(
         encounter,
         participants,
         artifact_generation,
         records_by_key,
+        presentations,
     ))
 }
 
@@ -36,18 +67,18 @@ pub(super) fn encounter_detail_from_records(
     encounter: Encounter,
     participants: Vec<EncounterParticipant>,
     artifact_generation: Option<String>,
-    records_by_key: BTreeMap<String, super::hydration::HydratedParticipantRecord>,
+    records_by_key: BTreeMap<String, super::hydration::PreparedParticipantRecord>,
+    presentations: BTreeMap<String, ParticipantPresentation>,
 ) -> EncounterDetailView {
     let condition_sources =
         super::hydration::roster_source_conditions(&participants, &records_by_key);
     let participant_count = participants.len() as u32;
     let current_turn_participant_key = encounter.current_turn_participant_key.clone();
     let note = encounter.note.clone();
-    let difficulty = super::difficulty::project(
-        encounter.difficulty_reference,
-        &participants,
-        &records_by_key,
-    );
+    let difficulty =
+        super::difficulty::project(encounter.difficulty_reference, &participants, |key| {
+            records_by_key.get(key).map(|record| &record.detail)
+        });
     EncounterDetailView {
         difficulty,
         revision: encounter.revision,
@@ -61,6 +92,7 @@ pub(super) fn encounter_detail_from_records(
                 let mut view = participant_view(
                     participant.clone(),
                     &records_by_key,
+                    &presentations,
                     &participants,
                     &condition_sources,
                 );
@@ -94,7 +126,8 @@ pub(super) fn encounter_summary(
 
 fn participant_view(
     participant: EncounterParticipant,
-    records_by_key: &BTreeMap<String, super::hydration::HydratedParticipantRecord>,
+    records_by_key: &BTreeMap<String, super::hydration::PreparedParticipantRecord>,
+    presentations: &BTreeMap<String, ParticipantPresentation>,
     participants: &[EncounterParticipant],
     condition_sources: &BTreeMap<String, super::rules::source_conditions::SourceConditions>,
 ) -> EncounterParticipantView {
@@ -107,7 +140,11 @@ fn participant_view(
         .record_key
         .as_ref()
         .and_then(|key| records_by_key.get(key));
-    let record = record_detail.map(|r| r.view.clone());
+    let presented = participant
+        .record_key
+        .as_ref()
+        .and_then(|key| presentations.get(key));
+    let record = presented.map(|r| r.summary.clone());
     let stat_block = record_detail
         .and_then(|record| {
             record.arithmetic_baseline.as_ref().map(|baseline| {
@@ -141,7 +178,7 @@ fn participant_view(
     let presentation = stat_block
         .as_ref()
         .and_then(|block| {
-            record_detail
+            presented
                 .map(|r| crate::presentation::compose_participant(r.presentation.clone(), block))
         })
         .or_else(|| {

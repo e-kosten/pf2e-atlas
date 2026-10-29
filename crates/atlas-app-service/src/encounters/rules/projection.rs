@@ -735,8 +735,6 @@ fn apply_modifier(
 pub(in crate::encounters) fn participant_runtime_block(p: &EncounterParticipant) -> StatBlockView {
     StatBlockView {
         source_conditions: Default::default(),
-        record_key: p.participant_key.clone(),
-        title: p.display_name.clone(),
         level: None,
         adjusted_level: p.level_override.map(Number::from),
         values: vec![],
