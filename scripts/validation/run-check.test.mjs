@@ -438,6 +438,11 @@ async function nestedCancellation(
     mkdirSync(bin);
     writeFileSync(join(bin, "uname"), "#!/bin/sh\nprintf MINGW64_NT\n");
     chmodSync(join(bin, "uname"), 0o755);
+    writeFileSync(
+      join(bin, "cygpath"),
+      '#!/bin/sh\n[ "$1" = -m ] || exit 1\nprintf "%s" "$2"\n',
+    );
+    chmodSync(join(bin, "cygpath"), 0o755);
   }
   const child = spawn("sh", [helper, "nested check", "sh", nested], {
     cwd: f.cwd,
