@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 /// Local developer evidence; ordinary tests use portable fixtures below. The
 /// independent JSON reader here is an oracle, never a production extraction path.
 #[test]
-#[ignore = "requires pinned PF2e export or vendor/pf2e"]
+#[ignore = "requires ATLAS_PF2E_SOURCE pointing at the pinned PF2e export"]
 fn pinned_actor_corpus_matches_authored_values() {
     use std::{fs, path::Path};
     fn files(path: &Path, output: &mut Vec<std::path::PathBuf>) {
@@ -21,17 +21,11 @@ fn pinned_actor_corpus_matches_authored_values() {
             }
         }
     }
-    let source = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .find_map(|p| {
-            [
-                p.join("scratch/source-contracts-full/pf2e/packs"),
-                p.join("vendor/pf2e/packs"),
-            ]
-            .into_iter()
-            .find(|p| p.is_dir())
-        })
-        .expect("pinned source export or vendor/pf2e/packs");
+    let source = std::path::PathBuf::from(
+        std::env::var("ATLAS_PF2E_SOURCE")
+            .expect("set ATLAS_PF2E_SOURCE to the pinned source export"),
+    )
+    .join("packs/pf2e");
     let mut paths = Vec::new();
     files(&source, &mut paths);
     let mut count = 0;
@@ -140,7 +134,7 @@ fn pinned_actor_corpus_matches_authored_values() {
             }
         }
     }
-    assert_eq!(count, 6744, "pinned PF2e actor corpus changed");
+    assert_eq!(count, 7962, "pinned PF2e actor corpus changed");
 }
 
 fn actor(family: &str, system: Value) -> FoundryDocumentSource {

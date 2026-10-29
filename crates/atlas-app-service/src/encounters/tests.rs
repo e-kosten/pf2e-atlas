@@ -2091,14 +2091,11 @@ fn corpus_npc_adjustment_defaults_preserve_typed_ghoul_hp() {
     use atlas_foundry_model::{SourceContext, admit_document_source};
     use atlas_local_state::ParticipantVariantOrigin;
     use atlas_record::source_record::SourceBackedRecord;
-    let current = std::env::current_dir().unwrap();
-    let source = current
-        .ancestors()
-        .find_map(|p| {
-            let path = p.join("scratch/source-contracts-full/pf2e/packs");
-            path.is_dir().then_some(path)
-        })
-        .expect("pinned corpus path available in checkout ancestor");
+    let source = std::path::PathBuf::from(
+        std::env::var("ATLAS_PF2E_SOURCE")
+            .expect("set ATLAS_PF2E_SOURCE to the pinned source export"),
+    )
+    .join("packs/pf2e");
     let mut pending = vec![source.clone()];
     let (mut total, mut defaults, mut inherited, mut unknown) = (0, 0, 0, 0);
     let mut ghoul = None;
@@ -2149,7 +2146,7 @@ fn corpus_npc_adjustment_defaults_preserve_typed_ghoul_hp() {
             ghoul = Some((origin, max));
         }
     }
-    assert_eq!((total, defaults, inherited, unknown), (5492, 5237, 252, 3));
+    assert_eq!((total, defaults, inherited, unknown), (6442, 6143, 296, 3));
     assert_eq!(
         ghoul,
         Some((ParticipantVariantOrigin::DefaultUnadjusted, Some(20)))
