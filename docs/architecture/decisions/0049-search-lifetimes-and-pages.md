@@ -116,7 +116,7 @@ restoring them does not claim a frozen result set or survive a full reload. The 
 criteria, page and known generation. It adopts a first response only for current
 criteria/epoch with a live signal, seeding the final key without another inference
 request. Generation mismatch pauses paging. Explicit `Refresh results` cancels
-affected immutable queries before removing data, advances the epoch and restarts
+affected reference-dependent queries before removing data, advances the epoch and restarts
 at page1, retaining criteria and mutable drafts. Old page data cannot cross that
 transition. Exact embedded addresses are never rebound to a different ordinal.
 Similar preview reloads its actual owning detail before requesting a new generation.

@@ -191,15 +191,27 @@ it.each([
       const reader = document.querySelector<HTMLElement>(".reference-reader__scroll")!;
       geometry = readingScrollGeometry(reader);
       const summary = screen.getByRole("link", { name: /^Ghoul/ });
+      let finish: (() => void) | undefined;
+      if (scenario === "delayed strike")
+        getDetail.mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finish = () => resolve(parent);
+            }),
+        );
       fireEvent.click(summary);
+      if (scenario === "delayed strike") {
+        await waitFor(() => expect(finish).toBeDefined());
+        expect(screen.queryByRole("region", { name: "Search matches" })).toBeNull();
+        await act(async () => finish!());
+      }
       await screen.findByRole("region", { name: "Search matches" });
       async function chooseMatch() {
         fireEvent.click(summary);
         const choices = await screen.findByRole("region", { name: "Search matches" });
         fireEvent.click(within(choices).getByRole("link", { name: "Jaws" }));
       }
-      let finish: (() => void) | undefined;
-      if (delayed) {
+      if (delayed && scenario !== "delayed strike") {
         const pending = () =>
           new Promise<EmbeddedReadingBatchView>((resolve) => {
             finish = () => resolve(batch);
@@ -208,13 +220,6 @@ it.each([
           if (scenario === "retry ability")
             getAbilities.mockRejectedValue(new Error("Ability read rejected"));
           else getAbilities.mockImplementationOnce(pending);
-        } else {
-          getDetail.mockImplementationOnce(
-            () =>
-              new Promise((resolve) => {
-                finish = () => resolve(parent);
-              }),
-          );
         }
         await chooseMatch();
         if (scenario === "retry ability") {
