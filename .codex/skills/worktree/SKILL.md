@@ -25,7 +25,9 @@ git -C <repo-root>/.worktrees/<task-slug> status --short --branch
 ```
 
 Do task edits in that checkout. Inspect the scoped diff and run the applicable
-checks before local commits or PR publication according to repo policy.
+checks before local commits according to repo policy. Independent review is a
+pre-PR requirement, not a commit requirement; follow the
+[development sequence](../../../CONTRIBUTING.md#development-loop) before publication.
 
 ## Retention and Cleanup
 

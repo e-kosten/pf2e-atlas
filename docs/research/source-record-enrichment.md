@@ -143,7 +143,7 @@ and product response contracts remain adoption work.
 
 ## Reproduction and limits
 
-Use the [contributor command](../../CONTRIBUTING.md#source-declaration-research):
+Use the [contributor command](../development/source-research.md#source-declaration-research):
 
 ```sh
 cargo run -p atlas-ingest --example source_enrichment_probe -- /path/to/pinned/pf2e /path/to/pinned/pf2e/static/lang/en.json

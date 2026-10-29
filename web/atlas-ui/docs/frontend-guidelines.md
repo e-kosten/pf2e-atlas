@@ -2,6 +2,11 @@
 
 The Atlas web UI is a React frontend over generated Rust app DTOs. It uses Ant Design for general application UI and a small first-party shared UI layer for Atlas-specific interaction patterns.
 
+For cross-surface interaction and copy policy, including text projected by Rust,
+read [product presentation](../../../docs/product-guidelines.md). The
+[development sequence](../../../CONTRIBUTING.md#development-loop) owns preview,
+independent review and PR timing; this guide owns frontend implementation detail.
+
 The application shell owns navigation, product theme, system-following appearance, and reference availability. It receives readiness facts, not the search workspace. Healthy availability needs no status control. Connection failures show an actionable error with Retry; search failures and generation recovery belong beside search results.
 
 The persistent AtlasLayout owns one tab-local search-profile selection from the generated readiness
@@ -256,6 +261,8 @@ Use `src/shared/ui` for repeated Atlas interaction primitives over Ant Design. S
 - `pages/EntityIndexPage.tsx`: common index page structure for title, summary, actions, and table content.
 - `forms/EditableCommitField.tsx`: inline draft fields that commit on blur or Enter and revert on Escape.
 - `pickers/SearchPickerModal.tsx`: modal record browsing and preview, with an explicit candidate and feature-owned Add form.
+- `overlays/AtlasModal.tsx` and `overlays/AtlasDrawer.tsx`: ordinary overlays that
+  keep shared recovery reachable within the active focus boundary.
 - `actions/PaneAction.tsx`: pane-header icon buttons and links.
 - `actions/DangerActionButton.tsx`: destructive button plus confirmation modal.
 - `actions/useConfirmDangerAction.tsx`: confirmation helper for cases that are not naturally buttons.
@@ -694,20 +701,25 @@ npm --prefix web/atlas-ui run verify
 
 For refactors, run focused tests for touched surfaces first, then the full verify.
 
-Run `npm --prefix web/atlas-ui run test:devices` for shared layout, navigation,
-overlay, form or responsive changes. This starts the real Rust app over a small
+Run affected device-suite flows before PR creation; broaden coverage for shared
+layout, navigation, overlay, form or responsive changes, including relevant touch
+and focus behavior. CI owns the full applicable browser/device matrix by default.
+Use the [validation guide](../../../docs/development/validation.md#local-browser-checks-and-the-ci-matrix)
+for focused commands and circumstances that justify a full local matrix.
+The suite starts the real Rust app over a small
 checked-source fixture with isolated mutable state; it needs no source clone or
 model download. Stored fixture vectors are structural data, not search-quality
 evidence. Filter browsing is real; text-inference unavailability stays explicit.
 Do not fake readiness/DTOs or introduce a production fallback to pass tests.
 Selected network aborts may test recovery while retaining real durable writes.
-The existing corpus-backed `test:e2e` suite remains separate. See CONTRIBUTING
-for browser installation, CI execution, evidence and resource ownership.
+The existing corpus-backed `test:e2e` suite remains separate. See the
+[validation guide](../../../docs/development/validation.md) for browser
+installation, CI execution, evidence and resource ownership.
 
 Condition refinement checkpoints always compare tracked platform/project pixel
 references in the normal device suite. Keep references frozen during refactors;
 inspect actual/expected/diff evidence before changing them for an approved visual
-change. Use the focused Linux runner in CONTRIBUTING.md to reproduce WebKit
+change. Use the [focused Linux runner](../../../docs/development/validation.md#focused-linux-browser-diagnosis) to reproduce WebKit
 failures against the same candidate without repeating full gates. Pixel checks
 supplement the interaction, focus, anchor and transition assertions.
 
@@ -925,7 +937,7 @@ clears the condition. Do not introduce general action groups or disclosures
 between a participant's identity and HP. Pending damage decisions belong beside
 HP controls; shared overnight recovery belongs with participant actions.
 
-Apply the root AGENTS.md Product UI Controls principles first. Start with a direct
+Apply the [product control principles](../../../docs/product-guidelines.md#product-ui-controls) first. Start with a direct
 action or inline control; use an anchored popover when a small action needs context.
 A modal requires a substantial editing or focused-decision need.
 Choose the surface by the user's task, then adapt it to available space. Reuse

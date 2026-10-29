@@ -16,5 +16,5 @@ packages and their Node dependencies are excluded from Atlas distributions.
 Operational shell and PowerShell workflows and installers live in `scripts/`.
 Thin shell launchers in `scripts/development` invoke the retained Rust `atlas-dev`
 baseline commands to publish builds/data and initialize private workspaces; see
-[CONTRIBUTING](../CONTRIBUTING.md#reusable-development-baseline).
+[CONTRIBUTING](../docs/development/setup-and-preview.md#reusable-development-baseline).
 Rust diagnostics live in `crates/atlas-dev` and use the owning Rust libraries.
