@@ -449,34 +449,27 @@ it("explains model and both text ranking choices without exposing Similar contro
   expect(remember).not.toHaveBeenCalled();
 });
 
-it("explains selected Similar choices and keeps help separate from opening Sections to compare", async () => {
+it("explains match decay for the selected Similar method", async () => {
   setup();
-  expect(screen.queryByRole("combobox", { name: "Search ranking" })).toBeNull();
-  const methodHelp = screen.getByRole("button", { name: "About comparison method" });
-  fireEvent.click(methodHelp);
-  await waitFor(() =>
-    expect(
-      screen.getByText(/Looks for passages similar to each selected section/),
-    ).toBeVisible(),
-  );
-  fireEvent.keyDown(methodHelp, { key: "Escape" });
-  const decayHelp = screen.getByRole("button", { name: "About match decay" });
-  fireEvent.click(decayHelp);
+  fireEvent.click(screen.getByRole("button", { name: "About match decay" }));
   await waitFor(() =>
     expect(screen.getByText(/0 uses only the strongest section/)).toBeVisible(),
   );
-  fireEvent.keyDown(decayHelp, { key: "Escape" });
-  const candidateHelp = screen.getByRole("button", { name: "About section matching" });
-  fireEvent.click(candidateHelp);
+});
+
+it("updates section-matching help when the selected matching mode changes", async () => {
+  setup();
+  const help = screen.getByRole("button", { name: "About section matching" });
+  fireEvent.click(help);
   await waitFor(() =>
     expect(
       screen.getByText(/Any selected section can match any content/),
     ).toBeVisible(),
   );
-  fireEvent.keyDown(candidateHelp, { key: "Escape" });
+  fireEvent.keyDown(help, { key: "Escape" });
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Section matching" }));
   fireEvent.click(screen.getByText("Corresponding sections"));
-  fireEvent.click(candidateHelp);
+  fireEvent.click(help);
   await waitFor(() =>
     expect(
       screen.getByText(
@@ -484,24 +477,36 @@ it("explains selected Similar choices and keeps help separate from opening Secti
       ),
     ).toBeVisible(),
   );
-  fireEvent.keyDown(candidateHelp, { key: "Escape" });
+});
+
+it("keeps sections help separate from opening and changing the section selection", async () => {
+  setup();
   chooseSections();
   const description = await screen.findByRole("checkbox", { name: "Description" });
-  const partsHelp = screen.getByRole("button", {
-    name: "About sections from brown mold",
-  });
-  fireEvent.click(partsHelp);
+  const help = screen.getByRole("button", { name: "About sections from brown mold" });
+  fireEvent.click(help);
   await screen.findByText(
     /Choose which sections of this record to use when finding similar records/,
   );
   expect(api.parts).toHaveBeenCalledTimes(1);
   expect(description).toBeChecked();
   expect(screen.getByRole("radio", { name: "Search settings" })).toBeChecked();
-  fireEvent.keyDown(partsHelp, { key: "Escape" });
-  backToSettings();
+});
+
+it("updates comparison help and hides decay when Content average is selected", async () => {
+  setup();
+  expect(screen.queryByRole("combobox", { name: "Search ranking" })).toBeNull();
+  const help = screen.getByRole("button", { name: "About comparison method" });
+  fireEvent.click(help);
+  await waitFor(() =>
+    expect(
+      screen.getByText(/Looks for passages similar to each selected section/),
+    ).toBeVisible(),
+  );
+  fireEvent.keyDown(help, { key: "Escape" });
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Comparison method" }));
   fireEvent.click(screen.getByText("Content average"));
-  fireEvent.click(screen.getByRole("button", { name: "About comparison method" }));
+  fireEvent.click(help);
   await waitFor(() =>
     expect(
       screen.getByText(
