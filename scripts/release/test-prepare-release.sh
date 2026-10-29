@@ -229,11 +229,15 @@ expect_log_absent() {
 }
 
 first_log_line() {
-  grep -n "$1" "$log" | sed -n '1s/:.*//p'
+  matched_line=$(grep -n "$1" "$log" | sed -n '1s/:.*//p')
+  [ -n "$matched_line" ] || { echo "Missing expected command: $1" >&2; return 1; }
+  printf '%s\n' "$matched_line"
 }
 
 last_log_line() {
-  grep -n "$1" "$log" | sed -n '$s/:.*//p'
+  matched_line=$(grep -n "$1" "$log" | sed -n '$s/:.*//p')
+  [ -n "$matched_line" ] || { echo "Missing expected command: $1" >&2; return 1; }
+  printf '%s\n' "$matched_line"
 }
 
 write_fake_fzf() {

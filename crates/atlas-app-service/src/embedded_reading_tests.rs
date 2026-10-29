@@ -359,7 +359,9 @@ fn table_reading_batches_complete_text_and_checked_result_links() {
     let first = fixture.worker.embedded_reading(request.clone()).unwrap();
     assert_eq!(first.entries.len(), 32);
     assert_eq!(first.total, 34);
-    assert!(!first.entries[0].content.is_empty());
+    for (index, entry) in first.entries.iter().enumerate() {
+        assert!(entry.content.iter().any(|field| matches!(&field.body, PreparedFieldBodyView::Html { html, .. } if html == &format!("<p>Complete result {index}</p>"))));
+    }
     assert!(first.entries[0].relationships.iter().any(|edge| {
         edge.kind == "TableResult"
             && edge
@@ -379,7 +381,19 @@ fn table_reading_batches_complete_text_and_checked_result_links() {
     let next = fixture.worker.embedded_reading(request.clone()).unwrap();
     assert_eq!(next.entries.len(), 2);
     assert!(next.next.is_none());
-    assert_ne!(first.entries[0].navigation, next.entries[0].navigation);
+    assert_eq!((next.start, next.end), (32, 34));
+    for (index, entry) in next.entries.iter().enumerate() {
+        assert!(entry.content.iter().any(|field| matches!(&field.body, PreparedFieldBodyView::Html { html, .. } if html == &format!("<p>Complete result {}</p>", index + 32))));
+    }
+    let identities = first
+        .entries
+        .iter()
+        .chain(&next.entries)
+        .map(|entry| &entry.navigation)
+        .collect::<Vec<_>>();
+    for (index, identity) in identities.iter().enumerate() {
+        assert!(!identities[..index].contains(identity));
+    }
     request.artifact_generation = "stale".into();
     assert!(fixture.worker.embedded_reading(request).is_err());
 }

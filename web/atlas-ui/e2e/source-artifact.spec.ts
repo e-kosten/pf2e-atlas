@@ -1,3 +1,4 @@
+import { readUrl } from "./readingUrl";
 import { test, expect } from "@playwright/test";
 import { encodeFilterUrl, decodeFilterUrl } from "../src/shared/filters/filterUrl";
 import type { RelatedRecordsView, SearchResultsPage } from "../src/generated/atlas";
@@ -143,57 +144,100 @@ test("narrow preview restores focus after reopening and keeps checks as plain te
 test("reader follows, closes and promotes exact owned selection through browser history", async ({
   page,
 }) => {
-  await page.goto("/records/pathfinder-bestiary%3ALHHgGSs0ELCR4CYK");
-  await page.getByRole("link", { name: "Reader view", exact: true }).click();
-  const primary = page.locator(".record-view__pane").first();
-  const preview = page.locator(".record-view__pane").last();
-  await primary.getByRole("button", { name: "Jaws", exact: true }).click();
+  const key = "pathfinder-bestiary:LHHgGSs0ELCR4CYK";
+  await page.goto(`/records/${key}`);
+  const owned = page.getByRole("link", { name: "Consume Flesh", exact: true });
+  await expect(owned).toBeVisible();
+  const selectedUrl = new URL((await owned.getAttribute("href"))!, page.url());
+  const selection = readUrl(selectedUrl);
+  expect(selection.record_key).toBe(key);
+  expect(selection.embedded_path).toHaveLength(1);
+  await owned.click();
+  const preview = page.getByRole("dialog").filter({
+    has: page.getByRole("button", { name: "Close reference preview", exact: true }),
+  });
   await expect(
-    preview.getByRole("heading", { name: "Jaws", exact: true }),
+    preview.getByRole("heading", { name: /^Consume Flesh\b/ }),
   ).toBeVisible();
-  const ownedPreviewUrl = page.url();
-  const ownedSelection = new URL(ownedPreviewUrl).searchParams.get("previewSelection");
-  expect(ownedSelection).toBeTruthy();
-  await preview.getByRole("link", { name: "Return to Ghoul", exact: true }).click();
-  await expect(
-    preview.getByRole("heading", { name: "Ghoul", exact: true }),
-  ).toBeVisible();
+  await preview
+    .getByRole("button", { name: "Close reference preview", exact: true })
+    .click();
+  await expect(preview).toBeHidden();
+  await expect(owned).toBeFocused();
+  await owned.press("Enter");
+  const full = preview.getByRole("link", {
+    name: "Open reference full page",
+    exact: true,
+  });
+  await expect(full).toBeVisible();
+  expect(readUrl(new URL((await full.getAttribute("href"))!, page.url()))).toEqual(
+    selection,
+  );
+  await full.click();
+  await expect(page).toHaveURL(selectedUrl.href);
+  await expect(page.getByRole("heading", { name: /^Consume Flesh\b/ })).toBeVisible();
+  const owner = page.getByRole("link", { name: "Return to Ghoul", exact: true });
+  const parentUrl = new URL((await owner.getAttribute("href"))!, page.url());
+  expect(parentUrl.pathname).toBe(`/records/${key}`);
+  expect(parentUrl.searchParams.has("at")).toBe(false);
+  expect(readUrl(parentUrl, "focus").embedded_path).toEqual(selection.embedded_path);
+  await owner.click();
+  await expect(page.getByRole("heading", { name: "Ghoul", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Consume Flesh\b/ })).toBeFocused();
   await page.goBack();
-  await expect(page).toHaveURL(ownedPreviewUrl);
-  await expect(
-    preview.getByRole("heading", { name: "Jaws", exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Close preview", exact: true }).click();
-  await expect(
-    preview.getByText("Select a linked record to preview it."),
-  ).toBeVisible();
-  await page.goBack();
-  await expect(page).toHaveURL(ownedPreviewUrl);
-  await page.getByRole("link", { name: "Open preview as reader", exact: true }).click();
-  await expect(
-    primary.getByRole("heading", { name: "Jaws", exact: true }),
-  ).toBeVisible();
-  const ownedReaderUrl = page.url();
-  expect(new URL(ownedReaderUrl).searchParams.get("selection")).toBe(ownedSelection);
-  await primary.getByRole("link", { name: "Return to Ghoul", exact: true }).click();
-  await expect(
-    preview.getByRole("heading", { name: "Ghoul", exact: true }),
-  ).toBeVisible();
-  expect(new URL(page.url()).searchParams.get("selection")).toBe(ownedSelection);
-  await page.getByRole("button", { name: "Close preview", exact: true }).click();
-  const returnedReader = new URL(ownedReaderUrl);
-  returnedReader.searchParams.set("landing", ownedSelection!);
-  await expect(page).toHaveURL(returnedReader.href);
-  expect(new URL(page.url()).searchParams.get("selection")).toBe(ownedSelection);
-  expect(new URL(page.url()).searchParams.has("preview")).toBe(false);
-  expect(new URL(page.url()).searchParams.has("previewSelection")).toBe(false);
-  await page.getByRole("link", { name: "Detail page", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Jaws", exact: true })).toBeVisible();
-  expect(new URL(page.url()).searchParams.get("selection")).toBe(ownedSelection);
-  await page.goBack();
-  await expect(page).toHaveURL(returnedReader.href);
+  await expect(page).toHaveURL(selectedUrl.href);
+  await expect(page.getByRole("heading", { name: /^Consume Flesh\b/ })).toBeVisible();
   await page.goForward();
-  await expect(page.getByRole("heading", { name: "Jaws", exact: true })).toBeVisible();
+  await expect(page).toHaveURL(parentUrl.href);
+  await expect(page.getByRole("heading", { name: /^Consume Flesh\b/ })).toBeFocused();
+});
+test("unknown manual HP stays unknown until corrected and survives reload", async ({
+  page,
+}) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Unknown HP ${Date.now()}` },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    const added = await page.request.post(`${path}/participants/manual`, {
+      data: { encounter_ref: encounter.encounter_key, display_name: "Unknown Hero" },
+    });
+    expect(added.ok()).toBeTruthy();
+    await page.goto(`/encounters/${encounter.slug}`);
+    const current = page.getByRole("button", { name: "Edit Current HP", exact: true });
+    await expect(current).toHaveText("—");
+    const amount = page.getByRole("textbox", { name: "HP change", exact: true });
+    await expect(amount).toBeDisabled();
+    await expect(
+      page.getByRole("button", { name: "Damage", exact: true }),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole("button", { name: "Heal", exact: true }),
+    ).toBeDisabled();
+    await current.click();
+    const input = page.getByRole("textbox", { name: "Current HP", exact: true });
+    await expect(input).toHaveValue("");
+    await input.fill("12");
+    await input.press("Enter");
+    await expect(current).toHaveText("12");
+    await expect(amount).toBeEnabled();
+    await amount.fill("1");
+    await expect(
+      page.getByRole("button", { name: "Damage", exact: true }),
+    ).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Heal", exact: true })).toBeEnabled();
+    const saved = await (await page.request.get(path)).json();
+    expect(saved.participants).toHaveLength(1);
+    expect(saved.participants[0].current_hp).toBe(12);
+    expect(saved.participants[0].max_hp ?? null).toBeNull();
+    await page.reload();
+    await expect(current).toHaveText("12");
+    await expect(amount).toHaveValue("");
+  } finally {
+    expect((await page.request.delete(path)).ok()).toBeTruthy();
+  }
 });
 
 test("saved list creation and unknown manual participant HP use actual local-state workflows", async ({
@@ -434,7 +478,9 @@ test("owned Ghoul Fever and named GM passage use actual selected detail routes",
   await expect(inlineFever.locator('.action-cost[title="passive"]')).toHaveCount(1);
   await expect(inlineFever.locator("[data-atlas-action-glyph]")).toHaveCount(0);
   await page.goto((await feverLink.getAttribute("href"))!);
-  await expect(page).toHaveURL(/\/records\/.*selection=/);
+  await expect(page).toHaveURL(
+    (url) => url.pathname.startsWith("/records/") && url.searchParams.has("at"),
+  );
   const fever = page.getByRole("heading", { name: /^Ghoul Fever\b/ });
   await expect(fever).toBeVisible();
   await expect(fever).toHaveText(/^[\s]*Ghoul Fever[\s]*$/);
@@ -451,7 +497,7 @@ test("owned Ghoul Fever and named GM passage use actual selected detail routes",
     .getByRole("link", { name: "Soul Degradation (Curse 7)", exact: true })
     .first()
     .click();
-  await expect(page).toHaveURL(/selection=/);
+  await expect(page).toHaveURL((url) => url.searchParams.has("at"));
   await expect(
     page.getByRole("heading", { name: /Soul Degradation/ }).first(),
   ).toBeVisible();
@@ -465,7 +511,7 @@ test("owned Ghoul Fever and named GM passage use actual selected detail routes",
 test("semantic coverage, typed catalog and RollTables remain product surfaces", async ({
   page,
 }) => {
-  await page.goto("/search?q=transform%20into%20a%20dragon");
+  await page.goto("/search?q=%22Dragon%20Form%22");
   await expect(page.getByText(/^Top [\d,]+ matches$/)).toBeVisible();
   await expect(
     page.locator("[data-record-key]").filter({ hasText: "Dragon Form" }).first(),
@@ -485,9 +531,14 @@ test("semantic coverage, typed catalog and RollTables remain product surfaces", 
   await expect(
     page.getByRole("region", { name: "Search results", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText(/Wellspring Surges/).first()).toBeVisible();
+  const tables = page.locator("[data-record-key]");
+  await expect(tables).toHaveCount(25);
+  const tableKeys = await tables.evaluateAll((rows) =>
+    rows.map((row) => row.getAttribute("data-record-key")),
+  );
+  expect(tableKeys.every((key) => key?.startsWith("rollable-tables:"))).toBe(true);
   await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
-  const advanced = page.getByRole("region", {
+  const advanced = page.getByRole("dialog", {
     name: "Advanced filters",
     exact: true,
   });
@@ -512,21 +563,13 @@ test("semantic coverage, typed catalog and RollTables remain product surfaces", 
   await expect(
     page.getByRole("heading", { name: "Wellspring Surges", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Result 1", exact: true }).click();
-  await expect(page).not.toHaveURL(/selection=/);
-  const preview = page.getByRole("dialog", {
-    name: "Reference preview",
-    exact: true,
-  });
-  await expect(preview.locator(".prepared-content")).toContainText("Energy Unleashed");
-  const fullPage = page.getByRole("link", {
-    name: "Open reference full page",
-    exact: true,
-  });
-  await expect(fullPage).toHaveAttribute("href", /selection=/);
-  await fullPage.click();
-  await expect(page).toHaveURL(/selection=/);
-  await expect(page.locator(".prepared-content")).toContainText("Energy Unleashed");
+  const resultRows = page.getByRole("table").locator("tbody tr");
+  await expect(resultRows).toHaveCount(20);
+  await expect(resultRows.first().getByRole("cell").first()).toHaveText("1");
+  await expect(resultRows.first()).toContainText("Energy Unleashed");
+  await expect(resultRows.last().getByRole("cell").first()).toHaveText("20");
+  await expect(resultRows.last()).toContainText("Spell Surge");
+  await expect(page.getByRole("button", { name: "Roll", exact: true })).toBeEnabled();
   await page.screenshot({
     path: "../../scratch/browser-validation/rolltable-detail.png",
     fullPage: true,
@@ -591,6 +634,7 @@ test("versions compare complete records and Similar hands off to Search with bro
   const similar: SearchResultsPage = await (await similarResponse).json();
   expect(similar.mode.kind).toBe("similar_records");
   expect(similar.page.size).toBe(5);
+  expect(similar.rows.length).toBeGreaterThan(0);
   expect(similar.rows.every((row) => row.record.record_key !== seed)).toBe(true);
   await expect(explore.locator(".reference-result")).toHaveCount(similar.rows.length);
   await expect(
@@ -604,13 +648,17 @@ test("versions compare complete records and Similar hands off to Search with bro
   await search.click();
   expect(new URL(page.url()).searchParams.get("similar")).toBe(seed);
   await expect(
-    page.getByRole("searchbox", { name: "Similar search", exact: true }),
-  ).toHaveValue("Wovenwood Shield (Minor)");
+    page
+      .locator(".reference-search-entry--similar")
+      .getByRole("link", { name: "Wovenwood Shield (Minor)", exact: true }),
+  ).toHaveAttribute("href", `/records/${seed}`);
   await expect(page.getByText("Top matches", { exact: true })).toBeVisible();
   await page.reload();
   await expect(
-    page.getByRole("searchbox", { name: "Similar search", exact: true }),
-  ).toHaveValue("Wovenwood Shield (Minor)");
+    page
+      .locator(".reference-search-entry--similar")
+      .getByRole("link", { name: "Wovenwood Shield (Minor)", exact: true }),
+  ).toHaveAttribute("href", `/records/${seed}`);
   await page.goBack();
   await expect(
     explore.getByRole("tab", { name: "Similar", exact: true }),
@@ -646,6 +694,6 @@ test("missing keys and malformed selected routes report errors", async ({ page }
     "This record is not present in the current reference collection.",
   );
   await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
-  await page.goto("/records/spells-srd%3A0000000000000000?selection=invalid");
-  await expect(page.getByRole("alert")).toContainText("Invalid record navigation URL");
+  await page.goto("/records/spells-srd%3A0000000000000000?at=99.invalid");
+  await expect(page.getByRole("alert")).toContainText("This link couldn’t be restored");
 });

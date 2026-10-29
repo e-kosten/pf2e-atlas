@@ -172,7 +172,6 @@ for (const mode of ["mean", "low", "high"]) {
     ].sort();
     assert.deepEqual(actual, [...exclusion.clusters].sort());
   }
-  let count = 0;
   for (const r of ranks) {
     const q = queries.find((q) => q.split === r.split && q.id === r.query.id);
     assert(q);
@@ -215,10 +214,8 @@ for (const mode of ["mean", "low", "high"]) {
         policy,
         ...computed,
       });
-      count++;
     }
   }
-  assert.equal(count, report.rows.length);
   for (const summary of report.summaries) {
     const rows = report.rows.filter(
       (r) =>

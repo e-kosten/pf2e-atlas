@@ -326,6 +326,15 @@ it("keeps an uncertain raw HP intent id and gives a later deliberate click a fre
     });
   });
   const calls = api.applyEncounterHpAction.mock.calls;
+  expect(calls).toHaveLength(3);
+  for (const [encounter, sent] of calls) {
+    expect(encounter).toBe("encounter-key");
+    expect(sent.request_id).toEqual(expect.stringMatching(/\S+/));
+    expect(sent).toMatchObject({
+      participant_key: "actor",
+      action: { kind: "damage", amount: "2d6" },
+    });
+  }
   expect(calls[0][1].request_id).toBe(calls[1][1].request_id);
   expect(calls[2][1].request_id).not.toBe(calls[1][1].request_id);
 });

@@ -64,6 +64,11 @@ it("keeps a failed update local and allows the same action to be retried", async
   );
   fireEvent.click(screen.getByRole("button", { name: "Use Speed Surge" }));
   await waitFor(() => expect(onChange).toHaveBeenCalledTimes(2));
+  expect(onChange.mock.calls).toEqual([
+    [ability, { kind: "spend_use" }],
+    [ability, { kind: "spend_use" }],
+  ]);
+  await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
 });
 it("changes the authored switch without losing its selected option", async () => {
   const onChange = vi.fn().mockResolvedValue(true);

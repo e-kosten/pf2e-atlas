@@ -14,11 +14,11 @@ test('registry extraction follows exports, constructor data and variants without
     await writeFile(path.join(folder, 'exports.ts'), 'export { action as seek } from "./seek.ts";');
     await writeFile(path.join(folder, 'seek.ts'), 'throw new Error("must not execute"); const PREFIX = "PF2E.Actions.Seek"; class Seek extends Action { constructor() { super({slug:"seek", name:`${PREFIX}.Title`, cost:1, variants:[{slug:"nearby",name:`${PREFIX}.Nearby`}]}); } } const action = new Seek(); export { action };');
     const actions = await actionDefinitions(source);
-    assert.equal(actions.length, 1);
-    assert.equal(actions[0].name, 'PF2E.Actions.Seek.Title');
-    assert.equal(actions[0].cost, '1');
-    assert.deepEqual(actions[0].variants, [{slug:'nearby', name:'PF2E.Actions.Seek.Nearby',cost:null}]);
-    assert.equal(actions[0].file, 'src/module/system/action-macros/seek.ts');
+    assert.deepEqual(actions, [{
+      slug: 'seek', name: 'PF2E.Actions.Seek.Title', cost: '1',
+      variants: [{slug:'nearby', name:'PF2E.Actions.Seek.Nearby',cost:null}],
+      file: 'src/module/system/action-macros/seek.ts', line: 1,
+    }]);
     await writeFile(path.join(folder, 'seek.ts'), 'const action = new Action({slug:"seek",name:runtimeLookup(),cost:1}); export { action };');
     await assert.rejects(actionDefinitions(source), /Nonliteral action metadata/);
   } finally { await rm(source, { recursive: true, force: true }); }

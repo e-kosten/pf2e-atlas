@@ -35,8 +35,18 @@ mod tests {
         let b = [0., 4.];
         let result = super::normalized_centroid(&[&a, &b]).unwrap();
         assert_eq!(result, super::normalized_centroid(&[&a, &b]).unwrap());
+        assert_eq!(result.len(), 2);
         assert!((result[0] - 0.70710677).abs() < 1e-6);
         assert_eq!(result[0], result[1]);
-        assert!(super::normalized_centroid(&[&a, &[0., 0.]]).is_err());
+        for (name, vectors) in [
+            ("no chunks", vec![]),
+            ("empty chunk", vec![&[][..]]),
+            ("zero norm", vec![&a[..], &[0., 0.][..]]),
+            ("dimension mismatch", vec![&a[..], &[1.][..]]),
+            ("nonfinite chunk", vec![&a[..], &[f32::INFINITY, 0.][..]]),
+            ("cancelled centroid", vec![&a[..], &[-2., 0.][..]]),
+        ] {
+            assert!(super::normalized_centroid(&vectors).is_err(), "{name}");
+        }
     }
 }

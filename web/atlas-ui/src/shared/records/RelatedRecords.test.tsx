@@ -4,7 +4,7 @@ import { RecordReadingWorkspace } from "./RecordReadingWorkspace";
 import type { SearchResultsRequest, SearchResultRow } from "../../generated/atlas";
 import type { ResultSort } from "../../generated/atlas";
 import { linkLeaf } from "../filters/linkPredicates";
-import { decodeFilterUrl, encodeFilterUrl } from "../filters/filterUrl";
+import { decodeFilterUrl } from "../filters/filterUrl";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import {
   act,
@@ -232,6 +232,18 @@ it("defers exploration until requested, previews five distinct roots, and leaves
   openRelated();
   expect(await screen.findByText("5 of 164 records")).toBeVisible();
   expect(screen.getAllByRole("listitem")).toHaveLength(5);
+  expect(
+    screen
+      .getAllByRole("link")
+      .filter((link) => link.hasAttribute("data-record-key"))
+      .map((link) => link.getAttribute("data-record-key")),
+  ).toEqual([
+    "actors:record0",
+    "actors:record1",
+    "actors:record2",
+    "actors:record3",
+    "actors:record4",
+  ]);
   expect(api.getRelatedRecords).toHaveBeenCalledTimes(1);
   expect(screen.queryByRole("tab", { name: "Versions" })).toBeNull();
   expect(screen.queryByText(/Showing a limited|See more|View all/i)).toBeNull();
@@ -398,16 +410,15 @@ it.each([false, true])(
           "filter",
         )!,
       );
-      expect(filter).toEqual(
-        decodeFilterUrl(
-          encodeFilterUrl(
-            linkLeaf(
-              { direction, selection: detail.selected, include_contents: !embedded },
-              "record-explore-reference",
-            ),
-          ),
-        ),
-      );
+      expect(filter).toEqual({
+        kind: "relationship",
+        clause_id: expect.any(String),
+        relationship: {
+          direction,
+          selection: detail.selected,
+          include_contents: !embedded,
+        },
+      });
       expect(fireEvent.click(link, { metaKey: true })).toBe(true);
     }
     expect(api.getRelatedRecords).toHaveBeenCalledWith(
@@ -453,7 +464,11 @@ it("retains active Search filters and explicit order in the Similar handoff", as
     query: "",
     similarSeed: "actors:seed",
     sort: state.sort,
-    filter: decodeFilterUrl(encodeFilterUrl(state.filter)),
+    filter: {
+      kind: "relationship",
+      clause_id: expect.any(String),
+      relationship: state.filter.relationship,
+    },
   });
   expect(
     api.searchPage.mock.calls.find(([r]) => r.criteria.kind === "similar_records")?.[0],

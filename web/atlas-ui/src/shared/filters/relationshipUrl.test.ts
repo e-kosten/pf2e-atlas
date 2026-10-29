@@ -1,4 +1,3 @@
-import { encodeFilterUrl, decodeFilterUrl } from "./filterUrl";
 import { linkLeaf } from "./linkPredicates";
 import { rootNavigation } from "../records/useReferenceReading";
 import {
@@ -50,7 +49,11 @@ it("round trips exact link selections inside mixed AND/OR/NOT with independent s
   const restored = decodeSearchStateFromParams(
     new URLSearchParams(searchStateQueryString(state)),
   );
-  expect(restored.filter).toEqual(decodeFilterUrl(encodeFilterUrl(filter)));
+  const stripIds = (key: string, value: unknown) =>
+    key === "clause_id" ? undefined : value;
+  expect(JSON.parse(JSON.stringify(restored.filter, stripIds))).toEqual(
+    JSON.parse(JSON.stringify(filter, stripIds)),
+  );
   expect(restored.sort).toEqual(state.sort);
   expect(buildSearchRequest(restored, 2).criteria.filter).toEqual(restored.filter);
   expect(encodeSearchExecutionState(restored)).not.toBe(

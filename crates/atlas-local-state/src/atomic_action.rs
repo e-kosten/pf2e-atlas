@@ -60,10 +60,11 @@ mod tests {
         }));
         assert!(panic.is_err());
         tx.commit()?;
-        assert_eq!(
-            connection.query_row("SELECT sum(value) FROM facts", [], |r| r.get::<_, i64>(0))?,
-            1
-        );
+        let facts = connection
+            .prepare("SELECT value FROM facts ORDER BY value")?
+            .query_map([], |row| row.get::<_, i64>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        assert_eq!(facts, [1]);
         Ok(())
     }
 }

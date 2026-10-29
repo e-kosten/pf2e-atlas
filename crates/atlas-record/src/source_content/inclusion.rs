@@ -407,9 +407,15 @@ mod tests {
     }
     #[test]
     fn action_title_lines_become_linked_headings_and_keep_glyphs_and_qualifiers() {
-        for title in [
-            "<span data-atlas-reference=\"1\">Reaction title</span>",
-            "<strong>Reaction title</strong>",
+        for (title, linked_title) in [
+            (
+                "<span data-atlas-reference=\"1\">Reaction title</span>",
+                "<span data-atlas-reference=\"1\">Reaction title</span>",
+            ),
+            (
+                "<strong>Reaction title</strong>",
+                "<span data-atlas-reference=\"0\" data-atlas-inclusion=\"9\">Reaction title</span>",
+            ),
         ] {
             let html = compose_prepared_inclusions(
                 &format!(
@@ -419,7 +425,9 @@ mod tests {
                 false,
             );
             assert!(
-                html.contains("<h3 data-atlas-inclusion-heading=\"true\">"),
+                html.contains(&format!(
+                    "<h3 data-atlas-inclusion-heading=\"true\">{linked_title} "
+                )),
                 "{html}"
             );
             assert!(html.contains(

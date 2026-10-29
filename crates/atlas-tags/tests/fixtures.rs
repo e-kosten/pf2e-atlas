@@ -21,12 +21,36 @@ fn assignment_example_contains_three_assigned_records() {
     let assignments = assignment_file_from_str(include_str!("fixtures/assignments-example.yaml"))
         .expect("assignments parse");
 
-    assert_eq!(assignments.records.len(), 3);
-    assert!(
-        assignments
-            .records
-            .iter()
-            .all(|record| !record.tags.is_empty())
+    let assigned = assignments
+        .records
+        .iter()
+        .map(|record| {
+            (
+                record.record_key.to_string(),
+                record
+                    .tags
+                    .iter()
+                    .map(|tag| tag.tag_id.as_str())
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        assigned,
+        [
+            (
+                "spells-srd:dispel-magic".into(),
+                vec!["problem.counteract_magic"]
+            ),
+            (
+                "spells-srd:water-breathing".into(),
+                vec!["exploration.environment.aquatic"]
+            ),
+            (
+                "equipment-srd:spyglass".into(),
+                vec!["exploration.reconnaissance.long_range"]
+            ),
+        ]
     );
 }
 
@@ -36,7 +60,18 @@ fn reviewed_empty_example_contains_three_intentionally_untagged_records() {
         assignment_file_from_str(include_str!("fixtures/reviewed-empty-example.yaml"))
             .expect("reviewed-empty assignments parse");
 
-    assert_eq!(reviewed_empty.records.len(), 3);
+    assert_eq!(
+        reviewed_empty
+            .records
+            .iter()
+            .map(|record| record.record_key.to_string())
+            .collect::<Vec<_>>(),
+        [
+            "spells-srd:generic-flavor-cantrip",
+            "equipment-srd:plain-clothing",
+            "bestiary:minimal-placeholder",
+        ]
+    );
     assert!(
         reviewed_empty
             .records
@@ -52,19 +87,35 @@ fn ontology_suggestions_example_contains_three_valid_suggestions() {
     ))
     .expect("ontology suggestions parse");
 
-    assert_eq!(suggestions.suggestions.len(), 3);
+    let proposed = suggestions
+        .suggestions
+        .iter()
+        .map(|suggestion| {
+            (
+                suggestion.proposed_id.as_ref().unwrap().as_str(),
+                suggestion.triggering_record_key.to_string(),
+                suggestion.follow_up_research_needed,
+            )
+        })
+        .collect::<Vec<_>>();
     assert_eq!(
-        suggestions.suggestions[0]
-            .proposed_id
-            .as_ref()
-            .expect("suggestion has proposed id")
-            .as_str(),
-        "exploration.environment.aquatic"
-    );
-    assert!(
-        suggestions
-            .suggestions
-            .iter()
-            .all(|suggestion| suggestion.follow_up_research_needed)
+        proposed,
+        [
+            (
+                "exploration.environment.aquatic",
+                "spells-srd:water-breathing".into(),
+                true
+            ),
+            (
+                "encounter.summoner_support",
+                "spells-srd:summoners-precaution".into(),
+                true
+            ),
+            (
+                "hazard.countermeasure.noise",
+                "hazards:resonant-alarm".into(),
+                true
+            ),
+        ]
     );
 }

@@ -469,6 +469,7 @@ fn import_rejects_duplicate_record_keys() -> Result<(), Box<dyn std::error::Erro
     });
 
     assert!(matches!(result, Err(LocalStateError::InvalidListImport(_))));
+    assert!(store.saved_lists().get("duplicates")?.is_none());
     Ok(())
 }
 
@@ -490,6 +491,7 @@ fn remove_item_compacts_positions() -> Result<(), Box<dyn std::error::Error>> {
     let list = lists
         .get_with_items("test-list")?
         .expect("list should exist");
+    assert_eq!(list.items.len(), 2);
     assert_eq!(list.items[0].record_key, "actions:first");
     assert_eq!(list.items[0].position, 1);
     assert_eq!(list.items[1].record_key, "actions:third");
@@ -543,6 +545,10 @@ fn hydrated_item_projection_marks_active_and_unresolved_rows() {
         Some("hydrated record"),
     );
     assert_eq!(active.status, SavedListItemStatus::Active);
+    assert_eq!(active.record, Some("hydrated record"));
+    assert_eq!(active.record_key, "actions:first");
+    assert_eq!(active.position, 1);
+    assert_eq!(active.note.as_deref(), Some("note"));
     assert_eq!(active.snapshot.title, "First Snapshot");
 
     let unresolved = hydrate_saved_list_item::<&str>(
@@ -558,6 +564,8 @@ fn hydrated_item_projection_marks_active_and_unresolved_rows() {
         None,
     );
     assert_eq!(unresolved.status, SavedListItemStatus::Unresolved);
+    assert_eq!(unresolved.record, None);
+    assert_eq!(unresolved.record_key, "actions:missing");
     assert_eq!(unresolved.snapshot.title, "Missing Snapshot");
 }
 

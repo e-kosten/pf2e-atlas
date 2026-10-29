@@ -540,7 +540,7 @@ it("resets traits to their default without replacing the record preference", () 
   expect(remember).toHaveBeenCalledWith(
     expect.objectContaining({
       recordSimilarity: preferences.recordSimilarity,
-      traitSimilarity: DEFAULT_SEARCH_PREFERENCES.traitSimilarity,
+      traitSimilarity: { method: "baseline", decay: 0.5, candidateParts: "any" },
     }),
   );
 });

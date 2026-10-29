@@ -39,12 +39,17 @@ fn assert_coverage(
         let SourcePassageAddress::PlainSection {
             chunk_bytes: range,
             source_text_sha256,
-            ..
+            selection_version,
+            section_ordinal,
+            label,
         } = &unit.address
         else {
             panic!("expected plain section")
         };
         assert_eq!(source_text_sha256, &hash_document_embedding_input(text));
+        assert_eq!(selection_version, "test/v1");
+        assert_eq!(*section_ordinal, 4);
+        assert_eq!(label.as_deref(), Some("Fever"));
         assert!(range.start <= covered);
         assert!(range.end > covered);
         assert!(text.is_char_boundary(range.start) && text.is_char_boundary(range.end));
@@ -139,9 +144,15 @@ fn empty_content_is_explicitly_skipped_and_direct_inference_rejects_it() {
 #[test]
 fn vector_validation_rejects_bad_shapes_nonfinite_and_unnormalized_data() {
     assert!(validate_embedding_vector(&[1.0, 0.0], 2).is_ok());
-    assert!(validate_embedding_vector(&[0.0, 0.0], 2).is_err());
-    assert!(validate_embedding_vector(&[f32::NAN, 0.0], 2).is_err());
-    assert!(validate_embedding_vector(&[1.0], 2).is_err());
+    for (name, vector) in [
+        ("zero", &[0.0, 0.0][..]),
+        ("nan", &[f32::NAN, 0.0][..]),
+        ("infinity", &[f32::INFINITY, 0.0][..]),
+        ("wrong dimensions", &[1.0][..]),
+        ("nonunit", &[2.0, 0.0][..]),
+    ] {
+        assert!(validate_embedding_vector(vector, 2).is_err(), "{name}");
+    }
 }
 #[test]
 fn cache_requires_all_immutable_assets_and_only_verified_models() {
@@ -399,8 +410,11 @@ fn actual_bge_batches_reuse_preserves_attribution_and_utf8() {
         "∞ ≠ ≤ ≥",
     ];
     let batch = model.embed_documents(&texts).unwrap();
+    assert_eq!(batch.len(), texts.len());
     for (text, expected) in texts.iter().zip(&batch) {
         let single = model.embed_document(text).unwrap();
+        assert_eq!(expected.len(), 768, "{text}");
+        assert_eq!(single.len(), 768, "{text}");
         assert!(
             single
                 .iter()

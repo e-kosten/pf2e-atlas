@@ -26,7 +26,7 @@ fn local_model_config() -> EmbeddingRuntimeConfig {
 
 #[test]
 #[ignore = "requires the pinned local BGE model and native runtime; run explicitly"]
-fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() {
+fn actual_bge_prepared_queries_support_filtered_pages_and_stored_similarity() {
     let config = local_model_config();
     let model_dir = config.model_dir();
     let mut model = TextEmbedder::load_from_model_dir(config.model_spec(), &model_dir)
@@ -81,12 +81,7 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
     let eligible = (1..4)
         .map(|id| RecordKey::parse(&format!("items:{id:016}")).unwrap())
         .collect::<Vec<_>>();
-    eprintln!(
-        "pinned BGE fixture: assets={}; identity_units=4; embed_query invocations=0",
-        model_dir.display()
-    );
 
-    let mut expected_invocations = 0;
     for mode in [RetrievalMode::Vector, RetrievalMode::Hybrid] {
         let mut previous_key = None;
         for number in [1, 2] {
@@ -113,7 +108,6 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
                     prefer_remaster: true,
                 })
                 .unwrap();
-            expected_invocations += 1;
             assert_eq!(result.records.len(), 1);
             assert_eq!(result.page.total, 3);
             assert_eq!(result.page.next_page, Some(number + 1));
@@ -122,14 +116,6 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
             assert!(eligible.contains(&result.records[0].record.key));
             assert_ne!(previous_key.as_ref(), Some(&result.records[0].record.key));
             previous_key = Some(result.records[0].record.key.clone());
-            eprintln!(
-                "{} page{}: embed_query invocations={}; eligible_total={}; selected={}",
-                mode.as_str(),
-                number,
-                expected_invocations,
-                result.page.total,
-                result.records[0].record.key
-            );
         }
     }
 
@@ -155,14 +141,13 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
         .unwrap();
     assert_eq!(lexical.page.total, 3);
     assert!(lexical.coverage.exhaustive);
-    assert!(
-        lexical
-            .records
-            .iter()
-            .all(|row| eligible.contains(&row.record.key))
-    );
-    assert_eq!(expected_invocations, 4);
-    eprintln!("fts: embed_query invocations=4; eligible_total=3; no query embedding");
+    let mut lexical_keys = lexical
+        .records
+        .iter()
+        .map(|row| row.record.key.clone())
+        .collect::<Vec<_>>();
+    lexical_keys.sort();
+    assert_eq!(lexical_keys, eligible);
 
     let seed = &eligible[0];
     let similar = service
@@ -181,15 +166,12 @@ fn actual_bge_pages_invoke_query_embedding_once_each_without_cross_page_reuse() 
     assert_eq!(&similar.seed.key, seed);
     assert_eq!(similar.results.page.total, 2);
     assert!(!similar.results.coverage.exhaustive);
-    assert!(
-        similar
-            .results
-            .records
-            .iter()
-            .all(|row| row.record.key != *seed && eligible.contains(&row.record.key))
-    );
-    assert_eq!(expected_invocations, 4);
-    eprintln!(
-        "stored-vector Similar: embed_query invocations=4; eligible_total=2; seed excluded; no query embedding"
-    );
+    let mut similar_keys = similar
+        .results
+        .records
+        .iter()
+        .map(|row| row.record.key.clone())
+        .collect::<Vec<_>>();
+    similar_keys.sort();
+    assert_eq!(similar_keys, eligible[1..]);
 }

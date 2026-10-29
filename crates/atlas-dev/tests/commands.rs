@@ -114,7 +114,14 @@ fn developer_inspection_decodes_checked_snapshot_and_only_reads_verified_origina
         .output()
         .unwrap();
     let v = data(record);
-    assert!(v["checked_snapshot"].is_object());
+    assert_eq!(v["key"], "actions:aaaaaaaaaaaaaaaa");
+    assert_eq!(v["provenance"]["path"], "packs/actions/action.json");
+    assert_eq!(v["checked_snapshot"]["version"], 1);
+    assert!(
+        serde_json::to_string(&v["checked_snapshot"])
+            .unwrap()
+            .contains("Treat Wounds")
+    );
     assert!(v["original_source"].is_null());
     let v = data(
         Command::new(env!("CARGO_BIN_EXE_atlas-dev"))
@@ -126,7 +133,8 @@ fn developer_inspection_decodes_checked_snapshot_and_only_reads_verified_origina
             .output()
             .unwrap(),
     );
-    assert!(v["original_source"].is_object());
+    let original: Value = serde_json::from_str(include_str!("fixtures/action.json")).unwrap();
+    assert_eq!(v["original_source"], original);
     fs::write(f.0.join("packs/actions/action.json"), "{}").unwrap();
     let o = Command::new(env!("CARGO_BIN_EXE_atlas-dev"))
         .args(["index", "record", key, "--index"])

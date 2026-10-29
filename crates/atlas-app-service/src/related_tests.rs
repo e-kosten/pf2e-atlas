@@ -141,7 +141,16 @@ fn recipient_grants_are_uncapped_but_do_not_appear_on_actors_or_partial_readings
     ));
     let detail = f.worker.record_detail("actions:ability000000000").unwrap();
     let grants = detail.presentation.grants.unwrap();
-    assert_eq!(grants.entries.len(), 6);
+    assert_eq!(
+        grants
+            .entries
+            .iter()
+            .map(|entry| entry.navigation.record_key.clone())
+            .collect::<Vec<_>>(),
+        (0..6)
+            .map(|index| format!("feats-srd:granted{index:09}"))
+            .collect::<Vec<_>>()
+    );
     assert_eq!(grants.unavailable_count, 1);
     assert!(!grants.truncated);
     assert!(grants.entries.iter().all(|entry| entry.record.is_some()));

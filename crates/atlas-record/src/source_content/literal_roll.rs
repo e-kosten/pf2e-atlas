@@ -58,6 +58,14 @@ mod tests {
             assert_eq!(roll.formula, "2d6+3");
             assert_eq!(roll.caption, "Recharge Breath Weapon");
             assert!(roll.has_dice);
+            assert_eq!(
+                roll.expression,
+                RollPreviewExpression::Binary {
+                    operator: atlas_dice::RollOperator::Add,
+                    left: Box::new(RollPreviewExpression::Dice { sides: vec![6, 6] }),
+                    right: Box::new(RollPreviewExpression::Number { value: 3 }),
+                }
+            );
             assert!(!literal_content_roll(command, "4 #rounds").unwrap().has_dice);
             assert_eq!(
                 literal_content_roll(command, "{2d8} #Stamina Points")

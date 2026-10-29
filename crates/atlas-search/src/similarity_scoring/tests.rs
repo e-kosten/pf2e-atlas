@@ -371,6 +371,10 @@ fn reused_maxima_reselect_evidence_after_decay_when_tied_parts_have_different_pe
             .iter()
             .any(|pair| pair.seed.component.selector().0 == "a")
     );
+    let strongest = passages(&seed, &candidate, SimilarityCandidateParts::Any, 0.0);
+    close(strongest.score, 0.5);
+    assert_eq!(strongest.pairs.len(), 1);
+    assert_eq!(strongest.pairs[0].seed.component.selector().0, "a");
     for decay in [0.0, 0.25, 0.5, 1.0] {
         let weights = super::decay_weights(maxima.parts.len(), decay);
         let chosen = super::select_passage_pairs(

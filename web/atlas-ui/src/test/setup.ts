@@ -1,5 +1,14 @@
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup } from "@testing-library/react";
+import type {} from "vitest/jsdom";
+
+const browserWindow = jsdom.window;
+for (const name of ["localStorage", "sessionStorage"] as const) {
+  Object.defineProperty(globalThis, name, {
+    configurable: true,
+    get: () => browserWindow[name],
+  });
+}
 
 Object.defineProperty(window, "matchMedia", {
   writable: true,

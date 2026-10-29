@@ -31,6 +31,8 @@ mod tests {
     fn reference_checks_use_a_d20_and_compare_to_dc_without_critical_adjustments() {
         for dc in [0, 11, 21, 100] {
             let result = roll(RollFlatCheckRequest { dc }).unwrap();
+            assert_eq!(result.dc, dc);
+            assert_eq!(result.outcome.formula, "1d20");
             assert!((1..=20).contains(&result.outcome.total));
             assert_eq!(result.success, i64::from(result.outcome.total) >= dc);
         }

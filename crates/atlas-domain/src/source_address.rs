@@ -50,9 +50,12 @@ mod tests {
     #[test]
     fn byte_ranges_require_source_bounds_and_utf8_boundaries() {
         let text = "a🐉é";
-        assert_eq!(SourceByteRange { start: 1, end: 5 }.extract(text), Ok("🐉"));
+        for (start, end, expected) in [(1, 5, "🐉"), (5, 7, "é"), (7, 7, "")] {
+            assert_eq!(SourceByteRange { start, end }.extract(text), Ok(expected));
+        }
         for range in [
             SourceByteRange { start: 2, end: 5 },
+            SourceByteRange { start: 0, end: 2 },
             SourceByteRange { start: 5, end: 4 },
             SourceByteRange { start: 0, end: 8 },
         ] {

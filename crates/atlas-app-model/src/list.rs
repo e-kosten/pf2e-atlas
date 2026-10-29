@@ -417,15 +417,13 @@ mod tests {
             items: vec![],
         };
         let wire = serde_json::to_value(mutation).unwrap();
-        for field in [
-            "requested_count",
-            "added_count",
-            "already_present_count",
-            "failed_count",
-        ] {
-            assert!(wire[field].is_number());
-        }
-        assert_eq!(wire["already_present_count"], json!(0));
+        assert_eq!(
+            wire,
+            json!({
+                "list_key":"list-key", "slug":"reference", "requested_count":2,
+                "added_count":1, "already_present_count":0, "failed_count":1, "items":[],
+            })
+        );
     }
 }
 

@@ -240,7 +240,8 @@ fn strict_identity_alias_ambiguity_and_macro_exclusion() {
         .unwrap();
     assert_eq!(aliases.len(), 1);
     assert_eq!(aliases[0].match_kind, RecordResolutionMatchKind::Alias);
-    assert!(aliases[0].evidence.is_some());
+    assert_eq!(aliases[0].record.key, key("aaaaaaaaaaaaaaaa"));
+    assert_eq!(aliases[0].evidence.as_deref(), Some("source redirect"));
     assert_eq!(
         search(&mut service, "Verified dragon").records[0]
             .record
@@ -625,7 +626,13 @@ fn suggested_physical_variants_require_known_category_and_reuse_seed_body() {
     else {
         panic!("expected content");
     };
-    assert_eq!(result.variants.len(), 2);
+    let mut variants = result
+        .variants
+        .iter()
+        .map(|variant| variant.key.clone())
+        .collect::<Vec<_>>();
+    variants.sort();
+    assert_eq!(variants, [key("aaaaaaaaaaaaaaaa"), key("bbbbbbbbbbbbbbbb")]);
     assert!(
         result.ambiguous,
         "incompatible suggestion must remain explicit"

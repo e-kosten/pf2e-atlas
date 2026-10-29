@@ -98,7 +98,10 @@ it("keeps a new-list draft during one pending submission and a failed attempt", 
   expect(created).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Create" }));
   await waitFor(() => expect(created).toHaveBeenCalledWith("expedition"));
-  expect(api.createSavedList).toHaveBeenCalledTimes(2);
+  expect(api.createSavedList.mock.calls).toEqual([
+    [{ slug: "expedition", name: "Expedition", tags: [] }],
+    [{ slug: "expedition", name: "Expedition", tags: [] }],
+  ]);
 });
 
 it("keeps list choice and dialog through pending/failure, then closes after retry", async () => {

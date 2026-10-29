@@ -603,13 +603,20 @@ mod tests {
     }
 
     #[test]
-    fn progress_events_render_by_default() {
-        assert!(should_render_event("atlas_progress", false));
-    }
-
-    #[test]
-    fn internal_library_logs_are_quiet_by_default() {
-        assert!(!should_render_event("atlas_embedding::minilm", false));
+    fn event_targets_obey_the_diagnostics_opt_in() {
+        for (target, diagnostics, expected) in [
+            ("atlas_progress", false, true),
+            ("atlas_progress", true, true),
+            ("atlas_embedding::minilm", false, false),
+            ("atlas_embedding::minilm", true, true),
+            ("third_party", true, false),
+        ] {
+            assert_eq!(
+                should_render_event(target, diagnostics),
+                expected,
+                "{target}, diagnostics={diagnostics}"
+            );
+        }
     }
 
     #[test]
@@ -713,11 +720,6 @@ mod tests {
             ),
             ProgressRenderMode::Hidden
         );
-    }
-
-    #[test]
-    fn internal_library_logs_can_be_enabled_for_diagnostics() {
-        assert!(should_render_event("atlas_embedding::minilm", true));
     }
 
     #[test]
