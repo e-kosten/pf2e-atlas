@@ -250,7 +250,15 @@ mod tests {
         .unwrap();
         assert_eq!(fixture["source_commit"], REFERENCE_SOURCE_COMMIT);
         let participant = super::super::numerical_tests::participant();
-        for actor in fixture["actors"].as_array().unwrap() {
+        let actors = fixture["actors"].as_array().unwrap();
+        assert_eq!(
+            actors
+                .iter()
+                .map(|actor| actor["expected_condition"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            ["unconscious", "prone"]
+        );
+        for actor in actors {
             let record =
                 atlas_search::test_support::record("actors", "Actor", actor["record"].clone())
                     .record;

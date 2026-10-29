@@ -40,7 +40,7 @@ try {
       throw new Error(`Unknown verify option: ${argument}`);
   if (args.includes("--help") || args.includes("-h"))
     console.log(
-      "Usage: scripts/verify.sh [--verbose] [--plan | --status] [--serial]\nRun or inspect the full Rust fmt, clippy, test, and build gate.",
+      "Usage: scripts/verify.sh [--verbose] [--plan | --status] [--serial]\nRun or inspect the full Rust fmt, clippy, nextest, doctest, and build gate.",
     );
   else {
     const full = mode === "--rust" || args.includes("--full");

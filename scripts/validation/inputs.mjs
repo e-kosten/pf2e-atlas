@@ -134,19 +134,23 @@ export function artifactIdentity(command, args) {
   );
 }
 
-export function toolchainIdentity(command) {
+export function toolchainIdentity(command, args = []) {
   let text = `node ${process.version} ${process.execPath}\n${process.platform} ${process.arch}\n`;
-  for (const tool of command === "cargo"
-    ? ["rustc", "cargo"]
+  for (const [tool, ...toolArgs] of command === "cargo"
+    ? [
+        ["rustc"],
+        ["cargo"],
+        ...(args[0] === "nextest" ? [["cargo", "nextest"]] : []),
+      ]
     : command === "npm"
-      ? ["npm"]
+      ? [["npm"]]
       : []) {
     try {
       text += execFileSync(
         process.platform === "win32" ? "sh" : tool,
         process.platform === "win32"
-          ? ["-c", '"$@" --version', "sh", tool]
-          : ["--version"],
+          ? ["-c", '"$@" --version', "sh", tool, ...toolArgs]
+          : [...toolArgs, "--version"],
         {
           encoding: "utf8",
           timeout: 5000,

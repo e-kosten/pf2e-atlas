@@ -391,7 +391,18 @@ mod tests {
             .find(|group| group.damage_type == "fire")
             .unwrap();
         assert_eq!(fire.selected_source.condition_id, 2);
-        assert_eq!(fire.sources.len(), 2);
+        assert_eq!(
+            fire.sources
+                .iter()
+                .map(|source| source.condition_id)
+                .collect::<Vec<_>>(),
+            [2, 1]
+        );
+        let acid = result
+            .iter()
+            .find(|group| group.damage_type == "acid")
+            .unwrap();
+        assert_eq!(acid.selected_source.condition_id, 3);
         assert_eq!(participant, before);
         participant.conditions.remove(1);
         assert_eq!(

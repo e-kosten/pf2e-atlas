@@ -59,12 +59,13 @@ export function inspectEvidence(plan, root = process.cwd()) {
     }
   const tools = new Map();
   return flatChecks(plan).map(([label, command, ...args]) => {
-    if (!tools.has(command))
-      tools.set(command, toolchainIdentity(command).identity);
+    const toolKey = `${command}:${args[0] === "nextest" ? "nextest" : ""}`;
+    if (!tools.has(toolKey))
+      tools.set(toolKey, toolchainIdentity(command, args).identity);
     const expected = {
       runner_sha256: runner,
       environment_sha256: environment,
-      toolchain_sha256: tools.get(command),
+      toolchain_sha256: tools.get(toolKey),
       artifacts_sha256: artifactIdentity(command, args),
       end_artifacts_sha256: artifactIdentity(command, args),
     };

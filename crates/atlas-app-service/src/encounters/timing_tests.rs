@@ -669,6 +669,7 @@ fn expired_rounds_do_not_disable_modeled_condition_effects() {
             .find(|p| p.participant_key == owner)
             .unwrap(),
     );
+    assert_eq!(before.value, Some(20.into()));
     next(&f, &key);
     let participant = f
         .worker

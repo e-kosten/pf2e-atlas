@@ -285,6 +285,11 @@ it("retains a guarded HP resolution identity after an uncertain response and rep
         result.current.run({ kind: "resolve-hp-lifecycle", request }),
       ).rejects.toThrow("Connection lost");
     });
+  expect(api.resolveEncounterHpLifecycle).toHaveBeenCalledTimes(2);
+  expect(api.resolveEncounterHpLifecycle.mock.calls[0]).toEqual([
+    "encounter-key",
+    { ...request, request_id: expect.stringMatching(/\S/) },
+  ]);
   expect(api.resolveEncounterHpLifecycle.mock.calls[0][1].request_id).toEqual(
     api.resolveEncounterHpLifecycle.mock.calls[1][1].request_id,
   );
