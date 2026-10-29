@@ -6,7 +6,7 @@ use args::IndexPathOptions;
 pub(crate) fn run_index_inspect(options: IndexPathOptions) -> Result<ExitCode, String> {
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
         default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
-        path_mode: options.path_mode.into(),
+        path_mode: crate::cli::runtime_path_mode(options.path_mode),
         overrides: AtlasPathOverrides {
             source_root: None,
             embedding_cache_root: None,
@@ -38,7 +38,7 @@ pub(crate) fn run_index_record(o: args::RecordInspectOptions) -> Result<ExitCode
     use sha2::{Digest, Sha256};
     let runtime = AtlasRuntime::resolve(AtlasRuntimeOptions {
         default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
-        path_mode: o.path_mode.into(),
+        path_mode: crate::cli::runtime_path_mode(o.path_mode),
         overrides: AtlasPathOverrides {
             source_root: o.source,
             embedding_cache_root: None,

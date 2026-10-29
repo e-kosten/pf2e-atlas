@@ -137,7 +137,6 @@ version = "0.1.0"
 dependencies = [
  "atlas-dice",
  "atlas-domain",
- "atlas-record",
  "serde",
  "serde_json",
  "ts-rs",
@@ -199,7 +198,6 @@ dependencies = [
 name = "atlas-cli-support"
 version = "0.1.0"
 dependencies = [
- "atlas-runtime",
  "clap",
  "console",
  "indicatif",

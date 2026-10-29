@@ -8,6 +8,16 @@ use atlas_domain::{OwnedContentIdentity, OwnedContentLocator};
 use atlas_domain::{SourceLevelBasis, SourceRecordSummary};
 use atlas_search::{SearchCoverage, SearchLane, SearchPageInfo, SearchWitness};
 
+pub(crate) fn content_location(
+    locator: atlas_record::source_content::SourceContentLocator,
+) -> atlas_app_model::ContentLocationView {
+    atlas_app_model::ContentLocationView {
+        record: locator.record,
+        owners: locator.owners,
+        field: locator.field,
+    }
+}
+
 pub fn record_summary_view(record: &SourceRecordSummary) -> RecordSummaryView {
     let kind = record
         .record_kind
@@ -275,7 +285,7 @@ pub(crate) fn relationship_view(
             field: (o.origin == "content").then(|| o.locator.field.clone()),
             passage: None,
         },
-        source: o.locator.into(),
+        source: content_location(o.locator),
         ordinal: o.ordinal,
         origin: o.origin,
         kind: o.kind,
@@ -709,7 +719,14 @@ mod tests {
                     },
                     "current-generation",
                 );
-                assert_eq!(view.source, locator.into());
+                assert_eq!(
+                    serde_json::to_value(&view.source).unwrap(),
+                    serde_json::json!({
+                        "record": source_key.to_string(),
+                        "embedded_path": owners,
+                        "field": "/system/description/value",
+                    })
+                );
                 assert_eq!(view.source_navigation.record_key, source_key.to_string());
                 assert_eq!(view.source_navigation.owners, owners);
                 assert_eq!(

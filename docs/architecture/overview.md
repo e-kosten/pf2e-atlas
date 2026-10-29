@@ -208,7 +208,9 @@ roots within one workspace snapshot while keeping participant and selected-rank
 overlays independent. Local-state supplies encounter-index participant counts without
 hydrating roster details.
 There is no generic section/value/profile layout interpreter or second encounter
-stat-block response. App-model stays a transient DTO/export boundary; run
+stat-block response. App-service projects checked source locators into app content
+addresses. App-model stays a transient DTO/export boundary with no record-interpretation
+dependency; run
 `cargo test -p atlas-app-model` and regenerate checked bindings intentionally
 with `cargo test -p atlas-app-model export_typescript_bindings -- --ignored`.
 

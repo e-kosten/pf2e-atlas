@@ -642,6 +642,41 @@ fn saved_lists_retain_unresolved_snapshots_across_an_artifact_rebuild() {
     assert!(v["items"][0]["record"].is_null());
 }
 #[test]
+fn setup_path_modes_preserve_explicit_overrides_and_global_default() {
+    let f = Fixture::new();
+    let models = f.root.join("models");
+    for (arguments, expected_mode) in [
+        (vec![], "global"),
+        (vec!["--path-mode", "global"], "global"),
+        (vec!["--path-mode", "repo"], "repo"),
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .current_dir(env!("CARGO_MANIFEST_DIR"))
+            .args(["setup", "--check", "--offline", "--no-embeddings", "--json"])
+            .args(arguments)
+            .arg("--source")
+            .arg(&f.root)
+            .arg("--index")
+            .arg(&f.index)
+            .arg("--embedding-cache-path")
+            .arg(&models)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{output:?}");
+        let envelope: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(envelope["status"], "ok");
+        let data = &envelope["data"];
+        assert_eq!(data["path_mode"], expected_mode);
+        assert_eq!(data["paths"]["source"], f.root.to_string_lossy().as_ref());
+        assert_eq!(data["paths"]["index"], f.index.to_string_lossy().as_ref());
+        assert_eq!(
+            data["paths"]["embedding_cache"],
+            models.to_string_lossy().as_ref()
+        );
+    }
+}
+
+#[test]
 fn setup_check_and_cache_cleanup_preserve_workspace_and_saved_state() {
     let f = Fixture::new();
     f.data(&["lists", "create", "keep", "--name", "Keep", "--json"]);

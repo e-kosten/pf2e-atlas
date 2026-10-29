@@ -43,7 +43,7 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
     let sort = super::result_order::requested_sort(&o.sort, o.seed)?;
     let service = match connect(ClientOptions {
         search_profile: o.search_profile.clone(),
-        path_mode: o.path_mode.into(),
+        path_mode: crate::cli::runtime_path_mode(o.path_mode),
         index: o.index.clone(),
         embedding_cache: None,
         retrieval_mode: if o.list_parts {
