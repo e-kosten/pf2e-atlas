@@ -19,11 +19,18 @@ mkdir -p "$fake_bin"
 cat > "$fake_bin/cargo" <<'EOF_CARGO'
 #!/bin/sh
 printf 'cargo %s\n' "$*" >> "$ATLAS_TEST_COMMAND_LOG"
+if [ "${1:-}" = metadata ]; then printf '{"target_directory":"%s/target","packages":[]}\n' "$PWD"; exit 0; fi
 printf 'cargo detail output for %s\n' "$*"
 [ "${ATLAS_TEST_FAIL_CARGO:-0}" -eq 0 ] || exit 19
 exit 0
 EOF_CARGO
 chmod +x "$fake_bin/cargo"
+cat > "$fake_bin/rustc" <<'EOF_RUSTC'
+#!/bin/sh
+printf 'rustc 1.95.0 (fixture)\n'
+EOF_RUSTC
+chmod +x "$fake_bin/rustc"
+
 
 cat > "$fake_bin/npm" <<'EOF_NPM'
 #!/bin/sh
@@ -43,13 +50,24 @@ cp "$repo_root/.githooks/pre-commit" "$repo_root/.githooks/pre-merge-commit" "$f
 cp "$repo_root/scripts/git-hooks/common.sh" "$fixture/scripts/git-hooks/common.sh"
 cp "$repo_root/scripts/verify-changed.sh" "$repo_root/scripts/verify.sh" "$fixture/scripts/"
 mkdir -p "$fixture/scripts/validation" "$fixture/scripts/release"
-cp "$repo_root/scripts/validation/run-check.mjs" "$repo_root/scripts/validation/run-process.mjs" "$repo_root/scripts/validation/verify.mjs" "$repo_root/scripts/validation/run-check.sh" "$repo_root/scripts/validation/launch.sh" "$fixture/scripts/validation/"
+cp "$repo_root/scripts/validation/run-check.mjs" "$repo_root/scripts/validation/run-process.mjs" "$repo_root/scripts/validation/verify.mjs" "$repo_root/scripts/validation/plan.mjs" "$repo_root/scripts/validation/inputs.mjs" "$repo_root/scripts/validation/status.mjs" "$repo_root/scripts/validation/tooling.mjs" "$repo_root/scripts/validation/run-check.sh" "$repo_root/scripts/validation/launch.sh" "$fixture/scripts/validation/"
 for skill_check in skill.ts skill.test.ts; do
   printf 'import { appendFileSync } from "node:fs"; appendFileSync(process.env.ATLAS_TEST_COMMAND_LOG, "skill check\\n");\n' >"$fixture/scripts/validation/$skill_check"
 done
 for stub in validation/research.sh release/validate-release-tooling.sh release/test-release-tools.sh release/test-prepare-release.sh; do
   # shellcheck disable=SC2016 # The fixture expands its own environment.
   printf '#!/bin/sh\nprintf "extra check\\n" >> "$ATLAS_TEST_COMMAND_LOG"\n' >"$fixture/scripts/$stub"
+done
+mkdir -p "$fixture/scripts/development"
+printf 'exit 0\n' >"$fixture/scripts/git-hooks/test-common.sh"
+printf 'import { appendFileSync } from "node:fs"; appendFileSync(process.env.ATLAS_TEST_COMMAND_LOG,"tooling check\\n");\n' >"$fixture/scripts/validation/fixture.test.mjs"
+mkdir -p "$fixture/scripts/development" "$fixture/web/atlas-ui"
+cp "$repo_root/scripts/development/preflight.mjs" "$fixture/scripts/development/"
+cp "$repo_root/web/atlas-ui/package.json" "$fixture/web/atlas-ui/"
+cp "$repo_root/rust-toolchain.toml" "$fixture/"
+for package in web/atlas-ui dev-tools/source-contracts dev-tools/release; do
+  mkdir -p "$fixture/$package/node_modules"
+  printf '{}\n' >"$fixture/$package/node_modules/.package-lock.json"
 done
 git init --quiet "$fixture"
 git -C "$fixture" config user.name 'Atlas hook fixture'
@@ -186,7 +204,7 @@ printf 'unknown-tooling-file' >"$fixture/paths-input"
   ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" scripts/verify-changed.sh --paths-file paths-input --full
 ) >"$check_output" 2>&1
 grep -q '^cargo test --workspace$' "$log" || { echo 'unterminated path skipped Rust gate' >&2; exit 1; }
-grep -q '^npm --prefix web/atlas-ui run verify$' "$log" || { echo 'unterminated path skipped web gate' >&2; exit 1; }
+grep -q '^npm --prefix web/atlas-ui run verify:bundle$' "$log" || { echo 'unterminated path skipped web gate' >&2; exit 1; }
 case_count=$((case_count + 1))
 printf 'Passed hook fixture: literal final path without newline is classified\n'
 
@@ -206,31 +224,33 @@ printf 'git-hook common smoke tests and %s fixture cases passed\n' "$case_count"
 
 # Explicit surfaces, dependency fan-out, and conservative unknown inputs.
 for entry in \
-  'README.md:00000000' \
-  'web/atlas-ui/src/app.tsx:01000010' \
-  'web/atlas-ui/e2e/devices/conditions.spec.ts:00000010' \
-  'web/atlas-ui/playwright.devices.config.ts:00000010' \
-  'scripts/browser-fixture.mjs:00000010' \
-  'crates/atlas-dev/src/main.rs:00000001' \
-  'scripts/development/build-preview.mjs:00000001' \
-  'scripts/development/build-preview.test.mjs:00000001' \
-  'crates/atlas-cli/src/main.rs:10000001' \
-  'crates/atlas-cli-support/src/lib.rs:10000001' \
-  'crates/atlas-runtime/src/lib.rs:10000010' \
-  'docs/research/evaluations/frozen/README.md:00001000' \
-  'docs/research/evaluations/frozen/judgments.jsonl:00001000' \
-  'docs/research/evaluations/frozen/verify.ts:00001000' \
-  'dev-tools/source-contracts/tests/fixture.md:00100000' \
-  'dev-tools/release/src/check.ts:00010000' \
-  'crates/atlas-foundry-model/src/lib.rs:10100010' \
-  'crates/atlas-app-model/bindings/Search.ts:11000010' \
-  'Cargo.lock:11110011' \
-  'crates/atlas-cli/Cargo.toml:11110011' \
-  'THIRD-PARTY-NOTICES.md:00010000' \
-  'skills/pf2e-atlas-cli/SKILL.md:00000100' \
-  '.cargo/config.toml:11111111' \
-  '.github/workflows/ci.yml:11111111' \
-  'unknown.config:11111111'; do
+  'README.md:000000000' \
+  'web/atlas-ui/src/app.tsx:010000100' \
+  'web/atlas-ui/e2e/devices/conditions.spec.ts:000000100' \
+  'web/atlas-ui/playwright.devices.config.ts:000000100' \
+  'scripts/browser-fixture.mjs:000000101' \
+  'crates/atlas-dev/src/main.rs:000000010' \
+  'scripts/development/build-preview.mjs:000000001' \
+  'scripts/development/build-preview.test.mjs:000000001' \
+  'crates/atlas-cli/src/main.rs:100000010' \
+  'crates/atlas-cli-support/src/lib.rs:100000010' \
+  'crates/atlas-runtime/src/lib.rs:100000100' \
+  'docs/research/evaluations/frozen/README.md:000010000' \
+  'docs/research/evaluations/frozen/judgments.jsonl:000010000' \
+  'docs/research/evaluations/frozen/verify.ts:000010000' \
+  'dev-tools/source-contracts/tests/fixture.md:001000000' \
+  'dev-tools/release/src/check.ts:000100000' \
+  'crates/atlas-foundry-model/src/lib.rs:101000100' \
+  'crates/atlas-app-model/bindings/Search.ts:110000100' \
+  'Cargo.lock:111100110' \
+  'crates/atlas-cli/Cargo.toml:111100110' \
+  'THIRD-PARTY-NOTICES.md:000100000' \
+  'skills/pf2e-atlas-cli/SKILL.md:000001000' \
+  'scripts/validation/skill.ts:000001001' \
+  'scripts/validation/research.sh:000010001' \
+  '.cargo/config.toml:111111111' \
+  '.github/workflows/ci.yml:111111111' \
+  'unknown.config:111111111'; do
   changed_path=${entry%:*}
   expected=${entry##*:}
   printf '%s\n' "$changed_path" >"$fixture/paths-input"
@@ -255,7 +275,11 @@ for changed_path in web/atlas-ui/src/app.tsx web/atlas-ui/e2e/devices/conditions
       if grep -q '^cargo ' "$log"; then echo 'frontend-only change ran Cargo' >&2; exit 1; fi
       if grep -q '^npm --prefix web/atlas-ui run verify$' "$log"; then echo 'non-unit surface ran full frontend verify' >&2; exit 1; fi
       ;;
-    crates/atlas-dev/* | scripts/development/*)
+    scripts/development/*)
+      grep -q '^tooling check$' "$log"
+      if grep -Eq '^npm |^cargo ' "$log"; then echo 'Node tooling ran application checks' >&2; exit 1; fi
+      ;;
+    crates/atlas-dev/*)
       grep -q '^cargo test -p atlas-dev -p atlas-cli-support --locked$' "$log"
       grep -q '^cargo build -p atlas-dev --locked$' "$log"
       if grep -Eq '^npm |^cargo .*--workspace' "$log"; then echo 'standalone developer change ran application checks' >&2; exit 1; fi
@@ -279,7 +303,7 @@ grep -q '^rust=true$' "$check_output"
 chmod +x "$fixture/README.md"
 git -C "$fixture" add README.md
 (cd "$fixture"; scripts/verify-changed.sh --staged --list) >"$check_output"
-[ "$(grep -c '=true$' "$check_output")" -eq 8 ]
+[ "$(grep -c '=true$' "$check_output")" -eq 9 ]
 
 # The real research runner rejects missing verifiers and propagates failures.
 cp "$repo_root/scripts/validation/research.sh" "$fixture/scripts/validation/research.sh"

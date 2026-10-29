@@ -1,17 +1,22 @@
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
+import {
+  inputIdentity,
+  commandIdentity,
+  runnerIdentity,
+  environmentIdentity,
+  toolchainIdentity,
+  environmentState,
+  artifactIdentity,
+} from "./inputs.mjs";
 import {
   appendFileSync,
-  closeSync,
   existsSync,
-  lstatSync,
+  closeSync,
   mkdirSync,
   mkdtempSync,
   openSync,
   readFileSync,
-  readlinkSync,
   realpathSync,
-  statSync,
   writeFileSync,
   writeSync,
 } from "node:fs";
@@ -24,80 +29,6 @@ const tsv = (values) =>
   Object.entries(values)
     .map(([key, value]) => `${key}\t${value}\n`)
     .join("");
-
-function inputIdentity(scope) {
-  const paths = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true })
-    .decode(
-      execFileSync("git", [
-        "ls-files",
-        "--cached",
-        "--others",
-        "--exclude-standard",
-        "--deduplicate",
-        "-z",
-        "--",
-        ".",
-        ":(top,exclude).atlas/validation",
-      ]),
-    )
-    .split("\0")
-    .filter(Boolean)
-    .sort();
-  const hash = createHash("sha256");
-  const field = (value) => {
-    const bytes = Buffer.from(value);
-    hash.update(`${bytes.length}:`).update(bytes);
-  };
-  for (const path of paths) {
-    if (
-      scope === "web-format" &&
-      !/^(web\/atlas-ui\/|\.prettier|\.editorconfig$|prettier\.config\.|package(?:-lock)?\.json$)/.test(
-        path,
-      )
-    )
-      continue;
-    if (
-      scope === "rust-format" &&
-      !/(\.rs$|(^|\/)Cargo\.(toml|lock)$|^rust-toolchain|(^|\/)(\.rustfmt|rustfmt)\.toml$|^\.cargo\/)/.test(
-        path,
-      )
-    )
-      continue;
-    if (
-      scope === "code" &&
-      path.endsWith(".md") &&
-      !/^(dev-tools\/source-contracts\/|docs\/research\/evaluations\/|skills\/pf2e-atlas-cli\/)/.test(
-        path,
-      )
-    )
-      continue;
-    let metadata;
-    try {
-      metadata = lstatSync(path);
-    } catch (error) {
-      if (error.code === "ENOENT") continue;
-      throw error;
-    }
-    field(path);
-    field(
-      metadata.isSymbolicLink()
-        ? "link"
-        : metadata.isFile()
-          ? metadata.mode & 0o111
-            ? "executable"
-            : "file"
-          : "other",
-    );
-    if (metadata.isSymbolicLink())
-      field(readlinkSync(path, { encoding: "buffer" }));
-    if (
-      metadata.isFile() ||
-      (metadata.isSymbolicLink() && existsSync(path) && statSync(path).isFile())
-    )
-      field(readFileSync(path));
-  }
-  return hash.digest("hex");
-}
 
 export async function runChecks(
   checks,
@@ -147,9 +78,45 @@ export async function runChecks(
         if (error.code !== "ENOENT") controller.abort(125);
       }
     }, 50);
-  try {
-    for (const [label, command, ...args] of checks) {
-      if (controller.signal.aborted) return controller.signal.reason;
+  async function sequence(tasks, signal = controller.signal) {
+    for (const task of tasks) {
+      if (task.parallel) {
+        const pair = new AbortController();
+        const cancel = () => pair.abort(signal.reason);
+        signal.addEventListener("abort", cancel, { once: true });
+        if (signal.aborted) cancel();
+        let failure;
+        let error;
+        const lane = async (tasks) => {
+          try {
+            const status = await sequence(tasks, pair.signal);
+            if (status && failure === undefined && !pair.signal.aborted) {
+              failure = status;
+              pair.abort(143);
+            }
+            return status;
+          } catch (caught) {
+            error ??= caught;
+            pair.abort(143);
+            throw caught;
+          }
+        };
+        await Promise.allSettled([
+          lane(task.parallel.frontend),
+          lane(task.parallel.rust),
+        ]);
+        signal.removeEventListener("abort", cancel);
+        if (signal.aborted) return signal.reason;
+        if (failure) {
+          if (error)
+            console.error(`Peer cleanup/evidence error: ${error.message}`);
+          return failure;
+        }
+        if (error) throw error;
+        continue;
+      }
+      const [label, command, ...args] = task;
+      if (signal.aborted) return signal.reason;
       const check = mkdtempSync(join(dir, "check."));
       const log = join(check, "output.log");
       const started = Date.now();
@@ -166,26 +133,15 @@ export async function runChecks(
         [command, ...args].join("\n") + "\n",
       );
       writeFileSync(join(check, "phase.pid"), `${process.pid}\n`);
-      let toolchain = `${process.version}\n`;
-      for (const tool of command === "cargo"
-        ? ["rustc", "cargo"]
-        : command === "npm"
-          ? ["npm"]
-          : []) {
-        try {
-          const result = execFileSync(
-            process.platform === "win32" ? "sh" : tool,
-            process.platform === "win32"
-              ? ["-c", '"$@" --version', "sh", tool]
-              : ["--version"],
-            { encoding: "utf8", timeout: 5000 },
-          );
-          toolchain += result;
-        } catch (error) {
-          toolchain += `${error.message}\n`;
-        }
-      }
-      writeFileSync(join(check, "toolchain.txt"), toolchain);
+      const toolchain = toolchainIdentity(command);
+      const startArtifacts = artifactIdentity(command, args);
+      const identity = {
+        command_sha256: commandIdentity([command, ...args]),
+        runner_sha256: runnerIdentity(),
+        environment_sha256: environmentIdentity(),
+        toolchain_sha256: toolchain.identity,
+      };
+      writeFileSync(join(check, "toolchain.txt"), toolchain.text);
       const fd = openSync(log, "w");
       const seconds = Number(
         process.env.ATLAS_VALIDATION_HEARTBEAT_SECONDS || 20,
@@ -212,7 +168,7 @@ export async function runChecks(
         } else {
           console.error(`Running ${label}...`);
           status = await runProcess(command, args, {
-            signal: controller.signal,
+            signal,
             onOutput: (chunk) => {
               writeSync(fd, chunk);
               if (verbose) process.stderr.write(chunk);
@@ -230,15 +186,22 @@ export async function runChecks(
       } catch {
         endInputs = "unavailable";
       }
+      let endArtifacts;
+      try {
+        endArtifacts = artifactIdentity(command, args);
+      } catch {
+        endArtifacts = "unavailable";
+      }
       const runEndInputs = kind === "final" ? endInputs : "per-check";
-      if (controller.signal.aborted) {
-        status = controller.signal.reason;
+      if (signal.aborted) {
+        status = signal.reason;
         state = "interrupted";
       } else if (!state) {
         state = status ? "failed" : "passed";
         if (
           !status &&
-          (startInputs !== endInputs ||
+          (startArtifacts !== endArtifacts ||
+            startInputs !== endInputs ||
             (kind === "final" && candidateInputs !== runEndInputs))
         ) {
           state = "stale";
@@ -252,6 +215,10 @@ export async function runChecks(
         tsv({
           kind,
           label,
+          ...identity,
+          environment: JSON.stringify(environmentState()),
+          artifacts_sha256: startArtifacts,
+          end_artifacts_sha256: endArtifacts,
           status: state,
           exit: status,
           duration_seconds: elapsed,
@@ -284,6 +251,9 @@ export async function runChecks(
       if (status) return status;
     }
     return 0;
+  }
+  try {
+    return await sequence(checks);
   } finally {
     if (poll) clearInterval(poll);
     for (const [name, handler] of handlers) process.off(name, handler);
@@ -292,7 +262,8 @@ export async function runChecks(
 
 if (
   process.argv[1] &&
-  import.meta.url === pathToFileURL(resolve(process.argv[1])).href
+  existsSync(process.argv[1]) &&
+  import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href
 ) {
   const args = process.argv.slice(2);
   const verbose = args[0] === "--verbose";

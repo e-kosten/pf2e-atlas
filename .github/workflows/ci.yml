@@ -36,6 +36,7 @@ jobs:
       skill: ${{ steps.select.outputs.skill }}
       browser: ${{ steps.select.outputs.browser }}
       dev: ${{ steps.select.outputs.dev }}
+      tooling: ${{ steps.select.outputs.tooling }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -61,8 +62,7 @@ jobs:
           node-version: 22
       - name: Validation routing regression tests
         run: |
-          sh scripts/git-hooks/test-common.sh
-          node --test scripts/browser-fixture.test.mjs scripts/validate-browser-candidate.test.mjs scripts/validation/ci-results.test.mjs scripts/validation/run-check.test.mjs scripts/development/build-preview.test.mjs
+          node scripts/validation/tooling.mjs
 
   skill:
     name: bundled skill
@@ -209,7 +209,7 @@ jobs:
 
   windows-artifact:
     needs: changes
-    if: needs.changes.outputs.rust == 'true'
+    if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.tooling == 'true'
     name: Windows artifact publication
     runs-on: windows-2022
     steps:
@@ -217,8 +217,19 @@ jobs:
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
+        if: needs.changes.outputs.rust == 'true'
       - name: Verify artifact coherence and publication
+        if: needs.changes.outputs.rust == 'true'
         run: cargo test -p atlas-index --lib --locked foundation_tests
+
+      - uses: actions/setup-node@v6
+        if: needs.changes.outputs.tooling == 'true'
+        with:
+          node-version: 22
+      - name: Native Windows validation cancellation
+        if: needs.changes.outputs.tooling == 'true'
+        shell: bash
+        run: node --test scripts/validation/native-cancellation.test.mjs
 
   atlas-dev:
     needs: changes

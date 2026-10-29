@@ -13,6 +13,14 @@ The supported Node versions also provide native type stripping for contributor
 TypeScript tools. Install frontend dependencies with `npm --prefix web/atlas-ui ci`;
 keep their lockfile consistent and use private dependencies for isolated runs.
 
+Use `just preflight --validation` for Cargo readiness or `just preflight --preview`
+for a managed preview. Actual operations also check their selected prerequisites
+before expensive work. Checks probe versions and offline metadata; they never
+install dependencies/toolchains, rebuild, or migrate data. Version probes set
+`RUSTUP_AUTO_INSTALL=0`. Custom `RUSTC`/`CARGO_BUILD_RUSTC` or Cargo `rustc`
+selectors are rejected with a repair hint rather than checking a different
+compiler from Cargo's selection. Supported wrappers/flags are fingerprinted.
+
 Install tracked git hooks and verify this checkout:
 
 ```bash
@@ -34,17 +42,55 @@ normal Cargo build and retains the executable under the primary checkout at
 `.atlas/dev-baselines/tools/atlas-dev`. Subsequent init/status/web commands need
 no Rust build or Python runtime, even from a new worktree.
 
-Refresh with `just dev-tool-build` after changing the tooling or when publication
-reports a schema mismatch. Refreshing replaces only the retained developer tool;
+Refresh with `just dev-tool-build` after changing its Rust inputs or when readiness
+reports an obsolete capability or receipt. The retained binary has a content-based
+receipt covering local crate dependencies, assets, Cargo configuration and compiler
+environment. A commit alone does not invalidate it; a mismatched binary/receipt
+fails closed. Refreshing replaces only the retained developer tool;
 it does not change baseline executables, manifests, data, or existing previews.
 `ATLAS_DEV_BINARY=/absolute/path/to/atlas-dev` explicitly selects a candidate
 developer tool for the thin shell launchers. The selected Atlas app executable
 is a separate choice controlled by `--binary`.
 
+After a validated build changes schema, baseline support or developer capabilities,
+refresh the shared default explicitly:
+
+```sh
+just dev-tool-build
+just dev-build             # clean committed, validated candidate; reuses verified UI
+just dev-shared-refresh
+```
+
+Shared refresh freezes verified app/tool copies, initializes a temporary independent
+checkout from the current controlled seed, runs offline setup there, then calls
+the existing Rust deep-validation/publication owner. It reuses shared source/model
+assets and publishes the atomic current pointer only after validation succeeds.
+It never stages from a task or installed personal database. Existing task receipts
+remain pinned; an old seed is advisory, not proof that a private database is stale.
+Run this at a relevant completed/merged milestone, not after ordinary UI edits.
+
 All linked worktrees resolve one shared store through Git's common directory:
 `<primary-checkout>/.atlas/dev-baselines`. `--store /absolute/path` overrides it.
 The store contains versioned executable/database pairs and an atomic `current.json`
 pointer. It is development data, not disposable compiler output.
+
+```mermaid
+flowchart TD
+  P[Primary checkout / shared Git metadata] --> S[.atlas/dev-baselines]
+  S --> T[Retained atlas-dev + content receipt]
+  S --> B[Versioned frozen app + controlled database seed]
+  B -->|copy once at init| W[Task worktree: private .atlas/workspace.sqlite]
+  W --> V[Managed preview: stable URL and saved state]
+  C[Task source + private target + private npm dependencies] --> V
+  C -->|freeze app and UI| A[Browser artifact]
+  A --> I[Independent candidate checkout + private npm dependencies]
+  I --> E[Retained reports; disposable checkout removed]
+  M[Shared source/model caches] --> W
+  M --> B
+```
+
+Compiler output and `node_modules` stay private to a checkout. Shared assets,
+retained tool and immutable seed versions are deliberate reusable artifacts.
 
 Publish an existing build whose provenance you know, after its normal code checks.
 Publishing performs a consistent SQLite backup, checks Atlas readiness, runs deep

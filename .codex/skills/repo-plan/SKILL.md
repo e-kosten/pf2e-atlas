@@ -33,6 +33,13 @@ independent subagent review and confirmed fixes precede PR creation, while local
 logical commits remain available throughout. Scale reviewer specialties and
 validation depth to risk; use the validation guide for local/CI responsibilities.
 
+For cross-cutting source-derived rules, name the actual producers and consumers
+and representative saved, inherited and unknown cases across projection,
+mutation/admission and automatic events where applicable. This is a scoped
+acceptance matrix, not a required Cartesian product for every task. Changed DTOs
+include early real serialization and HTTP/client decoding cases covering relevant
+omission, null and default behavior; generated binding freshness alone is insufficient.
+
 Connect durable open work to the backlog. Include architecture/doc updates among
 the deliverables when the task changes ownership or intended behavior. Refactor
 acceptance should describe the intended end state and how it will be verified.

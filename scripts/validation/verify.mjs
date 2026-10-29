@@ -1,70 +1,7 @@
+import { readiness, requireReadiness } from "../development/preflight.mjs";
 import { runChecks } from "./run-check.mjs";
-
-const cargo = (label, ...args) => [label, "cargo", ...args];
-const npm = (label, script, prefix = "web/atlas-ui") => [
-  label,
-  "npm",
-  "--prefix",
-  prefix,
-  "run",
-  script,
-];
-const shell = (label, script) => [label, "sh", script];
-const fmt = cargo("cargo fmt", "fmt", "--check");
-const strictClippy = [
-  "-D",
-  "warnings",
-  ...[
-    "unwrap_used",
-    "expect_used",
-    "panic",
-    "unimplemented",
-    "todo",
-    "unreachable",
-  ].flatMap((rule) => ["-D", `clippy::${rule}`]),
-];
-const clippy = (scope) => [
-  cargo(
-    "broad clippy",
-    "clippy",
-    ...scope,
-    "--all-targets",
-    "--",
-    "-D",
-    "warnings",
-    "-D",
-    "clippy::dbg_macro",
-  ),
-  cargo(
-    "strict runtime clippy",
-    "clippy",
-    ...scope,
-    "--lib",
-    "--bins",
-    "--",
-    ...strictClippy,
-  ),
-];
-const rust = [
-  fmt,
-  ...clippy(["--workspace"]),
-  cargo("workspace tests", "test", "--workspace"),
-  cargo("workspace build", "build", "--workspace"),
-];
-const developer = [
-  fmt,
-  ...clippy(["-p", "atlas-dev", "-p", "atlas-cli-support"]),
-  cargo(
-    "developer tests",
-    "test",
-    "-p",
-    "atlas-dev",
-    "-p",
-    "atlas-cli-support",
-    "--locked",
-  ),
-  cargo("developer build", "build", "-p", "atlas-dev", "--locked"),
-];
+import { validationPlan, flatChecks } from "./plan.mjs";
+import { inspectEvidence } from "./status.mjs";
 
 const [mode, ...args] = process.argv.slice(2);
 try {
@@ -84,6 +21,7 @@ try {
     "release",
     "research",
     "skill",
+    "tooling",
   ]);
   if (selected && [...selected].some((name) => !surfaces.has(name)))
     throw new Error("Unknown validation surface");
@@ -92,87 +30,77 @@ try {
     "-v",
     "--help",
     "-h",
+    "--plan",
+    "--status",
+    "--serial",
     ...(selected ? ["--full"] : []),
   ];
   for (const argument of args)
     if (!allowed.includes(argument))
       throw new Error(`Unknown verify option: ${argument}`);
-  if (args.includes("--help") || args.includes("-h")) {
+  if (args.includes("--help") || args.includes("-h"))
     console.log(
-      "Usage: scripts/verify.sh [--verbose]\nRun the full Rust fmt, clippy, test, and build gate.",
+      "Usage: scripts/verify.sh [--verbose] [--plan | --status] [--serial]\nRun or inspect the full Rust fmt, clippy, test, and build gate.",
     );
-  } else {
-    const full = args.includes("--full") || mode === "--rust";
-    const checks = [];
-    if (selected) {
-      const touched = (name) => selected.has(name);
-      if (
-        touched("web") ||
-        touched("web-format") ||
-        (full && touched("browser") && !touched("rust"))
-      ) {
-        checks.push(
-          !full
-            ? npm("web UI format", "format:check")
-            : touched("web")
-              ? npm("web UI verify", "verify")
-              : npm("browser checks and bundle", "verify:bundle"),
+  else {
+    const full = mode === "--rust" || args.includes("--full");
+    const plan = validationPlan(selected, {
+      full,
+      parallel: !args.includes("--serial"),
+    });
+    if (args.includes("--plan") || args.includes("--status")) {
+      for (const task of plan) {
+        if (task.parallel)
+          console.log("Parallel lanes: frontend tests and Rust checks");
+        for (const check of flatChecks([task]))
+          console.log(
+            `${check[0]}: ${check
+              .slice(1)
+              .map((value) => JSON.stringify(value))
+              .join(" ")}`,
+          );
+      }
+      console.log(
+        "Prerequisites: inspection probes versions/offline metadata; it never installs or runs checks.",
+      );
+      const commands = flatChecks(plan).map((task) => task.slice(1));
+      for (const prefix of new Set(
+        commands
+          .filter((task) => task[0] === "npm" && task.includes("--prefix"))
+          .map((task) => task[task.indexOf("--prefix") + 1]),
+      ))
+        console.log(
+          `Dependencies: npm --prefix ${prefix} ci (explicit preparation when missing/stale).`,
+        );
+      if (full) {
+        const report = await readiness(process.cwd(), { commands });
+        for (const issue of report.issues) console.log(`Not ready: ${issue}`);
+        if (!report.issues.length)
+          console.log("Selected operation prerequisites are available.");
+      }
+      if (selected?.has("browser"))
+        console.log(
+          "Browser obligation: select relevant local specs/projects with just validate-browser; CI owns the full applicable matrix.",
+        );
+      if (args.includes("--status")) {
+        for (const result of inspectEvidence(plan))
+          console.log(
+            `${result.state}: ${result.label}${result.receipt ? `; ${result.receipt}` : `; ${result.reasons.join(", ")}`}`,
+          );
+        console.log(
+          "Evidence inspection does not skip checks or prove human acceptance/independent review.",
         );
       }
-      if (full && touched("rust") && !touched("web"))
-        checks.push(npm("web bundle for Rust", "build"));
-      if (touched("rust")) checks.push(...(full ? rust : [fmt]));
-      if (touched("dev") && !touched("rust"))
-        checks.push(...(full ? developer : [fmt]));
-      if (full) {
-        if (touched("skill"))
-          checks.push(
-            [
-              "bundled skill",
-              "node",
-              "--test",
-              "scripts/validation/skill.test.ts",
-            ],
-            ["skill package", "node", "scripts/validation/skill.ts"],
-          );
-        if (touched("source"))
-          checks.push(
-            npm(
-              "source contract fixtures",
-              "verify",
-              "dev-tools/source-contracts",
-            ),
-            npm(
-              "pinned source generation",
-              "verify-generated",
-              "dev-tools/source-contracts",
-            ),
-          );
-        if (touched("release"))
-          checks.push(
-            shell(
-              "release tooling and static checks",
-              "scripts/release/validate-release-tooling.sh",
-            ),
-            shell(
-              "release smoke tests",
-              "scripts/release/test-release-tools.sh",
-            ),
-            shell(
-              "release preparation tests",
-              "scripts/release/test-prepare-release.sh",
-            ),
-          );
-        if (touched("research"))
-          checks.push(
-            shell("research evidence", "scripts/validation/research.sh"),
-          );
-      }
-    } else checks.push(...rust);
-    process.exitCode = await runChecks(checks, {
-      kind: full ? "final" : "iteration",
-      verbose: args.includes("--verbose") || args.includes("-v"),
-    });
+    } else {
+      if (full)
+        await requireReadiness(process.cwd(), {
+          commands: flatChecks(plan).map((task) => task.slice(1)),
+        });
+      process.exitCode = await runChecks(plan, {
+        kind: full ? "final" : "iteration",
+        verbose: args.includes("--verbose") || args.includes("-v"),
+      });
+    }
   }
 } catch (error) {
   console.error(error.message);
