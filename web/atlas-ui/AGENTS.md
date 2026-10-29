@@ -22,19 +22,19 @@ read the relevant sections below before changing their behavior.
 
 ## Read the guide for the change
 
-| Before changing | Frontend guide section |
-| --- | --- |
-| Composition, hierarchy, density or disclosures | [Design principles](docs/frontend-guidelines.md#design-principles) |
-| Errors, unavailable states, retries or recovery | [Error feedback and recovery](docs/frontend-guidelines.md#error-feedback-and-recovery) |
-| Navigation, native links or browser history | [Routing and navigation](docs/frontend-guidelines.md#routing-and-navigation) |
-| Repeated controls, toolbars or destructive actions | [Shared UI layer](docs/frontend-guidelines.md#shared-ui-layer) |
-| Inline editing and persistent edit cues | [Reading and editing values](docs/frontend-guidelines.md#reading-and-editing-values) |
-| CSS, scroll containers, insets and content frames | [Styling](docs/frontend-guidelines.md#styling) and [padding ownership](docs/frontend-guidelines.md#padding-and-control-group-ownership) |
-| Small tasks, dialogs, popovers or drawers | [Choosing an interaction surface](docs/frontend-guidelines.md#choosing-an-interaction-surface) |
-| Selected records, linked references and previews | [In-place reference reading](docs/frontend-guidelines.md#in-place-reference-reading) |
-| Record facts, family layouts or completeness | [Record presentation](docs/frontend-guidelines.md#record-presentation) and [grouping facts](docs/frontend-guidelines.md#grouping-reference-facts) |
-| Layout, touch, narrow/short views or zoom | [Responsive acceptance](docs/frontend-guidelines.md#responsive-design-and-acceptance) |
-| Dice, encounter panels or saved mutations | [Mutable workflows](docs/frontend-guidelines.md#mutable-workflows) |
+| Before changing                                    | Frontend guide section                                                                                                                            |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Composition, hierarchy, density or disclosures     | [Design principles](docs/frontend-guidelines.md#design-principles)                                                                                |
+| Errors, unavailable states, retries or recovery    | [Error feedback and recovery](docs/frontend-guidelines.md#error-feedback-and-recovery)                                                            |
+| Navigation, native links or browser history        | [Routing and navigation](docs/frontend-guidelines.md#routing-and-navigation)                                                                      |
+| Repeated controls, toolbars or destructive actions | [Shared UI layer](docs/frontend-guidelines.md#shared-ui-layer)                                                                                    |
+| Inline editing and persistent edit cues            | [Reading and editing values](docs/frontend-guidelines.md#reading-and-editing-values)                                                              |
+| CSS, scroll containers, insets and content frames  | [Styling](docs/frontend-guidelines.md#styling) and [padding ownership](docs/frontend-guidelines.md#padding-and-control-group-ownership)           |
+| Small tasks, dialogs, popovers or drawers          | [Choosing an interaction surface](docs/frontend-guidelines.md#choosing-an-interaction-surface)                                                    |
+| Selected records, linked references and previews   | [In-place reference reading](docs/frontend-guidelines.md#in-place-reference-reading)                                                              |
+| Record facts, family layouts or completeness       | [Record presentation](docs/frontend-guidelines.md#record-presentation) and [grouping facts](docs/frontend-guidelines.md#grouping-reference-facts) |
+| Layout, touch, narrow/short views or zoom          | [Responsive acceptance](docs/frontend-guidelines.md#responsive-design-and-acceptance)                                                             |
+| Dice, encounter panels or saved mutations          | [Mutable workflows](docs/frontend-guidelines.md#mutable-workflows)                                                                                |
 
 ## Feedback and validation
 

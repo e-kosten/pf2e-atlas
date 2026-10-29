@@ -51,19 +51,41 @@ successful handshake. A persistent mismatch or unavailable storage leaves a manu
 Reload page action. Development/Vite frontends show a backend/proxy diagnostic and
 Retry instead of automatically reloading a pair that cannot repair itself.
 
-`crates/atlas-web/api-contract-inputs.json` selects the app-model source and generated
-bindings, app-service source, and HTTP transport source. Vite and the Rust build hash
-the same sorted relative paths and UTF-8 contents, normalizing CRLF to LF and framing
-each path/content with NUL separators. The identifier is `atlas-web-v1-<sha256>`.
-It is conservative source compatibility, not a semantic equivalence proof: even a
-test/comment edit under an input directory can require a matching backend. It does
-not depend on the Git commit, checkout path, platform, UI styles, or build profile.
+`crates/atlas-web/api-contract.json` owns an explicit positive `protocol_revision`
+and the generated app-model binding directory. Vite and the Rust build hash the
+same sorted relative `.ts` paths and UTF-8 contents, normalizing CRLF to LF and
+framing each path/content with NUL separators. The hash starts with
+`atlas-web-protocol`, NUL, the decimal protocol revision and NUL. The identifier is
+`atlas-web-v2-<sha256>`. Shared Rust/TypeScript fixture vectors verify the framing.
+The v2 scheme replaces the broad app-service/transport/source hash: implementation,
+test and ordinary Rust comment changes do not require a frontend rebuild or Vite
+restart. Generated binding content remains conservative; regenerated binding
+comments or formatting can change the identifier even when wire shapes agree.
+
+The revision covers wire behavior that TypeScript cannot express. Increment it
+when routes/methods, request interpretation, serialization, omission versus null,
+defaults, numeric encoding, error envelopes or other client-visible protocol
+semantics change without a corresponding generated type change. Keep focused
+serde/transport regressions for the behavior, as well as binding-freshness tests.
+For example, a `#[ts(optional)]` field may keep the same TypeScript declaration
+when `skip_serializing_if` changes; the generated binding alone cannot detect that
+wire change. A rule calculation fix with unchanged protocol does not require a
+revision bump.
+
+This identifies a declared wire contract, not semantic equivalence or exact build
+identity. Revision discipline and behavioral review are necessary; the guard does
+not automatically inspect arbitrary Rust logic for protocol changes. Commit,
+platform and executable/UI checksums remain separate artifact provenance. The API
+identifier does not depend on the Git commit, checkout path, platform, UI styles,
+or build profile.
 
 Vite embeds the expected identifier in the browser bundle and writes
 `dist/api-contract.txt`. The Rust build rejects a missing or mismatched bundle
-identifier before embedding it. Vite restarts when a contract input changes.
-This catches stale dist output as well as accidentally pointing a current Vite
-frontend at an older frozen development backend.
+identifier before embedding it. Vite watches only the protocol metadata and
+generated binding directory for compatibility-triggered restarts.
+This catches incompatible dist output and a Vite frontend pointed at an
+incompatible backend. The separate frontend build receipt establishes freshness;
+a compatible frozen backend may still run older implementation code.
 
 The browser sends `x-atlas-api-contract` on every API request; transport middleware
 returns HTTP 409 before executing an advertised incompatible request, including
