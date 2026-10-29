@@ -817,7 +817,7 @@ mod tests {
             let write = workspace
                 .write(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
                 .unwrap();
-            assert!(crate::validate_reference(write.connection()).is_ok());
+            assert!(crate::validate_artifact(&path).is_ok());
             assert_eq!(
                 write
                     .connection()
