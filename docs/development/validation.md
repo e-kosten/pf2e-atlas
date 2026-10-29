@@ -24,9 +24,39 @@ just verify
 # or: scripts/verify.sh
 ```
 
-Validation is quiet by default: successful gates print summary lines and detailed
-Cargo output is replayed on failure. Use `just verify --verbose` or
+Validation is quiet by default: successful gates print summaries and detailed
+output is replayed on failure. Every phase prints its retained log location and a
+heartbeat every 20 seconds. Use `just verify --verbose` or
 `scripts/verify.sh --verbose` to stream the complete command output.
+
+These shell validation entry points use the repository's Node runtime to supervise
+owned command process groups and forward interruption to descendants. Direct Rust
+developer commands and baseline init/status/web remain independent of Node.
+
+Evidence lives in `.atlas/validation/run.*`, outside temporary directories removed
+by gate wrappers. `candidate.tsv` records the checkout, starting commit and actual
+code-input identity. `checks.tsv` indexes phase results; each phase retains
+`result.tsv`, `output.log`, `command.args` and applicable `toolchain.txt`.
+`ATLAS_VALIDATION_OUTPUT_ROOT` selects another evidence directory. Retire obsolete
+evidence after its task/review ends under the development-data cleanup policy.
+
+Actual relevant code contents, file modes and paths pin the whole multi-phase
+run. A same-content commit or unrelated prose edit does not invalidate it. A
+source change during or between checks produces a stale result (exit 78), rather
+than combining evidence from different candidates. Interrupted/failed checks keep
+their diagnostics. Reuse successful checks only when their inputs still match.
+
+`just web-ui-check` and `just web-ui-verify` also retain this evidence. To wrap
+another explicit check without writing a new runner:
+
+```bash
+sh scripts/validation/run-check.sh 'frontend verify' npm --prefix web/atlas-ui run verify
+```
+
+Developer-only `atlas-dev` changes use the standalone developer gate selected by
+`verify-changed --full`: formatting, both Clippy policies, tests for `atlas-dev`
+and `atlas-cli-support`, and an `atlas-dev` build. This owner builds independently
+of the web UI per ADR0033. Shared/runtime changes still select the workspace gate.
 
 ## Local frontend gate
 
@@ -53,12 +83,18 @@ just web-ui-verify
 # or: npm --prefix web/atlas-ui run verify
 ```
 
-`verify` performs route preparation and TypeScript checking once, then runs
-Vitest and the production bundle. `check`, `test` and `build` remain self-contained
+`verify` prepares routes, checks browser and Node-tool TypeScript in separate
+configurations, then runs Vitest and the production bundle. `check`, `test` and `build` remain self-contained
 standalone commands. `verify:bundle` performs checks and builds without unit tests;
 CI uses it alongside the independent unit-test job. Vite retains its production
 router generation/code splitting; the separate Vitest configuration needs no
 route watcher or splitter.
+
+For a large cross-cutting candidate, the CI-equivalent split is also valid:
+run `verify:bundle` first, then run frontend `test` alongside the Rust gate while
+keeping candidate inputs fixed. The checks and bundle are already complete;
+unit tests do not rewrite embedded assets, so this avoids a redundant build and
+allows independent checks to overlap. Retain evidence for both frontend stages.
 
 `vitest.config.ts` explicitly assigns reviewed value/request tests to the `node`
 project. Other tests default to the `dom` project with JSDOM, browser storage and
@@ -134,8 +170,8 @@ with `--config playwright.devices.config.ts`.
 
 ## CI execution and authenticated browser artifacts
 
-CI builds the frontend once after fast checks. Full Rust verification and a
-browser-fixture build then run independently. Unit tests can start alongside the
+CI builds the frontend once after fast checks. When selected, full Rust
+verification and a browser-fixture build then run independently. Unit tests can start alongside the
 frontend checks/build because they do not consume the bundle. Two browser shards reuse
 that compiled fixture; each runner starts its own disposable SQLite workspace and one
 Playwright worker. No mutable database or live Cargo target is shared between
@@ -148,7 +184,9 @@ job with `gh run rerun RUN_ID --job JOB_ID`, reusing the retained compiled fixtu
 Use the `databaseId` from `gh run view RUN_ID --json jobs` as `JOB_ID`.
 
 The fixture artifact contains the executable, its expected frontend index and a
-manifest with source commit, platform, architecture and SHA-256 checksums. Set
+versioned manifest with source commit, frontend input/bundle provenance, platform,
+architecture and SHA-256 checksums. Old manifests without frontend provenance
+require a rebuild. Set
 `ATLAS_BROWSER_ARTIFACT` to that directory to run it without Cargo. The runner
 rejects another commit/host or corrupted files; every test also checks served
 HTML against that artifact's index. CI artifacts expire after three days. Rebuilding the same candidate replaces its
@@ -156,11 +194,57 @@ intermediate bundle/fixture; report artifacts include the run attempt so failure
 evidence remains available. Local
 runs default to the checkout-local Cargo build. Packaging freezes the executable
 and expected UI index, but test/configuration files still load from the checkout.
-Keep that checkout and its dependencies fixed for the duration of a final run;
-changing HEAD can trigger the commit guard, and editing tests can mix versions.
-Do not remove that guard or claim a run validates a newer candidate. A separately
-managed isolated final-validation runner remains future tooling work. Never point
-a candidate test at a frozen preview binary just because it starts successfully.
+Direct runs must keep that checkout and dependencies fixed: changing HEAD can
+trigger the commit guard, and editing tests can mix versions. Use the isolated
+candidate command below for final browser validation while development continues.
+Never remove the guard or point a candidate test at a frozen preview binary just
+because it starts successfully.
+
+## Isolated final browser validation
+
+Commit a fixed candidate and build its matching frontend, then package the real
+fixture. Packaging refuses tracked or untracked source changes and detects source
+or UI changes during its build. Packaging verifies the frontend build receipt,
+so a clean checkout with a stale but API-compatible bundle cannot be mislabeled:
+
+```bash
+just web-ui-build
+node scripts/browser-fixture.mjs scratch/browser-artifact
+just validate-browser-candidate --artifact scratch/browser-artifact --offline -- e2e/devices/turn-reminders.spec.ts --project=phone-webkit
+```
+
+This packaged browser runner supports macOS/Linux, matching the maintained
+browser fixtures and visual references. CI owns the wider platform matrix.
+Select the relevant spec/project for the change. Install needed Playwright
+browsers first. The runner explicitly prepares private dependencies with `npm ci`
+from the candidate lockfile; `--offline` uses the existing npm cache and fails
+if required packages are missing. It does not download browsers, rebuild Rust,
+copy the corpus or touch the human preview database.
+
+The command snapshots the authenticated executable/index, creates an independent
+detached Git checkout of its commit, and runs that commit's tests/configuration
+with its own dependencies. The original development branch can advance or become
+dirty during the run. Existing checksum/host/commit checks still apply inside the
+isolated checkout; a result for candidate A validates A even after development
+advances to B. `--commit REF` additionally requires that selected commit to match
+the artifact, rather than implicitly claiming it validates current HEAD.
+
+The pinned candidate's own frontend identity helper also verifies its production
+inputs against the artifact before and after tests. If the build depended on
+ignored local environment files or different Vite values, the runner fails with
+that mismatch. It does not silently copy local configuration or secrets into the
+test checkout; rebuild from the intended committed inputs and matching environment.
+
+Each run prints its result/log directory under `scratch/browser-candidates/`.
+`result.json` records source commit/tree, artifact checksums, lockfile hash, runner
+identity, Node/Playwright versions, selected command, stage statuses and durations.
+Selection accepts spec patterns, `--project`, `--grep`/`-g`, `--grep-invert` and
+positive `--repeat-each`. Configuration overrides, listing-only runs, retries,
+snapshot updates and assertion-skipping modes are rejected for this final runner.
+Logs, browser reports and evidence survive failed runs. The private checkout and
+dependencies are removed afterward; retire reports/artifact copies when their
+review or investigation ends. The runner selects a private fixture port unless
+`ATLAS_DEVICE_PORT` explicitly selects one. It never adopts an unrelated listener.
 
 Rust verification writes a dependency-only cache shared with the fixture build;
 the fixture job only restores it. The action keys compiler identity, lockfiles,
@@ -233,8 +317,10 @@ a gate.
 
 | Changed surface | Local full validation / PR CI coverage |
 | --- | --- |
-| Rust | Workspace gate; CI also checks Windows storage and standalone atlas-dev |
-| Frontend | Frontend gate; CI also runs Rust verification and real-app browsers |
+| Core Rust | Workspace gate; CI also checks Windows storage, standalone atlas-dev and applicable real-app browsers |
+| Developer-only atlas-dev/tool launchers | Standalone developer gate; no frontend bundle or device matrix |
+| Frontend | Frontend gate and affected local browser flows; CI builds the real Rust fixture and runs the browser matrix, without unrelated full Rust workspace verification |
+| Browser specs/configuration | Frontend checks/bundle and affected local browser flows; CI fixture/matrix, without unrelated Vitest or full Rust workspace verification |
 | App-model contracts | Both Rust and frontend |
 | Foundry model | Rust and source-contract generation |
 | Source-contract tooling | Fixture tests and pinned generation |
@@ -245,7 +331,10 @@ a gate.
 | Shipped agent skill | Metadata and bundled-file coverage checks (`node scripts/validation/skill.ts`); no application build |
 | Unknown paths, workflow or validation infrastructure | All surfaces |
 
-PR CI uses the same path classifier. Renames include the old and new paths;
+`--list` exposes eight decisions: `rust`, `web`, `browser`, `dev`, `source`,
+`release`, `research` and `skill`. `browser` owns the real-app fixture/matrix;
+`dev` owns the standalone developer gate. PR CI uses this same path classifier.
+Renames include the old and new paths;
 executable/symlink mode changes select all. Main pushes and nightly verification
 run every surface. The `validation complete` job rejects failed or unexpectedly
 skipped selected jobs; use it as the aggregate required check. CI selection and

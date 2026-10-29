@@ -5,6 +5,14 @@ selecting a development backend, or sharing and refreshing a human preview.
 
 ## Checkout setup
 
+Use the pinned Rust toolchain and Node 22.18+ in the 22.x line (the frontend's
+`.node-version`, matching CI), or the supported Node 24.x line. Check
+`rustc --version` and `node --version` before gates; do not inherit an arbitrary
+global runtime. Frontend npm metadata enforces these Node lines on installation.
+The supported Node versions also provide native type stripping for contributor
+TypeScript tools. Install frontend dependencies with `npm --prefix web/atlas-ui ci`;
+keep their lockfile consistent and use private dependencies for isolated runs.
+
 Install tracked git hooks and verify this checkout:
 
 ```bash
@@ -107,14 +115,22 @@ the mounted page and drafts until the user reloads. Neither recovery path replay
 mutations or clears browser caches. Vite shows the proxy/backend diagnostic without
 an automatic reload.
 
-The fingerprint inputs are maintained in
-`crates/atlas-web/api-contract-inputs.json`; both builds use the same source set.
-API-owner source/binding changes require a new frontend bundle before compiling
-`atlas-web`. Cargo rejects stale `dist/api-contract.txt`; Vite restarts when an
-input changes. UI-only style/component changes can reuse a backend with the same
-fingerprint, regardless of its Git commit. See
+The wire fingerprint hashes the generated TypeScript bindings and explicit
+`protocol_revision` in `crates/atlas-web/api-contract.json`. Rust and Vite use
+identical framing, ordering and line-ending normalization. Internal Rust
+implementation, tests and comments do not change it. Generated binding changes
+remain conservative invalidations, including generated documentation comments.
+Cargo rejects stale `dist/api-contract.txt`; Vite watches contract inputs.
+
+For route, transport, serde omission/null/default, encoding or protocol changes
+that TypeScript cannot express, bump `protocol_revision` and add behavioral
+regressions. Generated types alone cannot prove those semantics. UI-only changes
+can reuse a compatible backend, regardless of its Git commit. Compatibility does
+not establish freshness: a frozen compatible backend still runs its frozen rules.
+Use selected executable/build provenance to verify which implementation is served.
+See
 [ADR0029](../architecture/decisions/0029-local-web-app-boundary.md#browserbackend-compatibility)
-for the conservative compatibility policy and request guard.
+for revision ownership, compatibility limits and the request guard.
 
 Status invokes read-only Atlas checks and prints a fully qualified setup command
 when a candidate needs migration or a reference update. It exits nonzero for
@@ -145,6 +161,57 @@ The commands can be tried before merge from another checkout with
 invoking checkout. `--checkout /absolute/path` selects a different checkout.
 `just dev-baseline-test` runs the focused snapshot/publication/isolation tests
 without models. The same tests run in the existing Rust workspace CI gate.
+
+## Managed candidate previews
+
+For a built candidate that needs repeatable refresh, use the managed preview
+workflow. Explicitly refresh the retained developer tool once after its source
+changes; normal baseline commands continue to use it without compilation:
+
+```bash
+just dev-tool-build
+just dev-workspace-init
+just dev-preview --port 4827
+```
+
+Start stays in the foreground as the owning supervisor. From another terminal
+in the same checkout, use:
+
+```bash
+just dev-refresh
+just dev-status --binary target/debug/atlas --json
+just dev-preview-stop
+```
+
+`dev-preview` and `dev-refresh` build the candidate before replacing a server.
+The shared frontend build receipt verifies current production inputs, API identity
+and every output checksum. Rust-only, frontend test and documentation edits can
+reuse that bundle; UI/contract changes or tampered assets rebuild it. Cargo reuses
+the checkout's warm target. This explicit build workflow requires Node and Cargo;
+plain `dev-web`, status and workspace initialization remain build-free.
+
+The Rust baseline owner retains the live child and a frozen executable for
+fallback; a PID receipt never authorizes killing another process. Refresh reuses
+the active port, private database and source/model selection, serializes requests,
+preflights the candidate and verifies served readiness plus expected UI bytes.
+Compilation or preflight failure preserves the current server; startup/HTTP
+verification failure attempts to restore the previous frozen executable and
+reports the failure. Incompatible data requires deliberate normal setup, never an
+automatic migration/reset, baseline republication or corpus copy.
+
+`dev-status --json` separates `baseline_build` from the selected binary checksum
+and `managed_preview` state. `.atlas/dev-preview/status.json` identifies the URL,
+workspace, selected snapshot, source receipt and log. `.atlas/preview-build.json`
+binds recorded source/input identity to binary/UI checksums and toolchain; source
+changes during compilation reject it. A commit-only move with identical inputs
+records both observed commits. A manually supplied binary without a build receipt
+has checksums but unknown source provenance. Compatibility alone proves neither
+freshness nor source identity.
+
+For frontend-only iteration, Vite against a compatible running backend remains
+the fastest preview path. It avoids rebuilding an embedded Rust server for every
+UI edit. Retain one user-visible preview URL and its review state across both
+development and final built-candidate checks.
 
 ## Local Build Review
 
@@ -227,7 +294,7 @@ For frontend-only iterations, reuse a compatible backend and Vite hot reload.
 Build a new backend only when its inputs change. Initialize a workspace only when
 one is missing; do not republish the full validated baseline or copy the corpus
 for every UI revision. Keep one warm checkout-local Cargo target. Check matching
-frontend/backend compatibility before presenting the preview. The current tools
-require deliberate process replacement; no automatic preview-refresh command is
-provided. Follow the [cleanup policy](worktrees-and-cleanup.md)
+frontend/backend compatibility before presenting the preview. Use `just dev-refresh`
+for a deliberate build and managed replacement; source edits do not trigger a
+background refresh automatically. Follow the [cleanup policy](worktrees-and-cleanup.md)
 when retiring the task.

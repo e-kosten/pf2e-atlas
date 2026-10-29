@@ -191,6 +191,7 @@ describe("frontend build provenance", () => {
       "web/atlas-ui/docs/frontend-guidelines.md",
       "web/atlas-ui/vitest.config.ts",
       "web/atlas-ui/playwright.devices.config.ts",
+      "web/atlas-ui/tsconfig.tools.json",
     ])
       write(file, "// A change that does not build production UI.\n");
     expect(verifyFrontendBuild(root)).toEqual(before);

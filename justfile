@@ -36,6 +36,29 @@ dev-status *args:
 dev-web *args:
     sh {{ quote(justfile_directory() / "scripts/development/atlas-dev.sh") }} web --checkout {{ quote(invocation_directory()) }} "$@"
 
+[doc('Build and start a managed candidate preview, preserving one task URL and database')]
+[group('development')]
+[positional-arguments]
+dev-preview *args:
+    sh {{ quote(justfile_directory() / "scripts/development/preview.sh") }} start {{ quote(invocation_directory()) }} "$@"
+
+[doc('Build first, then refresh the managed preview at its existing URL')]
+[group('development')]
+[positional-arguments]
+dev-refresh *args:
+    sh {{ quote(justfile_directory() / "scripts/development/preview.sh") }} refresh {{ quote(invocation_directory()) }} "$@"
+
+[doc('Stop the managed preview through its owning supervisor')]
+[group('development')]
+dev-preview-stop:
+    sh {{ quote(justfile_directory() / "scripts/development/atlas-dev.sh") }} stop --checkout {{ quote(invocation_directory()) }}
+
+[doc('Run authenticated browser candidate with isolated committed tests and locked dependencies')]
+[group('validation')]
+[positional-arguments]
+validate-browser-candidate *args:
+    node {{ quote(justfile_directory() / "scripts/validate-browser-candidate.mjs") }} "$@"
+
 [doc('Test development baseline publication, snapshots and workspace isolation without models')]
 [group('validation')]
 dev-baseline-test:
@@ -64,12 +87,12 @@ web-ui-build:
 [doc('Run the fast Atlas UI format, lint, style, and type checks')]
 [group('validation')]
 web-ui-check:
-    npm --prefix web/atlas-ui run check
+    sh scripts/validation/run-check.sh 'frontend checks' npm --prefix web/atlas-ui run check
 
 [doc('Run the Atlas web UI format, lint, typecheck, test, and build gate')]
 [group('validation')]
 web-ui-verify:
-    npm --prefix web/atlas-ui run verify
+    sh scripts/validation/run-check.sh 'frontend verify' npm --prefix web/atlas-ui run verify
 
 [doc('Run the Rust and web UI gates with installed dependencies')]
 [group('validation')]

@@ -18,7 +18,8 @@ matches the task; read those sections before changing that behavior.
 - Finish the feature locally, obtain independent subagent review, fix confirmed
   findings and complete required local validation before opening a PR.
   Open an early draft only when the user explicitly requests one.
-- Full applicable Rust/frontend gates run locally; browser checks target affected
+- Full applicable Rust/frontend gates run locally (standalone for developer-only
+  tooling); browser checks target affected
   behavior. CI owns the full applicable platform/browser matrix by default.
   Reuse valid checks for unchanged inputs; report the candidate actually tested.
 - Keep related review fixes on the same PR. Verify CI on the published candidate
@@ -34,6 +35,7 @@ matches the task; read those sections before changing that behavior.
 | --- | --- |
 | Module ownership, shared abstractions, service boundaries or dependencies | [Architecture overview](docs/architecture/overview.md), then the relevant [ADR](docs/architecture/decisions/README.md) |
 | Runtime, ingest, search or artifact/storage changes | [Runtime](docs/architecture/runtime.md) and [artifact contract](docs/architecture/artifact-contract.md), relevant sections |
+| Routes, wire DTOs, serde omission/null/defaults or transport encoding | [Browser/backend contract](docs/architecture/decisions/0029-local-web-app-boundary.md#browserbackend-compatibility); update generated bindings or the explicit protocol revision and behavior tests as applicable |
 | Rust modules, crate entry points or refactors | [Code and refactor guidance](docs/development/code-guidelines.md) |
 | User-visible behavior or copy, including Rust-projected text | [Product presentation](docs/product-guidelines.md) |
 | Frontend edits, layout, interactions or browser recovery | [Frontend AGENTS](web/atlas-ui/AGENTS.md) and its linked task-specific frontend guidance |
