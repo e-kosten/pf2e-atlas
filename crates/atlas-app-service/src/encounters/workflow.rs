@@ -82,17 +82,10 @@ impl AtlasAppService {
             let store = session.local_state();
             let details = store
                 .encounters()
-                .list()?
+                .list_with_participant_counts()?
                 .into_iter()
-                .map(|encounter| {
-                    let participant_count = store
-                        .encounters()
-                        .get_with_participants(&encounter.encounter_key)?
-                        .map(|detail| detail.participants.len() as u32)
-                        .unwrap_or_default();
-                    Ok(encounter_summary(encounter, participant_count))
-                })
-                .collect::<AppServiceResult<Vec<_>>>()?;
+                .map(|row| encounter_summary(row.encounter, row.participant_count))
+                .collect();
             Ok(EncounterIndexView {
                 encounters: details,
             })
