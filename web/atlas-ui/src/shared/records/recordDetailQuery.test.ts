@@ -76,3 +76,18 @@ it("converts a navigation field into the request field list without leaking sing
     source_fingerprint: null,
   });
 });
+
+it("isolates generation checks while unknown generation shares canonical reads", async () => {
+  const unknown = recordDetailQueryOptions("spells:one");
+  expect(recordDetailQueryOptions("spells:one", undefined, null).queryKey).toEqual(
+    unknown.queryKey,
+  );
+  expect(
+    recordDetailQueryOptions("spells:one", undefined, "generation-a").queryKey,
+  ).not.toEqual(unknown.queryKey);
+  expect(
+    recordDetailQueryOptions("spells:one", undefined, "generation-b").queryKey,
+  ).not.toEqual(
+    recordDetailQueryOptions("spells:one", undefined, "generation-a").queryKey,
+  );
+});

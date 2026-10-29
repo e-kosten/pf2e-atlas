@@ -1,3 +1,4 @@
+import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useQuery } from "@tanstack/react-query";
@@ -48,6 +49,7 @@ export function EncounterConditionConsequences({
     apply_hp_loss: applyLoss,
   };
   const preview = useQuery({
+    meta: referenceQueryMeta,
     queryKey: [
       "drained-preview",
       encounterRef,

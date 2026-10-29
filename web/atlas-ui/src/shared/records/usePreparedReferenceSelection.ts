@@ -1,10 +1,18 @@
-import { isCancelledError, useQueryClient } from "@tanstack/react-query";
+import {
+  CancelledError,
+  isCancelledError,
+  useQueryClient,
+  type Query,
+} from "@tanstack/react-query";
 import { useLayoutEffect, useRef, useState } from "react";
 import {
-  referenceReadingQueryOptions,
+  referenceReadingFallback,
   type ReadingRequest,
   type ReferenceReading,
 } from "./useReferenceReading";
+
+import { recordDetailQueryOptions } from "./recordDetailQuery";
+import type { RecordNavigationView } from "../../generated/atlas";
 
 type Selection = {
   request: ReadingRequest;
@@ -70,25 +78,37 @@ export function usePreparedReferenceSelection(
           value?.ticket === ticket ? { ...value, slow: true } : value,
         );
     }, 500);
-    const options = referenceReadingQueryOptions(
-      selection.request,
-      epoch,
-      selection.generation,
-    );
-    const promise = client.fetchQuery({ ...options, retry: false });
-    const sourceQuery = client
-      .getQueryCache()
-      .find({ queryKey: options.queryKey, exact: true });
-    try {
-      await promise;
-      if (sequence.current !== ticket) return;
+    const prepared = new Set<Query>();
+    const isCurrent = () =>
+      sequence.current === ticket &&
+      [...prepared].every(
+        (query) => client.getQueryCache().get(query.queryHash) === query,
+      );
+    async function prepareDocument(navigation: RecordNavigationView) {
+      const options = recordDetailQueryOptions(
+        navigation.record_key,
+        navigation,
+        selection.generation,
+      );
+      const promise = client.fetchQuery({ ...options, retry: false });
+      const sourceQuery = client
+        .getQueryCache()
+        .find({ queryKey: options.queryKey, exact: true });
+      if (sourceQuery) prepared.add(sourceQuery);
+      const detail = await promise;
       if (
+        sequence.current !== ticket ||
         client.getQueryCache().find({ queryKey: options.queryKey, exact: true }) !==
-        sourceQuery
-      ) {
-        setAttempt(null);
-        return;
-      }
+          sourceQuery
+      )
+        throw new CancelledError();
+      return detail;
+    }
+    try {
+      const parent = await prepareDocument(selection.request.navigation);
+      const fallback = referenceReadingFallback(selection.request, parent);
+      if (fallback) await prepareDocument(fallback);
+      if (!isCurrent()) throw new CancelledError();
       // React batches these updates: the candidate, reading address and already
       // cached exact document become visible together, with no loading shell.
       reading.select(selection.request);

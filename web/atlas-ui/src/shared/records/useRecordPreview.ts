@@ -1,3 +1,4 @@
+import { referenceQueryMeta } from "../queries/referenceQueries";
 import { RecordContextError } from "./recordContextError";
 import { recordReadingIdentity, useRetainedRecord } from "./useRetainedRecord";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
@@ -9,7 +10,7 @@ import type {
 import { useRecordDetail } from "./useRecordDetail";
 import { useQuery } from "@tanstack/react-query";
 import { getEncounterReference } from "../../api/atlasApi";
-import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
+import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 
 type EncounterPreviewContext = {
   encounterRef: string;
@@ -86,6 +87,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   // Runtime views never seed immutable reference caches. A changed participant
   // presentation starts a new request; composition stays in Rust app-service.
   const contextual = useQuery({
+    meta: referenceQueryMeta,
     queryKey: [
       "encounter-record-detail",
       encounterContext?.encounterRef,

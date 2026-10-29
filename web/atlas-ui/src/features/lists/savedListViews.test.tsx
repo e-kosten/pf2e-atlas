@@ -1,3 +1,4 @@
+import { recordDetailQueryOptions } from "../../shared/records/recordDetailQuery";
 import { RouterTestContext } from "../../test/router";
 import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import type { ResultSort } from "../../generated/atlas";
@@ -9,7 +10,7 @@ import {
   valuesFixture,
 } from "../../test/fixtures";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { retireImmutableReferenceQueries } from "../../shared/queries/immutableReferenceQueries";
+import { retireReferenceQueries } from "../../shared/queries/referenceQueries";
 import { App, ConfigProvider, Grid } from "antd";
 import {
   act,
@@ -1197,11 +1198,13 @@ describe("list views", () => {
     });
     const name = await screen.findByLabelText("Name");
     fireEvent.change(name, { target: { value: "My list draft" } });
-    client.setQueryData(["record-detail", "old"], {
-      artifact_generation: "generation-a",
-    });
-    await act(async () => retireImmutableReferenceQueries(client));
-    expect(client.getQueryData(["record-detail", "old"])).toBeUndefined();
+    const oldDetail = recordDetailQueryOptions("old");
+    client
+      .getQueryCache()
+      .build(client, { queryKey: oldDetail.queryKey, meta: oldDetail.meta });
+    client.setQueryData(oldDetail.queryKey, detailFixture("old"));
+    await act(async () => retireReferenceQueries(client));
+    expect(client.getQueryData(oldDetail.queryKey)).toBeUndefined();
     expect(client.getQueryData(["saved-list", "research"])).toBeDefined();
     expect(name).toHaveValue("My list draft");
     act(() =>

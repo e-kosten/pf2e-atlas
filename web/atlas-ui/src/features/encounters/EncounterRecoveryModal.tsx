@@ -1,3 +1,4 @@
+import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { useId, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
@@ -69,6 +70,7 @@ export function EncounterRecoveryModal({
     typeof value === "bigint" ? value.toString() : value,
   );
   const preview = useQuery({
+    meta: referenceQueryMeta,
     queryKey: [
       "encounter-recovery-preview",
       snapshot.encounter.encounter_key,

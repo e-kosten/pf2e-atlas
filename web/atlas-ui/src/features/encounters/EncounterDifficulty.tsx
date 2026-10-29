@@ -1,3 +1,4 @@
+import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useQuery } from "@tanstack/react-query";
 import { Button, InputNumber, Popover, Table, Tooltip, Typography } from "antd";
@@ -157,6 +158,7 @@ function DifficultyReference({
     draft.party_level === value.reference.party_level &&
     draft.party_size === value.reference.party_size;
   const preview = useQuery({
+    meta: referenceQueryMeta,
     queryKey: [
       "encounter-difficulty-preview",
       encounterKey,

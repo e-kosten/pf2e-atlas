@@ -1,10 +1,13 @@
+import { referenceQueryMeta } from "../queries/referenceQueries";
 import { useQuery } from "@tanstack/react-query";
 import { getTraitDetail } from "../../api/atlasApi";
-import { useReferenceQueryRetirement, useRetainedRecord } from "./useRetainedRecord";
+import { useRetainedRecord } from "./useRetainedRecord";
+import { useReferenceQueryRetirement } from "../queries/useReferenceQueryRetirement";
 
 export function useTraitDetail(traitKey: string) {
   const queryKey = ["trait-detail", traitKey];
   const query = useQuery({
+    meta: referenceQueryMeta,
     queryKey,
     queryFn: ({ signal }) =>
       getTraitDetail(

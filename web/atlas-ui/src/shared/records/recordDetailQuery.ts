@@ -1,11 +1,12 @@
 import { queryOptions } from "@tanstack/react-query";
-import { getRecordDetail } from "../../api/atlasApi";
+import { AtlasApiError, getRecordDetail } from "../../api/atlasApi";
+import { referenceQueryMeta } from "../queries/referenceQueries";
 import type { RecordDetailRequest, RecordNavigationView } from "../../generated/atlas";
 
 export function recordDetailQueryOptions(
   recordKey: string | null,
   selection?: RecordNavigationView,
-  epoch?: number,
+  generation?: string | null,
 ) {
   const request =
     selection &&
@@ -22,9 +23,20 @@ export function recordDetailQueryOptions(
       "record-detail",
       recordKey,
       request ?? null,
-      ...(epoch === undefined ? [] : [epoch]),
+      ...(generation == null ? [] : [generation]),
     ],
-    queryFn: ({ signal }) => getRecordDetail(recordKey!, request, signal),
+    meta: referenceQueryMeta,
+    queryFn: async ({ signal }) => {
+      const detail = await getRecordDetail(recordKey!, request, signal);
+      signal.throwIfAborted();
+      if (generation != null && detail.artifact_generation !== generation)
+        throw new AtlasApiError(409, "The reference collection changed.", {
+          code: "artifact_generation_changed",
+          message: "The reference collection changed.",
+          recoverable_action: "refresh_results",
+        });
+      return detail;
+    },
     enabled: recordKey !== null,
   });
 }

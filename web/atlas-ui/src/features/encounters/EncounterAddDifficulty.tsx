@@ -1,3 +1,4 @@
+import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { isSharedFailure } from "../../shared/feedback/errorMessages";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Form, theme } from "antd";
@@ -76,6 +77,7 @@ export function EncounterAddDifficulty({
     addition?.record_ref !== debounced?.record_ref ? addition : debounced;
   const settled = JSON.stringify(addition) === JSON.stringify(requested);
   const preview = useQuery({
+    meta: referenceQueryMeta,
     queryKey: [
       "encounter-add-difficulty",
       encounterKey,

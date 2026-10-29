@@ -29,6 +29,7 @@ import {
 } from "../../../test/fixtures";
 import type { SearchResultsPage } from "../../../generated/atlas";
 import { SearchPickerModal } from "./SearchPickerModal";
+import { retireReferenceQueries } from "../../queries/referenceQueries";
 import {
   similarityConfigurationFixture,
   similarityPartsFixture,
@@ -787,4 +788,77 @@ it("applies reloaded B parts once while preserving the picker candidate and unsa
       .findAll({ queryKey: ["search-picker"] })
       .some((query) => query.queryKey.includes("generation-a")),
   ).toBe(false);
+});
+
+it("keeps a reopened picker independent of an earlier pending refresh", async () => {
+  const { client, setOpen } = renderPicker();
+  await screen.findByRole("link", { name: /Ghoul/ });
+  search.mockRejectedValueOnce(
+    new AtlasApiError(409, "Collection changed", {
+      code: "artifact_generation_changed",
+      message: "Collection changed",
+      recoverable_action: "refresh_results",
+    }),
+  );
+  await submit("dragon");
+  await screen.findByRole("button", { name: "Refresh results" });
+  let finishCancellation!: () => void;
+  const cancellation = new Promise<void>((resolve) => {
+    finishCancellation = resolve;
+  });
+  const cancel = client.cancelQueries.bind(client);
+  const pendingCancel = vi
+    .spyOn(client, "cancelQueries")
+    .mockImplementation(async (filters, options) => {
+      await cancel(filters, options);
+      await cancellation;
+    });
+  fireEvent.click(screen.getByRole("button", { name: "Refresh results" }));
+  await waitFor(() => expect(pendingCancel).toHaveBeenCalledOnce());
+  setOpen(false);
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  search.mockResolvedValue(result("New session", "generation-c"));
+  setOpen(true);
+  expect(await screen.findByRole("link", { name: /New session/ })).toBeInTheDocument();
+  expect(search.mock.lastCall?.[0].expected_artifact_generation).toBeNull();
+  await act(async () => {
+    finishCancellation();
+    await cancellation;
+  });
+  expect(screen.getByRole("link", { name: /New session/ })).toBeInTheDocument();
+  expect(
+    client
+      .getQueryCache()
+      .findAll({ queryKey: ["search-picker"] })
+      .filter((query) => query.queryKey.includes("generation-c")),
+  ).toHaveLength(1);
+  expect(search).toHaveBeenCalledTimes(3);
+});
+
+it("rereads an externally retired picker against its generation and preserves its candidate and Add draft on conflict", async () => {
+  const { client } = renderPicker();
+  fireEvent.click(await screen.findByRole("link", { name: /Ghoul/ }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
+  );
+  fireEvent.change(screen.getByLabelText("Note"), {
+    target: { value: "Unsubmitted Add note" },
+  });
+  search.mockRejectedValue(
+    new AtlasApiError(409, "Collection changed", {
+      code: "artifact_generation_changed",
+      message: "Collection changed",
+      recoverable_action: "refresh_results",
+    }),
+  );
+  await act(async () => {
+    await retireReferenceQueries(client);
+  });
+  expect(
+    await screen.findByRole("button", { name: "Refresh results" }),
+  ).toBeInTheDocument();
+  expect(search).toHaveBeenCalledTimes(2);
+  expect(search.mock.lastCall?.[0].expected_artifact_generation).toBe("generation-a");
+  expect(screen.getByLabelText("Note")).toHaveValue("Unsubmitted Add note");
+  await expectRetainedCandidate();
 });

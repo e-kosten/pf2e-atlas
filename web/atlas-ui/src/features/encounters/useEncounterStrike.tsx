@@ -1,3 +1,4 @@
+import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Form, Select, Spin } from "antd";
@@ -9,7 +10,7 @@ import type {
 } from "../../generated/atlas";
 import { FlatCheckRoll } from "../../shared/dice/FlatCheckRoll";
 import { useRetainedRecord } from "../../shared/records/useRetainedRecord";
-import { isArtifactGenerationChanged } from "../../shared/queries/immutableReferenceQueries";
+import { isArtifactGenerationChanged } from "../../shared/queries/referenceQueries";
 import { actionIssueSourceLabel } from "./actionIssueLabels";
 import type { useEncounterMutations } from "./useEncounterMutations";
 const checkIdentity = (check: unknown) =>
@@ -32,6 +33,7 @@ function strikeContextQuery(
   targetKey?: string,
 ) {
   return queryOptions({
+    meta: referenceQueryMeta,
     queryKey: [
       "strike-assistance",
       encounterRef,

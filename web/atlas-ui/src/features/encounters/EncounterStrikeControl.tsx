@@ -1,3 +1,4 @@
+import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { isSharedFailure } from "../../shared/feedback/errorMessages";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
@@ -60,6 +61,7 @@ export function EncounterStrikeControl({
     },
   };
   const options = useQuery({
+    meta: referenceQueryMeta,
     queryKey: [
       "strike-options",
       encounterKey,
