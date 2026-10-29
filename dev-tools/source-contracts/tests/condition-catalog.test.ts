@@ -41,7 +41,7 @@ test('numerical changes and source fields flow into a distinct catalog identity'
 });
 test('conditional modifier predicates retain authored context instead of becoming unconditional',async t=>{
   const f=await fixture(t);f.condition.system.rules[0].predicate=['item:trait:auditory'];await f.save();
-  assert.equal((await f.read()).conditions[0].modifiers[0].predicate.kind,'all');
+  assert.deepEqual((await f.read()).conditions[0].modifiers[0].predicate,{kind:'all',terms:[{kind:'atom',value:'item:trait:auditory'}]});
   f.condition.system.rules[0].predicate=['unmodeled:context'];await f.save();
   await assert.rejects(f.read(),/Unsupported predicate/);
 });

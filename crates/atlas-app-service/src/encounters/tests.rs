@@ -1729,7 +1729,12 @@ fn movement_restrictions_do_not_compound_across_sources_or_depend_on_order() {
             Ok(open_source_fixture([30i64, i64::MAX,4,0].into_iter().enumerate().map(|(i,speed)| record("actors","Actor",json!({"_id":format!("speed{i:011}"),"type":"npc","name":format!("Speed {speed}"),"system":{"attributes":{"adjustment":null,"speed":{"value":speed,"otherSpeeds":[]}}}}))).collect(),false)?)
         },
     ));
-    for baseline in [30i64, i64::MAX, 4, 0] {
+    for (baseline, expected) in [
+        (30i64, 20i64),
+        (i64::MAX, 9_223_372_036_854_775_797),
+        (4, 5),
+        (0, 0),
+    ] {
         for immobilized_order in [None, Some(0), Some(2)] {
             let encounter = f
                 .worker
@@ -1800,11 +1805,6 @@ fn movement_restrictions_do_not_compound_across_sources_or_depend_on_order() {
             let participant = &detail.participants[0];
             let block = actor(participant);
             let speed = &block.land_speed;
-            let expected = if baseline > 0 {
-                (baseline - 10).max(5)
-            } else {
-                baseline
-            };
             assert_eq!(
                 speed
                     .adjustment
@@ -2233,6 +2233,7 @@ fn condition_manual_notes_bind_exact_rows_and_keep_other_diagnostics_unbound() {
         .unwrap()
         .unapplied_effects;
     let expected = [None, None, None, None, Some("Custom source context")];
+    assert_eq!(participant.conditions.len(), expected.len());
     for (condition, reason) in participant.conditions.iter().zip(expected) {
         let matching = notes
             .iter()
