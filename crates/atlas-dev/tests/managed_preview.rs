@@ -19,6 +19,15 @@ use std::{
 fn fixture_http_server() {
     let port = std::env::var("ATLAS_PREVIEW_FIXTURE_PORT").unwrap();
     let html = std::env::var("ATLAS_PREVIEW_FIXTURE_HTML").unwrap();
+    let mode = std::env::var("ATLAS_PREVIEW_FIXTURE_MODE").unwrap_or_default();
+    let readiness = match mode.as_str() {
+        "missing-profiles" => json!({"status":"ready"}),
+        "malformed-profiles" => json!({"status":"ready","search_profiles":{}}),
+        "empty-profiles" => json!({"status":"ready","search_profiles":[]}),
+        "unusable-profile" => json!({"status":"ready","search_profiles":[{"usable":false}]}),
+        _ => json!({"status":"ready","search_profiles":[{"usable":true}]}),
+    }
+    .to_string();
     let server = TcpListener::bind(format!("127.0.0.1:{port}")).unwrap();
     for stream in server.incoming() {
         let mut stream = stream.unwrap();
@@ -30,7 +39,10 @@ fn fixture_http_server() {
             continue;
         }
         let body = if first.contains(" /api/readiness ") {
-            r#"{"status":"ready","search_profiles":[{"usable":true}]}"#
+            if mode == "slow-probe" {
+                thread::sleep(Duration::from_secs(60));
+            }
+            &readiness
         } else {
             &html
         };
@@ -89,29 +101,17 @@ impl Fixture {
         let index = self.checkout.join(format!("{name}.html"));
         let html = format!("<html>{name}</html>");
         fs::write(&index, &html).unwrap();
-        let setup = match mode {
-            "preflight-failure" => {
-                "echo '{\"status\":\"error\",\"message\":\"requires explicit setup\"}'; exit 2"
-            }
-            "missing-profiles" => "echo '{\"status\":\"ok\",\"data\":{\"ready\":true}}'",
-            "malformed-profiles" => {
-                "echo '{\"status\":\"ok\",\"data\":{\"ready\":true,\"search_profiles\":{}}}'"
-            }
-            "empty-profiles" => {
-                "echo '{\"status\":\"ok\",\"data\":{\"ready\":true,\"search_profiles\":[]}}'"
-            }
-            _ => {
-                "echo '{\"status\":\"ok\",\"data\":{\"ready\":true,\"search_profiles\":[{\"ready\":true}]}}'"
-            }
-        };
-        let web = if mode == "startup-failure" {
-            "exit 9".to_owned()
+        let index_check = if mode == "preflight-failure" {
+            "echo '{\"status\":\"error\",\"message\":\"requires explicit setup\"}'; exit 2"
         } else {
-            format!(
-                "export ATLAS_PREVIEW_FIXTURE_HTML='{html}'\nwhile [ \"$#\" -gt 0 ]; do\n if [ \"$1\" = --port ]; then shift; export ATLAS_PREVIEW_FIXTURE_PORT=$1; fi\n shift\ndone\nexec \"$ATLAS_PREVIEW_TEST_EXECUTABLE\" --exact fixture_http_server --ignored --nocapture"
-            )
+            "echo '{\"status\":\"ok\",\"data\":{}}'"
         };
-        fs::write(&binary,format!("#!/bin/sh\ncase \"$1\" in\n setup) {setup};;\n index) echo '{{\"status\":\"ok\",\"data\":{{}}}}';;\n web) {web};;\n *) exit 99;;\nesac\n")).unwrap();
+        let web = format!(
+            "export ATLAS_PREVIEW_FIXTURE_HTML='{html}'\nexport ATLAS_PREVIEW_FIXTURE_MODE='{mode}'\nwhile [ \"$#\" -gt 0 ]; do\n if [ \"$1\" = --port ]; then shift; export ATLAS_PREVIEW_FIXTURE_PORT=$1; fi\n shift\ndone\nprintf '%s %s %s\\n' '{name}' \"$ATLAS_PREVIEW_FIXTURE_PORT\" \"$$\" >> '{}';\nif [ '{mode}' = startup-failure ] && [ \"$ATLAS_PREVIEW_FIXTURE_PORT\" = '{}' ]; then exit 9; fi\nif [ '{mode}' = ledger-failure ]; then echo 'migration ledger mismatch' >&2; exit 8; fi\nexec \"$ATLAS_PREVIEW_TEST_EXECUTABLE\" --exact fixture_http_server --ignored --nocapture",
+            self.checkout.join(".atlas/web-starts").display(),
+            self.port
+        );
+        fs::write(&binary,format!("#!/bin/sh\ncase \"$1\" in\n setup) echo 'unexpected maintenance check' >&2; exit 98;;\n index) {index_check};;\n web) {web};;\n *) exit 99;;\nesac\n")).unwrap();
         fs::set_permissions(&binary, fs::Permissions::from_mode(0o755)).unwrap();
         (binary, index)
     }
@@ -173,6 +173,20 @@ impl Fixture {
             .output()
             .unwrap()
     }
+    fn starts(&self) -> Vec<(String, u16, u32)> {
+        fs::read_to_string(self.checkout.join(".atlas/web-starts"))
+            .unwrap_or_default()
+            .lines()
+            .map(|line| {
+                let fields = line.split_whitespace().collect::<Vec<_>>();
+                (
+                    fields[0].into(),
+                    fields[1].parse().unwrap(),
+                    fields[2].parse().unwrap(),
+                )
+            })
+            .collect()
+    }
     fn html(&self) -> String {
         ureq::get(format!("http://127.0.0.1:{}/", self.port))
             .call()
@@ -213,6 +227,19 @@ fn refresh_keeps_url_and_table_edits_and_retires_the_previous_runtime_copy() {
     let report: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(report["url"], old["url"]);
     assert_eq!(fixture.html(), "<html>second</html>");
+    let starts = fixture.starts();
+    assert_eq!(starts.len(), 3, "initial server, cold probe, replacement");
+    assert_eq!((starts[0].1, starts[2].1), (fixture.port, fixture.port));
+    assert_ne!(starts[1].1, fixture.port);
+    assert!(
+        !Command::new("kill")
+            .args(["-0", &starts[1].2.to_string()])
+            .stderr(Stdio::null())
+            .status()
+            .unwrap()
+            .success(),
+        "probe must be reaped before replacement"
+    );
     assert_eq!(
         fs::read(fixture.checkout.join(".atlas/workspace.sqlite")).unwrap(),
         b"table edits stay here"
@@ -366,6 +393,8 @@ fn unchanged_candidate_reuses_child_and_termination_cleans_its_listener() {
     let (binary, index) = fixture.app("first", "ok");
     fixture.start(&binary, &index);
     let before = fixture.report().unwrap();
+    let starts = fixture.starts();
+    assert_eq!(starts.len(), 1);
     let receipt = fixture.checkout.join("build.json");
     fs::write(
         &receipt,
@@ -396,6 +425,11 @@ fn unchanged_candidate_reuses_child_and_termination_cleans_its_listener() {
     );
     assert_eq!(after["outcome"]["refreshed"], false);
     assert_eq!(
+        fixture.starts(),
+        starts,
+        "unchanged refresh must reuse the live owner"
+    );
+    assert_eq!(
         after["selected_build"]["provenance"]["kind"],
         "build_receipt"
     );
@@ -424,7 +458,13 @@ fn incomplete_profile_preflight_never_stops_or_restarts_the_working_preview() {
     let before = fixture.report().unwrap();
     let log = fixture.checkout.join(".atlas/dev-preview/server.log");
     let original_log = fs::read(&log).unwrap();
-    for mode in ["missing-profiles", "malformed-profiles", "empty-profiles"] {
+    for mode in [
+        "missing-profiles",
+        "malformed-profiles",
+        "empty-profiles",
+        "unusable-profile",
+        "ledger-failure",
+    ] {
         let (binary, index) = fixture.app(mode, mode);
         let output = fixture.refresh(&binary, &index);
         assert!(!output.status.success(), "{mode}");
@@ -437,7 +477,7 @@ fn incomplete_profile_preflight_never_stops_or_restarts_the_working_preview() {
         assert_eq!(
             fs::read(&log).unwrap(),
             original_log,
-            "{mode}: a replacement or rollback must never have started"
+            "{mode}: a stable-port replacement or rollback must never have started"
         );
     }
 }
@@ -462,4 +502,49 @@ fn capabilities_do_not_require_an_existing_checkout_or_workspace() {
         report["workspace_schema_version"],
         atlas_runtime::WORKSPACE_SCHEMA_VERSION
     );
+}
+
+#[test]
+fn interrupting_a_cold_probe_reaps_probe_and_current_server() {
+    let mut fixture = Fixture::new();
+    let (first, index) = fixture.app("first", "ok");
+    fixture.start(&first, &index);
+    let (next, index) = fixture.app("next", "slow-probe");
+    let mut request = fixture
+        .command("refresh")
+        .arg("--binary")
+        .arg(next)
+        .arg("--frontend-index")
+        .arg(index)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while fixture.starts().len() < 2 && Instant::now() < deadline {
+        thread::sleep(Duration::from_millis(20));
+    }
+    let starts = fixture.starts();
+    assert_eq!(starts.len(), 2, "cold probe must have started");
+    let owner = fixture.owner.as_mut().unwrap();
+    assert!(
+        Command::new("kill")
+            .args(["-TERM", &owner.id().to_string()])
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(owner.wait().unwrap().success());
+    assert!(!request.wait().unwrap().success());
+    for (_, port, pid) in starts {
+        assert!(TcpListener::bind(("127.0.0.1", port)).is_ok());
+        assert!(
+            !Command::new("kill")
+                .args(["-0", &pid.to_string()])
+                .stderr(Stdio::null())
+                .status()
+                .unwrap()
+                .success()
+        );
+    }
 }

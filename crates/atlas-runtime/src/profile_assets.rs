@@ -41,7 +41,11 @@ pub(crate) struct ProfileAssets(Mutex<BTreeMap<SearchProfileId, VerifiedPackage>
 impl ProfileAssets {
     pub(crate) fn ready(&self, id: &SearchProfileId, config: &EmbeddingRuntimeConfig) -> bool {
         self.check(id, config, || {
-            atlas_embedding::validate_embedding_model_cache(config).is_ok()
+            let started = std::time::Instant::now();
+            let ready = atlas_embedding::validate_embedding_model_cache(config).is_ok();
+            tracing::info!(target:"atlas_progress",phase="verify_query_assets",profile=%id,
+                elapsed_seconds=started.elapsed().as_secs_f64(),ready,"Checked query model assets");
+            ready
         })
     }
     fn check(

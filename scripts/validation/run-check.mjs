@@ -24,6 +24,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { runProcess } from "./run-process.mjs";
 
+const executionIdentity = runnerIdentity();
 const git = (...args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 const tsv = (values) =>
   Object.entries(values)
@@ -137,7 +138,7 @@ export async function runChecks(
       const startArtifacts = artifactIdentity(command, args);
       const identity = {
         command_sha256: commandIdentity([command, ...args]),
-        runner_sha256: runnerIdentity(),
+        runner_sha256: executionIdentity,
         environment_sha256: environmentIdentity(),
         toolchain_sha256: toolchain.identity,
       };

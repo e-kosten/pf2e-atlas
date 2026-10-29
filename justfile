@@ -36,15 +36,17 @@ dev-status *args:
 dev-web *args:
     sh {{ quote(justfile_directory() / "scripts/development/atlas-dev.sh") }} web --checkout {{ quote(invocation_directory()) }} "$@"
 
-[doc('Build a candidate without starting a preview; reuse verified frontend output')]
+[doc('Build a candidate; default dev, --profile release for optimized maintenance; reuse verified UI')]
 [group('development')]
-dev-build:
-    node {{ quote(justfile_directory() / "scripts/development/build-preview.mjs") }} {{ quote(invocation_directory()) }}
+[positional-arguments]
+dev-build *args:
+    node {{ quote(justfile_directory() / "scripts/development/build-preview.mjs") }} {{ quote(invocation_directory()) }} "$@"
 
-[doc('Explicitly migrate a private controlled seed and publish a validated shared baseline')]
+[doc('Upgrade and publish a controlled seed; requires matching release build, or explicit --profile dev')]
 [group('development')]
-dev-shared-refresh:
-    node {{ quote(justfile_directory() / "scripts/development/shared-refresh.mjs") }}
+[positional-arguments]
+dev-shared-refresh *args:
+    node {{ quote(justfile_directory() / "scripts/development/shared-refresh.mjs") }} "$@"
 
 [doc('Build and start a managed candidate preview, preserving one task URL and database')]
 [group('development')]

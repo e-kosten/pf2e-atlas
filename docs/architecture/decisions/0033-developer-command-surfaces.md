@@ -35,6 +35,11 @@ executable copies, cheap selected-app compatibility checks and served readiness/
 checksum checks. Source/model assets and the task database remain unchanged;
 normal runtime/setup still owns schema updates.
 
+Changed preview candidates pass a private cold-start probe before the old child
+is stopped; unchanged candidates check the existing child. Serving admission
+checks the index contract and actual web readiness, including ledger and every
+stored profile, rather than repeating setup intent/source-freshness checks.
+
 Candidate compilation is separate Node/shell orchestration under
 `scripts/development`, exposed through just recipes. It can build the frontend and
 product app, reuse a checksum-verified current bundle, and write source/build
@@ -44,9 +49,11 @@ identity, executable/UI checksums and browser wire compatibility remain distinct
 Readiness probes operation-specific prerequisites without installing or migrating.
 The retained developer tool exposes its compiled capabilities/schema and has a
 source/content receipt. Explicit shared refresh freezes a validated app/tool pair,
+and source checkout, selects release by default with an explicit dev override,
 upgrades a private controlled seed, then delegates snapshot validation and atomic
 publication to Rust. Existing task data and the installed personal workspace are
-outside that maintenance operation.
+outside that maintenance operation. Long checks use the frozen checkout so caller
+source edits may resume after capture; retained evidence identifies the candidate.
 
 Validation entry points retain the shared shell path-selection policy, then run
 one Node session under `scripts/validation`. That session owns a phase list with

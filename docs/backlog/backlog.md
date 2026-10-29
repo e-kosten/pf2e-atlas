@@ -66,7 +66,8 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 - [Ingest and reference build performance](items/reference-build-performance.md)
   PR74 completed the measured optimization; further work targets remaining
-  segmentation/tokenization and evidenced inference bottlenecks. Status: proposed.
+  segmentation/tokenization, deep artifact validation during maintenance and
+  evidenced inference bottlenecks. Status: proposed.
 
 - [Downstream architecture follow-through](items/rust-downstream-architecture-follow-through.md)
   Resolve remaining bounded consumer ownership and error-contract gaps from the

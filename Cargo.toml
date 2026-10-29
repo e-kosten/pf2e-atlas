@@ -95,6 +95,10 @@ incremental = true
 [profile.dev.package.atlas-foundry-model]
 incremental = false
 
+# Readiness verifies gigabytes of cached weights; workspace code stays incremental.
+[profile.dev.package.sha2]
+opt-level = 3
+
 [profile.debug-full]
 inherits = "dev"
 debug = "full"
