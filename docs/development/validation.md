@@ -7,6 +7,23 @@ before opening the PR. Open an early draft only when the user explicitly request
 one. Respect the tracked hooks. Reuse successful checks for unchanged inputs;
 a commit alone does not invalidate evidence for identical inputs.
 
+## Early domain and transport checks
+
+Before implementing cross-cutting source-derived rules, use the existing task plan
+to identify actual producers and projection, mutation/admission and event consumers.
+Record representative saved, inherited and unknown cases where those distinctions
+apply. For example, an inherited condition must reach both displayed permission
+and Spend admission; a manual known-empty participant differs from unavailable
+source data. Do not require a full Cartesian matrix or invent unsupported workflows.
+
+For changed transport shapes, exercise real Rust serialization and the actual
+HTTP/client decoding boundary early. Cover relevant absent/null/default cases.
+An optional non-null TypeScript field must not silently serialize `None` as null.
+Generated bindings and compatibility fingerprints complement those behavioral
+checks. Run these focused tests before expensive suites and retain them as the
+regressions for the changed boundary. Independent final review still precedes PR
+creation; it does not replace early discovery of domain/transport assumptions.
+
 ## Local Rust gate
 
 Rust workspace tests are the primary validation surface. Add or update behavioral
@@ -52,10 +69,14 @@ heartbeat every 20 seconds. Use `just verify --verbose` or
 `scripts/verify.sh --verbose` to stream the complete command output.
 
 Shell entry points retain the shared path classifier and then hand off to one Node
-session. `scripts/validation/verify.mjs` composes the phase list; `run-check.mjs`
+session. `scripts/validation/plan.mjs` defines the maintained phase list;
+`verify.mjs` selects execution or inspection; `run-check.mjs`
 owns input consistency, evidence, logging and heartbeat timers; `run-process.mjs`
 owns each live child and its descendants. Full and changed-path Rust gates use the
-same phase list, without nesting another gate process. Direct Rust developer
+same phase list, without nesting another gate process. Mixed full frontend/Rust
+selection prepares `verify:bundle` once, then overlaps frontend tests with the
+ordered Rust lane. A failure cancels and awaits its peer while preserving the
+originating exit; `--serial` is available for diagnosis. Direct Rust developer
 commands and baseline init/status/web remain independent of Node.
 
 On macOS/Linux the launcher replaces itself with Node. On Windows a small Git Bash
@@ -234,10 +255,22 @@ because it starts successfully.
 
 ## Isolated final browser validation
 
-Commit a fixed candidate and build its matching frontend, then package the real
-fixture. Packaging refuses tracked or untracked source changes and detects source
-or UI changes during its build. Packaging verifies the frontend build receipt,
-so a clean checkout with a stale but API-compatible bundle cannot be mislabeled:
+For ordinary final validation, commit a fixed candidate and use one command:
+
+```sh
+just validate-browser --offline -- e2e/devices/turn-reminders.spec.ts --project=phone-webkit
+```
+
+It checks prerequisites, reuses a verified frontend (builds only when needed),
+packages once, then calls the existing isolated runner. The temporary original
+package is removed; the authenticated copy and reports remain in the run output.
+After packaging, development can resume while tests use their pinned checkout.
+No compiler outputs or installed dependencies are copied between worktrees.
+
+For replay of an existing package or explicit stage diagnosis, the lower-level
+commands remain available. Packaging refuses tracked or untracked source changes
+and detects source/UI changes during its build; it verifies the frontend receipt,
+so a stale but API-compatible bundle cannot be mislabeled:
 
 ```bash
 just web-ui-build
@@ -350,7 +383,9 @@ a gate.
 | Changed surface | Local full validation / PR CI coverage |
 | --- | --- |
 | Core Rust | Workspace gate; CI also checks Windows storage, standalone atlas-dev and applicable real-app browsers |
-| Developer-only atlas-dev/tool launchers | Standalone developer gate; no frontend bundle or device matrix |
+| Developer-only atlas-dev Rust | Standalone developer gate; no frontend bundle or device matrix |
+| Known development/validation/hook launchers | Shared tooling regressions; CI includes native Windows cancellation, without application builds |
+| Browser packaging/runner scripts | Tooling regressions plus affected local browser flows; CI fixture/browser matrix |
 | Frontend | Frontend gate and affected local browser flows; CI builds the real Rust fixture and runs the browser matrix, without unrelated full Rust workspace verification |
 | Browser specs/configuration | Frontend checks/bundle and affected local browser flows; CI fixture/matrix, without unrelated Vitest or full Rust workspace verification |
 | App-model contracts | Both Rust and frontend |
@@ -361,18 +396,25 @@ a gate.
 | Prose documentation | Diff/links/examples review; no application builds |
 | Cargo manifests/lockfile | Rust, frontend, source contracts and release/notices |
 | Shipped agent skill | Metadata and bundled-file coverage checks (`node scripts/validation/skill.ts`); no application build |
-| Unknown paths, workflow or validation infrastructure | All surfaces |
+| Unknown paths or workflow infrastructure | All surfaces |
 
-`--list` exposes eight decisions: `rust`, `web`, `browser`, `dev`, `source`,
-`release`, `research` and `skill`. `browser` owns the real-app fixture/matrix;
+`--list` exposes nine decisions: `rust`, `web`, `browser`, `dev`, `source`,
+`release`, `research`, `skill` and `tooling`. `browser` owns the real-app fixture/matrix;
 `dev` owns the standalone developer gate. PR CI uses this same path classifier.
 Renames include the old and new paths;
 executable/symlink mode changes select all. Main pushes and nightly verification
 run every surface. The `validation complete` job rejects failed or unexpectedly
 skipped selected jobs; use it as the aggregate required check. CI selection and
-local script stages report decisions/timings in the job summary. Two Clippy passes
-retain distinct lint policies. Nextest preserves the Cargo unit/integration/enabled
-example case set; doctests and normal builds remain separate checks.
+local script stages report decisions/timings in the job summary.
+
+`node scripts/validation/tooling.mjs` is the independently bootstrapped tooling gate:
+hook/classifier smoke checks plus all maintained `scripts/*.test.mjs`, development
+and validation regressions. Local full selection appends that same exported list
+to its existing session. CI invokes the bootstrap directly, so a broken validation
+runner cannot accidentally skip tests of itself. Native Windows runs its dedicated
+Bash-to-Node cancellation test; POSIX runs retain their existing signal checks.
+Two Clippy passes retain distinct lint policies. Nextest preserves the Cargo
+unit/integration/enabled example case set; doctests and normal builds remain separate checks.
 
 `test:devices` builds the frontend for standalone local use. CI invokes Playwright
 directly against the authenticated fixture artifact, without rebuilding Rust or

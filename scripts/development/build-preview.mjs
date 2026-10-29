@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Build orchestration stays outside the build-independent Rust developer tool.
+import { requireReadiness } from "./preflight.mjs";
 import { createHash } from "node:crypto";
 import {
   existsSync,
@@ -52,6 +53,7 @@ const fingerprint = (names) => {
   }
   return digest.digest("hex");
 };
+await requireReadiness(checkout, { commands: [["cargo"]] });
 const { frontendInputIdentity, verifyFrontendBuild } = await import(
   pathToFileURL(resolve(checkout, "web/atlas-ui/apiContract.ts"))
 );
@@ -76,6 +78,9 @@ let frontend;
 try {
   frontend = verifyFrontendBuild(checkout);
 } catch {
+  await requireReadiness(checkout, {
+    commands: [["npm", "--prefix", "web/atlas-ui"]],
+  });
   run("npm", ["--prefix", "web/atlas-ui", "run", "build"]);
   frontend = verifyFrontendBuild(checkout);
 }

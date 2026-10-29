@@ -18,6 +18,7 @@ export function requireSelectedJobs(jobs) {
     "skill",
     "browser",
     "dev",
+    "tooling",
   ]) {
     assert(["true", "false"].includes(flags[key]), key);
   }
@@ -27,7 +28,7 @@ export function requireSelectedJobs(jobs) {
     "browser-fixture": flags.browser === "true",
     browsers: flags.browser === "true",
     rust: flags.rust === "true",
-    "windows-artifact": flags.rust === "true",
+    "windows-artifact": flags.rust === "true" || flags.tooling === "true",
     "atlas-dev": flags.rust === "true" || flags.dev === "true",
     "web-ui": flags.web === "true",
     "source-contracts": flags.source === "true",

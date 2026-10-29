@@ -7,12 +7,22 @@ preview, changing build profiles, or reclaiming development data.
 
 Implementation uses dedicated linked worktrees and feature PRs:
 
-- create a task worktree under `.worktrees/<task-slug>` on a short-lived feature branch
+- prefer a managed task worktree outside the primary checkout directory, on a short-lived feature branch
 - branch from current `main` unless the user identifies another workstream; dependent PRs may target the preceding feature branch
 - source-modeling work uses `integration/source-modeling` when that is the identified workstream; verify the base and do not mix unrelated workstreams
 - continue related feedback and revisions in the same task worktree and PR
 - preserve unrelated changes and running builds being reviewed
 - land through a reviewed PR after applicable validation and CI; merging is a separate human decision
+
+Cargo reads ancestor `.cargo/config*` files and merges array values, including
+compiler/linker flags. A nested `.worktrees/<task-slug>` can therefore build with
+both its own and the primary checkout's configuration. Prefer an external managed
+worktree or a sibling location for new tasks; keep the private `target/` there.
+Do not relocate an active reviewed checkout merely to apply this preference.
+Retained-tool readiness fingerprints actual ancestor configuration rather than
+silently treating different compiler inputs as equivalent. If a session can only
+write a nested location, account for that stack and its explicit refresh requirement.
+See [Cargo configuration hierarchy](https://doc.rust-lang.org/cargo/reference/config.html#hierarchical-structure).
 
 Recommended branch names:
 
@@ -134,3 +144,9 @@ matches the fetched remote. Preserve local changes or divergence and report any
 blocked update; do not reset or stash work to force cleanup. This does not
 provide permission to merge a PR or push to `main`. Serialize Git mutations
 within the repository, including worktree creation/removal and commits.
+
+At a schema/reference-contract or developer-capability milestone, also inspect
+the shared tool/seed readiness. Refresh explicitly from a validated clean build
+with the [shared refresh procedure](setup-and-preview.md#reusable-development-baseline).
+Updating Git alone does not update retained executables or seeds. Ordinary UI or
+prose changes do not require republication, and existing task receipts stay pinned.

@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import {
   chmodSync,
   copyFileSync,
+  existsSync,
   mkdirSync,
   readFileSync,
   realpathSync,
@@ -68,6 +69,7 @@ export function browserFixture(directory = process.env.ATLAS_BROWSER_ARTIFACT) {
 
 if (
   process.argv[1] &&
+  existsSync(process.argv[1]) &&
   realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   const directory = process.argv[2];

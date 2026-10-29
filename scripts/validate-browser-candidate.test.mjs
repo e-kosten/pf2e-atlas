@@ -9,12 +9,16 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { frontendInputIdentity } from "../web/atlas-ui/apiContract.ts";
+import {
+  frontendInputIdentity,
+  readAtlasApiContract,
+} from "../web/atlas-ui/apiContract.ts";
 
 function fixture() {
   const directory = mkdtempSync(resolve(tmpdir(), "atlas-isolated-browser-"));
@@ -454,6 +458,149 @@ test("interrupting the runner cleans its owned command and retains interrupted e
     const pid = Number(readFileSync(pidFile, "utf8"));
     assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
     assert.equal(existsSync(resolve(output, "checkout")), false);
+  } finally {
+    rmSync(f.directory, { recursive: true, force: true });
+  }
+});
+
+function prepareNormalCommand(f) {
+  for (const name of [
+    "validate-browser.mjs",
+    "development/preflight.mjs",
+    "validation/inputs.mjs",
+    "validation/run-check.mjs",
+    "validation/run-process.mjs",
+  ]) {
+    const destination = resolve(f.root, "scripts", name);
+    mkdirSync(resolve(destination, ".."), { recursive: true });
+    copyFileSync(new URL(name, import.meta.url), destination);
+  }
+  writeFileSync(
+    resolve(f.root, "web/atlas-ui/package.json"),
+    JSON.stringify({
+      type: "module",
+      engines: { node: "^22.18.0 || ^24.0.0" },
+    }),
+  );
+  writeFileSync(
+    resolve(f.root, "rust-toolchain.toml"),
+    '[toolchain]\nchannel="1.95.0"\n',
+  );
+  writeFileSync(
+    resolve(f.root, ".gitignore"),
+    "bin/\nnode_modules/\ntarget/\n.atlas/\nscratch/\nweb/atlas-ui/dist/\n",
+  );
+  const program = (name, body) => {
+    const file = resolve(f.root, "bin", name);
+    writeFileSync(file, "#!/bin/sh\n" + body + "\n");
+    chmodSync(file, 0o755);
+  };
+  program("rustc", "echo 'rustc 1.95.0 (fixture)'");
+  program(
+    "cargo",
+    `case "$1" in
+metadata) printf '{"target_directory":"%s/target","packages":[]}\\n' "$PWD";;
+--version) echo cargo-fixture;;
+build) mkdir -p target/debug/examples; printf '#!/bin/sh\\nexit 0\\n' > target/debug/examples/browser_fixture; chmod +x target/debug/examples/browser_fixture;;
+*) exit 91;; esac`,
+  );
+  program("strip", "exit 0");
+  const dist = resolve(f.root, "web/atlas-ui/dist");
+  mkdirSync(dist);
+  const contract = readAtlasApiContract(f.root).identifier;
+  const outputs = {
+    "index.html": "candidate A frontend",
+    "api-contract.txt": contract + "\n",
+  };
+  for (const [name, bytes] of Object.entries(outputs))
+    writeFileSync(resolve(dist, name), bytes);
+  writeFileSync(
+    resolve(dist, "build-provenance.json"),
+    JSON.stringify({
+      version: 1,
+      input_sha256: frontendInputIdentity(f.root),
+      api_contract: contract,
+      sha256: Object.fromEntries(
+        Object.entries(outputs).map(([name, bytes]) => [
+          name,
+          createHash("sha256").update(bytes).digest("hex"),
+        ]),
+      ),
+    }),
+  );
+  f.git("add", ".");
+  f.git("commit", "-qm", "test: normal browser composition");
+  f.commit = f.git("rev-parse", "HEAD");
+}
+
+for (const fail of [false, true])
+  test(`normal browser command composes verified UI, packaging and isolation${fail ? " on failure" : ""}`, () => {
+    const f = fixture();
+    try {
+      prepareNormalCommand(f);
+      const output = resolve(f.directory, "normal");
+      const result = spawnSync(
+        process.execPath,
+        [
+          resolve(f.root, "scripts/validate-browser.mjs"),
+          "--offline",
+          "--output",
+          output,
+          "--",
+          "--project=phone-webkit",
+        ],
+        {
+          cwd: f.root,
+          env: { ...f.env, ...(fail ? { ATLAS_TEST_FAIL: "1" } : {}) },
+          encoding: "utf8",
+          timeout: 15000,
+        },
+      );
+      assert.equal(result.status, fail ? 1 : 0, result.stdout + result.stderr);
+      assert.match(result.stderr, /Reusing verified frontend bundle/);
+      const report = JSON.parse(readFileSync(resolve(output, "result.json")));
+      assert.equal(report.commit, f.commit);
+      assert.equal(report.status, fail ? "failed" : "passed");
+      assert.equal(existsSync(resolve(output, "checkout")), false);
+      assert.deepEqual(
+        readdirSync(resolve(f.root, "scratch/browser-packages")),
+        [],
+      );
+      assert.equal(
+        existsSync(resolve(f.root, "web/atlas-ui/node_modules")),
+        false,
+      );
+    } finally {
+      rmSync(f.directory, { recursive: true, force: true });
+    }
+  });
+
+test("normal browser command rejects dirty source and replay overrides before building", () => {
+  const f = fixture();
+  try {
+    prepareNormalCommand(f);
+    const script = resolve(f.root, "scripts/validate-browser.mjs");
+    for (const args of [
+      ["--artifact", f.artifact],
+      ["--commit", "HEAD"],
+    ]) {
+      const result = spawnSync(process.execPath, [script, ...args], {
+        cwd: f.root,
+        env: f.env,
+        encoding: "utf8",
+      });
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /replay/);
+    }
+    writeFileSync(resolve(f.root, "uncommitted"), "dirty");
+    const result = spawnSync(process.execPath, [script], {
+      cwd: f.root,
+      env: f.env,
+      encoding: "utf8",
+    });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Commit source changes/);
+    assert.equal(existsSync(resolve(f.root, "target")), false);
   } finally {
     rmSync(f.directory, { recursive: true, force: true });
   }

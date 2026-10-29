@@ -19,86 +19,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 
-const helper = fileURLToPath(new URL("./run-check.sh", import.meta.url));
-const shell = `exec sh "$ATLAS_CHECK_HELPER" $([ "\${ATLAS_TEST_VERBOSE:-0}" = 0 ] || printf -- --verbose) "$@"`;
-function fixture(t) {
-  const root = mkdtempSync(join(tmpdir(), "atlas-check-test-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const cwd = join(root, "checkout");
-  mkdirSync(cwd);
-  const git = (...args) => {
-    const result = spawnSync("git", args, { cwd, encoding: "utf8" });
-    assert.equal(result.status, 0, result.stderr);
-    return result.stdout.trim();
-  };
-  mkdirSync(join(cwd, "scripts", "validation"), { recursive: true });
-  for (const name of [
-    "run-check.sh",
-    "launch.sh",
-    "run-check.mjs",
-    "run-process.mjs",
-    "verify.mjs",
-  ]) {
-    copyFileSync(
-      fileURLToPath(new URL(`./${name}`, import.meta.url)),
-      join(cwd, "scripts", "validation", name),
-    );
-  }
-  mkdirSync(join(cwd, "scripts", "git-hooks"), { recursive: true });
-  copyFileSync(
-    fileURLToPath(new URL("../verify.sh", import.meta.url)),
-    join(cwd, "scripts", "verify.sh"),
-  );
-  chmodSync(join(cwd, "scripts", "verify.sh"), 0o755);
-  copyFileSync(
-    fileURLToPath(new URL("../verify-changed.sh", import.meta.url)),
-    join(cwd, "scripts", "verify-changed.sh"),
-  );
-  copyFileSync(
-    fileURLToPath(new URL("../git-hooks/common.sh", import.meta.url)),
-    join(cwd, "scripts", "git-hooks", "common.sh"),
-  );
-  git("init", "--quiet");
-  git("config", "user.name", "Validation fixture");
-  git("config", "user.email", "validation@example.invalid");
-  git("config", "commit.gpgsign", "false");
-  git("config", "core.hooksPath", "/dev/null");
-  writeFileSync(join(cwd, "code.rs"), "pub fn value() {}\n");
-  writeFileSync(join(cwd, "README.md"), "Fixture docs\n");
-  git("add", ".");
-  git("commit", "--quiet", "-m", "test: fixture");
-  const env = {
-    ...process.env,
-    ATLAS_CHECK_HELPER: join(cwd, "scripts", "validation", "run-check.sh"),
-    ATLAS_CHECK_MODULE: new URL("./run-check.mjs", import.meta.url).href,
-    ATLAS_VALIDATION_OUTPUT_ROOT: join(root, "evidence"),
-    ATLAS_VALIDATION_HEARTBEAT_SECONDS: "1",
-  };
-  delete env.GITHUB_STEP_SUMMARY;
-  const run = (command, extra = {}) =>
-    spawnSync(
-      "sh",
-      ["-c", shell, "fixture", "fixture check", "sh", "-c", command],
-      { cwd, env: { ...env, ...extra }, encoding: "utf8", timeout: 8000 },
-    );
-  const records = () =>
-    readdirSync(env.ATLAS_VALIDATION_OUTPUT_ROOT).flatMap((run) => {
-      const dir = join(env.ATLAS_VALIDATION_OUTPUT_ROOT, run);
-      return readdirSync(dir)
-        .filter((name) => name.startsWith("check."))
-        .map((name) => {
-          const check = join(dir, name);
-          const result = Object.fromEntries(
-            readFileSync(join(check, "result.tsv"), "utf8")
-              .trim()
-              .split("\n")
-              .map((line) => line.split("\t")),
-          );
-          return { dir, check, ...result };
-        });
-    });
-  return { cwd, env, run, records };
-}
+import { helper, fixture, shell } from "./test-fixtures.mjs";
 
 test("quiet success and command failure retain readable logs and exact outcomes", (t) => {
   const f = fixture(t);
@@ -810,11 +731,17 @@ test("public full selector TERM waits for its Rust phase and nested command clea
     join(bin, "cargo"),
     `#!/bin/sh
 case "$*" in
+ metadata*) printf '{"target_directory":"%s/target","packages":[]}\\n' "$PWD";;
  "nextest run --workspace") printf '%s\n' "$$" >>"$OWNED_PIDS"; sh -c 'printf "%s\n" "$$" >>"$OWNED_PIDS"; sleep 30 & printf "%s\n" "$!" >>"$OWNED_PIDS"; wait' & wait;;
  *) printf fixture-cargo;;
 esac
 `,
   );
+  writeFileSync(
+    join(bin, "rustc"),
+    "#!/bin/sh\nprintf 'rustc 1.95.0 (fixture)\\n'\n",
+  );
+  chmodSync(join(bin, "rustc"), 0o755);
   chmodSync(join(bin, "npm"), 0o755);
   chmodSync(join(bin, "cargo"), 0o755);
   writeFileSync(paths, "crates/example/src/lib.rs");

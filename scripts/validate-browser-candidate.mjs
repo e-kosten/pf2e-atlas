@@ -9,6 +9,7 @@ import {
   openSync,
   closeSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -23,7 +24,7 @@ const hash = (path) =>
 const usage =
   "Usage: node scripts/validate-browser-candidate.mjs --artifact DIR [--commit REF] [--output DIR] [--offline] -- [Playwright test options]\nRuns an authenticated built app with isolated committed tests/configuration and npm ci dependencies; no Rust build, corpus copy or browser download. Install required Playwright browsers first.";
 
-function options(args) {
+export function browserOptions(args) {
   const result = { playwright: [] };
   for (let i = 0; i < args.length; i++) {
     const name = args[i];
@@ -77,8 +78,8 @@ function options(args) {
   return result;
 }
 
-async function main() {
-  const selected = options(process.argv.slice(2));
+export async function runBrowserCandidate(args = process.argv.slice(2)) {
+  const selected = browserOptions(args);
   if (selected.help) {
     console.log(usage);
     return;
@@ -353,7 +354,12 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(String(error));
-  process.exitCode = 1;
-});
+if (
+  process.argv[1] &&
+  existsSync(process.argv[1]) &&
+  import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href
+)
+  runBrowserCandidate().catch((error) => {
+    console.error(String(error));
+    process.exitCode = 1;
+  });
