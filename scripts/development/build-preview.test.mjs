@@ -25,6 +25,20 @@ function fixture(t) {
   };
   put(".gitignore", ".atlas/\ntarget/\nweb/atlas-ui/dist/\nfake-bin/\n");
   put("Cargo.toml", "[workspace]\n");
+  put(
+    "scripts/validation/inputs.mjs",
+    readFileSync(new URL("../validation/inputs.mjs", import.meta.url)),
+  );
+  put("rust-toolchain.toml", '[toolchain]\nchannel="1.95.0"\n');
+  put(
+    "web/atlas-ui/package.json",
+    '{"type":"module","engines":{"node":"^22.18.0 || ^24.0.0"}}',
+  );
+  put("web/atlas-ui/node_modules/.package-lock.json", "{}");
+  put(
+    "scripts/development/preflight.mjs",
+    readFileSync(resolve(scripts, "preflight.mjs")),
+  );
   put("crates/example/src/lib.rs", "pub fn current() {}\n");
   put(
     "crates/atlas-app-model/bindings/Test.ts",
@@ -56,8 +70,9 @@ import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 const kind=process.argv[2];
-if(kind==='rustc'){console.log('rustc fixture');process.exit(0);}
+if(kind==='rustc'){console.log('rustc 1.95.0 (fixture)');process.exit(0);}
 const root=process.cwd();
+if(kind==='cargo'&&process.argv[3]==='metadata'){console.log(JSON.stringify({target_directory:resolve(root,'target'),packages:[]}));process.exit(0);}
 mkdirSync(resolve(root,'.atlas'),{recursive:true});
 appendFileSync(resolve(root,'.atlas/calls'),kind+'\\n');
 if(kind==='npm'){

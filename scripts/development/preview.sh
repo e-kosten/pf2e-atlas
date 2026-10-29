@@ -9,6 +9,7 @@ case "$mode" in
   start | refresh) ;;
   *) echo "Expected start or refresh" >&2; exit 2 ;;
 esac
+node "$root/scripts/development/preflight.mjs" --preview "$root"
 node --experimental-strip-types "$root/scripts/development/build-preview.mjs" "$root"
 if [ "$mode" = start ]; then
   set -- web --managed "$@"
