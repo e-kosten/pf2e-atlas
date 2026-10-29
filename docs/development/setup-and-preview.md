@@ -258,7 +258,7 @@ the active port, private database and source/model selection, serializes request
 checks the candidate's index contract, then verifies served readiness for every
 stored profile and the expected UI bytes. Web startup authenticates the migration
 ledger. Initial startup checks the actual server; an unchanged executable/UI
-refresh checks the existing live child without starting another process. A changed
+refresh checks the existing live child without starting another web process. A changed
 candidate first starts on a private probe port. The probe is stopped and reaped
 before replacing the current server at its stable URL. Probe diagnostics live in
 `.atlas/dev-preview/probe.log`; rejection leaves the current server log intact.
