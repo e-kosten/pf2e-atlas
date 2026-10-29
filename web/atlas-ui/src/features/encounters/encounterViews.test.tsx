@@ -1651,7 +1651,7 @@ describe("encounter views", () => {
         expect.any(String),
         "participant_a",
         expect.objectContaining({
-          condition_id: expect.any(BigInt),
+          condition_id: 7n,
           selection: expect.objectContaining({
             record_key: "conditionitems:TBSHQspnbcqxsmjL",
           }),

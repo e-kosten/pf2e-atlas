@@ -160,7 +160,10 @@ test("final browser run keeps app, tests and dependencies pinned while developme
         "--output",
         output,
         "--",
+        "e2e/devices/turn-reminders.spec.ts",
         "--project=phone-webkit",
+        "--grep",
+        "recovery choices",
       ],
       { env: f.env, encoding: "utf8" },
     );
@@ -171,6 +174,20 @@ test("final browser run keeps app, tests and dependencies pinned while developme
     assert.notEqual(f.git("rev-parse", "HEAD"), f.commit);
     assert.equal(report.playwright, "fixture-playwright");
     assert.equal(report.stages.at(-1).status, "passed");
+    assert.deepEqual(report.stages.at(-1).command, [
+      "npm",
+      "exec",
+      "--",
+      "playwright",
+      "test",
+      "--config",
+      "playwright.devices.config.ts",
+      "--output",
+      resolve(output, "results"),
+      "e2e/devices/turn-reminders.spec.ts",
+      "--project=phone-webkit",
+      "--grep=recovery choices",
+    ]);
     assert.equal(existsSync(resolve(output, "checkout")), false);
     assert.equal(
       readFileSync(resolve(f.root, "web/atlas-ui/package-lock.json"), "utf8"),

@@ -1445,6 +1445,10 @@ mod hp_lifecycle_tests {
         );
         let detail = worker.encounter(&key).unwrap();
         assert_eq!(detail.participants[0].current_hp, Some(1));
+        assert!(!detail.participants[0].conditions.iter().any(|condition| {
+            condition.condition_key.as_deref()
+                == Some(ConditionRule::Unconscious.definition().record_key)
+        }));
         add(
             &worker,
             &key,

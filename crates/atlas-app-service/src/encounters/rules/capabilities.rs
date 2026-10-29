@@ -511,12 +511,14 @@ mod tests {
             Some("Lost to Slowed")
         );
         assert_eq!(budget.actions.adjusted_value, Some(3));
-        assert!(
+        assert_eq!(
             budget
                 .actions
                 .adjustments
                 .iter()
-                .all(|row| row.reason.is_none())
+                .map(|row| (row.source.as_str(), row.value, row.reason.as_deref()))
+                .collect::<Vec<_>>(),
+            [("quickened", 1, None), ("slowed", -1, None)]
         );
         p.conditions.push(condition("Stunned", Some(2)));
         let budget = action_budget(&p, &Default::default());
@@ -735,8 +737,10 @@ mod tests {
                 crate::encounters::rules::source_conditions::SourceConditions::empty()
             )
             .active
-            .len(),
-            1
+            .iter()
+            .map(|cause| (cause.rule, cause.source.condition_id()))
+            .collect::<Vec<_>>(),
+            [(ConditionRule::OffGuard, Some(20))]
         );
     }
     #[test]

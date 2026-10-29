@@ -112,9 +112,9 @@ test("quiet success and command failure retain readable logs and exact outcomes"
   const records = f.records();
   assert.deepEqual(records.map((r) => r.status).sort(), ["failed", "passed"]);
   for (const record of records) {
-    assert.match(
+    assert.equal(
       readFileSync(record.log, "utf8"),
-      /saved-success|required-diagnostic/,
+      record.status === "passed" ? "saved-success" : "required-diagnostic",
     );
     assert.match(record.duration_seconds, /^\d+$/);
     assert.equal(record.start_inputs, record.end_inputs);
@@ -129,6 +129,51 @@ test("quiet success and command failure retain readable logs and exact outcomes"
       /start_commit\t[0-9a-f]{40}/,
     );
   }
+});
+
+test("nextest phases retain the actual scheduler version with their output", (t) => {
+  const f = fixture(t);
+  const bin = join(f.cwd, "..", "bin");
+  mkdirSync(bin);
+  writeFileSync(
+    join(bin, "cargo"),
+    `#!/bin/sh
+case "$*" in
+  "--version") printf 'cargo fixture\n';;
+  "nextest --version") printf 'cargo-nextest 0.9.151\n';;
+  "nextest run --workspace") printf 'workspace cases passed\n';;
+  *) exit 97;;
+esac
+`,
+  );
+  writeFileSync(join(bin, "rustc"), "#!/bin/sh\nprintf 'rustc fixture\n'\n");
+  chmodSync(join(bin, "cargo"), 0o755);
+  chmodSync(join(bin, "rustc"), 0o755);
+  const result = spawnSync(
+    "sh",
+    [
+      "-c",
+      shell,
+      "fixture",
+      "workspace tests",
+      "cargo",
+      "nextest",
+      "run",
+      "--workspace",
+    ],
+    {
+      cwd: f.cwd,
+      env: { ...f.env, PATH: `${bin}:${f.env.PATH}` },
+      encoding: "utf8",
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const [record] = f.records();
+  assert.match(
+    readFileSync(join(record.check, "toolchain.txt"), "utf8"),
+    /^cargo-nextest 0\.9\.151$/m,
+  );
+  assert.equal(readFileSync(record.log, "utf8"), "workspace cases passed\n");
 });
 
 test("verbose failure streams and retains output without losing its exit status", (t) => {
@@ -201,7 +246,7 @@ test("invalid UTF-8 source filenames fail closed", (t) => {
   try {
     writeFileSync(path, "source");
   } catch (error) {
-    if (["EPERM", "EINVAL"].includes(error.code)) {
+    if (["EPERM", "EINVAL", "EILSEQ"].includes(error.code)) {
       t.skip("filesystem rejects invalid UTF-8 filenames");
       return;
     }
@@ -260,6 +305,7 @@ test("verbose output drains completely before final evidence is written", (t) =>
   const output = readFileSync(f.records()[0].log, "utf8");
   assert.equal(output.length, 2000000);
   assert.equal(output.replaceAll("x", "").length, 1000000);
+  assert.equal(output.replaceAll("y", "").length, 1000000);
   assert.match(result.stderr, /Passed large output/);
 });
 
@@ -763,8 +809,8 @@ test("public full selector TERM waits for its Rust phase and nested command clea
   writeFileSync(
     join(bin, "cargo"),
     `#!/bin/sh
-case "$1" in
- test) printf '%s\n' "$$" >>"$OWNED_PIDS"; sh -c 'printf "%s\n" "$$" >>"$OWNED_PIDS"; sleep 30 & printf "%s\n" "$!" >>"$OWNED_PIDS"; wait' & wait;;
+case "$*" in
+ "nextest run --workspace") printf '%s\n' "$$" >>"$OWNED_PIDS"; sh -c 'printf "%s\n" "$$" >>"$OWNED_PIDS"; sleep 30 & printf "%s\n" "$!" >>"$OWNED_PIDS"; wait' & wait;;
  *) printf fixture-cargo;;
 esac
 `,

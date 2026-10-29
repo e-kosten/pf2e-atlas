@@ -128,7 +128,13 @@ fn typed_spell_statistics_and_damage_share_variant_and_condition_policy() {
         projected.effective_stat(&StatisticTarget::HitPointMaximum)
     );
     assert_eq!(
-        reordered.activities[1].rolls[0].adjusted_value,
+        reordered
+            .activities
+            .iter()
+            .find(|activity| activity.label == "Bolt")
+            .unwrap()
+            .rolls[0]
+            .adjusted_value,
         spell.rolls[0].adjusted_value
     );
 }
@@ -663,13 +669,13 @@ fn controller_instructions_derive_from_active_sources_and_conflicts_stay_unknown
     let mut competing = controlled.clone();
     competing.condition_id = 2;
     actor.conditions.push(competing);
-    assert!(
+    assert_eq!(
         control_direction(
             &actor,
             &controlled,
             crate::encounters::rules::source_conditions::SourceConditions::empty()
-        )
-        .is_some()
+        ),
+        Some(("controller".into(), Some("Defend the door".into())))
     );
     actor.conditions[1].note = Some("Leave the door".into());
     assert!(
@@ -690,13 +696,13 @@ fn controller_instructions_derive_from_active_sources_and_conflicts_stay_unknown
         .is_none()
     );
     actor.conditions.pop();
-    assert!(
+    assert_eq!(
         control_direction(
             &actor,
             &controlled,
             crate::encounters::rules::source_conditions::SourceConditions::empty()
-        )
-        .is_some()
+        ),
+        Some(("controller".into(), Some("Defend the door".into())))
     );
 }
 
@@ -712,7 +718,18 @@ fn retch_exposes_independent_source_restrictions_without_collecting_answers() {
         &actor,
         crate::encounters::rules::source_conditions::SourceConditions::empty(),
     );
-    assert_eq!(result.issues.len(), 3);
+    assert_eq!(
+        result
+            .issues
+            .iter()
+            .map(|issue| match issue {
+                super::action_context::ActionIssue::NeedsContext { source_id, .. } =>
+                    source_id.saved_id(),
+                _ => None,
+            })
+            .collect::<Vec<_>>(),
+        [Some(1), Some(2), Some(3)]
+    );
 }
 
 #[test]
@@ -982,12 +999,15 @@ fn known_stronger_penalty_keeps_values_known_despite_uncertain_source_activation
             .and_then(serde_json::Number::as_i64),
         Some(18)
     );
-    assert!(
-        projected
+    for (label, modifier) in [("Finesse claw", 12), ("Bolt", 10)] {
+        let activity = projected
             .activities
             .iter()
-            .all(|activity| activity.calculation_unavailable.is_none())
-    );
+            .find(|activity| activity.label == label)
+            .unwrap();
+        assert_eq!(activity.calculation_unavailable, None);
+        assert_eq!(activity.rolls[0].adjusted_value.as_i64(), Some(modifier));
+    }
     assert_eq!(
         projected
             .effective_stat(&StatisticTarget::Save(StatisticSave::Reflex))
@@ -1301,6 +1321,12 @@ fn relationship_off_guard_uses_the_observers_immunity() {
     }]
     .into();
     let projected = project_participant(&observer, &baseline, true, &additional);
+    assert_eq!(
+        projected
+            .effective_stat(&StatisticTarget::ArmorClass)
+            .and_then(serde_json::Number::as_i64),
+        Some(20)
+    );
     assert!(
         projected.contextual_armor_class.iter().all(|ac| ac
             .value

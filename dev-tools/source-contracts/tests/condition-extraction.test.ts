@@ -14,9 +14,10 @@ immunities.push(new Immunity({type:"prone",source:_loc("PF2E.TraitExample")})); 
 test('new supported traits produce rules without a trait-specific branch', () => {
   const rules = traitImmunities(prefix + branch('swarm') + branch('new-trait') + '}', new Set(['swarm', 'new-trait']));
   assert.equal(rules.length, 2);
-  assert.match(JSON.stringify(rules[1].predicate), /new-trait/);
-  assert.match(JSON.stringify(rules[1].predicate), /authored/);
-  assert.match(JSON.stringify(rules[1].predicate), /character/);
+  assert.deepEqual(rules[1].predicate, {kind:'all',terms:[
+    {kind:'not',term:{kind:'actorKind',value:'character'}},
+    {kind:'all',terms:[{kind:'trait',value:'new-trait'},{kind:'not',term:{kind:'authored',value:'prone'}}]},
+  ]});
 });
 test('trait exclusions and loop values remain explicit', () => {
   const rules = traitImmunities(prefix + `if (traits.includes("construct") && !traits.includes("eidolon")) {
@@ -43,7 +44,9 @@ test('condition expressions extract coefficients and level floors', () => {
 });
 test('deafened predicates retain nested context requirements', () => {
   const compiled = conditionPredicate([{or:[{and:['check:type:skill','item:trait:auditory']},{and:['check:statistic:base:perception','check:statistic:initiative']}]}]);
-  assert.equal(compiled.kind, 'all');
-  assert.match(JSON.stringify(compiled), /initiative/);
+  assert.deepEqual(compiled, {kind:'all',terms:[{kind:'any',terms:[
+    {kind:'all',terms:[{kind:'atom',value:'check:type:skill'},{kind:'atom',value:'item:trait:auditory'}]},
+    {kind:'all',terms:[{kind:'atom',value:'check:statistic:base:perception'},{kind:'atom',value:'check:statistic:initiative'}]},
+  ]}]});
   assert.throws(() => conditionPredicate(['unknown:context']), /Unsupported predicate/);
 });
