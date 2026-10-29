@@ -750,7 +750,24 @@ and one schema ledger; there is no shared-reference attachment. Candidate readin
 compatibility, deep validation and queries run through the selected Atlas app
 executable. Explicit normal setup owns subsequent updates. Source/model caches
 remain shared, while compiler targets stay checkout-local. See
-[the contributor baseline workflow](../../CONTRIBUTING.md#reusable-development-baseline).
+[the contributor baseline workflow](../development/setup-and-preview.md#reusable-development-baseline).
+
+For a refreshable candidate preview, `atlas-dev baseline web --managed` owns one
+foreground supervisor and its live app child. Checkout-local serialized requests
+refresh or stop that owned child; stored process IDs never authorize signaling.
+Refresh preflights the replacement while the old server remains available, then
+checks HTTP readiness and the served UI against the supplied index checksum at
+the same explicit port. A failed start attempts to restore the previous frozen
+executable. Runtime copies expire when superseded or the owner stops; the task
+database, source/model selection and review edits remain in place.
+
+Normal init/status/web remain build-free. Separate candidate-build orchestration
+reuses matching frontend inputs/API identity and verified bundle bytes, then
+uses warm checkout-local Cargo output. It records executable/UI checksums and
+observed source provenance, rejecting source mutation during compilation before
+requesting refresh. These receipts do not replace independent final validation;
+the baseline publication's deep validation/inference probes are not repeated on
+ordinary preview refresh.
 
 
 ### Authored content reference rolls

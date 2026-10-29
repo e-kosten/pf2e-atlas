@@ -21,5 +21,5 @@ Check reference provenance against matching browser, font and OS inputs. Any
 deliberate replacement must follow the existing rendered and independent review
 workflow and retain the strict regression guard.
 
-See [visual reference guidance](../../../CONTRIBUTING.md#visual-references) and
+See [visual reference guidance](../../development/validation.md#visual-references) and
 [condition refinement acceptance](../../../web/atlas-ui/e2e/devices/condition-refinement.spec.ts).

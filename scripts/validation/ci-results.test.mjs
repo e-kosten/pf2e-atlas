@@ -17,7 +17,16 @@ const names = [
   "research",
   "skill",
 ];
-const flags = ["rust", "web", "source", "release", "research", "skill"];
+const flags = [
+  "rust",
+  "web",
+  "source",
+  "release",
+  "research",
+  "skill",
+  "browser",
+  "dev",
+];
 const selected = () =>
   Object.fromEntries([
     [
@@ -45,26 +54,64 @@ test("all selected surfaces must succeed, including every browser prerequisite",
   }
 });
 
-test("frontend-only and Rust-only changes retain real-app browser gates", () => {
-  for (const surface of ["web", "rust"]) {
+test("UI and browser-only changes keep real-app browser gates without full Rust", () => {
+  for (const surfaces of [["web", "browser"], ["browser"]]) {
     const jobs = selected();
     jobs.changes.outputs = Object.fromEntries(
-      flags.map((key) => [key, String(key === surface)]),
+      flags.map((key) => [key, String(surfaces.includes(key))]),
     );
     for (const name of [
+      "rust",
+      "windows-artifact",
+      "atlas-dev",
       "source-contracts",
       "release-tools",
       "research",
       "skill",
     ])
       jobs[name].result = "skipped";
-    for (const name of surface === "web"
-      ? ["windows-artifact", "atlas-dev"]
-      : ["web-ui"])
-      jobs[name].result = "skipped";
+    if (!surfaces.includes("web")) jobs["web-ui"].result = "skipped";
     requireSelectedJobs(jobs);
     jobs.browsers.result = "skipped";
     assert.throws(() => requireSelectedJobs(jobs), /browsers/);
+  }
+});
+
+test("standalone developer changes require no frontend or browser job", () => {
+  const jobs = selected();
+  jobs.changes.outputs = Object.fromEntries(
+    flags.map((key) => [key, String(key === "dev")]),
+  );
+  for (const name of names)
+    jobs[name].result = name === "atlas-dev" ? "success" : "skipped";
+  requireSelectedJobs(jobs);
+  jobs["atlas-dev"].result = "skipped";
+  assert.throws(() => requireSelectedJobs(jobs), /atlas-dev/);
+});
+
+test("core Rust changes require browser prerequisites, but CLI-only Rust does not", () => {
+  for (const browser of [true, false]) {
+    const jobs = selected();
+    jobs.changes.outputs = Object.fromEntries(
+      flags.map((key) => [
+        key,
+        String(key === "rust" || (browser && key === "browser")),
+      ]),
+    );
+    for (const name of [
+      "web-ui",
+      "source-contracts",
+      "release-tools",
+      "research",
+      "skill",
+    ])
+      jobs[name].result = "skipped";
+    if (!browser)
+      for (const name of ["browser-fixture", "browsers"])
+        jobs[name].result = "skipped";
+    requireSelectedJobs(jobs);
+    jobs.rust.result = "skipped";
+    assert.throws(() => requireSelectedJobs(jobs), /rust/);
   }
 });
 
