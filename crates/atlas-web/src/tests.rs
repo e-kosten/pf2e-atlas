@@ -36,22 +36,32 @@ use super::assets::WebAssets;
 use super::router::router_with_state;
 use super::service::{AtlasWebService, AtlasWebState, call_service};
 
+#[path = "../build_contract.rs"]
+mod build_contract;
+
 #[test]
-fn browser_contract_tracks_stored_similarity_recipe_owners() {
-    let inputs: Vec<String> =
-        serde_json::from_str(include_str!("../api-contract-inputs.json")).unwrap();
-    for owner in [
-        "crates/atlas-domain/src/similarity.rs",
-        "crates/atlas-domain/src/core_sections.rs",
-        "crates/atlas-domain/src/similarity_component.rs",
+fn browser_contract_covers_generated_similarity_wire_types() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let contract = build_contract::load(&root).unwrap();
+    assert_eq!(contract.identifier, super::compatibility::CONTRACT);
+    for binding in [
+        "SimilarityOptions.ts",
+        "CoreSectionSelection.ts",
+        "SimilarityComponentView.ts",
     ] {
+        let path = root.join("crates/atlas-app-model/bindings").join(binding);
         assert!(
-            inputs
-                .iter()
-                .any(|input| owner == input || owner.starts_with(&format!("{input}/"))),
-            "the browser contract does not cover recipe owner {owner}"
+            contract.watched_paths.contains(&path),
+            "the browser contract does not cover wire binding {binding}"
         );
     }
+    assert!(
+        contract.watched_paths.iter().all(|path| {
+            path == &root.join(build_contract::METADATA)
+                || path.starts_with(root.join("crates/atlas-app-model/bindings"))
+        }),
+        "implementation sources must not define browser wire compatibility"
+    );
 }
 
 #[tokio::test]

@@ -18,7 +18,7 @@ mkdir -p "$work/dev-tools/release" "$work/scripts/release" "$work/scripts/git-ho
 cp "$repo_root/scripts/prepare-release.sh" "$work/scripts/prepare-release.sh"
 chmod +x "$work/scripts/prepare-release.sh"
 mkdir -p "$work/scripts/validation"
-cp "$repo_root/scripts/validation/run-check.sh" "$work/scripts/validation/run-check.sh"
+cp "$repo_root/scripts/validation/run-check.sh" "$repo_root/scripts/validation/run-process.mjs" "$work/scripts/validation/"
 cp "$repo_root/scripts/verify.sh" "$work/scripts/verify.sh"
 chmod +x "$work/scripts/verify.sh"
 for release_check in validate-release-tooling.sh test-prepare-release.sh; do

@@ -12,9 +12,10 @@ skill describes maintenance practice, not a second source of product rules.
 ## Find the audience, owner and evidence
 
 - Read applicable AGENTS files and the existing guidance for the affected area.
-  Follow root AGENTS Documentation Positioning: README for product use,
-  CONTRIBUTING for workflow, architecture/ADRs for durable boundaries and
-  rationale, and the existing frontend guide for UI rules.
+  Follow [documentation ownership](../../../docs/development/documentation.md):
+  README for product use, CONTRIBUTING for the development sequence, linked
+  development guides for procedures, architecture/ADRs for durable boundaries,
+  shared product presentation for cross-surface copy and the frontend guide for UI.
 - Distinguish current verified behavior, an accepted intended rule, a proposal,
   and historical evidence. Existing code or one accepted visual example does not
   establish a universal preference. Keep temporary work status in the current

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 #[derive(Debug, Args)]
 #[command(
-    after_help = "Examples:\n  atlas-dev baseline init\n  atlas-dev baseline status --binary target/debug/atlas --json\n  atlas-dev baseline web --port 4728\n\nInit creates only a missing private workspace. Status and web use the frozen baseline executable unless --binary selects a candidate."
+    after_help = "Examples:\n  atlas-dev baseline init\n  atlas-dev baseline status --binary target/debug/atlas --json\n  atlas-dev baseline web --port 4728\n  atlas-dev baseline web --managed --binary target/debug/atlas --frontend-index web/atlas-ui/dist/index.html\n  atlas-dev baseline refresh --binary target/debug/atlas --frontend-index web/atlas-ui/dist/index.html\n\nInit creates only a missing private workspace. Status and web use the frozen baseline executable unless --binary selects a candidate. Managed web owns a refreshable child; separate shell/just orchestration builds candidates."
 )]
 pub(crate) struct BaselineArgs {
     #[arg(
@@ -37,7 +37,43 @@ pub(crate) enum BaselineCommand {
     /// Report provenance and candidate compatibility without changing data.
     Status(Candidate),
     /// Start a backend using private data and shared source/model assets.
-    Web(Candidate),
+    Web(WebArgs),
+    /// Replace this checkout's managed preview, preserving its URL and workspace.
+    Refresh(RefreshArgs),
+    /// Stop this checkout's managed preview; never signal a recorded PID.
+    Stop,
+}
+#[derive(Debug, Args)]
+pub(crate) struct WebArgs {
+    #[command(flatten)]
+    pub candidate: Candidate,
+    #[arg(
+        long,
+        requires = "frontend_index",
+        help = "Own a refreshable preview in the foreground"
+    )]
+    pub managed: bool,
+    #[arg(
+        long,
+        requires = "managed",
+        help = "Expected built frontend index for the selected executable"
+    )]
+    pub frontend_index: Option<PathBuf>,
+    #[arg(
+        long,
+        requires = "managed",
+        help = "Optional build receipt bound to executable and frontend checksums"
+    )]
+    pub build_provenance: Option<PathBuf>,
+}
+#[derive(Debug, Args)]
+pub(crate) struct RefreshArgs {
+    #[arg(long, help = "Already-built replacement Atlas executable")]
+    pub binary: PathBuf,
+    #[arg(long, help = "Expected frontend index embedded in that executable")]
+    pub frontend_index: PathBuf,
+    #[arg(long, help = "Optional build receipt bound to both checksums")]
+    pub build_provenance: Option<PathBuf>,
 }
 #[derive(Debug, Args)]
 pub(crate) struct Selection {
