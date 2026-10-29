@@ -83,11 +83,15 @@ it("suppresses effect tooltips while reading and restores them after closing", a
   await screen.findByRole("tooltip");
   fireEvent.click(link);
   expect(link).toHaveAttribute("aria-expanded", "true");
-  fireEvent.mouseLeave(link);
-  fireEvent.mouseEnter(link);
-  // Let Ant's delayed hover and dismissal finish before checking re-entry.
-  await act(() => new Promise((resolve) => setTimeout(resolve, 400)));
-  expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  vi.useFakeTimers();
+  try {
+    fireEvent.mouseLeave(link);
+    fireEvent.mouseEnter(link);
+    await act(async () => vi.advanceTimersByTimeAsync(400));
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  } finally {
+    vi.useRealTimers();
+  }
   fireEvent.click(screen.getByRole("button", { name: "Close preview" }));
   fireEvent.mouseLeave(link);
   fireEvent.mouseEnter(link);

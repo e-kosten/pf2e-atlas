@@ -167,9 +167,12 @@ fn browse_pages_keep_exact_filtered_totals_and_need_no_retained_handle() {
             &crate::ReadExecutionContext::uncancellable(),
         )
         .unwrap();
-    assert_ne!(
-        first.rows[0].record.record_key,
-        second.rows[0].record.record_key
+    assert_eq!(
+        [
+            first.rows[0].record.record_key.as_str(),
+            second.rows[0].record.record_key.as_str()
+        ],
+        ["items:0000000000000002", "items:0000000000000003"]
     );
     assert_eq!(second.artifact_generation, first.artifact_generation);
     assert!(!second.page.has_more);
@@ -232,10 +235,12 @@ fn lexical_pages_preserve_filters_counts_and_exact_owned_witnesses() {
         .search_page(criteria, &crate::ReadExecutionContext::uncancellable())
         .unwrap();
     assert_eq!(second.page.total, first.page.total);
-    assert_ne!(
-        first.rows[0].record.record_key,
-        second.rows[0].record.record_key
-    );
+    let mut keys = [
+        first.rows[0].record.record_key.as_str(),
+        second.rows[0].record.record_key.as_str(),
+    ];
+    keys.sort_unstable();
+    assert_eq!(keys, ["items:0000000000000002", "items:0000000000000003"]);
     let owned = f
         .worker
         .search_page(
@@ -306,10 +311,12 @@ fn similar_pages_preserve_seed_exclusion_filtering_and_bounded_coverage() {
         .unwrap();
     assert_eq!(second.coverage, first.coverage);
     assert_eq!(second.mode, first.mode);
-    assert_ne!(
-        second.rows[0].record.record_key,
-        first.rows[0].record.record_key
-    );
+    let mut keys = [
+        first.rows[0].record.record_key.as_str(),
+        second.rows[0].record.record_key.as_str(),
+    ];
+    keys.sort_unstable();
+    assert_eq!(keys, ["items:0000000000000002", "items:0000000000000003"]);
     assert!(!second.page.has_more);
 }
 
@@ -1087,6 +1094,7 @@ fn core_source_acknowledges_identity_and_prose_and_identity_navigation_opens_the
         })
         .unwrap();
     let navigation = identity.part.navigation().unwrap();
+    assert_eq!(navigation.record_key, "actors:0000000000000000");
     assert!(navigation.field.is_none());
     assert!(navigation.owners.is_empty());
     assert_eq!(

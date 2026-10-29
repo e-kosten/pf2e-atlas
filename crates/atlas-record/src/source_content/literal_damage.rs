@@ -213,17 +213,64 @@ mod tests {
     #[test]
     fn literals_keep_typed_instances_and_never_roll_during_interpretation() {
         let flat = literal_damage("1[fire]").unwrap();
+        assert_eq!(flat.len(), 1);
         assert_eq!(flat[0].formula, "1");
         assert_eq!(flat[0].label, "fire damage");
         assert!(!flat[0].has_dice);
         let parts =
             literal_damage("{(4d8+10)[bludgeoning],1d6[persistent,fire],10[healing]}").unwrap();
+        assert_eq!(parts.len(), 3);
         assert_eq!(parts[0].formula, "4d8+10");
         assert_eq!(parts[0].label, "bludgeoning damage");
         assert!(parts[0].has_dice);
+        assert_eq!(parts[1].formula, "1d6");
         assert_eq!(parts[1].label, "persistent fire damage");
+        assert_eq!(parts[2].formula, "10");
         assert_eq!(parts[2].label, "healing");
+        assert_eq!(parts[0].kind, LiteralDamageKind::Damage);
+        assert_eq!(parts[1].kind, LiteralDamageKind::Damage);
+        assert_eq!(parts[2].kind, LiteralDamageKind::Healing);
         assert!(!parts[2].has_dice);
+    }
+
+    #[test]
+    fn material_and_healing_labels_keep_their_executable_kind() {
+        for (source, label, kind) in [
+            (
+                "1d6[cold-iron,slashing]",
+                "cold iron slashing damage",
+                LiteralDamageKind::Damage,
+            ),
+            (
+                "1d6[precision,piercing]",
+                "precision piercing damage",
+                LiteralDamageKind::Damage,
+            ),
+            (
+                "1d6[splash,acid]",
+                "splash acid damage",
+                LiteralDamageKind::Damage,
+            ),
+            (
+                "1d6[vitality,healing]",
+                "vitality healing",
+                LiteralDamageKind::Healing,
+            ),
+            (
+                "1d6[void,damage,healing]",
+                "void damage or healing",
+                LiteralDamageKind::DamageOrHealing,
+            ),
+        ] {
+            let parts = literal_damage(source).unwrap();
+            assert_eq!(parts.len(), 1, "{source}");
+            assert_eq!(parts[0].label, label, "{source}");
+            assert_eq!(parts[0].kind, kind, "{source}");
+            assert_eq!(
+                parts[0].expression,
+                atlas_dice::RollPreviewExpression::Dice { sides: vec![6] }
+            );
+        }
     }
 
     #[test]

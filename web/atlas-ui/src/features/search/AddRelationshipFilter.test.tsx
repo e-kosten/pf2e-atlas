@@ -232,9 +232,12 @@ it("keeps parent paging and criteria untouched on cancel and resets lookup defau
     within(reopened).getByText("Whole entry", { exact: true }),
   ).toBeInTheDocument();
 });
-it.each(["direction", "scope"])(
-  "rejects a safe direct-AND duplicate but permits a different %s",
-  async (change) => {
+it.each([
+  { change: "direction", direction: "outgoing", include_contents: true },
+  { change: "scope", direction: "incoming", include_contents: false },
+] as const)(
+  "rejects a safe direct-AND duplicate but permits a different $change",
+  async ({ change, direction, include_contents }) => {
     const duplicate = linkLeaf(
       {
         direction: "incoming",
@@ -257,6 +260,16 @@ it.each(["direction", "scope"])(
     else await selectSortOption("Link filter scope", "Main entry only");
     fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
     await waitFor(() => expect(linkClauses(current().search.filter)).toHaveLength(2));
+    expect(
+      linkClauses(current().search.filter).map((leaf) => leaf.relationship),
+    ).toEqual([
+      {
+        direction: "incoming",
+        include_contents: true,
+        selection: rootNavigation(selectedKey),
+      },
+      { direction, include_contents, selection: rootNavigation(selectedKey) },
+    ]);
   },
 );
 it("keeps scope explanation optional and Escape closes inner help only", async () => {

@@ -45,10 +45,12 @@ mod tests {
             value: Some(value),
             adjustment: None,
         };
-        assert_eq!(
-            derived(&source((-1).into()), |n| n.checked_add(10)).value,
-            Some(9.into())
-        );
+        for (input, expected) in [(0, 10), (-1, 9)] {
+            assert_eq!(
+                derived(&source(input.into()), |n| n.checked_add(10)).value,
+                Some(expected.into())
+            );
+        }
         assert_eq!(
             derived(&source(25.into()), |n| (n > 0).then_some(n / 2)).value,
             Some(12.into())

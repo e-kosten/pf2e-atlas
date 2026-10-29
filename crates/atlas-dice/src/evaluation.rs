@@ -380,16 +380,23 @@ mod preview_tests {
                 sides: vec![20, 20]
             }
         );
-        assert!(matches!(
+        assert_eq!(
             prepare("-(1d8+2)*1d4")
                 .unwrap()
                 .preview_expression()
                 .unwrap(),
             RollPreviewExpression::Binary {
                 operator: RollOperator::Multiply,
-                ..
+                left: Box::new(RollPreviewExpression::Negate {
+                    inner: Box::new(RollPreviewExpression::Binary {
+                        operator: RollOperator::Add,
+                        left: Box::new(RollPreviewExpression::Dice { sides: vec![8] }),
+                        right: Box::new(RollPreviewExpression::Number { value: 2 }),
+                    }),
+                }),
+                right: Box::new(RollPreviewExpression::Dice { sides: vec![4] }),
             }
-        ));
+        );
         assert_eq!(
             prepare("1d%").unwrap().preview_expression().unwrap(),
             RollPreviewExpression::Dice { sides: vec![100] }

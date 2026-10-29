@@ -261,9 +261,14 @@ fn sorting_semantic_set_above_two_hundred_preserves_membership_window_and_witnes
         assert_eq!(result.page.total, 320);
         assert_eq!(result.coverage.semantic_unit_window, Some(1024));
         for row in result.records {
-            baseline.insert(row.record.key, serde_json::to_value(row.matches).unwrap());
+            assert!(
+                baseline
+                    .insert(row.record.key, serde_json::to_value(row.matches).unwrap())
+                    .is_none()
+            );
         }
     }
+    assert_eq!(baseline.len(), 320);
     for sort in attributes().into_iter().chain([
         ResultSort::Random { seed: 0 },
         ResultSort::Random { seed: u32::MAX },
@@ -287,7 +292,11 @@ fn sorting_semantic_set_above_two_hundred_preserves_membership_window_and_witnes
             assert_eq!(result.coverage.semantic_unit_window, Some(1024));
             assert!(!result.coverage.exhaustive);
             for row in result.records {
-                actual.insert(row.record.key, serde_json::to_value(row.matches).unwrap());
+                assert!(
+                    actual
+                        .insert(row.record.key, serde_json::to_value(row.matches).unwrap())
+                        .is_none()
+                );
             }
         }
         assert_eq!(actual, baseline);
@@ -541,6 +550,13 @@ fn sorting_adaptive_semantic_windows_preserves_expansion_for_dense_contents() {
             .results;
         assert_eq!(result.coverage.semantic_unit_window, Some(4096));
         assert_eq!(result.page.total, 2);
+        let mut members = result
+            .records
+            .iter()
+            .map(|row| row.record.key.clone())
+            .collect::<Vec<_>>();
+        members.sort();
+        assert_eq!(members, [actor_key.clone(), key(1)]);
         if sort
             == ResultSort::attribute(
                 atlas_domain::SortField::Level,

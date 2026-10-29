@@ -20,10 +20,13 @@ it("limits automatic recovery across page loads and rearms only after success", 
   expect(reloadFrontend).toHaveBeenCalledTimes(2);
 });
 
-it("keeps recovery manual when storage cannot enforce the reload limit", () => {
-  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-    throw new Error("storage unavailable");
-  });
-  reloadMismatchedFrontendOnce();
-  expect(reloadFrontend).not.toHaveBeenCalled();
-});
+it.each(["getItem", "setItem"] as const)(
+  "keeps recovery manual when storage %s cannot enforce the reload limit",
+  (method) => {
+    vi.spyOn(Storage.prototype, method).mockImplementation(() => {
+      throw new Error("storage unavailable");
+    });
+    reloadMismatchedFrontendOnce();
+    expect(reloadFrontend).not.toHaveBeenCalled();
+  },
+);

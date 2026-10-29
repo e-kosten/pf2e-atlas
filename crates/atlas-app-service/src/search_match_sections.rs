@@ -118,7 +118,15 @@ mod tests {
         let a = hit("first", Some("description"), SearchLaneView::Lexical);
         let b = hit("second", Some("description"), SearchLaneView::Semantic);
         let c = hit("first", Some("notes"), SearchLaneView::Semantic);
-        assert_eq!(matching_sections(&[a, b, c]).unwrap().len(), 3);
+        let input = [a, b, c];
+        assert_eq!(
+            matching_sections(&input)
+                .unwrap()
+                .iter()
+                .map(|section| &section.navigation)
+                .collect::<Vec<_>>(),
+            input.iter().map(|hit| &hit.navigation).collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -133,7 +141,7 @@ mod tests {
         b.snippet = None;
         let sections = matching_sections(&[b, a]).unwrap();
         assert_eq!(sections.len(), 1);
-        assert!(sections[0].snippet.is_some());
+        assert_eq!(sections[0].snippet.as_deref(), Some("A cone of fire."));
     }
     #[test]
     fn explicit_identity_passages_do_not_create_a_section() {
@@ -163,6 +171,14 @@ mod tests {
             }))
             .unwrap(),
         );
-        assert_eq!(matching_sections(&[a, b, first, second]).unwrap().len(), 4);
+        let input = [a, b, first, second];
+        assert_eq!(
+            matching_sections(&input)
+                .unwrap()
+                .iter()
+                .map(|section| &section.navigation)
+                .collect::<Vec<_>>(),
+            input.iter().map(|hit| &hit.navigation).collect::<Vec<_>>()
+        );
     }
 }

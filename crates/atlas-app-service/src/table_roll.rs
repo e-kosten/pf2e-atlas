@@ -138,7 +138,20 @@ mod service_tests {
         assert_eq!(rolled.outcome.total, 4);
         assert_eq!(rolled.matches.len(), 2);
         assert_eq!(rolled.invalid_ranges.len(), 1);
-        assert!(!rolled.matches[0].presentation.content.is_empty());
+        for (result, expected) in rolled
+            .matches
+            .iter()
+            .zip(["<p>First match</p>", "<p>Second match</p>"])
+        {
+            assert!(result.presentation.content.iter().any(|field| matches!(&field.body, atlas_app_model::PreparedFieldBodyView::Html { html, .. } if html == expected)));
+        }
+        assert_eq!(
+            rolled.invalid_ranges[0].owners,
+            vec![atlas_domain::OwnedContentLocator {
+                collection: "/results".into(),
+                identity: atlas_domain::OwnedContentIdentity::Stable("result0000000002".into()),
+            }]
+        );
         assert_eq!(
             fixture
                 .worker

@@ -246,8 +246,12 @@ fn sorting_saved_lists_is_temporary_and_retains_unavailable_tails_and_explicit_e
         assert_eq!(shuffled.items.len(), keys.len());
         assert_eq!(shuffled.items[4].record_key, keys[1]);
         assert_eq!(shuffled.items[5].record_key, keys[3]);
-        assert!(shuffled.items[..4].iter().any(|i| i.record_key == keys[4]));
-        assert!(shuffled.items[..4].iter().any(|i| i.record_key == keys[5]));
+        let mut active = shuffled.items[..4]
+            .iter()
+            .map(|item| item.record_key.as_str())
+            .collect::<Vec<_>>();
+        active.sort_unstable();
+        assert_eq!(active, [keys[0], keys[2], keys[4], keys[5]]);
         assert!(shuffled.items.iter().all(|i| {
             i.record
                 .as_ref()

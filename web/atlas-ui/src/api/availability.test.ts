@@ -77,3 +77,24 @@ it("retains an unconfirmed write outcome when subsequent background reads fail",
   reportAvailabilityFailure(new AtlasConnectionError(false, "read interrupted"));
   expect(getAvailabilityFailure()).toBe(write);
 });
+
+it.each([false, true])(
+  "preserves the %s write classification when the response stream fails",
+  async (write) => {
+    const cause = new TypeError("response interrupted");
+    const response = new Response(null, {
+      headers: { [API_CONTRACT_HEADER]: API_CONTRACT },
+    });
+    vi.spyOn(response, "text").mockRejectedValue(cause);
+    fetchMock.mockResolvedValue(response);
+    const request = write
+      ? createSavedList({ name: "Research", slug: "research", tags: [] })
+      : getReadiness();
+    await expect(request).rejects.toMatchObject({
+      name: "AtlasConnectionError",
+      write,
+      cause,
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  },
+);

@@ -162,7 +162,8 @@ describe("shared value control vocabulary", () => {
     expect(await screen.findByText("fire (8)")).toBeInTheDocument();
   });
   it("keeps selected values while paging server suggestions in the saved-list scope", async () => {
-    renderInput();
+    const onChange = vi.fn();
+    renderInput(false, onChange);
     fireEvent.mouseDown(screen.getByRole("combobox", { name: "Traits" }));
     await waitFor(() => expect(api.discoverFilterValues).toHaveBeenCalled());
     fireEvent.click(await screen.findByRole("button", { name: "More values" }));
@@ -177,10 +178,11 @@ describe("shared value control vocabulary", () => {
         expect.any(AbortSignal),
       ),
     );
-    expect(screen.getAllByText("absent-selected").length).toBeGreaterThan(0);
-    expect(
-      await screen.findByRole("option", { name: "second-page" }),
-    ).toBeInTheDocument();
+    fireEvent.click(await screen.findByText("second-page", { selector: "span" }));
+    expect(onChange).toHaveBeenCalledExactlyOnceWith([
+      "absent-selected",
+      "second-page",
+    ]);
     expect(api.discoverFilterValues).toHaveBeenLastCalledWith(
       expect.objectContaining({ scope: { kind: "saved_list", list_ref: "research" } }),
       expect.any(AbortSignal),

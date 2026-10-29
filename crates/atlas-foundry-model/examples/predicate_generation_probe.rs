@@ -155,14 +155,21 @@ mod tests {
         );
     }
     #[test]
-    fn fidelity_comparison_distinguishes_numbers_from_strings() {
-        let raw: SourceValue =
-            atlas_foundry_model::parse_source_value(br#"{"eq":["level",18446744073709551615]}"#)
-                .unwrap();
-        let wanted = expected(&raw).unwrap();
-        let mut changed = wanted.clone();
-        changed["eq"]["value"][1] = json!("18446744073709551615");
-        assert_ne!(changed, wanted);
-        assert_eq!(wanted["eq"]["value"][1].as_u64(), Some(u64::MAX));
+    fn raw_projection_preserves_number_and_string_operand_identity() {
+        for (source, operand) in [
+            (r#"{"eq":["level",18446744073709551615]}"#, json!(u64::MAX)),
+            (
+                r#"{"eq":["level","18446744073709551615"]}"#,
+                json!("18446744073709551615"),
+            ),
+        ] {
+            let raw = atlas_foundry_model::parse_source_value(source.as_bytes()).unwrap();
+            assert_eq!(
+                expected(&raw).unwrap(),
+                json!({
+                    "eq":{"value":["level",operand]}, "additional_fields":{"fields":[]},
+                })
+            );
+        }
     }
 }

@@ -129,17 +129,18 @@ mod tests {
     fn identity_corresponds_only_to_identity_and_preserves_role_rules() {
         use SimilarityComparisonKey::{Identity, Role};
         assert!(Identity.corresponds_to(Identity));
-        for role in [
-            SimilarityRole::Description,
-            SimilarityRole::Ability,
-            SimilarityRole::Other,
-            SimilarityRole::TraitDefinition,
+        for (role, self_corresponds) in [
+            (SimilarityRole::Description, true),
+            (SimilarityRole::Ability, true),
+            (SimilarityRole::Other, false),
+            (SimilarityRole::TraitDefinition, false),
         ] {
             assert!(!Identity.corresponds_to(Role(role)));
             assert!(!Role(role).corresponds_to(Identity));
             assert_eq!(
                 Role(role).corresponds_to(Role(role)),
-                role.corresponds_to(role)
+                self_corresponds,
+                "{role:?}"
             );
         }
         assert!(!Role(SimilarityRole::Description).corresponds_to(Role(SimilarityRole::Ability)));

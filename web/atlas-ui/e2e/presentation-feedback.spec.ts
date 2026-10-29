@@ -50,7 +50,11 @@ test("hazard ability reads inline and returns to its exact parent reading positi
   await expect(content).toContainText("Trigger");
   await expect(content).toContainText("Effect");
   expect(new URL(page.url()).pathname).toBe("/records/" + hazardKey);
-  await expect(ability.locator("[data-atlas-action-glyph]")).toHaveCount(1);
+  await expect(
+    ability
+      .getByRole("heading", { name: /^Seize\b/ })
+      .locator("[data-atlas-action-glyph]"),
+  ).toHaveCount(1);
   const fullPage = ability.getByRole("link", {
     name: "Seize",
     exact: true,
@@ -165,6 +169,8 @@ test("owned reference return retains Similar, canonical filters, selected result
     )
     .toBe(true);
   await expect(
-    page.getByRole("searchbox", { name: "Similar search", exact: true }),
-  ).toHaveValue("Ghoul");
+    page
+      .locator(".reference-search-entry--similar")
+      .getByRole("link", { name: "Ghoul", exact: true }),
+  ).toHaveAttribute("href", "/records/pathfinder-bestiary:LHHgGSs0ELCR4CYK");
 });

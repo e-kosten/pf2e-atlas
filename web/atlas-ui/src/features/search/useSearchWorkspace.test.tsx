@@ -37,6 +37,7 @@ import type {
 } from "../../generated/atlas";
 import {
   DEFAULT_SEARCH_STATE,
+  decodeSearchStateFromParams,
   searchStateQueryString,
   effectiveResultSort,
 } from "../../shared/filters/searchState";
@@ -953,6 +954,7 @@ describe("useSearchWorkspace", () => {
     expect(result.current.reading.request).toBe(readingRequest);
     expect(new URLSearchParams(location.search).get("q")).toBe("ice");
     expect(new URLSearchParams(location.search).get("page")).toBe("3");
+    expect(visits.length).toBeGreaterThan(0);
     for (const href of visits) {
       const params = new URL(href, location.origin).searchParams;
       expect(params.get("q")).toBe("ice");
@@ -1753,9 +1755,18 @@ describe("useSearchWorkspace", () => {
     );
 
     await waitFor(() => expect(window.location.pathname).toBe("/search"));
-    expect(window.location.search).toBe(
-      searchStateQueryString(result.current.search, "bge-base"),
-    );
+    expect(
+      decodeSearchStateFromParams(new URLSearchParams(location.search)).filter,
+    ).toMatchObject({
+      kind: "all_of",
+      children: [
+        { kind: "in", field: "kind", values: ["affliction", "character"] },
+        {
+          kind: "not",
+          predicate: { kind: "in", field: "kind", values: ["character_option"] },
+        },
+      ],
+    });
   });
 
   it("does not query collection states as scalar values", async () => {
@@ -1879,7 +1890,11 @@ describe("useSearchWorkspace", () => {
     const rows = result.current.resultPage;
     expect(result.current.errorMessage).toBeNull();
     act(() => result.current.reading.retry());
-    await waitFor(() => expect(apiMocks.getRecordDetail).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(result.current.reading.detail?.record.record_key).toBe("spell:heal"),
+    );
+    expect(result.current.reading.error).toBeNull();
+    expect(apiMocks.getRecordDetail).toHaveBeenCalledTimes(2);
     expect(result.current.search).toEqual(search);
     expect(result.current.resultPage).toEqual(rows);
     expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
@@ -2278,10 +2293,10 @@ describe("Core preset handoff preparation", () => {
     await act(async () => complete(similarityPartsFixture()));
     await waitFor(() => expect(result.current.search.query).toBe("fire"));
     expect(result.current.search.similarSeed).toBeNull();
-    expect(
-      apiMocks.searchPage.mock.calls.every(
-        (call) => (call[0] as SearchResultsRequest).criteria.kind !== "similar_records",
-      ),
-    ).toBe(true);
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledOnce());
+    expect(apiMocks.searchPage.mock.calls[0][0]).toMatchObject({
+      criteria: { kind: "text_search", query: "fire", filter: null },
+      page: { number: 1, size: 25 },
+    });
   });
 });

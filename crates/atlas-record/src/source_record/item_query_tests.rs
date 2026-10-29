@@ -429,13 +429,43 @@ fn shared_item_level_and_physical_capabilities_have_explicit_applicability() {
 
 #[test]
 fn root_and_actor_item_use_the_same_extractor_and_original_component_order() {
-    let system = json!({"level":{"value":2},"traits":{"value":["cantrip"],"traditions":["arcane"]},"damage":{"z":{"type":"fire","kinds":["damage"]},"a":{"type":"cold","kinds":["healing"]}}});
-    let root = source("spell", system.clone());
-    let actor=admit_document_source("Actor",SourceContext::new("fixture","test","$"),
-        &serde_json::to_vec(&json!({"_id":"bbbbbbbbbbbbbbbb","type":"npc","items":[{"_id":"aaaaaaaaaaaaaaaa","type":"spell","system":system}]})).unwrap()).unwrap().model.unwrap();
+    let system = r#"{"level":{"value":2},"traits":{"value":["cantrip"],"traditions":["arcane"]},"damage":{"z":{"type":"fire","kinds":["damage"]},"a":{"type":"cold","kinds":["healing"]}}}"#;
+    let spell = format!(r#"{{"_id":"aaaaaaaaaaaaaaaa","type":"spell","system":{system}}}"#);
+    let root = admit_document_source(
+        "Item",
+        SourceContext::new("fixture", "test", "$"),
+        spell.as_bytes(),
+    )
+    .unwrap()
+    .model
+    .unwrap();
+    let actor = admit_document_source(
+        "Actor",
+        SourceContext::new("fixture", "test", "$"),
+        format!(r#"{{"_id":"bbbbbbbbbbbbbbbb","type":"npc","items":[{spell}]}}"#).as_bytes(),
+    )
+    .unwrap()
+    .model
+    .unwrap();
     let embedded = SourceNodeView::from(&actor).actor_items().value().unwrap();
     let child = ItemSourceView::from(&embedded[0]);
     let root = item(&root);
+    assert_eq!(root.spell_rank().value().and_then(Number::as_i64), Some(2));
+    assert_eq!(
+        root.spell_traditions().value().unwrap(),
+        &[PatchSpellOverlayOverrideSystemTraitsTraditionsEntry::Arcane]
+    );
+    assert_eq!(root.spell_focus(), SourceFieldView::Value(false));
+    assert_eq!(
+        root.spell_damage()
+            .value()
+            .unwrap()
+            .entries
+            .iter()
+            .map(|(key, _)| key.as_str())
+            .collect::<Vec<_>>(),
+        ["z", "a"]
+    );
     assert_eq!(child.spell_rank(), root.spell_rank());
     assert_eq!(child.spell_traditions(), root.spell_traditions());
     assert_eq!(child.spell_focus(), root.spell_focus());
@@ -489,7 +519,7 @@ fn ammunition_exposes_authored_equipment_facts() {
     let ammo = item(&source);
     assert_eq!(ammo.family(), "ammo");
     assert_eq!(ammo.item_level().value().unwrap().as_i64(), Some(3));
-    assert!(ammo.physical_price().value().is_some());
+    assert_eq!(ammo.physical_price_per_item_cp().value(), Some(400.0));
     assert_eq!(ammo.physical_bulk().value().unwrap().as_i64(), Some(0));
     assert_eq!(ammo.physical_usage().value(), Some("held-in-one-hand"));
     assert_eq!(

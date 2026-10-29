@@ -119,6 +119,7 @@ fn relationship_roots_are_exhaustive_distinct_filtered_and_conjunctive_before_re
         1,
         "kind present beyond old occurrence cap must remain eligible"
     );
+    assert_eq!(filtered.record_keys, vec![key("items", "0000000000000124")]);
     let evidence = service
         .index
         .relationship_occurrence_page(RelationshipOccurrencePageRequest {
@@ -350,9 +351,14 @@ fn occurrence_paging_has_complete_total_beyond_preview_budget() {
         ),
         (125, 100, 125, 25)
     );
-    assert_ne!(
-        first.occurrences.last().unwrap().ordinal,
-        second.occurrences.first().unwrap().ordinal
+    assert_eq!(
+        first
+            .occurrences
+            .iter()
+            .chain(&second.occurrences)
+            .map(|occurrence| occurrence.ordinal)
+            .collect::<Vec<_>>(),
+        (0..125).collect::<Vec<_>>()
     );
 }
 #[test]

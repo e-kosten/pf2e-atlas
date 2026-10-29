@@ -2,6 +2,17 @@ import { defineConfig, devices } from "@playwright/test";
 import { resolve } from "node:path";
 import { browserFixture } from "../../scripts/browser-fixture.mjs";
 
+const touchSpecs = [
+  "journeys.spec.ts",
+  "list-metadata.spec.ts",
+  "feedback.spec.ts",
+  "spell-effects.spec.ts",
+  "conditions.spec.ts",
+  "condition-refinement.spec.ts",
+  "encounter-forms.spec.ts",
+  "turn-reminders.spec.ts",
+];
+
 const port = Number(process.env.ATLAS_DEVICE_PORT ?? 8796);
 if (!Number.isInteger(port) || port < 1 || port > 65535)
   throw new Error("ATLAS_DEVICE_PORT must be a port from 1 through 65535.");
@@ -40,41 +51,19 @@ export default defineConfig({
     },
     {
       name: "phone-chromium",
-      testMatch: [
-        "journeys.spec.ts",
-        "feedback.spec.ts",
-        "spell-effects.spec.ts",
-        "conditions.spec.ts",
-        "condition-refinement.spec.ts",
-        "encounter-forms.spec.ts",
-        "turn-reminders.spec.ts",
-      ],
+      grepInvert: /@engine/,
+      testMatch: touchSpecs,
       use: { ...devices["Pixel 7"], colorScheme: "dark" },
     },
     {
       name: "phone-webkit",
-      testMatch: [
-        "journeys.spec.ts",
-        "feedback.spec.ts",
-        "spell-effects.spec.ts",
-        "conditions.spec.ts",
-        "condition-refinement.spec.ts",
-        "encounter-forms.spec.ts",
-        "turn-reminders.spec.ts",
-      ],
+      testMatch: touchSpecs,
       use: { ...devices["iPhone 13"], colorScheme: "light", reducedMotion: "reduce" },
     },
     {
       name: "tablet-webkit",
-      testMatch: [
-        "journeys.spec.ts",
-        "feedback.spec.ts",
-        "spell-effects.spec.ts",
-        "conditions.spec.ts",
-        "condition-refinement.spec.ts",
-        "encounter-forms.spec.ts",
-        "turn-reminders.spec.ts",
-      ],
+      grepInvert: /@engine/,
+      testMatch: touchSpecs,
       use: { ...devices["iPad Mini"], colorScheme: "dark" },
     },
   ],

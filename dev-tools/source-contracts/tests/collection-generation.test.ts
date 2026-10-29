@@ -51,11 +51,6 @@ test('null-only collections preserve JSON slots and undefined-only object indice
   assert.throws(()=>generateRustModules(input([object('NoValues',[],'primitive:undefined')],['NoValues'])),/no persisted value alternatives/);
 });
 
-test('JSON distinguishes omitted object properties from undefined and sparse array slots',()=>{
-  assert.equal(JSON.stringify({missing:undefined,present:null}),'{"present":null}');
-  assert.equal(JSON.stringify([undefined,null,,1]),'[null,null,null,1]');
-});
-
 test('shared shape signatures stay bounded across deeply repeated descendants',()=>{
   const nodes:GraphNode[]=[object('Leaf',[field('label','primitive:string')])];
   let ref='Leaf';

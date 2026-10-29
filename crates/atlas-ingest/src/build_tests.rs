@@ -1037,8 +1037,55 @@ fn incremental_preparation_reuses_admission_and_replays_missing_and_renamed_targ
         "<p>@UUID[Compendium.pf2e.items.Item.cccccccccccccccc] @UUID[Compendium.pf2e.items.Item.Target]</p>"
     );
     fs::write(&path, serde_json::to_vec(&source).unwrap()).unwrap();
+    let check_targets = |names: [Option<&str>; 2]| {
+        use atlas_record::source_content::{ContentReferenceResolution, ContentReferenceTarget};
+        let reader = atlas_index::test_support::open_reader(fixture.options().output_path).unwrap();
+        let references = reader
+            .read_relationships(&atlas_index::SourceRelationshipRequest {
+                record: "items:aaaaaaaaaaaaaaaa".parse().unwrap(),
+                owners: Some(vec![]),
+                field: Some("/system/description/value".into()),
+                direction: atlas_index::SourceRelationshipDirection::Outgoing,
+                limit: 8,
+            })
+            .unwrap();
+        assert!(!references.truncated);
+        assert_eq!(references.occurrences.len(), 2);
+        for ((reference, target), name) in references
+            .occurrences
+            .iter()
+            .zip([
+                "Compendium.pf2e.items.Item.cccccccccccccccc",
+                "Compendium.pf2e.items.Item.Target",
+            ])
+            .zip(names)
+        {
+            assert_eq!(reference.authored_target.as_deref(), Some(target));
+            assert_eq!(
+                reference
+                    .details
+                    .label
+                    .as_ref()
+                    .unwrap()
+                    .target_name
+                    .as_deref(),
+                name
+            );
+            assert_eq!(
+                reference.resolution,
+                match name {
+                    Some(_) =>
+                        ContentReferenceResolution::Resolved(ContentReferenceTarget::Record {
+                            key: "items:cccccccccccccccc".parse().unwrap(),
+                        }),
+                    None => ContentReferenceResolution::Unresolved,
+                }
+            );
+        }
+    };
     let first = build_artifact(fixture.options()).unwrap();
     assert_eq!(first.source_report.reused_admissions, 0);
+    check_targets([None, None]);
     let unchanged = build_artifact(fixture.options()).unwrap();
     assert_eq!(unchanged.source_report.reused_admissions, 2);
     assert_eq!(unchanged.source_report.reused_preparations, 2);
@@ -1052,6 +1099,7 @@ fn incremental_preparation_reuses_admission_and_replays_missing_and_renamed_targ
     assert_eq!(added.source_report.reused_admissions, 2);
     // The referencing source is byte-identical, but its previously unresolved targets changed.
     assert_eq!(added.source_report.reused_preparations, 1);
+    check_targets([Some("Target"), Some("Target")]);
     let all_unchanged = build_artifact(fixture.options()).unwrap();
     assert_eq!(all_unchanged.source_report.reused_preparations, 3);
     let duplicate = fixture.0.join("packs/items/duplicate-name.json");
@@ -1059,14 +1107,17 @@ fn incremental_preparation_reuses_admission_and_replays_missing_and_renamed_targ
     let ambiguous = build_artifact(fixture.options()).unwrap();
     assert_eq!(ambiguous.source_report.reused_admissions, 3);
     assert_eq!(ambiguous.source_report.reused_preparations, 2);
+    check_targets([Some("Target"), None]);
     fs::remove_file(duplicate).unwrap();
     let unique_again = build_artifact(fixture.options()).unwrap();
     assert_eq!(unique_again.source_report.reused_preparations, 2);
+    check_targets([Some("Target"), Some("Target")]);
     fs::write(&target,r#"{"_id":"cccccccccccccccc","name":"Renamed target","type":"effect","system":{"description":{"value":"<p>Target prose</p>"}}}"#).unwrap();
     let renamed = build_artifact(fixture.options()).unwrap();
     assert_eq!(renamed.source_report.reused_admissions, 2);
     // Stable-key display name changed, and the authored name lookup became unresolved.
     assert_eq!(renamed.source_report.reused_preparations, 1);
+    check_targets([Some("Renamed target"), None]);
 }
 
 #[test]

@@ -30,7 +30,12 @@ mod tests {
             decode::<u32>(r#"{"version":2,"payload":"new shape"}"#),
             Err(LocalStateError::UnsupportedReceiptVersion(2))
         ));
-        assert_eq!(decode::<u32>(&encode(&7u32).unwrap()).unwrap(), 7);
+        let encoded = encode(&7u32).unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&encoded).unwrap(),
+            serde_json::json!({"version":1,"payload":7})
+        );
+        assert_eq!(decode::<u32>(&encoded).unwrap(), 7);
         assert!(decode::<u32>("7").is_err());
     }
 }

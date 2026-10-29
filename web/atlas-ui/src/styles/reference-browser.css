@@ -96,6 +96,9 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
   overflow: auto;
   overscroll-behavior: contain;
 }
+.reference-results__scroll {
+  overflow-anchor: none;
+}
 .reference-reader__scroll > .detail-panel {
   overflow: visible;
 }

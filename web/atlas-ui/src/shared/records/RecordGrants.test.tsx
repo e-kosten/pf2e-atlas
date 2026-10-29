@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { detailFixture, summaryFixture } from "../../test/fixtures";
 import { RecordPresentation } from "./RecordPresentation";
 
@@ -22,12 +22,24 @@ it("keeps all recipient destinations inline with native links and drawer activat
   const onReference = vi.fn();
   render(<RecordPresentation presentation={presentation} onReference={onReference} />);
   expect(screen.getAllByRole("listitem")).toHaveLength(6);
+  expect(
+    within(screen.getByRole("region", { name: "Grants" }))
+      .getAllByRole("link")
+      .map((link) => link.getAttribute("href")),
+  ).toEqual([
+    "/records/feats:benefit0",
+    "/records/feats:benefit1",
+    "/records/feats:benefit2",
+    "/records/feats:benefit3",
+    "/records/feats:benefit4",
+    "/records/feats:benefit5",
+  ]);
   const last = screen.getByRole("link", { name: /Benefit 5/ });
   expect(last).toHaveAttribute("href", "/records/feats:benefit5");
   fireEvent.click(last, { ctrlKey: true });
   expect(onReference).not.toHaveBeenCalled();
   fireEvent.click(last);
-  expect(onReference).toHaveBeenCalledWith(
+  expect(onReference).toHaveBeenCalledExactlyOnceWith(
     "feats:benefit5",
     last,
     presentation.grants.entries[5].navigation,
