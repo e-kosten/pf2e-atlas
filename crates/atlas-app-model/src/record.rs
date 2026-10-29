@@ -1,7 +1,6 @@
 use crate::RecordPresentationView;
 use atlas_domain::OwnedContentLocator;
 use atlas_domain::SourcePassageAddress;
-use atlas_record::source_content::SourceContentLocator;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -139,15 +138,6 @@ pub struct ContentLocationView {
     #[serde(rename = "embedded_path")]
     pub owners: Vec<OwnedContentLocator>,
     pub field: String,
-}
-impl From<SourceContentLocator> for ContentLocationView {
-    fn from(value: SourceContentLocator) -> Self {
-        Self {
-            record: value.record,
-            owners: value.owners,
-            field: value.field,
-        }
-    }
 }
 
 #[cfg(test)]

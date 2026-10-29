@@ -42,7 +42,7 @@ pub(crate) struct TraitGetOptions {
 pub(crate) fn run_trait_get(options: TraitGetOptions) -> Result<ExitCode, String> {
     let service = match connect(ClientOptions {
         search_profile: None,
-        path_mode: options.path_mode.into(),
+        path_mode: crate::cli::runtime_path_mode(options.path_mode),
         index: options.index,
         embedding_cache: None,
         retrieval_mode: AppServiceRetrievalMode::OnDemandNoEmbeddings,
