@@ -29,9 +29,18 @@ output is replayed on failure. Every phase prints its retained log location and 
 heartbeat every 20 seconds. Use `just verify --verbose` or
 `scripts/verify.sh --verbose` to stream the complete command output.
 
-These shell validation entry points use the repository's Node runtime to supervise
-owned command process groups and forward interruption to descendants. Direct Rust
-developer commands and baseline init/status/web remain independent of Node.
+Shell entry points retain the shared path classifier and then hand off to one Node
+session. `scripts/validation/verify.mjs` composes the phase list; `run-check.mjs`
+owns input consistency, evidence, logging and heartbeat timers; `run-process.mjs`
+owns each live child and its descendants. Full and changed-path Rust gates use the
+same phase list, without nesting another gate process. Direct Rust developer
+commands and baseline init/status/web remain independent of Node.
+
+On macOS/Linux the launcher replaces itself with Node. On Windows a small Git Bash
+launcher forwards cancellation through a private channel and waits for owned-child
+cleanup: native Windows termination of Node can bypass JavaScript signal handlers.
+Use the public shell entry points for that cancellation guarantee. No process is
+terminated using a PID read from an old receipt.
 
 Evidence lives in `.atlas/validation/run.*`, outside temporary directories removed
 by gate wrappers. `candidate.tsv` records the checkout, starting commit and actual

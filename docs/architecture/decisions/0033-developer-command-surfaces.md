@@ -41,6 +41,13 @@ product app, reuse a checksum-verified current bundle, and write source/build
 provenance. The Rust baseline commands never dispatch that build script. Source
 identity, executable/UI checksums and browser wire compatibility remain distinct.
 
+Validation entry points retain the shared shell path-selection policy, then run
+one Node session under `scripts/validation`. That session owns a flat phase list,
+input consistency and durable evidence; its process module owns live command
+children and descendant cleanup. Shell retains only command launching and the
+Windows cancellation handoff required when native termination bypasses Node signal
+handlers. Browser candidate isolation retains its separate artifact/commit policy.
+
 Maintained private TypeScript packages live under `dev-tools/`, with package
 configuration at the package root, implementation under `src/`, and tests under
 `tests/`. `src/cli/` owns command arguments, output and exit behavior; domain
