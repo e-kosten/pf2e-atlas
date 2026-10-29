@@ -172,11 +172,16 @@ fn a_fresh_request_id_cannot_apply_the_same_boundary_twice() {
         .unwrap();
     assert!(review.damage_applied);
     assert_eq!(review.damage_result, Some(result));
-    assert!(
+    assert_eq!(
         review
             .episodes
             .iter()
-            .all(|episode| episode.end_turn_recovery_available)
+            .map(|episode| (
+                episode.episode_id.as_str(),
+                episode.end_turn_recovery_available
+            ))
+            .collect::<Vec<_>>(),
+        [("episode-acid", true), ("episode-fire", true)]
     );
 }
 
@@ -816,6 +821,7 @@ fn uncertain_source_petrified_requires_table_results_without_reapplying_protecti
         .worker
         .persistent_damage_review(&key, &participant, None)
         .unwrap();
+    assert_eq!(review.episodes.len(), 3);
     assert!(review.episodes.iter().all(|episode| matches!(
         episode.damage_resolution,
         PersistentDamageResolutionView::Table { .. }

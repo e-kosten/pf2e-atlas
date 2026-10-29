@@ -435,6 +435,19 @@ fn encounter_conditions_are_added_updated_removed_and_cascade()
         .get_with_participants("conditions")?
         .expect("encounter should exist");
     assert_eq!(detail.participants[0].conditions.len(), 1);
+    let saved = &detail.participants[0].conditions[0];
+    assert_eq!(
+        (saved.condition_id, saved.value, saved.note.as_deref()),
+        (condition.condition_id, Some(2), Some("Raised"))
+    );
+    assert_eq!(
+        saved.duration,
+        Some(crate::ConditionDuration {
+            amount: 1,
+            unit: crate::ConditionDurationUnit::Rounds,
+            timing: None,
+        })
+    );
     assert!(encounters.remove_condition(&participant.participant_key, condition.condition_id)?);
     assert!(
         encounters
@@ -461,6 +474,14 @@ fn encounter_conditions_are_added_updated_removed_and_cascade()
     })?;
     assert!(condition.condition_id > 0);
     assert!(encounters.delete("conditions")?);
+    assert_eq!(
+        store.connection()?.query_row(
+            "SELECT count(*) FROM encounter_participant_conditions",
+            [],
+            |row| row.get::<_, i64>(0)
+        )?,
+        0
+    );
     Ok(())
 }
 
