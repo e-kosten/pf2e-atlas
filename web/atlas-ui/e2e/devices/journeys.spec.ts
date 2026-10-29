@@ -1756,6 +1756,7 @@ test("Search linked previews add the linked record and retain the reading contex
   });
   expect(response.ok()).toBeTruthy();
   const { list } = await response.json();
+  let completed = false;
   try {
     await page.goto(landedSearch);
     const host = page.locator(".reference-reader__scroll");
@@ -1768,15 +1769,22 @@ test("Search linked previews add the linked record and retain the reading contex
     const trigger = preview.getByRole("button", { name: "Add to list", exact: true });
     await activate(trigger, info);
     const picker = page.getByRole("dialog", { name: "Add to list", exact: true });
+    await expect(picker).toHaveCSS("opacity", "1");
+    await expect(picker).toHaveCSS("transform", "none");
     await expect(picker.getByRole("tab", { name: "Encounters" })).toHaveCount(0);
     const selector = picker.getByRole("combobox");
     await expect(selector).toBeEnabled();
     await activate(selector, info);
-    await activate(
-      page.locator(".ant-select-dropdown:visible").getByText(name, { exact: true }),
-      info,
-    );
-    await activate(picker.getByRole("button", { name: "Add", exact: true }), info);
+    await expect(selector).toHaveAttribute("aria-expanded", "true");
+    const dropdown = page.locator(".ant-select-dropdown:visible");
+    await expect(dropdown).toBeVisible();
+    await expect(dropdown).not.toHaveClass(/ant-slide-up-(?:appear|enter)(?:[-\s]|$)/);
+    await activate(dropdown.getByText(name, { exact: true }), info);
+    await expect(selector).toHaveAttribute("aria-expanded", "false");
+    await expect(selector.locator("..")).toHaveText(name);
+    const add = picker.getByRole("button", { name: "Add", exact: true });
+    await expect(add).toBeEnabled();
+    await activate(add, info);
     await expect(picker).toBeHidden();
     await expect(preview).toBeVisible();
     await expect(trigger).toBeFocused();
@@ -1837,8 +1845,11 @@ test("Search linked previews add the linked record and retain the reading contex
     await activate(feedbackLink, info);
     await expect(page).toHaveURL(new URL(`/lists/${list.slug}`, url).toString());
     await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+    completed = true;
   } finally {
-    await page.request.delete(`/api/lists/${list.list_key}`);
+    const cleanup = page.request.delete(`/api/lists/${list.list_key}`);
+    if (completed) await cleanup;
+    else await cleanup.catch(() => {});
   }
 });
 
