@@ -1,7 +1,7 @@
 use std::process::Command;
 
 #[test]
-fn roll_needs_no_artifact_and_returns_structured_faces() {
+fn roll_returns_structured_faces_and_keeps_the_highest_draw() {
     let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
         .args(["roll", "2d20kh1+12", "--json"])
         .output()
@@ -9,6 +9,7 @@ fn roll_needs_no_artifact_and_returns_structured_faces() {
     assert!(output.status.success(), "{:?}", output);
     assert!(output.stderr.is_empty());
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["status"], "ok");
     let data = &json["data"];
     assert_eq!(data["formula"], "2d20kh1+12");
     let dice = data["expression"]["left"]["dice"].as_array().unwrap();
@@ -58,6 +59,8 @@ fn invalid_formula_returns_json_error_and_nonzero_status() {
         .unwrap();
     assert_eq!(output.status.code(), Some(2));
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(json["status"], "error");
+    assert_eq!(json["error"]["code"], "command_failed");
     assert!(
         json["error"]["message"]
             .as_str()

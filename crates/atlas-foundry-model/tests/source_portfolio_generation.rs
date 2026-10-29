@@ -2,7 +2,7 @@
 mod inspection;
 
 use atlas_foundry_model::{
-    ActorSourcePF2e, ItemSourcePF2e, RuleSource, SourceContext, SourcePresence,
+    ActorSourcePF2e, ItemSourcePF2e, RuleSource, SourceContext, SourcePresence, SourceValue,
     parse_actor_source_pf2e, parse_item_source_pf2e, parse_journal_entry_source,
     parse_macro_source, parse_roll_table_source, parse_rule_source,
 };
@@ -76,6 +76,7 @@ fn every_pinned_rule_key_dispatches_to_its_specific_model() {
     for key in keys {
         let value =
             parse_rule_source(context(), format!(r#"{{"key":"{key}"}}"#).as_bytes()).unwrap();
+        assert_eq!(serde_json::to_value(&value).unwrap()["$variant"], key);
         let serialized = inspection::to_value(value).unwrap();
         assert_eq!(serialized["key"]["value"], key);
     }
@@ -95,7 +96,22 @@ fn full_sources_preserve_unknown_data_and_parse_specific_rules_separately() {
     let SourcePresence::Value(system) = item.system else {
         panic!()
     };
-    assert_eq!(system.additional_fields.fields().len(), 2);
+    assert_eq!(
+        system.additional_fields.fields(),
+        &[
+            (
+                "future".into(),
+                SourceValue::Number(9007199254740993u64.into())
+            ),
+            ("future".into(), SourceValue::Null),
+        ]
+    );
+    let generic_rules = system.rules.as_value().unwrap();
+    assert_eq!(generic_rules.len(), 1);
+    assert_eq!(
+        generic_rules[0].key,
+        SourcePresence::Value("FlatModifier".into())
+    );
     // Item.rules deliberately follows upstream's generic RuleElementSource.
     // Specific rule dispatch is a separate callable parser, not a silent drop.
     let rule = parse_rule_source(

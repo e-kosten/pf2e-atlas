@@ -1018,22 +1018,30 @@ fn encounter_projection_keeps_semantic_statistics_and_authored_context() {
         .unwrap();
     let a = actor(&d.participants[0]);
     assert_eq!(a.armor_class.value, Some(22.into()));
-    assert!(a.saves.fortitude.value.is_some());
-    assert!(
+    assert_eq!(a.saves.fortitude.value, Some(15.into()));
+    assert_eq!(
         a.abilities
             .value
             .as_ref()
             .unwrap()
             .iter()
-            .any(|v| v.key == "str")
+            .find(|value| value.key == "str")
+            .unwrap()
+            .modifier
+            .value,
+        Some(4.into())
     );
-    assert!(
+    assert_eq!(
         a.skills
             .value
             .as_ref()
             .unwrap()
             .iter()
-            .any(|v| v.key == "athletics")
+            .find(|value| value.key == "athletics")
+            .unwrap()
+            .modifier
+            .value,
+        Some(9.into())
     );
     assert_eq!(a.land_speed.value, Some(25.into()));
     assert!(a.runtime.as_ref().unwrap().action_budget.is_some());

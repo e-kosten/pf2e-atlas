@@ -186,3 +186,31 @@ it.each([
     }),
   ).toBe(false);
 });
+
+it.each([
+  [null, false, true],
+  ["_self", false, true],
+  ["_blank", false, false],
+  ["named-window", false, false],
+  [null, true, false],
+] as const)(
+  "preserves native anchor behavior for target %s and download %s",
+  (target, download, expected) => {
+    const link = document.createElement("a");
+    if (target !== null) link.setAttribute("target", target);
+    if (download) link.setAttribute("download", "record.json");
+    const child = document.createElement("span");
+    link.append(child);
+    expect(
+      isPrimaryActivation({
+        button: 0,
+        defaultPrevented: false,
+        metaKey: false,
+        ctrlKey: false,
+        altKey: false,
+        shiftKey: false,
+        currentTarget: child,
+      }),
+    ).toBe(expected);
+  },
+);

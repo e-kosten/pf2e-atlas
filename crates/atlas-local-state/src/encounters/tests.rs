@@ -322,6 +322,14 @@ fn deleting_encounter_cascades_participants() -> Result<(), Box<dyn std::error::
 
     assert!(encounters.delete("delete-me")?);
     assert!(encounters.get_with_participants("delete-me")?.is_none());
+    assert_eq!(
+        store.connection()?.query_row(
+            "SELECT count(*) FROM encounter_participants",
+            [],
+            |row| row.get::<_, i64>(0)
+        )?,
+        0
+    );
     Ok(())
 }
 

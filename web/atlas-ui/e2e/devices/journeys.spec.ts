@@ -885,12 +885,12 @@ test("list tags, editing and explicit Add survive constrained space", async ({
     await expect(dialog).toBeHidden();
     await noPageOverflow(page);
     await expect
-      .poll(
-        async () =>
-          (await (await page.request.get(`/api/lists/${list.slug}`)).json()).items
-            .length,
+      .poll(async () =>
+        (await (await page.request.get(`/api/lists/${list.slug}`)).json()).items.map(
+          (item: { record_key: string }) => item.record_key,
+        ),
       )
-      .toBe(1);
+      .toEqual([sentinel]);
   } finally {
     releaseAdd?.();
     expect(

@@ -39,9 +39,7 @@ import { EncounterDetailView } from "./EncounterDetailView";
 import { EncounterEditView } from "./EncounterEditView";
 import { EncounterIndexView } from "./EncounterIndexView";
 import { EditEncounterForm } from "./EncounterModals";
-import { destinationHref } from "../../app/navigation";
-import { recordDestination } from "../../app/destinations";
-import { selectedNavigation } from "../../app/urlState";
+import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import { atlasRouter } from "../../app/router";
 
 const apiMocks = vi.hoisted(() => ({
@@ -421,6 +419,8 @@ describe("encounter views", () => {
     });
     await screen.findByLabelText("HP summary");
     for (let count = 0; count < 4; count += 1) {
+      expect(screen.getByRole("heading", { name: "Goblin" })).toBeVisible();
+      expect(screen.getByRole("heading", { name: "Strikes" })).toBeVisible();
       expect(screen.queryByRole("button", { name: "Relationships" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Action context" })).toBeNull();
       expect(screen.queryByRole("button", { name: "Strike history" })).toBeNull();
@@ -1617,13 +1617,11 @@ describe("encounter views", () => {
       }),
     ).not.toBeInTheDocument();
     const full = screen.getByRole("link", { name: "Open reference full page" });
-    const expected = destinationHref(
-      recordDestination({
-        recordKey: selected.selected.record_key,
-        selection: selected.selected,
-      }),
-    );
-    expect(full).toHaveAttribute("href", expected);
+    const target = new URL(full.getAttribute("href")!, location.origin);
+    expect(target.pathname).toBe("/records/actors:goblin");
+    expect(
+      selectedNavigation(parseSearchParams(target.search), "actors:goblin"),
+    ).toEqual(selected.selected);
     const before = window.location.href;
     for (const modifiers of [{ metaKey: true }, { ctrlKey: true }, { button: 1 }])
       expect(fireEvent.click(full, modifiers)).toBe(true);
@@ -2533,7 +2531,9 @@ describe("encounter views", () => {
     fireEvent.change(hp, { target: { value: "3" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(hp).toBeDisabled());
-    expect(screen.getByLabelText("HP summary")).toBeInTheDocument();
+    expect(screen.getByLabelText("HP summary")).toHaveTextContent(
+      /10\s*\/\s*12\s*\+\s*5\s*temp/,
+    );
     expect(
       screen.getByRole("button", { name: "Goblin initiative: 18" }),
     ).toBeDisabled();
@@ -2552,7 +2552,9 @@ describe("encounter views", () => {
       ),
     ).toBeInTheDocument();
     expect(hp).toHaveValue("3");
-    expect(screen.getByLabelText("HP summary")).toBeInTheDocument();
+    expect(screen.getByLabelText("HP summary")).toHaveTextContent(
+      /10\s*\/\s*12\s*\+\s*5\s*temp/,
+    );
     expect(apiMocks.applyEncounterHpAction).toHaveBeenCalledOnce();
     expect(apiMocks.reorderEncounterParticipant).not.toHaveBeenCalled();
   });

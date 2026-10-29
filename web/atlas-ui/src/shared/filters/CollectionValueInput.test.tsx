@@ -20,6 +20,7 @@ it("shows local errors for a malformed optional amount and clears them on correc
     category_field_id: "movement.speeds[].type",
     amount_field_id: "movement.speeds[].feet",
   };
+  const changed = vi.fn();
   function Harness() {
     const [query, setQuery] = useState<RuleGroupType>({ combinator: "and", rules: [] });
     return (
@@ -27,7 +28,10 @@ it("shows local errors for a malformed optional amount and clears them on correc
         field={field}
         editor={editor}
         query={query}
-        onChange={setQuery}
+        onChange={(next) => {
+          changed(next);
+          setQuery(next);
+        }}
         workspace={{
           search: DEFAULT_SEARCH_STATE,
           setSearch: vi.fn(),
@@ -48,4 +52,17 @@ it("shows local errors for a malformed optional amount and clears them on correc
   fireEvent.change(input, { target: { value: "30" } });
   await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
   expect(input).toHaveValue("30");
+  expect(changed).toHaveBeenLastCalledWith({
+    combinator: "and",
+    rules: [
+      {
+        id: expect.any(String),
+        field: "movement.speeds[].feet",
+        operator: "gte",
+        value: "30",
+      },
+    ],
+  });
+  fireEvent.change(input, { target: { value: "" } });
+  expect(changed).toHaveBeenLastCalledWith({ combinator: "and", rules: [] });
 });

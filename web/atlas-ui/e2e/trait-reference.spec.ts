@@ -4,6 +4,7 @@ import type {
   TraitDetailView,
   TraitRecordsPage,
   RecordNavigationView,
+  SearchResultsPage,
 } from "../src/generated/atlas";
 
 // Every POST in this file is an ordinary read API. The caller supplies the real
@@ -208,13 +209,13 @@ for (const profile of ["embeddinggemma", "bge-base"]) {
     ).toBeVisible();
     const response = page.waitForResponse(
       (response) =>
-        response.url().endsWith("/api/traits/records") &&
-        response.request().postDataJSON().kind === "similar",
+        response.url().endsWith("/api/search/page") &&
+        response.request().postDataJSON()?.criteria?.kind === "similar_traits",
     );
     await page.getByRole("tab", { name: "Similar", exact: true }).click();
     const result = await response;
     expect(result.ok(), await result.text()).toBeTruthy();
-    const data = (await result.json()) as TraitRecordsPage;
+    const data = (await result.json()) as SearchResultsPage;
     expect(data.search_profile).toBe(profile);
     expect(data.coverage).not.toBeNull();
     expect(data.rows.length).toBeGreaterThan(0);
@@ -244,7 +245,9 @@ for (const profile of ["embeddinggemma", "bge-base"]) {
     });
     expect(resultPage.search_profile).toBe(profile);
     await expect(
-      page.getByRole("searchbox", { name: "Similar search", exact: true }),
-    ).toHaveValue("Agile");
+      page
+        .locator(".reference-search-entry--similar")
+        .getByRole("link", { name: "Agile", exact: true }),
+    ).toHaveAttribute("href", "/traits/trait:agile");
   });
 }

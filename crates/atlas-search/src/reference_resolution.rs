@@ -93,6 +93,12 @@ mod tests {
             .resolve_source_root_reference("Compendium.pf2e.items.Item.aaaaaaaaaaaaaaaa")
             .unwrap()
             .unwrap();
+        assert_eq!(
+            resolved.target,
+            atlas_record::source_content::ContentReferenceTarget::Record {
+                key: "items:aaaaaaaaaaaaaaaa".parse().unwrap(),
+            }
+        );
         assert_eq!(resolved.display_name.as_deref(), Some("Same Name"));
         assert_eq!(resolved.item_family.as_deref(), Some("feat"));
     }

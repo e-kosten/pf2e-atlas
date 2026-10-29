@@ -154,40 +154,59 @@ mod tests {
     use super::*;
 
     #[test]
-    fn record_kind_serializes_to_rust_canonical_values() {
+    fn canonical_record_kind_vocabulary_is_stable() {
+        let cases = [
+            (RecordKind::Creature, "creature"),
+            (RecordKind::Character, "character"),
+            (RecordKind::Companion, "companion"),
+            (RecordKind::Army, "army"),
+            (RecordKind::Hazard, "hazard"),
+            (RecordKind::Vehicle, "vehicle"),
+            (RecordKind::Equipment, "equipment"),
+            (RecordKind::Feat, "feat"),
+            (RecordKind::Spell, "spell"),
+            (RecordKind::Affliction, "affliction"),
+            (RecordKind::Rule, "rule"),
+            (RecordKind::CharacterOption, "character_option"),
+            (RecordKind::Lore, "lore"),
+            (RecordKind::RollTable, "roll_table"),
+            (RecordKind::Tooling, "tooling"),
+            (RecordKind::CampaignFeature, "campaign_feature"),
+        ];
         assert_eq!(
-            serde_json::to_string(&RecordKind::CharacterOption).expect("record kind serializes"),
-            "\"character_option\""
+            RecordKind::ALL
+                .into_iter()
+                .collect::<std::collections::BTreeSet<_>>(),
+            cases.map(|(kind, _)| kind).into(),
         );
-    }
-
-    #[test]
-    fn record_kind_accepts_current_ts_aliases() {
-        for kind in RecordKind::ALL {
-            assert_eq!(RecordKind::from_input(kind.as_str()), Some(kind));
+        for (kind, canonical) in cases {
+            assert_eq!(kind.as_str(), canonical);
+            assert_eq!(kind.to_string(), canonical);
+            assert_eq!(RecordKind::from_canonical(canonical), Some(kind));
+            assert_eq!(RecordKind::from_input(canonical), Some(kind));
+            assert_eq!(serde_json::to_value(kind).unwrap(), canonical);
+            assert_eq!(
+                serde_json::from_value::<RecordKind>(serde_json::json!(canonical)).unwrap(),
+                kind
+            );
         }
-        assert_eq!(
-            RecordKind::from_input("character creation"),
-            Some(RecordKind::CharacterOption)
-        );
-        assert_eq!(RecordKind::from_input("feats"), Some(RecordKind::Feat));
-        assert_eq!(RecordKind::from_input("rules"), Some(RecordKind::Rule));
-        assert_eq!(
-            RecordKind::from_input("familiars"),
-            Some(RecordKind::Companion)
-        );
     }
 
     #[test]
-    fn serde_accepts_only_rust_canonical_values() {
-        let record_kind: RecordKind =
-            serde_json::from_str("\"character_option\"").expect("canonical value deserializes");
-        assert_eq!(record_kind, RecordKind::CharacterOption);
-        assert_eq!(
-            serde_json::to_string(&record_kind).expect("record kind serializes"),
-            "\"character_option\""
-        );
-        assert!(serde_json::from_str::<RecordKind>("\"characterCreation\"").is_err());
-        assert!(serde_json::from_str::<RecordKind>("\"feats\"").is_err());
+    fn input_aliases_do_not_expand_the_canonical_wire_vocabulary() {
+        for (alias, kind) in [
+            ("character creation", RecordKind::CharacterOption),
+            ("characterCreation", RecordKind::CharacterOption),
+            ("feats", RecordKind::Feat),
+            ("rules", RecordKind::Rule),
+            ("familiars", RecordKind::Companion),
+        ] {
+            assert_eq!(RecordKind::from_input(alias), Some(kind), "{alias}");
+            assert_eq!(RecordKind::from_canonical(alias), None, "{alias}");
+            assert!(
+                serde_json::from_value::<RecordKind>(serde_json::json!(alias)).is_err(),
+                "{alias}"
+            );
+        }
     }
 }

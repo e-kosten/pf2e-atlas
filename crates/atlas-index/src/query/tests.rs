@@ -1002,11 +1002,21 @@ fn state_discovery_partitions_roots_and_labels_child_occurrences() {
     assert_eq!(counts.counting_scope, "root");
     assert_eq!(counts.minimum, Some(0.into()));
     assert_eq!(counts.maximum, Some(0.into()));
-    assert!(
-        counts
-            .states
-            .iter()
-            .all(|s| s.occurrences == 1 && s.distinct_roots == 1)
+    let mut states = counts
+        .states
+        .iter()
+        .map(|state| {
+            (
+                state.state.as_str(),
+                state.occurrences,
+                state.distinct_roots,
+            )
+        })
+        .collect::<Vec<_>>();
+    states.sort();
+    assert_eq!(
+        states,
+        ["invalid", "missing", "not_applicable", "null", "value"].map(|state| (state, 1, 1))
     );
 }
 
@@ -1167,6 +1177,7 @@ fn count_free_vocabulary_is_scoped_paged_and_keeps_selections_separately() {
     let page = field_vocabulary(&db, &request).unwrap();
     assert_eq!(page.total_values, 2);
     assert_eq!(page.options.len(), 1);
+    assert_eq!(page.options[0].value, QueryLiteral::String("flying".into()));
     assert_eq!(page.selected_values, request.selected_values);
     assert_eq!(
         page.basis,

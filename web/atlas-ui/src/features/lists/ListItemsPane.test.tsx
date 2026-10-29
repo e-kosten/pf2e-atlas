@@ -45,8 +45,9 @@ it("keeps 120 ordered member summaries and unavailable snapshots without radio o
   const { container } = mount(items);
   const links = screen.getAllByRole("link");
   expect(links).toHaveLength(120);
-  expect(links[0]).toHaveAttribute("href", "/records/rules:record-0");
-  expect(links[119]).toHaveAttribute("href", "/records/rules:record-119");
+  expect(links.map((link) => link.getAttribute("href"))).toEqual(
+    Array.from({ length: 120 }, (_, index) => `/records/rules:record-${index}`),
+  );
   expect(screen.queryByRole("radio")).not.toBeInTheDocument();
   expect(
     screen.getByText("Retained unavailable record").closest("[aria-disabled]"),

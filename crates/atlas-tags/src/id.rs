@@ -110,12 +110,32 @@ mod tests {
     fn accepts_dotted_lowercase_ids() {
         let id = TagId::parse("problem.counteract_magic").expect("tag id parses");
         assert_eq!(id.as_str(), "problem.counteract_magic");
+        assert_eq!(
+            yaml_serde::to_string(&id).unwrap().trim(),
+            "problem.counteract_magic"
+        );
+        assert_eq!(
+            yaml_serde::from_str::<TagId>("problem.counteract_magic").unwrap(),
+            id
+        );
     }
 
     #[test]
-    fn rejects_ids_without_namespace_or_with_invalid_case() {
-        assert!(TagId::parse("counteract_magic").is_err());
-        assert!(TagId::parse("Problem.counteract_magic").is_err());
-        assert!(TagId::parse("problem.counteract-magic").is_err());
+    fn rejects_malformed_ids_through_direct_and_yaml_admission() {
+        for input in [
+            "",
+            "counteract_magic",
+            "Problem.counteract_magic",
+            "problem.counteract-magic",
+            "problem..magic",
+            "problem.magic.",
+            "problem.1magic",
+        ] {
+            assert!(TagId::parse(input).is_err(), "{input:?}");
+            assert!(
+                yaml_serde::from_str::<TagId>(&format!("'{input}'")).is_err(),
+                "{input:?}"
+            );
+        }
     }
 }

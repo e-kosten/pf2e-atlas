@@ -176,35 +176,40 @@ for (const width of [1440, 1100, 390]) {
       const results = page.getByRole("region", { name: "Search results", exact: true });
       const row = page.locator("[data-record-key]").first();
       await expect(row).toBeVisible();
-      const search = page.getByRole("searchbox", {
-        name: similar ? "Similar search" : "Search records",
-      });
+      const search = similar
+        ? page.locator(".reference-search-entry--similar")
+        : page.getByRole("searchbox", { name: "Search records", exact: true });
       await expect(search).toBeVisible();
-      if (similar) await expect(search).toHaveAttribute("readonly");
       const inputBox = await page.locator(".reference-search-entry").boundingBox();
       expect(inputBox).not.toBeNull();
-      const controlHeightBox = inputBox;
+      const settingsBox = await page
+        .getByRole("button", { name: "Search settings", exact: true })
+        .boundingBox();
+      expect(settingsBox).not.toBeNull();
+      expect(inputBox!.height).toBeGreaterThanOrEqual(settingsBox!.height);
       const primaryControls = page.locator(
         ".search-model-select, .filter-toolbar .common-choice-trigger, .filter-panel-actions button",
       );
       for (const control of await primaryControls.all()) {
         const controlBox = await control.boundingBox();
         expect(controlBox).not.toBeNull();
-        expect(
-          Math.abs(controlBox!.height - controlHeightBox!.height),
-        ).toBeLessThanOrEqual(1);
+        expect(Math.abs(controlBox!.height - settingsBox!.height)).toBeLessThanOrEqual(
+          1,
+        );
       }
       const coverage = page.locator(".result-pane-header > span").first();
       await expect(coverage).toHaveText(similar ? /Top matches/ : /\d[\d,]* records/);
       if (similar) {
-        await expect(search).toHaveValue("Wovenwood Shield (Minor)");
-        await search.focus();
-        await search.press("ControlOrMeta+A");
-        expect(
-          await search.evaluate((element: HTMLInputElement) =>
-            element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0),
-          ),
-        ).toBe("Wovenwood Shield (Minor)");
+        const seed = search.getByRole("link", {
+          name: "Wovenwood Shield (Minor)",
+          exact: true,
+        });
+        await expect(seed).toHaveAttribute(
+          "href",
+          "/records/equipment-srd:7jolv0cuttvjI1JD",
+        );
+        await seed.focus();
+        await expect(seed).toBeFocused();
       }
       for (const control of [
         results.getByRole("combobox", { name: "Records per page" }),
@@ -238,34 +243,27 @@ for (const width of [1440, 1100, 390]) {
           Promise.all([
             page.locator(".reference-search-entry").boundingBox(),
             page
-              .getByRole("combobox", { name: "Search model" })
-              .locator("..")
-              .boundingBox(),
-            page
-              .getByRole("combobox", { name: "Search ranking" })
-              .locator("..")
+              .getByRole("button", { name: "Search settings", exact: true })
               .boundingBox(),
           ]);
         const before = await geometry();
-        const nativeInput = await search.elementHandle();
         await page.getByRole("button", { name: "Clear similar criterion" }).click();
         const normalSearch = page.getByRole("searchbox", { name: "Search records" });
         await expect(normalSearch).toBeFocused();
-        expect(
-          await normalSearch.evaluate(
-            (element, previous) => element === previous,
-            nativeInput,
-          ),
-        ).toBe(true);
+        await expect(normalSearch).toHaveValue("");
+        await expect(page.locator(".reference-search-entry--similar")).toHaveCount(0);
         expect(new URL(page.url()).searchParams.has("similar")).toBe(false);
         const after = await geometry();
         for (let index = 0; index < before.length; index++) {
-          for (const dimension of ["x", "y", "width", "height"] as const) {
+          for (const dimension of ["x", "width"] as const) {
             expect(
               Math.abs(before[index]![dimension] - after[index]![dimension]),
             ).toBeLessThanOrEqual(1);
           }
         }
+        expect(after[0]!.y).toBe(before[0]!.y);
+        expect(after[0]!.height).toBe(settingsBox!.height);
+        expect(after[1]!.height).toBe(before[1]!.height);
       }
     });
   }
@@ -278,12 +276,25 @@ test("Back keeps page, selected result and nonzero list/reader positions", async
   await page.locator("[data-record-key]").first().waitFor();
   await page.getByRole("button", { name: "Next page", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "Current page" })).toHaveValue("2");
+  await expect(page.locator(".reference-results__scroll")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
   const row = page.locator("[data-record-key]").nth(4);
   await row.click();
   await expect(
     page.locator(".reference-reader__scroll .record-reference__title"),
   ).toBeVisible();
-  await page.locator(".reference-results__scroll").evaluate((e) => (e.scrollTop = 200));
+  const listPosition = await page
+    .locator(".reference-results__scroll")
+    .evaluate(async (node) => {
+      await new Promise<void>((resolve) => {
+        node.addEventListener("scrollend", () => resolve(), { once: true });
+        node.scrollBy({ top: 200, behavior: "smooth" });
+      });
+      return node.scrollTop;
+    });
+  expect(listPosition).toBeGreaterThan(0);
   const selected = await row.getAttribute("data-record-key");
   await page.getByRole("link", { name: "Open full page", exact: true }).click();
   await expect(page).toHaveURL(/\/records\//);
@@ -295,7 +306,7 @@ test("Back keeps page, selected result and nonzero list/reader positions", async
   );
   await expect
     .poll(() => page.locator(".reference-results__scroll").evaluate((e) => e.scrollTop))
-    .toBe(200);
+    .toBe(listPosition);
   // Use a long creature reader to establish actual nonzero reader continuity.
   const search = page.getByRole("searchbox", { name: "Search records", exact: true });
   await search.fill("Imeckus Stroon");
@@ -310,11 +321,14 @@ test("Back keeps page, selected result and nonzero list/reader positions", async
     page.getByRole("heading", { name: "Imeckus Stroon", exact: true }),
   ).toBeVisible();
   const scroll = page.locator(".reference-reader__scroll");
-  await scroll.evaluate((e) => (e.scrollTop = 400));
-  await expect.poll(() => scroll.evaluate((e) => e.scrollTop)).toBe(400);
+  const readerPosition = await scroll.evaluate((node) => {
+    node.scrollTop = 400;
+    return node.scrollTop;
+  });
+  expect(readerPosition).toBeGreaterThan(0);
   await page.getByRole("link", { name: "Open full page", exact: true }).click();
   await page.goBack();
-  await expect.poll(() => scroll.evaluate((e) => e.scrollTop)).toBe(400);
+  await expect.poll(() => scroll.evaluate((e) => e.scrollTop)).toBe(readerPosition);
   // Back remounts the browser without its original preview-trigger ref.
   await page.setViewportSize({ width: 390, height: 1000 });
   await page.getByRole("button", { name: "Results", exact: true }).click();
@@ -324,7 +338,7 @@ test("Back keeps page, selected result and nonzero list/reader positions", async
 test("reader matches keep result rows stable and navigate without scrolling app chrome", async ({
   page,
 }) => {
-  await page.goto("/search?q=fire&search_profile=bge-base");
+  await page.goto("/search?q=%22Firewyrm%22%20fire&search_profile=bge-base");
   const row = page.locator(".reference-result").filter({
     has: page.locator('[data-record-key="pathfinder-monster-core:MX2cLbODuo4gECPJ"]'),
   });
@@ -343,15 +357,6 @@ test("reader matches keep result rows stable and navigate without scrolling app 
   await expect
     .poll(() => page.locator(".reference-reader__scroll").evaluate((e) => e.scrollTop))
     .toBe(0);
-  await matches.getByRole("link", { name: "Fire Mote", exact: true }).click();
-  await expect(page.locator(".reference-landing-highlight")).toContainText("Fire Mote");
-  expect(await page.evaluate(() => scrollY)).toBe(0);
-  await expect(
-    preview.getByRole("heading", { name: "Firewyrm", exact: true }),
-  ).toHaveCount(1);
-  await preview
-    .getByRole("button", { name: "Return to selection", exact: true })
-    .click();
   await matches.getByRole("link", { name: "Breath Fire", exact: true }).click();
   await expect(preview.getByRole("heading", { name: /^Breath Fire/ })).toBeVisible();
   await expect(page.locator(".reference-landing-highlight")).toContainText(
@@ -372,8 +377,8 @@ test("long match excerpts stay within two lines at desktop and phone widths", as
     "/search/records/sky-kings-tomb-bestiary:RVdRHveFJmeCscI6?search_profile=bge-base&q=wriggly+bug",
   );
   const matches = page.getByRole("region", { name: "Search matches", exact: true });
-  const excerpts = matches.getByText(
-    /^(The cave worm flings|Brood Variance The cave worms|When a juvenile cave worm)/,
+  const excerpts = matches.locator(
+    ".reader-match-context__sections > li > .ant-typography:not(a)",
   );
   await expect(excerpts).toHaveCount(3);
   for (const width of [1440, 390]) {
@@ -381,6 +386,7 @@ test("long match excerpts stay within two lines at desktop and phone widths", as
     await expect(excerpts).toHaveCount(3);
     for (const excerpt of await excerpts.all()) {
       await expect(excerpt).toBeVisible();
+      expect((await excerpt.textContent())!.length).toBeGreaterThan(100);
       await expect
         .poll(() =>
           excerpt.evaluate(
@@ -400,6 +406,7 @@ test("long match excerpts stay within two lines at desktop and phone widths", as
   await expect(section).toHaveText("Brood Variance");
   await expect(section).toBeInViewport();
   await expect(section).toBeFocused();
+  expect(await page.evaluate(() => scrollY)).toBe(0);
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     const controls = page

@@ -555,7 +555,9 @@ mod tests {
             }
         });
         assert_eq!(abilities, vec![("str", Number::from(0))]);
+        let mut skills = Vec::new();
         view.visit_skills(|k, v| {
+            skills.push(k);
             if k == "arcana" {
                 let skill = v.value().unwrap();
                 assert_eq!(
@@ -568,5 +570,6 @@ mod tests {
                 );
             }
         });
+        assert_eq!(skills, ["arcana"]);
     }
 }

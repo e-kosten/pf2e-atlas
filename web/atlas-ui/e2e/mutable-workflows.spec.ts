@@ -21,17 +21,17 @@ test("committed edits keep refresh feedback compact and Retry only reloads", asy
 
   try {
     await page.goto(`/encounters/${encounter.slug}`);
-    await expect(page.getByRole("textbox", { name: "HP", exact: true })).toHaveValue(
-      "30",
-    );
+    const summary = page.getByLabel("HP summary", { exact: true });
+    await expect(summary).toHaveText("30/30");
     const workspace = page.locator(".encounter-detail-view .workspace-grid");
     const baseline = await workspace.boundingBox();
     expect(baseline).not.toBeNull();
     let writes = 0;
     page.on("request", (request) => {
       if (
-        request.method() === "PATCH" &&
-        new URL(request.url()).pathname.startsWith(`${detailPath}/participants/`)
+        request.method() === "POST" &&
+        new URL(request.url()).pathname.startsWith(`${detailPath}/participants/`) &&
+        new URL(request.url()).pathname.endsWith("/hp")
       ) {
         writes += 1;
       }
@@ -40,9 +40,11 @@ test("committed edits keep refresh feedback compact and Retry only reloads", asy
       url.pathname === detailPath ||
       url.pathname === `/api/encounters/${encounter.slug}`;
     await page.route(abortDetail, (route) => route.abort("failed"));
-    await page.getByRole("textbox", { name: "HP", exact: true }).fill("25");
-    await page.getByRole("button", { name: "Set", exact: true }).first().click();
-    const feedback = page.getByRole("alert").filter({
+    await page.getByRole("button", { name: "Edit Current HP", exact: true }).click();
+    const input = page.getByRole("textbox", { name: "Current HP", exact: true });
+    await input.fill("25");
+    await input.press("Enter");
+    const feedback = page.getByRole("status").filter({
       hasText: "Saved, but the encounter could not refresh",
     });
     await expect(feedback).toBeVisible();
@@ -60,9 +62,10 @@ test("committed edits keep refresh feedback compact and Retry only reloads", asy
     await page.unroute(abortDetail);
     await page.getByRole("button", { name: "Retry encounter refresh" }).click();
     await expect(feedback).toHaveCount(0);
+    await expect(summary).toHaveText("25/30");
     await expect(
-      page.getByRole("textbox", { name: "Recovery Hero current HP" }),
-    ).toHaveValue("25");
+      page.getByRole("button", { name: "Edit Current HP", exact: true }),
+    ).toHaveText("25");
     await expect(
       page.getByRole("button", { name: "Add participants", exact: true }),
     ).toBeEnabled();

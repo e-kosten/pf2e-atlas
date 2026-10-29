@@ -303,23 +303,26 @@ describe("Atlas product palette", () => {
     }
   });
 
-  it("applies the resolved appearance to the document and favicon", () => {
-    const favicon = document.createElement("link");
-    favicon.dataset.atlasFavicon = "";
-    favicon.rel = "icon";
-    document.head.append(favicon);
+  it.each(["light", "dark"] as const)(
+    "applies %s appearance to the document and favicon",
+    (scheme) => {
+      const favicon = document.createElement("link");
+      favicon.dataset.atlasFavicon = "";
+      favicon.rel = "icon";
+      document.head.append(favicon);
 
-    applyAtlasDocumentTheme(document, "dark");
+      applyAtlasDocumentTheme(document, scheme);
 
-    expect(document.documentElement.dataset.theme).toBe("dark");
-    expect(document.documentElement.style.colorScheme).toBe("dark");
-    expect(document.documentElement.style.getPropertyValue("--wordmark-font")).toBe(
-      '"Lora Variable", Lora, Georgia, serif',
-    );
-    expect(favicon.getAttribute("href")).toBe("/favicon-dark.svg");
+      expect(document.documentElement.dataset.theme).toBe(scheme);
+      expect(document.documentElement.style.colorScheme).toBe(scheme);
+      expect(document.documentElement.style.getPropertyValue("--wordmark-font")).toBe(
+        '"Lora Variable", Lora, Georgia, serif',
+      );
+      expect(favicon.getAttribute("href")).toBe(`/favicon-${scheme}.svg`);
 
-    favicon.remove();
-  });
+      favicon.remove();
+    },
+  );
 });
 
 function normalizeCssValue(value: string) {

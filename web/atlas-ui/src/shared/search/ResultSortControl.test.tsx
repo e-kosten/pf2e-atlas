@@ -382,3 +382,23 @@ it("lets an expanded Select consume Escape before dismissing the Sort dialog", a
     "false",
   );
 });
+
+it.each([
+  [42, 43],
+  [4294967295, 0],
+])("changes a repeated random seed %s to %s on Shuffle", async (seed, expected) => {
+  vi.spyOn(crypto, "getRandomValues").mockImplementation((array) => {
+    (array as Uint32Array)[0] = seed;
+    return array;
+  });
+  const changed = setup({ ...DEFAULT_SEARCH_STATE, sort: { kind: "random", seed } });
+  await open();
+  fireEvent.click(screen.getByRole("button", { name: "Shuffle" }));
+  expect(changed).toHaveBeenCalledExactlyOnceWith({
+    ...DEFAULT_SEARCH_STATE,
+    sort: { kind: "random", seed: expected },
+  });
+  expect(screen.getByRole("textbox", { name: "Random seed" })).toHaveValue(
+    String(expected),
+  );
+});

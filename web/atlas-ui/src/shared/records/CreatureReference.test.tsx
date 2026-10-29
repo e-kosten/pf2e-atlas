@@ -136,21 +136,23 @@ it("uses the same authored reading groups in reference and encounter with early 
   const view = render(<CreatureReference {...props} />);
   const check = () => {
     const titles = screen.getAllByRole("heading").map((h) => h.textContent);
-    expect(titles.indexOf("Strikes")).toBeLessThan(titles.indexOf("Special abilities"));
+    const ordered = [
+      "Statistics",
+      "Ability modifiers",
+      "Skills",
+      "Strikes",
+      "Special abilities",
+      "Spellcasting",
+      "Reactions",
+      "Passive abilities",
+    ];
+    expect(titles.filter((title) => ordered.includes(title ?? ""))).toEqual(ordered);
     expect(
       screen
         .getByText("Swarming Bites")
         .compareDocumentPosition(screen.getByText("Offensive aura")) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(titles.indexOf("Special abilities")).toBeLessThan(
-      titles.indexOf("Spellcasting"),
-    );
-    expect(titles.indexOf("Spellcasting")).toBeLessThan(titles.indexOf("Reactions"));
-    expect(titles.indexOf("Reactions")).toBeLessThan(
-      titles.indexOf("Passive abilities"),
-    );
-    expect(titles.indexOf("Statistics")).toBeLessThan(titles.indexOf("Strikes"));
     expect(
       screen
         .getByText("Perception")
@@ -158,7 +160,6 @@ it("uses the same authored reading groups in reference and encounter with early 
           screen.getByRole("heading", { name: "Ability modifiers" }),
         ) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(titles.indexOf("Ability modifiers")).toBeLessThan(titles.indexOf("Skills"));
     expect(screen.getByText("suction")).toBeVisible();
   };
   check();

@@ -28,5 +28,7 @@ it("does not carry a previous operation's delay into a new request", () => {
   expect(screen.getByText("Second request")).not.toBeVisible();
   act(() => vi.advanceTimersByTime(499));
   expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(1));
+  expect(screen.getByRole("status", { name: "Second request" })).toBeVisible();
   view.unmount();
 });

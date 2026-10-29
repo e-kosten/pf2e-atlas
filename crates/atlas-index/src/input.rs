@@ -261,6 +261,23 @@ impl SourceArtifactBuildContext {
 #[cfg(test)]
 mod preparation_tests {
     #[test]
+    fn each_locale_and_catalog_dependency_invalidates_prepared_content() {
+        let original = crate::foundation_tests::fixture(false).context;
+        let expected = original.preparation_sha256().unwrap();
+        for (field, value) in [
+            ("indexing_locale", "fr".to_owned()),
+            ("locale_catalog_sha256", "c".repeat(64)),
+            ("english_catalog_sha256", "d".repeat(64)),
+        ] {
+            let mut changed = serde_json::to_value(&original).unwrap();
+            changed[field] = serde_json::json!(value);
+            let changed: super::SourceArtifactBuildContext =
+                serde_json::from_value(changed).unwrap();
+            assert_ne!(changed.preparation_sha256().unwrap(), expected, "{field}");
+        }
+    }
+
+    #[test]
     fn corpus_and_query_changes_do_not_invalidate_prepared_content() {
         let original = crate::foundation_tests::fixture(false).context;
         let mut changed = original.clone();

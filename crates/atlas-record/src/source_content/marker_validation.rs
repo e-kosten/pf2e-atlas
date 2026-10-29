@@ -362,8 +362,8 @@ mod tests {
         ] {
             assert!(validate_prepared_markers(html, &[]).is_err(), "{html}");
         }
-        let legitimate = super::super::preparation::sanitizer().clean("<table><tbody><tr><td><strong>Value</strong></td></tr></tbody></table><a href='https://example.com'>safe</a>").to_string();
-        assert!(validate_prepared_markers(&legitimate, &[]).is_ok());
+        let legitimate = "<table><tbody><tr><td><strong>Value</strong></td></tr></tbody></table><a href='https://example.com' rel='noopener noreferrer'>safe</a>";
+        assert!(validate_prepared_markers(legitimate, &[]).is_ok());
     }
     #[test]
     fn local_foundry_images_are_unavailable_placeholders_with_diagnostics() {

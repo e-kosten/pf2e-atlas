@@ -437,6 +437,17 @@ describe("shared common and maintained advanced filters", () => {
     expect(screen.getByRole("textbox", { name: "Level / rank minimum" })).toHaveValue(
       "2",
     );
+    expect(change).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        filter: expect.objectContaining({
+          kind: "compare",
+          field: "level_or_rank",
+          op: "gte",
+          value: 2,
+        }),
+        filterError: null,
+      }),
+    );
   });
   it("shows the current Kind draft while an unrelated numeric condition is unfinished", async () => {
     const kind = {
@@ -973,9 +984,8 @@ describe("field applicability while editing Boolean groups", () => {
       fireEvent.mouseDown(
         screen.getAllByRole("combobox", { name: "Filter field" }).slice(-1)[0],
       );
-      expect(screen.getAllByText("Hardness", { exact: true }).length).toBeGreaterThan(
-        0,
-      );
+      fireEvent.click(screen.getAllByText("Hardness", { exact: true }).slice(-1)[0]);
+      expect(screen.getByRole("textbox", { name: "Hardness" })).toBeEnabled();
     },
   );
 });

@@ -65,7 +65,8 @@ function setup() {
   return { props, onHandled, onCancel, view };
 }
 it("shows only the current notification and the ordinary close affordance", () => {
-  const { onHandled, onCancel } = setup();
+  const { onCancel } = setup();
+  expect(screen.getByRole("heading", { name: "Latest" })).toBeVisible();
   expect(
     screen.queryByRole("combobox", { name: "Outgoing turn" }),
   ).not.toBeInTheDocument();
@@ -74,7 +75,6 @@ it("shows only the current notification and the ordinary close affordance", () =
   ).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   expect(onCancel).toHaveBeenCalledOnce();
-  expect(onHandled).not.toHaveBeenCalled();
 });
 it("keeps removed participants' original identity and sources accessible without actionable HP or recovery controls", () => {
   const { props, view, onHandled } = setup();

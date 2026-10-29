@@ -526,7 +526,9 @@ fn stale_turn_identity_and_off_turn_action_corrections_do_not_change_resources()
             remaining: 2,
         },
     };
+    let before = f.worker.encounter(&key).unwrap();
     assert!(f.worker.update_turn_resources(&key, off_turn).is_err());
+    assert_eq!(f.worker.encounter(&key).unwrap(), before);
     next(&f, &key, "a2");
     let stale = UpdateTurnResourcesRequest {
         request_id: "old-turn".into(),
@@ -537,7 +539,9 @@ fn stale_turn_identity_and_off_turn_action_corrections_do_not_change_resources()
             resource: TurnResourceKind::Reaction,
         },
     };
+    let before = f.worker.encounter(&key).unwrap();
     assert!(f.worker.update_turn_resources(&key, stale).is_err());
+    assert_eq!(f.worker.encounter(&key).unwrap(), before);
     assert_eq!(resources(&f, &key, &a).regular_remaining, Some(3));
     assert_eq!(resources(&f, &key, &a).reactions_remaining, Some(1));
 }

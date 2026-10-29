@@ -611,12 +611,16 @@ fn ambiguous_names_require_keys_and_graph_errors_keep_candidate_details() {
     assert!(!graph.status.success());
     let graph: Value = serde_json::from_slice(&graph.stdout).unwrap();
     assert_eq!(graph["error"]["code"], "record_resolution_ambiguous");
+    let mut candidates = graph["error"]["details"]["candidates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|record| record["record_key"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    candidates.sort_unstable();
     assert_eq!(
-        graph["error"]["details"]["candidates"]
-            .as_array()
-            .unwrap()
-            .len(),
-        2
+        candidates,
+        ["actions:aaaaaaaaaaaaaaaa", "actions:cccccccccccccccc"]
     );
     f.data(&["record", "get", "actions:aaaaaaaaaaaaaaaa", "--json"]);
 }

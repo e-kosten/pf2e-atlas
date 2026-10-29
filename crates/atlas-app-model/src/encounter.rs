@@ -824,12 +824,15 @@ mod tests {
 
     #[test]
     fn hp_action_requires_revision_and_explicit_correction_input() {
-        assert!(
-            serde_json::from_value::<ApplyEncounterHpActionRequest>(
-                json!({"participant_key":"one","action":{"kind":"damage","amount":"1+2"}})
-            )
-            .is_err()
-        );
+        let mut request = json!({
+            "request_id":"hp-action", "participant_key":"one", "expected_revision":7,
+            "action":{"kind":"damage","amount":"1+2"},
+        });
+        let decoded =
+            serde_json::from_value::<ApplyEncounterHpActionRequest>(request.clone()).unwrap();
+        assert_eq!(decoded.expected_revision, 7);
+        request.as_object_mut().unwrap().remove("expected_revision");
+        assert!(serde_json::from_value::<ApplyEncounterHpActionRequest>(request).is_err());
         assert!(
             serde_json::from_value::<EncounterHpAction>(json!({"kind":"set_current"})).is_err()
         );

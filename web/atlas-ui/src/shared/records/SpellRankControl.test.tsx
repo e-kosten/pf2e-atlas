@@ -170,3 +170,24 @@ it("consumes Enter activation when selection returns focus to the button", async
   expect(trigger).toHaveAttribute("aria-expanded", "false");
   expect(trigger).toHaveFocus();
 });
+
+it("keeps selecting rank zero idle and permits the inclusive rank-ten boundary", async () => {
+  const onChange = vi.fn();
+  render(
+    <SpellRankControl
+      classification="Spell 0"
+      spell={{ ...spellFixture(), base_rank: numberFact(0), rank: numberFact(0) }}
+      embedded={false}
+      onChange={onChange}
+    />,
+  );
+  const trigger = screen.getByRole("button", { name: /Change rank/ });
+  fireEvent.click(trigger);
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Rank 0 (base)" }));
+  expect(onChange).not.toHaveBeenCalled();
+  expect(trigger).toHaveFocus();
+  fireEvent.click(trigger);
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Rank 10" }));
+  expect(onChange).toHaveBeenCalledExactlyOnceWith(10);
+  expect(trigger).toHaveFocus();
+});
