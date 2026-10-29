@@ -10,14 +10,14 @@ esac
 # Git Bash forwards cancellation through an owned channel and awaits cleanup.
 channel=$(mktemp -d "${TMPDIR:-/tmp}/atlas-validation-cancel.XXXXXX")
 trap 'rm -rf "$channel"' EXIT
-ATLAS_VALIDATION_CANCEL_FILE="$channel/cancel"
+ATLAS_VALIDATION_CANCEL_FILE=$(cygpath -m "$channel/cancel")
 export ATLAS_VALIDATION_CANCEL_FILE
 interrupted=0
 # shellcheck disable=SC2329
 cancel() {
   interrupted=$1
   printf '%s\n' "$interrupted" >"$channel/request"
-  mv "$channel/request" "$ATLAS_VALIDATION_CANCEL_FILE"
+  mv "$channel/request" "$channel/cancel"
 }
 trap 'cancel 129' HUP
 trap 'cancel 130' INT
