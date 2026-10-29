@@ -779,3 +779,14 @@ entries remain unique and resolve. Full local gates and published-head CI are
 required for readiness; results belong to the follow-up PR.
 
 Condition follow-up first slice: all124 owning rule cases,19 app-model cases and the legacy binding receipt case passed. Fourteen of92 remaining/new entries now have fresh dispositions; no required scope is dropped. Runner experiment and final gates remain in progress.
+
+
+Rust-gate scheduling follow-up: the temporary nextest0.9.150 probe passed all
+1,421 nonignored cases in45.900s locally; it is not a CI speedup guarantee. Exact
+Cargo artifact/list comparison matched all45 binaries,1,447 registered cases and
+26 original ignored flags, including the explicitly enabled example. The gate
+now uses that maintained runner, preserves separate Cargo doctests and the normal
+build, and retains both Clippy policies. Required/recommended tooling and process
+isolation are documented in CONTRIBUTING. Final published-head CI remains required.
+The attempted app-service fixture-mutex removal was slower (209.58s versus178.76s)
+and was discarded; no shared-fixture or concurrency shortcuts remain.
