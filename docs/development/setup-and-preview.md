@@ -57,17 +57,33 @@ refresh the shared default explicitly:
 
 ```sh
 just dev-tool-build
-just dev-build             # clean committed, validated candidate; reuses verified UI
+just dev-build --profile release  # clean committed, validated candidate; reuses verified UI
 just dev-shared-refresh
 ```
 
-Shared refresh freezes verified app/tool copies, initializes a temporary independent
-checkout from the current controlled seed, runs offline setup there, then calls
+Shared refresh freezes verified app/tool copies and a clean source checkout,
+initializes a private database from the current controlled seed, runs offline setup there, then calls
 the existing Rust deep-validation/publication owner. It reuses shared source/model
 assets and publishes the atomic current pointer only after validation succeeds.
 It never stages from a task or installed personal database. Existing task receipts
 remain pinned; an old seed is advisory, not proof that a private database is stale.
 Run this at a relevant completed/merged milestone, not after ordinary UI edits.
+
+Maintenance defaults to the optimized release build and requires its matching
+`.atlas/maintenance-build.json` receipt. It never builds or falls back implicitly.
+For an explicit dev-build investigation, pair `just dev-build --profile dev`
+with `just dev-shared-refresh --profile dev`. Ordinary `dev-build` and managed
+previews still default to dev and use `.atlas/preview-build.json`. Both receipts
+bind the selected profile, source and executable checksum. Release compilation
+has an initial cost; reuse it across maintenance operations with unchanged inputs.
+Dev builds optimize the stable SHA-256 dependency while workspace code retains
+normal incremental compilation.
+
+After “Maintenance candidate frozen,” source edits may resume while maintenance
+uses its pinned checkout and executables. Keep the caller checkout present until
+publication finishes: it still locates the shared Git store and checks asset
+lifetimes. Validation logs remain under the caller's `.atlas/validation` (or
+`ATLAS_VALIDATION_OUTPUT_ROOT`), even after the temporary checkout is removed.
 
 All linked worktrees resolve one shared store through Git's common directory:
 `<primary-checkout>/.atlas/dev-baselines`. `--store /absolute/path` overrides it.
@@ -239,14 +255,29 @@ plain `dev-web`, status and workspace initialization remain build-free.
 The Rust baseline owner retains the live child and a frozen executable for
 fallback; a PID receipt never authorizes killing another process. Refresh reuses
 the active port, private database and source/model selection, serializes requests,
-preflights the candidate and verifies served readiness plus expected UI bytes.
-Cached-model checksum checks can exceed 20 seconds in a dev build. Each candidate
-check has a bounded 60-second budget; the control request budget includes both
-checks, startup and fallback. Cancellation continues to poll while a check runs.
-Compilation or preflight failure preserves the current server; startup/HTTP
-verification failure attempts to restore the previous frozen executable and
-reports the failure. Incompatible data requires deliberate normal setup, never an
-automatic migration/reset, baseline republication or corpus copy.
+checks the candidate's index contract, then verifies served readiness for every
+stored profile and the expected UI bytes. Web startup authenticates the migration
+ledger. Initial startup checks the actual server; an unchanged executable/UI
+refresh checks the existing live child without starting another process. A changed
+candidate first starts on a private probe port. The probe is stopped and reaped
+before replacing the current server at its stable URL. Probe diagnostics live in
+`.atlas/dev-preview/probe.log`; rejection leaves the current server log intact.
+
+Index checks and each startup have bounded 20-second budgets. The control request
+budget includes one index check, probe, replacement and fallback startup, plus
+shutdown margin. Cancellation continues to poll during checks and startup.
+Compilation, index or probe failure preserves the current server; replacement
+failure attempts to restore the previous frozen executable and reports failure.
+Incompatible data requires deliberate normal setup, never an automatic
+migration/reset, baseline republication or corpus copy.
+
+Preview admission checks whether the published workspace can be served. Full
+`setup --check` separately checks requested setup intent and source freshness;
+for example, a pending profile request may coexist with a usable published
+workspace. It is not repeated on refresh. Within one setup check, verified model
+assets are reused across report sections while file metadata still detects
+replacement or repair. `ATLAS_LOG=info` includes elapsed times for model
+verification and source freshness.
 
 `dev-status --json` separates `baseline_build` from the selected binary checksum
 and `managed_preview` state. `.atlas/dev-preview/status.json` identifies the URL,

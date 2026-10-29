@@ -57,24 +57,6 @@ impl Snapshot {
             return Err("Candidate executable changed while copying".into());
         }
         files::mode(&binary, 0o555)?;
-        let readiness = checks::data(&check(
-            preview,
-            &binary,
-            &checks::paths(
-                &["setup", "--check", "--offline", "--json"],
-                &preview.index,
-                &preview.manifest.assets,
-            ),
-        )?)?;
-        if readiness["ready"] != true
-            || !readiness["search_profiles"]
-                .as_array()
-                .is_some_and(|profiles| {
-                    !profiles.is_empty() && profiles.iter().all(|profile| profile["ready"] == true)
-                })
-        {
-            return Err("Candidate requires setup; previous preview preserved. Run dev-status with the explicit candidate for details".into());
-        }
         checks::data(&check(
             preview,
             &binary,
@@ -128,7 +110,12 @@ fn check(preview: &Preview, binary: &Path, arguments: &[String]) -> Result<Value
     Err("Candidate preflight timed out; previous preview preserved".into())
 }
 
-pub(super) fn health(port: u16, expected_index: &str) -> Result<()> {
+pub(super) enum Health {
+    Ready,
+    Pending(String),
+}
+
+pub(super) fn health(port: u16, expected_index: &str) -> Result<Health> {
     let agent = ureq::Agent::new_with_config(
         ureq::Agent::config_builder()
             .proxy(None)
@@ -137,13 +124,19 @@ pub(super) fn health(port: u16, expected_index: &str) -> Result<()> {
             .build(),
     );
     let base = format!("http://127.0.0.1:{port}");
-    let readiness = agent
-        .get(format!("{base}/api/readiness"))
-        .call()?
-        .body_mut()
-        .with_config()
-        .limit(1024 * 1024)
-        .read_to_vec()?;
+    let read = |url: &str, limit| {
+        agent
+            .get(url)
+            .call()?
+            .body_mut()
+            .with_config()
+            .limit(limit)
+            .read_to_vec()
+    };
+    let readiness = match read(&format!("{base}/api/readiness"), 1024 * 1024) {
+        Ok(bytes) => bytes,
+        Err(error) => return Ok(Health::Pending(error.to_string())),
+    };
     let readiness: Value = serde_json::from_slice(&readiness)?;
     if readiness["status"] != "ready"
         || !readiness["search_profiles"]
@@ -154,15 +147,12 @@ pub(super) fn health(port: u16, expected_index: &str) -> Result<()> {
     {
         return Err("Served preview has unavailable search profiles".into());
     }
-    let html = agent
-        .get(&base)
-        .call()?
-        .body_mut()
-        .with_config()
-        .limit(4 * 1024 * 1024)
-        .read_to_vec()?;
+    let html = match read(&base, 4 * 1024 * 1024) {
+        Ok(bytes) => bytes,
+        Err(error) => return Ok(Health::Pending(error.to_string())),
+    };
     if format!("{:x}", Sha256::digest(&html)) != expected_index {
         return Err("Served UI does not match the selected candidate index".into());
     }
-    Ok(())
+    Ok(Health::Ready)
 }
