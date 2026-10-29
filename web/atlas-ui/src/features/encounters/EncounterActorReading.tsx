@@ -1,14 +1,13 @@
+import { useReferenceQueryRetirement } from "../../shared/queries/useReferenceQueryRetirement";
+import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import type { ComponentProps } from "react";
 import { Button, Spin } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import { getEmbeddedReading } from "../../api/atlasApi";
 import { RecordPresentation } from "../../shared/records/RecordPresentation";
-import { isArtifactGenerationChanged } from "../../shared/queries/immutableReferenceQueries";
-import {
-  useReferenceQueryRetirement,
-  useRetainedRecord,
-} from "../../shared/records/useRetainedRecord";
+import { isArtifactGenerationChanged } from "../../shared/queries/referenceQueries";
+import { useRetainedRecord } from "../../shared/records/useRetainedRecord";
 
 /** Read authored text separately; never replace effective encounter facts. */
 export function EncounterActorReading(
@@ -25,6 +24,7 @@ export function EncounterActorReading(
     Boolean(reading) &&
     (presentation.body.kind === "creature" || presentation.body.kind === "hazard");
   const query = useQuery({
+    meta: referenceQueryMeta,
     queryKey,
     enabled,
     queryFn: ({ signal }) =>

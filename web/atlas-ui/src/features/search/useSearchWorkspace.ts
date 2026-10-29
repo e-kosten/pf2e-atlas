@@ -15,7 +15,13 @@ import {
   useState,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getSimilarityParts, searchPage } from "../../api/atlasApi";
+import { searchPage } from "../../api/atlasApi";
+import { similarityPartsQueryOptions } from "../../shared/search/similarityQueries";
+import {
+  useReferenceGeneration,
+  useReferenceGenerationAdoption,
+} from "../../shared/search/useReferenceGeneration";
+import { useReferenceQueryRetirement } from "../../shared/queries/useReferenceQueryRetirement";
 import {
   assertSearchIdentity,
   assertSimilarityIdentity,
@@ -71,8 +77,8 @@ import {
 } from "../../shared/search/similarityState";
 import {
   isArtifactGenerationChanged,
-  retireImmutableReferenceQueries,
-} from "../../shared/queries/immutableReferenceQueries";
+  referenceQueryMeta,
+} from "../../shared/queries/referenceQueries";
 import { readingNavigationForUrl } from "../../shared/records/readingUrlNavigation";
 import { recordNavigationIdentity } from "../../shared/records/recordNavigationIdentity";
 function readingRequestIdentity(request: ReadingRequest | null) {
@@ -176,11 +182,6 @@ export function useSearchWorkspace({
       seedPreparation.current += 1;
     };
   }, [enabled]);
-  const [retrieval, setRetrieval] = useState({
-    epoch: 0,
-    generation: null as string | null,
-    recovering: false,
-  });
   const location = useRouterState({ select: (state) => state.location });
   const previousProfile = useRef(searchProfile);
   const profileChanged =
@@ -216,6 +217,27 @@ export function useSearchWorkspace({
     previousReset.current !== atlasRouter.latestLocation.state.atlasSearchReset;
   const previousUrlReading = useRef(urlReadingIdentity(initialRoute));
   const pendingUrlReading = useRef<{ incoming: string; previous: string } | null>(null);
+  const searchToken = useMemo(() => encodeSearchState(search), [search]);
+  const searchExecutionToken = useMemo(
+    () => encodeSearchExecutionState(search, searchProfile),
+    [search, searchProfile],
+  );
+  const activeSearchExecutionToken = useMemo(
+    () => encodeSearchExecutionState(activeSearch, searchProfile),
+    [activeSearch, searchProfile],
+  );
+  const canRunResultSearch =
+    enabled &&
+    initialRoute !== null &&
+    !failedTransport &&
+    !resetPending &&
+    searchProfile !== null &&
+    (activeSearch.query.trim() ? searchProfileUsable : searchProfileStored) &&
+    hasExecutableSearch(activeSearch);
+  const retrieval = useReferenceGeneration(
+    activeSearchExecutionToken,
+    enabled && initialRoute !== null && !failedTransport && !resetPending,
+  );
   const reading = useReferenceReading(
     initialRoute?.selectedRecordKey
       ? {
@@ -234,45 +256,6 @@ export function useSearchWorkspace({
   );
   const inspectReading = reading.select;
   const positions = useBrowsePositions();
-  const liveRequest = useRef({
-    token: "",
-    epoch: 0,
-    retiring: false,
-    generation: null as string | null,
-  });
-  const searchToken = useMemo(() => encodeSearchState(search), [search]);
-  const searchExecutionToken = useMemo(
-    () => encodeSearchExecutionState(search, searchProfile),
-    [search, searchProfile],
-  );
-  const activeSearchExecutionToken = useMemo(
-    () => encodeSearchExecutionState(activeSearch, searchProfile),
-    [activeSearch, searchProfile],
-  );
-  const canRunResultSearch =
-    enabled &&
-    initialRoute !== null &&
-    !failedTransport &&
-    !resetPending &&
-    searchProfile !== null &&
-    (activeSearch.query.trim() ? searchProfileUsable : searchProfileStored) &&
-    hasExecutableSearch(activeSearch);
-  useLayoutEffect(() => {
-    liveRequest.current = {
-      token: activeSearchExecutionToken,
-      epoch: retrieval.epoch,
-      retiring: retrieval.recovering,
-      generation: retrieval.generation,
-    };
-    return () => {
-      liveRequest.current.retiring = true;
-    };
-  }, [
-    activeSearchExecutionToken,
-    retrieval.epoch,
-    retrieval.recovering,
-    retrieval.generation,
-  ]);
   const restoreLocation = useEffectEvent(() => {
     if (!enabled) return;
     const route = currentSearchLocation();
@@ -362,18 +345,20 @@ export function useSearchWorkspace({
     }, SEARCH_REQUEST_DEBOUNCE_MS);
     return () => window.clearTimeout(timeout);
   }, [search, searchToken]);
-  const resultsKey = [
+  const resultsKeyForGeneration = (generation: string | null) => [
     "results",
     activeSearchExecutionToken,
     retrieval.epoch,
-    retrieval.generation,
+    generation,
     pageNumber,
   ];
+  const resultsKey = resultsKeyForGeneration(retrieval.generation);
   const resultsQuery = useQuery<{
     page: SearchResultsPage;
     filter: QueryPredicate | null;
   }>({
     queryKey: resultsKey,
+    meta: referenceQueryMeta,
     enabled: canRunResultSearch && !retrieval.recovering,
     staleTime: 20000,
     placeholderData: (previous, previousQuery) =>
@@ -384,11 +369,7 @@ export function useSearchWorkspace({
         ? previous
         : undefined,
     queryFn: async ({ signal }) => {
-      const isCurrent = () =>
-        !signal.aborted &&
-        !liveRequest.current.retiring &&
-        liveRequest.current.epoch === retrieval.epoch &&
-        liveRequest.current.token === activeSearchExecutionToken;
+      const ticket = retrieval.capture(signal);
       const page = await searchPage(
         buildSearchRequest(
           activeSearch,
@@ -420,27 +401,20 @@ export function useSearchWorkspace({
         page.ranking !== (activeSearch.ranking ?? "score")
       )
         throw new Error("Search response used a different ranking");
-      if (retrieval.generation === null && isCurrent()) {
-        // Adopt the returned generation without issuing the same search again.
-        queryClient.setQueryData(
-          [
-            "results",
-            activeSearchExecutionToken,
-            retrieval.epoch,
-            page.artifact_generation,
-            pageNumber,
-          ],
-          { page, filter: activeSearch.filter },
-        );
-        setRetrieval((current) =>
-          current.epoch === retrieval.epoch && !current.recovering
-            ? { ...current, generation: page.artifact_generation }
-            : current,
-        );
-      }
+      retrieval.adopt(ticket, page.artifact_generation, {
+        queryKey: resultsKeyForGeneration(page.artifact_generation),
+        data: { page, filter: activeSearch.filter },
+      });
       return { page, filter: activeSearch.filter };
     },
   });
+  useReferenceQueryRetirement(resultsKey);
+  useReferenceGenerationAdoption(
+    retrieval,
+    resultsQuery,
+    resultsQuery.data?.page.artifact_generation,
+    resultsKeyForGeneration(resultsQuery.data?.page.artifact_generation ?? null),
+  );
   useEffect(() => {
     const response = resultsQuery.data?.page;
     const route = currentSearchLocation();
@@ -490,25 +464,17 @@ export function useSearchWorkspace({
     urlProfile,
   ]);
   const resultsPaused = isArtifactGenerationChanged(resultsQuery.error);
-  async function refreshResults() {
-    if (liveRequest.current.retiring) return;
-    // Retire the owner before awaiting cancellation, so a late completion cannot seed.
-    liveRequest.current.retiring = true;
-    setRetrieval((current) => ({ ...current, recovering: true }));
-    await atlasRouter.navigate({
-      to: ".",
-      hash: true,
-      search: (search) => ({ ...search, page: undefined }),
-      replace: true,
-      resetScroll: false,
-      state: true,
+  function refreshResults() {
+    return retrieval.refresh(async () => {
+      await atlasRouter.navigate({
+        to: ".",
+        hash: true,
+        search: (search) => ({ ...search, page: undefined }),
+        replace: true,
+        resetScroll: false,
+        state: true,
+      });
     });
-    await retireImmutableReferenceQueries(queryClient);
-    setRetrieval((current) => ({
-      epoch: current.epoch + 1,
-      generation: null,
-      recovering: false,
-    }));
   }
   useEffect(() => {
     const pending = pendingUrlReading.current;
@@ -628,44 +594,21 @@ export function useSearchWorkspace({
       ) {
         const seed = { kind: "record" as const, record_key: nextSeed };
         const nextSearch = next;
-        const epoch = retrieval.epoch;
         const generation = retrieval.generation;
-        const token = liveRequest.current.token;
+        const ticket = retrieval.capture();
         setPreparingSeed(true);
         void queryClient
-          .fetchQuery({
-            queryKey: ["similarity-parts", seed, searchProfile, generation, 0],
-            staleTime: Infinity,
-            queryFn: ({ signal }) =>
-              getSimilarityParts(
-                {
-                  seed,
-                  search_profile: searchProfile,
-                  expected_artifact_generation: generation,
-                },
-                signal,
-              ),
-          })
+          .fetchQuery(similarityPartsQueryOptions(seed, searchProfile, generation))
           .then((inventory) => {
-            if (
-              version !== seedPreparation.current ||
-              epoch !== liveRequest.current.epoch ||
-              token !== liveRequest.current.token ||
-              liveRequest.current.retiring
-            )
-              return;
+            const current = retrieval.current(ticket);
+            if (version !== seedPreparation.current || !current) return;
             assertSimilarityInventoryIdentity(
               inventory,
               seed,
               searchProfile,
-              liveRequest.current.generation,
+              current.generation,
             );
-            if (liveRequest.current.generation === null)
-              setRetrieval((current) =>
-                current.generation === null && current.epoch === epoch
-                  ? { ...current, generation: inventory.artifact_generation }
-                  : current,
-              );
+            retrieval.adopt(ticket, inventory.artifact_generation);
             commitSearch({
               ...nextSearch,
               sourceSections: preferredSourceSections(
@@ -773,38 +716,24 @@ export function useSearchWorkspace({
       setSourcePreparationError(null);
       const committed = normalizeSortTransition(search, next);
       const nextGeneration = committed.similarityGeneration;
-      const collectionChanged =
-        nextGeneration !== undefined && nextGeneration !== retrieval.generation;
-      if (collectionChanged) {
-        // Refreshed parts belong to a new immutable collection. Retire A before
-        // committing its replacement so late A reads cannot seed the B owner.
-        liveRequest.current.retiring = true;
-        setRetrieval((current) => ({ ...current, recovering: true }));
-      }
-      dispatch({ type: "search.settingsApplied", search: committed });
-      void atlasRouter.navigate({
-        ...searchDestination({
-          ...currentSearchLocation(),
-          selectedRecordKey,
-          query: searchStateQueryString(committed, profile),
-          selection: reading.detail
-            ? readingNavigationForUrl(reading.detail.selected, reading.request)
-            : (reading.request?.match ?? reading.request?.navigation),
-          landing: reading.landing ?? reading.request?.landing,
-          page: 1,
-        }),
-        replace: true,
-        resetScroll: false,
-        state: true,
+      await retrieval.applyGeneration(nextGeneration, () => {
+        dispatch({ type: "search.settingsApplied", search: committed });
+        void atlasRouter.navigate({
+          ...searchDestination({
+            ...currentSearchLocation(),
+            selectedRecordKey,
+            query: searchStateQueryString(committed, profile),
+            selection: reading.detail
+              ? readingNavigationForUrl(reading.detail.selected, reading.request)
+              : (reading.request?.match ?? reading.request?.navigation),
+            landing: reading.landing ?? reading.request?.landing,
+            page: 1,
+          }),
+          replace: true,
+          resetScroll: false,
+          state: true,
+        });
       });
-      if (collectionChanged) {
-        await retireImmutableReferenceQueries(queryClient);
-        setRetrieval((current) => ({
-          epoch: current.epoch + 1,
-          generation: nextGeneration,
-          recovering: false,
-        }));
-      }
     },
     recoverFilterUrl: (restored) => {
       dispatch({ type: "url.restored", search: restored, selectedRecordKey: null });

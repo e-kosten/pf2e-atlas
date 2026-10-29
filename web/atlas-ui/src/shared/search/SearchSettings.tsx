@@ -27,7 +27,7 @@ import {
   UNKNOWN_SEARCH_RANKING,
   type SearchFormState,
 } from "../filters/searchState";
-import { getSimilarityParts } from "../../api/atlasApi";
+import { similarityPartsQueryOptions } from "./similarityQueries";
 import { useSearchProfile } from "./SearchProfileContext";
 import {
   DEFAULT_SEARCH_PREFERENCES,
@@ -43,12 +43,11 @@ import {
   similarityLabel,
   similarityPreferences,
 } from "./similarityState";
-import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
+import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 import {
   SimilaritySourceDocument,
   type SimilaritySourceTarget,
 } from "./SimilaritySourceDocument";
-import { assertSimilarityInventoryIdentity } from "./searchIdentity";
 import { SearchSettingLabel } from "./SearchSettingLabel";
 import { SimilarityComparisonSettings } from "./SimilarityComparisonSettings";
 import { AtlasModal as Modal } from "../ui/overlays/AtlasModal";
@@ -123,38 +122,17 @@ export function SearchSettings({
   const [reloadInventory, setReloadInventory] = useState(0);
   const [sourceRetired, setSourceRetired] = useState(false);
   const inventory = useQuery({
-    queryKey: [
-      "similarity-parts",
+    ...similarityPartsQueryOptions(
       seed,
       draft?.model,
       reloadInventory ? null : (draft?.generation ?? generation),
       reloadInventory,
-    ],
+    ),
     enabled:
       draft !== null &&
       seed !== null &&
       draft.similarity.method !== "baseline" &&
       draft.model !== null,
-    staleTime: Infinity,
-    queryFn: async ({ signal }) => {
-      const value = await getSimilarityParts(
-        {
-          seed: seed!,
-          search_profile: draft!.model!,
-          expected_artifact_generation: reloadInventory
-            ? null
-            : (draft!.generation ?? generation),
-        },
-        signal,
-      );
-      assertSimilarityInventoryIdentity(
-        value,
-        seed!,
-        draft!.model!,
-        reloadInventory ? null : (draft!.generation ?? generation),
-      );
-      return value;
-    },
   });
   const inventoryRetired =
     sourceRetired || isArtifactGenerationChanged(inventory.error);

@@ -1,3 +1,4 @@
+import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
 import { EncounterRecoveryModal } from "./EncounterRecoveryModal";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
@@ -142,6 +143,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     ) ??
     encounter.data?.participants[0];
   const conditionDefinitions = useQuery({
+    meta: referenceQueryMeta,
     queryKey: [
       "encounter-condition-definitions",
       route.slug,

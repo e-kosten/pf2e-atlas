@@ -1,3 +1,4 @@
+import { referenceQueryMeta } from "../queries/referenceQueries";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import {
   destinationHref,
@@ -16,7 +17,7 @@ import type {
   RelationshipOccurrencesPage,
 } from "../../generated/atlas";
 import { recordReadingIdentity } from "./useRetainedRecord";
-import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
+import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 export function RelationshipEvidence({
   evidence,
   filter,
@@ -64,6 +65,7 @@ function EvidencePage({
 }: Parameters<typeof RelationshipEvidence>[0]) {
   const [page, setPage] = useState(1);
   const query = useQuery<RelationshipOccurrencesPage>({
+    meta: referenceQueryMeta,
     queryKey: [
       "relationship-occurrences",
       generation,

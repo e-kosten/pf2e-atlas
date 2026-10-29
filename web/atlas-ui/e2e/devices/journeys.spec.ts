@@ -1875,3 +1875,108 @@ test("noncombat records offer a list without encounter tabs or guidance", async 
   await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
   await expect(trigger).toBeFocused();
 });
+
+test("landing-only reader navigation reuses its raw parent document", async ({
+  page,
+}, info) => {
+  let parentReads = 0;
+  page.on("request", (request) => {
+    if (
+      new URL(request.url()).pathname === `/api/records/${encodeURIComponent(sentinel)}`
+    )
+      parentReads++;
+  });
+  await page.goto(landedSearch);
+  await expect(page.getByRole("heading", { name: /^Signal Pulse\b/ })).toBeVisible();
+  expect(parentReads).toBe(1);
+  const results = page.getByRole("button", { name: "Results", exact: true });
+  if (await results.isVisible()) await activate(results, info);
+  await activate(page.locator(`[data-record-key="${sentinel}"]`).first(), info);
+  await expect(page).toHaveURL((url) => !url.searchParams.has("focus"));
+  await expect(
+    page.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
+  ).toBeVisible();
+  expect(parentReads).toBe(1);
+  await noPageOverflow(page);
+});
+
+test("generation replacement recovers deliberately and adopts each successful page once", async ({
+  page,
+}, info) => {
+  const requests: Array<{
+    page: { number: number };
+    expected_artifact_generation?: string | null;
+  }> = [];
+  let changed = false;
+  let firstGeneration: string;
+  const replacement = "b".repeat(64);
+  await page.route("**/api/search/page", async (route) => {
+    const request = route.request().postDataJSON();
+    requests.push(request);
+    if (
+      changed &&
+      request.expected_artifact_generation &&
+      request.expected_artifact_generation !== replacement
+    ) {
+      const response = await route.fetch({
+        postData: JSON.stringify({ ...request, expected_artifact_generation: null }),
+      });
+      await route.fulfill({
+        response,
+        status: 409,
+        json: {
+          code: "artifact_generation_changed",
+          message: "The reference collection changed.",
+          recoverable_action: "refresh_results",
+        },
+      });
+      return;
+    }
+    const response = await route.fetch({
+      postData: JSON.stringify({ ...request, expected_artifact_generation: null }),
+    });
+    const data = await response.json();
+    firstGeneration ??= data.artifact_generation;
+    await route.fulfill({
+      response,
+      json: {
+        ...data,
+        artifact_generation: changed ? replacement : data.artifact_generation,
+      },
+    });
+  });
+  const filter = new URL(landedSearch, "http://localhost").searchParams.get("filter")!;
+  await page.goto(`/search?filter=${encodeURIComponent(filter)}&limit=5`);
+  const next = page.getByRole("button", { name: "Next page", exact: true });
+  await expect(next).toBeEnabled();
+  changed = true;
+  await activate(next, info);
+  const refresh = page.getByRole("button", { name: "Refresh results", exact: true });
+  await expect(refresh).toBeVisible();
+  await expect(next).toHaveCount(0);
+  await activate(refresh, info);
+  await expect(next).toBeEnabled();
+  await expect(page).toHaveURL(
+    (url) => !url.searchParams.has("page") && url.searchParams.get("filter") === filter,
+  );
+  await expect(
+    page.getByRole("textbox", { name: "Current page", exact: true }),
+  ).toHaveValue("1");
+  await activate(next, info);
+  await expect(
+    page.getByRole("textbox", { name: "Current page", exact: true }),
+  ).toHaveValue("2");
+  await expect(next).toBeEnabled();
+  expect(
+    requests.map((request) => [
+      request.page.number,
+      request.expected_artifact_generation ?? null,
+    ]),
+  ).toEqual([
+    [1, null],
+    [2, firstGeneration!],
+    [1, null],
+    [2, replacement],
+  ]);
+  await noPageOverflow(page);
+});

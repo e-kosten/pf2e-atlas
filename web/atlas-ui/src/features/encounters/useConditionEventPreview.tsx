@@ -1,3 +1,4 @@
+import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { userErrorMessage } from "../../shared/feedback/errorMessages";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { ConditionHpPreview } from "./ConditionHpPreview";
@@ -40,6 +41,7 @@ export function useConditionEventPreview(
   }, [identity]);
   const enabled = identity !== undefined && settled === identity;
   const query = useQuery({
+    meta: referenceQueryMeta,
     queryKey: ["condition-event-preview", identity],
     queryFn: () => loadPreview(draft!),
     enabled,
@@ -134,6 +136,7 @@ export function useConditionEventPreview(
       updateDraft(request);
       setSettled(identityOf(request));
       const result = await client.fetchQuery({
+        meta: referenceQueryMeta,
         queryKey: ["condition-event-preview", identityOf(request)],
         queryFn: () => loadPreview(request),
         staleTime: 0,

@@ -1,3 +1,4 @@
+import { referenceQueryMeta } from "../queries/referenceQueries";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import { Alert, Button, Collapse, Space } from "antd";
 import { LoadingStatus } from "../ui/LoadingStatus";
@@ -14,7 +15,7 @@ import { ActorActivity } from "./ActorReference";
 import { ContentFields } from "./RecordPresentation";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { activityAnchor, activityAddress } from "./embeddedNavigation";
-import { isArtifactGenerationChanged } from "../queries/immutableReferenceQueries";
+import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 
 export type EmbeddedReadingContext = {
   renderAbilityControls?: (navigation: RecordNavigationView) => {
@@ -108,6 +109,7 @@ function OwnedAbilityBatch({
   ]);
   const queryKey = useMemo(() => ["embedded-reading", identity], [identity]);
   const reading = useInfiniteQuery({
+    meta: referenceQueryMeta,
     queryKey,
     enabled: open && Boolean(context),
     initialPageParam: {

@@ -1,7 +1,7 @@
-import { recordDetailRequest } from "./recordDetailQuery";
+import { recordDetailQueryOptions, recordDetailRequest } from "./recordDetailQuery";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { Activity, type ReactNode } from "react";
 import { getRecordDetail } from "../../api/atlasApi";
 import {
   detailFixture,
@@ -9,6 +9,9 @@ import {
   actorFixture,
   knownFact,
 } from "../../test/fixtures";
+import { retireReferenceQueries } from "../queries/referenceQueries";
+import { usePreparedReferenceSelection } from "./usePreparedReferenceSelection";
+import { useRecordDetail } from "./useRecordDetail";
 import { rootNavigation, useReferenceReading } from "./useReferenceReading";
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
@@ -24,7 +27,9 @@ function wrapper({ children }: { children: ReactNode }) {
     </QueryClientProvider>
   );
 }
-beforeEach(() => api.mockReset());
+beforeEach(() => {
+  api.mockReset();
+});
 it("sends an explicit zero rank to the detail service", async () => {
   const selected = { ...rootNavigation("spells:cantrip"), spell_rank: 0 };
   api.mockResolvedValue({ ...detailFixture("spells:cantrip"), selected });
@@ -171,4 +176,230 @@ it("changes a matched spell's rank without re-reading its old match or adding hi
   await act(async () => finish({ ...selected, selected: ranked }));
   await waitFor(() => expect(result.current.detail?.selected.spell_rank).toBe(5));
   expect(api).toHaveBeenCalledTimes(3);
+});
+
+it("shares raw documents between previews and readers while landing stays local", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 20_000 } },
+  });
+  const parent = detailFixture("actors:ghoul");
+  api.mockResolvedValue(parent);
+  const { result } = renderHook(
+    () => ({
+      preview: useRecordDetail("actors:ghoul"),
+      reading: useReferenceReading({ navigation: rootNavigation("actors:ghoul") }),
+    }),
+    {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    },
+  );
+  await waitFor(() => expect(result.current.reading.detail).toEqual(parent));
+  expect(result.current.preview.data).toEqual(parent);
+  expect(api).toHaveBeenCalledTimes(1);
+  const landing = activityFixture("Jaws", "actors:ghoul").navigation;
+  act(() =>
+    result.current.reading.inspect({
+      navigation: rootNavigation("actors:ghoul"),
+      landing,
+    }),
+  );
+  expect(result.current.reading.landing).toEqual(landing);
+  expect(result.current.reading.detail).toEqual(parent);
+  expect(api).toHaveBeenCalledTimes(1);
+  const cached = client.getQueryData(recordDetailQueryOptions("actors:ghoul").queryKey);
+  expect(cached).toEqual(parent);
+  expect(cached).not.toHaveProperty("landing");
+  expect(cached).not.toHaveProperty("detail");
+});
+
+it("reuses an exact fallback already prepared by another reader", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 20_000 } },
+  });
+  const match = {
+    ...activityFixture("Jaws", "actors:ghoul").navigation,
+    field: "/system/description/value",
+    source_fingerprint: "snapshot",
+  };
+  const exact = { ...detailFixture("actors:ghoul"), selected: match };
+  api.mockResolvedValueOnce(exact).mockResolvedValueOnce(detailFixture("actors:ghoul"));
+  await client.fetchQuery(
+    recordDetailQueryOptions(match.record_key, match, exact.artifact_generation),
+  );
+  const { result } = renderHook(
+    () =>
+      useReferenceReading(
+        { navigation: rootNavigation("actors:ghoul"), match },
+        true,
+        3,
+        exact.artifact_generation,
+      ),
+    {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    },
+  );
+  await waitFor(() => expect(result.current.detail).toEqual(exact));
+  expect(result.current.landing).toBeUndefined();
+  expect(api).toHaveBeenCalledTimes(2);
+});
+
+it("drops retained reader content when another surface retires raw references", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 20_000 } },
+  });
+  const parent = detailFixture("actors:ghoul");
+  api.mockResolvedValueOnce(parent);
+  const { result } = renderHook(
+    () => useReferenceReading({ navigation: rootNavigation("actors:ghoul") }),
+    {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    },
+  );
+  await waitFor(() => expect(result.current.detail).toEqual(parent));
+  api.mockRejectedValue(new Error("Reference offline"));
+  await act(async () => {
+    await retireReferenceQueries(client);
+  });
+  await waitFor(() => expect(result.current.error?.message).toBe("Reference offline"));
+  expect(result.current.detail).toBeUndefined();
+});
+
+it("cannot commit a prepared fallback after its already-loaded parent is removed", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 20_000 } },
+  });
+  const parent = detailFixture("actors:ghoul");
+  const match = {
+    ...activityFixture("Jaws", "actors:ghoul").navigation,
+    field: "/system/description/value",
+  };
+  let finish!: (detail: ReturnType<typeof detailFixture>) => void;
+  api.mockResolvedValueOnce(parent).mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const commit = vi.fn();
+  const { result } = renderHook(
+    () => {
+      const reading = useReferenceReading(null, true, 0, parent.artifact_generation);
+      return {
+        reading,
+        selection: usePreparedReferenceSelection(
+          reading,
+          true,
+          0,
+          parent.artifact_generation,
+        ),
+      };
+    },
+    {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    },
+  );
+  let preparing!: Promise<void>;
+  act(() => {
+    preparing = result.current.selection.select({
+      request: { navigation: rootNavigation("actors:ghoul"), match },
+      name: "Jaws",
+      generation: parent.artifact_generation,
+      commit,
+    });
+  });
+  await waitFor(() => expect(api).toHaveBeenCalledTimes(2));
+  act(() =>
+    client.removeQueries({
+      queryKey: recordDetailQueryOptions(
+        "actors:ghoul",
+        undefined,
+        parent.artifact_generation,
+      ).queryKey,
+      exact: true,
+    }),
+  );
+  await act(async () => {
+    finish({ ...parent, selected: match });
+    await preparing;
+  });
+  expect(commit).not.toHaveBeenCalled();
+  expect(result.current.reading.request).toBeNull();
+  expect(result.current.selection.current).toBeNull();
+});
+
+it("does not combine a new parent with an independently cached fallback from another generation", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 20_000 } },
+  });
+  const match = {
+    ...activityFixture("Jaws", "actors:ghoul").navigation,
+    field: "/system/description/value",
+  };
+  const old = {
+    ...detailFixture("actors:ghoul"),
+    selected: match,
+    artifact_generation: "generation-a",
+  };
+  const parent = {
+    ...detailFixture("actors:ghoul"),
+    artifact_generation: "generation-b",
+  };
+  api
+    .mockResolvedValueOnce(old)
+    .mockResolvedValueOnce(parent)
+    .mockResolvedValueOnce({ ...parent, selected: match });
+  await client.fetchQuery(recordDetailQueryOptions(match.record_key, match));
+  const { result } = renderHook(
+    () => useReferenceReading({ navigation: rootNavigation("actors:ghoul"), match }),
+    {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    },
+  );
+  await waitFor(() =>
+    expect(result.current.detail?.artifact_generation).toBe("generation-b"),
+  );
+  expect(result.current.parentDetail?.artifact_generation).toBe("generation-b");
+  expect(api).toHaveBeenCalledTimes(3);
+  expect(
+    client.getQueryData(recordDetailQueryOptions(match.record_key, match).queryKey),
+  ).toEqual(old);
+});
+
+it("does not lend a retired document after Activity suspension misses the removal event", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 20_000 } },
+  });
+  let visible = true;
+  const parent = detailFixture("actors:ghoul");
+  api.mockResolvedValueOnce(parent);
+  const { result, rerender } = renderHook(
+    () => useReferenceReading({ navigation: rootNavigation("actors:ghoul") }),
+    {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>
+          <Activity mode={visible ? "visible" : "hidden"}>{children}</Activity>
+        </QueryClientProvider>
+      ),
+    },
+  );
+  await waitFor(() => expect(result.current.detail).toEqual(parent));
+  visible = false;
+  rerender();
+  await act(async () => retireReferenceQueries(client));
+  api.mockRejectedValue(new Error("New reference offline"));
+  visible = true;
+  rerender();
+  await waitFor(() =>
+    expect(result.current.error?.message).toBe("New reference offline"),
+  );
+  expect(result.current.detail).toBeUndefined();
 });

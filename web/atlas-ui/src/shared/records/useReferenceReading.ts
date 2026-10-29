@@ -1,8 +1,8 @@
-import { recordDetailRequest } from "./recordDetailQuery";
+import { useReferenceQueryRetirement } from "../queries/useReferenceQueryRetirement";
+import { recordDetailQueryOptions } from "./recordDetailQuery";
 import { recordReadingIdentity, useRetainedRecord } from "./useRetainedRecord";
-import { queryOptions, useQuery } from "@tanstack/react-query";
-import { useCallback, useReducer } from "react";
-import { AtlasApiError, getRecordDetail } from "../../api/atlasApi";
+import { useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo, useReducer, useState } from "react";
 import type { RecordDetailView, RecordNavigationView } from "../../generated/atlas";
 import { activityAnchor } from "./embeddedNavigation";
 
@@ -46,56 +46,13 @@ export type ReadingRequest = {
   landing?: RecordNavigationView;
 };
 
-/** Shared exact query for visible reading and preparing a picker selection. */
-export function referenceReadingQueryOptions(
+export function referenceReadingFallback(
   request: ReadingRequest | null,
-  epoch = 0,
-  generation?: string | null,
-) {
-  function checked(detail: RecordDetailView) {
-    if (generation && detail.artifact_generation !== generation)
-      throw new AtlasApiError(409, "The reference collection changed.", {
-        code: "artifact_generation_changed",
-        message: "The reference collection changed.",
-        recoverable_action: "refresh_results",
-      });
-    return detail;
-  }
-  return queryOptions({
-    queryKey: [
-      "record-detail",
-      request,
-      epoch,
-      ...(generation === undefined ? [] : [generation]),
-    ],
-    enabled: request !== null,
-    queryFn: async ({ signal }) => {
-      const navigation = request!.navigation;
-      const embedded =
-        navigation.embedded_path.length ||
-        navigation.field ||
-        navigation.passage ||
-        navigation.spell_rank !== undefined ||
-        navigation.source_fingerprint;
-      const parent = await getRecordDetail(
-        navigation.record_key,
-        embedded ? recordDetailRequest(navigation) : undefined,
-        signal,
-      );
-      signal.throwIfAborted();
-      checked(parent);
-      const match = request!.match;
-      if (match && !parentShowsActivity(parent, match)) {
-        const detail = await getRecordDetail(
-          match.record_key,
-          recordDetailRequest(match),
-          signal,
-        );
-        return { detail: checked(detail), parent, landing: undefined };
-      }
-      return { detail: parent, parent, landing: match ?? request!.landing };
-    },
-  });
+  parent: RecordDetailView | undefined,
+): RecordNavigationView | undefined {
+  return parent && request?.match && !parentShowsActivity(parent, request.match)
+    ? request.match
+    : undefined;
 }
 
 // A match first checks the typed parent's visible activities. Other embedded nodes
@@ -150,22 +107,56 @@ export function useReferenceReading(
     (request: ReadingRequest | null) => dispatch({ kind: "select", request }),
     [],
   );
-  const query = useQuery({
-    ...referenceReadingQueryOptions(request, epoch, generation),
+  const parentOptions = recordDetailQueryOptions(
+    request?.navigation.record_key ?? null,
+    request?.navigation,
+    generation,
+  );
+  const parentQuery = useQuery({
+    ...parentOptions,
     enabled: enabled && request !== null,
   });
+  const fallback = referenceReadingFallback(request, parentQuery.data);
+  const exactOptions = recordDetailQueryOptions(
+    fallback?.record_key ?? null,
+    fallback,
+    generation ?? parentQuery.data?.artifact_generation,
+  );
+  const exactQuery = useQuery({
+    ...exactOptions,
+    enabled: enabled && fallback !== undefined && !parentQuery.error,
+  });
+  const parentRetirement = useReferenceQueryRetirement(parentOptions.queryKey);
+  const exactRetirement = useReferenceQueryRetirement(exactOptions.queryKey);
+  const error = parentQuery.error ?? (fallback ? exactQuery.error : null);
+  const detail = fallback ? exactQuery.data : parentQuery.data;
+  const data = useMemo(
+    () =>
+      detail && parentQuery.data ? { detail, parent: parentQuery.data } : undefined,
+    [detail, parentQuery.data],
+  );
+  const identity = recordReadingIdentity(
+    (request?.match ?? request?.navigation)?.record_key ?? null,
+    request?.match ?? request?.navigation,
+  );
+  const [basis, setBasis] = useState({ identity, generation });
+  const readingGeneration =
+    generation ??
+    parentQuery.data?.artifact_generation ??
+    (basis.identity === identity ? basis.generation : undefined);
+  if (basis.identity !== identity || basis.generation !== readingGeneration)
+    setBasis({ identity, generation: readingGeneration });
   const retained = useRetainedRecord(
     JSON.stringify([
-      recordReadingIdentity(
-        (request?.match ?? request?.navigation)?.record_key ?? null,
-        request?.match ?? request?.navigation,
-      ),
+      identity,
       request?.landing,
       epoch,
-      generation,
+      readingGeneration,
+      parentRetirement,
+      exactRetirement,
     ]),
-    query.data,
-    query.error,
+    data,
+    error,
   );
   return {
     changeRank: (navigation: RecordNavigationView) =>
@@ -178,11 +169,13 @@ export function useReferenceReading(
     back: () => dispatch({ kind: "back" }),
     detail: retained?.detail,
     parentDetail: retained?.parent,
-    landing: retained?.landing,
-    loading: query.isFetching,
-    error: query.error,
+    landing: fallback ? undefined : (request?.match ?? request?.landing),
+    loading:
+      parentQuery.isFetching || (fallback !== undefined && exactQuery.isFetching),
+    error,
     retry: () => {
-      void query.refetch();
+      if (fallback && !parentQuery.error) void exactQuery.refetch();
+      else void parentQuery.refetch();
     },
   };
 }

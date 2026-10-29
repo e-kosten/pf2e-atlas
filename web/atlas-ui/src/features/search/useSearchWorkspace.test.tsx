@@ -1085,7 +1085,7 @@ describe("useSearchWorkspace", () => {
       },
       expect.any(AbortSignal),
     );
-    expect(apiMocks.getRecordDetail).toHaveBeenCalledTimes(3);
+    expect(apiMocks.getRecordDetail).toHaveBeenCalledTimes(2);
   });
 
   it("restores similarity URLs, disables contextual counts, sends stateless pages, and replaces or clears the criterion", async () => {
@@ -1405,6 +1405,45 @@ describe("useSearchWorkspace", () => {
         expect.any(AbortSignal),
       ),
     );
+  });
+
+  it("adopts a successful cached first response on reactivation without repeating retrieval", async () => {
+    seedSearchUrl();
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: 20_000 } },
+    });
+    const first = deferred<SearchResultsPage>();
+    apiMocks.searchPage
+      .mockReturnValueOnce(first.promise)
+      .mockImplementation(async (request: SearchResultsRequest) =>
+        searchResultsPage([], { pageNumber: request.page.number }),
+      );
+    const { result, rerender } = renderHook(
+      ({ enabled }) => useSearchWorkspace({ searchProfile: "bge-base", enabled }),
+      { initialProps: { enabled: true }, wrapper: queryClientWrapper(client) },
+    );
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
+    rerender({ enabled: false });
+    await act(async () => {
+      first.resolve(searchResultsPage());
+      await first.promise;
+    });
+    await waitFor(() =>
+      expect(
+        client
+          .getQueryCache()
+          .findAll({ queryKey: ["results"] })
+          .some((query) => query.state.status === "success"),
+      ).toBe(true),
+    );
+    rerender({ enabled: true });
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(1));
+    act(() => result.current.setPageNumber(2));
+    await waitFor(() => expect(apiMocks.searchPage).toHaveBeenCalledTimes(2));
+    expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({
+      expected_artifact_generation: "generation-a",
+      page: { number: 2 },
+    });
   });
 
   it("adopts the first generation without repeating retrieval", async () => {
