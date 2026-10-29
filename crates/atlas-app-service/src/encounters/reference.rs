@@ -3,7 +3,6 @@ use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::{
     AppErrorCode, AppRecoverableAction, EncounterReferenceRequest, RecordBodyView, RecordDetailView,
 };
-use atlas_record::source_record::{SourceFieldView, SourceQueryView};
 
 impl AtlasAppService {
     pub fn encounter_reference(
@@ -75,9 +74,20 @@ pub(crate) fn read_encounter_reference(
                 AppRecoverableAction::ReloadRecord,
             ));
         }
-        let (_, records) =
-            super::hydration::hydrate_participant_records(r, std::slice::from_ref(participant))?;
-        let sources = super::hydration::participant_source_conditions(participant, &records);
+        let mut records = std::collections::BTreeMap::new();
+        super::hydration::load_participant_sources(
+            r,
+            std::slice::from_ref(participant),
+            &mut records,
+        )?;
+        let sources = super::hydration::roster_source_conditions_from_sources(
+            r,
+            std::slice::from_ref(participant),
+            &records,
+            Default::default(),
+        )?
+        .remove(participant_key)
+        .unwrap_or_else(super::rules::source_conditions::SourceConditions::unavailable);
         let (source, mut selected) = crate::records::read_record_detail(r, request.selection)?;
         let badge_value = super::conditions::condition_rule_for_key(
             condition.condition_key.as_deref(),
@@ -139,26 +149,19 @@ pub(crate) fn read_encounter_reference(
     .ok_or_else(|| {
         AppServiceError::invalid_request("this participant has no actor runtime context")
     })?;
-    let adjustment_applicable = !matches!(
-        SourceQueryView::new(
-            source.source.source(),
-            source.source.key().pack().as_str(),
-            ""
-        )
-        .actor()
-        .authored_adjustment(),
-        SourceFieldView::NotApplicable
-    );
-    let other_participants = encounter
-        .participants
-        .iter()
-        .filter(|p| p.participant_key != participant_key)
-        .cloned()
-        .collect::<Vec<_>>();
-    let (_, relationship_records) =
-        super::hydration::hydrate_participant_records(r, &other_participants)?;
-    let relationship_sources =
-        super::hydration::roster_source_conditions(&encounter.participants, &relationship_records);
+    let adjustment_applicable = super::hydration::adjustment_applicable(&source.source);
+    let source_key = source.source.key().to_string();
+    let mut records = std::collections::BTreeMap::from([(source_key.clone(), source)]);
+    super::hydration::load_participant_sources(r, &encounter.participants, &mut records)?;
+    let relationship_sources = super::hydration::roster_source_conditions_from_sources(
+        r,
+        &encounter.participants,
+        &records,
+        std::collections::BTreeMap::from([(
+            source_key.clone(),
+            baseline.source_conditions.clone(),
+        )]),
+    )?;
     let relationship_causes = super::rules::relationships::observer_defense_causes(
         participant_key,
         &encounter.participants,
@@ -172,6 +175,9 @@ pub(crate) fn read_encounter_reference(
     );
     let current = crate::presentation::compose_participant(root, &block);
     compose_selected(&mut selected, current, &block)?;
+    let source = records
+        .get(&source_key)
+        .ok_or_else(|| AppServiceError::invalid_request("participant source is unavailable"))?;
     crate::prepared_content::resolve_runtime_content(
         r,
         &source.source,

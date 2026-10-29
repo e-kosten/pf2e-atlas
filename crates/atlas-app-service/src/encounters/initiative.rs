@@ -163,14 +163,14 @@ fn options(
     snapshot: &EncounterWithParticipants,
 ) -> AppServiceResult<InitiativeOptionsView> {
     let (artifact_generation, records) =
-        super::hydration::hydrate_participant_records(retrieval, &snapshot.participants)?;
+        super::hydration::prepare_participant_records(retrieval, &snapshot.participants)?;
     Ok(options_with_records(snapshot, artifact_generation, records))
 }
 
 fn options_with_records(
     snapshot: &EncounterWithParticipants,
     artifact_generation: Option<String>,
-    records: std::collections::BTreeMap<String, super::hydration::HydratedParticipantRecord>,
+    records: std::collections::BTreeMap<String, super::hydration::PreparedParticipantRecord>,
 ) -> InitiativeOptionsView {
     let participants = snapshot
         .participants

@@ -12,7 +12,7 @@ impl AtlasAppService {
         let encounter_ref = encounter_ref.to_owned();
         self.with_workspace(
             &crate::ReadExecutionContext::uncancellable(),
-            move |workspace| Ok(resolve_strike(workspace, &encounter_ref, request)?.0),
+            move |workspace| Ok(resolve_strike(workspace, &encounter_ref, request)?.options),
         )
     }
 
@@ -32,19 +32,17 @@ impl AtlasAppService {
         self.with_workspace(
             &crate::ReadExecutionContext::uncancellable(),
             move |workspace| {
-                let encounter = workspace
-                    .local_state()
-                    .encounters()
-                    .get(&encounter_ref)?
-                    .ok_or_else(|| super::projection::encounter_not_found(&encounter_ref))?;
-                let (options, activity) = resolve_strike(
+                let resolved = resolve_strike(
                     workspace,
-                    &encounter.encounter_key,
+                    &encounter_ref,
                     EncounterStrikeOptionsRequest {
                         participant_key: request.participant_key.clone(),
                         reference: request.reference,
                     },
                 )?;
+                let encounter = resolved.snapshot.encounter;
+                let options = resolved.options;
+                let activity = resolved.activity;
                 if options.expected_revision != request.expected_revision {
                     return Err(atlas_local_state::LocalStateError::StaleEncounterRevision {
                         encounter_key: encounter.encounter_key,
@@ -313,14 +311,18 @@ mod damage_tests {
     }
 }
 
+pub(super) struct ResolvedStrike {
+    pub options: EncounterStrikeOptionsView,
+    pub activity: super::stat_block::MechanicActivityView,
+    pub snapshot: atlas_local_state::EncounterWithParticipants,
+    pub baseline: super::stat_block::StatBlockView,
+}
+
 pub(super) fn resolve_strike(
     workspace: &mut atlas_runtime::WorkspaceRead,
     encounter_ref: &str,
     request: EncounterStrikeOptionsRequest,
-) -> AppServiceResult<(
-    EncounterStrikeOptionsView,
-    super::stat_block::MechanicActivityView,
-)> {
+) -> AppServiceResult<ResolvedStrike> {
     let snapshot = workspace
         .local_state()
         .encounters()
@@ -362,16 +364,7 @@ pub(super) fn resolve_strike(
         crate::records::read_record_detail(retrieval, request.reference.selection)?;
     let baseline = super::hydration::source_baseline(&source.source, retrieval, None)?
         .ok_or_else(|| AppServiceError::invalid_request("Actor statistics are unavailable."))?;
-    let adjustment_applicable = !matches!(
-        atlas_record::source_record::SourceQueryView::new(
-            source.source.source(),
-            source.source.key().pack().as_str(),
-            ""
-        )
-        .actor()
-        .authored_adjustment(),
-        atlas_record::source_record::SourceFieldView::NotApplicable
-    );
+    let adjustment_applicable = super::hydration::adjustment_applicable(&source.source);
     let block =
         super::rules::project_participant(participant, &baseline, adjustment_applicable, &[]);
     let activity = block
@@ -475,8 +468,8 @@ pub(super) fn resolve_strike(
                 .collect()
         })
         .unwrap_or_default();
-    Ok((
-        EncounterStrikeOptionsView {
+    Ok(ResolvedStrike {
+        options: EncounterStrikeOptionsView {
             applied,
             conditional,
             expected_revision: snapshot.encounter.revision,
@@ -490,5 +483,7 @@ pub(super) fn resolve_strike(
             damage_unavailable,
         },
         activity,
-    ))
+        snapshot,
+        baseline,
+    })
 }
