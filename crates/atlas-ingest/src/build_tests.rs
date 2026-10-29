@@ -932,7 +932,7 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
         embedding_batch_size: 16,
     };
     let prepared = crate::build::prepare_build(&options, Vec::new()).unwrap();
-    assert_eq!(prepared.prepared.index.records.len(), 25641);
+    assert_eq!(prepared.prepared.index.records.len(), 29894);
     let mut identities = std::collections::BTreeSet::new();
     let mut bytes = 0;
     let mut tokens = 0;
@@ -978,7 +978,7 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
         bytes += range.1.end - *end;
         *end = range.1.end;
     }
-    assert_eq!(identities.len(), 25560);
+    assert_eq!(identities.len(), 29813);
     let mut selected_fields = 0;
     let mut selected_sections = 0;
     let mut selected_bytes = 0;
