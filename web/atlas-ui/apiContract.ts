@@ -81,6 +81,7 @@ function productionUiInput(name: string) {
     !/(^|\/)(__tests__|test)\//.test(local) &&
     !/\.(test|spec)\.[cm]?[jt]sx?$/.test(local) &&
     !/(^|\/)(vitest|playwright|eslint)(\.[^/]+)?\.config\.[^/]+$/.test(local) &&
+    local !== "tsconfig.tools.json" &&
     !/\.md$/i.test(local) &&
     !/(^|\/)(\.prettier[^/]*|\.gitignore|\.editorconfig)$/.test(local) &&
     !/(^|\/)\.env(\.[^/]+)?$/.test(local) &&

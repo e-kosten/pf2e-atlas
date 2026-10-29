@@ -59,7 +59,8 @@ product/architecture decisions or real blockers, rather than routine commits.
 ## Validation
 
 During iteration, run focused tests. Before opening the PR, run comprehensive
-checks for affected code: the full Rust gate for Rust changes, the frontend gate
+checks for affected code: the full Rust gate for application/shared Rust changes,
+the standalone developer gate for developer-only changes, the frontend gate
 for UI changes, and relevant integration/browser scenarios. CI owns the full
 applicable platform and device/browser matrix by default. Broaden local browser
 coverage for shared layout, navigation, overlays, touch/focus or harness changes.

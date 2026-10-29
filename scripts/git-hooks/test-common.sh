@@ -9,6 +9,8 @@ script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd -P)
 repo_root=$(CDPATH='' cd -- "$script_dir/../.." && pwd -P)
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/atlas-git-hooks-test.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT HUP INT TERM
+ATLAS_VALIDATION_OUTPUT_ROOT="$tmp/evidence"
+export ATLAS_VALIDATION_OUTPUT_ROOT
 
 fake_bin="$tmp/bin"
 log="$tmp/commands.log"
@@ -32,8 +34,36 @@ exit 0
 EOF_NPM
 chmod +x "$fake_bin/npm"
 
+# Exercise the actual hook and selector against real Git history. Every compiler
+# and frontend command still resolves to the logging stubs above.
+fixture="$tmp/repo"
+mkdir -p "$fixture/.githooks" "$fixture/scripts/git-hooks" "$fixture/crates/example/src" "$fixture/web/atlas-ui/src"
+sh "$repo_root/scripts/git-hooks/test-pre-push.sh"
+cp "$repo_root/.githooks/pre-commit" "$repo_root/.githooks/pre-merge-commit" "$fixture/.githooks/"
+cp "$repo_root/scripts/git-hooks/common.sh" "$fixture/scripts/git-hooks/common.sh"
+cp "$repo_root/scripts/verify-changed.sh" "$repo_root/scripts/verify.sh" "$fixture/scripts/"
+mkdir -p "$fixture/scripts/validation" "$fixture/scripts/release"
+cp "$repo_root/scripts/validation/run-check.sh" "$repo_root/scripts/validation/run-process.mjs" "$fixture/scripts/validation/"
+for skill_check in skill.ts skill.test.ts; do
+  printf 'import { appendFileSync } from "node:fs"; appendFileSync(process.env.ATLAS_TEST_COMMAND_LOG, "skill check\\n");\n' >"$fixture/scripts/validation/$skill_check"
+done
+for stub in validation/research.sh release/validate-release-tooling.sh release/test-release-tools.sh release/test-prepare-release.sh; do
+  # shellcheck disable=SC2016 # The fixture expands its own environment.
+  printf '#!/bin/sh\nprintf "extra check\\n" >> "$ATLAS_TEST_COMMAND_LOG"\n' >"$fixture/scripts/$stub"
+done
+git init --quiet "$fixture"
+git -C "$fixture" config user.name 'Atlas hook fixture'
+git -C "$fixture" config user.email 'atlas-hook-fixture@example.invalid'
+git -C "$fixture" config commit.gpgsign false
+git -C "$fixture" config core.hooksPath /dev/null
+printf 'reference documentation\n' >"$fixture/README.md"
+printf 'pub fn example() {}\n' >"$fixture/crates/example/src/lib.rs"
+printf 'export const value = 0;\n' >"$fixture/web/atlas-ui/src/example.ts"
+git -C "$fixture" add .
+git -C "$fixture" commit --quiet -m 'test: initial fixture'
+
 : >"$log"
-quiet_output=$(ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" "$repo_root/scripts/verify-changed.sh" --all 2>&1)
+quiet_output=$(cd "$fixture"; ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" "$fixture/scripts/verify-changed.sh" --all 2>&1)
 if printf '%s\n' "$quiet_output" | grep -Eq '(cargo|npm) detail output'; then
   echo "quiet changed-path verification surfaced successful command detail output" >&2
   exit 1
@@ -53,7 +83,7 @@ if grep -Eq '^cargo (clippy|test|build)|^npm .* run (lint|typecheck|verify)$' "$
 fi
 printf 'crates/example/src/lib.rs\nweb/atlas-ui/src/example.ts\n' >"$tmp/application-paths"
 : >"$log"
-verbose_output=$(ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" "$repo_root/scripts/verify-changed.sh" --paths-file "$tmp/application-paths" --full --verbose 2>&1)
+verbose_output=$(cd "$fixture"; ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" "$fixture/scripts/verify-changed.sh" --paths-file "$tmp/application-paths" --full --verbose 2>&1)
 if ! printf '%s\n' "$verbose_output" | grep -Eq '(cargo|npm) detail output'; then
   echo "verbose full changed-path verification did not surface command detail output" >&2
   exit 1
@@ -72,32 +102,6 @@ grep -q 'npm --prefix web/atlas-ui run verify' "$log" || {
   exit 1
 }
 
-# Exercise the actual hook and selector against real Git history. Every compiler
-# and frontend command still resolves to the logging stubs above.
-fixture="$tmp/repo"
-mkdir -p "$fixture/.githooks" "$fixture/scripts/git-hooks" "$fixture/crates/example/src" "$fixture/web/atlas-ui/src"
-sh "$repo_root/scripts/git-hooks/test-pre-push.sh"
-cp "$repo_root/.githooks/pre-commit" "$repo_root/.githooks/pre-merge-commit" "$fixture/.githooks/"
-cp "$repo_root/scripts/git-hooks/common.sh" "$fixture/scripts/git-hooks/common.sh"
-cp "$repo_root/scripts/verify-changed.sh" "$repo_root/scripts/verify.sh" "$fixture/scripts/"
-mkdir -p "$fixture/scripts/validation" "$fixture/scripts/release"
-cp "$repo_root/scripts/validation/run-check.sh" "$fixture/scripts/validation/"
-for skill_check in skill.ts skill.test.ts; do
-  printf 'import { appendFileSync } from "node:fs"; appendFileSync(process.env.ATLAS_TEST_COMMAND_LOG, "skill check\\n");\n' >"$fixture/scripts/validation/$skill_check"
-done
-for stub in validation/research.sh release/validate-release-tooling.sh release/test-release-tools.sh release/test-prepare-release.sh; do
-  printf '#!/bin/sh\nprintf "extra check\\n" >> "$ATLAS_TEST_COMMAND_LOG"\n' >"$fixture/scripts/$stub"
-done
-git init --quiet "$fixture"
-git -C "$fixture" config user.name 'Atlas hook fixture'
-git -C "$fixture" config user.email 'atlas-hook-fixture@example.invalid'
-git -C "$fixture" config commit.gpgsign false
-git -C "$fixture" config core.hooksPath /dev/null
-printf 'reference documentation\n' >"$fixture/README.md"
-printf 'pub fn example() {}\n' >"$fixture/crates/example/src/lib.rs"
-printf 'export const value = 0;\n' >"$fixture/web/atlas-ui/src/example.ts"
-git -C "$fixture" add .
-git -C "$fixture" commit --quiet -m 'test: initial fixture'
 case_count=0
 check_output="$tmp/check-output"
 
@@ -162,7 +166,7 @@ printf 'README.md\nskills/pf2e-atlas-cli/SKILL.md\n' >"$fixture/paths-input"
 : >"$log"
 (cd "$fixture"; ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" scripts/verify-changed.sh --paths-file paths-input --full) >"$check_output" 2>&1
 [ "$(grep -c '^skill check$' "$log")" -eq 2 ]
-! grep -Eq '^(cargo|npm) ' "$log"
+if grep -Eq '^(cargo|npm) ' "$log"; then echo 'skill-only change ran application checks' >&2; exit 1; fi
 cp "$fixture/scripts/validation/skill.ts" "$tmp/valid-skill-check"
 printf 'throw new Error("invalid skill");\n' >"$fixture/scripts/validation/skill.ts"
 if (cd "$fixture"; ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" scripts/verify-changed.sh --paths-file paths-input --full) >"$check_output" 2>&1; then
@@ -202,21 +206,31 @@ printf 'git-hook common smoke tests and %s fixture cases passed\n' "$case_count"
 
 # Explicit surfaces, dependency fan-out, and conservative unknown inputs.
 for entry in \
-  'README.md:000000' \
-  'docs/research/evaluations/frozen/README.md:000010' \
-  'docs/research/evaluations/frozen/judgments.jsonl:000010' \
-  'docs/research/evaluations/frozen/verify.ts:000010' \
-  'dev-tools/source-contracts/tests/fixture.md:001000' \
-  'dev-tools/release/src/check.ts:000100' \
-  'crates/atlas-foundry-model/src/lib.rs:101000' \
-  'crates/atlas-app-model/bindings/Search.ts:110000' \
-  'Cargo.lock:111100' \
-  'crates/atlas-cli/Cargo.toml:111100' \
-  'THIRD-PARTY-NOTICES.md:000100' \
-  'skills/pf2e-atlas-cli/SKILL.md:000001' \
-  '.cargo/config.toml:111111' \
-  '.github/workflows/ci.yml:111111' \
-  'unknown.config:111111'; do
+  'README.md:00000000' \
+  'web/atlas-ui/src/app.tsx:01000010' \
+  'web/atlas-ui/e2e/devices/conditions.spec.ts:00000010' \
+  'web/atlas-ui/playwright.devices.config.ts:00000010' \
+  'scripts/browser-fixture.mjs:00000010' \
+  'crates/atlas-dev/src/main.rs:00000001' \
+  'scripts/development/build-preview.mjs:00000001' \
+  'scripts/development/build-preview.test.mjs:00000001' \
+  'crates/atlas-cli/src/main.rs:10000001' \
+  'crates/atlas-cli-support/src/lib.rs:10000001' \
+  'crates/atlas-runtime/src/lib.rs:10000010' \
+  'docs/research/evaluations/frozen/README.md:00001000' \
+  'docs/research/evaluations/frozen/judgments.jsonl:00001000' \
+  'docs/research/evaluations/frozen/verify.ts:00001000' \
+  'dev-tools/source-contracts/tests/fixture.md:00100000' \
+  'dev-tools/release/src/check.ts:00010000' \
+  'crates/atlas-foundry-model/src/lib.rs:10100010' \
+  'crates/atlas-app-model/bindings/Search.ts:11000010' \
+  'Cargo.lock:11110011' \
+  'crates/atlas-cli/Cargo.toml:11110011' \
+  'THIRD-PARTY-NOTICES.md:00010000' \
+  'skills/pf2e-atlas-cli/SKILL.md:00000100' \
+  '.cargo/config.toml:11111111' \
+  '.github/workflows/ci.yml:11111111' \
+  'unknown.config:11111111'; do
   changed_path=${entry%:*}
   expected=${entry##*:}
   printf '%s\n' "$changed_path" >"$fixture/paths-input"
@@ -225,6 +239,36 @@ for entry in \
   actual=$(sed -e 's/.*=true/1/' -e 's/.*=false/0/' "$check_output" | tr -d '\n')
   [ "$actual" = "$expected" ] || { echo "wrong selection for $changed_path: $actual" >&2; exit 1; }
 done
+# Full local dispatch follows ownership: browser-only checks build/type/lint
+# their app fixture inputs, while developer-only checks do not invoke npm.
+for changed_path in web/atlas-ui/src/app.tsx web/atlas-ui/e2e/devices/conditions.spec.ts crates/atlas-dev/src/main.rs scripts/development/build-preview.mjs crates/example/src/lib.rs; do
+  printf '%s\n' "$changed_path" >"$fixture/paths-input"
+  : >"$log"
+  (cd "$fixture"; ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" scripts/verify-changed.sh --paths-file paths-input --full) >"$check_output" 2>&1
+  case "$changed_path" in
+    web/atlas-ui/src/*)
+      grep -q '^npm --prefix web/atlas-ui run verify$' "$log"
+      if grep -q '^cargo ' "$log"; then echo 'frontend-only change ran Cargo' >&2; exit 1; fi
+      ;;
+    web/atlas-ui/e2e/*)
+      grep -q '^npm --prefix web/atlas-ui run verify:bundle$' "$log"
+      if grep -q '^cargo ' "$log"; then echo 'frontend-only change ran Cargo' >&2; exit 1; fi
+      if grep -q '^npm --prefix web/atlas-ui run verify$' "$log"; then echo 'non-unit surface ran full frontend verify' >&2; exit 1; fi
+      ;;
+    crates/atlas-dev/* | scripts/development/*)
+      grep -q '^cargo test -p atlas-dev -p atlas-cli-support --locked$' "$log"
+      grep -q '^cargo build -p atlas-dev --locked$' "$log"
+      if grep -Eq '^npm |^cargo .*--workspace' "$log"; then echo 'standalone developer change ran application checks' >&2; exit 1; fi
+      ;;
+    *)
+      grep -q '^npm --prefix web/atlas-ui run build$' "$log"
+      grep -q '^cargo test --workspace$' "$log"
+      if grep -q '^npm --prefix web/atlas-ui run verify$' "$log"; then echo 'non-unit surface ran full frontend verify' >&2; exit 1; fi
+      ;;
+  esac
+done
+printf 'UI, browser, standalone developer and core Rust dispatch regressions passed.\n'
+
 # Validate the real diff path, including deleted source of a rename and file modes.
 git -C "$fixture" add .
 git -C "$fixture" commit --quiet -m 'test: fixture baseline'
@@ -235,7 +279,7 @@ grep -q '^rust=true$' "$check_output"
 chmod +x "$fixture/README.md"
 git -C "$fixture" add README.md
 (cd "$fixture"; scripts/verify-changed.sh --staged --list) >"$check_output"
-[ "$(grep -c '=true$' "$check_output")" -eq 6 ]
+[ "$(grep -c '=true$' "$check_output")" -eq 8 ]
 
 # The real research runner rejects missing verifiers and propagates failures.
 cp "$repo_root/scripts/validation/research.sh" "$fixture/scripts/validation/research.sh"
@@ -256,7 +300,6 @@ printf 'Validation surface, rename, mode and research failure regressions passed
 summary="$tmp/timing-summary"
 set +e
 (
-  tmp_dir="$tmp"
   verbose=0
   GITHUB_STEP_SUMMARY="$summary"
   export GITHUB_STEP_SUMMARY
