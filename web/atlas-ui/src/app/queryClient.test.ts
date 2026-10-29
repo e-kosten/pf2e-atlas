@@ -1,6 +1,7 @@
 import { AtlasCompatibilityError } from "../api/compatibility";
 import { createAtlasQueryClient } from "./queryClient";
-import { AtlasApiError } from "../api/atlasApi";
+import { AtlasApiError, rollFlatCheck } from "../api/atlasApi";
+import { clearCompatibilityFailure } from "../api/compatibility";
 import { QueryObserver } from "@tanstack/react-query";
 import { waitFor } from "@testing-library/react";
 import {
@@ -128,4 +129,28 @@ it.each([
   expect(read).toHaveBeenCalledOnce();
   expect(getAvailabilityFailure()).toBeNull();
   client.clear();
+});
+
+it("never replays a transient random command during read recovery", async () => {
+  clearCompatibilityFailure();
+  const fetch = vi.fn().mockRejectedValue(new TypeError("roll response lost"));
+  vi.stubGlobal("fetch", fetch);
+  const client = createAtlasQueryClient();
+  try {
+    const roll = client.getMutationCache().build(client, {
+      mutationFn: () => rollFlatCheck({ dc: 15n }),
+    });
+    await expect(roll.execute(undefined)).rejects.toMatchObject({ write: true });
+    await client.fetchQuery({
+      queryKey: ["readiness"],
+      queryFn: async () => ({ status: "ready" }),
+    });
+    await client.invalidateQueries();
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(fetch.mock.calls[0][0]).toBe("/api/rolls/flat-check");
+    expect(fetch.mock.calls[0][1]).not.toHaveProperty("intent");
+  } finally {
+    client.clear();
+    vi.unstubAllGlobals();
+  }
 });
