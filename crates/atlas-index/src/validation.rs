@@ -308,6 +308,10 @@ fn validate_content(
     context: &SourceArtifactBuildContext,
 ) -> Result<(usize, Vec<SourceContentOutcome>), IndexError> {
     let mut references = crate::read_content::content_references_for_record(c, id)?;
+    let mut metadata_references = references
+        .keys()
+        .cloned()
+        .collect::<std::collections::BTreeSet<_>>();
     let mut expected = std::collections::BTreeMap::new();
     let mut owner_error = None;
     record.visit_content_selections(|owners, selection| {
@@ -358,6 +362,10 @@ fn validate_content(
         }
         let metadata: crate::persisted_inputs::PreparationMetadata =
             serde_json::from_str(&r.get::<_, String>(10)?)?;
+        let reference_key = crate::read_content::content_reference_key(&locator)?;
+        if metadata.is_prepared() {
+            metadata_references.remove(&reference_key);
+        }
         let outcome: String = r.get(4)?;
         let bytes: Option<Vec<u8>> = r.get(5)?;
         let controls: Vec<ContentInteraction> = serde_json::from_str(&r.get::<_, String>(6)?)?;
@@ -391,9 +399,7 @@ fn validate_content(
             continue;
         }
         n += 1;
-        let field_references = references
-            .remove(&crate::read_content::content_reference_key(&locator)?)
-            .unwrap_or_default();
+        let field_references = references.remove(&reference_key).unwrap_or_default();
         let selection = expected
             .remove(&(
                 serde_json::to_string(&locator.owners)?,
@@ -444,6 +450,9 @@ fn validate_content(
             (_, None) if controls.is_empty() && field_references.is_empty() => {}
             _ => return Err(bad("failed cache has HTML or controls")),
         }
+    }
+    if !metadata_references.is_empty() {
+        return Err(bad("persisted content references lack field metadata"));
     }
     if !references.is_empty() {
         return Err(bad("content reference has no selected prepared field"));
