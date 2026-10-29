@@ -101,15 +101,10 @@ impl AtlasAppService {
                         })
                         .transpose()?;
                     let sources = match &record {
-                        Some(record) => super::hydration::source_baseline(
+                        Some(record) => super::hydration::source_conditions(
                             &record.source,
                             session.retrieval_mut(),
-                            None,
-                        )?
-                        .map(|baseline| baseline.source_conditions)
-                        .unwrap_or_else(
-                            super::rules::source_conditions::SourceConditions::unavailable,
-                        ),
+                        )?,
                         None => Default::default(),
                     };
                     let generation = session.retrieval_mut().artifact_generation()?;

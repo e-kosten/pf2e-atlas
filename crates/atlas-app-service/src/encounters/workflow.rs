@@ -17,7 +17,7 @@ use crate::error::{AppServiceError, AppServiceResult};
 use crate::service::AtlasAppService;
 
 use super::conditions::{condition_catalog, modeled_condition_by_ref};
-use super::hydration::{hydrate_participant_records, resolve_record_ref};
+use super::hydration::{prepare_participant_records, resolve_record_ref};
 use super::mechanics::effective_max;
 use super::projection::{
     encounter_detail_view, encounter_not_found, encounter_status_local, encounter_summary,
@@ -110,6 +110,7 @@ impl AtlasAppService {
                 initial.encounter,
                 initial.participants,
                 None,
+                Default::default(),
                 Default::default(),
             ));
         }
@@ -227,16 +228,7 @@ impl AtlasAppService {
                 .encounters()
                 .add_participants(&receipt.encounter_key, participants)?;
             if let Some(baseline) = &baseline {
-                let adjustment_applicable = !matches!(
-                    atlas_record::source_record::SourceQueryView::new(
-                        record.source.source(),
-                        record.summary.key.pack().as_str(),
-                        ""
-                    )
-                    .actor()
-                    .authored_adjustment(),
-                    atlas_record::source_record::SourceFieldView::NotApplicable
-                );
+                let adjustment_applicable = super::hydration::adjustment_applicable(&record.source);
                 for participant in added.iter().filter(|participant| {
                     participant.hp_origin == atlas_local_state::ParticipantHpOrigin::DerivedPristine
                 }) {
@@ -378,7 +370,7 @@ impl AtlasAppService {
                         }
                         .into());
                     }
-                    let (_, records) = hydrate_participant_records(
+                    let (_, records) = prepare_participant_records(
                         session.retrieval_mut(),
                         std::slice::from_ref(&saved),
                     )?;
@@ -1026,16 +1018,8 @@ pub(super) fn condition_subject_context(
                 .as_ref()
                 .zip(baseline.as_ref())
                 .map(|(detail, baseline)| {
-                    let adjustment_applicable = !matches!(
-                        atlas_record::source_record::SourceQueryView::new(
-                            detail.source.source(),
-                            detail.summary.key.pack().as_str(),
-                            "",
-                        )
-                        .actor()
-                        .authored_adjustment(),
-                        atlas_record::source_record::SourceFieldView::NotApplicable
-                    );
+                    let adjustment_applicable =
+                        super::hydration::adjustment_applicable(&detail.source);
                     super::rules::project_participant(
                         &participant,
                         baseline,

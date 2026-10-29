@@ -368,12 +368,12 @@ pub(super) fn prepare_turn_sources(
             } else {
                 Default::default()
             };
-            let mut baselines = std::collections::BTreeMap::new();
+            let mut source_conditions = std::collections::BTreeMap::new();
             for participant in &participants {
                 let Some(key) = participant.record_key.as_deref() else {
                     continue;
                 };
-                if !baselines.contains_key(key) {
+                if !source_conditions.contains_key(key) {
                     let Some(record_key) = atlas_domain::RecordKey::parse(key).ok() else {
                         continue;
                     };
@@ -384,23 +384,20 @@ pub(super) fn prepare_turn_sources(
                                 record_key: &record_key,
                                 selected_content: &[],
                             })?;
-                    let baseline = source
+                    let conditions = source
                         .as_ref()
                         .map(|source| {
-                            super::hydration::source_baseline(
+                            super::hydration::source_conditions(
                                 &source.source,
                                 session.retrieval_mut(),
-                                None,
                             )
                         })
-                        .transpose()?
-                        .flatten();
-                    baselines.insert(key.to_owned(), baseline);
+                        .transpose()?;
+                    source_conditions.insert(key.to_owned(), conditions);
                 }
-                let Some(baseline) = baselines.get(key).and_then(Option::as_ref) else {
+                let Some(sources) = source_conditions.get(key).and_then(Option::as_ref) else {
                     continue;
                 };
-                let sources = &baseline.source_conditions;
                 if incoming_needs_source
                     && incoming.as_deref() == Some(participant.participant_key.as_str())
                 {

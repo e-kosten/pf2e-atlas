@@ -250,13 +250,10 @@ impl AtlasAppService {
                     })?;
                     let record =
                         super::hydration::resolve_record_ref(session.retrieval_mut(), key)?;
-                    let sources = super::hydration::source_baseline(
+                    let sources = super::hydration::source_conditions(
                         &record.source,
                         session.retrieval_mut(),
-                        None,
-                    )?
-                    .map(|baseline| baseline.source_conditions)
-                    .unwrap_or_else(super::rules::source_conditions::SourceConditions::unavailable);
+                    )?;
                     Ok((
                         Some(record.source),
                         sources,

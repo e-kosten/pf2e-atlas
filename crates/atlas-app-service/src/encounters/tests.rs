@@ -149,6 +149,7 @@ fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
         vec![invalid],
         None,
         Default::default(),
+        Default::default(),
     );
     assert!(projected.artifact_generation.is_none());
     assert_eq!(

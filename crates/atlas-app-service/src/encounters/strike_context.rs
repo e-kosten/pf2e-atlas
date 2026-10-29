@@ -20,13 +20,12 @@ fn prepare(
     encounter_ref: &str,
     request: EncounterStrikeContextRequest,
 ) -> AppServiceResult<EncounterStrikeContextView> {
-    let (options, activity) =
-        super::strike_roll::resolve_strike(workspace, encounter_ref, request.strike.clone())?;
-    let snapshot = workspace
-        .local_state()
-        .encounters()
-        .get_with_participants(encounter_ref)?
-        .ok_or_else(|| super::projection::encounter_not_found(encounter_ref))?;
+    let super::strike_roll::ResolvedStrike {
+        options,
+        activity,
+        snapshot,
+        baseline,
+    } = super::strike_roll::resolve_strike(workspace, encounter_ref, request.strike.clone())?;
     let participant = snapshot
         .participants
         .iter()
@@ -34,18 +33,11 @@ fn prepare(
         .ok_or_else(|| {
             AppServiceError::invalid_request("Participant is no longer in this encounter.")
         })?;
-    let (sources, records) = {
-        let (_, records) = super::hydration::hydrate_participant_records(
-            workspace.retrieval_mut(),
-            &snapshot.participants,
-        )?;
-        let sources = super::hydration::participant_source_conditions(participant, &records);
-        (sources, records)
-    };
+    let sources = &baseline.source_conditions;
     let facts = super::action_projection::strike_facts(&activity);
     let evaluated = super::rules::action_context::evaluate_action(
         participant,
-        &sources,
+        sources,
         &super::rules::action_context::ActionContext {
             kind: ActionKind::Strike,
             reaction: Some(false),
@@ -56,7 +48,7 @@ fn prepare(
     let mut issues = evaluated
         .issues
         .into_iter()
-        .map(|issue| super::action_projection::issue_view(issue, participant, &sources))
+        .map(|issue| super::action_projection::issue_view(issue, participant, sources))
         .collect::<Vec<_>>();
     issues.extend(super::action_projection::inactive_issue(participant));
     let disruption = evaluated.disruption.map(|check| {
@@ -78,25 +70,33 @@ fn prepare(
                         "Choose another participant as the strike target.",
                     )
                 })?;
-            let target_sources = super::hydration::participant_source_conditions(subject, &records);
+            let target_sources = if subject.record_key == participant.record_key {
+                sources.clone()
+            } else {
+                let mut records = std::collections::BTreeMap::new();
+                super::hydration::load_participant_sources(
+                    workspace.retrieval_mut(),
+                    std::slice::from_ref(subject),
+                    &mut records,
+                )?;
+                super::hydration::roster_source_conditions_from_sources(
+                    workspace.retrieval_mut(),
+                    std::slice::from_ref(subject),
+                    &records,
+                    Default::default(),
+                )?
+                .remove(key)
+                .unwrap_or_else(super::rules::source_conditions::SourceConditions::unavailable)
+            };
             let requirements = super::rules::relationships::targeting_requirements(
                 subject,
                 &participant.participant_key,
                 &target_sources,
             );
-            let observer_source = super::hydration::resolve_record_ref(
-                workspace.retrieval_mut(),
-                &request.strike.reference.selection.record_key,
-            )?;
-            let sensory_baseline = super::hydration::source_baseline(
-                &observer_source.source,
-                workspace.retrieval_mut(),
-                None,
-            )?;
             let dazzled = super::rules::sensory_context::dazzled_concealment(
                 participant,
                 key,
-                sensory_baseline.as_ref(),
+                Some(&baseline),
                 None,
                 None,
             );
@@ -134,7 +134,7 @@ fn prepare(
     };
     let action = EncounterStrikeActionContextView {
         issues,
-        confused: super::rules::action_context::is_confused(participant, &sources),
+        confused: super::rules::action_context::is_confused(participant, sources),
         disruption,
         targeting,
     };
@@ -336,10 +336,31 @@ mod tests {
         };
         let before = fixture.worker.encounter(&encounter.encounter_key).unwrap();
         for _ in 0..2 {
-            let context = fixture
+            let key = encounter.encounter_key.clone();
+            let request = context_request.clone();
+            let (context, metrics, authored, baselines) = fixture
                 .worker
-                .preview_encounter_strike_context(&encounter.encounter_key, context_request.clone())
+                .with_workspace(
+                    &crate::ReadExecutionContext::uncancellable(),
+                    move |workspace| {
+                        workspace.retrieval().reset_read_metrics();
+                        crate::presentation::actor::authored_projection_count(true);
+                        super::super::mechanics::baseline_count(true);
+                        let context = prepare(workspace, &key, request)?;
+                        Ok((
+                            context,
+                            workspace.retrieval().read_metrics(),
+                            crate::presentation::actor::authored_projection_count(false),
+                            super::super::mechanics::baseline_count(false),
+                        ))
+                    },
+                )
                 .unwrap();
+            assert_eq!(metrics.source_body_decodes, 1);
+            assert_eq!(baselines, 1);
+            // Only the selected strike is presented; neither participant's root
+            // presentation is hydrated for optional targeting context.
+            assert_eq!(authored, 0);
             assert_eq!(context.targeting_check.unwrap().dc, 5);
             assert_eq!(
                 context.options.attacks[0].modifier,
