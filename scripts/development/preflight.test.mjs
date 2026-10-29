@@ -146,6 +146,10 @@ test("preview launcher rejects a legacy retained tool before invoking its builde
     readFileSync(new URL("./preview.sh", import.meta.url)),
   );
   f.put(
+    "scripts/development/build-profile.mjs",
+    readFileSync(new URL("./build-profile.mjs", import.meta.url)),
+  );
+  f.put(
     "scripts/development/preflight.mjs",
     readFileSync(new URL("./preflight.mjs", import.meta.url)),
   );

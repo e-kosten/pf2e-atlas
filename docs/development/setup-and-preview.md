@@ -120,8 +120,8 @@ already be ready. **All saved state is copied**: use a dedicated development see
 with controlled examples, not your personal installed workspace.
 
 ```sh
-just dev-baseline-publish --binary target/debug/atlas \
-  --build-commit HEAD --build-profile dev --toolchain 1.95.0 \
+just dev-baseline-publish --binary target/release/atlas \
+  --build-commit HEAD --build-profile release --toolchain 1.95.0 \
   --index .atlas/workspace.sqlite \
   --source /absolute/shared/pf2e/PINNED_COMMIT \
   --embedding-cache-path /absolute/shared/hf-models
@@ -151,6 +151,9 @@ its baseline in `.atlas/dev-workspace.json`, and never replaces existing data or
 receipts. On macOS it attempts an APFS clone, falling back to a regular copy.
 Each database has independent mutable pages and stable Atlas lock files. An
 existing database without a receipt is preserved, not adopted or reset.
+New workspaces reuse the prepared reference data and embeddings; initialization
+does not run setup or require `--force`. Publish optimized release executables for
+shared baselines so build-free commands also get release runtime performance.
 
 `dev-status` and `dev-web` default to the frozen baseline executable. They do not
 claim to run the current checkout's code. For Rust changes, build in the checkout's
@@ -245,7 +248,26 @@ just dev-status --binary target/debug/atlas --json
 just dev-preview-stop
 ```
 
-`dev-preview` and `dev-refresh` build the candidate before replacing a server.
+`dev-preview` and `dev-refresh` default to the dev profile for incremental code
+iteration. For a runtime performance check or an ingest-heavy preview, select an
+optimized build of the current checkout with a leading `--profile release`:
+
+```bash
+just dev-preview --profile release --port 4827
+# From another terminal in the same checkout:
+just dev-refresh --profile release
+just dev-status --binary target/release/atlas --json
+```
+
+Specify the profile before server options and repeat it on each refresh; omitting
+it selects dev, even when the running server uses release. `--profile dev` switches
+back explicitly. Release selects compiler optimizations, not a different branch
+or workspace. Unit tests retain their normal profiles. For bulk setup against a
+private workspace, build with `just dev-build --profile release` and use that
+executable for the deliberate setup command reported by status.
+
+Both commands build the selected candidate before replacing a server and pass its
+matching binary and provenance receipt to the same supervisor.
 The shared frontend build receipt verifies current production inputs, API identity
 and every output checksum. Rust-only, frontend test and documentation edits can
 reuse that bundle; UI/contract changes or tampered assets rebuild it. Cargo reuses
@@ -282,7 +304,8 @@ verification and source freshness.
 `dev-status --json` separates `baseline_build` from the selected binary checksum
 and `managed_preview` state. `.atlas/dev-preview/status.json` identifies the URL,
 workspace, selected snapshot, source receipt and log. `.atlas/preview-build.json`
-binds recorded source/input identity to binary/UI checksums and toolchain; source
+(dev) or `.atlas/maintenance-build.json` (release) binds recorded source/input
+identity to binary/UI checksums and toolchain; source
 changes during compilation reject it. A commit-only move with identical inputs
 records both observed commits. A manually supplied binary without a build receipt
 has checksums but unknown source provenance. Compatibility alone proves neither
