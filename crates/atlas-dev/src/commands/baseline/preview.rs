@@ -20,6 +20,11 @@ use std::{
 
 const POLL: Duration = Duration::from_millis(50);
 const START_TIMEOUT: Duration = Duration::from_secs(20);
+// Setup readiness hashes every configured model package. The real two-profile
+// corpus exceeds 20s in a normal dev build even when healthy.
+const CHECK_TIMEOUT: Duration = Duration::from_secs(60);
+const REQUEST_TIMEOUT: Duration =
+    Duration::from_secs(2 * CHECK_TIMEOUT.as_secs() + 2 * START_TIMEOUT.as_secs() + 40);
 
 struct Preview {
     checkout: PathBuf,

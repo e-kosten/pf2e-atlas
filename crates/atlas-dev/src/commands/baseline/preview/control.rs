@@ -5,7 +5,7 @@ use std::{
     fs::{self, File, OpenOptions},
     path::{Path, PathBuf},
     thread,
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -103,7 +103,7 @@ pub(crate) fn request(checkout: &Path, action: Action) -> Result<Value> {
             action,
         },
     )?;
-    let deadline = Instant::now() + Duration::from_secs(120);
+    let deadline = Instant::now() + super::REQUEST_TIMEOUT;
     while Instant::now() < deadline {
         if directory.join("response.json").is_file() {
             let response: Value = files::read(&directory.join("response.json"))?;
