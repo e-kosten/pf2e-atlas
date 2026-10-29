@@ -19,6 +19,7 @@ cat > "$fake_bin/cargo" <<'EOF_CARGO'
 printf 'cargo %s\n' "$*" >> "$ATLAS_TEST_COMMAND_LOG"
 printf 'cargo detail output for %s\n' "$*"
 [ "${ATLAS_TEST_FAIL_CARGO:-0}" -eq 0 ] || exit 19
+[ "$*" != "${ATLAS_TEST_FAIL_CARGO_COMMAND:-}" ] || exit 19
 exit 0
 EOF_CARGO
 chmod +x "$fake_bin/cargo"
@@ -47,7 +48,7 @@ grep -q 'npm --prefix web/atlas-ui run format:check' "$log" || {
   echo "fast changed-path verification did not run web format check" >&2
   exit 1
 }
-if grep -Eq '^cargo (clippy|test|build)|^npm .* run (lint|typecheck|verify)$' "$log"; then
+if grep -Eq '^cargo (clippy|nextest|test|build)|^npm .* run (lint|typecheck|verify)$' "$log"; then
   echo "commit checks unexpectedly ran compilation, lint or tests" >&2
   exit 1
 fi
@@ -59,8 +60,12 @@ if ! printf '%s\n' "$verbose_output" | grep -Eq '(cargo|npm) detail output'; the
   exit 1
 fi
 
-grep -q 'cargo test --workspace' "$log" || {
-  echo "full changed-path verification did not run cargo tests" >&2
+grep -q '^cargo nextest run --workspace$' "$log" || {
+  echo "full changed-path verification did not run workspace tests" >&2
+  exit 1
+}
+grep -q '^cargo test --workspace --doc$' "$log" || {
+  echo "full changed-path verification did not run doctests" >&2
   exit 1
 }
 grep -q 'cargo build --workspace' "$log" || {
@@ -71,6 +76,24 @@ grep -q 'npm --prefix web/atlas-ui run verify' "$log" || {
   echo "full changed-path verification did not run web verify" >&2
   exit 1
 }
+
+# A failing test phase must fail the actual gate, with its diagnostic intact.
+for command in 'nextest run --workspace' 'test --workspace --doc'; do
+  set +e
+  ATLAS_TEST_FAIL_CARGO_COMMAND="$command" ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" \
+    "$repo_root/scripts/verify.sh" >"$tmp/test-failure" 2>&1
+  status=$?
+  set -e
+  [ "$status" -eq 19 ] || { echo "test phase failure was hidden: $command" >&2; exit 1; }
+  grep -Fq "cargo detail output for $command" "$tmp/test-failure"
+done
+: >"$log"
+if ATLAS_TEST_FAIL_CARGO_COMMAND='nextest --version' ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" \
+  "$repo_root/scripts/verify.sh" >"$tmp/missing-runner" 2>&1; then
+  echo 'missing runner was accepted' >&2; exit 1
+fi
+grep -q 'requires cargo-nextest' "$tmp/missing-runner"
+! grep -q '^cargo fmt' "$log"
 
 # Exercise the actual hook and selector against real Git history. Every compiler
 # and frontend command still resolves to the logging stubs above.
@@ -181,7 +204,8 @@ printf 'unknown-tooling-file' >"$fixture/paths-input"
   cd "$fixture"
   ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" scripts/verify-changed.sh --paths-file paths-input --full
 ) >"$check_output" 2>&1
-grep -q '^cargo test --workspace$' "$log" || { echo 'unterminated path skipped Rust gate' >&2; exit 1; }
+grep -q '^cargo nextest run --workspace$' "$log" || { echo 'unterminated path skipped workspace tests' >&2; exit 1; }
+grep -q '^cargo test --workspace --doc$' "$log" || { echo 'unterminated path skipped doctests' >&2; exit 1; }
 grep -q '^npm --prefix web/atlas-ui run verify$' "$log" || { echo 'unterminated path skipped web gate' >&2; exit 1; }
 case_count=$((case_count + 1))
 printf 'Passed hook fixture: literal final path without newline is classified\n'
