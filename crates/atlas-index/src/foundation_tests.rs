@@ -329,22 +329,30 @@ pub(super) fn build(input: &IndexBuildInput) -> (tempfile::TempDir, std::path::P
 }
 
 #[test]
-fn publication_validation_observes_uncommitted_projection_changes() {
-    let (_directory, path) = build(&fixture(false));
-    let mut connection = Connection::open(&path).unwrap();
-    let transaction = connection.transaction().unwrap();
-    transaction
-        .execute(
+fn publication_validation_observes_uncommitted_projection_and_fts_changes() {
+    for (sql, expected_error) in [
+        (
             "UPDATE records SET name='incorrect projection' WHERE record_id=1",
-            [],
-        )
-        .unwrap();
-    assert!(matches!(
-        validate_reference(&transaction),
-        Err(IndexError::Invalid(_))
-    ));
-    transaction.rollback().unwrap();
-    validate_reference(&connection).unwrap();
+            "typed source projection mismatch",
+        ),
+        (
+            "INSERT INTO lexical_fts(lexical_fts,rowid,identity_terms,alias_terms,structured_terms,definition_terms) SELECT 'delete',unit_id,identity_terms,alias_terms,structured_terms,definition_terms FROM lexical_units WHERE unit_id=1",
+            "FTS postings",
+        ),
+    ] {
+        let (_directory, path) = build(&fixture(false));
+        let mut connection = Connection::open(&path).unwrap();
+        let transaction = connection.transaction().unwrap();
+        transaction.execute(sql, []).unwrap();
+        let error = validate_reference(&transaction).unwrap_err();
+        assert!(
+            matches!(&error, IndexError::Invalid(message) if message.starts_with(expected_error)),
+            "{error}",
+        );
+        assert!(!transaction.is_autocommit());
+        transaction.rollback().unwrap();
+        validate_reference(&connection).unwrap();
+    }
 }
 #[test]
 fn ritual_summary_preserves_indexed_identity_without_decoding_bodies() {
