@@ -17,6 +17,9 @@ Modes:
 Options:
   --list         print selected surfaces as key=true/false; run no checks
   --full         run full integration gates for touched surfaces
+  --plan         explain selection, commands and prerequisites without running
+  --status       inspect matching/missing/invalidated local evidence
+  --serial       serialize frontend and Rust checks
   -v, --verbose  stream detailed command output
   -h, --help     show this help
 EOF
@@ -28,6 +31,8 @@ input_paths=
 full=0
 list=0
 verbose=0
+inspect=
+serial=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -57,6 +62,10 @@ while [ "$#" -gt 0 ]; do
       fi
       shift 2
       ;;
+    --plan | --status)
+      inspect=$1; shift ;;
+    --serial)
+      serial=1; shift ;;
     --list)
       list=1
       shift
@@ -125,6 +134,7 @@ skill_touched=0
 browser_touched=0
 web_format_touched=0
 dev_touched=0
+tooling_touched=0
 docs_only=0
 
 if [ "$mode" = all ]; then
@@ -136,6 +146,7 @@ if [ "$mode" = all ]; then
   skill_touched=1
   browser_touched=1
   dev_touched=1
+  tooling_touched=1
 elif [ ! -s "$paths_file" ]; then
   docs_only=1
 else
@@ -143,7 +154,7 @@ else
 fi
 
 if [ "$list" -eq 1 ]; then
-  for entry in "rust:$rust_touched" "web:$web_touched" "source:$source_touched" "release:$release_touched" "research:$research_touched" "skill:$skill_touched" "browser:$browser_touched" "dev:$dev_touched"; do
+  for entry in "rust:$rust_touched" "web:$web_touched" "source:$source_touched" "release:$release_touched" "research:$research_touched" "skill:$skill_touched" "browser:$browser_touched" "dev:$dev_touched" "tooling:$tooling_touched"; do
     value=false
     [ "${entry#*:}" -eq 0 ] || value=true
     printf '%s=%s\n' "${entry%%:*}" "$value"
@@ -157,12 +168,25 @@ if [ "$docs_only" -eq 1 ]; then
 fi
 
 selected=
-for entry in "rust:$rust_touched" "web:$web_touched" "source:$source_touched" "release:$release_touched" "research:$research_touched" "skill:$skill_touched" "browser:$browser_touched" "web-format:$web_format_touched" "dev:$dev_touched"; do
+for entry in "rust:$rust_touched" "web:$web_touched" "source:$source_touched" "release:$release_touched" "research:$research_touched" "skill:$skill_touched" "browser:$browser_touched" "web-format:$web_format_touched" "dev:$dev_touched" "tooling:$tooling_touched"; do
   [ "${entry#*:}" -eq 0 ] || selected="$selected ${entry%%:*}"
 done
+if [ -n "$inspect" ]; then
+  printf 'Selection mode: %s %s\n' "$mode" "$range"
+  if [ "$full" -eq 1 ]; then
+    printf 'Validation scope: full pre-PR gates\n'
+  else
+    printf 'Validation scope: iteration formatting only (use --full for pre-PR gates)\n'
+  fi
+  while IFS= read -r path || [ -n "$path" ]; do
+    [ -z "$path" ] || printf '%s -> %s\n' "$path" "$(validation_surface_for_path "$path")"
+  done <"$paths_file"
+fi
 rm -rf "$tmp_dir"
 trap - EXIT HUP INT TERM
 set -- --selected "$selected"
 [ "$full" -eq 0 ] || set -- "$@" --full
 [ "$verbose" -eq 0 ] || set -- "$@" --verbose
+[ -z "$inspect" ] || set -- "$@" "$inspect"
+[ "$serial" -eq 0 ] || set -- "$@" --serial
 exec sh "$REPO_ROOT/scripts/validation/launch.sh" "$REPO_ROOT/scripts/validation/verify.mjs" "$@"

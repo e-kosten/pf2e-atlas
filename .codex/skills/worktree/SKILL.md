@@ -15,13 +15,18 @@ Inspect existing task worktrees and reuse the checkout for related feedback.
 Confirm the intended workstream/base, current Git state and available disk space.
 Preserve unrelated changes and running previews.
 
-Choose a path within the session's writable roots, normally
-`<repo-root>/.worktrees/<task-slug>`. State the path and its purpose.
-Create the branch from the verified base, serializing Git mutations:
+Prefer the app's managed worktree tool when available. For manual creation, choose
+an external or sibling path within the session's writable roots, outside the
+primary checkout tree. Cargo inherits ancestor `.cargo/config*`; a nested
+`.worktrees/` can duplicate compiler/linker flags and invalidate shared-tool input
+receipts. If only a nested location is available, account for its configuration
+stack explicitly. Keep existing active checkouts in place until normal retirement.
+State the path and purpose. Create the branch from the verified base, serializing
+Git mutations:
 
 ```bash
-git worktree add --no-track -b <branch> <repo-root>/.worktrees/<task-slug> <base-ref>
-git -C <repo-root>/.worktrees/<task-slug> status --short --branch
+git worktree add --no-track -b <branch> <external-worktree-root>/<task-slug> <base-ref>
+git -C <external-worktree-root>/<task-slug> status --short --branch
 ```
 
 Do task edits in that checkout. Inspect the scoped diff and run the applicable

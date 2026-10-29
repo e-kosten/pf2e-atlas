@@ -26,18 +26,21 @@ validation_surface_for_path() {
     dev-tools/release/* | scripts/release/* | scripts/prepare-release.sh | scripts/install/* | THIRD-PARTY-NOTICES.md) printf 'release\n' ;;
     skills/pf2e-atlas-cli/*) printf 'skill\n' ;;
     docs/research/evaluations/*) printf 'research\n' ;;
+    scripts/validation/skill*) printf 'skill tooling\n' ;;
+    scripts/validation/research.sh) printf 'research tooling\n' ;;
     AGENTS.md | CONTRIBUTING.md | README.md | docs/*.md | scratch/plans/*.md | .codex/skills/*.md | skills/*.md | crates/*/README.md | dev-tools/README.md | vendor/README.md | web/atlas-ui/AGENTS.md | web/atlas-ui/README.md | web/atlas-ui/docs/*.md)
       printf 'docs\n' ;;
     Cargo.toml | Cargo.lock | crates/*/Cargo.toml) printf 'rust web source release browser dev\n' ;;
-    crates/atlas-dev/* | scripts/development/*) printf 'dev\n' ;;
+    crates/atlas-dev/*) printf 'dev\n' ;;
+    scripts/development/* | scripts/validation/* | scripts/verify*.sh | scripts/preflight.sh | scripts/git-hooks/* | .githooks/*) printf 'tooling\n' ;;
     crates/atlas-cli/* | crates/atlas-cli-support/*) printf 'rust dev\n' ;;
     crates/atlas-app-model/* | crates/atlas-web/api-contract.json) printf 'rust web browser\n' ;;
     crates/atlas-foundry-model/*) printf 'rust source browser\n' ;;
     crates/* | src/* | tests/* | build.rs) printf 'rust browser\n' ;;
     web/atlas-ui/e2e/* | web/atlas-ui/playwright*.ts) printf 'browser web-format\n' ;;
-    scripts/browser-fixture*.mjs) printf 'browser\n' ;;
+    scripts/browser-fixture*.mjs | scripts/validate-browser*.mjs) printf 'browser tooling\n' ;;
     web/atlas-ui/*) printf 'web browser\n' ;;
-    *) printf 'rust web source release research skill browser dev\n' ;;
+    *) printf 'rust web source release research skill browser dev tooling\n' ;;
   esac
 }
 
@@ -51,6 +54,7 @@ classify_validation_paths() {
   browser_touched=0
   web_format_touched=0
   dev_touched=0
+  tooling_touched=0
   docs_only=0
   classification_saw_path=0
   while IFS= read -r path || [ -n "$path" ]; do
@@ -67,10 +71,11 @@ classify_validation_paths() {
         browser) browser_touched=1 ;;
         web-format) web_format_touched=1 ;;
         dev) dev_touched=1 ;;
+        tooling) tooling_touched=1 ;;
       esac
     done
   done <"$1"
-  if [ "$classification_saw_path" -eq 1 ] && [ "$rust_touched$web_touched$source_touched$release_touched$research_touched$skill_touched$browser_touched$dev_touched$web_format_touched" = 000000000 ]; then
+  if [ "$classification_saw_path" -eq 1 ] && [ "$rust_touched$web_touched$source_touched$release_touched$research_touched$skill_touched$browser_touched$dev_touched$web_format_touched$tooling_touched" = 0000000000 ]; then
     docs_only=1
   fi
 }

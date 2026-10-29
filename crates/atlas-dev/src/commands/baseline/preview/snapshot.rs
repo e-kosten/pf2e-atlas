@@ -113,7 +113,7 @@ fn check(preview: &Preview, binary: &Path, arguments: &[String]) -> Result<Value
         .stderr(stderr.reopen()?)
         .spawn()?;
     let mut child = OwnedChild(Some(child));
-    let deadline = Instant::now() + Duration::from_secs(20);
+    let deadline = Instant::now() + super::CHECK_TIMEOUT;
     while Instant::now() < deadline {
         if preview.interrupted.load(Ordering::Relaxed) {
             return Err("Preview interrupted during candidate preflight".into());

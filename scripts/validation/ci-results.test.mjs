@@ -26,6 +26,7 @@ const flags = [
   "skill",
   "browser",
   "dev",
+  "tooling",
 ];
 const selected = () =>
   Object.fromEntries([
@@ -87,6 +88,18 @@ test("standalone developer changes require no frontend or browser job", () => {
   requireSelectedJobs(jobs);
   jobs["atlas-dev"].result = "skipped";
   assert.throws(() => requireSelectedJobs(jobs), /atlas-dev/);
+});
+
+test("tooling-only changes require native Windows cancellation without application gates", () => {
+  const jobs = selected();
+  jobs.changes.outputs = Object.fromEntries(
+    flags.map((key) => [key, String(key === "tooling")]),
+  );
+  for (const name of names)
+    jobs[name].result = name === "windows-artifact" ? "success" : "skipped";
+  requireSelectedJobs(jobs);
+  jobs["windows-artifact"].result = "skipped";
+  assert.throws(() => requireSelectedJobs(jobs), /windows-artifact/);
 });
 
 test("core Rust changes require browser prerequisites, but CLI-only Rust does not", () => {

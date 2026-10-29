@@ -29,7 +29,10 @@ not the current checkout. Keep Cargo output checkout-local and reuse warm builds
 Complete the agreed scope, integration, tests, documentation and review fixes.
 Use this sequence:
 
-1. Implement with focused checks and logical local commits. Each commit should
+1. For cross-cutting source-derived rules or wire changes, record the affected
+   producers/consumers and focused domain/transport cases in the existing task
+   plan before implementation; see [early validation](docs/development/validation.md#early-domain-and-transport-checks).
+   Implement with focused checks and logical local commits. Each commit should
    express a coherent, validated change and leave the branch buildable.
 2. For substantive UI work, share an early usable local preview and get user
    feedback before broad test rewrites and final validation. Internal refactors,

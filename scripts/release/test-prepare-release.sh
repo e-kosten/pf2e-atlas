@@ -18,9 +18,13 @@ mkdir -p "$work/dev-tools/release" "$work/scripts/release" "$work/scripts/git-ho
 cp "$repo_root/scripts/prepare-release.sh" "$work/scripts/prepare-release.sh"
 chmod +x "$work/scripts/prepare-release.sh"
 mkdir -p "$work/scripts/validation"
-cp "$repo_root/scripts/validation/run-check.mjs" "$repo_root/scripts/validation/run-process.mjs" "$repo_root/scripts/validation/verify.mjs" "$repo_root/scripts/validation/run-check.sh" "$repo_root/scripts/validation/launch.sh" "$work/scripts/validation/"
+cp "$repo_root/scripts/validation/run-check.mjs" "$repo_root/scripts/validation/run-process.mjs" "$repo_root/scripts/validation/verify.mjs" "$repo_root/scripts/validation/plan.mjs" "$repo_root/scripts/validation/inputs.mjs" "$repo_root/scripts/validation/status.mjs" "$repo_root/scripts/validation/tooling.mjs" "$repo_root/scripts/validation/run-check.sh" "$repo_root/scripts/validation/launch.sh" "$work/scripts/validation/"
 cp "$repo_root/scripts/verify.sh" "$work/scripts/verify.sh"
 chmod +x "$work/scripts/verify.sh"
+mkdir -p "$work/scripts/development" "$work/web/atlas-ui"
+cp "$repo_root/scripts/development/preflight.mjs" "$work/scripts/development/"
+cp "$repo_root/web/atlas-ui/package.json" "$work/web/atlas-ui/"
+cp "$repo_root/rust-toolchain.toml" "$work/"
 for release_check in validate-release-tooling.sh test-prepare-release.sh; do
   cat > "$work/scripts/release/$release_check" <<'EOF_RELEASE_CHECK'
 #!/bin/sh
@@ -174,10 +178,12 @@ esac
 EOF_GH
 chmod +x "$fake_bin/gh"
 
-for command in cargo dist npm; do
+for command in cargo dist npm rustc; do
   cat > "$fake_bin/$command" <<'EOF_CMD'
 #!/bin/sh
 printf '%s %s\n' "$(basename "$0")" "$*" >> "$ATLAS_TEST_COMMAND_LOG"
+if [ "$(basename "$0")" = rustc ]; then printf 'rustc 1.95.0 (fixture)\n'; fi
+if [ "${1:-}" = metadata ]; then printf '{"target_directory":"%s/target","packages":[]}\n' "$PWD"; fi
 exit 0
 EOF_CMD
   chmod +x "$fake_bin/$command"

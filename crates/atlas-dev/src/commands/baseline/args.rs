@@ -30,6 +30,8 @@ pub(crate) struct BaselineArgs {
 }
 #[derive(Debug, Subcommand)]
 pub(crate) enum BaselineCommand {
+    /// Report cheap developer-tool capabilities and the compiled workspace schema.
+    Capabilities,
     /// Capture and validate an existing executable and workspace.
     Publish(PublishArgs),
     /// Seed only a missing private workspace. Never migrate or reset.

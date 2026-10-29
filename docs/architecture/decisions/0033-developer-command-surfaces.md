@@ -41,12 +41,26 @@ product app, reuse a checksum-verified current bundle, and write source/build
 provenance. The Rust baseline commands never dispatch that build script. Source
 identity, executable/UI checksums and browser wire compatibility remain distinct.
 
+Readiness probes operation-specific prerequisites without installing or migrating.
+The retained developer tool exposes its compiled capabilities/schema and has a
+source/content receipt. Explicit shared refresh freezes a validated app/tool pair,
+upgrades a private controlled seed, then delegates snapshot validation and atomic
+publication to Rust. Existing task data and the installed personal workspace are
+outside that maintenance operation.
+
 Validation entry points retain the shared shell path-selection policy, then run
-one Node session under `scripts/validation`. That session owns a flat phase list,
+one Node session under `scripts/validation`. That session owns a phase list with
+one optional fixed frontend/Rust parallel pair,
 input consistency and durable evidence; its process module owns live command
 children and descendant cleanup. Shell retains only command launching and the
 Windows cancellation handoff required when native termination bypasses Node signal
 handlers. Browser candidate isolation retains its separate artifact/commit policy.
+Plan/status inspection shares the execution definitions and treats legacy evidence
+as unverified; it never automatically skips checks. Tooling tests have one exported
+list and an independent direct CLI bootstrap, so testing the runner does not rely
+on that runner successfully scheduling its own tests. The normal final-browser
+entry point composes UI verification, packaging and the existing isolated runner
+without duplicating candidate policy.
 
 Maintained private TypeScript packages live under `dev-tools/`, with package
 configuration at the package root, implementation under `src/`, and tests under
