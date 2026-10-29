@@ -11,6 +11,8 @@ import {
   existsSync,
   copyFileSync,
   chmodSync,
+  symlinkSync,
+  realpathSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -18,7 +20,7 @@ import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 
 const helper = fileURLToPath(new URL("./run-check.sh", import.meta.url));
-const shell = `set -eu; tmp_dir=$(mktemp -d); trap 'rm -rf "$tmp_dir"' EXIT; . "$ATLAS_CHECK_HELPER"; verbose=\${ATLAS_TEST_VERBOSE:-0}; run_check "$@"`;
+const shell = `exec sh "$ATLAS_CHECK_HELPER" $([ "\${ATLAS_TEST_VERBOSE:-0}" = 0 ] || printf -- --verbose) "$@"`;
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), "atlas-check-test-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -30,11 +32,18 @@ function fixture(t) {
     return result.stdout.trim();
   };
   mkdirSync(join(cwd, "scripts", "validation"), { recursive: true });
-  copyFileSync(helper, join(cwd, "scripts", "validation", "run-check.sh"));
-  copyFileSync(
-    fileURLToPath(new URL("./run-process.mjs", import.meta.url)),
-    join(cwd, "scripts", "validation", "run-process.mjs"),
-  );
+  for (const name of [
+    "run-check.sh",
+    "launch.sh",
+    "run-check.mjs",
+    "run-process.mjs",
+    "verify.mjs",
+  ]) {
+    copyFileSync(
+      fileURLToPath(new URL(`./${name}`, import.meta.url)),
+      join(cwd, "scripts", "validation", name),
+    );
+  }
   mkdirSync(join(cwd, "scripts", "git-hooks"), { recursive: true });
   copyFileSync(
     fileURLToPath(new URL("../verify.sh", import.meta.url)),
@@ -60,11 +69,11 @@ function fixture(t) {
   git("commit", "--quiet", "-m", "test: fixture");
   const env = {
     ...process.env,
-    ATLAS_CHECK_HELPER: helper,
+    ATLAS_CHECK_HELPER: join(cwd, "scripts", "validation", "run-check.sh"),
+    ATLAS_CHECK_MODULE: new URL("./run-check.mjs", import.meta.url).href,
     ATLAS_VALIDATION_OUTPUT_ROOT: join(root, "evidence"),
     ATLAS_VALIDATION_HEARTBEAT_SECONDS: "1",
   };
-  delete env.ATLAS_VALIDATION_RUN_DIR;
   delete env.GITHUB_STEP_SUMMARY;
   const run = (command, extra = {}) =>
     spawnSync(
@@ -195,6 +204,111 @@ test("source edits, new code and deletions mark successful commands stale", asyn
   }
 });
 
+test("changing a symlink target with identical file bytes invalidates evidence", (t) => {
+  const f = fixture(t);
+  writeFileSync(join(f.cwd, "..", "first.rs"), "same");
+  writeFileSync(join(f.cwd, "..", "second.rs"), "same");
+  symlinkSync("../first.rs", join(f.cwd, "linked.rs"));
+  const result = f.run("rm linked.rs; ln -s ../second.rs linked.rs");
+  assert.equal(result.status, 78, result.stderr);
+  assert.equal(f.records()[0].status, "stale");
+});
+
+test("a leading BOM in a filename is part of its source identity", (t) => {
+  const f = fixture(t);
+  assert.equal(spawnSync("git", ["rm", "-rf", "."], { cwd: f.cwd }).status, 0);
+  const name = "\ufeffcode.rs";
+  writeFileSync(join(f.cwd, name), "original");
+  assert.equal(spawnSync("git", ["add", name], { cwd: f.cwd }).status, 0);
+  const result = spawnSync(
+    "sh",
+    [
+      helper,
+      "BOM path",
+      process.execPath,
+      "-e",
+      "require('node:fs').writeFileSync(process.argv[1], 'changed')",
+      name,
+    ],
+    { cwd: f.cwd, env: f.env, encoding: "utf8" },
+  );
+  assert.equal(result.status, 78, result.stderr);
+  assert.equal(f.records()[0].status, "stale");
+});
+
+test("invalid UTF-8 source filenames fail closed", (t) => {
+  const f = fixture(t);
+  const path = Buffer.concat([
+    Buffer.from(f.cwd + "/"),
+    Buffer.from([0xff]),
+    Buffer.from(".rs"),
+  ]);
+  try {
+    writeFileSync(path, "source");
+  } catch (error) {
+    if (["EPERM", "EINVAL", "EILSEQ"].includes(error.code)) {
+      t.skip("filesystem rejects invalid UTF-8 filenames");
+      return;
+    }
+    throw error;
+  }
+  const result = f.run("true");
+  assert.notEqual(result.status, 0, result.stderr);
+  assert.match(result.stderr, /encoded data|encoding/i);
+});
+
+test("the full Rust entry point rejects internal selection options", (t) => {
+  const f = fixture(t);
+  const result = spawnSync("sh", ["scripts/verify.sh", "--selected", ""], {
+    cwd: f.cwd,
+    env: f.env,
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 2, result.stderr);
+  assert.match(result.stderr, /Unknown verify option/);
+});
+
+test("missing commands retain their diagnostics and exit status", (t) => {
+  const f = fixture(t);
+  const result = spawnSync(
+    "sh",
+    [helper, "missing", "atlas-no-such-validation-command"],
+    { cwd: f.cwd, env: f.env, encoding: "utf8" },
+  );
+  assert.equal(result.status, 127, result.stderr);
+  const [record] = f.records();
+  assert.equal(record.exit, "127");
+  assert.match(readFileSync(record.log, "utf8"), /ENOENT|not found/);
+});
+
+test("verbose output drains completely before final evidence is written", (t) => {
+  const f = fixture(t);
+  const result = spawnSync(
+    "sh",
+    [
+      helper,
+      "--verbose",
+      "large output",
+      process.execPath,
+      "-e",
+      "process.stdout.write('x'.repeat(1000000));process.stderr.write('y'.repeat(1000000))",
+    ],
+    {
+      cwd: f.cwd,
+      env: f.env,
+      encoding: "utf8",
+      maxBuffer: 4000000,
+      timeout: 8000,
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const output = readFileSync(f.records()[0].log, "utf8");
+  assert.equal(output.length, 2000000);
+  assert.equal(output.replaceAll("x", "").length, 1000000);
+  assert.equal(output.replaceAll("y", "").length, 1000000);
+  assert.match(result.stderr, /Passed large output/);
+});
+
 test("committing identical working bytes and editing unrelated docs preserve evidence", (t) => {
   const f = fixture(t);
   writeFileSync(join(f.cwd, "code.rs"), "pub fn updated() {}\n");
@@ -208,17 +322,16 @@ test("committing identical working bytes and editing unrelated docs preserve evi
   assert.notEqual(record.start_commit, record.end_commit);
 });
 
-test("heartbeat reports progress and exits with the completed check", (t) => {
+test("heartbeat reports progress while the command runs", (t) => {
   const f = fixture(t);
   const result = f.run("sleep 2; printf complete");
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stderr, /Still running fixture check/);
   const [record] = f.records();
   assert.equal(readFileSync(record.log, "utf8"), "complete");
-  assert.throws(() => process.kill(Number(record.heartbeat_pid), 0), /ESRCH/);
 });
 
-test("termination records interruption and stops its heartbeat", async (t) => {
+test("termination retains interruption evidence", async (t) => {
   const f = fixture(t);
   const child = spawn(
     "sh",
@@ -261,7 +374,6 @@ test("termination records interruption and stops its heartbeat", async (t) => {
   const [record] = f.records();
   assert.equal(record.status, "interrupted");
   assert.equal(record.exit, "143");
-  assert.throws(() => process.kill(Number(record.heartbeat_pid), 0), /ESRCH/);
 });
 
 test("the explicit runner CLI retains the same evidence", (t) => {
@@ -278,12 +390,25 @@ test("the explicit runner CLI retains the same evidence", (t) => {
 
 test("source changes between phases cannot combine evidence from different candidates", (t) => {
   const f = fixture(t);
-  const script = `set -eu; . "$ATLAS_CHECK_HELPER"; verbose=0; run_check first true; printf changed >code.rs; run_check second sh -c 'printf should-not-run >unexpected.rs'`;
-  const result = spawnSync("sh", ["-c", script], {
-    cwd: f.cwd,
-    env: f.env,
-    encoding: "utf8",
-  });
+  const script = `
+    const {runChecks} = await import(process.env.ATLAS_CHECK_MODULE);
+    const {writeFileSync} = await import("node:fs");
+    function* checks() {
+      yield ["first", "true"];
+      writeFileSync("code.rs", "changed");
+      yield ["second", "sh", "-c", "printf should-not-run >unexpected.rs"];
+    }
+    process.exitCode = await runChecks(checks());
+  `;
+  const result = spawnSync(
+    process.execPath,
+    ["--input-type=module", "-e", script],
+    {
+      cwd: f.cwd,
+      env: f.env,
+      encoding: "utf8",
+    },
+  );
   assert.equal(result.status, 78, result.stderr);
   assert.equal(existsSync(join(f.cwd, "unexpected.rs")), false);
   const records = f.records();
@@ -306,17 +431,31 @@ test("committing a deletion and an already-present new file keeps actual-input i
   assert.notEqual(record.start_commit, record.end_commit);
 });
 
-test("nested validation in another checkout gets its own candidate", (t) => {
+test("separate invocations and checkouts each record their own candidate", (t) => {
   const first = fixture(t);
   const second = fixture(t);
   assert.equal(first.run("true").status, 0);
-  const inherited = first.records()[0].dir;
-  const result = second.run("true", { ATLAS_VALIDATION_RUN_DIR: inherited });
+  assert.equal(first.run("true").status, 0);
+  const result = second.run("true", {
+    ATLAS_VALIDATION_OUTPUT_ROOT: first.env.ATLAS_VALIDATION_OUTPUT_ROOT,
+  });
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(second.records().length, 1);
-  assert.match(
-    readFileSync(join(second.records()[0].dir, "candidate.tsv"), "utf8"),
-    new RegExp(second.cwd.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+  const records = first.records();
+  assert.equal(new Set(records.map((record) => record.dir)).size, 3);
+  const checkouts = records.map((record) =>
+    readFileSync(join(record.dir, "candidate.tsv"), "utf8")
+      .split("\n")
+      .find((line) => line.startsWith("checkout\t")),
+  );
+  assert.equal(
+    checkouts.filter((line) => line === `checkout\t${realpathSync(first.cwd)}`)
+      .length,
+    2,
+  );
+  assert.equal(
+    checkouts.filter((line) => line === `checkout\t${realpathSync(second.cwd)}`)
+      .length,
+    1,
   );
 });
 
@@ -331,7 +470,7 @@ function alive(pid) {
 }
 async function nestedCancellation(
   t,
-  { directPhase = false, signal = "SIGTERM", stubborn = false } = {},
+  { signal = "SIGTERM", stubborn = false, windowsAdapter = false } = {},
 ) {
   const f = fixture(t);
   const pidFile = join(f.cwd, "..", "owned-pids");
@@ -340,9 +479,26 @@ async function nestedCancellation(
     nested,
     `${stubborn ? "trap '' TERM\n" : ""}printf '%s\\n' "$$" >>"$OWNED_PIDS"\nsh -c 'printf "%s\\n" "$$" >>"$OWNED_PIDS"; sleep 30 & printf "%s\\n" "$!" >>"$OWNED_PIDS"; wait' &\nwait\n`,
   );
+  if (windowsAdapter) {
+    const bin = join(f.cwd, "..", "bin");
+    mkdirSync(bin);
+    writeFileSync(join(bin, "uname"), "#!/bin/sh\nprintf MINGW64_NT\n");
+    chmodSync(join(bin, "uname"), 0o755);
+    writeFileSync(
+      join(bin, "cygpath"),
+      '#!/bin/sh\n[ "$1" = -m ] || exit 1\nprintf "%s" "$2"\n',
+    );
+    chmodSync(join(bin, "cygpath"), 0o755);
+  }
   const child = spawn("sh", [helper, "nested check", "sh", nested], {
     cwd: f.cwd,
-    env: { ...f.env, OWNED_PIDS: pidFile },
+    env: {
+      ...f.env,
+      OWNED_PIDS: pidFile,
+      ...(windowsAdapter && {
+        PATH: `${join(f.cwd, "..", "bin")}:${f.env.PATH}`,
+      }),
+    },
     stdio: ["ignore", "pipe", "pipe"],
   });
   let stderr = "";
@@ -396,8 +552,7 @@ async function nestedCancellation(
   }
   assert.equal(pids.length, 3, stderr);
   assert(pids.every(alive));
-  if (directPhase) process.kill(phase, signal);
-  else child.kill(signal);
+  child.kill(signal);
   const outcome = await Promise.race([
     closed,
     delay(4000, { timeout: true }, { ref: false }),
@@ -407,7 +562,6 @@ async function nestedCancellation(
   const [record] = f.records();
   assert.equal(record.status, "interrupted");
   assert.equal(record.exit, String(expected));
-  assert.throws(() => process.kill(Number(record.heartbeat_pid), 0), /ESRCH/);
   for (let attempt = 0; attempt < 100 && pids.some(alive); attempt++)
     await delay(20);
   assert.deepEqual(
@@ -419,8 +573,8 @@ async function nestedCancellation(
 
 test("public runner PID forwards TERM and reaps nested shell/sleep processes", async (t) =>
   nestedCancellation(t));
-test("direct phase TERM reaps nested shell/sleep processes", async (t) =>
-  nestedCancellation(t, { directPhase: true }));
+test("Windows shell cancellation channel waits for owned cleanup", async (t) =>
+  nestedCancellation(t, { windowsAdapter: true }));
 test("public runner escalates cleanup for TERM-ignoring descendants", async (t) =>
   nestedCancellation(t, { stubborn: true }));
 test("public runner forwards HUP and INT to owned nested commands", async (t) => {
@@ -428,7 +582,7 @@ test("public runner forwards HUP and INT to owned nested commands", async (t) =>
     await t.test(signal, async (t) => nestedCancellation(t, { signal }));
 });
 
-test("run_check restores the caller's signal traps after a completed phase", async (t) => {
+test("public runner preserves caller signal traps across POSIX shells", async (t) => {
   for (const shellName of ["sh", "bash", "dash"]) {
     await t.test(shellName, (t) => {
       const available = spawnSync(shellName, ["-c", "exit 0"]);
@@ -438,7 +592,7 @@ test("run_check restores the caller's signal traps after a completed phase", asy
       }
       const f = fixture(t);
       const marker = join(f.cwd, "..", "trap-marker");
-      const script = `set -eu; . "$ATLAS_CHECK_HELPER"; trap 'printf restored >"$TRAP_MARKER"' TERM; run_check first true; kill -TERM $$; test -f "$TRAP_MARKER"`;
+      const script = `set -eu; trap 'printf restored >"$TRAP_MARKER"' TERM; sh "$ATLAS_CHECK_HELPER" first true; kill -TERM $$; test -f "$TRAP_MARKER"`;
       const result = spawnSync(shellName, ["-c", script], {
         cwd: f.cwd,
         env: { ...f.env, TRAP_MARKER: marker },
@@ -487,8 +641,13 @@ cp.spawnSync = (command, args) => {
 };
 require("node:module").syncBuiltinESMExports();
 Object.defineProperty(process, "platform", { value: "win32" });
-process.argv = [process.execPath, process.env.SUPERVISOR_FILE, ...JSON.parse(process.env.SUPERVISOR_ARGS)];
-import(require("node:url").pathToFileURL(process.env.SUPERVISOR_FILE).href);
+(async () => {
+  const {runProcess} = await import(require("node:url").pathToFileURL(process.env.SUPERVISOR_FILE).href);
+  const controller = new AbortController();
+  if (process.env.ABORT_FROM_STDIN) process.stdin.once("data", chunk => { controller.abort(Number(chunk)); process.stdin.destroy(); });
+  const [command, ...args] = JSON.parse(process.env.SUPERVISOR_ARGS);
+  process.exitCode = await runProcess(command, args, {signal: controller.signal, onOutput: chunk => process.stdout.write(chunk)});
+})();
 `;
 
 test("Windows supervisor uses argv-safe Git Bash dispatch and avoids POSIX group signals", (t) => {
@@ -522,10 +681,9 @@ test("Windows supervisor uses argv-safe Git Bash dispatch and avoids POSIX group
   assert.equal(records[0].args.at(-1), literal);
 });
 
-test("Windows cancellation request targets taskkill at its live Child tree", async (t) => {
+test("Windows abort targets taskkill at its live Child tree", async (t) => {
   const f = fixture(t);
   const log = join(f.cwd, "..", "windows-process-log");
-  const cancel = join(f.cwd, "..", "cancel-request");
   const child = spawn(process.execPath, ["-e", windowsBootstrap], {
     cwd: f.cwd,
     env: {
@@ -534,16 +692,14 @@ test("Windows cancellation request targets taskkill at its live Child tree", asy
       SUPERVISOR_FILE: fileURLToPath(
         new URL("./run-process.mjs", import.meta.url),
       ),
+      ABORT_FROM_STDIN: "1",
       SUPERVISOR_ARGS: JSON.stringify([
-        "--cancel-file",
-        cancel,
-        "--",
         process.execPath,
         "-e",
         'process.stdout.write("ready"); setInterval(() => {}, 1000)',
       ]),
     },
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: ["pipe", "pipe", "pipe"],
   });
   let output = "";
   child.stdout.on("data", (chunk) => {
@@ -566,7 +722,7 @@ test("Windows cancellation request targets taskkill at its live Child tree", asy
     await delay(20);
   assert.equal(output, "ready", stderr);
   owned = JSON.parse(readFileSync(log, "utf8").trim().split("\n")[0]).pid;
-  writeFileSync(cancel, "143\n");
+  child.stdin.write("143\n");
   const outcome = await Promise.race([
     closed,
     delay(3000, { timeout: true }, { ref: false }),
@@ -643,7 +799,7 @@ case "$*" in *--version*) printf fixture-version;; *) printf changed >"$ATLAS_FO
     }
 });
 
-test("public full selector TERM waits for its composite Rust phase and nested command cleanup", async (t) => {
+test("public full selector TERM waits for its Rust phase and nested command cleanup", async (t) => {
   const f = fixture(t);
   const bin = join(f.cwd, "..", "bin");
   const pidFile = join(f.cwd, "..", "full-owned-pids");
