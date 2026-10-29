@@ -262,20 +262,22 @@ export function EncounterConditionEditor({
   const actions = (
     <div className="encounter-condition-footer">
       <Space wrap>
-        {durationUnit === "none" && !durationInstead && (
-          <Button
-            onClick={() =>
-              form.setFieldsValue({
-                durationUnit: "rounds",
-                durationAmount: 1,
-                durationEvent: "end",
-                durationParticipant: participantKey,
-              })
-            }
-          >
-            Add duration
-          </Button>
-        )}
+        {durationUnit === "none" &&
+          !durationInstead &&
+          !definition?.supports_duration_instead_of_value && (
+            <Button
+              onClick={() =>
+                form.setFieldsValue({
+                  durationUnit: "rounds",
+                  durationAmount: 1,
+                  durationEvent: "end",
+                  durationParticipant: participantKey,
+                })
+              }
+            >
+              Add duration
+            </Button>
+          )}
         <Button
           aria-expanded={detailsOpen}
           onClick={() => setDetailsOpen(!detailsOpen)}
@@ -463,12 +465,17 @@ export function EncounterConditionEditor({
                   frightenedMinimum: 0,
                   brokenThreshold: undefined,
                 });
+                const timedStunned =
+                  selected?.supports_duration_instead_of_value &&
+                  (form.getFieldValue("durationUnit") ?? "none") !== "none";
+                form.setFieldValue("stunMode", timedStunned ? "duration" : "value");
                 form.setFields([
                   {
                     name: "value",
-                    value: selected?.has_value
-                      ? Number(selected.default_value ?? 1n)
-                      : undefined,
+                    value:
+                      selected?.has_value && !timedStunned
+                        ? Number(selected.default_value ?? 1n)
+                        : undefined,
                     errors: [],
                   },
                 ]);
@@ -667,8 +674,17 @@ export function EncounterConditionEditor({
                     durationParticipant: participantKey,
                   });
                 }
-                if (mode === "value" && form.getFieldValue("value") == null)
-                  form.setFieldValue("value", 1);
+                if (mode === "value") {
+                  form.setFieldsValue({
+                    value: form.getFieldValue("value") ?? 1,
+                    durationUnit: "none",
+                    durationAmount: undefined,
+                    durationEvent: undefined,
+                    durationParticipant: undefined,
+                  });
+                } else {
+                  form.setFieldValue("value", undefined);
+                }
               }}
             />
           </Form.Item>

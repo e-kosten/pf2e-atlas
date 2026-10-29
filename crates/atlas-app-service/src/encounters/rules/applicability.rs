@@ -3,7 +3,7 @@ use super::super::conditions::ModeledCondition;
 use atlas_app_model::{EncounterConditionApplicabilityView, EncounterConditionEligibilityView};
 use atlas_local_state::{EncounterParticipant, ParticipantKind};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(in crate::encounters) struct ConditionImmunity {
     pub slug: String,
     pub coverage: ImmunityCoverage,
@@ -15,7 +15,7 @@ pub(in crate::encounters) enum ImmunityCoverage {
     Unknown,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub(in crate::encounters) struct ConditionImmunityFacts {
     pub entries: Vec<ConditionImmunity>,
     pub authored_complete: bool,
@@ -67,6 +67,7 @@ pub(in crate::encounters) fn condition_applicability(
     condition: ModeledCondition,
     participant: &EncounterParticipant,
     facts: &ConditionApplicabilityFacts,
+    sources: &super::source_conditions::SourceConditions,
 ) -> Option<EncounterConditionEligibilityView> {
     let slug = condition.rule.definition().slug;
     let kind = match participant.participant_kind {
@@ -78,16 +79,19 @@ pub(in crate::encounters) fn condition_applicability(
     if !condition.applies_to.contains(&kind) {
         return None;
     }
-    if slug == "broken"
-        && (facts.broken_threshold_known_absent
-            || participant.conditions.iter().any(|condition| {
-                super::super::conditions::condition_rule_for_key(condition.condition_key.as_deref())
-                    == Some(super::super::conditions::ConditionRule::Petrified)
-            }))
-    {
-        return Some(EncounterConditionEligibilityView::Immune {
-            reason: "No Broken Threshold; this object cannot become broken.".into(),
-        });
+    if slug == "broken" {
+        let petrified = super::causes::condition_causes(participant, None, sources)
+            .known_presence(super::super::conditions::ConditionRule::Petrified);
+        if facts.broken_threshold_known_absent || matches!(petrified, Ok(true)) {
+            return Some(EncounterConditionEligibilityView::Immune {
+                reason: "No Broken Threshold; this object cannot become broken.".into(),
+            });
+        }
+        if let Err(error) = petrified {
+            return Some(EncounterConditionEligibilityView::NeedsContext {
+                reason: error.into_app_error().message,
+            });
+        }
     }
     if slug == "broken" && facts.broken_threshold.is_none() {
         return Some(EncounterConditionEligibilityView::NeedsContext {
@@ -136,7 +140,8 @@ mod tests {
             condition_applicability(
                 condition,
                 &super::super::numerical_tests::participant(),
-                &facts
+                &facts,
+                super::super::source_conditions::SourceConditions::empty()
             ),
             Some(EncounterConditionEligibilityView::Immune { .. })
         ));

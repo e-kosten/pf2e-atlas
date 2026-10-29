@@ -179,9 +179,11 @@ export function useConditionEventPreview(
             return (
               <p key={index}>
                 Actions {String(c.before)} → {String(c.after)} ·{" "}
-                {c.stunned_after === 0n
-                  ? "Stunned clears"
-                  : `Stunned ${c.stunned_after} remains`}
+                {c.stunned_after == null
+                  ? "Check remaining Stunned at its source"
+                  : c.stunned_after === 0n
+                    ? "Stunned clears"
+                    : `Stunned ${c.stunned_after} remains`}
               </p>
             );
           if (c.kind === "become_prone")

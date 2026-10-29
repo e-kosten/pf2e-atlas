@@ -5,8 +5,9 @@ use atlas_domain::OwnedContentLocator;
 use atlas_foundry_model::{RuleSource, SourceContext, SourcePresence, generated::*};
 use atlas_record::source_record::{ItemSourceView, SourceBackedRecord, SourceFieldView};
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct SourceConditions {
+    pub(in crate::encounters) immunities: super::ConditionImmunityFacts,
     pub options: Vec<super::source_ability_state::SourceOption>,
     pub uses: Vec<super::source_ability_state::SourceUses>,
     pub entries: Vec<SourceCondition>,
@@ -19,20 +20,20 @@ impl SourceConditions {
         &'a self,
         participant: &'a atlas_local_state::EncounterParticipant,
     ) -> Vec<&'a SourceCondition> {
-        let rules = super::causes::condition_causes(participant, None, self)
-            .iter()
-            .map(|cause| cause.rule)
-            .collect::<Vec<_>>();
-        self.entries
-            .iter()
-            .filter(|source| source.active(&rules, self, participant).is_none())
-            .collect()
+        let resolved = super::causes::condition_causes(participant, None, self);
+        self.entries.iter().filter(|source| !resolved.active.iter().any(|cause| {
+            cause.rule == source.rule && matches!(cause.source, super::causes::ConditionSource::Authored(entry, ..) if std::ptr::eq(*source, entry))
+        }) && resolved.uncertain.iter().any(|cause| {
+            matches!(cause.source, super::causes::ConditionSource::Authored(entry, ..) if std::ptr::eq(*source, entry))
+        })).collect()
     }
+
     pub fn active_entries<'a>(
         &'a self,
         participant: &'a atlas_local_state::EncounterParticipant,
     ) -> Vec<&'a SourceCondition> {
         super::causes::condition_causes(participant, None, self)
+            .active
             .into_iter()
             .filter_map(|cause| match cause.source {
                 super::causes::ConditionSource::Authored(source, ..)
@@ -47,6 +48,11 @@ impl SourceConditions {
 
     pub fn empty() -> &'static Self {
         static EMPTY: SourceConditions = SourceConditions {
+            immunities: super::ConditionImmunityFacts {
+                entries: vec![],
+                authored_complete: true,
+                uncertain_types: vec![],
+            },
             entries: vec![],
             options: vec![],
             uses: vec![],
@@ -57,9 +63,16 @@ impl SourceConditions {
     }
     pub fn unavailable() -> Self {
         Self {
+            immunities: Default::default(),
             unavailable_reason: Some("This creature's source conditions are unavailable.".into()),
             ..Default::default()
         }
+    }
+}
+
+impl Default for SourceConditions {
+    fn default() -> Self {
+        Self::empty().clone()
     }
 }
 
@@ -329,7 +342,14 @@ pub(in crate::encounters) fn source_conditions(
                     || predicate_mentions(&condition.predicate, &option.option))
         })
     });
+    super::source_ability_state::bind_declarations(
+        &record.key().to_string(),
+        &mut options,
+        &mut uses,
+        &conditions,
+    )?;
     Ok(SourceConditions {
+        immunities,
         options,
         uses,
         entries: conditions,
@@ -370,6 +390,7 @@ impl SourceCondition {
     pub fn active(
         &self,
         conditions: &[ConditionRule],
+        possible: &[ConditionRule],
         sources: &SourceConditions,
         participant: &atlas_local_state::EncounterParticipant,
     ) -> Option<bool> {
@@ -380,8 +401,7 @@ impl SourceCondition {
             let option = sources.options.iter().find(|option| {
                 option.owner == self.owner && option.ordinal == choice.option_ordinal
             })?;
-            let (active, selection) =
-                option.state(participant, sources.source_fingerprint.as_deref());
+            let (active, selection) = option.state(participant);
             if !active || selection.as_deref() != Some(choice.value.as_str()) {
                 return Some(false);
             }
@@ -389,7 +409,9 @@ impl SourceCondition {
 
         match &self.predicate {
             SourcePresence::Missing => Some(true),
-            SourcePresence::Value(terms) => predicate_all(terms, conditions, sources, participant),
+            SourcePresence::Value(terms) => {
+                predicate_all(terms, conditions, possible, sources, participant)
+            }
             _ => None,
         }
     }
@@ -398,12 +420,13 @@ impl SourceCondition {
 fn predicate_all(
     terms: &[PredicateStatement],
     conditions: &[ConditionRule],
+    possible: &[ConditionRule],
     sources: &SourceConditions,
     participant: &atlas_local_state::EncounterParticipant,
 ) -> Option<bool> {
     let mut unknown = false;
     for term in terms {
-        match predicate_term(term, conditions, sources, participant) {
+        match predicate_term(term, conditions, possible, sources, participant) {
             Some(false) => return Some(false),
             None => unknown = true,
             _ => {}
@@ -414,6 +437,7 @@ fn predicate_all(
 fn predicate_term(
     term: &PredicateStatement,
     conditions: &[ConditionRule],
+    possible: &[ConditionRule],
     sources: &SourceConditions,
     participant: &atlas_local_state::EncounterParticipant,
 ) -> Option<bool> {
@@ -424,9 +448,7 @@ fn predicate_term(
                 .iter()
                 .find(|option| &option.option == value)
             {
-                let active = option
-                    .state(participant, sources.source_fingerprint.as_deref())
-                    .0;
+                let active = option.state(participant).0;
                 return match &option.predicate {
                     SourcePresence::Missing => Some(active),
                     SourcePresence::Value(terms) if terms.is_empty() => Some(active),
@@ -437,21 +459,42 @@ fn predicate_term(
             atlas_foundry_model::generated::condition_definitions::CONDITION_DEFINITIONS
                 .iter()
                 .any(|definition| definition.slug == slug)
-                .then(|| conditions.iter().any(|rule| rule.definition().slug == slug))
+                .then(|| {
+                    if conditions.iter().any(|rule| rule.definition().slug == slug) {
+                        Some(true)
+                    } else if possible.iter().any(|rule| rule.definition().slug == slug) {
+                        None
+                    } else {
+                        Some(false)
+                    }
+                })
+                .flatten()
         }
         PredicateStatement::Negation(value) if value.additional_fields.fields().is_empty() => {
-            predicate_term(value.not.as_value()?, conditions, sources, participant)
-                .map(|value| !value)
+            predicate_term(
+                value.not.as_value()?,
+                conditions,
+                possible,
+                sources,
+                participant,
+            )
+            .map(|value| !value)
         }
         PredicateStatement::Conjunction(value) if value.additional_fields.fields().is_empty() => {
-            predicate_all(value.and.as_value()?, conditions, sources, participant)
+            predicate_all(
+                value.and.as_value()?,
+                conditions,
+                possible,
+                sources,
+                participant,
+            )
         }
         PredicateStatement::Disjunction(value) if value.additional_fields.fields().is_empty() => {
             let values = value
                 .or
                 .as_value()?
                 .iter()
-                .map(|term| predicate_term(term, conditions, sources, participant))
+                .map(|term| predicate_term(term, conditions, possible, sources, participant))
                 .collect::<Vec<_>>();
             if values.contains(&Some(true)) {
                 Some(true)
@@ -567,7 +610,10 @@ mod tests {
         )]));
         let participant = super::super::numerical_tests::participant();
         assert_eq!(result.entries.len(), 1);
-        assert_eq!(result.entries[0].active(&[], &result, &participant), None);
+        assert_eq!(
+            result.entries[0].active(&[], &[], &result, &participant),
+            None
+        );
         assert!(result.active_entries(&participant).is_empty());
     }
     #[test]

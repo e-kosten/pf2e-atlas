@@ -5,6 +5,76 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Condition correction recovery and damage references
+
+macOS arm64, Playwright 1.62.1, source
+`f777261b2b8c4da9e7e3ba7e7007961b2dc60202`: four focused capture cases pass,
+followed by an ordinary 68-case condition/form/reminder run with snapshot updates
+disabled. Twelve frames change: `turn-damage`, `recovery-before` and
+`recovery-cleared-anchor` in each maintained project. The damage checkpoint shows
+Damage taken and its After IWR explanation. Recovery places Roll/Clear together,
+wraps the action group within narrow viewports, and uses native centered top
+placement so result growth preserves the popup's side of the anchor. Existing
+position/input geometry tolerances remain unchanged; new assertions require both
+actions fully in the viewport and the same popup side before/after resolution.
+Parent and independent Astra reviewed the changed frames; independent follow-up
+review accepted all eight final recovery frames after the phone Chromium side
+flip was repaired. The other 28 macOS references remain intact. This is automated
+browser/device emulation plus screenshot review, separate from the human's
+accepted full-corpus functional preview.
+
+Linux x64, Ubuntu 24.04, Playwright 1.62.1:
+[capture 40758969195](https://github.com/e-kosten/pf2e-atlas/actions/runs/40758969195)
+passed desktop/phone Chromium and tablet WebKit; phone WebKit stopped at the
+pre-existing post-editor passive Edit-tooltip checkpoint before recovery.
+[Phone WebKit capture 40759493166](https://github.com/e-kosten/pf2e-atlas/actions/runs/40759493166)
+then passed all three repetitions on the same unmodified source and fixture.
+These captures use CI40758209873's authenticated synthetic merge
+`1c9d41add479bac11fde929c21c6a4e535c2a36a`, whose tree
+`2a02f9bb6e2906270d0bdbcf4a7822039571804c` matches reviewed source `f777261b`.
+Binary SHA-256:
+`a2416969c74f8686959fad5106d340e911e60f6a3c3b72d423204923181ee3a8`;
+frontend index SHA-256:
+`5d9697feac8b4435c633ac20eeadc781eaff8bae5b926d9bb9770921e6204bdf`.
+Parent and independent Astra reviewed the twelve changed Linux frames across all
+four projects. Actions remain visible, damage guidance is readable and recovery
+stays above its anchor. The existing phone WebKit page-scroll adjustment remains.
+The other 28 Linux references stay intact, including incidental phone Chromium
+fallback raster differences excluded from adoption. Ordinary final-head CI with
+snapshot updates disabled remains required; capture is separate evidence.
+
+The follow-up device harness gives the long precedence/recovery scenario its own
+90-second budget, including cold browser setup; individual assertion timeouts and
+pixel/geometry thresholds remain unchanged. An API-request-owned encounter fixture
+performs bounded, asserted cleanup after page teardown. A cancellation probe
+recorded DELETE200 after an intentional timeout and a successful following run
+with the same encounter name.
+
+The post-edit document checkpoint now deliberately focuses the updated 1d12
+condition-name link and dismisses passive hints. This defines the screenshot state;
+it does not certify automatic modal focus restoration. Four macOS
+`precedence-sources` frames change only their focus cues. Parent and independent
+Astra reviewed every pair; other frames retain their preceding references,
+including excluded incidental 1/255 raster changes. All four capture cases and the subsequent twelve ordinary repetitions pass with
+snapshot updates disabled. The product source remains `f777261b`; this follow-up changes the test harness and
+reference focus state only.
+
+Linux x64, Ubuntu 24.04, Playwright 1.62.1:
+[capture 40767178596](https://github.com/e-kosten/pf2e-atlas/actions/runs/40767178596)
+passed all four cases using CI40766561296's authenticated fixture. Synthetic merge
+`50a9981d41ea930fda537ba5a5c2130057b96e2d` combines test-only main `ce3f6442`
+and harness source `e958db26`. Its tree `c8fe5b15b80b276c8f4f3ebc0d4d47f48e8741af`
+matches the explicit integration `72abb4a9`. Binary SHA-256:
+`90e97ce64f185b5985928b9315b919a06a1c75e128bd06c4f04933eb539f5a4f`;
+frontend index SHA-256:
+`5a3c68c619e99e7363b10befa4bb40d846ccac72e734c33b07e2aa74ce31eaed`.
+The integrated upstream checkpoint dismisses each passive tooltip layer before
+comparison. Parent and independent Astra reviewed all four Linux source-focus
+pairs: only the intended outline moves to the condition-name link, with no
+layout, scroll or clipping changes. Only those four frames are adopted; the
+other 36 references remain intact. The incidental phone Chromium fallback
+edge-raster differences are excluded. Ordinary final-head CI remains required.
+
 ## Encounter settings and participant title alignment
 
 macOS arm64, Playwright 1.62.1, product source

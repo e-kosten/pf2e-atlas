@@ -2756,7 +2756,7 @@ fn strike_range_uses_authored_range_instead_of_trait_spelling() {
         ),
         (Some(serde_json::Value::Null), Some(false)),
         (Some(serde_json::json!(42)), None),
-        (None, None),
+        (None, Some(false)),
     ] {
         let mut system = serde_json::json!({"bonus":{"value":10},"traits":{"value":["range-60"]}});
         if let Some(range) = range {

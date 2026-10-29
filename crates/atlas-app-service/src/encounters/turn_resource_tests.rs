@@ -695,7 +695,7 @@ fn applying_stunned_mid_turn_previews_and_commits_the_same_remaining_loss_once()
                 participant_key: a.clone(),
                 before: 3,
                 after: 1,
-                stunned_after: 0
+                stunned_after: Some(0)
             })
     );
     assert_eq!(f.worker.encounter(&key).unwrap(), before);
@@ -893,7 +893,7 @@ fn applying_an_updated_stunned_source_preserves_its_identity_and_edited_metadata
                 participant_key: a.clone(),
                 before: 1,
                 after: 0,
-                stunned_after: 2
+                stunned_after: Some(2)
             })
     );
     f.worker

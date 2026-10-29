@@ -44,7 +44,7 @@ impl AtlasAppService {
             ));
         }
         let owner = &request.navigation.owners[0];
-        let value = match &request.action {
+        let (value, declaration_identity) = match &request.action {
             EncounterAbilityStateAction::SetOption { active, selection } => {
                 let option = sources
                     .options
@@ -67,10 +67,13 @@ impl AtlasAppService {
                         "Choose an available ability option.",
                     ));
                 }
-                AbilityStateValue::Option {
-                    active: *active,
-                    selection: selection.clone(),
-                }
+                (
+                    AbilityStateValue::Option {
+                        active: *active,
+                        selection: selection.clone(),
+                    },
+                    option.declaration_identity.clone(),
+                )
             }
             EncounterAbilityStateAction::SpendUse | EncounterAbilityStateAction::RestoreUse => {
                 let ability = sources
@@ -82,7 +85,7 @@ impl AtlasAppService {
                             "Limited-use ability is no longer available.",
                         )
                     })?;
-                let current = ability.remaining(participant, sources.source_fingerprint.as_deref());
+                let current = ability.remaining(participant);
                 let spending = matches!(request.action, EncounterAbilityStateAction::SpendUse);
                 let remaining = if spending {
                     current.checked_sub(1)
@@ -97,63 +100,57 @@ impl AtlasAppService {
                         "All uses are available."
                     })
                 })?;
-                AbilityStateValue::Uses { remaining }
+                (
+                    AbilityStateValue::Uses { remaining },
+                    ability.declaration_identity.clone(),
+                )
             }
         };
         let state = ParticipantAbilityState {
             owner: owner.clone(),
             rule_ordinal: request.rule_ordinal,
+            declaration_identity: Some(declaration_identity),
             source_fingerprint: sources
                 .source_fingerprint
                 .clone()
                 .ok_or_else(|| AppServiceError::invalid_request("Ability source unavailable."))?,
             value,
         };
-        let mut after = participant.clone();
-        after
-            .ability_states
-            .retain(|prior| prior.owner != state.owner || prior.rule_ordinal != state.rule_ordinal);
-        after.ability_states.push(state.clone());
-        let drained_changed = matches!(
-            request.action,
-            EncounterAbilityStateAction::SetOption { .. }
-        ) && drained_values(participant, sources)
-            != drained_values(&after, sources);
-        let (before_drained, after_drained) = if drained_changed {
-            (
-                rules::events::effective_drained_value(participant, sources)?,
-                rules::events::effective_drained_value(&after, sources)?,
-            )
-        } else {
-            (0, 0)
+        let changes = PreparedConditionEvent {
+            ability_states: vec![AbilityStateChange {
+                participant_key: participant.participant_key.clone(),
+                expected_revision: participant.revision,
+                state,
+            }],
+            ..Default::default()
         };
-        let mut changes = if after_drained > before_drained {
-            let amount = rules::condition_hp_loss(
-                super::conditions::ConditionRule::Drained,
-                after_drained - before_drained,
-                subject.level,
+        let mut planned = rules::events::plan_condition_transition(
+            participant,
+            sources,
+            changes,
+            true,
+            false,
+            subject.level,
+            &request.request_id,
+        )?;
+        if planned.effects.iter().any(|effect| {
+            matches!(
+                effect,
+                rules::events::ConditionConsequence::DrainedLevelRequired(_)
             )
-            .ok_or_else(|| {
-                AppServiceError::invalid_request(
-                    "Set this creature's level before applying Drained.",
-                )
-            })?;
-            rules::hp_events::plan_hp_event(
-                participant,
-                &rules::hp_events::HpEventInput::DirectLoss { amount },
-                &Default::default(),
-                None,
-                &request.request_id,
-            )?
-        } else {
-            PreparedConditionEvent::default()
-        };
-        changes.ability_states.push(AbilityStateChange {
-            participant_key: participant.participant_key.clone(),
-            expected_revision: participant.revision,
-            state,
-        });
+        }) {
+            return Err(AppServiceError::invalid_request(
+                "Set this creature's level before applying Drained.",
+            ));
+        }
+        if snapshot.encounter.current_turn_participant_key.as_deref()
+            == Some(participant.participant_key.as_str())
+        {
+            rules::stunned_arrival::apply(participant, sources, &mut planned)?;
+        }
+        let changes = planned.changes;
         event_execution::EncounterEvent {
+            condition_sources: &[(&participant.participant_key, &subject.source_conditions)],
             encounter_key: &snapshot.encounter.encounter_key,
             request_id: &request.request_id,
             intent: &intent,
@@ -186,8 +183,7 @@ pub(super) fn views(
         .options
         .iter()
         .map(|option| {
-            let (active, selection) =
-                option.state(participant, sources.source_fingerprint.as_deref());
+            let (active, selection) = option.state(participant);
             EncounterAbilityStateView {
                 navigation: navigation(&option.owner),
                 rule_ordinal: Some(option.ordinal),
@@ -220,8 +216,7 @@ pub(super) fn views(
                 rule_ordinal: None,
                 label: ability.label.clone(),
                 state: EncounterAbilityStateKindView::Uses {
-                    remaining: ability
-                        .remaining(participant, sources.source_fingerprint.as_deref()),
+                    remaining: ability.remaining(participant),
                     maximum: ability.maximum,
                     interval: match ability.per {
                         atlas_foundry_model::generated::AbilitySystemSourceFrequencyPer::Day => {
@@ -297,16 +292,6 @@ fn option_label<'a>(
     }
 }
 
-fn drained_values(
-    participant: &atlas_local_state::EncounterParticipant,
-    sources: &rules::source_conditions::SourceConditions,
-) -> Vec<Option<i64>> {
-    rules::causes::condition_causes(participant, None, sources)
-        .into_iter()
-        .filter(|cause| cause.rule == super::conditions::ConditionRule::Drained)
-        .map(|cause| cause.value)
-        .collect()
-}
 fn choice_consequence(
     participant: &atlas_local_state::EncounterParticipant,
     sources: &rules::source_conditions::SourceConditions,
@@ -325,6 +310,7 @@ fn choice_consequence(
     after.ability_states.push(ParticipantAbilityState {
         owner: option.owner.clone(),
         rule_ordinal: Some(option.ordinal),
+        declaration_identity: Some(option.declaration_identity.clone()),
         source_fingerprint: sources.source_fingerprint.clone()?,
         value: AbilityStateValue::Option {
             active: true,
@@ -425,10 +411,7 @@ pub(super) fn prepare_turn_sources(
                     let due = ability.per == Per::Turn
                         || (ability.per == Per::Round
                             && incoming.as_deref() == Some(participant.participant_key.as_str()));
-                    if !due
-                        || ability.remaining(participant, sources.source_fingerprint.as_deref())
-                            == ability.maximum
-                    {
+                    if !due || ability.remaining(participant) == ability.maximum {
                         continue;
                     }
                     let Some(fingerprint) = sources.source_fingerprint.as_ref() else {
@@ -440,6 +423,7 @@ pub(super) fn prepare_turn_sources(
                         state: ParticipantAbilityState {
                             owner: ability.owner.clone(),
                             rule_ordinal: None,
+                            declaration_identity: Some(ability.declaration_identity.clone()),
                             source_fingerprint: fingerprint.clone(),
                             value: AbilityStateValue::Uses {
                                 remaining: ability.maximum,

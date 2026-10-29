@@ -119,6 +119,10 @@ export function EncounterConditionControls({
       ? current.persistent_damage_groups
       : [...current.persistent_damage_groups, recoveryGroup];
   const [committed, setCommitted] = useState(false);
+  if (committed && !disabled) {
+    setEditor(null);
+    setCommitted(false);
+  }
   const [addRevision, setAddRevision] = useState(encounterRevision);
   const handledEdit = useRef<string | undefined>(undefined);
   useEffect(() => {
@@ -152,7 +156,7 @@ export function EncounterConditionControls({
     editor !== null && editor !== "add"
       ? current.conditions.find((c) => c.condition_id === editor.conditionId)
       : undefined;
-  const open = editor !== null && !(committed && !disabled);
+  const open = editor !== null;
   const [inlineRequest, setInlineRequest] =
     useState<Omit<UpdateEncounterParticipantConditionRequest, "request_id">>();
   const [valueResetEpoch, setValueResetEpoch] = useState(0);
@@ -165,9 +169,9 @@ export function EncounterConditionControls({
     preview.reset();
     setEditor(null);
   };
-  const finished = (refreshed: boolean) => {
-    if (refreshed) close();
-    else setCommitted(true);
+  const finished = () => {
+    preview.reset();
+    setCommitted(true);
   };
   const update = (
     condition: EncounterParticipantConditionView,
@@ -746,13 +750,12 @@ export function EncounterConditionControls({
                   ? () => setEditor({ ...editor, revision: encounterRevision })
                   : undefined
             }
-            onSave={async (request) =>
-              finished(
-                await ("condition_id" in request
-                  ? onUpdateCondition(current.participant_key, request)
-                  : onAddCondition(request)),
-              )
-            }
+            onSave={async (request) => {
+              await ("condition_id" in request
+                ? onUpdateCondition(current.participant_key, request)
+                : onAddCondition(request));
+              finished();
+            }}
             onRemove={removeSelected}
           />
         </EncounterModal>

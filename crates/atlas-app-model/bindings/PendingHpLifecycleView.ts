@@ -3,4 +3,4 @@ import type { HpEventContextView } from "./HpEventContextView";
 import type { HpLifecycleRequiredFactView } from "./HpLifecycleRequiredFactView";
 import type { KnockoutOptionView } from "./KnockoutOptionView";
 
-export type PendingHpLifecycleView = { knockout_options: Array<KnockoutOptionView>, required_facts: Array<HpLifecycleRequiredFactView>, initiative_only: boolean, consequence_key: string, participant_key: string, before_hp: bigint, after_hp: bigint, context: HpEventContextView, };
+export type PendingHpLifecycleView = { unavailable_reason?: string, knockout_options: Array<KnockoutOptionView>, required_facts: Array<HpLifecycleRequiredFactView>, initiative_only: boolean, consequence_key: string, participant_key: string, before_hp: bigint, after_hp: bigint, context: HpEventContextView, };

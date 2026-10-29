@@ -64,7 +64,7 @@ pub(super) fn condition(
         updated_at: String::new(),
     }
 }
-fn source_baseline() -> super::super::stat_block::StatBlockView {
+pub(super) fn source_baseline() -> super::super::stat_block::StatBlockView {
     let input = atlas_search::test_support::record(
         "actors",
         "Actor",
@@ -209,7 +209,8 @@ fn scoped_restrained_suppresses_only_the_overlapping_grabbed_cause() {
         &participant,
         None,
         crate::encounters::rules::source_conditions::SourceConditions::empty(),
-    );
+    )
+    .active;
     assert!(general.iter().any(
         |cause| cause.source.condition_id() == Some(1) && cause.rule == ConditionRule::OffGuard
     ));
@@ -217,7 +218,8 @@ fn scoped_restrained_suppresses_only_the_overlapping_grabbed_cause() {
         &participant,
         Some("a"),
         crate::encounters::rules::source_conditions::SourceConditions::empty(),
-    );
+    )
+    .active;
     assert!(
         !targeted
             .iter()
@@ -399,13 +401,12 @@ fn confused_keeps_action_guidance_without_a_target_selection_workflow() {
 #[test]
 fn fascination_requires_its_subject() {
     use super::action_context::{
-        ActionContext, ActionFact, ActionIssue, ActionJudgment, ActionKind, evaluate_action,
+        ActionContext, ActionFact, ActionIssue, ActionKind, KnownActionFact, evaluate_action,
     };
     let actor = participant();
     let mut fascinated = actor;
     fascinated.conditions = vec![condition(3, ConditionRule::Fascinated, None)];
-    let facts = [ActionJudgment {
-        source_id: None,
+    let facts = [KnownActionFact {
         fact: ActionFact::Concentrate,
         value: true,
     }];
@@ -444,12 +445,11 @@ fn fascination_requires_its_subject() {
 #[test]
 fn fleeing_requires_its_explicit_subject() {
     use super::action_context::{
-        ActionContext, ActionFact, ActionIssue, ActionJudgment, ActionKind, evaluate_action,
+        ActionContext, ActionFact, ActionIssue, ActionKind, KnownActionFact, evaluate_action,
     };
     let mut actor = participant();
     actor.conditions = vec![condition(1, ConditionRule::Fleeing, None)];
-    let facts = [ActionJudgment {
-        source_id: Some(1),
+    let facts = [KnownActionFact {
         fact: ActionFact::FurthersEscape,
         value: true,
     }];
@@ -825,7 +825,7 @@ fn behavioral_conditions_keep_row_hints_without_statistics() {
     assert!(notes.iter().any(|note| note.condition_id == Some(1)
         && note.reason == "Concentrate actions must relate to the subject of fascination."));
     assert!(notes.iter().any(|note| note.condition_id == Some(2)
-        && note.reason == "Spend your actions escaping the source. Can't Delay or Ready."));
+        && note.reason == "Spend your actions escaping the feared subject. Can't Delay or Ready."));
 }
 
 #[test]
@@ -994,10 +994,7 @@ fn known_stronger_penalty_keeps_values_known_despite_uncertain_source_activation
             .and_then(serde_json::Number::as_i64),
         Some(10)
     );
-    assert_eq!(
-        projected.unresolved_stats,
-        vec![StatisticTarget::Ability(Ability::Dexterity)]
-    );
+    assert!(projected.unresolved_stats.is_empty());
 }
 
 #[test]
@@ -1098,4 +1095,301 @@ fn uncertain_blinded_preserves_conditional_perception_with_an_alternative_precis
             .iter()
             .any(|note| note.reason.contains("only precise sense"))
     );
+}
+
+#[test]
+fn attribute_penalties_preserve_authored_attributes() {
+    use super::super::stat_block::Ability;
+    let baseline = source_baseline();
+    let mut p = participant();
+    p.conditions = vec![
+        condition(1, ConditionRule::Enfeebled, Some(2)),
+        condition(2, ConditionRule::Clumsy, Some(2)),
+        condition(3, ConditionRule::Drained, Some(1)),
+        condition(4, ConditionRule::Stupefied, Some(3)),
+    ];
+    let projected = project_participant(&p, &baseline, true, &[]);
+    for (ability, expected) in [
+        (Ability::Strength, 3),
+        (Ability::Dexterity, 2),
+        (Ability::Constitution, 2),
+        (Ability::Intelligence, 4),
+        (Ability::Wisdom, 3),
+        (Ability::Charisma, 1),
+    ] {
+        assert_eq!(
+            projected
+                .effective_stat(&StatisticTarget::Ability(ability))
+                .and_then(serde_json::Number::as_i64),
+            Some(expected)
+        );
+    }
+    assert_eq!(
+        projected
+            .effective_stat(&StatisticTarget::ArmorClass)
+            .and_then(serde_json::Number::as_i64),
+        Some(18)
+    );
+}
+
+#[test]
+fn unknown_strike_attribute_does_not_silently_ignore_a_penalty() {
+    let mut baseline = source_baseline();
+    let strike = baseline
+        .activities
+        .iter_mut()
+        .find(|a| a.label == "Finesse claw")
+        .unwrap();
+    strike.attack_ability = None;
+    let mut p = participant();
+    p.conditions = vec![condition(1, ConditionRule::Enfeebled, Some(2))];
+    let projected = project_participant(&p, &baseline, true, &[]);
+    let strike = projected
+        .activities
+        .iter()
+        .find(|a| a.label == "Finesse claw")
+        .unwrap();
+    assert!(strike.calculation_unavailable.is_some());
+    assert!(strike.rolls.is_empty());
+}
+
+#[test]
+fn invisible_preserves_explicit_observer_detection() {
+    use super::relationships::targeting_requirements;
+    let mut p = participant();
+    for (rule, guessed) in [
+        (ConditionRule::Hidden, false),
+        (ConditionRule::Undetected, true),
+        (ConditionRule::Unnoticed, true),
+    ] {
+        let mut scoped = condition(1, rule, None);
+        scoped.scope = ConditionScope::SelectedParticipants {
+            participant_keys: vec!["observer".into()],
+        };
+        p.conditions = vec![scoped, condition(2, ConditionRule::Invisible, None)];
+        let requirements = targeting_requirements(
+            &p,
+            "observer",
+            super::source_conditions::SourceConditions::empty(),
+        );
+        assert_eq!(requirements.flat_check_dc, Some(11));
+        assert_eq!(requirements.requires_guessed_location, guessed);
+        assert_eq!(
+            targeting_requirements(
+                &p,
+                "other",
+                super::source_conditions::SourceConditions::empty()
+            )
+            .flat_check_dc,
+            None
+        );
+    }
+    p.conditions = vec![condition(2, ConditionRule::Invisible, None)];
+    assert_eq!(
+        targeting_requirements(
+            &p,
+            "observer",
+            super::source_conditions::SourceConditions::empty()
+        )
+        .flat_check_dc,
+        None
+    );
+}
+
+#[test]
+fn fleeing_hint_uses_feared_subject_instead_of_causal_source() {
+    let mut p = participant();
+    let mut fleeing = condition(1, ConditionRule::Fleeing, None);
+    fleeing.source_participant_key = Some("caster".into());
+    fleeing.parameters = ConditionParameters::Fleeing {
+        subject: Some(ConditionSubject::Other {
+            description: "the burning doorway".into(),
+        }),
+    };
+    p.conditions.push(fleeing);
+    let mut block = participant_runtime_block(&p);
+    resolve_condition_subject_hints(&mut block, &p, &[]);
+    assert_eq!(
+        block
+            .unapplied_effects
+            .iter()
+            .find(|n| n.condition_id == Some(1))
+            .unwrap()
+            .reason,
+        "Spend your actions escaping the burning doorway. Can't Delay or Ready."
+    );
+}
+
+#[test]
+fn child_immunity_keeps_the_parent_and_independent_saved_causes() {
+    use super::{ConditionImmunity, ImmunityCoverage};
+    for (parent, child) in [
+        (ConditionRule::Confused, ConditionRule::OffGuard),
+        (ConditionRule::Dying, ConditionRule::Unconscious),
+        (ConditionRule::Encumbered, ConditionRule::Clumsy),
+        (ConditionRule::Grabbed, ConditionRule::OffGuard),
+        (ConditionRule::Grabbed, ConditionRule::Immobilized),
+        (ConditionRule::Paralyzed, ConditionRule::OffGuard),
+        (ConditionRule::Prone, ConditionRule::OffGuard),
+        (ConditionRule::Restrained, ConditionRule::OffGuard),
+        (ConditionRule::Restrained, ConditionRule::Immobilized),
+        (ConditionRule::Unconscious, ConditionRule::Blinded),
+        (ConditionRule::Unconscious, ConditionRule::OffGuard),
+    ] {
+        let mut p = participant();
+        p.conditions = vec![condition(1, parent, None)];
+        let sources = super::source_conditions::SourceConditions {
+            immunities: vec![ConditionImmunity {
+                slug: child.definition().slug.into(),
+                coverage: ImmunityCoverage::Unconditional,
+            }]
+            .into(),
+            ..Default::default()
+        };
+        let resolved = super::causes::condition_causes(&p, None, &sources);
+        assert!(resolved.known_presence(parent).unwrap());
+        assert!(!resolved.known_presence(child).unwrap());
+        let mut independent = condition(2, child, child.definition().default_value);
+        independent.immunity_override = true;
+        p.conditions.push(independent);
+        assert!(
+            super::causes::condition_causes(&p, None, &sources)
+                .known_presence(child)
+                .unwrap()
+        );
+    }
+}
+
+#[test]
+fn uncertain_child_immunity_preserves_a_dominating_known_penalty() {
+    let mut p = participant();
+    p.conditions = vec![
+        condition(1, ConditionRule::Encumbered, None),
+        condition(2, ConditionRule::Frightened, Some(2)),
+    ];
+    let mut baseline = source_baseline();
+    baseline.source_conditions.immunities.authored_complete = false;
+    let resolved = super::causes::condition_causes(&p, None, &baseline.source_conditions);
+    assert!(resolved.known_presence(ConditionRule::Clumsy).is_err());
+    let projected = project_participant(&p, &baseline, true, &[]);
+    assert_eq!(
+        projected
+            .effective_stat(&StatisticTarget::ArmorClass)
+            .and_then(serde_json::Number::as_i64),
+        Some(18)
+    );
+}
+
+#[test]
+fn relationship_off_guard_uses_the_observers_immunity() {
+    use super::{ConditionImmunity, ImmunityCoverage};
+    let observer = participant();
+    let mut attacker = participant();
+    attacker.participant_key = "attacker".into();
+    attacker.conditions = vec![condition(1, ConditionRule::Hidden, None)];
+    let roster = vec![observer.clone(), attacker];
+    let source_sets = Default::default();
+    let additional = super::relationships::observer_defense_causes(
+        &observer.participant_key,
+        &roster,
+        &source_sets,
+    );
+    let mut baseline = source_baseline();
+    baseline.source_conditions.immunities = vec![ConditionImmunity {
+        slug: "off-guard".into(),
+        coverage: ImmunityCoverage::Unconditional,
+    }]
+    .into();
+    let projected = project_participant(&observer, &baseline, true, &additional);
+    assert!(
+        projected.contextual_armor_class.iter().all(|ac| ac
+            .value
+            .value
+            .as_ref()
+            .and_then(serde_json::Number::as_i64)
+            == Some(20))
+    );
+}
+
+#[test]
+fn cyclic_activation_retains_unrelated_known_grants_and_reports_uncertainty() {
+    let p = participant();
+    let record = atlas_search::test_support::record("actors", "Actor", json!({
+        "_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Cyclic grants",
+        "system":{"traits":{"value":[]},"attributes":{"immunities":[]}},
+        "items":[{"_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Quickened","system":{"actionType":{"value":"passive"},"rules":[{"key":"GrantItem","inMemoryOnly":true,"uuid":"Compendium.pf2e.conditionitems.Item.Quickened"}]}},
+        {"_id":"cccccccccccccccc","type":"action","name":"Slowed","system":{"actionType":{"value":"passive"},"rules":[{"key":"GrantItem","inMemoryOnly":true,"uuid":"Compendium.pf2e.conditionitems.Item.Slowed","predicate":[{"not":"self:condition:slowed"}]}]}}]
+    })).record;
+    let sources = super::source_conditions::source_conditions(&record, |uuid| {
+        Ok(if uuid.ends_with("Quickened") {
+            Some(ConditionRule::Quickened)
+        } else {
+            Some(ConditionRule::Slowed)
+        })
+    })
+    .unwrap();
+    let resolved = super::causes::condition_causes(&p, None, &sources);
+    assert!(resolved.known_presence(ConditionRule::Quickened).unwrap());
+    assert!(resolved.known_presence(ConditionRule::Slowed).is_err());
+}
+
+#[test]
+fn possible_suppression_cannot_establish_a_condition_gated_extra_action() {
+    let mut p = participant();
+    p.conditions
+        .push(condition(1, ConditionRule::Dazzled, None));
+    let record = atlas_search::test_support::record("actors", "Actor", json!({
+        "_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Conditional senses",
+        "system":{"traits":{"value":[]},"attributes":{"immunities":[]}},
+        "items":[{"_id":"bbbbbbbbbbbbbbbb","type":"action","system":{
+            "actionType":{"value":"passive"},"rules":[
+                {"key":"GrantItem","inMemoryOnly":true,"uuid":"fixture:blinded","predicate":["unknown-context"]},
+                {"key":"GrantItem","inMemoryOnly":true,"uuid":"fixture:quickened","predicate":["self:condition:dazzled"]}
+            ]}}
+        ]
+    })).record;
+    let sources = super::source_conditions::source_conditions(&record, |uuid| {
+        Ok(Some(if uuid.ends_with("blinded") {
+            ConditionRule::Blinded
+        } else {
+            ConditionRule::Quickened
+        }))
+    })
+    .unwrap();
+    let resolved = super::causes::condition_causes(&p, None, &sources);
+    assert!(resolved.known_presence(ConditionRule::Dazzled).is_err());
+    assert!(resolved.known_presence(ConditionRule::Quickened).is_err());
+    assert!(
+        super::capabilities::RegainPlan::evaluate(&p, &sources)
+            .allocation()
+            .is_none()
+    );
+}
+
+#[test]
+fn possible_restrained_demotes_grabbed_but_keeps_independent_known_off_guard() {
+    let mut p = participant();
+    p.conditions = vec![
+        condition(1, ConditionRule::Grabbed, None),
+        condition(2, ConditionRule::OffGuard, None),
+    ];
+    let record = atlas_search::test_support::record("actors","Actor",json!({
+        "_id":"aaaaaaaaaaaaaaaa","type":"npc","system":{"traits":{"value":[]},"attributes":{"immunities":[]}},
+        "items":[{"_id":"bbbbbbbbbbbbbbbb","type":"action","system":{"actionType":{"value":"passive"},"rules":[
+            {"key":"GrantItem","inMemoryOnly":true,"uuid":"fixture:restrained","predicate":["unknown-context"]}
+        ]}}]
+    })).record;
+    let sources = super::source_conditions::source_conditions(&record, |_| {
+        Ok(Some(ConditionRule::Restrained))
+    })
+    .unwrap();
+    let resolved = super::causes::condition_causes(&p, None, &sources);
+    assert!(resolved.known_presence(ConditionRule::Grabbed).is_err());
+    assert!(resolved.known_presence(ConditionRule::OffGuard).unwrap());
+    assert!(resolved.known_presence(ConditionRule::Immobilized).is_err());
+    p.conditions
+        .push(condition(3, ConditionRule::Restrained, None));
+    let known = super::causes::condition_causes(&p, None, &sources);
+    assert!(!known.known_presence(ConditionRule::Grabbed).unwrap());
+    assert!(known.known_presence(ConditionRule::Immobilized).unwrap());
 }

@@ -1,6 +1,6 @@
 //! Condition reminders for the selected spell. Costs and rolls belong to their existing workflows.
 use super::rules::action_context::{
-    ActionContext, ActionFact, ActionJudgment, ActionKind, evaluate_action,
+    ActionContext, ActionFact, ActionKind, KnownActionFact, evaluate_action,
 };
 use crate::{AppServiceError, AppServiceResult, AtlasAppService};
 use atlas_app_model::*;
@@ -65,17 +65,11 @@ fn reminders(
     }
     .traits()
     .value();
-    let mut facts = vec![ActionJudgment {
-        source_id: None,
+    let mut facts = vec![KnownActionFact {
         fact: ActionFact::VoluntaryIngestion,
         value: false,
     }];
     if let Some(traits) = traits {
-        facts.push(ActionJudgment {
-            source_id: None,
-            fact: ActionFact::Cantrip,
-            value: traits.iter().any(|value| value == "cantrip"),
-        });
         for (fact, trait_key) in [
             (ActionFact::Manipulate, "manipulate"),
             (ActionFact::Auditory, "auditory"),
@@ -83,8 +77,7 @@ fn reminders(
             (ActionFact::Move, "move"),
             (ActionFact::Attack, "attack"),
         ] {
-            facts.push(ActionJudgment {
-                source_id: None,
+            facts.push(KnownActionFact {
                 fact,
                 value: traits.iter().any(|value| value == trait_key),
             });

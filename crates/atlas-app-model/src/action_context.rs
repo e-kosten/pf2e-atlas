@@ -15,7 +15,6 @@ pub enum EncounterActionFactView {
     MentalOnly,
     RelatesToFascination,
     FurthersEscape,
-    Cantrip,
     VoluntaryIngestion,
     FollowsControllerInstructions,
 }

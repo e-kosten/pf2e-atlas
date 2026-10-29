@@ -190,6 +190,10 @@ it("submits all damage types together and retains table totals across an uncerta
     "3",
   );
   expect(screen.queryByRole("combobox", { name: "Acid damage source" })).toBeNull();
+  const amount = screen.getByRole("spinbutton", { name: "Fire damage amount" });
+  fireEvent.focus(amount);
+  expect(await screen.findByRole("tooltip")).toHaveTextContent("After IWR");
+  fireEvent.blur(amount);
   fireEvent.click(await screen.findByRole("button", { name: "Apply 8 damage" }));
   await screen.findByText("Could not apply persistent damage.");
   expect(screen.getByRole("spinbutton", { name: "Fire damage amount" })).toHaveValue(

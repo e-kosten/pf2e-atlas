@@ -10,6 +10,8 @@ pub struct ParticipantAbilityState {
     pub owner: OwnedContentLocator,
     pub rule_ordinal: Option<usize>,
     pub source_fingerprint: String,
+    #[serde(default)]
+    pub declaration_identity: Option<String>,
     pub value: AbilityStateValue,
 }
 
@@ -67,5 +69,16 @@ impl EncountersWrite<'_> {
             params![change.participant_key,serde_json::to_string(&change.state.owner)?,ordinal,receipt_codec::encode(&change.state)?],
         )?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn legacy_payloads_decode_without_a_declaration_binding() {
+        let state: ParticipantAbilityState = receipt_codec::decode(r#"{"version":1,"payload":{"owner":{"collection":"/items","identity":{"Stable":"ability000000000"}},"rule_ordinal":null,"source_fingerprint":"old","value":{"kind":"uses","remaining":0}}}"#).unwrap();
+        assert_eq!(state.declaration_identity, None);
+        assert_eq!(state.value, AbilityStateValue::Uses { remaining: 0 });
     }
 }

@@ -1,81 +1,62 @@
 # Rust Encounter Condition Mechanics
 
-Status: planned
-Priority: later
-Owner: unassigned
-Last reviewed: 2026-10-16
+Status: in_progress
+Priority: next
+Owner: Codex
+Last reviewed: 2026-10-28
 
-## Problem
+## Desired outcome
 
-Encounters track conditions, round durations, expiry confirmation and persistent
-damage reminders. Mechanical projection is incomplete: a condition can adjust
-some displayed values while leaving attacks, damage or spellcasting unchanged.
-Condition-specific manual notices make that limitation visible but do not finish
-the automation.
+Keep standard-condition rules consistent across displayed facts, strikes, damage,
+spellcasting, action availability and HP events. Atlas remains a GM table aid:
+optional dice, direct table outcomes, independent condition sources and concise
+contextual reminders support adjudication without a mandatory action ledger or
+simulation of movement, equipment or behavioral decisions.
 
-## Desired Outcome
+The current correction batch covers maintained-child and observer immunity,
+source-owned Petrified mortality, durable ability-state identities, explicit
+detection alongside Invisible, source range defaults, raw attribute preservation,
+attribute-based damage penalties, and the reviewed condition editing/recovery
+flows. Source-backed Spend now honors the same known prohibitions as its display,
+without reallocating stock or restricting manual corrections. Successful editor
+closure waits for the controls to re-enable, preserving native focus return.
 
-Complete mechanical automation for standard conditions. Collect the typed context
-needed for each effect and apply it consistently across creature facts, attacks,
-damage, spellcasting and action availability. Conditions should not remain
-partially implemented merely because their effects cross presentation groups.
+One rules-owned RegainPlan now supplies allocation, numeric Stunned loss,
+Quickened restrictions and typed missing facts; presentation adapts those facts.
+Actual regain and validated explicit Stunned recovery share one consumption
+reducer. With product agreement, unused source-answer/Cantrip plumbing and raw
+recovery total/natural input were removed. Roll, table degrees, physical damage
+totals, historical outcomes and manual Stunned reconciliation remain supported.
 
-Prioritize the current gaps, including Enfeebled Strength-based attacks/damage,
-Clumsy Dexterity-based attacks, Stupefied spellcasting, conditional AC effects,
-restricted extra actions and condition-specific turn transitions. Use Foundry
-types/rules and authoritative PF2e rules to establish applicability; do not infer
-attack ability or rule identity from names or formatted text.
+The shared evaluation and event boundaries are described in
+[ADR0055](../../architecture/decisions/0055-encounter-condition-evaluation.md).
 
-The initial implementation supports these conditions through the shared typed target and modifier-resolution machinery:
+## Delivery
 
-- frightened;
-- sickened;
-- off-guard;
-- clumsy;
-- enfeebled;
-- stupefied.
+PR142 completes the effective-source repair as part of the correction batch. HP,
+recovery, condition and ability transitions, own-turn Stunned, targeting, senses
+and rest use the shared effective-condition resolver. Known inherited
+Dying/Wounded/Doomed participate without an attachment or source-editing workflow;
+saved selectors and historical results remain deliberately distinct. Supported
+Go Dark and Smoke Exhalation declarations have public-service regressions for
+Hidden/Concealed.
 
-The follow-up must establish:
+Unknown relevant facts explain the affected calculation; independent known facts
+and manual correction remain usable. There is no new adjudication form or
+arbitrary Foundry effect runtime. The reviewed UI direction is accepted; the PR's
+checks and validation report track final delivery evidence. Merge remains under
+the user's control.
 
-- how numeric condition values are interpreted;
-- which actor stats are adjusted and which remain annotation-only;
-- how unsupported or situational effects are displayed without implying automation;
-- complete coverage of the standard condition catalog, including effects that
-  need explicit target/context choices rather than an unconditional modifier;
-- source-grounded tests for complete effects and interactions, including typed
-  modifier stacking, representative creatures and turn boundaries.
+## Boundaries
 
-Done means standard conditions have complete supported mechanical behavior;
-genuine table decisions expose the necessary user interaction. No known mechanical
-effect is silently skipped or replaced indefinitely by a generic unsupported
-notice. Custom/unknown effects can remain durable annotations. Automatic dice,
-recovery adjudication and unconfirmed expiry removal remain separate product
-decisions; completing numerical automation does not authorize them.
-
-The approved [encounter workflow revision](rust-web-encounter-runner-polish.md)
-owns round-duration countdowns, explicit expiry confirmation and actionable
-persistent-damage reminders. Non-round durations remain reminders. Configurable
-automatic dice/recovery and additional condition-specific turn changes need their
-own rules and interaction design; duration countdown does not imply automatic
-condition-value reduction.
-
-Condition automation uses a backend-owned modeled-condition catalog for the first supported set. New UI-created modeled condition rows carry canonical `conditionitems` refs, and mechanical automation should require a canonical modeled `condition_key`. Rows without a modeled key remain durable annotations. A future freeform/custom-effect path can build on the existing local-state fields, but fuzzy condition names should remain annotation-only.
-
-## Constraints
-
-- Keep unsupported conditions as durable annotations.
-- Do not auto-apply effects that require GM judgment or encounter context the model does not represent.
-- Make each mechanically applied condition test-backed against representative records.
-- Preserve the v1 freeform condition path for non-standard effects.
-- Keep the browser picker driven by app-model/app-service condition definitions rather than a frontend-owned condition list.
-- Expose unapplied effects for modeled conditions when a rule targets attack, damage, spellcasting, formula-bearing values, or other targets that the first typed stat projection does not yet model.
-- Track follow-up work for attack, damage, spellcasting, and formula-backed transitive effects instead of silently ignoring them or approximating them from display strings.
+Keep generated condition declarations immutable, interpret checked source facts in
+app-service, and leave atomic saved-state changes with local-state. Preserve scoped
+causes, independent sources, persistent precedence, table degrees, correction
+versus application, and retry receipts. Do not replace these with a general Foundry
+runtime or infer rules from names and prose. Cursebound remains separately deferred.
 
 ## Related
 
-- Runnable encounters design (historical local plan: `scratch/plans/archive/2026-06/2026-06-22-runnable-encounters-design.md`)
-- Encounter mechanics activity model (historical local plan: `scratch/plans/archive/2026-06/2026-06-24-encounter-mechanics-activity-model.md`)
-- Encounter runtime surfaces plan (historical local plan: `scratch/plans/archive/2026-06/2026-06-25-encounter-runtime-surfaces-plan.md`)
-- [Rust encounter elite and weak projection](./rust-encounter-elite-weak-projection.md)
+- [Cursebound encounter mechanics](./encounter-cursebound.md)
 - [Rust encounter actor context effects](./rust-encounter-actor-context-effects.md)
 - [Rust encounter runtime mechanics surfaces](./rust-encounter-runtime-mechanics-surfaces.md)

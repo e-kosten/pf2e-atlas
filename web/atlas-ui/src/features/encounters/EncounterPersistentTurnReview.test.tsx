@@ -146,7 +146,7 @@ it("keeps every source and queues a table recovery without dropping its damage f
   fireEvent.change(screen.getByRole("spinbutton", { name: "Fire damage amount" }), {
     target: { value: "2" },
   });
-  expect(screen.getAllByText("Damage")).toHaveLength(2);
+  expect(screen.getAllByText("Damage taken")).toHaveLength(2);
   fireEvent.click(await screen.findByRole("button", { name: "Apply 5 damage" }));
   await waitFor(() =>
     expect(onApply).toHaveBeenCalledWith(

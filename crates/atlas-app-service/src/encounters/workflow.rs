@@ -65,6 +65,7 @@ impl AtlasAppService {
                 modeled,
                 &context.participant,
                 &context.facts,
+                &context.source_conditions,
             ) {
                 None => false,
                 Some(eligibility) => {
@@ -520,7 +521,11 @@ impl AtlasAppService {
                         ),
                     )
                 })?;
-            super::hp_events::retire_stale_hp_decisions(session, &detail.encounter.encounter_key)?;
+            super::hp_events::retire_stale_hp_decisions(
+                session,
+                &detail.encounter.encounter_key,
+                &[],
+            )?;
             Ok(EncounterMutationView {
                 encounter_key: detail.encounter.encounter_key,
             })
@@ -1088,7 +1093,12 @@ pub(super) fn validate_condition_subject(
     let Some(modeled) = condition_key.and_then(modeled_condition_by_ref) else {
         return Ok(());
     };
-    match super::rules::condition_applicability(modeled, &context.participant, &context.facts) {
+    match super::rules::condition_applicability(
+        modeled,
+        &context.participant,
+        &context.facts,
+        &context.source_conditions,
+    ) {
         None => Err(AppServiceError::invalid_request(
             "condition does not apply to this participant kind",
         )),
@@ -1223,5 +1233,38 @@ mod immunity_override_tests {
         );
         assert!(validate_condition_subject(&context, Some(&condition.condition_ref), true).is_ok());
         assert_eq!(context.participant.note, None);
+    }
+}
+
+pub(super) fn condition_sources_context(
+    service: &AtlasAppService,
+    participant: &atlas_local_state::EncounterParticipant,
+) -> AppServiceResult<(
+    super::rules::source_conditions::SourceConditions,
+    Option<u64>,
+)> {
+    if participant.record_key.is_none() {
+        return Ok((Default::default(), None));
+    }
+    match condition_subject_context(service, participant) {
+        Ok(subject) => Ok((subject.source_conditions, subject.reference_revision)),
+        Err(error) => {
+            let error = error.into_app_error();
+            if matches!(
+                error.code,
+                AppErrorCode::SetupRequired
+                    | AppErrorCode::ArtifactIncompatible
+                    | AppErrorCode::ArtifactGenerationChanged
+                    | AppErrorCode::IndexUnavailable
+                    | AppErrorCode::ArtifactNotReady
+            ) {
+                Ok((
+                    super::rules::source_conditions::SourceConditions::unavailable(),
+                    None,
+                ))
+            } else {
+                Err(error.into())
+            }
+        }
     }
 }

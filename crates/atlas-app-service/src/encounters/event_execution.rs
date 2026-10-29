@@ -44,6 +44,10 @@ pub(super) fn snapshot(
 }
 
 pub(super) struct EncounterEvent<'a> {
+    pub condition_sources: &'a [(
+        &'a str,
+        &'a super::rules::source_conditions::SourceConditions,
+    )],
     pub encounter_key: &'a str,
     pub request_id: &'a str,
     pub intent: &'a serde_json::Value,
@@ -124,7 +128,15 @@ impl EncounterEvent<'_> {
             boundary,
             evaluate,
         )?;
-        super::hp_events::retire_stale_hp_decisions(session, self.encounter_key)?;
+        super::hp_events::retire_stale_hp_decisions(
+            session,
+            self.encounter_key,
+            if self.reference_revision.is_some() {
+                self.condition_sources
+            } else {
+                &[]
+            },
+        )?;
         Ok(receipt)
     }
 }
@@ -158,6 +170,7 @@ mod tests {
         let intent = serde_json::json!({ "action": "guard-test" });
         let evaluations = Cell::new(0);
         let event = |id, expected_revision, reference_revision| EncounterEvent {
+            condition_sources: &[],
             encounter_key: &key,
             request_id: id,
             intent: &intent,
@@ -206,6 +219,7 @@ mod tests {
         let changed_intent = serde_json::json!({ "action": "different" });
         assert!(
             EncounterEvent {
+                condition_sources: &[],
                 intent: &changed_intent,
                 ..event("once", revision, None)
             }
