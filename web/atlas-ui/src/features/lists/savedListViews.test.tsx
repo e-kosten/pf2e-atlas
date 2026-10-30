@@ -20,7 +20,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { Profiler, type ReactNode } from "react";
 import type {
   RecordDetailView,
   RecordDetailRequest,
@@ -879,6 +879,182 @@ describe("list views", () => {
     expect(apiMocks.filterSavedList).not.toHaveBeenCalled();
     expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
     expect(apiMocks.reorderSavedListItem).not.toHaveBeenCalled();
+  });
+
+  it.each(["click", "Space"])(
+    "keeps the current preview mounted until a %s selection is ready",
+    async (input) => {
+      history.replaceState(null, "", "/lists/research/records/actions:testAction1");
+      const list = savedListDetailFixture();
+      list.items.push({
+        ...list.items[0],
+        record_key: "actions:testAction2",
+        snapshot: { title: "Test Action 2" },
+        record: summaryFixture("actions:testAction2", "Test Action 2"),
+      });
+      apiMocks.filterSavedList.mockResolvedValue(list);
+      let finish!: (detail: RecordDetailView) => void;
+      apiMocks.getRecordDetail.mockImplementation((key: string) =>
+        key === "actions:testAction2"
+          ? new Promise((resolve) => {
+              finish = resolve;
+            })
+          : Promise.resolve(recordDetailFixture(key)),
+      );
+      const frames: boolean[] = [];
+      render(
+        <Profiler
+          id="list"
+          onRender={() =>
+            frames.push(
+              Boolean(screen.queryByRole("heading", { name: /Test Action [12]/ })),
+            )
+          }
+        >
+          <ListDetailView
+            route={{ slug: "research", selectedRecordKey: "actions:testAction1" }}
+          />
+        </Profiler>,
+        { wrapper: queryClientWrapper() },
+      );
+      const original = await screen.findByRole("heading", { name: "Test Action 1" });
+      frames.length = 0;
+      const link = screen.getByRole("link", { name: /Test Action 2/ });
+      if (input === "click") fireEvent.click(link);
+      else fireEvent.keyDown(link, { key: " " });
+      await waitFor(() =>
+        expect(apiMocks.getRecordDetail).toHaveBeenCalledWith(
+          "actions:testAction2",
+          undefined,
+          expect.any(AbortSignal),
+        ),
+      );
+      expect(original).toBeVisible();
+      expect(window.location.pathname).toBe(
+        "/lists/research/records/actions:testAction1",
+      );
+      await act(async () =>
+        finish(detailFixture("actions:testAction2", "Test Action 2")),
+      );
+      expect(
+        await screen.findByRole("heading", { name: "Test Action 2" }),
+      ).toBeVisible();
+      await waitFor(() =>
+        expect(window.location.pathname).toBe(
+          "/lists/research/records/actions:testAction2",
+        ),
+      );
+      expect(frames.every(Boolean)).toBe(true);
+    },
+  );
+
+  it("keeps selection failure and cancellation reachable in narrow results", async () => {
+    vi.mocked(Grid.useBreakpoint).mockReturnValue({ lg: false });
+    apiMocks.getRecordDetail.mockRejectedValue(new Error("Read failed"));
+    render(<ListDetailView route={{ slug: "research", selectedRecordKey: null }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    fireEvent.click(await screen.findByRole("link", { name: /Test Action 1/ }));
+    expect(await screen.findByText("Could not load Test Action 1")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Retry loading Test Action 1" }),
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel selection" }));
+    expect(screen.queryByText("Could not load Test Action 1")).not.toBeInTheDocument();
+    expect(screen.getByText("1 saved records")).toBeVisible();
+  });
+
+  it("retains the current preview and note draft when selection fails, then retries in place", async () => {
+    history.replaceState(null, "", "/lists/research/records/actions:testAction1");
+    const list = savedListDetailFixture();
+    list.items.push({
+      ...list.items[0],
+      record_key: "actions:testAction2",
+      snapshot: { title: "Test Action 2" },
+      record: summaryFixture("actions:testAction2", "Test Action 2"),
+    });
+    apiMocks.filterSavedList.mockResolvedValue(list);
+    apiMocks.getRecordDetail.mockImplementation((key: string) =>
+      key === "actions:testAction2"
+        ? Promise.reject(new Error("Read failed"))
+        : Promise.resolve(recordDetailFixture(key)),
+    );
+    render(
+      <ListDetailView
+        route={{ slug: "research", selectedRecordKey: "actions:testAction1" }}
+      />,
+      { wrapper: queryClientWrapper() },
+    );
+    const original = await screen.findByRole("heading", { name: "Test Action 1" });
+    fireEvent.click(await screen.findByRole("button", { name: "Add note" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
+      target: { value: "Unfinished first note" },
+    });
+    fireEvent.click(screen.getByRole("link", { name: /Test Action 2/ }));
+    expect(await screen.findByText("Could not load Test Action 2")).toBeVisible();
+    expect(original).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue(
+      "Unfinished first note",
+    );
+    expect(window.location.pathname).toBe(
+      "/lists/research/records/actions:testAction1",
+    );
+    apiMocks.getRecordDetail.mockResolvedValue(
+      detailFixture("actions:testAction2", "Test Action 2"),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Retry loading Test Action 2" }),
+    );
+    expect(await screen.findByRole("heading", { name: "Test Action 2" })).toBeVisible();
+    expect(screen.queryByText("Could not load Test Action 2")).not.toBeInTheDocument();
+  });
+
+  it("keeps the footer populated on every commit when selecting entries before their note refresh completes", async () => {
+    const list = savedListDetailFixture();
+    list.items = [
+      "actions:testAction1",
+      "actions:testAction2",
+      "actions:testAction3",
+    ].map((record_key, index) => ({
+      ...list.items[0],
+      record_key,
+      position: index + 1,
+      note: index === 2 ? undefined : "Shared preparation note",
+      snapshot: { title: `Test Action ${index + 1}` },
+    }));
+    apiMocks.filterSavedList.mockResolvedValue(list);
+    apiMocks.getSavedListItemNote.mockImplementation(() => new Promise(() => {}));
+    const frames: string[] = [];
+    const pane = (recordKey: string) => (
+      <Profiler
+        id="list"
+        onRender={() => {
+          frames.push(
+            screen.queryByRole("region", { name: "List entry note" })?.textContent ??
+              "missing",
+          );
+        }}
+      >
+        <ListDetailView route={{ slug: "research", selectedRecordKey: recordKey }} />
+      </Profiler>
+    );
+    const view = render(pane("actions:testAction1"), { wrapper: queryClientWrapper() });
+    expect(await screen.findByText("Shared preparation note")).toBeVisible();
+    frames.length = 0;
+    view.rerender(pane("actions:testAction2"));
+    await waitFor(() =>
+      expect(apiMocks.getSavedListItemNote).toHaveBeenCalledWith(
+        "list_research",
+        "actions:testAction2",
+      ),
+    );
+    expect(frames.length).toBeGreaterThan(0);
+    expect(frames.every((text) => text.includes("Shared preparation note"))).toBe(true);
+    expect(screen.getByRole("button", { name: "Edit" })).toBeVisible();
+    view.rerender(pane("actions:testAction3"));
+    expect(screen.queryByText("Shared preparation note")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add note" }));
+    expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue("");
   });
 
   it("keeps temporary order in list URLs and native links without enabling reorder writes", async () => {

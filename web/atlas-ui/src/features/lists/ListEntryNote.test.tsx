@@ -16,7 +16,7 @@ const entry = {
   title: "One",
   note: "A useful ally",
 };
-function setup() {
+function setup(initialNote?: typeof entry) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -29,9 +29,15 @@ function setup() {
   );
   return {
     client,
-    ...render(<ListEntryNote listRef="list_research" recordKey="actions:one" />, {
-      wrapper,
-    }),
+    ...render(
+      <ListEntryNote
+        listRef="list_research"
+        recordKey="actions:one"
+        initialNote={initialNote}
+        initialNoteUpdatedAt={1}
+      />,
+      { wrapper },
+    ),
   };
 }
 beforeEach(() => {
@@ -133,4 +139,19 @@ it("isolates late mutation completions from a different selected entry", async (
   await act(async () => resolve({ ...entry, note: "Old entry draft" }));
   expect(screen.getByText("Second entry")).toBeVisible();
   expect(screen.queryByText("Old entry draft")).not.toBeInTheDocument();
+});
+
+it("shows the selected member's note immediately and retains it through refresh failure and retry", async () => {
+  api.getSavedListItemNote.mockRejectedValueOnce(new Error("Read failed"));
+  setup(entry);
+  expect(screen.getByText(entry.note)).toBeVisible();
+  expect(screen.getByRole("button", { name: "Edit" })).toBeVisible();
+  expect(await screen.findByText("Unable to refresh note")).toBeVisible();
+  expect(screen.getByText(entry.note)).toBeVisible();
+  api.getSavedListItemNote.mockResolvedValue({ ...entry, note: "Refreshed note" });
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  expect(await screen.findByText("Refreshed note")).toBeVisible();
+  expect(screen.queryByText("Unable to refresh note")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+  expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue("Refreshed note");
 });
