@@ -117,8 +117,303 @@ pub(crate) fn read_record_detail(
     r: &atlas_search::AtlasRetrievalService,
     request: RecordDetailRequest,
 ) -> AppServiceResult<(atlas_search::SourceRecordDetail, RecordDetailView)> {
-    validate_request(&request)?;
-    let whole_document = request.fields.is_empty() && request.passage.is_none();
+    let (loaded, view) = LoadedRecordDetail::read(r, request)?;
+    Ok((loaded.detail, view))
+}
+
+pub(crate) struct LoadedRecordDetail<'a> {
+    retrieval: &'a atlas_search::AtlasRetrievalService,
+    detail: atlas_search::SourceRecordDetail,
+}
+
+impl<'a> LoadedRecordDetail<'a> {
+    pub(crate) fn read(
+        r: &'a atlas_search::AtlasRetrievalService,
+        request: RecordDetailRequest,
+    ) -> AppServiceResult<(Self, RecordDetailView)> {
+        let key = validate_selection(r, &request)?;
+        let detail = r
+            .get_record(GetRecordRequest {
+                record_key: &key,
+                selected_content: &[],
+            })?
+            .ok_or_else(|| {
+                AppServiceError::new(
+                    AppErrorCode::RecordNotFound,
+                    format!("record `{key}` was not found"),
+                )
+            })?;
+        let loaded = Self {
+            retrieval: r,
+            detail,
+        };
+        let view = loaded.project(request)?;
+        Ok((loaded, view))
+    }
+
+    pub(crate) fn project(
+        &self,
+        request: RecordDetailRequest,
+    ) -> AppServiceResult<RecordDetailView> {
+        let r = self.retrieval;
+        let detail = &self.detail;
+        let key = validate_selection(r, &request)?;
+        if &key != detail.source.key() {
+            return Err(AppServiceError::invalid_request(
+                "detail selection belongs to another loaded record",
+            ));
+        }
+        let whole_document = request.fields.is_empty() && request.passage.is_none();
+        let node = detail.source.node_at(&request.owners).ok_or_else(|| {
+            AppServiceError::invalid_request(
+                "selected document does not exist in this source snapshot",
+            )
+        })?;
+        let selections = node.content_selections();
+        if request
+            .fields
+            .iter()
+            .any(|f| !selections.iter().any(|s| s.field == f.as_str()))
+        {
+            return Err(AppServiceError::invalid_request(
+                "selected field is not declared content of the selected document",
+            ));
+        }
+        let selected: Vec<_> = selections
+            .into_iter()
+            .filter(|s| {
+                if request.fields.is_empty() {
+                    s.role != SourceContentRole::Name
+                        && (matches!(s.text, SourceFieldView::Value(_))
+                            || s.role == SourceContentRole::Prerequisite)
+                } else {
+                    request.fields.iter().any(|f| f.as_str() == s.field)
+                }
+            })
+            .collect();
+        if selected.len() > 256 {
+            return Err(AppServiceError::invalid_request(
+                "select at most 256 content fields per detail request",
+            ));
+        }
+        let locators: Vec<_> = selected
+            .iter()
+            .filter(|s| {
+                matches!(s.text, SourceFieldView::Value(_))
+                    && matches!(s.format, SourceFieldView::Value(SourceContentFormat::Html))
+            })
+            .map(|s| SourceContentLocator {
+                record: key.clone(),
+                owners: request.owners.clone(),
+                field: s.field.to_string(),
+            })
+            .collect();
+        let content = r.read_attributed_content(&locators)?;
+        let summary = crate::projection::localized_summary_view(&detail.summary, r);
+        let mut presentation = crate::presentation::record_presentation(
+            &detail.source,
+            node,
+            &summary,
+            &request.owners,
+            vec![],
+            r,
+        )?;
+        let spell_rank = crate::presentation::apply_casting_rank(
+            &detail.source,
+            node,
+            request.spell_rank,
+            &mut presentation,
+            r,
+        )?;
+        let mut context = crate::prepared_content::PreparedContentContext::source(
+            r.source_fingerprint(),
+            &detail.source,
+            &request.owners,
+            spell_rank,
+        );
+        if context.formula.item_is_spell {
+            context.formula.item_rank = spell_rank;
+            context.spell_rank = spell_rank;
+        }
+        let mut fields = crate::prepared_content::prepared_fields(
+            &key,
+            &request.owners,
+            &selected,
+            &content.content.fields,
+            &content.bounded,
+            r.artifact_context().audience,
+            &context,
+        )?;
+        if let Some(address) = &request.passage {
+            if matches!(address, SourcePassageAddress::Identity {}) {
+                if !request.fields.is_empty() {
+                    return Err(AppServiceError::invalid_request(
+                        "identity navigation cannot select a prose field",
+                    ));
+                }
+            } else {
+                if request.fields.len() != 1 {
+                    return Err(AppServiceError::invalid_request(
+                        "passage navigation requires exactly one selected field",
+                    ));
+                }
+                let field = fields
+                    .iter_mut()
+                    .find(|f| f.locator.field == request.fields[0])
+                    .ok_or_else(|| {
+                        AppServiceError::invalid_request("selected passage field is unavailable")
+                    })?;
+                let (html, plain, interactions) = match &field.body {
+                    atlas_app_model::PreparedFieldBodyView::Html { .. } => {
+                        // Search passages bind canonical prepared content, before
+                        // selected-rank or runtime substitutions change its text.
+                        let cached = content
+                            .content
+                            .fields
+                            .iter()
+                            .find(|cached| {
+                                cached.locator.field == field.locator.field
+                                    && cached.locator.owners == field.locator.owners
+                            })
+                            .ok_or_else(|| {
+                                AppServiceError::invalid_request(
+                                    "selected passage field is unavailable",
+                                )
+                            })?;
+                        let canonical = cached.html.as_deref().ok_or_else(|| {
+                            AppServiceError::invalid_request(
+                                "selected passage field is unavailable",
+                            )
+                        })?;
+                        (Some(canonical), None, Some(cached.interactions.as_slice()))
+                    }
+                    atlas_app_model::PreparedFieldBodyView::Plain { text } => {
+                        (None, Some(text.as_str()), None)
+                    }
+                    _ => {
+                        return Err(AppServiceError::invalid_request(
+                            "selected passage field is unavailable",
+                        ));
+                    }
+                };
+                recover_source_passage(html, plain, address).map_err(|e| {
+                    AppServiceError::invalid_request(format!("stale or invalid passage: {e}"))
+                })?;
+                if let (
+                    atlas_app_model::PreparedFieldBodyView::Html { html, .. },
+                    Some(canonical),
+                    Some(interactions),
+                ) = (&mut field.body, html, interactions)
+                {
+                    let marked =
+                        atlas_record::source_record::mark_source_html_passage(canonical, address)
+                            .map_err(|e| {
+                            AppServiceError::invalid_request(format!(
+                                "stale or invalid passage: {e}"
+                            ))
+                        })?;
+                    *html = atlas_record::source_content::render_contextual_interactions(
+                        &marked,
+                        interactions,
+                        &context.formula,
+                    );
+                    field.section_rendering =
+                        crate::prepared_content::contextual_section_rendering(
+                            &marked,
+                            interactions,
+                            &context.formula,
+                        )?;
+                }
+            }
+        }
+        crate::inline_content::compose_inline_content(
+            r,
+            fields.iter_mut(),
+            &content.relationships,
+        )?;
+        presentation.content = fields;
+        let relationships = r.read_non_content_relationships(&SourceRelationshipRequest {
+            record: key.clone(),
+            owners: Some(request.owners.clone()),
+            field: if request.fields.len() == 1 {
+                Some(request.fields[0].clone())
+            } else {
+                None
+            },
+            direction: SourceRelationshipDirection::Outgoing,
+            limit: 1024,
+        })?;
+        let grants_truncated = relationships.truncated;
+        let mut view = RecordDetailView {
+            encounter_adjustment: request
+                .owners
+                .is_empty()
+                .then(|| {
+                    crate::encounters::mechanics::initial_variant(&detail.source)
+                        .0
+                        .map(|variant| match variant {
+                            atlas_local_state::ParticipantVariant::Normal => {
+                                atlas_app_model::EncounterParticipantVariantView::Normal
+                            }
+                            atlas_local_state::ParticipantVariant::Elite => {
+                                atlas_app_model::EncounterParticipantVariantView::Elite
+                            }
+                            atlas_local_state::ParticipantVariant::Weak => {
+                                atlas_app_model::EncounterParticipantVariantView::Weak
+                            }
+                        })
+                })
+                .flatten(),
+            artifact_generation: r.artifact_generation()?,
+            record: summary,
+            presentation,
+            selected: RecordNavigationView {
+                spell_rank,
+                record_key: key.to_string(),
+                source_fingerprint: navigation_fingerprint(&request.owners, r.source_fingerprint()),
+                owners: request.owners,
+                field: if request.fields.len() == 1 {
+                    Some(request.fields[0].clone())
+                } else {
+                    None
+                },
+                passage: request.passage,
+            },
+            relationships: relationship_views(
+                content
+                    .relationships
+                    .into_iter()
+                    .chain(relationships.occurrences)
+                    .collect(),
+                r.source_fingerprint(),
+            )
+            .into_iter()
+            .map(|mut relationship| {
+                if relationship.kind == "CompendiumProvenance"
+                    && relationship.status == "resolved_record"
+                    && let Some(target) = &mut relationship.target
+                {
+                    target.spell_rank = spell_rank;
+                }
+                relationship
+            })
+            .collect(),
+            relationships_truncated: relationships.truncated || !content.bounded.is_empty(),
+        };
+        crate::contextual_references::attach_consumable_spell(&mut view, r)?;
+        crate::contextual_references::attach_ranked_effects(&mut view, r)?;
+        if whole_document {
+            crate::record_grants::attach(&detail.source, &mut view, r, grants_truncated)?;
+        }
+        Ok(view)
+    }
+}
+
+fn validate_selection(
+    r: &atlas_search::AtlasRetrievalService,
+    request: &RecordDetailRequest,
+) -> AppServiceResult<RecordKey> {
+    validate_request(request)?;
     let key = RecordKey::parse(&request.record_key)
         .map_err(|e| AppServiceError::new(AppErrorCode::InvalidRecordKey, e.to_string()))?;
     if request
@@ -131,250 +426,7 @@ pub(crate) fn read_record_detail(
             "snapshot-local navigation belongs to a different artifact; reopen the search result or parent record",
         ));
     }
-    let detail = r
-        .get_record(GetRecordRequest {
-            record_key: &key,
-            selected_content: &[],
-        })?
-        .ok_or_else(|| {
-            AppServiceError::new(
-                AppErrorCode::RecordNotFound,
-                format!("record `{key}` was not found"),
-            )
-        })?;
-    let node = detail.source.node_at(&request.owners).ok_or_else(|| {
-        AppServiceError::invalid_request("selected document does not exist in this source snapshot")
-    })?;
-    let selections = node.content_selections();
-    if request
-        .fields
-        .iter()
-        .any(|f| !selections.iter().any(|s| s.field == f.as_str()))
-    {
-        return Err(AppServiceError::invalid_request(
-            "selected field is not declared content of the selected document",
-        ));
-    }
-    let selected: Vec<_> = selections
-        .into_iter()
-        .filter(|s| {
-            if request.fields.is_empty() {
-                s.role != SourceContentRole::Name
-                    && (matches!(s.text, SourceFieldView::Value(_))
-                        || s.role == SourceContentRole::Prerequisite)
-            } else {
-                request.fields.iter().any(|f| f.as_str() == s.field)
-            }
-        })
-        .collect();
-    if selected.len() > 256 {
-        return Err(AppServiceError::invalid_request(
-            "select at most 256 content fields per detail request",
-        ));
-    }
-    let locators: Vec<_> = selected
-        .iter()
-        .filter(|s| {
-            matches!(s.text, SourceFieldView::Value(_))
-                && matches!(s.format, SourceFieldView::Value(SourceContentFormat::Html))
-        })
-        .map(|s| SourceContentLocator {
-            record: key.clone(),
-            owners: request.owners.clone(),
-            field: s.field.to_string(),
-        })
-        .collect();
-    let content = r.read_attributed_content(&locators)?;
-    let summary = crate::projection::localized_summary_view(&detail.summary, r);
-    let mut presentation = crate::presentation::record_presentation(
-        &detail.source,
-        node,
-        &summary,
-        &request.owners,
-        vec![],
-        r,
-    )?;
-    let spell_rank = crate::presentation::apply_casting_rank(
-        &detail.source,
-        node,
-        request.spell_rank,
-        &mut presentation,
-        r,
-    )?;
-    let mut context = crate::prepared_content::PreparedContentContext::source(
-        r.source_fingerprint(),
-        &detail.source,
-        &request.owners,
-        spell_rank,
-    );
-    if context.formula.item_is_spell {
-        context.formula.item_rank = spell_rank;
-        context.spell_rank = spell_rank;
-    }
-    let mut fields = crate::prepared_content::prepared_fields(
-        &key,
-        &request.owners,
-        &selected,
-        &content.content.fields,
-        &content.bounded,
-        r.artifact_context().audience,
-        &context,
-    )?;
-    if let Some(address) = &request.passage {
-        if matches!(address, SourcePassageAddress::Identity {}) {
-            if !request.fields.is_empty() {
-                return Err(AppServiceError::invalid_request(
-                    "identity navigation cannot select a prose field",
-                ));
-            }
-        } else {
-            if request.fields.len() != 1 {
-                return Err(AppServiceError::invalid_request(
-                    "passage navigation requires exactly one selected field",
-                ));
-            }
-            let field = fields
-                .iter_mut()
-                .find(|f| f.locator.field == request.fields[0])
-                .ok_or_else(|| {
-                    AppServiceError::invalid_request("selected passage field is unavailable")
-                })?;
-            let (html, plain, interactions) = match &field.body {
-                atlas_app_model::PreparedFieldBodyView::Html { .. } => {
-                    // Search passages bind canonical prepared content, before
-                    // selected-rank or runtime substitutions change its text.
-                    let cached = content
-                        .content
-                        .fields
-                        .iter()
-                        .find(|cached| {
-                            cached.locator.field == field.locator.field
-                                && cached.locator.owners == field.locator.owners
-                        })
-                        .ok_or_else(|| {
-                            AppServiceError::invalid_request(
-                                "selected passage field is unavailable",
-                            )
-                        })?;
-                    let canonical = cached.html.as_deref().ok_or_else(|| {
-                        AppServiceError::invalid_request("selected passage field is unavailable")
-                    })?;
-                    (Some(canonical), None, Some(cached.interactions.as_slice()))
-                }
-                atlas_app_model::PreparedFieldBodyView::Plain { text } => {
-                    (None, Some(text.as_str()), None)
-                }
-                _ => {
-                    return Err(AppServiceError::invalid_request(
-                        "selected passage field is unavailable",
-                    ));
-                }
-            };
-            recover_source_passage(html, plain, address).map_err(|e| {
-                AppServiceError::invalid_request(format!("stale or invalid passage: {e}"))
-            })?;
-            if let (
-                atlas_app_model::PreparedFieldBodyView::Html { html, .. },
-                Some(canonical),
-                Some(interactions),
-            ) = (&mut field.body, html, interactions)
-            {
-                let marked =
-                    atlas_record::source_record::mark_source_html_passage(canonical, address)
-                        .map_err(|e| {
-                            AppServiceError::invalid_request(format!(
-                                "stale or invalid passage: {e}"
-                            ))
-                        })?;
-                *html = atlas_record::source_content::render_contextual_interactions(
-                    &marked,
-                    interactions,
-                    &context.formula,
-                );
-                field.section_rendering = crate::prepared_content::contextual_section_rendering(
-                    &marked,
-                    interactions,
-                    &context.formula,
-                )?;
-            }
-        }
-    }
-    crate::inline_content::compose_inline_content(r, fields.iter_mut(), &content.relationships)?;
-    presentation.content = fields;
-    let relationships = r.read_non_content_relationships(&SourceRelationshipRequest {
-        record: key.clone(),
-        owners: Some(request.owners.clone()),
-        field: if request.fields.len() == 1 {
-            Some(request.fields[0].clone())
-        } else {
-            None
-        },
-        direction: SourceRelationshipDirection::Outgoing,
-        limit: 1024,
-    })?;
-    let grants_truncated = relationships.truncated;
-    let mut view = RecordDetailView {
-        encounter_adjustment: request
-            .owners
-            .is_empty()
-            .then(|| {
-                crate::encounters::mechanics::initial_variant(&detail.source)
-                    .0
-                    .map(|variant| match variant {
-                        atlas_local_state::ParticipantVariant::Normal => {
-                            atlas_app_model::EncounterParticipantVariantView::Normal
-                        }
-                        atlas_local_state::ParticipantVariant::Elite => {
-                            atlas_app_model::EncounterParticipantVariantView::Elite
-                        }
-                        atlas_local_state::ParticipantVariant::Weak => {
-                            atlas_app_model::EncounterParticipantVariantView::Weak
-                        }
-                    })
-            })
-            .flatten(),
-        artifact_generation: r.artifact_generation()?,
-        record: summary,
-        presentation,
-        selected: RecordNavigationView {
-            spell_rank,
-            record_key: key.to_string(),
-            source_fingerprint: navigation_fingerprint(&request.owners, r.source_fingerprint()),
-            owners: request.owners,
-            field: if request.fields.len() == 1 {
-                Some(request.fields[0].clone())
-            } else {
-                None
-            },
-            passage: request.passage,
-        },
-        relationships: relationship_views(
-            content
-                .relationships
-                .into_iter()
-                .chain(relationships.occurrences)
-                .collect(),
-            r.source_fingerprint(),
-        )
-        .into_iter()
-        .map(|mut relationship| {
-            if relationship.kind == "CompendiumProvenance"
-                && relationship.status == "resolved_record"
-                && let Some(target) = &mut relationship.target
-            {
-                target.spell_rank = spell_rank;
-            }
-            relationship
-        })
-        .collect(),
-        relationships_truncated: relationships.truncated || !content.bounded.is_empty(),
-    };
-    crate::contextual_references::attach_consumable_spell(&mut view, r)?;
-    crate::contextual_references::attach_ranked_effects(&mut view, r)?;
-    if whole_document {
-        crate::record_grants::attach(&detail.source, &mut view, r, grants_truncated)?;
-    }
-    Ok((detail, view))
+    Ok(key)
 }
 pub(crate) fn validate_request(r: &RecordDetailRequest) -> AppServiceResult<()> {
     if r.owners.len() > 32

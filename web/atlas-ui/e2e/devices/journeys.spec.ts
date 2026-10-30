@@ -1997,3 +1997,69 @@ test("a real trait member total renders a singular entry @engine", async ({ page
       .getByText("1 of 1 entry", { exact: true }),
   ).toBeVisible();
 });
+
+test("table rolls retain overlapping prepared results and allow stateless rerolls", async ({
+  page,
+}, info) => {
+  const key = "browser-tables:table00000000001";
+  await page.goto(`/records/${key}`);
+  await expect(
+    page.getByRole("heading", { name: "Night Patrol Signals", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("table").locator("tbody tr")).toHaveCount(2);
+  for (const label of ["Roll", "Reroll"]) {
+    const response = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/rolls/table" &&
+        response.request().method() === "POST",
+    );
+    await activate(page.getByRole("button", { name: label, exact: true }), info);
+    const rolledResponse = await response;
+    expect(rolledResponse.ok()).toBe(true);
+    const rolled = await rolledResponse.json();
+    expect(rolled.outcome.total).toBeGreaterThanOrEqual(1);
+    expect(rolled.outcome.total).toBeLessThanOrEqual(4);
+    expect(rolled.invalid_ranges).toEqual([]);
+    expect(
+      rolled.matches.map(
+        (match: { selected: { record_key: string; embedded_path: unknown[] } }) =>
+          match.selected,
+      ),
+    ).toMatchObject([
+      {
+        record_key: key,
+        embedded_path: [
+          { collection: "/results", identity: { Stable: "result0000000001" } },
+        ],
+      },
+      {
+        record_key: key,
+        embedded_path: [
+          { collection: "/results", identity: { Stable: "result0000000002" } },
+        ],
+      },
+    ]);
+    const matches = page.locator(".roll-table-result-summary");
+    await expect(matches).toHaveCount(2);
+    const link = matches
+      .first()
+      .getByRole("link", { name: "Signal Protocol", exact: true });
+    await expect(link).toBeVisible();
+    expect(
+      decodeURIComponent(
+        new URL((await link.getAttribute("href"))!, page.url()).pathname,
+      ),
+    ).toBe("/records/browser-rules:rule000000000001");
+    await expect(matches.last()).toContainText(
+      "The lantern remains dark while the patrol changes watch.",
+    );
+    await activate(link, info);
+    const preview = page.getByRole("dialog", { name: /^Signal Protocol/ });
+    await expect(preview).toBeVisible();
+    await activate(
+      preview.getByRole("button", { name: "Close reference preview", exact: true }),
+      info,
+    );
+    await expect(preview).toBeHidden();
+  }
+});

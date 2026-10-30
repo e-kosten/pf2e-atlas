@@ -51,11 +51,11 @@ pub(super) fn records() -> Vec<SourceArtifactRecordInput> {
             "browser-tables",
             "RollTable",
             json!({
-                "_id":"table00000000001", "name":"Night Patrol Signals", "formula":"1d4",
+                "_id":"table00000000001", "name":"Night Patrol Signals", "formula":"1d4", "replacement":false,
                 "description":"<p>Choose the signal shown by the watchtower lantern.</p>",
                 "results":[
-                    {"_id":"result0000000001","type":"text","range":[1,2],"weight":2,"text":format!("<p>{RULE_LINK}</p>")},
-                    {"_id":"result0000000002","type":"text","range":[3,4],"weight":2,"text":"<p>The lantern remains dark while the patrol changes watch.</p>"}
+                    {"_id":"result0000000001","type":"text","range":[1,4],"weight":2,"description":format!("<p>{RULE_LINK}</p>")},
+                    {"_id":"result0000000002","type":"text","range":[1,4],"weight":2,"description":"<p>The lantern remains dark while the patrol changes watch.</p>"}
                 ]
             }),
         ),
