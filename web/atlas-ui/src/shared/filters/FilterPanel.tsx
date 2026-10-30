@@ -288,11 +288,14 @@ export function FilterControls({
       query={search.query}
       similar={similarSearch}
       onSearch={(query) =>
-        setSearch({
-          ...search,
-          query,
-          mode: query.trim() ? "text_search" : "browse",
-        })
+        setSearch(
+          {
+            ...search,
+            query,
+            mode: query.trim() ? "text_search" : "browse",
+          },
+          "submit",
+        )
       }
     />
   );

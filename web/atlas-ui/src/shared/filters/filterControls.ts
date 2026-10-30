@@ -6,9 +6,11 @@ import type {
   QueryPredicate,
 } from "../../generated/atlas";
 import type { SearchFormState } from "./searchState";
+export type SearchUpdateIntent = "edit" | "submit";
+
 export type FilterPanelState = {
   search: SearchFormState;
-  setSearch: (next: SearchFormState) => void;
+  setSearch: (next: SearchFormState, intent?: SearchUpdateIntent) => void;
   filterEditor: FilterEditorView | undefined;
   filterCountsEnabled?: boolean;
   filterCountQueryKey?: readonly unknown[];

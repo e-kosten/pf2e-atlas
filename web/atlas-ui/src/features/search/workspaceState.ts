@@ -107,7 +107,7 @@ export type WorkspaceInteractionEvent =
       search: SearchFormState;
     }
   | {
-      type: "search.settingsApplied";
+      type: "search.settingsApplied" | "search.submitted";
       search: SearchFormState;
     }
   | {
@@ -156,6 +156,7 @@ export function workspaceInteractionReducer(
         ...state,
         search: event.search,
       };
+    case "search.submitted":
     case "search.settingsApplied":
       return {
         ...state,
@@ -163,7 +164,7 @@ export function workspaceInteractionReducer(
         activeSearch: event.search,
       };
     case "search.executionCommitted":
-      if (event.search === state.activeSearch) {
+      if (event.search !== state.search || event.search === state.activeSearch) {
         return state;
       }
       return {
