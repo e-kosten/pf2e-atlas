@@ -607,6 +607,8 @@ mod tests {
         for (target, diagnostics, expected) in [
             ("atlas_progress", false, true),
             ("atlas_progress", true, true),
+            ("atlas_runtime::profile_assets", false, false),
+            ("atlas_runtime::profile_assets", true, true),
             ("atlas_embedding::minilm", false, false),
             ("atlas_embedding::minilm", true, true),
             ("third_party", true, false),
