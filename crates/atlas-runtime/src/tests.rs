@@ -479,6 +479,58 @@ fn options(check: bool) -> RuntimeSetupOptions {
 }
 
 #[test]
+#[ignore = "requires the verified BGE model cache; small native setup/force regression"]
+fn forced_setup_resplits_passages_without_disabling_vector_reuse() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut paths = paths(directory.path());
+    paths.embedding_cache_root = std::env::var_os("ATLAS_TEST_MODEL_CACHE")
+        .expect("set ATLAS_TEST_MODEL_CACHE")
+        .into();
+    source(&paths);
+    let setup_options = RuntimeSetupOptions {
+        target: SetupTarget::Full,
+        search_profiles: vec![atlas_domain::SearchProfileId::new("bge-base")],
+        ..options(false)
+    };
+    let initial = crate::setup::ensure_setup(&paths, setup_options.clone());
+    assert!(initial.ready, "{initial:?}");
+    let before = open_reader(&paths.index_path)
+        .unwrap()
+        .statistics()
+        .unwrap();
+    let c = rusqlite::Connection::open(&paths.index_path).unwrap();
+    c.execute("UPDATE semantic_locations SET location_hash=zeroblob(32) WHERE location_id=(SELECT min(location_id) FROM semantic_units WHERE unit_kind='passage')", []).unwrap();
+    let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
+    let read = workspace.read(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert!(atlas_index::read_reusable_passage_layouts(&read).is_err());
+    drop(read);
+    drop(c);
+    let forced = crate::setup::ensure_setup(
+        &paths,
+        RuntimeSetupOptions {
+            force_rebuild: true,
+            ..setup_options
+        },
+    );
+    assert!(forced.ready, "{forced:?}");
+    let build = forced.build.unwrap();
+    assert_eq!(build.inferred_inputs, 0);
+    assert!(build.reused_inputs > 0);
+    let after = open_reader(&paths.index_path)
+        .unwrap()
+        .statistics()
+        .unwrap();
+    assert_eq!(after.records, before.records);
+    assert_eq!(after.semantic_units, before.semantic_units);
+    let read = workspace.read(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert!(
+        !atlas_index::read_reusable_passage_layouts(&read)
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
 fn setup_reprepares_known_old_content_policy_but_readers_remain_blocked_until_publication() {
     for previous in [
         "foundry-content/v6",
@@ -563,6 +615,7 @@ fn stale_build_configuration_is_rejected_before_reading_source() {
             locale: original.indexing_locale,
             search_profiles: vec![],
             reuse_embeddings: true,
+            reuse_passage_layouts: true,
             embedding_batch_size: 32,
         },
     )

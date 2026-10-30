@@ -112,6 +112,7 @@ fn published_layout_reuse_full_corpus_benchmark() {
             })
             .collect(),
         reuse_embeddings: true,
+        reuse_passage_layouts: true,
         embedding_batch_size: 32,
     };
     let workspace = atlas_storage::Workspace::at(&index).unwrap();

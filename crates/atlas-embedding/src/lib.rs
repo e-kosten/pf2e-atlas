@@ -44,6 +44,8 @@ pub use passages::{PassageSection, PreparedEmbeddingInput, prepare_embedding_sec
 pub use prepared_batch::PreparedEmbeddingBatch;
 pub use tokenization::TextEmbeddingTokenizer;
 #[cfg(test)]
+mod historical_passages;
+#[cfg(test)]
 mod tests;
 
 mod centroid;
