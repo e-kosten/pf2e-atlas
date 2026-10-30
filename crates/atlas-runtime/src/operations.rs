@@ -67,7 +67,7 @@ impl AtlasRuntime {
         let default_profile = self.resolve_default_search_profile(index.context())?;
         Ok(WorkspaceRead {
             retrieval: AtlasRetrievalService::from_index(index, default_profile, prepared)?
-                .with_text_neighbor_reuse(std::sync::Arc::clone(&self.text_neighbor_reuse)),
+                .with_native_neighbor_reuse(std::sync::Arc::clone(&self.native_neighbor_reuse)),
         })
     }
     pub fn read_state(&self) -> Result<StateRead, RuntimeError> {

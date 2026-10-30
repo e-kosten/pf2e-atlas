@@ -182,22 +182,6 @@ impl AtlasRetrievalService {
         &mut self,
         request: TextSearchRequest<'_>,
     ) -> Result<TextSearchResult, SearchError> {
-        self.search_text_impl(request, false)
-    }
-    /// Ordinary unscoped TextSearch only. Other consumers deliberately retain
-    /// their independent uncached path, even when a runtime store is attached.
-    pub fn search_text_with_neighbor_reuse(
-        &mut self,
-        request: TextSearchRequest<'_>,
-    ) -> Result<TextSearchResult, SearchError> {
-        let reuse = matches!(request.scope, RecordScope::All);
-        self.search_text_impl(request, reuse)
-    }
-    fn search_text_impl(
-        &mut self,
-        request: TextSearchRequest<'_>,
-        reuse: bool,
-    ) -> Result<TextSearchResult, SearchError> {
         Self::validate_search_sort(&request.sort)?;
         if request.query.trim().is_empty() {
             return Err(SearchError::invalid_search_options(
@@ -212,22 +196,19 @@ impl AtlasRetrievalService {
         } else {
             None
         };
-        let (roots, window) = self.rank_candidates_reusing(
-            CandidateRequest {
-                content_scope: request.content_scope,
-                ranking: request.ranking,
-                search_profile: &search_profile,
-                text: request.query,
-                mode: request.mode,
-                query: &predicate,
-                scope: request.scope,
-                prefer: request.prefer_remaster,
-                suppress: true,
-                vector: vector.as_deref(),
-                exclude: None,
-            },
-            reuse,
-        )?;
+        let (roots, window) = self.rank_candidates(CandidateRequest {
+            content_scope: request.content_scope,
+            ranking: request.ranking,
+            search_profile: &search_profile,
+            text: request.query,
+            mode: request.mode,
+            query: &predicate,
+            scope: request.scope,
+            prefer: request.prefer_remaster,
+            suppress: true,
+            vector: vector.as_deref(),
+            exclude: None,
+        })?;
         self.finish_results(
             &search_profile,
             roots,
@@ -237,13 +218,12 @@ impl AtlasRetrievalService {
             request.sort,
         )
     }
-    fn text_vector_candidates(
+    fn native_vector_candidates(
         &self,
         request: atlas_index::SourceVectorCandidateRequest<'_>,
         text: &str,
-        reuse: bool,
     ) -> Result<Vec<SourceVectorHit>, SearchError> {
-        let retained = self.neighbor_reuse.as_ref().filter(|_| reuse);
+        let retained = self.neighbor_reuse.as_ref();
         let Some((store, epoch)) = retained else {
             return Ok(self.index.vector_candidates(request)?);
         };
@@ -282,7 +262,6 @@ impl AtlasRetrievalService {
         &self,
         request: &CandidateRequest<'_>,
         vector: &[f32],
-        reuse: bool,
     ) -> Result<(Vec<RankedRoot>, usize), SearchError> {
         for window in SEMANTIC_WINDOWS {
             let input = atlas_index::SourceVectorCandidateRequest {
@@ -294,7 +273,7 @@ impl AtlasRetrievalService {
                 content_scope: request.content_scope,
                 limit: window,
             };
-            let hits = self.text_vector_candidates(input, request.text, reuse)?;
+            let hits = self.native_vector_candidates(input, request.text)?;
             let roots = semantic_roots(hits);
             let displayed = self.suppress_pairs(roots.clone(), request.prefer)?;
             if displayed.len() >= TARGET_ROOTS || window == 4096 {
@@ -308,13 +287,6 @@ impl AtlasRetrievalService {
     pub(crate) fn rank_candidates(
         &self,
         request: CandidateRequest<'_>,
-    ) -> Result<(Vec<RankedRoot>, Option<usize>), SearchError> {
-        self.rank_candidates_reusing(request, false)
-    }
-    fn rank_candidates_reusing(
-        &self,
-        request: CandidateRequest<'_>,
-        reuse: bool,
     ) -> Result<(Vec<RankedRoot>, Option<usize>), SearchError> {
         let CandidateRequest {
             ranking,
@@ -392,7 +364,7 @@ impl AtlasRetrievalService {
                     "semantic retrieval requires a compatible vector",
                 )
             })?;
-            let (semantic, k) = self.vector_window(&request, vector, reuse)?;
+            let (semantic, k) = self.vector_window(&request, vector)?;
             window = Some(k);
             let values = semantic.iter().map(|root| root.score).collect::<Vec<_>>();
             let scores = if mode == RetrievalMode::Hybrid {

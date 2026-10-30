@@ -10,7 +10,7 @@ mod read_metrics;
 mod records;
 mod reference_resolution;
 mod service;
-pub use neighbor_reuse::{TextNeighborReuse, TextNeighborReuseStats};
+pub use neighbor_reuse::{NativeNeighborReuse, NativeNeighborReuseStats};
 mod similar;
 mod similarity_evaluation;
 mod similarity_scoring;

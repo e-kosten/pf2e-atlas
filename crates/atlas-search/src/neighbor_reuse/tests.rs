@@ -8,7 +8,7 @@ fn epoch(revision: u64) -> Epoch {
         context: [2; 32],
     }
 }
-fn key(store: &TextNeighborReuse, revision: u64, value: usize) -> ReuseKey {
+fn key(store: &NativeNeighborReuse, revision: u64, value: usize) -> ReuseKey {
     store.encode(epoch(revision), &value).unwrap()
 }
 fn neighbors() -> SourceVectorNeighbors {
@@ -17,7 +17,7 @@ fn neighbors() -> SourceVectorNeighbors {
 
 #[test]
 fn exact_keys_lru_and_entry_limit() {
-    let store = TextNeighborReuse::default();
+    let store = NativeNeighborReuse::default();
     store.observe(epoch(1));
     for n in 0..MAX_ENTRIES {
         store.insert(key(&store, 1, n), neighbors());
@@ -35,7 +35,7 @@ fn exact_keys_lru_and_entry_limit() {
 
 #[test]
 fn pinned_eviction_is_charged_until_the_last_borrow_is_released() {
-    let store = TextNeighborReuse::default();
+    let store = NativeNeighborReuse::default();
     store.observe(epoch(1));
     let empty = store.stats().live_bytes;
     store.insert(key(&store, 1, 1), neighbors());
@@ -50,7 +50,7 @@ fn pinned_eviction_is_charged_until_the_last_borrow_is_released() {
 
 #[test]
 fn retired_completion_cannot_roll_back_epoch_or_republish() {
-    let store = Arc::new(TextNeighborReuse::default());
+    let store = Arc::new(NativeNeighborReuse::default());
     store.observe(epoch(1));
     let entered = Arc::new(Barrier::new(2));
     let release = Arc::new(Barrier::new(2));
@@ -78,7 +78,7 @@ fn retired_completion_cannot_roll_back_epoch_or_republish() {
 
 #[test]
 fn duplicate_concurrent_misses_compute_independently_and_retain_one_entry() {
-    let store = Arc::new(TextNeighborReuse::default());
+    let store = Arc::new(NativeNeighborReuse::default());
     store.observe(epoch(1));
     let both_missed = Arc::new(Barrier::new(2));
     let workers = (0..2)
@@ -101,7 +101,7 @@ fn duplicate_concurrent_misses_compute_independently_and_retain_one_entry() {
 
 #[test]
 fn oversized_keys_entries_and_budget_pressure_bypass_without_growth() {
-    let store = TextNeighborReuse::default();
+    let store = NativeNeighborReuse::default();
     store.observe(epoch(1));
     let base = store.stats().live_bytes;
     assert!(store.encode(epoch(1), &"x".repeat(MAX_KEY_BYTES)).is_none());
@@ -111,7 +111,7 @@ fn oversized_keys_entries_and_budget_pressure_bypass_without_growth() {
         SourceVectorNeighbors::fixture(&vec![(1, 0); MAX_ENTRY_BYTES / 16]),
     );
     assert_eq!(store.stats().live_bytes, base);
-    let small = TextNeighborReuse::with_limits(base + MAX_KEY_BYTES * 2 + 1024);
+    let small = NativeNeighborReuse::with_limits(base + MAX_KEY_BYTES * 2 + 1024);
     small.observe(epoch(1));
     let first = key(&small, 1, 1);
     assert!(small.encode(epoch(1), &2).is_none());
@@ -121,7 +121,7 @@ fn oversized_keys_entries_and_budget_pressure_bypass_without_growth() {
 
 #[test]
 fn runtime_shutdown_releases_ready_entries_and_empty_windows_are_retained() {
-    let store = TextNeighborReuse::default();
+    let store = NativeNeighborReuse::default();
     store.observe(epoch(1));
     store.insert(key(&store, 1, 1), SourceVectorNeighbors::fixture(&[]));
     let borrowed = store.get(&key(&store, 1, 1)).unwrap();
@@ -133,7 +133,7 @@ fn runtime_shutdown_releases_ready_entries_and_empty_windows_are_retained() {
 
 #[test]
 fn different_workspace_or_same_revision_different_context_cannot_hit() {
-    let store = TextNeighborReuse::default();
+    let store = NativeNeighborReuse::default();
     store.observe(epoch(1));
     store.insert(key(&store, 1, 1), neighbors());
     for changed in [
@@ -157,14 +157,14 @@ fn different_workspace_or_same_revision_different_context_cannot_hit() {
 
 #[test]
 fn semantic_identity_keeps_exact_profile_predicate_text_vector_scope_and_window() {
-    let store = TextNeighborReuse::default();
+    let store = NativeNeighborReuse::default();
     store.observe(epoch(1));
     let context = crate::test_support::context(true);
     let profile = &context.search_profiles[0];
     let predicate = atlas_domain::QueryPredicate::boolean(true);
     let vector = [1., 0.];
     fn make(
-        store: &TextNeighborReuse,
+        store: &NativeNeighborReuse,
         profile: &atlas_index::SourceSearchProfileIdentity,
         predicate: &atlas_domain::QueryPredicate,
         text: &str,

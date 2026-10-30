@@ -44,6 +44,11 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Soon
 
+- [Broader exact neighbor reuse](items/search-neighbor-reuse-expansion.md)
+  Evaluate contextual discovery, scoped text search and Similar with complete native
+  selection identity and matched measurements. The discovery-cache experiment is
+  retired; candidate-set summaries are deferred. Status: proposed.
+
 - [Apply supported effects to encounter participants](items/encounter-effect-application.md)
   Prefill conditions from supported spells and abilities through the shared workflow.
   Status: proposed.
