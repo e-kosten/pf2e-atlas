@@ -1980,3 +1980,20 @@ test("generation replacement recovers deliberately and adopts each successful pa
   ]);
   await noPageOverflow(page);
 });
+
+test("a real trait member total renders a singular entry @engine", async ({ page }) => {
+  const members = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/traits/records") &&
+      response.request().postDataJSON()?.kind === "members",
+  );
+  await page.goto("/traits/trait%3Alight");
+  const wire = await (await members).json();
+  expect(wire.page.total).toBe(1);
+  await expect(page.getByRole("heading", { name: "Light", exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Records with this trait" })
+      .getByText("1 of 1 entry", { exact: true }),
+  ).toBeVisible();
+});

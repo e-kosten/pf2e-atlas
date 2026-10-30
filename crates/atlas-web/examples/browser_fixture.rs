@@ -12,7 +12,8 @@ use std::{error::Error, fs, io, net::SocketAddr, path::PathBuf};
 
 use atlas_app_model::AppReadinessStatus;
 use atlas_app_service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};
-use atlas_domain::SearchProfileId;
+use atlas_domain::{SearchProfileId, TraitKey};
+use atlas_index::TraitDefinition;
 use atlas_runtime::AtlasPathMode;
 use atlas_search::test_support::input;
 use tokio::net::TcpListener;
@@ -49,6 +50,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
     let index_path = run_directory.join("artifact.sqlite");
     let mut fixture = input(corpus::records(), true);
+    fixture.traits.push(TraitDefinition {
+        key: TraitKey::new("light")?,
+        label: "Light".into(),
+        label_key: None,
+        description_key: None,
+        description_html: None,
+        authored_markup: None,
+        prepared: None,
+        catalogs: vec![],
+        source_locations: vec![],
+        source_revision: None,
+        indexing_locale: "en".into(),
+    });
     // Give distinct roots positive overlap so the default passage comparison
     // exercises result navigation. The shared fixture's orthogonal vectors
     // correctly produce no positive passage matches. These remain structural

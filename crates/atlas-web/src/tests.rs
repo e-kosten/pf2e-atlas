@@ -10,6 +10,7 @@ use serde_json::{Value, json};
 use tower::ServiceExt;
 mod fixture;
 mod read_abandonment_tests;
+mod wire_conversion;
 use fixture::{ACTION, ACTOR, Fixture, SECOND_ACTION, TABLE};
 
 #[path = "../build_contract.rs"]
