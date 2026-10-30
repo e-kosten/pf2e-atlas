@@ -44,6 +44,7 @@ pub struct SourceVectorHit {
     pub distance: f64,
 }
 
+#[derive(Clone, Copy)]
 pub struct SourceVectorCandidateRequest<'a> {
     pub profile: &'a atlas_domain::SearchProfileId,
     pub vector: &'a [f32],
@@ -312,6 +313,7 @@ impl SqliteIndexReader {
         let sql = format!(
             "WITH eligible AS ({eligible}) SELECT su.unit_id,r.key,sl.owners_json,sl.field_path,sl.section_json,knn.distance FROM (SELECT unit_id,distance FROM {table} WHERE embedding MATCH ?{vector_param} AND k=?{limit_param} AND unit_id IN (SELECT su.unit_id FROM semantic_units su WHERE su.profile_id=?{profile_param} AND su.record_id IN (SELECT record_id FROM eligible){content_sql})) knn JOIN semantic_units su ON su.unit_id=knn.unit_id JOIN semantic_locations sl USING(location_id) JOIN records r ON r.record_id=su.record_id ORDER BY knn.distance,su.unit_id"
         );
+        self.count_knn();
         let c = self.native()?;
         self.count_statement();
         let mut statement = c.prepare(&sql)?;

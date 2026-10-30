@@ -58,7 +58,21 @@ mod tests {
     #[test]
     fn compaction_preserves_bytes_filtered_distance_order_and_transaction_rollback() {
         atlas_sqlite_vec::register_sqlite_vec_auto_extension().unwrap();
-        let c = Connection::open_in_memory().unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let workspace =
+            atlas_storage::Workspace::at(directory.path().join("repack.sqlite")).unwrap();
+        workspace
+            .migrate(
+                &[atlas_storage::Migration {
+                    version: 1,
+                    name: "native-repack-proof",
+                    sql: "CREATE TABLE repack_fixture(id INTEGER PRIMARY KEY);",
+                    backfill: None,
+                }],
+                |_| Ok(()),
+            )
+            .unwrap();
+        let c = Connection::open(workspace.path()).unwrap();
         let model = crate::foundation_tests::fixture(true)
             .context
             .search_profiles
@@ -144,9 +158,17 @@ mod tests {
         c.execute_batch("ROLLBACK").unwrap();
         assert_eq!(blocks(&c), before_blocks);
         assert_eq!(snapshot(&c), before);
-        c.execute_batch("BEGIN").unwrap();
-        compact(&c, &model).unwrap();
-        c.execute_batch("COMMIT").unwrap();
+        drop(c);
+        let owner = workspace.update_owner().unwrap();
+        let maintenance = owner.maintenance(1, "logical native repacking").unwrap();
+        maintenance.publish(|c| compact(c, &model)).unwrap();
+        let c = maintenance.connection();
+        assert_eq!(
+            c.query_row("SELECT reference_revision FROM workspace", [], |row| row
+                .get::<_, u64>(0))
+                .unwrap(),
+            1
+        );
         assert!(
             blocks(&c) < before_blocks,
             "before={before_blocks},after={},live={}",
@@ -154,5 +176,74 @@ mod tests {
             before.len()
         );
         assert_eq!(snapshot(&c), before);
+    }
+
+    #[test]
+    fn sparse_native_chunks_preserve_exact_neighbors_and_hidden_rowids_across_vacuum() {
+        atlas_sqlite_vec::register_sqlite_vec_auto_extension().unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let c = Connection::open(directory.path().join("vacuum.sqlite")).unwrap();
+        let model = crate::foundation_tests::fixture(true)
+            .context
+            .search_profiles
+            .remove(0);
+        let table = crate::schema::vector_table(&model).unwrap();
+        c.execute_batch(&crate::schema::vector_ddl(&model).unwrap())
+            .unwrap();
+        let mut vector = vec![0f32; model.dimensions];
+        vector[0] = 1.;
+        let bytes = crate::read_units::vector_bytes(&vector);
+        c.execute_batch("BEGIN").unwrap();
+        for id in 1..=2048 {
+            c.execute(
+                &format!("INSERT INTO {table} VALUES(?,?)"),
+                params![id, &bytes],
+            )
+            .unwrap();
+        }
+        for id in 1..=1024 {
+            c.execute(&format!("DELETE FROM {table} WHERE unit_id=?"), [id])
+                .unwrap();
+        }
+        c.execute_batch("COMMIT").unwrap();
+        let snapshot = |c: &Connection| {
+            let names = c
+                .prepare("SELECT name FROM sqlite_master WHERE name LIKE ? ORDER BY name")
+                .unwrap()
+                .query_map([format!("{table}_vector_chunks%")], |r| {
+                    r.get::<_, String>(0)
+                })
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap();
+            names
+                .into_iter()
+                .map(|name| {
+                    let rowids = c
+                        .prepare(&format!("SELECT rowid,_rowid_ FROM {name} ORDER BY rowid"))
+                        .unwrap()
+                        .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)))
+                        .unwrap()
+                        .collect::<Result<Vec<_>, _>>()
+                        .unwrap();
+                    (name, rowids)
+                })
+                .collect::<Vec<_>>()
+        };
+        let hits = |c: &Connection| {
+            c.prepare(&format!("WITH knn AS MATERIALIZED(SELECT unit_id,distance FROM {table} WHERE embedding MATCH ? AND k=1024) SELECT unit_id,distance FROM knn ORDER BY distance,unit_id")).unwrap()
+                .query_map([&bytes],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,f64>(1)?.to_bits()))).unwrap().collect::<Result<Vec<_>,_>>().unwrap()
+        };
+        let before = snapshot(&c);
+        assert!(!before.is_empty());
+        assert!(
+            before.iter().all(|(_, rowids)| rowids == &[(2, 2)]),
+            "the first empty chunk must leave a noncontiguous native blob rowid"
+        );
+        let neighbors = hits(&c);
+        assert_eq!(neighbors.len(), 1024);
+        c.execute_batch("VACUUM").unwrap();
+        assert_eq!(snapshot(&c), before);
+        assert_eq!(hits(&c), neighbors);
     }
 }
