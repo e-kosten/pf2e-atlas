@@ -54,6 +54,10 @@ import {
   getCompatibilityFailure,
 } from "./compatibility";
 import { AtlasConnectionError } from "./availability";
+import { AtlasApiError } from "./apiError";
+import { toBigInt, type Wire } from "./wire";
+import { convertSearchPage } from "./pageConversion";
+export { AtlasApiError } from "./apiError";
 
 const API_BASE = import.meta.env.VITE_ATLAS_API_BASE ?? "";
 
@@ -61,18 +65,6 @@ export async function verifyBackendCompatibility(): Promise<true> {
   await atlasFetch("/api/compatibility", { cache: "no-store" });
   clearCompatibilityFailure();
   return true;
-}
-
-export class AtlasApiError extends Error {
-  readonly appError?: AppError;
-  readonly status: number;
-
-  constructor(status: number, message: string, appError?: AppError) {
-    super(message);
-    this.name = "AtlasApiError";
-    this.status = status;
-    this.appError = appError;
-  }
 }
 
 export async function getReadiness(): Promise<AppReadinessView> {
@@ -144,7 +136,9 @@ export async function getRelationshipOccurrences(
     throw new AtlasApiError(200, "Invalid relationship links response");
   return {
     ...value,
-    page: { ...value.page, total: toBigInt(value.page.total) },
+    page: convertSearchPage(
+      value.page as Wire<import("../generated/atlas").SearchPageView>,
+    ),
   } as RelationshipOccurrencesPage;
 }
 
@@ -1264,10 +1258,7 @@ function normalizeSearchResultsPage(value: unknown): SearchResultsPage {
   const page = isRecord(value.page) ? value.page : {};
   return {
     ...value,
-    page: {
-      ...page,
-      total: toBigInt(page.total),
-    },
+    page: convertSearchPage(page as Wire<import("../generated/atlas").SearchPageView>),
     rows: Array.isArray(value.rows)
       ? value.rows.map((row) =>
           isRecord(row)
@@ -1278,10 +1269,11 @@ function normalizeSearchResultsPage(value: unknown): SearchResultsPage {
                       isRecord(evidence) && isRecord(evidence.page)
                         ? {
                             ...evidence,
-                            page: {
-                              ...evidence.page,
-                              total: toBigInt(evidence.page.total),
-                            },
+                            page: convertSearchPage(
+                              evidence.page as Wire<
+                                import("../generated/atlas").SearchPageView
+                              >,
+                            ),
                           }
                         : evidence,
                     )
@@ -1325,19 +1317,6 @@ function normalizeFilterValueList(value: unknown): FilterValueListView {
     }
   }
   throw new AtlasApiError(200, "Invalid filter-value response");
-}
-
-function toBigInt(value: unknown): bigint {
-  if (typeof value === "bigint") {
-    return value;
-  }
-  if (typeof value === "number" && Number.isSafeInteger(value)) {
-    return BigInt(value);
-  }
-  if (typeof value === "string" && /^-?\d+$/.test(value)) {
-    return BigInt(value);
-  }
-  throw new AtlasApiError(200, "Invalid numeric field in API response");
 }
 
 function checkedSavedListDetail(value: unknown): SavedListDetailView {
@@ -1526,7 +1505,7 @@ export async function getTraitRecords(
   request: import("../generated/atlas").TraitRecordsRequest,
   signal?: AbortSignal,
 ): Promise<import("../generated/atlas").TraitRecordsPage> {
-  const result: import("../generated/atlas").TraitRecordsPage = await atlasFetch(
+  const result = await atlasFetch<Wire<import("../generated/atlas").TraitRecordsPage>>(
     "/api/traits/records",
     {
       intent: "read",
@@ -1551,7 +1530,7 @@ export async function getTraitRecords(
     throw new Error(
       "The Similar response does not match the selected search model. Retry.",
     );
-  return result;
+  return { ...result, page: convertSearchPage(result.page) };
 }
 
 export async function updateEncounterAbilityState(
@@ -1609,11 +1588,14 @@ export async function previewEncounterRecovery(
   request: import("../generated/atlas").PreviewEncounterRecoveryRequest,
   signal?: AbortSignal,
 ): Promise<import("../generated/atlas").EncounterRecoveryPreviewView> {
-  const result: import("../generated/atlas").EncounterRecoveryPreviewView =
-    await atlasFetch(
-      `/api/encounters/${encodeURIComponent(encounterRef)}/recovery/preview`,
-      { intent: "read", method: "POST", body: jsonBody(request), signal },
-    );
+  const result = await atlasFetch<
+    Wire<import("../generated/atlas").EncounterRecoveryPreviewView>
+  >(`/api/encounters/${encodeURIComponent(encounterRef)}/recovery/preview`, {
+    intent: "read",
+    method: "POST",
+    body: jsonBody(request),
+    signal,
+  });
   return {
     ...result,
     encounter_revision: toBigInt(result.encounter_revision),
