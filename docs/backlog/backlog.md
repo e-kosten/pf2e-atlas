@@ -44,6 +44,11 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Soon
 
+- [Broader exact neighbor reuse](items/search-neighbor-reuse-expansion.md)
+  Evaluate scoped trait-reference text search and configured Similar with complete
+  native selection identity and matched measurements. Unscoped baseline Similar
+  uses shared retention; candidate-set summaries remain deferred. Status: proposed.
+
 - [Apply supported effects to encounter participants](items/encounter-effect-application.md)
   Prefill conditions from supported spells and abilities through the shared workflow.
   Status: proposed.

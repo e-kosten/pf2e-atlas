@@ -8,7 +8,7 @@ pub struct AtlasRetrievalService {
     query_embedding: Option<PreparedQueryEmbedding>,
     default_profile: SearchProfileId,
     pub(crate) neighbor_reuse: Option<(
-        std::sync::Arc<crate::TextNeighborReuse>,
+        std::sync::Arc<crate::NativeNeighborReuse>,
         crate::neighbor_reuse::Epoch,
     )>,
 }
@@ -47,9 +47,9 @@ impl AtlasRetrievalService {
         })
     }
     /// Attach runtime-owned retention without retaining this admitted reader.
-    pub fn with_text_neighbor_reuse(
+    pub fn with_native_neighbor_reuse(
         mut self,
-        reuse: std::sync::Arc<crate::TextNeighborReuse>,
+        reuse: std::sync::Arc<crate::NativeNeighborReuse>,
     ) -> Self {
         let epoch = crate::neighbor_reuse::Epoch::admitted(&self.index);
         reuse.observe(epoch);

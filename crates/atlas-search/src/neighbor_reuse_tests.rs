@@ -13,7 +13,7 @@ fn fixture() -> atlas_index::IndexBuildInput {
 }
 fn open(
     path: &std::path::Path,
-    store: Option<&Arc<TextNeighborReuse>>,
+    store: Option<&Arc<NativeNeighborReuse>>,
     profile: &str,
     text: &str,
     axis: usize,
@@ -29,7 +29,7 @@ fn open(
     );
     let service = AtlasRetrievalService::from_index(index, profile, Some(prepared)).unwrap();
     match store {
-        Some(store) => service.with_text_neighbor_reuse(Arc::clone(store)),
+        Some(store) => service.with_native_neighbor_reuse(Arc::clone(store)),
         None => service,
     }
 }
@@ -49,7 +49,7 @@ fn signature(result: &TextSearchResult) -> Value {
 fn reopened_pages_orders_fusion_and_profiles_match_exact_uncached_results() {
     let (service, artifact) = crate::test_support::open_input_fixture(fixture()).unwrap();
     drop(service);
-    let store = Arc::new(TextNeighborReuse::default());
+    let store = Arc::new(NativeNeighborReuse::default());
     for profile in ["bge-base", "embeddinggemma"] {
         for content_scope in [SearchContentScope::All, SearchContentScope::Core] {
             for (i, page) in [1, 2, 1, 1, 1, 1].into_iter().enumerate() {
@@ -86,7 +86,7 @@ fn reopened_pages_orders_fusion_and_profiles_match_exact_uncached_results() {
                     search_profile: None,
                     prefer_remaster: true,
                 };
-                let actual = cached.search_text_with_neighbor_reuse(request()).unwrap();
+                let actual = cached.search_text(request()).unwrap();
                 let expected = cold.search_text(request()).unwrap();
                 assert_eq!(signature(&actual), signature(&expected));
                 assert_eq!(cold.read_metrics().knn_queries, 3);
@@ -103,7 +103,7 @@ fn reopened_pages_orders_fusion_and_profiles_match_exact_uncached_results() {
 fn text_vector_predicate_and_core_changes_miss_and_empty_results_hit() {
     let (service, artifact) = crate::test_support::open_input_fixture(fixture()).unwrap();
     drop(service);
-    let store = Arc::new(TextNeighborReuse::default());
+    let store = Arc::new(NativeNeighborReuse::default());
     let filters = [None, Some(atlas_domain::QueryPredicate::boolean(false))];
     for (text, axis, filter, core) in [
         ("Ember", 0, 0, false),
@@ -121,7 +121,7 @@ fn text_vector_predicate_and_core_changes_miss_and_empty_results_hit() {
             } else {
                 SearchContentScope::All
             };
-            let result = service.search_text_with_neighbor_reuse(request).unwrap();
+            let result = service.search_text(request).unwrap();
             assert_eq!(
                 service.read_metrics().knn_queries,
                 if repeat == 0 { 3 } else { 0 }
@@ -134,24 +134,16 @@ fn text_vector_predicate_and_core_changes_miss_and_empty_results_hit() {
 }
 
 #[test]
-fn excluded_consumers_and_explicit_key_scopes_never_reuse() {
+fn explicit_key_scopes_and_discovery_do_not_retain_native_windows() {
     let (service, artifact) = crate::test_support::open_input_fixture(fixture()).unwrap();
     drop(service);
-    let store = Arc::new(TextNeighborReuse::default());
+    let store = Arc::new(NativeNeighborReuse::default());
     let keys = ["items:0000000000000000".parse().unwrap()];
     for _ in 0..2 {
         let mut service = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0);
-        service
-            .search_text(TextSearchRequest::new(
-                "Ember",
-                SearchPage::first(2).unwrap(),
-            ))
-            .unwrap();
-        assert_eq!(service.read_metrics().knn_queries, 3);
-        service.reset_read_metrics();
         let mut request = TextSearchRequest::new("Ember", SearchPage::first(2).unwrap());
         request.scope = RecordScope::Keys(&keys);
-        service.search_text_with_neighbor_reuse(request).unwrap();
+        service.search_text(request).unwrap();
         assert_eq!(service.read_metrics().knn_queries, 3);
         service.reset_read_metrics();
         let outcome = service
@@ -189,9 +181,9 @@ fn same_context_publication_invalidates_windows_across_reopened_services() {
     let context = fixture.context.clone();
     let (service, artifact) = crate::test_support::open_input_fixture(fixture).unwrap();
     drop(service);
-    let store = Arc::new(TextNeighborReuse::default());
+    let store = Arc::new(NativeNeighborReuse::default());
     let mut old = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0);
-    old.search_text_with_neighbor_reuse(TextSearchRequest::new(
+    old.search_text(TextSearchRequest::new(
         "Ember",
         SearchPage::first(2).unwrap(),
     ))
@@ -208,7 +200,7 @@ fn same_context_publication_invalidates_windows_across_reopened_services() {
     let mut new = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0);
     assert_ne!(new.artifact_generation().unwrap(), generation);
     let actual = new
-        .search_text_with_neighbor_reuse(TextSearchRequest::new(
+        .search_text(TextSearchRequest::new(
             "Ember",
             SearchPage::first(2).unwrap(),
         ))
@@ -290,10 +282,10 @@ fn mutate(path: &std::path::Path, sql: &str) {
 fn malformed_location_metadata_fails_on_hits_and_cold_reads_then_recovers() {
     let (service, artifact) = crate::test_support::open_input_fixture(fixture()).unwrap();
     drop(service);
-    let store = Arc::new(TextNeighborReuse::default());
+    let store = Arc::new(NativeNeighborReuse::default());
     let request = || TextSearchRequest::new("Ember", SearchPage::first(2).unwrap());
     open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
-        .search_text_with_neighbor_reuse(request())
+        .search_text(request())
         .unwrap();
     // Deliberate unversioned fixture corruption probes existing read validation;
     // arbitrary external writes are not a supported invalidation protocol.
@@ -302,7 +294,7 @@ fn malformed_location_metadata_fails_on_hits_and_cold_reads_then_recovers() {
         "UPDATE semantic_locations SET owners_json='{}' WHERE owners_json='[]'",
     );
     let hit = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
-        .search_text_with_neighbor_reuse(request())
+        .search_text(request())
         .unwrap_err();
     let cold = open(&artifact.path(), None, "bge-base", "Ember", 0)
         .search_text(request())
@@ -314,7 +306,7 @@ fn malformed_location_metadata_fails_on_hits_and_cold_reads_then_recovers() {
         "UPDATE semantic_locations SET owners_json='[]'",
     );
     open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
-        .search_text_with_neighbor_reuse(request())
+        .search_text(request())
         .unwrap();
 }
 
@@ -329,7 +321,7 @@ fn malformed_global_remaster_evidence_is_not_hidden_by_nonempty_hits_or_empty_wi
         });
     let (service, artifact) = crate::test_support::open_input_fixture(data).unwrap();
     drop(service);
-    let store = Arc::new(TextNeighborReuse::default());
+    let store = Arc::new(NativeNeighborReuse::default());
     let filter = atlas_index::parse_where("level < 2").unwrap();
     let empty = atlas_domain::QueryPredicate::boolean(false);
     for predicate in [filter.predicate(), &empty] {
@@ -339,7 +331,7 @@ fn malformed_global_remaster_evidence_is_not_hidden_by_nonempty_hits_or_empty_wi
             r
         };
         open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
-            .search_text_with_neighbor_reuse(request())
+            .search_text(request())
             .unwrap();
     }
     for bad in ["{}", "not-json"] {
@@ -353,7 +345,7 @@ fn malformed_global_remaster_evidence_is_not_hidden_by_nonempty_hits_or_empty_wi
             r
         };
         let mut hit = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0);
-        let hit_error = hit.search_text_with_neighbor_reuse(request()).unwrap_err();
+        let hit_error = hit.search_text(request()).unwrap_err();
         let cold_error = open(&artifact.path(), None, "bge-base", "Ember", 0)
             .search_text(request())
             .unwrap_err();
@@ -366,7 +358,7 @@ fn malformed_global_remaster_evidence_is_not_hidden_by_nonempty_hits_or_empty_wi
             r
         };
         let actual = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
-            .search_text_with_neighbor_reuse(request())
+            .search_text(request())
             .unwrap();
         let expected = open(&artifact.path(), None, "bge-base", "Ember", 0)
             .search_text(request())
@@ -383,7 +375,7 @@ fn malformed_global_remaster_evidence_is_not_hidden_by_nonempty_hits_or_empty_wi
         r
     };
     let hit = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
-        .search_text_with_neighbor_reuse(request())
+        .search_text(request())
         .unwrap_err();
     let cold = open(&artifact.path(), None, "bge-base", "Ember", 0)
         .search_text(request())
@@ -398,9 +390,9 @@ fn malformed_global_remaster_evidence_is_not_hidden_by_nonempty_hits_or_empty_wi
 fn invalid_sort_predicate_and_vectors_keep_their_validation_on_warm_reads() {
     let (service, artifact) = crate::test_support::open_input_fixture(fixture()).unwrap();
     drop(service);
-    let store = Arc::new(TextNeighborReuse::default());
+    let store = Arc::new(NativeNeighborReuse::default());
     open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
-        .search_text_with_neighbor_reuse(TextSearchRequest::new(
+        .search_text(TextSearchRequest::new(
             "Ember",
             SearchPage::first(2).unwrap(),
         ))
@@ -420,7 +412,7 @@ fn invalid_sort_predicate_and_vectors_keep_their_validation_on_warm_reads() {
             r
         };
         let hit = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
-            .search_text_with_neighbor_reuse(request())
+            .search_text(request())
             .unwrap_err();
         let cold = open(&artifact.path(), None, "bge-base", "Ember", 0)
             .search_text(request())
@@ -467,7 +459,7 @@ fn duplicate_and_distinct_requests_execute_native_misses_on_independent_readers(
     let (service, artifact) = crate::test_support::open_input_fixture(fixture()).unwrap();
     drop(service);
     for distinct in [false, true] {
-        let store = Arc::new(TextNeighborReuse::default());
+        let store = Arc::new(NativeNeighborReuse::default());
         *store.miss_barrier.lock().unwrap() = Some(Arc::new(std::sync::Barrier::new(2)));
         let workers = (0..2)
             .map(|n| {
@@ -477,10 +469,7 @@ fn duplicate_and_distinct_requests_execute_native_misses_on_independent_readers(
                     let text = if distinct && n == 1 { "Flame" } else { "Ember" };
                     let mut service = open(&path, Some(&store), "bge-base", text, 0);
                     let result = service
-                        .search_text_with_neighbor_reuse(TextSearchRequest::new(
-                            text,
-                            SearchPage::first(2).unwrap(),
-                        ))
+                        .search_text(TextSearchRequest::new(text, SearchPage::first(2).unwrap()))
                         .unwrap();
                     assert!(!result.records.is_empty());
                     service.read_metrics().knn_queries
@@ -536,10 +525,10 @@ fn current_scope_hydration_rejects_missing_members_instead_of_dropping_them() {
 fn failed_publication_blocks_admission_until_validated_recovery_preserves_cached_revision() {
     let (service, artifact) = crate::test_support::open_input_fixture(fixture()).unwrap();
     drop(service);
-    let store = Arc::new(TextNeighborReuse::default());
+    let store = Arc::new(NativeNeighborReuse::default());
     let mut warm = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0);
     let expected = warm
-        .search_text_with_neighbor_reuse(TextSearchRequest::new(
+        .search_text(TextSearchRequest::new(
             "Ember",
             SearchPage::first(2).unwrap(),
         ))
@@ -573,7 +562,7 @@ fn failed_publication_blocks_admission_until_validated_recovery_preserves_cached
     );
     let mut recovered = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0);
     let actual = recovered
-        .search_text_with_neighbor_reuse(TextSearchRequest::new(
+        .search_text(TextSearchRequest::new(
             "Ember",
             SearchPage::first(2).unwrap(),
         ))
@@ -581,3 +570,5 @@ fn failed_publication_blocks_admission_until_validated_recovery_preserves_cached
     assert_eq!(signature(&actual), signature(&expected));
     assert_eq!(recovered.read_metrics().knn_queries, 0);
 }
+
+mod similar;

@@ -494,8 +494,9 @@ Stateless app requests carry criteria, page and an optional expected generation.
 Generation mismatch is checked before expensive retrieval and requires deliberate
 recovery from page1. Each bounded operation opens its own admitted snapshot;
 later operations observe completed publication without restarting. Ordinary
-TextSearch can reuse exact per-k unit IDs/distance bits under the complete
-publication/context/profile/query identity, rehydrating all neighbors in the
+unscoped TextSearch and baseline record/trait Similar can reuse exact per-k unit
+IDs/distance bits under the complete publication/context/profile/query/exclusion
+identity, rehydrating all neighbors in the
 consuming snapshot. Index still owns the masked native query and location decoder;
 search owns bounded transient retention. See [ADR0062](decisions/0062-exact-text-neighbor-reuse.md).
 

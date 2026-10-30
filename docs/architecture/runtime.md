@@ -485,11 +485,14 @@ query embedding. Every request supplies its complete criteria, page and optional
 expected artifact generation. The generation check precedes embedding and ranking;
 a mismatch returns `ArtifactGenerationChanged` with HTTP409 and expected/actual
 generation identities. There is no app window registry or handle lifecycle. Each
-page retains admission and query inference where needed. Ordinary TextSearch may
-reuse exact per-k native neighbors through one runtime-shared search-owned store;
+page retains admission and query inference where needed. Ordinary unscoped
+TextSearch and baseline record/trait Similar may reuse exact per-k native
+neighbors through one runtime-shared search-owned store;
 index rehydrates their metadata in the consuming snapshot. Lexical, root/window,
-fusion, remaster, order and presentation work still execute independently. Other
-consumers retain their uncached paths. The API promises neither frozen results nor
+fusion, remaster, order and presentation work still execute independently. Similar
+validates the current seed and reads its stored vector before lookup. Explicit key
+scopes and configured content/part Similar retain their uncached paths. The API
+promises neither frozen results nor
 a particular cache speedup. [ADR0062](decisions/0062-exact-text-neighbor-reuse.md)
 defines full identity, finite allocation limits, duplicate misses and retirement.
 Browser URL state owns the removable seed criterion. Similarity uses catalog

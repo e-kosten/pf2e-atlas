@@ -1,4 +1,4 @@
-//! Bounded exact TextSearch neighbor retention, independent of DB lifetimes.
+//! Bounded exact native-neighbor retention, independent of DB lifetimes.
 use atlas_index::{SourceVectorNeighbors, SqliteIndexReader};
 use serde::{Serialize, ser::SerializeSeq};
 use sha2::{Digest, Sha256};
@@ -16,7 +16,7 @@ const MAX_ENTRY_BYTES: usize = 256 * 1024;
 const MAX_KEY_BYTES: usize = 64 * 1024;
 // Conservative allowance for allocator/Arc headers beyond typed payload sizes.
 const ALLOCATION_OVERHEAD: usize = 64;
-const RECIPE: &str = "exact-text-native-neighbors/v1";
+const RECIPE: &str = "exact-native-candidate-neighbors/v1";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Epoch {
@@ -96,9 +96,9 @@ struct State {
     entries: Vec<Arc<RetainedNeighbors>>,
 }
 
-/// Runtime-owned transient store. Only explicit ordinary TextSearch reads use it.
+/// Runtime-owned transient store for eligible ordinary native-candidate requests.
 /// Misses compute independently; no lock spans SQL, hydration or inference.
-pub struct TextNeighborReuse {
+pub struct NativeNeighborReuse {
     state: Mutex<State>,
     budget: Arc<Budget>,
     #[cfg(test)]
@@ -107,17 +107,17 @@ pub struct TextNeighborReuse {
 
 /// Allocation counters describe this store, not process RSS or document vectors.
 #[derive(Debug, Clone, Copy)]
-pub struct TextNeighborReuseStats {
+pub struct NativeNeighborReuseStats {
     pub ready_entries: usize,
     pub live_bytes: usize,
     pub peak_bytes: usize,
 }
-impl Default for TextNeighborReuse {
+impl Default for NativeNeighborReuse {
     fn default() -> Self {
         Self::with_limits(MAX_BYTES)
     }
 }
-impl TextNeighborReuse {
+impl NativeNeighborReuse {
     fn with_limits(limit: usize) -> Self {
         let entries = Vec::with_capacity(MAX_ENTRIES);
         let base = std::mem::size_of::<Self>()
@@ -145,8 +145,8 @@ impl TextNeighborReuse {
             barrier.wait();
         }
     }
-    pub fn stats(&self) -> TextNeighborReuseStats {
-        TextNeighborReuseStats {
+    pub fn stats(&self) -> NativeNeighborReuseStats {
+        NativeNeighborReuseStats {
             ready_entries: self.state.lock().map_or(0, |s| s.entries.len()),
             live_bytes: self.budget.live.load(Ordering::Acquire),
             peak_bytes: self.budget.peak.load(Ordering::Relaxed),
@@ -176,8 +176,8 @@ impl TextNeighborReuse {
         text: &str,
         request: &atlas_index::SourceVectorCandidateRequest<'_>,
     ) -> Option<ReuseKey> {
-        // Excluded consumers cannot enter through a future caller accidentally.
-        if request.keys.is_some() || request.exclude.is_some() {
+        // Explicit key scopes require a separate complete membership identity.
+        if request.keys.is_some() {
             return None;
         }
         self.encode(
