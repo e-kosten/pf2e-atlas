@@ -31,6 +31,7 @@ pub struct AtlasRuntime {
     pub(crate) default_profile: Option<atlas_domain::SearchProfileId>,
     pub(crate) inference: atlas_embedding::SharedQueryInference,
     pub(crate) profile_assets: crate::profile_assets::ProfileAssets,
+    pub(crate) text_neighbor_reuse: std::sync::Arc<atlas_search::TextNeighborReuse>,
 }
 
 impl AtlasRuntime {
@@ -47,6 +48,7 @@ impl AtlasRuntime {
         Ok(Self {
             inference: atlas_embedding::SharedQueryInference::new(&paths.embedding_cache_root),
             profile_assets: Default::default(),
+            text_neighbor_reuse: Default::default(),
             default_profile: options.default_search_profile,
             paths,
         })
@@ -57,6 +59,10 @@ impl AtlasRuntime {
     }
     pub fn requested_search_profile(&self) -> Option<&atlas_domain::SearchProfileId> {
         self.default_profile.as_ref()
+    }
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn text_neighbor_reuse_stats(&self) -> atlas_search::TextNeighborReuseStats {
+        self.text_neighbor_reuse.stats()
     }
 
     pub fn source_root(&self) -> &Path {

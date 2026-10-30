@@ -263,8 +263,9 @@ impl AtlasAppService {
                     mode,
                     search_content: _,
                 } => {
-                    // Stateless paging deliberately reruns query inference and ranking.
-                    let result = retrieval.search_text(TextSearchRequest {
+                    // Only ordinary TextSearch opts into exact native-neighbor
+                    // reuse. Inference, hydration and ranking remain per request.
+                    let result = retrieval.search_text_with_neighbor_reuse(TextSearchRequest {
                         content_scope: search_content,
                         sort: sort.clone(),
                         ranking: request.ranking.unwrap_or_default(),

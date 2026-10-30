@@ -15,4 +15,10 @@ impl ArtifactInstance {
     pub fn generation(&self) -> String {
         format!("{}:{}", self.workspace_key, self.reference_revision)
     }
+    pub fn workspace_key(&self) -> &str {
+        &self.workspace_key
+    }
+    pub fn reference_revision(&self) -> u64 {
+        self.reference_revision
+    }
 }

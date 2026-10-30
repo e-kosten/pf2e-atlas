@@ -471,8 +471,9 @@ search orders the unchanged complete accepted set. No cap, chunk-local order,
 per-page randomization or unspecified runtime hash participates.
 Ordering does not require new schema, source preparation or embedding work.
 
-The full serialized `SourceArtifactBuildContext` SHA-256 identifies the active reference
-generation for search pages, detail envelopes and Related availability. It covers
+Public reference generation for search pages, detail envelopes and Related
+availability is `workspace_key:reference_revision`. The complete serialized
+`SourceArtifactBuildContext` SHA-256 additionally identifies preparation/reuse. It covers
 locale, shared preparation policies and the complete sorted profile manifest as
 well as source identity. Shared HTML/content preparation hashes exclude the
 profile manifest, including its model and passage recipe. Raw input hashes identify
@@ -485,9 +486,12 @@ serve different purposes and are not interchangeable.
 
 Stateless app requests carry criteria, page and an optional expected generation.
 Generation mismatch is checked before expensive retrieval and requires deliberate
-recovery from page1. This neither changes the artifact schema nor adds a result
-cache. A running web reader pool remains on its opened instance until restart;
-new commands observe later publication on their first reference read.
+recovery from page1. Each bounded operation opens its own admitted snapshot;
+later operations observe completed publication without restarting. Ordinary
+TextSearch can reuse exact per-k unit IDs/distance bits under the complete
+publication/context/profile/query identity, rehydrating all neighbors in the
+consuming snapshot. Index still owns the masked native query and location decoder;
+search owns bounded transient retention. See [ADR0062](decisions/0062-exact-text-neighbor-reuse.md).
 
 Legacy suppression occurs only when its verified remaster also matches the complete
 current request, before paging. A legacy-only match remains visible, and exact key

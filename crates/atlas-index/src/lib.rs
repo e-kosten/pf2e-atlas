@@ -46,6 +46,10 @@ mod read_similarity;
 mod read_similarity_sections;
 pub use read_similarity::{SourceSimilarityCandidateRequest, SourceSimilarityUnit};
 mod read_units;
+mod vector_neighbors;
+#[cfg(test)]
+mod vector_neighbors_tests;
+pub use vector_neighbors::SourceVectorNeighbors;
 mod reader;
 mod schema;
 #[cfg(any(test, feature = "test-support"))]
