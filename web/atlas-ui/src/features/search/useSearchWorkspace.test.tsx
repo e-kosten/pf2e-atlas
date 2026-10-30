@@ -1670,6 +1670,59 @@ describe("useSearchWorkspace", () => {
     },
   );
 
+  it("submits from a later page immediately while draft typing retains the current results", async () => {
+    history.replaceState(null, "", "/search?q=ice&page=2");
+    apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) =>
+      searchResultsPage(
+        [
+          request.criteria.kind === "text_search"
+            ? `spell:${request.criteria.query}`
+            : "spell:browse",
+        ],
+        { pageNumber: request.page.number },
+      ),
+    );
+    let workspace!: SearchWorkspaceState;
+    function Harness() {
+      workspace = useSearchWorkspace({ searchProfile: "bge-base" });
+      return (
+        <>
+          <FilterControls filterState={workspace} />
+          <output aria-label="Displayed result">
+            {workspace.resultPage?.rows[0]?.record.record_key}
+          </output>
+        </>
+      );
+    }
+    render(<Harness />, { wrapper: queryClientWrapper() });
+    await waitFor(() =>
+      expect(screen.getByLabelText("Displayed result")).toHaveTextContent("spell:ice"),
+    );
+    expect(workspace.pageNumber).toBe(2);
+    apiMocks.searchPage.mockClear();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const input = screen.getByRole("searchbox", { name: "Search records" });
+      fireEvent.change(input, { target: { value: "fire" } });
+      await act(async () => vi.advanceTimersByTimeAsync(1000));
+      expect(screen.getByLabelText("Displayed result")).toHaveTextContent("spell:ice");
+      expect(apiMocks.searchPage).not.toHaveBeenCalled();
+      await act(async () => fireEvent.keyDown(input, { key: "Enter", keyCode: 13 }));
+      expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
+      expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({
+        criteria: { query: "fire" },
+        page: { number: 1 },
+      });
+      expect(new URLSearchParams(location.search).get("page")).toBeNull();
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(screen.getByLabelText("Displayed result")).toHaveTextContent("spell:fire");
+      await act(async () => vi.advanceTimersByTimeAsync(1000));
+      expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("debounces search-page requests while preserving immediate search state", async () => {
     const { result } = renderHook(
       () => useSearchWorkspace({ searchProfile: "bge-base" }),

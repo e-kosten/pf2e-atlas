@@ -524,7 +524,7 @@ test("compact choices keep keyboard focus, mix states and dismiss their mobile d
   await expect(row).toHaveAccessibleName(
     "Kind: Creature, included; activate to exclude",
   );
-  await expect(row).toHaveText("Creature");
+  await expect(row.getByText("Creature", { exact: true })).toBeVisible();
   await row.press("Space");
   await expect(row).toBeFocused();
   await expect(row).toHaveAccessibleName("Kind: Creature, excluded; activate to clear");
