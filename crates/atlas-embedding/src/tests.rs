@@ -29,6 +29,148 @@ fn plain<'a>(text: &'a str, context: &'a str) -> PassageSection<'a> {
         label: Some("Fever"),
     }
 }
+
+fn layouts(inputs: &[PreparedEmbeddingInput]) -> Vec<PassageLayout> {
+    inputs
+        .iter()
+        .map(|input| PassageLayout {
+            address: input.address.clone(),
+            input_sha256: input.input_sha256.clone(),
+        })
+        .collect()
+}
+
+#[test]
+fn published_layout_replay_matches_fresh_plain_and_html_preparation() {
+    let tokenizer = tokenizer();
+    let text = "one 🐉 one\n".repeat(400);
+    let long_context = "one ".repeat(100);
+    for context in ["", "Root / owner", long_context.as_str()] {
+        for section in [
+            plain(&text, context),
+            PassageSection::Html {
+                text: &text,
+                context,
+                prepared_html_sha256: "html-hash",
+                selection_version: "test/v1",
+                section_ordinal: 7,
+                label: Some("Heading"),
+            },
+        ] {
+            let fresh = prepare_embedding_section(&tokenizer, section).unwrap();
+            assert!(fresh.len() > 2);
+            assert_eq!(
+                reuse_embedding_section(&tokenizer, section, &layouts(&fresh)).unwrap(),
+                Some(fresh)
+            );
+        }
+    }
+}
+
+#[test]
+fn changed_text_context_and_attribution_miss_published_layouts() {
+    let tokenizer = tokenizer();
+    let text = "one ".repeat(400);
+    let original = plain(&text, "Root");
+    let previous = layouts(&prepare_embedding_section(&tokenizer, original).unwrap());
+    let changed_text = format!("{text}changed");
+    for section in [
+        plain(&changed_text, "Root"),
+        plain(&text, "Renamed root / pack / localized name"),
+        PassageSection::Plain {
+            text: &text,
+            context: "Root",
+            selection_version: "changed/v2",
+            section_ordinal: 4,
+            label: Some("Fever"),
+        },
+        PassageSection::Plain {
+            text: &text,
+            context: "Root",
+            selection_version: "test/v1",
+            section_ordinal: 5,
+            label: Some("Fever"),
+        },
+        PassageSection::Html {
+            text: &text,
+            context: "Root",
+            prepared_html_sha256: "changed-html",
+            selection_version: "test/v1",
+            section_ordinal: 4,
+            label: Some("Fever"),
+        },
+    ] {
+        assert!(
+            reuse_embedding_section(&tokenizer, section, &previous)
+                .unwrap()
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn incomplete_reordered_or_unfaithful_layouts_never_supply_partial_passages() {
+    let tokenizer = tokenizer();
+    let text = "one 🐉 ".repeat(400);
+    let section = plain(&text, "Root");
+    let original = layouts(&prepare_embedding_section(&tokenizer, section).unwrap());
+    let mut corruptions = vec![
+        vec![],
+        original[1..].to_vec(),
+        original[..original.len() - 1].to_vec(),
+    ];
+    let mut duplicate = original.clone();
+    duplicate.insert(1, duplicate[0].clone());
+    corruptions.push(duplicate);
+    let mut reversed = original.clone();
+    reversed.reverse();
+    corruptions.push(reversed);
+    let mut wrong_hash = original.clone();
+    wrong_hash[0].input_sha256 = "0".repeat(64);
+    corruptions.push(wrong_hash);
+    let mut bad_utf8 = original.clone();
+    if let SourcePassageAddress::PlainSection { chunk_bytes, .. } = &mut bad_utf8[0].address {
+        chunk_bytes.end = text.find('🐉').unwrap() + 1;
+    }
+    corruptions.push(bad_utf8);
+    for invalid in corruptions {
+        assert!(
+            reuse_embedding_section(&tokenizer, section, &invalid)
+                .unwrap()
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn replay_rechecks_body_and_overlap_budgets_even_with_matching_hashes() {
+    let tokenizer = tokenizer();
+    for (words, ranges) in [(400, vec![(0, 400)]), (300, vec![(0, 200), (100, 300)])] {
+        let text = "one ".repeat(words);
+        let section = plain(&text, "");
+        let hash = hash_document_embedding_input(&text);
+        let layouts = ranges
+            .into_iter()
+            .map(|(start, end)| PassageLayout {
+                address: section
+                    .address(
+                        &hash,
+                        SourceByteRange {
+                            start: start * 4,
+                            end: end * 4,
+                        },
+                    )
+                    .unwrap(),
+                input_sha256: hash_document_embedding_input(&text[start * 4..end * 4]),
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            reuse_embedding_section(&tokenizer, section, &layouts)
+                .unwrap()
+                .is_none()
+        );
+    }
+}
 fn assert_coverage(
     tokenizer: &TextEmbeddingTokenizer,
     text: &str,

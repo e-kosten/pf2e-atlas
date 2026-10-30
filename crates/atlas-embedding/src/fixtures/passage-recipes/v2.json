@@ -1,0 +1,150 @@
+{
+  "cases": [
+    {
+      "context": "A watchful guardian",
+      "expected": [
+        {
+          "address": {
+            "chunk_bytes": {
+              "end": 1150,
+              "start": 0
+            },
+            "kind": "plain_section",
+            "label": "Gate",
+            "section_ordinal": 4,
+            "selection_version": "historical-sections/v1",
+            "source_text_sha256": "e3c305b4d880aa7071f31c7a6546b09aee88bc77ec06d81804b0f3ee6256edc1"
+          },
+          "input_sha256": "266aae52f57f773e5ea103c694ae4babe55c789014cfc0429695a9e2a07b26da"
+        },
+        {
+          "address": {
+            "chunk_bytes": {
+              "end": 2162,
+              "start": 1010
+            },
+            "kind": "plain_section",
+            "label": "Gate",
+            "section_ordinal": 4,
+            "selection_version": "historical-sections/v1",
+            "source_text_sha256": "e3c305b4d880aa7071f31c7a6546b09aee88bc77ec06d81804b0f3ee6256edc1"
+          },
+          "input_sha256": "f31c8eb239e7f9c851eb3c414be8d593fc5049873f0d26daed288a15b0338339"
+        },
+        {
+          "address": {
+            "chunk_bytes": {
+              "end": 3174,
+              "start": 2022
+            },
+            "kind": "plain_section",
+            "label": "Gate",
+            "section_ordinal": 4,
+            "selection_version": "historical-sections/v1",
+            "source_text_sha256": "e3c305b4d880aa7071f31c7a6546b09aee88bc77ec06d81804b0f3ee6256edc1"
+          },
+          "input_sha256": "f31c8eb239e7f9c851eb3c414be8d593fc5049873f0d26daed288a15b0338339"
+        },
+        {
+          "address": {
+            "chunk_bytes": {
+              "end": 3931,
+              "start": 3034
+            },
+            "kind": "plain_section",
+            "label": "Gate",
+            "section_ordinal": 4,
+            "selection_version": "historical-sections/v1",
+            "source_text_sha256": "e3c305b4d880aa7071f31c7a6546b09aee88bc77ec06d81804b0f3ee6256edc1"
+          },
+          "input_sha256": "6a4369385a996eda43e77d95b054444a7a147dd5915c2cc929837356f92cb48c"
+        }
+      ],
+      "kind": "plain",
+      "label": "Gate",
+      "name": "plain Unicode paragraphs",
+      "section_ordinal": 4,
+      "selection_version": "historical-sections/v1",
+      "text": "One watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nOne watches the gate. 🐉 Résumé and é.\n\nFinal complete tail.\n"
+    },
+    {
+      "context": "Root heading / one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading one owner heading ",
+      "expected": [
+        {
+          "address": {
+            "canonical_text_sha256": "7f20a4a15d6df6335e13d2307b72be37f55459cc5f9a006980ea5b57dbbc7550",
+            "chunk_bytes": {
+              "end": 1407,
+              "start": 0
+            },
+            "kind": "html_section",
+            "label": "Heading",
+            "prepared_html_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "section_ordinal": 7,
+            "selection_version": "historical-sections/v1"
+          },
+          "input_sha256": "cffbdef125169966ad487c10cebf4522540e09f39f945856cd0aa8c6359d0035"
+        },
+        {
+          "address": {
+            "canonical_text_sha256": "7f20a4a15d6df6335e13d2307b72be37f55459cc5f9a006980ea5b57dbbc7550",
+            "chunk_bytes": {
+              "end": 2680,
+              "start": 1271
+            },
+            "kind": "html_section",
+            "label": "Heading",
+            "prepared_html_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "section_ordinal": 7,
+            "selection_version": "historical-sections/v1"
+          },
+          "input_sha256": "af0fd72b8ea080320ffdec61330bd6f1cfea33e3f449b18d43fb273731d3a0ac"
+        },
+        {
+          "address": {
+            "canonical_text_sha256": "7f20a4a15d6df6335e13d2307b72be37f55459cc5f9a006980ea5b57dbbc7550",
+            "chunk_bytes": {
+              "end": 3953,
+              "start": 2544
+            },
+            "kind": "html_section",
+            "label": "Heading",
+            "prepared_html_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "section_ordinal": 7,
+            "selection_version": "historical-sections/v1"
+          },
+          "input_sha256": "af0fd72b8ea080320ffdec61330bd6f1cfea33e3f449b18d43fb273731d3a0ac"
+        },
+        {
+          "address": {
+            "canonical_text_sha256": "7f20a4a15d6df6335e13d2307b72be37f55459cc5f9a006980ea5b57dbbc7550",
+            "chunk_bytes": {
+              "end": 4701,
+              "start": 3817
+            },
+            "kind": "html_section",
+            "label": "Heading",
+            "prepared_html_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "section_ordinal": 7,
+            "selection_version": "historical-sections/v1"
+          },
+          "input_sha256": "c0e92da4d19a5788aab119565a3662ab1999776c76f5596a2dd6b45d81728440"
+        }
+      ],
+      "kind": "html",
+      "label": "Heading",
+      "name": "HTML section with bounded context",
+      "prepared_html_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "section_ordinal": 7,
+      "selection_version": "historical-sections/v1",
+      "text": "First sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nFirst sentence, then second sentence.\nAnother paragraph with 火.\n\nLast line.\n"
+    }
+  ],
+  "recipe": {
+    "input_recipe": "baseline/v2/bge-tokenizer-d241a60d/body256-context64-overlap32-identity480/owned-header-no-pack/root-unchanged/no-parent",
+    "segmentation_tokenizer_sha256": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+    "unit_policy_version": "source-passages/v2/text-splitter0.29.3/body256-context64-overlap32/identity480/baseline-bge512/native-final-by-profile"
+  },
+  "tokenizer_fixture": "wordlevel-whitespace/v1",
+  "tokenizer_fixture_sha256": "69be2ffeecae2fd1b69798e63501bc7f16b843a0c83a79675a426b49b46e37f3"
+}

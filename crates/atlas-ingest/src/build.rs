@@ -38,6 +38,7 @@ pub(crate) struct PreparedSourceBuild {
 pub(crate) fn prepare_build(
     options: &BuildArtifactOptions,
     reusable: Vec<atlas_index::SourceArtifactRecordInput>,
+    layouts: BTreeMap<atlas_domain::RecordKey, Vec<atlas_index::SourcePassageLayout>>,
 ) -> Result<PreparedSourceBuild, IngestError> {
     crate::validate_source_compatibility(&options.source_root, options.manifest_path.as_deref())?;
     progress("load_source", "Reading Foundry source");
@@ -133,7 +134,7 @@ pub(crate) fn prepare_build(
         })
         .transpose()
         .map_err(embedding_error)?;
-    let mut prepared = index_build_input(source, context, tokenizer.as_ref(), &capture)?;
+    let mut prepared = index_build_input(source, context, tokenizer.as_ref(), &capture, layouts)?;
     let (traits, trait_pending) = crate::traits::prepare_traits(
         &catalog,
         &prepared.index.context,
@@ -190,7 +191,7 @@ pub(crate) fn build_artifact(
     atlas_index::write_requested_reference_config(&write, &requested)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     write.commit()?;
-    let reusable = {
+    let (reusable, layouts) = {
         let read = workspace.read(schema)?;
         match atlas_index::read_stored_reference_context(read.connection())
             .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
@@ -203,10 +204,18 @@ pub(crate) fn build_artifact(
                     "read_previous",
                     "Reading indexed reference records for reuse",
                 );
-                atlas_index::read_persisted_inputs(read.connection(), &context)
-                    .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
+                let records = atlas_index::read_persisted_inputs(read.connection(), &context)
+                    .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
+                let layouts =
+                    if options.reuse_passage_layouts && !options.search_profiles.is_empty() {
+                        atlas_index::read_reusable_passage_layouts(&read)
+                            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
+                    } else {
+                        BTreeMap::new()
+                    };
+                (records, layouts)
             }
-            _ => Vec::new(),
+            _ => (Vec::new(), BTreeMap::new()),
         }
     };
     let PreparedSourceBuild {
@@ -214,7 +223,7 @@ pub(crate) fn build_artifact(
         source_report,
         fingerprint,
         catalog,
-    } = prepare_build(&options, reusable)?;
+    } = prepare_build(&options, reusable, layouts)?;
     let job = {
         let write = workspace.write(schema)?;
         let target = prepared

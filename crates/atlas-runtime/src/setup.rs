@@ -283,6 +283,7 @@ pub(crate) fn ensure_setup(
                         locale,
                         search_profiles: configurations.clone(),
                         reuse_embeddings: true,
+                        reuse_passage_layouts: !options.force_rebuild,
                         embedding_batch_size: options.embedding_batch_size,
                     },
                 )

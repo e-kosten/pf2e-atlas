@@ -56,6 +56,7 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
                 })
                 .collect::<Result<Vec<_>, _>>()?,
             reuse_embeddings: !options.no_reuse_embeddings,
+            reuse_passage_layouts: !options.no_reuse_embeddings,
             embedding_batch_size: options.embedding_batch_size,
         },
     )

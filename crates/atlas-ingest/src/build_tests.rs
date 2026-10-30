@@ -5,6 +5,102 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 struct Fixture(PathBuf);
+
+#[test]
+#[ignore = "requires the pinned BGE tokenizer; no model inference"]
+fn published_passage_replay_matches_fresh_selection_after_dependency_changes() {
+    let fixture = Fixture::new();
+    let mut options = fixture.options();
+    options.search_profiles = vec![atlas_embedding::EmbeddingRuntimeConfig::new(
+        atlas_embedding::EmbeddingModelId::BgeBaseEnV15,
+        std::env::var_os("ATLAS_TEST_MODEL_CACHE").expect("set ATLAS_TEST_MODEL_CACHE"),
+    )];
+    let source_path = fixture.0.join("packs/items/useful.json");
+    let target_path = fixture.0.join("packs/items/target.json");
+    let description = format!(
+        "<h2>Definition</h2><p>@UUID[Compendium.pf2e.items.Item.cccccccccccccccc] @Localize[PF2E.Label] {}</p>",
+        "Unicode 🐉 prose and more details. ".repeat(350)
+    );
+    let source = serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","name":"Useful record","type":"effect","system":{"description":{"value":description}}});
+    let target = serde_json::json!({"_id":"cccccccccccccccc","name":"Target","type":"effect","system":{"description":{"value":"<p>Target prose</p>"}}});
+    fs::write(&source_path, serde_json::to_vec(&source).unwrap()).unwrap();
+    fs::write(&target_path, serde_json::to_vec(&target).unwrap()).unwrap();
+    let initial = crate::build::prepare_build(&options, vec![], Default::default()).unwrap();
+    let mut layouts: std::collections::BTreeMap<_, Vec<_>> = Default::default();
+    for pending in &initial.prepared.pending {
+        if let Some(field) = &pending.unit.field {
+            layouts
+                .entry(pending.unit.record.clone())
+                .or_default()
+                .push(atlas_index::SourcePassageLayout {
+                    owners: pending.unit.owners.clone(),
+                    field: field.clone(),
+                    chunk_ordinal: pending.unit.chunk_ordinal,
+                    passage: atlas_embedding::PassageLayout {
+                        address: pending.input.address.clone(),
+                        input_sha256: pending.input.input_sha256.clone(),
+                    },
+                });
+        }
+    }
+    let original_manifest = fs::read(fixture.0.join("module.json")).unwrap();
+    let original_locale = fs::read(fixture.0.join("static/lang/en.json")).unwrap();
+    for case in [
+        "unchanged",
+        "body",
+        "reference",
+        "localization",
+        "pack label",
+    ] {
+        fs::write(&source_path, serde_json::to_vec(&source).unwrap()).unwrap();
+        fs::write(&target_path, serde_json::to_vec(&target).unwrap()).unwrap();
+        fs::write(fixture.0.join("module.json"), &original_manifest).unwrap();
+        fs::write(fixture.0.join("static/lang/en.json"), &original_locale).unwrap();
+        match case {
+            "body" => {
+                let mut changed = source.clone();
+                changed["system"]["description"]["value"] =
+                    serde_json::json!(format!("{description}<p>Added body text.</p>"));
+                fs::write(&source_path, serde_json::to_vec(&changed).unwrap()).unwrap();
+            }
+            "reference" => {
+                let mut changed = target.clone();
+                changed["name"] = serde_json::json!("Renamed target");
+                fs::write(&target_path, serde_json::to_vec(&changed).unwrap()).unwrap();
+            }
+            "localization" => {
+                fs::write(
+                    fixture.0.join("static/lang/en.json"),
+                    r#"{"PF2E":{"Label":"Changed localized text"}}"#,
+                )
+                .unwrap();
+            }
+            "pack label" => {
+                let mut changed: serde_json::Value =
+                    serde_json::from_slice(&original_manifest).unwrap();
+                changed["packs"][0]["label"] = serde_json::json!("Renamed pack");
+                fs::write(
+                    fixture.0.join("module.json"),
+                    serde_json::to_vec(&changed).unwrap(),
+                )
+                .unwrap();
+            }
+            _ => {}
+        }
+        let fresh = crate::build::prepare_build(&options, vec![], Default::default()).unwrap();
+        let replay = crate::build::prepare_build(&options, vec![], layouts.clone()).unwrap();
+        assert_eq!(fresh.prepared.pending, replay.prepared.pending, "{case}");
+        if case == "unchanged" {
+            assert!(replay.prepared.reused_sections > 0);
+            assert_eq!(fresh.prepared.pending, initial.prepared.pending);
+        } else {
+            assert_ne!(
+                fresh.prepared.pending, initial.prepared.pending,
+                "{case} must exercise a changed input"
+            );
+        }
+    }
+}
 fn build_artifact(options: BuildArtifactOptions) -> Result<BuildArtifactReport, IngestError> {
     let workspace = atlas_index::test_support::initialize_workspace(&options.output_path)
         .map_err(|e| IngestError::ArtifactWriteFailed(e.to_string()))?;
@@ -50,6 +146,7 @@ impl Fixture {
             locale: "en".into(),
             search_profiles: vec![],
             reuse_embeddings: true,
+            reuse_passage_layouts: true,
             embedding_batch_size: 16,
         }
     }
@@ -168,7 +265,8 @@ fn actual_tokenizer_prepares_identity_for_unavailable_authored_names() {
             serde_json::to_vec(&source).unwrap(),
         )
         .unwrap();
-        let prepared = crate::build::prepare_build(&options, Vec::new()).unwrap();
+        let prepared =
+            crate::build::prepare_build(&options, Vec::new(), Default::default()).unwrap();
         let identity = prepared
             .prepared
             .pending
@@ -367,7 +465,8 @@ fn english_catalog_changes_reprepare_unchanged_documents_and_failures_preserve_p
         serde_json::from_slice(&fs::read(&document).unwrap()).unwrap();
     authored["system"]["description"]["value"] = serde_json::json!("@Localize[Rules]");
     fs::write(&document, authored.to_string()).unwrap();
-    let original = crate::build::prepare_build(&fixture.options(), vec![]).unwrap();
+    let original =
+        crate::build::prepare_build(&fixture.options(), vec![], Default::default()).unwrap();
     let original_hash = original
         .prepared
         .index
@@ -379,8 +478,12 @@ fn english_catalog_changes_reprepare_unchanged_documents_and_failures_preserve_p
         r#"{"Rules":"<h2>Updated rules</h2><p>Updated English passage.</p>"}"#,
     )
     .unwrap();
-    let updated =
-        crate::build::prepare_build(&fixture.options(), original.prepared.index.records).unwrap();
+    let updated = crate::build::prepare_build(
+        &fixture.options(),
+        original.prepared.index.records,
+        Default::default(),
+    )
+    .unwrap();
     assert_eq!(updated.source_report.reused_admissions, 2);
     assert_eq!(updated.source_report.reused_preparations, 0);
     assert_ne!(
@@ -431,6 +534,7 @@ fn actual_complete_source_build_has_typed_projection_content_and_navigation_cove
         locale: "en".into(),
         search_profiles: vec![],
         reuse_embeddings: false,
+        reuse_passage_layouts: false,
         embedding_batch_size: 16,
     })
     .unwrap();
@@ -929,9 +1033,10 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
             cache,
         )],
         reuse_embeddings: false,
+        reuse_passage_layouts: false,
         embedding_batch_size: 16,
     };
-    let prepared = crate::build::prepare_build(&options, Vec::new()).unwrap();
+    let prepared = crate::build::prepare_build(&options, Vec::new(), Default::default()).unwrap();
     assert_eq!(prepared.prepared.index.records.len(), 29894);
     let mut identities = std::collections::BTreeSet::new();
     let mut bytes = 0;
@@ -1203,10 +1308,11 @@ fn captured_manifest_localization_and_alias_inputs_reject_transient_changes() {
             )
             .map(|_| ())
         } else {
-            let mut input = crate::build::prepare_build(&fixture.options(), vec![])
-                .unwrap()
-                .prepared
-                .index;
+            let mut input =
+                crate::build::prepare_build(&fixture.options(), vec![], Default::default())
+                    .unwrap()
+                    .prepared
+                    .index;
             crate::source_aliases::extract_source_aliases(&mut input, &fixture.0, &capture)
         };
         fs::write(&path, original).unwrap();
@@ -1225,7 +1331,7 @@ fn captured_manifest_localization_and_alias_inputs_reject_transient_changes() {
 #[test]
 fn aliased_pack_paths_consume_previous_preparation_once_in_manifest_order() {
     let fixture = Fixture::new();
-    let previous = crate::build::prepare_build(&fixture.options(), vec![])
+    let previous = crate::build::prepare_build(&fixture.options(), vec![], Default::default())
         .unwrap()
         .prepared
         .index
@@ -1267,7 +1373,7 @@ fn direct_preparation_rejects_incompatible_system_but_developer_loading_remains_
     manifest["version"] = serde_json::json!("7.9.1");
     fs::write(&path, manifest.to_string()).unwrap();
     assert!(crate::load_foundry_documents(&fixture.0, None).is_ok());
-    let result = crate::build::prepare_build(&fixture.options(), vec![]);
+    let result = crate::build::prepare_build(&fixture.options(), vec![], Default::default());
     assert!(
         matches!(result, Err(crate::IngestError::SourceIncompatible(message)) if message.contains("7.9.1") && message.contains(atlas_foundry_model::generated::REFERENCE_SOURCE_VERSION))
     );

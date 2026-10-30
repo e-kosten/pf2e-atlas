@@ -47,12 +47,12 @@ Serial macOS ARM64 measurements, Rust1.95.0, schema22, the same29,894-record
 two-profile corpus (BGE Base and EmbeddingGemma), baseline965f8123 and candidate
 a3b191f2:
 
-| Deep validation | Baseline | Candidate |
-| --- | ---: | ---: |
-| Dev elapsed |273.26s|260.09s|
-| Dev observed peak RSS |1,573.7MiB|362.8MiB|
-| Release elapsed |49.99s|48.11s|
-| Release observed peak RSS |1,619.9MiB|404.4MiB|
+| Deep validation           |   Baseline | Candidate |
+| ------------------------- | ---------: | --------: |
+| Dev elapsed               |    273.26s |   260.09s |
+| Dev observed peak RSS     | 1,573.7MiB |  362.8MiB |
+| Release elapsed           |     49.99s |    48.11s |
+| Release observed peak RSS | 1,619.9MiB |  404.4MiB |
 
 Memory was sampled once per second; these are local observations, not portable
 limits. The measured memory reduction is75–77%. Elapsed differences are small
@@ -112,11 +112,11 @@ stored vector format and validation guarantees remain unchanged.
 Local macOS ARM64 release measurements, with BGE Base and EmbeddingGemma over
 25,641 roots and 270,070 attributed semantic units:
 
-| Measurement | Integration baseline | Optimized |
-| --- | --- | --- |
-| Unchanged build, all vectors reused | 308.85s | 174.78s |
-| Maximum resident size, same runs | 7.39 GiB | 4.80 GiB |
-| Fresh build with verified checkpoints | Not measured on this exact content version | 221.05s |
+| Measurement                           | Integration baseline                       | Optimized |
+| ------------------------------------- | ------------------------------------------ | --------- |
+| Unchanged build, all vectors reused   | 308.85s                                    | 174.78s   |
+| Maximum resident size, same runs      | 7.39 GiB                                   | 4.80 GiB  |
+| Fresh build with verified checkpoints | Not measured on this exact content version | 221.05s   |
 
 These are serial local warm-cache runs, not portable timing guarantees. The
 historical unmodified release fresh build took 341.98s with the earlier content
@@ -129,7 +129,6 @@ passage segmentation/tokenization, about 70s. Preserve its literal input, chunk
 and attribution contracts in any future optimization. Evidence, frozen binaries
 and research probes are retained under `scratch/ingest-performance/`.
 
-
 ## Native embedding storage (PR103)
 
 The measured PF2e 8.6.1 corpus (revision `28d9d156f252d084371d994dc359509b49eadf18`)
@@ -141,14 +140,14 @@ values/centroids as binary f32. It preserves one KNN entry per source occurrence
 
 Local macOS ARM64, Rust 1.95.0 dev-profile probe on implementation `a93d0423`:
 
-| Measurement | Schema 9 | Schema 10 after explicit reclamation |
-| --- | ---: | ---: |
-| Workspace bytes | 4,315,258,880 | 1,612,591,104 |
-| Workspace GiB | 4.019 | 1.502 |
-| Vector blocks, each profile | 268 | 158 |
-| Allocated vector slots, each profile | 274,432 | 161,792 |
-| Reusable native inputs, both profiles | 323,016 cached inputs | 323,016 supplied by published storage |
-| Separate checkpoint vectors after publication | 323,016 | 0 |
+| Measurement                                   |              Schema 9 |  Schema 10 after explicit reclamation |
+| --------------------------------------------- | --------------------: | ------------------------------------: |
+| Workspace bytes                               |         4,315,258,880 |                         1,612,591,104 |
+| Workspace GiB                                 |                 4.019 |                                 1.502 |
+| Vector blocks, each profile                   |                   268 |                                   158 |
+| Allocated vector slots, each profile          |               274,432 |                               161,792 |
+| Reusable native inputs, both profiles         | 323,016 cached inputs | 323,016 supplied by published storage |
+| Separate checkpoint vectors after publication |               323,016 |                                     0 |
 
 The file shrank by 2,702,667,776 bytes (2.517 GiB, 62.6%). This excludes the normal
 single pre-upgrade backup, which remains part of installed-workspace upgrade
@@ -175,3 +174,61 @@ trait-only/document value transitions, input corruption and compaction rollback.
 Bounded native-model tests cover zero inference on unchanged input, one changed
 passage, forced inference, profile changes and preservation after a failed build.
 No retired-task database/archive is required to retain this evidence.
+
+### Published passage-layout reuse experiment
+
+A macOS ARM64 release preparation experiment over 29,894 records compared fresh
+splitting with replay of already-published byte ranges. Both paths reused existing
+checked source/prepared HTML and ran native validation for BGE Base and
+EmbeddingGemma. No inference or publication occurred in this comparison.
+
+| Case                                      | Preparation, including reading prior inputs | Native profile validation | Combined |
+| ----------------------------------------- | ------------------------------------------- | ------------------------- | -------- |
+| Fresh splitting, passage layouts disabled | 114.20s                                     | 40.87s                    | 155.07s  |
+| Unchanged source, published layouts       | 57.95s                                      | 41.02s                    | 98.97s   |
+| One private Heal description update       | 59.89s                                      | 40.74s                    | 100.63s  |
+
+All 161,735 document inputs and 793 trait inputs were checked for both profiles.
+Unchanged preparation matched fresh text, addresses, counts and execution
+identities. The bounded update matched an independent fresh preparation of the
+changed root; every other root matched the original. It reused 123,582 sections,
+versus 123,583 for unchanged input, from 131,922 published passage layouts.
+
+The first case measures forced fresh splitting, not recipe admission. Separate
+regressions check passage-policy, segmentation-tokenizer and input-recipe misses;
+they fall back to the same fresh path. These timings used the frozen prototype
+before additional model/kind integrity checks and earlier release of per-record
+layout metadata. They are preparation measurements, not end-to-end setup claims.
+The existing locations/input hashes supply reuse without a new schema, persisted
+cache or duplicate text corpus. Native token validation remains unchanged.
+
+The earlier candidate (`e02cb2af`), which allowed layout reuse during forced
+setup, completed a full rebuild against a private controlled seed in
+**315.68s (5m 16s)**,
+including vector reuse, publication and validation. Both profiles retained 161,735
+semantic units; 323,022 unique inputs were reused and zero inferred. Ordinary
+unchanged setup took **3.33s**, reporting ready with `build_index` skipped. Saved
+state and record identities were unchanged across 23 tables. Compilation and
+asset downloads are excluded. The earlier forced release measurement was 369.77s;
+that is a historical reference, not a new paired control run. Current
+`setup --force` deliberately bypasses passage-layout reuse and reruns splitting
+while keeping compatible vector reuse. The 315.68s result is not a current
+forced-setup timing. Normal source updates can still use layout replay; the
+matched preparation comparison above measures that optimization.
+
+The seed snapshot was 1,738,186,752 bytes and the rebuilt private database was
+1,741,590,528 bytes. There is no new persisted layout payload; physical SQLite
+allocation changed during publication. Peak-memory collection was unavailable:
+macOS `time -l` failed its post-run `kern.clockrate` query in the sandbox, after
+recording wall time. Atlas reported success and the subsequent ordinary setup
+exited successfully. No full debug-profile rebuild was repeated. The force-bypass
+follow-up uses a small native setup regression instead of repeating the
+full-corpus timing.
+
+The ignored `published_layout_reuse_full_corpus_benchmark` in
+[`atlas-ingest`](../../../crates/atlas-ingest/src/passage_benchmark.rs) reproduces
+the preparation comparison with explicit index, schema, model-cache and evidence
+paths. Its editable source must be a private checkout: the small-update case
+changes one description and restores it. The measured run used a separate Git
+clone under the task checkout's `.atlas/source-fixture`, leaving shared pinned
+source and model assets intact.

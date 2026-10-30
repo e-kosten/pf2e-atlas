@@ -4,6 +4,7 @@ mod document_input;
 mod error;
 mod inference;
 mod model_cache;
+mod passage_reuse;
 mod passages;
 mod prepared_batch;
 mod profiles;
@@ -38,9 +39,12 @@ pub use model_cache::{
     prepare_embedding_model_cache, required_embedding_model_cache_files,
     validate_embedding_model_cache,
 };
+pub use passage_reuse::{PassageLayout, reuse_embedding_section};
 pub use passages::{PassageSection, PreparedEmbeddingInput, prepare_embedding_section};
 pub use prepared_batch::PreparedEmbeddingBatch;
 pub use tokenization::TextEmbeddingTokenizer;
+#[cfg(test)]
+mod historical_passages;
 #[cfg(test)]
 mod tests;
 

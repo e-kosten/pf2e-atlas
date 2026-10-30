@@ -6,6 +6,8 @@ mod build_model;
 mod build_tests;
 mod error;
 mod index_build_input;
+#[cfg(test)]
+mod passage_benchmark;
 mod report;
 mod source;
 mod source_aliases;
