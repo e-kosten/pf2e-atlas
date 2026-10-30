@@ -560,6 +560,34 @@ Complete vector validation scans unit IDs in storage order rather than following
 the input-hash reuse index. Workspace sessions use an 8 MiB demand-filled SQLite
 page-cache target so sequential vec0 chunks fit without repeated eviction; this
 does not change the stored vector format or request-level retrieval policy.
+On 64-bit platforms, ordinary storage read sessions may also use SQLite's
+connection-local read-only mapping. Storage grants at most two nonblocking mapping
+leases per process across all workspaces and callers, including metadata, query
+preparation and saved-state readers outside the retrieval pool. Each requests at
+most the file size observed at open or 2 GiB, bounding requested address ranges to
+4 GiB per process. This ceiling includes headroom for a corpus with both built-in
+profiles; it is not a private-memory allocation or a machine-wide bound. Smaller
+files request less; larger files use normal SQLite I/O beyond the prefix. Multiple
+processes have independent limits. Native model memory is separate.
+
+SQLite's compile-time/VFS/platform limits may clamp or disable mapping; its normal
+I/O path remains authoritative when mapping capacity or xFetch is unavailable.
+32-bit processes request no mapping. No caller waits for a mapping lease, and no
+reader is retained to keep pages mapped. Connections close before releasing their
+lease and access admission, including failed validation. WAL pages remain under
+SQLite's normal snapshot machinery; file growth does not expand an existing
+session's request. A later session sizes its request again.
+
+Write and maintenance sessions, migration connections and backup-source connections
+explicitly disable mapping. Reclamation's ordinary preflight reader closes before
+exclusive maintenance; publication, migration, backup and reclamation keep their
+existing locks and durability contracts. Draining readers before physical maintenance
+also releases mapped file handles required for Windows truncation. There is no
+persistent PRAGMA, schema, public preference, native extension or custom file-I/O
+change. SQLite's documented mapped-I/O error and filesystem constraints still apply;
+see [SQLite memory-mapped I/O](https://www.sqlite.org/mmap.html) and
+[effective mapping limits](https://www.sqlite.org/pragma.html#pragma_mmap_size).
+
 After reconciliation, the writer flushes dirty SQLite pages before validation so
 freshly written vector chunks do not compete with dirty pages for the cache.
 This is a mid-transaction cache flush, not a commit or early activation; any

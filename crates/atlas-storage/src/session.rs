@@ -6,6 +6,9 @@ use std::fs::File;
 /// Read-only connection and snapshot shared by domain readers for one operation.
 pub struct ReadSession {
     pub(crate) connection: Connection,
+    // Fields drop in declaration order: close/unmap before returning capacity,
+    // then release admission so Windows maintenance can truncate the file.
+    pub(crate) _mapping: Option<crate::workspace::MappingLease<'static>>,
     pub(crate) _admission: File,
     pub(crate) path: std::path::PathBuf,
 }
