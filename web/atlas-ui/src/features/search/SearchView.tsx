@@ -1,6 +1,6 @@
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { atlasRouter } from "../../app/router";
-import { useRouterState } from "@tanstack/react-router";
+import type { HistoryState } from "@tanstack/react-router";
 import {
   FILTER_URL_RESET_NOTICE,
   useFilterUrlRecovery,
@@ -17,15 +17,19 @@ import { SearchProfileNotice } from "../../shared/search/SearchProfileNotice";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
 import { hasExecutableSearch } from "../../shared/filters/searchState";
 
-export function SearchView({ workspace }: { workspace: SearchWorkspaceState }) {
+export function SearchView({
+  workspace,
+  historyState = {},
+}: {
+  workspace: SearchWorkspaceState;
+  historyState?: Pick<HistoryState, "atlasSearchReset" | "atlasFilterResetNotice">;
+}) {
   usePageTitle("Search");
   useFilterUrlRecovery(workspace.search, workspace.recoverFilterUrl);
-  const reset = useRouterState({
-    select: (state) => ({
-      token: state.location.state.atlasSearchReset,
-      notice: state.location.state.atlasFilterResetNotice,
-    }),
-  });
+  const reset = {
+    token: historyState.atlasSearchReset,
+    notice: historyState.atlasFilterResetNotice,
+  };
   const profile = useSearchProfile();
   const hasCriteria = hasExecutableSearch(workspace.search);
   const failed = Boolean(

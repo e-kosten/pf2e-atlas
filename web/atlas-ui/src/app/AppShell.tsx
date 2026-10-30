@@ -1,4 +1,4 @@
-import { Link, useRouter } from "@tanstack/react-router";
+import { Link, useRouter, type LinkOptions } from "@tanstack/react-router";
 import { AtlasLink } from "./AtlasLink";
 import {
   searchDestination,
@@ -31,6 +31,8 @@ import { AtlasMark } from "../shared/branding/AtlasMark";
 
 type AppShellProps = {
   activeView: "search" | "lists" | "encounters" | "reference";
+  searchReturnDestination?: ReturnType<typeof searchDestination> &
+    Pick<LinkOptions, "hash" | "state" | "resetScroll">;
   colorScheme: ColorSchemePreference;
   onColorSchemeChange: (preference: ColorSchemePreference) => void;
   resolvedColorScheme: ResolvedColorScheme;
@@ -42,6 +44,7 @@ type AppShellProps = {
 };
 export function AppShell({
   activeView,
+  searchReturnDestination = searchDestination(),
   colorScheme,
   onColorSchemeChange,
   resolvedColorScheme,
@@ -70,7 +73,7 @@ export function AppShell({
     {
       key: "search",
       label: "Search",
-      destination: searchDestination(),
+      destination: searchReturnDestination,
     },
     {
       key: "lists",
@@ -138,7 +141,7 @@ export function AppShell({
       </Typography.Link>
       <header className="topbar">
         <AtlasLink
-          {...searchDestination()}
+          {...searchReturnDestination}
           className="topbar__brand"
           style={{ color: "var(--brand-text)" }}
           aria-label="PF2e Atlas"

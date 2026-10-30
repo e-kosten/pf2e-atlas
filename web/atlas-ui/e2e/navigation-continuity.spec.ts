@@ -108,7 +108,7 @@ test("encounter title and edit hrefs retain native new-tab and middle-click acti
   }
 });
 
-test("encounter title Back trips preserve Search criteria, page, reader, drafts and scroll", async ({
+test("encounter title trips preserve Search criteria, page, reader, drafts and scroll", async ({
   page,
 }) => {
   const name = `Retained Search ${Date.now()}`;
@@ -146,12 +146,43 @@ test("encounter title Back trips preserve Search criteria, page, reader, drafts 
       );
     expect(positions.length).toBe(2);
     expect(positions.every((position) => position > 0)).toBe(true);
-    for (let repeat = 0; repeat < 2; repeat++) {
+    for (const returnPath of ["Back", "Search control", "Brand"]) {
       await page.getByRole("link", { name: "Encounters", exact: true }).first().click();
       await page.getByRole("link", { name, exact: true }).click();
       await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
-      await page.goBack();
-      await page.goBack();
+      if (returnPath === "Back") {
+        await page.goBack();
+        await page.goBack();
+      } else {
+        const search = page
+          .getByRole("link", {
+            name: returnPath === "Brand" ? "PF2e Atlas" : "Search",
+            exact: true,
+          })
+          .first();
+        const target = new URL(url);
+        await expect(search).toHaveAttribute(
+          "href",
+          target.pathname + target.search + target.hash,
+        );
+        const opened = page.context().waitForEvent("page");
+        await search.click({ modifiers: ["ControlOrMeta"] });
+        const copied = await opened;
+        try {
+          await expect(copied).toHaveURL(url);
+          await expect(
+            copied.getByRole("searchbox", { name: "Search records", exact: true }),
+          ).toHaveValue("magic");
+          await expect(
+            copied.getByRole("heading", { name: "Ghoul", exact: true }),
+          ).toBeVisible();
+        } finally {
+          await copied.close();
+        }
+        await expect(input).not.toBeVisible();
+        if (returnPath === "Brand") await search.press("Enter");
+        else await search.click();
+      }
       await expect(page).toHaveURL(url);
       await expect(input).toHaveValue("unfinished search intent");
       await expect(

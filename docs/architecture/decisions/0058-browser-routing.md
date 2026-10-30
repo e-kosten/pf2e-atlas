@@ -28,6 +28,13 @@ showing recovery. Primary recovery navigation focuses the destination content
 container; native modified links retain normal browser behavior. Router loaders
 and preloading do not introduce a parallel data cache or semantic inference.
 
+The persistent layout retains one last checked Search destination for shell Search
+and brand links. It includes the committed URL, fragment and history context;
+Router remains the authority for matching and navigation. The hidden Search view
+receives its own retained recovery/reset context rather than another route's
+history flags, preserving drafts across a return. A new tab opened from these
+native links restores the committed URL, not the original tab's local drafts.
+
 Transport codecs retain string values and repeated sort priority. The record key
 in the pathname is the sole reading identity. Optional casting rank uses `rank`;
 exact selection and independent parent landing use the bounded, versioned compact
