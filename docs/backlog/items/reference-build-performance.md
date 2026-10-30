@@ -1,39 +1,66 @@
 # Ingest and reference build performance
 
-Status: proposed
-Priority: soon
+Status: deferred
+Priority: later
 Owner: unassigned
-Last reviewed: 2026-10-29
+Last reviewed: 2026-10-30
 
 ## Remaining work
 
-PR74 completed the measured optimization below. Further work should target shared
-passage segmentation/tokenization, broader hardware measurements, and bounded
-inference/batching profiles where an actual bottleneck warrants it. Do not repeat
-the original full build or imply that its debug timing measures release behavior.
-New optimization requires a measured hypothesis and unchanged output/state checks.
-PR103 removes duplicate native-vector storage and sparse index capacity; its
-measurement is below. Shared segmentation/tokenization remains separate follow-up.
+No additional optimization is assigned. The
+[architecture review](../history/items/architecture-simplification-review.md)
+reconciled PR74/103 and PR149/152/154/156/158: readiness verification reuse,
+compact trait evidence, batched FTS validation, explicit release previews and
+published passage-layout reuse already address the measured opportunities.
+
+Reopen for an observed recurring supported operation with unacceptable release
+latency and an attributable avoidable owner. Freeze executable/source, toolchain,
+data/model/recipe identities and cache conditions before comparing alternatives.
+Keep preparation, deep validation, physical maintenance, publication and query
+inference separate. Broad inference/batching and hardware questions remain
+unmeasured; they are not disproven, but supply no current implementation mandate.
+Do not repeat old corpus builds solely because historical evidence names them.
 
 ### Deep artifact validation during maintenance
 
 A schema19-to22 shared-seed refresh on macOS ARM64 used 22s for private staging,
 594s for controlled setup/upgrade and 336s for snapshot publication (952s total).
-This used a dev executable and reused the published corpus/vectors, with no corpus
-embedding regeneration. Publication still ran query inference for its per-profile
-smoke tests. Sampling during upgrade placed the main thread in
-reference validation. These observations motivate profiling, not a release timing
-claim or evidence that every validation pass is redundant.
+This used a dev executable and reused published corpus/vectors without corpus
+embedding regeneration. Publication still ran query inference for per-profile
+smoke tests. Samples during upgrade placed the main thread in reference validation.
+These are historical mixed-stage observations, not a current release baseline or
+evidence that every validation pass is redundant.
 
-Measure deep-validation components and SQL plans on the same snapshot with
-matched dev/release binaries before changing algorithms. Investigate repeated
-record decoding, field/embedding attribution checks and row-at-a-time access
-where measurements support it. Keep atomic migration and reference-projection
-upgrade validation, validation of the exact copied publication snapshot, saved
-state and per-profile query probes.
-Use corruption/rollback cases and unchanged data digests to verify any optimization.
-This work is separate from preview admission, model verification reuse and frozen
-maintenance orchestration in the development workflow.
+The later release validator study did not establish a whole-run benefit from
+broader parsing/statement reuse. The useful FTS-only change landed in PR154 below.
+If a new maintenance bottleneck justifies investigation, measure phase costs and
+SQL plans on the same snapshot with matched binaries. Keep atomic migration and
+reference-projection validation, validation of the exact copied publication
+snapshot, saved state and per-profile query probes. Earlier successful input
+validation cannot certify later uncommitted SQL or a separately copied snapshot.
+Require corruption rejection, rollback/interruption and unchanged data/state
+checks; healthy-corpus equality alone cannot justify removing integrity work.
+
+### Delivered readiness, FTS validation and preview support
+
+[PR149](https://github.com/e-kosten/pf2e-atlas/pull/149) shares operation-local,
+race-aware asset verification witnesses and removes source-freshness setup from
+preview admission. It retains verification of bytes used by native loading.
+[PR156](https://github.com/e-kosten/pf2e-atlas/pull/156) adds explicit release-profile
+managed previews with matching binary/receipt selection. No matched runtime
+benchmark established a separate preview speedup.
+
+[PR154](https://github.com/e-kosten/pf2e-atlas/pull/154) batches the independent
+expected-FTS database inserts using one prepared statement/transaction. Three
+serial release runs per version on the same macOS ARM64 schema22 snapshot
+(29,894 roots, BGE Base and EmbeddingGemma, Rust1.95.0) measured the FTS-phase
+median at 3.02s before and 1.74s after. Phase ranges were 3.00–3.36s and
+1.41–2.04s; whole-run ranges overlapped (40.36–56.69s and 42.34–51.96s), as did
+sampled RSS. This establishes a local phase benefit, not a dependable total
+validation or memory improvement. Complete postings and caller-transaction
+visibility remain checked. The measured clean baseline was `22693497` and candidate
+`cfdc9010`, not their later merge commits or current main. These historical results
+are not current-main timings.
 
 ### Trait validation corpus loading
 
@@ -44,8 +71,15 @@ per record, including unpublished fields; exact trait evidence and whole-field
 rendering-success checks remain.
 
 Serial macOS ARM64 measurements, Rust1.95.0, schema22, the same29,894-record
-two-profile corpus (BGE Base and EmbeddingGemma), baseline965f8123 and candidate
-a3b191f2:
+two-profile corpus (BGE Base and EmbeddingGemma), candidate `a3b191f2`:
+
+- Release used clean baseline `965f8123` and clean candidate `a3b191f2`.
+- Dev used baseline `3efb0d87` with a recorded reverse overlay restoring baseline
+  production implementations while retaining test-only additions; source-input
+  SHA256 `51bcc2d9e43c639216d8b33552c03ab0ab9f788b023130ca6a230b80b7391d45`.
+  Its executable SHA256 was
+  `d97356f09160ed1f9d3fc8fb859e16b0a20f9c44fbc33ec3468ed33fa2e4e075`.
+  Do not describe that dev baseline as a clean `965f8123` checkout.
 
 | Deep validation           |   Baseline | Candidate |
 | ------------------------- | ---------: | --------: |
@@ -75,7 +109,7 @@ workspace and checkpoint-seeding helper. Retain small measurement summaries; use
 repeating expensive inference to profile unrelated stages. Repository development
 workspaces and compiler outputs follow the disposable-state guidance.
 
-## Scope
+## Scope if reopened
 
 Measure source loading/admission, content and
 search preparation, tokenization, checkpoint reads, row/vector publication,
@@ -85,7 +119,7 @@ Compare debug/release performance, fresh cached-vector builds, unchanged updates
 lexical-only upgrades and bounded source changes. Separate inference time from
 the cost of loading model assets when every input is reusable.
 
-Also evaluate ordinary inference builds: input preparation and batching,
+For an evidenced inference bottleneck, evaluate input preparation and batching,
 pending-checkpoint overhead, peak memory, and temporary disk use. Use bounded
 inference measurements and at most one disposable full-corpus snapshot for an
 actual corpus question; remove it and its temporary migration backup afterward.
@@ -123,11 +157,14 @@ historical unmodified release fresh build took 341.98s with the earlier content
 selection version; the original 2,139s build used debug compilation. Keep those
 observations separate from the matched unchanged-build comparison.
 
-Exact data/state table digests match across the unchanged builds; fresh snapshot
-and checkpoint digests match too. The remaining largest measured phase is shared
-passage segmentation/tokenization, about 70s. Preserve its literal input, chunk
-and attribution contracts in any future optimization. Evidence, frozen binaries
-and research probes are retained under `scratch/ingest-performance/`.
+Exact data/state table digests matched across the unchanged builds; fresh snapshot
+and checkpoint digests matched too. At that historical candidate, the largest
+remaining measured phase was shared passage segmentation/tokenization, about 70s.
+PR158's published-layout reuse below addresses that earlier recommendation; it is
+not an unchanged current bottleneck. Preserve literal input/chunk/attribution
+contracts if new evidence warrants further work. Local historical evidence is
+under `scratch/ingest-performance/`; no retired-task database is required to
+interpret the retained measurements.
 
 ## Native embedding storage (PR103)
 

@@ -3,7 +3,7 @@
 Status: proposed
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-19
+Last reviewed: 2026-10-30
 
 ## Current baseline
 
@@ -18,6 +18,20 @@ Rust runtime overlays and persisted participant state. General reference preview
 retain context through the shared popover/drawer policy. Initiative rolls and HP
 changes use backend-owned contracts; the UI must not duplicate arithmetic or
 invent source mechanics from display strings.
+
+## Reported narrow Actions explanation clipping
+
+The [PR160](https://github.com/e-kosten/pf2e-atlas/pull/160) implementation handback
+reports clipping in the encounter Actions calculation explanation at a 390px
+viewport, while the DOM values were correct. Attribution to existing layout is
+based on unchanged explanation/CSS owners, not a historical-browser reproduction.
+The original screenshot was a temporary local review artifact; this backlog does
+not depend on its availability. The documentation closeout did not reproduce it.
+
+Before selecting a fix, reproduce the affected explanation in a current supported
+narrow browser and identify the clipped content/container. Preserve the Rust
+calculation values and shared popover/drawer policy. Treat this as a bounded
+presentation follow-up, separate from numeric conversion or general layout redesign.
 
 ## Remaining work
 
