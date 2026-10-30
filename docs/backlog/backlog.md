@@ -64,11 +64,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   context, flavored rolls and embed forms before extending inline mechanics.
   Status: proposed.
 
-- [Ingest and reference build performance](items/reference-build-performance.md)
-  PR74 completed the measured optimization; further work targets remaining
-  segmentation/tokenization, deep artifact validation during maintenance and
-  evidenced inference bottlenecks. Status: proposed.
-
 - [Downstream architecture follow-through](items/rust-downstream-architecture-follow-through.md)
   Resolve remaining bounded consumer ownership and error-contract gaps from the
   downstream review. Status: planned.
@@ -104,6 +99,11 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Standardize accessible labels and form semantics across Ant Design forms and compact editable controls. Status: proposed.
 
 ## Later
+
+- [Ingest and reference build performance](items/reference-build-performance.md)
+  Reopen for an observed supported release bottleneck after the delivered
+  readiness, validation and passage-reuse improvements. Broader inference/hardware
+  questions remain unmeasured. Status: deferred.
 
 - [Similar search entry and source changes](items/similar-search-entry.md)
   Revisit secondary entry points and changing an applied Similar source only when

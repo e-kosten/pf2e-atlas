@@ -6,6 +6,12 @@ Use the live [backlog](../backlog.md) for active future work. Keep this file for
 
 ## Done
 
+- [Architecture simplification review](items/architecture-simplification-review.md)
+  Scoped repairs in PR150/151/153/155/157/159/160/161 and a whole-system
+  requirements/boundary challenge support retaining the decomposition. Native
+  isolation, fixture topology and other explicit deferrals retain their owners.
+  Status: done.
+
 - [Reusable development baseline](items/development-baseline.md)
   PR85 and PR86 delivered validated executable/workspace seeds, isolated
   missing-only initialization, provenance, and explicit candidate selection.
