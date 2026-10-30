@@ -1,47 +1,38 @@
 {
   "encounter": {
-    "artifact_generation": "fixture-generation",
-    "current_turn_participant_key": "fixture-actor",
+    "artifact_generation": null,
+    "current_turn_participant_key": "fixture-manual",
     "difficulty": {
-      "award_note": "Encounter XP × 4 ÷ 1, rounded down.",
+      "award_note": "Trivial encounters normally grant no XP.",
       "basis": "Add PC levels or choose a party reference.",
       "budgets": [
         {
           "label": "Trivial",
-          "xp": 10
-        },
-        {
-          "label": "Low",
-          "xp": 0
-        },
-        {
-          "label": "Moderate",
           "xp": 20
         },
         {
+          "label": "Low",
+          "xp": 20
+        },
+        {
+          "label": "Moderate",
+          "xp": 40
+        },
+        {
           "label": "Severe",
-          "xp": 30
+          "xp": 60
         },
         {
           "label": "Extreme",
-          "xp": 40
+          "xp": 80
         }
       ],
       "known_xp": 0,
-      "opposition": [
-        {
-          "kind": "Creature",
-          "level": 2,
-          "name": "Test Creature",
-          "participant_key": "fixture-actor",
-          "unavailable_reason": "Set a party level to calculate XP.",
-          "xp": null
-        }
-      ],
+      "opposition": [],
       "party_level": null,
-      "party_size": 1,
-      "pc_count": 1,
-      "rating": null,
+      "party_size": 2,
+      "pc_count": 2,
+      "rating": "Trivial",
       "reference": {
         "party_level": null,
         "party_size": null
@@ -83,7 +74,7 @@
           "title": "XP Awards"
         }
       ],
-      "total_xp": null,
+      "total_xp": 0,
       "xp_per_pc": null
     },
     "encounter": {
@@ -104,36 +95,6 @@
         "conditions": [
           {
             "condition_id": 1,
-            "condition_key": "conditionitems:TBSHQspnbcqxsmjL",
-            "created_at": "2026-01-01T00:00:00Z",
-            "extra_action": {
-              "kind": "unspecified"
-            },
-            "immunity_override": false,
-            "name": "Frightened",
-            "origin": {
-              "activity_id": null,
-              "application_id": "condition-0",
-              "artifact_generation": null,
-              "grant_slot": "condition",
-              "participant_key": null,
-              "record_key": null
-            },
-            "parameters": {
-              "kind": "frightened",
-              "recovery": {
-                "kind": "end_turn",
-                "minimum": 0
-              }
-            },
-            "scope": {
-              "kind": "everyone"
-            },
-            "updated_at": "2026-01-01T00:00:00Z",
-            "value": 1
-          },
-          {
-            "condition_id": 2,
             "condition_key": "conditionitems:xYTAsEpcJE1Ccni3",
             "created_at": "2026-01-01T00:00:00Z",
             "extra_action": {
@@ -143,7 +104,7 @@
             "name": "Slowed",
             "origin": {
               "activity_id": null,
-              "application_id": "condition-1",
+              "application_id": "fixture-manual-Slowed",
               "artifact_generation": null,
               "grant_slot": "condition",
               "participant_key": null,
@@ -159,708 +120,6 @@
             "value": 1
           }
         ],
-        "current_hp": 30,
-        "defeated": false,
-        "display_name": "Test Creature",
-        "effective_max_hp": {
-          "adjustment": null,
-          "state": "value",
-          "value": 30
-        },
-        "hazard_disabled": false,
-        "hidden": false,
-        "hp_origin": "derived_pristine",
-        "initiative": 20,
-        "initiative_order": 1,
-        "knockout_options": [
-          {
-            "context": {
-              "attack_or_spell_damage": null,
-              "base_death_threshold": null,
-              "critical": false,
-              "enemy_source": null,
-              "keep_current_initiative": true,
-              "keep_upright": null,
-              "lethality": "lethal",
-              "natural_rest_healing": null,
-              "responsible_participant_key": null
-            },
-            "label": "Normal",
-            "result": "Dying 1"
-          },
-          {
-            "context": {
-              "attack_or_spell_damage": null,
-              "base_death_threshold": null,
-              "critical": true,
-              "enemy_source": null,
-              "keep_current_initiative": true,
-              "keep_upright": null,
-              "lethality": "lethal",
-              "natural_rest_healing": null,
-              "responsible_participant_key": null
-            },
-            "label": "Critical",
-            "result": "Dying 2"
-          },
-          {
-            "context": {
-              "attack_or_spell_damage": null,
-              "base_death_threshold": null,
-              "critical": false,
-              "enemy_source": null,
-              "keep_current_initiative": true,
-              "keep_upright": null,
-              "lethality": "nonlethal",
-              "natural_rest_healing": null,
-              "responsible_participant_key": null
-            },
-            "label": "Nonlethal",
-            "result": "Unconscious"
-          }
-        ],
-        "max_hp": 30,
-        "mortality": "alive",
-        "note_hint": null,
-        "participant_key": "fixture-actor",
-        "participant_kind": "creature",
-        "participant_variant": "elite",
-        "persistent_damage_groups": [],
-        "position": 2,
-        "presentation": {
-          "body": {
-            "kind": "creature",
-            "value": {
-              "abilities": {
-                "state": "missing",
-                "value": null
-              },
-              "activities": {
-                "state": "value",
-                "value": [
-                  {
-                    "ability_group": null,
-                    "action_cost": {
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "association": {
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "attack": {
-                      "adjustment": {
-                        "applied": [
-                          {
-                            "label": "Elite",
-                            "modifier_type": "adjustment",
-                            "source": "npc-adjustment",
-                            "value": 2
-                          },
-                          {
-                            "label": "Frightened",
-                            "modifier_type": "status",
-                            "source": "condition:1",
-                            "value": -1
-                          }
-                        ],
-                        "authored": 7,
-                        "notes": [],
-                        "suppressed": []
-                      },
-                      "state": "value",
-                      "value": 8
-                    },
-                    "attack_options": [
-                      {
-                        "attack_number": 1,
-                        "label": "Attack",
-                        "modifier": 8
-                      },
-                      {
-                        "attack_number": 2,
-                        "label": "Second attack",
-                        "modifier": 4
-                      },
-                      {
-                        "attack_number": 3,
-                        "label": "Third attack",
-                        "modifier": 0
-                      }
-                    ],
-                    "authored_cast_rank": {
-                      "adjustment": null,
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "base_rank": {
-                      "adjustment": null,
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "casting_context": null,
-                    "casting_entry": null,
-                    "casting_ranks": [],
-                    "casting_tradition": {
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "damage": {
-                      "state": "value",
-                      "value": [
-                        {
-                          "apply_modifier": {
-                            "state": "not_applicable",
-                            "value": null
-                          },
-                          "category": {
-                            "state": "missing",
-                            "value": null
-                          },
-                          "damage_type": {
-                            "state": "value",
-                            "value": "slashing"
-                          },
-                          "formula": {
-                            "state": "value",
-                            "value": "(1d6+2)+2"
-                          },
-                          "id": "main",
-                          "kinds": {
-                            "state": "value",
-                            "value": ["damage"]
-                          },
-                          "materials": {
-                            "state": "not_applicable",
-                            "value": null
-                          }
-                        }
-                      ]
-                    },
-                    "difficulty_class": {
-                      "adjustment": null,
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "effect_duration": {
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "family": "melee",
-                    "focus_capacity": {
-                      "adjustment": null,
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "frequency": {
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "has_reference_details": true,
-                    "is_ranged": {
-                      "state": "missing",
-                      "value": null
-                    },
-                    "kind": "strike",
-                    "lore_modifier": {
-                      "adjustment": null,
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "navigation": {
-                      "embedded_path": [
-                        {
-                          "collection": "/items",
-                          "identity": {
-                            "SnapshotLocal": {
-                              "index": 0
-                            }
-                          }
-                        }
-                      ],
-                      "field": null,
-                      "passage": null,
-                      "record_key": "actors:cccccccccccccccc",
-                      "source_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                    },
-                    "notes": [],
-                    "preparation": {
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "reading_order": 0,
-                    "self_effect": {
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "strike_effects": {
-                      "state": "missing",
-                      "value": null
-                    },
-                    "strike_range": {
-                      "state": "missing",
-                      "value": null
-                    },
-                    "title": "Claw",
-                    "traits": [
-                      {
-                        "kind": "trait",
-                        "label": "agile",
-                        "trait_key": "trait:agile",
-                        "value": "agile"
-                      }
-                    ],
-                    "usage": null
-                  },
-                  {
-                    "ability_group": "unclassified",
-                    "action_cost": {
-                      "state": "missing",
-                      "value": null
-                    },
-                    "association": {
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "attack": {
-                      "adjustment": null,
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "attack_options": [],
-                    "authored_cast_rank": {
-                      "adjustment": null,
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "base_rank": {
-                      "adjustment": null,
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "casting_context": null,
-                    "casting_entry": null,
-                    "casting_ranks": [],
-                    "casting_tradition": {
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "damage": {
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "difficulty_class": {
-                      "adjustment": null,
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "effect_duration": {
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "family": "action",
-                    "focus_capacity": {
-                      "adjustment": null,
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "frequency": {
-                      "state": "missing",
-                      "value": null
-                    },
-                    "has_reference_details": true,
-                    "is_ranged": {
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "kind": "ability",
-                    "lore_modifier": {
-                      "adjustment": null,
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "navigation": {
-                      "embedded_path": [
-                        {
-                          "collection": "/items",
-                          "identity": {
-                            "SnapshotLocal": {
-                              "index": 1
-                            }
-                          }
-                        }
-                      ],
-                      "field": null,
-                      "passage": null,
-                      "record_key": "actors:cccccccccccccccc",
-                      "source_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                    },
-                    "notes": [],
-                    "preparation": {
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "reading_order": 1,
-                    "self_effect": {
-                      "state": "missing",
-                      "value": null
-                    },
-                    "strike_effects": {
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "strike_range": {
-                      "state": "not_applicable",
-                      "value": null
-                    },
-                    "title": "Duplicate identity",
-                    "traits": [],
-                    "usage": null
-                  }
-                ]
-              },
-              "armor_class": {
-                "adjustment": {
-                  "applied": [
-                    {
-                      "label": "Elite",
-                      "modifier_type": "adjustment",
-                      "source": "npc-adjustment",
-                      "value": 2
-                    },
-                    {
-                      "label": "Frightened",
-                      "modifier_type": "status",
-                      "source": "condition:1",
-                      "value": -1
-                    }
-                  ],
-                  "authored": 16,
-                  "notes": [],
-                  "suppressed": []
-                },
-                "state": "value",
-                "value": 17
-              },
-              "defense_notes": {
-                "all_saves": {
-                  "state": "missing",
-                  "value": null
-                },
-                "armor_class": {
-                  "state": "missing",
-                  "value": null
-                },
-                "fortitude": {
-                  "state": "missing",
-                  "value": null
-                },
-                "hit_points": {
-                  "state": "missing",
-                  "value": null
-                },
-                "reflex": {
-                  "state": "missing",
-                  "value": null
-                },
-                "will": {
-                  "state": "missing",
-                  "value": null
-                }
-              },
-              "hardness": {
-                "adjustment": null,
-                "state": "missing",
-                "value": null
-              },
-              "immunities": {
-                "state": "value",
-                "value": []
-              },
-              "land_speed": {
-                "adjustment": null,
-                "state": "missing",
-                "value": null
-              },
-              "language_details": {
-                "state": "missing",
-                "value": null
-              },
-              "languages": {
-                "state": "missing",
-                "value": null
-              },
-              "level": {
-                "adjustment": {
-                  "applied": [],
-                  "authored": 1,
-                  "notes": [],
-                  "suppressed": []
-                },
-                "state": "value",
-                "value": 2
-              },
-              "maximum_hp": {
-                "adjustment": null,
-                "state": "value",
-                "value": 30
-              },
-              "movement": {
-                "state": "missing",
-                "value": null
-              },
-              "movement_details": {
-                "state": "missing",
-                "value": null
-              },
-              "perception": {
-                "adjustment": null,
-                "state": "missing",
-                "value": null
-              },
-              "perception_details": {
-                "state": "missing",
-                "value": null
-              },
-              "resistances": {
-                "state": "value",
-                "value": []
-              },
-              "ritual_difficulty_class": {
-                "adjustment": null,
-                "state": "missing",
-                "value": null
-              },
-              "runtime": {
-                "action_budget": {
-                  "actions": {
-                    "adjusted_value": 2,
-                    "adjustments": [
-                      {
-                        "label": "Slowed 1",
-                        "source": "slowed",
-                        "value": -1
-                      }
-                    ],
-                    "base_value": 3,
-                    "label": "Actions",
-                    "segments": [],
-                    "suppressed_adjustments": []
-                  },
-                  "can_act": {
-                    "available": true
-                  },
-                  "can_react": {
-                    "available": true
-                  },
-                  "notes": [],
-                  "quickened_sources": [],
-                  "reactions": {
-                    "adjusted_value": 1,
-                    "adjustments": [],
-                    "base_value": 1,
-                    "label": "Reactions",
-                    "segments": [],
-                    "suppressed_adjustments": []
-                  }
-                },
-                "contextual_armor_class": [],
-                "senses": [],
-                "unapplied_effects": []
-              },
-              "saves": {
-                "fortitude": {
-                  "adjustment": {
-                    "applied": [
-                      {
-                        "label": "Elite",
-                        "modifier_type": "adjustment",
-                        "source": "npc-adjustment",
-                        "value": 2
-                      },
-                      {
-                        "label": "Frightened",
-                        "modifier_type": "status",
-                        "source": "condition:1",
-                        "value": -1
-                      }
-                    ],
-                    "authored": 5,
-                    "notes": [],
-                    "suppressed": []
-                  },
-                  "state": "value",
-                  "value": 6
-                },
-                "reflex": {
-                  "adjustment": {
-                    "applied": [
-                      {
-                        "label": "Elite",
-                        "modifier_type": "adjustment",
-                        "source": "npc-adjustment",
-                        "value": 2
-                      },
-                      {
-                        "label": "Frightened",
-                        "modifier_type": "status",
-                        "source": "condition:1",
-                        "value": -1
-                      }
-                    ],
-                    "authored": 6,
-                    "notes": [],
-                    "suppressed": []
-                  },
-                  "state": "value",
-                  "value": 7
-                },
-                "will": {
-                  "adjustment": {
-                    "applied": [
-                      {
-                        "label": "Elite",
-                        "modifier_type": "adjustment",
-                        "source": "npc-adjustment",
-                        "value": 2
-                      },
-                      {
-                        "label": "Frightened",
-                        "modifier_type": "status",
-                        "source": "condition:1",
-                        "value": -1
-                      }
-                    ],
-                    "authored": 4,
-                    "notes": [],
-                    "suppressed": []
-                  },
-                  "state": "value",
-                  "value": 5
-                }
-              },
-              "senses": {
-                "state": "missing",
-                "value": null
-              },
-              "size": {
-                "state": "missing",
-                "value": null
-              },
-              "skills": {
-                "state": "missing",
-                "value": null
-              },
-              "weaknesses": {
-                "state": "value",
-                "value": []
-              }
-            }
-          },
-          "classification": "Creature 2",
-          "content": [],
-          "embedded": [],
-          "identity": {
-            "kind": "creature",
-            "kind_label": "Creature",
-            "level_basis": "actor_level",
-            "level_label": "Level 2",
-            "pack": "actors",
-            "publication": null,
-            "rarity": null,
-            "record_key": "actors:cccccccccccccccc",
-            "source_type": "npc",
-            "title": "Test Creature",
-            "traits": []
-          }
-        },
-        "record": {
-          "kind": "creature",
-          "kind_label": "Creature",
-          "level_basis": "actor_level",
-          "level_label": "Level 1",
-          "pack": "actors",
-          "publication": null,
-          "rarity": null,
-          "record_key": "actors:cccccccccccccccc",
-          "source_type": "npc",
-          "title": "Test Creature",
-          "traits": []
-        },
-        "record_key": "actors:cccccccccccccccc",
-        "revision": 1,
-        "side": "enemy",
-        "spellcasting": {
-          "resources": [],
-          "spells": []
-        },
-        "status": "active",
-        "temporary_hp": 0,
-        "track_dying": false,
-        "turn_resources": {
-          "action_calculation": {
-            "changes": [],
-            "count": {
-              "adjusted_value": 2,
-              "adjustments": [
-                {
-                  "label": "Slowed 1",
-                  "source": "slowed",
-                  "value": -1
-                }
-              ],
-              "base_value": 3,
-              "label": "Actions",
-              "segments": [],
-              "suppressed_adjustments": []
-            },
-            "kind": "this_turn"
-          },
-          "can_edit_actions": true,
-          "can_grant_reaction": false,
-          "can_spend_actions": {
-            "available": true
-          },
-          "can_spend_reactions": {
-            "available": true
-          },
-          "extra_remaining": 0,
-          "extra_total": 0,
-          "extra_uses": [],
-          "forecast": {
-            "adjusted_value": 2,
-            "adjustments": [
-              {
-                "label": "Slowed 1",
-                "source": "slowed",
-                "value": -1
-              }
-            ],
-            "base_value": 3,
-            "label": "Actions",
-            "segments": [],
-            "suppressed_adjustments": []
-          },
-          "inherent_conditions": {
-            "entries": [],
-            "unavailable_reason": null
-          },
-          "pending_reason": null,
-          "reactions_remaining": 1,
-          "reactions_total": 1,
-          "regular_remaining": 2,
-          "regular_total": 2,
-          "round_number": 1,
-          "start_results": [],
-          "turn_key": "fixture-turn"
-        },
-        "variant_origin": "explicit"
-      },
-      {
-        "ability_states": [],
-        "base_death_threshold": 4,
-        "cast_unavailable_reason": null,
-        "conditions": [],
         "defeated": false,
         "display_name": "Kyra",
         "effective_max_hp": {
@@ -927,6 +186,329 @@
         "participant_variant": "normal",
         "persistent_damage_groups": [],
         "position": 1,
+        "presentation": {
+          "body": {
+            "kind": "creature",
+            "value": {
+              "abilities": {
+                "state": "not_applicable",
+                "value": null
+              },
+              "activities": {
+                "state": "not_applicable",
+                "value": null
+              },
+              "armor_class": {
+                "adjustment": null,
+                "state": "not_applicable",
+                "value": null
+              },
+              "defense_notes": {
+                "all_saves": {
+                  "state": "not_applicable",
+                  "value": null
+                },
+                "armor_class": {
+                  "state": "not_applicable",
+                  "value": null
+                },
+                "fortitude": {
+                  "state": "not_applicable",
+                  "value": null
+                },
+                "hit_points": {
+                  "state": "not_applicable",
+                  "value": null
+                },
+                "reflex": {
+                  "state": "not_applicable",
+                  "value": null
+                },
+                "will": {
+                  "state": "not_applicable",
+                  "value": null
+                }
+              },
+              "hardness": {
+                "adjustment": null,
+                "state": "not_applicable",
+                "value": null
+              },
+              "immunities": {
+                "state": "not_applicable",
+                "value": null
+              },
+              "land_speed": {
+                "adjustment": null,
+                "state": "not_applicable",
+                "value": null
+              },
+              "language_details": {
+                "state": "not_applicable",
+                "value": null
+              },
+              "languages": {
+                "state": "not_applicable",
+                "value": null
+              },
+              "level": {
+                "adjustment": null,
+                "state": "not_applicable",
+                "value": null
+              },
+              "maximum_hp": {
+                "adjustment": null,
+                "state": "not_applicable",
+                "value": null
+              },
+              "movement": {
+                "state": "not_applicable",
+                "value": null
+              },
+              "movement_details": {
+                "state": "not_applicable",
+                "value": null
+              },
+              "perception": {
+                "adjustment": null,
+                "state": "not_applicable",
+                "value": null
+              },
+              "perception_details": {
+                "state": "not_applicable",
+                "value": null
+              },
+              "resistances": {
+                "state": "not_applicable",
+                "value": null
+              },
+              "ritual_difficulty_class": {
+                "adjustment": null,
+                "state": "not_applicable",
+                "value": null
+              },
+              "runtime": {
+                "action_budget": {
+                  "actions": {
+                    "adjusted_value": 2,
+                    "adjustments": [
+                      {
+                        "label": "Slowed 1",
+                        "source": "slowed",
+                        "value": -1
+                      }
+                    ],
+                    "base_value": 3,
+                    "label": "Actions",
+                    "segments": [],
+                    "suppressed_adjustments": []
+                  },
+                  "can_act": {
+                    "available": true
+                  },
+                  "can_react": {
+                    "available": true
+                  },
+                  "notes": [],
+                  "quickened_sources": [],
+                  "reactions": {
+                    "adjusted_value": 1,
+                    "adjustments": [],
+                    "base_value": 1,
+                    "label": "Reactions",
+                    "segments": [],
+                    "suppressed_adjustments": []
+                  }
+                },
+                "contextual_armor_class": [],
+                "senses": [],
+                "unapplied_effects": []
+              },
+              "saves": {
+                "fortitude": {
+                  "adjustment": null,
+                  "state": "not_applicable",
+                  "value": null
+                },
+                "reflex": {
+                  "adjustment": null,
+                  "state": "not_applicable",
+                  "value": null
+                },
+                "will": {
+                  "adjustment": null,
+                  "state": "not_applicable",
+                  "value": null
+                }
+              },
+              "senses": {
+                "state": "not_applicable",
+                "value": null
+              },
+              "size": {
+                "state": "not_applicable",
+                "value": null
+              },
+              "skills": {
+                "state": "not_applicable",
+                "value": null
+              },
+              "weaknesses": {
+                "state": "not_applicable",
+                "value": null
+              }
+            }
+          },
+          "classification": "PC",
+          "content": [],
+          "embedded": [],
+          "identity": {
+            "kind": "pc",
+            "kind_label": "PC",
+            "level_basis": null,
+            "level_label": null,
+            "pack": null,
+            "publication": null,
+            "rarity": null,
+            "record_key": "fixture-manual",
+            "source_type": null,
+            "title": "Kyra",
+            "traits": []
+          }
+        },
+        "revision": 2,
+        "side": "pc",
+        "status": "manual",
+        "temporary_hp": 0,
+        "track_dying": true,
+        "turn_resources": {
+          "action_calculation": {
+            "changes": [],
+            "count": {
+              "adjusted_value": 2,
+              "adjustments": [
+                {
+                  "label": "Slowed 1",
+                  "source": "slowed",
+                  "value": -1
+                }
+              ],
+              "base_value": 3,
+              "label": "Actions",
+              "segments": [],
+              "suppressed_adjustments": []
+            },
+            "kind": "this_turn"
+          },
+          "can_edit_actions": true,
+          "can_grant_reaction": false,
+          "can_spend_actions": {
+            "available": true
+          },
+          "can_spend_reactions": {
+            "available": true
+          },
+          "extra_remaining": 0,
+          "extra_total": 0,
+          "extra_uses": [],
+          "forecast": {
+            "adjusted_value": 2,
+            "adjustments": [
+              {
+                "label": "Slowed 1",
+                "source": "slowed",
+                "value": -1
+              }
+            ],
+            "base_value": 3,
+            "label": "Actions",
+            "segments": [],
+            "suppressed_adjustments": []
+          },
+          "pending_reason": null,
+          "reactions_remaining": 1,
+          "reactions_total": 1,
+          "regular_remaining": 2,
+          "regular_total": 2,
+          "round_number": 1,
+          "start_results": [],
+          "turn_key": "fixture-turn"
+        },
+        "variant_origin": "explicit"
+      },
+      {
+        "ability_states": [],
+        "base_death_threshold": 4,
+        "cast_unavailable_reason": null,
+        "conditions": [],
+        "current_hp": 0,
+        "defeated": false,
+        "display_name": "Zero hero",
+        "effective_max_hp": {
+          "adjustment": null,
+          "state": "value",
+          "value": 20
+        },
+        "hazard_disabled": false,
+        "hidden": false,
+        "hp_origin": "explicit",
+        "initiative": -1,
+        "initiative_order": 1,
+        "knockout_options": [
+          {
+            "context": {
+              "attack_or_spell_damage": null,
+              "base_death_threshold": null,
+              "critical": false,
+              "enemy_source": null,
+              "keep_current_initiative": true,
+              "keep_upright": null,
+              "lethality": "lethal",
+              "natural_rest_healing": null,
+              "responsible_participant_key": null
+            },
+            "label": "Normal",
+            "result": "Dying 1"
+          },
+          {
+            "context": {
+              "attack_or_spell_damage": null,
+              "base_death_threshold": null,
+              "critical": true,
+              "enemy_source": null,
+              "keep_current_initiative": true,
+              "keep_upright": null,
+              "lethality": "lethal",
+              "natural_rest_healing": null,
+              "responsible_participant_key": null
+            },
+            "label": "Critical",
+            "result": "Dying 2"
+          },
+          {
+            "context": {
+              "attack_or_spell_damage": null,
+              "base_death_threshold": null,
+              "critical": false,
+              "enemy_source": null,
+              "keep_current_initiative": true,
+              "keep_upright": null,
+              "lethality": "nonlethal",
+              "natural_rest_healing": null,
+              "responsible_participant_key": null
+            },
+            "label": "Nonlethal",
+            "result": "Unconscious"
+          }
+        ],
+        "max_hp": 20,
+        "mortality": "alive",
+        "note_hint": null,
+        "participant_key": "fixture-zero",
+        "participant_kind": "pc",
+        "participant_variant": "normal",
+        "persistent_damage_groups": [],
+        "position": 2,
         "presentation": {
           "body": {
             "kind": "creature",
@@ -1105,13 +687,13 @@
             "pack": null,
             "publication": null,
             "rarity": null,
-            "record_key": "fixture-manual",
+            "record_key": "fixture-zero",
             "source_type": null,
-            "title": "Kyra",
+            "title": "Zero hero",
             "traits": []
           }
         },
-        "revision": 1,
+        "revision": 0,
         "side": "pc",
         "status": "manual",
         "temporary_hp": 0,
@@ -1160,9 +742,21 @@
         "variant_origin": "explicit"
       }
     ],
-    "revision": 9
+    "revision": 7
   },
-  "encounter_reference": {
+  "flat_check_serialization_control": {
+    "dc": 11,
+    "outcome": {
+      "expression": {
+        "kind": "number",
+        "value": 11
+      },
+      "formula": "11",
+      "total": 11
+    },
+    "success": true
+  },
+  "record_detail": {
     "artifact_generation": "fixture-generation",
     "encounter_adjustment": "normal",
     "presentation": {
@@ -1198,7 +792,7 @@
                       {
                         "label": "Frightened",
                         "modifier_type": "status",
-                        "source": "condition:1",
+                        "source": "condition:2",
                         "value": -1
                       }
                     ],
@@ -1469,7 +1063,7 @@
                 {
                   "label": "Frightened",
                   "modifier_type": "status",
-                  "source": "condition:1",
+                  "source": "condition:2",
                   "value": -1
                 }
               ],
@@ -1619,7 +1213,7 @@
                   {
                     "label": "Frightened",
                     "modifier_type": "status",
-                    "source": "condition:1",
+                    "source": "condition:2",
                     "value": -1
                   }
                 ],
@@ -1642,7 +1236,7 @@
                   {
                     "label": "Frightened",
                     "modifier_type": "status",
-                    "source": "condition:1",
+                    "source": "condition:2",
                     "value": -1
                   }
                 ],
@@ -1665,7 +1259,7 @@
                   {
                     "label": "Frightened",
                     "modifier_type": "status",
-                    "source": "condition:1",
+                    "source": "condition:2",
                     "value": -1
                   }
                 ],
@@ -1735,476 +1329,12 @@
       "source_fingerprint": null
     }
   },
-  "flat_check_serialization_control": {
-    "dc": 11,
-    "outcome": {
-      "expression": {
-        "kind": "number",
-        "value": 11
-      },
-      "formula": "11",
-      "total": 11
-    },
-    "success": true
-  },
-  "record_detail": {
-    "artifact_generation": "fixture-generation",
-    "encounter_adjustment": "normal",
-    "presentation": {
-      "body": {
-        "kind": "creature",
-        "value": {
-          "abilities": {
-            "state": "missing",
-            "value": null
-          },
-          "activities": {
-            "state": "value",
-            "value": [
-              {
-                "ability_group": null,
-                "action_cost": {
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "association": {
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "attack": {
-                  "adjustment": null,
-                  "state": "value",
-                  "value": 7
-                },
-                "attack_options": [
-                  {
-                    "attack_number": 1,
-                    "label": "Attack",
-                    "modifier": 7
-                  },
-                  {
-                    "attack_number": 2,
-                    "label": "Second attack",
-                    "modifier": 3
-                  },
-                  {
-                    "attack_number": 3,
-                    "label": "Third attack",
-                    "modifier": -1
-                  }
-                ],
-                "authored_cast_rank": {
-                  "adjustment": null,
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "base_rank": {
-                  "adjustment": null,
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "casting_context": null,
-                "casting_entry": null,
-                "casting_ranks": [],
-                "casting_tradition": {
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "damage": {
-                  "state": "value",
-                  "value": [
-                    {
-                      "apply_modifier": {
-                        "state": "not_applicable",
-                        "value": null
-                      },
-                      "category": {
-                        "state": "missing",
-                        "value": null
-                      },
-                      "damage_type": {
-                        "state": "value",
-                        "value": "slashing"
-                      },
-                      "formula": {
-                        "state": "value",
-                        "value": "1d6+2"
-                      },
-                      "id": "main",
-                      "kinds": {
-                        "state": "value",
-                        "value": ["damage"]
-                      },
-                      "materials": {
-                        "state": "not_applicable",
-                        "value": null
-                      }
-                    }
-                  ]
-                },
-                "difficulty_class": {
-                  "adjustment": null,
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "effect_duration": {
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "family": "melee",
-                "focus_capacity": {
-                  "adjustment": null,
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "frequency": {
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "has_reference_details": true,
-                "is_ranged": {
-                  "state": "missing",
-                  "value": null
-                },
-                "kind": "strike",
-                "lore_modifier": {
-                  "adjustment": null,
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "navigation": {
-                  "embedded_path": [
-                    {
-                      "collection": "/items",
-                      "identity": {
-                        "SnapshotLocal": {
-                          "index": 0
-                        }
-                      }
-                    }
-                  ],
-                  "field": null,
-                  "passage": null,
-                  "record_key": "actors:cccccccccccccccc",
-                  "source_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                },
-                "notes": [],
-                "preparation": {
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "reading_order": 0,
-                "self_effect": {
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "strike_effects": {
-                  "state": "missing",
-                  "value": null
-                },
-                "strike_range": {
-                  "state": "missing",
-                  "value": null
-                },
-                "title": "Claw",
-                "traits": [
-                  {
-                    "kind": "trait",
-                    "label": "agile",
-                    "trait_key": "trait:agile",
-                    "value": "agile"
-                  }
-                ],
-                "usage": null
-              },
-              {
-                "ability_group": "unclassified",
-                "action_cost": {
-                  "state": "missing",
-                  "value": null
-                },
-                "association": {
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "attack": {
-                  "adjustment": null,
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "attack_options": [],
-                "authored_cast_rank": {
-                  "adjustment": null,
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "base_rank": {
-                  "adjustment": null,
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "casting_context": null,
-                "casting_entry": null,
-                "casting_ranks": [],
-                "casting_tradition": {
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "damage": {
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "difficulty_class": {
-                  "adjustment": null,
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "effect_duration": {
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "family": "action",
-                "focus_capacity": {
-                  "adjustment": null,
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "frequency": {
-                  "state": "missing",
-                  "value": null
-                },
-                "has_reference_details": true,
-                "is_ranged": {
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "kind": "ability",
-                "lore_modifier": {
-                  "adjustment": null,
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "navigation": {
-                  "embedded_path": [
-                    {
-                      "collection": "/items",
-                      "identity": {
-                        "SnapshotLocal": {
-                          "index": 1
-                        }
-                      }
-                    }
-                  ],
-                  "field": null,
-                  "passage": null,
-                  "record_key": "actors:cccccccccccccccc",
-                  "source_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                },
-                "notes": [],
-                "preparation": {
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "reading_order": 1,
-                "self_effect": {
-                  "state": "missing",
-                  "value": null
-                },
-                "strike_effects": {
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "strike_range": {
-                  "state": "not_applicable",
-                  "value": null
-                },
-                "title": "Duplicate identity",
-                "traits": [],
-                "usage": null
-              }
-            ]
-          },
-          "armor_class": {
-            "adjustment": null,
-            "state": "value",
-            "value": 16
-          },
-          "defense_notes": {
-            "all_saves": {
-              "state": "missing",
-              "value": null
-            },
-            "armor_class": {
-              "state": "missing",
-              "value": null
-            },
-            "fortitude": {
-              "state": "missing",
-              "value": null
-            },
-            "hit_points": {
-              "state": "missing",
-              "value": null
-            },
-            "reflex": {
-              "state": "missing",
-              "value": null
-            },
-            "will": {
-              "state": "missing",
-              "value": null
-            }
-          },
-          "hardness": {
-            "adjustment": null,
-            "state": "missing",
-            "value": null
-          },
-          "immunities": {
-            "state": "value",
-            "value": []
-          },
-          "land_speed": {
-            "adjustment": null,
-            "state": "missing",
-            "value": null
-          },
-          "language_details": {
-            "state": "missing",
-            "value": null
-          },
-          "languages": {
-            "state": "missing",
-            "value": null
-          },
-          "level": {
-            "adjustment": null,
-            "state": "value",
-            "value": 1
-          },
-          "maximum_hp": {
-            "adjustment": null,
-            "state": "value",
-            "value": 20
-          },
-          "movement": {
-            "state": "missing",
-            "value": null
-          },
-          "movement_details": {
-            "state": "missing",
-            "value": null
-          },
-          "perception": {
-            "adjustment": null,
-            "state": "missing",
-            "value": null
-          },
-          "perception_details": {
-            "state": "missing",
-            "value": null
-          },
-          "resistances": {
-            "state": "value",
-            "value": []
-          },
-          "ritual_difficulty_class": {
-            "adjustment": null,
-            "state": "missing",
-            "value": null
-          },
-          "runtime": null,
-          "saves": {
-            "fortitude": {
-              "adjustment": null,
-              "state": "value",
-              "value": 5
-            },
-            "reflex": {
-              "adjustment": null,
-              "state": "value",
-              "value": 6
-            },
-            "will": {
-              "adjustment": null,
-              "state": "value",
-              "value": 4
-            }
-          },
-          "senses": {
-            "state": "missing",
-            "value": null
-          },
-          "size": {
-            "state": "missing",
-            "value": null
-          },
-          "skills": {
-            "state": "missing",
-            "value": null
-          },
-          "weaknesses": {
-            "state": "value",
-            "value": []
-          }
-        }
-      },
-      "classification": "Creature 1",
-      "content": [],
-      "embedded": [],
-      "identity": {
-        "kind": "creature",
-        "kind_label": "Creature",
-        "level_basis": "actor_level",
-        "level_label": "Level 1",
-        "pack": "actors",
-        "publication": null,
-        "rarity": null,
-        "record_key": "actors:cccccccccccccccc",
-        "source_type": "npc",
-        "title": "Test Creature",
-        "traits": []
-      }
-    },
-    "record": {
-      "kind": "creature",
-      "kind_label": "Creature",
-      "level_basis": "actor_level",
-      "level_label": "Level 1",
-      "pack": "actors",
-      "publication": null,
-      "rarity": null,
-      "record_key": "actors:cccccccccccccccc",
-      "source_type": "npc",
-      "title": "Test Creature",
-      "traits": []
-    },
-    "relationships": [],
-    "relationships_truncated": false,
-    "selected": {
-      "embedded_path": [],
-      "field": null,
-      "passage": null,
-      "record_key": "actors:cccccccccccccccc",
-      "source_fingerprint": null
-    }
-  },
   "recovery_preview": {
     "can_apply": true,
     "changes": ["End the current turn and clear turn reminders."],
     "encounter_key": "fixture-encounter",
-    "encounter_revision": 9,
+    "encounter_revision": 7,
     "participants": [
-      {
-        "changes": [],
-        "current_hp": 30,
-        "display_name": "Test Creature",
-        "healing": 0,
-        "participant_key": "fixture-actor",
-        "resulting_hp": 30,
-        "resulting_max_hp": 30,
-        "unavailable_reason": null
-      },
       {
         "changes": [],
         "current_hp": null,
@@ -2213,6 +1343,16 @@
         "participant_key": "fixture-manual",
         "resulting_hp": null,
         "resulting_max_hp": null,
+        "unavailable_reason": null
+      },
+      {
+        "changes": [],
+        "current_hp": 0,
+        "display_name": "Zero hero",
+        "healing": 0,
+        "participant_key": "fixture-zero",
+        "resulting_hp": 0,
+        "resulting_max_hp": 20,
         "unavailable_reason": null
       }
     ],
@@ -2229,87 +1369,6 @@
       "passage": null,
       "record_key": "journals:S55aqwWIzpQRFhcq",
       "source_fingerprint": null
-    }
-  },
-  "table_roll_serialization_control": {
-    "invalid_ranges": [],
-    "matches": [
-      {
-        "artifact_generation": "fixture-generation",
-        "presentation": {
-          "body": {
-            "kind": "table_result",
-            "value": {
-              "range": {
-                "state": "value",
-                "value": "1–2"
-              },
-              "result_type": {
-                "state": "value",
-                "value": "text"
-              },
-              "weight": {
-                "adjustment": null,
-                "state": "value",
-                "value": 1
-              }
-            }
-          },
-          "classification": "Table Result",
-          "content": [],
-          "embedded": [],
-          "identity": {
-            "kind": "TableResult",
-            "kind_label": "Table Result",
-            "level_basis": null,
-            "level_label": null,
-            "pack": "tables",
-            "publication": null,
-            "rarity": null,
-            "record_key": "tables:dddddddddddddddd",
-            "source_type": "TableResult",
-            "title": "Result 1–2",
-            "traits": []
-          }
-        },
-        "record": {
-          "kind": "roll_table",
-          "kind_label": "Roll Table",
-          "level_basis": null,
-          "level_label": null,
-          "pack": "tables",
-          "publication": null,
-          "rarity": null,
-          "record_key": "tables:dddddddddddddddd",
-          "source_type": null,
-          "title": "Signal",
-          "traits": []
-        },
-        "relationships": [],
-        "relationships_truncated": false,
-        "selected": {
-          "embedded_path": [
-            {
-              "collection": "/results",
-              "identity": {
-                "Stable": "ffffffffffffffff"
-              }
-            }
-          ],
-          "field": null,
-          "passage": null,
-          "record_key": "tables:dddddddddddddddd",
-          "source_fingerprint": null
-        }
-      }
-    ],
-    "outcome": {
-      "expression": {
-        "kind": "number",
-        "value": 1
-      },
-      "formula": "1",
-      "total": 1
     }
   },
   "trait_records": {

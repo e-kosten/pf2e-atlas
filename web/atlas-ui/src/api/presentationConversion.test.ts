@@ -302,6 +302,19 @@ it("converts nested kit adjustments through physical and recursive item branches
   expect(result.content[0].body).toEqual({ kind: "plain", text: "A kit" });
 });
 
+it("keeps table-result weight numeric through its presentation branch", () => {
+  const input: Wire<Atlas.RecordPresentationView> = {
+    ...presentation({ kind: "plain", text: "A lantern flashes." }),
+    body: {
+      kind: "table_result",
+      value: { range: known("1–2"), weight: numeric(1), result_type: known("text") },
+    },
+  };
+  const result = convertRecordPresentation(input);
+  if (result.body.kind !== "table_result") throw new Error("Expected table result");
+  expect(result.body.value.weight.value).toBe(1);
+});
+
 it("preserves absent condition parameters while converting zero and nested union integers", () => {
   type Parameters = Atlas.EncounterParticipantConditionView["parameters"];
   const absent: Wire<Parameters> = { kind: "sickened" };

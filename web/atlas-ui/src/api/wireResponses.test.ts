@@ -16,7 +16,7 @@ import {
   clearCompatibilityFailure,
 } from "./compatibility";
 import { totalPages } from "../features/search/pageMetrics";
-import type { RecordDetailView } from "../generated/atlas";
+import type { RecordPresentationView } from "../generated/atlas";
 import { toBigInt } from "./wire";
 
 const fetchMock = vi.fn();
@@ -55,8 +55,8 @@ const referenceRequest = {
   },
 };
 
-function expectRuntimePresentation(detail: RecordDetailView) {
-  const body = detail.presentation.body;
+function expectRuntimePresentation(presentation: RecordPresentationView) {
+  const body = presentation.body;
   if (body.kind !== "creature") throw new Error("fixture must remain a creature");
   const ac = body.value.armor_class;
   expect(ac.value).toBe(17);
@@ -82,37 +82,55 @@ it("decodes Rust/router trait totals for the real bigint paging consumer", async
 it("decodes the actual encounter graph with present counts, pending nulls and omitted HP", async () => {
   respond(wire.encounter);
   const detail = await getEncounter("fixture-encounter");
-  const actor = detail.participants.find((p) => p.participant_key === "fixture-actor")!;
-  const manual = detail.participants.find(
+  const current = detail.participants.find(
     (p) => p.participant_key === "fixture-manual",
   )!;
+  const pending = detail.participants.find(
+    (p) => p.participant_key === "fixture-zero",
+  )!;
   expect(detail.revision).toBe(BigInt(wire.encounter.revision));
-  expect(actor.turn_resources?.regular_total).toBe(2n);
-  expect(actor.turn_resources?.round_number).toBe(1n);
-  expect(actor.turn_resources?.forecast.base_value).toBe(3n);
-  expect(actor.turn_resources?.action_calculation.kind).toBe("this_turn");
-  if (actor.turn_resources?.action_calculation.kind === "this_turn")
-    expect(actor.turn_resources.action_calculation.count?.adjustments[0].value).toBe(
+  expect(current.turn_resources?.regular_total).toBe(2n);
+  expect(current.turn_resources?.round_number).toBe(1n);
+  expect(current.turn_resources?.forecast.base_value).toBe(3n);
+  expect(current.turn_resources?.action_calculation.kind).toBe("this_turn");
+  if (current.turn_resources?.action_calculation.kind === "this_turn")
+    expect(current.turn_resources.action_calculation.count?.adjustments[0].value).toBe(
       -1n,
     );
-  expect(manual.turn_resources?.regular_total).toBeNull();
-  expect(manual).not.toHaveProperty("current_hp");
-  expect(manual).not.toHaveProperty("max_hp");
-  expect(actor.conditions.map((c) => c.value)).toEqual([1n, 1n]);
-  expect(actor.effective_max_hp.value).toBe(30);
-  expect(actor.presentation?.body.kind).toBe("creature");
-  if (actor.presentation?.body.kind === "creature") {
-    expect(
-      actor.presentation.body.value.armor_class.adjustment?.applied.map((m) => m.value),
-    ).toEqual([2n, -1n]);
-  }
+  expect(pending.turn_resources?.regular_total).toBeNull();
+  expect(current).not.toHaveProperty("current_hp");
+  expect(current).not.toHaveProperty("max_hp");
+  expect(pending.current_hp).toBe(0n);
+  expect(pending.max_hp).toBe(20n);
+  expect(current.conditions.map((c) => c.value)).toEqual([1n]);
+  expect(pending.effective_max_hp.value).toBe(20);
 });
 
 it("converts an actual participant reference and keeps authored/effective facts numeric", async () => {
-  respond(wire.encounter_reference);
+  respond(wire.record_detail);
   expectRuntimePresentation(
-    await getEncounterReference("fixture-encounter", "fixture-actor", referenceRequest),
+    (
+      await getEncounterReference(
+        "fixture-encounter",
+        "fixture-actor",
+        referenceRequest,
+      )
+    ).presentation,
   );
+});
+
+it("converts the shared serialized presentation nested in a participant response", async () => {
+  respond({
+    ...wire.encounter,
+    participants: [
+      {
+        ...wire.encounter.participants[0],
+        presentation: wire.record_detail.presentation,
+      },
+    ],
+  });
+  const detail = await getEncounter("fixture-encounter");
+  expectRuntimePresentation(detail.participants[0].presentation!);
 });
 
 it.each([false, true])(
@@ -124,38 +142,23 @@ it.each([false, true])(
       selected ? referenceRequest.selection : undefined,
     );
     expect(detail.record.record_key).toBe(actorKey);
-    if (detail.presentation.body.kind === "creature")
-      expect(typeof detail.presentation.body.value.armor_class.value).toBe("number");
-    // A real serialized RecordDetailView with runtime modifiers is also a contract
-    // control for both adapters, independent of which context produced that DTO.
-    respond(wire.encounter_reference);
-    expectRuntimePresentation(
-      await getRecordDetail(
-        actorKey,
-        selected ? referenceRequest.selection : undefined,
-      ),
-    );
+    expectRuntimePresentation(detail.presentation);
   },
 );
 
-it("converts table-match detail roots and leaves ordinary dice/result numbers alone", async () => {
-  respond(wire.table_roll_serialization_control);
+it("converts nested table details using the shared serialized DTO and retains numeric dice", async () => {
+  respond({
+    outcome: wire.flat_check_serialization_control.outcome,
+    matches: [wire.record_detail],
+    invalid_ranges: [],
+  });
   const request = {
     artifact_generation: "fixture-generation",
     selection: { ...referenceRequest.selection, record_key: "tables:dddddddddddddddd" },
   };
   const actual = await rollTable(request);
-  expect(actual.outcome.total).toBe(1);
-  expect(actual.matches[0].presentation.body.kind).toBe("table_result");
-  if (actual.matches[0].presentation.body.kind === "table_result")
-    expect(actual.matches[0].presentation.body.value.weight.value).toBe(1);
-  // Current table routes emit table-result details. This mixed contract control
-  // ensures a richer nested detail cannot bypass conversion in the adapter.
-  respond({
-    ...wire.table_roll_serialization_control,
-    matches: [wire.encounter_reference],
-  });
-  expectRuntimePresentation((await rollTable(request)).matches[0]);
+  expect(actual.outcome.total).toBe(11);
+  expectRuntimePresentation(actual.matches[0].presentation);
 });
 
 it("preserves recovery null/zero and decodes flat DC without altering dice outcomes", async () => {
@@ -166,7 +169,7 @@ it("preserves recovery null/zero and decodes flat DC without altering dice outco
       kind: "rest_overnight",
       healing_mode: "natural",
       participants: [
-        { participant_key: "fixture-actor", healing: 0n },
+        { participant_key: "fixture-zero", healing: 0n },
         { participant_key: "fixture-manual", healing: 0n },
       ],
     },
@@ -179,8 +182,8 @@ it("preserves recovery null/zero and decodes flat DC without altering dice outco
   expect(manual.resulting_hp).toBeNull();
   expect(manual.healing).toBe(0n);
   expect(
-    preview.participants.find((p) => p.participant_key === "fixture-actor")?.current_hp,
-  ).toBe(30n);
+    preview.participants.find((p) => p.participant_key === "fixture-zero")?.current_hp,
+  ).toBe(0n);
   expect(
     JSON.parse(fetchMock.mock.calls[0][1].body).action.participants[0].healing,
   ).toBe(0);
