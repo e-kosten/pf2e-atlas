@@ -246,7 +246,15 @@ paths. It never runs normal service startup migrations or loads inference. Index
 owns the bounded product-key prefix SQL; search forwards the typed read. Completion
 failures produce no saved-value candidates and never fall back to another workspace.
 
-Web retains a bounded worker queue and runtime/inference owners. Idle workers hold
+Command clients choose query-capable `OnDemandEmbeddings` or
+`OnDemandNoQueryInference`. The latter prohibits text query inference while retaining
+lexical/reference reads, stored-vector Similar and part inventory. Both open the
+same bounded workspace reads; stored vectors do not require a separate command mode.
+
+Web retains a bounded worker queue and one already-resolved runtime shared by all
+workers. Startup only creates threads; a spawn failure closes the queue and joins
+previously started workers before returning the error. Runtime resolution and
+per-operation workspace reads report failures at their own boundaries. Idle workers hold
 no reader. Each operation observes one coherent reference revision; later
 operations can see a completed publication without restarting the service.
 Before feature components mount, the browser checks the data-independent web API
