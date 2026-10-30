@@ -19,12 +19,10 @@ use atlas_domain::{
 };
 use rusqlite::{Connection, params_from_iter, types::Value};
 
-/// Search supplies the clause-removed candidate keys for semantic/hybrid facets.
-/// The bounded flag prevents labeling their counts as full-corpus totals.
+/// Structured discovery may restrict eligibility to an explicit record-key scope.
 #[derive(Debug, Clone, Default)]
 pub struct QueryFacetContext {
     pub eligible_keys: Option<Vec<RecordKey>>,
-    pub bounded_candidates: bool,
     pub prefer_remaster: bool,
 }
 #[derive(Debug, Clone)]
@@ -238,13 +236,9 @@ pub(crate) fn field_counts(
                 .clone()
                 .unwrap_or_else(|| "root".to_owned()),
             states,
-            exhaustive: !request.context.bounded_candidates,
-            count_basis: if request.context.bounded_candidates {
-                "clause-removed semantic candidate window; before remaster suppression"
-            } else {
-                "clause-removed eligible source roots; before remaster suppression"
-            }
-            .to_owned(),
+            exhaustive: true,
+            count_basis: "clause-removed eligible source roots; before remaster suppression"
+                .to_owned(),
             minimum,
             maximum,
         },
@@ -576,7 +570,7 @@ pub(crate) fn field_value_counts(
                 &selected(target.as_ref()),
             )?,
             total_values,
-            exhaustive: !request.context.bounded_candidates,
+            exhaustive: true,
             count_basis: "exact counterfactual displayed roots".into(),
         },
     })
@@ -720,10 +714,8 @@ pub(crate) fn field_values(
             field: request.field.clone(),
             options,
             total_values,
-            exhaustive: !request.context.bounded_candidates,
-            count_basis: if request.context.bounded_candidates {
-                "clause-removed semantic candidate window"
-            } else if request.clause_id.is_some() {
+            exhaustive: true,
+            count_basis: if request.clause_id.is_some() {
                 "exact counterfactual displayed roots"
             } else {
                 "unscoped value enumeration with active root eligibility"
@@ -826,7 +818,7 @@ pub(crate) fn field_vocabulary(
     let base = validate_query(&QueryPredicate::boolean(true))?;
     let context = QueryFacetContext {
         eligible_keys: request.eligible_keys.clone(),
-        bounded_candidates: false,
+
         prefer_remaster: false,
     };
     let mut values = enumerate_values(connection, d, &base, &context, None)?;

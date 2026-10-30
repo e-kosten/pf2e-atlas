@@ -728,7 +728,7 @@ fn real_ghoul_fever_and_soul_degradation_open_exact_owned_and_gm_sources() {
     assert!(content.fields[0].html.as_ref().unwrap().contains("Stage 6"));
 }
 #[test]
-fn contextual_numeric_bounds_restore_target_clause_and_apply_complete_text_scope() {
+fn contextual_numeric_bounds_restore_target_clause_over_structured_eligibility() {
     let (_dir, mut service) = service(input(
         vec![
             effect("aaaaaaaaaaaaaaaa", "Flame one", 1, ""),
@@ -750,8 +750,7 @@ fn contextual_numeric_bounds_restore_target_clause_and_apply_complete_text_scope
             context: FilterDiscoveryContext {
                 content_scope: atlas_domain::SearchContentScope::All,
                 search_profile: None,
-                text: Some("flame"),
-                mode: RetrievalMode::Fts,
+                text: None,
                 scope: RecordScope::All,
                 prefer_remaster: true,
                 filter: Some(&predicate),
@@ -763,10 +762,10 @@ fn contextual_numeric_bounds_restore_target_clause_and_apply_complete_text_scope
     };
     assert!(counts.exhaustive);
     assert_eq!(counts.minimum.unwrap().as_i64(), Some(1));
-    assert_eq!(counts.maximum.unwrap().as_i64(), Some(2));
+    assert_eq!(counts.maximum.unwrap().as_i64(), Some(3));
     assert_eq!(
         counts.states.iter().map(|s| s.distinct_roots).sum::<u64>(),
-        2
+        3
     );
 }
 #[test]
@@ -1099,7 +1098,6 @@ fn optional_discovery_is_analyzed_before_embedding_and_preserves_actual_errors()
         content_scope: atlas_domain::SearchContentScope::All,
         search_profile: None,
         text: Some("flame"),
-        mode: RetrievalMode::Hybrid,
         scope: RecordScope::All,
         prefer_remaster: true,
         filter: Some(&predicate),
@@ -1155,13 +1153,12 @@ fn optional_discovery_is_analyzed_before_embedding_and_preserves_actual_errors()
         offset: 0,
         limit: 10,
     };
-    assert_eq!(
-        service
-            .discover_filter_values(invalid_values)
-            .unwrap_err()
-            .kind(),
-        SearchErrorKind::VectorReadinessRequired
-    );
+    assert!(matches!(
+        service.discover_filter_values(invalid_values).unwrap(),
+        atlas_domain::QueryFacetOutcome::Unavailable {
+            reason: atlas_domain::FacetUnavailableReason::TextContext
+        }
+    ));
     let vocabulary = service
         .discover_filter_vocabulary(DiscoverFilterVocabularyRequest {
             field: "source.type",

@@ -1254,3 +1254,45 @@ async fn source_free_saved_state_works_without_reference_readiness() {
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
     assert_eq!(body["code"], "artifact_incompatible");
 }
+
+#[tokio::test]
+async fn discovery_rejects_record_text_before_model_work_and_keeps_value_name_search() {
+    let fixture = Fixture::new();
+    for mode in ["lexical", "semantic", "hybrid"] {
+        for search_content in ["core", "all"] {
+            let context = json!({"kind":"filtered","filter":null,"text":"fire","mode":mode,"search_content":search_content});
+            let request = json!({"kind":"contextual","context":context,"field_id":"source.pack.id","clause_id":null,"text":null,"offset":0,"limit":10,"only_matching":true});
+            let (status, body) = fixture
+                .json(Method::POST, "/api/filters/values", Some(request.clone()))
+                .await;
+            assert_eq!(status, StatusCode::OK, "{body}");
+            assert_eq!(
+                body["outcome"],
+                json!({"status":"unavailable","reason":"text_context"})
+            );
+            let(status,body)=fixture.json(Method::POST,"/api/filters/counts",Some(json!({"context":context,"field_id":"source.pack.id","clause_id":null,"values":["actions"]}))).await;
+            assert_eq!(status, StatusCode::OK, "{body}");
+            assert_eq!(
+                body["counts"],
+                json!({"status":"unavailable","reason":"text_context"})
+            );
+            let mut invalid = request;
+            invalid["limit"] = json!(0);
+            let (status, _) = fixture
+                .json(Method::POST, "/api/filters/values", Some(invalid))
+                .await;
+            assert_eq!(status, StatusCode::BAD_REQUEST);
+        }
+    }
+    let context = json!({"kind":"filtered","filter":null,"text":"  ","mode":"hybrid"});
+    let(status,body)=fixture.json(Method::POST,"/api/filters/values",Some(json!({"kind":"contextual","context":context,"field_id":"source.pack.id","clause_id":null,"text":"actions","offset":0,"limit":10,"only_matching":true}))).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["outcome"]["status"], "available");
+    assert_eq!(body["outcome"]["value"]["exhaustive"], true);
+    assert!(
+        !body["outcome"]["value"]["options"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+}

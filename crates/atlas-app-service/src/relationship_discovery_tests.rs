@@ -217,17 +217,15 @@ fn relationship_discovery_validates_scope_and_intersects_saved_list_keys() {
         .worker
         .discover_filter_values(values_request(text_context.clone()), &execution)
         .unwrap();
-    let FilterValueListView::Contextual {
-        outcome: QueryFacetOutcome::Available { value },
-        ..
-    } = values
-    else {
-        panic!("lexical relationship values unavailable")
-    };
-    assert_eq!(
-        value.options[0].distinct_roots, 1,
-        "unlinked text matches must remain excluded"
-    );
+    assert!(matches!(
+        values,
+        FilterValueListView::Contextual {
+            outcome: QueryFacetOutcome::Unavailable {
+                reason: atlas_domain::FacetUnavailableReason::TextContext
+            },
+            ..
+        }
+    ));
     assert!(matches!(
         f.worker
             .discover_filter_counts(counts_request(text_context), &execution)

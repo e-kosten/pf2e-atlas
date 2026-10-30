@@ -48,6 +48,23 @@ Adopt one canonical shared search-request model with these durable rules:
 
 This ADR intentionally replaces the older shared-contract assumptions that kept `intent` / `parts` as the durable public shape.
 
+## Structured discovery clarification (2026-10-30)
+
+Ordinary filter discovery counts structured eligibility, optionally intersected
+with saved-list membership. Searching filter-value names narrows the suggestions;
+it does not search record content or change the eligibility behind their counts.
+
+Semantic retrieval orders a bounded candidate set without a relevance threshold
+that defines exhaustive membership. Its candidate cap cannot supply ordinary
+filter counts. Record-content text is therefore unsupported in the discovery
+contract, with explicit typed unavailability rather than ignored criteria. This
+also keeps lexical record-content queries out of ordinary structured counts.
+
+Summaries such as counts within retrieved semantic candidates are a separate,
+deferred capability. Reconsider only with a demonstrated use case and explicit
+candidate population, coverage and presentation contract. This does not change
+text-search ranking, candidate windows, paging or the merged TextSearch cache.
+
 ## Consequences
 
 - MCP, TUI, and ontology-origin flows must converge on the same `mode` / `search` / `filter` model before shared backend execution begins.

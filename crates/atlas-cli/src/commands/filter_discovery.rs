@@ -152,17 +152,11 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
 }
 pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, String> {
     let s = match connect(ClientOptions {
-        search_profile: o.search_profile.clone(),
+        search_profile: None,
         path_mode: crate::cli::runtime_path_mode(o.path_mode),
         index: o.index,
         embedding_cache: None,
-        retrieval_mode: if o.query.is_some()
-            && !matches!(o.retrieval, super::search::args::CliRetrievalMode::Fts)
-        {
-            atlas_app_service::AppServiceRetrievalMode::OnDemandEmbeddings
-        } else {
-            atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference
-        },
+        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference,
     }) {
         Ok(service) => service,
         Err(error) => return crate::commands::product::report_app_error(error, o.json),
@@ -176,17 +170,17 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
             search_content: None,
             list_ref,
             filter,
-            text: o.query,
-            mode: o.retrieval.into(),
-            search_profile: o.search_profile,
+            text: None,
+            mode: atlas_app_model::RetrievalModeView::Lexical,
+            search_profile: None,
             expected_artifact_generation: o.artifact_generation,
         },
         None => atlas_app_model::FilterDiscoveryContext::Filtered {
             search_content: None,
             filter,
-            text: o.query,
-            mode: o.retrieval.into(),
-            search_profile: o.search_profile,
+            text: None,
+            mode: atlas_app_model::RetrievalModeView::Lexical,
+            search_profile: None,
             expected_artifact_generation: o.artifact_generation,
         },
     };
@@ -262,9 +256,6 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
                 println!(
                     "An existing collection filter may match a different entry; use one exists(...) for same-entry constraints."
                 );
-            }
-            if !values.exhaustive {
-                println!("Counts cover a limited candidate set, not the full collection.");
             }
         }
         if definition.field_type == QueryFieldType::Number {

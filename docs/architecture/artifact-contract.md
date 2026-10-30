@@ -484,6 +484,12 @@ digest, including Gemma-only manifests.
 Snapshot-local navigation continues to use the source fingerprint; these identities
 serve different purposes and are not interchangeable.
 
+Ordinary facet values and counts use structured predicates and explicit record-key
+scope, with exact clause replacement and remaster policy. A ranked semantic
+window is not a membership predicate. Record-content text in discovery returns
+typed TextContext unavailability before inference; it cannot produce a candidate
+summary through the ordinary facet contract. Candidate summaries are deferred.
+
 Stateless app requests carry criteria, page and an optional expected generation.
 Generation mismatch is checked before expensive retrieval and requires deliberate
 recovery from page1. Each bounded operation opens its own admitted snapshot;

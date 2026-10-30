@@ -341,8 +341,10 @@ CLI CEL and UI structured requests independently target it. Applicable source
 fields retain value/missing/null/invalid/not-applicable states; only true matches.
 Same-child Exists preserves one witness. Facets use the same bindings and explicit
 self-exclusion semantics. Index analysis returns typed optional unavailability for
-valid unsupported suggestion contexts before search loads embeddings or ranks
-candidates. Malformed predicates, wrong targets/scopes, invalid types and bounds,
+valid unsupported suggestion contexts. Discovery uses structured eligibility and
+explicit saved-list membership; it never loads query embeddings or ranks search
+candidates. Nonempty record-content text returns TextContext unavailability
+after request and clause validation, rather than silently dropping that text. Malformed predicates, wrong targets/scopes, invalid types and bounds,
 and actual model/SQLite/service failures remain errors. CLI raw discovery presents
 unavailable contexts as actionable command failures without another analysis.
 
@@ -352,12 +354,15 @@ no query predicate, query text or retrieval mode. App-service resolves saved-lis
 keys; search forwards scope without embedding; index enumerates known applicable
 product values before edition preference. Empty membership remains empty, and
 retained selections do not inflate suggestion totals. Contextual counts retain
-their exact same-child/counterfactual/remaster and bounded-candidate semantics.
+their exact same-child/counterfactual/remaster semantics over structured eligibility.
 The app counts operation accepts a bounded explicit literal page, independently
 of vocabulary enumeration. It uses the same index-owned counterfactual compiler
 and counts distinct displayed roots for each replacement literal. Text context
 returns optional unavailability before inference, after field/literal/target
-validation. Raw CLI field counts retain availability states and numeric extrema.
+validation. Raw CLI field counts retain availability states and numeric extrema. CLI discovery
+accepts structured filters, saved-list scope and value-name `--text`; it has no
+record-query, retrieval-mode or search-profile flags. Summaries of semantic search
+candidates are deferred as a separate product capability.
 Shared browser pickers request optional counts only while open, retaining their
 independent vocabulary when counts are unavailable or fail.
 
@@ -384,12 +389,11 @@ Verified legacy preference applies only among records matching the complete requ
 before paging. Exact legacy keys remain accessible. Macros are excluded on every
 product path; RollTables remain browse/search/detail records.
 
-Text search and semantic contextual discovery share an exhaustive query-embedding
-error conversion. Empty input and exact token-budget overflow remain invalid
-requests, with useful counts and a shortening instruction; model/cache/inference
+Text search uses an exhaustive query-embedding error conversion. Empty input and
+exact token-budget overflow remain invalid requests, with useful counts and a shortening instruction; model/cache/inference
 failures retain their availability classification. Queries are never truncated or
-downgraded to lexical retrieval to conceal semantic input errors. Optional facet
-availability is still checked before embeddings when its context is unsupported.
+downgraded to lexical retrieval to conceal semantic input errors. Filter discovery
+does not prepare embeddings.
 
 Index summaries and selected cache bundles are body free. Explicit detail decodes
 one root and batches required fields. Search result witnesses do not cause

@@ -45,15 +45,6 @@ pub(crate) struct FiltersFieldsOptions {
     after_help = "Values retain all supplied filters unless --clause-id requests replacement suggestions.\nClosed fields include allowed choices with zero matches; open fields enumerate observed values.\nNumeric and collection fields return statistics, without paged values.\nUse filters fields --field ID for the declared choices and CEL examples.\n\nExamples:\n  atlas filters values --field traits --kind spell\n  atlas filters values --field languages --kind creature --text common\n  atlas filters values --field 'movement.speeds[].type' --kind creature\n  atlas filters values --field defenses.hp.maximum --kind creature --json"
 )]
 pub(crate) struct FiltersValuesOptions {
-    #[arg(
-        long,
-        help = "Record-content query constraining contextual discovery; distinct from --text"
-    )]
-    pub(crate) query: Option<String>,
-    #[arg(long, value_enum, default_value_t = crate::commands::search::args::CliRetrievalMode::Hybrid, help = "Text retrieval for --query; unsupported count contexts return an explicit error")]
-    pub(crate) retrieval: crate::commands::search::args::CliRetrievalMode,
-    #[arg(long, value_parser=crate::cli::args::parse_search_profile, help="Stored search profile for query context")]
-    pub(crate) search_profile: Option<atlas_domain::SearchProfileId>,
     #[arg(long = "list", help = "Restrict context to this saved list")]
     pub(crate) list_ref: Option<String>,
     #[arg(

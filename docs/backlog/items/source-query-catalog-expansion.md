@@ -25,8 +25,9 @@ language. New numeric inputs must preserve exact supported precision.
 
 Nested quantification, arbitrary arithmetic, field-to-field comparison and
 relationship predicates require a separate query-contract decision. No generic
-source-path escape hatch is implied by this backlog item. Query-aware text facets
-remain their own [follow-up](./rust-web-text-scoped-filter-counts.md).
+source-path escape hatch is implied by this backlog item. Summaries of retrieved semantic candidates
+are [deferred separately](./rust-web-text-scoped-filter-counts.md); ordinary counts
+use structured eligibility.
 
 See [ADR 0046](../../architecture/decisions/0046-source-backed-reference-artifact.md)
 and the [artifact contract](../../architecture/artifact-contract.md).

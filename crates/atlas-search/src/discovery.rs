@@ -1,11 +1,10 @@
-use crate::{RecordScope, RetrievalMode};
+use crate::RecordScope;
 use atlas_domain::QueryPredicate;
 #[derive(Clone, Copy)]
 pub struct FilterDiscoveryContext<'a> {
     pub content_scope: atlas_domain::SearchContentScope,
     pub search_profile: Option<&'a atlas_domain::SearchProfileId>,
     pub text: Option<&'a str>,
-    pub mode: RetrievalMode,
     pub scope: RecordScope<'a>,
     pub prefer_remaster: bool,
     pub filter: Option<&'a QueryPredicate>,
@@ -59,20 +58,6 @@ pub struct DiscoverFilterVocabularyRequest<'a> {
     pub selected_values: &'a [QueryLiteral],
 }
 impl AtlasRetrievalService {
-    /// Preflight contextual eligibility before the caller performs query inference.
-    pub fn discovery_supports_ranking(
-        &self,
-        field: &str,
-        clause: Option<&str>,
-        filter: Option<&QueryPredicate>,
-    ) -> Result<bool, SearchError> {
-        let query = self.predicate(filter)?;
-        Ok(matches!(
-            atlas_index::facet_base_query(field, clause, &query)?,
-            QueryFacetOutcome::Available { .. }
-        ))
-    }
-
     pub fn discover_filter_value_counts(
         &mut self,
         request: DiscoverFilterValueCountsRequest<'_>,
@@ -103,7 +88,6 @@ impl AtlasRetrievalService {
                 query,
                 context: QueryFacetContext {
                     eligible_keys: request.context.scope.keys().map(<[_]>::to_vec),
-                    bounded_candidates: false,
                     prefer_remaster: request.context.prefer_remaster,
                 },
                 values: request.values.to_vec(),
@@ -122,60 +106,28 @@ impl AtlasRetrievalService {
         context.validate_content_scope()?;
         let query = self.predicate(context.filter)?;
         self.resolve_search_profile(context.search_profile, false)?;
-        // Index owns the only self-exclusion analysis. Perform it even without
-        // text, and before ranking or loading a query embedder.
-        let base = match atlas_index::facet_base_query(field, clause, &query)? {
-            QueryFacetOutcome::Available { value } => value,
-            QueryFacetOutcome::Unavailable { reason } => {
-                return Ok(QueryFacetOutcome::Unavailable { reason });
-            }
-        };
-        let search_profile = self.resolve_search_profile(
-            context.search_profile,
-            context.mode.uses_vector() && context.text.is_some_and(|t| !t.trim().is_empty()),
-        )?;
-        let Some(text) = context.text.filter(|s| !s.trim().is_empty()) else {
-            return Ok(QueryFacetOutcome::Available {
-                value: (
-                    query,
-                    QueryFacetContext {
-                        eligible_keys: context.scope.keys().map(<[_]>::to_vec),
-                        bounded_candidates: false,
-                        prefer_remaster: context.prefer_remaster,
-                    },
-                ),
+        // Index owns self-exclusion analysis, including errors in the addressed clause.
+        if let QueryFacetOutcome::Unavailable { reason } =
+            atlas_index::facet_base_query(field, clause, &query)?
+        {
+            return Ok(QueryFacetOutcome::Unavailable { reason });
+        }
+        if context.text.is_some_and(|text| !text.trim().is_empty()) {
+            return Ok(QueryFacetOutcome::Unavailable {
+                reason: atlas_domain::FacetUnavailableReason::TextContext,
             });
-        };
-        let vector = if context.mode.uses_vector() {
-            Some(self.embed_query(&search_profile, text)?)
-        } else {
-            None
-        };
-        // Freeze the separate clause-removed universe before per-option pair policy.
-        let (roots, _) = self.rank_candidates(crate::text::CandidateRequest {
-            content_scope: context.content_scope,
-            ranking: Default::default(),
-            search_profile: &search_profile,
-            text,
-            mode: context.mode,
-            query: &base,
-            scope: context.scope,
-            prefer: context.prefer_remaster,
-            suppress: false,
-            vector: vector.as_deref(),
-            exclude: None,
-        })?;
+        }
         Ok(QueryFacetOutcome::Available {
             value: (
                 query,
                 QueryFacetContext {
-                    eligible_keys: Some(roots.into_iter().map(|r| r.key).collect()),
-                    bounded_candidates: context.mode.uses_vector(),
+                    eligible_keys: context.scope.keys().map(<[_]>::to_vec),
                     prefer_remaster: context.prefer_remaster,
                 },
             ),
         })
     }
+
     pub fn discover_filter_values(
         &mut self,
         request: DiscoverFilterValuesRequest<'_>,

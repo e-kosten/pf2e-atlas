@@ -154,7 +154,7 @@ fn excluded_consumers_and_explicit_key_scopes_never_reuse() {
         service.search_text_with_neighbor_reuse(request).unwrap();
         assert_eq!(service.read_metrics().knn_queries, 3);
         service.reset_read_metrics();
-        service
+        let outcome = service
             .discover_filter_values(DiscoverFilterValuesRequest {
                 only_matching: true,
                 field: "rarity",
@@ -166,14 +166,19 @@ fn excluded_consumers_and_explicit_key_scopes_never_reuse() {
                     content_scope: SearchContentScope::All,
                     search_profile: None,
                     text: Some("Ember"),
-                    mode: RetrievalMode::Hybrid,
                     scope: RecordScope::All,
                     prefer_remaster: true,
                     filter: None,
                 },
             })
             .unwrap();
-        assert_eq!(service.read_metrics().knn_queries, 3);
+        assert!(matches!(
+            outcome,
+            atlas_domain::QueryFacetOutcome::Unavailable {
+                reason: atlas_domain::FacetUnavailableReason::TextContext
+            }
+        ));
+        assert_eq!(service.read_metrics().knn_queries, 0);
     }
     assert_eq!(store.stats().ready_entries, 0);
 }
