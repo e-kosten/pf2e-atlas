@@ -5,7 +5,10 @@ Date: 2026-10-12
 
 [ADR0051](./0051-persistent-workspace.md) supersedes the retained-reader and
 physical-file startup rules below with bounded reads of one persistent workspace.
-The generation/page contracts remain current. See
+ADR0051 also supersedes the context-hash public generation below with durable
+`workspace_key:reference_revision`. [ADR0062](./0062-exact-text-neighbor-reuse.md)
+adds bounded exact ordinary TextSearch neighbor reuse while preserving stateless
+requests and generation recovery. The page contracts remain current. See
 [the runtime architecture](../runtime.md#retrieval-and-application-workflows) for
 current command capabilities and shared-runtime worker startup.
 

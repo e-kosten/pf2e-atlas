@@ -104,7 +104,8 @@ identity includes locale/catalogs, audience and content/relationship/selection
 policies; it excludes profile model assets and passage recipes. Each profile's
 execution/reuse identity binds its complete selected model/native-tokenizer assets,
 the full shared BGE segmentation-tokenizer digest and its passage recipe. The full
-artifact generation binds shared preparation plus the complete profile manifest.
+preparation-context digest binds shared preparation plus the complete profile
+manifest. Public generation instead binds workspace key and reference revision.
 Index stores each exact model execution contract once in a native-input registry.
 Native input metadata binds raw input hash, token count and a published vector
 checksum; dimensions derive from the model. Published document vectors remain in
@@ -479,9 +480,14 @@ typed trait key and projected label through the same search-page workflow. It ad
 query embedding. Every request supplies its complete criteria, page and optional
 expected artifact generation. The generation check precedes embedding and ranking;
 a mismatch returns `ArtifactGenerationChanged` with HTTP409 and expected/actual
-context hashes. There is no app window registry or handle lifecycle. Each page
-still performs retrieval independently, including query inference where needed;
-the API does not promise a frozen semantic candidate set or cache speedup.
+generation identities. There is no app window registry or handle lifecycle. Each
+page retains admission and query inference where needed. Ordinary TextSearch may
+reuse exact per-k native neighbors through one runtime-shared search-owned store;
+index rehydrates their metadata in the consuming snapshot. Lexical, root/window,
+fusion, remaster, order and presentation work still execute independently. Other
+consumers retain their uncached paths. The API promises neither frozen results nor
+a particular cache speedup. [ADR0062](decisions/0062-exact-text-neighbor-reuse.md)
+defines full identity, finite allocation limits, duplicate misses and retirement.
 Browser URL state owns the removable seed criterion. Similarity uses catalog
 choices and vocabulary without text-scoped contextual facet counts.
 
