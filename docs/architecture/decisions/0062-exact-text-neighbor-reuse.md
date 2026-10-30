@@ -11,6 +11,10 @@ opaque unit-ID/distance-bit batches only after the unchanged native query and
 complete location decoding succeed. Index rehydrates every retained neighbor
 in the consuming snapshot through profile, eligibility and Core joins. Missing
 or unexpected members fail rather than silently reduce coverage.
+Hits read reference metadata without rejoining native vector rows: sqlite-vec
+point lookups load vector data even when SQL selects only the unit ID. The bound
+publication identity protects native membership; fresh admission still checks
+the complete native profile/table contract and request readiness.
 
 The key binds the admitted workspace key/reference revision, complete canonical
 context digest, complete selected profile contract, exact query text and prepared

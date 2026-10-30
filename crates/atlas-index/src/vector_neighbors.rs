@@ -51,7 +51,7 @@ impl SqliteIndexReader {
             ));
         }
         let model = self.context().search_profile(request.profile)?;
-        let table = crate::schema::vector_table(model)?;
+        crate::schema::vector_table(model)?;
         crate::validation::check_vector(request.vector, model.dimensions)?;
         self.require_vectors()?;
         // Compile even an empty successful window, preserving request failures.
@@ -81,8 +81,12 @@ impl SqliteIndexReader {
                 .collect::<Vec<_>>()
                 .join(",");
             let content = crate::read_units::semantic_content_sql(request.content_scope);
+            // Publication identity binds native membership. A vec0 point join
+            // rereads vector blobs even when only its unit ID is selected.
+            // Admission already checks native capabilities and complete DDL;
+            // this phase validates current metadata and full eligibility.
             let sql = format!(
-                "WITH eligible AS ({eligible}), requested(unit_id,ordinal) AS (VALUES {requested}) SELECT su.unit_id,r.key,sl.owners_json,sl.field_path,sl.section_json,q.ordinal FROM requested q JOIN semantic_units su ON su.unit_id=q.unit_id JOIN semantic_locations sl USING(location_id) JOIN records r ON r.record_id=su.record_id JOIN {table} v ON v.unit_id=su.unit_id WHERE su.profile_id=?{profile_param} AND su.record_id IN (SELECT record_id FROM eligible){content} ORDER BY q.ordinal"
+                "WITH eligible AS ({eligible}), requested(unit_id,ordinal) AS (VALUES {requested}) SELECT su.unit_id,r.key,sl.owners_json,sl.field_path,sl.section_json,q.ordinal FROM requested q JOIN semantic_units su ON su.unit_id=q.unit_id JOIN semantic_locations sl USING(location_id) JOIN records r ON r.record_id=su.record_id WHERE su.profile_id=?{profile_param} AND su.record_id IN (SELECT record_id FROM eligible){content} ORDER BY q.ordinal"
             );
             self.count_statement();
             let mut statement = self.native()?.prepare(&sql)?;
