@@ -146,6 +146,7 @@ impl Fixture {
             locale: "en".into(),
             search_profiles: vec![],
             reuse_embeddings: true,
+            reuse_passage_layouts: true,
             embedding_batch_size: 16,
         }
     }
@@ -533,6 +534,7 @@ fn actual_complete_source_build_has_typed_projection_content_and_navigation_cove
         locale: "en".into(),
         search_profiles: vec![],
         reuse_embeddings: false,
+        reuse_passage_layouts: false,
         embedding_batch_size: 16,
     })
     .unwrap();
@@ -1031,6 +1033,7 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
             cache,
         )],
         reuse_embeddings: false,
+        reuse_passage_layouts: false,
         embedding_batch_size: 16,
     };
     let prepared = crate::build::prepare_build(&options, Vec::new(), Default::default()).unwrap();

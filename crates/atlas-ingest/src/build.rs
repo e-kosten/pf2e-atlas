@@ -206,12 +206,13 @@ pub(crate) fn build_artifact(
                 );
                 let records = atlas_index::read_persisted_inputs(read.connection(), &context)
                     .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-                let layouts = if options.reuse_embeddings && !options.search_profiles.is_empty() {
-                    atlas_index::read_reusable_passage_layouts(&read)
-                        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
-                } else {
-                    BTreeMap::new()
-                };
+                let layouts =
+                    if options.reuse_passage_layouts && !options.search_profiles.is_empty() {
+                        atlas_index::read_reusable_passage_layouts(&read)
+                            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
+                    } else {
+                        BTreeMap::new()
+                    };
                 (records, layouts)
             }
             _ => (Vec::new(), BTreeMap::new()),

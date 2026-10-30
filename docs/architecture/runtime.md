@@ -170,6 +170,14 @@ selection and per-profile native input validation still run; inference reuse and
 atomic publication are unchanged. This adds no schema or duplicate text cache.
 Recipe versions remain explicit and must change with output-affecting preparation
 changes; application Git versions and UI changes are not cache identities.
+`setup --force` bypasses passage-layout reuse and reruns splitting while retaining
+compatible vector reuse. Existing source admission/prepared-HTML reuse is
+unchanged. The ingest layout-reuse option is separate from its vector-reuse option.
+Pinned historical layout/input-hash fixtures check representative outputs for
+each current recipe in the model-free suite. Historical fixtures and their digest
+ledger are append-only: changed behavior needs a recipe bump and a new fixture.
+These cases detect covered behavior changes, not every possible implementation
+change.
 
 The content interpreter produces sanitized HTML and narrow marker/control facts
 using the shared HTML parser and sanitizer.
