@@ -112,6 +112,9 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
   content-visibility: auto;
   contain-intrinsic-size: auto 135px;
 }
+.reference-results__scroll[aria-busy="true"] > .reference-result {
+  opacity: 0.5;
+}
 .reference-result--selected {
   background: var(--selection-bg);
   border-inline-start-color: var(--selection-border);
