@@ -130,6 +130,12 @@ fn filter_value_pages_distinguish_pagination_from_count_coverage() {
     ]);
     assert_eq!(json["values"]["exhaustive"], true);
     assert_eq!(json["values"]["options"].as_array().unwrap().len(), 2);
+    let names = f.data(&[
+        "filters", "values", "--field", "rarity", "--text", "rare", "--json",
+    ]);
+    assert_eq!(names["values"]["options"].as_array().unwrap().len(), 1);
+    assert_eq!(names["values"]["options"][0]["value"], "rare");
+    assert_eq!(names["values"]["exhaustive"], true);
     let last = f.command(
         &[
             "filters", "values", "--field", "rarity", "--limit", "2", "--offset", "2",

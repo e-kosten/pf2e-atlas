@@ -190,15 +190,7 @@ fn relationship_filters_and_occurrence_paging_are_discoverable_in_help() {
         assert!(occurrences.contains(flag));
     }
     let discovery = help(&["filters", "values"]);
-    for flag in [
-        "--query",
-        "--text",
-        "--retrieval",
-        "--search-profile",
-        "--list",
-        "--clause-id",
-        "--artifact-generation",
-    ] {
+    for flag in ["--text", "--list", "--clause-id", "--artifact-generation"] {
         assert!(discovery.contains(flag));
     }
 }
@@ -266,5 +258,26 @@ fn invalid_similarity_controls_fail_before_workspace_access_with_clean_json() {
         let envelope: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
         assert_eq!(envelope["error"]["code"], expected_code);
         assert!(!String::from_utf8_lossy(&output.stderr).contains("panicked"));
+    }
+}
+
+#[test]
+fn filter_discovery_rejects_record_query_flags_before_opening_a_workspace() {
+    for (flag, value) in [
+        ("--query", "fire"),
+        ("--retrieval", "hybrid"),
+        ("--search-profile", "bge-base"),
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_atlas"))
+            .args([
+                "filters", "values", "--field", "rarity", flag, value, "--json",
+            ])
+            .output()
+            .unwrap();
+        assert!(!output.status.success(), "{flag}");
+        let body: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(body["status"], "error");
+        assert!(body.to_string().contains("unexpected argument"), "{body}");
+        assert!(body.to_string().contains(flag), "{body}");
     }
 }

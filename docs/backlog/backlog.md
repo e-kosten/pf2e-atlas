@@ -149,9 +149,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust graph context deeper local graph](items/rust-graph-context-deeper-local-graph.md)
   Track secondary links, shared-neighbor scoring, local cluster signals, and degree-aware curation after the V1 one-hop graph context command. Status: proposed.
 
-- [Rust web text-scoped filter counts](items/rust-web-text-scoped-filter-counts.md)
-  Refine query-scoped facet presentation and broader contexts beyond the current
-  supported shared discovery relation. Status: deferred.
+- [Summaries of retrieved semantic candidates](items/rust-web-text-scoped-filter-counts.md)
+  Reconsider candidate-set summaries only with a demonstrated user task and an
+  explicit coverage contract; ordinary counts use structured eligibility. Status: deferred.
 
 - [Rust web Vite bundle cleanup](items/rust-web-vite-bundle-cleanup.md)
   Evaluate and reduce large frontend chunks once the UI shape stabilizes. Status: proposed.

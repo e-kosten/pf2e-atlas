@@ -17,7 +17,6 @@ fn context<'a>(
         content_scope: atlas_domain::SearchContentScope::All,
         search_profile: None,
         text: None,
-        mode: RetrievalMode::Fts,
         scope,
         prefer_remaster: true,
         filter,

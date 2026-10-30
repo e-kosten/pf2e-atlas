@@ -155,12 +155,11 @@ context, client-ID registry, new capability trait, SQL interruption or native
 inference abort is introduced. Durable mutations and their precommit reference
 reads stay uncancellable under ADR0048.
 
-Text retrieval and semantic contextual discovery share an exhaustive conversion
-of embedding errors. Empty input and token-budget overflow are invalid requests,
+Text retrieval uses an exhaustive conversion of embedding errors. Empty input and token-budget overflow are invalid requests,
 HTTP400, with useful counts and a shortening instruction. Model/cache/inference
 failures retain availability classification; document-only preparation failures
-at this boundary are internal execution errors. Unsupported optional facet
-contexts are still checked before inference. No query clipping or lexical fallback
+at this boundary are internal execution errors. Filter discovery uses structured
+eligibility and does not prepare embeddings; record-text contexts are unavailable. No query clipping or lexical fallback
 conceals an invalid semantic request.
 
 ## Consequences
