@@ -287,6 +287,13 @@ completed retrieval before app projection. A canceled queued item can retain its
 slot and blocking waiter until drained; the contract saves work rather than
 promising immediate capacity reclamation.
 
+Web state stores the concrete `AtlasAppService`; handlers call its application
+operations directly without a mirrored transport service interface. Real router
+tests compose small isolated checked-artifact workspaces and retain their runtime
+owners. Narrow test-only handlers and blocking closures exercise the production
+HTTP execution adapters for admission, cancellation and disconnect behavior.
+These probes complement real saved-state/receipt tests rather than replacing them.
+
 Web's `call_read_service` keeps an abandonment guard in the awaiting handler
 future and delegates to the existing bounded blocking-call helper. Dropping the
 wait marks the context; the actual blocking closure retains its semaphore permit
