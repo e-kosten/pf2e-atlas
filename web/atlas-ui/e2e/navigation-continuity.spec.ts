@@ -146,7 +146,7 @@ test("encounter title trips preserve Search criteria, page, reader, drafts and s
       );
     expect(positions.length).toBe(2);
     expect(positions.every((position) => position > 0)).toBe(true);
-    for (const returnPath of ["Back", "Search control", "Brand"]) {
+    for (const returnPath of ["Search control", "Brand", "Back"]) {
       await page.getByRole("link", { name: "Encounters", exact: true }).first().click();
       await page.getByRole("link", { name, exact: true }).click();
       await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();

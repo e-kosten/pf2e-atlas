@@ -84,10 +84,8 @@ export function ReferenceReader({
     reading.request?.landing,
   ]);
   const activeRef = useRef(active);
+  const navigationPending = useRef(false);
   const readyLanding = useRef<ReferenceReading["request"] | undefined>(undefined);
-  useLayoutEffect(() => {
-    activeRef.current = active;
-  }, [active]);
   const previousVisit = useRef<
     | {
         request: ReferenceReading["request"];
@@ -105,11 +103,25 @@ export function ReferenceReader({
       }
     | undefined
   >(undefined);
+  useLayoutEffect(() => {
+    activeRef.current = active;
+    navigationPending.current = false;
+    return () => {
+      activeRef.current = false;
+      restoredRequest.current = undefined;
+      if (pendingPosition.current) pendingPosition.current.historical = true;
+    };
+  }, [active]);
   const rememberPosition = useCallback(
     (anchor?: HTMLElement) => {
       // A loading DOM can clamp its scroll position before a landed historical
-      // document is ready. Preserve the captured bookmark through that interval.
-      if (!active || pendingPosition.current?.historical) return;
+      // document is ready. Activity suspension can do the same; preserve the bookmark.
+      if (
+        !activeRef.current ||
+        navigationPending.current ||
+        pendingPosition.current?.historical
+      )
+        return;
       const scroll = readerRef.current?.scrollTop ?? 0;
       saved.saveReader(address, scroll);
       if (pendingPosition.current) pendingPosition.current.scroll = scroll;
@@ -135,10 +147,6 @@ export function ReferenceReader({
     },
     [rememberPosition, inspect, selectedRecordKey, openReference],
   );
-  useLayoutEffect(() => {
-    const snapshot = () => rememberPosition();
-    return atlasRouter.subscribe("onBeforeNavigate", snapshot);
-  }, [rememberPosition]);
   useLayoutEffect(() => {
     if (
       previousVisit.current?.request === reading.request &&
@@ -180,8 +188,9 @@ export function ReferenceReader({
     (target?: HTMLElement) => {
       if (previousVisit.current?.request !== reading.request) return;
       readyLanding.current = reading.request;
-      if (reading.restoringHistory) restorePosition();
-      else {
+      if (reading.restoringHistory || pendingPosition.current?.historical)
+        restorePosition();
+      else if (activeRef.current) {
         if (activeRef.current && target && readerRef.current) {
           landReadingTarget(target, readerRef.current);
           focusMatchTarget(target);
@@ -191,6 +200,34 @@ export function ReferenceReader({
     },
     [reading.request, reading.restoringHistory, restorePosition, focusMatchTarget],
   );
+  useLayoutEffect(() => {
+    const before = atlasRouter.subscribe("onBeforeNavigate", () => {
+      rememberPosition();
+      navigationPending.current = true;
+      restoredRequest.current = undefined;
+      if (pendingPosition.current) pendingPosition.current.historical = true;
+    });
+    const resolved = atlasRouter.subscribe("onResolved", () => {
+      navigationPending.current = false;
+      if (
+        activeRef.current &&
+        pendingPosition.current?.historical &&
+        reading.detail &&
+        (!reading.landing || readyLanding.current === reading.request)
+      )
+        restorePosition();
+    });
+    return () => {
+      before();
+      resolved();
+    };
+  }, [
+    rememberPosition,
+    reading.detail,
+    reading.landing,
+    reading.request,
+    restorePosition,
+  ]);
   useEffect(() => {
     if (
       reading.detail &&

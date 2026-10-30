@@ -11,7 +11,7 @@ import {
 } from "@testing-library/react";
 import { ConfigProvider, Grid } from "antd";
 import { readingScrollGeometry } from "../../test/readingScrollGeometry";
-import { StrictMode, useState } from "react";
+import { Activity, StrictMode, useState } from "react";
 import { getEmbeddedReading, getRecordDetail } from "../../api/atlasApi";
 import {
   activityFixture,
@@ -22,7 +22,7 @@ import {
   similarityEvidenceFixture,
 } from "../../test/fixtures";
 import { ReferenceBrowser } from "./ReferenceBrowser";
-import type { BrowsePositions } from "./useBrowsePositions";
+import { useBrowsePositions, type BrowsePositions } from "./useBrowsePositions";
 import { atlasRouter } from "../../app/router";
 import { parentShowsActivity, useReferenceReading } from "./useReferenceReading";
 import type {
@@ -181,13 +181,16 @@ it.each([
     let geometry: ReturnType<typeof readingScrollGeometry> | undefined;
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     try {
-      render(
+      const tree = (visible: boolean) => (
         <StrictMode>
           <QueryClientProvider client={client}>
-            <Harness />
+            <Activity mode={visible ? "visible" : "hidden"}>
+              <Harness />
+            </Activity>
           </QueryClientProvider>
-        </StrictMode>,
+        </StrictMode>
       );
+      const view = render(tree(true));
       const reader = document.querySelector<HTMLElement>(".reference-reader__scroll")!;
       geometry = readingScrollGeometry(reader);
       const summary = screen.getByRole("link", { name: /^Ghoul/ });
@@ -257,6 +260,13 @@ it.each([
           expect(screen.getByRole("link", { name: /^Ghoul/ })).toHaveFocus(),
         );
       }
+      if (scenario === "immediate strike") {
+        view.rerender(tree(false));
+        reader.scrollTop = 0;
+        fireEvent.scroll(reader);
+        view.rerender(tree(true));
+        await waitFor(() => expect(reader.scrollTop).toBe(425));
+      }
       // A fresh match selection still lands at its exact activity.
       await chooseMatch();
       await waitFor(() => expect(reader.scrollTop).toBe(100));
@@ -324,6 +334,85 @@ it("keeps typed inline activities in their parent but excludes spells and precis
     other.presentation.body.value.activities.value![0].kind = "spell";
   expect(parentShowsActivity(other, navigation)).toBe(false);
 });
+
+it.each(["hidden", "navigation"])(
+  "retains list and reader bookmarks through two Activity cycles with %s zero-scroll events",
+  async (source) => {
+    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true });
+    getDetail.mockResolvedValue(detailFixture("spells:heal", "Heal"));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    function Retained({ visible }: { visible: boolean }) {
+      const positions = useBrowsePositions();
+      return (
+        <Activity mode={visible ? "visible" : "hidden"}>
+          <Harness positions={positions} />
+        </Activity>
+      );
+    }
+    const tree = (visible: boolean) => (
+      <StrictMode>
+        <QueryClientProvider client={client}>
+          <Retained visible={visible} />
+        </QueryClientProvider>
+      </StrictMode>
+    );
+    const view = render(tree(true));
+    fireEvent.click(screen.getByRole("link", { name: /^Heal/ }));
+    await screen.findByRole("heading", { name: "Heal" });
+    const list = view.container.querySelector<HTMLElement>(
+      ".reference-results__scroll",
+    )!;
+    const reader = view.container.querySelector<HTMLElement>(
+      ".reference-reader__scroll",
+    )!;
+    list.scrollTop = 211;
+    reader.scrollTop = 400;
+    fireEvent.scroll(list);
+    fireEvent.scroll(reader);
+    let expectedList = 211;
+    let expectedReader = 400;
+    for (let cycle = 0; cycle < 2; cycle++) {
+      if (source === "navigation") {
+        const unsubscribe = atlasRouter.subscribe("onBeforeNavigate", () => {
+          list.scrollTop = 0;
+          reader.scrollTop = 0;
+          fireEvent.scroll(list);
+          fireEvent.scroll(reader);
+        });
+        await act(async () =>
+          atlasRouter.navigate({ to: cycle === 0 ? "/lists" : "/encounters" }),
+        );
+        unsubscribe();
+        // This harness omits Router's Transitioner; deliver its public settled event.
+        act(() =>
+          atlasRouter.emit({
+            type: "onResolved",
+            toLocation: atlasRouter.latestLocation,
+            pathChanged: true,
+            hrefChanged: true,
+            hashChanged: false,
+          }),
+        );
+        expectedList += 17;
+        expectedReader += 100;
+        list.scrollTop = expectedList;
+        reader.scrollTop = expectedReader;
+        fireEvent.scroll(list);
+        fireEvent.scroll(reader);
+      }
+      view.rerender(tree(false));
+      list.scrollTop = 0;
+      reader.scrollTop = 0;
+      fireEvent.scroll(list);
+      fireEvent.scroll(reader);
+      view.rerender(tree(true));
+      await waitFor(() => {
+        expect(list.scrollTop).toBe(expectedList);
+        expect(reader.scrollTop).toBe(expectedReader);
+      });
+    }
+  },
+);
 
 it.each([true, false])(
   "snapshots only visible scroll hosts before navigation (desktop=%s)",
