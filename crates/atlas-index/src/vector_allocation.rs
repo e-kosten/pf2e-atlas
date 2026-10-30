@@ -170,12 +170,12 @@ mod tests {
             1
         );
         assert!(
-            blocks(&c) < before_blocks,
+            blocks(c) < before_blocks,
             "before={before_blocks},after={},live={}",
-            blocks(&c),
+            blocks(c),
             before.len()
         );
-        assert_eq!(snapshot(&c), before);
+        assert_eq!(snapshot(c), before);
     }
 
     #[test]
