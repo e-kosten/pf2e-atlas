@@ -149,3 +149,79 @@ fn completed_fixture_retrieval_can_skip_projection_at_safe_checkpoint() {
     );
     assert_eq!(projections.load(Ordering::Acquire), 0);
 }
+
+#[test]
+fn fixture_owner_survives_executor_drop_until_accepted_jobs_finish() {
+    use std::time::Instant;
+
+    let builds = Arc::new(AtomicUsize::new(0));
+    let fixture_builds = Arc::clone(&builds);
+    let (retrieval, artifact) = crate::test_support::fixture_retrieval().unwrap();
+    let path = artifact.path();
+    let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, move || {
+        fixture_builds.fetch_add(1, Ordering::AcqRel);
+        Ok((retrieval, artifact))
+    });
+    assert_eq!(builds.load(Ordering::Acquire), 1);
+
+    let execution = ReadExecutionContext::tracked();
+    let gate = Arc::new(ReleaseGate::default());
+    let running_gate = Arc::clone(&gate);
+    let running_path = path.clone();
+    let (entered, entry) = mpsc::channel();
+    let running = executor
+        .enqueue(execution.clone(), move |workspace| {
+            let _ = entered.send(());
+            running_gate.wait()?;
+            assert!(
+                running_path.is_file(),
+                "running job must retain its fixture"
+            );
+            Ok(workspace
+                .retrieval()
+                .list_records(ListRecordsRequest::new(None, SearchPage::new(1, 10)?))?
+                .records
+                .len())
+        })
+        .unwrap();
+    let entered = entry.recv_timeout(Duration::from_secs(2));
+    let queued_path = path.clone();
+    let queued = executor
+        .enqueue(ReadExecutionContext::uncancellable(), move |workspace| {
+            assert!(queued_path.is_file(), "queued job must retain its fixture");
+            Ok(workspace
+                .retrieval()
+                .list_records(ListRecordsRequest::new(None, SearchPage::new(1, 10)?))?
+                .records
+                .len())
+        })
+        .unwrap();
+    execution.abandon();
+    drop(executor);
+    gate.release();
+    entered.unwrap();
+    assert_eq!(
+        running
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap(),
+        4
+    );
+    assert_eq!(
+        queued
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap(),
+        4
+    );
+
+    // Replies precede worker exit. Observe eventual cleanup with a bounded wait.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while path.exists() && Instant::now() < deadline {
+        thread::sleep(Duration::from_millis(1));
+    }
+    assert!(
+        !path.exists(),
+        "last worker must release the fixture artifact"
+    );
+}

@@ -3,6 +3,12 @@
 Status: accepted.
 Date: 2026-10-12
 
+[ADR0051](./0051-persistent-workspace.md) supersedes the retained-reader and
+physical-file startup rules below with bounded reads of one persistent workspace.
+The generation/page contracts remain current. See
+[the runtime architecture](../runtime.md#retrieval-and-application-workflows) for
+current command capabilities and shared-runtime worker startup.
+
 ## Context
 
 Atomic artifact publication protects each opened reader, but independently opened

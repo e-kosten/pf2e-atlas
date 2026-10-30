@@ -6,7 +6,7 @@ fn service() -> (tempfile::TempDir, crate::AtlasAppService) {
     atlas_runtime::initialize_workspace(&path).unwrap();
     let service = crate::AtlasAppService::new(
         crate::service::RetrievalBackend::command(
-            crate::service::CommandRetrievalMode::NoEmbeddings,
+            crate::service::CommandRetrievalMode::NoQueryInference,
         ),
         atlas_runtime::AtlasRuntimeOptions {
             path_mode: atlas_runtime::AtlasPathMode::Global,

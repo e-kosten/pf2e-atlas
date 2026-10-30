@@ -12,7 +12,7 @@ pub(crate) fn run_filters_fields(o: FiltersFieldsOptions) -> Result<ExitCode, St
         path_mode: crate::cli::runtime_path_mode(o.path_mode),
         index: o.index,
         embedding_cache: None,
-        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
+        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference,
     }) {
         Ok(service) => service,
         Err(error) => return crate::commands::product::report_app_error(error, o.json),
@@ -161,7 +161,7 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
         {
             atlas_app_service::AppServiceRetrievalMode::OnDemandEmbeddings
         } else {
-            atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings
+            atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference
         },
     }) {
         Ok(service) => service,
