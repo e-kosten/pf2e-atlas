@@ -45,7 +45,7 @@ pub(crate) fn run_trait_get(options: TraitGetOptions) -> Result<ExitCode, String
         path_mode: crate::cli::runtime_path_mode(options.path_mode),
         index: options.index,
         embedding_cache: None,
-        retrieval_mode: AppServiceRetrievalMode::OnDemandNoEmbeddings,
+        retrieval_mode: AppServiceRetrievalMode::OnDemandNoQueryInference,
     }) {
         Ok(service) => service,
         Err(error) => return report_app_error(error, options.json),

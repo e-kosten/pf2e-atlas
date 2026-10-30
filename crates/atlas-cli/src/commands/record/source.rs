@@ -11,7 +11,7 @@ pub(crate) fn run_record_source(options: RecordSourceOptions) -> Result<ExitCode
         path_mode: crate::cli::runtime_path_mode(options.path_mode),
         index: options.index,
         embedding_cache: None,
-        retrieval_mode: AppServiceRetrievalMode::OnDemandNoEmbeddings,
+        retrieval_mode: AppServiceRetrievalMode::OnDemandNoQueryInference,
     }) {
         Ok(service) => service,
         Err(error) => return crate::commands::product::report_app_error(error, options.json),

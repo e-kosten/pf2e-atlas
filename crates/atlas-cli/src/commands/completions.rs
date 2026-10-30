@@ -35,7 +35,7 @@ fn options() -> Option<atlas_app_service::AtlasAppServiceOptions> {
         source_root: None,
         embedding_cache_root: None,
         index_path: None,
-        retrieval_mode: AppServiceRetrievalMode::OnDemandNoEmbeddings,
+        retrieval_mode: AppServiceRetrievalMode::OnDemandNoQueryInference,
     };
     let args = std::env::args_os().collect::<Vec<_>>();
     let mut args = args.iter().skip(1);

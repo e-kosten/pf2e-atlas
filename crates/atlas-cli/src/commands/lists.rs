@@ -20,7 +20,7 @@ fn client(paths: ListsPathOptions) -> Result<AtlasAppService, atlas_app_model::A
         path_mode: crate::cli::runtime_path_mode(paths.path_mode),
         index: paths.index,
         embedding_cache: None,
-        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
+        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference,
     })
 }
 pub(crate) fn run_lists_create(o: ListCreateOptions) -> Result<ExitCode, String> {

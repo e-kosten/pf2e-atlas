@@ -30,10 +30,8 @@ pub enum AppServiceRetrievalMode {
     FullPool,
     /// Open bounded command reads and retain shared query inference.
     OnDemandEmbeddings,
-    /// Open bounded command reads without query inference.
-    OnDemandNoEmbeddings,
-    /// Open bounded reads of stored vectors without query inference.
-    OnDemandStoredVectors,
+    /// Open bounded command reads, including stored vectors, without query inference.
+    OnDemandNoQueryInference,
 }
 
 impl AtlasAppService {
@@ -48,11 +46,8 @@ impl AtlasAppService {
             AppServiceRetrievalMode::OnDemandEmbeddings => {
                 RetrievalBackend::command(CommandRetrievalMode::QueryEmbeddings)
             }
-            AppServiceRetrievalMode::OnDemandNoEmbeddings => {
-                RetrievalBackend::command(CommandRetrievalMode::NoEmbeddings)
-            }
-            AppServiceRetrievalMode::OnDemandStoredVectors => {
-                RetrievalBackend::command(CommandRetrievalMode::StoredVectors)
+            AppServiceRetrievalMode::OnDemandNoQueryInference => {
+                RetrievalBackend::command(CommandRetrievalMode::NoQueryInference)
             }
         };
         Ok(Self { retrieval, runtime })
@@ -207,7 +202,7 @@ impl AtlasAppService {
         if matches!(
             self.retrieval,
             RetrievalBackend::Command {
-                mode: CommandRetrievalMode::NoEmbeddings | CommandRetrievalMode::StoredVectors
+                mode: CommandRetrievalMode::NoQueryInference
             }
         ) {
             return Err(AppServiceError::new(
@@ -257,8 +252,7 @@ impl RetrievalBackend {
 #[derive(Clone, Copy)]
 pub(super) enum CommandRetrievalMode {
     QueryEmbeddings,
-    NoEmbeddings,
-    StoredVectors,
+    NoQueryInference,
 }
 
 #[cfg(test)]

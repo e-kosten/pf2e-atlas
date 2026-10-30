@@ -16,7 +16,7 @@ fn client(
         path_mode: crate::cli::runtime_path_mode(mode),
         index,
         embedding_cache: None,
-        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
+        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference,
     })
 }
 fn seed(

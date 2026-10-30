@@ -35,7 +35,7 @@ impl Fixture {
             source_root: Some(directory.path().join("unused-source")),
             embedding_cache_root: Some(directory.path().join("unused-models")),
             index_path: Some(directory.path().join("absent.sqlite")),
-            retrieval_mode: AppServiceRetrievalMode::OnDemandNoEmbeddings,
+            retrieval_mode: AppServiceRetrievalMode::OnDemandNoQueryInference,
         })
         .unwrap();
         Self {
@@ -122,7 +122,7 @@ impl Fixture {
             source_root: Some(directory.path().join("unused-source")),
             embedding_cache_root: Some(directory.path().join("unused-models")),
             index_path: Some(path),
-            retrieval_mode: AppServiceRetrievalMode::OnDemandStoredVectors,
+            retrieval_mode: AppServiceRetrievalMode::OnDemandNoQueryInference,
         })
         .unwrap();
         let encounter_key = service

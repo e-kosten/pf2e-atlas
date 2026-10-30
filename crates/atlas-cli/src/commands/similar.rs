@@ -46,11 +46,7 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
         path_mode: crate::cli::runtime_path_mode(o.path_mode),
         index: o.index.clone(),
         embedding_cache: None,
-        retrieval_mode: if o.list_parts {
-            atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings
-        } else {
-            atlas_app_service::AppServiceRetrievalMode::OnDemandStoredVectors
-        },
+        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference,
     }) {
         Ok(service) => service,
         Err(error) => return report_app_error(error, o.json),

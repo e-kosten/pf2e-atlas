@@ -70,7 +70,7 @@ fn source_free_manual_encounter_never_opens_missing_reference_artifact() {
     atlas_runtime::initialize_workspace(&path).unwrap();
     let worker = crate::AtlasAppService::new(
         crate::service::RetrievalBackend::command(
-            crate::service::CommandRetrievalMode::NoEmbeddings,
+            crate::service::CommandRetrievalMode::NoQueryInference,
         ),
         atlas_runtime::AtlasRuntimeOptions {
             default_search_profile: Some(atlas_domain::SearchProfileId::new("bge-base")),
