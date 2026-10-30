@@ -261,9 +261,21 @@ export function ListDetailView({ route }: ListDetailViewProps) {
               key={JSON.stringify([list.data.list.list_key, route.selectedRecordKey])}
               listRef={list.data.list.list_key}
               recordKey={route.selectedRecordKey}
+              initialNote={
+                selectedItem
+                  ? {
+                      list_key: list.data.list.list_key,
+                      slug: list.data.list.slug,
+                      record_key: selectedItem.record_key,
+                      title: selectedItem.snapshot.title,
+                      note: selectedItem.note ?? null,
+                    }
+                  : undefined
+              }
+              initialNoteUpdatedAt={list.dataUpdatedAt}
               hidden={Boolean(
-                reading.request &&
-                reading.request.navigation.record_key !== route.selectedRecordKey,
+                route.selection &&
+                route.selection.record_key !== route.selectedRecordKey,
               )}
             />
           ) : undefined

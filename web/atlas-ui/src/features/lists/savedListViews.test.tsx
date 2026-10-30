@@ -20,7 +20,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { Profiler, type ReactNode } from "react";
 import type {
   RecordDetailView,
   RecordDetailRequest,
@@ -879,6 +879,54 @@ describe("list views", () => {
     expect(apiMocks.filterSavedList).not.toHaveBeenCalled();
     expect(apiMocks.getRecordDetail).not.toHaveBeenCalled();
     expect(apiMocks.reorderSavedListItem).not.toHaveBeenCalled();
+  });
+
+  it("keeps the footer populated on every commit when selecting entries before their note refresh completes", async () => {
+    const list = savedListDetailFixture();
+    list.items = [
+      "actions:testAction1",
+      "actions:testAction2",
+      "actions:testAction3",
+    ].map((record_key, index) => ({
+      ...list.items[0],
+      record_key,
+      position: index + 1,
+      note: index === 2 ? undefined : "Shared preparation note",
+      snapshot: { title: `Test Action ${index + 1}` },
+    }));
+    apiMocks.filterSavedList.mockResolvedValue(list);
+    apiMocks.getSavedListItemNote.mockImplementation(() => new Promise(() => {}));
+    const frames: string[] = [];
+    const pane = (recordKey: string) => (
+      <Profiler
+        id="list"
+        onRender={() => {
+          frames.push(
+            screen.queryByRole("region", { name: "List entry note" })?.textContent ??
+              "missing",
+          );
+        }}
+      >
+        <ListDetailView route={{ slug: "research", selectedRecordKey: recordKey }} />
+      </Profiler>
+    );
+    const view = render(pane("actions:testAction1"), { wrapper: queryClientWrapper() });
+    expect(await screen.findByText("Shared preparation note")).toBeVisible();
+    frames.length = 0;
+    view.rerender(pane("actions:testAction2"));
+    await waitFor(() =>
+      expect(apiMocks.getSavedListItemNote).toHaveBeenCalledWith(
+        "list_research",
+        "actions:testAction2",
+      ),
+    );
+    expect(frames.length).toBeGreaterThan(0);
+    expect(frames.every((text) => text.includes("Shared preparation note"))).toBe(true);
+    expect(screen.getByRole("button", { name: "Edit" })).toBeVisible();
+    view.rerender(pane("actions:testAction3"));
+    expect(screen.queryByText("Shared preparation note")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add note" }));
+    expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue("");
   });
 
   it("keeps temporary order in list URLs and native links without enabling reorder writes", async () => {

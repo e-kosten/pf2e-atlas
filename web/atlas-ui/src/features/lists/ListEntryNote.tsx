@@ -4,16 +4,21 @@ import { Button, Input, Space, Typography } from "antd";
 import type { GetRef } from "antd";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getSavedListItemNote, updateSavedListItemNote } from "../../api/atlasApi";
+import type { SavedListItemNoteView } from "../../generated/atlas";
 import { invalidateSavedListQueries } from "./savedListQueries";
 
 export function ListEntryNote({
   listRef,
   recordKey,
   hidden = false,
+  initialNote,
+  initialNoteUpdatedAt,
 }: {
   listRef: string;
   recordKey: string;
   hidden?: boolean;
+  initialNote?: SavedListItemNoteView;
+  initialNoteUpdatedAt?: number;
 }) {
   const client = useQueryClient();
   const editButton = useRef<HTMLButtonElement>(null);
@@ -26,6 +31,8 @@ export function ListEntryNote({
   const queryKey = ["saved-list-item-note", listRef, recordKey];
   const note = useQuery({
     queryKey,
+    initialData: initialNote,
+    initialDataUpdatedAt: initialNoteUpdatedAt,
     queryFn: () => getSavedListItemNote(listRef, recordKey),
   });
   const [draft, setDraft] = useState<string | null>(null);
