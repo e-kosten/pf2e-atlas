@@ -751,7 +751,7 @@ test("real turn counts retain explanations and guard an explicit action", async 
     ).toBeTruthy();
     await page.goto(`/encounters/${encounter.slug}`);
     await activate(
-      page.getByRole("button", { name: "Atlas Sentinel", exact: true }),
+      page.getByRole("button", { name: "Atlas Sentinel, Current turn", exact: true }),
       info,
     );
     const calculation = page.getByRole("button", {
