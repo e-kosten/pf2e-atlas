@@ -34,7 +34,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
         retrieval_mode: if o.query.is_some() && mode != RetrievalModeView::Lexical {
             atlas_app_service::AppServiceRetrievalMode::OnDemandEmbeddings
         } else {
-            atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings
+            atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference
         },
     }) {
         Ok(service) => service,

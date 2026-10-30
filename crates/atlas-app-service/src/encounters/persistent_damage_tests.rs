@@ -508,7 +508,7 @@ fn source_petrified_fixture(
             source_root: None,
             embedding_cache_root: None,
             index_path: Some(artifact.path()),
-            retrieval_mode: crate::AppServiceRetrievalMode::OnDemandNoEmbeddings,
+            retrieval_mode: crate::AppServiceRetrievalMode::OnDemandNoQueryInference,
         })
         .unwrap(),
     };

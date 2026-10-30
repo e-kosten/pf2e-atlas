@@ -23,7 +23,7 @@ fn missing_artifact_options() -> AtlasRuntimeOptions {
 #[test]
 fn abandoned_public_read_never_opens_lazy_command_reader() {
     let service = AtlasAppService::new(
-        RetrievalBackend::command(CommandRetrievalMode::NoEmbeddings),
+        RetrievalBackend::command(CommandRetrievalMode::NoQueryInference),
         missing_artifact_options(),
     )
     .unwrap();
@@ -54,7 +54,7 @@ fn abandoned_public_read_never_opens_lazy_command_reader() {
 #[test]
 fn abandoned_submission_never_enters_callback_or_opens_reader() {
     let service = AtlasAppService::new(
-        RetrievalBackend::command(CommandRetrievalMode::NoEmbeddings),
+        RetrievalBackend::command(CommandRetrievalMode::NoQueryInference),
         missing_artifact_options(),
     )
     .unwrap();
@@ -76,7 +76,7 @@ fn abandoned_submission_never_enters_callback_or_opens_reader() {
 #[test]
 fn abandoned_discovery_checks_before_saved_list_scope_reads_or_lazy_open() {
     let service = AtlasAppService::new(
-        RetrievalBackend::command(CommandRetrievalMode::NoEmbeddings),
+        RetrievalBackend::command(CommandRetrievalMode::NoQueryInference),
         missing_artifact_options(),
     )
     .unwrap();

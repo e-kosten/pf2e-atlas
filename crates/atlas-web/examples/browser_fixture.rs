@@ -69,7 +69,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         source_root: Some(run_directory.join("unused-source")),
         embedding_cache_root: Some(run_directory.join("unused-models")),
         index_path: Some(index_path),
-        retrieval_mode: AppServiceRetrievalMode::OnDemandStoredVectors,
+        retrieval_mode: AppServiceRetrievalMode::OnDemandNoQueryInference,
     })?;
     let readiness = service.readiness();
     if readiness.status != AppReadinessStatus::Ready

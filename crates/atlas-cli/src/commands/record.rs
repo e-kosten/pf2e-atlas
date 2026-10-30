@@ -21,7 +21,7 @@ pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
         path_mode: crate::cli::runtime_path_mode(o.path_mode),
         index: o.index,
         embedding_cache: None,
-        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
+        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference,
     });
     let s = match connection {
         Ok(service) => service,
@@ -103,7 +103,7 @@ pub(crate) fn run_record_resolve(o: RecordResolveOptions) -> Result<ExitCode, St
         path_mode: crate::cli::runtime_path_mode(o.path_mode),
         index: o.index,
         embedding_cache: None,
-        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoEmbeddings,
+        retrieval_mode: atlas_app_service::AppServiceRetrievalMode::OnDemandNoQueryInference,
     }) {
         Ok(service) => service,
         Err(error) => return report_app_error(error, o.json),

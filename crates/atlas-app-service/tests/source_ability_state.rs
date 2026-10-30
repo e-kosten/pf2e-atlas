@@ -58,7 +58,7 @@ fn fixture_with_items(
         source_root: None,
         embedding_cache_root: None,
         index_path: Some(artifact.path()),
-        retrieval_mode: AppServiceRetrievalMode::OnDemandNoEmbeddings,
+        retrieval_mode: AppServiceRetrievalMode::OnDemandNoQueryInference,
     })
     .unwrap();
     let key = service
