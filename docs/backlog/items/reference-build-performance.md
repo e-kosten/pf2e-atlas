@@ -201,3 +201,27 @@ before additional model/kind integrity checks and earlier release of per-record
 layout metadata. They are preparation measurements, not end-to-end setup claims.
 The existing locations/input hashes supply reuse without a new schema, persisted
 cache or duplicate text corpus. Native token validation remains unchanged.
+
+The final hardened release candidate (`e02cb2af`) also completed a full forced
+setup against a private copy of the controlled seed in **315.68s (5m 16s)**,
+including vector reuse, publication and validation. Both profiles retained 161,735
+semantic units; 323,022 unique inputs were reused and zero inferred. Ordinary
+unchanged setup took **3.33s**, reporting ready with `build_index` skipped. Saved
+state and record identities were unchanged across 23 tables. Compilation and
+asset downloads are excluded. The earlier forced release measurement was 369.77s;
+that is a historical reference, not a new paired control run.
+
+The seed snapshot was 1,738,186,752 bytes and the rebuilt private database was
+1,741,590,528 bytes. There is no new persisted layout payload; physical SQLite
+allocation changed during publication. Peak-memory collection was unavailable:
+macOS `time -l` failed its post-run `kern.clockrate` query in the sandbox, after
+recording wall time. Atlas reported success and the subsequent ordinary setup
+exited successfully. No full debug-profile rebuild was repeated.
+
+The ignored `published_layout_reuse_full_corpus_benchmark` in
+[`atlas-ingest`](../../../crates/atlas-ingest/src/passage_benchmark.rs) reproduces
+the preparation comparison with explicit index, schema, model-cache and evidence
+paths. Its editable source must be a private checkout: the small-update case
+changes one description and restores it. The measured run used a separate Git
+clone under the task checkout's `.atlas/source-fixture`, leaving shared pinned
+source and model assets intact.
