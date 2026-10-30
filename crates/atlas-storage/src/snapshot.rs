@@ -70,7 +70,7 @@ impl WorkspaceInitialization {
             fs::set_permissions(&staged, fs::Permissions::from_mode(0o600))?;
         }
         verify(&staged)?;
-        File::open(&staged)?.sync_all()?;
+        File::options().write(true).open(&staged)?.sync_all()?;
         // Same filesystem; hard-link creation atomically refuses an existing name.
         // The staging name disappears when the temporary directory is dropped.
         fs::hard_link(&staged, &self.path)?;

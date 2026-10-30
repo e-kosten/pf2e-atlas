@@ -222,6 +222,9 @@ jobs:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
         if: needs.changes.outputs.rust == 'true'
+      - name: Verify bounded storage sessions and file release
+        if: needs.changes.outputs.rust == 'true'
+        run: cargo test -p atlas-storage --locked
       - name: Verify artifact coherence and publication
         if: needs.changes.outputs.rust == 'true'
         run: cargo test -p atlas-index --lib --locked foundation_tests
