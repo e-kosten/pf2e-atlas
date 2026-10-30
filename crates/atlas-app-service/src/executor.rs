@@ -35,57 +35,42 @@ pub(super) struct RetrievalExecutor {
 
 impl RetrievalExecutor {
     pub(super) fn start(runtime: Arc<AtlasRuntime>) -> AppServiceResult<Self> {
-        Self::start_with_factory(
+        Self::start_workers(
+            runtime,
             DEFAULT_RETRIEVAL_WORKERS,
             DEFAULT_RETRIEVAL_QUEUE_CAPACITY,
-            move |_| Ok(Arc::clone(&runtime)),
+            |builder, task| builder.spawn(task),
         )
     }
 
-    fn start_with_factory(
+    fn start_workers(
+        runtime: Arc<AtlasRuntime>,
         worker_count: usize,
         queue_capacity: usize,
-        open: impl Fn(usize) -> AppServiceResult<Arc<AtlasRuntime>> + Clone + Send + 'static,
+        mut spawn: impl FnMut(thread::Builder, WorkerTask) -> std::io::Result<thread::JoinHandle<()>>,
     ) -> AppServiceResult<Self> {
         let worker_count = worker_count.max(1);
         let (sender, receiver) = mpsc::sync_channel(queue_capacity);
         let receiver = Arc::new(Mutex::new(receiver));
         let mut workers = Vec::with_capacity(worker_count);
-        #[cfg(test)]
-        let mut retained_runtime = None;
 
         for index in 0..worker_count {
             let receiver = Arc::clone(&receiver);
-            let open = open.clone();
-            let started = spawn_retrieval_worker(
-                format!("atlas-app-retrieval-{index}"),
-                receiver,
-                move || open(index),
-            );
-            let startup = match started {
-                Ok((worker, startup)) => {
-                    workers.push(worker);
-                    startup
-                }
-                Err(error) => return Err(close_started_workers(sender, workers, error)),
-            };
-            match startup.recv() {
-                Ok(Ok(runtime)) => {
-                    #[cfg(test)]
-                    {
-                        retained_runtime.get_or_insert(runtime);
-                    }
-                    #[cfg(not(test))]
-                    {
-                        drop(runtime);
-                    }
-                }
-                Ok(Err(error)) => return Err(close_started_workers(sender, workers, error)),
+            let runtime = Arc::clone(&runtime);
+            let builder = thread::Builder::new().name(format!("atlas-app-retrieval-{index}"));
+            match spawn(
+                builder,
+                Box::new(move || retrieval_worker(&runtime, receiver)),
+            ) {
+                Ok(worker) => workers.push(worker),
                 Err(error) => {
                     return Err(close_started_workers(
                         sender,
                         workers,
-                        AppServiceError::new(AppErrorCode::InternalError, error.to_string()),
+                        AppServiceError::new(
+                            AppErrorCode::InternalError,
+                            format!("failed to start retrieval worker: {error}"),
+                        ),
                     ));
                 }
             }
@@ -96,7 +81,7 @@ impl RetrievalExecutor {
             #[cfg(test)]
             last_read_metrics: Default::default(),
             #[cfg(test)]
-            runtime: retained_runtime,
+            runtime: Some(runtime),
             #[cfg(test)]
             worker_count,
             #[cfg(test)]
@@ -238,67 +223,46 @@ impl RetrievalExecutor {
     pub(super) fn from_test_fixture_factory(
         worker_count: usize,
         queue_capacity: usize,
-        open_fixture: impl Fn() -> Result<
+        open_fixture: impl FnOnce() -> Result<
             (
                 AtlasRetrievalService,
                 atlas_search::test_support::FixtureArtifact,
             ),
             Box<dyn std::error::Error>,
-        > + Send
-        + Sync
-        + Clone
-        + 'static,
+        >,
     ) -> Self {
         let (retrieval, artifact) = open_fixture().expect("fixture artifact should be built once");
         drop(retrieval);
         atlas_runtime::initialize_workspace(artifact.path())
             .expect("fixture workspace should initialize through runtime migrations");
-        let artifact = Arc::new(artifact);
-        Self::start_with_factory(worker_count, queue_capacity, move |_| {
-            let options = AtlasRuntimeOptions {
-                overrides: atlas_runtime::AtlasPathOverrides {
-                    index_path: Some(artifact.path()),
-                    ..Default::default()
-                },
+        let options = AtlasRuntimeOptions {
+            overrides: atlas_runtime::AtlasPathOverrides {
+                index_path: Some(artifact.path()),
                 ..Default::default()
-            };
-            Ok(Arc::new(AtlasRuntime::resolve(options)?))
-        })
-        .expect("fixture workers should open the same retained artifact")
+            },
+            ..Default::default()
+        };
+        let runtime =
+            Arc::new(AtlasRuntime::resolve(options).expect("fixture runtime should resolve"));
+        let artifact = Arc::new(artifact);
+        Self::start_workers(
+            runtime,
+            worker_count,
+            queue_capacity,
+            move |builder, task| {
+                let artifact = Arc::clone(&artifact);
+                builder.spawn(move || {
+                    // A worker can outlive its executor while accepted jobs finish.
+                    let _artifact = artifact;
+                    task();
+                })
+            },
+        )
+        .expect("fixture workers should share the retained runtime and artifact")
     }
 }
 
-type WorkerStartup = (
-    thread::JoinHandle<()>,
-    Receiver<AppServiceResult<Arc<AtlasRuntime>>>,
-);
-
-fn spawn_retrieval_worker(
-    name: String,
-    receiver: Arc<Mutex<Receiver<RetrievalJob>>>,
-    open: impl Fn() -> AppServiceResult<Arc<AtlasRuntime>> + Send + 'static,
-) -> AppServiceResult<WorkerStartup> {
-    let (startup_sender, startup_receiver) = mpsc::channel();
-    let worker = thread::Builder::new()
-        .name(name)
-        .spawn(move || match open() {
-            Ok(runtime) => {
-                let _ = startup_sender.send(Ok(Arc::clone(&runtime)));
-                retrieval_worker(&runtime, receiver);
-            }
-            Err(error) => {
-                let _ = startup_sender.send(Err(error));
-            }
-        })
-        .map_err(|error| {
-            AppServiceError::new(
-                AppErrorCode::InternalError,
-                format!("failed to start retrieval worker: {error}"),
-            )
-        })?;
-
-    Ok((worker, startup_receiver))
-}
+type WorkerTask = Box<dyn FnOnce() + Send + 'static>;
 
 fn close_started_workers(
     sender: SyncSender<RetrievalJob>,
@@ -307,8 +271,8 @@ fn close_started_workers(
 ) -> AppServiceError {
     drop(sender);
     for worker in workers {
-        // A panic already caused a failed/lost startup report. Joining still
-        // waits for its resources to drop; preserve the original startup error.
+        // Wait for resources held by every started worker before returning
+        // the original thread-spawn error.
         let _ = worker.join();
     }
     error
