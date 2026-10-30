@@ -130,16 +130,18 @@ test("a Similarity inventory outage preserves settings and recovers as a read", 
   await activate(settings, info);
   let dialog = page.getByRole("dialog", { name: "Search settings", exact: true });
   // The section preset is a mutable draft even while its inventory is unavailable.
-  await activate(
-    dialog.getByRole("combobox", { name: "Source sections", exact: true }),
-    info,
-  );
-  await activate(
-    page
-      .locator(".ant-select-dropdown:visible")
-      .getByText("Core sections", { exact: true }),
-    info,
-  );
+  const sourceSections = dialog.getByRole("combobox", {
+    name: "Source sections",
+    exact: true,
+  });
+  await activate(sourceSections, info);
+  await expect(sourceSections).toHaveAttribute("aria-expanded", "true");
+  const dropdown = page.locator(".ant-select-dropdown:visible");
+  await expect(dropdown).toBeVisible();
+  await expect(dropdown).not.toHaveClass(/ant-slide-up-(?:appear|enter)(?:[-\s]|$)/);
+  await activate(dropdown.getByText("Core sections", { exact: true }), info);
+  await expect(sourceSections).toHaveAttribute("aria-expanded", "false");
+  await expect(sourceSections.locator("..")).toHaveText("Core sections");
   await expect(
     dialog.getByRole("button", { name: "Choose sections", exact: true }),
   ).toBeEnabled();
@@ -168,6 +170,8 @@ test("a Similarity inventory outage preserves settings and recovers as a read", 
     dialog.getByRole("button", { name: "Apply", exact: true }),
   ).toBeEnabled();
   expect(attempts).toBe(3);
+  await expect(sourceSections).toHaveAttribute("aria-expanded", "false");
+  await expect(sourceSections.locator("..")).toHaveText("Core sections");
   await expect(dialog.getByText("Core sections", { exact: true })).toBeVisible();
   await activate(
     dialog.getByRole("button", { name: "Choose sections", exact: true }),
