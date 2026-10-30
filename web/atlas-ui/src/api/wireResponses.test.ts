@@ -205,6 +205,24 @@ it.each([null, 42, "unavailable"])(
   },
 );
 
+it.each([null, 42, "invalid"])(
+  "rejects present malformed condition parameters %s",
+  async (parameters) => {
+    respond({
+      ...wire.encounter,
+      participants: [
+        {
+          ...wire.encounter.participants[0],
+          conditions: [{ ...wire.encounter.participants[0].conditions[0], parameters }],
+        },
+      ],
+    });
+    await expect(getEncounter("fixture-encounter")).rejects.toThrow(
+      "Invalid condition parameters",
+    );
+  },
+);
+
 it("preserves omitted persistent DC, rejects explicit null and retains object validation", async () => {
   const condition = wire.encounter.participants[0].conditions[0];
   const encounter = (recovery: unknown) => ({

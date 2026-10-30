@@ -112,6 +112,8 @@ export function convertCondition(
   if (!value || typeof value !== "object")
     throw new AtlasApiError(200, "Invalid encounter condition");
   const { value: magnitude, duration, parameters, ...rest } = value;
+  if (parameters !== undefined && (!parameters || typeof parameters !== "object"))
+    throw new AtlasApiError(200, "Invalid condition parameters");
   if (duration !== undefined && (!duration || typeof duration !== "object"))
     throw new AtlasApiError(200, "Invalid condition duration");
   return {

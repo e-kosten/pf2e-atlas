@@ -12,10 +12,10 @@ use std::{error::Error, fs, io, net::SocketAddr, path::PathBuf};
 
 use atlas_app_model::AppReadinessStatus;
 use atlas_app_service::{AppServiceRetrievalMode, AtlasAppService, AtlasAppServiceOptions};
-use atlas_domain::{SearchProfileId, TraitKey};
-use atlas_index::TraitDefinition;
+use atlas_domain::{SearchProfileId, SourceByteRange, SourcePassageAddress, TraitKey};
+use atlas_index::{TraitDefinition, TraitSeedChunk, TraitVectorInput};
 use atlas_runtime::AtlasPathMode;
-use atlas_search::test_support::input;
+use atlas_search::test_support::{hash, input};
 use tokio::net::TcpListener;
 
 #[tokio::main]
@@ -50,8 +50,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
     let index_path = run_directory.join("artifact.sqlite");
     let mut fixture = input(corpus::records(), true);
+    let trait_key = TraitKey::new("light")?;
     fixture.traits.push(TraitDefinition {
-        key: TraitKey::new("light")?,
+        key: trait_key.clone(),
         label: "Light".into(),
         label_key: None,
         description_key: None,
@@ -62,6 +63,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
         source_locations: vec![],
         source_revision: None,
         indexing_locale: "en".into(),
+    });
+    let mut vector = vec![0.; 768];
+    vector[0] = 1.;
+    let chunk_hash = hash(b"Light\n");
+    fixture.trait_vectors.push(TraitVectorInput {
+        key: trait_key,
+        profile_id: SearchProfileId::new("bge-base"),
+        input_hash: hash(format!("trait-definition-centroid/v1:{chunk_hash}").as_bytes()),
+        vector: vector.clone(),
+        chunks: vec![TraitSeedChunk {
+            input: "Light\n".into(),
+            input_hash: chunk_hash.clone(),
+            token_count: 2,
+            vector,
+            address: SourcePassageAddress::PlainSection {
+                source_text_sha256: chunk_hash,
+                selection_version: "trait-definition-centroid/v1".into(),
+                section_ordinal: 0,
+                label: Some("Light".into()),
+                chunk_bytes: SourceByteRange { start: 0, end: 6 },
+            },
+        }],
     });
     // Give distinct roots positive overlap so the default passage comparison
     // exercises result navigation. The shared fixture's orthogonal vectors
