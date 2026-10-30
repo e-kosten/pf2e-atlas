@@ -25,7 +25,6 @@ import type {
   RelationshipOccurrencesRequest,
   RelationshipOccurrencesPage,
   RecordDetailView,
-  RecordPresentationView,
   RecordDetailRequest,
   EmbeddedReadingRequest,
   EmbeddedReadingBatchView,
@@ -54,6 +53,20 @@ import {
   getCompatibilityFailure,
 } from "./compatibility";
 import { AtlasConnectionError } from "./availability";
+import { AtlasApiError } from "./apiError";
+import { toBigInt, type Wire } from "./wire";
+import { convertSearchPage } from "./pageConversion";
+import {
+  convertEncounterDetail,
+  convertConditionParameters,
+  convertPersistentGroup,
+} from "./encounterConversion";
+import {
+  convertRecordDetail,
+  convertPreparedContentField,
+  convertPreparedFieldBody,
+} from "./presentationConversion";
+export { AtlasApiError } from "./apiError";
 
 const API_BASE = import.meta.env.VITE_ATLAS_API_BASE ?? "";
 
@@ -61,18 +74,6 @@ export async function verifyBackendCompatibility(): Promise<true> {
   await atlasFetch("/api/compatibility", { cache: "no-store" });
   clearCompatibilityFailure();
   return true;
-}
-
-export class AtlasApiError extends Error {
-  readonly appError?: AppError;
-  readonly status: number;
-
-  constructor(status: number, message: string, appError?: AppError) {
-    super(message);
-    this.name = "AtlasApiError";
-    this.status = status;
-    this.appError = appError;
-  }
 }
 
 export async function getReadiness(): Promise<AppReadinessView> {
@@ -144,7 +145,9 @@ export async function getRelationshipOccurrences(
     throw new AtlasApiError(200, "Invalid relationship links response");
   return {
     ...value,
-    page: { ...value.page, total: toBigInt(value.page.total) },
+    page: convertSearchPage(
+      value.page as Wire<import("../generated/atlas").SearchPageView>,
+    ),
   } as RelationshipOccurrencesPage;
 }
 
@@ -153,25 +156,43 @@ export async function getRecordDetail(
   selection?: RecordDetailRequest,
   signal?: AbortSignal,
 ): Promise<RecordDetailView> {
-  return selection
-    ? atlasFetch("/api/records/detail", {
+  const detail = await (selection
+    ? atlasFetch<Wire<RecordDetailView>>("/api/records/detail", {
         intent: "read",
         method: "POST",
         body: jsonBody(selection),
         signal,
       })
-    : atlasFetch(`/api/records/${encodeURIComponent(recordKey)}`, { signal });
+    : atlasFetch<Wire<RecordDetailView>>(
+        `/api/records/${encodeURIComponent(recordKey)}`,
+        { signal },
+      ));
+  return convertRecordDetail(detail);
 }
 export async function getEmbeddedReading(
   request: EmbeddedReadingRequest,
   signal?: AbortSignal,
 ): Promise<EmbeddedReadingBatchView> {
-  return atlasFetch("/api/records/embedded-reading", {
-    intent: "read",
-    method: "POST",
-    body: jsonBody(request),
-    signal,
-  });
+  const result = await atlasFetch<Wire<EmbeddedReadingBatchView>>(
+    "/api/records/embedded-reading",
+    {
+      intent: "read",
+      method: "POST",
+      body: jsonBody(request),
+      signal,
+    },
+  );
+  return {
+    ...result,
+    entries: Array.isArray(result.entries)
+      ? result.entries.map((entry) => ({
+          ...entry,
+          content: Array.isArray(entry.content)
+            ? entry.content.map(convertPreparedContentField)
+            : entry.content,
+        }))
+      : result.entries,
+  };
 }
 export async function getEncounterReference(
   encounterRef: string,
@@ -179,7 +200,7 @@ export async function getEncounterReference(
   request: import("../generated/atlas").EncounterReferenceRequest,
   signal?: AbortSignal,
 ): Promise<RecordDetailView> {
-  const detail = await atlasFetch<RecordDetailView>(
+  const detail = await atlasFetch<Wire<RecordDetailView>>(
     `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(participantKey)}/reference`,
     {
       signal,
@@ -188,7 +209,7 @@ export async function getEncounterReference(
       body: jsonBody(request),
     },
   );
-  return { ...detail, presentation: normalizeConditionNotes(detail.presentation) };
+  return convertRecordDetail(detail);
 }
 
 export async function getEncounters(): Promise<EncounterIndexView> {
@@ -205,7 +226,11 @@ export async function getEncounterConditionDefinitions(
 }
 
 export async function getEncounter(encounterRef: string): Promise<EncounterDetailView> {
-  return atlasFetchEncounter(`/api/encounters/${encodeURIComponent(encounterRef)}`);
+  return convertEncounterDetail(
+    await atlasFetch<Wire<EncounterDetailView>>(
+      `/api/encounters/${encodeURIComponent(encounterRef)}`,
+    ),
+  );
 }
 
 export async function createEncounter(
@@ -960,35 +985,6 @@ function validateResponseNumbers(value: unknown): void {
   else if (isRecord(value)) Object.values(value).forEach(validateResponseNumbers);
 }
 
-function normalizeConditionNotes(
-  presentation: RecordPresentationView,
-): RecordPresentationView {
-  const body = presentation.body;
-  const actor =
-    body.kind === "creature"
-      ? body.value
-      : body.kind === "hazard"
-        ? body.value.actor
-        : null;
-  if (!actor?.runtime) return presentation;
-  const value = {
-    ...actor,
-    runtime: {
-      ...actor.runtime,
-      unapplied_effects: actor.runtime.unapplied_effects.map((note) =>
-        note.condition_id === undefined
-          ? note
-          : { ...note, condition_id: toBigInt(note.condition_id) },
-      ),
-    },
-  };
-  return body.kind === "creature"
-    ? { ...presentation, body: { ...body, value } }
-    : body.kind === "hazard"
-      ? { ...presentation, body: { ...body, value: { ...body.value, actor: value } } }
-      : presentation;
-}
-
 async function atlasFetchEncounter<T>(
   path: string,
   init: AtlasRequestInit = {},
@@ -1012,37 +1008,16 @@ async function atlasFetchEncounter<T>(
   };
   const conditionParameters = (value: unknown) => {
     if (!isRecord(value)) throw new AtlasApiError(200, "Invalid condition parameters");
-    if (value.kind === "sickened")
-      return { ...value, ...optionalIntegers(value, ["recovery_dc"]) };
-    if (value.kind === "persistent_damage") {
-      if (!isRecord(value.recovery))
-        throw new AtlasApiError(200, "Invalid persistent recovery");
-      return {
-        ...value,
-        recovery: { ...value.recovery, ...optionalIntegers(value.recovery, ["dc"]) },
-      };
-    }
-    return value;
+    return convertConditionParameters(
+      value as Wire<
+        import("../generated/atlas").EncounterParticipantConditionView["parameters"]
+      >,
+    );
   };
-  const persistentGroup = (value: unknown) => {
-    if (!isRecord(value) || !Array.isArray(value.sources))
-      throw new AtlasApiError(200, "Invalid persistent damage group");
-    return {
-      ...value,
-      selected_source_id: toBigInt(value.selected_source_id),
-      sources: value.sources.map((source) => {
-        if (!isRecord(source))
-          throw new AtlasApiError(200, "Invalid persistent damage source");
-        return {
-          ...source,
-          condition_id:
-            source.condition_id === null ? null : toBigInt(source.condition_id),
-          recovery_dc:
-            source.recovery_dc === null ? null : toBigInt(source.recovery_dc),
-        };
-      }),
-    };
-  };
+  const persistentGroup = (value: unknown) =>
+    convertPersistentGroup(
+      value as Wire<import("../generated/atlas").PersistentDamageGroupView>,
+    );
   const condition = (value: unknown) => {
     if (!isRecord(value)) throw new AtlasApiError(200, "Invalid encounter condition");
     return {
@@ -1062,65 +1037,6 @@ async function atlasFetchEncounter<T>(
       return { ...value, condition_ids: value.condition_ids.map(toBigInt) };
     }
     return condition(value);
-  };
-  const participant = (value: unknown) => {
-    if (!isRecord(value) || !Array.isArray(value.conditions))
-      throw new AtlasApiError(200, "Invalid encounter participant");
-    if (
-      typeof value.revision !== "number" ||
-      !Number.isSafeInteger(value.revision) ||
-      value.revision < 0
-    )
-      throw new AtlasApiError(200, "Invalid participant revision in API response");
-    return {
-      ...value,
-      revision: BigInt(value.revision),
-      position: toBigInt(value.position),
-      initiative_order: toBigInt(value.initiative_order),
-      temporary_hp: toBigInt(value.temporary_hp),
-      ...optionalIntegers(value, [
-        "initiative",
-        "max_hp",
-        "current_hp",
-        "level_override",
-      ]),
-      ...(value.base_death_threshold === undefined
-        ? {}
-        : { base_death_threshold: toBigInt(value.base_death_threshold) }),
-      conditions: value.conditions.map(condition),
-      ...(Array.isArray(value.ability_states)
-        ? {
-            ability_states: value.ability_states.map((ability) => {
-              if (!isRecord(ability) || !isRecord(ability.state))
-                throw new AtlasApiError(200, "Invalid ability state");
-              return {
-                ...ability,
-                state:
-                  ability.state.kind === "uses"
-                    ? {
-                        ...ability.state,
-                        remaining: toBigInt(ability.state.remaining),
-                        maximum: toBigInt(ability.state.maximum),
-                      }
-                    : ability.state,
-              };
-            }),
-          }
-        : {}),
-      ...(Array.isArray(value.persistent_damage_groups)
-        ? {
-            persistent_damage_groups:
-              value.persistent_damage_groups.map(persistentGroup),
-          }
-        : {}),
-      ...(value.presentation === undefined
-        ? {}
-        : {
-            presentation: normalizeConditionNotes(
-              value.presentation as RecordPresentationView,
-            ),
-          }),
-    };
   };
   if (isRecord(result.persistent_precedence)) {
     const source = (value: unknown) => {
@@ -1168,10 +1084,6 @@ async function atlasFetchEncounter<T>(
   if (Array.isArray(result.encounters))
     result.encounters = result.encounters.map(summary);
   if (result.encounter !== undefined) result.encounter = summary(result.encounter);
-  if (Array.isArray(result.participants)) {
-    result.revision = toBigInt(result.revision);
-    result.participants = result.participants.map(participant);
-  }
   if (Array.isArray(result.reminders)) {
     result.expected_revision = toBigInt(result.expected_revision);
     result.reminders = result.reminders.map(reminder);
@@ -1264,10 +1176,7 @@ function normalizeSearchResultsPage(value: unknown): SearchResultsPage {
   const page = isRecord(value.page) ? value.page : {};
   return {
     ...value,
-    page: {
-      ...page,
-      total: toBigInt(page.total),
-    },
+    page: convertSearchPage(page as Wire<import("../generated/atlas").SearchPageView>),
     rows: Array.isArray(value.rows)
       ? value.rows.map((row) =>
           isRecord(row)
@@ -1278,10 +1187,11 @@ function normalizeSearchResultsPage(value: unknown): SearchResultsPage {
                       isRecord(evidence) && isRecord(evidence.page)
                         ? {
                             ...evidence,
-                            page: {
-                              ...evidence.page,
-                              total: toBigInt(evidence.page.total),
-                            },
+                            page: convertSearchPage(
+                              evidence.page as Wire<
+                                import("../generated/atlas").SearchPageView
+                              >,
+                            ),
                           }
                         : evidence,
                     )
@@ -1325,19 +1235,6 @@ function normalizeFilterValueList(value: unknown): FilterValueListView {
     }
   }
   throw new AtlasApiError(200, "Invalid filter-value response");
-}
-
-function toBigInt(value: unknown): bigint {
-  if (typeof value === "bigint") {
-    return value;
-  }
-  if (typeof value === "number" && Number.isSafeInteger(value)) {
-    return BigInt(value);
-  }
-  if (typeof value === "string" && /^-?\d+$/.test(value)) {
-    return BigInt(value);
-  }
-  throw new AtlasApiError(200, "Invalid numeric field in API response");
 }
 
 function checkedSavedListDetail(value: unknown): SavedListDetailView {
@@ -1395,11 +1292,20 @@ export async function discoverFilterCounts(
 export async function rollTable(
   request: import("../generated/atlas").RollTableRequest,
 ): Promise<import("../generated/atlas").TableRollView> {
-  return atlasFetch("/api/rolls/table", {
-    intent: "action",
-    method: "POST",
-    body: jsonBody(request),
-  });
+  const result = await atlasFetch<Wire<import("../generated/atlas").TableRollView>>(
+    "/api/rolls/table",
+    {
+      intent: "action",
+      method: "POST",
+      body: jsonBody(request),
+    },
+  );
+  return {
+    ...result,
+    matches: Array.isArray(result.matches)
+      ? result.matches.map(convertRecordDetail)
+      : result.matches,
+  };
 }
 
 export async function getEncounterStrikeOptions(
@@ -1430,14 +1336,18 @@ export async function rollEncounterStrike(
   });
 }
 
-export function rollFlatCheck(
+export async function rollFlatCheck(
   request: import("../generated/atlas").RollFlatCheckRequest,
 ): Promise<import("../generated/atlas").FlatCheckRollView> {
-  return atlasFetch("/api/rolls/flat-check", {
-    intent: "action",
-    method: "POST",
-    body: jsonBody(request),
-  });
+  const result = await atlasFetch<Wire<import("../generated/atlas").FlatCheckRollView>>(
+    "/api/rolls/flat-check",
+    {
+      intent: "action",
+      method: "POST",
+      body: jsonBody(request),
+    },
+  );
+  return { ...result, dc: toBigInt(result.dc) };
 }
 export async function getParties(): Promise<
   import("../generated/atlas").PartyIndexView
@@ -1509,7 +1419,7 @@ export async function getTraitDetail(
   request: import("../generated/atlas").TraitDetailRequest,
   signal?: AbortSignal,
 ): Promise<import("../generated/atlas").TraitDetailView> {
-  const result: import("../generated/atlas").TraitDetailView = await atlasFetch(
+  const result = await atlasFetch<Wire<import("../generated/atlas").TraitDetailView>>(
     "/api/traits/detail",
     {
       intent: "read",
@@ -1520,13 +1430,19 @@ export async function getTraitDetail(
   );
   if (result.trait_key !== request.trait_key)
     throw new Error("The trait response does not match this request. Retry.");
-  return result;
+  return {
+    ...result,
+    content:
+      result.content == null
+        ? result.content
+        : { ...result.content, body: convertPreparedFieldBody(result.content.body) },
+  };
 }
 export async function getTraitRecords(
   request: import("../generated/atlas").TraitRecordsRequest,
   signal?: AbortSignal,
 ): Promise<import("../generated/atlas").TraitRecordsPage> {
-  const result: import("../generated/atlas").TraitRecordsPage = await atlasFetch(
+  const result = await atlasFetch<Wire<import("../generated/atlas").TraitRecordsPage>>(
     "/api/traits/records",
     {
       intent: "read",
@@ -1551,7 +1467,7 @@ export async function getTraitRecords(
     throw new Error(
       "The Similar response does not match the selected search model. Retry.",
     );
-  return result;
+  return { ...result, page: convertSearchPage(result.page) };
 }
 
 export async function updateEncounterAbilityState(
@@ -1609,11 +1525,14 @@ export async function previewEncounterRecovery(
   request: import("../generated/atlas").PreviewEncounterRecoveryRequest,
   signal?: AbortSignal,
 ): Promise<import("../generated/atlas").EncounterRecoveryPreviewView> {
-  const result: import("../generated/atlas").EncounterRecoveryPreviewView =
-    await atlasFetch(
-      `/api/encounters/${encodeURIComponent(encounterRef)}/recovery/preview`,
-      { intent: "read", method: "POST", body: jsonBody(request), signal },
-    );
+  const result = await atlasFetch<
+    Wire<import("../generated/atlas").EncounterRecoveryPreviewView>
+  >(`/api/encounters/${encodeURIComponent(encounterRef)}/recovery/preview`, {
+    intent: "read",
+    method: "POST",
+    body: jsonBody(request),
+    signal,
+  });
   return {
     ...result,
     encounter_revision: toBigInt(result.encounter_revision),
