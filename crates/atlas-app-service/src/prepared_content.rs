@@ -18,13 +18,15 @@ pub(crate) struct RuntimeContentContext {
 /// One field namespace's values and the identities needed to recheck its dice.
 pub(crate) struct PreparedContentContext<'a> {
     pub fingerprint: &'a str,
+    pub retrieval: &'a atlas_search::AtlasRetrievalService,
+    pub item_traits: Vec<String>,
     pub formula: atlas_record::source_content::FormulaContext,
     pub spell_rank: Option<u8>,
     pub encounter: Option<ContentRollEncounterContext>,
 }
 impl<'a> PreparedContentContext<'a> {
     pub fn source(
-        fingerprint: &'a str,
+        retrieval: &'a atlas_search::AtlasRetrievalService,
         record: &atlas_record::source_record::SourceBackedRecord,
         owners: &[OwnedContentLocator],
         rank: Option<u8>,
@@ -66,8 +68,14 @@ impl<'a> PreparedContentContext<'a> {
                 formula.item_rank = Some(*rank)
             }
         }
+        let item_traits = match node {
+            Some(SourceNodeView::Item(item)) => item.traits().value().unwrap_or(&[]).to_vec(),
+            _ => vec![],
+        };
         Self {
-            fingerprint,
+            fingerprint: retrieval.source_fingerprint(),
+            retrieval,
+            item_traits,
             spell_rank: formula.item_rank,
             formula,
             encounter: None,
@@ -107,6 +115,7 @@ pub(crate) fn prepared_fields(
             (SourceFieldView::Value(_), SourceFieldView::Value(SourceContentFormat::Html)) => {
                 if bounded.contains(&locator) {
                     fields.push(PreparedContentFieldView {
+                        routine_header: None,
                         locator: content_location(locator),
                         role: format!("{:?}", s.role).to_lowercase(),
                         source_fingerprint: navigation_fingerprint(owners, context.fingerprint),
@@ -126,12 +135,12 @@ pub(crate) fn prepared_fields(
                 match &cached.html {
                     Some(html) => PreparedFieldBodyView::Html {
                         inclusions: vec![],
-                        html: atlas_record::source_content::render_contextual_interactions(
-                            html,
+                        html: render_field_content(html, &cached.interactions, context),
+                        controls: content_controls(
                             &cached.interactions,
-                            &context.formula,
+                            Some((&locator, context)),
+                            context.retrieval,
                         ),
-                        controls: content_controls(&cached.interactions, Some((&locator, context))),
                     },
                     None if cached.outcome == "empty" => PreparedFieldBodyView::Html {
                         inclusions: vec![],
@@ -170,6 +179,7 @@ pub(crate) fn prepared_fields(
             _ => section_rendering(&body)?,
         };
         fields.push(PreparedContentFieldView {
+            routine_header: None,
             section_rendering,
             locator: content_location(locator),
             role: format!("{:?}", s.role).to_lowercase(),
@@ -177,12 +187,24 @@ pub(crate) fn prepared_fields(
             body,
         });
     }
+    for field in &mut fields {
+        if let (Some(rendering), Some(cached)) = (
+            &mut field.section_rendering,
+            cache.iter().find(|cached| {
+                cached.locator.field == field.locator.field && cached.locator.owners == owners
+            }),
+        ) {
+            rendering.html = render_field_content(&rendering.html, &cached.interactions, context);
+        }
+        project_routine_header(field, context.retrieval);
+    }
     Ok(fields)
 }
 
 pub(crate) fn content_controls(
     interactions: &[atlas_record::source_content::ContentInteraction],
     source: Option<(&SourceContentLocator, &PreparedContentContext<'_>)>,
+    retrieval: &atlas_search::AtlasRetrievalService,
 ) -> Vec<ContentControlView> {
     interactions
         .iter()
@@ -193,6 +215,13 @@ pub(crate) fn content_controls(
                     ContentControlKindView::Check {
                         statistic: statistic.clone(),
                         options: options.clone(),
+                        details: check_details(
+                            options,
+                            source
+                                .map(|(_, ctx)| ctx.item_traits.as_slice())
+                                .unwrap_or(&[]),
+                            retrieval,
+                        ),
                     }
                 }
                 ContentInteractionKind::Damage { formula, options } => {
@@ -365,12 +394,8 @@ pub(crate) fn resolve_runtime_content(
     if !needs_context {
         return Ok(());
     }
-    let mut context = PreparedContentContext::source(
-        r.source_fingerprint(),
-        source,
-        &view.selected.owners,
-        view.selected.spell_rank,
-    );
+    let mut context =
+        PreparedContentContext::source(r, source, &view.selected.owners, view.selected.spell_rank);
     if context.formula.item_is_spell {
         context.formula.item_rank = view.selected.spell_rank;
         context.spell_rank = view.selected.spell_rank;
@@ -415,15 +440,17 @@ pub(crate) fn resolve_runtime_content(
             } else {
                 authored
             };
-            *html = atlas_record::source_content::render_contextual_interactions(
-                authored,
-                &cached.interactions,
-                &context.formula,
-            );
+            *html = render_field_content(authored, &cached.interactions, &context);
             field.section_rendering =
                 contextual_section_rendering(authored, &cached.interactions, &context.formula)?;
-            *controls = content_controls(&cached.interactions, Some((&cached.locator, &context)));
+            *controls =
+                content_controls(&cached.interactions, Some((&cached.locator, &context)), r);
             inclusions.clear();
+            if let Some(rendering) = &mut field.section_rendering {
+                rendering.html =
+                    render_field_content(&rendering.html, &cached.interactions, &context);
+            }
+            project_routine_header(field, r);
         }
     }
     crate::inline_content::compose_inline_content(
@@ -494,4 +521,80 @@ mod section_rendering_tests {
             .is_none()
         );
     }
+}
+
+fn trait_badges(
+    traits: &[String],
+    retrieval: &atlas_search::AtlasRetrievalService,
+) -> Vec<RecordBadgeView> {
+    traits
+        .iter()
+        .map(|value| RecordBadgeView {
+            kind: "trait".into(),
+            value: value.clone(),
+            label: retrieval.trait_label(value).unwrap_or(value).to_owned(),
+            trait_key: retrieval
+                .trait_label(value)
+                .and_then(|_| atlas_domain::TraitKey::new(value.clone()).ok())
+                .map(|key| key.to_string()),
+        })
+        .collect()
+}
+fn check_details(
+    options: &std::collections::BTreeMap<String, String>,
+    item_traits: &[String],
+    retrieval: &atlas_search::AtlasRetrievalService,
+) -> Option<CheckDetailsView> {
+    let traits = atlas_record::source_content::check_traits(options, item_traits);
+    traits
+        .iter()
+        .any(|t| t != "secret")
+        .then(|| CheckDetailsView {
+            traits: trait_badges(&traits, retrieval),
+        })
+}
+
+pub(crate) fn project_routine_header(
+    field: &mut PreparedContentFieldView,
+    retrieval: &atlas_search::AtlasRetrievalService,
+) {
+    if field.role != "routine" {
+        return;
+    }
+    let PreparedFieldBodyView::Html { html, .. } = &mut field.body else {
+        return;
+    };
+    let Some(header) = atlas_record::source_content::routine_header(html) else {
+        return;
+    };
+    if let Some(rendering) = &mut field.section_rendering {
+        // Derive ordinals first, then remove exactly the same supported prefix.
+        let Some(section) = atlas_record::source_content::routine_header(&rendering.html) else {
+            return;
+        };
+        rendering.html = section.html;
+    }
+    *html = header.html;
+    field.routine_header = Some(RoutineHeaderView {
+        actions: header.actions,
+        traits: trait_badges(&header.traits, retrieval),
+    });
+}
+
+/// Inherited traits affect generated check labels (notably secret), while
+/// control options retain their authored values and custom labels remain intact.
+pub(crate) fn render_field_content(
+    html: &str,
+    interactions: &[atlas_record::source_content::ContentInteraction],
+    context: &PreparedContentContext<'_>,
+) -> String {
+    let mut effective = interactions.to_vec();
+    for interaction in &mut effective {
+        if let ContentInteractionKind::Check { options, .. } = &mut interaction.kind {
+            let traits = atlas_record::source_content::check_traits(options, &context.item_traits);
+            options.remove("overrideTraits");
+            options.insert("traits".into(), traits.join(","));
+        }
+    }
+    atlas_record::source_content::render_contextual_interactions(html, &effective, &context.formula)
 }

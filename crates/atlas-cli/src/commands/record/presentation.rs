@@ -390,6 +390,26 @@ fn content_field(
         };
         line(out, label);
     }
+    if let Some(header) = &field.routine_header {
+        let traits = header
+            .traits
+            .iter()
+            .map(|t| t.label.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        line(
+            out,
+            &format!(
+                "({}{})",
+                header.actions,
+                if traits.is_empty() {
+                    String::new()
+                } else {
+                    format!("; {traits}")
+                }
+            ),
+        );
+    }
     line(out, rendered.trim_end());
     Ok(())
 }

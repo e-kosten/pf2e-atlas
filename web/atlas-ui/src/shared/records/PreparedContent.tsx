@@ -15,6 +15,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { EffectReferenceLink } from "./EffectReferenceLink";
+import { CheckDetails } from "./CheckDetails";
 import { ContentRoll } from "../dice/ContentRoll";
 import type {
   PreparedContentFieldView,
@@ -237,6 +238,32 @@ export function PreparedContentBody({
         marker.removeAttribute("href");
         marker.removeAttribute("role");
         marker.removeAttribute("tabindex");
+        if (control.kind === "check" && control.details) {
+          const identity = `check:${namespace ?? "host"}:${marker.getAttribute("data-atlas-interaction")}`;
+          activeRolls.add(identity);
+          let host = rollHosts.current.get(identity);
+          if (!host) {
+            host = document.createElement("span");
+            rollHosts.current.set(identity, host);
+          }
+          const label = marker.textContent?.trim() || "Check";
+          const target = marker.closest("a[href]") ?? marker;
+          let reading = target.parentElement;
+          if (!reading?.classList.contains("prepared-check")) {
+            reading = document.createElement("span");
+            reading.className = "prepared-check";
+            target.before(reading);
+            reading.append(target);
+          }
+          reading.append(host);
+          effects.push(
+            createPortal(
+              <CheckDetails label={label} details={control.details} />,
+              host,
+              identity,
+            ),
+          );
+        }
         return;
       }
       if (fact?.self_action_reference) {

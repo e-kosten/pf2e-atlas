@@ -2,5 +2,6 @@
 import type { ContentLocationView } from "./ContentLocationView";
 import type { PreparedFieldBodyView } from "./PreparedFieldBodyView";
 import type { PreparedSectionRenderingView } from "./PreparedSectionRenderingView";
+import type { RoutineHeaderView } from "./RoutineHeaderView";
 
-export type PreparedContentFieldView = { locator: ContentLocationView, role: string, source_fingerprint: string | null, body: PreparedFieldBodyView, section_rendering?: PreparedSectionRenderingView, };
+export type PreparedContentFieldView = { locator: ContentLocationView, role: string, source_fingerprint: string | null, body: PreparedFieldBodyView, section_rendering?: PreparedSectionRenderingView, routine_header?: RoutineHeaderView, };

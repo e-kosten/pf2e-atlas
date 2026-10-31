@@ -163,3 +163,113 @@ fn actor_parent_values_do_not_turn_standalone_feats_or_effect_defaults_into_cont
     let effect = f.worker.record_detail("effects:contextEffect001").unwrap();
     assert!(html(&effect).contains("the effect’s counter value"));
 }
+
+#[test]
+fn check_details_follow_item_ownership_overrides_and_foreign_inclusions() {
+    let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
+        1,
+        16,
+        || {
+            Ok(open_source_fixture(
+                vec![
+                    record(
+                        "actions",
+                        "Item",
+                        json!({"_id":"traitAction00001","type":"action","name":"Host action","system":{"traits":{"value":["mental","secret"]},"description":{"value":"<p>@Check[will|dc:26|traits:illusion,mental] save.</p><p>@Check[will|dc:27|traits:visual|overrideTraits] save.</p><p>@Check[will|dc:28|overrideTraits] save.</p><p>@Check[will|dc:29|overrideTraits:homebrew-trait] save.</p><p>@Embed[Compendium.pf2e.actions.Item.traitAction00002 inline]</p>"}}}),
+                    ),
+                    record(
+                        "actions",
+                        "Item",
+                        json!({"_id":"traitAction00002","type":"action","name":"Foreign action","system":{"traits":{"value":["fire"]},"description":{"value":"<p>@Check[reflex|dc:30] save.</p>"}}}),
+                    ),
+                    record(
+                        "actors",
+                        "Actor",
+                        json!({"_id":"traitHazard00001","type":"hazard","name":"Trait hazard","system":{"traits":{"value":["trap"]},"details":{"isComplex":true,"routine":"<p>(7 actions; mental) @Check[will|dc:31|traits:visual] save. Reduce actions for each destroyed blade.</p>"}},"items":[]}),
+                    ),
+                ],
+                false,
+            )?)
+        },
+    ));
+    let view = f.worker.record_detail("actions:traitAction00001").unwrap();
+    let field = &view.presentation.content[0];
+    let PreparedFieldBodyView::Html {
+        html,
+        controls,
+        inclusions,
+    } = &field.body
+    else {
+        panic!("html")
+    };
+    let values = |control: &ContentControlView| match &control.control {
+        ContentControlKindView::Check { details, .. } => details
+            .as_ref()
+            .map(|d| d.traits.iter().map(|t| t.value.clone()).collect::<Vec<_>>()),
+        _ => panic!("check"),
+    };
+    assert_eq!(
+        values(&controls[0]).unwrap(),
+        ["illusion", "mental", "secret"]
+    );
+    assert_eq!(values(&controls[1]).unwrap(), ["visual"]);
+    assert!(values(&controls[2]).is_none());
+    assert_eq!(values(&controls[3]).unwrap(), ["homebrew-trait"]);
+    assert!(html.contains("DC 26 secret Will save"));
+    assert!(html.contains("DC 27 Will save"));
+    assert!(!html.contains("DC 27 secret"));
+    let included = inclusions
+        .iter()
+        .find(|entry| entry.source.record.to_string() == "actions:traitAction00002")
+        .unwrap();
+    assert_eq!(values(&included.controls[0]).unwrap(), ["fire"]);
+    assert!(!html.contains("DC 30 secret"));
+    let serialized = serde_json::to_value(&view).unwrap();
+    let check = &serialized["presentation"]["content"][0]["body"]["controls"][2]["control"];
+    assert!(check.get("details").is_none());
+    let decoded: RecordDetailView = serde_json::from_value(serialized).unwrap();
+    assert_eq!(decoded, view);
+
+    let hazard = f.worker.record_detail("actors:traitHazard00001").unwrap();
+    let routine = hazard
+        .presentation
+        .content
+        .iter()
+        .find(|f| f.role == "routine")
+        .unwrap();
+    let header = routine.routine_header.as_ref().unwrap();
+    assert_eq!(header.actions, "7 actions");
+    assert_eq!(header.traits[0].value, "mental");
+    let PreparedFieldBodyView::Html { html, controls, .. } = &routine.body else {
+        panic!("routine")
+    };
+    assert!(!html.contains("(7 actions"));
+    assert!(html.contains("Reduce actions for each destroyed blade."));
+    assert_eq!(values(&controls[0]).unwrap(), ["visual"]); // no actor or routine inheritance
+    assert!(
+        routine
+            .section_rendering
+            .as_ref()
+            .unwrap()
+            .html
+            .contains("data-atlas-source-section=\"0\"")
+    );
+    assert!(
+        !routine
+            .section_rendering
+            .as_ref()
+            .unwrap()
+            .html
+            .contains("(7 actions")
+    );
+    let serialized = serde_json::to_value(&hazard).unwrap();
+    assert_eq!(
+        serialized["presentation"]["content"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|f| f["role"] == "routine")
+            .unwrap()["routine_header"]["actions"],
+        "7 actions"
+    );
+}

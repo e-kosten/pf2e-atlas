@@ -9,11 +9,13 @@ export function ValueExplanation({
   label,
   content,
   title,
+  iconOnly = false,
 }: {
   children: ReactNode;
   label: string;
   content: ReactNode;
   title?: ReactNode;
+  iconOnly?: boolean;
 }) {
   const { token } = theme.useToken();
   const [open, setOpen] = useState(false);
@@ -78,9 +80,11 @@ export function ValueExplanation({
         ref={trigger}
         type="text"
         size="small"
-        className="explained-value"
+        className={`explained-value${iconOnly ? " explained-value--icon" : ""}`}
         aria-haspopup="dialog"
-        aria-labelledby={`${popupId}-context ${popupId}-value`}
+        aria-label={iconOnly ? label : undefined}
+        aria-labelledby={iconOnly ? undefined : `${popupId}-context ${popupId}-value`}
+        title={iconOnly ? label : undefined}
         aria-expanded={open}
         aria-controls={open ? popupId : undefined}
         onKeyDown={dismissEscape}

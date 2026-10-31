@@ -38,6 +38,7 @@ impl AtlasAppService {
                                 controls: crate::prepared_content::content_controls(
                                     &prepared.interactions,
                                     None,
+                                    retrieval,
                                 ),
                             },
                             references: prepared
