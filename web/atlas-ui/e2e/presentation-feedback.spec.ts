@@ -5,6 +5,30 @@ import { encodeFilterUrl, decodeFilterUrl } from "../src/shared/filters/filterUr
 const creatureKey = "stolen-fate-bestiary:5jXQKIwhlOfs9F6e";
 const hazardKey = "pfs-season-3-bestiary:wun5VzDIMSZCVLuI";
 
+test("Claim Corpse names effect choices across separate paragraphs", async ({
+  page,
+}) => {
+  await page.goto("/records/abomination-vaults-bestiary:HBRz8BVLVN9u9Odp");
+  const ability = page
+    .locator(".embedded-ability-reading__entry")
+    .filter({ has: page.getByRole("heading", { name: /^Claim Corpse\b/ }) });
+  for (const variant of ["Fleshy", "Skeletal"]) {
+    const name = `Claim Corpse - ${variant}`;
+    const link = ability.getByRole("link", {
+      name: `Preview Effect: ${name}`,
+      exact: true,
+    });
+    await expect(link).toHaveText(name);
+    await expect(link).toHaveAttribute("href", /\/records\//);
+    await link.click();
+    const preview = page.getByRole("dialog", { name: `Effect: ${name}`, exact: true });
+    await expect(preview).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(preview).toHaveCount(0);
+    await expect(link).toBeFocused();
+  }
+});
+
 test("creature lore precedes mechanics and selected casting retains local membership", async ({
   page,
 }) => {
