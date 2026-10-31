@@ -399,7 +399,7 @@ fn content_field(
             .join(", ");
         line(
             out,
-            &format!(
+            format!(
                 "({}{})",
                 header.actions,
                 if traits.is_empty() {
