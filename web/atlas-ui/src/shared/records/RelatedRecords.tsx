@@ -2,7 +2,11 @@ import { referenceQueryMeta } from "../queries/referenceQueries";
 import { similarityPartsQueryOptions } from "../search/similarityQueries";
 import { AtlasModal as Modal } from "../ui/overlays/AtlasModal";
 import { ErrorNotice } from "../feedback/ErrorNotice";
-import { navigateDestination } from "../../app/navigation";
+import {
+  destinationHref,
+  isPrimaryActivation,
+  navigateDestination,
+} from "../../app/navigation";
 import { recordDestination, searchDestination } from "../../app/destinations";
 import { Button, Empty, Tabs, Typography } from "antd";
 import { LoadingStatus } from "../ui/LoadingStatus";
@@ -30,7 +34,11 @@ import {
   searchStateQueryString,
 } from "../filters/searchState";
 import { linkLeaf } from "../filters/linkPredicates";
-import type { RecordDetailView, RecordSummaryView } from "../../generated/atlas";
+import type {
+  RecordDetailView,
+  RecordSummaryView,
+  RemasterProvenanceView,
+} from "../../generated/atlas";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { useRecordDetail } from "./useRecordDetail";
@@ -316,11 +324,13 @@ function VersionCard({
   onReference,
   onCompare,
   context,
+  provenance,
 }: {
   record: RecordSummaryView;
   onReference: RecordReferenceHandler;
   onCompare: () => void;
   context?: string;
+  provenance?: RemasterProvenanceView;
 }) {
   return (
     <div role="listitem">
@@ -336,6 +346,35 @@ function VersionCard({
           </Button>
         }
       />
+      {provenance && (
+        <Typography.Paragraph type="secondary" className="record-edition-source">
+          Source:{" "}
+          {provenance.navigation ? (
+            <Typography.Link
+              href={destinationHref(
+                recordDestination({
+                  recordKey: provenance.navigation.record_key,
+                  selection: provenance.navigation,
+                }),
+              )}
+              onClick={(event) => {
+                if (!isPrimaryActivation(event) || !provenance.navigation) return;
+                event.preventDefault();
+                onReference(
+                  provenance.navigation.record_key,
+                  event.currentTarget,
+                  provenance.navigation,
+                );
+              }}
+            >
+              {provenance.attribution}
+            </Typography.Link>
+          ) : (
+            provenance.attribution
+          )}
+          {provenance.unavailable_reason && <> · {provenance.unavailable_reason}</>}
+        </Typography.Paragraph>
+      )}
     </div>
   );
 }
@@ -402,6 +441,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
                     setComparison({ target: other.record_key, open: true })
                   }
                   context={legacy ? "Legacy" : "Remaster"}
+                  provenance={pair.provenance}
                 />
               );
             })}

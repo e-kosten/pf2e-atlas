@@ -134,6 +134,10 @@
   --browse-pane-inset: var(--space-group);
 }
 
+.record-edition-source {
+  padding-inline: var(--browse-pane-inset);
+}
+
 .record-grants {
   --browse-pane-inset: var(--space-group);
 }

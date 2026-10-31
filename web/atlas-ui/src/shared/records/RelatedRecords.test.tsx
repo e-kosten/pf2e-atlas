@@ -615,3 +615,91 @@ it("retires preview rows after a generation conflict and retains a local recover
   );
   expect(screen.getByRole("button", { name: "Reload record" })).toBeVisible();
 });
+
+it("shows typed edition attribution and preserves exact native and preview destinations", async () => {
+  const source = {
+    record: "journals:source",
+    embedded_path: [{ collection: "/pages", identity: { Stable: "page1" } }],
+    field: "/text/content",
+  };
+  const target = {
+    ...navigation(source.record),
+    embedded_path: source.embedded_path,
+    field: source.field,
+  };
+  api.getRelatedRecords.mockResolvedValue({
+    ...relatedFixture(),
+    counterparts: {
+      kind: "content",
+      content: {
+        seed: summaryFixture("actors:seed"),
+        links: [
+          {
+            legacy_record: summaryFixture("actors:legacy", "Legacy creature"),
+            remaster_record: summaryFixture("actors:seed"),
+            provenance: {
+              source,
+              attribution: "Remaster Changes — Class Features",
+              navigation: target,
+              unavailable_reason: null,
+            },
+          },
+        ],
+      },
+    },
+  });
+  const onReference = renderRelated();
+  openRelated();
+  await selectTab("Versions");
+  const link = await screen.findByRole("link", {
+    name: "Remaster Changes — Class Features",
+  });
+  expect(link.getAttribute("href")).toContain("/records/journals:source");
+  const selected = selectedNavigation(
+    parseSearchParams(new URL(link.getAttribute("href")!, "http://localhost").search),
+    source.record,
+  );
+  expect(selected).toMatchObject({
+    embedded_path: source.embedded_path,
+    field: source.field,
+  });
+  fireEvent.click(link, { ctrlKey: true });
+  expect(onReference).not.toHaveBeenCalled();
+  fireEvent.click(link);
+  expect(onReference).toHaveBeenCalledWith(source.record, link, target);
+  expect(screen.getByRole("button", { name: "Compare" })).toBeEnabled();
+});
+
+it("keeps unavailable edition citations explicit and inert", async () => {
+  api.getRelatedRecords.mockResolvedValue({
+    ...relatedFixture(),
+    counterparts: {
+      kind: "content",
+      content: {
+        seed: summaryFixture("actors:seed"),
+        links: [
+          {
+            legacy_record: summaryFixture("actors:legacy"),
+            remaster_record: summaryFixture("actors:seed"),
+            provenance: {
+              source: {
+                record: "journals:missing",
+                embedded_path: [],
+                field: "/text/content",
+              },
+              attribution: "Source unavailable",
+              navigation: null,
+              unavailable_reason:
+                "Source field is unavailable in the current collection.",
+            },
+          },
+        ],
+      },
+    },
+  });
+  renderRelated();
+  openRelated();
+  await selectTab("Versions");
+  expect(await screen.findByText(/Source field is unavailable/)).toBeVisible();
+  expect(screen.queryByRole("link", { name: "Source unavailable" })).toBeNull();
+});
