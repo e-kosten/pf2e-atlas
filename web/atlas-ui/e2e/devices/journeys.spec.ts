@@ -1916,9 +1916,10 @@ test("record picker keeps its top edge stable across tabs and growing forms", as
   );
   await expect(dialog.getByRole("alert")).toContainText("List could not be created");
   await expectStableTop();
-  await expect(
-    dialog.getByRole("button", { name: "Create & add", exact: true }),
-  ).toBeVisible();
+  // Ant may retain its hidden loading icon during exit; match the action label.
+  const retry = dialog.getByRole("button", { name: /Create & add$/ });
+  await expect(retry).toBeVisible();
+  await expect(retry).toBeEnabled();
   await noPageOverflow(page);
   await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
   await expect(dialog).toBeHidden();
