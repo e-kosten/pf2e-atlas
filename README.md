@@ -1,8 +1,16 @@
 # PF2e Atlas
 
-Search Pathfinder Second Edition content, prepare saved lists, and run encounters
-in a local browser workspace. Atlas also provides a command-line interface and a
-bundled skill for local coding agents.
+**Find Pathfinder content by idea.**
+
+PF2e Atlas helps you find Pathfinder Second Edition creatures, spells, equipment,
+and rules by describing what you have in mind. Try “a guardian for an enchanted
+forest” or “magic for a haunted-house adventure.” Search matches meaning as well
+as names, and filters help you narrow the results by level, traits, and other
+game details.
+
+Explore the results in your browser, save options for a session, and build and run
+encounters. Atlas also includes a command-line interface and a bundled skill that
+lets AI agents search and reference PF2e content while helping you prepare.
 
 Reference content comes from the [Foundry PF2e project](https://github.com/foundryvtt/pf2e).
 The supported reference release is **8.6.1**; setup downloads the pinned source for you.
@@ -31,9 +39,9 @@ Follow any PATH instructions printed by the installer so your terminal can find
 atlas setup
 ```
 
-Setup downloads the reference content and default search model, then builds your
-local search data. The first run can take a while. You do not need a Foundry
-installation, a source checkout, or model settings to get started.
+Setup downloads the Pathfinder reference content and a search model, then prepares
+them for local searching. This first run may take a while; later runs reuse work
+already completed.
 
 **3. Open Atlas.**
 
@@ -45,9 +53,9 @@ Keep the command running while you use Atlas. If the browser does not open,
 visit the local address printed in the terminal. Later sessions only need
 `atlas web --open`.
 
-Search for a name or describe what you need, open a result, then use **Add to list**
-to collect options. Creatures and hazards also offer **Add to list or encounter**.
-Your lists and encounters are saved locally and survive normal setup updates.
+Start with something you’re looking for—a particular spell, a creature concept,
+or an idea for your next session. Explore the results, save useful finds in lists,
+or bring creatures and hazards into an encounter.
 
 See [Getting started](docs/getting-started.md) for your first list and encounter.
 For alternate versions, supported platforms or a manual download, see
@@ -57,12 +65,11 @@ For alternate versions, supported platforms or a manual download, see
 
 ```bash
 atlas search "low level healing spell" --kind spell --limit 5
-atlas roll '1d20+12'
 atlas agent skills install
 ```
 
 The skill installer lets you choose your agent and installation scope.
-See [CLI examples](docs/cli-examples.md) for lookup, filters, lists, dice and JSON,
+See [CLI examples](docs/cli-examples.md) for lookup, filters, lists and JSON,
 and [agent skill installation](docs/installation.md#agent-skill) for updates and automation.
 
 ## Documentation
@@ -80,9 +87,5 @@ and [agent skill installation](docs/installation.md#agent-skill) for updates and
 Questions or problems? Use the [issue tracker](https://github.com/e-kosten/pf2e-atlas/issues).
 
 ## Paizo Community Use Notice
-
-Acquired reference content has separate content licenses from Atlas's Apache 2.0
-code. See the [trait description provenance review](docs/research/trait-description-provenance.md)
-for pinned source evidence and the remaining paragraph-level attribution work.
 
 PF2e Atlas uses trademarks and/or copyrights owned by Paizo Inc., used under Paizo's Community Use Policy (paizo.com/licenses/communityuse). We are expressly prohibited from charging you to use or access this content. PF2e Atlas is not published, endorsed, or specifically approved by Paizo. For more information about Paizo Inc. and Paizo products, visit paizo.com.
