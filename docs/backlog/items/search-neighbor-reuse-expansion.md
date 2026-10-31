@@ -217,3 +217,33 @@ approval is claimed. Raw source/binary provenance, exact outcomes, medians/p95,
 CPU/resource receipts and remaining limitations are retained locally under
 `scratch/request-local-eligibility/REPORT.md`. These results support bounded
 prototype handoff; publication and broad release acceptance remain separate.
+
+
+### Ordinary-search replication
+
+A separately frozen follow-up ran 48 counterbalanced independent process pairs
+(96 processes, 1,056 operations: three warmups and eight measured requests per
+process) in 209.47 seconds with 861 clear load checks. It compared the original
+diagnostic probes and matched release probes without production diagnostic
+overlays, using both profiles and Core/All. All outputs, exact profile/corpus
+identity, store states and miss/hit observations matched. The original configured
+cohort is unchanged and is not pooled with these results.
+
+Median paired warm BGE request changes were +0.988 ms/+2.013% diagnostic All,
++2.210 ms/+4.845% diagnostic Core, +0.375 ms/+0.740% plain All, and
+-0.616 ms/-1.309% plain Core. Both plain BGE cells and all Gemma controls met the
+predeclared bounded stability rule. Diagnostic Core missed its 2 ms absolute
+limit, with five slower pairs and approximately +2.288 ms process/thread CPU;
+the overall frozen verdict remains mixed/unresolved. The earlier 8.9%/14.3%
+effects did not recur at that size in the independent paired medians, which does
+not by itself establish general non-regression.
+
+Every measured request was a retained hit with no native scan. Source/phase
+inspection finds no changed ordinary path or hit pattern; the residual is inside
+the request and changes with build mode/order, but no causal mechanism is
+established. Separate AI review confirmed the evidence and mixed verdict. Do not
+selectively extend or relabel the cohort. Further causal work should start from
+a specific hypothesis and an agreed new probe, or explicitly accept this remaining
+uncertainty before publication. The 2.1–3.7% one-selection cost and unestablished
+tail improvement remain. Every new process, warmup, paired CPU/millisecond effect
+and source/binary hash is retained in `scratch/ordinary-replication/REPORT.md`.

@@ -112,3 +112,13 @@ stability. Small correlated samples, uncontrolled OS cache state and sampled
 TEMP observations do not establish tail latency or a total SQLite/disk bound.
 Coordinator integration/publication is separate from this experiment. The
 existing backlog owner retains these limitations and follow-up decisions.
+
+A subsequent ordinary-search replication preserved the original cohort and
+compared six independent counterbalanced pairs per profile/scope in diagnostic
+and overlay-free release modes. Both plain BGE cells supported bounded stability;
+diagnostic Core retained +2.210 ms/+4.845% with matching CPU and missed the frozen
+2 ms tolerance. Separate AI review confirmed the mixed/unresolved overall verdict.
+No causal mechanism is established or ordinary production path changed. The
+existing backlog owner records all per-cell effects and the remaining publication
+uncertainty; this follow-up does not establish general non-regression or tail
+improvement and does not justify selectively extending the cohort.
