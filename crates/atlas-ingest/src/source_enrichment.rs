@@ -344,3 +344,45 @@ fn references_unchanged(content: &[SourceContentOutcome], resolver: &SourceRefer
             })
     })
 }
+
+/// Keep exclusion evidence without retaining rejected source bodies in the workspace.
+pub(crate) fn publication_admission(
+    source: &EnrichedFoundrySource,
+) -> atlas_index::SourceAdmissionSummary {
+    let report = source.report();
+    let mut exclusions = Vec::new();
+    for pack in &source.packs {
+        for file in &pack.quarantined_files {
+            exclusions.push(atlas_index::SourceExcludedInput {
+                pack: pack.metadata.name.clone(),
+                path: file.failure.provenance.source_path.clone(),
+                reason: format!("{:?}: {}", file.failure.stage, file.failure.message),
+            });
+        }
+        for document in &pack.documents {
+            if let EnrichedDocumentOutcome::Unavailable { reason, .. } = &document.outcome {
+                exclusions.push(atlas_index::SourceExcludedInput {
+                    pack: pack.metadata.name.clone(),
+                    path: document.provenance.source_path.clone(),
+                    reason: format!("{reason:?}"),
+                });
+            }
+        }
+    }
+    atlas_index::SourceAdmissionSummary {
+        discovered_files: report.discovered_files,
+        admitted_records: report.addressed_documents,
+        partial_records: source
+            .packs
+            .iter()
+            .flat_map(|p| &p.documents)
+            .filter(|d| {
+                matches!(d.outcome, EnrichedDocumentOutcome::Addressed { .. })
+                    && !d.admission_diagnostics.is_empty()
+            })
+            .count(),
+        quarantined_files: report.quarantined_files,
+        excluded_documents: report.retained_documents - report.addressed_documents,
+        exclusions,
+    }
+}

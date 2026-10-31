@@ -1,4 +1,6 @@
 #![deny(unsafe_code)]
+mod source_admission;
+pub use source_admission::{CompleteSourceInventory, SourceAdmissionSummary, SourceExcludedInput};
 mod artifact_instance;
 mod codec;
 mod component_upgrade;

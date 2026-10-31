@@ -28,12 +28,24 @@ pub(crate) struct PreparedBuildInput {
 }
 pub(crate) fn index_build_input(
     source: EnrichedFoundrySource,
-    context: SourceArtifactBuildContext,
+    mut context: SourceArtifactBuildContext,
     tokenizer: Option<&TextEmbeddingTokenizer>,
     capture: &crate::source_fingerprint::SourceCapture,
     mut layouts: BTreeMap<atlas_domain::RecordKey, Vec<atlas_index::SourcePassageLayout>>,
 ) -> Result<PreparedBuildInput, IngestError> {
     tracing::info!(target:"atlas_progress",phase="select_search","Selecting searchable text");
+    capture.require_complete_packs()?;
+    let inventory = atlas_index::CompleteSourceInventory::checked(
+        &context.source_fingerprint,
+        source.packs.iter().map(|p| p.metadata.name.clone()),
+        source
+            .packs
+            .iter()
+            .filter(|p| p.discovery_failure.is_none())
+            .map(|p| p.metadata.name.clone()),
+    )
+    .map_err(|e| IngestError::ArtifactWriteFailed(e.to_string()))?;
+    context.admission = Some(crate::source_enrichment::publication_admission(&source));
     let source_root = source.metadata.source_root.clone();
     let mut selections = Vec::new();
     let context_hash = context
@@ -41,6 +53,7 @@ pub(crate) fn index_build_input(
         .map_err(|e| IngestError::ArtifactWriteFailed(e.to_string()))?;
     let mut output = PreparedBuildInput {
         index: IndexBuildInput {
+            inventory,
             traits: vec![],
             trait_vectors: vec![],
             records: vec![],

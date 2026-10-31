@@ -1044,7 +1044,7 @@ fn verified_name_aliases_never_invent_legacy_record_pairs() {
             ],
         )
         .unwrap();
-    before.execute_batch("INSERT INTO saved_lists(id,list_key,slug,name,description,created_at,updated_at) VALUES(1,'saved','saved','Saved editions','Retain notes','now','now'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(1,'actions:aaaaaaaaaaaaaaaa',0,'Legacy reference','Attack of Opportunity','now','now'); INSERT INTO encounters(id,encounter_key,slug,name,note,status,created_at,updated_at,revision) VALUES(1,'encounter','encounter','Saved encounter','Keep this note','active','now','now',4);").unwrap();
+    before.execute_batch("INSERT INTO saved_lists(id,list_key,slug,name,description,created_at,updated_at) VALUES(1,'saved','saved','Saved editions','Retain notes','now','now'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(1,'actions:aaaaaaaaaaaaaaaa',0,'Legacy reference','Attack of Opportunity','now','now'); INSERT INTO encounters(id,encounter_key,slug,name,note,status,created_at,updated_at,revision) VALUES(1,'encounter','encounter','Saved encounter','Keep this note','running','now','now',4);").unwrap();
     let identity: i64 = before
         .query_row(
             "SELECT record_id FROM records WHERE key='actions:aaaaaaaaaaaaaaaa'",
@@ -1535,4 +1535,308 @@ fn trait_vocabulary_is_localized_persisted_and_keeps_exact_variants() {
             .unwrap(),
         atlas_foundry_model::generated::trait_definitions().len()
     );
+}
+
+#[test]
+fn complete_discovery_preserves_active_publication_when_a_declared_pack_is_missing() {
+    let fixture = Fixture::new();
+    let first = build_artifact(fixture.options()).unwrap();
+    assert_eq!(first.admission.discovered_files, 3);
+    assert_eq!(first.admission.admitted_records, 2);
+    assert_eq!(first.admission.quarantined_files, 1);
+    assert_eq!(first.admission.exclusions[0].path, "packs/items/bad.json");
+    let db = rusqlite::Connection::open(fixture.options().output_path).unwrap();
+    db.execute("INSERT INTO saved_lists(list_key,slug,name,created_at,updated_at) VALUES('keep','keep','Keep','now','now')", []).unwrap();
+    let before: (u64, String, i64) = db.query_row("SELECT reference_revision,(SELECT context_json FROM artifact_context),(SELECT record_id FROM records WHERE pack_id='macros') FROM workspace", [], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).unwrap();
+    fs::rename(
+        fixture.0.join("packs/macros"),
+        fixture.0.join("held-macros"),
+    )
+    .unwrap();
+    for _ in 0..2 {
+        let error = build_artifact(fixture.options()).unwrap_err().to_string();
+        assert!(error.contains("packs/macros"), "{error}");
+        assert_eq!(before, db.query_row("SELECT reference_revision,(SELECT context_json FROM artifact_context),(SELECT record_id FROM records WHERE pack_id='macros') FROM workspace", [], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).unwrap());
+        assert_eq!(
+            db.query_row(
+                "SELECT count(*) FROM saved_lists WHERE list_key='keep'",
+                [],
+                |r| r.get::<_, usize>(0)
+            )
+            .unwrap(),
+            1
+        );
+        assert_eq!(
+            atlas_index::test_support::open_reader(fixture.options().output_path)
+                .unwrap()
+                .statistics()
+                .unwrap()
+                .records,
+            2
+        );
+    }
+    fs::rename(
+        fixture.0.join("held-macros"),
+        fixture.0.join("packs/macros"),
+    )
+    .unwrap();
+    build_artifact(fixture.options()).unwrap();
+    assert_eq!(
+        db.query_row(
+            "SELECT record_id FROM records WHERE pack_id='macros'",
+            [],
+            |r| r.get::<_, i64>(0)
+        )
+        .unwrap(),
+        before.2
+    );
+}
+
+#[test]
+fn missing_pack_from_outset_is_rejected_before_tokenizer_or_inference() {
+    let fixture = Fixture::new();
+    fs::remove_dir_all(fixture.0.join("packs/macros")).unwrap();
+    let mut options = fixture.options();
+    options.search_profiles = vec![atlas_embedding::EmbeddingRuntimeConfig::new(
+        atlas_embedding::EmbeddingModelId::BgeBaseEnV15,
+        fixture.0.join("missing-models"),
+    )];
+    let error = build_artifact(options).unwrap_err().to_string();
+    assert!(error.contains("packs/macros"), "{error}");
+    let diagnostic = load_foundry_documents(&fixture.0, None).unwrap().report();
+    assert_eq!(diagnostic.counts.unavailable_packs, 1);
+    let db = rusqlite::Connection::open(fixture.options().output_path).unwrap();
+    assert_eq!(
+        db.query_row("SELECT reference_revision FROM workspace", [], |r| r
+            .get::<_, u64>(0))
+            .unwrap(),
+        0
+    );
+}
+
+#[test]
+fn complete_empty_pack_and_intentional_removal_publish_and_returning_keys_reuse_identity() {
+    let fixture = Fixture::new();
+    build_artifact(fixture.options()).unwrap();
+    let db = rusqlite::Connection::open(fixture.options().output_path).unwrap();
+    let identity: i64 = db
+        .query_row(
+            "SELECT id FROM record_identity WHERE key='macros:bbbbbbbbbbbbbbbb'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    let bytes = fs::read(fixture.0.join("packs/macros/tool.json")).unwrap();
+    fs::remove_file(fixture.0.join("packs/macros/tool.json")).unwrap();
+    let empty = build_artifact(fixture.options()).unwrap();
+    assert_eq!(empty.record_count, 1);
+    assert_eq!(
+        db.query_row(
+            "SELECT availability FROM record_identity WHERE key='macros:bbbbbbbbbbbbbbbb'",
+            [],
+            |r| r.get::<_, String>(0)
+        )
+        .unwrap(),
+        "unavailable"
+    );
+    fs::write(fixture.0.join("packs/macros/tool.json"), bytes).unwrap();
+    build_artifact(fixture.options()).unwrap();
+    assert_eq!(
+        db.query_row(
+            "SELECT id FROM record_identity WHERE key='macros:bbbbbbbbbbbbbbbb'",
+            [],
+            |r| r.get::<_, i64>(0)
+        )
+        .unwrap(),
+        identity
+    );
+    let manifest =
+        r#"{"packs":[{"name":"items","label":"Items","type":"Item","path":"packs/items"}]}"#;
+    fs::write(fixture.0.join("module.json"), manifest).unwrap();
+    fs::remove_dir_all(fixture.0.join("packs/macros")).unwrap();
+    let removed = build_artifact(fixture.options()).unwrap();
+    assert_eq!(removed.pack_count, 1);
+    assert_eq!(removed.record_count, 1);
+    fs::remove_file(fixture.0.join("packs/items/useful.json")).unwrap();
+    fs::remove_file(fixture.0.join("packs/items/bad.json")).unwrap();
+    let entirely_empty = build_artifact(fixture.options()).unwrap();
+    assert_eq!(entirely_empty.record_count, 0);
+    assert_eq!(entirely_empty.admission.discovered_files, 0);
+}
+
+#[test]
+fn pack_path_replaced_by_a_file_is_unavailable_and_keeps_the_active_context() {
+    let fixture = Fixture::new();
+    build_artifact(fixture.options()).unwrap();
+    fs::remove_dir_all(fixture.0.join("packs/macros")).unwrap();
+    fs::write(fixture.0.join("packs/macros"), "not a directory").unwrap();
+    let error = build_artifact(fixture.options()).unwrap_err().to_string();
+    assert!(error.contains("packs/macros"), "{error}");
+    assert_eq!(
+        atlas_index::test_support::open_reader(fixture.options().output_path)
+            .unwrap()
+            .statistics()
+            .unwrap()
+            .records,
+        2
+    );
+}
+
+#[test]
+fn duplicate_identity_exclusions_and_partial_admissions_are_explained_by_the_active_summary() {
+    let fixture = Fixture::new();
+    let initial = build_artifact(fixture.options()).unwrap();
+    assert_eq!(initial.admission.partial_records, 1);
+    fs::copy(
+        fixture.0.join("packs/items/useful.json"),
+        fixture.0.join("packs/items/duplicate.json"),
+    )
+    .unwrap();
+    let report = build_artifact(fixture.options()).unwrap();
+    assert_eq!(report.admission.admitted_records, 1);
+    assert_eq!(report.admission.partial_records, 0);
+    assert_eq!(report.admission.quarantined_files, 1);
+    assert_eq!(report.admission.excluded_documents, 2);
+    assert_eq!(
+        report
+            .admission
+            .exclusions
+            .iter()
+            .filter(|e| e.reason == "DuplicateId")
+            .count(),
+        2
+    );
+    let reader = atlas_index::test_support::open_reader(fixture.options().output_path).unwrap();
+    assert_eq!(reader.context().admission.as_ref(), Some(&report.admission));
+    assert_eq!(reader.context().preparation_sha256().unwrap(), {
+        let mut context = reader.context().clone();
+        context.admission = None;
+        context.preparation_sha256().unwrap()
+    });
+}
+
+#[cfg(unix)]
+#[test]
+fn unreadable_declared_pack_fails_with_pack_identity_and_preserves_publication() {
+    use std::os::unix::fs::PermissionsExt;
+    let fixture = Fixture::new();
+    build_artifact(fixture.options()).unwrap();
+    let path = fixture.0.join("packs/macros");
+    let original = fs::metadata(&path).unwrap().permissions();
+    fs::set_permissions(&path, fs::Permissions::from_mode(0)).unwrap();
+    let cannot_read = fs::read_dir(&path).is_err();
+    let result = build_artifact(fixture.options());
+    fs::set_permissions(&path, original).unwrap();
+    if cannot_read {
+        let error = result.unwrap_err().to_string();
+        assert!(error.contains("macros"), "{error}");
+        assert_eq!(
+            atlas_index::test_support::open_reader(fixture.options().output_path)
+                .unwrap()
+                .statistics()
+                .unwrap()
+                .records,
+            2
+        );
+    }
+}
+
+#[test]
+fn wholly_quarantined_or_unaddressable_source_preserves_active_publication_and_saved_state() {
+    for quarantine in [true, false] {
+        let fixture = Fixture::new();
+        build_artifact(fixture.options()).unwrap();
+        let db = rusqlite::Connection::open(fixture.options().output_path).unwrap();
+        db.execute("INSERT INTO saved_lists(list_key,slug,name,created_at,updated_at) VALUES('keep','keep','Keep','now','now')", []).unwrap();
+        let before: (u64, String) = db.query_row("SELECT reference_revision,(SELECT context_json FROM artifact_context) FROM workspace", [], |r| Ok((r.get(0)?,r.get(1)?))).unwrap();
+        let roots_before = db
+            .prepare("SELECT record_id,key,content_hash FROM records ORDER BY key")
+            .unwrap()
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        fs::write(
+            fixture.0.join("packs/items/useful.json"),
+            if quarantine {
+                "{broken"
+            } else {
+                r#"{"name":"Unaddressable item","type":"effect"}"#
+            },
+        )
+        .unwrap();
+        fs::write(
+            fixture.0.join("packs/macros/tool.json"),
+            if quarantine {
+                "{broken"
+            } else {
+                r#"{"name":"Unaddressable macro","type":"script","command":""}"#
+            },
+        )
+        .unwrap();
+        let diagnostic = load_foundry_documents(&fixture.0, None).unwrap().report();
+        assert_eq!(diagnostic.counts.discovered_files, 3);
+        assert_eq!(
+            diagnostic.counts.quarantined_files,
+            if quarantine { 3 } else { 1 }
+        );
+        let error = build_artifact(fixture.options()).unwrap_err();
+        assert!(matches!(error, IngestError::NoRecordsLoaded), "{error}");
+        assert_eq!(before, db.query_row("SELECT reference_revision,(SELECT context_json FROM artifact_context) FROM workspace", [], |r| Ok((r.get(0)?,r.get(1)?))).unwrap());
+        assert_eq!(
+            roots_before,
+            db.prepare("SELECT record_id,key,content_hash FROM records ORDER BY key")
+                .unwrap()
+                .query_map([], |r| Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?
+                )))
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap()
+        );
+        assert_eq!(
+            db.query_row(
+                "SELECT name FROM saved_lists WHERE list_key='keep'",
+                [],
+                |r| r.get::<_, String>(0)
+            )
+            .unwrap(),
+            "Keep"
+        );
+        let reader = atlas_index::test_support::open_reader(fixture.options().output_path).unwrap();
+        let query =
+            atlas_index::validate_query(&atlas_domain::query::QueryPredicate::boolean(true))
+                .unwrap();
+        let hits = reader
+            .lexical_root_candidates(
+                "Useful",
+                &query,
+                None,
+                atlas_domain::SearchContentScope::All,
+            )
+            .unwrap();
+        assert_eq!(
+            hits.iter()
+                .map(|h| h.record.to_string())
+                .collect::<Vec<_>>(),
+            ["items:aaaaaaaaaaaaaaaa"]
+        );
+        assert_eq!(
+            reader
+                .context()
+                .admission
+                .as_ref()
+                .unwrap()
+                .admitted_records,
+            2
+        );
+    }
 }

@@ -282,6 +282,7 @@ pub struct SetupEmbeddingReport {
 
 #[derive(Debug, Clone)]
 pub struct SetupBuildReport {
+    pub admission: atlas_index::SourceAdmissionSummary,
     pub profiles: Vec<atlas_ingest::ProfileBuildReport>,
     pub pack_count: usize,
     pub record_count: usize,

@@ -50,6 +50,7 @@ pub(crate) fn prepare_build(
         &capture.manifest_path,
         &capture.read(&capture.manifest_path)?,
     )?;
+    capture.require_complete_packs()?;
     let fingerprint = capture.fingerprint.clone();
     progress("load_catalog", "Loading translations");
     let catalog = LocalizationCatalog::load_captured(
@@ -75,6 +76,7 @@ pub(crate) fn prepare_build(
         ));
     }
     let mut context = SourceArtifactBuildContext {
+        admission: None,
         core_sections_recipe: atlas_domain::CORE_SECTIONS_RECIPE.into(),
         trait_policy: "trait-definition-centroid/v1".into(),
         used_trait_labels: BTreeMap::new(),
@@ -120,7 +122,7 @@ pub(crate) fn prepare_build(
         },
     );
     let source_report = source.report();
-    if source_report.addressed_documents == 0 {
+    if source_report.discovered_files > 0 && source_report.addressed_documents == 0 {
         return Err(IngestError::NoRecordsLoaded);
     }
     progress("trait_labels", "Resolving trait names");
@@ -413,6 +415,9 @@ pub(crate) fn build_artifact(
         .reclaim_space(schema)
         .map_err(|error| IngestError::SpaceReclamationFailed(error.to_string()))?;
     let report = BuildArtifactReport {
+        admission: prepared.index.context.admission.clone().ok_or_else(|| {
+            IngestError::ArtifactWriteFailed("publication admission summary is missing".into())
+        })?,
         profiles,
         output_path: options.output_path,
         pack_count: prepared.index.packs.len(),

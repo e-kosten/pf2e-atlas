@@ -85,6 +85,7 @@ pub fn audience() -> ContentAudience {
 }
 pub fn context(semantic: bool) -> SourceArtifactBuildContext {
     SourceArtifactBuildContext {
+        admission: None,
         trait_policy: "trait-definition-centroid/v1".into(),
         format_version: ARTIFACT_FORMAT_VERSION,
         snapshot_version: SNAPSHOT_VERSION,
@@ -152,7 +153,7 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
     let mut context = context(semantic);
     context.source_file_count = records.len();
     let ctxhash = context.preparation_sha256().unwrap();
-    let packs = records
+    let packs: Vec<IndexBuildPack> = records
         .iter()
         .map(|r| {
             (
@@ -245,7 +246,14 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
             }
         }
     }
+    let inventory = atlas_index::CompleteSourceInventory::checked(
+        &context.source_fingerprint,
+        packs.iter().map(|p| p.pack_id.clone()),
+        packs.iter().map(|p| p.pack_id.clone()),
+    )
+    .unwrap();
     IndexBuildInput {
+        inventory,
         traits: vec![],
         trait_vectors: vec![],
         records,

@@ -84,6 +84,7 @@ fn audience() -> ContentAudience {
 }
 fn context(n: usize, semantic: bool) -> SourceArtifactBuildContext {
     SourceArtifactBuildContext {
+        admission: None,
         core_sections_recipe: atlas_domain::CORE_SECTIONS_RECIPE.into(),
         trait_policy: "trait-definition-centroid/v1".into(),
         format_version: ARTIFACT_FORMAT_VERSION,
@@ -168,6 +169,12 @@ pub(super) fn fixture_with_description(semantic: bool, description: &str) -> Ind
         ),
     ];
     let mut input = IndexBuildInput {
+        inventory: crate::CompleteSourceInventory::checked(
+            &"a".repeat(64),
+            ["actors", "items", "macros"].map(str::to_owned),
+            ["actors", "items", "macros"].map(str::to_owned),
+        )
+        .unwrap(),
         traits: vec![],
         trait_vectors: vec![],
         context: context(records.len(), semantic),
@@ -972,6 +979,12 @@ fn world_table_result_cannot_resolve_into_the_compendium_namespace() {
         document_kind: "RollTable".into(),
         declared_path: "packs/tables".into(),
     });
+    input.inventory = crate::CompleteSourceInventory::checked(
+        &input.context.source_fingerprint,
+        input.packs.iter().map(|p| p.pack_id.clone()),
+        input.packs.iter().map(|p| p.pack_id.clone()),
+    )
+    .unwrap();
     input.context.source_file_count = input.records.len();
     let hash = input.context.preparation_sha256().unwrap();
     let mut resolver = SourceReferenceIndex::default();

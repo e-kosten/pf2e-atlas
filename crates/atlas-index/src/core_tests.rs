@@ -42,6 +42,12 @@ pub(super) fn fixture(values: Vec<(&str, &str, Value)>, both: bool) -> IndexBuil
             declared_path: "packs/journals".into(),
         },
     ];
+    input.inventory = CompleteSourceInventory::checked(
+        &input.context.source_fingerprint,
+        input.packs.iter().map(|p| p.pack_id.clone()),
+        input.packs.iter().map(|p| p.pack_id.clone()),
+    )
+    .unwrap();
     input.context.source_file_count = input.records.len();
     if both {
         input

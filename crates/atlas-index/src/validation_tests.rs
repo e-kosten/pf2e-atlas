@@ -134,3 +134,69 @@ fn trait_membership_comparison_keeps_exact_owner_serialization() {
     );
     assert!(before.roots > 0);
 }
+
+#[test]
+fn persisted_admission_summary_rejects_corrupt_counts_paths_and_root_coverage() {
+    let mut input = crate::foundation_tests::fixture(false);
+    input.context.source_file_count = 5;
+    input.context.admission = Some(crate::SourceAdmissionSummary {
+        discovered_files: 5,
+        admitted_records: 4,
+        partial_records: 0,
+        quarantined_files: 1,
+        excluded_documents: 0,
+        exclusions: vec![crate::SourceExcludedInput {
+            pack: "items".into(),
+            path: "packs/items/bad.json".into(),
+            reason: "invalid JSON".into(),
+        }],
+    });
+    let (_directory, path) = build(&input);
+    let connection = Connection::open(&path).unwrap();
+    let before = crate::validate_reference(&connection).unwrap();
+    for case in [
+        "total",
+        "partial",
+        "exclusions",
+        "relative path",
+        "absolute path",
+        "reason",
+        "pack",
+        "root coverage",
+    ] {
+        let mut context = input.context.clone();
+        let admission = context.admission.as_mut().unwrap();
+        match case {
+            "total" => admission.discovered_files += 1,
+            "partial" => admission.partial_records = 5,
+            "exclusions" => admission.exclusions.clear(),
+            "relative path" => admission.exclusions[0].path = "../bad.json".into(),
+            "absolute path" => admission.exclusions[0].path = "/bad.json".into(),
+            "reason" => admission.exclusions[0].reason.clear(),
+            "pack" => admission.exclusions[0].pack.clear(),
+            "root coverage" => {
+                admission.admitted_records = 3;
+                admission.discovered_files = 4;
+            }
+            _ => unreachable!(),
+        }
+        let json = serde_json::to_string(&context).unwrap();
+        connection
+            .execute_batch("SAVEPOINT corrupt_admission")
+            .unwrap();
+        connection
+            .execute(
+                "UPDATE artifact_context SET context_json=?,context_hash=?",
+                params![json, context.sha256().unwrap()],
+            )
+            .unwrap();
+        let error = crate::validate_reference(&connection)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("source admission"), "{case}: {error}");
+        connection
+            .execute_batch("ROLLBACK TO corrupt_admission; RELEASE corrupt_admission")
+            .unwrap();
+    }
+    assert_eq!(crate::validate_artifact(&path).unwrap(), before);
+}

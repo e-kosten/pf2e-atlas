@@ -110,6 +110,9 @@ impl SourceSearchProfileIdentity {
     }
 }
 pub(crate) fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), IndexError> {
+    if let Some(admission) = &c.admission {
+        admission.validate()?;
+    }
     if c.core_sections_recipe != atlas_domain::CORE_SECTIONS_RECIPE {
         return Err(IndexError::Unsupported("Core section projection requires an offline metadata update; run atlas setup --offline".into()));
     }
@@ -225,6 +228,17 @@ pub(crate) fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), Ind
     Ok(())
 }
 fn validate_input(input: &IndexBuildInput) -> Result<(), IndexError> {
+    input.inventory.validate(input)?;
+    if input
+        .context
+        .admission
+        .as_ref()
+        .is_some_and(|a| a.admitted_records != input.records.len())
+    {
+        return Err(IndexError::Invalid(
+            "source admission root count differs from publication".into(),
+        ));
+    }
     validate_context(&input.context)?;
     for profile in &input.context.search_profiles {
         let spec = atlas_embedding::search_profile(&profile.profile_id)

@@ -219,6 +219,15 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
             )));
         }
     }
+    if context
+        .admission
+        .as_ref()
+        .is_some_and(|a| a.admitted_records != roots)
+    {
+        return Err(bad(
+            "source admission root count differs from stored records",
+        ));
+    }
     if roots != count(c, "record_bodies")? || roots > context.source_file_count {
         return Err(IndexError::Invalid(
             "snapshot/root/source count mismatch".into(),

@@ -83,6 +83,14 @@ developer original-file inspection remains a separate hash-verified operation.
 
 ## Build and preparation
 
+Product preparation requires complete discovery of every declared pack before
+loading tokenizers or running inference. Missing or unreadable declared packs
+reject the update; readable empty packs remain valid. Developer source diagnosis
+continues to report unavailable packs without requiring publication admission.
+Typed partial records and quarantined roots keep their existing admission policy.
+A nonempty discovered inventory with no addressable records rejects publication;
+zero roots are publishable only when complete discovery found no input files.
+
 Ingest first establishes source/reference identity, then supplies explicit locale,
 audience and resolver context to record-owned preparation and relationship policies.
 The record itself remains a key and DTO. Content outcomes and resolved relationship

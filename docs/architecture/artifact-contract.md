@@ -550,6 +550,19 @@ by selected vocabulary. Exact lexical terms can therefore be reconstructed
 offline; there is no duplicate full localization catalog. Root alias terms must
 match the verified alias relation, with no arbitrary additional FTS vocabulary.
 
+A new publication carries checked complete-discovery evidence bound to its source
+fingerprint and declared pack set. Missing or unreadable declared packs cannot
+publish removals. Complete discovery can publish a readable empty pack or an
+intentional file/declaration removal. A zero-root publication requires zero
+discovered input files; a nonempty wholly quarantined or unaddressable source
+fails without replacing the active reference. The authenticated active context retains
+admitted/partial/quarantined/excluded counts and excluded input paths/reasons,
+without retaining rejected raw source or another complete file manifest.
+Historical contexts without this optional summary have unknown admission counts;
+metadata-only upgrades preserve that absence. Failed attempts preserve the active
+summary and reference revision. Product setup and direct build reports expose the
+new publication's counts.
+
 The writer reconciles changed reference rows inside a maintenance transaction in
 the existing workspace. Unchanged rows retain their identity; removed sources lose
 current projections and become unavailable identities without deleting saved

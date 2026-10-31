@@ -1449,3 +1449,108 @@ fn similar_guard_errors_keep_json_pure_and_include_copyable_rediscovery() {
         assert!(message.ends_with(" --json"), "{message}");
     }
 }
+
+#[test]
+fn setup_reports_admission_counts_and_missing_pack_failure_without_losing_search_or_saved_state() {
+    let fixture = Fixture::new();
+    fixture.data(&["lists", "create", "keep", "--name", "Keep", "--json"]);
+    fs::write(fixture.root.join("packs/actions/bad.json"), "{bad").unwrap();
+    let setup = |json: bool| {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_atlas"));
+        command
+            .args([
+                "setup",
+                "--no-embeddings",
+                "--offline",
+                "--force",
+                "--source",
+            ])
+            .arg(&fixture.root)
+            .arg("--index")
+            .arg(&fixture.index)
+            .arg("--embedding-cache-path")
+            .arg(fixture.root.join("models"));
+        if json {
+            command.arg("--json");
+        }
+        command.output().unwrap()
+    };
+    let first = setup(true);
+    assert!(
+        first.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&first.stdout),
+        String::from_utf8_lossy(&first.stderr)
+    );
+    let first: Value = serde_json::from_slice(&first.stdout).unwrap();
+    let admission = &first["data"]["build"]["admission"];
+    assert_eq!(admission["discovered_files"], 3);
+    assert_eq!(admission["admitted_records"], 2);
+    assert_eq!(admission["quarantined_files"], 1);
+    assert_eq!(admission["exclusions"][0]["path"], "packs/actions/bad.json");
+    let text = setup(false);
+    assert!(text.status.success());
+    assert!(
+        String::from_utf8_lossy(&text.stdout)
+            .contains("3 discovered, 2 admitted, 0 partial, 1 quarantined, 0 excluded")
+    );
+    let before = fixture.data(&["record", "get", "actions:aaaaaaaaaaaaaaaa", "--json"]);
+    fs::rename(
+        fixture.root.join("packs/macros"),
+        fixture.root.join("held-macros"),
+    )
+    .unwrap();
+    let failed = setup(true);
+    assert!(!failed.status.success());
+    let failed: Value = serde_json::from_slice(&failed.stdout).unwrap();
+    assert!(
+        failed["data"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|action| action["reason"]
+                .as_str()
+                .is_some_and(|s| s.contains("packs/macros"))),
+        "{failed}"
+    );
+    assert_eq!(
+        fixture.data(&["record", "get", "actions:aaaaaaaaaaaaaaaa", "--json"]),
+        before
+    );
+    assert_eq!(
+        fixture.data(&["lists", "show", "keep", "--json"])["list"]["name"],
+        "Keep"
+    );
+    fs::rename(
+        fixture.root.join("held-macros"),
+        fixture.root.join("packs/macros"),
+    )
+    .unwrap();
+    for path in ["packs/actions/heal.json", "packs/macros/tool.json"] {
+        fs::write(fixture.root.join(path), "{broken").unwrap();
+    }
+    let failed = setup(true);
+    assert!(!failed.status.success());
+    let failed: Value = serde_json::from_slice(&failed.stdout).unwrap();
+    assert!(
+        failed["data"]["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|action| action["reason"]
+                .as_str()
+                .is_some_and(|s| s.contains("no loadable Foundry records"))),
+        "{failed}"
+    );
+    let text = setup(false);
+    assert!(!text.status.success());
+    assert!(String::from_utf8_lossy(&text.stdout).contains("no loadable Foundry records"));
+    assert_eq!(
+        fixture.data(&["record", "get", "actions:aaaaaaaaaaaaaaaa", "--json"]),
+        before
+    );
+    assert_eq!(
+        fixture.data(&["lists", "show", "keep", "--json"])["list"]["name"],
+        "Keep"
+    );
+}
