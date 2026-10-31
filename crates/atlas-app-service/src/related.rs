@@ -128,26 +128,7 @@ impl AtlasAppService {
                                 RelatedCategoryView::Empty
                             } else {
                                 RelatedCategoryView::Content {
-                                    content: atlas_app_model::RemasterLinksView {
-                                        seed: crate::projection::localized_summary_view(&g.seed, r),
-                                        links: g
-                                            .links
-                                            .into_iter()
-                                            .map(|l| atlas_app_model::RemasterLinkView {
-                                                legacy_record:
-                                                    crate::projection::localized_summary_view(
-                                                        &l.legacy_record,
-                                                        r,
-                                                    ),
-                                                remaster_record:
-                                                    crate::projection::localized_summary_view(
-                                                        &l.remaster_record,
-                                                        r,
-                                                    ),
-                                                evidence: l.evidence,
-                                            })
-                                            .collect(),
-                                    },
+                                    content: crate::remaster::links_view(g, r)?,
                                 }
                             })
                         }),

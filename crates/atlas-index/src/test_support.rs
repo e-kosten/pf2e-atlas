@@ -230,6 +230,16 @@ pub fn set_content_interpretation_version(
     })
 }
 
+pub fn set_relationship_policy(
+    path: impl AsRef<Path>,
+    workspace_schema_version: u32,
+    version: &str,
+) -> Result<(), IndexError> {
+    set_preparation_policy(path, workspace_schema_version, |context| {
+        context.relationship_policy = version.into()
+    })
+}
+
 pub fn set_content_selection_version(
     path: impl AsRef<Path>,
     workspace_schema_version: u32,

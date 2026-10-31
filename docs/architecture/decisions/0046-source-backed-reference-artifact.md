@@ -93,7 +93,20 @@ It does not promote unresolved occurrences, because ingest may have additional
 excluded-source ambiguity evidence outside the product artifact.
 Verified aliases and remaster pairs require explicit evidence. Legacy suppression
 applies only when a verified replacement also matches the current request, before
-pagination; a legacy-only match remains visible. Suggested variants are a bounded
+pagination; a legacy-only match remains visible. Suppression reads only relevant
+pair identities, with complete candidate membership at both endpoints in index
+SQL. It neither reads provenance nor checks unrelated rows. Checked publication
+and explicit full validation establish comprehensive validity; this supersedes
+the accidental ordinary-search failure on unrelated malformed remaster evidence.
+
+Remaster provenance is a typed source-content locator captured by ingest from
+an explicit journal reference pair. It retains the journal record, embedded owner
+chain and field; it makes no exact-row or source-span claim. Full validation checks
+that address against authored content in the checked snapshot. Provenance-bearing
+readers decode the values they consume; app-service supplies readable attribution
+and exact navigation for CLI/API and Other editions. Relationship policy v7
+requires source-backed republication for old artifacts, preserving saved domains
+and stable identities. Old opaque strings are never split or converted. Suggested variants are a bounded
 same-pack/family derived view with transparent naming evidence, not identity,
 aliases or result suppression. RollTables are product records; Macros are
 developer-only on all product paths, including exact-key access.

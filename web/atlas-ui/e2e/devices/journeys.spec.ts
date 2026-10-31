@@ -1985,9 +1985,11 @@ test("a real trait member total renders a singular entry @engine", async ({ page
   const members = page.waitForResponse(
     (response) =>
       response.url().endsWith("/api/traits/records") &&
-      response.request().postDataJSON()?.kind === "members",
+      response.request().postDataJSON()?.kind === "members" &&
+      // Startup replaces the provisional null-profile request after readiness.
+      response.request().postDataJSON()?.search_profile === "bge-base",
   );
-  await page.goto("/traits/trait%3Alight");
+  await page.goto("/traits/trait%3Alight?search_profile=bge-base");
   const wire = await (await members).json();
   expect(wire.page.total).toBe(1);
   await expect(page.getByRole("heading", { name: "Light", exact: true })).toBeVisible();
@@ -2065,6 +2067,82 @@ test("table rolls retain overlapping prepared results and allow stateless reroll
     );
     await expect(preview).toBeHidden();
   }
+});
+
+test("Other editions keeps exact source citation navigation and comparison", async ({
+  page,
+  context,
+}, info) => {
+  await page.goto("/records/browser-editions:remaster00000001");
+  await activate(
+    page.getByRole("button", { name: "Explore related records", exact: true }),
+    info,
+  );
+  await activate(page.getByRole("tab", { name: "Versions", exact: true }), info);
+  await expect(
+    page.getByRole("heading", { name: "Other editions", exact: true }),
+  ).toBeVisible();
+  const source = page.getByRole("link", {
+    name: "Remaster Changes — Class Features",
+    exact: true,
+  });
+  await expect(source).toBeVisible();
+  const href = await source.getAttribute("href");
+  const address = readUrl(new URL(href!, page.url()));
+  expect(address).toMatchObject({
+    record_key: "browser-journals:editionjournal01",
+    embedded_path: [{ collection: "/pages", identity: { Stable: "editionpage00001" } }],
+    field: "/text/content",
+  });
+  if (!info.project.use.hasTouch) {
+    const opened = context.waitForEvent("page");
+    await source.click({ modifiers: ["ControlOrMeta"] });
+    const native = await opened;
+    await expect(
+      native.getByRole("heading", { name: "Class Features", exact: true }).first(),
+    ).toBeVisible();
+    expect(readUrl(new URL(native.url()))).toMatchObject(address);
+    await native.close();
+    await source.focus();
+    await source.press("Enter");
+  } else await activate(source, info);
+  const drawer = page.locator(".record-preview-drawer");
+  await expect(drawer).toBeVisible();
+  await expect(
+    drawer.getByRole("heading", { name: "Class Features", exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    drawer.getByText("Explicit edition references:", { exact: false }),
+  ).toBeVisible();
+  await activate(
+    drawer.getByRole("link", { name: "Legacy signal", exact: true }),
+    info,
+  );
+  await expect(
+    drawer.getByRole("heading", { name: "Legacy signal", exact: true }).first(),
+  ).toBeVisible();
+  await activate(drawer.getByRole("button", { name: "Back", exact: true }), info);
+  await expect(
+    drawer.getByRole("heading", { name: "Class Features", exact: true }).first(),
+  ).toBeVisible();
+  await activate(
+    drawer.getByRole("button", { name: "Close reference preview", exact: true }),
+    info,
+  );
+  await expect(drawer).toBeHidden();
+  await expect(source).toBeFocused();
+  await activate(page.getByRole("button", { name: "Compare", exact: true }), info);
+  const comparison = page.getByRole("dialog", {
+    name: "Variant comparison",
+    exact: true,
+  });
+  await expect(
+    comparison.getByRole("heading", { name: "Legacy signal", exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    comparison.getByRole("heading", { name: "Modern signal", exact: true }).first(),
+  ).toBeVisible();
+  await noPageOverflow(page);
 });
 
 test("routine budgets and check trait disclosures retain keyboard and touch reading", async ({

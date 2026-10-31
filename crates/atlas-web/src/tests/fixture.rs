@@ -48,9 +48,12 @@ impl Fixture {
         }
     }
     pub fn new() -> Self {
+        Self::with_remaster(false)
+    }
+    pub fn with_remaster(remaster: bool) -> Self {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("workspace.sqlite");
-        let records = vec![
+        let mut records = vec![
             record(
                 "actions",
                 "Item",
@@ -77,7 +80,18 @@ impl Fixture {
                 json!({"_id":"TBSHQspnbcqxsmjL","type":"condition","name":"Frightened","system":{"slug":"frightened","value":{"isValued":true,"value":1}}}),
             ),
         ];
+        if remaster {
+            records.push(record("journals", "JournalEntry", json!({"_id":"editionjournal01","name":"Remaster Changes","pages":[{"_id":"editionpage00001","name":"Class Features","type":"text","text":{"content":"<p>Explicit old and new references.</p>","format":1}}]})));
+        }
         let mut data = input(records, true);
+        if remaster {
+            data.remaster_pairs
+                .push(atlas_index::SourceRemasterPairInput {
+                    legacy: ACTION.parse().unwrap(),
+                    remaster: SECOND_ACTION.parse().unwrap(),
+                    provenance: serde_json::from_value(json!({"record":"journals:editionjournal01","owners":[{"collection":"/pages","identity":{"Stable":"editionpage00001"}}],"field":"/text/content"})).unwrap(),
+                });
+        }
         let key = TraitKey::new("fire").unwrap();
         data.traits.push(TraitDefinition {
             key: key.clone(),

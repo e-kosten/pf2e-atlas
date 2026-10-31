@@ -141,14 +141,20 @@ pub(crate) fn run_graph_remaster(o: GraphRemasterOptions) -> Result<ExitCode, St
             o.json,
         );
     };
-    let data = serde_json::to_value(r).map_err(|e| e.to_string())?;
     if o.json {
-        write_json_data(data)?;
+        write_json_data(serde_json::to_value(&r).map_err(|e| e.to_string())?)?;
     } else {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&data).map_err(|e| e.to_string())?
-        );
+        println!("Other editions of {}", r.seed.title);
+        for link in r.links {
+            println!(
+                "{} → {}",
+                link.legacy_record.title, link.remaster_record.title
+            );
+            println!("  Source: {}", link.provenance.attribution);
+            if let Some(reason) = link.provenance.unavailable_reason {
+                println!("  {reason}");
+            }
+        }
     }
     Ok(ExitCode::SUCCESS)
 }

@@ -995,6 +995,103 @@ fn verified_name_aliases_never_invent_legacy_record_pairs() {
             .unwrap(),
         1
     );
+    let json: String = database
+        .query_row("SELECT evidence_json FROM remaster_pairs", [], |r| r.get(0))
+        .unwrap();
+    let provenance: atlas_record::source_content::SourceContentLocator =
+        serde_json::from_str(&json).unwrap();
+    assert_eq!(provenance.record.to_string(), "journals:ffffffffffffffff");
+    assert_eq!(
+        provenance.owners,
+        vec![atlas_domain::OwnedContentLocator {
+            collection: "/pages".into(),
+            identity: atlas_domain::OwnedContentIdentity::Stable("hhhhhhhhhhhhhhhh".into())
+        }]
+    );
+    assert_eq!(provenance.field, "/text/content");
+    drop(database);
+    let reopened = atlas_index::test_support::open_reader(&report.output_path).unwrap();
+    let links = reopened
+        .read_remaster_links(&"actions:aaaaaaaaaaaaaaaa".parse().unwrap())
+        .unwrap();
+    assert_eq!(links.len(), 1);
+    assert_eq!(links[0].provenance, provenance);
+    assert!(
+        reopened
+            .read_source_record(&provenance.record)
+            .unwrap()
+            .unwrap()
+            .authored_content_at(&provenance)
+            .value()
+            .unwrap()
+            .contains("@UUID")
+    );
+    drop(reopened);
+    // Model the published v6 component: same checked source and opaque journal evidence.
+    atlas_index::test_support::set_relationship_policy(
+        &report.output_path,
+        atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
+        "typed-authored-occurrences/v6",
+    )
+    .unwrap();
+    let before = rusqlite::Connection::open(&report.output_path).unwrap();
+    before
+        .execute(
+            "UPDATE remaster_pairs SET evidence_json=?",
+            [
+                serde_json::to_string("journal:journals:ffffffffffffffff:[owners]:/text/content")
+                    .unwrap(),
+            ],
+        )
+        .unwrap();
+    before.execute_batch("INSERT INTO saved_lists(id,list_key,slug,name,description,created_at,updated_at) VALUES(1,'saved','saved','Saved editions','Retain notes','now','now'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(1,'actions:aaaaaaaaaaaaaaaa',0,'Legacy reference','Attack of Opportunity','now','now'); INSERT INTO encounters(id,encounter_key,slug,name,note,status,created_at,updated_at,revision) VALUES(1,'encounter','encounter','Saved encounter','Keep this note','active','now','now',4);").unwrap();
+    let identity: i64 = before
+        .query_row(
+            "SELECT record_id FROM records WHERE key='actions:aaaaaaaaaaaaaaaa'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    let workspace: String = before
+        .query_row("SELECT workspace_key FROM workspace", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(
+        atlas_index::classify_reference_upgrade(&before).unwrap(),
+        atlas_index::ReferenceUpgrade::SourcePreparation
+    );
+    assert!(atlas_index::test_support::open_reader(&report.output_path).is_err());
+    drop(before);
+    let upgraded = build_artifact(fixture.options()).unwrap();
+    let reopened = atlas_index::test_support::open_reader(&upgraded.output_path).unwrap();
+    assert_eq!(
+        reopened
+            .read_remaster_links(&"actions:aaaaaaaaaaaaaaaa".parse().unwrap())
+            .unwrap()[0]
+            .provenance,
+        provenance
+    );
+    assert_eq!(reopened.artifact_instance().workspace_key(), workspace);
+    let c = rusqlite::Connection::open(&upgraded.output_path).unwrap();
+    assert_eq!(
+        c.query_row(
+            "SELECT record_id FROM records WHERE key='actions:aaaaaaaaaaaaaaaa'",
+            [],
+            |r| r.get::<_, i64>(0)
+        )
+        .unwrap(),
+        identity
+    );
+    let saved: (String,String,String,String,i64) = c.query_row("SELECT l.name,l.description,i.note,e.note,e.revision FROM saved_lists l JOIN saved_list_items i ON i.list_id=l.id CROSS JOIN encounters e", [], |r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))).unwrap();
+    assert_eq!(
+        saved,
+        (
+            "Saved editions".into(),
+            "Retain notes".into(),
+            "Legacy reference".into(),
+            "Keep this note".into(),
+            4
+        )
+    );
 }
 #[test]
 #[ignore = "requires pinned full source and verified local tokenizer; run explicitly"]

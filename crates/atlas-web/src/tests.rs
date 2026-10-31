@@ -1296,3 +1296,33 @@ async fn discovery_rejects_record_text_before_model_work_and_keeps_value_name_se
             .is_empty()
     );
 }
+
+#[tokio::test]
+async fn remaster_provenance_crosses_real_http_with_exact_field_navigation() {
+    let fixture = Fixture::with_remaster(true);
+    let detail = fixture.service.record_detail(ACTION).unwrap();
+    let (status, body) = fixture.json(Method::POST, "/api/related", Some(json!({"selection":detail.selected,"artifact_generation":detail.artifact_generation}))).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let wire = &body["counterparts"]["content"]["links"][0]["provenance"];
+    assert_eq!(wire["attribution"], "Remaster Changes — Class Features");
+    assert_eq!(wire["source"]["field"], "/text/content");
+    assert_eq!(
+        wire["source"]["embedded_path"][0]["identity"]["Stable"],
+        "editionpage00001"
+    );
+    assert_eq!(
+        wire["navigation"]["record_key"],
+        "journals:editionjournal01"
+    );
+    assert_eq!(wire["navigation"]["field"], "/text/content");
+    assert!(wire["navigation"].get("spell_rank").is_none());
+    assert!(wire["navigation"]["source_fingerprint"].is_null());
+    assert!(wire["unavailable_reason"].is_null());
+    let decoded: atlas_app_model::RelatedRecordsView = serde_json::from_value(body).unwrap();
+    let atlas_app_model::RelatedCategoryView::Content { content } = decoded.counterparts else {
+        panic!("counterparts")
+    };
+    let navigation = content.links[0].provenance.navigation.as_ref().unwrap();
+    let (status, source) = fixture.json(Method::POST, "/api/records/detail", Some(json!({"record_key":navigation.record_key,"embedded_path":navigation.owners,"fields":[navigation.field],"source_fingerprint":navigation.source_fingerprint}))).await;
+    assert_eq!(status, StatusCode::OK, "{source}");
+}

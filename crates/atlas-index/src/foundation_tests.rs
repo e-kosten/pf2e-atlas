@@ -1097,7 +1097,11 @@ fn explicit_alias_and_remaster_evidence_are_collision_preserving() {
     input.remaster_pairs = vec![SourceRemasterPairInput {
         legacy: input.records[1].record.key().clone(),
         remaster: input.records[2].record.key().clone(),
-        evidence: "typed samefamily reference fixture".into(),
+        provenance: atlas_record::source_content::SourceContentLocator {
+            record: input.records[1].record.key().clone(),
+            owners: vec![],
+            field: "/system/description/value".into(),
+        },
     }];
     synchronize_fixture_terms(&mut input);
     let (_directory, path) = build(&input);
@@ -1110,7 +1114,7 @@ fn explicit_alias_and_remaster_evidence_are_collision_preserving() {
     );
     assert!(
         reader
-            .matched_remaster_pairs(std::slice::from_ref(input.records[1].record.key()))
+            .matched_legacy_keys(std::slice::from_ref(input.records[1].record.key()))
             .unwrap()
             .is_empty()
     );
@@ -1656,6 +1660,111 @@ fn physical_projection_keeps_price_state_and_amount_across_equipment_families() 
             physical.values[amount],
             rusqlite::types::Value::Real(200.0),
             "{family}"
+        );
+    }
+}
+
+#[test]
+fn remaster_suppression_reads_only_matching_identities_for_complete_sets() {
+    let mut input = fixture(false);
+    let legacy = input.records[1].record.key().clone();
+    let remaster = input.records[2].record.key().clone();
+    input.remaster_pairs = vec![SourceRemasterPairInput {
+        legacy: legacy.clone(),
+        remaster: remaster.clone(),
+        provenance: atlas_record::source_content::SourceContentLocator {
+            record: legacy.clone(),
+            owners: vec![],
+            field: "/system/description/value".into(),
+        },
+    }];
+    let second_legacy = input.records[0].record.key().clone();
+    input.remaster_pairs.push(SourceRemasterPairInput {
+        legacy: second_legacy.clone(),
+        remaster: remaster.clone(),
+        provenance: input.remaster_pairs[0].provenance.clone(),
+    });
+    let (_directory, path) = build(&input);
+    {
+        let c = Connection::open(&path).unwrap();
+        c.execute("UPDATE remaster_pairs SET evidence_json='{}'", [])
+            .unwrap();
+    }
+    let reader = crate::test_support::open_reader(&path).unwrap();
+    reader.reset_read_metrics();
+    assert!(reader.matched_legacy_keys(&[]).unwrap().is_empty());
+    assert_eq!(reader.read_metrics().sql_statements, 0);
+    for keys in [vec![legacy.clone()], vec![remaster.clone()]] {
+        assert!(reader.matched_legacy_keys(&keys).unwrap().is_empty());
+    }
+    let mut keys = vec![legacy.clone(), legacy.clone(), remaster.clone()];
+    keys.extend((0..40000).map(|i| format!("absent:{i:016}").parse().unwrap()));
+    reader.reset_read_metrics();
+    assert_eq!(
+        reader.matched_legacy_keys(&keys).unwrap(),
+        vec![legacy.clone()]
+    );
+    assert_eq!(reader.read_metrics().sql_statements, 1);
+    assert_eq!(reader.read_metrics().source_body_decodes, 0);
+    assert_eq!(reader.read_metrics().remaster_pair_rows, 1);
+    assert_eq!(reader.read_metrics().remaster_provenance_decodes, 0);
+    let mut expected = vec![legacy.clone(), second_legacy.clone()];
+    expected.sort();
+    assert_eq!(
+        reader
+            .matched_legacy_keys(&[legacy.clone(), second_legacy, remaster])
+            .unwrap(),
+        expected
+    );
+    assert!(reader.read_remaster_links(&legacy).is_err());
+    assert!(validate_artifact(&path).is_err());
+}
+
+#[test]
+fn invalid_typed_remaster_source_rolls_back_publication() {
+    let input = fixture(false);
+    let (_directory, path) = build(&input);
+    let before = validate_artifact(&path).unwrap();
+    let generation = crate::test_support::open_reader(&path)
+        .unwrap()
+        .artifact_instance()
+        .clone();
+    for defect in ["record", "owner", "field"] {
+        let mut next = fixture(false);
+        let mut provenance = atlas_record::source_content::SourceContentLocator {
+            record: next.records[1].record.key().clone(),
+            owners: vec![],
+            field: "/system/description/value".into(),
+        };
+        match defect {
+            "record" => provenance.record = "missing:aaaaaaaaaaaaaaaa".parse().unwrap(),
+            "owner" => provenance.owners.push(OwnedContentLocator {
+                collection: "/items".into(),
+                identity: OwnedContentIdentity::Stable("missingowner0001".into()),
+            }),
+            _ => provenance.field = "/missing".into(),
+        }
+        next.remaster_pairs.push(SourceRemasterPairInput {
+            legacy: next.records[1].record.key().clone(),
+            remaster: next.records[2].record.key().clone(),
+            provenance,
+        });
+        assert!(
+            crate::test_support::publish_input(&path, &next).is_err(),
+            "{defect}"
+        );
+        assert_eq!(validate_artifact(&path).unwrap(), before);
+        let workspace = atlas_storage::Workspace::at(&path).unwrap();
+        crate::recover_reference_publication(
+            &workspace.update_owner().unwrap(),
+            crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
+        )
+        .unwrap();
+        assert_eq!(
+            crate::test_support::open_reader(&path)
+                .unwrap()
+                .artifact_instance(),
+            &generation
         );
     }
 }

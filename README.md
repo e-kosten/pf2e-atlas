@@ -14,7 +14,7 @@ With `atlas`, you can:
 - search PF2E records by text, kind, and structured filters
 - resolve names (including by pre-remaster aliases)
 - find records similar to a known seed record
-- inspect nearby references around a known record
+- inspect nearby references and verified other editions, with links to their sources
 - roll dice with individual faces and kept/dropped results, without runtime setup
 - install a PF2e Atlas skill that guides local agents through lookup and discovery
 

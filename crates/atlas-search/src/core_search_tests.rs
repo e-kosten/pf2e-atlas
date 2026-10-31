@@ -808,7 +808,11 @@ fn core_lexical_edition_preference_uses_scoped_matches_before_sorting_and_paging
         .push(atlas_index::SourceRemasterPairInput {
             legacy: legacy.clone(),
             remaster: remaster.clone(),
-            evidence: "verified source pair".into(),
+            provenance: atlas_record::source_content::SourceContentLocator {
+                record: legacy.clone(),
+                owners: vec![],
+                field: "/system/details/publicNotes".into(),
+            },
         });
     let (mut service, _artifact) = open_input_fixture(data).unwrap();
     assert!(

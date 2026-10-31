@@ -82,27 +82,11 @@ impl AtlasAppService {
         record_key: RecordKey,
     ) -> AppServiceResult<Option<atlas_app_model::RemasterLinksView>> {
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
-            Ok(r.remaster_links(RemasterLinksRequest {
+            r.remaster_links(RemasterLinksRequest {
                 record_key: &record_key,
             })?
-            .map(|g| atlas_app_model::RemasterLinksView {
-                seed: crate::projection::localized_summary_view(&g.seed, r),
-                links: g
-                    .links
-                    .into_iter()
-                    .map(|l| atlas_app_model::RemasterLinkView {
-                        legacy_record: crate::projection::localized_summary_view(
-                            &l.legacy_record,
-                            r,
-                        ),
-                        remaster_record: crate::projection::localized_summary_view(
-                            &l.remaster_record,
-                            r,
-                        ),
-                        evidence: l.evidence,
-                    })
-                    .collect(),
-            }))
+            .map(|result| crate::remaster::links_view(result, r))
+            .transpose()
         })
     }
 }

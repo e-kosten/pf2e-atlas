@@ -29,6 +29,7 @@ mod record_grants;
 mod records;
 mod related;
 mod relationship_search;
+mod remaster;
 mod retrieval;
 mod search_match_sections;
 mod search_pages;
