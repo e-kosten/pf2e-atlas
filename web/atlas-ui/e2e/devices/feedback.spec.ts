@@ -127,8 +127,15 @@ test("a Similarity inventory outage preserves settings and recovers as a read", 
       .first(),
   ).toBeVisible();
   const settings = page.getByRole("button", { name: "Search settings", exact: true });
-  await activate(settings, info);
-  let dialog = page.getByRole("dialog", { name: "Search settings", exact: true });
+  async function openSettings() {
+    await activate(settings, info);
+    const dialog = page.getByRole("dialog", { name: "Search settings", exact: true });
+    await expect(dialog).toBeVisible();
+    // Touch can land during Ant's entrance prepare/start frames before settling.
+    await expect(dialog).not.toHaveClass(/ant-zoom-(?:appear|enter)(?:[-\s]|$)/);
+    return dialog;
+  }
+  let dialog = await openSettings();
   // The section preset is a mutable draft even while its inventory is unavailable.
   const sourceSections = dialog.getByRole("combobox", {
     name: "Source sections",
@@ -200,8 +207,7 @@ test("a Similarity inventory outage preserves settings and recovers as a read", 
   await activate(dialog.getByRole("button", { name: "Apply", exact: true }), info);
   await expect(dialog).toBeHidden();
   const appliedUrl = page.url();
-  await activate(settings, info);
-  dialog = page.getByRole("dialog", { name: "Search settings", exact: true });
+  dialog = await openSettings();
   await activate(
     dialog.getByRole("button", { name: "Choose sections", exact: true }),
     info,
@@ -212,8 +218,7 @@ test("a Similarity inventory outage preserves settings and recovers as a read", 
   await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
   await expect(dialog).toBeHidden();
   expect(page.url()).toBe(appliedUrl);
-  await activate(settings, info);
-  dialog = page.getByRole("dialog", { name: "Search settings", exact: true });
+  dialog = await openSettings();
   await activate(
     dialog.getByRole("button", { name: "Choose sections", exact: true }),
     info,
