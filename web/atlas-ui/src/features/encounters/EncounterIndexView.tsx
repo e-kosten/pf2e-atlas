@@ -1,3 +1,4 @@
+import { AtlasLink } from "../../app/AtlasLink";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import {
   navigateDestination,
@@ -184,9 +185,9 @@ function encounterColumns(
       width: 280,
       dataIndex: "name",
       render: (_value, encounter) => (
-        <a href={destinationHref(encounterDestination({ slug: encounter.slug }))}>
+        <AtlasLink {...encounterDestination({ slug: encounter.slug })}>
           {encounter.name}
-        </a>
+        </AtlasLink>
       ),
     },
     {

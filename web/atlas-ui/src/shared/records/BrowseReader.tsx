@@ -46,16 +46,39 @@ export function BrowseReader({
   const localPositions = useBrowsePositions();
   const saved = positions ?? localPositions;
   const listRef = useRef<HTMLDivElement>(null);
+  // Activity can keep this DOM while suspending its layout effects.
+  const layoutActive = useRef(false);
+  const navigationPending = useRef(false);
+  useLayoutEffect(() => {
+    layoutActive.current = true;
+    navigationPending.current = false;
+    return () => {
+      layoutActive.current = false;
+    };
+  }, []);
   const beforePreview = useRef<HTMLElement | null>(null);
   const readerOpen = reading.request !== null && closedRequest !== reading.request;
   useLayoutEffect(() => {
     // Capture before route rendering removes scroll content. Native scroll events
     // may still be queued when the user immediately opens the full reference.
     const snapshot = () => {
-      if (listRef.current && (!narrow || !readerOpen))
+      if (
+        layoutActive.current &&
+        !navigationPending.current &&
+        listRef.current &&
+        (!narrow || !readerOpen)
+      )
         saved.saveList(listRef.current.scrollTop);
+      navigationPending.current = true;
     };
-    return atlasRouter.subscribe("onBeforeNavigate", snapshot);
+    const before = atlasRouter.subscribe("onBeforeNavigate", snapshot);
+    const resolved = atlasRouter.subscribe("onResolved", () => {
+      navigationPending.current = false;
+    });
+    return () => {
+      before();
+      resolved();
+    };
   }, [saved, narrow, readerOpen]);
   useLayoutEffect(() => {
     if (listRef.current && (!narrow || !readerOpen))
@@ -103,7 +126,12 @@ export function BrowseReader({
         ref={listRef}
         aria-busy={resultsLoading}
         onScroll={(event) => {
-          if (!narrow || !readerOpen) saved.saveList(event.currentTarget.scrollTop);
+          if (
+            layoutActive.current &&
+            !navigationPending.current &&
+            (!narrow || !readerOpen)
+          )
+            saved.saveList(event.currentTarget.scrollTop);
         }}
       >
         {children}

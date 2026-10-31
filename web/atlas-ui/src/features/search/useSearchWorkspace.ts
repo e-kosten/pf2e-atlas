@@ -47,7 +47,10 @@ import {
   type SearchFormState,
 } from "../../shared/filters/searchState";
 import { useFilterDiscovery } from "../../shared/filters/useFilterDiscovery";
-import { commonCondition } from "../../shared/filters/filterControls";
+import {
+  commonCondition,
+  type SearchUpdateIntent,
+} from "../../shared/filters/filterControls";
 import {
   rootNavigation,
   useReferenceReading,
@@ -104,7 +107,7 @@ export type SearchWorkspaceState = {
   search: SearchFormState;
   reading: ReferenceReading;
   positions: BrowsePositions;
-  setSearch: (next: SearchFormState) => void;
+  setSearch: (next: SearchFormState, intent?: SearchUpdateIntent) => void;
   applySettings?: (next: SearchFormState, profile: string) => void;
   recoverFilterUrl: (restored: SearchFormState) => void;
   selectedRecordKey: string | null;
@@ -340,11 +343,12 @@ export function useSearchWorkspace({
   }, [enabled, location]);
 
   useEffect(() => {
+    if (search === activeSearch) return;
     const timeout = window.setTimeout(() => {
       dispatch({ type: "search.executionCommitted", search });
     }, SEARCH_REQUEST_DEBOUNCE_MS);
     return () => window.clearTimeout(timeout);
-  }, [search, searchToken]);
+  }, [search, searchToken, activeSearch]);
   const resultsKeyForGeneration = (generation: string | null) => [
     "results",
     activeSearchExecutionToken,
@@ -570,7 +574,7 @@ export function useSearchWorkspace({
     queryKeyPrefix: ["filter-discovery", retrieval.epoch],
     catalogIdentity: [retrieval.epoch],
   });
-  function setSearch(next: SearchFormState) {
+  function setSearch(next: SearchFormState, intent: SearchUpdateIntent = "edit") {
     const version = ++seedPreparation.current;
     setSourcePreparationError(null);
     setPreparingSeed(false);
@@ -609,13 +613,16 @@ export function useSearchWorkspace({
               current.generation,
             );
             retrieval.adopt(ticket, inventory.artifact_generation);
-            commitSearch({
-              ...nextSearch,
-              sourceSections: preferredSourceSections(
-                searchPreferences,
-                inventory.core.family,
-              ),
-            });
+            commitSearch(
+              {
+                ...nextSearch,
+                sourceSections: preferredSourceSections(
+                  searchPreferences,
+                  inventory.core.family,
+                ),
+              },
+              intent,
+            );
           })
           .catch((error: unknown) => {
             if (version === seedPreparation.current)
@@ -631,9 +638,9 @@ export function useSearchWorkspace({
         return;
       }
     }
-    commitSearch(next);
+    commitSearch(next, intent);
   }
-  function commitSearch(next: SearchFormState) {
+  function commitSearch(next: SearchFormState, intent: SearchUpdateIntent) {
     if (next.similarSeed !== search.similarSeed)
       next = {
         ...next,
@@ -672,7 +679,10 @@ export function useSearchWorkspace({
         JSON.stringify(commonCondition(next.filter, kind.definition))
     )
       rememberKindPreference(next.filter, kind.definition);
-    dispatch({ type: "search.changed", search: next });
+    dispatch({
+      type: intent === "submit" ? "search.submitted" : "search.changed",
+      search: next,
+    });
     void atlasRouter.navigate({
       ...searchDestination({
         ...currentSearchLocation(),

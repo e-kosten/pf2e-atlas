@@ -18,6 +18,8 @@ import {
   type ResolvedColorScheme,
 } from "../shared/theme/atlasTheme";
 import { AppShell } from "./AppShell";
+import { currentSearchLocation } from "./searchLocation";
+import { searchDestination, type SearchPageInput } from "./destinations";
 import { LinkPickerContext } from "../shared/filters/LinkPickerContext";
 import { LinkConditionPicker } from "../shared/filters/LinkConditionPicker";
 import { BackendCompatibilityGate } from "./BackendCompatibilityGate";
@@ -99,6 +101,18 @@ function AtlasWorkspace({
       [...state.matches].reverse().find((match) => match.staticData.section)?.staticData
         .section ?? "search",
   });
+  const location = useRouterState({ select: (state) => state.location });
+  const [searchReturn, setSearchReturn] = useState<{
+    route: SearchPageInput;
+    location: typeof location;
+  } | null>(() => {
+    const route = currentSearchLocation();
+    return !routeError && route ? { route, location } : null;
+  });
+  if (!routeError && searchReturn?.location !== location) {
+    const route = currentSearchLocation();
+    if (route) setSearchReturn({ route, location });
+  }
   const readiness = useQuery({ queryKey: ["readiness"], queryFn: getReadiness });
   const searchProfile = useSearchProfileSelection(readiness.data);
   const workspace = useSearchWorkspace({
@@ -117,6 +131,16 @@ function AtlasWorkspace({
       <LinkPickerContext value={LinkConditionPicker}>
         <AppShell
           activeView={routeError ? "reference" : section}
+          searchReturnDestination={
+            searchReturn
+              ? {
+                  ...searchDestination(searchReturn.route),
+                  hash: searchReturn.location.hash,
+                  state: searchReturn.location.state,
+                  resetScroll: false,
+                }
+              : undefined
+          }
           colorScheme={colorScheme}
           onColorSchemeChange={onColorSchemeChange}
           resolvedColorScheme={resolvedColorScheme}
@@ -134,7 +158,10 @@ function AtlasWorkspace({
                   </main>
                 }
               >
-                <SearchView workspace={workspace} />
+                <SearchView
+                  workspace={workspace}
+                  historyState={searchReturn?.location.state}
+                />
               </Suspense>
             </Activity>
             {routeError ?? <Outlet />}

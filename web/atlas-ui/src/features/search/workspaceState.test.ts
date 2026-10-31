@@ -35,7 +35,7 @@ describe("workspaceInteractionReducer", () => {
       mode: "text_search" as const,
     };
 
-    const next = workspaceInteractionReducer(baseState(), {
+    const next = workspaceInteractionReducer(baseState({ search: nextSearch }), {
       type: "search.executionCommitted",
       search: nextSearch,
     });
@@ -52,6 +52,23 @@ describe("workspaceInteractionReducer", () => {
     });
 
     expect(next).toBe(state);
+  });
+
+  it("ignores a delayed execution superseded by an explicit submission", () => {
+    const stale = { ...DEFAULT_SEARCH_STATE, query: "old" };
+    const submitted = { ...DEFAULT_SEARCH_STATE, query: "new" };
+    const next = workspaceInteractionReducer(baseState({ search: stale }), {
+      type: "search.submitted",
+      search: submitted,
+    });
+    expect(next.search).toBe(submitted);
+    expect(next.activeSearch).toBe(submitted);
+    expect(
+      workspaceInteractionReducer(next, {
+        type: "search.executionCommitted",
+        search: stale,
+      }),
+    ).toBe(next);
   });
 
   it("restores URL state as one transition", () => {

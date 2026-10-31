@@ -42,6 +42,7 @@ import { EncounterIndexView } from "./EncounterIndexView";
 import { EditEncounterForm } from "./EncounterModals";
 import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import { atlasRouter } from "../../app/router";
+import { RouterTestContext } from "../../test/router";
 
 const apiMocks = vi.hoisted(() => ({
   previewEncounterRecovery: vi.fn(),
@@ -557,6 +558,42 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(window.location.pathname).toBe("/encounters/ambush/edit"),
     );
+  });
+
+  it("uses the router for encounter titles and leaves modified activation native", async () => {
+    render(<EncounterIndexView route={{}} />, { wrapper: queryClientWrapper() });
+    const title = await screen.findByRole("link", { name: "Ambush" });
+    expect(title).toHaveAttribute("href", "/encounters/ambush");
+    for (const modifier of [
+      { metaKey: true },
+      { ctrlKey: true },
+      { shiftKey: true },
+      { altKey: true },
+      { button: 1 },
+    ]) {
+      const event = new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+        ...modifier,
+      });
+      await act(async () => {
+        title.dispatchEvent(event);
+      });
+      expect(event.defaultPrevented).toBe(false);
+      expect(location.pathname).not.toBe("/encounters/ambush");
+    }
+    const before = history.length;
+    const event = new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+    });
+    await act(async () => {
+      title.dispatchEvent(event);
+    });
+    expect(event.defaultPrevented).toBe(true);
+    await waitFor(() => expect(location.pathname).toBe("/encounters/ambush"));
+    expect(history.length).toBe(before + 1);
   });
 
   it("edits encounter metadata without exposing slug", async () => {
@@ -2724,7 +2761,9 @@ describe("encounter views", () => {
       <QueryClientProvider client={client}>
         <SearchProfileProvider>
           <ConfigProvider theme={{ token: { motion: false } }}>
-            <App component={false}>{children}</App>
+            <App component={false}>
+              <RouterTestContext>{children}</RouterTestContext>
+            </App>
           </ConfigProvider>
         </SearchProfileProvider>
       </QueryClientProvider>
@@ -3111,7 +3150,9 @@ function queryClientWrapper() {
             theme={{ token: { motion: false } }}
             select={{ classNames: { popup: { listItem: "atlas-select-option" } } }}
           >
-            <App component={false}>{children}</App>
+            <App component={false}>
+              <RouterTestContext>{children}</RouterTestContext>
+            </App>
           </ConfigProvider>
         </SearchProfileProvider>
       </QueryClientProvider>

@@ -232,8 +232,12 @@ same typed native href for modified clicks. Do not introduce a second pathname
 parser, custom route event or direct browser-history writer.
 
 `AtlasLayout` retains Search through React Activity while a different route is
-visible; its workspace disables reads outside Search. Query owns requests and
-caches. Route components pass checked URL inputs to existing feature owners;
+visible; its workspace disables reads outside Search. The layout retains the last
+checked Search destination for the shell Search and brand links, including its
+criteria, page, exact reading, fragment and history context. Returning through
+those links preserves local drafts and bounded scroll; copying or modifying the
+link opens that same committed URL in a new document. A tab that has not visited
+Search links to bare Search. Query owns requests and caches. Route components pass checked URL inputs to existing feature owners;
 loaders and link preloading must not initiate semantic inference. Transport values
 remain strings, with repeated sort parameters in priority order. Existing filter
 codecs and backend validation keep their responsibilities. Criteria, exact

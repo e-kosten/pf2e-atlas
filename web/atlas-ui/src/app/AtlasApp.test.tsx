@@ -279,6 +279,40 @@ describe("AtlasApp routing", () => {
     await waitFor(() => expect(document.title).toBe("Lists · Atlas"));
   });
 
+  it("returns through the shell to the retained Search URL, reading and unfinished draft", async () => {
+    history.replaceState(
+      { atlasSearchReset: "retained-session" },
+      "",
+      "/search/records/spell:heal?q=heal&page=2#reference",
+    );
+    apiMocks.searchPage.mockResolvedValue({
+      ...searchResultsPage(),
+      page: { ...searchResultsPage().page, number: 2, total: 50n },
+    });
+    render(<AtlasApp />, { wrapper: queryClientWrapper() });
+    expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
+    const input = screen.getByRole("searchbox", { name: "Search records" });
+    fireEvent.change(input, { target: { value: "unfinished local draft" } });
+    const retained = location.pathname + location.search + location.hash;
+    fireEvent.click(screen.getByRole("link", { name: "Lists" }));
+    await waitFor(() => expect(location.pathname).toBe("/lists"));
+    const search = screen.getByRole("link", { name: "Search" });
+    expect(search).toHaveAttribute("href", retained);
+    expect(screen.getByRole("link", { name: "PF2e Atlas" })).toHaveAttribute(
+      "href",
+      retained,
+    );
+    fireEvent.click(search);
+    await waitFor(() =>
+      expect(location.pathname + location.search + location.hash).toBe(retained),
+    );
+    expect(await screen.findByRole("heading", { name: "heal" })).toBeVisible();
+    expect(screen.getByRole("searchbox", { name: "Search records" })).toHaveValue(
+      "unfinished local draft",
+    );
+    expect(history.state.atlasSearchReset).toBe("retained-session");
+  });
+
   it("waits for metadata before searching and gives the URL priority over preference and launch default", async () => {
     history.replaceState(null, "", "/search?q=heal&search_profile=embeddinggemma");
     localStorage.setItem(SEARCH_PROFILE_PREFERENCE_KEY, "bge-base");

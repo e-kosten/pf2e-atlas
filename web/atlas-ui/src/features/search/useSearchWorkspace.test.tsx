@@ -44,7 +44,8 @@ import {
 import { KIND_PREFERENCE_KEY } from "./workspaceState";
 import { AtlasApiError } from "../../api/atlasApi";
 import { AtlasConnectionError } from "../../api/availability";
-import { useSearchWorkspace } from "./useSearchWorkspace";
+import { useSearchWorkspace, type SearchWorkspaceState } from "./useSearchWorkspace";
+import { FilterControls } from "../../shared/filters/FilterPanel";
 import { DEFAULT_SEARCH_PREFERENCES } from "../../shared/search/searchPreferences";
 import { RelationshipEvidence } from "../../shared/records/RelationshipEvidence";
 import { linkLeaf } from "../../shared/filters/linkPredicates";
@@ -1618,6 +1619,110 @@ describe("useSearchWorkspace", () => {
     expect(localStorage.getItem(KIND_PREFERENCE_KEY)).toBeNull();
   });
 
+  it.each(["Enter", "button"])(
+    "executes %s submission immediately and supersedes pending automatic edits",
+    async (activation) => {
+      let workspace!: SearchWorkspaceState;
+      function Harness() {
+        workspace = useSearchWorkspace({ searchProfile: "bge-base" });
+        return <FilterControls filterState={workspace} />;
+      }
+      render(<Harness />, { wrapper: queryClientWrapper() });
+      await waitFor(() => expect(apiMocks.discoverFilterEditor).toHaveBeenCalled());
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      try {
+        const filter: QueryPredicate = {
+          kind: "compare",
+          field: "level",
+          op: "gte",
+          value: 2,
+        };
+        await act(async () => workspace.setSearch({ ...workspace.search, filter }));
+        await act(async () => vi.advanceTimersByTimeAsync(100));
+        const input = screen.getByRole("searchbox", { name: "Search records" });
+        fireEvent.change(input, { target: { value: "  fire  " } });
+        expect(apiMocks.searchPage).not.toHaveBeenCalled();
+        await act(async () => {
+          if (activation === "Enter")
+            fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
+          else
+            fireEvent.click(
+              input
+                .closest(".ant-input-search")!
+                .querySelector(".ant-input-search-btn")!,
+            );
+        });
+        expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
+        expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({
+          criteria: { kind: "text_search", query: "fire", filter },
+          page: { number: 1 },
+        });
+        expect(new URLSearchParams(location.search).get("q")).toBe("fire");
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
+        // Re-submitting cached unchanged criteria keeps the normal Query policy.
+        await act(async () => fireEvent.keyDown(input, { key: "Enter", keyCode: 13 }));
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it("submits from a later page immediately while draft typing retains the current results", async () => {
+    history.replaceState(null, "", "/search?q=ice&page=2");
+    apiMocks.searchPage.mockImplementation(async (request: SearchResultsRequest) =>
+      searchResultsPage(
+        [
+          request.criteria.kind === "text_search"
+            ? `spell:${request.criteria.query}`
+            : "spell:browse",
+        ],
+        { pageNumber: request.page.number },
+      ),
+    );
+    let workspace!: SearchWorkspaceState;
+    function Harness() {
+      workspace = useSearchWorkspace({ searchProfile: "bge-base" });
+      return (
+        <>
+          <FilterControls filterState={workspace} />
+          <output aria-label="Displayed result">
+            {workspace.resultPage?.rows[0]?.record.record_key}
+          </output>
+        </>
+      );
+    }
+    render(<Harness />, { wrapper: queryClientWrapper() });
+    await waitFor(() =>
+      expect(screen.getByLabelText("Displayed result")).toHaveTextContent("spell:ice"),
+    );
+    expect(workspace.pageNumber).toBe(2);
+    apiMocks.searchPage.mockClear();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const input = screen.getByRole("searchbox", { name: "Search records" });
+      fireEvent.change(input, { target: { value: "fire" } });
+      await act(async () => vi.advanceTimersByTimeAsync(1000));
+      expect(screen.getByLabelText("Displayed result")).toHaveTextContent("spell:ice");
+      expect(apiMocks.searchPage).not.toHaveBeenCalled();
+      await act(async () => fireEvent.keyDown(input, { key: "Enter", keyCode: 13 }));
+      expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
+      expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({
+        criteria: { query: "fire" },
+        page: { number: 1 },
+      });
+      expect(new URLSearchParams(location.search).get("page")).toBeNull();
+      await act(async () => vi.advanceTimersByTimeAsync(0));
+      expect(screen.getByLabelText("Displayed result")).toHaveTextContent("spell:fire");
+      await act(async () => vi.advanceTimersByTimeAsync(1000));
+      expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("debounces search-page requests while preserving immediate search state", async () => {
     const { result } = renderHook(
       () => useSearchWorkspace({ searchProfile: "bge-base" }),
@@ -1662,7 +1767,7 @@ describe("useSearchWorkspace", () => {
     });
   });
 
-  it("debounces typing with the current persisted rank-based preference and sends it once", async () => {
+  it("coalesces automatic filter edits with the current persisted rank-based preference and sends them once", async () => {
     apiMocks.searchPage.mockResolvedValue({
       ...searchResultsPage(),
       ranking: "rrf",
@@ -1680,20 +1785,32 @@ describe("useSearchWorkspace", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     try {
       act(() => {
-        result.current.setSearch({ ...result.current.search, query: "f" });
-        result.current.setSearch({ ...result.current.search, query: "fi" });
+        result.current.setSearch({
+          ...result.current.search,
+          filter: { kind: "compare", field: "level", op: "gte", value: 1 },
+        });
+        result.current.setSearch({
+          ...result.current.search,
+          filter: { kind: "compare", field: "level", op: "gte", value: 2 },
+          query: "fire",
+        });
       });
-      expect(result.current.search.query).toBe("fi");
+      expect(result.current.search.query).toBe("fire");
       expect(result.current.resultsLoading).toBe(true);
       await act(async () => vi.advanceTimersByTimeAsync(299));
-      expect(new URLSearchParams(location.search).get("q")).toBe("fi");
+      expect(new URLSearchParams(location.search).get("q")).toBe("fire");
       expect(new URLSearchParams(location.search).get("ranking")).toBe("rrf");
       expect(apiMocks.searchPage).not.toHaveBeenCalled();
       await act(async () => vi.advanceTimersByTimeAsync(1));
       expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
       expect(apiMocks.searchPage.mock.lastCall?.[0]).toMatchObject({
         ranking: "rrf",
-        criteria: { search_content: "all", kind: "text_search", query: "fi" },
+        criteria: {
+          search_content: "all",
+          kind: "text_search",
+          query: "fire",
+          filter: { kind: "compare", field: "level", op: "gte", value: 2 },
+        },
       });
       expect(result.current.resultPage?.ranking).toBe("rrf");
     } finally {
