@@ -1716,7 +1716,7 @@ test("create-and-add keeps the footer aligned and keyboard actions reachable", a
       if (!info.project.use.hasTouch) {
         await name.press("Tab");
         if (kind === "list") {
-          const note = dialog.getByRole("textbox", { name: "Note (optional)" });
+          const note = dialog.getByRole("textbox", { name: "Note" });
           await expect(note).toBeFocused();
           await note.press("Tab");
         }
@@ -1858,6 +1858,77 @@ test("Search linked previews add the linked record and retain the reading contex
   }
 });
 
+test("record picker keeps its top edge stable across tabs and growing forms", async ({
+  page,
+}, info) => {
+  await page.goto(`/records/${sentinel}`);
+  await activate(
+    page.getByRole("button", { name: "Add to list or encounter", exact: true }),
+    info,
+  );
+  const dialog = page.getByRole("dialog", { name: "Add to…", exact: true });
+  await expect(dialog).toBeVisible();
+  const top = (await dialog.boundingBox())!.y;
+  const expectStableTop = async () => {
+    await expect.poll(async () => (await dialog.boundingBox())!.y).toBeCloseTo(top, 1);
+    const box = (await dialog.boundingBox())!;
+    expect(box.y + box.height).toBeLessThanOrEqual(page.viewportSize()!.height - 15);
+  };
+  await activate(dialog.getByRole("tab", { name: "Encounters", exact: true }), info);
+  await expectStableTop();
+  await activate(
+    dialog.getByRole("button", { name: "New encounter", exact: true }),
+    info,
+  );
+  await expectStableTop();
+  await activate(dialog.getByRole("tab", { name: "Lists", exact: true }), info);
+  await expectStableTop();
+  await activate(dialog.getByRole("button", { name: "New list", exact: true }), info);
+  await expectStableTop();
+  await dialog
+    .getByRole("textbox", { name: "Note", exact: true })
+    .fill("One\nTwo\nThree\nFour\nFive\nSix");
+  await expectStableTop();
+  await dialog.getByRole("textbox", { name: /New list name$/ }).fill("Placement check");
+  await page.route("**/api/lists", async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    await route.fulfill({
+      status: 400,
+      contentType: "application/json",
+      body: JSON.stringify({
+        code: "invalid_request",
+        message: "Choose another name.",
+      }),
+    });
+  });
+  await activate(
+    dialog.getByRole("button", { name: "Create & add", exact: true }),
+    info,
+  );
+  await expect(dialog.getByRole("alert")).toContainText("List could not be created");
+  await expectStableTop();
+  await expect(
+    dialog.getByRole("button", { name: "Create & add", exact: true }),
+  ).toBeVisible();
+  await noPageOverflow(page);
+  await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
+  await expect(dialog).toBeHidden();
+  await page.setViewportSize({ ...page.viewportSize()!, height: 360 });
+  await activate(
+    page.getByRole("button", { name: "Add to list or encounter", exact: true }),
+    info,
+  );
+  await expect(dialog).toBeVisible();
+  const shortBox = (await dialog.boundingBox())!;
+  expect(shortBox.y).toBeGreaterThanOrEqual(16);
+  expect(shortBox.y + shortBox.height).toBeLessThanOrEqual(345);
+  await expect(
+    dialog.getByRole("button", { name: "Cancel", exact: true }),
+  ).toBeVisible();
+  await noPageOverflow(page);
+  await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
+});
+
 test("record picker saves an optional entry note and brings the changed list first", async ({
   page,
 }, info) => {
@@ -1885,7 +1956,7 @@ test("record picker saves an optional entry note and brings the changed list fir
     const choices = page.locator(".ant-select-item-option-content");
     await expect(choices.first()).toHaveText(`Alpha ${suffix}`);
     await activate(choices.filter({ hasText: `Zulu ${suffix}` }), info);
-    const note = dialog.getByRole("textbox", { name: "Note (optional)" });
+    const note = dialog.getByRole("textbox", { name: "Note" });
     await note.fill("Discuss before the next session.\nBring the map.");
     await expect(note).toBeVisible();
     await noPageOverflow(page);
@@ -1899,9 +1970,7 @@ test("record picker saves an optional entry note and brings the changed list fir
       "Discuss before the next session.\nBring the map.",
     );
     await activate(trigger, info);
-    await expect(dialog.getByRole("textbox", { name: "Note (optional)" })).toHaveValue(
-      "",
-    );
+    await expect(dialog.getByRole("textbox", { name: "Note" })).toHaveValue("");
     await activate(dialog.getByRole("combobox", { name: "Saved list" }), info);
     await expect(choices.first()).toHaveText(`Zulu ${suffix}`);
     await page.keyboard.press("Escape");

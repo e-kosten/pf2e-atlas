@@ -117,7 +117,7 @@ it("keeps list choice and dialog through pending/failure, then closes after retr
   });
   setup(<AddToRecordButton recordKey="spells:light" />);
   const selector = await chooseList();
-  const note = screen.getByRole("textbox", { name: "Note (optional)" });
+  const note = screen.getByRole("textbox", { name: "Note" });
   fireEvent.change(note, { target: { value: "  Prepare for the night watch.  " } });
   const dialog = screen.getByRole("dialog", { name: "Add to list" });
   const add = within(dialog).getByRole("button", { name: "Add" });
@@ -155,7 +155,7 @@ it("keeps the entry note when creation succeeds but adding fails, then resets af
     .mockResolvedValueOnce({ list_key: "list_review", slug: "review" });
   setup(<AddToRecordButton recordKey="spells:light" />);
   fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Note (optional)" }), {
+  fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
     target: { value: "Watch duty\nKeep a light ready." },
   });
   fireEvent.click(screen.getByRole("button", { name: "New list" }));
@@ -164,7 +164,7 @@ it("keeps the entry note when creation succeeds but adding fails, then resets af
   });
   fireEvent.click(screen.getByRole("button", { name: "Create & add" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Review was created");
-  expect(screen.getByRole("textbox", { name: "Note (optional)" })).toHaveValue(
+  expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue(
     "Watch duty\nKeep a light ready.",
   );
   fireEvent.click(screen.getByRole("button", { name: "Add" }));
@@ -187,14 +187,14 @@ it("keeps the entry note when creation succeeds but adding fails, then resets af
     ],
   ]);
   fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
-  expect(screen.getByRole("textbox", { name: "Note (optional)" })).toHaveValue("");
+  expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue("");
 });
 
 it("omits a whitespace-only entry note", async () => {
   api.addSavedListItem.mockResolvedValue({ list_key: "list_review", slug: "review" });
   setup(<AddToRecordButton recordKey="spells:light" />);
   await chooseList();
-  fireEvent.change(screen.getByRole("textbox", { name: "Note (optional)" }), {
+  fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
     target: { value: " \n " },
   });
   fireEvent.click(screen.getByRole("button", { name: "Add" }));

@@ -263,7 +263,7 @@ function AddToRecordModal({
       title={canAddEncounter ? "Add to…" : "Add to list"}
       transitionName=""
       maskTransitionName=""
-      centered
+      style={{ top: "clamp(16px, 8dvh, 80px)", marginBlock: 0, paddingBottom: 0 }}
       confirmLoading={submit.isPending}
       cancelButtonProps={{ disabled: submit.isPending }}
       okButtonProps={{ disabled: !creating && !selected }}
@@ -293,7 +293,7 @@ function AddToRecordModal({
       )}
       styles={{
         container: {
-          maxHeight: "calc(100dvh - 32px)",
+          maxHeight: "calc(100dvh - clamp(16px, 8dvh, 80px) - 16px)",
           display: "flex",
           flexDirection: "column",
         },
@@ -397,7 +397,7 @@ function AddToRecordModal({
             </>
           )}
           {kind === "list" && (
-            <Form.Item name="note" label="Note (optional)" style={{ marginBottom: 0 }}>
+            <Form.Item name="note" label="Note" style={{ marginBottom: 0 }}>
               <Input.TextArea autoSize={{ minRows: 3, maxRows: 6 }} />
             </Form.Item>
           )}
