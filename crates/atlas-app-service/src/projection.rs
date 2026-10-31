@@ -302,8 +302,8 @@ pub(crate) fn relationship_view(
 }
 
 /// Compact labels are presentation only. Explicit source labels always win.
-/// Choices are distinct resolved destinations within the nearest parsed block
-/// (and exact field), never inferred from prose, names, or screen proximity.
+/// Choices are distinct resolved destinations within the exact source field,
+/// including separate paragraphs, never inferred from prose or screen proximity.
 pub(crate) fn relationship_views(
     occurrences: Vec<atlas_search::SourceStoredRelationship>,
     fingerprint: &str,
@@ -334,11 +334,6 @@ pub(crate) fn relationship_views(
                 let multiple = occurrences.iter().any(|other| {
                     eligible(other)
                         && other.locator == o.locator
-                        && other
-                            .details
-                            .label
-                            .as_ref()
-                            .is_some_and(|l| l.block == label.block)
                         && other.resolution != o.resolution
                 });
                 if let Some(title) = &label.target_name {
@@ -608,7 +603,7 @@ mod tests {
     }
 
     #[test]
-    fn compact_effects_distinguish_destinations_only_within_the_same_field_block() {
+    fn compact_effects_distinguish_destinations_only_within_the_same_source_field() {
         let first = effect_occurrence("bbbbbbbbbbbbbbbb", "Spell Effect: Enlarge");
         let mut repeated = first.clone();
         repeated.ordinal = 1;
@@ -636,10 +631,21 @@ mod tests {
         );
         assert_eq!(distinct[0].target, single[0].target);
 
+        let mut next_paragraph = second.clone();
+        next_paragraph.details.label.as_mut().unwrap().block = "/1".into();
+        let views = relationship_views(vec![first.clone(), next_paragraph], "snapshot");
+        assert_eq!(
+            views
+                .iter()
+                .map(|v| v.effect_label.as_ref().unwrap().text.as_str())
+                .collect::<Vec<_>>(),
+            ["Enlarge", "Enlarge (Heightened 4th)"]
+        );
+
         for change in 0..3 {
             let mut separate = second.clone();
             match change {
-                0 => separate.details.label.as_mut().unwrap().block = "/1".into(),
+                0 => separate.locator.record = "spells:eeeeeeeeeeeeeeee".parse().unwrap(),
                 1 => separate.locator.field = "/system/details/publicNotes".into(),
                 _ => separate.locator.owners.push(OwnedContentLocator {
                     collection: "/items".into(),
@@ -655,6 +661,43 @@ mod tests {
                 ["Effect", "Effect"]
             );
         }
+    }
+
+    #[test]
+    fn claim_corpse_effect_variants_are_named_across_separate_paragraphs() {
+        let mut fleshy = effect_occurrence("bbbbbbbbbbbbbbbb", "Effect: Claim Corpse - Fleshy");
+        fleshy.locator.record = "actors:aaaaaaaaaaaaaaaa".parse().unwrap();
+        fleshy.locator.owners.push(OwnedContentLocator {
+            collection: "/items".into(),
+            identity: OwnedContentIdentity::Stable("dddddddddddddddd".into()),
+        });
+        fleshy.details.label.as_mut().unwrap().block = "/3".into();
+        let mut skeletal = fleshy.clone();
+        skeletal.ordinal = 1;
+        skeletal.resolution =
+            ContentReferenceResolution::Resolved(ContentReferenceTarget::Record {
+                key: "effects:cccccccccccccccc".parse().unwrap(),
+            });
+        let label = skeletal.details.label.as_mut().unwrap();
+        label.block = "/4".into();
+        label.target_name = Some("Effect: Claim Corpse - Skeletal".into());
+
+        let views = relationship_views(vec![fleshy.clone(), skeletal.clone()], "snapshot");
+        assert_eq!(
+            views
+                .iter()
+                .map(|v| v.effect_label.as_ref().unwrap().text.as_str())
+                .collect::<Vec<_>>(),
+            ["Claim Corpse - Fleshy", "Claim Corpse - Skeletal"]
+        );
+        assert_eq!(
+            views[0].target,
+            relationship_view(fleshy, "snapshot").target
+        );
+        assert_eq!(
+            views[1].target,
+            relationship_view(skeletal, "snapshot").target
+        );
     }
 
     #[test]
