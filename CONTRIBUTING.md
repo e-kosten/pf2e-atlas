@@ -19,10 +19,11 @@ scripts/preflight.sh
 # or: just dev-setup
 ```
 
-For an existing full-corpus development baseline, use `just dev-workspace-init`
-and `just dev-status`. Read [setup and previews](docs/development/setup-and-preview.md)
-before selecting a backend: these commands default to a frozen baseline binary,
-not the current checkout. Keep Cargo output checkout-local and reuse warm builds.
+For a reusable development environment with the full reference content, use
+`just dev-workspace-init` and `just dev-status`. These commands use a shared,
+prebuilt backend by default, which may differ from the code in your checkout.
+Read [setup and previews](docs/development/setup-and-preview.md) before choosing
+a backend. Keep Cargo output checkout-local and reuse existing builds.
 
 ## Development loop
 
@@ -99,6 +100,13 @@ The [repo-plan skill](.codex/skills/repo-plan/SKILL.md) owns plan placement,
 status, navigation and archival. Plans are local working artifacts; durable
 boundaries and remaining work belong in architecture and backlog docs. Do not
 commit local plans unless requested; plan approval is not execution authorization.
+
+## Documentation changes
+
+Write for the page's reader and the task they came to complete. Follow the
+[documentation guide](docs/development/documentation.md#write-for-the-pages-reader)
+for audience, example and reference boundaries, and check the full task path as
+well as individual sentences. Keep detailed maintenance policy in that guide.
 
 ## Task-specific guidance
 

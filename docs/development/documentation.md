@@ -32,6 +32,42 @@ search guide, data-path overrides in setup and maintenance, and developer baseli
 selection in development setup. A new user should not need to choose these to
 complete the default installation.
 
+## Write for the page's reader
+
+Start with what the reader is trying to do and what they already know. A new
+Atlas user may know Pathfinder well while knowing nothing about Atlas, its search
+models or its storage. A CLI user may need exact flags and JSON fields; a
+contributor may need crate boundaries and build identities. Technical precision
+belongs where that reader needs it, with unfamiliar terms explained on first use.
+
+- Lead user guides with a task and a useful example, then introduce controls or
+  optional settings. Teach searching by idea before describing ranking options.
+  Explain what a choice changes and when to try it; do not list settings without
+  helping the reader choose. Avoid claiming a best model without evidence.
+- Explain necessary actions and their timing where they first appear. For example,
+  setup runs after installation and after upgrading; opening Atlas is a separate
+  action. A backup recommendation needs a linked procedure, including how to find
+  the files and when to stop running commands.
+- Describe user-visible effects rather than internal implementation. In a browser
+  guide, explain which content Similar compares instead of describing stored
+  vectors or model weights. In a CLI reference, retain literal JSON field names
+  and explain the result they represent. Architecture and agent instructions can
+  require more detailed contracts; do not erase distinctions their readers need.
+- Remove unprompted negatives and reassurance about things the reader has no
+  reason to expect. “You do not need a source checkout” distracts from first-run
+  setup. Keep a limitation when it changes a real choice: a reference to equipment
+  does not prove it is worn, and `--force` can replace customized skill instructions.
+- Keep everyday recipes separate from advanced navigation, output contracts and
+  diagnostics. Link between them instead of making the reader pass through each
+  internal guarantee. Current reference docs describe today's behavior; migration
+  history belongs in ADRs, release notes or history.
+- Make each command block match its label. A preview block contains only commands
+  that preview; put removal or replacement commands in a separate labelled block.
+  Explain placeholders and prerequisites before commands that depend on them.
+- Future release notes lead with what users can do and what they must do to
+  update. Put crate names, transport changes and contributor commands in a
+  separate contributor section when useful. Preserve historical release accounts.
+
 ## Keep current guidance separate from history
 
 Product and contributor docs describe current behavior and the next useful action.
@@ -55,9 +91,9 @@ file layout must not erase that surviving boundary. Do not rewrite an old
 rationale to make it appear that the newer decision was always in force.
 
 Keep temporary task status in the current plan and durable remaining work in the
-backlog. Preserve provenance-bound research snapshots, manifests and historical
-validation evidence; adjust navigation around frozen evidence instead of editing
-its contents to match new defaults. Remove duplicated or obsolete explanations
+backlog. Preserve research snapshots and files covered by recorded hashes,
+including manifests and historical validation evidence. Update links around those
+frozen files rather than editing their contents to match new defaults. Remove duplicated or obsolete explanations
 when their useful rationale already has a maintained home or historical record.
 
 ## Write contributor and agent instructions
@@ -82,8 +118,11 @@ exceptions; brevity alone is not a reason to remove policy.
 - Inspect the scoped diff for accuracy, duplication and whitespace. Check relative
   links, heading anchors, moved paths and incoming references, including archived
   ADRs. Keep command examples consistent with their real flags and defaults.
-- Walk through the default user path in reading order. Optional settings should be
-  reachable when needed without interrupting first-run setup.
+- Walk through each page as its intended reader, in reading order. Can a newcomer
+  complete the task without understanding internal terms or making optional choices?
+  Do command blocks do what their labels promise? Check prerequisites and linked
+  instructions for tasks such as backups. Review the literal prose as well as
+  links and examples; a shorter sentence can still be vague or unhelpful.
 - For a consequential instruction, try a representative case, a likely mistake
   and a boundary/exception. Revise it if both choices appear compliant or it rules
   out an accepted workflow. This is an editorial check, not evidence that another

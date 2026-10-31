@@ -14,7 +14,8 @@ rules in their maintained owners.
 ## Establish the change
 
 1. Identify the reader, the decision or task the text should help with, and its
-   existing owner. Search related guidance before creating another document.
+   existing owner. State what the reader already knows and the action they need
+   to complete. Search related guidance before creating another document.
 2. Check the claim against current source, commands and explicit user decisions.
    Separate observed behavior, accepted intent, proposals and historical evidence.
    Use primary sources if external research is needed; routine maintenance does
@@ -25,9 +26,11 @@ rules in their maintained owners.
 
 ## Edit and reconcile
 
-Write for the selected reader. Give a direct next action, then optional detail
-where needed. State an instruction's trigger, preferred action and meaningful
-exception. Add a reason or example when it helps distinguish the right choice.
+Apply the owner's [audience guidance](../../../docs/development/documentation.md#write-for-the-pages-reader).
+Read the page in the reader's task order. Put a useful example before optional
+settings; separate advanced reference where needed. Check that labels, command
+blocks and prerequisite instructions agree. State an instruction's trigger,
+preferred action and meaningful exception. Add a reason or example when it helps distinguish the right choice.
 Do not turn one accepted case into a universal preference.
 
 Reconcile affected instructions and callers in the same change. Follow the
@@ -37,8 +40,8 @@ plan. Avoid tool-specific copies of repository rules.
 ## Verify and report
 
 Apply the [documentation checks](../../../docs/development/documentation.md#validate-the-edited-documentation),
-including incoming links, anchors, command examples and representative/boundary
-cases for consequential instructions. Follow the normal contribution sequence
+including audience/task fit, incoming links, anchors, command examples and
+representative/boundary cases for consequential instructions. Follow the normal contribution sequence
 for commits, independent review, validation and publication.
 
 Report what became simpler, what was removed or relocated, checks actually run
