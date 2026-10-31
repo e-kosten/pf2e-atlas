@@ -4,7 +4,7 @@ use atlas_app_model::{
     RecordNavigationView, RemasterLinkView, RemasterLinksView, RemasterProvenanceView,
 };
 use atlas_search::{AtlasRetrievalService, GetRecordRequest, RemasterLinksResult};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, btree_map::Entry};
 
 pub(crate) fn links_view(
     result: RemasterLinksResult,
@@ -14,14 +14,14 @@ pub(crate) fn links_view(
     let mut links = Vec::with_capacity(result.links.len());
     for link in result.links {
         let locator = link.provenance;
-        if !sources.contains_key(&locator.record) {
-            let source = retrieval.get_record(GetRecordRequest {
+        let source = match sources.entry(locator.record.clone()) {
+            Entry::Occupied(entry) => entry.into_mut(),
+            Entry::Vacant(entry) => entry.insert(retrieval.get_record(GetRecordRequest {
                 record_key: &locator.record,
                 selected_content: &[],
-            })?;
-            sources.insert(locator.record.clone(), source);
+            })?),
         }
-        let source = sources.get(&locator.record).and_then(Option::as_ref);
+        .as_ref();
         let attribution = source
             .map(|s| {
                 let root = projection::localized_summary_view(&s.summary, retrieval).title;
@@ -32,7 +32,10 @@ pub(crate) fn links_view(
                         .node_at(&locator.owners)
                         .and_then(|n| n.name().value())
                 };
-                owner.map_or(root.clone(), |name| format!("{root} — {name}"))
+                match owner {
+                    Some(name) => format!("{root} — {name}"),
+                    None => root,
+                }
             })
             .unwrap_or_else(|| "Source unavailable".into());
         let available =

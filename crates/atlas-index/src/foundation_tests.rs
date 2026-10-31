@@ -1678,6 +1678,12 @@ fn remaster_suppression_reads_only_matching_identities_for_complete_sets() {
             field: "/system/description/value".into(),
         },
     }];
+    let second_legacy = input.records[0].record.key().clone();
+    input.remaster_pairs.push(SourceRemasterPairInput {
+        legacy: second_legacy.clone(),
+        remaster: remaster.clone(),
+        provenance: input.remaster_pairs[0].provenance.clone(),
+    });
     let (_directory, path) = build(&input);
     {
         let c = Connection::open(&path).unwrap();
@@ -1700,6 +1706,16 @@ fn remaster_suppression_reads_only_matching_identities_for_complete_sets() {
     );
     assert_eq!(reader.read_metrics().sql_statements, 1);
     assert_eq!(reader.read_metrics().source_body_decodes, 0);
+    assert_eq!(reader.read_metrics().remaster_pair_rows, 1);
+    assert_eq!(reader.read_metrics().remaster_provenance_decodes, 0);
+    let mut expected = vec![legacy.clone(), second_legacy.clone()];
+    expected.sort();
+    assert_eq!(
+        reader
+            .matched_legacy_keys(&[legacy.clone(), second_legacy, remaster])
+            .unwrap(),
+        expected
+    );
     assert!(reader.read_remaster_links(&legacy).is_err());
     assert!(validate_artifact(&path).is_err());
 }

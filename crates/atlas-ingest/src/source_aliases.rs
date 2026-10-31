@@ -56,7 +56,7 @@ pub(crate) fn extract_source_aliases(
         })
         .collect::<BTreeMap<_, _>>();
     let mut aliases = BTreeSet::new();
-    let mut pairs = BTreeMap::new();
+    let mut pairs = BTreeMap::<_, Vec<_>>::new();
     for record in &input.records {
         if !matches!(
             record.record.source(),
@@ -132,7 +132,10 @@ pub(crate) fn extract_source_aliases(
                     && families.get(&old[0]).is_some_and(Option::is_some)
                     && families.get(&old[0]) == families.get(&new[0])
                 {
-                    pairs.insert((old[0].clone(), new[0].clone()), content.locator.clone());
+                    let sources = pairs.entry((old[0].clone(), new[0].clone())).or_default();
+                    if !sources.contains(&content.locator) {
+                        sources.push(content.locator.clone());
+                    }
                 }
             }
             for item in html.select(&list_selector) {
@@ -224,10 +227,14 @@ pub(crate) fn extract_source_aliases(
         .collect();
     input.remaster_pairs = pairs
         .into_iter()
-        .map(|((legacy, remaster), provenance)| SourceRemasterPairInput {
-            legacy,
-            remaster,
-            provenance,
+        .flat_map(|((legacy, remaster), sources)| {
+            sources
+                .into_iter()
+                .map(move |provenance| SourceRemasterPairInput {
+                    legacy: legacy.clone(),
+                    remaster: remaster.clone(),
+                    provenance,
+                })
         })
         .collect();
     Ok(())
