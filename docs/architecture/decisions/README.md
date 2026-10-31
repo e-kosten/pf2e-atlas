@@ -4,6 +4,8 @@ This index is the quickest way to scan accepted architecture decision records fo
 
 ## Current ADRs
 
+- [`0063-request-local-configured-eligibility.md`](./0063-request-local-configured-eligibility.md): bounded prototype for exact operation-local unit eligibility, representation limits, lazy validation and exact capacity bypass.
+
 - [`0062-exact-text-neighbor-reuse.md`](./0062-exact-text-neighbor-reuse.md): bounded exact per-window neighbors for ordinary unscoped TextSearch and baseline Similar, current-snapshot hydration, duplicate misses and publication retirement.
 
 - [`0060-core-sections-and-search-scope.md`](./0060-core-sections-and-search-scope.md): typed Core recipes, independent source/result scopes, explicit identity components and metadata-only restriction of existing lexical/vector content.
