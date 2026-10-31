@@ -98,15 +98,15 @@ export function useModalLayout({
     window.addEventListener("resize", measure);
     window.visualViewport?.addEventListener("resize", measure);
     window.visualViewport?.addEventListener("scroll", measure);
-    const observer = new ResizeObserver(measure);
-    const element = workAreaElement(selectedArea);
-    if (element) observer.observe(element);
-    if (layout === "confirmation" && frame.current) observer.observe(frame.current);
+    // Underlying content can shrink and clamp page scrolling while a task is open.
+    // Keep its captured work-area anchor until an explicit viewport change.
+    const observer = layout === "confirmation" ? new ResizeObserver(measure) : null;
+    if (frame.current) observer?.observe(frame.current);
     return () => {
       window.removeEventListener("resize", measure);
       window.visualViewport?.removeEventListener("resize", measure);
       window.visualViewport?.removeEventListener("scroll", measure);
-      observer.disconnect();
+      observer?.disconnect();
     };
   }, [open, layout, areaRoot, areaSelector, frame]);
   return useMemo(() => {
@@ -116,7 +116,9 @@ export function useModalLayout({
         ? 16
         : layout === "confirmation"
           ? Math.min(confirmationInset ?? 16, Math.max(16, bounds.height - 240))
-          : Math.max(16, Math.min(80, bounds.height * 0.08));
+          : bounds.height <= 600
+            ? 16
+            : Math.max(16, Math.min(80, bounds.height * 0.08));
     const availableHeight = Math.max(0, bounds.height - inset - 16);
     const height =
       layout === "browse" ? Math.min(900, availableHeight) : availableHeight;

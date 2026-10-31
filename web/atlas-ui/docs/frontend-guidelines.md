@@ -1100,8 +1100,9 @@ a pinned reader would be a separate product feature.
 `AtlasModal` owns modal geometry, viewport gutters and scrolling. Use its default
 form layout for edits and settings. Keep the top anchor stable as tabs, fields,
 previews, validation and failure feedback change height. The shared frame computes
-its height limit from that same anchor and a 16px bottom gutter; title and action
-areas stay outside the scrolling body. A condition editor can add duration/details
+its height limit from that same anchor and a 16px bottom gutter; short work areas
+use the minimum top gutter to preserve editing space. Title and action areas stay
+outside the scrolling body. A condition editor can add duration/details
 without moving its title or placing Apply below the viewport.
 
 Use `layout="browse"` for sustained record browsing and comparison. It gives the
@@ -1120,7 +1121,9 @@ the shared frame still owns positioning and scroll policy. A short participant p
 must not shorten the editor. An unusable/offscreen work area falls back to the
 visible viewport. Window/visual-viewport resize or pan can reclamp geometry,
 including when a software keyboard reduces available space; content growth alone
-must not recenter a dialog. Shared recovery feedback is included in the same height
+must not recenter a dialog. Capture work-area bounds when opening; updates behind
+the backdrop must not move that anchor when the underlying page shrinks or scrolls.
+Shared recovery feedback is included in the same height
 budget. Keep the backdrop hit surface full viewport, regardless of work-area bounds.
 
 The frame omits scale transitions so initial positioning and child popup measurement
