@@ -216,14 +216,9 @@
   margin: 0;
 }
 .encounter-reference__name h2 {
+  display: flex;
   min-width: 0;
   overflow-wrap: anywhere;
-}
-
-@supports (text-box: trim-both cap text) {
-  .encounter-reference__name h2 {
-    text-box: trim-both cap text;
-  }
 }
 
 .encounter-reference__name > button {
@@ -307,4 +302,28 @@
 
 .encounter-life-settings__status {
   justify-self: start;
+}
+
+.encounter-participant-name {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+.encounter-participant-name__value {
+  font: inherit;
+  block-size: auto;
+  max-inline-size: 100%;
+  padding-inline: 4px;
+  white-space: normal;
+  text-align: start;
+}
+.encounter-participant-name__editor {
+  display: flex;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+.encounter-participant-name__input {
+  font: inherit;
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }

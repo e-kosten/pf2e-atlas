@@ -429,6 +429,34 @@ describe("encounter views", () => {
     }
   });
 
+  it("renames the selected creature inline and refreshes the roster without changing its other settings", async () => {
+    render(<EncounterDetailView route={{ slug: "ambush" }} />, {
+      wrapper: queryClientWrapper(),
+    });
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Edit Participant name" }),
+    );
+    const input = screen.getByRole("textbox", { name: "Participant name" });
+    expect(input).toHaveFocus();
+    fireEvent.change(input, { target: { value: "Goblin captain" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await screen.findByRole("heading", { name: "Goblin captain" });
+    expect(
+      screen.getByRole("button", { name: "Goblin captain, Current turn" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(apiMocks.updateEncounterParticipant).toHaveBeenCalledExactlyOnceWith(
+      "encounter_ambush",
+      expect.objectContaining({
+        participant_key: "participant_a",
+        expected_revision: 0n,
+        display_name: "Goblin captain",
+        hp_edit: false,
+        max_hp_edit: false,
+        variant_edit: false,
+      }),
+    );
+  });
+
   it("casts in the existing spell reference without opening another modal", async () => {
     const initial = encounterDetailFixture();
     const actor = initial.participants[0].presentation!.body;

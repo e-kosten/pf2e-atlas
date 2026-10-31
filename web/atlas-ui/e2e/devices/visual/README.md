@@ -5,6 +5,29 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Inline participant name editing
+
+All 40 frames per platform include the readable filled button for directly editing
+participant names, with the corresponding text inset and settings placement.
+Parent review covered desktop/tablet pairs; independent Astra review covered both
+phone projects on each platform. Condition/HP overlays, controls, focus states and
+layout geometry remain intact. A few Chromium frames also contain isolated edge
+rasterization changes of 1–4 RGB levels. Exact-pixel assertions remain enabled.
+
+- macOS arm64, Playwright 1.62.1, source
+  `1dbf14465e712757788694e9765c71da98639681`: all 12 capture scenarios passed,
+  followed by all 24 condition/name scenarios across the four projects with
+  snapshot updates disabled.
+- Linux x64, Ubuntu 24.04, Playwright 1.62.1:
+  [capture 41150807438](https://github.com/e-kosten/pf2e-atlas/actions/runs/41150807438)
+  passed all 12 scenarios using
+  [CI 41149672113](https://github.com/e-kosten/pf2e-atlas/actions/runs/41149672113)'s
+  authenticated fixture at merge commit
+  `4983110a93a80742c4428290967c43cf9b41b9b5` (PR head `1dbf1446`).
+  Binary SHA-256:
+  `f1d5512513e00f3d41f734e8adde5c5164227efb3cb269488fb668239e6fc35b`.
+  Ordinary hosted comparisons must pass against these reviewed references.
+
 ## Condition correction recovery and damage references
 
 macOS arm64, Playwright 1.62.1, source

@@ -315,7 +315,8 @@ cases are a row of permanent number fields that dominates scanning, and plain
 numbers whose editability appears only on hover. Extra pencil icons and helper
 copy are unnecessary when the button treatment already supplies the cue.
 
-`EncounterHpValue` composes the shared `EditableCommitField` for this interaction.
+`EncounterHpValue` and `EncounterParticipantName` compose the shared
+`EditableValue` and `EditableCommitField` for this interaction.
 Keep keyboard activation, an accessible Edit label, Enter/blur commit and Escape
 cancellation. Preserve drafts during pending reads and show validation or mutation
 failures locally. Do not put an extra Change HP action or modal in front of this

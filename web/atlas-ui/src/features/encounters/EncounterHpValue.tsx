@@ -1,15 +1,9 @@
-import { Button } from "antd";
-import { useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { EditableCommitField } from "../../shared/ui/forms/EditableCommitField";
+import type { RefObject } from "react";
+import { EditableValue } from "../../shared/ui/forms/EditableValue";
 
 export function EncounterHpValue({
-  label,
   value,
-  disabled,
-  addLabel,
-  buttonRef,
-  onCommit,
-  onRestoreFocus,
+  ...props
 }: {
   label: string;
   value?: bigint;
@@ -19,65 +13,14 @@ export function EncounterHpValue({
   onCommit: (input: string) => Promise<boolean>;
   onRestoreFocus?: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const valueButton = useRef<HTMLButtonElement>(null);
-  const trigger = buttonRef ?? valueButton;
-  const editor = useRef<HTMLSpanElement>(null);
-  const returnFocus = useRef(false);
-  const finishEditing = () => {
-    returnFocus.current = editor.current?.contains(document.activeElement) ?? false;
-    setEditing(false);
-  };
-  useLayoutEffect(() => {
-    if (!editing && returnFocus.current) {
-      returnFocus.current = false;
-      trigger.current?.focus({ preventScroll: true });
-    }
-  }, [editing, trigger]);
-  return editing ? (
-    <span ref={editor} className="encounter-hp-value__editor">
-      <EditableCommitField
-        autoSize
-        onCancel={() => {
-          finishEditing();
-        }}
-        focusOnMount
-        blurOnEnter={false}
-        ariaLabel={label}
-        className="encounter-hp-value__input"
-        size="small"
-        value={value?.toString() ?? ""}
-        disabled={disabled && !saving}
-        readOnly={saving}
-        onCommit={async (input) => {
-          const editingElement = editor.current;
-          const hadFocus = editingElement?.contains(document.activeElement);
-          setSaving(true);
-          try {
-            const refreshed = await onCommit(input);
-            if (editingElement?.isConnected) {
-              finishEditing();
-            }
-            if (refreshed && hadFocus) onRestoreFocus?.();
-          } finally {
-            setSaving(false);
-          }
-        }}
-      />
-    </span>
-  ) : (
-    <Button
-      ref={trigger}
-      size="small"
-      color="default"
-      variant={addLabel ? "outlined" : "filled"}
-      className={addLabel ? undefined : "encounter-hp-value"}
-      aria-label={addLabel ?? `Edit ${label}`}
-      disabled={disabled}
-      onClick={() => setEditing(true)}
-    >
-      {addLabel ?? value?.toString() ?? "—"}
-    </Button>
+  return (
+    <EditableValue
+      {...props}
+      value={value?.toString() ?? ""}
+      displayValue={value?.toString() ?? "—"}
+      buttonClassName={props.addLabel ? undefined : "encounter-hp-value"}
+      editorClassName="encounter-hp-value__editor"
+      inputClassName="encounter-hp-value__input"
+    />
   );
 }
