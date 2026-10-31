@@ -206,10 +206,12 @@ export function CreatureReference({
                     tabIndex={-1}
                   >
                     <h3>Statistics</h3>
-                    <ActorAwareness actor={actor} encounter={encounter} />
-                    <ActorSkills actor={actor} />
-                    <ActorMovement actor={actor} />
-                    <ActorLanguages actor={actor} />
+                    <div className="creature-reference__fact-groups">
+                      <ActorAwareness actor={actor} encounter={encounter} />
+                      <ActorSkills actor={actor} headingLevel={4} />
+                      <ActorMovement actor={actor} />
+                      <ActorLanguages actor={actor} />
+                    </div>
                   </section>
                 )}
                 <ActorActivities

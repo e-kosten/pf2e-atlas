@@ -428,7 +428,11 @@ export function PreparedContentBody({
       <Alert type="info" title="Content reading limit" description={body.reason} />
     );
   if (body.kind === "plain" && sourceHtml === undefined)
-    return <p className="prose">{body.text}</p>;
+    return (
+      <p className={documentNavigation ? "prose prose--narrative" : "prose"}>
+        {body.text}
+      </p>
+    );
   const reading = (
     <>
       {outline.length > 0 && (

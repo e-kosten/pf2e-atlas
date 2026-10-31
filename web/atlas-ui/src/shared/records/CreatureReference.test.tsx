@@ -147,6 +147,10 @@ it("uses the same authored reading groups in reference and encounter with early 
       "Passive abilities",
     ];
     expect(titles.filter((title) => ordered.includes(title ?? ""))).toEqual(ordered);
+    expect(screen.getByRole("heading", { name: "Statistics", level: 3 })).toBeVisible();
+    for (const name of ["Ability modifiers", "Skills"]) {
+      expect(screen.getByRole("heading", { name, level: 4 })).toBeVisible();
+    }
     expect(
       screen
         .getByText("Swarming Bites")

@@ -125,6 +125,14 @@
   display: grid;
   gap: var(--space-control);
 }
+/* Runtime forecasts retain control typography when reusing a reference fact. */
+.encounter-turn-resources .record-fact {
+  line-height: 1.7;
+}
+.encounter-turn-resources .record-fact > strong {
+  margin-right: var(--space-micro);
+  font-weight: 700;
+}
 .encounter-turn-resources__controls {
   display: flex;
   flex-wrap: wrap;

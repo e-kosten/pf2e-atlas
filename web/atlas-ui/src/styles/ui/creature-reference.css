@@ -39,6 +39,7 @@
   padding-block: 3px;
 }
 .creature-reference__prose {
+  --reading-paragraph-gap: 1em;
   margin-block-end: var(--space-section);
 }
 .creature-reference__source-defenses {
@@ -51,19 +52,20 @@
 }
 .creature-reference__facts {
   display: grid;
+  gap: var(--space-control);
+}
+.creature-reference__fact-groups {
+  display: grid;
   gap: var(--space-group);
 }
-.creature-reference__facts h3 {
+.creature-reference__facts :is(h3, h4) {
   margin: 0;
 }
 .creature-reference__facts .actor-reference__skills > section {
   display: grid;
   gap: var(--space-control);
 }
-.creature-reference__facts > .record-fact {
-  margin-block-end: var(--space-control);
-}
-.creature-reference__facts .actor-reference__facts {
+.creature-reference__fact-groups .actor-reference__facts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
   gap: var(--space-group) var(--space-section);
@@ -72,13 +74,10 @@
   border: 0;
   padding: 0;
   margin-block-end: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px var(--space-group);
-  align-items: baseline;
+  display: grid;
+  gap: var(--space-control);
 }
 .creature-reference__source-defenses .actor-reference__defenses > h3 {
-  flex-basis: 100%;
   margin: 0;
 }
 .creature-reference .actor-reference__awareness-movement {
@@ -94,10 +93,7 @@
 .creature-reference .record-fact-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px var(--space-group);
-}
-.creature-reference .actor-reference__defenses .record-fact-list {
-  gap: 4px 12px;
+  gap: var(--space-micro) var(--space-group);
 }
 .creature-reference .actor-reference__mechanics {
   display: grid;
@@ -113,7 +109,7 @@
     .actor-reference__activities--gear
   )
   > h3 {
-  margin: 0;
+  margin: 0 0 var(--space-control);
 }
 .creature-reference .actor-reference__actions {
   display: grid;
@@ -134,7 +130,7 @@
 .creature-reference
   .actor-activity:not(.actor-activity--strike):not(.actor-activity--gear)
   + .actor-activity:not(.actor-activity--strike):not(.actor-activity--gear) {
-  margin-block-start: var(--space-control);
+  margin-block-start: var(--space-group);
 }
 .creature-reference .badge-row:empty {
   display: none;
@@ -143,24 +139,10 @@
   font: inherit;
 }
 .creature-reference .actor-activity__title {
-  margin: 0 0 var(--space-control);
+  margin: 0;
 }
 .creature-reference .prepared-content {
   max-width: 100%;
-}
-.creature-reference .embedded-ability-reading__entry {
-  display: grid;
-  gap: var(--space-control);
-  padding-block: var(--space-group);
-  border-bottom: 1px solid var(--line);
-  min-width: 0;
-}
-.creature-reference .embedded-ability-reading__entry:first-of-type {
-  padding-block-start: 0;
-}
-.creature-reference .embedded-ability-reading__entry:last-child {
-  border: 0;
-  padding-block-end: 0;
 }
 .creature-reference .actor-casting {
   padding: 0;
@@ -181,6 +163,8 @@
   outline-offset: var(--space-control);
 }
 .creature-reference__rules {
+  display: grid;
+  gap: var(--space-section);
   min-width: 0;
 }
 .creature-reference--runtime-only .actor-encounter-host {
@@ -194,7 +178,7 @@
   margin: 0;
 }
 .creature-reference--encounter .creature-reference__prose {
-  margin-block: var(--space-section) 0;
+  margin-block: 0;
 }
 
 @container creature-sheet (min-width: 62rem) {

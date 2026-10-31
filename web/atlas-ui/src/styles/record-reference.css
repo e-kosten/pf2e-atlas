@@ -1,10 +1,12 @@
 .record-reference {
+  --reading-paragraph-gap: 0.75em;
   container-type: inline-size;
   container-name: record-pane;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-section);
   padding: 0;
+  font-size: 1rem;
   line-height: 1.55;
   min-width: 0;
   overflow-wrap: anywhere;
@@ -22,7 +24,7 @@
   margin-inline: 0;
 }
 .prepared-content :is(p, ul, ol, blockquote, dl) {
-  margin-block: 0 12px;
+  margin-block: 0 var(--reading-paragraph-gap, 0.75em);
 }
 .record-reference .prepared-content :is(h2, h3, h4, h5, h6) {
   margin-block: 20px 8px;
@@ -30,6 +32,9 @@
 }
 .prepared-content > :last-child {
   margin-bottom: 0;
+}
+.record-reference__content > .prose:last-child {
+  margin-block-end: 0;
 }
 .prepared-content {
   overflow-wrap: anywhere;
@@ -54,6 +59,12 @@
   border-bottom: 1px solid var(--line);
   text-align: start;
   vertical-align: top;
+}
+.prepared-content :is(th, td) > :first-child {
+  margin-block-start: 0;
+}
+.prepared-content :is(th, td) > :last-child {
+  margin-block-end: 0;
 }
 .prepared-content th {
   font-weight: 650;
@@ -170,31 +181,36 @@
 }
 .record-reference h3 {
   margin: 0 0 8px;
-  font-size: 1.125rem;
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 700;
   line-height: 1.35;
 }
 .record-reference h4 {
-  margin: 0 0 6px;
-  font-size: 1rem;
-  font-weight: 600;
+  margin: 0 0 var(--space-control);
+  font-size: 1.125rem;
+  font-weight: 700;
   line-height: 1.35;
 }
 .record-reference h5 {
-  margin: 0 0 6px;
-  font-size: 0.875rem;
-  font-weight: 600;
+  margin: 0 0 var(--space-control);
+  font-size: 1rem;
+  font-weight: 700;
 }
 .record-fact-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 16px;
+  gap: var(--space-micro) var(--space-group);
 }
-.record-fact {
-  line-height: 1.7;
+.record-reference :is(.record-fact-list, .actor-reference__mechanics):empty {
+  display: none;
+}
+.record-fact,
+.actor-casting__row {
+  font-size: 1rem;
+  line-height: 1.5;
 }
 .record-fact > strong {
-  margin-right: 4px;
+  font-weight: 600;
 }
 .record-missing {
   color: var(--muted);
@@ -212,11 +228,18 @@
 }
 .actor-reference__activities {
   display: grid;
-  gap: 8px;
+  gap: 0;
 }
 .actor-activity {
-  padding-block: 6px;
+  padding-block: var(--space-control);
   border-bottom: 1px solid var(--line);
+}
+.actor-reference__activities > .actor-activity:first-of-type {
+  padding-block-start: 0;
+}
+.actor-reference__activities > .actor-activity:last-child {
+  border: 0;
+  padding-block-end: 0;
 }
 .actor-activity--selected {
   display: contents;
@@ -227,19 +250,21 @@
 }
 .spell-reference {
   display: grid;
-  gap: 14px;
+  gap: var(--space-section);
 }
-.spell-reference__casting {
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--line);
+.spell-reference__casting > p {
+  margin: 0 0 var(--space-control);
 }
 .spell-reference__ritual-checks {
   margin-block: var(--space-control);
 }
 .spell-reference__change {
-  margin-top: 10px;
+  margin-block-start: var(--space-group);
   padding-left: 12px;
   border-left: 2px solid var(--line);
+}
+.spell-reference__forms > .spell-reference__change:first-of-type {
+  margin-block-start: 0;
 }
 .spell-reference__rank-change {
   display: grid;
@@ -260,7 +285,7 @@
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--space-micro);
 }
 .spell-reference__damage .record-damage p {
   margin: 0;
@@ -349,7 +374,10 @@
 }
 .hazard-reference__detection {
   display: grid;
-  gap: 6px;
+  gap: var(--space-control);
+}
+.hazard-reference__detection > h3 {
+  margin: 0;
 }
 .hazard-reference__detection .prepared-content {
   max-width: 100%;
@@ -526,22 +554,34 @@
 .actor-reference__activities--gear > .actor-activity {
   display: grid;
   gap: var(--space-control) var(--space-group);
-  padding-block: var(--space-group);
+  padding-block: var(--space-control);
   border-block-end: 1px solid var(--line);
   margin: 0;
-}
-.actor-reference__activities--strike > .actor-activity:last-child,
-.actor-reference__activities--gear > .actor-activity:last-child {
-  border: 0;
-  padding-block-end: 0;
 }
 .actor-reference__activities--strike > h3,
 .actor-reference__activities--gear > h3 {
   margin: 0 0 var(--space-control);
 }
-.actor-reference__activities--strike > .actor-activity:first-of-type,
-.actor-reference__activities--gear > .actor-activity:first-of-type {
+.embedded-ability-reading__entry {
+  display: grid;
+  gap: var(--space-control);
+  padding-block: var(--space-control);
+  border-block-end: 1px solid var(--line);
+  min-width: 0;
+}
+.embedded-ability-reading__entry:first-of-type {
   padding-block-start: 0;
+}
+.embedded-ability-reading__entry:last-child {
+  border: 0;
+  padding-block-end: 0;
+}
+.embedded-ability-reading__entry > .actor-activity {
+  padding-block: 0;
+  border: 0;
+}
+.embedded-ability-reading__entry .actor-activity__title {
+  margin: 0;
 }
 .actor-activity__identity,
 .actor-activity__facts {
@@ -633,7 +673,7 @@
 .physical-reference {
   display: flex;
   flex-direction: column;
-  gap: var(--space-group);
+  gap: var(--space-section);
 }
 .physical-reference__facts {
   display: grid;

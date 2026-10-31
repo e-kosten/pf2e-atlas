@@ -102,6 +102,7 @@ export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
     "--radius-md": `${atlasTheme.radius.md}px`,
     "--radius-lg": `${atlasTheme.radius.lg}px`,
     "--radius-pill": `${atlasTheme.radius.pill}px`,
+    "--space-micro": `${token.paddingXXS}px`,
     "--space-control": `${token.paddingXS}px`,
     "--space-group": `${token.padding}px`,
     "--space-section": `${token.paddingLG}px`,
