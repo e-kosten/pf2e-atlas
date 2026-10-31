@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 22;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 23;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -63,6 +63,7 @@ const MIGRATIONS: &[Migration] = &[
         name: "embedding-storage",
         sql: atlas_index::EMBEDDING_STORAGE_SCHEMA_SQL,
         backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
             id: "native-embedding-storage/v1",
             apply: atlas_index::backfill_embedding_storage,
         }),
@@ -126,6 +127,7 @@ const MIGRATIONS: &[Migration] = &[
         name: "similarity-parts",
         sql: atlas_index::SIMILARITY_SCHEMA_SQL,
         backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
             id: "typed-content-correspondence/v1",
             apply: atlas_index::backfill_similarity_parts,
         }),
@@ -141,6 +143,16 @@ const MIGRATIONS: &[Migration] = &[
         name: "encounter-recovery",
         sql: atlas_local_state::ENCOUNTER_RECOVERY_SCHEMA_SQL,
         backfill: None,
+    },
+    Migration {
+        version: 23,
+        name: "saved-state-integrity",
+        sql: "",
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: true,
+            id: "saved-state-integrity/v1",
+            apply: atlas_local_state::backfill_saved_state_integrity,
+        }),
     },
 ];
 
@@ -169,6 +181,10 @@ pub(crate) fn register_extensions() -> StorageResult<()> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
         .map_err(|e| atlas_storage::StorageError::Unsupported(e.to_string()))
 }
+
+#[cfg(test)]
+#[path = "saved_state_integrity_tests.rs"]
+mod saved_state_integrity_tests;
 
 #[cfg(test)]
 mod tests {
@@ -396,10 +412,11 @@ mod tests {
     #[test]
     fn similarity_metadata_upgrade_from_published_nineteen_preserves_saved_state_and_exact_vectors()
     {
-        use atlas_index::IndexArtifactWriter;
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("similarity-upgrade.sqlite");
-        let workspace = initialize_workspace(&path).unwrap();
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace.migrate(&MIGRATIONS[..19], |_| Ok(())).unwrap();
         let input = atlas_search::test_support::input_with_both_profiles(vec![
             atlas_search::test_support::record(
                 "hazards",
@@ -410,13 +427,11 @@ mod tests {
         {
             let owner = workspace.update_owner().unwrap();
             let maintenance = owner
-                .maintenance(WORKSPACE_SCHEMA_VERSION, "similarity migration fixture")
+                .maintenance(19, "similarity migration fixture")
                 .unwrap();
-            atlas_index::SqliteIndexWriter::new(&maintenance)
-                .write(&input)
-                .unwrap();
+            atlas_index::test_support::publish_pre_core_fixture(&maintenance, &input).unwrap();
         }
-        let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let write = workspace.write(19).unwrap();
         LocalStateWrite::new(&write)
             .saved_lists()
             .create(NewSavedList {
@@ -497,25 +512,6 @@ mod tests {
                 |row| row.get::<_, i64>(0),
             )
             .unwrap();
-        // Model published main's numeric/base-type schema before adding Similar.
-        let mut historical_context = input.context.clone();
-        historical_context.core_sections_recipe.clear();
-        write
-            .connection()
-            .execute(
-                "UPDATE artifact_context SET context_hash=?,context_json=?",
-                rusqlite::params![
-                    historical_context.sha256().unwrap(),
-                    serde_json::to_string(&historical_context).unwrap()
-                ],
-            )
-            .unwrap();
-        write
-            .connection()
-            .execute_batch(
-                "DROP TABLE encounter_recovery_receipts; DROP TABLE encounter_participant_baselines; DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DROP TABLE similarity_parts; DELETE FROM schema_migrations WHERE version>=20; PRAGMA user_version=19;",
-            )
-            .unwrap();
         let main_ledger = |connection: &rusqlite::Connection| {
             connection
                 .prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=19 ORDER BY version")
@@ -582,10 +578,11 @@ mod tests {
 
     #[test]
     fn runtime_automatically_upgrades_core_without_source_models_or_changed_reference_values() {
-        use atlas_index::IndexArtifactWriter;
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("core-runtime.sqlite");
-        let workspace = initialize_workspace(&path).unwrap();
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace.migrate(&MIGRATIONS[..20], |_| Ok(())).unwrap();
         let input = atlas_search::test_support::input_with_both_profiles(vec![
             atlas_search::test_support::record(
                 "actors",
@@ -595,14 +592,10 @@ mod tests {
         ]);
         {
             let owner = workspace.update_owner().unwrap();
-            let maintenance = owner
-                .maintenance(WORKSPACE_SCHEMA_VERSION, "runtime Core fixture")
-                .unwrap();
-            atlas_index::SqliteIndexWriter::new(&maintenance)
-                .write(&input)
-                .unwrap();
+            let maintenance = owner.maintenance(20, "runtime Core fixture").unwrap();
+            atlas_index::test_support::publish_pre_core_fixture(&maintenance, &input).unwrap();
         }
-        let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let write = workspace.write(20).unwrap();
         LocalStateWrite::new(&write)
             .saved_lists()
             .create(NewSavedList {
@@ -614,7 +607,7 @@ mod tests {
             .unwrap();
         let revision = write.reference_revision().unwrap();
         let stable_values = |c: &rusqlite::Connection| {
-            let tables=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'core_%' AND name NOT IN ('artifact_context','workspace','schema_migrations') ORDER BY name").unwrap().query_map([],|row|row.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+            let tables=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'core_%' AND name NOT IN ('artifact_context','workspace','schema_migrations','encounter_participant_adjustments','encounter_participant_baselines','encounter_recovery_receipts') ORDER BY name").unwrap().query_map([],|row|row.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
             tables
                 .into_iter()
                 .map(|table| {
@@ -637,19 +630,17 @@ mod tests {
         };
         let before = stable_values(write.connection());
         let ledger=write.connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=20 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
-        let mut historical_context = input.context.clone();
-        historical_context.core_sections_recipe.clear();
-        write
-            .connection()
-            .execute(
-                "UPDATE artifact_context SET context_hash=?,context_json=?",
-                rusqlite::params![
-                    historical_context.sha256().unwrap(),
-                    serde_json::to_string(&historical_context).unwrap()
-                ],
-            )
-            .unwrap();
-        write.connection().execute_batch("DROP TABLE encounter_recovery_receipts; DROP TABLE encounter_participant_baselines; DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DELETE FROM schema_migrations WHERE version>=21; PRAGMA user_version=20;").unwrap();
+        assert_eq!(
+            write
+                .connection()
+                .query_row(
+                    "SELECT count(*) FROM encounter_participant_adjustments",
+                    [],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            0
+        );
         write.commit().unwrap();
         let source = directory.path().join("absent-source");
         let models = directory.path().join("absent-models");
@@ -674,6 +665,27 @@ mod tests {
         assert_eq!(
             stable_values(reader.workspace_session().connection()),
             before
+        );
+        for table in [
+            "encounter_participant_baselines",
+            "encounter_recovery_receipts",
+        ] {
+            assert_eq!(
+                reader
+                    .workspace_session()
+                    .connection()
+                    .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| row
+                        .get::<_, i64>(0))
+                    .unwrap(),
+                0
+            );
+        }
+        assert!(
+            reader
+                .workspace_session()
+                .connection()
+                .prepare("SELECT * FROM encounter_participant_adjustments")
+                .is_err()
         );
         let actual_ledger=reader.workspace_session().connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=20 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
         assert_eq!(actual_ledger, ledger);

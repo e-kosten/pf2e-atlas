@@ -73,6 +73,7 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         name: "embedding-storage",
         sql: crate::EMBEDDING_STORAGE_SCHEMA_SQL,
         backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
             id: "native-embedding-storage/v1",
             apply: crate::backfill_embedding_storage,
         }),
@@ -136,6 +137,7 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         name: "similarity-parts",
         sql: crate::SIMILARITY_SCHEMA_SQL,
         backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
             id: "typed-content-correspondence/v1",
             apply: crate::backfill_similarity_parts,
         }),
@@ -145,6 +147,22 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         name: "core-section-eligibility",
         sql: crate::CORE_SECTIONS_SCHEMA_SQL,
         backfill: None,
+    },
+    Migration {
+        version: 22,
+        name: "encounter-recovery",
+        sql: atlas_local_state::ENCOUNTER_RECOVERY_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 23,
+        name: "saved-state-integrity",
+        sql: "",
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: true,
+            id: "saved-state-integrity/v1",
+            apply: atlas_local_state::backfill_saved_state_integrity,
+        }),
     },
 ];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
@@ -167,6 +185,40 @@ pub fn publish_input(
     let owner = workspace.update_owner()?;
     let maintenance = owner.maintenance(TEST_WORKSPACE_SCHEMA_VERSION, "test publication")?;
     SqliteIndexWriter::new(&maintenance).write(input)
+}
+
+/// Populate the actual schema-19/20 reference shape for section-upgrade tests.
+/// Runtime owns its migration prefix; this fixture never rewinds a ledger or saved schema.
+pub fn publish_pre_core_fixture(
+    maintenance: &atlas_storage::MaintenanceSession<'_>,
+    input: &IndexBuildInput,
+) -> Result<(), IndexError> {
+    maintenance.publish(|connection| {
+        let version: u32 = connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+        if !matches!(version, 19 | 20) {
+            return Err(IndexError::Invalid(
+                "pre-Core fixtures require an actual schema-19 or schema-20 workspace".into(),
+            ));
+        }
+        connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
+        crate::writer::write_record_rows(connection, input)?;
+        crate::traits::write_traits(connection, input)?;
+        if version == 20 {
+            crate::similarity_projection::write_similarity_parts(connection, input)?;
+        }
+        let mut context = input.context.clone();
+        context.core_sections_recipe.clear();
+        connection.execute(
+            "UPDATE artifact_context SET context_hash=?,context_json=?",
+            rusqlite::params![context.sha256()?, serde_json::to_string(&context)?],
+        )?;
+        if connection.prepare("PRAGMA foreign_key_check")?.exists([])? {
+            return Err(IndexError::Invalid(
+                "invalid pre-Core fixture references".into(),
+            ));
+        }
+        Ok(())
+    })
 }
 
 /// Seed only the record component of a deliberately historical schema fixture.

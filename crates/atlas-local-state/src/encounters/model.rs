@@ -52,12 +52,16 @@ impl EncounterStatus {
         }
     }
 
-    pub(crate) fn from_str(value: &str) -> Self {
+    pub(crate) fn from_str(value: &str) -> crate::LocalStateResult<Self> {
         match value {
-            "running" => Self::Running,
-            "complete" => Self::Complete,
-            "archived" => Self::Archived,
-            _ => Self::Draft,
+            "draft" => Ok(Self::Draft),
+            "running" => Ok(Self::Running),
+            "complete" => Ok(Self::Complete),
+            "archived" => Ok(Self::Archived),
+            _ => Err(crate::LocalStateError::UnsupportedMetadata {
+                key: "status",
+                value: value.into(),
+            }),
         }
     }
 }
@@ -118,11 +122,15 @@ impl ParticipantVariant {
         }
     }
 
-    pub(crate) fn from_str(value: &str) -> Self {
+    pub(crate) fn from_str(value: &str) -> crate::LocalStateResult<Self> {
         match value {
-            "elite" => Self::Elite,
-            "weak" => Self::Weak,
-            _ => Self::Normal,
+            "normal" => Ok(Self::Normal),
+            "elite" => Ok(Self::Elite),
+            "weak" => Ok(Self::Weak),
+            _ => Err(crate::LocalStateError::UnsupportedMetadata {
+                key: "participant_variant",
+                value: value.into(),
+            }),
         }
     }
 }
@@ -203,11 +211,15 @@ impl ParticipantKind {
         }
     }
 
-    pub(crate) fn from_str(value: &str) -> Self {
+    pub(crate) fn from_str(value: &str) -> crate::LocalStateResult<Self> {
         match value {
-            "hazard" => Self::Hazard,
-            "pc" => Self::Pc,
-            _ => Self::Creature,
+            "creature" => Ok(Self::Creature),
+            "hazard" => Ok(Self::Hazard),
+            "pc" => Ok(Self::Pc),
+            _ => Err(crate::LocalStateError::UnsupportedMetadata {
+                key: "participant_kind",
+                value: value.into(),
+            }),
         }
     }
 }
@@ -233,13 +245,17 @@ impl ParticipantSide {
         }
     }
 
-    pub(crate) fn from_str(value: &str) -> Self {
+    pub(crate) fn from_str(value: &str) -> crate::LocalStateResult<Self> {
         match value {
-            "pc" => Self::Pc,
-            "ally" => Self::Ally,
-            "neutral" => Self::Neutral,
-            "hazard" => Self::Hazard,
-            _ => Self::Enemy,
+            "pc" => Ok(Self::Pc),
+            "ally" => Ok(Self::Ally),
+            "enemy" => Ok(Self::Enemy),
+            "neutral" => Ok(Self::Neutral),
+            "hazard" => Ok(Self::Hazard),
+            _ => Err(crate::LocalStateError::UnsupportedMetadata {
+                key: "side",
+                value: value.into(),
+            }),
         }
     }
 }
@@ -380,12 +396,16 @@ impl ParticipantHpOrigin {
             Self::Unknown => "unknown",
         }
     }
-    pub(crate) fn from_str(value: &str) -> Self {
+    pub(crate) fn from_str(value: &str) -> crate::LocalStateResult<Self> {
         match value {
-            "derived_pristine" => Self::DerivedPristine,
-            "derived_edited" => Self::DerivedEdited,
-            "unknown" => Self::Unknown,
-            _ => Self::Explicit,
+            "derived_pristine" => Ok(Self::DerivedPristine),
+            "derived_edited" => Ok(Self::DerivedEdited),
+            "explicit" => Ok(Self::Explicit),
+            "unknown" => Ok(Self::Unknown),
+            _ => Err(crate::LocalStateError::UnsupportedMetadata {
+                key: "hp_origin",
+                value: value.into(),
+            }),
         }
     }
 }
@@ -407,12 +427,16 @@ impl ParticipantVariantOrigin {
             Self::Explicit => "explicit",
         }
     }
-    pub(crate) fn from_str(value: &str) -> Self {
+    pub(crate) fn from_str(value: &str) -> crate::LocalStateResult<Self> {
         match value {
-            "default_unadjusted" => Self::DefaultUnadjusted,
-            "inherited_known" => Self::InheritedKnown,
-            "inherited_unknown" => Self::InheritedUnknown,
-            _ => Self::Explicit,
+            "default_unadjusted" => Ok(Self::DefaultUnadjusted),
+            "inherited_known" => Ok(Self::InheritedKnown),
+            "inherited_unknown" => Ok(Self::InheritedUnknown),
+            "explicit" => Ok(Self::Explicit),
+            _ => Err(crate::LocalStateError::UnsupportedMetadata {
+                key: "variant_origin",
+                value: value.into(),
+            }),
         }
     }
 }

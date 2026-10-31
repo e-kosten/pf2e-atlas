@@ -624,6 +624,7 @@ fn typed_backfill_runs_atomically_and_its_identity_is_authenticated() {
         name: "typed-backfill",
         sql: "ALTER TABLE saved ADD COLUMN digest BLOB;",
         backfill: Some(DataBackfill {
+            reconstruct_tables: false,
             id: "saved-digest/v1",
             apply: |c| {
                 c.execute("UPDATE saved SET digest=?", [&[1u8, 2, 3][..]])?;
@@ -641,6 +642,7 @@ fn typed_backfill_runs_atomically_and_its_identity_is_authenticated() {
     drop(read);
     let second = Migration {
         backfill: Some(DataBackfill {
+            reconstruct_tables: false,
             id: "saved-digest/v1",
             apply: |c| {
                 c.execute("UPDATE saved SET digest=?", [&[1u8, 2, 3][..]])?;
@@ -764,4 +766,198 @@ fn mapping_is_connection_local_and_writes_remain_unmapped() {
             .unwrap_or(0),
         0
     );
+}
+
+#[test]
+fn reconstruction_checks_foreign_keys_and_rolls_back_tables_history_and_rows() {
+    let (_directory, workspace) = fixture();
+    let graph = Migration {
+        version: 2,
+        name: "saved-graph",
+        sql: "CREATE TABLE child(id INTEGER PRIMARY KEY,saved_id INTEGER NOT NULL REFERENCES saved(id) ON DELETE CASCADE); INSERT INTO child VALUES(4,1);",
+        backfill: None,
+    };
+    workspace.migrate(&[FIRST, graph], |_| Ok(())).unwrap();
+    let reconstruction = Migration {
+        version: 3,
+        name: "reconstruct-saved",
+        sql: "",
+        backfill: Some(DataBackfill {
+            id: "reconstruct-saved/v1",
+            reconstruct_tables: true,
+            apply: |connection| {
+                assert!(!connection.is_autocommit());
+                assert!(
+                    !connection
+                        .query_row("PRAGMA foreign_keys", [], |row| row.get::<_, bool>(0))?
+                );
+                connection.execute_batch("CREATE TABLE saved_rebuilt(id INTEGER PRIMARY KEY,title TEXT NOT NULL CHECK(length(title)>0)) STRICT; INSERT INTO saved_rebuilt SELECT * FROM saved; DROP TABLE saved; ALTER TABLE saved_rebuilt RENAME TO saved;")?;
+                connection.execute("UPDATE child SET saved_id=999", [])?;
+                Ok(())
+            },
+        }),
+    };
+    assert!(matches!(
+        workspace.migrate(&[FIRST, graph, reconstruction], |_| Ok(())),
+        Err(StorageError::Migration(_))
+    ));
+    let read = workspace.read(2).unwrap();
+    assert_eq!(
+        read.connection()
+            .query_row("SELECT title FROM saved WHERE id=1", [], |row| row
+                .get::<_, String>(0))
+            .unwrap(),
+        "retained"
+    );
+    assert_eq!(
+        read.connection()
+            .query_row("SELECT saved_id FROM child WHERE id=4", [], |row| row
+                .get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        read.connection()
+            .query_row("SELECT count(*) FROM schema_migrations", [], |row| row
+                .get::<_, i64>(0))
+            .unwrap(),
+        2
+    );
+    assert!(
+        read.connection()
+            .prepare("SELECT * FROM saved_rebuilt")
+            .is_err()
+    );
+    assert!(
+        read.connection()
+            .query_row("PRAGMA foreign_keys", [], |row| row.get::<_, bool>(0))
+            .unwrap()
+    );
+    drop(read);
+    let reconstruction = Migration {
+        backfill: Some(DataBackfill {
+            apply: |connection| {
+                connection.execute_batch("CREATE TABLE saved_rebuilt(id INTEGER PRIMARY KEY,title TEXT NOT NULL CHECK(length(title)>0)) STRICT; INSERT INTO saved_rebuilt SELECT * FROM saved; DROP TABLE saved; ALTER TABLE saved_rebuilt RENAME TO saved;")?;
+                Ok(())
+            },
+            ..reconstruction.backfill.unwrap()
+        }),
+        ..reconstruction
+    };
+    workspace
+        .migrate(&[FIRST, graph, reconstruction], |_| Ok(()))
+        .unwrap();
+    let read = workspace.read(3).unwrap();
+    assert_eq!(
+        read.connection()
+            .query_row("SELECT saved_id FROM child WHERE id=4", [], |row| row
+                .get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+    drop(read);
+    let changed = Migration {
+        backfill: Some(DataBackfill {
+            reconstruct_tables: false,
+            ..reconstruction.backfill.unwrap()
+        }),
+        ..reconstruction
+    };
+    assert!(matches!(
+        workspace.migrate(&[FIRST, graph, changed], |_| Ok(())),
+        Err(StorageError::Migration(_))
+    ));
+}
+
+#[test]
+fn reconstruction_suspends_enforcement_for_the_whole_pending_batch_and_restores_actions() {
+    let (_directory, workspace) = fixture();
+    let before = Migration {
+        version: 2,
+        name: "ordinary-before-reconstruction",
+        sql: "CREATE TABLE child(id INTEGER PRIMARY KEY,saved_id INTEGER NOT NULL REFERENCES saved(id) ON DELETE CASCADE); INSERT INTO saved VALUES(2,'temporary'); INSERT INTO child VALUES(2,2);",
+        backfill: Some(DataBackfill {
+            id: "ordinary-before-reconstruction/v1",
+            reconstruct_tables: false,
+            apply: |connection| {
+                assert!(!connection.is_autocommit());
+                assert!(
+                    !connection
+                        .query_row("PRAGMA foreign_keys", [], |row| row.get::<_, bool>(0))?
+                );
+                connection.execute("DELETE FROM saved WHERE id=2", [])?;
+                assert_eq!(
+                    connection
+                        .query_row("SELECT count(*) FROM child", [], |row| row.get::<_, i64>(0))?,
+                    1
+                );
+                Ok(())
+            },
+        }),
+    };
+    let reconstruction = Migration {
+        version: 3,
+        name: "batch-reconstruction",
+        sql: "",
+        backfill: Some(DataBackfill {
+            id: "batch-reconstruction/v1",
+            reconstruct_tables: true,
+            apply: |connection| {
+                assert!(
+                    !connection
+                        .query_row("PRAGMA foreign_keys", [], |row| row.get::<_, bool>(0))?
+                );
+                connection.execute_batch("CREATE TABLE saved_rebuilt(id INTEGER PRIMARY KEY,title TEXT NOT NULL) STRICT; INSERT INTO saved_rebuilt SELECT * FROM saved; DROP TABLE saved; ALTER TABLE saved_rebuilt RENAME TO saved;")?;
+                Ok(())
+            },
+        }),
+    };
+    let after = Migration {
+        version: 4,
+        name: "ordinary-after-reconstruction",
+        sql: "",
+        backfill: Some(DataBackfill {
+            id: "ordinary-after-reconstruction/v1",
+            reconstruct_tables: false,
+            apply: |connection| {
+                assert!(
+                    !connection
+                        .query_row("PRAGMA foreign_keys", [], |row| row.get::<_, bool>(0))?
+                );
+                assert_eq!(
+                    connection
+                        .query_row("SELECT count(*) FROM child", [], |row| row.get::<_, i64>(0))?,
+                    1
+                );
+                connection.execute("DELETE FROM child WHERE saved_id=2", [])?;
+                Ok(())
+            },
+        }),
+    };
+    workspace
+        .migrate(&[FIRST, before, reconstruction, after], |_| Ok(()))
+        .unwrap();
+    let write = workspace.write(4).unwrap();
+    assert!(
+        write
+            .connection()
+            .query_row("PRAGMA foreign_keys", [], |row| row.get::<_, bool>(0))
+            .unwrap()
+    );
+    write
+        .connection()
+        .execute("INSERT INTO child VALUES(1,1)", [])
+        .unwrap();
+    write
+        .connection()
+        .execute("DELETE FROM saved WHERE id=1", [])
+        .unwrap();
+    assert_eq!(
+        write
+            .connection()
+            .query_row("SELECT count(*) FROM child", [], |row| row.get::<_, i64>(0))
+            .unwrap(),
+        0
+    );
+    write.commit().unwrap();
 }

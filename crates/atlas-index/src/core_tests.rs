@@ -486,11 +486,19 @@ fn table_values(c: &rusqlite::Connection) -> BTreeMap<String, Vec<Vec<rusqlite::
 fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generation() {
     use atlas_local_state::{LocalStateWrite, NewSavedList};
     let input = nested_fixture(true);
-    let (_directory, path) = crate::foundation_tests::build(&input);
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("core-upgrade.sqlite");
+    atlas_sqlite_vec::register_sqlite_vec_auto_extension().unwrap();
     let workspace = atlas_storage::Workspace::at(&path).unwrap();
-    let write = workspace
-        .write(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
+    workspace
+        .migrate(&crate::test_support::TEST_MIGRATIONS[..20], |_| Ok(()))
         .unwrap();
+    {
+        let owner = workspace.update_owner().unwrap();
+        let maintenance = owner.maintenance(20, "pre-Core fixture").unwrap();
+        crate::test_support::publish_pre_core_fixture(&maintenance, &input).unwrap();
+    }
+    let write = workspace.write(20).unwrap();
     LocalStateWrite::new(&write)
         .saved_lists()
         .create(NewSavedList {
@@ -503,16 +511,13 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
     let revision = write.reference_revision().unwrap();
     let mut context = input.context.clone();
     context.core_sections_recipe.clear();
-    let json = serde_json::to_string(&context).unwrap();
-    write
-        .connection()
-        .execute(
-            "UPDATE artifact_context SET context_hash=?,context_json=?",
-            rusqlite::params![crate::codec::sha256(json.as_bytes()), json],
-        )
-        .unwrap();
-    write.connection().execute_batch("DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DELETE FROM schema_migrations WHERE version=21; PRAGMA user_version=20;").unwrap();
-    let before = table_values(write.connection());
+    let mut before = table_values(write.connection());
+    assert!(
+        before
+            .remove("encounter_participant_adjustments")
+            .unwrap()
+            .is_empty()
+    );
     write.commit().unwrap();
     let upgraded = crate::test_support::initialize_workspace(&path).unwrap();
     let read = upgraded
@@ -535,7 +540,20 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
         .read(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
         .unwrap();
     assert_eq!(read.reference_revision().unwrap(), revision + 1);
-    assert_eq!(table_values(read.connection()), before);
+    let mut after = table_values(read.connection());
+    assert!(
+        after
+            .remove("encounter_participant_baselines")
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        after
+            .remove("encounter_recovery_receipts")
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(after, before);
     let context_after = read_stored_reference_context(read.connection())
         .unwrap()
         .unwrap();

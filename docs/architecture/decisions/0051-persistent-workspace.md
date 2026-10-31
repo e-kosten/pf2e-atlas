@@ -41,6 +41,21 @@ Migrations drain cooperating readers/writers, back up an existing workspace and
 apply schema, backfills, validation and ledger changes in one transaction. Domain
 backfills may provide a versioned executable callback; its immutable identifier
 participates in the migration checksum. Published SQL-only checksums are unchanged.
+A referenced-table reconstruction explicitly opts in through its immutable,
+checksum-bound backfill contract. Under exclusive admission, storage captures the
+upgrade backup and suspends foreign-key enforcement on the migration connection
+before BEGIN for the **whole pending migration batch**, including ordinary SQL
+and callbacks before or after the opted-in backfill. Every migration in that
+batch must be safe without foreign-key actions; the final key check detects
+dangling references but cannot reproduce a skipped cascade. The published
+migration 1–22 suffixes used with the saved-state reconstruction use explicit
+changes and have no dependency on such cascades. Domain-owned preflight and
+reconstruction, exact row-count checks, ledger updates and complete foreign-key
+validation share the upgrade transaction.
+Storage restores enforcement after commit or rollback; an interrupted connection
+closes without changing subsequent connections' enforcement. This mechanism is
+reserved for reconstruction whose parent DROP would otherwise cascade into
+retained user rows. Domain policy and reconstruction SQL remain with their owner.
 The ordinary admission validator remains read-only and never runs backfills. One
 publisher owns source/configuration updates. Preparation can run while ordinary
 operations continue: publisher ownership does not hold the exclusive access lock
@@ -92,6 +107,23 @@ bounded retrieval, receipt idempotency and profile-scoped ranking remain.
 Changes to this boundary require production lifecycle integration,
 delta/backfill/checkpoint tests, consumer replacement and matching architecture
 guidance. Isolated storage tests do not establish those obligations.
+
+## Saved-domain integrity
+
+Encounter status and participant kind, variant and side are closed SQL enums.
+Readers reject unknown saved values, including provenance enums, rather than
+interpreting them as defaults. A participant's encounter/key pair is unique;
+pending consequences, boundary claims and consumed application markers reference
+that pair. Consumed markers may retain a null or historical condition ID after
+its live source is removed.
+
+The encounter's current participant references the same pair with deferred
+checking. Participant removal clears that pointer before deleting the row;
+encounter deletion still cascades through its saved children. Reconstruction
+preflight rejects invalid enums and missing or cross-encounter references with
+the affected row's identity. It preserves all data on failure and does not infer
+a repair. The retired adjustment table is removed only when empty; historical
+rows require an explicit preservation decision.
 
 ## Development snapshots
 

@@ -383,6 +383,10 @@ pub(crate) fn remove_participant(
     else {
         return Ok(false);
     };
+    connection.execute(
+        "UPDATE encounters SET current_turn_participant_key=NULL WHERE id=?1 AND current_turn_participant_key=?2",
+        params![encounter_id, participant_key],
+    )?;
     let removed = connection.execute(
         "DELETE FROM encounter_participants WHERE participant_key = ?1",
         params![participant_key],
@@ -390,12 +394,6 @@ pub(crate) fn remove_participant(
     if removed > 0 {
         compact_positions(connection, encounter_id)?;
         compact_initiative_order(connection, encounter_id, initiative)?;
-        connection.execute(
-            "UPDATE encounters
-             SET current_turn_participant_key = NULL
-             WHERE id = ?1 AND current_turn_participant_key = ?2",
-            params![encounter_id, participant_key],
-        )?;
         touch_encounter(connection, encounter_id)?;
     }
     Ok(removed > 0)
@@ -627,6 +625,10 @@ fn participants(
     Ok(participants)
 }
 
+fn stored_enum_error(index: usize, error: LocalStateError) -> rusqlite::Error {
+    rusqlite::Error::FromSqlConversionFailure(index, rusqlite::types::Type::Text, Box::new(error))
+}
+
 fn encounter_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Encounter> {
     let status: String = row.get(5)?;
     Ok(Encounter {
@@ -640,7 +642,7 @@ fn encounter_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Encounter> {
         name: row.get(2)?,
         description: row.get(3)?,
         note: row.get(4)?,
-        status: EncounterStatus::from_str(&status),
+        status: EncounterStatus::from_str(&status).map_err(|error| stored_enum_error(5, error))?,
         round_number: row.get(6)?,
         current_turn_participant_key: row.get(7)?,
         created_at: row.get(8)?,
@@ -680,13 +682,15 @@ fn participant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPa
         revision: row.get(21)?,
         participant_key: row.get(0)?,
         record_key: row.get(1)?,
-        participant_kind: ParticipantKind::from_str(&participant_kind),
-        participant_variant: ParticipantVariant::from_str(&participant_variant),
+        participant_kind: ParticipantKind::from_str(&participant_kind)
+            .map_err(|error| stored_enum_error(2, error))?,
+        participant_variant: ParticipantVariant::from_str(&participant_variant)
+            .map_err(|error| stored_enum_error(3, error))?,
         position: row.get(4)?,
         display_name: row.get(5)?,
         record_title_snapshot: row.get(6)?,
         record_kind_snapshot: row.get(7)?,
-        side: ParticipantSide::from_str(&side),
+        side: ParticipantSide::from_str(&side).map_err(|error| stored_enum_error(8, error))?,
         initiative: row.get(9)?,
         initiative_order: row.get(10)?,
         max_hp: row.get(11)?,
@@ -698,8 +702,10 @@ fn participant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPa
         note: row.get(16)?,
         created_at: row.get(17)?,
         updated_at: row.get(18)?,
-        hp_origin: crate::ParticipantHpOrigin::from_str(&row.get::<_, String>(19)?),
-        variant_origin: crate::ParticipantVariantOrigin::from_str(&row.get::<_, String>(20)?),
+        hp_origin: crate::ParticipantHpOrigin::from_str(&row.get::<_, String>(19)?)
+            .map_err(|error| stored_enum_error(19, error))?,
+        variant_origin: crate::ParticipantVariantOrigin::from_str(&row.get::<_, String>(20)?)
+            .map_err(|error| stored_enum_error(20, error))?,
         ability_states: vec![],
         conditions: Vec::new(),
     })

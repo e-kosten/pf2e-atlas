@@ -26,6 +26,16 @@ must not reconcile saved state across rebuilds.
 Product navigation using snapshot-local positions carries the source fingerprint;
 detail rejects missing or stale generation context for those explicit addresses.
 
+Saved encounter enums use closed SQL constraints and strict decoding. Current-turn
+participants and participant-owned consequences, boundary claims and application
+markers must belong to the same encounter through composite foreign keys.
+Current-turn checking is deferred; participant removal clears its pointer before
+deletion. Consumed application markers retain nullable or historical condition
+IDs independently of a live condition row. Saved-state reconstruction fails
+atomically on invalid history or nonempty retired adjustment data; the
+[workspace decision](decisions/0051-persistent-workspace.md#saved-domain-integrity)
+owns its preflight and preservation contract.
+
 The reference format, checked snapshot codec, preparation policies and query
 catalog have separate version identities. `artifact_context` contains the typed,
 hashed active build context. SQLite `user_version` instead tracks the shared

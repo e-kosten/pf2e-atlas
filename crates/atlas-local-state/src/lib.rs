@@ -7,7 +7,9 @@ mod parties;
 pub use parties::{PartiesRead, PartiesWrite, Party, PartyMember, PartyMemberInput};
 mod references;
 mod saved_lists;
+mod saved_state_integrity;
 mod schema;
+pub use saved_state_integrity::backfill_saved_state_integrity;
 mod slug;
 mod store;
 

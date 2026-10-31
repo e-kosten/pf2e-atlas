@@ -2683,3 +2683,45 @@ fn creation_baseline_captures_final_derived_hp_and_is_not_fabricated_for_legacy_
     tx.commit()?;
     Ok(())
 }
+
+#[test]
+fn stored_closed_enums_reject_corruption_instead_of_reinterpreting_saved_gameplay()
+-> Result<(), Box<dyn std::error::Error>> {
+    let store = fixture("closed-enum-corruption")?;
+    let participant = store
+        .encounters()
+        .add_participant("test", creature("Actor", None, 20))?;
+    let connection = store.connection()?;
+    connection.execute_batch("PRAGMA ignore_check_constraints=ON")?;
+    for (column, valid) in [
+        ("participant_kind", "creature"),
+        ("participant_variant", "normal"),
+        ("side", "enemy"),
+        ("hp_origin", "explicit"),
+        ("variant_origin", "explicit"),
+    ] {
+        connection.execute(
+            &format!(
+                "UPDATE encounter_participants SET {column}='corrupt' WHERE participant_key=?1"
+            ),
+            [&participant.participant_key],
+        )?;
+        let error = EncountersRead::from_connection(&connection)
+            .get_with_participants("test")
+            .unwrap_err();
+        assert!(error.to_string().contains(column), "{error}");
+        connection.execute(
+            &format!("UPDATE encounter_participants SET {column}=?1 WHERE participant_key=?2"),
+            rusqlite::params![valid, participant.participant_key],
+        )?;
+    }
+    connection.execute("UPDATE encounters SET status='corrupt'", [])?;
+    assert!(
+        EncountersRead::from_connection(&connection)
+            .get("test")
+            .unwrap_err()
+            .to_string()
+            .contains("status")
+    );
+    Ok(())
+}
