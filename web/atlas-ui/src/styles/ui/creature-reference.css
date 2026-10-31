@@ -72,13 +72,10 @@
   border: 0;
   padding: 0;
   margin-block-end: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px var(--space-group);
-  align-items: baseline;
+  display: grid;
+  gap: var(--space-control);
 }
 .creature-reference__source-defenses .actor-reference__defenses > h3 {
-  flex-basis: 100%;
   margin: 0;
 }
 .creature-reference .actor-reference__awareness-movement {
@@ -181,6 +178,8 @@
   outline-offset: var(--space-control);
 }
 .creature-reference__rules {
+  display: grid;
+  gap: var(--space-section);
   min-width: 0;
 }
 .creature-reference--runtime-only .actor-encounter-host {
@@ -194,7 +193,7 @@
   margin: 0;
 }
 .creature-reference--encounter .creature-reference__prose {
-  margin-block: var(--space-section) 0;
+  margin-block: 0;
 }
 
 @container creature-sheet (min-width: 62rem) {

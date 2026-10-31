@@ -220,18 +220,28 @@ export function ActorDefenses({
       {defenseFacts.some((fact) => hasReadingFact(fact)) && (
         <section className="actor-reference__defenses">
           <h3>Defenses</h3>
-          {actor.hardness.state !== "missing" &&
-            actor.hardness.state !== "not_applicable" && (
-              <FactRow label="Hardness">
-                <NumberFact fact={actor.hardness} />
+          <div className="record-fact-list">
+            {actor.hardness.state !== "missing" &&
+              actor.hardness.state !== "not_applicable" && (
+                <FactRow label="Hardness">
+                  <NumberFact fact={actor.hardness} />
+                </FactRow>
+              )}
+            {!hidePrimaryDefenses && actor.armor_class.state !== "not_applicable" && (
+              <FactRow label="AC">
+                <NumberFact fact={actor.armor_class} />
+                <DefenseQualifier fact={actor.defense_notes.armor_class} />
               </FactRow>
             )}
-          {!hidePrimaryDefenses && actor.armor_class.state !== "not_applicable" && (
-            <FactRow label="AC">
-              <NumberFact fact={actor.armor_class} />
-              <DefenseQualifier fact={actor.defense_notes.armor_class} />
-            </FactRow>
-          )}
+            {!hidePrimaryDefenses &&
+              !hideHitPoints &&
+              actor.maximum_hp.state !== "not_applicable" && (
+                <FactRow label="HP">
+                  <NumberFact fact={actor.maximum_hp} />
+                  <DefenseQualifier fact={actor.defense_notes.hit_points} />
+                </FactRow>
+              )}
+          </div>
           {!hideSaves && (
             <div>
               <div className="record-fact-list">
@@ -254,14 +264,6 @@ export function ActorDefenses({
                 )}
             </div>
           )}
-          {!hidePrimaryDefenses &&
-            !hideHitPoints &&
-            actor.maximum_hp.state !== "not_applicable" && (
-              <FactRow label="HP">
-                <NumberFact fact={actor.maximum_hp} />
-                <DefenseQualifier fact={actor.defense_notes.hit_points} />
-              </FactRow>
-            )}
           {(hideHitPoints || hidePrimaryDefenses) && (
             <DefenseNote label="HP" fact={actor.defense_notes.hit_points} />
           )}
