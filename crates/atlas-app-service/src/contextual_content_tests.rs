@@ -175,7 +175,7 @@ fn check_details_follow_item_ownership_overrides_and_foreign_inclusions() {
                     record(
                         "actions",
                         "Item",
-                        json!({"_id":"traitAction00001","type":"action","name":"Host action","system":{"traits":{"value":["mental","secret"]},"description":{"value":"<p>@Check[will|dc:26|traits:illusion,mental] save.</p><p>@Check[will|dc:27|traits:visual|overrideTraits] save.</p><p>@Check[will|dc:28|overrideTraits] save.</p><p>@Check[will|dc:29|overrideTraits:homebrew-trait] save.</p><p>@Embed[Compendium.pf2e.actions.Item.traitAction00002 inline]</p>"}}}),
+                        json!({"_id":"traitAction00001","type":"action","name":"Host action","system":{"traits":{"value":["mental","secret"]},"description":{"value":"<p>@Check[will|dc:26|traits:illusion,mental] save.</p><p>@Check[will|dc:27|traits:visual|overrideTraits] save.</p><p>@Check[will|dc:28|overrideTraits] save.</p><p>@Check[will|dc:29|overrideTraits:homebrew-trait] save.</p><p>@Check[will|dc:32|traits:secret|overrideTraits]{Resist the vision}</p><p>@Embed[Compendium.pf2e.actions.Item.traitAction00002 inline]</p>"}}}),
                     ),
                     record(
                         "actions",
@@ -218,6 +218,9 @@ fn check_details_follow_item_ownership_overrides_and_foreign_inclusions() {
     assert!(html.contains("DC 26 secret Will save"));
     assert!(html.contains("DC 27 Will save"));
     assert!(!html.contains("DC 27 secret"));
+    assert_eq!(values(&controls[4]).unwrap(), ["secret"]);
+    assert!(html.contains("Resist the vision"));
+    assert!(!html.contains("secret Resist the vision"));
     let included = inclusions
         .iter()
         .find(|entry| entry.source.record.to_string() == "actions:traitAction00002")

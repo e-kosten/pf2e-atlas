@@ -68,10 +68,20 @@ impl<'a> PreparedContentContext<'a> {
                 formula.item_rank = Some(*rank)
             }
         }
-        let item_traits = match node {
+        let mut item_traits = match node {
             Some(SourceNodeView::Item(item)) => item.traits().value().unwrap_or(&[]).to_vec(),
             _ => vec![],
         };
+        if let Some(SourceNodeView::Item(ItemSourceView::SpellSource(spell))) = node
+            && let Some(rank) = formula.item_rank
+            && let Ok(effective) = crate::presentation::spell_rank::heighten(spell, rank)
+        {
+            item_traits = ItemSourceView::SpellSource(&effective)
+                .traits()
+                .value()
+                .unwrap_or(&[])
+                .to_vec();
+        }
         Self {
             fingerprint: retrieval.source_fingerprint(),
             retrieval,
@@ -221,6 +231,10 @@ pub(crate) fn content_controls(
                                 .map(|(_, ctx)| ctx.item_traits.as_slice())
                                 .unwrap_or(&[]),
                             retrieval,
+                            matches!(
+                                i.label,
+                                atlas_record::source_content::ContentInteractionLabel::Check { .. }
+                            ),
                         ),
                     }
                 }
@@ -544,14 +558,14 @@ fn check_details(
     options: &std::collections::BTreeMap<String, String>,
     item_traits: &[String],
     retrieval: &atlas_search::AtlasRetrievalService,
+    generated_check_label: bool,
 ) -> Option<CheckDetailsView> {
     let traits = atlas_record::source_content::check_traits(options, item_traits);
-    traits
-        .iter()
-        .any(|t| t != "secret")
-        .then(|| CheckDetailsView {
+    (!traits.is_empty() && (!generated_check_label || traits.iter().any(|t| t != "secret"))).then(
+        || CheckDetailsView {
             traits: trait_badges(&traits, retrieval),
-        })
+        },
+    )
 }
 
 pub(crate) fn project_routine_header(

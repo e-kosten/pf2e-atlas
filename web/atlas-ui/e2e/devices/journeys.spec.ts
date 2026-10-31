@@ -2066,3 +2066,81 @@ test("table rolls retain overlapping prepared results and allow stateless reroll
     await expect(preview).toBeHidden();
   }
 });
+
+test("routine budgets and check trait disclosures retain keyboard and touch reading", async ({
+  page,
+}, info) => {
+  const key = "browser-hazards:routine000000001";
+  await page.goto(`/records/${key}`);
+  await expect(
+    page.getByRole("heading", { name: "Routine · 7 actions", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Reduce the number of actions for each destroyed blade.", {
+      exact: false,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("(7 actions; illusion, mental)", { exact: false }),
+  ).toHaveCount(0);
+  const response = await page.request.get(`/api/records/${key}`);
+  const wire = await response.json();
+  const routine = wire.presentation.content.find(
+    (field: { role: string }) => field.role === "routine",
+  );
+  expect(routine.routine_header.actions).toBe("7 actions");
+  expect(
+    routine.body.controls[0].control.details.traits.map(
+      (trait: { value: string }) => trait.value,
+    ),
+  ).toEqual(["illusion", "mental"]);
+  const trigger = page.getByRole("button", {
+    name: "Details for DC 26 Will save",
+    exact: true,
+  });
+  await trigger.scrollIntoViewIfNeeded();
+  // The icon stays on the same line as its check, including narrow viewports.
+  const geometry = await trigger.evaluate((button) => {
+    const reading = button.closest(".prepared-check")!;
+    return {
+      button: button.getBoundingClientRect().bottom,
+      reading: reading.getBoundingClientRect().bottom,
+    };
+  });
+  expect(Math.abs(geometry.button - geometry.reading)).toBeLessThan(10);
+  await activate(trigger, info);
+  const popup = page.getByRole("dialog", {
+    name: "Details for DC 26 Will save",
+    exact: true,
+  });
+  await expect(popup).toBeVisible();
+  await expect(popup.getByText("Illusion", { exact: true })).toBeVisible();
+  await expect(popup.getByText("Mental", { exact: true })).toBeVisible();
+  await noPageOverflow(page);
+  const box = await popup.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  await popup.press("Escape");
+  await expect(popup).toBeHidden();
+  await expect(trigger).toBeFocused();
+  await trigger.press("Enter");
+  await expect(popup).toBeVisible();
+  await activate(popup.getByRole("button", { name: "Close explanation" }), info);
+  await expect(popup).toBeHidden();
+  await expect(trigger).toBeFocused();
+  await expect(
+    page.getByRole("button", { name: "Details for DC 31 Thievery check" }),
+  ).toHaveCount(0);
+  const inherited = page.getByRole("button", {
+    name: "Details for DC 25 basic Reflex save",
+    exact: true,
+  });
+  await activate(inherited, info);
+  const inheritedPopup = page.getByRole("dialog", {
+    name: "Details for DC 25 basic Reflex save",
+    exact: true,
+  });
+  await expect(inheritedPopup.getByText("Visual", { exact: true })).toBeVisible();
+  await noPageOverflow(page);
+});

@@ -1211,8 +1211,8 @@ fn reference_details_flag_agrees_with_actual_selected_spell_and_physical_dispatc
 fn heightened_identity_uses_effective_traits_without_rewriting_source() {
     let source = json!({"_id":"aaaaaaaaaaaaaaaa","name":"Local spell","type":"spell","system":{
         "level":{"value":1},"traits":{"value":["fire"],"rarity":"common"},
-        "range":{"value":"30 feet"},"heightening":{"type":"fixed","levels":{
-            "3":{"traits":{"value":["cold"],"rarity":"rare"},"range":{"value":"60 feet"}}
+        "description":{"value":"<p>@Check[will|dc:20] save.</p>"},"range":{"value":"30 feet"},"heightening":{"type":"fixed","levels":{
+            "3":{"traits":{"value":["cold","secret"],"rarity":"rare"},"range":{"value":"60 feet"}}
         }}
     }});
     let f = fixture_worker_with_executor(RetrievalExecutor::from_test_fixture_factory(
@@ -1248,7 +1248,28 @@ fn heightened_identity_uses_effective_traits_without_rewriting_source() {
             .iter()
             .map(|t| t.value.as_str())
             .collect::<Vec<_>>(),
-        vec!["cold"]
+        vec!["cold", "secret"]
+    );
+    let PreparedFieldBodyView::Html { html, controls, .. } =
+        &projected.presentation.content[0].body
+    else {
+        panic!("html")
+    };
+    assert!(html.contains("DC 20 secret Will save"));
+    let ContentControlKindView::Check {
+        details: Some(details),
+        ..
+    } = &controls[0].control
+    else {
+        panic!("check details")
+    };
+    assert_eq!(
+        details
+            .traits
+            .iter()
+            .map(|t| t.value.as_str())
+            .collect::<Vec<_>>(),
+        ["cold", "secret"]
     );
     let original = f.worker.record_detail("spells:aaaaaaaaaaaaaaaa").unwrap();
     assert_eq!(

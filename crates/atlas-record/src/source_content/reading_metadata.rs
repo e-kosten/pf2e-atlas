@@ -79,9 +79,10 @@ fn node_html(node: NodeRef<'_, Node>) -> String {
 }
 
 fn action_budget(text: &str) -> Option<String> {
-    let count = text
+    let normalized = text.to_ascii_lowercase();
+    let count = normalized
         .strip_suffix(" actions")
-        .or_else(|| text.strip_suffix(" action"))?;
+        .or_else(|| normalized.strip_suffix(" action"))?;
     for (separator, display) in [(" to ", "–"), (" or ", " or ")] {
         if let Some((a, b)) = count.split_once(separator) {
             let (a, b) = (action_number(a)?, action_number(b)?);
@@ -148,6 +149,7 @@ mod tests {
         for (prefix, expected) in [
             ("1 action; illusion, mental, occult, visual", "1 action"),
             ("7 actions", "7 actions"),
+            ("3 Actions", "3 actions"),
             ("twelve actions", "12 actions"),
             ("1 to 3 actions", "1–3 actions"),
             ("one or two actions; mental", "1 or 2 actions"),
