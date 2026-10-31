@@ -1985,9 +1985,11 @@ test("a real trait member total renders a singular entry @engine", async ({ page
   const members = page.waitForResponse(
     (response) =>
       response.url().endsWith("/api/traits/records") &&
-      response.request().postDataJSON()?.kind === "members",
+      response.request().postDataJSON()?.kind === "members" &&
+      // Startup replaces the provisional null-profile request after readiness.
+      response.request().postDataJSON()?.search_profile === "bge-base",
   );
-  await page.goto("/traits/trait%3Alight");
+  await page.goto("/traits/trait%3Alight?search_profile=bge-base");
   const wire = await (await members).json();
   expect(wire.page.total).toBe(1);
   await expect(page.getByRole("heading", { name: "Light", exact: true })).toBeVisible();
