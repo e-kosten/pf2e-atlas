@@ -1,3 +1,4 @@
+use super::compiler::compile_predicate;
 use super::*;
 use atlas_domain::query::*;
 use rusqlite::{Connection, params_from_iter, types::Value};
@@ -9,7 +10,7 @@ fn available<T: std::fmt::Debug>(outcome: atlas_domain::QueryFacetOutcome<T>) ->
     }
 }
 
-fn database() -> Connection {
+pub(super) fn database() -> Connection {
     let db = Connection::open_in_memory().unwrap();
     db.execute_batch(include_str!(
         "../../migrations/00000000000001_create_artifact/up.sql"
@@ -25,7 +26,7 @@ fn database() -> Connection {
         .unwrap();
     db
 }
-fn row(db: &Connection, table: &str, overrides: &[(&str, Value)]) {
+pub(super) fn row(db: &Connection, table: &str, overrides: &[(&str, Value)]) {
     let mut stmt = db.prepare(&format!("PRAGMA table_info({table})")).unwrap();
     let columns = stmt
         .query_map([], |r| Ok((r.get::<_, String>(1)?, r.get::<_, i64>(3)?)))
@@ -58,10 +59,10 @@ fn row(db: &Connection, table: &str, overrides: &[(&str, Value)]) {
     )
     .unwrap();
 }
-fn text(s: &str) -> Value {
+pub(super) fn text(s: &str) -> Value {
     Value::Text(s.to_owned())
 }
-fn root(db: &Connection, id: i64, family: &str, rarity: &str) {
+pub(super) fn root(db: &Connection, id: i64, family: &str, rarity: &str) {
     db.execute(
         "INSERT INTO record_identity(id,key,availability) VALUES(?,?,'available')",
         rusqlite::params![id, format!("test:{id:016}")],
@@ -94,18 +95,30 @@ fn root(db: &Connection, id: i64, family: &str, rarity: &str) {
         ],
     );
 }
-fn result(db: &Connection, expression: &str) -> Vec<i64> {
-    let compiled = compile_predicate(&parse_where(expression).unwrap()).unwrap();
-    let mut s = db
+pub(super) fn result(db: &Connection, expression: &str) -> Vec<i64> {
+    let query = parse_where(expression).unwrap();
+    let (sql, parameters) = crate::read_units::eligible_sql(&query, None).unwrap();
+    let mut s = db.prepare(&format!("{sql} ORDER BY r.record_id")).unwrap();
+    let accepted = s
+        .query_map(params_from_iter(parameters), |r| r.get::<_, i64>(0))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    let compiled = compile_predicate(&query).unwrap();
+    let general = db
         .prepare(&format!(
             "SELECT r.record_id FROM records r WHERE ({}) IS TRUE ORDER BY r.record_id",
             compiled.expression
         ))
-        .unwrap();
-    s.query_map(params_from_iter(compiled.parameters), |r| r.get(0))
+        .unwrap()
+        .query_map(params_from_iter(compiled.parameters), |r| {
+            r.get::<_, i64>(0)
+        })
         .unwrap()
         .collect::<Result<Vec<_>, _>>()
-        .unwrap()
+        .unwrap();
+    assert_eq!(accepted, general, "membership/general parity: {expression}");
+    accepted
 }
 #[test]
 fn serde_request_shape_and_shared_ts_match() {
@@ -145,6 +158,7 @@ fn cel_supported_examples_and_fail_closed_limits() {
         "embedded.spells.all(i,i.spell.rank>=3)",
         "embedded.spells.exists(i,i.spell.damage.exists(d,d.type=='fire'))",
         "level==spell.rank",
+        "defenses.ac in [25,26]",
         "level+1>=3",
         "traits.matches('x')",
         "has(defenses.hp.maximum)",

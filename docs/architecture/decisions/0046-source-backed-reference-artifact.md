@@ -38,6 +38,18 @@ to SQL rather than interpreting expressions over source bodies. Unsupported
 syntax, fields, types, nesting and excessive complexity fail before execution.
 Availability uses an explicitly declared literal-key metadata map.
 
+Accepted-root eligibility has a relational lowering for positive scalar and set
+leaves, composed through conjunctions. It uses the same executable descriptors,
+literal conversion and family applicability as nullable truth compilation;
+direct columns and uncorrelated owner relations expose existing partial/range
+indexes. Other Boolean shapes, negative membership, collection witnesses and
+relationship leaves use the general three-valued compiler. A root is accepted
+only when the complete predicate is true. Relationship proof generation retains
+that general truth tree, so query planning does not change attributed evidence.
+Unit-price comparisons retain exact SQLite copper-to-gold division rather than
+inverting a floating-point threshold. Key scope, edition preference and lexical/
+vector eligibility consume the same accepted-root relation.
+
 The root common Level / rank field selects authored spell rank/state for spells
 and record level/state for other applicable families, without unavailable-value
 fallback or new storage. Its executable catalog identity requires rebuilding.

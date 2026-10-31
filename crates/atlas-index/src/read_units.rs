@@ -1,7 +1,7 @@
 //! Native FTS/vector queries use one executable-owned eligibility relation.
 use crate::{
     IndexError, SourceLexicalUnitKind, SourceUnitLocation, SqliteIndexReader,
-    query::{ValidatedQuery, compile_predicate},
+    query::{ValidatedQuery, compile_root_membership},
 };
 use atlas_domain::OwnedContentLocator;
 use atlas_domain::{RecordKey, SearchContentScope, SourcePassageAddress};
@@ -81,11 +81,9 @@ pub(crate) fn eligible_sql(
     query: &ValidatedQuery,
     keys: Option<&[RecordKey]>,
 ) -> Result<(String, Vec<Value>), IndexError> {
-    let compiled = compile_predicate(query)?;
-    let mut params = compiled.parameters;
+    let (expression, mut params) = compile_root_membership(query)?;
     let mut sql = format!(
-        "SELECT r.record_id FROM records r WHERE r.document_kind<>'Macro' AND ({})=1",
-        compiled.expression
+        "SELECT r.record_id FROM records r WHERE r.document_kind<>'Macro' AND ({expression})"
     );
     if let Some(keys) = keys {
         if keys.is_empty() {

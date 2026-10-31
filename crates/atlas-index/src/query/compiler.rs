@@ -192,21 +192,25 @@ pub(crate) fn bound_field(d: &Descriptor, scope: Option<&str>) -> BoundField {
         }
     }
     let mut result = binding(&d.binding, scope);
-    if !d.definition.family_types.is_empty() {
-        let guard = d
-            .definition
-            .family_types
-            .iter()
-            .map(|s| format!("'{s}'"))
-            .collect::<Vec<_>>()
-            .join(",");
+    if let Some(guard) = family_applicability(d, scope) {
         result.state = format!(
-            "CASE WHEN {}.source_type IN ({guard}) THEN {} ELSE 'not_applicable' END",
-            source_alias(scope),
+            "CASE WHEN {guard} THEN {} ELSE 'not_applicable' END",
             result.state
         );
     }
     result
+}
+pub(super) fn family_applicability(d: &Descriptor, scope: Option<&str>) -> Option<String> {
+    (!d.definition.family_types.is_empty()).then(|| {
+        let families = d
+            .definition
+            .family_types
+            .iter()
+            .map(|family| format!("'{family}'"))
+            .collect::<Vec<_>>()
+            .join(",");
+        format!("{}.source_type IN ({families})", source_alias(scope))
+    })
 }
 pub(crate) fn member_relation(
     d: &Descriptor,
@@ -253,11 +257,21 @@ pub(crate) fn member_relation(
             .unwrap_or_default()
     ))
 }
+pub(super) fn comparison_operator(op: QueryCompare) -> &'static str {
+    match op {
+        QueryCompare::Eq => "=",
+        QueryCompare::Neq => "!=",
+        QueryCompare::Lt => "<",
+        QueryCompare::Lte => "<=",
+        QueryCompare::Gt => ">",
+        QueryCompare::Gte => ">=",
+    }
+}
 pub(crate) fn parameter(parameters: &mut Vec<Value>, value: Value) -> String {
     parameters.push(value);
     format!("?{}", parameters.len())
 }
-fn scalar(value: &QueryLiteral) -> Result<Value, crate::IndexError> {
+pub(super) fn scalar(value: &QueryLiteral) -> Result<Value, crate::IndexError> {
     Ok(match value {
         QueryLiteral::String(v) => Value::Text(v.clone()),
         QueryLiteral::Boolean(v) => Value::Integer(i64::from(*v)),
@@ -346,14 +360,7 @@ fn compile_tree(
         QueryExpression::Compare { field, op, value } => {
             let d = checked_descriptor(scope, field)?;
             let b = bound_field(d, scope);
-            let op = match op {
-                QueryCompare::Eq => "=",
-                QueryCompare::Neq => "!=",
-                QueryCompare::Lt => "<",
-                QueryCompare::Lte => "<=",
-                QueryCompare::Gt => ">",
-                QueryCompare::Gte => ">=",
-            };
+            let op = comparison_operator(*op);
             guarded(
                 b.state,
                 format!("{} {op} {}", b.value, parameter(parameters, scalar(value)?)),
@@ -467,7 +474,7 @@ fn compile_tree(
         },
     })
 }
-fn checked_descriptor(
+pub(super) fn checked_descriptor(
     scope: Option<&str>,
     field: &str,
 ) -> Result<&'static Descriptor, crate::IndexError> {
