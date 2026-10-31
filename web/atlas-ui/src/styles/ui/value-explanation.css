@@ -34,7 +34,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-control);
-  margin-block-start: var(--space-control);
 }
 
 .prepared-check {

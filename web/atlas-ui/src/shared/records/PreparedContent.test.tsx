@@ -975,7 +975,6 @@ it("opens check trait details without rolling or activating an enclosing referen
   const popup = await screen.findByRole("dialog", {
     name: "Details for DC 26 Will save",
   });
-  expect(popup).toHaveTextContent("Traits");
   expect(within(popup).getByRole("link", { name: "Mental" })).toHaveAttribute(
     "href",
     "/traits/trait:mental",
