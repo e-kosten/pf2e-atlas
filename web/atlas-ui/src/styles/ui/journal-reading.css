@@ -1,3 +1,6 @@
+.document-reading {
+  --reading-paragraph-gap: 1em;
+}
 .journal-contents {
   display: grid;
   gap: var(--space-group);
@@ -75,6 +78,10 @@
 .record-reference .prepared-content .document-heading {
   line-height: 1.3;
   margin-block: var(--space-section) var(--space-control);
+}
+.record-reference .prepared-content > :is(h2, h3, h4, h5, h6):first-child,
+.record-reference .prepared-content > .document-heading:first-child {
+  margin-block-start: 0;
 }
 .record-reference .prepared-content h3.document-heading {
   font-size: 1.25rem;

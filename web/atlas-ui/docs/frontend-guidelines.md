@@ -572,11 +572,11 @@ not the available record information.
 
 ### Padding and control-group ownership
 
-Use semantic spacing roles: 8px for neighboring controls, 16px for related groups,
-and 24px for major sections. Ant-derived --space-control, --space-group and
---space-section supply these roles. Page gutters and comfortable bodies normally
-use 24px, reduced to 16px on narrow screens. Full-bleed workspaces delegate the
-inset to their toolbar/pane bodies rather than adding a second page inset.
+Use the [content spacing roles](#content-spacing) for reading content. Ant-derived
+`--space-micro`, `--space-control`, `--space-group` and `--space-section` provide
+4px, 8px, 16px and 24px. Comfortable bodies normally use 24px insets, reduced to
+16px on narrow screens. Full-bleed workspaces delegate the inset to their
+toolbar/pane bodies rather than adding a second page inset.
 
 Every boundary has one owner. DocumentPagePane owns a standalone page's inset
 around its composed identity and flush detail. RecordDetailPane owns the body
@@ -638,6 +638,98 @@ ordinary headings/scrolling when the task requires most sections. Use an aligned
 full-width Ant header, explicit expanded state and consistent body inset; preserve
 open state on refresh. No nested or automatically expanding collapses. Source
 narrative normally remains inline on its full reference page.
+
+### Content spacing
+
+Spacing expresses relationships between content. A heading belongs to its content,
+entries belong to a collection, and collections belong to sections. A component
+wrapper adds no gap unless it represents one of those reading boundaries.
+
+| Relationship                               | Default                    | Example                                                    |
+| ------------------------------------------ | -------------------------- | ---------------------------------------------------------- |
+| Label and value, or icon and adjacent text | 4px or normal word spacing | AC and 20; an action glyph beside its name                 |
+| Additional rows in one fact cluster        | 0–4px beyond line height   | Perception and Senses; continuation rows of wrapped facts  |
+| Renderer-owned heading to its content      | 8px                        | Statistics and its first fact; Strikes and its first entry |
+| Neighboring items in a small local group   | 8px                        | Controls for one HP task                                   |
+| Distinct fact groups or repeated entries   | 16px                       | Ability modifiers and Skills; consecutive strikes          |
+| Major reading sections                     | 24px                       | Defenses and Statistics; mechanics and narrative           |
+
+**One boundary has one spacing budget.** Prefer parent grid/flex gaps for sibling
+spacing and reset child margins at that boundary. Prose may use block-flow margins
+inside its own owner; trim its first and last edges where an enclosing owner
+supplies the surrounding space. Measure rendered positions: block margins can
+collapse, while margins between grid/flex items do not.
+
+For repeated entries without a divider, use a 16px collection gap. With a divider,
+use 8px on each side of the rule: approximately 17px total with a 1px border.
+Keep collection edges flush and empty groups quiet. Do not combine 16px bottom
+padding and 16px top padding at the same internal boundary. Similarly, an 8px
+heading margin plus an 8px parent gap produces 16px, not the intended 8px.
+A routine within-section boundary should normally be smaller than the boundary
+between comparable major sections; substantially longer independent entries may
+use the section interval when their reading structure warrants it.
+
+Use 8px after renderer-owned headings, with their preceding section interval
+owned by the parent. Use semantic heading levels and visual emphasis for nesting:
+Ability modifiers and Skills are subordinate to Statistics. Preserve authored
+headings. Within authored prose, leave more space before a heading than after it,
+and trim the first heading's top margin when the host already owns that boundary.
+
+Short facts use 1.5 line height; running prose uses 1.55. Keep labels, values and
+essential qualifiers together, with long values wrapping inside their group.
+Controls may increase a fact row's natural height. Use `.75em` between short rules
+paragraphs and `1em` between paragraphs intended for extended narrative reading.
+Paragraph spacing is applied once, with no trailing margin at a composed-content
+edge; a wrapped list item does not receive a paragraph margin unless it contains
+an actual paragraph. Keep prose spacing relative to type size. Review line-height
+changes independently from boundary fixes and reading-width changes.
+
+Use the same reading roles in pages, selected readers, Drawers and encounters.
+Hosts retain their existing inset, surface, width and scrolling ownership. An
+outer page gutter and a reading sheet's inner inset are distinct boundaries and
+can both be legitimate; an already inset Drawer containing a second padded
+detail panel duplicates one boundary. Preserve the complete bounded-document
+policy rather than constraining prose alone. Do not stretch content or increase
+gaps simply to occupy a wide host.
+
+Reference facts, narrative, authored tables and controls need different internal
+rhythms. Start authored table cells with 8px vertical padding and retain deliberate
+local overflow; long prose cells may need additional room. Generic controls keep
+Ant sizing and padding; encounter HP, condition and turn controls keep their
+feature owner. A compact reading change must preserve control targets, focus
+rings, inline explanations and wrapping. It does not introduce smaller fonts,
+additional disclosures, suppressed facts or a selectable density mode.
+
+Keep small relationship intervals stable when a host narrows. Apply the shared
+24px/16px body-inset policy and reflow fact groups without distributing related
+facts across the pane with `space-between`. Keep major sections at 24px by default.
+Both appearances use the same geometry. Inspect wide, intermediate and narrow
+hosts, including a narrow reader inside a wide window, with long qualifiers,
+repeated entries and short records. Dreshkan, Hidden Pit, Heal, a simple item and
+a journal/table provide useful distinct cases. Check actual content-box gaps and
+screenshots together: font leading and control height affect perceived whitespace.
+Use a few representative behavioral geometry checks rather than assertions for
+every CSS declaration. Follow responsive acceptance below for enlargement, reflow,
+keyboard/pointer use and real-device evidence.
+
+Spacing must tolerate user overrides without clipping: line height of at least
+1.5, paragraph spacing of 2em, letter spacing of .12em and word spacing of .16em
+together. These are override-tolerance checks, not mandatory authored defaults.
+Do not reduce interactive targets while tightening reading gaps; the pointer
+criterion has a 24px minimum with defined exceptions, and larger existing Atlas
+targets should remain intact.
+
+These are Atlas product choices, informed by
+[Ant proximity](https://ant.design/docs/spec/proximity/),
+[Carbon parent-owned spacing](https://www.carbondesignsystem.com/building-blocks/foundations/spacing/overview),
+[NNG heading association](https://www.nngroup.com/articles/gestalt-proximity/),
+[USWDS typography](https://designsystem.digital.gov/components/typography/) and
+[GOV.UK responsive spacing](https://design-system.service.gov.uk/styles/spacing/).
+Atlas deliberately uses a smaller interval for brief rules paragraphs than the
+USWDS long-reading recommendation. Accessibility checks follow
+[W3C text spacing](https://www.w3.org/WAI/WCAG22/Understanding/text-spacing.html) and
+[pointer targets](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html);
+those sources do not establish an optimal density for Atlas stat blocks.
 
 ## Responsive design and acceptance
 

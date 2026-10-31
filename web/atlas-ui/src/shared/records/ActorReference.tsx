@@ -448,7 +448,14 @@ export function ActorFacts({
     </>
   );
 }
-export function ActorSkills({ actor }: { actor: ActorPresentationView }) {
+export function ActorSkills({
+  actor,
+  headingLevel = 3,
+}: {
+  actor: ActorPresentationView;
+  headingLevel?: 3 | 4;
+}) {
+  const Heading = headingLevel === 4 ? "h4" : "h3";
   const lore = (actor.activities.value ?? []).filter(
     (activity) => activity.kind === "lore",
   );
@@ -458,7 +465,7 @@ export function ActorSkills({ actor }: { actor: ActorPresentationView }) {
     <div className="actor-reference__skills">
       {hasReadingFact(actor.abilities) && (
         <section>
-          <h3>Ability modifiers</h3>
+          <Heading>Ability modifiers</Heading>
           {actor.abilities.state !== "value" && (
             <FactLine label="Ability modifiers" fact={actor.abilities} />
           )}
@@ -473,7 +480,7 @@ export function ActorSkills({ actor }: { actor: ActorPresentationView }) {
       )}
       {(hasReadingFact(actor.skills) || lore.length > 0) && (
         <section>
-          <h3>Skills</h3>
+          <Heading>Skills</Heading>
           {hasReadingFact(actor.skills) && actor.skills.state !== "value" && (
             <FactLine label="Skills" fact={actor.skills} />
           )}
