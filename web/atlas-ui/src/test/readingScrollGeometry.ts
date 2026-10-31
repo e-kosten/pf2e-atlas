@@ -1,5 +1,8 @@
-/** Fixed jsdom layout for a real reading host and its activity landing target. */
-export function readingScrollGeometry(host: HTMLElement) {
+/** Fixed jsdom layout for a real reading host and its landing target. */
+export function readingScrollGeometry(
+  host: HTMLElement,
+  targetSelector = "[data-atlas-activity-anchor]",
+) {
   const root = document.documentElement;
   const priorOuterScroll = root.scrollTop;
   root.scrollTop = 0;
@@ -20,7 +23,7 @@ export function readingScrollGeometry(host: HTMLElement) {
     .spyOn(HTMLElement.prototype, "getBoundingClientRect")
     .mockImplementation(function (this: HTMLElement) {
       if (this === host) return new DOMRect(0, 50, 500, 300);
-      if (host.contains(this) && this.hasAttribute("data-atlas-activity-anchor"))
+      if (host.contains(this) && this.matches(targetSelector))
         return new DOMRect(0, 150 - host.scrollTop, 400, 30);
       return originalRect.call(this);
     });

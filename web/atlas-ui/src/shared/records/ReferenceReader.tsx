@@ -86,6 +86,7 @@ export function ReferenceReader({
   const activeRef = useRef(active);
   const navigationPending = useRef(false);
   const readyLanding = useRef<ReferenceReading["request"] | undefined>(undefined);
+  const highlightedRequest = useRef<ReferenceReading["request"] | undefined>(undefined);
   const previousVisit = useRef<
     | {
         request: ReferenceReading["request"];
@@ -311,10 +312,14 @@ export function ReferenceReader({
       readerRef.current?.querySelector<HTMLElement>(".record-workspace__reading");
     if (!content) return;
     content.classList.add("reference-landing-highlight");
-    if (!reading.restoringHistory && readerRef.current) {
-      landReadingTarget(content, readerRef.current);
+    // Activity reconnects effects for the same request after its bookmark restores.
+    // Only a fresh exact selection should move or focus the reader's target.
+    if (highlightedRequest.current !== reading.request) {
+      highlightedRequest.current = reading.request;
+      if (!reading.restoringHistory && readerRef.current)
+        landReadingTarget(content, readerRef.current);
+      focusMatchTarget(content);
     }
-    focusMatchTarget(content);
     const timer = setTimeout(
       () => content.classList.remove("reference-landing-highlight"),
       2800,

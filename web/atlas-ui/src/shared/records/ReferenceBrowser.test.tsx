@@ -335,6 +335,68 @@ it("keeps typed inline activities in their parent but excludes spells and precis
   expect(parentShowsActivity(other, navigation)).toBe(false);
 });
 
+it("retains a precise field bookmark through Activity and lands a fresh selection", async () => {
+  vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true });
+  const target = {
+    ...navigation,
+    embedded_path: [],
+    field: "/system/description/value",
+  };
+  const resultRows = [
+    {
+      ...rows[0],
+      matching_sections: [{ navigation: target, label: "Description", snippet: null }],
+      matches: [{ ...rows[0].matches[0], navigation: target, label: "Description" }],
+    },
+  ];
+  getDetail.mockImplementation((key, request) => {
+    const detail = detailFixture(key, "Ghoul");
+    if (request?.fields?.includes(target.field)) detail.selected = target;
+    return Promise.resolve(detail);
+  });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const tree = (visible: boolean) => (
+    <StrictMode>
+      <QueryClientProvider client={client}>
+        <Activity mode={visible ? "visible" : "hidden"}>
+          <Harness resultRows={resultRows} />
+        </Activity>
+      </QueryClientProvider>
+    </StrictMode>
+  );
+  const view = render(tree(true));
+  const reader = view.container.querySelector<HTMLElement>(
+    ".reference-reader__scroll",
+  )!;
+  const geometry = readingScrollGeometry(
+    reader,
+    "[data-atlas-passage-target], .record-reference__content, .record-workspace__reading",
+  );
+  try {
+    async function chooseMatch() {
+      fireEvent.click(screen.getByRole("link", { name: /^Ghoul/ }));
+      const choices = await screen.findByRole("region", { name: "Search matches" });
+      fireEvent.click(within(choices).getByRole("link", { name: "Description" }));
+      await waitFor(() => expect(reader.scrollTop).toBe(100));
+    }
+    await chooseMatch();
+    for (const scroll of [425, 550]) {
+      reader.scrollTop = scroll;
+      fireEvent.scroll(reader);
+      view.rerender(tree(false));
+      reader.scrollTop = 0;
+      fireEvent.scroll(reader);
+      view.rerender(tree(true));
+      await waitFor(() => expect(reader.scrollTop).toBe(scroll));
+    }
+    await chooseMatch();
+  } finally {
+    geometry.restore();
+    cleanup();
+    client.clear();
+  }
+});
+
 it.each(["hidden", "navigation"])(
   "retains list and reader bookmarks through two Activity cycles with %s zero-scroll events",
   async (source) => {
