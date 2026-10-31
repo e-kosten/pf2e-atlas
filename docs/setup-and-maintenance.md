@@ -57,6 +57,10 @@ These are the default locations:
 File Explorer's address bar. On Linux, `XDG_DATA_HOME` and `XDG_CACHE_HOME` replace
 `~/.local/share` and `~/.cache` if you have configured them.
 
+On Windows, downloads and the workspace share a parent folder. Use the
+[cleanup commands](#remove-downloaded-files) to remove downloads while keeping
+your workspace.
+
 Downloaded source and models can be fetched again. Your workspace contains saved
 work that cannot be recovered by downloading reference content again.
 
@@ -67,18 +71,20 @@ Before testing a nightly or switching to an older Atlas version:
 1. Stop `atlas web` with Ctrl+C and wait for all other Atlas commands, including
    agent lookups and setup, to finish.
 2. Find `workspace.sqlite` using the table above. If you use `--index`, use that
-   location instead.
-3. Copy `workspace.sqlite` and any accompanying files whose names begin with
-   `workspace.sqlite` into a separate backup folder. Keep the files together and
-   leave the originals in place. Record `atlas --version` alongside the backup.
+   file's name and location for the remaining steps.
+3. Copy the database file and any accompanying files whose names begin with its
+   filename into a separate backup folder. For the default workspace, these are
+   `workspace.sqlite` and any files beginning with `workspace.sqlite`. Keep the
+   files together and leave the originals in place. Record the output of
+   `atlas --version` alongside the backup.
 
 The backup contains reference data as well as your lists and encounters. You do
 not need to copy downloaded source or models. Keep Atlas stopped until copying
 finishes so the files describe the same point in time.
 
-To restore, stop all Atlas commands again. Move the current `workspace.sqlite`
-and its accompanying files into a separate folder, then copy the backed-up files
-into their original location. Start with the Atlas version recorded for that
+To restore, stop all Atlas commands again. Move the current database file and its
+accompanying files into a separate folder, then copy the backed-up files into
+their original location, using the same filenames. Start with the Atlas version recorded for that
 backup. Restoring returns your saved work to the point when the backup was made.
 Switching executables alone does not undo changes to your workspace.
 

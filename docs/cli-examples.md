@@ -318,8 +318,8 @@ atlas search --where 'kind == "spell" && "fire" in traits'
 atlas search --where 'defenses.saves.fortitude >= 12' --print-filter --json
 ```
 
-`embedded.spells` finds records that contain spell copies, rather than standalone
-spells. Separate `exists` expressions can match different entries. Value discovery
+`embedded.spells` finds records that directly contain spell copies, rather than
+standalone spells. It checks only immediate contents. Separate `exists` expressions can match different entries. Value discovery
 within a collection can also match a different entry from an existing condition;
 use `search --where` to check requirements on the same entry.
 Unknown source facts do not become zero. Discover fields and their units rather
