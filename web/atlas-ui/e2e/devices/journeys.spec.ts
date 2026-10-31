@@ -2056,6 +2056,9 @@ test("table rolls retain overlapping prepared results and allow stateless reroll
     await activate(link, info);
     const preview = page.getByRole("dialog", { name: /^Signal Protocol/ });
     await expect(preview).toBeVisible();
+    await expect(
+      page.locator(".record-preview-drawer-root .ant-drawer-content-wrapper"),
+    ).toHaveCSS("transform", "none");
     await activate(
       preview.getByRole("button", { name: "Close reference preview", exact: true }),
       info,
