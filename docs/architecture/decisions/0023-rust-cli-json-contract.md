@@ -4,7 +4,8 @@
 
 Partially superseded by ADR 0046. Shared JSON envelopes, output separation and
 exit classes remain; source-backed app DTOs replace the historical record/content
-payload and hydration model below. Raw source inspection belongs to atlas-dev.
+payload and hydration model below. `atlas record source` exports checked DTOs;
+original-file inspection belongs to `atlas-dev`.
 
 ## Context
 

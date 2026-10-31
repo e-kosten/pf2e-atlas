@@ -1,8 +1,14 @@
 # 0016 Metadata Field Ownership Split
 
+> This records the retired TypeScript MCP/TUI architecture. For current owners,
+> read the [architecture overview](../../overview.md) and
+> [active decisions](../README.md). [ADR0026](../0026-rust-cli-product-surface.md)
+> records the product replacement.
+
+
 ## Status
 
-Accepted
+Historical (accepted for the retired TypeScript runtime).
 
 ## Context
 

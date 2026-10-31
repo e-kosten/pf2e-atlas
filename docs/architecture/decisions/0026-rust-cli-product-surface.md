@@ -2,7 +2,12 @@
 
 ## Status
 
-Accepted
+Accepted product replacement. [ADR0029](0029-local-web-app-boundary.md)
+adds the local browser workspace. [ADR0046](0046-source-backed-reference-artifact.md)
+replaces normalized record ownership with checked source-backed records, and
+[ADR0054](0054-derived-tag-deferral.md) defers tagging integration. The roadmap and
+crate descriptions below record the decision at the time; use the
+[architecture overview](../overview.md) for current ownership.
 
 ## Context
 

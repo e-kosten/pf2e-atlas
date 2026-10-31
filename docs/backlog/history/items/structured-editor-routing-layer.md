@@ -31,7 +31,7 @@ Structured-draft field editing should have one classifier and one executor:
 
 ## Related
 
-- [TUI architecture](../../../architecture/node/tui.md)
-- [Architectural boundaries](../../../architecture/node/boundaries.md)
-- [ADR 0015](../../../architecture/decisions/0015-shared-explorer-host-contract-and-live-group-editing.md)
-- [Search interaction cleanup](../../items/search-interaction-cleanup.md)
+- [TUI architecture](https://github.com/e-kosten/pf2e-atlas/blob/13f6e7faa36355bbae154ad1df613ee6eee15550/docs/architecture/node/tui.md)
+- [Architectural boundaries](https://github.com/e-kosten/pf2e-atlas/blob/13f6e7faa36355bbae154ad1df613ee6eee15550/docs/architecture/node/boundaries.md)
+- [ADR 0015](../../../architecture/decisions/history/0015-shared-explorer-host-contract-and-live-group-editing.md)
+- [Search interaction cleanup](https://github.com/e-kosten/pf2e-atlas/blob/13f6e7faa36355bbae154ad1df613ee6eee15550/docs/backlog/items/search-interaction-cleanup.md)

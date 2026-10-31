@@ -2,8 +2,8 @@
 
 ## Status
 
-Superseded by [ADR 0050](./0050-selectable-search-profiles.md) for model/default
-selection and [ADR 0046](./0046-source-backed-reference-artifact.md) for attributed
+Superseded by [ADR 0050](../0050-selectable-search-profiles.md) for model/default
+selection and [ADR 0046](../0046-source-backed-reference-artifact.md) for attributed
 retrieval. The historical evaluation and transition below are retained as context;
 the current catalog contains BGE Base and EmbeddingGemma baseline profiles, with
 BGE Base as the operational default.

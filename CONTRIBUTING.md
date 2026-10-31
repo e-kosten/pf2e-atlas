@@ -19,10 +19,11 @@ scripts/preflight.sh
 # or: just dev-setup
 ```
 
-For an existing full-corpus development baseline, use `just dev-workspace-init`
-and `just dev-status`. Read [setup and previews](docs/development/setup-and-preview.md)
-before selecting a backend: these commands default to a frozen baseline binary,
-not the current checkout. Keep Cargo output checkout-local and reuse warm builds.
+For a reusable development environment with the full reference content, use
+`just dev-workspace-init` and `just dev-status`. These commands use a shared,
+prebuilt backend by default, which may differ from the code in your checkout.
+Read [setup and previews](docs/development/setup-and-preview.md) before choosing
+a backend. Keep Cargo output checkout-local and reuse existing builds.
 
 ## Development loop
 
@@ -61,12 +62,10 @@ product/architecture decisions or real blockers, rather than routine commits.
 
 ## Validation
 
-During iteration, run focused tests. Before opening the PR, run comprehensive
-checks for affected code: the full Rust gate for application/shared Rust changes,
-the standalone developer gate for developer-only changes, the frontend gate
-for UI changes, and relevant integration/browser scenarios. CI owns the full
-applicable platform and device/browser matrix by default. Broaden local browser
-coverage for shared layout, navigation, overlays, touch/focus or harness changes.
+Use focused checks during iteration and the applicable full gates before opening
+a PR. The [validation guide](docs/development/validation.md) owns gate selection,
+local/CI coverage, candidate consistency, browser checks and hooks. Prose-only
+changes use the [documentation checks](docs/development/documentation.md#validate-the-edited-documentation).
 
 ```bash
 just verify-changed --range origin/main...HEAD --list
@@ -74,30 +73,14 @@ just verify-changed --range origin/main...HEAD --full
 ```
 
 Substitute the actual PR base for stacked or integration work. Install required
-dependencies explicitly; gates do not install them. Prose-only changes need
-accuracy, whitespace, links and example checks, without unrelated application
-builds. Read [validation](docs/development/validation.md) for commands, candidate
-consistency, test selection, CI diagnosis, visual references and hooks.
+dependencies explicitly; gates do not install them.
 
 ## Commit messages and publication
 
-Use Conventional Commits, for example `fix(encounters): preserve source conditions`.
-An optional description body must follow a blank line:
-
-```text
-type(scope): summary
-```
-
-```text
-type(scope): summary
-
-description
-```
-
-Recommended types are
-`feat`, `fix`, `docs`, `refactor`, `test` and `chore`. A PR can contain several
-logical commits; commit boundaries do not require separate PRs or user approvals.
-Do not combine unrelated changes or accumulate an entire multi-stage task uncommitted.
+Use Conventional Commits: `type(scope): summary`, for example
+`docs(setup): simplify first-run instructions`. An optional body follows a blank
+line. Common types are `feat`, `fix`, `docs`, `refactor`, `test` and `chore`.
+Keep unrelated changes separate; one PR can contain several logical commits.
 
 Authorization to implement includes logical local commits, pushing the task branch
 and opening/updating its PR after the pre-PR requirements above. Planning alone
@@ -112,13 +95,18 @@ Passing checks does not provide merge authorization.
 
 ## Working plans
 
-Use one concise local plan for substantial work under `scratch/plans/`; ordinary
-fixes need no new plan. Refine the same plan as scope evolves, record status and
-acceptance checks, and update `scratch/plans/README.md` when present. Archive
-completed/superseded plans while retaining provenance-bound originals. Plans are
-local working artifacts; architecture and backlog remain durable shared guidance.
-Plan approval and execution authorization are separate; do not commit local plans
-unless explicitly requested.
+Use one concise local plan for substantial work; ordinary fixes need none.
+The [repo-plan skill](.codex/skills/repo-plan/SKILL.md) owns plan placement,
+status, navigation and archival. Plans are local working artifacts; durable
+boundaries and remaining work belong in architecture and backlog docs. Do not
+commit local plans unless requested; plan approval is not execution authorization.
+
+## Documentation changes
+
+Write for the page's reader and the task they came to complete. Follow the
+[documentation guide](docs/development/documentation.md#write-for-the-pages-reader)
+for audience, example and reference boundaries, and check the full task path as
+well as individual sentences. Keep detailed maintenance policy in that guide.
 
 ## Task-specific guidance
 

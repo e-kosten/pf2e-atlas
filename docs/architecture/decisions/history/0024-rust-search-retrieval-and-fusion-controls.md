@@ -2,7 +2,7 @@
 
 ## Status
 
-Superseded by [ADR 0046](./0046-source-backed-reference-artifact.md).
+Superseded by [ADR 0046](../0046-source-backed-reference-artifact.md).
 
 The source-backed contract uses max-per-root semantic scores, one root rank per
 lane with RRF60, explicit identity tiers and bounded candidate coverage. Historical

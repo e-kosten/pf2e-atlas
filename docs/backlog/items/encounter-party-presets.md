@@ -23,4 +23,4 @@ Future Foundry import is a separate capability; this version introduces no impor
 format or character-sheet/world model.
 
 Related: [encounter usability](rust-web-encounter-runner-polish.md),
-[local-state ownership](../../architecture/decisions/0030-local-state-database.md).
+[local-state ownership](../../architecture/decisions/0051-persistent-workspace.md).

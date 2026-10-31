@@ -51,7 +51,7 @@ The accepted ownership model is:
 
 Implementation should add `atlas-tags` when the first tagging implementation slice lands. It should not add compatibility layers for the old node layout.
 
-Architecture docs should refer to [Tagging architecture](../tagging.md) for the accepted model. Historical node ADRs remain context only.
+Architecture docs should refer to [Tagging architecture](../tagging.md) for implemented validation and deferred integration boundaries. Historical Node ADRs remain context only.
 
 The current artifact may continue to report derived-tag metadata filters as unsupported until `record_tags`, validation, and query support exist. Once implemented, tag filters must use authoritative SQL rows and normal keyset filtering rather than post-filtering.
 
