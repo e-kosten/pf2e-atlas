@@ -1,6 +1,8 @@
 # ADR 0030: Local State Database
 
-Status: accepted  
+Status: superseded by [ADR0051](../0051-persistent-workspace.md) for the
+separate database, path and publication design. Saved-domain ownership remains
+in `atlas-local-state`, sharing one workspace with reference data.
 Date: 2026-06-16
 
 ## Context

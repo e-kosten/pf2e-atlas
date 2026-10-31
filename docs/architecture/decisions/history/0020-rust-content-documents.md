@@ -2,9 +2,9 @@
 
 ## Status
 
-Superseded by [ADR 0046](./0046-source-backed-reference-artifact.md).
+Superseded by [ADR 0046](../0046-source-backed-reference-artifact.md).
 
-Parser ownership is amended by [ADR 0044](./0044-shared-source-content-interpretation.md):
+Parser ownership is amended by [ADR 0044](../0044-shared-source-content-interpretation.md):
 the pure parser lives in atlas-record and ingest executes it with loaded context.
 The source-backed artifact retains authored markup in checked DTOs and selected
 sanitized HTML/control caches. RichDocument storage and product rendering are

@@ -41,4 +41,4 @@ The pass should cover:
 
 - [Architecture overview](../../architecture/overview.md)
 - [ADR 0029: Local web app boundary](../../architecture/decisions/0029-local-web-app-boundary.md)
-- [ADR 0006: Shared TUI interaction contracts](../../architecture/decisions/0006-shared-tui-interaction-contracts.md)
+- [Frontend interaction guidance](../../../web/atlas-ui/docs/frontend-guidelines.md)

@@ -1,7 +1,7 @@
 # ADR 0031: App-Service Record Surfaces
 
 Status: historical transport and migration decision, superseded by
-[ADR0047](./0047-semantic-record-presentation.md). The app-service composition
+[ADR0047](../0047-semantic-record-presentation.md). The app-service composition
 boundary is retained; authored storage follows ADR0046.
 Date: 2026-06-26
 

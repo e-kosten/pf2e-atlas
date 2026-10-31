@@ -1,6 +1,12 @@
 # ADR 0011: Canonical Search Request And Filter Tree Model
 
-- Status: Accepted
+> This records the retired TypeScript MCP/TUI architecture. For current owners,
+> read the [architecture overview](../../overview.md) and
+> [active decisions](../README.md). [ADR0026](../0026-rust-cli-product-surface.md)
+> records the product replacement.
+
+
+- Status: Historical (accepted for the retired TypeScript runtime)
 - Date: 2026-04-23
 
 ## Context
