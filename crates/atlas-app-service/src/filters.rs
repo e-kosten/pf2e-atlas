@@ -13,7 +13,7 @@ use atlas_search::{
     DiscoverFilterValueCountsRequest as SearchValueCounts,
     DiscoverFilterValuesRequest as SearchValues,
     DiscoverFilterVocabularyRequest as SearchVocabulary, FilterDiscoveryContext as SearchContext,
-    RecordScope, RetrievalMode,
+    RecordScope,
 };
 
 #[derive(Debug, Clone)]
@@ -68,41 +68,14 @@ impl AtlasAppService {
             },
         )
     }
-    fn prepare_discovery_query(
-        &self,
-        field: &str,
-        clause: Option<&str>,
-        context: &FilterDiscoveryContext,
-        execution: &ReadExecutionContext,
-    ) -> AppServiceResult<Option<atlas_search::PreparedQueryEmbedding>> {
-        let (_, filter, text, mode, profile, expected, _) = context_parts(context.clone())?;
-        let field = field.to_owned();
-        let clause = clause.map(str::to_owned);
-        let expected_preflight = expected.clone();
-        let supported = self.with_retrieval(execution, move |r| {
-            check_generation(r, expected_preflight.as_deref())?;
-            Ok(r.discovery_supports_ranking(&field, clause.as_deref(), filter.as_ref())?)
-        })?;
-        if supported {
-            self.prepare_query(profile.as_ref(), text.as_deref().unwrap_or(""), mode)
-        } else {
-            Ok(None)
-        }
-    }
     pub fn discover_raw_filter_values(
         &self,
         request: RawFilterValuesRequest,
     ) -> AppServiceResult<QueryValueOptions> {
         let execution = ReadExecutionContext::uncancellable();
-        let prepared = self.prepare_discovery_query(
-            &request.field,
-            request.clause_id.as_deref(),
-            &request.context,
-            &execution,
-        )?;
-        let (list, filter, text, mode, profile, expected, content_scope) =
+        let (list, filter, text, profile, expected, content_scope) =
             context_parts(request.context)?;
-        self.with_prepared_workspace(&execution, prepared, move |workspace| {
+        self.with_workspace(&execution, move |workspace| {
             let keys = scoped_list_keys(workspace, list.as_deref())?;
             let r = workspace.retrieval_mut();
             check_generation(r, expected.as_deref())?;
@@ -115,7 +88,6 @@ impl AtlasAppService {
                         content_scope,
                         search_profile: profile.as_ref(),
                         text: text.as_deref(),
-                        mode,
                         scope: keys
                             .as_deref()
                             .map(RecordScope::Keys)
@@ -135,15 +107,9 @@ impl AtlasAppService {
         request: RawFilterCountsRequest,
     ) -> AppServiceResult<QueryFieldCounts> {
         let execution = ReadExecutionContext::uncancellable();
-        let prepared = self.prepare_discovery_query(
-            &request.field,
-            request.clause_id.as_deref(),
-            &request.context,
-            &execution,
-        )?;
-        let (list, filter, text, mode, profile, expected, content_scope) =
+        let (list, filter, text, profile, expected, content_scope) =
             context_parts(request.context)?;
-        self.with_prepared_workspace(&execution, prepared, move |workspace| {
+        self.with_workspace(&execution, move |workspace| {
             let keys = scoped_list_keys(workspace, list.as_deref())?;
             let r = workspace.retrieval_mut();
             check_generation(r, expected.as_deref())?;
@@ -155,7 +121,6 @@ impl AtlasAppService {
                         content_scope,
                         search_profile: profile.as_ref(),
                         text: text.as_deref(),
-                        mode,
                         scope: keys
                             .as_deref()
                             .map(RecordScope::Keys)
@@ -184,27 +149,9 @@ impl AtlasAppService {
                 offset,
                 limit,
             } => {
-                let (keys, filter, text, mode, search_profile, expected_generation, content_scope) =
+                let (keys, filter, text, search_profile, expected_generation, content_scope) =
                     context_parts(*context)?;
-                let context = FilterDiscoveryContext::Filtered {
-                    search_content: text.as_ref().map(|_| content_scope),
-                    filter: filter.clone(),
-                    text: text.clone(),
-                    mode: match mode {
-                        RetrievalMode::Fts => atlas_app_model::RetrievalModeView::Lexical,
-                        RetrievalMode::Vector => atlas_app_model::RetrievalModeView::Semantic,
-                        RetrievalMode::Hybrid => atlas_app_model::RetrievalModeView::Hybrid,
-                    },
-                    search_profile: search_profile.clone(),
-                    expected_artifact_generation: expected_generation.clone(),
-                };
-                let prepared = self.prepare_discovery_query(
-                    &field_id,
-                    clause_id.as_deref(),
-                    &context,
-                    execution,
-                )?;
-                self.with_prepared_workspace(execution, prepared, move |workspace| {
+                self.with_workspace(execution, move |workspace| {
                     let keys = scoped_list_keys(workspace, keys.as_deref())?;
                     let retrieval = workspace.retrieval_mut();
                     check_generation(retrieval, expected_generation.as_deref())?;
@@ -219,7 +166,6 @@ impl AtlasAppService {
                             content_scope,
                             search_profile: search_profile.as_ref(),
                             text: text.as_deref(),
-                            mode,
                             scope: keys
                                 .as_deref()
                                 .map(RecordScope::Keys)
@@ -276,7 +222,7 @@ impl AtlasAppService {
         execution: &ReadExecutionContext,
     ) -> AppServiceResult<FilterCountsView> {
         execution.check()?;
-        let (keys, filter, text, mode, search_profile, expected_generation, content_scope) =
+        let (keys, filter, text, search_profile, expected_generation, content_scope) =
             context_parts(request.context)?;
         let projection_execution = execution.clone();
         self.with_workspace(execution, move |workspace| {
@@ -293,7 +239,6 @@ impl AtlasAppService {
                     content_scope,
                     search_profile: search_profile.as_ref(),
                     text: text.as_deref(),
-                    mode,
                     scope: keys
                         .as_deref()
                         .map(RecordScope::Keys)
@@ -327,7 +272,6 @@ fn editor_values(
                 content_scope: atlas_domain::SearchContentScope::All,
                 search_profile: None,
                 text: None,
-                mode: RetrievalMode::Fts,
                 scope: RecordScope::All,
                 prefer_remaster: false,
                 filter,
@@ -360,17 +304,16 @@ type ContextParts = (
     Option<String>,
     Option<QueryPredicate>,
     Option<String>,
-    RetrievalMode,
     Option<atlas_domain::SearchProfileId>,
     Option<String>,
     atlas_domain::SearchContentScope,
 );
 fn context_parts(context: FilterDiscoveryContext) -> AppServiceResult<ContextParts> {
-    let (list, filter, text, mode, profile, expected, search_content) = match context {
+    let (list, filter, text, profile, expected, search_content) = match context {
         FilterDiscoveryContext::Filtered {
             filter,
             text,
-            mode,
+            mode: _,
             search_profile,
             expected_artifact_generation,
             search_content,
@@ -378,7 +321,6 @@ fn context_parts(context: FilterDiscoveryContext) -> AppServiceResult<ContextPar
             None,
             filter,
             text,
-            mode,
             search_profile,
             expected_artifact_generation,
             search_content,
@@ -387,7 +329,7 @@ fn context_parts(context: FilterDiscoveryContext) -> AppServiceResult<ContextPar
             list_ref,
             filter,
             text,
-            mode,
+            mode: _,
             search_profile,
             expected_artifact_generation,
             search_content,
@@ -395,7 +337,6 @@ fn context_parts(context: FilterDiscoveryContext) -> AppServiceResult<ContextPar
             Some(list_ref),
             filter,
             text,
-            mode,
             search_profile,
             expected_artifact_generation,
             search_content,
@@ -410,7 +351,6 @@ fn context_parts(context: FilterDiscoveryContext) -> AppServiceResult<ContextPar
         list,
         filter,
         text,
-        crate::retrieval::retrieval_mode(mode),
         profile,
         expected,
         search_content.unwrap_or_default(),
@@ -453,6 +393,11 @@ fn scope(keys: &Option<Vec<RecordKey>>) -> RecordScope<'_> {
 fn required_facet<T>(outcome: QueryFacetOutcome<T>) -> AppServiceResult<T> {
     match outcome {
         QueryFacetOutcome::Available { value } => Ok(value),
+        QueryFacetOutcome::Unavailable {
+            reason: atlas_domain::FacetUnavailableReason::TextContext,
+        } => Err(crate::AppServiceError::invalid_request(
+            "Filter discovery uses structured filters and saved-list scope. Omit the record-content query; --text searches filter-value names.",
+        )),
         QueryFacetOutcome::Unavailable { reason } => {
             Err(crate::AppServiceError::invalid_request(format!(
                 "Contextual discovery is unavailable for this condition ({reason:?}); query execution remains supported. Discover unscoped values without a target clause."
@@ -484,6 +429,23 @@ mod tests {
     use crate::test_support::fixture_worker;
 
     #[test]
+    fn raw_text_context_recovery_identifies_record_query_not_target_clause() {
+        let error = required_facet::<()>(QueryFacetOutcome::Unavailable {
+            reason: atlas_domain::FacetUnavailableReason::TextContext,
+        })
+        .unwrap_err();
+        let message = error.to_string();
+        assert!(
+            message.contains("Omit the record-content query"),
+            "{message}"
+        );
+        assert!(
+            message.contains("--text searches filter-value names"),
+            "{message}"
+        );
+    }
+
+    #[test]
     fn explicit_discovery_scope_requires_text_and_legacy_browse_keeps_all() {
         let context = |text, search_content| FilterDiscoveryContext::Filtered {
             search_content,
@@ -502,7 +464,7 @@ mod tests {
             }
         }
         assert_eq!(
-            context_parts(context(None, None)).unwrap().6,
+            context_parts(context(None, None)).unwrap().5,
             atlas_domain::SearchContentScope::All
         );
         assert_eq!(
@@ -511,7 +473,7 @@ mod tests {
                 Some(atlas_domain::SearchContentScope::Core)
             ))
             .unwrap()
-            .6,
+            .5,
             atlas_domain::SearchContentScope::Core
         );
     }

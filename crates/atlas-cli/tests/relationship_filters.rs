@@ -437,18 +437,14 @@ fn contextual_discovery_retains_link_constraints_and_saved_membership() {
         "creature",
         "--links-to",
         "Fixture Armor",
-        "--query",
-        "Fixture Scout",
-        "--retrieval",
-        "fts",
         "--text",
         "hum",
         "--json",
     ]);
     assert_eq!(queried["values"]["options"][0]["value"], "humanoid");
     assert_eq!(
-        queried["values"]["options"][0]["distinct_roots"], 1,
-        "record query and value text have separate purposes"
+        queried["values"]["options"][0]["distinct_roots"], 2,
+        "value-name search must not narrow structured record eligibility"
     );
     let stale = fixture.command(
         &[
@@ -458,10 +454,6 @@ fn contextual_discovery_retains_link_constraints_and_saved_membership() {
             "traits",
             "--links-to",
             "Fixture Armor",
-            "--query",
-            "would require inference",
-            "--retrieval",
-            "vector",
             "--artifact-generation",
             "stale",
             "--json",
@@ -471,7 +463,7 @@ fn contextual_discovery_retains_link_constraints_and_saved_membership() {
     let stale: Value = serde_json::from_slice(&stale.stdout).unwrap();
     assert_eq!(
         stale["error"]["code"], "artifact_generation_changed",
-        "generation fails before query inference"
+        "generation is checked before discovery"
     );
     fixture.data(&[
         "lists",

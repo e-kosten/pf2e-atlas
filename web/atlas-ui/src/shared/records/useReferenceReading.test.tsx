@@ -403,3 +403,93 @@ it("does not lend a retired document after Activity suspension misses the remova
   );
   expect(result.current.detail).toBeUndefined();
 });
+
+it("prepares an unpinned selection and its generation-bound fallback before committing", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 20_000 } },
+  });
+  const parent = detailFixture("actors:ghoul");
+  const match = {
+    ...activityFixture("Jaws", "actors:ghoul").navigation,
+    field: "/system/description/value",
+  };
+  const exact = { ...parent, selected: match };
+  api.mockResolvedValueOnce(parent).mockResolvedValueOnce(exact);
+  const commit = vi.fn();
+  const { result } = renderHook(
+    () => {
+      const reading = useReferenceReading();
+      return {
+        reading,
+        selection: usePreparedReferenceSelection(reading, true, "research", null),
+      };
+    },
+    {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    },
+  );
+  await act(async () =>
+    result.current.selection.select({
+      request: { navigation: rootNavigation("actors:ghoul"), match },
+      name: "Jaws",
+      generation: null,
+      commit,
+    }),
+  );
+  expect(commit).toHaveBeenCalledOnce();
+  expect(result.current.reading.detail).toEqual(exact);
+  expect(api).toHaveBeenCalledTimes(2);
+  expect(
+    client.getQueryData(
+      recordDetailQueryOptions("actors:ghoul", match, parent.artifact_generation)
+        .queryKey,
+    ),
+  ).toEqual(exact);
+});
+
+it("discards a prepared selection when its list or route scope changes", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: 20_000 } },
+  });
+  let finish!: (detail: ReturnType<typeof detailFixture>) => void;
+  api.mockReturnValue(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const commit = vi.fn();
+  const { result, rerender } = renderHook(
+    ({ scope }) => {
+      const reading = useReferenceReading();
+      return {
+        reading,
+        selection: usePreparedReferenceSelection(reading, true, scope, null),
+      };
+    },
+    {
+      initialProps: { scope: "research" },
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    },
+  );
+  let preparing!: Promise<void>;
+  act(() => {
+    preparing = result.current.selection.select({
+      request: { navigation: rootNavigation("actors:ghoul") },
+      name: "Ghoul",
+      generation: null,
+      commit,
+    });
+  });
+  rerender({ scope: "encounters" });
+  await act(async () => {
+    finish(detailFixture("actors:ghoul"));
+    await preparing;
+  });
+  expect(commit).not.toHaveBeenCalled();
+  expect(result.current.reading.request).toBeNull();
+  expect(result.current.selection.current).toBeNull();
+});

@@ -728,3 +728,40 @@ fn physical_reclamation_preserves_saved_data_and_logical_revision() {
         "retained"
     );
 }
+
+#[test]
+fn mapping_is_connection_local_and_writes_remain_unmapped() {
+    use rusqlite::OptionalExtension;
+    let (_dir, workspace) = fixture();
+    let read = workspace.read(1).unwrap();
+    let effective: Option<u64> = read
+        .connection()
+        .query_row("PRAGMA main.mmap_size", [], |r| r.get(0))
+        .optional()
+        .unwrap();
+    if let Some(effective) = effective {
+        assert!(effective <= std::fs::metadata(workspace.path()).unwrap().len());
+        if read._mapping.is_none() {
+            assert_eq!(effective, 0);
+        }
+    }
+    let write = workspace.write(1).unwrap();
+    assert_eq!(
+        write
+            .connection()
+            .query_row("PRAGMA main.mmap_size", [], |r| r.get::<_, u64>(0))
+            .optional()
+            .unwrap()
+            .unwrap_or(0),
+        0
+    );
+    drop((read, write));
+    let raw = rusqlite::Connection::open(workspace.path()).unwrap();
+    assert_eq!(
+        raw.query_row("PRAGMA main.mmap_size", [], |r| r.get::<_, u64>(0))
+            .optional()
+            .unwrap()
+            .unwrap_or(0),
+        0
+    );
+}

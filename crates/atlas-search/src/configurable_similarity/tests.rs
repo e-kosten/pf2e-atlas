@@ -82,22 +82,26 @@ fn complete_candidate_union_above_4096_is_scored_when_actual_work_fits() {
         candidate_parts: SimilarityCandidateParts::Corresponding,
         decay: 0.25,
     };
-    let result = service
-        .configurable_similar(ConfigurableSimilarRequest {
-            seed: &seed,
-            options: &options,
-            source_sections: Some(SimilaritySourceSections::All),
-            content_scope: SearchContentScope::Core,
-            search_profile: None,
-            filter: None,
-            scope: RecordScope::All,
-            page: SearchPage::first(10).unwrap(),
-            sort: ResultSort::Relevance {},
-            prefer_remaster: false,
-            cancelled: None,
-        })
-        .unwrap()
-        .unwrap();
+    let request = || ConfigurableSimilarRequest {
+        seed: &seed,
+        options: &options,
+        source_sections: Some(SimilaritySourceSections::All),
+        content_scope: SearchContentScope::Core,
+        search_profile: None,
+        filter: None,
+        scope: RecordScope::All,
+        page: SearchPage::first(10).unwrap(),
+        sort: ResultSort::Relevance {},
+        prefer_remaster: false,
+        cancelled: None,
+    };
+    let actual = service.configurable_similar(request());
+    let exact = service.configurable_similar_exact(request());
+    assert_eq!(
+        super::eligibility_tests::output(&actual),
+        super::eligibility_tests::output(&exact)
+    );
+    let result = actual.unwrap().unwrap();
     assert_eq!(result.candidate_keys.as_ref().unwrap().len(), 4320);
     assert_eq!(result.results.page.total, 4320);
     assert_eq!(result.results.records.len(), 10);
@@ -403,7 +407,7 @@ fn section_navigation_combines_overlapping_chunks_across_profiles_without_hydrat
     }
 }
 
-fn fixture() -> atlas_index::IndexBuildInput {
+pub(super) fn fixture() -> atlas_index::IndexBuildInput {
     let mut input = input(
         vec![
             record(

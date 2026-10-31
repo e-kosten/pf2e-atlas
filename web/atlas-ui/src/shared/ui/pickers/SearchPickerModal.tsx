@@ -1,5 +1,4 @@
 import { AtlasModal as Modal } from "../overlays/AtlasModal";
-import { isSharedFailure } from "../../feedback/errorMessages";
 import { ErrorNotice } from "../../feedback/ErrorNotice";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -14,7 +13,6 @@ import {
 } from "antd";
 import type { FormInstance, ModalProps } from "antd";
 import { useId, useLayoutEffect, useState } from "react";
-import { RotateCw, X } from "lucide-react";
 import { searchPage } from "../../../api/atlasApi";
 import { useSearchProfile } from "../../search/SearchProfileContext";
 import {
@@ -49,7 +47,10 @@ import { useFilterDiscovery } from "../../filters/useFilterDiscovery";
 import { ReferenceBrowser } from "../../records/ReferenceBrowser";
 import { useReferenceReading } from "../../records/useReferenceReading";
 import { usePreparedReferenceSelection } from "../../records/usePreparedReferenceSelection";
-import { PaneIconButton } from "../actions/PaneAction";
+import {
+  ReferenceSelectionStatus,
+  hasReferenceSelectionStatus,
+} from "../../records/ReferenceSelectionStatus";
 import {
   isArtifactGenerationChanged,
   referenceQueryMeta,
@@ -253,40 +254,14 @@ export function SearchPickerModal<FormValues>({
     reading.inspect(null);
     onSelectionChange(null);
   };
-  const selectionStatus =
-    preparing &&
-    !isSharedFailure(preparing.error) &&
-    (preparing.slow || preparing.error) ? (
-      <div className="reference-selection-status" role="status">
-        <span title={preparing.name}>
-          {preparing.error
-            ? selectionGenerationChanged
-              ? "Reference collection changed"
-              : `Could not load ${preparing.name}`
-            : `Loading ${preparing.name}…`}
-        </span>
-        {preparing.error && (
-          <PaneIconButton
-            size="small"
-            icon={<RotateCw size={14} />}
-            label={
-              selectionGenerationChanged
-                ? "Refresh results"
-                : `Retry loading ${preparing.name}`
-            }
-            onClick={() =>
-              selectionGenerationChanged ? void refreshResults() : selection.retry()
-            }
-          />
-        )}
-        <PaneIconButton
-          size="small"
-          icon={<X size={14} />}
-          label="Cancel selection"
-          onClick={selection.cancel}
-        />
-      </div>
-    ) : undefined;
+  const selectionStatus = hasReferenceSelectionStatus(preparing) ? (
+    <ReferenceSelectionStatus
+      selection={selection}
+      onRetry={() =>
+        selectionGenerationChanged ? void refreshResults() : selection.retry()
+      }
+    />
+  ) : undefined;
   return (
     <ConfigProvider componentDisabled={disabled}>
       <Modal

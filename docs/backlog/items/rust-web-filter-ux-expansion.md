@@ -60,4 +60,4 @@ not add a second subtype predicate or alter canonical kind values.
 
 - [Architecture overview](../../architecture/overview.md)
 - [ADR 0029: Local web app boundary](../../architecture/decisions/0029-local-web-app-boundary.md)
-- [Rust web text-scoped filter counts](./rust-web-text-scoped-filter-counts.md)
+- [Summaries of retrieved semantic candidates](./rust-web-text-scoped-filter-counts.md)

@@ -34,7 +34,9 @@ pub struct ArtifactValidationReport {
     pub source_fingerprint: String,
 }
 
-pub(crate) fn validate_open(c: &Connection) -> Result<SourceArtifactBuildContext, IndexError> {
+pub(crate) fn validate_open(
+    c: &Connection,
+) -> Result<(SourceArtifactBuildContext, String), IndexError> {
     let (format,hash,json):(i64,String,String)=c.query_row("SELECT format_version,context_hash,context_json FROM artifact_context WHERE singleton=1",[],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(|e|IndexError::Invalid(format!("artifact context: {e}")))?;
     if format != i64::from(ARTIFACT_FORMAT_VERSION)
         || !checked_hash(&hash)
@@ -68,7 +70,7 @@ pub(crate) fn validate_open(c: &Connection) -> Result<SourceArtifactBuildContext
         ));
     }
     validate_profile_storage(c, &context)?;
-    Ok(context)
+    Ok((context, hash))
 }
 
 /// Test probes deliberately inspect committed state while product admission may
@@ -85,7 +87,7 @@ pub fn validate_artifact(path: impl AsRef<Path>) -> Result<ArtifactValidationRep
 /// Validate the caller's exact snapshot, including uncommitted maintenance writes.
 /// This does not start or commit a transaction or reopen the database by path.
 pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, IndexError> {
-    let context = validate_open(c)?;
+    let (context, _) = validate_open(c)?;
     let mut trait_evidence = crate::traits::validate_trait_definitions(c, &context)?;
     tracing::info!(target:"atlas_progress",phase="artifact_integrity","Checking database integrity");
     let integrity: String = c.query_row("PRAGMA integrity_check", [], |r| r.get(0))?;

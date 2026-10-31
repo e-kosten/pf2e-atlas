@@ -75,9 +75,12 @@ renderer parses source DTOs or prose to recover mechanics.
 Effect-reference formatting uses exact source facts. Content preparation retains
 explicit-label presence, the nearest parsed block path, and resolved destination
 name/item family. App-service supplies compact labels for unlabeled effect
-references: “Effect” for one distinct destination in a field/block, shortened
-names for multiple destinations. Repeated references to the same destination
-remain compact. Explicit labels (including HTML anchor contents) are untouched.
+references: “Effect” for one distinct destination in an exact source field,
+shortened names for multiple destinations across that field, including separate
+paragraphs. Claim Corpse therefore retains its Fleshy and Skeletal choice names;
+other fields and owned abilities do not affect those labels. Repeated references
+to the same destination remain compact. Explicit labels (including HTML anchor
+contents) are untouched.
 Names are never used to classify a destination, and no semantic role, redundancy,
 or application behavior is inferred. No reference is removed or relocated.
 The browser renders shared in-place previews with full-name hover/focus tooltips

@@ -621,3 +621,95 @@ test("life status stays compact and stable while saving, without replacing the s
     await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
   }
 });
+
+test("overnight review preserves zero healing and unavailable HP through the real client", async ({
+  page,
+}, info) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Wire recovery ${info.project.name} ${Date.now()}` },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    for (const participant of [
+      { display_name: "Zero hero", current_hp: 0, max_hp: 20 },
+      { display_name: "Unknown hero" },
+    ]) {
+      expect(
+        (
+          await page.request.post(`${path}/participants/manual`, {
+            data: { encounter_ref: encounter.encounter_key, ...participant },
+          })
+        ).ok(),
+      ).toBeTruthy();
+    }
+    await page.goto(`/encounters/${encounter.slug}`);
+    await activate(
+      page.getByRole("button", { name: "Encounter settings", exact: true }),
+      info,
+    );
+    await activate(
+      page.getByRole("menuitem", { name: "Rest overnight", exact: true }),
+      info,
+    );
+    const dialog = page.getByRole("dialog", { name: "Rest overnight", exact: true });
+    const submit = dialog.getByRole("button", { name: "Rest overnight", exact: true });
+    await expect(submit).toBeDisabled();
+    await dialog
+      .getByRole("spinbutton", { name: "HP recovery for Zero hero", exact: true })
+      .fill("0");
+    const preview = page.waitForResponse((response) => {
+      if (!response.url().endsWith("/recovery/preview")) return false;
+      const input = response.request().postDataJSON();
+      return input.action.participants.every(
+        (participant: { healing: number | null }) => participant.healing === 0,
+      );
+    });
+    await dialog
+      .getByRole("spinbutton", { name: "HP recovery for Unknown hero", exact: true })
+      .fill("0");
+    const wire = await (await preview).json();
+    const zero = wire.participants.find(
+      (participant: { display_name: string }) =>
+        participant.display_name === "Zero hero",
+    );
+    const unknown = wire.participants.find(
+      (participant: { display_name: string }) =>
+        participant.display_name === "Unknown hero",
+    );
+    expect(zero).toMatchObject({ current_hp: 0, resulting_hp: 0, healing: 0 });
+    expect(unknown).toMatchObject({ current_hp: null, resulting_hp: null, healing: 0 });
+    await expect(
+      dialog
+        .getByRole("row")
+        .filter({ hasText: "Zero hero" })
+        .locator(".encounter-recovery__hp-result"),
+    ).toHaveText("0 → 0 / 20");
+    await expect(
+      dialog
+        .getByRole("row")
+        .filter({ hasText: "Unknown hero" })
+        .locator(".encounter-recovery__hp-result"),
+    ).toHaveText("— → …");
+    await expect(submit).toBeEnabled();
+    await noPageOverflow(page);
+    await activate(submit, info);
+    await expect(dialog).toBeHidden();
+    const saved = await (await page.request.get(path)).json();
+    expect(
+      saved.participants.find(
+        (participant: { display_name: string }) =>
+          participant.display_name === "Zero hero",
+      ).current_hp,
+    ).toBe(0);
+    expect(
+      saved.participants.find(
+        (participant: { display_name: string }) =>
+          participant.display_name === "Unknown hero",
+      ),
+    ).not.toHaveProperty("current_hp");
+  } finally {
+    await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
+  }
+});

@@ -3,12 +3,14 @@ mod configurable_similarity;
 mod discovery;
 mod error;
 mod graph;
+mod neighbor_reuse;
 mod page;
 #[cfg(any(test, feature = "read-metrics"))]
 mod read_metrics;
 mod records;
 mod reference_resolution;
 mod service;
+pub use neighbor_reuse::{NativeNeighborReuse, NativeNeighborReuseStats};
 mod similar;
 mod similarity_evaluation;
 mod similarity_scoring;
@@ -85,3 +87,5 @@ pub use relationship_selection::CheckedRelationshipSelection;
 
 #[cfg(test)]
 mod core_search_tests;
+#[cfg(test)]
+mod neighbor_reuse_tests;

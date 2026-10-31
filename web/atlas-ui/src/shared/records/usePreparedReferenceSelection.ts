@@ -17,12 +17,12 @@ import type { RecordNavigationView } from "../../generated/atlas";
 type Selection = {
   request: ReadingRequest;
   name: string;
-  generation: string;
+  generation: string | null;
   commit: () => void;
 };
 type Attempt = Selection & {
   ticket: number;
-  epoch: number;
+  epoch: number | string;
   origin: ReadingRequest | null;
   loading: boolean;
   slow: boolean;
@@ -33,7 +33,7 @@ type Attempt = Selection & {
 export function usePreparedReferenceSelection(
   reading: ReferenceReading,
   enabled: boolean,
-  epoch: number,
+  epoch: number | string,
   generation: string | null,
 ) {
   const client = useQueryClient();
@@ -84,11 +84,14 @@ export function usePreparedReferenceSelection(
       [...prepared].every(
         (query) => client.getQueryCache().get(query.queryHash) === query,
       );
-    async function prepareDocument(navigation: RecordNavigationView) {
+    async function prepareDocument(
+      navigation: RecordNavigationView,
+      documentGeneration = selection.generation,
+    ) {
       const options = recordDetailQueryOptions(
         navigation.record_key,
         navigation,
-        selection.generation,
+        documentGeneration,
       );
       const promise = client.fetchQuery({ ...options, retry: false });
       const sourceQuery = client
@@ -107,7 +110,7 @@ export function usePreparedReferenceSelection(
     try {
       const parent = await prepareDocument(selection.request.navigation);
       const fallback = referenceReadingFallback(selection.request, parent);
-      if (fallback) await prepareDocument(fallback);
+      if (fallback) await prepareDocument(fallback, parent.artifact_generation);
       if (!isCurrent()) throw new CancelledError();
       // React batches these updates: the candidate, reading address and already
       // cached exact document become visible together, with no loading shell.

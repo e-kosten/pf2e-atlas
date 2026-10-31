@@ -44,6 +44,11 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Soon
 
+- [Broader exact neighbor reuse](items/search-neighbor-reuse-expansion.md)
+  Evaluate scoped trait-reference text search and configured Similar with complete
+  native selection identity and matched measurements. Unscoped baseline Similar
+  uses shared retention; candidate-set summaries remain deferred. Status: proposed.
+
 - [Apply supported effects to encounter participants](items/encounter-effect-application.md)
   Prefill conditions from supported spells and abilities through the shared workflow.
   Status: proposed.
@@ -63,11 +68,6 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Inventory remaining visible rich-text gaps and evaluate additional formula
   context, flavored rolls and embed forms before extending inline mechanics.
   Status: proposed.
-
-- [Ingest and reference build performance](items/reference-build-performance.md)
-  PR74 completed the measured optimization; further work targets remaining
-  segmentation/tokenization, deep artifact validation during maintenance and
-  evidenced inference bottlenecks. Status: proposed.
 
 - [Downstream architecture follow-through](items/rust-downstream-architecture-follow-through.md)
   Resolve remaining bounded consumer ownership and error-contract gaps from the
@@ -104,6 +104,11 @@ Completed and retired items are tracked separately in [history/done-and-supersed
   Standardize accessible labels and form semantics across Ant Design forms and compact editable controls. Status: proposed.
 
 ## Later
+
+- [Ingest and reference build performance](items/reference-build-performance.md)
+  Reopen for an observed supported release bottleneck after the delivered
+  readiness, validation and passage-reuse improvements. Broader inference/hardware
+  questions remain unmeasured. Status: deferred.
 
 - [Similar search entry and source changes](items/similar-search-entry.md)
   Revisit secondary entry points and changing an applied Similar source only when
@@ -149,9 +154,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust graph context deeper local graph](items/rust-graph-context-deeper-local-graph.md)
   Track secondary links, shared-neighbor scoring, local cluster signals, and degree-aware curation after the V1 one-hop graph context command. Status: proposed.
 
-- [Rust web text-scoped filter counts](items/rust-web-text-scoped-filter-counts.md)
-  Refine query-scoped facet presentation and broader contexts beyond the current
-  supported shared discovery relation. Status: deferred.
+- [Summaries of retrieved semantic candidates](items/rust-web-text-scoped-filter-counts.md)
+  Reconsider candidate-set summaries only with a demonstrated user task and an
+  explicit coverage contract; ordinary counts use structured eligibility. Status: deferred.
 
 - [Rust web Vite bundle cleanup](items/rust-web-vite-bundle-cleanup.md)
   Evaluate and reduce large frontend chunks once the UI shape stabilizes. Status: proposed.

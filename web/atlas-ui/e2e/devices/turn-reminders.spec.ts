@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures";
+import { activate, noPageOverflow } from "./reading";
 
 test("allowing a restricted reaction retains keyboard focus without spending it", async ({
   page,
@@ -660,6 +661,127 @@ test("expired condition removal reports failure and retries without an uncaught 
       ).conditions,
     ).toEqual([]);
     expect(errors).toEqual([]);
+  } finally {
+    await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
+  }
+});
+
+test("real turn counts retain explanations and guard an explicit action", async ({
+  page,
+}, info) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Wire counts ${info.project.name} ${Date.now()}` },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  const detail = async () => (await page.request.get(path)).json();
+  try {
+    expect(
+      (
+        await page.request.post(`${path}/participants/record`, {
+          data: {
+            encounter_ref: encounter.encounter_key,
+            record_ref: "browser-actors:sentinel00000001",
+            quantity: 1,
+            initiative: -1,
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    expect(
+      (
+        await page.request.post(`${path}/participants/record`, {
+          data: {
+            encounter_ref: encounter.encounter_key,
+            record_ref: "browser-hazards:hazard0000000001",
+            quantity: 1,
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    let state = await detail();
+    const actor = state.participants.find(
+      (participant: { display_name: string }) =>
+        participant.display_name === "Atlas Sentinel",
+    );
+    const hazard = state.participants.find(
+      (participant: { participant_kind: string }) =>
+        participant.participant_kind === "hazard",
+    );
+    expect(hazard).not.toHaveProperty("turn_resources");
+    expect(actor.turn_resources.regular_total).toBeNull();
+    const catalog = await (
+      await page.request.get(
+        `${path}/participants/${actor.participant_key}/condition-definitions`,
+      )
+    ).json();
+    const slowed = catalog.conditions.find(
+      (condition: { name: string }) => condition.name === "Slowed",
+    );
+    expect(
+      (
+        await page.request.post(
+          `${path}/participants/${actor.participant_key}/conditions`,
+          {
+            data: {
+              request_id: crypto.randomUUID(),
+              expected_encounter_revision: state.revision,
+              participant_key: actor.participant_key,
+              condition_ref: slowed.condition_ref,
+              event_intent: "apply",
+              decisions: { keep_upright: false },
+              scope: { kind: "everyone" },
+              extra_action: { kind: "unspecified" },
+              immunity_override: false,
+              parameters: { kind: "none" },
+              value: 1,
+            },
+          },
+        )
+      ).ok(),
+    ).toBeTruthy();
+    state = await detail();
+    expect(
+      (
+        await page.request.post(`${path}/advance`, {
+          data: { request_id: crypto.randomUUID(), expected_revision: state.revision },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    await page.goto(`/encounters/${encounter.slug}`);
+    await activate(
+      page.getByRole("button", { name: "Atlas Sentinel, Current turn", exact: true }),
+      info,
+    );
+    const calculation = page.getByRole("button", {
+      name: /Actions: calculation details/,
+    });
+    await activate(calculation, info);
+    const explanation = page.getByRole("dialog", {
+      name: "Actions: calculation details",
+      exact: true,
+    });
+    await expect(explanation.getByRole("row", { name: /Slowed.*-1/ })).toBeVisible();
+    await expect(explanation.getByRole("row", { name: /Total.*2/ })).toBeVisible();
+    await activate(
+      explanation.getByRole("button", { name: "Close explanation", exact: true }),
+      info,
+    );
+    const spend = page.getByRole("button", { name: "Spend action 1", exact: true });
+    await expect(spend).toBeEnabled();
+    await activate(spend, info);
+    await expect(
+      page.getByRole("button", { name: "Restore action 1", exact: true }),
+    ).toBeEnabled();
+    const saved = await detail();
+    expect(
+      saved.participants.find(
+        (participant: { participant_key: string }) =>
+          participant.participant_key === actor.participant_key,
+      ).turn_resources.regular_remaining,
+    ).toBe(1);
+    await noPageOverflow(page);
   } finally {
     await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
   }

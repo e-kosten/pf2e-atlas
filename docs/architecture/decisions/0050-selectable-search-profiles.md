@@ -3,6 +3,12 @@
 Status: accepted.
 Date: 2026-10-15
 
+ADR0051 supersedes retained reader/restart lifetimes below with bounded workspace
+operations and public workspace-key/reference-revision generation. Full context
+digests still bind preparation and reuse. [ADR0062](./0062-exact-text-neighbor-reuse.md)
+adds exact ordinary TextSearch neighbor reuse without changing profile admission
+or the retained query-inference session policy.
+
 ## Decision
 
 The product supports two pinned baseline profiles: `bge-base` (BGE Base English

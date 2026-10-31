@@ -40,6 +40,7 @@ import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawe
 import { recordClassification } from "../../shared/records/RecordPresentation";
 import { EncounterActorReading } from "./EncounterActorReading";
 import type { RecordPreviewAnchor } from "../../shared/records/recordPreviewTypes";
+import { EncounterParticipantName } from "./EncounterParticipantName";
 import { EncounterParticipantSettings } from "./EncounterParticipantSettings";
 import { EncounterConditionControls } from "./EncounterConditionControls";
 import { EncounterHpControls } from "./EncounterHpControls";
@@ -555,7 +556,12 @@ function EncounterParticipantSurface({
         <div className="encounter-reference__identity">
           <div className="encounter-reference__title">
             <div className="encounter-reference__name">
-              <h2>{participant.display_name}</h2>
+              <EncounterParticipantName
+                key={participant.participant_key}
+                participant={participant}
+                disabled={disabled}
+                onUpdate={onUpdate}
+              />
               <EncounterParticipantSettings
                 onReset={onReset}
                 participant={participant}

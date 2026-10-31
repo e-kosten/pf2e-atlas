@@ -465,74 +465,72 @@ fn ordinary_core_fts_filters_owned_names_without_expanding_prose_coverage() {
 }
 
 #[test]
-fn query_backed_facets_use_core_candidates_but_text_value_counts_stay_unavailable() {
+fn record_text_context_is_unavailable_for_all_facets_without_inference() {
     let (mut service, _artifact) = open_input_fixture(fixture()).unwrap();
-    let context = FilterDiscoveryContext {
-        content_scope: SearchContentScope::Core,
-        search_profile: None,
-        text: Some("Fireball"),
-        mode: RetrievalMode::Fts,
-        scope: RecordScope::All,
-        prefer_remaster: false,
-        filter: None,
-    };
-    let atlas_domain::QueryFacetOutcome::Available { value: core } = service
-        .discover_filter_counts(DiscoverFilterCountsRequest {
-            field: "level",
-            clause_id: None,
-            context,
-        })
-        .unwrap()
-    else {
-        panic!("expected scoped counts")
-    };
-    assert_eq!(
-        core.states
-            .iter()
-            .map(|state| state.distinct_roots)
-            .sum::<u64>(),
-        1
-    );
-    let atlas_domain::QueryFacetOutcome::Available { value: all } = service
-        .discover_filter_counts(DiscoverFilterCountsRequest {
-            field: "level",
-            clause_id: None,
-            context: FilterDiscoveryContext {
-                content_scope: SearchContentScope::All,
-                ..context
-            },
-        })
-        .unwrap()
-    else {
-        panic!("expected all counts")
-    };
-    assert_eq!(
-        all.states
-            .iter()
-            .map(|state| state.distinct_roots)
-            .sum::<u64>(),
-        2
-    );
-    assert!(matches!(
-        service
-            .discover_filter_value_counts(DiscoverFilterValueCountsRequest {
-                field: "rarity",
-                clause_id: None,
-                context,
-                values: &[atlas_domain::QueryLiteral::String("common".into())]
-            })
-            .unwrap(),
-        atlas_domain::QueryFacetOutcome::Unavailable {
-            reason: atlas_domain::FacetUnavailableReason::TextContext
-        }
-    ));
+    for content_scope in [SearchContentScope::Core, SearchContentScope::All] {
+        let context = FilterDiscoveryContext {
+            content_scope,
+            search_profile: None,
+            text: Some("Fireball"),
+            scope: RecordScope::All,
+            prefer_remaster: false,
+            filter: None,
+        };
+        service.reset_read_metrics();
+        assert!(matches!(
+            service
+                .discover_filter_counts(DiscoverFilterCountsRequest {
+                    field: "level",
+                    clause_id: None,
+                    context,
+                })
+                .unwrap(),
+            atlas_domain::QueryFacetOutcome::Unavailable {
+                reason: atlas_domain::FacetUnavailableReason::TextContext
+            }
+        ));
+        assert!(matches!(
+            service
+                .discover_filter_values(DiscoverFilterValuesRequest {
+                    field: "rarity",
+                    clause_id: None,
+                    context,
+                    only_matching: true,
+                    text: None,
+                    offset: 0,
+                    limit: 10,
+                })
+                .unwrap(),
+            atlas_domain::QueryFacetOutcome::Unavailable {
+                reason: atlas_domain::FacetUnavailableReason::TextContext
+            }
+        ));
+        assert!(matches!(
+            service
+                .discover_filter_value_counts(DiscoverFilterValueCountsRequest {
+                    field: "rarity",
+                    clause_id: None,
+                    context,
+                    values: &[atlas_domain::QueryLiteral::String("common".into())],
+                })
+                .unwrap(),
+            atlas_domain::QueryFacetOutcome::Unavailable {
+                reason: atlas_domain::FacetUnavailableReason::TextContext
+            }
+        ));
+        assert_eq!(service.read_metrics().knn_queries, 0);
+    }
     let error = service
         .discover_filter_counts(DiscoverFilterCountsRequest {
             field: "level",
             clause_id: None,
             context: FilterDiscoveryContext {
+                content_scope: SearchContentScope::Core,
+                search_profile: None,
                 text: None,
-                ..context
+                scope: RecordScope::All,
+                prefer_remaster: false,
+                filter: None,
             },
         })
         .unwrap_err();

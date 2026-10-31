@@ -66,7 +66,8 @@ impl AtlasRuntime {
         let index = atlas_index::SqliteIndexReader::from_session(session)?;
         let default_profile = self.resolve_default_search_profile(index.context())?;
         Ok(WorkspaceRead {
-            retrieval: AtlasRetrievalService::from_index(index, default_profile, prepared)?,
+            retrieval: AtlasRetrievalService::from_index(index, default_profile, prepared)?
+                .with_native_neighbor_reuse(std::sync::Arc::clone(&self.native_neighbor_reuse)),
         })
     }
     pub fn read_state(&self) -> Result<StateRead, RuntimeError> {

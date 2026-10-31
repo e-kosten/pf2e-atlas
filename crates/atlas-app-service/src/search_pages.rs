@@ -263,7 +263,6 @@ impl AtlasAppService {
                     mode,
                     search_content: _,
                 } => {
-                    // Stateless paging deliberately reruns query inference and ranking.
                     let result = retrieval.search_text(TextSearchRequest {
                         content_scope: search_content,
                         sort: sort.clone(),

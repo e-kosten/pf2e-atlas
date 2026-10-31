@@ -1,8 +1,14 @@
+import { Grid } from "antd";
 import type { ListPageInput } from "../../app/destinations";
 import { navigateDestination, destinationHref } from "../../app/navigation";
 import { listDestination } from "../../app/destinations";
 import { atlasRouter } from "../../app/router";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
+import { usePreparedReferenceSelection } from "../../shared/records/usePreparedReferenceSelection";
+import {
+  ReferenceSelectionStatus,
+  hasReferenceSelectionStatus,
+} from "../../shared/records/ReferenceSelectionStatus";
 import { ListEntryNote } from "./ListEntryNote";
 import { ListRecordPicker } from "./ListRecordPicker";
 import {
@@ -47,6 +53,7 @@ type ListDetailViewProps = {
 };
 export function ListDetailView({ route }: ListDetailViewProps) {
   const queryClient = useQueryClient();
+  const narrow = !Grid.useBreakpoint().lg;
   const [addOpen, setAddOpen] = useState(false);
   const [filters, setFilters] = useState<SearchFormState>(() =>
     decodeSearchStateFromParams(new URLSearchParams(route.query), "saved_list"),
@@ -68,6 +75,18 @@ export function ListDetailView({ route }: ListDetailViewProps) {
   }
   const listQuery = searchStateQueryString(filters);
   const reading = useReferenceReading(null, !filters.filterWasReset);
+  const selection = usePreparedReferenceSelection(
+    reading,
+    !filters.filterWasReset,
+    JSON.stringify([
+      route.slug,
+      route.selectedRecordKey,
+      route.selection,
+      route.landing,
+      listQuery,
+    ]),
+    null,
+  );
   const readingNavigation = useRef(false);
   const activeFilters = useDebouncedSearchFilters(filters);
   const filterToken = useMemo(
@@ -251,6 +270,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
       />
       <BrowseReader
         reading={addressableReading}
+        readerStatus={!narrow && <ReferenceSelectionStatus selection={selection} />}
         selectedRecordKey={route.selectedRecordKey}
         readerFooter={
           route.selectedRecordKey &&
@@ -261,9 +281,21 @@ export function ListDetailView({ route }: ListDetailViewProps) {
               key={JSON.stringify([list.data.list.list_key, route.selectedRecordKey])}
               listRef={list.data.list.list_key}
               recordKey={route.selectedRecordKey}
+              initialNote={
+                selectedItem
+                  ? {
+                      list_key: list.data.list.list_key,
+                      slug: list.data.list.slug,
+                      record_key: selectedItem.record_key,
+                      title: selectedItem.snapshot.title,
+                      note: selectedItem.note ?? null,
+                    }
+                  : undefined
+              }
+              initialNoteUpdatedAt={list.dataUpdatedAt}
               hidden={Boolean(
-                reading.request &&
-                reading.request.navigation.record_key !== route.selectedRecordKey,
+                route.selection &&
+                route.selection.record_key !== route.selectedRecordKey,
               )}
             />
           ) : undefined
@@ -273,11 +305,15 @@ export function ListDetailView({ route }: ListDetailViewProps) {
         resultsLoading={list.isLoading || list.isFetching}
         resultsHeader={
           <div className="result-pane-header">
-            <span>
-              {list.data
-                ? `${list.data.items.length.toLocaleString()} saved records`
-                : "Saved records"}
-            </span>
+            {narrow && hasReferenceSelectionStatus(selection.current) ? (
+              <ReferenceSelectionStatus selection={selection} />
+            ) : (
+              <span>
+                {list.data
+                  ? `${list.data.items.length.toLocaleString()} saved records`
+                  : "Saved records"}
+              </span>
+            )}
             <ResultSortControl
               search={filters}
               surface="saved_list"
@@ -324,14 +360,20 @@ export function ListDetailView({ route }: ListDetailViewProps) {
               : undefined
           }
           onSelect={(recordKey) => {
-            reading.select({ navigation: rootNavigation(recordKey) });
-            navigateDestination(
-              listDestination({
-                slug: route.slug,
-                selectedRecordKey: recordKey,
-                query: listQuery,
-              }),
-            );
+            const item = list.data?.items.find((item) => item.record_key === recordKey);
+            void selection.select({
+              request: { navigation: rootNavigation(recordKey) },
+              name: item?.record?.title ?? item?.snapshot.title ?? "record",
+              generation: null,
+              commit: () =>
+                navigateDestination(
+                  listDestination({
+                    slug: route.slug,
+                    selectedRecordKey: recordKey,
+                    query: listQuery,
+                  }),
+                ),
+            });
           }}
         />
       </BrowseReader>

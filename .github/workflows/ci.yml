@@ -200,7 +200,7 @@ jobs:
         timeout-minutes: 3
         run: npm --prefix web/atlas-ui exec -- playwright install --with-deps chromium webkit
       - name: Responsive browser acceptance
-        timeout-minutes: 10
+        timeout-minutes: 15
         working-directory: web/atlas-ui
         run: npm exec -- playwright test --config playwright.devices.config.ts --shard=${{ matrix.shard }}/2
       - name: Browser evidence
@@ -222,6 +222,9 @@ jobs:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
         if: needs.changes.outputs.rust == 'true'
+      - name: Verify bounded storage sessions and file release
+        if: needs.changes.outputs.rust == 'true'
+        run: cargo test -p atlas-storage --locked
       - name: Verify artifact coherence and publication
         if: needs.changes.outputs.rust == 'true'
         run: cargo test -p atlas-index --lib --locked foundation_tests

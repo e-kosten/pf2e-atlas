@@ -16,7 +16,7 @@ fn basis(first: f32, second: f32) -> Vec<f32> {
     vector
 }
 
-fn fixture(values: Vec<(&str, &str, Value)>, both: bool) -> IndexBuildInput {
+pub(super) fn fixture(values: Vec<(&str, &str, Value)>, both: bool) -> IndexBuildInput {
     let mut input = crate::foundation_tests::fixture(true);
     input.records = values
         .into_iter()
@@ -146,7 +146,7 @@ fn fixture(values: Vec<(&str, &str, Value)>, both: bool) -> IndexBuildInput {
     input
 }
 
-fn nested_fixture(both: bool) -> IndexBuildInput {
+pub(super) fn nested_fixture(both: bool) -> IndexBuildInput {
     fixture(
         vec![
             (

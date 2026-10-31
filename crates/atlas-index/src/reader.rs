@@ -13,6 +13,7 @@ use std::path::Path;
 
 pub struct SqliteIndexReader {
     context: SourceArtifactBuildContext,
+    context_hash: String,
     instance: ArtifactInstance,
     session: atlas_storage::ReadSession,
     vector_error: Option<String>,
@@ -23,6 +24,7 @@ pub struct SqliteIndexReader {
 #[cfg(any(test, feature = "test-support"))]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct SourceReadMetrics {
+    pub knn_queries: usize,
     pub sql_statements: usize,
     pub source_body_decodes: usize,
     pub prepared_content_batches: usize,
@@ -84,15 +86,24 @@ impl SqliteIndexReader {
             self.read_metrics.set(m);
         }
     }
+    pub(crate) fn count_knn(&self) {
+        #[cfg(any(test, feature = "test-support"))]
+        {
+            let mut m = self.read_metrics.get();
+            m.knn_queries += 1;
+            self.read_metrics.set(m);
+        }
+    }
     pub fn from_session(session: atlas_storage::ReadSession) -> Result<Self, IndexError> {
         let vector_error = atlas_sqlite_vec::register_sqlite_vec_auto_extension()
             .err()
             .map(|e| e.to_string());
-        let context = crate::validation::validate_open(session.connection())?;
+        let (context, context_hash) = crate::validation::validate_open(session.connection())?;
         let instance =
             ArtifactInstance::new(session.workspace_key()?, session.reference_revision()?);
         Ok(Self {
             context,
+            context_hash,
             instance,
             session,
             vector_error,
@@ -118,6 +129,10 @@ impl SqliteIndexReader {
     }
     pub fn context(&self) -> &SourceArtifactBuildContext {
         &self.context
+    }
+    /// Complete context digest verified from the exact admitted artifact bytes.
+    pub fn context_sha256(&self) -> &str {
+        &self.context_hash
     }
     /// Identity of the workspace revision visible to this bounded operation.
     pub fn artifact_instance(&self) -> &ArtifactInstance {

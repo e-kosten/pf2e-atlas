@@ -27,6 +27,28 @@ typed query-input errors are described in
   the concrete web-to-app-service boundary follow the current
   [runtime boundaries](../../architecture/runtime.md#retrieval-and-application-workflows).
 
+## Conditional architecture questions
+
+The completed [whole-system review](../history/items/architecture-simplification-review.md)
+retains the overall decomposition. These questions remain deferred and unassigned;
+they are not confirmed product defects or prerequisites for program closure:
+
+- **Pure/native embedding boundary:** identify an actual native-free consumer and
+  the needed profile/input/identity/vector API first. Sketch a feature/export
+  closure preserving native token validation, exact reuse identities and default
+  behavior. Only then compare matched build/resource effects if those motivate
+  isolation. Index/search consolidation alone would not remove native dependencies.
+- **Fixture composition:** inventory index/search fixture callers and distinguish
+  reference-only tests from full-history and saved-state preservation tests.
+  Compare a smaller no-cycle topology with full-workspace integration composition
+  above schema owners. Lower fixtures intentionally stop before the current global
+  ledger and runtime upgrades app-service fixtures; this is maintenance duplication,
+  not demonstrated missing product migration coverage. Do not copy the newest
+  ledger down or introduce another migration crate without a smaller complete design.
+
+Small tag-validator placement or concrete-writer cleanup may be considered when
+editing those owners for a real task; no independent migration is assigned.
+
 ## Non-goals
 
 No new persisted normalized record model, generic layout interpreter, service

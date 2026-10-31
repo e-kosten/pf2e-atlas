@@ -7,6 +7,10 @@ pub struct AtlasRetrievalService {
     pub(crate) index: SqliteIndexReader,
     query_embedding: Option<PreparedQueryEmbedding>,
     default_profile: SearchProfileId,
+    pub(crate) neighbor_reuse: Option<(
+        std::sync::Arc<crate::NativeNeighborReuse>,
+        crate::neighbor_reuse::Epoch,
+    )>,
 }
 impl AtlasRetrievalService {
     pub fn source_fingerprint(&self) -> &str {
@@ -39,7 +43,18 @@ impl AtlasRetrievalService {
             index,
             default_profile,
             query_embedding,
+            neighbor_reuse: None,
         })
+    }
+    /// Attach runtime-owned retention without retaining this admitted reader.
+    pub fn with_native_neighbor_reuse(
+        mut self,
+        reuse: std::sync::Arc<crate::NativeNeighborReuse>,
+    ) -> Self {
+        let epoch = crate::neighbor_reuse::Epoch::admitted(&self.index);
+        reuse.observe(epoch);
+        self.neighbor_reuse = Some((reuse, epoch));
+        self
     }
     /// Connection plumbing for the runtime composition owner. Product consumers
     /// use runtime's typed local-state capability instead of this session.

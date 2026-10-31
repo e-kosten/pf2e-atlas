@@ -607,11 +607,10 @@ fn remaster_facets_restore_candidate_before_suppression_and_keep_absent_choices(
     request.offset = 0;
     request.limit = 100;
     request.context.eligible_keys = Some(vec!["test:0000000000000001".parse().unwrap()]);
-    request.context.bounded_candidates = true;
     let options = available(field_values(&db, &request).unwrap());
     assert_eq!(count(&options, "rare"), 1);
     assert_eq!(count(&options, "common"), 0);
-    assert!(!options.exhaustive);
+    assert!(options.exhaustive);
 }
 
 #[test]

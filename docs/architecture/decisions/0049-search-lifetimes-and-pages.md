@@ -5,7 +5,10 @@ Date: 2026-10-12
 
 [ADR0051](./0051-persistent-workspace.md) supersedes the retained-reader and
 physical-file startup rules below with bounded reads of one persistent workspace.
-The generation/page contracts remain current. See
+ADR0051 also supersedes the context-hash public generation below with durable
+`workspace_key:reference_revision`. [ADR0062](./0062-exact-text-neighbor-reuse.md)
+adds bounded exact ordinary TextSearch neighbor reuse while preserving stateless
+requests and generation recovery. The page contracts remain current. See
 [the runtime architecture](../runtime.md#retrieval-and-application-workflows) for
 current command capabilities and shared-runtime worker startup.
 
@@ -152,12 +155,11 @@ context, client-ID registry, new capability trait, SQL interruption or native
 inference abort is introduced. Durable mutations and their precommit reference
 reads stay uncancellable under ADR0048.
 
-Text retrieval and semantic contextual discovery share an exhaustive conversion
-of embedding errors. Empty input and token-budget overflow are invalid requests,
+Text retrieval uses an exhaustive conversion of embedding errors. Empty input and token-budget overflow are invalid requests,
 HTTP400, with useful counts and a shortening instruction. Model/cache/inference
 failures retain availability classification; document-only preparation failures
-at this boundary are internal execution errors. Unsupported optional facet
-contexts are still checked before inference. No query clipping or lexical fallback
+at this boundary are internal execution errors. Filter discovery uses structured
+eligibility and does not prepare embeddings; record-text contexts are unavailable. No query clipping or lexical fallback
 conceals an invalid semantic request.
 
 ## Consequences

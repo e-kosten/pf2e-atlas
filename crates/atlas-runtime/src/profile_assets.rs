@@ -43,8 +43,14 @@ impl ProfileAssets {
         self.check(id, config, || {
             let started = std::time::Instant::now();
             let ready = atlas_embedding::validate_embedding_model_cache(config).is_ok();
-            tracing::info!(target:"atlas_progress",phase="verify_query_assets",profile=%id,
-                elapsed_seconds=started.elapsed().as_secs_f64(),ready,"Checked query model assets");
+            // This completed observation must not start an open-ended CLI progress phase.
+            tracing::info!(
+                phase = "verify_query_assets",
+                profile = %id,
+                elapsed_seconds = started.elapsed().as_secs_f64(),
+                ready,
+                "Checked query model assets"
+            );
             ready
         })
     }
@@ -85,7 +91,58 @@ impl ProfileAssets {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::cell::Cell;
+    use std::{cell::Cell, sync::Arc};
+
+    struct EventTargets(Arc<Mutex<Vec<&'static str>>>);
+
+    impl tracing::Subscriber for EventTargets {
+        fn enabled(&self, _metadata: &tracing::Metadata<'_>) -> bool {
+            true
+        }
+
+        fn new_span(&self, _attributes: &tracing::span::Attributes<'_>) -> tracing::span::Id {
+            tracing::span::Id::from_u64(1)
+        }
+
+        fn record(&self, _span: &tracing::span::Id, _values: &tracing::span::Record<'_>) {}
+
+        fn record_follows_from(&self, _span: &tracing::span::Id, _follows: &tracing::span::Id) {}
+
+        fn event(&self, event: &tracing::Event<'_>) {
+            self.0.lock().unwrap().push(event.metadata().target());
+        }
+
+        fn enter(&self, _span: &tracing::span::Id) {}
+
+        fn exit(&self, _span: &tracing::span::Id) {}
+    }
+
+    #[test]
+    fn completed_asset_checks_emit_diagnostics_without_starting_cli_progress() {
+        let directory = tempfile::tempdir().unwrap();
+        let config = EmbeddingRuntimeConfig::new(
+            atlas_embedding::EmbeddingModelId::BgeBaseEnV15,
+            directory.path(),
+        );
+        for file in required_embedding_model_cache_files(&config) {
+            fs::create_dir_all(file.local_path.parent().unwrap()).unwrap();
+            fs::write(file.local_path, b"invalid fixture asset").unwrap();
+        }
+        let targets = Arc::new(Mutex::new(Vec::new()));
+        let subscriber = EventTargets(Arc::clone(&targets));
+        tracing::subscriber::with_default(subscriber, || {
+            let assets = ProfileAssets::default();
+            let id = SearchProfileId::new("bge-base");
+            assert!(!assets.ready(&id, &config));
+            assert!(!assets.ready(&id, &config));
+        });
+        assert_eq!(
+            *targets.lock().unwrap(),
+            vec!["atlas_runtime::profile_assets"],
+            "one completed diagnostic, with no atlas_progress event or rehash on a cache hit"
+        );
+    }
+
     #[test]
     fn unchanged_packages_do_not_rehash_and_atomic_repair_recovers_unloaded_profile() {
         let directory = tempfile::tempdir().unwrap();

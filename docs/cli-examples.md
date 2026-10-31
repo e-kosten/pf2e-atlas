@@ -118,11 +118,11 @@ record prose. Counts retain all supplied filters and count distinct parents per
 value after remaster preference. Source-availability statistics are before that
 preference; collection occurrences may exceed the number of parents. Unavailable
 counts are not zero counts.
-`--query` adds record-content search context, with `--retrieval` and
-`--search-profile`; `--text` still searches the suggested values. `--list ID`
-intersects the context with saved-list membership. `--artifact-generation` can
-bind discovery to a preceding search. Optional `--clause-id` asks for replacement
-suggestions at that clause; unsupported grouped/text count contexts fail explicitly.
+Counts use structured filters and saved-list membership. `--list ID` intersects
+that scope; `--artifact-generation` can bind discovery to an admitted reference
+generation. Optional `--clause-id` asks for replacement suggestions at that clause.
+`--query`, `--retrieval` and `--search-profile` are not discovery options. Semantic
+candidate summaries are deferred; use ordinary search for ranked retrieval.
 
 
 Use one `exists` for constraints that must match the same embedded entry:

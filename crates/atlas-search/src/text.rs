@@ -218,6 +218,33 @@ impl AtlasRetrievalService {
             request.sort,
         )
     }
+    fn native_vector_candidates(
+        &self,
+        request: atlas_index::SourceVectorCandidateRequest<'_>,
+        text: &str,
+    ) -> Result<Vec<SourceVectorHit>, SearchError> {
+        let retained = self.neighbor_reuse.as_ref();
+        let Some((store, epoch)) = retained else {
+            return Ok(self.index.vector_candidates(request)?);
+        };
+        let Some(key) = store.key(*epoch, &self.index, text, &request) else {
+            return Ok(self.index.vector_candidates(request)?);
+        };
+        if let Some(found) = store.get(&key) {
+            return self
+                .index
+                .hydrate_vector_neighbors(request, &found.neighbors)
+                .map_err(|error| {
+                    store.remove(&key);
+                    error.into()
+                });
+        }
+        #[cfg(test)]
+        store.miss_checkpoint();
+        let (hits, neighbors) = self.index.vector_candidates_with_neighbors(request)?;
+        store.insert(key, neighbors);
+        Ok(hits)
+    }
     pub(crate) fn suppress_pairs(
         &self,
         mut roots: Vec<RankedRoot>,
@@ -237,17 +264,16 @@ impl AtlasRetrievalService {
         vector: &[f32],
     ) -> Result<(Vec<RankedRoot>, usize), SearchError> {
         for window in SEMANTIC_WINDOWS {
-            let hits = self
-                .index
-                .vector_candidates(atlas_index::SourceVectorCandidateRequest {
-                    profile: request.search_profile,
-                    vector,
-                    query: request.query,
-                    keys: request.scope.keys(),
-                    exclude: request.exclude,
-                    content_scope: request.content_scope,
-                    limit: window,
-                })?;
+            let input = atlas_index::SourceVectorCandidateRequest {
+                profile: request.search_profile,
+                vector,
+                query: request.query,
+                keys: request.scope.keys(),
+                exclude: request.exclude,
+                content_scope: request.content_scope,
+                limit: window,
+            };
+            let hits = self.native_vector_candidates(input, request.text)?;
             let roots = semantic_roots(hits);
             let displayed = self.suppress_pairs(roots.clone(), request.prefer)?;
             if displayed.len() >= TARGET_ROOTS || window == 4096 {

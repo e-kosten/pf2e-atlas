@@ -1,39 +1,24 @@
-# Rust Web Text-Scoped Filter Counts
+# Summaries of retrieved semantic candidates
 
 Status: deferred
 Priority: later
 Owner: unassigned
-Last reviewed: 2026-10-09
+Last reviewed: 2026-10-30
 
-## Problem
+Ordinary filter discovery uses structured eligibility and saved-list scope.
+Semantic ranking selects bounded retrieval candidates without establishing an
+exhaustive relevance-qualified membership set. A candidate cap is not a predicate.
+Do not expose candidate-window counts through ordinary filter counts or change
+browser vocabulary behavior to create a consumer for cached neighbor selection.
 
-Source-backed discovery already shares typed eligibility and text scope with
-retrieval. Supported facet contexts freeze the clause-removed candidate universe;
-unsupported Boolean contexts return explicit errors. Further UX work should make
-these limits and semantic candidate coverage clear without duplicating retrieval
-or ranking in the app layer.
+Reconsider only for a demonstrated user task asking about the retrieved candidates
+rather than all eligible records. Define the exact population, query/profile/
+recipe and generation identity, cap/coverage, filter replacement and remaster
+behavior, and labels explaining that zero does not establish corpus absence.
+A candidate summary must remain distinguishable from exhaustive structured counts.
 
-## Desired Outcome
+The local discovery-neighbor experiment was retired. No accepted latency evidence
+or current browser consumer justified keeping that path. This deferral does not
+change ordinary TextSearch or decide broader Similar/scoped-search reuse.
 
-Refine text-scoped facet presentation and evaluate broader supported contexts.
-
-Follow-up work should address:
-
-- how to explain complete lexical and bounded semantic candidate universes;
-- whether broader Boolean facet contexts are useful enough to support;
-- how text-search count semantics should be labelled when they differ from browse/list counts;
-- how to keep selected zero-count values visible;
-- how to avoid duplicating retrieval/fusion semantics in frontend or app-service code;
-- which refinements belong in the existing `atlas-search` discovery API.
-
-## Constraints
-
-- Keep discovery semantics owned by `atlas-search` and app-service, not frontend code.
-- Do not make `atlas-app-service` assemble index internals or bypass runtime/search boundaries.
-- Preserve shared typed discovery semantics; do not add a second facet compiler.
-
-## Related
-
-- [Architecture overview](../../architecture/overview.md)
-- [ADR 0029: Local web app boundary](../../architecture/decisions/0029-local-web-app-boundary.md)
-- [Source-backed artifact decision](../../architecture/decisions/0046-source-backed-reference-artifact.md)
+Related: [search/filter separation](../../architecture/decisions/0011-canonical-search-request-and-filter-tree-model.md).

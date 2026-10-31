@@ -19,7 +19,7 @@ and [ADR index](./decisions/README.md) for the relevant owner.
 | `atlas-ingest` | Source filesystem loading/provenance, admission reporting, explicit content/reference context, index inputs and build-time embedding execution. |
 | `atlas-storage` | Connection admission, bounded read/write sessions, maintenance ownership, transactional migrations and backups. No domain schema ownership. |
 | `atlas-index` | Reference SQL schema, checked publication/validation, incremental projection updates, native-vector reuse and pending inference, row readers, query catalog/bindings/discovery, parameterized filter SQL and vector queries. |
-| `atlas-search` | Concrete retrieval service, strict lookup, browse, lexical/semantic/hybrid root ordering, attributable witnesses, graph, verified edition preference and Suggested variants. |
+| `atlas-search` | Concrete retrieval service, strict lookup, browse, lexical/semantic/hybrid root ordering, bounded exact native-neighbor reuse, attributable witnesses, graph, verified edition preference and Suggested variants. |
 | `atlas-runtime` | Paths, setup/source-fetch/cache policy, requested configuration, shared migration composition, reference readiness and bounded typed workspace operations. |
 | `atlas-local-state` | Saved-domain SQL and session-bound lists/encounters, revision guards and versioned durable roll receipts. |
 | `atlas-dice` | Bounded library-backed dice evaluation and structured outcomes; no source, persistence or UI policy. |
