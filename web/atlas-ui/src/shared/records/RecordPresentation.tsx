@@ -104,10 +104,23 @@ export function ContentFields({
             (hideDescriptionHeading &&
               field.role === "description") ? null : inlineAbility ? (
               field.role !== "description" && (
-                <h5>{contentRoleLabels[field.role] ?? field.role}</h5>
+                <h5>
+                  {contentRoleLabels[field.role] ?? field.role}
+                  {field.routine_header && ` · ${field.routine_header.actions}`}
+                </h5>
               )
             ) : (
-              <h3>{contentRoleLabels[field.role] ?? field.role}</h3>
+              <h3>
+                {contentRoleLabels[field.role] ?? field.role}
+                {field.routine_header && ` · ${field.routine_header.actions}`}
+              </h3>
+            )}
+            {field.routine_header && field.routine_header.traits.length > 0 && (
+              <div className="record-reference__traits">
+                {field.routine_header.traits.map((trait) => (
+                  <TraitBadge key={trait.value} trait={trait} />
+                ))}
+              </div>
             )}
             <PreparedContent
               content={field}

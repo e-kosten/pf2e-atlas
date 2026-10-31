@@ -81,6 +81,16 @@ pub(super) fn records() -> Vec<SourceArtifactRecordInput> {
         "_id":"battleform000001", "type":"spell", "name":"Browser Battle Form",
         "system":{"level":{"value":2}, "description":{"value":"<p>Choose @UUID[Compendium.pf2e.browser-effects.Item.gQnDKDeBTtjwOWAk]{Bear} or @UUID[Compendium.pf2e.browser-effects.Item.sPCWrhUHqlbGhYSD]{Enlarge}.</p>"}}
     })));
+    records.push(record("browser-hazards", "Actor", json!({
+        "_id":"routine000000001", "type":"hazard", "name":"Browser Routine Trap",
+        "system": {
+            "details":{"level":{"value":8}, "isComplex":true, "description":"<p>A set of blades follows a repeating pattern.</p>",
+                "disable":"<p>@Check[thievery|dc:31] check to disable a blade.</p>",
+                "routine":"<p>(7 actions; illusion, mental) Each blade acts once. The target must attempt a @Check[will|dc:26|traits:illusion,mental] save. Reduce the number of actions for each destroyed blade.</p>"},
+            "traits":{"value":["magical","trap"],"size":{"value":"med"}}
+        },
+        "items":[{"_id":"shuffle000000001","type":"action","name":"Blade Shuffle","system":{"actionType":{"value":"action"},"actions":{"value":1},"traits":{"value":["visual"]},"description":{"value":"<p>A separate effect calls for a @Check[reflex|dc:25|basic] save.</p>"}}}]
+    })));
     records.extend((1..=32).map(|number| {
         record(
             "browser-actors",

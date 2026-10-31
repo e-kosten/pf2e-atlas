@@ -69,6 +69,22 @@ lifecycle of internal grants belong to the encounter workflow, not this projecti
 
 Borrowed record views remain storage and presentation neutral. They preserve
 availability and typed values; app-service owns labels and semantic composition.
+Hazard routine headers use a bounded record-owned reading projection for explicit
+leading parenthesized action budgets and optional trait lists. Numeric and written
+counts, ranges and alternatives remain turn budgets; individual ability costs keep
+their separate action glyphs. Unsupported headers remain authored. App-service
+removes a fully recognized prefix only from transient reading copies after canonical
+section annotation, preserving paragraph topology and attributed interaction markers.
+CLI readers retain the extracted budget and traits beside the routine prose.
+
+Check detail metadata resolves explicit traits with immediate owning Item traits,
+respecting the pinned `overrideTraits` semantics. Actor and routine traits never
+supply implicit Item context. Each inline inclusion resolves its own namespace.
+Generated labels retain basic/secret context; authored custom labels remain intact.
+The browser uses the shared explanation popup for additional check traits and the
+existing trait-definition navigation. It neither parses macro options nor offers a
+save roll through that information control. Unknown identifiers remain visible.
+
 Renderers format those values independently, including signs and units. Neither
 renderer parses source DTOs or prose to recover mechanics.
 

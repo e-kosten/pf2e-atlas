@@ -226,7 +226,7 @@ impl<'a> LoadedRecordDetail<'a> {
             r,
         )?;
         let mut context = crate::prepared_content::PreparedContentContext::source(
-            r.source_fingerprint(),
+            r,
             &detail.source,
             &request.owners,
             spell_rank,
@@ -312,10 +312,10 @@ impl<'a> LoadedRecordDetail<'a> {
                                 "stale or invalid passage: {e}"
                             ))
                         })?;
-                    *html = atlas_record::source_content::render_contextual_interactions(
+                    *html = crate::prepared_content::render_field_content(
                         &marked,
                         interactions,
-                        &context.formula,
+                        &context,
                     );
                     field.section_rendering =
                         crate::prepared_content::contextual_section_rendering(
@@ -323,6 +323,14 @@ impl<'a> LoadedRecordDetail<'a> {
                             interactions,
                             &context.formula,
                         )?;
+                    if let Some(rendering) = &mut field.section_rendering {
+                        rendering.html = crate::prepared_content::render_field_content(
+                            &rendering.html,
+                            interactions,
+                            &context,
+                        );
+                    }
+                    crate::prepared_content::project_routine_header(field, r);
                 }
             }
         }

@@ -420,3 +420,6 @@ export type { SearchContentScope } from "../../../../crates/atlas-app-model/bind
 export type { SimilaritySourceSections } from "../../../../crates/atlas-app-model/bindings/SimilaritySourceSections";
 export type { SimilarityComparisonKey } from "../../../../crates/atlas-app-model/bindings/SimilarityComparisonKey";
 export type { SimilarityComponentView } from "../../../../crates/atlas-app-model/bindings/SimilarityComponentView";
+
+export type { CheckDetailsView } from "../../../../crates/atlas-app-model/bindings/CheckDetailsView";
+export type { RoutineHeaderView } from "../../../../crates/atlas-app-model/bindings/RoutineHeaderView";
