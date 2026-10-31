@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { within, waitFor, fireEvent, render, screen } from "@testing-library/react";
 import { PreparedContent } from "./PreparedContent";
 import { destinationHref } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
@@ -923,3 +923,66 @@ it.each([
     expect(onReference).not.toHaveBeenCalled();
   },
 );
+
+it("opens check trait details without rolling or activating an enclosing reference", async () => {
+  const detail = detailFixture("actors:ghoul", "Ghoul", "rules:outer");
+  const content = detail.presentation.content[0];
+  content.body = {
+    kind: "html",
+    inclusions: [],
+    html: '<span data-atlas-reference="0">Effect <span data-atlas-interaction="0">DC 26 Will save</span>.</span>',
+    controls: [
+      {
+        ordinal: 0,
+        control: {
+          kind: "check",
+          statistic: "will",
+          options: { dc: "26" },
+          details: {
+            traits: [
+              {
+                kind: "trait",
+                value: "mental",
+                label: "Mental",
+                trait_key: "trait:mental",
+              },
+              {
+                kind: "trait",
+                value: "custom-trait",
+                label: "custom-trait",
+                trait_key: undefined,
+              },
+            ],
+          },
+        },
+      },
+    ],
+  };
+  const onReference = vi.fn();
+  render(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <PreparedContent
+        content={content}
+        relationships={detail.relationships}
+        onReference={onReference}
+      />
+    </ConfigProvider>,
+  );
+  const button = screen.getByRole("button", { name: "Details for DC 26 Will save" });
+  expect(button.closest("a")).toBeNull();
+  button.focus();
+  fireEvent.click(button);
+  const popup = await screen.findByRole("dialog", {
+    name: "Details for DC 26 Will save",
+  });
+  expect(within(popup).getByRole("link", { name: "Mental" })).toHaveAttribute(
+    "href",
+    "/traits/trait:mental",
+  );
+  expect(popup).toHaveTextContent("Custom-trait");
+  expect(onReference).not.toHaveBeenCalled();
+  await waitFor(() => expect(popup).toHaveFocus());
+  fireEvent.keyDown(popup, { key: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  await waitFor(() => expect(button).toHaveFocus());
+});

@@ -235,7 +235,7 @@ impl Composer<'_> {
             &content.bounded,
             self.r.artifact_context().audience,
             &crate::prepared_content::PreparedContentContext::source(
-                self.r.source_fingerprint(),
+                self.r,
                 &record.source,
                 &owners,
                 None,

@@ -305,7 +305,7 @@ fn attributed_content_refuses_more_than_256_fields_and_missing_cache_has_no_pros
         &[],
         retrieval.artifact_context().audience,
         &crate::prepared_content::PreparedContentContext::source(
-            retrieval.source_fingerprint(),
+            &retrieval,
             &detail.source,
             &[],
             None,

@@ -55,3 +55,6 @@ pub use inclusion::{
     PreparedHtmlInclusion, PreparedInclusionSourceLink, compose_prepared_inclusions,
     escape_content_text, terminal_prepared_reference,
 };
+
+mod reading_metadata;
+pub use reading_metadata::{RoutineHeader, check_traits, routine_header};

@@ -1,6 +1,10 @@
+.document-reading,
+.prose--narrative {
+  --reading-paragraph-gap: 1em;
+}
 .journal-contents {
   display: grid;
-  gap: var(--space-group);
+  gap: var(--space-control);
   min-width: 0;
 }
 .journal-contents > :is(h3, p) {
@@ -17,6 +21,9 @@
 .journal-contents__pages a {
   display: inline-block;
   padding-block: var(--space-control);
+}
+.journal-contents__pages:empty {
+  display: none;
 }
 .document-outline {
   padding-block-end: var(--space-group);
@@ -76,11 +83,9 @@
   line-height: 1.3;
   margin-block: var(--space-section) var(--space-control);
 }
-.record-reference .prepared-content h3.document-heading {
-  font-size: 1.25rem;
-}
-.record-reference .prepared-content h4.document-heading {
-  font-size: 1.1rem;
+.record-reference .prepared-content > :is(h2, h3, h4, h5, h6):first-child,
+.record-reference .prepared-content > .document-heading:first-child {
+  margin-block-start: 0;
 }
 .record-reference .prepared-content :is(h5, h6).document-heading {
   font-size: 1rem;

@@ -10,7 +10,21 @@ pub struct PreparedContentFieldView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub section_rendering: Option<PreparedSectionRenderingView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub routine_header: Option<RoutineHeaderView>,
 }
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RoutineHeaderView {
+    pub actions: String,
+    pub traits: Vec<crate::RecordBadgeView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct CheckDetailsView {
+    pub traits: Vec<crate::RecordBadgeView>,
+}
+
 /// Optional, transient rendering copy. Canonical section ordinals annotate the
 /// original block topology; persisted prepared HTML and its hashes stay separate.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -48,6 +62,9 @@ pub enum ContentControlKindView {
     Check {
         statistic: Option<String>,
         options: std::collections::BTreeMap<String, String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        details: Option<CheckDetailsView>,
     },
     Damage {
         formula: String,

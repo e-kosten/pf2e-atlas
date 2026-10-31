@@ -174,10 +174,11 @@ pub use list::{
     UpdateSavedListRequest,
 };
 pub use prepared_content::{
-    ContentControlKindView, ContentControlView, ContentRollComponentResultView,
+    CheckDetailsView, ContentControlKindView, ContentControlView, ContentRollComponentResultView,
     ContentRollComponentView, ContentRollEncounterContext, ContentRollPresentationView,
     ContentRollResultView, PreparedContentFieldView, PreparedFieldBodyView, PreparedInclusionView,
     PreparedReferenceView, PreparedSectionRenderingView, RollContentRequest, RollUnitView,
+    RoutineHeaderView,
 };
 pub use presentation::{
     ActionCostView, ActionGlyphView, ActivityEffectReferenceView, ActivityFrequencyView,

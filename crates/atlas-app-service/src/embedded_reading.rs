@@ -254,7 +254,7 @@ impl AtlasAppService {
                         &content.bounded,
                         r.artifact_context().audience,
                         &crate::prepared_content::PreparedContentContext::source(
-                            r.source_fingerprint(),
+                            r,
                             &detail.source,
                             &navigation.owners,
                             None,

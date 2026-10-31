@@ -220,18 +220,28 @@ export function ActorDefenses({
       {defenseFacts.some((fact) => hasReadingFact(fact)) && (
         <section className="actor-reference__defenses">
           <h3>Defenses</h3>
-          {actor.hardness.state !== "missing" &&
-            actor.hardness.state !== "not_applicable" && (
-              <FactRow label="Hardness">
-                <NumberFact fact={actor.hardness} />
+          <div className="record-fact-list">
+            {actor.hardness.state !== "missing" &&
+              actor.hardness.state !== "not_applicable" && (
+                <FactRow label="Hardness">
+                  <NumberFact fact={actor.hardness} />
+                </FactRow>
+              )}
+            {!hidePrimaryDefenses && actor.armor_class.state !== "not_applicable" && (
+              <FactRow label="AC">
+                <NumberFact fact={actor.armor_class} />
+                <DefenseQualifier fact={actor.defense_notes.armor_class} />
               </FactRow>
             )}
-          {!hidePrimaryDefenses && actor.armor_class.state !== "not_applicable" && (
-            <FactRow label="AC">
-              <NumberFact fact={actor.armor_class} />
-              <DefenseQualifier fact={actor.defense_notes.armor_class} />
-            </FactRow>
-          )}
+            {!hidePrimaryDefenses &&
+              !hideHitPoints &&
+              actor.maximum_hp.state !== "not_applicable" && (
+                <FactRow label="HP">
+                  <NumberFact fact={actor.maximum_hp} />
+                  <DefenseQualifier fact={actor.defense_notes.hit_points} />
+                </FactRow>
+              )}
+          </div>
           {!hideSaves && (
             <div>
               <div className="record-fact-list">
@@ -254,14 +264,6 @@ export function ActorDefenses({
                 )}
             </div>
           )}
-          {!hidePrimaryDefenses &&
-            !hideHitPoints &&
-            actor.maximum_hp.state !== "not_applicable" && (
-              <FactRow label="HP">
-                <NumberFact fact={actor.maximum_hp} />
-                <DefenseQualifier fact={actor.defense_notes.hit_points} />
-              </FactRow>
-            )}
           {(hideHitPoints || hidePrimaryDefenses) && (
             <DefenseNote label="HP" fact={actor.defense_notes.hit_points} />
           )}
@@ -446,7 +448,14 @@ export function ActorFacts({
     </>
   );
 }
-export function ActorSkills({ actor }: { actor: ActorPresentationView }) {
+export function ActorSkills({
+  actor,
+  headingLevel = 3,
+}: {
+  actor: ActorPresentationView;
+  headingLevel?: 3 | 4;
+}) {
+  const Heading = headingLevel === 4 ? "h4" : "h3";
   const lore = (actor.activities.value ?? []).filter(
     (activity) => activity.kind === "lore",
   );
@@ -456,7 +465,7 @@ export function ActorSkills({ actor }: { actor: ActorPresentationView }) {
     <div className="actor-reference__skills">
       {hasReadingFact(actor.abilities) && (
         <section>
-          <h3>Ability modifiers</h3>
+          <Heading>Ability modifiers</Heading>
           {actor.abilities.state !== "value" && (
             <FactLine label="Ability modifiers" fact={actor.abilities} />
           )}
@@ -471,7 +480,7 @@ export function ActorSkills({ actor }: { actor: ActorPresentationView }) {
       )}
       {(hasReadingFact(actor.skills) || lore.length > 0) && (
         <section>
-          <h3>Skills</h3>
+          <Heading>Skills</Heading>
           {hasReadingFact(actor.skills) && actor.skills.state !== "value" && (
             <FactLine label="Skills" fact={actor.skills} />
           )}

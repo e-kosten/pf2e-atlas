@@ -22,3 +22,21 @@
   display: block;
   margin-block-end: var(--space-control);
 }
+
+.explained-value--icon .explained-value__label {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: text-bottom;
+  padding-inline: 0.25em;
+  text-decoration: none;
+}
+.check-details__traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+}
+
+.prepared-check {
+  display: inline-block;
+  max-inline-size: 100%;
+}
