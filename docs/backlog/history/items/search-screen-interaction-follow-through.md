@@ -64,7 +64,7 @@ Future regressions should be checked against:
 ## Related
 
 - [Backlog: Search interaction cleanup](../../backlog.md)
-- [TUI architecture](../../../architecture/node/tui.md)
-- [Architectural boundaries](../../../architecture/node/boundaries.md)
-- [ADR 0006: Shared TUI interaction contracts](../../../architecture/decisions/0006-shared-tui-interaction-contracts.md)
-- [ADR 0009: Shared list/detail presentation layer](../../../architecture/decisions/0009-shared-list-detail-presentation-layer.md)
+- [TUI architecture](https://github.com/e-kosten/pf2e-atlas/blob/13f6e7faa36355bbae154ad1df613ee6eee15550/docs/architecture/node/tui.md)
+- [Architectural boundaries](https://github.com/e-kosten/pf2e-atlas/blob/13f6e7faa36355bbae154ad1df613ee6eee15550/docs/architecture/node/boundaries.md)
+- [ADR 0006: Shared TUI interaction contracts](../../../architecture/decisions/history/0006-shared-tui-interaction-contracts.md)
+- [ADR 0009: Shared list/detail presentation layer](../../../architecture/decisions/history/0009-shared-list-detail-presentation-layer.md)

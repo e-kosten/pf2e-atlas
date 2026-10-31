@@ -2,7 +2,8 @@
 
 ## Status
 
-Superseded by ADR 0026 for product surface and workspace layout. Retained as migration sequencing history.
+Superseded by [ADR0026](../0026-rust-cli-product-surface.md) for product surface
+and workspace layout. Retained as migration sequencing history.
 
 ## Context
 

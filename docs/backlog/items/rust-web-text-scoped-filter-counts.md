@@ -21,4 +21,4 @@ The local discovery-neighbor experiment was retired. No accepted latency evidenc
 or current browser consumer justified keeping that path. This deferral does not
 change ordinary TextSearch or decide broader Similar/scoped-search reuse.
 
-Related: [search/filter separation](../../architecture/decisions/0011-canonical-search-request-and-filter-tree-model.md).
+Related: [search and discovery boundaries](../../architecture/runtime.md).

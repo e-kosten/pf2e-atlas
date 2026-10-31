@@ -1,26 +1,23 @@
 # PF2e Atlas
 
-The supported Foundry PF2e reference release is **8.6.1**. Setup acquires its pinned source revision.
+**Find Pathfinder content by idea.**
 
-PF2e Atlas gives players, GMs, tool builders, and local coding agents a fast way to search and reference Pathfinder Second Edition content locally. It supports record lookup, ranked search, structured filters, name resolution, similar-record retrieval, graph context, and a local web workspace.
+PF2e Atlas helps you find Pathfinder Second Edition creatures, spells, equipment,
+and rules by describing what you have in mind. Try “a guardian for an enchanted
+forest” or “magic for a haunted-house adventure.” Search matches meaning as well
+as names, and filters help you narrow the results by level, traits, and other
+game details.
 
-The `atlas` CLI indexes PF2E data from the [Foundry PF2E repository](https://github.com/foundryvtt/pf2e) and exposes tools for people and agents.
+Explore the results in your browser, save options for a session, and build and run
+encounters. Atlas also includes a command-line interface and a bundled skill that
+lets AI agents search and reference PF2e content while helping you prepare.
 
-## What You Can Do
-
-With `atlas`, you can:
-
-- browse reference records in the local web app, maintain saved lists, and run encounters
-- search PF2E records by text, kind, and structured filters
-- resolve names (including by pre-remaster aliases)
-- find records similar to a known seed record
-- inspect nearby references and verified other editions, with links to their sources
-- roll dice with individual faces and kept/dropped results, without runtime setup
-- install a PF2e Atlas skill that guides local agents through lookup and discovery
+Reference content comes from the [Foundry PF2e project](https://github.com/foundryvtt/pf2e).
+The supported reference release is **8.6.1**; setup downloads the pinned source for you.
 
 ## Quick Start
 
-Install the latest release:
+**1. Install Atlas.** On macOS or Linux:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf \
@@ -33,418 +30,62 @@ On Windows, use PowerShell:
 irm https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.ps1 | iex
 ```
 
-Run the standard first-time setup:
+Follow any PATH instructions printed by the installer so your terminal can find
+`atlas`.
+
+**2. Prepare your local data.**
 
 ```bash
 atlas setup
 ```
 
-`atlas setup` downloads the supported PF2E source and embedding model, builds
-local reference/search data, and verifies readiness. The first embedding build
-can take a while; later updates reuse compatible embeddings and retain saved
-lists and encounters.
+Run setup once after installation and again after upgrading to a newer version of
+Atlas. It downloads the Pathfinder reference content and a search model, then
+prepares them for local searching. The first run may take a while; later runs
+reuse work already completed.
 
-Open the browser workspace:
-
-```bash
-atlas web
-```
-
-Use the address printed by the command to search, preview records, organize lists
-and run encounters. From search or a record, use **Add to list** to choose an
-existing list or create one and add the record without leaving the page. Creatures
-and hazards use **Add to list or encounter**, with the same create-and-add flow for
-encounters. Encounter controls include initiative, HP, conditions, spell
-resources and dice; automation covers supported mechanics rather than every
-Foundry rule. Save named parties of PCs from Encounters, then use Add Party to
-add everyone together. Party members need only a name.
-
-### Search models and ranking
-
-Search supports two model profiles: `bge-base` (BGE Base) and
-`embeddinggemma` (EmbeddingGemma). Fresh setup uses BGE Base. Prepare either profile,
-or repeat the flag to keep both in one artifact:
+**3. Open Atlas.**
 
 ```bash
-atlas setup --search-profile bge-base --search-profile embeddinggemma
-atlas web --search-profile bge-base
-atlas search "forest guardian" --search-profile embeddinggemma
-atlas similar "Treat Wounds" --search-profile bge-base
+atlas web --open
 ```
 
-An explicit profile must be stored in the artifact; text semantic search also
-requires its verified model cache. Similar uses stored vectors without loading
-model weights. Each request uses one profile. A single-profile setup remains
-available when storage or memory is limited. `atlas setup --no-embeddings` creates a new
-workspace for lexical search and reference lookup without models. It preserves
-configured models in an existing workspace. Use `atlas search QUERY --retrieval fts`
-for text queries in a lexical-only workspace.
+Keep the command running while you use Atlas. If the browser does not open,
+visit the local address printed in the terminal.
 
-Without a profile flag, search and web use the sole stored profile, or BGE Base
-when both are stored. Running setup again without profile flags preserves the
-requested set for source updates. Explicit setup flags add profiles to that set.
-Setup repairs selected pinned assets in revision-specific cache directories;
-switching a built profile does not download assets or rebuild the artifact.
+Start with something you’re looking for—a particular spell, a creature concept,
+or an idea for your next session. Explore the results, save useful finds in lists,
+or bring creatures and hazards into an encounter.
 
-Hybrid search also offers two ranking strategies for comparison: `score` (the
-default, shown as **Score-based** in the browser) and `rrf` (**Rank-based**).
-Both use the same lexical projection and selected embedding model. Change the
-browser ranking picker or run `atlas search "harrowkin" --ranking score` to compare;
-switching does not rebuild search data. Ranking applies to hybrid text search,
-not alphabetical browsing or Similar records.
+See [Getting started](docs/getting-started.md) for your first list and encounter.
+For alternate versions, supported platforms or a manual download, see
+[Installation](docs/installation.md).
 
-Search settings also offers **Search content: Core sections**, which focuses
-matches on each record type's main content and its name and identity. Similar
-has a separate **Sections to compare** choice: All, Core or Custom. Core includes
-description-focused creatures, hazards' descriptions/routines/intrinsic actions,
-and other type-specific selections. Records without Core prose use their stored
-name and identity. The existing All settings remain the defaults.
-
-```bash
-atlas search "forest guardian" --search-content core
-atlas similar "Lich" --sections core --search-content all
-atlas similar "Brown Mold" --list-parts --sections core --json
-```
-
-Core reuses stored vectors and restricts existing word-search content; it does
-not make descriptions searchable through FTS. Browser preferences are remembered,
-while explicit search links keep their own settings.
-
-Browse, text search and Similar results can be ordered by name, level/rank or
-unit price. Open **Sort** in the browser or pass a CLI order such as
-`atlas search "healing" --kind spell --sort level_asc`. Sorting applies before
-pagination and preserves the search's matching set; semantic results still show
-bounded Top matches. Missing values appear last in either direction. Saved-list
-sorting is temporary and preserves the saved order. Add a second attribute rule
-to order ties, for example `--sort level_desc --sort unit_price_asc`.
-**Random** and **Shuffle** help explore matching records; a retained seed keeps
-the order repeatable while paging. In the CLI, use `--sort random --seed 42`, or
-omit `--seed` to generate one.
-
-In the browser, the document header’s **Explore** icon opens short previews of
-related records. **Search referring records** and **Search referenced records**
-open the complete filtered results in Search.
-Use **Links** beside the search filters to choose another entry. Each condition
-has its own direction and **Main entry only** / **Whole entry** scope. Advanced
-filters combine links and ordinary conditions with AND, OR and NOT. CLI search
-and Similar accept the same reference conditions through filter expressions.
-
-### Platforms and versions
-
-The installer installs only the `atlas` CLI. The persistent workspace lives in user application-data storage; downloaded source and models stay in cache locations managed by `atlas setup`.
-
-Release binaries are provided for Linux x64, Linux ARM64, macOS Apple Silicon,
-and Windows x64. macOS Intel and Windows ARM64 are not published as release
-binaries yet.
-
-Confirm the installed version:
-
-```bash
-atlas --version
-```
-
-To install a pinned version, use that release's installer URL:
-
-```bash
-curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/e-kosten/pf2e-atlas/releases/download/v0.1.0/atlas-installer.sh | sh
-```
-
-Release candidates are installed only from pinned URLs or with `ATLAS_VERSION`.
-
-### Nightly builds
-
-Nightlies are prerelease builds of `main` for everyday testing. They are published
-when the scheduled build finds a new commit and all checks pass. Stable releases
-remain an explicit maintainer action; the default installer selects stable.
-
-Install or update to the newest successful nightly on macOS/Linux:
-
-```bash
-curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/atlas-installer.sh \
-  | sh -s -- --version nightly
-```
-
-On Windows, download the installer and select the nightly version:
-
-```powershell
-Invoke-WebRequest https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/atlas-installer.ps1 -OutFile atlas-installer.ps1
-./atlas-installer.ps1 -Version nightly
-```
-
-The installer prints the dated release it resolved. `atlas --version` includes
-that build's UTC timestamp and source commit prefix. Each dated release retains
-its binaries, so you can reinstall a specific nightly with `--version <tag>`
-(or `-Version <tag>`). Repeat the nightly command to update; Atlas does not
-update itself automatically. Add `--yes` / `-Yes` for unattended replacement.
-
-To return to stable, run the installer with `--version latest` / `-Version latest`.
-Nightly and stable installations share the normal data paths; switching binaries
-does not restore older local data. Back up saved state before testing changes that
-migrate it, and rerun `atlas setup` if the selected build requires a rebuilt index.
-
-
-If you do not want to pipe an installer into a shell, download the cargo-dist archive for your OS from the [GitHub releases page](https://github.com/e-kosten/pf2e-atlas/releases), verify it against `SHA256SUMS`, extract `atlas`, put it on `PATH`, then run `atlas setup`.
-
-Early release binaries are unsigned. macOS or Windows may show an operating-system warning until signing and notarization are added in a later release.
-
-## Try It
-
-Search for something by meaning:
+## Use the CLI or an agent
 
 ```bash
 atlas search "low level healing spell" --kind spell --limit 5
-```
-
-Resolve a record by name:
-
-```bash
-atlas record resolve "Treat Wounds" --pack-name actionspf2e
-```
-
-Fetch records by keys (generally retrieved from other results and queries):
-
-```bash
-atlas record get actionspf2e:1kGNdIIhuglAjIp9
-atlas record get equipment-srd:s1vB3HdXjMigYAnY
-atlas record get equipment-srd:s1vB3HdXjMigYAnY --detail full
-atlas record get equipment-srd:s1vB3HdXjMigYAnY --json
-atlas record source equipment-srd:s1vB3HdXjMigYAnY --json
-```
-
-Human record reading supports summary, standard (default), and full detail.
-Full expands supported embedded records such as spells and journal pages.
-`record get SPELL_KEY --rank 5` previews a spell at a selected rank without
-spending encounter resources. Embedded spells retain their local casting context.
-
-`record get --json` returns the complete selected Atlas reference response and
-conflicts with explicit `--detail`. `record source --json` exports the checked
-Foundry DTO, including information outside Atlas's presentation. It includes typed
-presence/union tags and does not require the original source clone.
-
-Discover filters and follow references:
-
-```bash
-atlas filters fields
-atlas filters fields --group movement
-atlas filters fields --field defenses.hp.maximum
-atlas filters values --field traits --kind spell
-atlas search --kind creature --where 'movement.speeds.exists(s, s.type == "fly" && s.feet >= 30)'
-atlas similar 'Dirge of Doom' --kind spell
-atlas graph uses 'Frightened' --limit 5
-```
-
-Filters use supported CEL expressions with discoverable types, units and examples.
-Use explicit filters for constraints such as kind, level, rarity and traits;
-omitting query text browses matching records alphabetically. Constraints inside
-one collection `exists` apply to the same entry. Similar finds semantic neighbors;
-graph commands follow explicit references.
-
-Roll dice without a workspace or embedding model:
-
-```bash
-atlas roll '1d20+12'
-atlas roll '2d20kh1+12' # Keep the higher die
-atlas roll '(2d6+4)*2' --json
-```
-
-Use `kl` to keep the lowest dice. Human output shows the total and arithmetic;
-JSON retains individual dice and kept/dropped states. These rolls do not change
-encounter state.
-
-See [CLI examples](docs/cli-examples.md) for batch reads, embedded selections,
-filter collections, search comparison and saved lists.
-
-### Saved lists
-
-Create a list with resolved record keys, then add entries as needed:
-
-```sh
-atlas lists create fey-options --name "Fey Options" \
-  --record pathfinder-monster-core:lUBkzsSqMfQBczU1 \
-  --record pathfinder-monster-core:Ehtm5k9iBYTvSUcZ
-atlas lists show fey-options
-atlas lists add fey-options --record pathfinder-monster-core:lUBkzsSqMfQBczU1
-atlas lists note fey-options pathfinder-monster-core:lUBkzsSqMfQBczU1 \
-  --text "A potential garden ally"
-```
-
-Creation rejects an existing list id; use `lists add` to extend it. Batches report
-added, already present and failed inputs. Valid entries are saved together; any
-failed input gives a nonzero exit status. If every input fails resolution, the
-new list is empty. A storage failure rolls back the complete action.
-
-Notes belong to an entry in one list and survive reference updates and list
-export/import. Use `lists note <ID> <KEY> --clear` to clear one. In the web app,
-the selected entry's note stays beneath the scrolling preview.
-
-Install shell completion with `atlas completions zsh` (or `bash`, `fish`,
-`powershell`, `elvish`). For example, in zsh:
-
-```sh
-source <(atlas completions zsh)
-```
-
-Supported live completion shells suggest saved-list ids and canonical record keys
-from the selected workspace, including `--index` and `--path-mode` overrides.
-Completion skips workspace upgrades and model loading; an unavailable workspace
-returns no saved-value suggestions. Regenerate completion scripts after upgrading.
-
-## Agent Skill
-
-The CLI includes a first-party skill that teaches local coding agents how to use Atlas for PF2E lookup, search, filter discovery, and graph context.
-
-With Atlas installed, use its bundled skill (matched to that CLI version) and
-choose the agent target you use:
-
-```bash
 atlas agent skills install
 ```
 
-For scripts or setup automation, provide the target and scope directly:
+The skill installer lets you choose your agent and installation scope.
+See [CLI examples](docs/cli-examples.md) for lookup, filters, lists and JSON,
+and [agent skill installation](docs/installation.md#agent-skill) for updates and automation.
 
-```bash
-atlas agent skills install --target agents --scope workspace --yes --json
-```
+## Documentation
 
-Supported targets are `agents`, `claude`, `codex`, `copilot`, `gemini`, and `kiro`.
+| I want to… | Read |
+| --- | --- |
+| Browse, save records and run an encounter | [Getting started](docs/getting-started.md) |
+| Change search settings or explore related records | [Search guide](docs/search.md) |
+| Install, update, try a nightly or build from source | [Installation](docs/installation.md) |
+| Check setup, clean caches or choose data locations | [Setup and maintenance](docs/setup-and-maintenance.md) |
+| Use commands or structured output | [CLI examples](docs/cli-examples.md) |
+| Contribute code or documentation | [Contributing](CONTRIBUTING.md) |
+| Understand internal boundaries and decisions | [Architecture](docs/architecture/overview.md) |
 
-To inspect existing installs or diagnose a changed skill directory, use:
-
-```bash
-atlas agent skills doctor
-```
-
-After upgrading Atlas, rerun the skill installer to update the installed copy.
-A differing copy requires `--force`; review local edits before replacing it.
-The skill is bundled with the executable, so install it from the Atlas version
-you intend the agent to use.
-
-You can also install the skill independently with Node.js and the
-[skills CLI](https://github.com/vercel-labs/skills):
-
-```bash
-npx skills add e-kosten/pf2e-atlas --skill pf2e-atlas-cli
-```
-
-The interactive installer lets you select agents and installation scope. For a
-global Codex installation:
-
-```bash
-npx skills add e-kosten/pf2e-atlas --skill pf2e-atlas-cli --agent codex --global
-```
-
-This installs only the skill, not Atlas or its data. The skill includes CLI
-installation and setup guidance. The repository's `main` skill tracks the nightly
-CLI; use the bundled installer for a release-matched copy. Use the installation
-method you chose to update that copy; Atlas's installer does not manage the
-skills CLI's symlinks or lockfiles.
-
-## Maintenance
-
-Check setup status without changing local data:
-
-```bash
-atlas setup --check
-```
-
-Use already-downloaded data without network access:
-
-```bash
-atlas setup --offline
-```
-
-Remove selected local data:
-
-```bash
-atlas setup clean --embeddings --check
-atlas setup clean --all --yes
-```
-
-Cleanup supports `--embeddings`, `--source-checkout`, and `--all`, with `--check` for a dry run. It removes external caches, never the persistent workspace or saved lists and encounters. Cleanup that selects every cache target requires `--yes` unless `--check` is used.
-
-To uninstall the CLI, remove the `atlas` binary from the path printed by the installer. Your workspace remains in application-data storage.
-
-## Advanced Data Locations
-
-The default setup stores the durable workspace in platform application-data storage and downloaded source/models in user cache storage. The installed CLI can be used from any directory after setup.
-
-- `--path-mode global` uses `pf2e-atlas/workspace.sqlite` under platform application data, with external caches under the platform user cache directory.
-- `--path-mode repo` is a contributor mode that uses paths inside this repository:
-  - pinned source cache: `.cache/pf2e/<supported-commit>`
-  - embedding model cache: `.cache/hf-models`
-  - persistent workspace: `.atlas/workspace.sqlite`
-
-Default reference data and generated models use the same immutable PF2e revision
-(currently 8.6.1). Setup fetches that revision rather than following upstream's
-latest branch. Supplied source directories are never pulled or checked out by
-Atlas; incompatible PF2e system versions produce an expected/detected version error.
-
-You can select workspace/cache paths for a command and override the source used by setup:
-
-- `--source /path/to/pf2e`
-- `--output /path/to/workspace.sqlite`
-- `--index /path/to/workspace.sqlite`
-- `--embedding-cache-path /path/to/hf-models`
-
-Setup updates reference data inside the existing workspace, preserving lists and
-encounters. Source, manifest, locale and requested profiles persist independently
-of successful builds. Schema upgrades use migrations; supported new filter
-projections are rebuilt from stored source DTOs. Changed preparation or model
-inputs require corresponding work, while exact compatible vectors are reused
-from durable checkpoints. Interrupted work can resume without discarding saved
-state or already committed inference batches. Maintenance temporarily prevents
-normal access during publication or upgrades. The older separate-index/state
-pre-release formats require a fresh workspace;
-they are not converted automatically. Do not delete a workspace to resolve a
-readiness error; inspect `atlas setup --check` first.
-
-## Automation And JSON
-
-Most commands support `--json`. Successful payloads are under `data`, and
-command-wide failures are under `error`. `record get` and `record resolve` return
-ordered `data.results` with per-input status and successful values or errors;
-the outer status may be `partial`. Preserve successful siblings and inspect both
-the payload and exit code. See [CLI examples](docs/cli-examples.md#readiness-and-json)
-for the batch and exit-code contract.
-
-Artifact validation against an invalid artifact is still a successful command invocation: it returns `status: "ok"` with `data.valid: false` and exits with code `3`.
-
-Example:
-
-```bash
-atlas index validate --json
-```
-
-## Install From Source
-
-For source installation, install Rust 1.95 or newer and Node.js 22 (the CI version).
-Build the frontend once, then install the CLI (which embeds that frontend):
-
-```bash
-npm --prefix web/atlas-ui ci
-npm --prefix web/atlas-ui run build
-cargo install --path crates/atlas-cli --locked
-```
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for source development and diagnostic commands.
-
-## Further Reading
-
-- [docs/getting-started.md](./docs/getting-started.md) for first-run setup and core lookup workflows
-- [docs/cli-examples.md](./docs/cli-examples.md) for task-oriented CLI recipes
-- [CONTRIBUTING.md](./CONTRIBUTING.md) for contributor workflow, validation commands, and repo layout
-- [docs/architecture](./docs/architecture/overview.md) for architecture, artifact, and crate ownership docs
-
-## Contact
-
-For questions about PF2e Atlas, use the [GitHub issue tracker](https://github.com/e-kosten/pf2e-atlas/issues).
+Questions or problems? Use the [issue tracker](https://github.com/e-kosten/pf2e-atlas/issues).
 
 ## Paizo Community Use Notice
-
-Acquired reference content has separate content licenses from Atlas's Apache 2.0
-code. See the [trait description provenance review](docs/research/trait-description-provenance.md)
-for pinned source evidence and the remaining paragraph-level attribution work.
 
 PF2e Atlas uses trademarks and/or copyrights owned by Paizo Inc., used under Paizo's Community Use Policy (paizo.com/licenses/communityuse). We are expressly prohibited from charging you to use or access this content. PF2e Atlas is not published, endorsed, or specifically approved by Paizo. For more information about Paizo Inc. and Paizo products, visit paizo.com.

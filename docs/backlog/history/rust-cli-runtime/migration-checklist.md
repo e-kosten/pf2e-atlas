@@ -2,7 +2,7 @@
 
 Status: historical migration baseline
 Primary product surface: `atlas` CLI plus first-party agent skill
-Architecture decisions: [ADR 0017](../../../architecture/decisions/0017-rust-runtime-cli-first-migration.md), [ADR 0026](../../../architecture/decisions/0026-rust-cli-product-surface.md)
+Architecture decisions: [ADR 0017](../../../architecture/decisions/history/0017-rust-runtime-cli-first-migration.md), [ADR 0026](../../../architecture/decisions/0026-rust-cli-product-surface.md)
 Roadmap: [migration-roadmap.md](../../rust-cli-runtime/migration-roadmap.md)
 
 This checklist records the original Rust runtime migration. Current storage and

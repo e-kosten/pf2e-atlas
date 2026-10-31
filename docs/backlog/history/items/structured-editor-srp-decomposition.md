@@ -29,8 +29,8 @@ Current owners:
 
 ## Related
 
-- [TUI architecture](../../../architecture/node/tui.md)
-- [Architectural boundaries](../../../architecture/node/boundaries.md)
-- [ADR 0013: TUI canonical search state and derived editor projections](../../../architecture/decisions/0013-tui-canonical-search-state-and-derived-editor-projections.md)
-- [ADR 0015: shared explorer host contract and live group editing](../../../architecture/decisions/0015-shared-explorer-host-contract-and-live-group-editing.md)
+- [TUI architecture](https://github.com/e-kosten/pf2e-atlas/blob/13f6e7faa36355bbae154ad1df613ee6eee15550/docs/architecture/node/tui.md)
+- [Architectural boundaries](https://github.com/e-kosten/pf2e-atlas/blob/13f6e7faa36355bbae154ad1df613ee6eee15550/docs/architecture/node/boundaries.md)
+- [ADR 0013: TUI canonical search state and derived editor projections](../../../architecture/decisions/history/0013-tui-canonical-search-state-and-derived-editor-projections.md)
+- [ADR 0015: shared explorer host contract and live group editing](../../../architecture/decisions/history/0015-shared-explorer-host-contract-and-live-group-editing.md)
 - [Structured editor continuation model convergence](./structured-editor-continuation-model-convergence.md)

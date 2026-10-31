@@ -1,6 +1,12 @@
 # ADR 0010: Shared SearchRequest Semantic Contract
 
-- Status: Superseded in part by ADR 0011 and ADR 0013
+> This records the retired TypeScript MCP/TUI architecture. For current owners,
+> read the [architecture overview](../../overview.md) and
+> [active decisions](../README.md). [ADR0026](../0026-rust-cli-product-surface.md)
+> records the product replacement.
+
+
+- Status: Historical (superseded in part by ADR 0011 and ADR 0013 in the retired TypeScript runtime)
 - Date: 2026-04-21
 
 ## Context

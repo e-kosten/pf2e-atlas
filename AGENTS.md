@@ -95,7 +95,9 @@ Move remaining durable work into the tracked backlog.
 
 Respect tracked hooks. Commit hooks check formatting/whitespace; substantive
 validation and independent review are explicit pre-PR responsibilities.
-Documentation-only changes need document checks, not unrelated Rust/UI gates.
+For documentation, follow the [audience and task guidance](docs/development/documentation.md#write-for-the-pages-reader)
+and check the reader's complete task path. Prose-only changes need document checks,
+not unrelated Rust/UI gates.
 Keep local/CI results and any unavailable review evidence explicit.
 
 After an authorized task's PR merges or the task is canceled, follow the cleanup

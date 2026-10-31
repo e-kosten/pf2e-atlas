@@ -41,5 +41,5 @@ The model should:
 - RichDocument production migration plan (historical untracked reference: `../../../../scratch/plans/archive/2026-06/2026-06-02-rich-document-production-migration.md`)
 - [Runtime architecture](../../../architecture/runtime.md)
 - [Rust artifact contract](../../../architecture/artifact-contract.md)
-- [Rust content documents ADR](../../../architecture/decisions/0020-rust-content-documents.md)
+- [Rust content documents ADR](../../../architecture/decisions/history/0020-rust-content-documents.md)
 - [Rust CLI content output formats](../../items/rust-cli-content-output-formats.md)
