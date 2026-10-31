@@ -56,6 +56,8 @@ an update; rerun the search to get a current address.
 
 ## Compare Search Profiles And Ranking
 
+See the [search guide](search.md) for browser settings, Core content and sorting.
+
 Prepare both profiles once (this may download a model and run inference):
 
 ```bash
@@ -87,7 +89,10 @@ stored vectors without inference:
 atlas similar 'Dirge of Doom' --kind spell --search-profile embeddinggemma --limit 8
 ```
 
-Similar uses the seed's root identity vector, not every passage in its document.
+Record Similar defaults to Passage matches over selected content. Use
+`--method baseline` for Name and identity, or `--method content-average` to compare
+content averages. Trait Similar defaults to Trait definition. Use `--list-parts`
+to inspect selectable sections; see the [search guide](search.md) for Core scopes.
 Filters constrain candidate results, not the seed lookup. If the seed name is
 ambiguous, resolve it separately and pass its canonical key.
 
@@ -223,6 +228,19 @@ atlas lists export undead-research --output undead-research.json
 atlas lists import undead-research.json --json
 ```
 
+Creation rejects an existing list ID; use `lists add` to extend it. Batches report
+added, already present and failed inputs. Valid entries are saved together; a failed
+input gives a nonzero exit. If every input fails resolution, a new list is empty.
+A storage failure rolls back the complete action.
+
+Notes belong to one entry in one list and survive updates and export/import.
+Copy the canonical key from `lists show`, then set or clear its note:
+
+```bash
+atlas lists note undead-research PACK:ID --text 'A potential garden sentry'
+atlas lists note undead-research PACK:ID --clear
+```
+
 Reference updates preserve lists and encounters in the shared workspace. Missing
 records retain saved snapshots and unresolved status. Encounters are managed in
 the web app, not through an encounter CLI command.
@@ -260,3 +278,17 @@ remaining inputs `unprocessed`; keep successful siblings. Their outer status is
 input and 3 runtime failure; mixed record failures use the highest code.
 Index validation can return `status: "ok"` with `data.valid: false` and exit 3.
 Check both exit status and payload before treating output as a successful answer.
+
+## Shell completion
+
+Generate completion with `atlas completions zsh` (or `bash`, `fish`, `powershell`,
+`elvish`). For the current zsh session:
+
+```sh
+source <(atlas completions zsh)
+```
+
+Supported live completion shells suggest saved-list IDs and canonical record keys
+from the selected workspace, respecting `--index` and `--path-mode` overrides.
+Completion does not upgrade the workspace or load models; an unavailable workspace
+returns no saved-value suggestions. Regenerate scripts after upgrading Atlas.
