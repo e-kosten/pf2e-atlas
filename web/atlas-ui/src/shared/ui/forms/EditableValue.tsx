@@ -40,11 +40,13 @@ export function EditableValue({
     setEditing(false);
   };
   useLayoutEffect(() => {
-    if (!editing && returnFocus.current) {
+    if (!editing && !disabled && returnFocus.current) {
       returnFocus.current = false;
-      trigger.current?.focus({ preventScroll: true });
+      if (document.activeElement === document.body) {
+        trigger.current?.focus({ preventScroll: true });
+      }
     }
-  }, [editing, trigger]);
+  }, [disabled, editing, trigger]);
   return editing ? (
     <span ref={editor} className={editorClassName}>
       <EditableCommitField
