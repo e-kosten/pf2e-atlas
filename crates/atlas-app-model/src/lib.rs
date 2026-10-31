@@ -158,8 +158,8 @@ pub use filter::{
 pub use graph::{
     GraphContextView, GraphContextViewRequest, GraphSectionView, RecordListView,
     RelatedCategoryView, RelatedRecordsRequest, RelatedRecordsView, RemasterLinkView,
-    RemasterLinksView, SearchResultsView, SimilarRecordsView, VariantEvidenceView,
-    VariantGroupView,
+    RemasterLinksView, RemasterProvenanceView, SearchResultsView, SimilarRecordsView,
+    VariantEvidenceView, VariantGroupView,
 };
 pub use list::{
     AddSavedListItemRequest, BatchAddSavedListItemsRequest, BatchSavedListItemInput,

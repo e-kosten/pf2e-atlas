@@ -995,6 +995,37 @@ fn verified_name_aliases_never_invent_legacy_record_pairs() {
             .unwrap(),
         1
     );
+    let json: String = database
+        .query_row("SELECT evidence_json FROM remaster_pairs", [], |r| r.get(0))
+        .unwrap();
+    let provenance: atlas_record::source_content::SourceContentLocator =
+        serde_json::from_str(&json).unwrap();
+    assert_eq!(provenance.record.to_string(), "journals:ffffffffffffffff");
+    assert_eq!(
+        provenance.owners,
+        vec![atlas_domain::OwnedContentLocator {
+            collection: "/pages".into(),
+            identity: atlas_domain::OwnedContentIdentity::Stable("hhhhhhhhhhhhhhhh".into())
+        }]
+    );
+    assert_eq!(provenance.field, "/text/content");
+    drop(database);
+    let reopened = atlas_index::test_support::open_reader(&report.output_path).unwrap();
+    let links = reopened
+        .read_remaster_links(&"actions:aaaaaaaaaaaaaaaa".parse().unwrap())
+        .unwrap();
+    assert_eq!(links.len(), 1);
+    assert_eq!(links[0].provenance, provenance);
+    assert!(
+        reopened
+            .read_source_record(&provenance.record)
+            .unwrap()
+            .unwrap()
+            .authored_content_at(&provenance)
+            .value()
+            .unwrap()
+            .contains("@UUID")
+    );
 }
 #[test]
 #[ignore = "requires pinned full source and verified local tokenizer; run explicitly"]

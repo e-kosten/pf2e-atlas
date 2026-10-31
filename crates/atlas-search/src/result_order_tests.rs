@@ -424,7 +424,7 @@ fn sorting_ties_keep_canonical_keys_and_relationship_scopes_do_not_rebind_editio
             record(
                 "items",
                 "Item",
-                json!({"_id":"0000000000000000","type":"equipment","name":"Legacy","_stats":{"compendiumSource":"Compendium.pf2e.items.Item.0000000000000002"}}),
+                json!({"_id":"0000000000000000","type":"equipment","name":"Legacy","system":{"description":{"value":"Fixture edition declaration"}},"_stats":{"compendiumSource":"Compendium.pf2e.items.Item.0000000000000002"}}),
             ),
             record(
                 "items",
@@ -444,7 +444,11 @@ fn sorting_ties_keep_canonical_keys_and_relationship_scopes_do_not_rebind_editio
         .push(atlas_index::SourceRemasterPairInput {
             legacy: key(0),
             remaster: key(1),
-            evidence: "verified source pair".into(),
+            provenance: atlas_record::source_content::SourceContentLocator {
+                record: key(0),
+                owners: vec![],
+                field: "/system/description/value".into(),
+            },
         });
     let (service, _artifact) = open_input_fixture(fixture).unwrap();
     let keys = [key(0), key(1)];

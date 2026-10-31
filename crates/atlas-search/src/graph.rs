@@ -44,7 +44,7 @@ pub struct RemasterLinksRequest<'a> {
 pub struct RemasterLinkResult {
     pub legacy_record: SourceRecordSummary,
     pub remaster_record: SourceRecordSummary,
-    pub evidence: String,
+    pub provenance: atlas_record::source_content::SourceContentLocator,
 }
 #[derive(Debug, Clone)]
 pub struct RemasterLinksResult {
@@ -154,7 +154,7 @@ impl AtlasRetrievalService {
                         "verified pair remaster summary absent",
                     )
                 })?,
-                evidence: pair.evidence,
+                provenance: pair.provenance,
             });
         }
         Ok(Some(RemasterLinksResult { seed, links }))

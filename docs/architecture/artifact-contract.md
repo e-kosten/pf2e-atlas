@@ -500,6 +500,24 @@ identity, rehydrating all neighbors in the
 consuming snapshot. Index still owns the masked native query and location decoder;
 search owns bounded transient retention. See [ADR0062](decisions/0062-exact-text-neighbor-reuse.md).
 
+Remaster pair `evidence_json` stores a typed `SourceContentLocator`: source record,
+checked embedded owners and field. Ingest captures the actual journal field that
+contains both explicit endpoint references. Alias provenance remains a separate
+string contract. Relationship preparation `typed-authored-occurrences/v7` requires
+normal source-backed rebuilding of previous evidence; it changes no physical
+schema or published migration checksum. Setup preserves saved lists/encounters,
+record identities and compatible vector reuse. Without compatible source, old
+reference preparation remains unavailable with the normal rebuild guidance.
+
+Checked publication and explicit full validation decode every remaster citation
+and verify its source field against checked content. Ordinary suppression reads
+only relevant legacy identities through complete SQL candidate membership at both
+endpoints, with one JSON-bound candidate relation and no provenance decoding.
+Unrelated malformed provenance therefore cannot fail a valid search; detail
+consumers still decode their selected citations and never fabricate navigation.
+App-service projects readable record/page attribution and a typed exact destination
+at Other editions, shared with CLI/API remaster links.
+
 Legacy suppression occurs only when its verified remaster also matches the complete
 current request, before paging. A legacy-only match remains visible, and exact key
 lookup remains available. Suggested variants are bounded evidence-backed same-pack,

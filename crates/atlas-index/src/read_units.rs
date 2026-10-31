@@ -69,7 +69,7 @@ pub struct SourceIdentityMatch {
 pub struct SourceRemasterPair {
     pub legacy: RecordKey,
     pub remaster: RecordKey,
-    pub evidence: String,
+    pub provenance: atlas_record::source_content::SourceContentLocator,
 }
 #[derive(Debug, Clone)]
 pub struct SourceIdentityVector {
@@ -373,39 +373,29 @@ impl SqliteIndexReader {
             })
             .collect()
     }
-    /// Preference evidence is returned only where both requested roots matched.
-    pub fn matched_remaster_pairs(
-        &self,
-        keys: &[RecordKey],
-    ) -> Result<Vec<SourceRemasterPair>, IndexError> {
+    /// Legacy roots hidden only when both endpoints belong to the complete matching set.
+    /// Publication and explicit validation own provenance integrity; suppression does
+    /// not consume citations. One JSON parameter keeps large sets within bind limits.
+    pub fn matched_legacy_keys(&self, keys: &[RecordKey]) -> Result<Vec<RecordKey>, IndexError> {
         if keys.is_empty() {
             return Ok(Vec::new());
         }
-        let requested = keys.iter().collect::<std::collections::BTreeSet<_>>();
+        let requested = serde_json::to_string(keys)?;
         let c = self.native()?;
         self.count_statement();
-        let mut statement = c.prepare("SELECT l.key,m.key,rp.evidence_json FROM remaster_pairs rp JOIN records l ON l.record_id=rp.legacy_record_id JOIN records m ON m.record_id=rp.remaster_record_id WHERE l.document_kind<>'Macro' AND m.document_kind<>'Macro' ORDER BY l.key,m.key")?;
-        let values = statement
-            .query_map([], |r| {
-                Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, String>(1)?,
-                    r.get::<_, String>(2)?,
-                ))
-            })?
-            .collect::<Result<Vec<_>, _>>()?;
-        values
-            .into_iter()
-            .map(|(legacy, remaster, evidence)| {
-                Ok(SourceRemasterPair {
-                    legacy: parse_key(legacy)?,
-                    remaster: parse_key(remaster)?,
-                    evidence: serde_json::from_str(&evidence)?,
-                })
-            })
-            .filter(|pair| match pair {
-                Ok(pair) => requested.contains(&pair.legacy) && requested.contains(&pair.remaster),
-                Err(_) => true,
+        let mut statement = c.prepare(
+            "WITH requested AS MATERIALIZED (SELECT DISTINCT r.record_id FROM json_each(?1) k JOIN records r ON r.key=k.value WHERE r.document_kind<>'Macro')
+             SELECT DISTINCT l.key FROM requested legacy
+             JOIN remaster_pairs p ON p.legacy_record_id=legacy.record_id
+             JOIN records l ON l.record_id=p.legacy_record_id
+             WHERE p.remaster_record_id IN (SELECT record_id FROM requested)
+             ORDER BY l.key",
+        )?;
+        statement
+            .query_map([requested], |r| r.get::<_, String>(0))?
+            .map(|row| {
+                self.count_remaster_row(false);
+                parse_key(row?)
             })
             .collect()
     }
@@ -586,10 +576,11 @@ impl SqliteIndexReader {
         })?
         .map(|r| {
             let (l, m, e) = r?;
+            self.count_remaster_row(true);
             Ok(SourceRemasterPair {
                 legacy: parse_key(l)?,
                 remaster: parse_key(m)?,
-                evidence: serde_json::from_str(&e)?,
+                provenance: serde_json::from_str(&e)?,
             })
         })
         .collect()

@@ -252,8 +252,11 @@ impl AtlasRetrievalService {
     ) -> Result<Vec<RankedRoot>, SearchError> {
         if prefer {
             let keys = roots.iter().map(|r| r.key.clone()).collect::<Vec<_>>();
-            let pairs = self.index.matched_remaster_pairs(&keys)?;
-            let removed = pairs.into_iter().map(|p| p.legacy).collect::<BTreeSet<_>>();
+            let removed = self
+                .index
+                .matched_legacy_keys(&keys)?
+                .into_iter()
+                .collect::<BTreeSet<_>>();
             roots.retain(|r| !removed.contains(&r.key));
         }
         Ok(roots)

@@ -27,7 +27,15 @@ pub struct RemasterLinksView {
 pub struct RemasterLinkView {
     pub legacy_record: RecordSummaryView,
     pub remaster_record: RecordSummaryView,
-    pub evidence: String,
+    pub provenance: RemasterProvenanceView,
+}
+/// Authored field attribution, without a claim to an exact row or text span.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RemasterProvenanceView {
+    pub source: crate::ContentLocationView,
+    pub attribution: String,
+    pub navigation: Option<crate::RecordNavigationView>,
+    pub unavailable_reason: Option<String>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct VariantGroupView {

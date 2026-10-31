@@ -311,13 +311,17 @@ fn malformed_location_metadata_fails_on_hits_and_cold_reads_then_recovers() {
 }
 
 #[test]
-fn malformed_global_remaster_evidence_is_not_hidden_by_nonempty_hits_or_empty_windows() {
+fn unrelated_malformed_remaster_provenance_does_not_break_search_or_neighbor_reuse() {
     let mut data = fixture();
     data.remaster_pairs
         .push(atlas_index::SourceRemasterPairInput {
             legacy: "items:0000000000000002".parse().unwrap(),
             remaster: "items:0000000000000003".parse().unwrap(),
-            evidence: "fixture".into(),
+            provenance: atlas_record::source_content::SourceContentLocator {
+                record: "items:0000000000000002".parse().unwrap(),
+                owners: vec![],
+                field: "/system/description/value".into(),
+            },
         });
     let (service, artifact) = crate::test_support::open_input_fixture(data).unwrap();
     drop(service);
@@ -330,60 +334,25 @@ fn malformed_global_remaster_evidence_is_not_hidden_by_nonempty_hits_or_empty_wi
             r.filter = Some(predicate);
             r
         };
-        open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
+        let expected = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
             .search_text(request())
             .unwrap();
+        for bad in ["{}", "not-json"] {
+            mutate(
+                &artifact.path(),
+                &format!("UPDATE remaster_pairs SET evidence_json='{bad}'"),
+            );
+            let actual = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
+                .search_text(request())
+                .unwrap();
+            let cold = open(&artifact.path(), None, "bge-base", "Ember", 0)
+                .search_text(request())
+                .unwrap();
+            assert_eq!(signature(&actual), signature(&expected));
+            assert_eq!(signature(&actual), signature(&cold));
+            assert!(atlas_index::validate_artifact(artifact.path()).is_err());
+        }
     }
-    for bad in ["{}", "not-json"] {
-        mutate(
-            &artifact.path(),
-            &format!("UPDATE remaster_pairs SET evidence_json='{bad}'"),
-        );
-        let request = || {
-            let mut r = TextSearchRequest::new("Ember", SearchPage::first(2).unwrap());
-            r.filter = Some(filter.predicate());
-            r
-        };
-        let mut hit = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0);
-        let hit_error = hit.search_text(request()).unwrap_err();
-        let cold_error = open(&artifact.path(), None, "bge-base", "Ember", 0)
-            .search_text(request())
-            .unwrap_err();
-        assert_eq!(hit_error.kind(), cold_error.kind());
-        assert_eq!(hit_error.to_string(), cold_error.to_string());
-        assert_eq!(hit.read_metrics().knn_queries, 0);
-        let request = || {
-            let mut r = TextSearchRequest::new("Ember", SearchPage::first(2).unwrap());
-            r.filter = Some(&empty);
-            r
-        };
-        let actual = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
-            .search_text(request())
-            .unwrap();
-        let expected = open(&artifact.path(), None, "bge-base", "Ember", 0)
-            .search_text(request())
-            .unwrap();
-        assert_eq!(signature(&actual), signature(&expected));
-    }
-    mutate(
-        &artifact.path(),
-        r#"UPDATE remaster_pairs SET evidence_json='"fixture"'; UPDATE record_identity SET key='invalid-key' WHERE key='items:0000000000000002'; UPDATE records SET key='invalid-key' WHERE key='items:0000000000000002'"#,
-    );
-    let request = || {
-        let mut r = TextSearchRequest::new("Ember", SearchPage::first(2).unwrap());
-        r.filter = Some(filter.predicate());
-        r
-    };
-    let hit = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
-        .search_text(request())
-        .unwrap_err();
-    let cold = open(&artifact.path(), None, "bge-base", "Ember", 0)
-        .search_text(request())
-        .unwrap_err();
-    assert_eq!(
-        (hit.kind(), hit.to_string()),
-        (cold.kind(), cold.to_string())
-    );
 }
 
 #[test]

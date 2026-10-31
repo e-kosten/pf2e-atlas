@@ -29,6 +29,8 @@ pub struct SourceReadMetrics {
     pub source_body_decodes: usize,
     pub prepared_content_batches: usize,
     pub summary_batches: usize,
+    pub remaster_pair_rows: usize,
+    pub remaster_provenance_decodes: usize,
 }
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SourceReadCapabilities {
@@ -77,6 +79,17 @@ impl SqliteIndexReader {
         let mut m = self.read_metrics.get();
         m.prepared_content_batches += 1;
         self.read_metrics.set(m);
+    }
+    pub(crate) fn count_remaster_row(&self, provenance: bool) {
+        #[cfg(any(test, feature = "test-support"))]
+        {
+            let mut m = self.read_metrics.get();
+            m.remaster_pair_rows += 1;
+            m.remaster_provenance_decodes += usize::from(provenance);
+            self.read_metrics.set(m);
+        }
+        #[cfg(not(any(test, feature = "test-support")))]
+        let _ = provenance;
     }
     pub(crate) fn count_statement(&self) {
         #[cfg(any(test, feature = "test-support"))]

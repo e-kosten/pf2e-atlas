@@ -380,7 +380,11 @@ fn remaster_preference_does_not_rebind_an_exact_reference() {
         .push(atlas_index::SourceRemasterPairInput {
             legacy: key("items", "bbbbbbbbbbbbbbbb"),
             remaster: key("items", "cccccccccccccccc"),
-            evidence: "source relationship".into(),
+            provenance: atlas_record::source_content::SourceContentLocator {
+                record: key("items", "bbbbbbbbbbbbbbbb"),
+                owners: vec![],
+                field: "/system/description/value".into(),
+            },
         });
     let (service, _artifact) = open_input_fixture(fixture).unwrap();
     let constraints = [criterion(

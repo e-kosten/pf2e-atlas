@@ -170,9 +170,6 @@ pub(crate) fn aliases(
     }
     let mut kept = BTreeSet::new();
     for pair in &input.remaster_pairs {
-        if pair.evidence.trim().is_empty() {
-            return Err(IndexError::Invalid("remaster pair has no evidence".into()));
-        }
         let legacy = crate::writer::product_id(ids, &pair.legacy)?;
         if !kept.insert(legacy) {
             return Err(IndexError::Invalid("duplicate remaster pair".into()));
@@ -183,7 +180,7 @@ pub(crate) fn aliases(
             "remaster_record_id",
             crate::writer::product_id(ids, &pair.remaster)?,
         );
-        row.text("evidence_json", serde_json::to_string(&pair.evidence)?);
+        row.text("evidence_json", serde_json::to_string(&pair.provenance)?);
         upsert(c, &row, "legacy_record_id")?;
     }
     remove_unkept(c, "remaster_pairs", "legacy_record_id", &kept)?;

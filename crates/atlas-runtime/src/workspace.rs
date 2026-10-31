@@ -352,6 +352,7 @@ mod tests {
                 "selected-source-catalog/english-fallback/v1",
             ),
             ("relationship_policy", "typed-authored-occurrences/v4"),
+            ("relationship_policy", "typed-authored-occurrences/v6"),
             ("content_interpretation_version", "foundry-content/v8"),
             ("trait_policy", ""),
         ] {

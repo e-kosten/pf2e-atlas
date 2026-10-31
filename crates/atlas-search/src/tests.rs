@@ -312,7 +312,11 @@ fn exact_key_resolution_obeys_filters_without_suppressing_legacy_identity() {
     fixture.remaster_pairs.push(SourceRemasterPairInput {
         legacy: legacy.clone(),
         remaster: key("bbbbbbbbbbbbbbbb"),
-        evidence: "verified source relation".into(),
+        provenance: atlas_record::source_content::SourceContentLocator {
+            record: legacy.clone(),
+            owners: vec![],
+            field: "/system/description/value".into(),
+        },
     });
     let (_dir, service) = service(fixture);
     let legacy_ref = legacy.to_string();
@@ -358,7 +362,11 @@ fn pair_preference_is_conditional_and_precedes_paging() {
     fixture.remaster_pairs.push(SourceRemasterPairInput {
         legacy: key("aaaaaaaaaaaaaaaa"),
         remaster: key("bbbbbbbbbbbbbbbb"),
-        evidence: "verified source relation".into(),
+        provenance: atlas_record::source_content::SourceContentLocator {
+            record: key("aaaaaaaaaaaaaaaa"),
+            owners: vec![],
+            field: "/system/description/value".into(),
+        },
     });
     let (_dir, mut service) = service(fixture);
     let both = search(&mut service, "flame");
@@ -1261,7 +1269,11 @@ fn similar_filters_and_verified_remaster_policy_are_preserved() {
     fixture.remaster_pairs.push(SourceRemasterPairInput {
         legacy: key("bbbbbbbbbbbbbbbb"),
         remaster: key("cccccccccccccccc"),
-        evidence: "verified source relation".into(),
+        provenance: atlas_record::source_content::SourceContentLocator {
+            record: key("bbbbbbbbbbbbbbbb"),
+            owners: vec![],
+            field: "/system/description/value".into(),
+        },
     });
     let (_, service) = service(fixture);
     let filtered = service.parse_where("level >= 2").unwrap();

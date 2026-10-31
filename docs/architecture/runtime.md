@@ -879,3 +879,13 @@ English time-unit captions supply Duration plus singular/plural unit labels.
 Damage/healing categories come from parsed source tags, not display-string tests.
 The browser renders these facts and binds each dialog name to its visible heading.
 These presentation changes require no artifact re-preparation or locale changes.
+
+### Remaster provenance preparation
+
+Relationship policy v7 replaces opaque remaster evidence with directly captured
+source-content locators. Existing workspaces use source-backed setup preparation,
+atomic checked publication and saved-state preservation; old strings are never
+converted. Suppression consumes only matching pair identities in index-owned SQL.
+Publication and explicit full validation check all citations; ordinary search does
+not scan unrelated provenance. App-service supplies shared readable attribution
+and exact source-field navigation for Other editions and CLI/API consumers.
