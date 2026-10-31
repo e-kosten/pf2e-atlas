@@ -11,7 +11,7 @@ fn fixture() -> crate::test_support::FixtureWorker {
             record(
                 "items",
                 "Item",
-                json!({"_id":id,"type":"equipment","name":name,"system":{"level":{"value":1},"price":{"value":{"cp":cp},"per":per}}}),
+                json!({"_id":id,"type":"equipment","name":name,"system":{"level":{"value":1},"price":{"value":{"cp":cp},"per":per},"description":{"value":"Explicit fixture edition declaration."}}}),
             )
         };
         let mut fixture = input(
@@ -23,7 +23,7 @@ fn fixture() -> crate::test_support::FixtureWorker {
             ],
             false,
         );
-        fixture.remaster_pairs.push(serde_json::from_value(json!({"legacy":"items:0000000000000002","remaster":"items:0000000000000003","evidence":"verified source pair"})).unwrap());
+        fixture.remaster_pairs.push(serde_json::from_value(json!({"legacy":"items:0000000000000002","remaster":"items:0000000000000003","provenance":{"record":"items:0000000000000002","owners":[],"field":"/system/description/value"}})).unwrap());
         Ok(open_input_fixture(fixture)?)
     }))
 }
