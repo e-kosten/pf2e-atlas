@@ -117,12 +117,15 @@ it("keeps list choice and dialog through pending/failure, then closes after retr
   });
   setup(<AddToRecordButton recordKey="spells:light" />);
   const selector = await chooseList();
+  const note = screen.getByRole("textbox", { name: "Note (optional)" });
+  fireEvent.change(note, { target: { value: "  Prepare for the night watch.  " } });
   const dialog = screen.getByRole("dialog", { name: "Add to list" });
   const add = within(dialog).getByRole("button", { name: "Add" });
   fireEvent.click(add);
   fireEvent.click(add);
   await waitFor(() => expect(api.addSavedListItem).toHaveBeenCalledOnce());
   expect(selector).toBeDisabled();
+  expect(note).toBeDisabled();
   expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeDisabled();
   fireEvent.keyDown(dialog, { key: "Escape" });
   fireEvent.mouseDown(document.querySelector(".ant-modal-wrap")!);
@@ -134,13 +137,73 @@ it("keeps list choice and dialog through pending/failure, then closes after retr
   );
   expect(selector.parentElement).toHaveTextContent("Review");
   expect(selector).toBeEnabled();
+  expect(note).toHaveValue("  Prepare for the night watch.  ");
   fireEvent.click(add);
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(api.addSavedListItem).toHaveBeenCalledTimes(2);
   expect(api.addSavedListItem).toHaveBeenLastCalledWith({
     list_ref: "list_review",
     record_ref: "spells:light",
+    note: "Prepare for the night watch.",
   });
+});
+
+it("keeps the entry note when creation succeeds but adding fails, then resets after close", async () => {
+  api.createSavedList.mockResolvedValue({ list: lists.lists[0] });
+  api.addSavedListItem
+    .mockRejectedValueOnce(new Error("Disconnected"))
+    .mockResolvedValueOnce({ list_key: "list_review", slug: "review" });
+  setup(<AddToRecordButton recordKey="spells:light" />);
+  fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Note (optional)" }), {
+    target: { value: "Watch duty\nKeep a light ready." },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "New list" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "New list name" }), {
+    target: { value: "Review" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Create & add" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Review was created");
+  expect(screen.getByRole("textbox", { name: "Note (optional)" })).toHaveValue(
+    "Watch duty\nKeep a light ready.",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Add" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(api.createSavedList).toHaveBeenCalledOnce();
+  expect(api.addSavedListItem.mock.calls).toEqual([
+    [
+      {
+        list_ref: "list_review",
+        record_ref: "spells:light",
+        note: "Watch duty\nKeep a light ready.",
+      },
+    ],
+    [
+      {
+        list_ref: "list_review",
+        record_ref: "spells:light",
+        note: "Watch duty\nKeep a light ready.",
+      },
+    ],
+  ]);
+  fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
+  expect(screen.getByRole("textbox", { name: "Note (optional)" })).toHaveValue("");
+});
+
+it("omits a whitespace-only entry note", async () => {
+  api.addSavedListItem.mockResolvedValue({ list_key: "list_review", slug: "review" });
+  setup(<AddToRecordButton recordKey="spells:light" />);
+  await chooseList();
+  fireEvent.change(screen.getByRole("textbox", { name: "Note (optional)" }), {
+    target: { value: " \n " },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Add" }));
+  await waitFor(() =>
+    expect(api.addSavedListItem).toHaveBeenCalledWith({
+      list_ref: "list_review",
+      record_ref: "spells:light",
+    }),
+  );
 });
 
 it("distinguishes an unavailable list catalog from empty and retries locally", async () => {

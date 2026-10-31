@@ -8,6 +8,55 @@ use super::*;
 use crate::{LocalStateError, TestStore};
 
 #[test]
+fn saved_lists_order_by_recent_changes_with_slug_ties() -> Result<(), Box<dyn std::error::Error>> {
+    let store = TestStore::open(temp_path("saved-lists-recency"))?;
+    let mut connection = store.connection()?;
+    let transaction = connection.transaction()?;
+    let lists = SavedListsWrite::from_connection(&transaction);
+    for slug in ["zulu", "middle", "alpha"] {
+        lists.create(NewSavedList {
+            slug: slug.into(),
+            name: slug.into(),
+            description: None,
+            tags: vec![],
+        })?;
+        lists.add_resolved_item(slug, resolved_item("actions:first", None, "First", None))?;
+    }
+    transaction.execute_batch(
+        "UPDATE saved_lists SET updated_at='2026-01-01T00:00:00Z';
+         UPDATE saved_lists SET updated_at='2026-01-02T00:00:00Z' WHERE slug='middle';",
+    )?;
+    assert_eq!(
+        lists
+            .list()?
+            .iter()
+            .map(|list| list.slug.as_str())
+            .collect::<Vec<_>>(),
+        ["middle", "alpha", "zulu"]
+    );
+    lists.update_item_note("zulu", "actions:first", Some("Prepare this next"))?;
+    assert_eq!(
+        lists
+            .list()?
+            .iter()
+            .map(|list| list.slug.as_str())
+            .collect::<Vec<_>>(),
+        ["zulu", "middle", "alpha"]
+    );
+    let before_duplicate = lists.list()?;
+    assert_eq!(
+        lists.add_resolved_item(
+            "alpha",
+            resolved_item("actions:first", Some("Ignored"), "First", None)
+        )?,
+        AddSavedListItemOutcome::AlreadyPresent
+    );
+    assert_eq!(lists.list()?, before_duplicate);
+    transaction.commit()?;
+    Ok(())
+}
+
+#[test]
 fn saved_lists_preserve_order_and_noop_duplicate_adds() -> Result<(), Box<dyn std::error::Error>> {
     let store = TestStore::open(temp_path("saved-lists-order"))?;
     let lists = store.saved_lists();

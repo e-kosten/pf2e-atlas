@@ -47,7 +47,7 @@ pub(crate) fn list(connection: &Connection) -> LocalStateResult<Vec<SavedList>> 
          LEFT JOIN saved_list_items item ON item.list_id = list.id
          WHERE list.owner_id = 1
          GROUP BY list.id
-         ORDER BY list.slug",
+         ORDER BY list.updated_at DESC, list.slug ASC",
     )?;
     let rows = statement.query_map([], raw_saved_list_from_row)?;
     rows.map(|row| saved_list_with_tags(connection, row?))

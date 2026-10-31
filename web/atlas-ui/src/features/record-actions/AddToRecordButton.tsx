@@ -99,7 +99,7 @@ function AddToRecordModal({
   const [selected, setSelected] = useState<Destination | null>(null);
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState(false);
-  const [form] = Form.useForm<{ name: string }>();
+  const [form] = Form.useForm<{ name: string; note?: string }>();
   const choiceInput = useRef<RefSelectProps>(null);
   const nameInput = useRef<InputRef>(null);
   const newButton = useRef<HTMLAnchorElement | HTMLButtonElement>(null);
@@ -144,7 +144,7 @@ function AddToRecordModal({
           }));
   const submit = useMutation({
     retry: false,
-    mutationFn: async ({ name }: { name?: string }) => {
+    mutationFn: async ({ name, note }: { name?: string; note?: string }) => {
       let destination = selected;
       if (creating && name) {
         if (kind === "list") {
@@ -173,6 +173,7 @@ function AddToRecordModal({
         const receipt = await addSavedListItem({
           list_ref: destination.key,
           record_ref: recordKey,
+          ...(note ? { note } : {}),
         });
         void invalidateSavedListQueries(queryClient, [
           destination.key,
@@ -238,7 +239,7 @@ function AddToRecordModal({
   const run = (name?: string) => {
     if (inFlight.current) return;
     inFlight.current = true;
-    submit.mutate({ name });
+    submit.mutate({ name, note: form.getFieldValue("note")?.trim() });
   };
   const changeMode = (next: boolean) => {
     if (inFlight.current) return;
@@ -394,6 +395,11 @@ function AddToRecordModal({
                   </Typography.Text>
                 )}
             </>
+          )}
+          {kind === "list" && (
+            <Form.Item name="note" label="Note (optional)" style={{ marginBottom: 0 }}>
+              <Input.TextArea autoSize={{ minRows: 3, maxRows: 6 }} />
+            </Form.Item>
           )}
         </Form>
         {catalog.error && !creating && (

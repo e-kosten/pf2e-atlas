@@ -1715,6 +1715,11 @@ test("create-and-add keeps the footer aligned and keyboard actions reachable", a
       // contexts exercise these same controls with actual taps below.
       if (!info.project.use.hasTouch) {
         await name.press("Tab");
+        if (kind === "list") {
+          const note = dialog.getByRole("textbox", { name: "Note (optional)" });
+          await expect(note).toBeFocused();
+          await note.press("Tab");
+        }
         await expect(existing).toBeFocused();
         await existing.press("Tab");
         await expect(cancel).toBeFocused();
@@ -1850,6 +1855,63 @@ test("Search linked previews add the linked record and retain the reading contex
     const cleanup = page.request.delete(`/api/lists/${list.list_key}`);
     if (completed) await cleanup;
     else await cleanup.catch(() => {});
+  }
+});
+
+test("record picker saves an optional entry note and brings the changed list first", async ({
+  page,
+}, info) => {
+  const suffix = `${info.project.name}-${Date.now()}`;
+  const created: string[] = [];
+  const record = "browser-rules:rule000000000001";
+  try {
+    // Create the alphabetically first list last, then change the older list.
+    for (const prefix of ["Zulu", "Alpha"]) {
+      const response = await page.request.post("/api/lists", {
+        data: {
+          slug: `${prefix.toLowerCase()}-${suffix}`,
+          name: `${prefix} ${suffix}`,
+          tags: [],
+        },
+      });
+      expect(response.ok()).toBeTruthy();
+      created.push((await response.json()).list.list_key);
+    }
+    await page.goto(`/records/${record}`);
+    const trigger = page.getByRole("button", { name: "Add to list", exact: true });
+    await activate(trigger, info);
+    const dialog = page.getByRole("dialog", { name: "Add to list", exact: true });
+    await activate(dialog.getByRole("combobox", { name: "Saved list" }), info);
+    const choices = page.locator(".ant-select-item-option-content");
+    await expect(choices.first()).toHaveText(`Alpha ${suffix}`);
+    await activate(choices.filter({ hasText: `Zulu ${suffix}` }), info);
+    const note = dialog.getByRole("textbox", { name: "Note (optional)" });
+    await note.fill("Discuss before the next session.\nBring the map.");
+    await expect(note).toBeVisible();
+    await noPageOverflow(page);
+    await activate(dialog.getByRole("button", { name: "Add", exact: true }), info);
+    await expect(dialog).toBeHidden();
+    const saved = await page.request.get(
+      `/api/lists/${created[0]}/items/${record}/note`,
+    );
+    expect(saved.ok()).toBeTruthy();
+    expect((await saved.json()).note).toBe(
+      "Discuss before the next session.\nBring the map.",
+    );
+    await activate(trigger, info);
+    await expect(dialog.getByRole("textbox", { name: "Note (optional)" })).toHaveValue(
+      "",
+    );
+    await activate(dialog.getByRole("combobox", { name: "Saved list" }), info);
+    await expect(choices.first()).toHaveText(`Zulu ${suffix}`);
+    await page.keyboard.press("Escape");
+    await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
+    await page.goto("/lists");
+    await expect(page.getByRole("table").getByRole("row").nth(1)).toContainText(
+      `Zulu ${suffix}`,
+    );
+  } finally {
+    for (const key of created) await page.request.delete(`/api/lists/${key}`);
   }
 });
 
