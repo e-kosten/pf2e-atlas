@@ -330,6 +330,21 @@ test("delayed condition previews retain geometry, focus and the HP opt-out", asy
       exact: true,
     });
     await value.focus();
+    // Focusing Value must leave the selected condition readable below the header.
+    await expect
+      .poll(() =>
+        editor.getByText("Drained", { exact: true }).evaluate((label) => {
+          const bounds = label.getBoundingClientRect();
+          return [bounds.top + 1, bounds.bottom - 1].every((y) => {
+            const receiver = document.elementFromPoint(bounds.x + bounds.width / 2, y);
+            return (
+              receiver !== null &&
+              (label.contains(receiver) || receiver.contains(label))
+            );
+          });
+        }),
+      )
+      .toBe(true);
     await expect(editor).toHaveCSS("opacity", "1");
     const before = await editor.boundingBox();
     const monitor = await editor.evaluateHandle((node) => {

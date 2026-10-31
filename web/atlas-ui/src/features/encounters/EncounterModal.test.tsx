@@ -24,7 +24,7 @@ function Form() {
     </EncounterModalProvider>
   );
 }
-it("centers within visible work area without moving, losing focus, or resetting scroll when typing", () => {
+it("anchors within visible work area without moving, losing focus, or resetting scroll when typing", () => {
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
     this: HTMLElement,
   ) {
@@ -46,8 +46,8 @@ it("centers within visible work area without moving, losing focus, or resetting 
   });
   render(<Form />);
   const wrapper = document.querySelector<HTMLElement>(".test-encounter-wrapper")!;
-  expect(wrapper.style.paddingTop).toBe("100px");
-  expect(wrapper.style.paddingLeft).toBe("40px");
+  expect(wrapper.style.paddingTop).toBe("153.44px");
+  expect(wrapper.style.paddingLeft).toBe("56px");
   const before = wrapper.getAttribute("style");
   const body = document.querySelector<HTMLElement>(".test-encounter-body")!;
   body.scrollTop = 25;
@@ -74,8 +74,8 @@ it("uses usable viewport space when the encounter workspace is completely outsid
   });
   render(<Form />);
   const wrapper = document.querySelector<HTMLElement>(".test-encounter-wrapper")!;
-  expect(wrapper.style.paddingTop).toBe("0px");
-  expect(wrapper.style.paddingBottom).toBe("0px");
+  expect(wrapper.style.paddingTop).toBe("61.44px");
+  expect(wrapper.style.paddingBottom).toBe("16px");
 });
 
 it("lets a short participant panel use the remaining viewport for form fields", () => {
@@ -94,6 +94,6 @@ it("lets a short participant panel use the remaining viewport for form fields", 
   });
   render(<Form />);
   const wrapper = document.querySelector<HTMLElement>(".test-encounter-wrapper")!;
-  expect(wrapper.style.paddingTop).toBe("100px");
-  expect(wrapper.style.paddingBottom).toBe("0px");
+  expect(wrapper.style.paddingTop).toBe("153.44px");
+  expect(wrapper.style.paddingBottom).toBe("16px");
 });

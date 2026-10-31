@@ -27,9 +27,10 @@ and optional search settings.
 ## Collect options in a list
 
 Use **Add to list** from Search, a record, or a linked preview. Choose an existing
-list or create one in the picker. Open Lists to review your collection and add
-notes to individual entries. Creatures and hazards use the combined
-**Add to list or encounter** picker.
+list or create one in the picker, and add a note if useful. Notes support multiple
+lines. Open Lists to review your collection and edit entry notes. Creatures and
+hazards use the combined **Add to list or encounter** picker. Lists and encounters
+show the most recently changed first.
 
 Lists are useful for session preparation, spell choices, equipment shortlists
 and creatures you may want to use later. Setup updates preserve your collections.

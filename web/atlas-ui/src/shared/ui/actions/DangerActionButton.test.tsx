@@ -15,15 +15,18 @@ function CallbackConfirmation({
 }: {
   onConfirm: () => void | Promise<unknown>;
 }) {
-  const confirm = useConfirmDangerAction();
+  const { confirm, dialog } = useConfirmDangerAction();
   return (
-    <Button
-      onClick={() =>
-        confirm({ title: "Remove participant?", okText: "Remove", onConfirm })
-      }
-    >
-      Remove participant
-    </Button>
+    <>
+      <Button
+        onClick={() =>
+          confirm({ title: "Remove participant?", okText: "Remove", onConfirm })
+        }
+      >
+        Remove participant
+      </Button>
+      {dialog}
+    </>
   );
 }
 

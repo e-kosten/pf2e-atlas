@@ -265,22 +265,59 @@ export function SearchPickerModal<FormValues>({
   return (
     <ConfigProvider componentDisabled={disabled}>
       <Modal
-        centered
+        layout="browse"
         className="reference-picker"
         classNames={{ body: "reference-picker__body" }}
         width="min(1400px, calc(100vw - 32px))"
         styles={{
-          wrapper: { paddingBlock: "var(--space-group)" },
-          body: {
-            height: "min(82dvh, 900px, calc(100dvh - 8rem))",
-            display: "flex",
-            flexDirection: "column",
-          },
+          body: { display: "flex", flexDirection: "column", overflow: "hidden" },
         }}
         afterOpenChange={(isOpen) => {
           if (!isOpen) reset();
         }}
-        footer={null}
+        footer={
+          <Form
+            name={formId}
+            className={`reference-picker__footer${summary ? " reference-picker__footer--summary" : ""}`}
+            disabled={disabled}
+            form={form}
+            layout="vertical"
+            onFinish={(values) => {
+              if (!disabled && !preparing) onFinish(values);
+            }}
+          >
+            <div className="reference-picker__footer-content">
+              <div className="reference-picker__fields">
+                {typeof children === "function"
+                  ? children(reading.parentDetail)
+                  : children}
+              </div>
+              {summary && <div className="reference-picker__summary">{summary}</div>}
+              {!summary && status}
+              {summary && status && (
+                <div className="reference-picker__status">{status}</div>
+              )}
+            </div>
+            <Space className="reference-picker__actions">
+              <Button disabled={disabled} onClick={onCancel}>
+                {dismissLabel}
+              </Button>
+              <Button
+                {...okButtonProps}
+                disabled={
+                  disabled ||
+                  Boolean(preparing) ||
+                  !selectedRecordKey ||
+                  okButtonProps?.disabled
+                }
+                type="primary"
+                htmlType="submit"
+              >
+                {confirmLabel}
+              </Button>
+            </Space>
+          </Form>
+        }
         closable={!disabled}
         keyboard={!disabled}
         mask={{ closable: !disabled }}
@@ -344,25 +381,27 @@ export function SearchPickerModal<FormValues>({
             filterDiscoveryError: discovery.errorMessage,
           }}
         />
-        <SearchProfileNotice />
-        {recordResults.error && (
-          <ErrorNotice
-            error={recordResults.error}
-            title="Search failed"
-            action={
-              <Button
-                onClick={() =>
-                  generationChanged
-                    ? void refreshResults()
-                    : void recordResults.refetch()
-                }
-                loading={recordResults.isFetching || retrieval.recovering}
-              >
-                {generationChanged ? "Refresh results" : "Retry search"}
-              </Button>
-            }
-          />
-        )}
+        <div className="reference-picker__feedback">
+          <SearchProfileNotice />
+          {recordResults.error && (
+            <ErrorNotice
+              error={recordResults.error}
+              title="Search failed"
+              action={
+                <Button
+                  onClick={() =>
+                    generationChanged
+                      ? void refreshResults()
+                      : void recordResults.refetch()
+                  }
+                  loading={recordResults.isFetching || retrieval.recovering}
+                >
+                  {generationChanged ? "Refresh results" : "Retry search"}
+                </Button>
+              }
+            />
+          )}
+        </div>
         <ReferenceBrowser
           rows={currentRows}
           query={
@@ -459,43 +498,6 @@ export function SearchPickerModal<FormValues>({
             </div>
           }
         />
-        <Form
-          name={formId}
-          className={`reference-picker__footer${summary ? " reference-picker__footer--summary" : ""}`}
-          disabled={disabled}
-          form={form}
-          layout="vertical"
-          onFinish={(values) => {
-            if (!disabled && !preparing) onFinish(values);
-          }}
-        >
-          <div className="reference-picker__fields">
-            {typeof children === "function" ? children(reading.parentDetail) : children}
-          </div>
-          {summary && <div className="reference-picker__summary">{summary}</div>}
-          {!summary && status}
-          <Space className="reference-picker__actions">
-            <Button disabled={disabled} onClick={onCancel}>
-              {dismissLabel}
-            </Button>
-            <Button
-              {...okButtonProps}
-              disabled={
-                disabled ||
-                Boolean(preparing) ||
-                !selectedRecordKey ||
-                okButtonProps?.disabled
-              }
-              type="primary"
-              htmlType="submit"
-            >
-              {confirmLabel}
-            </Button>
-          </Space>
-          {summary && status && (
-            <div className="reference-picker__status">{status}</div>
-          )}
-        </Form>
       </Modal>
     </ConfigProvider>
   );

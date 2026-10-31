@@ -96,6 +96,11 @@ export function ListEntryNote({
             ref={editor}
             value={draft}
             autoSize={{ minRows: 2, maxRows: 6 }}
+            styles={{
+              textarea: {
+                transitionProperty: "background-color, border-color, box-shadow, color",
+              },
+            }}
             disabled={save.isPending}
             onChange={(event) => setDraft(event.target.value)}
           />

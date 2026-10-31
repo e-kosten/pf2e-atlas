@@ -99,7 +99,7 @@ function AddToRecordModal({
   const [selected, setSelected] = useState<Destination | null>(null);
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState(false);
-  const [form] = Form.useForm<{ name: string }>();
+  const [form] = Form.useForm<{ name: string; note?: string }>();
   const choiceInput = useRef<RefSelectProps>(null);
   const nameInput = useRef<InputRef>(null);
   const newButton = useRef<HTMLAnchorElement | HTMLButtonElement>(null);
@@ -144,7 +144,7 @@ function AddToRecordModal({
           }));
   const submit = useMutation({
     retry: false,
-    mutationFn: async ({ name }: { name?: string }) => {
+    mutationFn: async ({ name, note }: { name?: string; note?: string }) => {
       let destination = selected;
       if (creating && name) {
         if (kind === "list") {
@@ -173,6 +173,7 @@ function AddToRecordModal({
         const receipt = await addSavedListItem({
           list_ref: destination.key,
           record_ref: recordKey,
+          ...(note ? { note } : {}),
         });
         void invalidateSavedListQueries(queryClient, [
           destination.key,
@@ -238,7 +239,8 @@ function AddToRecordModal({
   const run = (name?: string) => {
     if (inFlight.current) return;
     inFlight.current = true;
-    submit.mutate({ name });
+    const note = form.getFieldValue("note");
+    submit.mutate({ name, note: note?.trim() ? note : undefined });
   };
   const changeMode = (next: boolean) => {
     if (inFlight.current) return;
@@ -262,7 +264,6 @@ function AddToRecordModal({
       title={canAddEncounter ? "Add to…" : "Add to list"}
       transitionName=""
       maskTransitionName=""
-      centered
       confirmLoading={submit.isPending}
       cancelButtonProps={{ disabled: submit.isPending }}
       okButtonProps={{ disabled: !creating && !selected }}
@@ -290,14 +291,6 @@ function AddToRecordModal({
           </div>
         </div>
       )}
-      styles={{
-        container: {
-          maxHeight: "calc(100dvh - 32px)",
-          display: "flex",
-          flexDirection: "column",
-        },
-        body: { overflowY: "auto" },
-      }}
     >
       {record && <Typography.Paragraph>{record.title}</Typography.Paragraph>}
       {canAddEncounter && (
@@ -394,6 +387,19 @@ function AddToRecordModal({
                   </Typography.Text>
                 )}
             </>
+          )}
+          {kind === "list" && (
+            <Form.Item name="note" label="Note" style={{ marginBottom: 0 }}>
+              <Input.TextArea
+                autoSize={{ minRows: 3, maxRows: 6 }}
+                styles={{
+                  textarea: {
+                    transitionProperty:
+                      "background-color, border-color, box-shadow, color",
+                  },
+                }}
+              />
+            </Form.Item>
           )}
         </Form>
         {catalog.error && !creating && (

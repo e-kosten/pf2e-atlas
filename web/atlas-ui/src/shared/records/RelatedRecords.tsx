@@ -655,7 +655,9 @@ function Comparison({
     );
   return (
     <Modal
+      layout="browse"
       title="Variant comparison"
+      styles={{ body: { display: "flex", overflow: "hidden" } }}
       open={open}
       afterClose={onAfterClose}
       footer={null}
