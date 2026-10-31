@@ -6,6 +6,7 @@
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-section);
   padding: 0;
+  font-size: 1rem;
   line-height: 1.55;
   min-width: 0;
   overflow-wrap: anywhere;
@@ -32,6 +33,9 @@
 .prepared-content > :last-child {
   margin-bottom: 0;
 }
+.record-reference__content > .prose:last-child {
+  margin-block-end: 0;
+}
 .prepared-content {
   overflow-wrap: anywhere;
   overflow-x: auto;
@@ -55,6 +59,12 @@
   border-bottom: 1px solid var(--line);
   text-align: start;
   vertical-align: top;
+}
+.prepared-content :is(th, td) > :first-child {
+  margin-block-start: 0;
+}
+.prepared-content :is(th, td) > :last-child {
+  margin-block-end: 0;
 }
 .prepared-content th {
   font-weight: 650;
@@ -182,9 +192,9 @@
   line-height: 1.35;
 }
 .record-reference h5 {
-  margin: 0 0 6px;
-  font-size: 0.875rem;
-  font-weight: 600;
+  margin: 0 0 var(--space-control);
+  font-size: 1rem;
+  font-weight: 700;
 }
 .record-fact-list {
   display: flex;
@@ -194,11 +204,11 @@
 .record-reference :is(.record-fact-list, .actor-reference__mechanics):empty {
   display: none;
 }
-.record-fact {
+.record-fact,
+.actor-casting__row {
   line-height: 1.5;
 }
 .record-fact > strong {
-  margin-inline-end: var(--space-micro);
   font-weight: 600;
 }
 .record-missing {
@@ -239,11 +249,10 @@
 }
 .spell-reference {
   display: grid;
-  gap: var(--space-group);
+  gap: var(--space-section);
 }
-.spell-reference__casting {
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--line);
+.spell-reference__casting > p {
+  margin: 0 0 var(--space-control);
 }
 .spell-reference__ritual-checks {
   margin-block: var(--space-control);
@@ -252,6 +261,9 @@
   margin-block-start: var(--space-group);
   padding-left: 12px;
   border-left: 2px solid var(--line);
+}
+.spell-reference__forms > .spell-reference__change:first-of-type {
+  margin-block-start: 0;
 }
 .spell-reference__rank-change {
   display: grid;
@@ -272,7 +284,7 @@
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--space-micro);
 }
 .spell-reference__damage .record-damage p {
   margin: 0;
@@ -660,7 +672,7 @@
 .physical-reference {
   display: flex;
   flex-direction: column;
-  gap: var(--space-group);
+  gap: var(--space-section);
 }
 .physical-reference__facts {
   display: grid;

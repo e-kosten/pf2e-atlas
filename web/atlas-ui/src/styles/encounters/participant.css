@@ -204,7 +204,6 @@
   border: 0;
 }
 .encounter-reference__durability .actor-reference__defenses h3 {
-  font-size: 14px;
   margin: 0 0 var(--space-control);
 }
 .encounter-reference__durability .record-fact-list {

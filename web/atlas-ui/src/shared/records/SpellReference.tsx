@@ -298,7 +298,7 @@ export function SpellChanges({
         format={(value) => value.join(", ")}
       />
       {effective && hasReadingFact(changes.damage) ? (
-        <div className="spell-reference__damage">
+        <div className="record-fact spell-reference__damage">
           <strong>Damage</strong>
           <DamageComponents
             damage={changes.damage}
@@ -388,30 +388,30 @@ export function SpellReference({
 
   return (
     <div className="spell-reference">
-      {spell.rank_note && <p>{spell.rank_note}</p>}
-      {spell.runtime_notes?.map((note, index) => (
-        <p key={index}>
-          {note.label}: {note.reason}
-        </p>
-      ))}
-      {((spell.runtime_attack && hasReadingFact(spell.runtime_attack)) ||
-        (spell.runtime_difficulty_class &&
-          hasReadingFact(spell.runtime_difficulty_class))) && (
-        <div className="record-fact-list">
-          {spell.runtime_attack && hasReadingFact(spell.runtime_attack) && (
-            <FactRow label="Spell attack">
-              <NumberFact fact={spell.runtime_attack} signed />
-            </FactRow>
-          )}
-          {spell.runtime_difficulty_class &&
-            hasReadingFact(spell.runtime_difficulty_class) && (
-              <FactRow label="Spell DC">
-                <NumberFact fact={spell.runtime_difficulty_class} />
+      <div className="spell-reference__casting">
+        {spell.rank_note && <p>{spell.rank_note}</p>}
+        {spell.runtime_notes?.map((note, index) => (
+          <p key={index}>
+            {note.label}: {note.reason}
+          </p>
+        ))}
+        {((spell.runtime_attack && hasReadingFact(spell.runtime_attack)) ||
+          (spell.runtime_difficulty_class &&
+            hasReadingFact(spell.runtime_difficulty_class))) && (
+          <div className="record-fact-list">
+            {spell.runtime_attack && hasReadingFact(spell.runtime_attack) && (
+              <FactRow label="Spell attack">
+                <NumberFact fact={spell.runtime_attack} signed />
               </FactRow>
             )}
-        </div>
-      )}
-      <div className="spell-reference__casting">
+            {spell.runtime_difficulty_class &&
+              hasReadingFact(spell.runtime_difficulty_class) && (
+                <FactRow label="Spell DC">
+                  <NumberFact fact={spell.runtime_difficulty_class} />
+                </FactRow>
+              )}
+          </div>
+        )}
         <FactLine
           label="Traditions"
           fact={spell.traditions}
@@ -529,7 +529,7 @@ export function SpellReference({
           <FactLine label="Sustained" fact={spell.sustained} />
         )}
         {spell.damage.state === "value" && spell.damage.value?.length ? (
-          <div className="spell-reference__damage">
+          <div className="record-fact spell-reference__damage">
             <strong>Damage</strong>
             <DamageComponents
               damage={spell.damage}
