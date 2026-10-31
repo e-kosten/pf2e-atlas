@@ -63,6 +63,12 @@
 }
 
 @media (max-height: 600px) {
+  .reference-picker .reference-results__header {
+    min-height: 0;
+    max-height: calc(var(--control-height) + var(--space-control));
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
   .reference-picker__footer-content {
     max-height: calc(var(--control-height) + 2 * var(--space-group));
   }
