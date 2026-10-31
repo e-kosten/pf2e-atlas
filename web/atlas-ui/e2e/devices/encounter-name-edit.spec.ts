@@ -1,7 +1,7 @@
-import { expect, test } from "@playwright/test";
-import type { AddEncounterRecordParticipantRequest } from "../src/generated/atlas";
+import { expect, test } from "./fixtures";
+import type { AddEncounterRecordParticipantRequest } from "../../src/generated/atlas";
 
-for (const width of [1440, 390]) {
+for (const width of [1440, 390, 320]) {
   test(`participant name edits persist at ${width}px and keep the creature's other state`, async ({
     page,
   }) => {
@@ -93,6 +93,24 @@ for (const width of [1440, 390]) {
         .getByRole("button", { name: "Participant settings", exact: true })
         .focus();
       await expect(trigger).toHaveText(longName);
+      const nameBounds = (await trigger.boundingBox())!;
+      const traitsBounds = (await page
+        .locator(".encounter-reference__identity > .badge-row")
+        .boundingBox())!;
+      expect(traitsBounds.y).toBeGreaterThanOrEqual(
+        nameBounds.y + nameBounds.height - 1,
+      );
+      if (width < 768) {
+        const kindBounds = (await page
+          .locator(".encounter-reference__title > .record-reference__kind")
+          .boundingBox())!;
+        expect(kindBounds.y).toBeGreaterThanOrEqual(
+          nameBounds.y + nameBounds.height - 1,
+        );
+      }
+      await trigger.click();
+      await expect(editor).toBeFocused();
+      await editor.press("Escape");
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth + 1,
