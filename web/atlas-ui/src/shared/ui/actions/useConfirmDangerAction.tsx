@@ -1,65 +1,90 @@
 import { ErrorNotice } from "../../feedback/ErrorNotice";
-import { App, Space } from "antd";
-import { FeedbackModalFrame } from "../../feedback/GlobalFeedback";
-import { feedbackModalStyles } from "../overlays/AtlasModal";
+import { AtlasModal } from "../overlays/AtlasModal";
+import { Button, Space } from "antd";
+import { useRef, useState } from "react";
 
+type Confirmation = {
+  content?: string;
+  okText: string;
+  onConfirm: () => void | Promise<unknown>;
+  title: string;
+};
 export function useConfirmDangerAction() {
-  const { modal } = App.useApp();
-  return ({
-    content,
-    okText,
-    onConfirm,
-    title,
-  }: {
-    content?: string;
-    okText: string;
-    onConfirm: () => void | Promise<unknown>;
-    title: string;
-  }) => {
-    const opener =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const confirmation = modal.confirm({
-      title,
-      modalRender: (node) => <FeedbackModalFrame active>{node}</FeedbackModalFrame>,
-      styles: feedbackModalStyles(),
-      content,
-      okText,
-      okButtonProps: { danger: true },
-      cancelText: "Cancel",
-      mask: { closable: true },
-      focusable: { autoFocusButton: "cancel" },
-      onOk: async () => {
-        confirmation.update({
-          cancelButtonProps: { disabled: true },
-          keyboard: false,
-          mask: { closable: false },
-        });
-        try {
-          await onConfirm();
-        } catch (error) {
-          confirmation.update({
-            cancelButtonProps: { disabled: false },
-            keyboard: true,
-            mask: { closable: true },
-            content: (
-              <Space orientation="vertical">
-                {content && <div>{content}</div>}
-                <ErrorNotice error={error} title={`${okText} could not be confirmed`} />
-              </Space>
-            ),
-          });
-          throw error;
+  const [request, setRequest] = useState<Confirmation | null>(null);
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const inFlight = useRef(false);
+  const opener = useRef<HTMLElement | null>(null);
+  const cancel = useRef<HTMLButtonElement>(null);
+  const close = () => {
+    if (!inFlight.current) setOpen(false);
+  };
+  const submit = () => {
+    if (!request || inFlight.current) return;
+    inFlight.current = true;
+    setPending(true);
+    setError(null);
+    void (async () => {
+      try {
+        await request.onConfirm();
+        setOpen(false);
+      } catch (failure) {
+        setError(failure);
+      } finally {
+        inFlight.current = false;
+        setPending(false);
+      }
+    })();
+  };
+  return {
+    confirm: (next: Confirmation) => {
+      if (inFlight.current) return;
+      opener.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      setError(null);
+      setRequest(next);
+      setOpen(true);
+    },
+    dialog: request && (
+      <AtlasModal
+        layout="confirmation"
+        open={open}
+        title={request.title}
+        width={416}
+        closable={false}
+        keyboard={!pending}
+        mask={{ closable: !pending }}
+        onCancel={close}
+        onOk={submit}
+        afterOpenChange={(visible) => {
+          if (visible)
+            requestAnimationFrame(() => cancel.current?.focus({ preventScroll: true }));
+        }}
+        afterClose={() => {
+          if (opener.current?.isConnected)
+            opener.current.focus({ preventScroll: true });
+          setRequest(null);
+        }}
+        footer={
+          <Space>
+            <Button ref={cancel} disabled={pending} onClick={close}>
+              Cancel
+            </Button>
+            <Button type="primary" danger loading={pending} onClick={submit}>
+              {request.okText}
+            </Button>
+          </Space>
         }
-      },
-      afterClose: () => {
-        if (opener?.isConnected) opener.focus({ preventScroll: true });
-      },
-    });
-    // Contextual Modal's awaited mode consumes rejected onOk promises while keeping it open.
-    void confirmation.then(
-      () => {},
-      () => {},
-    );
-    return confirmation;
+      >
+        {request.content && <div>{request.content}</div>}
+        {error != null && (
+          <ErrorNotice
+            error={error instanceof Error ? error : String(error)}
+            title={`${request.okText} could not be confirmed`}
+          />
+        )}
+      </AtlasModal>
+    ),
   };
 }

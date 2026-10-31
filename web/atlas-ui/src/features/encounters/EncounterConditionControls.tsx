@@ -539,7 +539,8 @@ export function EncounterConditionControls({
           title="Add Condition"
           icon={<Plus size={16} aria-hidden="true" />}
           disabled={disabled || addDisabled}
-          onClick={() => {
+          onClick={(event) => {
+            event.currentTarget.focus({ preventScroll: true });
             cancelInlineEdit();
             setCommitted(false);
             setAddRevision(encounterRevision);

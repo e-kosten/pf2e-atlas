@@ -1095,10 +1095,41 @@ Reference previews follow the policy below, including local Back, one Drawer hos
 record length. Extended reading remains available through normal page navigation;
 a pinned reader would be a separate product feature.
 
-Substantial encounter forms use the encounter-owned modal placement policy: center
-within the visible work area bounded by the viewport, with internal scrolling for
-tall content. Do not reposition while typing or apply this policy globally to unrelated
-dialogs. Small roll and recovery interactions remain anchored.
+### Modal layout and placement
+
+`AtlasModal` owns modal geometry, viewport gutters and scrolling. Use its default
+form layout for edits and settings. Keep the top anchor stable as tabs, fields,
+previews, validation and failure feedback change height. The shared frame computes
+its height limit from that same anchor and a 16px bottom gutter; title and action
+areas stay outside the scrolling body. A condition editor can add duration/details
+without moving its title or placing Apply below the viewport.
+
+Use `layout="browse"` for sustained record browsing and comparison. It gives the
+workspace a stable bounded height. Filters, navigation and actions stay outside
+results/reader scroll regions. Long picker fields and summaries have a bounded
+secondary scroller so they cannot push Cancel/Add offscreen. Do not restore an
+unshrinkable reader minimum to make the content look taller on short screens.
+
+Compact destructive decisions use the shared confirmation layout: center on first
+open, then retain that anchor as retry/error content grows. Cancel receives initial
+focus and pending writes retain the existing dismissal and duplicate-submit guards.
+Small local removals continue to use anchored Popconfirm.
+
+Encounter dialogs supply their visible work-area element through `EncounterModal`;
+the shared frame still owns positioning and scroll policy. A short participant pane
+must not shorten the editor. An unusable/offscreen work area falls back to the
+visible viewport. Window/visual-viewport resize or pan can reclamp geometry,
+including when a software keyboard reduces available space; content growth alone
+must not recenter a dialog. Shared recovery feedback is included in the same height
+budget. Keep the backdrop hit surface full viewport, regardless of work-area bounds.
+
+The frame omits scale transitions so initial positioning and child popup measurement
+use final layout dimensions. Retain native focus/border feedback. Check desktop,
+narrow and short views before focusing footer actions: the actions must already be
+visible, not become reachable only because focus scrolls the entire dialog. Also
+check expanded fields, failed writes, nested Select/Escape, focus return and viewport
+reclamping. Physical keyboard/phone software-keyboard evidence remains distinct from
+emulated viewport checks.
 
 Attack modifiers roll directly in an anchored result popover. Show backend-derived
 condition hints concisely and distinguish applied from conditional effects. Optional

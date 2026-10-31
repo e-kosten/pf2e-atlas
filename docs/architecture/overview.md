@@ -35,8 +35,14 @@ and [ADR index](./decisions/README.md) for the relevant owner.
 `atlas-record` uses atlas-dice's pure preparation for bounded literal damage and inline-roll
 arithmetic. App-service owns random reference rolls from these prepared controls.
 
-`web/atlas-ui` renders generated app contracts with React and Ant Design. Private
-TypeScript compiler research/generation lives under `dev-tools`; Rust developer
+`web/atlas-ui` renders generated app contracts with React and Ant Design. Its shared
+`AtlasModal` frame owns form, browsing and confirmation geometry, viewport gutters,
+feedback budgeting and scroll boundaries. Encounter presentation supplies a visible
+work-area element rather than maintaining another placement algorithm. Destructive
+confirmations render through that same frame while retaining their own pending,
+retry and focus lifecycle. See the frontend guide's modal layout policy.
+
+Private TypeScript compiler research/generation lives under `dev-tools`; Rust developer
 commands do not dispatch those scripts. Product record identity remains Foundry
 pack plus source ID. Embedded documents stay in one checked parent snapshot.
 

@@ -32,22 +32,25 @@ function ModalDangerActionButton({
   onConfirm,
   ...buttonProps
 }: DangerActionButtonProps) {
-  const confirmDangerAction = useConfirmDangerAction();
+  const { confirm: confirmDangerAction, dialog } = useConfirmDangerAction();
   return (
-    <Button
-      {...buttonProps}
-      danger
-      onClick={(event) => {
-        onBeforeConfirm?.(event);
-        event.currentTarget.focus({ preventScroll: true });
-        confirmDangerAction({
-          title: confirmTitle,
-          content: confirmContent,
-          okText: confirmOkText,
-          onConfirm,
-        });
-      }}
-    />
+    <>
+      <Button
+        {...buttonProps}
+        danger
+        onClick={(event) => {
+          onBeforeConfirm?.(event);
+          event.currentTarget.focus({ preventScroll: true });
+          confirmDangerAction({
+            title: confirmTitle,
+            content: confirmContent,
+            okText: confirmOkText,
+            onConfirm,
+          });
+        }}
+      />
+      {dialog}
+    </>
   );
 }
 

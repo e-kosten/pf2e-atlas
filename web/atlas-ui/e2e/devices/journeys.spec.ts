@@ -164,6 +164,15 @@ test("variant comparison bounds complete documents on wide screens and stays rea
     await noPageOverflow(page);
     const panes = dialog.locator(".record-comparison > .detail-panel");
     await expect(panes).toHaveCount(2);
+    if (page.viewportSize()!.width <= 720) {
+      const flow = await panes.evaluateAll((nodes) =>
+        nodes.map((node) => ({
+          top: node.getBoundingClientRect().top,
+          height: node.scrollHeight,
+        })),
+      );
+      expect(flow[1].top).toBeGreaterThanOrEqual(flow[0].top + flow[0].height - 1);
+    }
     for (const pane of await panes.all()) {
       const geometry = await pane.evaluate((node) => {
         const ruler = document.createElement("div");

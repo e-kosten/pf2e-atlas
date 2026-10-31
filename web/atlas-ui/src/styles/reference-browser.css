@@ -248,8 +248,7 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
 }
 @media (max-width: 991px) {
   .search-workspace:has(.reference-browser[data-reading="true"]) > .filter-toolbar,
-  .reference-picker
-    .ant-modal-body:has(.reference-browser[data-reading="true"])
+  .reference-picker__body:has(.reference-browser[data-reading="true"])
     > .filter-toolbar {
     display: none;
   }
@@ -260,8 +259,14 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
   .atlas-app:is(.atlas-app--search, :has(.list-workspace)) .atlas-app__content {
     overflow: clip;
   }
-  .reference-browser > div {
-    height: 100%;
+  .reference-browser {
+    position: relative;
+  }
+  .reference-browser > .reference-browser__pane {
+    position: absolute;
+    inset: 0;
+    height: auto;
+    min-height: 0;
   }
   .filter-toolbar {
     max-height: 40dvh;

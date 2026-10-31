@@ -159,8 +159,12 @@ export function BrowseReader({
     >
       {narrow ? (
         <>
-          <div hidden={readerOpen}>{results}</div>
-          <div hidden={!readerOpen}>{reader}</div>
+          <div className="reference-browser__pane" hidden={readerOpen}>
+            {results}
+          </div>
+          <div className="reference-browser__pane" hidden={!readerOpen}>
+            {reader}
+          </div>
         </>
       ) : (
         <Splitter styles={{ root: { overflow: "clip" }, panel: { overflow: "clip" } }}>

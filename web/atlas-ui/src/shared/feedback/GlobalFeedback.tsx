@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type Ref,
 } from "react";
 import { createPortal } from "react-dom";
 
@@ -68,14 +69,21 @@ export function GlobalFeedback({ children }: { children: ReactNode }) {
 export function FeedbackModalFrame({
   active,
   children,
+  frameRef,
+  fill = false,
 }: {
   active: boolean;
   children: ReactNode;
+  frameRef?: Ref<HTMLDivElement>;
+  fill?: boolean;
 }) {
   const depth = useContext(DepthContext);
   return (
     <DepthContext value={depth + 1}>
-      <div className="feedback-modal-layout">
+      <div
+        ref={frameRef}
+        className={`feedback-modal-layout${fill ? " feedback-modal-layout--fill" : ""}`}
+      >
         <GlobalFeedbackHost active={active} />
         {children}
       </div>

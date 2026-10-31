@@ -4,6 +4,7 @@ import { browserFixture } from "../../scripts/browser-fixture.mjs";
 
 const touchSpecs = [
   "journeys.spec.ts",
+  "modal-layout.spec.ts",
   "list-metadata.spec.ts",
   "feedback.spec.ts",
   "spell-effects.spec.ts",

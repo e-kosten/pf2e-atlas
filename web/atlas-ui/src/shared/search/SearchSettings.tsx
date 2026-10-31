@@ -473,7 +473,10 @@ export function SearchSettings({
           aria-label="Search settings"
           aria-describedby={`${id}-summary`}
           disabled={disabled}
-          onClick={openSettings}
+          onClick={(event) => {
+            event.currentTarget.focus({ preventScroll: true });
+            openSettings();
+          }}
         />
       </Tooltip>
       <span id={`${id}-summary`} className="sr-only">

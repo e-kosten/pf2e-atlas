@@ -15,13 +15,26 @@
 }
 
 .record-comparison {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--panel-gap);
 }
+.record-comparison > .detail-panel {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
 @media (max-width: 720px) {
+  .record-comparison > .detail-panel {
+    overflow: visible;
+  }
   .record-comparison {
     grid-template-columns: 1fr;
+    grid-auto-rows: max-content;
+    align-content: start;
   }
 }
 

@@ -53,7 +53,6 @@
 }
 
 .search-settings-dialog__body {
-  max-height: min(70dvh, 650px);
   overflow-y: auto;
 }
 .search-settings-dialog__body--source {
@@ -61,7 +60,6 @@
   flex-direction: column;
   gap: var(--space-group);
   height: min(74dvh, 780px);
-  max-height: min(74dvh, 780px);
   overflow: hidden;
 }
 .search-settings__workspace {
