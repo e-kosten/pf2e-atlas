@@ -5,6 +5,45 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Stable modal placement
+
+The shared modal geometry and short-work-area fixes use application source
+`7079e31f1a74dddc544ea1d9adf166086cb32677` ([PR #180](https://github.com/e-kosten/pf2e-atlas/pull/180)). Review covers the six modal
+checkpoints per project: precedence editor, damage entry/applied, pending/settled
+preview, and Quickened restrictions. The selected condition remains readable on
+short WebKit screens; recovery retains its anchor when background content shrinks.
+Exact-pixel comparisons and the existing one-pixel geometry assertions remain
+unchanged.
+
+- macOS 27.2 (26B123), arm64, Playwright 1.62.1: all 12 capture scenarios and 24 ordinary
+  condition/layout scenarios passed across the four projects, with snapshot updates
+  disabled for the ordinary run. All 40 references were reviewed. The 24 modal
+  frames reflect the accepted placement; the 16 document/recovery frames also
+  reconcile repeatable platform-specific glyph metrics in existing HP and section
+  labels. The cause of those typography differences is unconfirmed; they are not
+  attributed to the modal design. Facts, states, wrapping, rows and recovery anchors
+  are unchanged. Desktop/tablet source review and independent Astra phone review
+  accepted this separate platform reconciliation.
+- Linux x64, Ubuntu 24.04, Playwright 1.62.1:
+  [capture 41252567238](https://github.com/e-kosten/pf2e-atlas/actions/runs/41252567238)
+  passed all 12 scenarios using
+  [CI 41252245921](https://github.com/e-kosten/pf2e-atlas/actions/runs/41252245921)'s
+  authenticated fixture at synthetic merge
+  `52f18815c88d4ae8ce1574565879b2f191fec75d` (PR head 7079e31f).
+  Independent desktop/tablet screenshot review and Astra phone review accepted the 24
+  modal frames. All 16 nonmodal references remain byte-for-byte unchanged; an
+  incidental five-pixel phone Chromium focus-edge difference was excluded.
+  Binary SHA-256:
+  `043ddde3cb562380ccdcc2887c96b19578a48fb69ebd83e182813c999efcad1f`.
+  Frontend index SHA-256:
+  `84f2d792177d578f574b99d45d22ea2ea8cfde9917a699d4fcdb8d1eb86406af`.
+
+The local full frontend gate passed 167 files / 1,748 tests, and six repeated WebKit
+recovery cases passed without changing their anchor tolerance. Capture is separate
+from normal hosted comparison; final-head CI must compare the adopted references
+with snapshot updates disabled. These are emulated browser and screenshot checks,
+not physical software-keyboard or screen-reader-audio evidence.
+
 ## Inline participant name editing
 
 All 40 frames per platform include the readable filled button for directly editing
