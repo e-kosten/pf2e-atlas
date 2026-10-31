@@ -19,6 +19,7 @@ export function TraitBadge({ trait }: { trait: RecordBadgeView }) {
     <Tag className="record-trait-badge">
       {route ? (
         <Typography.Link
+          style={{ fontSize: "inherit", lineHeight: "inherit" }}
           href={destinationHref(route)}
           onClick={(event) => {
             event.stopPropagation();
