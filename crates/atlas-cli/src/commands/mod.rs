@@ -1,4 +1,5 @@
 pub(crate) mod agent_skills;
+pub(crate) mod build_info;
 pub(crate) mod completions;
 pub(crate) mod filter_discovery;
 pub(crate) mod filters;
@@ -13,6 +14,7 @@ pub(crate) mod search;
 pub(crate) mod setup;
 pub(crate) mod similar;
 pub(crate) mod tags;
+#[cfg(feature = "web")]
 pub(crate) mod web;
 
 pub(crate) mod traits;

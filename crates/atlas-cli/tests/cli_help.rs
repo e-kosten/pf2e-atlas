@@ -23,7 +23,7 @@ fn command_surface_uses_catalog_cel_and_retires_normalized_flags() {
         "tags",
         "agent",
         "completions",
-        "web",
+        "build-info",
     ] {
         assert!(root.contains(name));
     }
@@ -72,6 +72,7 @@ fn profile_flags_support_both_builtins_and_reject_retired_or_conflicting_options
         &["setup"][..],
         &["search"][..],
         &["similar"][..],
+        #[cfg(feature = "web")]
         &["web"][..],
     ] {
         let text = help(command);
