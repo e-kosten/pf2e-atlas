@@ -250,6 +250,55 @@ function renderControls(
 describe("shared common and maintained advanced filters", () => {
   beforeEach(() => vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true }));
   afterEach(() => vi.restoreAllMocks());
+  it("distinguishes open bounds, exact values and ranges while editing and clearing", async () => {
+    const change = renderControls(
+      editorFixture([fieldFixture("level_or_rank", "number", "Level / rank")]),
+      null,
+      null,
+      { layout: "toolbar" },
+    );
+    const trigger = screen.getByRole("button", {
+      name: "Edit Level / rank range: Any",
+    });
+    expect(trigger).toHaveTextContent("Level / rank: Any");
+    fireEvent.click(trigger);
+    const minimum = await screen.findByRole("textbox", {
+      name: "Level / rank minimum",
+    });
+    const maximum = screen.getByRole("textbox", {
+      name: "Level / rank maximum",
+    });
+    await waitFor(() =>
+      expect(screen.getByText("Minimum", { exact: true })).toBeVisible(),
+    );
+    expect(screen.getByText("Maximum", { exact: true })).toBeVisible();
+    fireEvent.change(maximum, { target: { value: "6" } });
+    expect(trigger).toHaveTextContent("Level / rank: ≤ 6");
+    expect(trigger).toHaveAccessibleName("Edit Level / rank range: 6 or lower");
+    fireEvent.change(minimum, { target: { value: "6" } });
+    expect(trigger).toHaveTextContent(/^Level \/ rank: 6$/);
+    expect(trigger).toHaveAccessibleName("Edit Level / rank range: Exactly 6");
+    fireEvent.change(minimum, { target: { value: "6.0" } });
+    expect(trigger).toHaveTextContent(/^Level \/ rank: 6\.0$/);
+    fireEvent.change(maximum, { target: { value: "" } });
+    expect(trigger).toHaveTextContent("Level / rank: ≥ 6.0");
+    expect(trigger).toHaveAccessibleName("Edit Level / rank range: 6.0 or higher");
+    fireEvent.change(minimum, { target: { value: "0" } });
+    expect(trigger).toHaveTextContent("Level / rank: ≥ 0");
+    fireEvent.change(minimum, { target: { value: "-1" } });
+    fireEvent.change(maximum, { target: { value: "6" } });
+    expect(trigger).toHaveTextContent("Level / rank: -1–6");
+    expect(trigger).toHaveAccessibleName("Edit Level / rank range: -1 to 6");
+    fireEvent.click(screen.getByRole("button", { name: "Clear range" }));
+    expect(trigger).toHaveTextContent("Level / rank: Any");
+    expect(minimum).toHaveValue("");
+    expect(maximum).toHaveValue("");
+    await waitFor(() =>
+      expect(change).toHaveBeenLastCalledWith(
+        expect.objectContaining({ filter: null }),
+      ),
+    );
+  });
   it("keeps the search draft, focus and fixed controls mounted while filter definitions arrive", () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const setSearch = vi.fn();
@@ -285,9 +334,11 @@ describe("shared common and maintained advanced filters", () => {
     expect(input).toHaveFocus();
     expect(screen.getByRole("button", { name: "Advanced filters" })).toBe(advanced);
     expect(screen.queryByRole("status", { name: "Loading filters" })).toBeNull();
-    const level = screen.getByRole("button", { name: "Edit Level / rank range" });
+    const level = screen.getByRole("button", { name: "Edit Level / rank range: Any" });
     rerender(view(catalog, true));
-    expect(screen.getByRole("button", { name: "Edit Level / rank range" })).toBe(level);
+    expect(screen.getByRole("button", { name: "Edit Level / rank range: Any" })).toBe(
+      level,
+    );
     expect(screen.queryByRole("status", { name: "Loading filters" })).toBeNull();
     expect(input).toHaveFocus();
     expect(setSearch).not.toHaveBeenCalled();

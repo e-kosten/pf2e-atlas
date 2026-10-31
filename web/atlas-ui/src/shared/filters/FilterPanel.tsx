@@ -21,6 +21,7 @@ import {
 import {
   createContext,
   useContext,
+  useId,
   type ReactNode,
   useMemo,
   useLayoutEffect,
@@ -543,10 +544,11 @@ function CommonFilter({
         ) : (
           <Popover
             trigger="click"
-            placement="bottomLeft"
+            placement="bottom"
+            styles={{ root: { width: "min(360px, calc(100vw - 32px))" } }}
             title={field.label}
             content={
-              <Space orientation="vertical">
+              <Space orientation="vertical" style={{ width: "100%" }}>
                 <CommonRange
                   field={field}
                   range={range ?? ["", ""]}
@@ -563,8 +565,12 @@ function CommonFilter({
               </Space>
             }
           >
-            <Button aria-label={"Edit " + field.label + " range"}>
-              {field.label}: {range?.filter(Boolean).join(" – ") || "Any"}
+            <Button
+              aria-label={
+                "Edit " + field.label + " range: " + rangeSummary(range, "words")
+              }
+            >
+              {field.label}: {rangeSummary(range)}
             </Button>
           </Popover>
         )
@@ -584,6 +590,23 @@ function CommonFilter({
   );
 }
 
+function rangeSummary(
+  range: [string, string] | null,
+  format: "symbols" | "words" = "symbols",
+): string {
+  const [min, max] = range?.map((value) => value.trim()) ?? ["", ""];
+  if (!min && !max) return "Any";
+  if (!min) return format === "symbols" ? `≤ ${max}` : `${max} or lower`;
+  if (!max) return format === "symbols" ? `≥ ${min}` : `${min} or higher`;
+  try {
+    if (numericLiteral(min) === numericLiteral(max))
+      return format === "symbols" ? min : `Exactly ${min}`;
+  } catch {
+    // Invalid drafts remain visible while the range editor reports the error.
+  }
+  return format === "symbols" ? `${min}–${max}` : `${min} to ${max}`;
+}
+
 function CommonRange({
   field,
   range,
@@ -593,6 +616,7 @@ function CommonRange({
   range: [string, string];
   onChange: (range: [string, string]) => void;
 }) {
+  const id = useId();
   let error: string | null = null;
   try {
     const min = range[0].trim() ? numericLiteral(range[0]) : null;
@@ -605,27 +629,34 @@ function CommonRange({
   return (
     <div>
       <div className="filter-range">
-        <Input
-          aria-label={field.label + " minimum"}
-          name={field.definition.id + "-minimum"}
-          inputMode="decimal"
-          autoComplete="off"
-          placeholder="Minimum…"
-          status={error ? "error" : undefined}
-          value={range[0]}
-          onChange={(event) => onChange([event.target.value, range[1]])}
-        />
-        <span>to</span>
-        <Input
-          aria-label={field.label + " maximum"}
-          name={field.definition.id + "-maximum"}
-          inputMode="decimal"
-          autoComplete="off"
-          placeholder="Maximum…"
-          status={error ? "error" : undefined}
-          value={range[1]}
-          onChange={(event) => onChange([range[0], event.target.value])}
-        />
+        <label className="filter-range__bound" htmlFor={id + "-minimum"}>
+          <span>Minimum</span>
+          <Input
+            id={id + "-minimum"}
+            aria-label={field.label + " minimum"}
+            name={field.definition.id + "-minimum"}
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder="Any"
+            status={error ? "error" : undefined}
+            value={range[0]}
+            onChange={(event) => onChange([event.target.value, range[1]])}
+          />
+        </label>
+        <label className="filter-range__bound" htmlFor={id + "-maximum"}>
+          <span>Maximum</span>
+          <Input
+            id={id + "-maximum"}
+            aria-label={field.label + " maximum"}
+            name={field.definition.id + "-maximum"}
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder="Any"
+            status={error ? "error" : undefined}
+            value={range[1]}
+            onChange={(event) => onChange([range[0], event.target.value])}
+          />
+        </label>
       </div>
       {error && (
         <Typography.Text type="danger" role="status">
