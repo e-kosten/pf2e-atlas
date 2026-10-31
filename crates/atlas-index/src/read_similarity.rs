@@ -1,5 +1,5 @@
 //! Bounded stored-vector reads over the metadata-only logical-part projection.
-use crate::{IndexError, SourceUnitLocation, SourceVectorHit, SqliteIndexReader};
+use crate::{IndexError, SourceUnitLocation, SqliteIndexReader};
 use atlas_domain::{
     CORE_SECTIONS_RECIPE, CoreSectionFamily, CoreSectionRepresentation, CoreSectionSelection,
     RecordKey, SIMILARITY_ROLE_RECIPE, SearchContentScope, SearchProfileId,
@@ -18,6 +18,7 @@ pub struct SourceSimilarityUnit {
     pub vector: Vec<f32>,
     pub trait_text: Option<String>,
 }
+#[derive(Clone, Copy)]
 pub struct SourceSimilarityCandidateRequest<'a> {
     pub profile: &'a SearchProfileId,
     pub vector: &'a [f32],
@@ -419,87 +420,5 @@ impl SqliteIndexReader {
                 })
             })
             .collect()
-    }
-
-    pub fn similarity_candidates(
-        &self,
-        request: SourceSimilarityCandidateRequest<'_>,
-    ) -> Result<Vec<SourceVectorHit>, IndexError> {
-        let SourceSimilarityCandidateRequest {
-            profile,
-            vector,
-            query,
-            keys,
-            exclude,
-            comparison_key,
-            content_scope,
-            include_identity,
-            limit,
-        } = request;
-        if limit == 0 || limit > 4096 {
-            return Err(IndexError::Limit(
-                "similarity KNN window must be 1..4096".into(),
-            ));
-        }
-        if comparison_key.is_some_and(|key| !key.corresponds_to(key)) {
-            return Ok(vec![]);
-        }
-        let model = self.context().search_profile(profile)?;
-        crate::validation::check_vector(vector, model.dimensions)?;
-        self.require_vectors()?;
-        let table = crate::schema::vector_table(model)?;
-        let (mut eligible, mut values) = crate::read_units::eligible_sql(query, keys)?;
-        if let Some(exclude) = exclude {
-            eligible.push_str(&format!(" AND r.key<>?{}", values.len() + 1));
-            values.push(Value::Text(exclude.to_string()));
-        }
-        values.push(Value::Text(profile.to_string()));
-        let p = values.len();
-        let role = match comparison_key {
-            Some(SimilarityComparisonKey::Role(role)) => Some(role),
-            _ => None,
-        };
-        let role_sql = if let Some(role) = role {
-            values.push(Value::Text(
-                serde_json::to_value(role)?
-                    .as_str()
-                    .ok_or_else(|| IndexError::Invalid("invalid comparison role encoding".into()))?
-                    .to_owned(),
-            ));
-            format!(" AND sp.role=?{}", values.len())
-        } else {
-            String::new()
-        };
-        let prose_sql = if comparison_key == Some(SimilarityComparisonKey::Identity) {
-            "0".to_owned()
-        } else {
-            format!("su.unit_kind='passage' AND sp.selector IS NOT NULL {role_sql}")
-        };
-        let identity_allowed =
-            (include_identity || content_scope == SearchContentScope::Core) && role.is_none();
-        let identity_sql = if identity_allowed {
-            "su.unit_kind='identity' AND sl.field_path IS NULL AND sl.owners_json='[]'"
-        } else {
-            "0"
-        };
-        let content_sql = crate::read_units::semantic_content_sql(content_scope);
-        values.push(Value::Blob(crate::read_units::vector_bytes(vector)));
-        let v = values.len();
-        values.push(Value::Integer(limit as i64));
-        let k = values.len();
-        let sql = format!(
-            "WITH eligible AS ({eligible}) SELECT su.unit_id,r.key,sl.owners_json,sl.field_path,sl.section_json,knn.distance FROM (SELECT unit_id,distance FROM {table} WHERE embedding MATCH ?{v} AND k=?{k} AND unit_id IN (SELECT su.unit_id FROM semantic_units su JOIN semantic_locations sl USING(location_id) LEFT JOIN similarity_parts sp ON {PART_JOIN} WHERE su.profile_id=?{p} AND su.record_id IN (SELECT record_id FROM eligible){content_sql} AND (({prose_sql}) OR ({identity_sql})))) knn JOIN semantic_units su USING(unit_id) JOIN semantic_locations sl USING(location_id) JOIN records r ON r.record_id=su.record_id ORDER BY knn.distance,su.unit_id"
-        );
-        self.count_statement();
-        Ok(self
-            .native()?
-            .prepare(&sql)?
-            .query_map(params_from_iter(values.iter()), |row| {
-                Ok(SourceVectorHit {
-                    location: crate::read_units::location(row)?,
-                    distance: row.get(5)?,
-                })
-            })?
-            .collect::<Result<Vec<_>, _>>()?)
     }
 }

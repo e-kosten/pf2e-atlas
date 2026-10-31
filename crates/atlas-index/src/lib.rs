@@ -28,6 +28,7 @@ pub use requested_config::{
 };
 #[cfg(test)]
 mod core_tests;
+mod eligibility_buffer;
 mod error;
 #[cfg(test)]
 mod foundation_tests;
@@ -43,6 +44,10 @@ pub mod query;
 mod read_content;
 mod read_core;
 mod read_similarity;
+mod similarity_candidates;
+#[cfg(any(test, feature = "test-support"))]
+pub use eligibility_buffer::EligibilityStats;
+pub use similarity_candidates::ConfiguredSimilarityCandidates;
 mod read_similarity_sections;
 pub use read_similarity::{SourceSimilarityCandidateRequest, SourceSimilarityUnit};
 mod read_units;
