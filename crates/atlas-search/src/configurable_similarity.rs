@@ -120,6 +120,8 @@ pub struct SimilarityDiagnostics {
     pub pairwise_comparisons: usize,
     pub undefined_candidate_centroids: usize,
     pub timings: SimilarityTimings,
+    #[cfg(feature = "read-metrics")]
+    pub eligibility: Option<atlas_index::EligibilityStats>,
 }
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct SimilarityTimings {
@@ -266,6 +268,21 @@ impl crate::AtlasRetrievalService {
     }
 
     pub fn configurable_similar(
+        &self,
+        request: ConfigurableSimilarRequest<'_>,
+    ) -> Result<Option<ConfigurableSimilarResult>, SearchError> {
+        self.configurable_similar_impl::<true>(request)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn configurable_similar_exact(
+        &self,
+        request: ConfigurableSimilarRequest<'_>,
+    ) -> Result<Option<ConfigurableSimilarResult>, SearchError> {
+        self.configurable_similar_impl::<false>(request)
+    }
+
+    fn configurable_similar_impl<const REUSE: bool>(
         &self,
         request: ConfigurableSimilarRequest<'_>,
     ) -> Result<Option<ConfigurableSimilarResult>, SearchError> {
@@ -489,26 +506,38 @@ impl crate::AtlasRetrievalService {
         // contains at most 65,536 roots, before the actual-work budgets below.
         debug_assert!(queries.len() <= seed_units.len() * 2);
         let mut keys = BTreeSet::new();
+        let mut candidate_operation = REUSE.then(|| self.index.configured_similarity_candidates());
         for (vector, role) in queries {
             request.check()?;
-            for hit in
-                self.index
-                    .similarity_candidates(atlas_index::SourceSimilarityCandidateRequest {
-                        profile: &profile,
-                        vector: &vector,
-                        query: &predicate,
-                        keys: request.scope.keys(),
-                        exclude,
-                        comparison_key: role,
-                        content_scope: request.content_scope,
-                        include_identity: candidate_identity,
-                        limit: CANDIDATE_WINDOW,
-                    })?
-            {
+            let input = atlas_index::SourceSimilarityCandidateRequest {
+                profile: &profile,
+                vector: &vector,
+                query: &predicate,
+                keys: request.scope.keys(),
+                exclude,
+                comparison_key: role,
+                content_scope: request.content_scope,
+                include_identity: candidate_identity,
+                limit: CANDIDATE_WINDOW,
+            };
+            let hits = match candidate_operation.as_mut() {
+                Some(operation) => {
+                    operation.candidates::<SearchError>(input, || request.check())?
+                }
+                None => self.index.similarity_candidates(input)?,
+            };
+            for hit in hits {
                 keys.insert(hit.location.record);
             }
             diagnostics.knn_queries += 1;
         }
+        #[cfg(feature = "read-metrics")]
+        {
+            diagnostics.eligibility = candidate_operation
+                .as_ref()
+                .map(|operation| operation.stats());
+        }
+        drop(candidate_operation);
         diagnostics.timings.candidate_generation_ms =
             Some(generation_started.elapsed().as_secs_f64() * 1000.0);
         diagnostics.timings.vector_read_ms = Some(0.0);
@@ -906,3 +935,6 @@ pub(crate) fn selected_components(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod eligibility_tests;
