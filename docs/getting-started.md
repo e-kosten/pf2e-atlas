@@ -1,6 +1,7 @@
 # Getting started with PF2e Atlas
 
-[Install Atlas and run setup](../README.md#quick-start) once. To start a session:
+[Install Atlas and run setup](../README.md#quick-start) before your first session.
+Run setup again after upgrading Atlas. To open the browser:
 
 ```bash
 atlas web --open
@@ -14,7 +15,7 @@ have finished; your saved lists and encounters remain available next time.
 
 In Search, enter a name such as “Treat Wounds” or a description such as “low level
 healing spell.” Add a Kind filter for spells, creatures, equipment or another
-record type. Add level, rarity or trait filters when those constraints matter.
+type of entry. Add level, rarity or trait filters to narrow the results.
 Leave the search text empty to browse everything matching your filters.
 
 Open a result to read its details. Follow a linked name to preview another
@@ -38,12 +39,10 @@ and creatures you may want to use later. Setup updates preserve your collections
 Add a creature or hazard with **Add to list or encounter**, choosing an existing
 encounter or creating one. Open Encounters to review the roster and add your PCs.
 You can save a named party and use **Add Party** to add its members together;
-a party member only needs a name.
+a party member only needs a name. See [saved parties](#saved-parties) for later edits.
 
 Use the encounter controls to set initiative, move through turns, adjust HP,
-track conditions and spell resources, and roll dice. Check a participant's rules
-and any displayed restrictions when deciding an action at the table. Party edits
-apply to future additions; PCs already in an encounter keep their own state.
+track conditions and spell resources, and roll dice.
 
 ## Use commands or an agent
 
@@ -52,21 +51,20 @@ You can use Atlas from any directory after setup:
 ```bash
 atlas search 'walk through walls' --kind spell --limit 5
 atlas record resolve 'Treat Wounds' --pack-name actionspf2e
-atlas roll '2d20kh1+12'
 ```
 
-The last command rolls twice and keeps the higher die. Rolls work even without
-reference setup. For exact record reading, filters, lists and JSON, use the
-[CLI examples](cli-examples.md).
+For looking up a specific entry, using filters, managing lists or reading JSON
+output, see [CLI examples](cli-examples.md).
 
-To give a local agent the matching Atlas skill:
+To give your AI agent instructions for using Atlas:
 
 ```bash
 atlas agent skills install
 ```
 
-Choose your agent and scope. See [agent skill installation](installation.md#agent-skill)
-for supported targets and updating the skill after a CLI upgrade.
+Choose your agent and whether to install for one project or all projects. See
+[agent skill installation](installation.md#agent-skill) for supported agents and
+updating the skill after an Atlas upgrade.
 
 ## If setup or startup needs attention
 
@@ -78,4 +76,9 @@ atlas setup --check
 
 Follow the reported action, then rerun `atlas setup` if preparation is needed.
 See [Setup and maintenance](setup-and-maintenance.md) for offline use, cache cleanup
-and custom paths, or [Installation](installation.md) to update the executable.
+and custom paths, or [Installation](installation.md) to update Atlas.
+
+## Saved parties
+
+Editing a party changes the names and levels used when you add it to a future
+encounter. PCs already added to an encounter keep their existing state.

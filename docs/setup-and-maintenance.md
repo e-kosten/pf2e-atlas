@@ -1,77 +1,125 @@
 # Setup and maintenance
 
-The default [quick start](../README.md#quick-start) needs no path or model flags.
-Use this guide for readiness problems, updates, cache cleanup and custom data locations.
+Use this guide to update reference content, check setup problems, back up your
+saved work, or remove downloaded files.
 
 ## Update reference data
 
-After [updating the CLI](installation.md), run:
+Run setup after installing Atlas and after upgrading to a newer version:
 
 ```bash
 atlas setup
 ```
 
-Setup acquires the pinned Foundry PF2e source supported by that Atlas build.
-It preserves saved lists and encounters and reuses compatible embeddings.
-Restart any running `atlas web` process after a CLI upgrade to use the new version.
+Setup prepares the reference content supported by your installed Atlas version.
+It keeps your saved lists and encounters and reuses search data where possible.
+Restart any running `atlas web` command after upgrading Atlas to use the new version.
 
-## Readiness and offline setup
+## Check a setup problem
 
-Check setup status without changing local data:
+Check what Atlas needs without downloading or changing anything:
 
 ```bash
 atlas setup --check
 ```
 
-Use already-downloaded data without network access:
+Follow the reported action. If setup was interrupted, rerun `atlas setup` to
+resume it. You may need to wait until an update finishes before using Atlas again.
+Do not delete your workspace to resolve a setup error: it contains your saved work.
+
+Older pre-release versions used separate reference and saved-state files. Those
+formats are not converted automatically; check the reported error before creating
+a new workspace.
+
+## Run setup without downloads
+
+To rerun setup using files already on your computer:
 
 ```bash
 atlas setup --offline
 ```
 
-## Cache cleanup and uninstall
-
-Preview cleanup targets before removing caches:
-
-```bash
-atlas setup clean --embeddings --check
-atlas setup clean --all --yes
-```
-
-Cleanup supports `--embeddings`, `--source-checkout`, and `--all`, with `--check`
-for a dry run. It removes external caches, never the workspace or saved lists and
-encounters. Selecting every cache target requires `--yes` unless using `--check`.
-Later semantic text searches need the model cache restored with `atlas setup`.
-
-To uninstall the CLI, remove the `atlas` binary from the path printed by the
-installer. Your workspace remains in application-data storage.
+This flag controls setup's downloads. Normal local searches use the data you have
+already prepared. Offline setup cannot fetch a missing source or search model.
 
 ## Data locations
 
-The default setup stores the workspace in platform application-data storage and
-source/models in user cache storage. Atlas can be used from any directory after setup.
+Atlas stores reference data, saved lists and encounters in `workspace.sqlite`.
+These are the default locations:
 
-- `--path-mode global` uses `pf2e-atlas/workspace.sqlite` under platform application data, with external caches under the platform user cache directory.
-- `--path-mode repo` is a contributor mode that uses paths inside this repository:
-  - pinned source cache: `.cache/pf2e/<supported-commit>`
-  - embedding model cache: `.cache/hf-models`
-  - persistent workspace: `.atlas/workspace.sqlite`
+| System | Workspace file | Downloaded source and model folder |
+| --- | --- | --- |
+| macOS | `~/Library/Application Support/pf2e-atlas/workspace.sqlite` | `~/Library/Caches/pf2e-atlas/` |
+| Linux | `~/.local/share/pf2e-atlas/workspace.sqlite` | `~/.cache/pf2e-atlas/` |
+| Windows | `%LOCALAPPDATA%\pf2e-atlas\workspace.sqlite` | `%LOCALAPPDATA%\pf2e-atlas\` |
 
-Default reference data and generated models use the same immutable PF2e revision
-(currently 8.6.1). Setup fetches that revision rather than following upstream's
-latest branch. Supplied source directories are never pulled or checked out by
-Atlas; incompatible PF2e system versions produce an expected/detected version error.
+`~` means your home folder. On Windows, paste `%LOCALAPPDATA%\pf2e-atlas` into
+File Explorer's address bar. On Linux, `XDG_DATA_HOME` and `XDG_CACHE_HOME` replace
+`~/.local/share` and `~/.cache` if you have configured them.
 
-You can select workspace/cache paths for a command and override the source used by setup:
+Downloaded source and models can be fetched again. Your workspace contains saved
+work that cannot be recovered by downloading reference content again.
 
-- `--source /path/to/pf2e`
-- `--index /path/to/workspace.sqlite`
-- `--embedding-cache-path /path/to/hf-models`
+## Back up and restore your workspace
 
-Setup remembers your source, locale and requested models for later runs. It
-resumes interrupted preparation and reuses compatible completed embeddings.
-Publication and upgrades may temporarily prevent normal access.
+Before testing a nightly or switching to an older Atlas version:
 
-The old separate-index/state pre-release formats require a fresh workspace and
-are not converted automatically. Inspect `atlas setup --check` before responding
-to a readiness error; deleting your workspace would discard saved state.
+1. Stop `atlas web` with Ctrl+C and wait for all other Atlas commands, including
+   agent lookups and setup, to finish.
+2. Find `workspace.sqlite` using the table above. If you use `--index`, use that
+   location instead.
+3. Copy `workspace.sqlite` and any accompanying files whose names begin with
+   `workspace.sqlite` into a separate backup folder. Keep the files together and
+   leave the originals in place. Record `atlas --version` alongside the backup.
+
+The backup contains reference data as well as your lists and encounters. You do
+not need to copy downloaded source or models. Keep Atlas stopped until copying
+finishes so the files describe the same point in time.
+
+To restore, stop all Atlas commands again. Move the current `workspace.sqlite`
+and its accompanying files into a separate folder, then copy the backed-up files
+into their original location. Start with the Atlas version recorded for that
+backup. Restoring returns your saved work to the point when the backup was made.
+Switching executables alone does not undo changes to your workspace.
+
+## Remove downloaded files
+
+First preview what would be removed:
+
+```bash
+atlas setup clean --all --check
+```
+
+To remove those downloaded source and model files:
+
+```bash
+atlas setup clean --all --yes
+```
+
+Use `--embeddings` instead of `--all` to select only model files, or
+`--source-checkout` to select only the downloaded PF2e source. `--check` always
+previews without removing anything. Removing both caches requires `--yes`.
+
+Cleanup keeps your workspace, lists and encounters. Searching by meaning needs
+the model files; run `atlas setup` to download them again when needed.
+
+## Uninstall Atlas
+
+Remove the `atlas` executable from the location printed by the installer. Your
+workspace remains at the location above. Cache cleanup and uninstalling the
+executable do not remove your saved work.
+
+## Advanced: choose other locations
+
+Use these options when you need a different workspace or cache directory:
+
+- `--index /path/to/workspace.sqlite` selects a workspace for the command.
+- `--embedding-cache-path /path/to/hf-models` selects the model cache.
+- `--source /path/to/pf2e` selects the source checkout for setup. Atlas does not
+  update that checkout; use the supported PF2e version or setup reports a mismatch.
+
+`--path-mode global` is the default and uses the locations above. Contributors
+can use `--path-mode repo` inside a repository checkout for `.atlas/workspace.sqlite`,
+`.cache/pf2e/<supported-commit>` and `.cache/hf-models`. See
+[development setup](development/setup-and-preview.md) before preparing a development
+workspace. Setup remembers its source, language and selected models for later runs.

@@ -12,7 +12,9 @@ your saved lists and encounters. Atlas does not update itself automatically.
 
 ## Platforms and versions
 
-The installer installs only the `atlas` CLI. The persistent workspace lives in user application-data storage; downloaded source and models stay in cache locations managed by `atlas setup`.
+The installer adds the `atlas` command to your computer. Run `atlas setup` to
+prepare the reference content and search model. See [data locations](setup-and-maintenance.md#data-locations)
+for where Atlas keeps your saved work and downloaded files.
 
 Release binaries are provided for Linux x64, Linux ARM64, macOS Apple Silicon,
 and Windows x64. macOS Intel and Windows ARM64 are not published as release
@@ -24,7 +26,7 @@ Confirm the installed version:
 atlas --version
 ```
 
-To install a pinned version, use that release's installer URL (replace `VERSION`
+To install a specific version, use that release's installer URL (replace `VERSION`
 with a published release tag):
 
 ```bash
@@ -32,13 +34,15 @@ curl --proto '=https' --tlsv1.2 -LsSf \
   https://github.com/e-kosten/pf2e-atlas/releases/download/VERSION/atlas-installer.sh | sh
 ```
 
-Release candidates are installed only from pinned URLs or with `ATLAS_VERSION`.
+For a release candidate, use its specific release tag; the default installer
+selects the latest stable release. The `ATLAS_VERSION` environment variable also
+selects a version for the installer.
 
 ## Nightly builds
 
-Nightlies are prerelease builds of `main` for everyday testing. They are published
-when the scheduled build finds a new commit and all checks pass. Stable releases
-remain an explicit maintainer action; the default installer selects stable.
+Nightlies let you try recent changes before the next stable release. New builds
+are available after automated checks pass. The default quick-start installer uses
+the stable release; use the commands below to choose a nightly instead.
 
 Install or update to the newest successful nightly on macOS/Linux:
 
@@ -55,20 +59,19 @@ Invoke-WebRequest https://github.com/e-kosten/pf2e-atlas/releases/download/night
 ./atlas-installer.ps1 -Version nightly
 ```
 
-The installer prints the dated release it resolved. `atlas --version` includes
-that build's UTC timestamp and source commit prefix. Each dated release retains
-its binaries, so you can reinstall a specific nightly with `--version <tag>`
-(or `-Version <tag>`). Repeat the nightly command to update; Atlas does not
-update itself automatically. Add `--yes` / `-Yes` for unattended replacement.
+The installer prints the dated nightly version it installs. Run `atlas --version`
+to see your installed version. Repeat the nightly installation command to update,
+or use a specific dated tag with `--version <tag>` (`-Version <tag>` on Windows)
+to reinstall that build. Add `--yes` / `-Yes` when running without prompts.
 
 To return to stable, run the installer with `--version latest` / `-Version latest`.
-Nightly and stable installations share the normal data paths; switching binaries
-does not restore older local data. Back up saved state before testing changes that
-migrate it, and rerun `atlas setup` if the selected build requires a rebuilt index.
+Nightly and stable versions use the same workspace. [Back it up](setup-and-maintenance.md#back-up-and-restore-your-workspace)
+before trying a nightly or switching to an older version. Changing the installed
+version does not restore earlier saved data. Run `atlas setup` after upgrading.
 
 ## Manual download
 
-Download the cargo-dist archive for your OS from the
+Download the archive for your operating system from the
 [releases page](https://github.com/e-kosten/pf2e-atlas/releases), verify it against
 `SHA256SUMS`, extract `atlas`, put it on `PATH`, then run `atlas setup`.
 
@@ -76,16 +79,16 @@ Early release binaries are unsigned. macOS or Windows may show an operating-syst
 
 ## Agent skill
 
-The CLI includes a first-party skill that teaches local coding agents how to use Atlas for PF2E lookup, search, filter discovery, and graph context.
-
-With Atlas installed, use its bundled skill (matched to that CLI version) and
-choose the agent target you use:
+Install Atlas's bundled skill to give your AI agent instructions for searching
+and reading PF2e content. The bundled instructions match your installed Atlas
+version:
 
 ```bash
 atlas agent skills install
 ```
 
-For scripts or setup automation, provide the target and scope directly:
+Choose the agent you use and whether to install the skill for one project or all
+projects. For scripts, set these choices directly:
 
 ```bash
 atlas agent skills install --target agents --scope workspace --yes --json
@@ -93,16 +96,16 @@ atlas agent skills install --target agents --scope workspace --yes --json
 
 Supported targets are `agents`, `claude`, `codex`, `copilot`, `gemini`, and `kiro`.
 
-To inspect existing installs or diagnose a changed skill directory, use:
+To check installed copies of the skill, run:
 
 ```bash
 atlas agent skills doctor
 ```
 
 After upgrading Atlas, rerun the skill installer to update the installed copy.
-A differing copy requires `--force`; review local edits before replacing it.
-The skill is bundled with the executable, so install it from the Atlas version
-you intend the agent to use.
+If the installer reports that an existing copy differs, review any customizations
+before replacing it with `--force`. Use the Atlas version you want the agent to
+run when installing or updating its skill.
 
 You can also install the skill independently with Node.js and the
 [skills CLI](https://github.com/vercel-labs/skills):
@@ -118,11 +121,10 @@ global Codex installation:
 npx skills add e-kosten/pf2e-atlas --skill pf2e-atlas-cli --agent codex --global
 ```
 
-This installs only the skill, not Atlas or its data. The skill includes CLI
-installation and setup guidance. The repository's `main` skill tracks the nightly
-CLI; use the bundled installer for a release-matched copy. Use the installation
-method you chose to update that copy; Atlas's installer does not manage the
-skills CLI's symlinks or lockfiles.
+This method installs the instructions separately from Atlas and its reference
+data. It follows the latest development version; use `atlas agent skills install`
+for instructions matched to your installed release. If you installed through
+`npx skills`, update that copy using the same tool.
 
 ## Install from source
 
