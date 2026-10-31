@@ -181,5 +181,39 @@ fan-out, admission and permit ownership. No broader speedup is established.
 
 ## Bounded eligibility prototype
 
-A request-local exact eligibility prototype is authorized independently of
-configured cross-request retention. [ADR0063](../../architecture/decisions/0063-request-local-configured-eligibility.md) records its representation, finite aggregate bounds, validation/error/cancellation order and exact capacity bypass. Implementation and matched measurements use current main `b10ce08e`; original `d5191ecf` research remains unchanged. Performance, full local gates and separate implementation/evidence review remain required; no improvement or integration is accepted merely from this decision.
+The bounded request-local exact eligibility prototype is implemented locally at
+`91c39050`, based on main `b10ce08e`; coordinator integration remains separate.
+[ADR0063](../../architecture/decisions/0063-request-local-configured-eligibility.md)
+records its complete identity, aggregate bounds, validation/error/cancellation
+order and exact capacity bypass. Original `d5191ecf` research is unchanged.
+
+A guarded optimized cohort completed 56 processes / 184 operations in 783.95
+seconds with 2,973 clear relevant-load checks, plus a separate six-process resource
+cohort. All 95 paired complete outputs/errors, native work and rowid counters
+matched. Successful default Passages request medians improved 20.1–43.7% across
+both profiles and Core/All; selective corresponding-role cases improved
+40.0–43.6%. Large BGE/All preserved its work-limit failure and improved 43.1% on
+that error path. Native selection counts remained 3/28/98 for small/medium/large;
+this reuses eligibility setup, not selections. No cross-request retention or
+capacity change is included.
+
+One-selection controls cost 2.1–3.7% more. Ordinary warm BGE controls were 8.9%
+and 14.3% slower (+4.01/+5.67 ms), with corresponding CPU movement; their cause
+is unresolved. Gemma warm controls were near baseline. Additional quiet paired
+process replication is needed before claiming ordinary stability or general
+non-regression. One process per arm/cell, correlated repeats, small n and
+uncontrolled OS cache state limit the latency/tail evidence.
+
+Maximum accounted owned state was 3,215,441 B under the 4 MiB policy. The separate
+resource cohort observed SQLite highwater increases of 1.05–3.11 MB and whole-process
+RSS increases of 1.33–6.44 MB. Reader closure and one-second cooldown returned
+SQLite usage to the baseline 16 B. Implicit TEMP file observations are sampled,
+not complete disk peaks; no hard global SQLite heap/TEMP policy is introduced.
+
+Full applicable local gates passed (1,531 nextest passes / 30 skips, Clippy,
+formatting, doctests, workspace/frontend builds), as did affected real HTTP/browser
+checks and separate AI implementation/evidence review. No hosted CI or human
+approval is claimed. Raw source/binary provenance, exact outcomes, medians/p95,
+CPU/resource receipts and remaining limitations are retained locally under
+`scratch/request-local-eligibility/REPORT.md`. These results support bounded
+prototype handoff; publication and broad release acceptance remain separate.

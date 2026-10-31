@@ -89,3 +89,26 @@ bypass-once behavior, cancellation/cleanup/isolation tests, and matched optimize
 CPU/wall/resource evidence on the actual base. One-selection and ordinary controls
 must expose setup regressions. The earlier pre-filter SQL/VM share is not a
 promised saving; stop if measured construction/resource costs erase the benefit.
+
+## Prototype evidence and integration limits
+
+Production candidate `91c39050` on baseline `b10ce08e` passed deterministic
+optimized/exact parity, budget/bypass/cancellation/lifetime/error-order fixtures,
+full applicable local gates and affected real HTTP/browser checks. Separate AI
+implementation and evidence review found no confirmed correctness defect.
+
+The optimized isolated cohort compared 184 operations in 56 processes. Successful
+default configured request medians improved 20.1–43.7%, preserving exact native
+work and full outputs/errors. Accounted owned peak was 3,215,441 B; separate
+resource observations showed bounded additional query representation cost and
+SQLite cleanup matching baseline through a one-second cooldown. Raw receipts
+and exact diagnostic overlays remain in the local research packet.
+
+This evidence supports the bounded local prototype, not general no-regression.
+One-selection controls were 2.1–3.7% slower, and ordinary warm BGE controls were
+8.9%/14.3% slower with matching CPU movement; their cause remains unresolved.
+Further quiet paired process replication is needed before claiming ordinary
+stability. Small correlated samples, uncontrolled OS cache state and sampled
+TEMP observations do not establish tail latency or a total SQLite/disk bound.
+Coordinator integration/publication is separate from this experiment. The
+existing backlog owner retains these limitations and follow-up decisions.
