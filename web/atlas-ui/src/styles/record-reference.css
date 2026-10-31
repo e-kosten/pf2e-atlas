@@ -171,14 +171,14 @@
 }
 .record-reference h3 {
   margin: 0 0 8px;
-  font-size: 1.125rem;
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 700;
   line-height: 1.35;
 }
 .record-reference h4 {
   margin: 0 0 var(--space-control);
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.125rem;
+  font-weight: 700;
   line-height: 1.35;
 }
 .record-reference h5 {
@@ -199,6 +199,7 @@
 }
 .record-fact > strong {
   margin-inline-end: var(--space-micro);
+  font-weight: 600;
 }
 .record-missing {
   color: var(--muted);
