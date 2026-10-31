@@ -565,7 +565,11 @@ function CommonFilter({
               </Space>
             }
           >
-            <Button aria-label={"Edit " + field.label + " range"}>
+            <Button
+              aria-label={
+                "Edit " + field.label + " range: " + rangeSummary(range, "words")
+              }
+            >
               {field.label}: {rangeSummary(range)}
             </Button>
           </Popover>
@@ -586,17 +590,21 @@ function CommonFilter({
   );
 }
 
-function rangeSummary(range: [string, string] | null): string {
+function rangeSummary(
+  range: [string, string] | null,
+  format: "symbols" | "words" = "symbols",
+): string {
   const [min, max] = range?.map((value) => value.trim()) ?? ["", ""];
   if (!min && !max) return "Any";
-  if (!min) return `${max} or lower`;
-  if (!max) return `${min} or higher`;
+  if (!min) return format === "symbols" ? `≤ ${max}` : `${max} or lower`;
+  if (!max) return format === "symbols" ? `≥ ${min}` : `${min} or higher`;
   try {
-    if (numericLiteral(min) === numericLiteral(max)) return `Exactly ${min}`;
+    if (numericLiteral(min) === numericLiteral(max))
+      return format === "symbols" ? min : `Exactly ${min}`;
   } catch {
     // Invalid drafts remain visible while the range editor reports the error.
   }
-  return `${min} – ${max}`;
+  return format === "symbols" ? `${min}–${max}` : `${min} to ${max}`;
 }
 
 function CommonRange({

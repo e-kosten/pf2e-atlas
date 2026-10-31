@@ -258,7 +258,7 @@ describe("shared common and maintained advanced filters", () => {
       { layout: "toolbar" },
     );
     const trigger = screen.getByRole("button", {
-      name: "Edit Level / rank range",
+      name: "Edit Level / rank range: Any",
     });
     expect(trigger).toHaveTextContent("Level / rank: Any");
     fireEvent.click(trigger);
@@ -273,18 +273,22 @@ describe("shared common and maintained advanced filters", () => {
     );
     expect(screen.getByText("Maximum", { exact: true })).toBeVisible();
     fireEvent.change(maximum, { target: { value: "6" } });
-    expect(trigger).toHaveTextContent("Level / rank: 6 or lower");
+    expect(trigger).toHaveTextContent("Level / rank: ≤ 6");
+    expect(trigger).toHaveAccessibleName("Edit Level / rank range: 6 or lower");
     fireEvent.change(minimum, { target: { value: "6" } });
-    expect(trigger).toHaveTextContent("Level / rank: Exactly 6");
+    expect(trigger).toHaveTextContent(/^Level \/ rank: 6$/);
+    expect(trigger).toHaveAccessibleName("Edit Level / rank range: Exactly 6");
     fireEvent.change(minimum, { target: { value: "6.0" } });
-    expect(trigger).toHaveTextContent("Level / rank: Exactly 6.0");
+    expect(trigger).toHaveTextContent(/^Level \/ rank: 6\.0$/);
     fireEvent.change(maximum, { target: { value: "" } });
-    expect(trigger).toHaveTextContent("Level / rank: 6.0 or higher");
+    expect(trigger).toHaveTextContent("Level / rank: ≥ 6.0");
+    expect(trigger).toHaveAccessibleName("Edit Level / rank range: 6.0 or higher");
     fireEvent.change(minimum, { target: { value: "0" } });
-    expect(trigger).toHaveTextContent("Level / rank: 0 or higher");
+    expect(trigger).toHaveTextContent("Level / rank: ≥ 0");
     fireEvent.change(minimum, { target: { value: "-1" } });
     fireEvent.change(maximum, { target: { value: "6" } });
-    expect(trigger).toHaveTextContent("Level / rank: -1 – 6");
+    expect(trigger).toHaveTextContent("Level / rank: -1–6");
+    expect(trigger).toHaveAccessibleName("Edit Level / rank range: -1 to 6");
     fireEvent.click(screen.getByRole("button", { name: "Clear range" }));
     expect(trigger).toHaveTextContent("Level / rank: Any");
     expect(minimum).toHaveValue("");
@@ -330,9 +334,11 @@ describe("shared common and maintained advanced filters", () => {
     expect(input).toHaveFocus();
     expect(screen.getByRole("button", { name: "Advanced filters" })).toBe(advanced);
     expect(screen.queryByRole("status", { name: "Loading filters" })).toBeNull();
-    const level = screen.getByRole("button", { name: "Edit Level / rank range" });
+    const level = screen.getByRole("button", { name: "Edit Level / rank range: Any" });
     rerender(view(catalog, true));
-    expect(screen.getByRole("button", { name: "Edit Level / rank range" })).toBe(level);
+    expect(screen.getByRole("button", { name: "Edit Level / rank range: Any" })).toBe(
+      level,
+    );
     expect(screen.queryByRole("status", { name: "Loading filters" })).toBeNull();
     expect(input).toHaveFocus();
     expect(setSearch).not.toHaveBeenCalled();
