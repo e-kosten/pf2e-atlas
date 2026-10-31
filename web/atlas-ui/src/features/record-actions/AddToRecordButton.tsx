@@ -239,7 +239,8 @@ function AddToRecordModal({
   const run = (name?: string) => {
     if (inFlight.current) return;
     inFlight.current = true;
-    submit.mutate({ name, note: form.getFieldValue("note")?.trim() });
+    const note = form.getFieldValue("note");
+    submit.mutate({ name, note: note?.trim() ? note : undefined });
   };
   const changeMode = (next: boolean) => {
     if (inFlight.current) return;
@@ -398,7 +399,15 @@ function AddToRecordModal({
           )}
           {kind === "list" && (
             <Form.Item name="note" label="Note" style={{ marginBottom: 0 }}>
-              <Input.TextArea autoSize={{ minRows: 3, maxRows: 6 }} />
+              <Input.TextArea
+                autoSize={{ minRows: 3, maxRows: 6 }}
+                styles={{
+                  textarea: {
+                    transitionProperty:
+                      "background-color, border-color, box-shadow, color",
+                  },
+                }}
+              />
             </Form.Item>
           )}
         </Form>

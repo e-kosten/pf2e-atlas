@@ -1957,7 +1957,50 @@ test("record picker saves an optional entry note and brings the changed list fir
     await expect(choices.first()).toHaveText(`Alpha ${suffix}`);
     await activate(choices.filter({ hasText: `Zulu ${suffix}` }), info);
     const note = dialog.getByRole("textbox", { name: "Note" });
-    await note.fill("Discuss before the next session.\nBring the map.");
+    const noteText = "  Discuss before the next session.\n\nBring the map.\n";
+    await note.fill("  Discuss before the next session.");
+    await note.press("Enter");
+    await note.press("Enter");
+    await note.pressSequentially("Bring the map.");
+    const growthFrames = page.evaluate(async () => {
+      const field = document.querySelector<HTMLTextAreaElement>("textarea#note")!;
+      const dialog = field.closest<HTMLElement>('[role="dialog"]')!;
+      const frames: Array<{ height: number; scroll: number; top: number }> = [];
+      await new Promise<void>((resolve) => {
+        const onEnter = (event: KeyboardEvent) => {
+          if (event.key !== "Enter") return;
+          field.removeEventListener("keydown", onEnter);
+          const start = performance.now();
+          const sample = () => {
+            frames.push({
+              height: field.getBoundingClientRect().height,
+              scroll: field.scrollTop,
+              top: dialog.getBoundingClientRect().top,
+            });
+            if (performance.now() - start < 400) requestAnimationFrame(sample);
+            else resolve();
+          };
+          sample();
+        };
+        field.addEventListener("keydown", onEnter);
+      });
+      return frames;
+    });
+    await note.press("Enter");
+    const frames = await growthFrames;
+    expect(
+      Math.max(...frames.map((frame) => frame.height)) -
+        Math.min(...frames.map((frame) => frame.height)),
+    ).toBeGreaterThan(10);
+    expect(Math.max(...frames.map((frame) => frame.scroll))).toBeLessThanOrEqual(1);
+    expect(
+      Math.max(...frames.map((frame) => frame.top)) -
+        Math.min(...frames.map((frame) => frame.top)),
+    ).toBeLessThanOrEqual(1);
+    await expect(note).toHaveValue(noteText);
+    await expect(dialog).toBeVisible();
+    const beforeAdd = await page.request.get(`/api/lists/${created[0]}`);
+    expect((await beforeAdd.json()).items).toEqual([]);
     await expect(note).toBeVisible();
     await noPageOverflow(page);
     await activate(dialog.getByRole("button", { name: "Add", exact: true }), info);
@@ -1966,9 +2009,7 @@ test("record picker saves an optional entry note and brings the changed list fir
       `/api/lists/${created[0]}/items/${record}/note`,
     );
     expect(saved.ok()).toBeTruthy();
-    expect((await saved.json()).note).toBe(
-      "Discuss before the next session.\nBring the map.",
-    );
+    expect((await saved.json()).note).toBe(noteText);
     await activate(trigger, info);
     await expect(dialog.getByRole("textbox", { name: "Note" })).toHaveValue("");
     await activate(dialog.getByRole("combobox", { name: "Saved list" }), info);
@@ -1979,6 +2020,30 @@ test("record picker saves an optional entry note and brings the changed list fir
     await expect(page.getByRole("table").getByRole("row").nth(1)).toContainText(
       `Zulu ${suffix}`,
     );
+    await page.goto(`/lists/zulu-${suffix}/records/${record}`);
+    const noteRegion = page.getByRole("region", {
+      name: "List entry note",
+      exact: true,
+    });
+    const readout = noteRegion.locator(".list-entry-note__text");
+    await expect(readout).toHaveText(noteText, { useInnerText: false });
+    expect(await readout.textContent()).toBe(noteText);
+    expect(await readout.evaluate((node) => getComputedStyle(node).whiteSpace)).toBe(
+      "pre-wrap",
+    );
+    await activate(noteRegion.getByRole("button", { name: "Edit", exact: true }), info);
+    const editor = noteRegion.getByRole("textbox", { name: "Note", exact: true });
+    await expect(editor).toHaveValue(noteText);
+    await editor.fill(noteText);
+    await editor.pressSequentially("Keep the route secret.");
+    const edited = noteText + "Keep the route secret.";
+    await activate(noteRegion.getByRole("button", { name: "Save", exact: true }), info);
+    await expect(readout).toHaveText(edited, { useInnerText: false });
+    expect(await readout.textContent()).toBe(edited);
+    const updated = await page.request.get(
+      `/api/lists/${created[0]}/items/${record}/note`,
+    );
+    expect((await updated.json()).note).toBe(edited);
   } finally {
     for (const key of created) await page.request.delete(`/api/lists/${key}`);
   }

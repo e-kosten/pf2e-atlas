@@ -144,7 +144,7 @@ it("keeps list choice and dialog through pending/failure, then closes after retr
   expect(api.addSavedListItem).toHaveBeenLastCalledWith({
     list_ref: "list_review",
     record_ref: "spells:light",
-    note: "Prepare for the night watch.",
+    note: "  Prepare for the night watch.  ",
   });
 });
 
