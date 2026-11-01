@@ -309,14 +309,16 @@ rule ordinal and fingerprint identity. Switching a condition-granting option ret
 previous advice immediately, including during failed refreshes; spending an ability
 use or a spell resource preserves still-valid advice and the anchored spell view.
 
-Next turn advances atomically before the browser presents one notification for the
-turn just completed. Closing by Escape, backdrop or the close icon finishes the
-interaction without changing HP, conditions or initiative. The browser pins the outgoing
-participant inspector while reminders are open, retaining live canonical updates
-for that participant. Dismissal follows the saved current turn; a quiet boundary
-follows immediately. This display choice does not defer the atomic turn advance.
-Reads and refreshes do
-not reopen it. There is no acknowledgment, past-turn queue, selector or pagination.
+Next turn advances atomically before the browser presents reminders for the
+completed transition. Rust projects separate end and start contexts from the same
+frozen snapshot, each with its boundary actor, event and actual round. End reminders
+retain the outgoing participant inspector; start reminders select the incoming
+participant before their popup opens. A transition with both presents end first,
+then start; quiet phases are skipped. Continue, Escape, backdrop or the close icon
+finishes the current phase without changing HP, conditions or initiative. Closing
+the last phase follows the saved current turn. This presentation does not defer or
+repeat the atomic advance. Reads and refreshes do not reopen reminders. There is no
+acknowledgment, past-turn queue, selector or pagination.
 Durable advance receipts retain the original participant and frozen source context
 for retry safety while the current notification is open. Only the latest completed
 boundary is actionable; advancing again supersedes it. Completed condition reminders

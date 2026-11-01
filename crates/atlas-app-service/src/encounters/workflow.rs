@@ -639,10 +639,12 @@ impl AtlasAppService {
                 .get_with_participants(encounter_ref)?
                 .ok_or_else(|| encounter_not_found(encounter_ref))?;
             let mut view = turn_review(&snapshot);
-            view.outgoing = super::outgoing_turns::latest_review(
+            let boundaries = super::outgoing_turns::latest_reviews(
                 &session.local_state().encounters(),
                 &snapshot.encounter.encounter_key,
             )?;
+            view.outgoing = boundaries.outgoing;
+            view.incoming = boundaries.incoming;
             Ok(view)
         })
     }

@@ -1877,14 +1877,28 @@ fn elapsed_trackers_use_actual_end_and_foreign_start_transitions_without_repeati
     f.worker
         .advance_encounter_turn(&key, request.clone())
         .unwrap();
-    let outgoing = f
-        .worker
-        .encounter_turn_review(&key)
-        .unwrap()
-        .outgoing
-        .unwrap();
+    let review = f.worker.encounter_turn_review(&key).unwrap();
+    let outgoing = review.outgoing.unwrap();
+    let incoming = review.incoming.unwrap();
     assert_eq!(outgoing.participant_key, a);
-    assert_eq!(elapsed_rows(&outgoing.reminders).len(), 3);
+    assert_eq!(outgoing.event, ConditionTurnEvent::End);
+    assert_eq!(elapsed_rows(&outgoing.reminders).len(), 2);
+    assert_eq!(incoming.participant_key, b);
+    assert_eq!(incoming.event, ConditionTurnEvent::Start);
+    assert_eq!(
+        elapsed_rows(&incoming.reminders),
+        [(a.as_str(), "foreign-start", None)]
+    );
+    assert_eq!(incoming.boundary_key, outgoing.boundary_key);
+    assert_eq!(outgoing.source_revision, unchanged.encounter.revision);
+    assert_eq!(incoming.source_revision, unchanged.encounter.revision);
+    assert_ne!(
+        incoming.source_revision,
+        f.worker
+            .encounter_turn_review(&key)
+            .unwrap()
+            .expected_revision
+    );
     assert!(elapsed_rows(&f.worker.encounter_turn_review(&key).unwrap().reminders).is_empty());
     let after = snapshot(&f, &key);
     f.worker.advance_encounter_turn(&key, request).unwrap();
@@ -1897,14 +1911,15 @@ fn elapsed_trackers_use_actual_end_and_foreign_start_transitions_without_repeati
         f.worker.encounter_turn_review(&key).unwrap().outgoing,
         Some(outgoing)
     );
+    assert_eq!(
+        f.worker.encounter_turn_review(&key).unwrap().incoming,
+        Some(incoming)
+    );
     for _ in 0..4 {
         next(&f, &key);
+        let review = f.worker.encounter_turn_review(&key).unwrap();
         assert!(
-            f.worker
-                .encounter_turn_review(&key)
-                .unwrap()
-                .outgoing
-                .is_none(),
+            review.outgoing.is_none() && review.incoming.is_none(),
             "existing zero trackers do not keep notifying"
         );
     }
@@ -1993,10 +2008,15 @@ fn elapsed_tracker_initial_start_retains_a_review_without_spurious_outgoing_dama
                 )?)
         })
         .unwrap();
+    let source_revision = snapshot(&f, &key).encounter.revision;
     next(&f, &key);
     let review = f.worker.encounter_turn_review(&key).unwrap();
-    let outgoing = review.outgoing.unwrap();
+    assert!(review.outgoing.is_none());
+    let outgoing = review.incoming.unwrap();
     assert_eq!(outgoing.participant_key, a);
+    assert_eq!(outgoing.event, ConditionTurnEvent::Start);
+    assert_eq!(outgoing.round_number, 1);
+    assert_eq!(outgoing.source_revision, source_revision);
     assert_eq!(
         elapsed_rows(&outgoing.reminders),
         [(b.as_str(), "first-start", None)]
@@ -2130,7 +2150,11 @@ fn elapsed_tracker_single_actor_start_and_end_are_independent_and_legacy_snapsho
             &a,
             name,
             ConditionDurationView {
-                amount: 1,
+                amount: if event == ConditionTurnEvent::Start {
+                    2
+                } else {
+                    1
+                },
                 unit: ConditionDurationUnit::Rounds,
                 remaining_rounds: None,
                 timing: Some(ConditionTimingView {
@@ -2152,33 +2176,242 @@ fn elapsed_tracker_single_actor_start_and_end_are_independent_and_legacy_snapsho
     let decoded: atlas_local_state::SavedOutgoingTurn = serde_json::from_value(json).unwrap();
     assert!(elapsed_rows(&super::timing::turn_review(&decoded.snapshot).reminders).is_empty());
     next(&f, &key);
-    let review = f
-        .worker
-        .encounter_turn_review(&key)
-        .unwrap()
-        .outgoing
-        .unwrap();
-    assert_eq!(
-        elapsed_rows(&review.reminders),
-        [(a.as_str(), "single-start", None)]
-    );
+    let first = f.worker.encounter_turn_review(&key).unwrap();
+    assert!(first.outgoing.is_none() && first.incoming.is_none());
     next(&f, &key);
-    let review = f
-        .worker
-        .encounter_turn_review(&key)
-        .unwrap()
-        .outgoing
-        .unwrap();
+    let review = f.worker.encounter_turn_review(&key).unwrap();
+    let ending = review.outgoing.unwrap();
+    let starting = review.incoming.unwrap();
     assert_eq!(
-        elapsed_rows(&review.reminders),
+        elapsed_rows(&ending.reminders),
         [(a.as_str(), "single-end", None)]
     );
+    assert_eq!(
+        elapsed_rows(&starting.reminders),
+        [(a.as_str(), "single-start", None)]
+    );
+    assert_eq!(ending.participant_key, a);
+    assert_eq!(starting.participant_key, a);
+    assert_eq!(
+        (ending.event, ending.round_number),
+        (ConditionTurnEvent::End, 1)
+    );
+    assert_eq!(
+        (starting.event, starting.round_number),
+        (ConditionTurnEvent::Start, 2)
+    );
+    assert_eq!(ending.boundary_key, starting.boundary_key);
     next(&f, &key);
+    let review = f.worker.encounter_turn_review(&key).unwrap();
+    assert!(review.outgoing.is_none() && review.incoming.is_none());
+}
+
+#[test]
+fn start_phase_uses_incoming_actor_round_and_retains_foreign_tracker_results() {
+    let (f, key, a, b) = fixture();
+    let tracker = add_transition_tracker(
+        &f,
+        &key,
+        &b,
+        "foreign-on-wrap",
+        ConditionDurationView {
+            amount: 1,
+            unit: ConditionDurationUnit::Rounds,
+            remaining_rounds: None,
+            timing: Some(ConditionTimingView {
+                participant_key: a.clone(),
+                event: ConditionTurnEvent::Start,
+            }),
+        },
+    );
+    add_transition_tracker(
+        &f,
+        &key,
+        &a,
+        "last-end",
+        ConditionDurationView {
+            amount: 1,
+            unit: ConditionDurationUnit::Rounds,
+            remaining_rounds: None,
+            timing: Some(ConditionTimingView {
+                participant_key: b.clone(),
+                event: ConditionTurnEvent::End,
+            }),
+        },
+    );
+    set(&f, &key, &b);
+    next(&f, &key);
+    let review = f.worker.encounter_turn_review(&key).unwrap();
+    let outgoing = review.outgoing.unwrap();
+    let incoming = review.incoming.unwrap();
+    assert_eq!(
+        (
+            outgoing.participant_key.as_str(),
+            outgoing.participant_name.as_str(),
+            outgoing.event,
+            outgoing.round_number
+        ),
+        (b.as_str(), "B", ConditionTurnEvent::End, 1)
+    );
+    assert_eq!(
+        (
+            incoming.participant_key.as_str(),
+            incoming.participant_name.as_str(),
+            incoming.event,
+            incoming.round_number
+        ),
+        (a.as_str(), "A", ConditionTurnEvent::Start, 2)
+    );
+    assert_eq!(
+        elapsed_rows(&incoming.reminders),
+        [(b.as_str(), "foreign-on-wrap", None)]
+    );
+    assert!(incoming.persistent_damage_groups.is_empty());
+    assert!(!incoming.damage_applied && incoming.recovered_episode_ids.is_empty());
+    let boundary = incoming.boundary_key.clone();
+    let source_revision = incoming.source_revision;
+    assert_eq!(outgoing.source_revision, source_revision);
+    let restart = tracker_request(
+        &f,
+        &key,
+        &b,
+        "restart-start",
+        EncounterManualTrackerAction::Restart {
+            tracker_key: tracker.clone(),
+        },
+    );
+    f.worker
+        .update_encounter_manual_tracker(&key, restart)
+        .unwrap();
+    let incoming = f
+        .worker
+        .encounter_turn_review(&key)
+        .unwrap()
+        .incoming
+        .unwrap();
+    assert_eq!(incoming.boundary_key, boundary);
+    assert_eq!(incoming.source_revision, source_revision);
+    assert_eq!(
+        elapsed_rows(&incoming.reminders),
+        [(b.as_str(), "foreign-on-wrap", Some("Restarted"))]
+    );
+    let remove = tracker_request(
+        &f,
+        &key,
+        &b,
+        "remove-start",
+        EncounterManualTrackerAction::Remove {
+            tracker_key: tracker,
+        },
+    );
+    f.worker
+        .update_encounter_manual_tracker(&key, remove)
+        .unwrap();
+    let incoming = f
+        .worker
+        .encounter_turn_review(&key)
+        .unwrap()
+        .incoming
+        .unwrap();
+    assert_eq!(
+        elapsed_rows(&incoming.reminders),
+        [(b.as_str(), "foreign-on-wrap", Some("Removed"))]
+    );
+    f.worker.remove_encounter_participant(&key, &b).unwrap();
+    let incoming = f
+        .worker
+        .encounter_turn_review(&key)
+        .unwrap()
+        .incoming
+        .unwrap();
+    assert_eq!(incoming.participant_key, a);
+    assert_eq!(
+        elapsed_rows(&incoming.reminders),
+        [(b.as_str(), "foreign-on-wrap", Some("Participant removed"))]
+    );
+}
+#[test]
+fn condition_reminders_are_partitioned_once_by_their_actual_boundary() {
+    let (f, key, a, b) = fixture();
+    let end_id = add(&f, &a, None, rounds(1, Some(&a), LocalEvent::End));
+    let start_id = add(&f, &a, None, rounds(1, Some(&b), LocalEvent::Start));
+    let zero_id = add(&f, &a, None, rounds(0, Some(&b), LocalEvent::Start));
+    let unresolved_id = add(&f, &a, None, rounds(3, None, LocalEvent::Start));
+    set(&f, &key, &a);
+    next(&f, &key);
+    let review = f.worker.encounter_turn_review(&key).unwrap();
+    let end = review.outgoing.unwrap();
+    let start = review.incoming.unwrap();
+    assert_eq!(end.event, ConditionTurnEvent::End);
+    assert_eq!(start.event, ConditionTurnEvent::Start);
+    assert_eq!(start.participant_key, b);
+    assert!(end.reminders.iter().any(|r|matches!(r, EncounterTurnReminderView::DurationEnding { condition_id, .. } if *condition_id==end_id)));
+    assert!(end.reminders.iter().any(|r|matches!(r, EncounterTurnReminderView::DurationEnded { condition_id, .. } if *condition_id==zero_id)));
+    assert!(end.reminders.iter().any(|r|matches!(r, EncounterTurnReminderView::TimingUnavailable { condition_id, .. } if *condition_id==unresolved_id)));
     assert!(
-        f.worker
-            .encounter_turn_review(&key)
-            .unwrap()
-            .outgoing
-            .is_none()
+        matches!(&start.reminders[..], [EncounterTurnReminderView::DurationEnding { condition_id, timing:ConditionTimingView {event:ConditionTurnEvent::Start,..},.. }] if *condition_id==start_id)
+    );
+}
+
+#[test]
+fn initial_start_owns_legacy_duration_reminders_without_running_end_recovery() {
+    let (f, key, a, b) = fixture();
+    let ended = add(&f, &a, None, rounds(0, Some(&b), LocalEvent::Start));
+    let unresolved = add(&f, &a, None, rounds(3, None, LocalEvent::End));
+    let reminder = add(
+        &f,
+        &a,
+        None,
+        Some(ConditionDuration {
+            amount: 1,
+            unit: LocalUnit::Minutes,
+            timing: None,
+            remaining_seconds: None,
+        }),
+    );
+    let frightened =
+        super::conditions::modeled_condition_by_rule(super::conditions::ConditionRule::Frightened)
+            .unwrap();
+    add(&f, &a, Some(frightened.condition_ref), None);
+    let persistent = super::conditions::modeled_condition_by_rule(
+        super::conditions::ConditionRule::PersistentDamage,
+    )
+    .unwrap();
+    add(&f, &a, Some(persistent.condition_ref), None);
+    next(&f, &key);
+    let review = f.worker.encounter_turn_review(&key).unwrap();
+    assert!(review.outgoing.is_none());
+    let incoming = review.incoming.unwrap();
+    assert_eq!(
+        (
+            incoming.event,
+            incoming.participant_key.as_str(),
+            incoming.round_number
+        ),
+        (ConditionTurnEvent::Start, a.as_str(), 1)
+    );
+    assert_eq!(incoming.reminders.len(), 3);
+    assert!(incoming.reminders.iter().any(|r|matches!(r, EncounterTurnReminderView::DurationEnded {condition_id,..} if *condition_id==ended)));
+    assert!(incoming.reminders.iter().any(|r|matches!(r, EncounterTurnReminderView::TimingUnavailable {condition_id,..} if *condition_id==unresolved)));
+    assert!(incoming.reminders.iter().any(|r|matches!(r, EncounterTurnReminderView::DurationReminder {condition_id,..} if *condition_id==reminder)));
+    next(&f, &key);
+    let review = f.worker.encounter_turn_review(&key).unwrap();
+    assert!(review.incoming.is_none());
+    let outgoing = review.outgoing.unwrap();
+    assert_eq!(
+        (outgoing.event, outgoing.participant_key.as_str()),
+        (ConditionTurnEvent::End, a.as_str())
+    );
+    assert!(
+        outgoing
+            .reminders
+            .iter()
+            .any(|r| matches!(r, EncounterTurnReminderView::ConditionRecovery { .. }))
+    );
+    assert!(
+        outgoing
+            .reminders
+            .iter()
+            .any(|r| matches!(r, EncounterTurnReminderView::PersistentDamage { .. }))
     );
 }

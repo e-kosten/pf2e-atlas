@@ -1099,16 +1099,18 @@ async function atlasFetchEncounter<T>(
   }
   if (result.expected_revision !== undefined)
     result.expected_revision = toBigInt(result.expected_revision);
-  if (result.outgoing != null) {
-    const turn = result.outgoing;
+  for (const field of ["outgoing", "incoming"] as const) {
+    const turn = result[field];
+    if (turn == null) continue;
     if (
       !isRecord(turn) ||
       !Array.isArray(turn.reminders) ||
       !Array.isArray(turn.persistent_damage_groups)
     )
-      throw new AtlasApiError(200, "Invalid outgoing turn");
-    result.outgoing = {
+      throw new AtlasApiError(200, "Invalid turn boundary");
+    result[field] = {
       ...turn,
+      source_revision: toBigInt(turn.source_revision),
       round_number: toBigInt(turn.round_number),
       reminders: turn.reminders.map(reminder),
       persistent_damage_groups: turn.persistent_damage_groups.map(persistentGroup),

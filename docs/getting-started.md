@@ -51,7 +51,9 @@ start or end. Trackers stay visible as **Elapsed** at zero; use **Restart**
 to begin the same countdown again. Editing the duration or timing restarts it;
 renaming preserves its progress. New trackers default to the start of their owner's
 turn. When a countdown finishes, turn reminders show it once for that boundary.
-You can remove it there or close the reminder and keep it.
+You can remove it there or close the reminder and keep it. End reminders show the
+creature finishing its turn; start reminders show the creature beginning its turn.
+When both apply, **Continue** moves from end reminders to start reminders.
 
 Timed conditions also accept rounds, minutes, hours or days. With turn timing
 configured, one minute counts down over ten normal rounds. For encounters using

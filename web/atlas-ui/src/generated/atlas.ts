@@ -293,7 +293,7 @@ export type { EncounterTargetingRequirementsView } from "../../../../crates/atla
 
 export type { ConditionActionView } from "../../../../crates/atlas-app-model/bindings/ConditionActionView";
 
-export type { EncounterOutgoingTurnView } from "../../../../crates/atlas-app-model/bindings/EncounterOutgoingTurnView";
+export type { EncounterTurnBoundaryView } from "../../../../crates/atlas-app-model/bindings/EncounterTurnBoundaryView";
 
 export type { EncounterNextTurnUnavailableReason } from "../../../../crates/atlas-app-model/bindings/EncounterNextTurnUnavailableReason";
 

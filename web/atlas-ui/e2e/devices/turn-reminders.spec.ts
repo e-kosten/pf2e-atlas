@@ -1015,3 +1015,125 @@ for (const boundary of ["start", "end"] as const) {
     }
   });
 }
+
+test("end and start reminders use their own actors and background sheets", async ({
+  page,
+}, info) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Boundary actors ${Date.now()}` },
+  });
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    for (const [display_name, initiative] of [
+      ["Adventurer", 20],
+      ["Green Dragon", 10],
+    ] as const) {
+      expect(
+        (
+          await page.request.post(`${path}/participants/manual`, {
+            data: {
+              encounter_ref: encounter.encounter_key,
+              display_name,
+              initiative,
+              max_hp: 20,
+              current_hp: 20,
+            },
+          })
+        ).ok(),
+      ).toBeTruthy();
+    }
+    for (const [owner, event, name] of [
+      ["Adventurer", "end", "End countdown"],
+      ["Green Dragon", "start", "Start countdown"],
+    ] as const) {
+      const detail = await (await page.request.get(path)).json();
+      const participant = detail.participants.find(
+        (p: { display_name: string }) => p.display_name === owner,
+      );
+      expect(
+        (
+          await page.request.post(
+            `${path}/participants/${participant.participant_key}/manual-trackers`,
+            {
+              data: {
+                request_id: `phase-${event}-${Date.now()}`,
+                participant_key: participant.participant_key,
+                expected_encounter_revision: detail.revision,
+                expected_participant_revision: participant.revision,
+                action: {
+                  kind: "add",
+                  name,
+                  duration: {
+                    amount: 1,
+                    unit: "rounds",
+                    timing: { participant_key: participant.participant_key, event },
+                  },
+                },
+              },
+            },
+          )
+        ).ok(),
+      ).toBeTruthy();
+    }
+    await page.goto(`/encounters/${encounter.slug}`);
+    await activate(
+      page
+        .getByRole("button", { name: "Start turn", exact: true })
+        .filter({ visible: true }),
+      info,
+    );
+    const popup = page.getByRole("dialog", { name: "Turn reminders", exact: true });
+    await expect(popup).not.toBeVisible();
+    await expect(
+      page.locator(".encounter-record-pane").getByRole("button", {
+        name: "Edit Participant name",
+        includeHidden: true,
+      }),
+    ).toBeVisible();
+    await activate(
+      page
+        .getByRole("button", { name: "Next turn", exact: true })
+        .filter({ visible: true }),
+      info,
+    );
+    const identity = popup.locator(".encounter-turn-review__identity");
+    const backgroundActor = page
+      .locator(".encounter-record-pane")
+      .getByRole("button", { name: "Edit Participant name", includeHidden: true });
+    await expect(
+      identity.getByRole("heading", { name: "Adventurer", exact: true }),
+    ).toBeVisible();
+    await expect(popup.getByText("End countdown", { exact: true })).toBeVisible();
+    await expect(popup.getByText("Start countdown", { exact: true })).toHaveCount(0);
+    await expect(backgroundActor).toHaveText("Adventurer");
+    const committed = await (await page.request.get(path)).json();
+    await activate(popup.getByRole("button", { name: "Continue", exact: true }), info);
+    await expect(
+      identity.getByRole("heading", { name: "Green Dragon", exact: true }),
+    ).toBeVisible();
+    await expect(backgroundActor).toHaveText("Green Dragon");
+    await expect(popup.getByText("Start countdown", { exact: true })).toBeVisible();
+    await expect(popup.getByText("End countdown", { exact: true })).toHaveCount(0);
+    expect((await (await page.request.get(path)).json()).revision).toBe(
+      committed.revision,
+    );
+    const remove = popup.getByRole("button", {
+      name: "Remove tracker Start countdown from Green Dragon",
+      exact: true,
+    });
+    await expect(remove).toHaveText("Remove");
+    await activate(remove, info);
+    await expect(popup.getByRole("status")).toHaveText("Removed");
+    await activate(
+      popup.getByRole("button", { name: "Close", exact: true }).last(),
+      info,
+    );
+    await expect(popup).not.toBeVisible();
+    await expect(backgroundActor).toHaveText("Green Dragon");
+    await expect(page.locator(".encounter-record-pane")).toBeFocused();
+    await noPageOverflow(page);
+  } finally {
+    await page.request.delete(path);
+  }
+});

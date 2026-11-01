@@ -211,7 +211,10 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         None,
     )
     .await;
-    let completion = &turn_review["outgoing"]["reminders"][0];
+    assert!(turn_review["outgoing"].is_null());
+    assert_eq!(turn_review["incoming"]["event"], "start");
+    assert_eq!(turn_review["incoming"]["source_revision"], revision);
+    let completion = &turn_review["incoming"]["reminders"][0];
     assert_eq!(completion["kind"], "tracker_elapsed");
     assert_eq!(completion["tracker_key"], "tracker_wire-completion");
     assert!(completion.get("result").is_none());
@@ -256,7 +259,7 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
     )
     .await;
     assert_eq!(
-        turn_review_removed["outgoing"]["reminders"][0]["result"],
+        turn_review_removed["incoming"]["reminders"][0]["result"],
         "Removed"
     );
     response(

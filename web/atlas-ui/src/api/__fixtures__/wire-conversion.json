@@ -1465,11 +1465,10 @@
     "current_participant_key": "fixture-manual",
     "encounter_key": "fixture-encounter",
     "expected_revision": 9,
-    "next_participant_key": "fixture-zero",
-    "next_turn_unavailable_reason": null,
-    "outgoing": {
+    "incoming": {
       "boundary_key": "fixture-turn",
       "damage_applied": false,
+      "event": "start",
       "participant_key": "fixture-manual",
       "participant_name": "Kyra",
       "participant_removed": false,
@@ -1484,19 +1483,22 @@
           "tracker_name": "Countdown"
         }
       ],
-      "round_number": 1
+      "round_number": 1,
+      "source_revision": 7
     },
+    "next_participant_key": "fixture-zero",
+    "next_turn_unavailable_reason": null,
+    "outgoing": null,
     "reminders": []
   },
   "turn_review_removed": {
     "current_participant_key": "fixture-manual",
     "encounter_key": "fixture-encounter",
     "expected_revision": 10,
-    "next_participant_key": "fixture-zero",
-    "next_turn_unavailable_reason": null,
-    "outgoing": {
+    "incoming": {
       "boundary_key": "fixture-turn",
       "damage_applied": false,
+      "event": "start",
       "participant_key": "fixture-manual",
       "participant_name": "Kyra",
       "participant_removed": false,
@@ -1512,8 +1514,12 @@
           "tracker_name": "Countdown"
         }
       ],
-      "round_number": 1
+      "round_number": 1,
+      "source_revision": 7
     },
+    "next_participant_key": "fixture-zero",
+    "next_turn_unavailable_reason": null,
+    "outgoing": null,
     "reminders": []
   }
 }

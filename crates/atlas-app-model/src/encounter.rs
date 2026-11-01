@@ -85,7 +85,8 @@ pub struct ConditionDurationView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct EncounterTurnReviewView {
     pub next_turn_unavailable_reason: Option<EncounterNextTurnUnavailableReason>,
-    pub outgoing: Option<EncounterOutgoingTurnView>,
+    pub outgoing: Option<EncounterTurnBoundaryView>,
+    pub incoming: Option<EncounterTurnBoundaryView>,
     pub encounter_key: String,
     pub expected_revision: i64,
     pub current_participant_key: Option<String>,
@@ -1005,7 +1006,9 @@ pub enum EncounterNextTurnUnavailableReason {
     NoActiveParticipants,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct EncounterOutgoingTurnView {
+pub struct EncounterTurnBoundaryView {
+    pub source_revision: i64,
+    pub event: ConditionTurnEvent,
     pub participant_removed: bool,
     pub damage_applied: bool,
     pub recovered_episode_ids: Vec<String>,
@@ -1039,5 +1042,34 @@ mod tracker_reminder_tests {
         assert!(
             matches!(serde_json::from_value::<EncounterTurnReminderView>(wire).unwrap(), EncounterTurnReminderView::TrackerElapsed { result: Some(result), .. } if result == "Removed")
         );
+    }
+}
+
+#[cfg(test)]
+mod turn_boundary_wire_tests {
+    use super::{ConditionTurnEvent, EncounterTurnBoundaryView};
+    #[test]
+    fn turn_boundary_source_revision_is_a_required_json_integer() {
+        let boundary = EncounterTurnBoundaryView {
+            source_revision: 17,
+            event: ConditionTurnEvent::Start,
+            participant_removed: false,
+            damage_applied: false,
+            recovered_episode_ids: vec![],
+            boundary_key: "boundary".into(),
+            participant_key: "dragon".into(),
+            participant_name: "Dragon".into(),
+            round_number: 2,
+            reminders: vec![],
+            persistent_damage_groups: vec![],
+        };
+        let mut json = serde_json::to_value(&boundary).unwrap();
+        assert_eq!(json["source_revision"].as_i64(), Some(17));
+        assert_eq!(
+            serde_json::from_value::<EncounterTurnBoundaryView>(json.clone()).unwrap(),
+            boundary
+        );
+        json.as_object_mut().unwrap().remove("source_revision");
+        assert!(serde_json::from_value::<EncounterTurnBoundaryView>(json).is_err());
     }
 }

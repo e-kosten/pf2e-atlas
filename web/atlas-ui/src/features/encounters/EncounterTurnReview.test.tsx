@@ -5,6 +5,8 @@ import type { EncounterTurnReviewView } from "../../generated/atlas";
 import { encounterParticipant } from "./encounterTestFixtures";
 function outgoing(boundary_key: string, participant_name: string) {
   return {
+    event: "end" as const,
+    source_revision: 8n,
     participant_removed: false,
     damage_applied: false,
     recovered_episode_ids: [],
@@ -34,10 +36,13 @@ function setup() {
     next_participant_key: "next",
     reminders: [],
     outgoing: outgoing("latest", "Latest"),
+    incoming: null,
     next_turn_unavailable_reason: null,
   };
   const props = {
     open: true,
+    event: "end" as const,
+    hasNext: false,
     boundaryKey: "latest",
     data,
     participants: [],
@@ -256,4 +261,43 @@ it("offers optional tracker removal and keeps its confirmed result with focus", 
   expect(screen.getByRole("status")).toHaveFocus();
   expect(screen.queryByRole("button", { name: /Remove tracker/ })).toBeNull();
   expect(screen.getByText("Countdown")).toBeVisible();
+});
+
+it("shows the incoming actor and only start reminders during the start phase", () => {
+  const { props, view } = setup();
+  view.rerender(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterTurnReview
+        {...props}
+        event="start"
+        data={{
+          ...props.data,
+          incoming: {
+            ...props.data.outgoing!,
+            event: "start",
+            participant_key: "dragon",
+            participant_name: "Green Dragon",
+            round_number: 3n,
+            reminders: [
+              {
+                kind: "tracker_elapsed",
+                participant_key: "dragon",
+                participant_name: "Green Dragon",
+                tracker_key: "breath",
+                tracker_name: "Breath",
+              },
+            ],
+          },
+        }}
+        onRemoveTracker={vi.fn()}
+      />
+    </ConfigProvider>,
+  );
+  expect(screen.getByRole("heading", { name: "Green Dragon" })).toBeVisible();
+  expect(screen.queryByRole("heading", { name: "Latest" })).toBeNull();
+  expect(screen.queryByText("Condition")).toBeNull();
+  expect(screen.getByText("Round 3")).toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "Remove tracker Breath from Green Dragon" }),
+  ).toHaveTextContent("Remove");
 });

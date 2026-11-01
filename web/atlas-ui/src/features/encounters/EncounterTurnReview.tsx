@@ -18,6 +18,8 @@ import { useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
 
 export function EncounterTurnReview({
   open,
+  event,
+  hasNext,
   boundaryKey,
   data,
   participants,
@@ -31,6 +33,7 @@ export function EncounterTurnReview({
   outcomes = [],
   onRetry,
   onCancel,
+  afterClose,
   encounterRef,
   generation,
   damageTypes,
@@ -41,6 +44,8 @@ export function EncounterTurnReview({
   onRemoveTracker,
 }: {
   open: boolean;
+  event: "start" | "end";
+  hasNext: boolean;
   boundaryKey?: string;
   data?: EncounterTurnReviewView;
   participants: EncounterParticipantView[];
@@ -54,6 +59,7 @@ export function EncounterTurnReview({
   outcomes?: import("../../generated/atlas").RollOutcome[];
   onRetry: () => void;
   onCancel: () => void;
+  afterClose?: () => void;
   encounterRef: string;
   generation: string | null;
   damageTypes: Array<{ value: string; label: string }>;
@@ -82,10 +88,10 @@ export function EncounterTurnReview({
     boundaryKey: string,
   ) => Promise<unknown>;
 }) {
-  const candidate = data?.outgoing;
-  const outgoing =
-    candidate && candidate.boundary_key === boundaryKey ? candidate : undefined;
-  const reminders = useMemo(() => outgoing?.reminders ?? [], [outgoing]);
+  const candidate = event === "start" ? data?.incoming : data?.outgoing;
+  const boundary = candidate?.boundary_key === boundaryKey ? candidate : undefined;
+  const outgoing = event === "end" ? boundary : undefined;
+  const reminders = useMemo(() => boundary?.reminders ?? [], [boundary]);
   const reminderRows = useRef<HTMLDivElement>(null);
   const removalFocus = useRef<string | null>(null);
   useLayoutEffect(() => {
@@ -129,8 +135,15 @@ export function EncounterTurnReview({
       title="Turn reminders"
       width={640}
       open={open && meaningful}
-      footer={null}
+      footer={
+        hasNext ? (
+          <Button type="primary" disabled={pending} onClick={onCancel}>
+            Continue
+          </Button>
+        ) : null
+      }
       onCancel={onCancel}
+      afterClose={afterClose}
       closable={!pending}
       keyboard={!pending}
       mask={{ closable: !pending }}
@@ -158,10 +171,10 @@ export function EncounterTurnReview({
           }
         />
       )}
-      {outgoing && (
+      {boundary && (
         <header className="encounter-turn-review__identity">
-          <h3>{outgoing.participant_name}</h3>
-          <span className="muted">Round {outgoing.round_number.toString()}</span>
+          <h3>{boundary.participant_name}</h3>
+          <span className="muted">Round {boundary.round_number.toString()}</span>
         </header>
       )}
       {outgoing?.participant_removed && (
@@ -219,7 +232,7 @@ export function EncounterTurnReview({
                 >
                   <div className="encounter-turn-reminder__heading">
                     <h3>
-                      {reminder.participant_key !== outgoing?.participant_key &&
+                      {reminder.participant_key !== boundary?.participant_key &&
                         `${reminder.participant_name}: `}
                       {reminder.tracker_name}
                     </h3>
@@ -238,14 +251,14 @@ export function EncounterTurnReview({
                       onClick={(event) => {
                         if (document.activeElement === event.currentTarget)
                           removalFocus.current = identity;
-                        void onRemoveTracker?.(reminder, outgoing!.boundary_key).catch(
+                        void onRemoveTracker?.(reminder, boundary!.boundary_key).catch(
                           () => {
                             removalFocus.current = null;
                           },
                         );
                       }}
                     >
-                      Remove tracker
+                      Remove
                     </Button>
                   )}
                 </section>
@@ -264,7 +277,7 @@ export function EncounterTurnReview({
                 >
                   <div className="encounter-turn-reminder__heading">
                     <h3>
-                      {reminder.participant_key !== outgoing?.participant_key &&
+                      {reminder.participant_key !== boundary?.participant_key &&
                         `${reminder.participant_name}: `}
                       {reminder.condition_name}
                       {reminder.condition_value != null
@@ -326,7 +339,7 @@ export function EncounterTurnReview({
               >
                 <div className="encounter-turn-reminder__heading">
                   <h3>
-                    {reminder.participant_key !== outgoing?.participant_key &&
+                    {reminder.participant_key !== boundary?.participant_key &&
                       `${reminder.participant_name}: `}
                     {reminder.condition_name}
                   </h3>
@@ -346,7 +359,7 @@ export function EncounterTurnReview({
                     onClick={(event) => {
                       if (document.activeElement === event.currentTarget)
                         removalFocus.current = `${reminder.participant_key}:${reminder.condition_id}`;
-                      void onRemove(reminder, outgoing!.boundary_key).catch(() => {
+                      void onRemove(reminder, boundary!.boundary_key).catch(() => {
                         removalFocus.current = null;
                         // The mutation owner shows the failure and retains retry state.
                       });

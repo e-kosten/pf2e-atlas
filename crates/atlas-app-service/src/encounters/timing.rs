@@ -244,11 +244,31 @@ pub(super) fn turn_update(snapshot: &EncounterWithParticipants) -> EncounterTurn
     }
 }
 
-pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurnReviewView {
+pub(super) struct TurnBoundaryReminders {
+    pub next: atlas_local_state::EncounterTurnState,
+    pub end: Vec<EncounterTurnReminderView>,
+    pub start: Vec<EncounterTurnReminderView>,
+}
+impl TurnBoundaryReminders {
+    fn push(&mut self, event: ViewEvent, reminder: EncounterTurnReminderView) {
+        match event {
+            ViewEvent::End => self.end.push(reminder),
+            ViewEvent::Start => self.start.push(reminder),
+        }
+    }
+}
+
+pub(super) fn turn_boundary_reminders(
+    snapshot: &EncounterWithParticipants,
+) -> TurnBoundaryReminders {
     let update = turn_update(snapshot);
     let next_key = update.turn.participant_key.as_deref();
     let current_key = snapshot.encounter.current_turn_participant_key.as_deref();
-    let mut reminders = Vec::new();
+    let mut reminders = TurnBoundaryReminders {
+        next: update.turn.clone(),
+        end: vec![],
+        start: vec![],
+    };
     for change in &update.manual_trackers {
         let Some(tracker) = change.value.as_ref().filter(|tracker| {
             tracker_rounds(&tracker.progress, snapshot.encounter.round_duration_seconds) == 0
@@ -262,20 +282,37 @@ pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurn
         else {
             continue;
         };
-        reminders.push(EncounterTurnReminderView::TrackerElapsed {
-            participant_key: owner.participant_key.clone(),
-            participant_name: owner.display_name.clone(),
-            tracker_key: tracker.tracker_key.clone(),
-            tracker_name: tracker.name.clone(),
-            result: None,
-        });
+        let Some(timing) = tracker.duration.timing.as_ref() else {
+            continue;
+        };
+        let event = match timing.event {
+            ConditionTurnEvent::Start => ViewEvent::Start,
+            ConditionTurnEvent::End => ViewEvent::End,
+        };
+        reminders.push(
+            event,
+            EncounterTurnReminderView::TrackerElapsed {
+                participant_key: owner.participant_key.clone(),
+                participant_name: owner.display_name.clone(),
+                tracker_key: tracker.tracker_key.clone(),
+                tracker_name: tracker.name.clone(),
+                result: None,
+            },
+        );
     }
     for participant in &snapshot.participants {
         let owner_ending =
             next_key.is_some() && current_key == Some(participant.participant_key.as_str());
         let owner_starting_first =
             current_key.is_none() && next_key == Some(participant.participant_key.as_str());
-        let owner_boundary = owner_ending || owner_starting_first;
+        let owner_event = if owner_ending {
+            Some(ViewEvent::End)
+        } else if owner_starting_first {
+            Some(ViewEvent::Start)
+        } else {
+            None
+        };
+        let owner_boundary = owner_event.is_some();
         if owner_ending {
             let condition_ids = participant
                 .conditions
@@ -287,19 +324,22 @@ pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurn
                 .map(|condition| condition.condition_id)
                 .collect::<Vec<_>>();
             if !condition_ids.is_empty() {
-                reminders.push(EncounterTurnReminderView::ConditionRecovery {
-                    participant_key: participant.participant_key.clone(),
-                    participant_name: participant.display_name.clone(),
-                    condition_ids,
-                    condition_name: "Frightened".into(),
-                    condition_value: super::rules::causes::condition_causes(
-                        participant,
-                        None,
-                        super::rules::source_conditions::SourceConditions::empty(),
-                    )
-                    .known_value(super::conditions::ConditionRule::Frightened)
-                    .ok(),
-                });
+                reminders.push(
+                    ViewEvent::End,
+                    EncounterTurnReminderView::ConditionRecovery {
+                        participant_key: participant.participant_key.clone(),
+                        participant_name: participant.display_name.clone(),
+                        condition_ids,
+                        condition_name: "Frightened".into(),
+                        condition_value: super::rules::causes::condition_causes(
+                            participant,
+                            None,
+                            super::rules::source_conditions::SourceConditions::empty(),
+                        )
+                        .known_value(super::conditions::ConditionRule::Frightened)
+                        .ok(),
+                    },
+                );
             }
         }
         for condition in &participant.conditions {
@@ -308,13 +348,16 @@ pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurn
             let condition_id = condition.condition_id;
             let condition_name = condition.name.clone();
             if owner_ending && condition.condition_key.as_deref() == Some(PERSISTENT_DAMAGE_KEY) {
-                reminders.push(EncounterTurnReminderView::PersistentDamage {
-                    participant_key: participant_key.clone(),
-                    participant_name: participant_name.clone(),
-                    condition_id,
-                    condition_name: condition_name.clone(),
-                    note: condition.note.clone(),
-                });
+                reminders.push(
+                    ViewEvent::End,
+                    EncounterTurnReminderView::PersistentDamage {
+                        participant_key: participant_key.clone(),
+                        participant_name: participant_name.clone(),
+                        condition_id,
+                        condition_name: condition_name.clone(),
+                        note: condition.note.clone(),
+                    },
+                );
             }
             let Some(duration) = condition.duration.as_ref() else {
                 continue;
@@ -383,11 +426,24 @@ pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurn
             } else {
                 None
             };
-            reminders.extend(reminder);
+            if let Some(reminder) = reminder {
+                let event = match &reminder {
+                    EncounterTurnReminderView::DurationEnding { timing, .. } => Some(timing.event),
+                    _ => owner_event,
+                };
+                if let Some(event) = event {
+                    reminders.push(event, reminder);
+                }
+            }
         }
     }
+    reminders
+}
+
+pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurnReviewView {
+    let TurnBoundaryReminders { next, end, start } = turn_boundary_reminders(snapshot);
     EncounterTurnReviewView {
-        next_turn_unavailable_reason: if update.turn.participant_key.is_some() {
+        next_turn_unavailable_reason: if next.participant_key.is_some() {
             None
         } else if snapshot.participants.iter().any(|p| {
             !p.defeated
@@ -399,11 +455,12 @@ pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurn
             Some(atlas_app_model::EncounterNextTurnUnavailableReason::NoActiveParticipants)
         },
         outgoing: None,
+        incoming: None,
         encounter_key: snapshot.encounter.encounter_key.clone(),
         expected_revision: snapshot.encounter.revision,
         current_participant_key: snapshot.encounter.current_turn_participant_key.clone(),
-        next_participant_key: update.turn.participant_key,
-        reminders,
+        next_participant_key: next.participant_key,
+        reminders: end.into_iter().chain(start).collect(),
     }
 }
 

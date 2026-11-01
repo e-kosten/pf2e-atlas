@@ -73,7 +73,10 @@ describe("source-backed API transport", () => {
       reminders: [],
 
       next_turn_unavailable_reason: null,
+      incoming: null,
       outgoing: {
+        event: "end",
+        source_revision: 6,
         boundary_key: "original",
         participant_key: "a",
         participant_name: "Goblin",
@@ -109,6 +112,8 @@ describe("source-backed API transport", () => {
     });
     const review = await getEncounterTurnReview("ambush");
     expect(review.outgoing!).toMatchObject({
+      event: "end",
+      source_revision: 6n,
       round_number: 2n,
       reminders: [{ condition_ids: [7n, 8n] }],
       persistent_damage_groups: [
@@ -405,7 +410,7 @@ describe("source-backed API transport", () => {
       await import("./__fixtures__/wire-conversion.json");
     respond(fixture.turn_review);
     const completed = await getEncounterTurnReview("ambush");
-    expect(completed.outgoing?.reminders[0]).toEqual({
+    expect(completed.incoming?.reminders[0]).toEqual({
       kind: "tracker_elapsed",
       participant_key: "fixture-manual",
       participant_name: "Kyra",
@@ -413,9 +418,12 @@ describe("source-backed API transport", () => {
       tracker_name: "Countdown",
     });
     expect(typeof completed.expected_revision).toBe("bigint");
+    expect(completed.outgoing).toBeNull();
+    expect(completed.incoming?.event).toBe("start");
+    expect(typeof completed.incoming?.source_revision).toBe("bigint");
     respond(fixture.turn_review_removed);
     const removed = await getEncounterTurnReview("ambush");
-    expect(removed.outgoing?.reminders[0]).toMatchObject({
+    expect(removed.incoming?.reminders[0]).toMatchObject({
       kind: "tracker_elapsed",
       result: "Removed",
     });

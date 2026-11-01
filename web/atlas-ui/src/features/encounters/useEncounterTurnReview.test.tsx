@@ -20,7 +20,10 @@ const review: import("../../generated/atlas").EncounterTurnReviewView = {
   current_participant_key: "incoming",
   next_participant_key: "next",
   reminders: [],
+  incoming: null,
   outgoing: {
+    source_revision: 7n,
+    event: "end",
     participant_removed: false,
     damage_applied: false,
     recovered_episode_ids: [],
@@ -46,10 +49,7 @@ const review: import("../../generated/atlas").EncounterTurnReviewView = {
 function setup(
   onAdvance: (revision: bigint) => Promise<boolean>,
   onFinish = vi.fn(),
-  turn: { participantKey: string | null; roundNumber: bigint } = {
-    participantKey: "actor",
-    roundNumber: 1n,
-  },
+  onPresent = vi.fn(),
 ) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const run = vi.fn().mockResolvedValue({
@@ -66,15 +66,16 @@ function setup(
     run,
     client,
     onFinish,
+    onPresent,
     ...renderHook(
       () =>
         useEncounterTurnReview({
           encounterRef: "encounter",
           expectedRevision: 7n,
-          turn,
           mutations,
           onAdvance,
           onFinish,
+          onPresent,
         }),
       {
         wrapper: ({ children }: PropsWithChildren) => (
@@ -188,7 +189,6 @@ it("retains reminders through a revision refresh only for the same encounter", a
       useEncounterTurnReview({
         encounterRef,
         expectedRevision,
-        turn: { participantKey: "actor", roundNumber: 1n },
         mutations,
         onAdvance: vi.fn(),
       }),
@@ -232,7 +232,12 @@ it("waits for the initial boundary snapshot before advancing and opens only the 
 });
 
 it("still advances once if the initial reminder snapshot fails without opening old reminders", async () => {
-  vi.mocked(getEncounterTurnReview).mockRejectedValueOnce(new Error("Unavailable"));
+  vi.mocked(getEncounterTurnReview)
+    .mockRejectedValueOnce(new Error("Unavailable"))
+    .mockResolvedValue({
+      ...review,
+      outgoing: { ...review.outgoing!, source_revision: 6n },
+    });
   const advance = vi.fn().mockResolvedValue(true);
   const { result } = setup(advance);
   await act(async () => {
@@ -278,7 +283,6 @@ it.each([false, true])(
         useEncounterTurnReview({
           encounterRef: "encounter",
           expectedRevision: revision,
-          turn: { participantKey: "actor", roundNumber: 1n },
           mutations,
           onAdvance: advance,
         }),
@@ -567,7 +571,12 @@ it("retry does not present a boundary that superseded the unseen turn", async ()
   });
   vi.mocked(getEncounterTurnReview).mockResolvedValue({
     ...review,
-    outgoing: { ...review.outgoing!, boundary_key: "later", round_number: 2n },
+    outgoing: {
+      ...review.outgoing!,
+      source_revision: 9n,
+      boundary_key: "later",
+      round_number: 2n,
+    },
   });
   await act(async () => {
     await result.current.refresh();
@@ -581,15 +590,18 @@ it("opens a tracker completion on the first start boundary without an outgoing a
   vi.mocked(getEncounterTurnReview).mockResolvedValue({
     ...review,
     current_participant_key: null,
+    next_participant_key: "incoming",
     outgoing: null,
   });
   const advance = vi.fn().mockImplementation(async () => {
     vi.mocked(getEncounterTurnReview).mockResolvedValue({
       ...review,
-      current_participant_key: "incoming",
-      outgoing: {
+      outgoing: null,
+      incoming: {
         ...review.outgoing!,
+        event: "start",
         participant_key: "incoming",
+        participant_name: "Incoming",
         persistent_damage_groups: [],
         reminders: [
           {
@@ -604,15 +616,146 @@ it("opens a tracker completion on the first start boundary without an outgoing a
     });
     return true;
   });
-  const { result, onFinish } = setup(advance, vi.fn(), {
-    participantKey: null,
-    roundNumber: 1n,
-  });
+  const { result, onFinish, onPresent } = setup(advance, vi.fn());
   await waitFor(() => expect(result.current.loading).toBe(false));
   await act(() => result.current.begin());
   expect(result.current.open).toBe(true);
+  expect(result.current.event).toBe("start");
   expect(result.current.boundaryKey).toBe("outgoing");
+  expect(onPresent).toHaveBeenCalledExactlyOnceWith("incoming", "start");
   act(() => result.current.close());
   expect(onFinish).toHaveBeenCalledOnce();
   expect(advance).toHaveBeenCalledOnce();
+});
+
+it("presents end then start with each boundary actor and no extra turn advance", async () => {
+  const before = { ...review, outgoing: null, next_participant_key: "incoming" };
+  vi.mocked(getEncounterTurnReview).mockResolvedValue(before);
+  const advance = vi.fn().mockImplementation(async () => {
+    vi.mocked(getEncounterTurnReview).mockResolvedValue({
+      ...review,
+      outgoing: { ...review.outgoing!, boundary_key: "transition" },
+      incoming: {
+        ...review.outgoing!,
+        event: "start",
+        boundary_key: "transition",
+        participant_key: "incoming",
+        participant_name: "Incoming",
+        round_number: 2n,
+        persistent_damage_groups: [],
+        reminders: [
+          {
+            kind: "tracker_elapsed",
+            participant_key: "incoming",
+            participant_name: "Incoming",
+            tracker_key: "timer",
+            tracker_name: "Countdown",
+          },
+        ],
+      },
+    });
+    return true;
+  });
+  const { result, onFinish, onPresent } = setup(advance);
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await act(() => result.current.begin());
+  expect(result.current.event).toBe("end");
+  expect(result.current.hasNext).toBe(true);
+  expect(onPresent).toHaveBeenLastCalledWith("actor", "end");
+  act(() => result.current.close());
+  expect(result.current.open).toBe(true);
+  expect(result.current.event).toBe("start");
+  expect(result.current.hasNext).toBe(false);
+  expect(onPresent).toHaveBeenLastCalledWith("incoming", "start");
+  expect(onFinish).not.toHaveBeenCalled();
+  act(() => result.current.close());
+  expect(result.current.open).toBe(false);
+  expect(onFinish).toHaveBeenCalledOnce();
+  expect(advance).toHaveBeenCalledOnce();
+});
+
+it("does not present a later incoming lap after an unseen advance read failed", async () => {
+  const advance = vi.fn().mockResolvedValue(true);
+  const { result, onPresent } = setup(advance);
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  vi.mocked(getEncounterTurnReview).mockRejectedValue(new Error("read failed"));
+  await act(() => result.current.begin());
+  vi.mocked(getEncounterTurnReview).mockResolvedValue({
+    ...review,
+    outgoing: null,
+    incoming: {
+      ...review.outgoing!,
+      event: "start",
+      source_revision: 12n,
+      boundary_key: "later-lap",
+      participant_key: "incoming",
+      participant_name: "Incoming",
+      round_number: 3n,
+      persistent_damage_groups: [],
+    },
+  });
+  await act(() => result.current.refresh());
+  expect(result.current.open).toBe(false);
+  expect(onPresent).not.toHaveBeenCalled();
+  expect(advance).toHaveBeenCalledOnce();
+});
+
+it("uses advance provenance when the observer still shows an older next actor", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const mutations = { pending: false } as ReturnType<typeof useEncounterMutations>;
+  const onPresent = vi.fn();
+  let finishObserver!: (value: typeof review) => void;
+  const advance = vi.fn().mockImplementation(async () => {
+    finishObserver({
+      ...review,
+      expected_revision: 9n,
+      outgoing: null,
+      incoming: {
+        ...review.outgoing!,
+        event: "start",
+        source_revision: 8n,
+        boundary_key: "fresh-transition",
+        participant_key: "dragon",
+        participant_name: "Green Dragon",
+        persistent_damage_groups: [],
+      },
+    });
+    return true;
+  });
+  vi.mocked(getEncounterTurnReview).mockResolvedValue({
+    ...review,
+    expected_revision: 7n,
+    next_participant_key: "old-next",
+    outgoing: null,
+  });
+  const { result, rerender } = renderHook(
+    ({ revision }) =>
+      useEncounterTurnReview({
+        encounterRef: "encounter",
+        expectedRevision: revision,
+        mutations,
+        onAdvance: advance,
+        onPresent,
+      }),
+    {
+      initialProps: { revision: 7n },
+      wrapper: ({ children }: PropsWithChildren) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    },
+  );
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  vi.mocked(getEncounterTurnReview).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finishObserver = resolve;
+      }),
+  );
+  rerender({ revision: 8n });
+  await waitFor(() => expect(finishObserver).toBeTypeOf("function"));
+  expect(result.current.data?.next_participant_key).toBe("old-next");
+  await act(() => result.current.begin());
+  expect(advance).toHaveBeenCalledExactlyOnceWith(8n);
+  expect(onPresent).toHaveBeenCalledExactlyOnceWith("dragon", "start");
+  expect(result.current.open).toBe(true);
 });
