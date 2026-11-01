@@ -1,3 +1,4 @@
+import { useDismissOnReadingNavigation } from "../ui/overlays/useDismissOnReadingNavigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -236,6 +237,8 @@ export function SearchSettings({
   ]
     .filter(Boolean)
     .join("; ");
+  useDismissOnReadingNavigation(draft !== null, () => setDraft(null));
+
   function openSettings() {
     setSourceView("sections");
     setSourceTarget(null);

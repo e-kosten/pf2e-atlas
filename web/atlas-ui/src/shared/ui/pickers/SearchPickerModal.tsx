@@ -1,3 +1,4 @@
+import { useDismissOnReadingNavigation } from "../overlays/useDismissOnReadingNavigation";
 import { AtlasModal as Modal } from "../overlays/AtlasModal";
 import { ErrorNotice } from "../../feedback/ErrorNotice";
 import { useQuery } from "@tanstack/react-query";
@@ -99,6 +100,7 @@ export function SearchPickerModal<FormValues>({
   status?: React.ReactNode;
   summary?: React.ReactNode;
 }) {
+  useDismissOnReadingNavigation(open && !disabled, onCancel);
   const formId = useId();
   const { token } = theme.useToken();
   const narrow = !Grid.useBreakpoint().lg;

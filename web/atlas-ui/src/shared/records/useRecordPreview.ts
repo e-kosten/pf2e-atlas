@@ -1,3 +1,4 @@
+import { useDismissOnReadingNavigation } from "../ui/overlays/useDismissOnReadingNavigation";
 import { referenceQueryMeta } from "../queries/referenceQueries";
 import { RecordContextError } from "./recordContextError";
 import { recordReadingIdentity, useRetainedRecord } from "./useRetainedRecord";
@@ -174,6 +175,8 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     setHistory([]);
     setRestoringHistory(false);
   }, []);
+
+  useDismissOnReadingNavigation(recordKey !== null, close);
 
   const open = useCallback(
     (

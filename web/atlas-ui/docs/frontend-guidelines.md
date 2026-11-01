@@ -256,6 +256,14 @@ native behavior.
 Page scroll restoration belongs to Router; bounded result/reader scroll and
 Drawer Back/focus remain with shared reading components.
 
+Selected text in record and trait reading uses the shared `SelectionSearch` action.
+Reading articles opt in with `data-selection-search`; editable fields and disabled
+picker content are excluded. The Ant popover leaves native selection/copying intact
+and links to a fresh Search with the text and chosen model. Primary activation
+carries an explicit Router history intent to dismiss reading overlays; modified
+links preserve the original reader. Model/page continuation updates preserve
+unfinished editors and do not carry a new dismissal intent.
+
 ## Shared UI Layer
 
 Use `src/shared/ui` for repeated Atlas interaction primitives over Ant Design. Shared primitives should normally compose Ant components instead of recreating generic control behavior with plain elements and local CSS. Current shared primitives include:

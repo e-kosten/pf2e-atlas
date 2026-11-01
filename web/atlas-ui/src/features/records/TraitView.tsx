@@ -88,7 +88,7 @@ export function TraitView({ route }: { route: TraitPageInput }) {
               />
             )}
             {query.data ? (
-              <article className="record-reference">
+              <article className="record-reference" data-selection-search>
                 <DocumentIdentityHeader
                   title={query.data.label}
                   classification="Trait"

@@ -1,3 +1,4 @@
+import { atlasRouter } from "../../app/router";
 import {
   act,
   fireEvent,
@@ -248,4 +249,28 @@ it("retains an exact contextual document during canonical refresh, replaces fres
   expect(result.current.detail).toBeUndefined();
   expect(result.current.error?.message).toMatch(/reference collection has changed/);
   read.mockRestore();
+});
+
+it("closes a retained linked preview on an explicit reading departure to the current href", () => {
+  const { result } = renderHook(() => useRecordPreview(), { wrapper: queryWrapper });
+  act(() => result.current.open("actors:ghoul"));
+  expect(result.current.recordKey).toBe("actors:ghoul");
+  act(() =>
+    atlasRouter.emit({
+      type: "onBeforeNavigate",
+      fromLocation: atlasRouter.latestLocation,
+      toLocation: {
+        ...atlasRouter.latestLocation,
+        state: {
+          ...atlasRouter.latestLocation.state,
+          atlasReadingDismissal: "new-search",
+        },
+      },
+      pathChanged: false,
+      hrefChanged: false,
+      hashChanged: false,
+    }),
+  );
+  expect(result.current.recordKey).toBeNull();
+  expect(result.current.selection).toBeUndefined();
 });

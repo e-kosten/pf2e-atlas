@@ -24,6 +24,7 @@ import { LinkPickerContext } from "../shared/filters/LinkPickerContext";
 import { LinkConditionPicker } from "../shared/filters/LinkConditionPicker";
 import { BackendCompatibilityGate } from "./BackendCompatibilityGate";
 import { GlobalFeedbackProvider } from "../shared/feedback/GlobalFeedback";
+import { SelectionSearch } from "../shared/records/SelectionSearch";
 import { LoadingStatus } from "../shared/ui/LoadingStatus";
 
 import { useSearchWorkspace } from "../features/search/useSearchWorkspace";
@@ -165,6 +166,7 @@ function AtlasWorkspace({
               </Suspense>
             </Activity>
             {routeError ?? <Outlet />}
+            <SelectionSearch key={location.href} />
           </>
         </AppShell>
       </LinkPickerContext>

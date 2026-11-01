@@ -16,7 +16,10 @@ export function destinationHref(destination: Destination) {
 }
 
 /** Full-page embedded reading remembers its checked parent context. */
-export function navigateDestination(destination: Destination) {
+export function navigateDestination(
+  destination: Destination,
+  options: { dismissReadingOverlays?: boolean } = {},
+) {
   const next = atlasRouter.buildLocation(destination);
   const nextRecordKey = atlasRouter
     .matchRoutes(next.pathname, next.search)
@@ -41,7 +44,15 @@ export function navigateDestination(destination: Destination) {
         ? { recordKey: selection.record_key, href: current.href }
         : undefined
     : undefined;
-  return atlasRouter.navigate({ ...destination, state: { atlasOwnerOrigin: origin } });
+  return atlasRouter.navigate({
+    ...destination,
+    state: {
+      atlasOwnerOrigin: origin,
+      ...(options.dismissReadingOverlays
+        ? { atlasReadingDismissal: crypto.randomUUID() }
+        : {}),
+    },
+  });
 }
 
 export function ownerReturnHref(parent: string, landing: RecordNavigationView): string {

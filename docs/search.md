@@ -12,6 +12,16 @@ which parts matched your search. Follow linked names to explore related entries.
 When you know the name, enter it directly—for example, “Treat Wounds.” You can
 also leave the text empty to browse entries using filters alone.
 
+## Search selected text
+
+Select text while reading an entry, then choose **Search Atlas** to search for it.
+Cmd-click on macOS, Ctrl-click on Windows/Linux, or middle-click opens the search
+in a new tab. The search keeps your chosen model and starts without the current
+filters.
+
+Use Tab to focus the action after selecting text with the keyboard. Escape hides
+it and leaves the text selected for copying.
+
 ## Narrow the results
 
 Use **Kind** to look for creatures, spells, equipment or another type of entry.
