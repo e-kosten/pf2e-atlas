@@ -57,3 +57,49 @@ Foundry compiler research runs through the separate private
 [TypeScript package](../../dev-tools/source-contracts/README.md), with npm entry points.
 Rust developer commands do not launch TypeScript tools. Neither developer
 surface is included in published product bundles; atlas-dev is built locally.
+
+## Eligibility query work probe
+
+Compare the production accepted-root SQL with the general expression compiler
+against an existing, current-schema controlled corpus. Upgrade that disposable
+workspace deliberately through its normal runtime owner before running the probe.
+The probe opens an admitted read-only snapshot; it does not initialize or upgrade
+the workspace, acquire sources/models or run inference. Its only output is a new
+evidence file whose parent directory already exists. Choose a fresh filename:
+existing evidence is never replaced.
+
+Build the test executable first, then run the ignored diagnostic separately from
+compilation. Replace the corpus path, evidence path and declared candidate identity
+with the inputs being measured:
+
+```bash
+cargo test --release --locked -p atlas-index --lib --no-run
+ATLAS_QUERY_WORK_CORPUS=/absolute/path/to/controlled/workspace.sqlite \
+ATLAS_QUERY_WORK_OUTPUT=/absolute/path/to/new-eligibility-work.json \
+ATLAS_QUERY_WORK_CANDIDATE='reviewed candidate and input receipt identity' \
+cargo test --release --locked -p atlas-index --lib \
+  query::membership_work_probe::controlled_corpus_eligibility_work \
+  -- --ignored --exact --nocapture
+```
+
+The JSON contains both independently sorted complete accepted-key sets and their
+SHA-256 digests, parity/stability results, bound SQL, query plans, preparation and
+execution timings, and SQLite VM/full-scan/sort/automatic-index counters. A parity
+failure writes its evidence and fails the test. The candidate label is declared
+by the caller; the actual test-executable hash, workspace key, reference revision,
+context and SQLite identity provide independent provenance.
+
+Each plan warms once, then runs six measured repetitions with alternating order.
+`ATLAS_QUERY_WORK_REPEATS` accepts 2–20 repetitions per plan. Preparation includes
+SQLite compilation; execution includes binding, row decoding and ID collection.
+Predicate lowering, key lookup/sorting, hashing and output are outside those timed
+regions. Full-scan steps count forward full-table-scan steps, **not total row
+visits**. These are warm-cache SQL observations without an OS-cache reset or a
+performance threshold assertion.
+
+The cases include selective/broad AC, level, price and trait predicates, positive
+conjunctions, same-child embedded fallback, all-root control and restricted/empty
+key scopes. Actual cardinalities establish selectivity on the supplied corpus.
+Root eligibility is profile independent. Measure shipped CLI filtered retrieval
+separately for each configured profile; these counters do not measure native KNN
+work, query inference or end-to-end CLI latency.
