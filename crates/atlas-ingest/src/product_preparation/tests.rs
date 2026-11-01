@@ -1,4 +1,5 @@
 use super::*;
+use atlas_index::PublicationSource;
 use atlas_index::{NativeValueSource, SqliteIndexWriter};
 use rusqlite::Connection;
 use std::{borrow::Cow, fs};
@@ -207,6 +208,20 @@ fn stale_sealed_stream_cannot_remove_roots_or_advance_publication() {
     let prepared = prepare_fixture(&options).unwrap();
     let target = prepared.spool.context.sha256().unwrap();
     let sealed = prepared.spool.seal().unwrap();
+    let workspace = atlas_storage::Workspace::at(&options.output_path).unwrap();
+    let schema = atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
+    let (job, values) = {
+        let owner = workspace.update_owner().unwrap();
+        let job = atlas_index::register_native_target(&owner, &workspace, schema, &sealed).unwrap();
+        let values = atlas_index::freeze_fixture_native_values(
+            &sealed,
+            &NoNativeValues,
+            Some(&job),
+            sealed.expected_instance().unwrap(),
+        )
+        .unwrap();
+        (job, values)
+    };
     fixture.document(
         "b",
         "bbbbbbbbbbbbbbbb",
@@ -215,21 +230,16 @@ fn stale_sealed_stream_cannot_remove_roots_or_advance_publication() {
     );
     fixture.build("incremental");
     let before = components(&options.output_path);
-    let workspace = atlas_storage::Workspace::at(&options.output_path).unwrap();
-    let schema = atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
     let c = Connection::open(&options.output_path).unwrap();
     let revision: u64 = c
         .query_row("SELECT reference_revision FROM workspace", [], |r| r.get(0))
         .unwrap();
-    let write = workspace.write(schema).unwrap();
-    let job = atlas_index::start_reference_job(&write, &target).unwrap();
-    write.commit().unwrap();
     let owner = workspace.update_owner().unwrap();
     let maintenance = owner
         .maintenance(schema, "stale fixture publication")
         .unwrap();
     let error = SqliteIndexWriter::new(&maintenance)
-        .write_job(&sealed, &NoNativeValues, &job, &target)
+        .write_job(&sealed, &values, &job, &target)
         .unwrap_err();
     assert!(
         error.to_string().contains("stale workspace revision"),

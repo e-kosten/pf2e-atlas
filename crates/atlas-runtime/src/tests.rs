@@ -204,8 +204,14 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
         )
         .unwrap();
     } else {
-        atlas_index::stage_embedding_values(&write, &job, model, &[(&checkpoint, &unit.vector)])
-            .unwrap();
+        atlas_index::test_support::stage_pending_native_fixture(
+            &write,
+            &job,
+            model,
+            &checkpoint.descriptor(),
+            &unit.vector,
+        )
+        .unwrap();
     }
     // Inspect stored vector bytes, not a retrieval score that could hide replacement.
     let vector_table: String = write.connection().query_row(
@@ -402,10 +408,11 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
                 assert_eq!(aliases, 1);
             }
         }
-        let checkpoints =
-            atlas_index::read_reusable_embeddings(&read, model, std::slice::from_ref(&checkpoint))
+        let checkpoint =
+            atlas_index::test_support::native_fixture_value(&read, model, &checkpoint.descriptor())
+                .unwrap()
                 .unwrap();
-        assert_eq!(checkpoints[&checkpoint.reuse_key], unit.vector);
+        assert_eq!(checkpoint, unit.vector);
     }
     assert!(!paths.source_root.exists());
     {

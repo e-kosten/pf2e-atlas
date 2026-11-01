@@ -892,7 +892,18 @@ fn actual_profile_setup_preserves_manifest_defaults_and_reports_cache_heavy_prog
     assert!(first["build"]["inferred_inputs"].as_u64().unwrap() > 0);
     eprintln!("Gemma-only normal setup: {}", first["build"]["profiles"]);
     assert!(progress.contains("Generating EmbeddingGemma embeddings"));
-    assert!(progress.contains("unique passages") && !progress.contains("occurrences"));
+    let generation = progress
+        .lines()
+        .filter(|line| line.contains("Generating EmbeddingGemma embeddings"))
+        .collect::<Vec<_>>();
+    assert!(!generation.is_empty());
+    assert!(
+        generation
+            .iter()
+            .all(|line| !line.contains(" / ") && !line.contains("ETA")),
+        "streamed generation has no invented total or ETA"
+    );
+    assert!(!progress.contains("occurrences"));
     assert!(
         progress.lines().count() < 100,
         "tiny build progress must be bounded"

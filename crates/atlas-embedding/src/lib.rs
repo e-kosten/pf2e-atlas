@@ -32,7 +32,7 @@ pub use catalog::{
 pub use document_input::hash_document_embedding_input;
 pub use error::EmbeddingError;
 pub use inference::{
-    GeneratedEmbeddings, TextEmbedder, generate_prepared_embeddings, validate_embedding_vector,
+    NATIVE_INFERENCE_BATCH_LIMIT, NativeInferenceRunner, TextEmbedder, validate_embedding_vector,
 };
 pub use model_cache::{
     EmbeddingModelCacheFile, baseline_tokenizer_cache_file, prepare_baseline_tokenizer_cache,
@@ -49,4 +49,4 @@ mod historical_passages;
 mod tests;
 
 mod centroid;
-pub use centroid::normalized_centroid;
+pub use centroid::{NormalizedCentroid, normalized_centroid};

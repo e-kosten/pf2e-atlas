@@ -248,7 +248,7 @@ fn full_segmentation_digest_changes_generation_and_invalidates_each_affected_pro
     }
 }
 
-fn move_fixture_vectors(
+pub(super) fn move_fixture_vectors(
     connection: &rusqlite::Connection,
     old: &SourceSearchProfileIdentity,
     new: &SourceSearchProfileIdentity,

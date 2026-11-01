@@ -7,7 +7,7 @@ use fastembed::{
     InitOptionsUserDefined, OutputKey, Pooling, TextEmbedding, TokenizerFiles,
     UserDefinedEmbeddingModel,
 };
-use std::{borrow::Cow, collections::BTreeMap, path::Path};
+use std::path::Path;
 
 pub struct TextEmbedder {
     spec: EmbeddingModelSpec,
@@ -203,181 +203,204 @@ pub fn validate_embedding_vector(vector: &[f32], dimensions: usize) -> Result<()
     Ok(())
 }
 
-#[derive(Debug)]
-pub struct GeneratedEmbeddings {
-    /// One vector per supplied source occurrence, in input order.
-    pub vectors: Vec<Vec<f32>>,
-    /// Distinct exact execution/input identities which required inference.
-    pub inferred_inputs: usize,
-    /// Distinct exact execution/input identities restored from the cache.
-    pub reused_inputs: usize,
-}
+/// Maximum resident numerical input/output window, independent of corpus size.
+pub const NATIVE_INFERENCE_BATCH_LIMIT: usize = 128;
 
-/// Reuse and inference deduplicate exact prepared inputs, while the returned
-/// vector sequence retains one entry for every independent source attribution.
-pub fn generate_prepared_embeddings(
-    config: &EmbeddingRuntimeConfig,
-    batch: &PreparedEmbeddingBatch,
-    reusable: &BTreeMap<String, Vec<f32>>,
+struct NativeInferenceState<M> {
+    config: EmbeddingRuntimeConfig,
     batch_size: usize,
-    mut checkpoint: impl FnMut(&[(String, Vec<f32>)]) -> Result<(), EmbeddingError>,
-) -> Result<GeneratedEmbeddings, EmbeddingError> {
-    let spec = config.model_spec();
-    if spec != batch.spec() {
-        return Err(EmbeddingError::PreparedInputMismatch);
-    }
-    let inputs = batch.inputs();
-    if batch_size == 0 {
-        return Err(EmbeddingError::ModelRunFailed(
-            "batch size must be positive".into(),
-        ));
-    }
-    let unique = inputs
-        .iter()
-        .map(|input| (input.reuse_key.clone(), input.input.as_str()))
-        .collect::<BTreeMap<_, _>>();
-    let mut available = BTreeMap::new();
-    let mut pending = Vec::new();
-    let mut reused_inputs = 0;
-    let mut last_reported = 0;
-    if !reusable.is_empty() {
-        embedding_progress(
-            spec,
-            "reuse_selection",
-            0,
-            unique.len(),
-            "unique inputs",
-            Some(0),
-            inputs.len(),
-        );
-    }
-    for (ordinal, (key, text)) in unique.iter().enumerate() {
-        if let Some(vector) = reusable.get(key) {
-            validate_embedding_vector(vector, spec.dimensions)?;
-            // Borrow verified checkpoints until occurrence output is assembled;
-            // a full-corpus cache should not need a second resident vector copy.
-            available.insert(key.clone(), Cow::Borrowed(vector.as_slice()));
-            reused_inputs += 1;
-        } else {
-            pending.push((key.clone(), *text));
-        }
-        if !reusable.is_empty()
-            && report_embedding_progress(ordinal + 1, unique.len(), last_reported)
+    model: Option<M>,
+    inferred_inputs: usize,
+    peak_vectors: usize,
+}
+impl<M> NativeInferenceState<M> {
+    fn infer(
+        &mut self,
+        batch: &PreparedEmbeddingBatch,
+        load: impl FnOnce(&EmbeddingRuntimeConfig) -> Result<M, EmbeddingError>,
+        mut infer: impl FnMut(&mut M, &[&str]) -> Result<Vec<Vec<f32>>, EmbeddingError>,
+        mut checkpoint: impl FnMut(
+            &[(&crate::PreparedNativeInput, &[f32])],
+        ) -> Result<(), EmbeddingError>,
+    ) -> Result<usize, EmbeddingError> {
+        if batch.spec() != self.config.model_spec()
+            || batch.inputs().len() > NATIVE_INFERENCE_BATCH_LIMIT
         {
-            embedding_progress(
-                spec,
-                "reuse_selection",
-                ordinal + 1,
-                unique.len(),
-                "unique inputs",
-                Some(reused_inputs),
-                inputs.len(),
-            );
-            last_reported = ordinal + 1;
+            return Err(EmbeddingError::PreparedInputMismatch);
         }
-    }
-    let inferred_inputs = pending.len();
-    let mut completed = 0;
-    last_reported = 0;
-    // Cached-only builds need the verified tokenizer, not inference weights or
-    // an ONNX session. Load once, only when there is actual inference work.
-    let mut embedder = if pending.is_empty() {
-        None
-    } else {
-        let profile = crate::profile_for_model(config.model);
-        tracing::info!(target:"atlas_progress",phase="load_embeddings",model=spec.model_id,"Loading {} model", profile.label);
-        Some(TextEmbedder::load(config)?)
-    };
-    if pending.is_empty() {
-        let profile = crate::profile_for_model(config.model);
-        tracing::info!(target:"atlas_progress",phase="reuse_embeddings",reused_inputs,
-            "Using saved {} embeddings", profile.label);
-    } else {
-        embedding_progress(
-            spec,
-            "inference",
-            0,
-            inferred_inputs,
-            "unique inputs",
-            Some(reused_inputs),
-            inputs.len(),
-        );
-    }
-    for batch in pending.chunks(batch_size) {
-        let texts = batch.iter().map(|(_, text)| *text).collect::<Vec<_>>();
-        let completed_batch = batch
-            .iter()
-            .zip(
-                embedder
+        if batch.inputs().is_empty() {
+            return Ok(0);
+        }
+        generation_progress(batch.spec(), self.inferred_inputs);
+        if self.model.is_none() {
+            self.model = Some(load(&self.config)?);
+        }
+        let mut completed = 0;
+        for inputs in batch.inputs().chunks(self.batch_size) {
+            let texts = inputs
+                .iter()
+                .map(|input| input.input.as_str())
+                .collect::<Vec<_>>();
+            let vectors = infer(
+                self.model
                     .as_mut()
-                    .ok_or(EmbeddingError::PreparedInputMismatch)?
-                    .embed_documents(&texts)?,
-            )
-            .map(|((key, _), vector)| (key.clone(), vector))
-            .collect::<Vec<_>>();
-        checkpoint(&completed_batch)?;
-        for (key, vector) in completed_batch {
-            available.insert(key, Cow::Owned(vector));
+                    .ok_or(EmbeddingError::PreparedInputMismatch)?,
+                &texts,
+            )?;
+            if vectors.len() != inputs.len() {
+                return Err(EmbeddingError::UnexpectedEmbeddingOutputCount {
+                    expected: inputs.len(),
+                    actual: vectors.len(),
+                });
+            }
+            self.peak_vectors = self.peak_vectors.max(vectors.len());
+            for vector in &vectors {
+                validate_embedding_vector(vector, batch.spec().dimensions)?;
+            }
+            let values = inputs
+                .iter()
+                .zip(&vectors)
+                .map(|(input, vector)| (input, vector.as_slice()))
+                .collect::<Vec<_>>();
+            checkpoint(&values)?;
+            completed += inputs.len();
+            self.inferred_inputs += inputs.len();
+            generation_progress(batch.spec(), self.inferred_inputs);
         }
-        completed += batch.len();
-        if report_embedding_progress(completed, inferred_inputs, last_reported) {
-            embedding_progress(
-                spec,
-                "inference",
-                completed,
-                inferred_inputs,
-                "unique inputs",
-                Some(reused_inputs),
-                inputs.len(),
-            );
-            last_reported = completed;
-        }
+        Ok(completed)
     }
-    let vectors = inputs
-        .iter()
-        .map(|input| {
-            available
-                .get(&input.reuse_key)
-                .map(|vector| vector.to_vec())
-                .ok_or(EmbeddingError::PreparedInputMismatch)
+}
+fn generation_progress(spec: EmbeddingModelSpec, durable_inputs: usize) {
+    let profile = crate::embedding_model_for_model_id(spec.model_id).map(crate::profile_for_model);
+    let label = profile.map_or(spec.model_id, |profile| profile.label);
+    let id = profile.map_or(spec.model_id, |profile| profile.id);
+    // Distinct future work is unknown while streaming selection. No total is
+    // supplied: the existing CLI renders an indeterminate stage, without ETA.
+    tracing::info!(target:"atlas_progress",phase=%format!("{id}:inference"),
+        current=durable_inputs as u64,unit="unique passages",profile=id,
+        "Generating {label} embeddings");
+}
+/// One model owner per profile. Construction and empty batches never load weights.
+/// Outputs live only until the synchronous durable checkpoint returns.
+pub struct NativeInferenceRunner {
+    state: NativeInferenceState<TextEmbedder>,
+}
+impl NativeInferenceRunner {
+    pub fn new(config: &EmbeddingRuntimeConfig, batch_size: usize) -> Result<Self, EmbeddingError> {
+        if batch_size == 0 {
+            return Err(EmbeddingError::ModelRunFailed(
+                "batch size must be positive".into(),
+            ));
+        }
+        Ok(Self {
+            state: NativeInferenceState {
+                config: config.clone(),
+                batch_size: batch_size.min(NATIVE_INFERENCE_BATCH_LIMIT),
+                model: None,
+                inferred_inputs: 0,
+                peak_vectors: 0,
+            },
         })
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(GeneratedEmbeddings {
-        vectors,
-        inferred_inputs,
-        reused_inputs,
-    })
+    }
+    pub fn inferred_inputs(&self) -> usize {
+        self.state.inferred_inputs
+    }
+    pub fn peak_output_vectors(&self) -> usize {
+        self.state.peak_vectors
+    }
+    pub fn is_loaded(&self) -> bool {
+        self.state.model.is_some()
+    }
+    pub fn infer(
+        &mut self,
+        batch: &PreparedEmbeddingBatch,
+        checkpoint: impl FnMut(&[(&crate::PreparedNativeInput, &[f32])]) -> Result<(), EmbeddingError>,
+    ) -> Result<usize, EmbeddingError> {
+        self.state.infer(batch, |config| {
+            let profile = crate::profile_for_model(config.model);
+            tracing::info!(target:"atlas_progress",phase="load_embeddings",model=config.model_spec().model_id,
+                "Loading {} model", profile.label);
+            TextEmbedder::load(config)
+        }, TextEmbedder::embed_documents, checkpoint)
+    }
 }
 
-fn report_embedding_progress(current: usize, total: usize, last_reported: usize) -> bool {
-    let interval = (total / 100).clamp(25, 500);
-    current == total || current.saturating_sub(last_reported) >= interval
-}
-pub(crate) fn embedding_progress(
-    spec: EmbeddingModelSpec,
-    stage: &str,
-    current: usize,
-    total: usize,
-    unit: &str,
-    reused: Option<usize>,
-    occurrences: usize,
-) {
-    let profile = crate::embedding_model_for_model_id(spec.model_id).map(crate::profile_for_model);
-    let label = profile.map_or(spec.model_id, |p| p.label);
-    let id = profile.map_or(spec.model_id, |p| p.id);
-    let phase = format!("{id}:{stage}");
-    let action = match stage {
-        "native_validation" => format!("Validating {label} inputs"),
-        "reuse_selection" => format!("Checking saved {label} embeddings"),
-        "inference" => format!("Generating {label} embeddings"),
-        _ => stage.to_owned(),
-    };
-    let display_unit = if unit == "unique inputs" {
-        "unique passages"
-    } else {
-        "passages"
-    };
-    tracing::info!(target: "atlas_progress", phase = %phase, current = current as u64, total = total as u64,
-        unit = display_unit, reused = ?reused, occurrences, profile = id,
-        "{action}");
+#[cfg(test)]
+mod bounded_runner_tests {
+    use super::*;
+    #[test]
+    fn lazy_batches_load_once_and_count_only_durable_checkpoints() {
+        let (_, events) = crate::tests::observed_progress(|| {
+            let tokenizer = crate::tests::tokenizer();
+            let input =
+                crate::prepare_embedding_section(&tokenizer, crate::tests::plain("one", "one"))
+                    .unwrap()
+                    .remove(0);
+            let batch = PreparedEmbeddingBatch::prepare(&tokenizer, vec![input.into(); 5]).unwrap();
+            let config =
+                EmbeddingRuntimeConfig::new(crate::EmbeddingModelId::BgeBaseEnV15, "/unused");
+            let mut state = NativeInferenceState {
+                config,
+                batch_size: 2,
+                model: None,
+                inferred_inputs: 0,
+                peak_vectors: 0,
+            };
+            let loads = std::cell::Cell::new(0);
+            let calls = std::cell::RefCell::new(Vec::new());
+            let load = |_: &EmbeddingRuntimeConfig| {
+                loads.set(loads.get() + 1);
+                Ok(())
+            };
+            let infer = |_: &mut (), texts: &[&str]| {
+                calls.borrow_mut().push(texts.len());
+                Ok(texts
+                    .iter()
+                    .map(|_| {
+                        let mut v = vec![0.; 768];
+                        v[0] = 1.;
+                        v
+                    })
+                    .collect())
+            };
+            let mut checkpoints = 0;
+            assert!(
+                state
+                    .infer(&batch, load, infer, |values| {
+                        checkpoints += 1;
+                        assert!(values.len() <= 2);
+                        if checkpoints == 2 {
+                            return Err(EmbeddingError::ModelRunFailed(
+                                "durable checkpoint failed".into(),
+                            ));
+                        }
+                        Ok(())
+                    })
+                    .is_err()
+            );
+            assert_eq!(state.inferred_inputs, 2);
+            assert_eq!(loads.get(), 1);
+            assert_eq!(state.infer(&batch, load, infer, |_| Ok(())).unwrap(), 5);
+            assert_eq!(loads.get(), 1);
+            assert_eq!(state.inferred_inputs, 7);
+            assert_eq!(state.peak_vectors, 2);
+            assert_eq!(*calls.borrow(), [2, 2, 2, 2, 1]);
+        });
+        let progress = events
+            .iter()
+            .filter(|event| {
+                event
+                    .get("phase")
+                    .is_some_and(|phase| phase == "bge-base:inference")
+            })
+            .collect::<Vec<_>>();
+        let counts = progress
+            .iter()
+            .map(|event| event["current"].parse::<usize>().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(counts, [0, 2, 2, 4, 6, 7]);
+        assert!(progress.iter().all(|event| !event.contains_key("total")
+            && event["unit"] == "unique passages"
+            && event["message"] == "Generating BGE Base embeddings"));
+    }
 }

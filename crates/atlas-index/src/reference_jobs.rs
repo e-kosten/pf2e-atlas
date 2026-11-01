@@ -1,7 +1,8 @@
 //! Reference update job lifecycle and validated maintenance recovery.
-use crate::{IndexError, codec::sha256};
-use atlas_storage::WriteSession;
+use crate::IndexError;
 use rusqlite::params;
+#[cfg(any(test, feature = "test-support"))]
+use {crate::codec::sha256, atlas_storage::WriteSession};
 
 pub fn recover_reference_publication(
     owner: &atlas_storage::UpdateOwner,
@@ -73,6 +74,7 @@ pub fn recover_reference_publication(
     })
 }
 
+#[cfg(any(test, feature = "test-support"))]
 pub fn start_reference_job(
     session: &WriteSession,
     target_hash: &str,
@@ -102,6 +104,16 @@ pub(crate) fn finish_reference_job(
             "reference update job no longer matches the workspace revision or target".into(),
         ));
     }
-    connection.execute("DELETE FROM reference_update_jobs WHERE job_key<>?", [job])?;
+    let retired = connection.execute(
+        "UPDATE native_update_targets SET phase='retired' WHERE job_key=? AND phase='active'",
+        [job],
+    )?;
+    if retired != 1 {
+        return Err(IndexError::Invalid(
+            "published native target is no longer active".into(),
+        ));
+    }
+    // Metadata is retired in bounded transactions on the next explicit update.
+    // Deleting a parent here would bypass that lifecycle or strand memberships.
     Ok(())
 }

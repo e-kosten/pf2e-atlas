@@ -155,6 +155,7 @@ pub struct SourceLexicalUnitInput {
     pub structured_terms: String,
     pub definition_terms: String,
 }
+#[cfg(any(test, feature = "test-support"))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceSemanticUnitInput {

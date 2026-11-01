@@ -89,63 +89,24 @@ impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
         selected: &mut dyn FnMut(usize) -> bool,
         visitor: &mut dyn FnMut(T) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
-        let mut file = File::open(self.file.path()).map_err(io)?;
-        let length = file.metadata().map_err(io)?.len();
-        let mut count = 0usize;
-        while file.stream_position().map_err(io)? < length {
-            let mut size = [0; 8];
-            file.read_exact(&mut size).map_err(io)?;
-            let size = u64::from_le_bytes(size);
-            let mut decoded = [0; 8];
-            file.read_exact(&mut decoded).map_err(io)?;
-            let decoded = u64::from_le_bytes(decoded);
-            if size > self.max_encoded || decoded > self.max_decoded {
-                return Err(io("frame exceeds observed record bounds"));
-            }
-            let remaining = length
-                .checked_sub(file.stream_position().map_err(io)?)
-                .ok_or_else(|| io("frame offset overflow"))?;
-            if remaining < 32 || size > remaining - 32 {
-                return Err(io("truncated frame"));
-            }
-            if !selected(count) {
-                file.seek(SeekFrom::Current(
-                    i64::try_from(
-                        size.checked_add(32)
-                            .ok_or_else(|| io("frame offset overflow"))?,
-                    )
-                    .map_err(io)?,
-                ))
-                .map_err(io)?;
-                count += 1;
-                continue;
-            }
-            let mut expected = [0; 32];
-            file.read_exact(&mut expected).map_err(io)?;
-            let mut payload = vec![0; usize::try_from(size).map_err(io)?];
-            file.read_exact(&mut payload).map_err(io)?;
-            if Sha256::digest(&payload).as_slice() != expected {
-                return Err(io("frame checksum differs"));
-            }
-            let limit = decoded
-                .checked_add(1)
-                .ok_or_else(|| io("decoded frame size overflow"))?;
-            let mut plain = Vec::new();
-            flate2::read::GzDecoder::new(payload.as_slice())
-                .take(limit)
-                .read_to_end(&mut plain)
-                .map_err(io)?;
-            if plain.len() as u64 != decoded {
-                return Err(io("decoded frame length differs"));
-            }
-            let value = serde_json::from_slice(&plain)?;
+        let mut cursor = self.cursor()?;
+        while let Some(value) = cursor.next_selected(selected)? {
             visitor(value)?;
-            count += 1;
-        }
-        if count != self.count {
-            return Err(io("frame count differs"));
         }
         Ok(())
+    }
+    fn cursor(&self) -> Result<BuildFrameCursor<T>, IndexError> {
+        let file = File::open(self.file.path()).map_err(io)?;
+        let length = file.metadata().map_err(io)?.len();
+        Ok(BuildFrameCursor {
+            file,
+            length,
+            count: self.count,
+            ordinal: 0,
+            max_encoded: self.max_encoded,
+            max_decoded: self.max_decoded,
+            kind: PhantomData,
+        })
     }
     pub fn digest(&self) -> Result<String, IndexError> {
         let mut file = File::open(self.file.path()).map_err(io)?;
@@ -165,6 +126,86 @@ impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
             self.max_decoded,
             hash.finalize()
         ))
+    }
+}
+
+/// Independent forward reader for a sealed, bounded frame stream.
+/// Each call owns at most one decoded frame; repeatable readers have independent offsets.
+pub struct BuildFrameCursor<T> {
+    file: File,
+    length: u64,
+    count: usize,
+    ordinal: usize,
+    max_encoded: u64,
+    max_decoded: u64,
+    kind: PhantomData<T>,
+}
+impl<T: DeserializeOwned> BuildFrameCursor<T> {
+    pub fn next_frame(&mut self) -> Result<Option<T>, IndexError> {
+        self.next_selected(&mut |_| true)
+    }
+    fn next_selected(
+        &mut self,
+        selected: &mut dyn FnMut(usize) -> bool,
+    ) -> Result<Option<T>, IndexError> {
+        while self.file.stream_position().map_err(io)? < self.length {
+            if self.ordinal >= self.count {
+                return Err(io("frame count differs"));
+            }
+            let mut size = [0; 8];
+            self.file.read_exact(&mut size).map_err(io)?;
+            let size = u64::from_le_bytes(size);
+            let mut decoded = [0; 8];
+            self.file.read_exact(&mut decoded).map_err(io)?;
+            let decoded = u64::from_le_bytes(decoded);
+            if size > self.max_encoded || decoded > self.max_decoded {
+                return Err(io("frame exceeds observed record bounds"));
+            }
+            let remaining = self
+                .length
+                .checked_sub(self.file.stream_position().map_err(io)?)
+                .ok_or_else(|| io("frame offset overflow"))?;
+            if remaining < 32 || size > remaining - 32 {
+                return Err(io("truncated frame"));
+            }
+            let include = selected(self.ordinal);
+            self.ordinal += 1;
+            if !include {
+                self.file
+                    .seek(SeekFrom::Current(
+                        i64::try_from(
+                            size.checked_add(32)
+                                .ok_or_else(|| io("frame offset overflow"))?,
+                        )
+                        .map_err(io)?,
+                    ))
+                    .map_err(io)?;
+                continue;
+            }
+            let mut expected = [0; 32];
+            self.file.read_exact(&mut expected).map_err(io)?;
+            let mut payload = vec![0; usize::try_from(size).map_err(io)?];
+            self.file.read_exact(&mut payload).map_err(io)?;
+            if Sha256::digest(&payload).as_slice() != expected {
+                return Err(io("frame checksum differs"));
+            }
+            let limit = decoded
+                .checked_add(1)
+                .ok_or_else(|| io("decoded frame size overflow"))?;
+            let mut plain = Vec::new();
+            flate2::read::GzDecoder::new(payload.as_slice())
+                .take(limit)
+                .read_to_end(&mut plain)
+                .map_err(io)?;
+            if plain.len() as u64 != decoded {
+                return Err(io("decoded frame length differs"));
+            }
+            return Ok(Some(serde_json::from_slice(&plain)?));
+        }
+        if self.ordinal != self.count || self.file.metadata().map_err(io)?.len() != self.length {
+            return Err(io("frame count or length differs"));
+        }
+        Ok(None)
     }
 }
 
@@ -199,6 +240,12 @@ impl<T: Serialize + DeserializeOwned> SealedBuildFrameStream<T> {
             return Err(io("sealed stream binding or bytes differ"));
         }
         Ok(())
+    }
+    pub fn cursor(&self) -> Result<BuildFrameCursor<T>, IndexError> {
+        if self.digest != self.stream.digest()? {
+            return Err(io("sealed stream bytes differ"));
+        }
+        self.stream.cursor()
     }
     pub fn visit(
         &self,
@@ -417,6 +464,32 @@ impl PublicationSource for SealedPublicationSpool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn sealed_forward_cursors_are_independent_and_reject_changed_frames() {
+        let mut stream = BuildFrameStream::<usize>::new().unwrap();
+        for value in 0..513 {
+            stream.push(&value).unwrap();
+        }
+        let mut sealed = stream.seal(&"binding").unwrap();
+        let mut left = sealed.cursor().unwrap();
+        let mut right = sealed.cursor().unwrap();
+        for value in 0..513 {
+            assert_eq!(left.next_frame().unwrap(), Some(value));
+            assert_eq!(right.next_frame().unwrap(), Some(value));
+        }
+        assert_eq!(left.next_frame().unwrap(), None);
+        assert_eq!(left.next_frame().unwrap(), None);
+        let mut cursor = sealed.cursor().unwrap();
+        sealed
+            .stream
+            .file
+            .as_file_mut()
+            .seek(SeekFrom::Start(48))
+            .unwrap();
+        sealed.stream.file.as_file_mut().write_all(&[0]).unwrap();
+        assert!(cursor.next_frame().is_err());
+        assert!(sealed.cursor().is_err());
+    }
     #[test]
     fn framed_stream_is_repeatable_and_rejects_truncated_or_changed_payloads() {
         let mut stream = BuildFrameStream::<String>::new().unwrap();

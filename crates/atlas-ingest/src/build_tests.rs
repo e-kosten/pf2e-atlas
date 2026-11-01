@@ -6,6 +6,347 @@ use std::{
 };
 struct Fixture(PathBuf);
 
+/// An explicit smoke cache is authoritative. Native loaders still verify every
+/// consumed asset; an invalid override must never select another local cache.
+fn native_smoke_cache(model: atlas_embedding::EmbeddingModelId) -> PathBuf {
+    let marker = match model {
+        atlas_embedding::EmbeddingModelId::BgeBaseEnV15 => "onnx/model.onnx",
+        atlas_embedding::EmbeddingModelId::EmbeddingGemma300M => "onnx/model.onnx_data",
+    };
+    let has_model = |root: &Path| {
+        atlas_embedding::EmbeddingRuntimeConfig::new(model, root)
+            .model_dir()
+            .join(marker)
+            .is_file()
+    };
+    if let Some(root) = std::env::var_os("ATLAS_TEST_MODEL_CACHE") {
+        let root = PathBuf::from(root);
+        assert!(
+            has_model(&root),
+            "ATLAS_TEST_MODEL_CACHE lacks pinned {} assets beneath {}",
+            model.as_str(),
+            root.display()
+        );
+        return root;
+    }
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .map(|parent| parent.join(".cache/hf-models"))
+        .find(|root| has_model(root))
+        .expect("these ignored native smoke tests require the pinned local model cache")
+}
+
+/// A thread-scoped observer keeps deterministic phase-boundary mutations inside
+/// the actual product path, without adding build hooks or production callbacks.
+struct BuildTraceObserver<F>(F);
+impl<F: Fn(&tracing::Event<'_>) + Send + Sync + 'static> tracing::Subscriber
+    for BuildTraceObserver<F>
+{
+    // Parallel tests use independent thread-local dispatchers. Keep callsites
+    // dynamically enabled through the current dispatcher instead of caching this
+    // short-lived observer's interest for another test's subscriber lifetime.
+    fn register_callsite(
+        &self,
+        _: &'static tracing::Metadata<'static>,
+    ) -> tracing::subscriber::Interest {
+        tracing::subscriber::Interest::sometimes()
+    }
+    fn max_level_hint(&self) -> Option<tracing::level_filters::LevelFilter> {
+        Some(tracing::level_filters::LevelFilter::TRACE)
+    }
+    fn enabled(&self, _: &tracing::Metadata<'_>) -> bool {
+        true
+    }
+    fn new_span(&self, _: &tracing::span::Attributes<'_>) -> tracing::span::Id {
+        tracing::span::Id::from_u64(1)
+    }
+    fn record(&self, _: &tracing::span::Id, _: &tracing::span::Record<'_>) {}
+    fn record_follows_from(&self, _: &tracing::span::Id, _: &tracing::span::Id) {}
+    fn event(&self, event: &tracing::Event<'_>) {
+        (self.0)(event);
+    }
+    fn enter(&self, _: &tracing::span::Id) {}
+    fn exit(&self, _: &tracing::span::Id) {}
+}
+#[derive(Default)]
+struct TraceFields(std::collections::BTreeMap<String, String>);
+impl tracing::field::Visit for TraceFields {
+    fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+        self.0.insert(field.name().into(), format!("{value:?}"));
+    }
+    fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+        self.0.insert(field.name().into(), value.into());
+    }
+}
+
+#[test]
+fn source_and_catalog_changes_during_numerical_freeze_preserve_publication() {
+    const CHILD: &str = "ATLAS_TEST_NATIVE_FREEZE_FRESHNESS_CHILD";
+    const COMPLETE: &str = "native-freeze-freshness: both real mutation cases verified";
+    // Tracing callsite interest is process-global even for thread-scoped
+    // subscribers. Isolate this event-driven fault injection from parallel tests.
+    // The completion marker prevents an incorrect exact filter matching no tests
+    // from being mistaken for exercised protection.
+    if std::env::var_os(CHILD).as_deref() != Some(std::ffi::OsStr::new("1")) {
+        let output = std::process::Command::new(
+            std::env::current_exe().expect("current test executable"),
+        )
+        .env(CHILD, "1")
+        .args([
+            "--exact",
+            "build_tests::source_and_catalog_changes_during_numerical_freeze_preserve_publication",
+            "--nocapture",
+        ])
+        .output()
+        .expect("run isolated native freeze freshness regression");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            output.status.success(),
+            "isolated regression failed: {}\nstdout:\n{stdout}\nstderr:\n{stderr}",
+            output.status
+        );
+        assert!(
+            stderr.lines().any(|line| line == COMPLETE),
+            "isolated regression did not verify both cases\nstdout:\n{stdout}\nstderr:\n{stderr}"
+        );
+        return;
+    }
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    };
+    for changed in ["source", "catalog"] {
+        let fixture = Fixture::new();
+        let options = fixture.options();
+        let before = build_artifact(options.clone()).unwrap();
+        let workspace =
+            atlas_index::test_support::initialize_workspace(&options.output_path).unwrap();
+        let schema = atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
+        let revision = workspace
+            .read(schema)
+            .unwrap()
+            .reference_revision()
+            .unwrap();
+        let context = atlas_index::test_support::open_reader(&options.output_path)
+            .unwrap()
+            .context()
+            .sha256()
+            .unwrap();
+        let source_path = fixture.0.join("packs/items/useful.json");
+        let old_source = fs::read_to_string(&source_path).unwrap();
+        fs::write(
+            &source_path,
+            old_source.replace("Full prose", "New captured prose"),
+        )
+        .unwrap();
+        let path = if changed == "source" {
+            source_path
+        } else {
+            fixture.0.join("static/lang/en.json")
+        };
+        let bytes = if changed == "source" {
+            old_source
+                .replace("Full prose", "Changed during numerical freeze")
+                .into_bytes()
+        } else {
+            br#"{"PF2E":{"Label":"Changed during numerical freeze"}}"#.to_vec()
+        };
+        let observed = Arc::new(AtomicBool::new(false));
+        let changed_once = Arc::clone(&observed);
+        let observer = BuildTraceObserver(move |event: &tracing::Event<'_>| {
+            let mut fields = TraceFields::default();
+            event.record(&mut fields);
+            if event.metadata().target() == "atlas_build_diagnostic"
+                && fields
+                    .0
+                    .get("message")
+                    .is_some_and(|text| text.contains("Frozen numerical publication values"))
+                && !changed_once.swap(true, Ordering::SeqCst)
+            {
+                fs::write(&path, &bytes).unwrap();
+            }
+        });
+        let result =
+            tracing::subscriber::with_default(observer, || build_artifact(options.clone()));
+        assert!(
+            observed.load(Ordering::SeqCst),
+            "mutation must occur during numerical staging; actual build result: {result:?}"
+        );
+        assert!(
+            matches!(result, Err(IngestError::SourceUnavailable(_))),
+            "{changed}: {result:?}"
+        );
+        assert_eq!(
+            workspace
+                .read(schema)
+                .unwrap()
+                .reference_revision()
+                .unwrap(),
+            revision
+        );
+        let reader = atlas_index::test_support::open_reader(&options.output_path).unwrap();
+        assert_eq!(reader.context().sha256().unwrap(), context);
+        assert_eq!(reader.statistics().unwrap().records, before.record_count);
+        assert_eq!(
+            reader.context().source_fingerprint,
+            before.source_fingerprint
+        );
+        atlas_index::validate_artifact(&options.output_path).unwrap();
+    }
+    eprintln!("{COMPLETE}");
+}
+
+#[test]
+#[ignore = "requires ATLAS_TEST_MODEL_CACHE pinned BGE tokenizer only; no model inference"]
+fn bounded_cached_native_windows_deduplicate_without_loading_weights() {
+    let fixture = Fixture::new();
+    let cache = PathBuf::from(
+        std::env::var_os("ATLAS_TEST_MODEL_CACHE").expect("set ATLAS_TEST_MODEL_CACHE"),
+    );
+    let source_config = atlas_embedding::EmbeddingRuntimeConfig::new(
+        atlas_embedding::EmbeddingModelId::BgeBaseEnV15,
+        cache,
+    );
+    let tokenizer_cache = fixture.0.join("tokenizer-only");
+    let config =
+        atlas_embedding::EmbeddingRuntimeConfig::new(source_config.model, &tokenizer_cache);
+    fs::create_dir_all(config.model_dir()).unwrap();
+    fs::copy(
+        source_config.model_dir().join("tokenizer.json"),
+        config.model_dir().join("tokenizer.json"),
+    )
+    .unwrap();
+    assert!(!config.model_dir().join("onnx/model.onnx").exists());
+    let mut options = fixture.options();
+    options.search_profiles = vec![config];
+    let original: serde_json::Value =
+        serde_json::from_slice(&fs::read(fixture.0.join("packs/items/useful.json")).unwrap())
+            .unwrap();
+    for ordinal in 0..140 {
+        let mut duplicate = original.clone();
+        duplicate["_id"] = serde_json::json!(format!("{ordinal:016x}"));
+        fs::write(
+            fixture
+                .0
+                .join(format!("packs/items/duplicate-{ordinal}.json")),
+            serde_json::to_vec(&duplicate).unwrap(),
+        )
+        .unwrap();
+    }
+    crate::build::publish_fixture_without_inference(&options).unwrap();
+    let mut prepared = crate::product_preparation::prepare_fixture(&options).unwrap();
+    let plans = crate::native_execution::prepare_profiles(&mut prepared, &options).unwrap();
+    assert_eq!(plans.len(), 1);
+    assert!(prepared.native_inputs.len() > atlas_index::NATIVE_VALUE_BATCH_LIMIT * 2);
+    let sealed = prepared.spool.seal().unwrap();
+    let mut unique = std::collections::BTreeSet::new();
+    atlas_index::PublicationSource::semantic(&sealed, &mut |row| {
+        let model =
+            atlas_index::PublicationSource::context(&sealed).search_profile(&row.profile_id)?;
+        unique.insert((
+            serde_json::to_string(model)?,
+            row.input.input_sha256.clone(),
+            row.input.token_count,
+        ));
+        Ok(())
+    })
+    .unwrap();
+    assert!(unique.len() < atlas_index::PublicationSource::semantic_count(&sealed));
+    // The complete native target includes trait inputs as well as document
+    // occurrences; count exact profile/model-bound identities independently.
+    atlas_index::PublicationSource::trait_seeds(&sealed, &mut |seed| {
+        let model =
+            atlas_index::PublicationSource::context(&sealed).search_profile(&seed.profile_id)?;
+        let identity = serde_json::to_string(model)?;
+        for chunk in &seed.chunks {
+            unique.insert((
+                identity.clone(),
+                chunk.descriptor.input_sha256.clone(),
+                chunk.descriptor.token_count,
+            ));
+        }
+        Ok(())
+    })
+    .unwrap();
+    let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let captured = std::sync::Arc::clone(&events);
+    let observer = BuildTraceObserver(move |event: &tracing::Event<'_>| {
+        if event.metadata().target() == "atlas_progress" {
+            let mut fields = TraceFields::default();
+            event.record(&mut fields);
+            captured.lock().unwrap().push(fields.0);
+        }
+    });
+    let report =
+        tracing::subscriber::with_default(observer, || build_artifact(options.clone())).unwrap();
+    let events = events.lock().unwrap();
+    for phase in ["bge-base:native_validation", "bge-base:reuse_selection"] {
+        let rows = events
+            .iter()
+            .filter(|event| event.get("phase").is_some_and(|value| value == phase))
+            .collect::<Vec<_>>();
+        let counts = rows
+            .iter()
+            .map(|event| event["current"].parse::<usize>().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(counts.first(), Some(&0));
+        assert_eq!(counts.last(), Some(&prepared.native_inputs.len()));
+        assert!(
+            counts.windows(2).all(|pair| pair[0] < pair[1]),
+            "aggregate progress must not reset between windows"
+        );
+        assert!(
+            rows.iter()
+                .all(|event| event["total"].parse::<usize>().unwrap()
+                    == prepared.native_inputs.len())
+        );
+    }
+    assert!(events.iter().all(|event| {
+        !event
+            .get("message")
+            .is_some_and(|message| message.contains("Generating") || message.contains("Loading"))
+    }));
+    assert_eq!(report.inferred_inputs, 0);
+    assert_eq!(report.reused_inputs, unique.len());
+    assert_eq!(report.profiles[0].reused_inputs, unique.len());
+    atlas_index::validate_artifact(&options.output_path).unwrap();
+    let workspace = atlas_index::test_support::initialize_workspace(&options.output_path).unwrap();
+    let schema = atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
+    let before_revision = workspace
+        .read(schema)
+        .unwrap()
+        .reference_revision()
+        .unwrap();
+    let before_context = atlas_index::test_support::open_reader(&options.output_path)
+        .unwrap()
+        .context()
+        .sha256()
+        .unwrap();
+    options.reuse_embeddings = false;
+    assert!(
+        build_artifact(options.clone()).is_err(),
+        "forced inference must require missing weights"
+    );
+    // Active registration/checkpoint metadata may change, but the published
+    // reference and its ordinary queryable row count remain intact.
+    assert_eq!(
+        workspace
+            .read(schema)
+            .unwrap()
+            .reference_revision()
+            .unwrap(),
+        before_revision
+    );
+    let reader = atlas_index::test_support::open_reader(&options.output_path).unwrap();
+    assert_eq!(reader.context().sha256().unwrap(), before_context);
+    assert_eq!(reader.statistics().unwrap().records, report.record_count);
+    assert_eq!(
+        reader.context().source_fingerprint,
+        report.source_fingerprint
+    );
+}
+
 #[test]
 #[ignore = "requires the pinned BGE tokenizer; no model inference"]
 fn published_passage_replay_matches_fresh_selection_after_dependency_changes() {
@@ -617,22 +958,7 @@ fn complete_artifact_snapshots_equal_independently_reloaded_source_models() {
 #[ignore = "requires verified local BGE assets; run explicitly"]
 fn actual_model_build_reuses_exact_inputs_with_fresh_source_attribution() {
     let fixture = Fixture::new();
-    let cache = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .find_map(|ancestor| {
-            let cache = ancestor.join(".cache/hf-models");
-            cache
-                .join(format!(
-                    "BAAI/bge-base-en-v1.5/{}/onnx/model.onnx",
-                    atlas_embedding::embedding_model_spec(
-                        atlas_embedding::EmbeddingModelId::BgeBaseEnV15
-                    )
-                    .model_revision
-                ))
-                .is_file()
-                .then_some(cache)
-        })
-        .unwrap();
+    let cache = native_smoke_cache(atlas_embedding::EmbeddingModelId::BgeBaseEnV15);
     let mut options = fixture.options();
     options.search_profiles = vec![atlas_embedding::EmbeddingRuntimeConfig::new(
         atlas_embedding::EmbeddingModelId::BgeBaseEnV15,
@@ -714,20 +1040,7 @@ fn actual_model_build_reuses_exact_inputs_with_fresh_source_attribution() {
 #[ignore = "requires verified local BGE Base/Gemma assets; bounded tiny source only"]
 fn actual_profile_builds_share_preparation_isolate_reuse_and_publish_atomically() {
     use atlas_embedding::{EmbeddingModelId, EmbeddingRuntimeConfig};
-    let cache = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .map(|p| p.join(".cache/hf-models"))
-        .find(|p| {
-            p.join(format!(
-                "onnx-community/embeddinggemma-300m-ONNX/{}/onnx/model.onnx_data",
-                atlas_embedding::embedding_model_spec(
-                    atlas_embedding::EmbeddingModelId::EmbeddingGemma300M
-                )
-                .model_revision
-            ))
-            .is_file()
-        })
-        .unwrap();
+    let cache = native_smoke_cache(EmbeddingModelId::EmbeddingGemma300M);
     let fixture = Fixture::new();
     let mut options = fixture.options();
     options.search_profiles = vec![EmbeddingRuntimeConfig::new(
@@ -745,6 +1058,70 @@ fn actual_profile_builds_share_preparation_isolate_reuse_and_publish_atomically(
         &cache,
     ));
     request_test_configuration(&options);
+    // The second profile has a valid tokenizer but no inference weights. Shared
+    // admission and ALL native membership must complete before BGE starts, then
+    // BGE checkpoints must survive the later Gemma inference failure.
+    let source_path = fixture.0.join("packs/items/useful.json");
+    let source = fs::read_to_string(&source_path).unwrap();
+    fs::write(
+        &source_path,
+        source.replace("Full prose", "Changed full prose"),
+    )
+    .unwrap();
+    let partial = EmbeddingRuntimeConfig::new(
+        EmbeddingModelId::EmbeddingGemma300M,
+        fixture.0.join("gemma-tokenizer-only"),
+    );
+    fs::create_dir_all(partial.model_dir()).unwrap();
+    fs::copy(
+        options.search_profiles[1]
+            .model_dir()
+            .join("tokenizer.json"),
+        partial.model_dir().join("tokenizer.json"),
+    )
+    .unwrap();
+    let valid_gemma = options.search_profiles[1].clone();
+    options.search_profiles[1] = partial;
+    let workspace = atlas_index::test_support::initialize_workspace(&options.output_path).unwrap();
+    let schema = atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
+    let revision = workspace
+        .read(schema)
+        .unwrap()
+        .reference_revision()
+        .unwrap();
+    assert!(build_artifact(options.clone()).is_err());
+    assert_eq!(
+        workspace
+            .read(schema)
+            .unwrap()
+            .reference_revision()
+            .unwrap(),
+        revision
+    );
+    assert_eq!(
+        atlas_index::test_support::open_reader(&options.output_path)
+            .unwrap()
+            .context()
+            .sha256()
+            .unwrap(),
+        generation
+    );
+    {
+        let read = workspace.read(schema).unwrap();
+        let pending: usize = read
+            .connection()
+            .query_row("SELECT count(*) FROM pending_embedding_values", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert!(pending > 0, "completed BGE work survives Gemma failure");
+        let profiles: usize = read.connection().query_row("SELECT count(DISTINCT i.model_id) FROM native_target_inputs n JOIN native_update_targets t USING(job_key) JOIN embedding_inputs i USING(input_id) WHERE t.phase='active'", [], |r|r.get(0)).unwrap();
+        assert_eq!(
+            profiles, 2,
+            "all profiles were registered before any inference"
+        );
+    }
+    options.search_profiles[1] = valid_gemma;
     let both = build_artifact(options.clone()).unwrap();
     assert_eq!(both.profiles[0].inferred_inputs, 0);
     assert!(both.profiles[0].reused_inputs > 0);

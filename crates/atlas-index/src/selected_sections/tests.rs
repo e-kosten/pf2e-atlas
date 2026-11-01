@@ -383,7 +383,7 @@ fn retired_preparation_and_predecessor_never_decode_snapshots_or_alter_pending_v
         let mut forced = vec![0.; model.dimensions];
         forced[31] = 1.;
         let job = start_reference_job(&write, "forced target").unwrap();
-        stage_embedding_values(&write, &job, model, &[(&prepared, &forced)]).unwrap();
+        stage_pending_native_fixture(&write, &job, model, &prepared.descriptor(), &forced).unwrap();
         let before = numerical(c, &input);
         let saved_before = saved(c);
         let revision = write.reference_revision().unwrap();

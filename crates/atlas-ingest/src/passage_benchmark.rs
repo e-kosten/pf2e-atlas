@@ -103,7 +103,10 @@ fn native_signatures(
         .map(|config| {
             let tokenizer = TextEmbeddingTokenizer::load(config).unwrap();
             let mut hash = Sha256::new();
-            let mut pending = Vec::with_capacity(options.embedding_batch_size);
+            let limit = options
+                .embedding_batch_size
+                .clamp(1, atlas_embedding::NATIVE_INFERENCE_BATCH_LIMIT);
+            let mut pending = Vec::with_capacity(limit);
             let mut flush = |pending: &mut Vec<PreparedNativeInput>| {
                 let batch =
                     PreparedEmbeddingBatch::prepare(&tokenizer, std::mem::take(pending)).unwrap();
@@ -122,7 +125,7 @@ fn native_signatures(
                 .native_inputs
                 .visit(&mut |input| {
                     pending.push(input);
-                    if pending.len() == options.embedding_batch_size {
+                    if pending.len() == limit {
                         flush(&mut pending);
                     }
                     Ok(())

@@ -1,9 +1,51 @@
 use crate::*;
 use atlas_domain::{SourceByteRange, SourcePassageAddress};
-use std::{collections::BTreeMap, path::PathBuf};
+use std::path::PathBuf;
 use tokenizers::{Tokenizer, models::wordlevel::WordLevel, pre_tokenizers::whitespace::Whitespace};
 
-fn tokenizer() -> TextEmbeddingTokenizer {
+pub(crate) fn observed_progress<T>(
+    action: impl FnOnce() -> T,
+) -> (T, Vec<std::collections::BTreeMap<String, String>>) {
+    #[derive(Default)]
+    struct Fields(std::collections::BTreeMap<String, String>);
+    impl tracing::field::Visit for Fields {
+        fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+            self.0.insert(field.name().into(), format!("{value:?}"));
+        }
+        fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+            self.0.insert(field.name().into(), value.into());
+        }
+    }
+    struct Observer(
+        std::sync::Arc<std::sync::Mutex<Vec<std::collections::BTreeMap<String, String>>>>,
+    );
+    impl tracing::Subscriber for Observer {
+        fn enabled(&self, _: &tracing::Metadata<'_>) -> bool {
+            true
+        }
+        fn new_span(&self, _: &tracing::span::Attributes<'_>) -> tracing::span::Id {
+            tracing::span::Id::from_u64(1)
+        }
+        fn record(&self, _: &tracing::span::Id, _: &tracing::span::Record<'_>) {}
+        fn record_follows_from(&self, _: &tracing::span::Id, _: &tracing::span::Id) {}
+        fn event(&self, event: &tracing::Event<'_>) {
+            if event.metadata().target() == "atlas_progress" {
+                let mut fields = Fields::default();
+                event.record(&mut fields);
+                self.0.lock().unwrap().push(fields.0);
+            }
+        }
+        fn enter(&self, _: &tracing::span::Id) {}
+        fn exit(&self, _: &tracing::span::Id) {}
+    }
+    let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let result =
+        tracing::subscriber::with_default(Observer(std::sync::Arc::clone(&events)), action);
+    let events = std::mem::take(&mut *events.lock().unwrap());
+    (result, events)
+}
+
+pub(crate) fn tokenizer() -> TextEmbeddingTokenizer {
     let vocab = [("[UNK]".to_owned(), 0), ("one".to_owned(), 1)]
         .into_iter()
         .collect();
@@ -20,7 +62,7 @@ fn tokenizer() -> TextEmbeddingTokenizer {
     )
     .unwrap()
 }
-fn plain<'a>(text: &'a str, context: &'a str) -> PassageSection<'a> {
+pub(crate) fn plain<'a>(text: &'a str, context: &'a str) -> PassageSection<'a> {
     PassageSection::Plain {
         text,
         context,
@@ -491,6 +533,15 @@ fn prepared_reuse_identity_uses_the_selected_model() {
 }
 
 fn local_model_config() -> EmbeddingRuntimeConfig {
+    if let Some(cache_root) = std::env::var_os("ATLAS_TEST_MODEL_CACHE") {
+        let config = EmbeddingRuntimeConfig::new(EmbeddingModelId::BgeBaseEnV15, cache_root);
+        assert!(
+            config.model_dir().join("onnx/model.onnx").is_file(),
+            "ATLAS_TEST_MODEL_CACHE must contain pinned BGE assets at {}",
+            config.model_dir().display()
+        );
+        return config;
+    }
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .map(|parent| {
@@ -540,11 +591,14 @@ fn actual_bge_batches_reuse_preserves_attribution_and_utf8() {
     )
     .unwrap();
     let empty_batch = PreparedEmbeddingBatch::prepare(model.tokenizer(), vec![]).unwrap();
-    let empty =
-        generate_prepared_embeddings(&config, &empty_batch, &BTreeMap::new(), 8, |_| Ok(()))
-            .unwrap();
-    assert!(empty.vectors.is_empty());
-    assert_eq!((empty.inferred_inputs, empty.reused_inputs), (0, 0));
+    let mut runner = NativeInferenceRunner::new(&config, 8).unwrap();
+    assert_eq!(
+        runner
+            .infer(&empty_batch, |_| panic!("empty inference checkpoint"))
+            .unwrap(),
+        0
+    );
+    assert!(!runner.is_loaded());
     let texts = [
         "Ghoul Fever — Saving Throw DC 15 Fortitude; disease",
         "Résumé ≥ ½; 2d6[fire] + @item.level.",
@@ -587,21 +641,28 @@ fn actual_bge_batches_reuse_preserves_attribution_and_utf8() {
     }
     assert_ne!(duplicate.address, units[0].address);
     units.push(duplicate);
-    let batch = PreparedEmbeddingBatch::prepare(
-        model.tokenizer(),
-        units.clone().into_iter().map(Into::into).collect(),
-    )
-    .unwrap();
-    let initial =
-        generate_prepared_embeddings(&config, &batch, &BTreeMap::new(), 16, |_| Ok(())).unwrap();
-    assert_eq!(initial.inferred_inputs, 1);
-    assert_eq!(initial.vectors.len(), 2);
-    assert_eq!(initial.vectors[0], initial.vectors[1]);
-    let reusable = BTreeMap::from([(units[0].reuse_key.clone(), initial.vectors[0].clone())]);
-    let reused = generate_prepared_embeddings(&config, &batch, &reusable, 16, |_| Ok(())).unwrap();
-    assert_eq!(reused.inferred_inputs, 0);
-    assert_eq!(reused.reused_inputs, 1);
-    assert_eq!(reused.vectors, initial.vectors);
+    // Attribution remains with the metadata occurrences. The numerical runner
+    // receives the one distinct missing input selected by the ingest owner.
+    let batch =
+        PreparedEmbeddingBatch::prepare(model.tokenizer(), vec![units[0].clone().into()]).unwrap();
+    let mut checkpoints = 0;
+    for _ in 0..2 {
+        assert_eq!(
+            runner
+                .infer(&batch, |values| {
+                    assert_eq!(values.len(), 1);
+                    assert_eq!(values[0].0.descriptor(), batch.inputs()[0].descriptor());
+                    validate_embedding_vector(values[0].1, 768)?;
+                    checkpoints += 1;
+                    Ok(())
+                })
+                .unwrap(),
+            1
+        );
+    }
+    assert!(runner.is_loaded());
+    assert_eq!(runner.inferred_inputs(), 2);
+    assert_eq!(checkpoints, 2);
     units[0].input.push_str("changed");
     assert!(matches!(
         PreparedEmbeddingBatch::prepare(
@@ -613,38 +674,43 @@ fn actual_bge_batches_reuse_preserves_attribution_and_utf8() {
 }
 
 #[test]
-fn cached_batch_needs_no_inference_assets_and_retains_occurrences() {
+fn lazy_runner_needs_no_assets_until_actual_missing_inference() {
     let tokenizer = tokenizer();
     let input = prepare_embedding_section(&tokenizer, plain("one one", "one"))
         .unwrap()
         .remove(0);
-    let batch =
-        PreparedEmbeddingBatch::prepare(&tokenizer, vec![input.clone().into(), input.into()])
-            .unwrap();
-    let mut vector = vec![0.0; tokenizer.spec().dimensions];
-    vector[0] = 1.0;
-    let reusable = BTreeMap::from([(batch.inputs()[0].reuse_key.clone(), vector.clone())]);
+    let empty = PreparedEmbeddingBatch::prepare(&tokenizer, vec![]).unwrap();
+    let batch = PreparedEmbeddingBatch::prepare(&tokenizer, vec![input.clone().into()]).unwrap();
     let directory = tempfile::tempdir().unwrap();
     let config = EmbeddingRuntimeConfig::new(EmbeddingModelId::BgeBaseEnV15, directory.path());
-    let generated = generate_prepared_embeddings(&config, &batch, &reusable, 16, |_| {
-        panic!("cached inputs must not be inferred")
-    })
-    .unwrap();
-    assert_eq!((generated.inferred_inputs, generated.reused_inputs), (0, 1));
-    assert_eq!(generated.vectors, vec![vector.clone(), vector]);
-    let wrong_model =
-        EmbeddingRuntimeConfig::new(EmbeddingModelId::EmbeddingGemma300M, directory.path());
+    let mut runner = NativeInferenceRunner::new(&config, 16).unwrap();
+    assert_eq!(
+        runner
+            .infer(&empty, |_| panic!("empty checkpoint"))
+            .unwrap(),
+        0
+    );
+    assert!(!runner.is_loaded());
+    assert_eq!(runner.inferred_inputs(), 0);
+    let wrong = EmbeddingRuntimeConfig::new(EmbeddingModelId::EmbeddingGemma300M, directory.path());
+    let mut wrong_runner = NativeInferenceRunner::new(&wrong, 16).unwrap();
     assert!(matches!(
-        generate_prepared_embeddings(&wrong_model, &batch, &reusable, 16, |_| Ok(())),
+        wrong_runner.infer(&batch, |_| Ok(())),
         Err(EmbeddingError::PreparedInputMismatch)
     ));
-    let invalid = BTreeMap::from([(
-        batch.inputs()[0].reuse_key.clone(),
-        vec![0.0; tokenizer.spec().dimensions],
-    )]);
-    assert!(generate_prepared_embeddings(&config, &batch, &invalid, 16, |_| Ok(())).is_err());
+    assert!(!wrong_runner.is_loaded());
     assert!(
-        generate_prepared_embeddings(&config, &batch, &BTreeMap::new(), 16, |_| Ok(())).is_err(),
-        "uncached inputs must still load verified model assets"
+        runner.infer(&batch, |_| Ok(())).is_err(),
+        "missing input must load verified assets"
     );
+    assert_eq!(runner.inferred_inputs(), 0);
+    assert!(!runner.is_loaded());
+    assert!(NativeInferenceRunner::new(&config, 0).is_err());
+    assert!(matches!(
+        PreparedEmbeddingBatch::prepare(
+            &tokenizer,
+            vec![input.into(); NATIVE_INFERENCE_BATCH_LIMIT + 1]
+        ),
+        Err(EmbeddingError::PreparedInputMismatch)
+    ));
 }

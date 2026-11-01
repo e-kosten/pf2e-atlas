@@ -189,6 +189,12 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         sql: crate::COMPONENT_DIGEST_SCHEMA_SQL,
         backfill: None,
     },
+    Migration {
+        version: 27,
+        name: "native-update-targets",
+        sql: crate::NATIVE_TARGETS_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
@@ -465,4 +471,36 @@ pub fn alter_retained_html_for_fixture(
         rusqlite::params![crate::codec::gzip(html.replace(from, to).as_bytes())?, id],
     )?;
     Ok(())
+}
+
+/// Deliberately populate a historical/unknown-membership checkpoint. This fixture
+/// path is absent from product builds; current execution must register and stage.
+pub fn stage_pending_native_fixture(
+    session: &atlas_storage::WriteSession,
+    job: &str,
+    model: &crate::SourceSearchProfileIdentity,
+    input: &atlas_embedding::NativeInputDescriptor,
+    vector: &[f32],
+) -> Result<(), IndexError> {
+    crate::validation::check_vector(vector, model.dimensions)?;
+    let id = crate::embedding_values::input_id(
+        session.connection(),
+        model,
+        &input.input_sha256,
+        input.token_count,
+    )?;
+    let bytes = crate::read_units::vector_bytes(vector);
+    session.connection().execute("INSERT INTO pending_embedding_values VALUES(?,?,?,?) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,touched_job=excluded.touched_job",rusqlite::params![id,bytes,crate::embedding_values::hash_bytes(&bytes),job])?;
+    Ok(())
+}
+/// Inspect one native value in isolated preservation/corruption fixtures.
+pub fn native_fixture_value(
+    session: &atlas_storage::ReadSession,
+    model: &crate::SourceSearchProfileIdentity,
+    input: &atlas_embedding::NativeInputDescriptor,
+) -> Result<Option<Vec<f32>>, IndexError> {
+    Ok(
+        crate::native_selection::load_value(session.connection(), model, input)?
+            .map(|value| value.vector),
+    )
 }

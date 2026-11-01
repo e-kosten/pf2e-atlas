@@ -154,29 +154,40 @@ fn historical_nine_to_ten_storage_upgrade_preserves_values_and_reuse() {
     assert_eq!(knn(&read, &context.search_profiles), expected_knn);
     let c = read.connection();
     for model in &context.search_profiles {
-        let mut s=c.prepare("SELECT lower(hex(i.input_hash)),i.token_count FROM embedding_inputs i JOIN embedding_models m USING(model_id) WHERE m.identity_json=?").unwrap();
-        let inputs = s
-            .query_map([serde_json::to_string(model).unwrap()], |r| {
-                Ok((r.get::<_, String>(0)?, r.get::<_, usize>(1)?))
-            })
-            .unwrap()
-            .collect::<Result<Vec<_>, _>>()
-            .unwrap()
-            .into_iter()
-            .map(|(hash, tokens)| atlas_embedding::PreparedNativeInput {
-                input: String::new(),
-                input_sha256: hash.clone(),
-                reuse_key: hash,
-                token_count: tokens,
-            })
-            .collect::<Vec<_>>();
+        // This probe is frozen to schema10. Its private bounded SQL verifies
+        // the historical storage contract without current lifecycle admission,
+        // fabricated inference text or a product compatibility API.
         let start = Instant::now();
-        let reused = atlas_index::read_reusable_embeddings(&read, model, &inputs).unwrap();
-        assert_eq!(reused.len(), inputs.len());
+        let mut after = 0i64;
+        let mut reused = 0usize;
+        loop {
+            let inputs=c.prepare("SELECT i.input_id,i.input_hash,i.token_count,i.published_hash FROM embedding_inputs i JOIN embedding_models m USING(model_id) WHERE m.identity_json=? AND i.input_id>? ORDER BY i.input_id LIMIT 128").unwrap()
+                .query_map((serde_json::to_string(model).unwrap(),after),|r|Ok((r.get::<_,i64>(0)?,r.get::<_,Vec<u8>>(1)?,r.get::<_,usize>(2)?,r.get::<_,Vec<u8>>(3)?))).unwrap()
+                .collect::<Result<Vec<_>,_>>().unwrap();
+            if inputs.is_empty() {
+                break;
+            }
+            for (id, hash, tokens, checksum) in inputs {
+                after = id;
+                assert_eq!(hash.len(), 32);
+                assert!(tokens > 0 && tokens <= model.token_limit);
+                let bytes:Vec<u8>=c.query_row(&format!("SELECT embedding FROM {} WHERE unit_id=(SELECT min(unit_id) FROM semantic_units WHERE input_id=?1) UNION ALL SELECT vector FROM trait_native_values WHERE input_id=?1 LIMIT 1",table(model)),[id],|r|r.get(0)).unwrap();
+                assert_eq!(Sha256::digest(&bytes).as_slice(), checksum);
+                assert_eq!(bytes.len(), model.dimensions * 4);
+                let vector = bytes
+                    .chunks_exact(4)
+                    .map(|b| f32::from_le_bytes(b.try_into().unwrap()))
+                    .collect::<Vec<_>>();
+                atlas_embedding::validate_embedding_vector(&vector, model.dimensions).unwrap();
+                reused += 1;
+            }
+        }
+        let expected:usize=c.query_row("SELECT count(*) FROM embedding_inputs i JOIN embedding_models m USING(model_id) WHERE m.identity_json=?",[serde_json::to_string(model).unwrap()],|r|r.get(0)).unwrap();
+        assert_eq!(reused, expected);
         eprintln!(
             "reuse profile={} inputs={} seconds={:.2}",
             model.profile_id,
-            inputs.len(),
+            reused,
             start.elapsed().as_secs_f64()
         );
         let mut blocks = BTreeMap::new();

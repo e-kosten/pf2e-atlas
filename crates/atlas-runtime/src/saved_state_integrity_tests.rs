@@ -64,7 +64,7 @@ fn historical() -> (tempfile::TempDir, Workspace) {
     (directory, workspace)
 }
 
-fn populate(workspace: &Workspace) {
+pub(super) fn populate(workspace: &Workspace) {
     let write = workspace.write(22).unwrap();
     write.connection().execute_batch(POPULATED).unwrap();
     write.commit().unwrap();

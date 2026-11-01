@@ -66,6 +66,28 @@ inference occurs outside write transactions, with bounded persisted checkpoints.
 Final publication validates the exact transaction before advancing reference
 revision. User-state edits do not advance that revision.
 
+Native updates register complete requested membership across all profiles before
+inference or pending-value garbage collection. A single unpromoted candidate may
+coexist with the previous active target. Independent sealed-stream traversal checks
+full model/hash/token identity, counts and membership digest before promotion;
+zero-input profiles remain part of the full context. An interrupted candidate leaves
+active checkpoints intact. Retired memberships/jobs and inert unreferenced input
+metadata are collected in bounded explicit-update transactions, protecting all
+pending and published references. Only a complete active target authorizes pruning
+unrequested pending blobs. That pruning never removes published vec0 or trait
+values, even when a discarded pending blob shares their input identity. Legacy
+unknown-membership work is preserved until complete promotion.
+
+Index pins selected checksums with membership and copies selected values before
+any publication mutation into one disposable file. The numerical seal binds the
+origin workspace/revision, full context, source expectation and complete membership;
+file integrity and exact value lengths/checksums are checked before allocation or
+consumption. The file remains alive through the existing writer's exact final
+validation. It is temporary publication input, not a second persistent cache or
+reference authority. Ordinary reads and startup do no cleanup. Successful activation
+atomically clears pending values and retires the target; failed staging or activation
+preserves both the prior publication and durable retry work.
+
 Startup authenticates an already-current migration ledger under shared admission,
 without taking publisher ownership or scanning all foreign-key rows. A new CLI
 process can therefore read during preparation. Pending migrations still acquire
@@ -120,12 +142,14 @@ hints verified against actual projections in the exact final transaction; absent
 entries remain unknown. Final validation may recompute expected semantics one
 root at a time independently of preparation's shared selection.
 
-Native execution has a separate lifetime: selected values must remain immutable
-while occurrence rows are replaced. Current execution retains address-free native
-text/descriptors and numerical outputs in memory; future bounded execution must
-preserve the same complete model/input identity and pending-over-published
-selection before destructive publication. A key alone does not make mutable vec0
-occurrences a safe lazy value source.
+Native raw text, profile descriptors and occurrence metadata use repeatable sealed
+files. Native validation, selection and inference consume bounded batches; only
+actual misses load a per-profile inference session. Selected values are copied
+before mutation into the index-owned frozen numerical file described above.
+Complete model/hash/token/checksum identity and pending precedence survive slot
+replacement and all trait/document consumers. Compact capture/resolver identities,
+live sets, component digests and validation evidence still grow with corpus size;
+native model memory and observed process RSS remain separate measurements.
 
 ## Saved-domain integrity
 

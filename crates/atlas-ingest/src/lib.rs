@@ -6,6 +6,7 @@ mod build_model;
 mod build_tests;
 mod error;
 mod index_build_input;
+mod native_execution;
 #[cfg(test)]
 mod passage_benchmark;
 mod product_preparation;

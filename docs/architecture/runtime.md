@@ -122,18 +122,19 @@ Compact collections still grow with corpus size: captured path/hash manifests,
 resolver destinations/names and collision facts, stable identity/live sets, prior
 component digests, retained section/unit IDs, and validation trait evidence/offset
 maps. Rich DTO/HTML/selection and occurrence payloads reside in disposable streams.
-These compact sets are separate from the temporary native text/descriptors and
-numerical arrays that remain until bounded numerical execution replaces them.
+Native raw inputs, profile descriptors and occurrence metadata remain in sealed
+file streams. These compact sets and native model memory are measured separately
+from the bounded Rust preparation and numerical buffers.
 
-Each native profile validates address-free input descriptors with its own tokenizer
-and executes inference/reuse sequentially. Native input text/descriptors and
-selected numerical outputs currently remain in memory for the build; this stage
-bounds rich metadata, not whole-process memory. Numerical outputs are selected
-before publication, with pending values taking precedence, and remain immutable
-through all occurrence updates. Short revision-bound metadata sessions end before
-inference. Publication independently validates every current component inside its
-exact transaction, including a bounded second source decode and selection pass.
-A failed publication rolls back reference changes and preserves saved state.
+Every requested profile validates address-free inputs with its own tokenizer in
+bounded windows before inference begins. The complete sealed profile membership,
+including profiles with no inputs, is registered before checkpoint pruning. Native
+execution visits one profile and bounded input batch at a time; its session loads
+only for actual misses. Checkpoint writes finish before another inference batch.
+No workspace SQL snapshot or writer is retained during inference. Publication
+independently validates every current component inside its exact transaction,
+including a bounded second source decode and selection pass. A failed publication
+rolls back reference changes and preserves saved state.
 
 Record-owned selection also supplies canonical whole-section addresses. Index
 stores each selected section once, with lexical evidence and shared semantic
@@ -176,20 +177,45 @@ passages. Undeclared files, such as SF2e overrides in a PF2e checkout, are not
 merged. The existing selected-locale file override remains separate; this does
 not add translation-module ingestion or multilingual product support.
 
-Ingest prepares current literal inputs with the pinned tokenizers. Lookup first
-resolves compatible unfinished computations, then published native values, in
-batched SQL scans. Profile-native preparation produces one immutable checked batch
-in `atlas-embedding`; reuse and generation consume its exact counts and execution
-identities without repeating full-batch token validation. An inference session
-loads only for actual misses; disabling reuse still forces fresh computation.
+Ingest prepares current literal inputs with the pinned tokenizers. Index resolves
+exact native inputs in bounded windows and pins each selected checksum. Pending
+values take precedence over published values. Already-selected membership avoids
+repeated inference across batches, including forced recomputation; repeated inputs
+inside a batch are deduplicated before selection. Missing inference inputs undergo
+the ordinary native guard again in their bounded batch. Disabling embedding reuse
+still forces one new computation per unique requested identity; passage-layout
+reuse remains independent.
 
-Each inferred batch commits a pending value and its own checksum after computation,
-with no SQL writer held during inference. A forced recomputation may differ from
-the current published value for the same input; pending writes never change the
-published checksum. Final atomic publication activates complete coverage, validates
-all physical occurrences and trait centroids, then clears pending values and
-unreferenced metadata. A failed attempt preserves both the old publication and
-completed computations for retry. Successful builds retain no second native corpus.
+One update owner registers at most one candidate alongside the prior active target.
+A complete second traversal verifies descriptor counts, distinct membership and the
+full model/hash/token digest before atomic promotion. Incomplete registration
+cannot prune pending bytes or replace active retry work. Retired candidate/target
+metadata is removed in bounded transactions. Pre-registration metadata collection
+protects every pending value, published consumer and live membership. Only complete
+promotion permits pruning unrequested pending blobs, including blobs for inputs
+that still have published occurrences; their published bytes remain untouched.
+Matching computations survive target changes and later-profile failures. Historical
+unknown-membership checkpoints remain protected until the first complete promotion.
+
+Each inferred batch commits a pending value and its own checksum after computation.
+A forced result may differ from the publication; staging never updates its published
+checksum. Before final maintenance, index copies every selected native value into
+one disposable file with a bounded page cache. Its seal binds workspace key,
+reference revision, complete context/membership and exact selected checksums.
+Lengths are checked before payload allocation; reads verify native counts,
+dimensions, normalization and checksums. This file outlives every document/trait
+consumer and final validation, so slot overwrite, occurrence removal or profile-table
+replacement cannot destroy a later consumer's source. The existing single writer
+reads one native value at a time. Trait centroids preserve authored chunk order and
+repeated weights using an f64 accumulator.
+
+Source/catalog freshness is checked after freezing and immediately before exclusive
+maintenance. One atomic activation validates the exact final artifact, clears
+pending values and retires its target. Failure during temporary staging or activation
+preserves the previous publication and retry work. Startup and ordinary reads do no
+cleanup or inference. Diagnostics distinguish logical durable pending bytes,
+temporary bound native-value bytes, temporary file allocation and observed execution
+buffer peaks; these are separate from native model memory and process RSS.
 
 Passage addresses are shared across profiles without merging occurrence identity
 or model-specific native token counts. Publication updates compatible vector slots

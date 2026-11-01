@@ -479,7 +479,7 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
     let revision = write.reference_revision().unwrap();
     let mut context = input.context.clone();
     context.core_sections_recipe.clear();
-    let mut before = table_values(write.connection());
+    let mut before = table_values(write.connection()).unwrap();
     assert!(
         before
             .remove("encounter_participant_adjustments")
@@ -508,7 +508,7 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
         .read(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
         .unwrap();
     assert_eq!(read.reference_revision().unwrap(), revision + 1);
-    let mut after = table_values(read.connection());
+    let mut after = table_values(read.connection()).unwrap();
     assert!(
         after
             .remove("encounter_participant_baselines")
@@ -522,6 +522,8 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
             .is_empty()
     );
     assert!(after.remove("encounter_turn_receipts").unwrap().is_empty());
+    assert!(after.remove("native_update_targets").unwrap().is_empty());
+    assert!(after.remove("native_target_inputs").unwrap().is_empty());
     assert!(
         after
             .remove("reference_component_digests")
@@ -721,7 +723,7 @@ fn metadata_publication_failure_rolls_back_core_and_keeps_the_old_generation() {
     let write = workspace
         .write(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
         .unwrap();
-    let before = table_values(write.connection());
+    let before = table_values(write.connection()).unwrap();
     let revision = write.reference_revision().unwrap();
     let mut context = input.context.clone();
     context.core_sections_recipe.clear();
@@ -745,7 +747,7 @@ fn metadata_publication_failure_rolls_back_core_and_keeps_the_old_generation() {
     assert!(error.to_string().contains("core publication fault"));
     // Explicit fault inspection is not an ordinary product read while closed.
     let c = rusqlite::Connection::open(&path).unwrap();
-    assert_eq!(table_values(&c), before);
+    assert_eq!(table_values(&c).unwrap(), before);
     assert_eq!(
         c.query_row("SELECT reference_revision FROM workspace", [], |row| row
             .get::<_, u64>(0))
@@ -815,7 +817,7 @@ fn lexical_backfill_refreshes_current_core_atomically_without_rewriting_other_da
         "INSERT INTO verified_aliases(record_id,alias,alias_lookup_key,evidence_json) SELECT record_id,'Snow Keeper','snow keeper','\"source redirect\"' FROM records WHERE key=?",
         [input.records[0].record.key().to_string()],
     ).unwrap();
-    let before = table_values(write.connection());
+    let before = table_values(write.connection()).unwrap();
     let prior_digests = write
         .connection()
         .prepare(
@@ -863,7 +865,7 @@ fn lexical_backfill_refreshes_current_core_atomically_without_rewriting_other_da
     assert!(error.to_string().contains("core publication fault"));
     // The Core refresh is part of the lexical publication, not a later repair.
     let c = rusqlite::Connection::open(&path).unwrap();
-    assert_eq!(table_values(&c), before);
+    assert_eq!(table_values(&c).unwrap(), before);
     assert_eq!(core_values(&c), core_before);
     assert_eq!(read_stored_reference_context(&c).unwrap().unwrap(), context);
     assert_eq!(
@@ -886,7 +888,7 @@ fn lexical_backfill_refreshes_current_core_atomically_without_rewriting_other_da
         [], |row| row.get(0),
     ).unwrap();
     assert_eq!(alias_members, 1);
-    let after_values = table_values(read.connection());
+    let after_values = table_values(read.connection()).unwrap();
     let new_digests = read
         .connection()
         .prepare(

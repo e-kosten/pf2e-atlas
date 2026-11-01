@@ -72,6 +72,11 @@ pub struct UpdateOwner {
     pub(crate) _lock: File,
 }
 impl UpdateOwner {
+    /// Workspace whose update admission this owner holds.
+    pub fn path(&self) -> &std::path::Path {
+        self.workspace.path()
+    }
+
     /// Recover an interrupted maintenance attempt without publishing a new
     /// revision. The caller must validate the previously committed domain data.
     /// Failed validation leaves admission closed and all progress intact.

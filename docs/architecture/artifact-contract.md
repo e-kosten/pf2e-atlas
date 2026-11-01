@@ -813,6 +813,26 @@ jobs. Published and pending values may legitimately differ for a forced rebuild.
 The conversion validates retained numerical evidence without decoding source DTOs
 that might require a separate source upgrade. Existing migrations remain immutable.
 
+Migration 27 adds complete native-update membership and selected checksums without
+rewriting historical values. One candidate may coexist with one active resumable
+target. Its proof covers the full requested model manifest, including empty profiles,
+and exact raw hashes/native counts before promotion can authorize pending GC.
+Incomplete candidates protect prior active work. Explicit updates retire metadata
+and unrequested pending blobs in bounded transactions; published document and trait
+values remain protected independently. Matching pending computations survive target
+changes, and legacy unknown membership is preserved until complete promotion.
+
+Numerical publication uses a disposable index-owned frozen file. Its checked seal
+binds workspace key/revision, full model/context, source expectation, complete
+membership and selected checksums. Pending bytes win over older published bytes.
+Lengths are checked before materializing values; hash, native count, dimensions and
+normalization remain mandatory. Values are copied before any vec0 slot mutation,
+occurrence deletion or profile-table replacement, and survive until all document
+and trait consumers plus final transaction validation finish. Centroid accumulation
+preserves f64 arithmetic, authored order and repeated-chunk weights. Successful
+activation clears pending values atomically; ordinary startup/reads never prune.
+Temporary numerical bytes and durable pending bytes are reported separately.
+
 Vector maintenance reuses compatible slots and packs indexes only when at least
 two blocks and 10% of allocation can be reclaimed. It uses supported vec0 public
 DDL/inserts and file-backed temporary staging, not extension shadow-table writes.

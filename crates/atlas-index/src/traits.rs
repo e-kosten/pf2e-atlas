@@ -105,37 +105,20 @@ pub(crate) fn write_traits_stream(
         if !seeds.insert((seed.key.to_string(), seed.profile_id.to_string())) {
             return Err(IndexError::Invalid("duplicate trait seed".into()));
         }
-        let chunks = seed
-            .chunks
-            .iter()
-            .map(|chunk| {
-                Ok(TraitSeedChunk {
-                    input: chunk.input.clone(),
-                    input_hash: chunk.descriptor.input_sha256.clone(),
-                    token_count: chunk.descriptor.token_count,
-                    address: chunk.address.clone(),
-                    vector: values.value(model, &chunk.descriptor)?.into_owned(),
-                })
-            })
-            .collect::<Result<Vec<_>, IndexError>>()?;
-        let vector = atlas_embedding::normalized_centroid(
-            &chunks
-                .iter()
-                .map(|c| c.vector.as_slice())
-                .collect::<Vec<_>>(),
-        )
-        .map_err(|e| IndexError::Invalid(e.to_string()))?;
-        write_seed(
-            c,
-            &TraitVectorInput {
-                key: seed.key.clone(),
-                profile_id: seed.profile_id.clone(),
-                input_hash: seed.input_hash.clone(),
-                vector,
-                chunks,
-            },
-            model,
-        )
+        // The selected provider is immutable through publication. Aggregate in
+        // authored order, including repeated chunks, without retaining vectors.
+        let mut centroid = atlas_embedding::NormalizedCentroid::new(model.dimensions)
+            .map_err(|e| IndexError::Invalid(e.to_string()))?;
+        for chunk in &seed.chunks {
+            let vector = values.value(model, &chunk.descriptor)?;
+            centroid
+                .push(&vector)
+                .map_err(|e| IndexError::Invalid(e.to_string()))?;
+        }
+        let vector = centroid
+            .finish()
+            .map_err(|e| IndexError::Invalid(e.to_string()))?;
+        write_seed_occurrence(c, seed, model, &vector, values)
     })?;
     let old = c
         .prepare("SELECT trait_key,profile_id FROM trait_vectors")?
@@ -318,27 +301,69 @@ impl SqliteIndexReader {
         key: &TraitKey,
         profile: &SearchProfileId,
     ) -> Result<Option<Vec<f32>>, IndexError> {
-        let row: Option<(Vec<u8>, Vec<u8>)> = self
-            .native()?
-            .query_row(
-                "SELECT vector,vector_hash FROM trait_vectors WHERE trait_key=? AND profile_id=?",
-                params![key.to_string(), profile.as_str()],
-                |r| Ok((r.get(0)?, r.get(1)?)),
-            )
-            .optional()?;
-        row.map(|(bytes, hash)| {
-            if crate::embedding_values::hash_bytes(&bytes) != hash {
-                return Err(IndexError::Invalid("trait vector checksum mismatch".into()));
-            }
-            let vector = crate::read_units::decode_vector(&bytes)?;
-            crate::validation::check_vector(
-                &vector,
-                self.context().search_profile(profile)?.dimensions,
-            )?;
-            Ok(vector)
-        })
-        .transpose()
+        let connection = self.native()?;
+        let mut statement = connection.prepare(
+            "SELECT vector,vector_hash FROM trait_vectors WHERE trait_key=? AND profile_id=?",
+        )?;
+        let mut rows = statement.query(params![key.to_string(), profile.as_str()])?;
+        rows.next()?
+            .map(|row| {
+                read_trait_centroid(
+                    row,
+                    0,
+                    1,
+                    self.context().search_profile(profile)?.dimensions,
+                )
+            })
+            .transpose()
     }
+}
+
+/// The historical migration10 writer below remains immutable. Current streamed
+/// publication writes one selected native value at a time instead of assembling
+/// its old vector-owning TraitVectorInput.
+fn write_seed_occurrence(
+    c: &Connection,
+    seed: &crate::TraitSeedOccurrence,
+    model: &crate::SourceSearchProfileIdentity,
+    vector: &[f32],
+    values: &dyn crate::NativeValueSource,
+) -> Result<(), IndexError> {
+    crate::validation::check_vector(vector, model.dimensions)?;
+    if !crate::codec::checked_hash(&seed.input_hash) {
+        return Err(IndexError::Invalid("invalid trait input hash".into()));
+    }
+    let bytes = crate::read_units::vector_bytes(vector);
+    c.execute("INSERT INTO trait_vectors VALUES(?,?,?,?,?) ON CONFLICT(trait_key,profile_id) DO UPDATE SET input_hash=excluded.input_hash,vector=excluded.vector,vector_hash=excluded.vector_hash WHERE input_hash IS NOT excluded.input_hash OR vector_hash IS NOT excluded.vector_hash",params![seed.key.to_string(),seed.profile_id.as_str(),seed.input_hash,bytes,crate::embedding_values::hash_bytes(&bytes)])?;
+    for (ordinal, chunk) in seed.chunks.iter().enumerate() {
+        let value = values.value(model, &chunk.descriptor)?;
+        let id = crate::embedding_values::publish_input(
+            c,
+            model,
+            &chunk.descriptor.input_sha256,
+            chunk.descriptor.token_count,
+            &value,
+        )?;
+        c.execute("INSERT INTO trait_seed_chunks VALUES(?,?,?,?,?,?) ON CONFLICT(trait_key,profile_id,ordinal) DO UPDATE SET input_id=excluded.input_id,input=excluded.input,address_json=excluded.address_json WHERE input_id IS NOT excluded.input_id OR input IS NOT excluded.input OR address_json IS NOT excluded.address_json",params![seed.key.to_string(),seed.profile_id.as_str(),ordinal,id,chunk.input,serde_json::to_string(&chunk.address)?])?;
+        let document: bool = c.query_row(
+            "SELECT EXISTS(SELECT 1 FROM semantic_units WHERE input_id=?)",
+            [id],
+            |r| r.get(0),
+        )?;
+        if !document {
+            let bytes = crate::read_units::vector_bytes(&value);
+            c.execute("INSERT INTO trait_native_values VALUES(?,?) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector WHERE vector IS NOT excluded.vector",params![id,bytes])?;
+        }
+    }
+    c.execute(
+        "DELETE FROM trait_seed_chunks WHERE trait_key=? AND profile_id=? AND ordinal>=?",
+        params![
+            seed.key.to_string(),
+            seed.profile_id.as_str(),
+            seed.chunks.len()
+        ],
+    )?;
+    Ok(())
 }
 
 pub(crate) fn write_seed(
@@ -352,7 +377,7 @@ pub(crate) fn write_seed(
     }
     let bytes = crate::read_units::vector_bytes(&unit.vector);
     c.execute(
-        "INSERT INTO trait_vectors VALUES(?,?,?,?,?) ON CONFLICT(trait_key,profile_id) DO UPDATE SET input_hash=excluded.input_hash,vector=excluded.vector,vector_hash=excluded.vector_hash WHERE input_hash IS NOT excluded.input_hash OR vector_hash IS NOT excluded.vector_hash",
+        "INSERT INTO trait_vectors VALUES(?,?,?,?,?)",
         params![
             unit.key.to_string(),
             unit.profile_id.as_str(),
@@ -370,7 +395,7 @@ pub(crate) fn write_seed(
             &chunk.vector,
         )?;
         c.execute(
-            "INSERT INTO trait_seed_chunks VALUES(?,?,?,?,?,?) ON CONFLICT(trait_key,profile_id,ordinal) DO UPDATE SET input_id=excluded.input_id,input=excluded.input,address_json=excluded.address_json WHERE input_id IS NOT excluded.input_id OR input IS NOT excluded.input OR address_json IS NOT excluded.address_json",
+            "INSERT INTO trait_seed_chunks VALUES(?,?,?,?,?,?)",
             params![
                 unit.key.to_string(),
                 unit.profile_id.as_str(),
@@ -389,17 +414,9 @@ pub(crate) fn write_seed(
         )?;
         if !document {
             let bytes = crate::read_units::vector_bytes(&chunk.vector);
-            c.execute("INSERT INTO trait_native_values VALUES(?,?) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector WHERE vector IS NOT excluded.vector",params![id,bytes])?;
+            c.execute("INSERT INTO trait_native_values VALUES(?,?) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector",params![id,bytes])?;
         }
     }
-    c.execute(
-        "DELETE FROM trait_seed_chunks WHERE trait_key=? AND profile_id=? AND ordinal>=?",
-        params![
-            unit.key.to_string(),
-            unit.profile_id.as_str(),
-            unit.chunks.len()
-        ],
-    )?;
     Ok(())
 }
 pub(crate) fn read_chunks(
@@ -507,21 +524,135 @@ pub(crate) fn validate_trait_definitions(
     let mut stmt=c.prepare("SELECT tv.trait_key,tv.profile_id,tv.input_hash,tv.vector,tv.vector_hash,d.definition_json FROM trait_vectors tv JOIN trait_definitions d ON d.key=tv.trait_key")?;
     let mut rows = stmt.query([])?;
     while let Some(row) = rows.next()? {
-        let key: String = row.get(0)?;
         let profile: String = row.get(1)?;
         let hash: String = row.get(2)?;
-        let bytes: Vec<u8> = row.get(3)?;
-        let checksum: Vec<u8> = row.get(4)?;
-        if crate::embedding_values::hash_bytes(&bytes) != checksum {
-            return Err(IndexError::Invalid("trait vector checksum mismatch".into()));
-        }
         let model = context.search_profile(&SearchProfileId::new(profile))?;
         let definition: TraitDefinition = serde_json::from_str(&row.get::<_, String>(5)?)?;
-        let vector = crate::read_units::decode_vector(&bytes)?;
-        let chunks = read_chunks(c, &key, model)?;
-        validate_seed(&definition, model, &hash, &vector, &chunks)?;
+        let vector = read_trait_centroid(row, 3, 4, model.dimensions)?;
+        validate_published_seed(c, &definition, model, &hash, &vector)?;
     }
     Ok(evidence)
+}
+
+// Borrow SQLite's payload until its shape has been checked. A malformed BLOB
+// must not allocate a corpus-sized owned buffer before dimension validation.
+fn read_trait_centroid(
+    row: &rusqlite::Row<'_>,
+    vector_column: usize,
+    checksum_column: usize,
+    dimensions: usize,
+) -> Result<Vec<f32>, IndexError> {
+    let expected = dimensions
+        .checked_mul(std::mem::size_of::<f32>())
+        .ok_or_else(|| IndexError::Invalid("trait vector length overflow".into()))?;
+    let (rusqlite::types::ValueRef::Blob(bytes), rusqlite::types::ValueRef::Blob(checksum)) =
+        (row.get_ref(vector_column)?, row.get_ref(checksum_column)?)
+    else {
+        return Err(IndexError::Invalid(
+            "trait vector payload type mismatch".into(),
+        ));
+    };
+    if bytes.len() != expected || checksum.len() != 32 {
+        return Err(IndexError::Invalid(
+            "trait vector payload length mismatch".into(),
+        ));
+    }
+    if crate::embedding_values::hash_bytes(bytes) != checksum {
+        return Err(IndexError::Invalid("trait vector checksum mismatch".into()));
+    }
+    let vector = crate::read_units::decode_vector(bytes)?;
+    crate::validation::check_vector(&vector, dimensions)?;
+    Ok(vector)
+}
+
+// Current publication/deep validation has no trait-size numerical aggregate.
+// The migration10 validator below retains its immutable historical contract.
+fn validate_published_seed(
+    c: &Connection,
+    definition: &TraitDefinition,
+    model: &crate::SourceSearchProfileIdentity,
+    hash: &str,
+    vector: &[f32],
+) -> Result<(), IndexError> {
+    use sha2::{Digest, Sha256};
+    let text = format!(
+        "{}\n{}",
+        definition.label,
+        definition.prepared.as_ref().map_or("", |p| p.text.as_str())
+    );
+    let text_hash = crate::codec::sha256(text.as_bytes());
+    let model_json = serde_json::to_string(model)?;
+    let mut covered = 0;
+    let mut count = 0;
+    let mut digest = Sha256::new();
+    digest.update(b"trait-definition-centroid/v1:");
+    let mut centroid = atlas_embedding::NormalizedCentroid::new(model.dimensions)
+        .map_err(|e| IndexError::Invalid(e.to_string()))?;
+    let mut statement = c.prepare("SELECT t.ordinal,t.input_id,t.input,t.address_json,lower(hex(i.input_hash)),i.token_count,m.identity_json FROM trait_seed_chunks t JOIN embedding_inputs i USING(input_id) JOIN embedding_models m USING(model_id) WHERE trait_key=? AND profile_id=? ORDER BY ordinal")?;
+    let mut rows = statement.query(params![
+        definition.key.to_string(),
+        model.profile_id.as_str()
+    ])?;
+    while let Some(row) = rows.next()? {
+        let ordinal: usize = row.get(0)?;
+        let input: String = row.get(2)?;
+        let input_hash: String = row.get(4)?;
+        let token_count: usize = row.get(5)?;
+        let stored_model: String = row.get(6)?;
+        if ordinal != count || stored_model != model_json {
+            return Err(IndexError::Invalid(
+                "trait chunk model or ordinal mismatch".into(),
+            ));
+        }
+        let address = serde_json::from_str(&row.get::<_, String>(3)?)?;
+        let atlas_domain::SourcePassageAddress::PlainSection {
+            source_text_sha256,
+            selection_version,
+            section_ordinal,
+            label,
+            chunk_bytes,
+        } = address
+        else {
+            return Err(IndexError::Invalid("trait seed address kind".into()));
+        };
+        let body = chunk_bytes
+            .extract(&text)
+            .map_err(|e| IndexError::Invalid(e.to_string()))?;
+        if source_text_sha256 != text_hash
+            || selection_version != "trait-definition-centroid/v1"
+            || section_ordinal != 0
+            || label.as_deref() != Some(definition.label.as_str())
+            || chunk_bytes.start > covered
+            || chunk_bytes.end <= covered
+            || !input.ends_with(body)
+            || input_hash != crate::codec::sha256(input.as_bytes())
+            || token_count == 0
+            || token_count > model.token_limit
+        {
+            return Err(IndexError::Invalid(
+                "trait seed input or coverage mismatch".into(),
+            ));
+        }
+        if count != 0 {
+            digest.update(b":");
+        }
+        digest.update(input_hash.as_bytes());
+        let native = crate::embedding_values::native_value(c, row.get(1)?, model)?;
+        centroid
+            .push(&native)
+            .map_err(|e| IndexError::Invalid(e.to_string()))?;
+        covered = chunk_bytes.end;
+        count += 1;
+    }
+    let expected = centroid
+        .finish()
+        .map_err(|e| IndexError::Invalid(e.to_string()))?;
+    if covered != text.len() || format!("{:x}", digest.finalize()) != hash || expected != vector {
+        return Err(IndexError::Invalid(
+            "trait seed aggregation or complete coverage mismatch".into(),
+        ));
+    }
+    Ok(())
 }
 
 #[derive(Default, Serialize)]
@@ -1028,8 +1159,27 @@ mod tests {
                 0
             );
             let target = input.context.sha256().unwrap();
-            let job = crate::start_reference_job(&write, &target).unwrap();
             write.commit().unwrap();
+            let job = crate::register_native_target(
+                &owner,
+                &workspace,
+                crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
+                &input,
+            )
+            .unwrap();
+            let frozen = crate::freeze_fixture_native_values(
+                &input,
+                &input,
+                Some(&job),
+                &crate::frozen_native_values::origin(
+                    workspace
+                        .read(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
+                        .unwrap()
+                        .connection(),
+                )
+                .unwrap(),
+            )
+            .unwrap();
             let maintenance = owner
                 .maintenance(
                     crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
@@ -1037,7 +1187,7 @@ mod tests {
                 )
                 .unwrap();
             crate::SqliteIndexWriter::new(&maintenance)
-                .write_job(&input, &input, &job, &target)
+                .write_job(&input, &frozen, &job, &target)
                 .unwrap();
         }
 
@@ -1117,6 +1267,152 @@ mod tests {
                 )
                 .unwrap();
             assert!(crate::validate_reference(write.connection()).is_err());
+        }
+    }
+    #[test]
+    fn long_trait_publication_streams_validation_and_rejects_late_corruption() {
+        use atlas_record::source_content::prepare_trait_definition;
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("workspace.sqlite");
+        let mut input = crate::foundation_tests::fixture(true);
+        let mut definition = definition(&input, "long-definition");
+        let markup = format!(
+            "<p>{}</p>",
+            (0..160)
+                .map(|i| format!("segment-{i:04} "))
+                .collect::<String>()
+        );
+        let prepared = prepare_trait_definition(
+            definition.key.clone(),
+            &markup,
+            input.context.audience,
+            None,
+            None,
+        )
+        .unwrap();
+        definition.authored_markup = Some(markup);
+        definition.description_html = Some(prepared.html.clone());
+        definition.prepared = Some(prepared);
+        let text = format!(
+            "{}\n{}",
+            definition.label,
+            definition.prepared.as_ref().unwrap().text
+        );
+        let source_hash = crate::codec::sha256(text.as_bytes());
+        let mut chunks = Vec::new();
+        // ASCII ranges exercise more than one bounded inference window; repeated
+        // native values still retain their authored centroid weights and order.
+        for start in (0..text.len()).step_by(11) {
+            let end = (start + 11).min(text.len());
+            let body = &text[start..end];
+            let mut vector = vec![0.; 768];
+            vector[chunks.len() % 3] = 1.;
+            chunks.push(TraitSeedChunk {
+                input: body.into(),
+                input_hash: crate::codec::sha256(body.as_bytes()),
+                token_count: 4,
+                address: atlas_domain::SourcePassageAddress::PlainSection {
+                    source_text_sha256: source_hash.clone(),
+                    selection_version: "trait-definition-centroid/v1".into(),
+                    section_ordinal: 0,
+                    label: Some(definition.label.clone()),
+                    chunk_bytes: atlas_domain::SourceByteRange { start, end },
+                },
+                vector,
+            });
+        }
+        assert!(chunks.len() > crate::NATIVE_VALUE_BATCH_LIMIT);
+        // Exact repeated inputs must have exact native values, independently of
+        // their occurrence position. Keep differing centroid weights/order.
+        let mut seen = std::collections::BTreeMap::new();
+        for chunk in &mut chunks {
+            chunk.vector = seen
+                .entry(chunk.input_hash.clone())
+                .or_insert_with(|| chunk.vector.clone())
+                .clone();
+        }
+        let vector = atlas_embedding::normalized_centroid(
+            &chunks
+                .iter()
+                .map(|c| c.vector.as_slice())
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        let hash = crate::codec::sha256(
+            format!(
+                "trait-definition-centroid/v1:{}",
+                chunks
+                    .iter()
+                    .map(|c| c.input_hash.as_str())
+                    .collect::<Vec<_>>()
+                    .join(":")
+            )
+            .as_bytes(),
+        );
+        let last = chunks.len() - 1;
+        let key = definition.key.clone();
+        input.traits.push(definition);
+        input.trait_vectors.push(TraitVectorInput {
+            key: key.clone(),
+            profile_id: SearchProfileId::new("bge-base"),
+            input_hash: hash,
+            vector,
+            chunks,
+        });
+        crate::test_support::publish_input(&path, &input).unwrap();
+        let workspace = crate::test_support::initialize_workspace(&path).unwrap();
+        let write = workspace
+            .write(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
+            .unwrap();
+        assert!(crate::validate_reference(write.connection()).is_ok());
+        write.connection().execute("UPDATE trait_seed_chunks SET input=input||'corrupt' WHERE trait_key=? AND ordinal=?", params![key.to_string(), last]).unwrap();
+        let error = crate::validate_reference(write.connection()).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("trait seed input or coverage mismatch"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn malformed_trait_centroid_is_rejected_before_owned_payload_allocation() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut input = crate::foundation_tests::fixture(true);
+        crate::embedding_values_tests::add_label_only_trait(&mut input);
+        for (column, length, expected) in [
+            (
+                "vector",
+                8 * 1024 * 1024,
+                "trait vector payload length mismatch",
+            ),
+            ("vector_hash", 32, "trait vector checksum mismatch"),
+        ] {
+            let path = directory.path().join(format!("{column}.sqlite"));
+            crate::test_support::publish_input(&path, &input).unwrap();
+            let workspace = crate::test_support::initialize_workspace(&path).unwrap();
+            let write = workspace
+                .write(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
+                .unwrap();
+            write
+                .connection()
+                .execute(
+                    &format!("UPDATE trait_vectors SET {column}=zeroblob(?)"),
+                    [length],
+                )
+                .unwrap();
+            let error = crate::validate_reference(write.connection()).unwrap_err();
+            assert!(error.to_string().contains(expected), "{error}");
+            write.commit().unwrap();
+            let reader = crate::test_support::open_reader(&path).unwrap();
+            // The normal reader uses the same borrowed, shape-checked decoder.
+            let error = reader
+                .trait_vector(
+                    &input.traits[0].key,
+                    &input.context.search_profiles[0].profile_id,
+                )
+                .unwrap_err();
+            assert!(error.to_string().contains(expected), "{error}");
         }
     }
     #[test]

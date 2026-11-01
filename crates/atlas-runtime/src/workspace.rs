@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 26;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 27;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -176,6 +176,12 @@ const MIGRATIONS: &[Migration] = &[
         sql: atlas_index::COMPONENT_DIGEST_SCHEMA_SQL,
         backfill: None,
     },
+    Migration {
+        version: 27,
+        name: "native-update-targets",
+        sql: atlas_index::NATIVE_TARGETS_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 
 /// Initialize or upgrade one workspace. Reference readiness is independent:
@@ -222,6 +228,10 @@ mod turn_receipts_tests;
 #[cfg(test)]
 #[path = "saved_state_integrity_tests.rs"]
 mod saved_state_integrity_tests;
+
+#[cfg(test)]
+#[path = "native_targets_tests.rs"]
+mod native_targets_tests;
 
 #[cfg(test)]
 mod tests {
@@ -679,13 +689,15 @@ mod tests {
             .unwrap();
         let revision = write.reference_revision().unwrap();
         let stable_values = |c: &rusqlite::Connection| {
-            let mut values = atlas_index::test_support::reference_preservation_rows(c);
+            let mut values = atlas_index::test_support::reference_preservation_rows(c).unwrap();
             for table in [
                 "encounter_participant_adjustments",
                 "encounter_participant_baselines",
                 "encounter_recovery_receipts",
                 "encounter_turn_receipts",
                 "reference_component_digests",
+                "native_update_targets",
+                "native_target_inputs",
             ] {
                 if let Some(rows) = values.remove(table) {
                     assert!(rows.is_empty(), "unexpected rows in {table}");
@@ -742,6 +754,8 @@ mod tests {
             "encounter_recovery_receipts",
             "encounter_turn_receipts",
             "reference_component_digests",
+            "native_update_targets",
+            "native_target_inputs",
         ] {
             assert_eq!(
                 reader

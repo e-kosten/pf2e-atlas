@@ -43,7 +43,7 @@ impl<'a, 'owner> SqliteIndexWriter<'a, 'owner> {
     pub fn write_job(
         &self,
         input: &dyn crate::PublicationSource,
-        values: &dyn crate::NativeValueSource,
+        values: &crate::FrozenNativeValues,
         job: &str,
         target_hash: &str,
     ) -> Result<crate::ArtifactValidationReport, IndexError> {
@@ -54,12 +54,16 @@ impl<'a, 'owner> SqliteIndexWriter<'a, 'owner> {
                 "publication input differs from update job target".into(),
             ));
         }
+        values.check(input, Some(job))?;
         self.maintenance.publish(|connection| {
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
             check_expected(connection,input)?;
+            values.check_publication(connection,input,Some(job))?;
+            crate::native_selection::require_active(connection,job)?;
             crate::stream_publication::write(connection, input, values)?;
             crate::embedding_values::prune(connection)?;
             let report = crate::validation::validate_reference(connection)?;
+            values.check_publication(connection,input,Some(job))?;
             tracing::info!(target:"atlas_progress",phase="prune_checkpoints","Removing obsolete saved embeddings");
             crate::reference_jobs::finish_reference_job(connection, job, target_hash)?;
             tracing::info!(target:"atlas_progress",phase="commit_reference","Finishing reference update");
@@ -77,13 +81,18 @@ impl IndexArtifactWriter for SqliteIndexWriter<'_, '_> {
         input: &IndexBuildInput,
     ) -> Result<crate::ArtifactValidationReport, IndexError> {
         validate_input(input)?;
+        let origin = crate::frozen_native_values::origin(self.maintenance.connection())?;
+        let values = crate::freeze_fixture_native_values(input, input, None, &origin)?;
         self.maintenance.publish(|connection| {
+            values.check_publication(connection, input, None)?;
             // Cross-root edges may temporarily point at a root being replaced.
             // Validation and commit both require every final reference to exist.
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
-            crate::stream_publication::write(connection, input, input)?;
+            crate::stream_publication::write(connection, input, &values)?;
             crate::embedding_values::prune(connection)?;
-            crate::validation::validate_reference(connection)
+            let report = crate::validation::validate_reference(connection)?;
+            values.check_publication(connection, input, None)?;
+            Ok(report)
         })
     }
 }

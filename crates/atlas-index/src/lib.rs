@@ -55,8 +55,8 @@ mod identity;
 mod input;
 mod publication_source;
 pub use build_spool::{
-    BuildFrameStream, PreparedRecordFrame, PublicationSpool, SealedBuildFrameStream,
-    SealedPublicationSpool,
+    BuildFrameCursor, BuildFrameStream, PreparedRecordFrame, PublicationSpool,
+    SealedBuildFrameStream, SealedPublicationSpool,
 };
 pub use publication_source::{
     NativeValueSource, PreparedRecordRef, PublicationSource, SemanticOccurrence,
@@ -100,10 +100,7 @@ pub use discovery::{
     QueryVocabularyRequest, facet_base_query, validate_value_counts, validate_value_discovery,
 };
 pub use embedding_storage_migration::{EMBEDDING_STORAGE_SCHEMA_SQL, backfill_embedding_storage};
-pub use embedding_values::{read_reusable_embeddings, stage_embedding_values};
 pub use error::IndexError;
-#[cfg(any(test, feature = "test-support"))]
-pub use input::IndexBuildInput;
 pub use input::{
     ARTIFACT_CONTRACT_VERSION, ARTIFACT_FORMAT_VERSION, ASSET_POLICY_VERSION, EXPECTED_SOURCE_KIND,
     IndexBuildPack, LEXICAL_SELECTION_VERSION, LOCALIZATION_POLICY_VERSION,
@@ -111,9 +108,10 @@ pub use input::{
     SourceAliasInput, SourceArtifactBuildContext, SourceArtifactDiagnostic,
     SourceArtifactRecordInput, SourceLexicalUnitInput, SourceLexicalUnitKind,
     SourcePreparedContent, SourceRelationshipDetails, SourceRemasterPairInput,
-    SourceSearchProfileIdentity, SourceSemanticUnitInput, SourceStoredRelationship,
-    SourceUnitLocation,
+    SourceSearchProfileIdentity, SourceStoredRelationship, SourceUnitLocation,
 };
+#[cfg(any(test, feature = "test-support"))]
+pub use input::{IndexBuildInput, SourceSemanticUnitInput};
 pub use query::{ValidatedQuery, parse_where, query_capabilities, validate_query};
 pub use read_content::{
     SourceAttributedContentBundle, SourceContentBundle, SourceRelationshipBundle,
@@ -129,7 +127,9 @@ pub use reader::{
     SourceArtifactStatistics, SourceProfileStatistics, SourceReadCapabilities, SourceSummaryBatch,
     SqliteIndexReader,
 };
-pub use reference_jobs::{recover_reference_publication, start_reference_job};
+pub use reference_jobs::recover_reference_publication;
+#[cfg(any(test, feature = "test-support"))]
+pub use reference_jobs::start_reference_job;
 pub use schema::{
     CONSUMABLE_FILTER_SCHEMA_SQL, PHYSICAL_BASE_TYPE_SCHEMA_SQL,
     REFERENCE_NUMERIC_FILTER_SCHEMA_SQL, REFERENCE_SCHEMA_SQL,
@@ -159,3 +159,21 @@ pub use result_order::SourceUnitPrice;
 
 #[cfg(test)]
 mod embedding_values_tests;
+
+pub use schema::NATIVE_TARGETS_SCHEMA_SQL;
+mod native_manifest;
+pub use native_manifest::NATIVE_VALUE_BATCH_LIMIT;
+
+mod native_selection;
+pub use native_selection::{NativeValueSelection, select_native_values, stage_native_values};
+
+mod native_targets;
+pub use native_targets::register_native_target;
+
+mod frozen_native_values;
+#[cfg(any(test, feature = "test-support"))]
+pub use frozen_native_values::freeze_fixture_native_values;
+pub use frozen_native_values::{FrozenNativeValues, freeze_native_values};
+
+#[cfg(test)]
+mod native_targets_tests;
