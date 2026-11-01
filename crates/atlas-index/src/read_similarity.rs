@@ -50,7 +50,7 @@ impl SqliteIndexReader {
         let model = self.context().search_profile(profile)?;
         crate::validation::check_vector(vector, model.dimensions)?;
         self.require_vectors()?;
-        let table = crate::schema::vector_table(model)?;
+        let table = crate::schema::native_vector_table(model)?;
         if content_scope == SearchContentScope::Core {
             self.require_core_vectors(profile, keys)?;
         }
@@ -65,7 +65,7 @@ impl SqliteIndexReader {
             .join(",");
         let content_sql = crate::read_units::semantic_content_sql(content_scope);
         let sql = format!(
-            "SELECT r.key,max(1.0-vec_distance_cosine(sv.embedding,?2)),count(*) FROM semantic_units su JOIN records r USING(record_id) JOIN {table} sv ON sv.unit_id=su.unit_id WHERE su.profile_id=?1 AND r.document_kind<>'Macro' AND r.key IN ({placeholders}){content_sql} GROUP BY r.key ORDER BY r.key"
+            "SELECT r.key,max(1.0-vec_distance_cosine(sv.embedding,?2)),count(*) FROM semantic_units su JOIN records r USING(record_id) JOIN {table} sv ON sv.input_id=su.input_id WHERE su.profile_id=?1 AND r.document_kind<>'Macro' AND r.key IN ({placeholders}){content_sql} GROUP BY r.key ORDER BY r.key"
         );
         self.count_statement();
         let rows = self
@@ -221,7 +221,7 @@ impl SqliteIndexReader {
             ));
         }
         let model = self.context().search_profile(profile)?;
-        let table = crate::schema::vector_table(model)?;
+        let table = crate::schema::native_vector_table(model)?;
         self.require_vectors()?;
         if content_scope == SearchContentScope::Core {
             self.require_core_vectors(profile, keys)?;
@@ -287,7 +287,7 @@ impl SqliteIndexReader {
         let content_sql = crate::read_units::semantic_content_sql(content_scope);
         values.push(Value::Integer((max_units + 1) as i64));
         let sql = format!(
-            "SELECT {},{},sv.embedding FROM semantic_units su JOIN semantic_locations sl USING(location_id) LEFT JOIN selected_sections ss ON ss.section_id=sl.section_id AND ss.record_id=su.record_id JOIN records r ON r.record_id=su.record_id JOIN {table} sv ON sv.unit_id=su.unit_id WHERE su.profile_id=?1 AND r.document_kind<>'Macro' AND r.key IN ({placeholders}){content_sql} AND ((su.unit_kind='passage' AND (ss.section_id IS NULL OR (ss.selector IS NOT NULL {selection_sql}))) OR ({identity_sql})) ORDER BY r.key,ss.selector,sl.chunk_ordinal,su.unit_id LIMIT ?{}",
+            "SELECT {},{},sv.embedding FROM semantic_units su JOIN semantic_locations sl USING(location_id) LEFT JOIN selected_sections ss ON ss.section_id=sl.section_id AND ss.record_id=su.record_id JOIN records r ON r.record_id=su.record_id JOIN {table} sv ON sv.input_id=su.input_id WHERE su.profile_id=?1 AND r.document_kind<>'Macro' AND r.key IN ({placeholders}){content_sql} AND ((su.unit_kind='passage' AND (ss.section_id IS NULL OR (ss.selector IS NOT NULL {selection_sql}))) OR ({identity_sql})) ORDER BY r.key,ss.selector,sl.chunk_ordinal,su.unit_id LIMIT ?{}",
             crate::selected_sections::COLUMNS,
             crate::read_units::SEMANTIC_LOCATION_COLUMNS,
             values.len()

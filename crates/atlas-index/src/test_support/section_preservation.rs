@@ -125,34 +125,200 @@ fn normalized_section_table(
     Ok(None)
 }
 
+pub fn native_preservation_rows(c: &rusqlite::Connection) -> Result<TableRows, crate::IndexError> {
+    use rusqlite::types::Value as V;
+    let models = c
+        .prepare("SELECT model_id,identity_json FROM embedding_models ORDER BY model_id")?
+        .query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut values = BTreeMap::<(i64, i64), Vec<u8>>::new();
+    for (model_id, json) in models {
+        let model: crate::SourceSearchProfileIdentity = serde_json::from_str(&json)?;
+        let current = crate::schema::native_vector_table(&model)?;
+        let exists: bool = c.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name=?)",
+            [&current],
+            |row| row.get(0),
+        )?;
+        let mut collected = Vec::new();
+        if exists {
+            collected.extend(
+                c.prepare(&format!(
+                    "SELECT input_id,embedding FROM {current} ORDER BY input_id"
+                ))?
+                .query_map([], |row| {
+                    Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
+                })?
+                .collect::<Result<Vec<_>, _>>()?,
+            );
+        } else {
+            let old = crate::schema::vector_table(&model)?;
+            let old_exists: bool = c.query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name=?)",
+                [&old],
+                |row| row.get(0),
+            )?;
+            if old_exists {
+                collected.extend(c.prepare(&format!("SELECT u.input_id,v.embedding FROM {old} v LEFT JOIN semantic_units u USING(unit_id) ORDER BY u.input_id"))?
+                    .query_map([],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,Vec<u8>>(1)?)))?.collect::<Result<Vec<_>,_>>()?);
+            }
+            let fallback_exists: bool = c.query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='trait_native_values')",
+                [],
+                |row| row.get(0),
+            )?;
+            if fallback_exists {
+                collected.extend(c.prepare("SELECT t.input_id,t.vector FROM trait_native_values t JOIN embedding_inputs i USING(input_id) WHERE i.model_id=? ORDER BY t.input_id")?
+                .query_map([model_id],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,Vec<u8>>(1)?)))?.collect::<Result<Vec<_>,_>>()?);
+            }
+        }
+        for (input, bytes) in collected {
+            if let Some(old) = values.insert((model_id, input), bytes.clone()) {
+                if old != bytes {
+                    return Err(crate::IndexError::Invalid(
+                        "preservation fixture has conflicting values for one native input".into(),
+                    ));
+                }
+            }
+        }
+        let expected: usize = c.query_row(
+            "SELECT count(*) FROM embedding_inputs WHERE model_id=? AND published_hash IS NOT NULL",
+            [model_id],
+            |row| row.get(0),
+        )?;
+        if values.keys().filter(|key| key.0 == model_id).count() != expected {
+            return Err(crate::IndexError::Invalid(
+                "preservation fixture native registry/value coverage differs".into(),
+            ));
+        }
+    }
+    Ok(values
+        .into_iter()
+        .map(|((model, input), bytes)| vec![V::Integer(model), V::Integer(input), V::Blob(bytes)])
+        .collect())
+}
+
 pub fn reference_preservation_rows(
     c: &rusqlite::Connection,
 ) -> Result<BTreeMap<String, Vec<Vec<rusqlite::types::Value>>>, crate::IndexError> {
-    let tables=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'core_%' AND name NOT IN ('artifact_context','workspace','schema_migrations') ORDER BY name")?.query_map([],|row|row.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
-    tables
-        .into_iter()
-        .map(|table| {
-            if let Some(normalized) = normalized_section_table(c, &table)? {
-                return Ok(normalized);
-            }
-            let quoted = format!("\"{}\"", table.replace('"', "\"\""));
-            let columns = c
-                .prepare(&format!("PRAGMA table_info({quoted})"))?
-                .query_map([], |row| row.get::<_, String>(1))?
-                .collect::<Result<Vec<_>, _>>()?;
+    let families=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND sql LIKE '%USING vec0%' AND (name GLOB 'semantic_vectors_*' OR name GLOB 'native_vectors_*') ORDER BY name")?
+        .query_map([],|row|row.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
+    let tables=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'core_%' AND name NOT IN ('artifact_context','workspace','schema_migrations','reference_update_jobs','trait_native_values') ORDER BY name")?
+        .query_map([],|row|row.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
+    let mut output = BTreeMap::new();
+    output.insert("native_values".into(), native_preservation_rows(c)?);
+    for table in tables {
+        if families
+            .iter()
+            .any(|family| table == *family || table.starts_with(&format!("{family}_")))
+        {
+            continue;
+        }
+        if let Some((name, rows)) = normalized_section_table(c, &table)? {
+            output.insert(name, rows);
+            continue;
+        }
+        let quoted = format!("\"{}\"", table.replace('"', "\"\""));
+        let columns = c
+            .prepare(&format!("PRAGMA table_info({quoted})"))?
+            .query_map([], |row| row.get::<_, String>(1))?
+            .collect::<Result<Vec<_>, _>>()?;
+        let (sql, count) = if table == "pending_embedding_values" {
+            ("SELECT input_id,vector,vector_hash FROM pending_embedding_values ORDER BY input_id".to_owned(),3)
+        } else {
             let order = (1..=columns.len())
-                .map(|i| i.to_string())
+                .map(|index| index.to_string())
                 .collect::<Vec<_>>()
                 .join(",");
-            let mut statement = c.prepare(&format!("SELECT * FROM {quoted} ORDER BY {order}"))?;
-            let rows = statement
-                .query_map([], |row| {
-                    (0..columns.len())
-                        .map(|i| row.get(i))
-                        .collect::<Result<Vec<rusqlite::types::Value>, _>>()
-                })?
-                .collect::<Result<Vec<_>, _>>()?;
-            Ok((table, rows))
-        })
-        .collect()
+            (
+                format!("SELECT * FROM {quoted} ORDER BY {order}"),
+                columns.len(),
+            )
+        };
+        let mut statement = c.prepare(&sql)?;
+        let mut rows = statement
+            .query_map([], |row| {
+                (0..count)
+                    .map(|index| row.get(index))
+                    .collect::<Result<Vec<rusqlite::types::Value>, _>>()
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        if table == "sqlite_sequence" {
+            // These counters belong to the physical vec0 families excluded above.
+            // Deduplication/repacking may change their allocation high-water marks;
+            // every other sequence, including saved-state counters, stays exact.
+            rows.retain(|row| {
+                !matches!(row.first(), Some(rusqlite::types::Value::Text(name))
+                    if families.iter().any(|family|
+                        name == &format!("{family}_chunks")
+                            || name == &format!("{family}_rowids")))
+            });
+        }
+        output.insert(table, rows);
+    }
+    Ok(output)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::reference_preservation_rows;
+    use rusqlite::types::Value;
+
+    #[test]
+    fn logical_oracle_excludes_only_discovered_vec0_counters_and_keeps_saved_high_water() {
+        atlas_sqlite_vec::register_sqlite_vec_auto_extension().unwrap();
+        let c = rusqlite::Connection::open_in_memory().unwrap();
+        c.execute_batch(
+            "CREATE TABLE embedding_models(model_id INTEGER PRIMARY KEY,identity_json TEXT NOT NULL);
+             CREATE TABLE saved_lists(id INTEGER PRIMARY KEY AUTOINCREMENT);
+             INSERT INTO saved_lists DEFAULT VALUES;
+             CREATE TABLE native_vectors_decoy_rowids(id INTEGER PRIMARY KEY AUTOINCREMENT);
+             INSERT INTO native_vectors_decoy_rowids DEFAULT VALUES;
+             CREATE VIRTUAL TABLE semantic_vectors_oracle USING vec0(
+                 unit_id INTEGER PRIMARY KEY,embedding FLOAT[2] distance_metric=cosine);",
+        )
+        .unwrap();
+        let bytes = crate::read_units::vector_bytes(&[1.0, 0.0]);
+        c.execute(
+            "INSERT INTO semantic_vectors_oracle(unit_id,embedding) VALUES(7,?)",
+            [&bytes],
+        )
+        .unwrap();
+        let before = reference_preservation_rows(&c).unwrap();
+        assert_eq!(
+            before["sqlite_sequence"],
+            vec![
+                vec![
+                    Value::Text("native_vectors_decoy_rowids".into()),
+                    Value::Integer(1)
+                ],
+                vec![Value::Text("saved_lists".into()), Value::Integer(1)],
+            ]
+        );
+        c.execute_batch(
+            "DROP TABLE semantic_vectors_oracle;
+             CREATE VIRTUAL TABLE native_vectors_oracle USING vec0(
+                 input_id INTEGER PRIMARY KEY,embedding FLOAT[2] distance_metric=cosine);",
+        )
+        .unwrap();
+        c.execute(
+            "INSERT INTO native_vectors_oracle(input_id,embedding) VALUES(99,?)",
+            [&bytes],
+        )
+        .unwrap();
+        assert_eq!(reference_preservation_rows(&c).unwrap(), before);
+        c.execute_batch(
+            "INSERT INTO saved_lists(id) VALUES(40); DELETE FROM saved_lists WHERE id=40;",
+        )
+        .unwrap();
+        let after = reference_preservation_rows(&c).unwrap();
+        assert_eq!(after["saved_lists"], before["saved_lists"]);
+        assert_ne!(after["sqlite_sequence"], before["sqlite_sequence"]);
+        assert_eq!(
+            after["sqlite_sequence"][1],
+            vec![Value::Text("saved_lists".into()), Value::Integer(40)]
+        );
+    }
 }

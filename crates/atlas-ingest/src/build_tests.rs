@@ -80,119 +80,208 @@ impl tracing::field::Visit for TraceFields {
 }
 
 #[test]
-fn source_and_catalog_changes_during_numerical_freeze_preserve_publication() {
-    const CHILD: &str = "ATLAS_TEST_NATIVE_FREEZE_FRESHNESS_CHILD";
-    const COMPLETE: &str = "native-freeze-freshness: both real mutation cases verified";
-    // Tracing callsite interest is process-global even for thread-scoped
-    // subscribers. Isolate this event-driven fault injection from parallel tests.
-    // The completion marker prevents an incorrect exact filter matching no tests
-    // from being mistaken for exercised protection.
+fn captured_inputs_are_consumed_once_and_later_changes_belong_to_the_next_build() {
+    const CHILD: &str = "ATLAS_TEST_CAPTURED_ONCE_CHILD";
+    const COMPLETE: &str = "captured-once: owned and unconsumed mutation cases verified";
+    // Isolate phase-boundary mutations from process-global callsite registration
+    // in other concurrent fixtures, while exercising the actual build/publisher.
     if std::env::var_os(CHILD).as_deref() != Some(std::ffi::OsStr::new("1")) {
-        let output = std::process::Command::new(
-            std::env::current_exe().expect("current test executable"),
-        )
-        .env(CHILD, "1")
-        .args([
-            "--exact",
-            "build_tests::source_and_catalog_changes_during_numerical_freeze_preserve_publication",
-            "--nocapture",
-        ])
-        .output()
-        .expect("run isolated native freeze freshness regression");
-        let stdout = String::from_utf8_lossy(&output.stdout);
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .env(CHILD, "1")
+            .args(["--exact", "build_tests::captured_inputs_are_consumed_once_and_later_changes_belong_to_the_next_build", "--nocapture"])
+            .output().unwrap();
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert!(
             output.status.success(),
-            "isolated regression failed: {}\nstdout:\n{stdout}\nstderr:\n{stderr}",
-            output.status
+            "{}\n{}\n{stderr}",
+            output.status,
+            String::from_utf8_lossy(&output.stdout)
         );
-        assert!(
-            stderr.lines().any(|line| line == COMPLETE),
-            "isolated regression did not verify both cases\nstdout:\n{stdout}\nstderr:\n{stderr}"
-        );
+        assert!(stderr.lines().any(|line| line == COMPLETE), "{stderr}");
         return;
     }
     use std::sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
     };
-    for changed in ["source", "catalog"] {
-        let fixture = Fixture::new();
-        let options = fixture.options();
-        let before = build_artifact(options.clone()).unwrap();
-        let workspace =
-            atlas_index::test_support::initialize_workspace(&options.output_path).unwrap();
-        let schema = atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
-        let revision = workspace
-            .read(schema)
+    fn rows(path: &Path) -> Vec<(String, String, String)> {
+        rusqlite::Connection::open(path)
             .unwrap()
-            .reference_revision()
-            .unwrap();
-        let context = atlas_index::test_support::open_reader(&options.output_path)
+            .prepare("SELECT key,content_hash,name FROM records ORDER BY key")
             .unwrap()
-            .context()
-            .sha256()
-            .unwrap();
-        let source_path = fixture.0.join("packs/items/useful.json");
-        let old_source = fs::read_to_string(&source_path).unwrap();
-        fs::write(
-            &source_path,
-            old_source.replace("Full prose", "New captured prose"),
-        )
-        .unwrap();
-        let path = if changed == "source" {
-            source_path
-        } else {
-            fixture.0.join("static/lang/en.json")
-        };
-        let bytes = if changed == "source" {
-            old_source
-                .replace("Full prose", "Changed during numerical freeze")
-                .into_bytes()
-        } else {
-            br#"{"PF2E":{"Label":"Changed during numerical freeze"}}"#.to_vec()
-        };
-        let observed = Arc::new(AtomicBool::new(false));
-        let changed_once = Arc::clone(&observed);
-        let observer = BuildTraceObserver(move |event: &tracing::Event<'_>| {
-            let mut fields = TraceFields::default();
-            event.record(&mut fields);
-            if event.metadata().target() == "atlas_build_diagnostic"
-                && fields
-                    .0
-                    .get("message")
-                    .is_some_and(|text| text.contains("Frozen numerical publication values"))
-                && !changed_once.swap(true, Ordering::SeqCst)
-            {
-                fs::write(&path, &bytes).unwrap();
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap()
+    }
+    for phase in ["source_capture", "captured_document_batch"] {
+        for changed in ["document", "catalog", "manifest"] {
+            // The manifest is consumed by capture; the other files are not yet
+            // consumed at source_capture. The second boundary owns all tiny docs.
+            for remove in [false, true] {
+                let fixture = Fixture::new();
+                fs::write(fixture.0.join("module.json"), r#"{"packs":[{"name":"items","label":"Items","type":"Item","path":"packs/items"},{"name":"alias","label":"Alias","type":"Item","path":"packs/items"},{"name":"macros","label":"Macros","type":"Macro","path":"packs/macros"}]}"#).unwrap();
+                let options = fixture.options();
+                let before = build_artifact(options.clone()).unwrap();
+                let expected = rows(&options.output_path);
+                let before_context = atlas_index::test_support::open_reader(&options.output_path)
+                    .unwrap()
+                    .context()
+                    .clone();
+                let path = fixture.0.join(match changed {
+                    "document" => "packs/items/useful.json",
+                    "catalog" => "static/lang/en.json",
+                    _ => "module.json",
+                });
+                let bytes = match changed {
+                    "document" => {
+                        br#"{"_id":"cccccccccccccccc","name":"Next document","type":"effect"}"#
+                            .to_vec()
+                    }
+                    "catalog" => br#"{"PF2E":{"Label":"Next catalog"}}"#.to_vec(),
+                    _ => b"{invalid".to_vec(),
+                };
+                let observed = Arc::new(AtomicBool::new(false));
+                let changed_once = Arc::clone(&observed);
+                let added = fixture.0.join("packs/items/added.json");
+                let observer = BuildTraceObserver(move |event: &tracing::Event<'_>| {
+                    let mut fields = TraceFields::default();
+                    event.record(&mut fields);
+                    if event.metadata().target() == "atlas_build_diagnostic"
+                        && fields.0.get("stage").is_some_and(|stage| stage == phase)
+                        && !changed_once.swap(true, Ordering::SeqCst)
+                    {
+                        if remove {
+                            fs::remove_file(&path).unwrap();
+                        } else {
+                            fs::write(&path, &bytes).unwrap();
+                        }
+                        fs::write(&added, r#"{"_id":"dddddddddddddddd","name":"Next added document","type":"effect"}"#).unwrap();
+                    }
+                });
+                let result =
+                    tracing::subscriber::with_default(observer, || build_artifact(options.clone()));
+                assert!(
+                    observed.load(Ordering::SeqCst),
+                    "{phase}/{changed}/{remove}: {result:?}"
+                );
+                let consumed = phase == "captured_document_batch" || changed == "manifest";
+                if consumed {
+                    let report = result.unwrap();
+                    assert_eq!(report.source_fingerprint, before.source_fingerprint);
+                    assert_eq!(
+                        rows(&options.output_path),
+                        expected,
+                        "{phase}/{changed}/{remove}"
+                    );
+                    let context = atlas_index::test_support::open_reader(&options.output_path)
+                        .unwrap()
+                        .context()
+                        .clone();
+                    assert_eq!(
+                        context.english_catalog_sha256,
+                        before_context.english_catalog_sha256
+                    );
+                    assert_eq!(report.record_count, 3, "two pack bindings and a Macro");
+                    // Ordinary next capture observes the mutations/new inventory.
+                    let next = build_artifact(options.clone());
+                    if changed == "manifest" || (changed == "catalog" && remove) {
+                        assert!(next.is_err());
+                    } else {
+                        let next = next.unwrap();
+                        assert_ne!(next.source_fingerprint, report.source_fingerprint);
+                        assert_ne!(rows(&options.output_path), expected);
+                    }
+                } else {
+                    assert!(
+                        matches!(result, Err(IngestError::SourceUnavailable(_))),
+                        "{result:?}"
+                    );
+                    assert_eq!(rows(&options.output_path), expected);
+                    assert_eq!(
+                        atlas_index::test_support::open_reader(&options.output_path)
+                            .unwrap()
+                            .context()
+                            .source_fingerprint,
+                        before.source_fingerprint
+                    );
+                }
+                atlas_index::validate_artifact(&options.output_path).unwrap();
             }
-        });
-        let result =
-            tracing::subscriber::with_default(observer, || build_artifact(options.clone()));
-        assert!(
-            observed.load(Ordering::SeqCst),
-            "mutation must occur during numerical staging; actual build result: {result:?}"
-        );
-        assert!(
-            matches!(result, Err(IngestError::SourceUnavailable(_))),
-            "{changed}: {result:?}"
-        );
-        assert_eq!(
-            workspace
-                .read(schema)
-                .unwrap()
-                .reference_revision()
-                .unwrap(),
-            revision
-        );
-        let reader = atlas_index::test_support::open_reader(&options.output_path).unwrap();
-        assert_eq!(reader.context().sha256().unwrap(), context);
-        assert_eq!(reader.statistics().unwrap().records, before.record_count);
-        assert_eq!(
-            reader.context().source_fingerprint,
-            before.source_fingerprint
-        );
-        atlas_index::validate_artifact(&options.output_path).unwrap();
+        }
+    }
+    for phase in ["source_capture", "source_preparation"] {
+        for remove in [false, true] {
+            let fixture = Fixture::new();
+            let directory = fixture.0.join("src/module/migration/migrations");
+            fs::create_dir_all(&directory).unwrap();
+            let path = directory.join("rename.ts");
+            fs::write(
+                &path,
+                r#"// Rename all uses and mentions of "Old name" to "Useful record""#,
+            )
+            .unwrap();
+            let options = fixture.options();
+            let before = build_artifact(options.clone()).unwrap();
+            let aliases = |path: &Path| -> Vec<String> {
+                rusqlite::Connection::open(path)
+                    .unwrap()
+                    .prepare("SELECT alias FROM verified_aliases ORDER BY alias")
+                    .unwrap()
+                    .query_map([], |row| row.get(0))
+                    .unwrap()
+                    .collect::<Result<_, _>>()
+                    .unwrap()
+            };
+            assert_eq!(aliases(&options.output_path), ["Old name"]);
+            let observed = Arc::new(AtomicBool::new(false));
+            let changed_once = Arc::clone(&observed);
+            let observer = BuildTraceObserver(move |event: &tracing::Event<'_>| {
+                let mut fields = TraceFields::default();
+                event.record(&mut fields);
+                if event.metadata().target() == "atlas_build_diagnostic"
+                    && fields.0.get("stage").is_some_and(|stage| stage == phase)
+                    && !changed_once.swap(true, Ordering::SeqCst)
+                {
+                    if remove {
+                        fs::remove_file(&path).unwrap();
+                    } else {
+                        fs::write(&path, r#"// Rename all uses and mentions of "Next old name" to "Useful record""#).unwrap();
+                    }
+                }
+            });
+            let result =
+                tracing::subscriber::with_default(observer, || build_artifact(options.clone()));
+            assert!(
+                observed.load(Ordering::SeqCst),
+                "alias/{phase}/{remove}: {result:?}"
+            );
+            if phase == "source_capture" {
+                assert!(
+                    matches!(result, Err(IngestError::SourceUnavailable(_))),
+                    "{result:?}"
+                );
+            } else {
+                assert_eq!(
+                    result.unwrap().source_fingerprint,
+                    before.source_fingerprint
+                );
+            }
+            assert_eq!(aliases(&options.output_path), ["Old name"]);
+            if phase == "source_preparation" {
+                let next = build_artifact(options.clone()).unwrap();
+                assert_ne!(next.source_fingerprint, before.source_fingerprint);
+                assert_eq!(
+                    aliases(&options.output_path),
+                    if remove {
+                        Vec::<String>::new()
+                    } else {
+                        vec!["Next old name".to_owned()]
+                    }
+                );
+            }
+            atlas_index::validate_artifact(&options.output_path).unwrap();
+        }
     }
     eprintln!("{COMPLETE}");
 }
@@ -236,39 +325,44 @@ fn bounded_cached_native_windows_deduplicate_without_loading_weights() {
     }
     crate::build::publish_fixture_without_inference(&options).unwrap();
     let mut prepared = crate::product_preparation::prepare_fixture(&options).unwrap();
-    let plans = crate::native_execution::prepare_profiles(&mut prepared, &options).unwrap();
+    let scratch_path = prepared.fixture_scratch_path().to_owned();
+    let plans =
+        crate::native_execution::prepare_profiles(&mut prepared, &options, &scratch_path).unwrap();
     assert_eq!(plans.len(), 1);
     assert!(prepared.native_inputs.len() > atlas_index::NATIVE_VALUE_BATCH_LIMIT * 2);
-    let sealed = prepared.spool.seal().unwrap();
     let mut unique = std::collections::BTreeSet::new();
-    atlas_index::PublicationSource::semantic(&sealed, &mut |row| {
-        let model =
-            atlas_index::PublicationSource::context(&sealed).search_profile(&row.profile_id)?;
-        unique.insert((
-            serde_json::to_string(model)?,
-            row.input.input_sha256.clone(),
-            row.input.token_count,
-        ));
-        Ok(())
-    })
-    .unwrap();
-    assert!(unique.len() < atlas_index::PublicationSource::semantic_count(&sealed));
-    // The complete native target includes trait inputs as well as document
-    // occurrences; count exact profile/model-bound identities independently.
-    atlas_index::PublicationSource::trait_seeds(&sealed, &mut |seed| {
-        let model =
-            atlas_index::PublicationSource::context(&sealed).search_profile(&seed.profile_id)?;
-        let identity = serde_json::to_string(model)?;
-        for chunk in &seed.chunks {
+    prepared
+        .spool
+        .semantic
+        .visit(&mut |row| {
+            let model = prepared.spool.context.search_profile(&row.profile_id)?;
             unique.insert((
-                identity.clone(),
-                chunk.descriptor.input_sha256.clone(),
-                chunk.descriptor.token_count,
+                serde_json::to_string(model)?,
+                row.input.input_sha256.clone(),
+                row.input.token_count,
             ));
-        }
-        Ok(())
-    })
-    .unwrap();
+            Ok(())
+        })
+        .unwrap();
+    assert!(unique.len() < prepared.spool.semantic.len());
+    // The owned publication includes trait inputs as well as document
+    // occurrences; count exact profile/model-bound identities independently.
+    prepared
+        .spool
+        .trait_seeds
+        .visit(&mut |seed| {
+            let model = prepared.spool.context.search_profile(&seed.profile_id)?;
+            let identity = serde_json::to_string(model)?;
+            for chunk in &seed.chunks {
+                unique.insert((
+                    identity.clone(),
+                    chunk.descriptor.input_sha256.clone(),
+                    chunk.descriptor.token_count,
+                ));
+            }
+            Ok(())
+        })
+        .unwrap();
     let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
     let captured = std::sync::Arc::clone(&events);
     let observer = BuildTraceObserver(move |event: &tracing::Event<'_>| {
@@ -328,7 +422,7 @@ fn bounded_cached_native_windows_deduplicate_without_loading_weights() {
         build_artifact(options.clone()).is_err(),
         "forced inference must require missing weights"
     );
-    // Active registration/checkpoint metadata may change, but the published
+    // Recovery cache metadata may change, but the published
     // reference and its ordinary queryable row count remain intact.
     assert_eq!(
         workspace
@@ -1059,7 +1153,7 @@ fn actual_profile_builds_share_preparation_isolate_reuse_and_publish_atomically(
     ));
     request_test_configuration(&options);
     // The second profile has a valid tokenizer but no inference weights. Shared
-    // admission and ALL native membership must complete before BGE starts, then
+    // admission and ALL native validation must complete before BGE starts, then
     // BGE checkpoints must survive the later Gemma inference failure.
     let source_path = fixture.0.join("packs/items/useful.json");
     let source = fs::read_to_string(&source_path).unwrap();
@@ -1115,10 +1209,10 @@ fn actual_profile_builds_share_preparation_isolate_reuse_and_publish_atomically(
             })
             .unwrap();
         assert!(pending > 0, "completed BGE work survives Gemma failure");
-        let profiles: usize = read.connection().query_row("SELECT count(DISTINCT i.model_id) FROM native_target_inputs n JOIN native_update_targets t USING(job_key) JOIN embedding_inputs i USING(input_id) WHERE t.phase='active'", [], |r|r.get(0)).unwrap();
+        let models: usize = read.connection().query_row("SELECT count(DISTINCT i.model_id) FROM pending_embedding_values p JOIN embedding_inputs i USING(input_id)", [], |r|r.get(0)).unwrap();
         assert_eq!(
-            profiles, 2,
-            "all profiles were registered before any inference"
+            models, 1,
+            "only the completed BGE work is cached before Gemma inference fails"
         );
     }
     options.search_profiles[1] = valid_gemma;
@@ -1254,46 +1348,88 @@ fn actual_gemma_only_fresh_build_needs_baseline_tokenizer_but_no_base_weights() 
 #[test]
 #[ignore = "requires verified local BGE assets; run explicitly"]
 fn actual_model_reuse_rejects_corrupted_published_input_metadata() {
+    // Snapshot public logical rows, including native vec0/FTS rows; extension
+    // shadow tables are deliberately excluded. This checks the poisoned state,
+    // rather than misreporting it as a healthy artifact after failed admission.
+    fn state(
+        db: &rusqlite::Connection,
+    ) -> std::collections::BTreeMap<String, Vec<Vec<rusqlite::types::Value>>> {
+        let tables = db.prepare("SELECT name,wr FROM pragma_table_list WHERE schema='main' AND type IN ('table','virtual') AND (name NOT LIKE 'sqlite_%' OR name='sqlite_sequence') AND (name NOT GLOB 'native_vectors_*' OR type='virtual') AND (name NOT GLOB 'lexical_fts*' OR name='lexical_fts') ORDER BY name").unwrap()
+            .query_map([], |row| Ok((row.get::<_,String>(0)?,row.get::<_,bool>(1)?))).unwrap()
+            .collect::<Result<Vec<_>,_>>().unwrap();
+        tables
+            .into_iter()
+            .map(|(table, without_rowid)| {
+                let quoted = table.replace('"', "\"\"");
+                let columns = if without_rowid { "*" } else { "rowid,*" };
+                let select = format!("SELECT {columns} FROM \"{quoted}\"");
+                let count = db.prepare(&select).unwrap().column_count();
+                let order = (1..=count)
+                    .map(|column| column.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                let mut statement = db.prepare(&format!("{select} ORDER BY {order}")).unwrap();
+                let values = statement
+                    .query_map([], |row| (0..count).map(|column| row.get(column)).collect())
+                    .unwrap()
+                    .collect::<Result<_, _>>()
+                    .unwrap();
+                (table, values)
+            })
+            .collect()
+    }
     let fixture = Fixture::new();
-    let cache = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .find_map(|ancestor| {
-            let cache = ancestor.join(".cache/hf-models");
-            cache
-                .join(format!(
-                    "BAAI/bge-base-en-v1.5/{}/onnx/model.onnx",
-                    atlas_embedding::embedding_model_spec(
-                        atlas_embedding::EmbeddingModelId::BgeBaseEnV15
-                    )
-                    .model_revision
-                ))
-                .is_file()
-                .then_some(cache)
-        })
-        .unwrap();
+    let cache = native_smoke_cache(atlas_embedding::EmbeddingModelId::BgeBaseEnV15);
     let mut options = fixture.options();
     options.search_profiles = vec![atlas_embedding::EmbeddingRuntimeConfig::new(
         atlas_embedding::EmbeddingModelId::BgeBaseEnV15,
         cache,
     )];
     build_artifact(options.clone()).unwrap();
-    let before = atlas_index::validate_artifact(&options.output_path).unwrap();
+    atlas_index::validate_artifact(&options.output_path).unwrap();
     let db = rusqlite::Connection::open(&options.output_path).unwrap();
+    db.execute_batch("INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at) VALUES(71,'kept','kept','Saved native proof','before','after'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(71,'items:aaaaaaaaaaaaaaaa',0,'Keep this note','Useful record','before','after');").unwrap();
+    let healthy = state(&db);
     let changed = db
         .execute("UPDATE embedding_inputs SET token_count=token_count+1", [])
         .unwrap();
     assert!(changed > 0);
+    let poisoned = state(&db);
+    assert_ne!(poisoned["embedding_inputs"], healthy["embedding_inputs"]);
+    for (table, values) in &healthy {
+        if table != "embedding_inputs" {
+            assert_eq!(&poisoned[table], values, "corruption touched {table}");
+        }
+    }
     drop(db);
+    // A mistaken cache miss would try to load unavailable weights. Requiring the
+    // matched-input token error proves rejection precedes inference and publish.
+    let original = &options.search_profiles[0];
+    let tokenizer_only = atlas_embedding::EmbeddingRuntimeConfig::new(
+        original.model,
+        fixture.0.join("tokenizer-only-rejection"),
+    );
+    fs::create_dir_all(tokenizer_only.model_dir()).unwrap();
+    fs::copy(
+        original.model_dir().join("tokenizer.json"),
+        tokenizer_only.model_dir().join("tokenizer.json"),
+    )
+    .unwrap();
+    assert!(!tokenizer_only.model_dir().join("onnx/model.onnx").exists());
+    options.search_profiles = vec![tokenizer_only];
     let error = build_artifact(options.clone()).unwrap_err().to_string();
     assert!(
-        error.contains("reusable embedding identity or checksum mismatch"),
+        error.contains("native input token count mismatch"),
         "{error}"
     );
+    let db = rusqlite::Connection::open(&options.output_path).unwrap();
     assert_eq!(
-        atlas_index::validate_artifact(&options.output_path).unwrap(),
-        before
+        state(&db),
+        poisoned,
+        "failed reuse changed the already-poisoned registry, native values, reference or saved state"
     );
 }
+
 #[test]
 fn verified_name_aliases_never_invent_legacy_record_pairs() {
     fn copy_dir(from: &Path, to: &Path) {
@@ -1789,28 +1925,17 @@ fn captured_discovery_cannot_silently_omit_temporarily_missing_document() {
 }
 
 #[test]
-fn captured_manifest_localization_and_alias_inputs_reject_transient_changes() {
+fn unconsumed_localization_and_alias_inputs_reject_transient_changes() {
     let fixture = Fixture::new();
     let migration = fixture.0.join("src/module/migration/migrations");
     fs::create_dir_all(&migration).unwrap();
     let alias_path = migration.join("test.ts");
     fs::write(&alias_path, "// original").unwrap();
-    for path in [
-        fixture.0.join("module.json"),
-        fixture.0.join("static/lang/en.json"),
-        alias_path,
-    ] {
+    for path in [fixture.0.join("static/lang/en.json"), alias_path] {
         let capture = crate::source_fingerprint::SourceCapture::capture(&fixture.0, None).unwrap();
         let original = fs::read(&path).unwrap();
         fs::write(&path, "{}").unwrap();
-        let result = if path.ends_with("module.json") {
-            crate::source_loading::load_captured_source(
-                &fixture.0,
-                Some(&capture.manifest_path),
-                Some(&capture),
-            )
-            .map(|_| ())
-        } else if path.ends_with("en.json") {
+        let result = if path.ends_with("en.json") {
             crate::source::localization::LocalizationCatalog::load_captured(
                 &fixture.0,
                 "en",
@@ -2409,7 +2534,6 @@ fn retired_preparation_and_predecessor_skip_unreadable_cached_dtos_before_source
 
 #[test]
 fn bounded_product_preparation_keeps_excluded_collisions_and_stable_owned_destinations() {
-    use atlas_index::PublicationSource;
     use atlas_record::source_content::{ContentReferenceResolution, ContentReferenceTarget};
     use atlas_record::source_record::SourceContentStatus;
     for cause in ["raw name", "missing ID name", "duplicate ID"] {
@@ -2473,15 +2597,17 @@ fn bounded_product_preparation_keeps_excluded_collisions_and_stable_owned_destin
                     Some(&1)
                 );
             }
-            let publication = prepared.spool.seal().unwrap();
-            assert_eq!(publication.semantic_count(), 0);
+            let publication = &prepared.spool;
+            assert_eq!(publication.semantic.len(), 0);
             let mut roots = Vec::new();
             let mut references = Vec::new();
             publication
-                .records(&mut |frame| {
-                    roots.push(frame.source.record.key().to_string());
-                    if frame.source.record.key().to_string() == "items:ffffffffffffffff" {
-                        for outcome in &frame.source.content {
+                .records
+                .visit(&mut |frame| {
+                    let (source, _, _, _) = frame.decode()?;
+                    roots.push(source.record.key().to_string());
+                    if source.record.key().to_string() == "items:ffffffffffffffff" {
+                        for outcome in &source.content {
                             if let SourceContentStatus::Prepared(content) = &outcome.status {
                                 references.extend(content.references.iter().map(|reference| {
                                     (

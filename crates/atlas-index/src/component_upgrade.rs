@@ -214,6 +214,7 @@ pub fn ensure_reference_projections(
         crate::recover_reference_publication(&owner, schema)?;
         return Ok(false);
     };
+    let scratch = crate::BuildScratch::new(&owner)?;
     maintenance.publish(|c| {
         let stored = read_stored_reference_context(c)?.ok_or_else(|| {
             IndexError::Invalid("projection upgrade lost its reference context".into())
@@ -223,7 +224,7 @@ pub fn ensure_reference_projections(
         let lexical_changed = stored.lexical_selection_version != target.lexical_selection_version;
         let core_changed = stored.core_sections_recipe != target.core_sections_recipe;
         let mut lexical = if lexical_changed {
-            Some(crate::BuildFrameStream::<crate::SourceLexicalUnitInput>::new()?)
+            Some(crate::BuildFrameStream::<crate::SourceLexicalUnitInput>::new_in(scratch.path())?)
         } else {
             None
         };

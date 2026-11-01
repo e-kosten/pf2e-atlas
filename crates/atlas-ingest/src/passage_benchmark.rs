@@ -259,8 +259,17 @@ fn published_layout_reuse_full_corpus_benchmark() {
         } else {
             &reuse
         };
+        let selected_workspace = if case == "forced_fresh" {
+            &fresh_workspace
+        } else {
+            &workspace
+        };
+        let owner = selected_workspace.update_owner().unwrap();
+        let scratch = atlas_index::BuildScratch::new(&owner).unwrap();
         let started = Instant::now();
-        let prepared = crate::product_preparation::prepare(&case_options, selected_reuse).unwrap();
+        let prepared =
+            crate::product_preparation::prepare(&case_options, selected_reuse, scratch.path())
+                .unwrap();
         let preparation_seconds = started.elapsed().as_secs_f64();
         let signatures = signatures(&prepared);
         let native_started = Instant::now();

@@ -1084,14 +1084,25 @@ fn missing_vectors_and_wrong_model_identity_cannot_be_published() {
     let input = fixture(true);
     let (_directory, path) = build(&input);
     let c = Connection::open(&path).unwrap();
-    c.execute(
-        &format!(
-            "DELETE FROM {} WHERE unit_id=1",
-            crate::schema::vector_table(&input.context.search_profiles[0]).unwrap()
-        ),
-        [],
-    )
-    .unwrap();
+    let first = &input.semantic_units[0];
+    let input_id: i64 = c
+        .query_row(
+            "SELECT su.input_id FROM semantic_units su JOIN records r USING(record_id) WHERE r.key=?1 AND su.profile_id=?2 AND su.unit_kind='identity'",
+            rusqlite::params![first.record.to_string(), first.profile_id.as_str()],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        c.execute(
+            &format!(
+                "DELETE FROM {} WHERE input_id=?1",
+                crate::schema::native_vector_table(&input.context.search_profiles[0]).unwrap()
+            ),
+            [input_id],
+        )
+        .unwrap(),
+        1
+    );
     assert!(validate_artifact(path).is_err());
 }
 #[test]

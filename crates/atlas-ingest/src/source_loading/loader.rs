@@ -40,7 +40,7 @@ pub(crate) fn load_captured_source(
         .map(Path::to_path_buf)
         .unwrap_or_else(|| default_manifest_path(source_root));
     let parsed_manifest = match capture {
-        Some(c) => crate::source::discovery::parse_manifest_bytes(&c.read(&manifest_path)?)?,
+        Some(c) => c.manifest().clone(),
         None => parse_manifest(&manifest_path)?,
     };
     let mut packs = Vec::new();

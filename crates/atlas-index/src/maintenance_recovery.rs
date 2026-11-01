@@ -1,8 +1,5 @@
-//! Reference update job lifecycle and validated maintenance recovery.
+//! Validated recovery of interrupted atomic reference maintenance.
 use crate::IndexError;
-use rusqlite::params;
-#[cfg(any(test, feature = "test-support"))]
-use {crate::codec::sha256, atlas_storage::WriteSession};
 
 pub fn recover_reference_publication(
     owner: &atlas_storage::UpdateOwner,
@@ -103,48 +100,4 @@ fn recover_reference_publication_inner(
         }
         Ok(())
     })
-}
-
-#[cfg(any(test, feature = "test-support"))]
-pub fn start_reference_job(
-    session: &WriteSession,
-    target_hash: &str,
-) -> Result<String, IndexError> {
-    let revision = session.reference_revision()?;
-    let job = sha256(format!("{revision}:{target_hash}").as_bytes());
-    session.connection().execute(
-        "INSERT INTO reference_update_jobs(job_key,expected_revision,target_hash,state) VALUES(?,?,?,'preparing') ON CONFLICT(job_key) DO NOTHING",
-        params![job, revision, target_hash],
-    )?;
-    Ok(job)
-}
-
-/// Called only inside the final reference publication transaction, after its
-/// semantic rows and profile identities have been reconciled.
-pub(crate) fn finish_reference_job(
-    connection: &rusqlite::Connection,
-    job: &str,
-    target_hash: &str,
-) -> Result<(), IndexError> {
-    let updated = connection.execute(
-        "UPDATE reference_update_jobs SET state='published',updated_at=CURRENT_TIMESTAMP WHERE job_key=? AND target_hash=? AND state='preparing' AND expected_revision=(SELECT reference_revision FROM workspace WHERE id=1)",
-        params![job, target_hash],
-    )?;
-    if updated != 1 {
-        return Err(IndexError::Invalid(
-            "reference update job no longer matches the workspace revision or target".into(),
-        ));
-    }
-    let retired = connection.execute(
-        "UPDATE native_update_targets SET phase='retired' WHERE job_key=? AND phase='active'",
-        [job],
-    )?;
-    if retired != 1 {
-        return Err(IndexError::Invalid(
-            "published native target is no longer active".into(),
-        ));
-    }
-    // Metadata is retired in bounded transactions on the next explicit update.
-    // Deleting a parent here would bypass that lifecycle or strand memberships.
-    Ok(())
 }

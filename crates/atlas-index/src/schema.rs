@@ -32,6 +32,21 @@ pub const REFERENCE_NUMERIC_FILTER_SCHEMA_SQL: &str =
 pub const PHYSICAL_BASE_TYPE_SCHEMA_SQL: &str =
     include_str!("../migrations/00000000000005_physical_base_type/up.sql");
 
-/// Complete native target membership and selected numerical checksums.
-pub const NATIVE_TARGETS_SCHEMA_SQL: &str =
-    include_str!("../migrations/00000000000008_native_targets/up.sql");
+/// Current numerical authority; historical migration10 keeps vector_table above.
+pub(crate) fn native_vector_table(
+    model: &crate::SourceSearchProfileIdentity,
+) -> Result<String, crate::IndexError> {
+    Ok(format!(
+        "native_vectors_{}",
+        crate::codec::sha256(&serde_json::to_vec(model)?)
+    ))
+}
+pub(crate) fn native_vector_ddl(
+    model: &crate::SourceSearchProfileIdentity,
+) -> Result<String, crate::IndexError> {
+    Ok(format!(
+        "CREATE VIRTUAL TABLE {} USING vec0(input_id INTEGER PRIMARY KEY,embedding FLOAT[{}] distance_metric=cosine)",
+        native_vector_table(model)?,
+        model.dimensions
+    ))
+}

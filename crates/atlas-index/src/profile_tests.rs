@@ -253,21 +253,41 @@ pub(super) fn move_fixture_vectors(
     old: &SourceSearchProfileIdentity,
     new: &SourceSearchProfileIdentity,
 ) {
+    assert_eq!(
+        connection
+            .execute(
+                "UPDATE embedding_models SET identity_json=? WHERE identity_json=?",
+                rusqlite::params![
+                    serde_json::to_string(new).unwrap(),
+                    serde_json::to_string(old).unwrap()
+                ],
+            )
+            .unwrap(),
+        1
+    );
+    let old_table = crate::schema::native_vector_table(old).unwrap();
+    let new_table = crate::schema::native_vector_table(new).unwrap();
     connection
-        .execute(
-            "UPDATE embedding_models SET identity_json=? WHERE identity_json=?",
-            rusqlite::params![
-                serde_json::to_string(new).unwrap(),
-                serde_json::to_string(old).unwrap()
-            ],
-        )
+        .execute_batch(&crate::schema::native_vector_ddl(new).unwrap())
         .unwrap();
-    let old_table = crate::schema::vector_table(old).unwrap();
-    let new_table = crate::schema::vector_table(new).unwrap();
+    let expected: usize = connection
+        .query_row(&format!("SELECT count(*) FROM {old_table}"), [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert!(expected > 0);
+    assert_eq!(
+        connection
+            .execute(
+                &format!("INSERT INTO {new_table}(input_id,embedding) SELECT input_id,embedding FROM {old_table}"),
+                [],
+            )
+            .unwrap(),
+        expected
+    );
     connection
-        .execute_batch(&crate::schema::vector_ddl(new).unwrap())
+        .execute_batch(&format!("DROP TABLE {old_table}"))
         .unwrap();
-    connection.execute_batch(&format!("INSERT INTO {new_table}(unit_id,embedding) SELECT unit_id,embedding FROM {old_table}; DROP TABLE {old_table};")).unwrap();
 }
 
 #[test]
@@ -346,10 +366,10 @@ fn adding_and_removing_profile_preserves_existing_vector_rows() {
     };
     let single = profile_fixture(false);
     let (_directory, path) = build(&single);
-    let table = crate::schema::vector_table(&single.context.search_profiles[0]).unwrap();
+    let table = crate::schema::native_vector_table(&single.context.search_profiles[0]).unwrap();
     let snapshot = |c: &rusqlite::Connection| {
         c.prepare(&format!(
-            "SELECT unit_id,embedding FROM {table} ORDER BY unit_id"
+            "SELECT input_id,embedding FROM {table} ORDER BY input_id"
         ))
         .unwrap()
         .query_map([], |row| {
@@ -413,7 +433,8 @@ fn adding_and_removing_profile_preserves_existing_vector_rows() {
     assert_eq!(snapshot(&c), before);
     assert_untouched(&c, "adding a profile");
     drop(c);
-    let removed_table = crate::schema::vector_table(&dual.context.search_profiles[1]).unwrap();
+    let removed_table =
+        crate::schema::native_vector_table(&dual.context.search_profiles[1]).unwrap();
     crate::test_support::publish_input(&path, &single).unwrap();
     let c = rusqlite::Connection::open(&path).unwrap();
     assert_eq!(snapshot(&c), before);
@@ -435,16 +456,16 @@ fn vector_storage_dimensions_belong_to_each_model_identity() {
     for dimensions in [3, 7] {
         let mut model = SourceSearchProfileIdentity::from_spec(atlas_embedding::SEARCH_PROFILES[0]);
         model.dimensions = dimensions;
-        let table = crate::schema::vector_table(&model).unwrap();
+        let table = crate::schema::native_vector_table(&model).unwrap();
         connection
-            .execute_batch(&crate::schema::vector_ddl(&model).unwrap())
+            .execute_batch(&crate::schema::native_vector_ddl(&model).unwrap())
             .unwrap();
         let mut vector = vec![0.0; dimensions];
         vector[0] = 1.0;
         let bytes = crate::read_units::vector_bytes(&vector);
         connection
             .execute(
-                &format!("INSERT INTO {table}(unit_id,embedding) VALUES(1,?)"),
+                &format!("INSERT INTO {table}(input_id,embedding) VALUES(1,?)"),
                 [&bytes],
             )
             .unwrap();

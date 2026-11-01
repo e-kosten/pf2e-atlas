@@ -25,6 +25,7 @@ use {
     rusqlite::OptionalExtension,
 };
 
+#[cfg(any(test, feature = "test-support"))]
 pub struct SqliteIndexWriter<'a, 'owner> {
     maintenance: &'a atlas_storage::MaintenanceSession<'owner>,
 }
@@ -44,49 +45,10 @@ pub trait IndexArtifactWriter {
     fn write(&self, input: &IndexBuildInput)
     -> Result<crate::ArtifactValidationReport, IndexError>;
 }
+#[cfg(any(test, feature = "test-support"))]
 impl<'a, 'owner> SqliteIndexWriter<'a, 'owner> {
     pub fn new(maintenance: &'a atlas_storage::MaintenanceSession<'owner>) -> Self {
         Self { maintenance }
-    }
-    pub fn write_job(
-        &self,
-        input: &dyn crate::PublicationSource,
-        values: &crate::FrozenNativeValues,
-        job: &str,
-        target_hash: &str,
-    ) -> Result<crate::ArtifactValidationReport, IndexError> {
-        let publication =
-            crate::ReferencePublicationExpectation::read(self.maintenance.connection())?;
-        tracing::info!(target:"atlas_progress",phase="validate_build_input",workspace_key=publication.instance().workspace_key(),reference_revision=publication.instance().reference_revision(),context_sha256=publication.context_sha256().unwrap_or(""),"Checking prepared records");
-        let input_started = std::time::Instant::now();
-        let identities = validate_input(input)?;
-        if input.context().sha256()? != target_hash {
-            return Err(IndexError::Invalid(
-                "publication input differs from update job target".into(),
-            ));
-        }
-        values.check(input, Some(job))?;
-        tracing::info!(target:"atlas_build_diagnostic",stage="publication_input_validation",elapsed_ms=input_started.elapsed().as_secs_f64()*1000.,"Completed publication phase");
-        self.maintenance.publish(|connection| {
-            connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
-            check_expected(connection,input)?;
-            values.check_publication(connection,input,Some(job))?;
-            crate::native_selection::require_active(connection,job)?;
-            let delta_started=std::time::Instant::now();
-            let delta_changes=connection.total_changes();
-            crate::stream_publication::write(connection, input, &identities, values)?;
-            crate::embedding_values::prune(connection)?;
-            tracing::info!(target:"atlas_build_diagnostic",stage="publication_delta_and_prune",elapsed_ms=delta_started.elapsed().as_secs_f64()*1000.,sqlite_affected_rows=connection.total_changes()-delta_changes,"Completed publication phase");
-            let validation_started=std::time::Instant::now();
-            let validation_changes=connection.total_changes();
-            let report = crate::validation::validate_reference(connection)?;
-            values.check_publication(connection,input,Some(job))?;
-            tracing::info!(target:"atlas_build_diagnostic",stage="publication_exact_validation",elapsed_ms=validation_started.elapsed().as_secs_f64()*1000.,sqlite_affected_rows=connection.total_changes()-validation_changes,"Completed publication phase");
-            tracing::info!(target:"atlas_progress",phase="prune_checkpoints","Removing obsolete saved embeddings");
-            crate::reference_jobs::finish_reference_job(connection, job, target_hash)?;
-            tracing::info!(target:"atlas_progress",phase="commit_reference","Finishing reference update");
-            Ok(report)
-        })
     }
 }
 #[cfg(any(test, feature = "test-support"))]
@@ -99,20 +61,120 @@ impl IndexArtifactWriter for SqliteIndexWriter<'_, '_> {
         input: &IndexBuildInput,
     ) -> Result<crate::ArtifactValidationReport, IndexError> {
         let identities = validate_input(input)?;
-        let origin = crate::frozen_native_values::origin(self.maintenance.connection())?;
-        let values = crate::freeze_fixture_native_values(input, input, None, &origin)?;
+        let native = fixture_native_values(input)?;
+        let scratch = tempfile::tempdir()?;
         self.maintenance.publish(|connection| {
-            values.check_publication(connection, input, None)?;
-            // Cross-root edges may temporarily point at a root being replaced.
-            // Validation and commit both require every final reference to exist.
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
-            crate::stream_publication::write(connection, input, &identities, &values)?;
-            crate::embedding_values::prune(connection)?;
-            let report = crate::validation::validate_reference(connection)?;
-            values.check_publication(connection, input, None)?;
-            Ok(report)
+            let reusable = prior_compatible(connection)?;
+            for (model, descriptor, vector) in &native {
+                let bytes = crate::read_units::vector_bytes(vector);
+                crate::native_values::install(
+                    connection,
+                    model,
+                    descriptor,
+                    &bytes,
+                    &crate::embedding_values::hash_bytes(&bytes),
+                )?;
+            }
+            crate::native_values::ensure_profiles(connection, &input.context)?;
+            crate::stream_publication::write(
+                connection,
+                input,
+                &identities,
+                input,
+                reusable,
+                scratch.path(),
+            )?;
+            connection.execute("DELETE FROM pending_embedding_values", [])?;
+            crate::native_values::prune(connection)?;
+            crate::validation::validate_reference(connection)
         })
     }
+}
+pub(crate) fn prior_compatible(c: &Connection) -> Result<bool, IndexError> {
+    Ok(!matches!(
+        crate::classify_reference_upgrade(c)?,
+        crate::ReferenceUpgrade::SourcePreparation | crate::ReferenceUpgrade::SourceReplacement
+    ))
+}
+
+#[cfg(any(test, feature = "test-support"))]
+pub(crate) fn fixture_native_values<'a>(
+    input: &'a IndexBuildInput,
+) -> Result<
+    Vec<(
+        &'a SourceSearchProfileIdentity,
+        atlas_embedding::NativeInputDescriptor,
+        &'a [f32],
+    )>,
+    IndexError,
+> {
+    use atlas_embedding::NativeInputDescriptor;
+    let mut selected = BTreeMap::<
+        (String, String),
+        (&SourceSearchProfileIdentity, NativeInputDescriptor, &[f32]),
+    >::new();
+    let mut accept = |profile: &atlas_domain::SearchProfileId,
+                      hash: &str,
+                      tokens: usize,
+                      vector: &'a [f32]|
+     -> Result<(), IndexError> {
+        let model = input.context.search_profile(profile)?;
+        crate::embedding_values::digest(hash)?;
+        crate::validation::check_vector(vector, model.dimensions)?;
+        if tokens == 0 || tokens > model.token_limit {
+            return Err(IndexError::Invalid(
+                "invalid fixture native token count".into(),
+            ));
+        }
+        let key = (profile.to_string(), hash.to_owned());
+        if let Some((_, old_input, old)) = selected.get(&key) {
+            if old_input.token_count != tokens
+                || old.len() != vector.len()
+                || old
+                    .iter()
+                    .zip(vector)
+                    .any(|(a, b)| a.to_bits() != b.to_bits())
+            {
+                return Err(IndexError::Invalid(
+                    "duplicate native input values disagree".into(),
+                ));
+            }
+        } else {
+            selected.insert(
+                key,
+                (
+                    model,
+                    NativeInputDescriptor {
+                        input_sha256: hash.into(),
+                        token_count: tokens,
+                    },
+                    vector,
+                ),
+            );
+        }
+        Ok(())
+    };
+    for unit in &input.semantic_units {
+        accept(
+            &unit.profile_id,
+            &unit.input_hash,
+            unit.input_token_count,
+            &unit.vector,
+        )?;
+    }
+    for seed in &input.trait_vectors {
+        for chunk in &seed.chunks {
+            accept(
+                &seed.profile_id,
+                &chunk.input_hash,
+                chunk.token_count,
+                &chunk.vector,
+            )?;
+        }
+    }
+    crate::PublicationSource::trait_seeds(input, &mut |_| Ok(()))?;
+    Ok(selected.into_values().collect())
 }
 impl SourceSearchProfileIdentity {
     pub fn from_spec(profile: atlas_embedding::SearchProfileSpec) -> Self {
@@ -268,10 +330,9 @@ pub(crate) fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), Ind
     }
     Ok(())
 }
-fn validate_input(
+pub(crate) fn validate_input(
     input: &dyn crate::PublicationSource,
 ) -> Result<Vec<CheckedRootIdentity>, IndexError> {
-    input.check_seal()?;
     input
         .inventory()
         .validate_parts(&input.context().source_fingerprint, input.packs())?;
@@ -363,7 +424,10 @@ fn validate_input(
     }
     Ok(identities)
 }
-fn check_expected(c: &Connection, input: &dyn crate::PublicationSource) -> Result<(), IndexError> {
+pub(crate) fn check_expected(
+    c: &Connection,
+    input: &dyn crate::PublicationSource,
+) -> Result<(), IndexError> {
     if let Some(expected) = input.expected_instance() {
         let (key, revision): (String, u64) = c.query_row(
             "SELECT workspace_key,reference_revision FROM workspace WHERE id=1",

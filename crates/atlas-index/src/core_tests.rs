@@ -540,8 +540,6 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
             .is_empty()
     );
     assert!(after.remove("encounter_turn_receipts").unwrap().is_empty());
-    assert!(after.remove("native_update_targets").unwrap().is_empty());
-    assert!(after.remove("native_target_inputs").unwrap().is_empty());
     assert!(
         after
             .remove("reference_component_digests")
@@ -551,12 +549,14 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
     );
     assert!(
         after == before,
-        "unexpected changed logical tables: {:?}",
+        "unexpected changed logical tables: {:?}; sqlite_sequence before: {:?}; after: {:?}",
         before
             .keys()
             .chain(after.keys())
             .filter(|key| before.get(*key) != after.get(*key))
-            .collect::<std::collections::BTreeSet<_>>()
+            .collect::<std::collections::BTreeSet<_>>(),
+        before.get("sqlite_sequence"),
+        after.get("sqlite_sequence")
     );
     let context_after = read_stored_reference_context(read.connection())
         .unwrap()
@@ -816,6 +816,33 @@ fn lexical_backfill_refreshes_current_core_atomically_without_rewriting_other_da
     let (_directory, path) = crate::foundation_tests::build(&input);
     let workspace = atlas_storage::Workspace::at(&path).unwrap();
     let schema = crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
+    // A metadata-only activation must retain unpublished inference even when
+    // it differs from the still-published value for the same exact input.
+    {
+        let owner = workspace.update_owner().unwrap();
+        let scratch = BuildScratch::new(&owner).unwrap();
+        let read = workspace.read(schema).unwrap();
+        let expected = ArtifactInstance::new(
+            read.workspace_key().unwrap(),
+            read.reference_revision().unwrap(),
+        );
+        drop(read);
+        let metadata =
+            crate::test_support::publication_spool_in(scratch.path(), &input, expected).unwrap();
+        let mut publication =
+            PreparedPublication::new_in(&owner, schema, scratch.path(), metadata).unwrap();
+        let unit = &input.semantic_units[0];
+        let descriptor = atlas_embedding::NativeInputDescriptor {
+            input_sha256: unit.input_hash.clone(),
+            token_count: unit.input_token_count,
+        };
+        let mut forced = vec![0.; input.context.search_profiles[0].dimensions];
+        forced[17] = 1.;
+        assert_ne!(forced, unit.vector);
+        publication
+            .stage_inferred(&input.context.search_profiles[0], &[(&descriptor, &forced)])
+            .unwrap();
+    }
     let write = workspace.write(schema).unwrap();
     let revision = write.reference_revision().unwrap();
     let mut context = input.context.clone();
@@ -836,6 +863,7 @@ fn lexical_backfill_refreshes_current_core_atomically_without_rewriting_other_da
         [input.records[0].record.key().to_string()],
     ).unwrap();
     let before = table_values(write.connection()).unwrap();
+    assert_eq!(before["pending_embedding_values"].len(), 1);
     let prior_digests = write
         .connection()
         .prepare(

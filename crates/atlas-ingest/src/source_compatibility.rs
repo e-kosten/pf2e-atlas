@@ -19,16 +19,42 @@ pub fn validate_source_compatibility(
 pub(crate) fn validate_manifest(path: &Path, bytes: &[u8]) -> Result<(), IngestError> {
     let value: serde_json::Value = serde_json::from_slice(bytes)
         .map_err(|e| IngestError::ManifestParseFailed(e.to_string()))?;
-    let system_manifest = value.get("id").and_then(|v| v.as_str()) == Some("pf2e")
+    validate_identity(
+        path,
+        value.get("id").and_then(|v| v.as_str()),
+        value.get("version").and_then(|v| v.as_str()),
+    )
+}
+
+pub(crate) fn validate_parsed_manifest(
+    path: &Path,
+    manifest: &crate::source::model::Manifest,
+) -> Result<(), IngestError> {
+    validate_identity(
+        path,
+        manifest
+            .metadata
+            .get("id")
+            .and_then(serde_json::Value::as_str),
+        manifest
+            .metadata
+            .get("version")
+            .and_then(serde_json::Value::as_str),
+    )
+}
+
+fn validate_identity(
+    path: &Path,
+    id: Option<&str>,
+    version: Option<&str>,
+) -> Result<(), IngestError> {
+    let system_manifest = id == Some("pf2e")
         || matches!(
             path.file_name().and_then(|v| v.to_str()),
             Some("system.json" | "system.pf2e.json")
         );
     if system_manifest {
-        let version = value
-            .get("version")
-            .and_then(|v| v.as_str())
-            .unwrap_or("unknown");
+        let version = version.unwrap_or("unknown");
         if version != REFERENCE_SOURCE_VERSION {
             return Err(IngestError::SourceIncompatible(format!(
                 "PF2e source version mismatch: expected {REFERENCE_SOURCE_VERSION} (reference commit {REFERENCE_SOURCE_COMMIT}), detected {version} in {}; use the pinned default cache or supply compatible source with --source; the supplied directory was not changed",
@@ -73,5 +99,28 @@ mod tests {
         assert!(error.contains(REFERENCE_SOURCE_VERSION));
         assert!(error.contains("7.9.1"));
         assert!(validate_source_compatibility(temp.path(), Some(&manifest)).is_ok());
+    }
+}
+
+#[cfg(test)]
+mod owned_manifest_tests {
+    #[test]
+    fn owned_manifest_compatibility_preserves_untyped_identity_semantics() {
+        let path = std::path::Path::new("module.json");
+        for bytes in [
+            br#"{"id":42,"version":null,"packs":[]}"#.as_slice(),
+            br#"{"id":"pf2e","id":"custom","version":"local","packs":[]}"#,
+            br#"{"id":"custom","id":"pf2e","version":"incompatible","packs":[]}"#,
+        ] {
+            let parsed = crate::source::discovery::parse_manifest_bytes(bytes).unwrap();
+            assert_eq!(
+                super::validate_manifest(path, bytes).is_ok(),
+                super::validate_parsed_manifest(path, &parsed.manifest).is_ok()
+            );
+        }
+        // Known manifest shape validation still rejects ambiguous declarations.
+        assert!(
+            crate::source::discovery::parse_manifest_bytes(br#"{"packs":[],"packs":[]}"#).is_err()
+        );
     }
 }

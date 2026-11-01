@@ -9,26 +9,6 @@ use rusqlite::{Connection, params};
 fn envelope(value: serde_json::Value) -> String {
     serde_json::json!({"version":1,"payload":value}).to_string()
 }
-type VectorRows = Vec<(i64, Vec<u8>)>;
-fn vector_bits(c: &Connection) -> Vec<(String, VectorRows)> {
-    let tables = c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND sql LIKE '%USING vec0%' ORDER BY name").unwrap().query_map([],|r|r.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
-    assert_eq!(tables.len(), 2);
-    tables
-        .into_iter()
-        .map(|table| {
-            let values = c
-                .prepare(&format!(
-                    "SELECT unit_id,embedding FROM {table} ORDER BY unit_id"
-                ))
-                .unwrap()
-                .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
-                .unwrap()
-                .collect::<Result<Vec<_>, _>>()
-                .unwrap();
-            (table, values)
-        })
-        .collect()
-}
 fn ledger(c: &Connection) -> Vec<(u32, String, String)> {
     c.prepare(
         "SELECT version,name,checksum FROM schema_migrations WHERE version<=24 ORDER BY version",
@@ -113,7 +93,7 @@ fn populated_main24_upgrade_preserves_clock_trackers_baseline_receipts_and_both_
         latest_json = envelope(serde_json::json!(outgoing));
         write.connection().execute("INSERT INTO encounter_outgoing_turns(id,encounter_id,boundary_key,request_id,intent_json,payload_json,requires_review) VALUES(?1,41,?2,?3,?4,?5,1)",params![id,outgoing.boundary_key,request,serde_json::json!({"advance":request}).to_string(),latest_json]).unwrap();
     }
-    let before_vectors = vector_bits(write.connection());
+    let before_vectors = crate::test_support::occurrence_vector_bits(write.connection());
     let before_ledger = ledger(write.connection());
     write.commit().unwrap();
     let upgraded = initialize_workspace(&path).unwrap();
@@ -138,7 +118,10 @@ fn populated_main24_upgrade_preserves_clock_trackers_baseline_receipts_and_both_
             .unwrap(),
         baseline
     );
-    assert_eq!(vector_bits(read.connection()), before_vectors);
+    assert_eq!(
+        crate::test_support::occurrence_vector_bits(read.connection()),
+        before_vectors
+    );
     assert_eq!(ledger(read.connection()), before_ledger);
     assert_eq!(read.connection().query_row("SELECT payload_json FROM encounter_participant_baselines WHERE participant_key='actor'",[],|r|r.get::<_,String>(0)).unwrap(),baseline_json);
     assert_eq!(

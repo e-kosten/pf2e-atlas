@@ -178,6 +178,16 @@ const MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 27,
+        name: "input-owned-native-storage",
+        sql: atlas_index::INPUT_OWNED_STORAGE_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
+            id: "input-owned-native-storage/v1",
+            apply: atlas_index::backfill_input_owned_storage,
+        }),
+    },
+    Migration {
+        version: 28,
         name: "canonical-selected-sections",
         sql: atlas_index::SELECTED_SECTIONS_SCHEMA_SQL,
         backfill: Some(atlas_storage::DataBackfill {
@@ -187,15 +197,9 @@ const MIGRATIONS: &[Migration] = &[
         }),
     },
     Migration {
-        version: 28,
+        version: 29,
         name: "reference-component-reconciliation",
         sql: atlas_index::COMPONENT_DIGEST_SCHEMA_SQL,
-        backfill: None,
-    },
-    Migration {
-        version: 29,
-        name: "native-update-targets",
-        sql: atlas_index::NATIVE_TARGETS_SCHEMA_SQL,
         backfill: None,
     },
 ];
@@ -250,8 +254,8 @@ mod turn_receipts_tests;
 mod saved_state_integrity_tests;
 
 #[cfg(test)]
-#[path = "native_targets_tests.rs"]
-mod native_targets_tests;
+#[path = "native_storage_tests.rs"]
+mod native_storage_tests;
 
 #[cfg(test)]
 mod tests {
@@ -703,34 +707,7 @@ mod tests {
                 ],
             )
             .unwrap();
-        let tables = write
-            .connection()
-            .prepare("SELECT name FROM sqlite_master WHERE type='table' AND sql LIKE '%USING vec0%' ORDER BY name")
-            .unwrap()
-            .query_map([], |row| row.get::<_, String>(0))
-            .unwrap()
-            .collect::<Result<Vec<_>, _>>()
-            .unwrap();
-        assert_eq!(tables.len(), 2);
-        let vectors = |connection: &rusqlite::Connection| {
-            tables
-                .iter()
-                .map(|table| {
-                    let values = connection
-                        .prepare(&format!(
-                            "SELECT unit_id,embedding FROM {table} ORDER BY unit_id"
-                        ))
-                        .unwrap()
-                        .query_map([], |row| {
-                            Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
-                        })
-                        .unwrap()
-                        .collect::<Result<Vec<_>, _>>()
-                        .unwrap();
-                    (table.clone(), values)
-                })
-                .collect::<Vec<_>>()
-        };
+        let vectors = crate::test_support::occurrence_vector_bits;
         let before = vectors(write.connection());
         let revision = write
             .connection()
@@ -843,8 +820,6 @@ mod tests {
                 "encounter_recovery_receipts",
                 "encounter_turn_receipts",
                 "reference_component_digests",
-                "native_update_targets",
-                "native_target_inputs",
             ] {
                 if let Some(rows) = values.remove(table) {
                     assert!(rows.is_empty(), "unexpected rows in {table}");
@@ -914,8 +889,6 @@ mod tests {
             "encounter_recovery_receipts",
             "encounter_turn_receipts",
             "reference_component_digests",
-            "native_update_targets",
-            "native_target_inputs",
         ] {
             assert_eq!(
                 reader

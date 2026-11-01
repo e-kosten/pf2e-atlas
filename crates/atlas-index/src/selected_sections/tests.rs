@@ -58,23 +58,50 @@ fn saved(c: &Connection) -> String {
     let tables=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND (name LIKE 'saved_%' OR name LIKE 'encounter%' OR name LIKE 'party%' OR name='parties') ORDER BY name").unwrap().query_map([],|r|r.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
     digest(c, &tables.iter().map(String::as_str).collect::<Vec<_>>())
 }
-fn numerical(c: &Connection, input: &IndexBuildInput) -> String {
-    let mut tables = vec![
-        "semantic_units".into(),
-        "embedding_models".into(),
-        "embedding_inputs".into(),
-        "pending_embedding_values".into(),
-        "trait_native_values".into(),
-    ];
-    tables.extend(
-        input
-            .context
-            .search_profiles
-            .iter()
-            .map(|model| crate::schema::vector_table(model).unwrap()),
-    );
-    digest(c, &tables.iter().map(String::as_str).collect::<Vec<_>>())
+fn numerical(c: &Connection, _: &IndexBuildInput) -> String {
+    let mut output = Vec::new();
+    for (name, sql) in [
+        (
+            "semantic_units",
+            "SELECT * FROM semantic_units ORDER BY unit_id",
+        ),
+        (
+            "embedding_models",
+            "SELECT * FROM embedding_models ORDER BY model_id",
+        ),
+        (
+            "embedding_inputs",
+            "SELECT * FROM embedding_inputs ORDER BY input_id",
+        ),
+        (
+            "pending_embedding_values",
+            "SELECT input_id,vector,vector_hash FROM pending_embedding_values ORDER BY input_id",
+        ),
+        (
+            "trait_vectors",
+            "SELECT * FROM trait_vectors ORDER BY trait_key,profile_id",
+        ),
+        (
+            "trait_seed_chunks",
+            "SELECT * FROM trait_seed_chunks ORDER BY trait_key,profile_id,ordinal",
+        ),
+    ] {
+        output.extend_from_slice(name.as_bytes());
+        let mut statement = c.prepare(sql).unwrap();
+        let count = statement.column_count();
+        let mut rows = statement.query([]).unwrap();
+        while let Some(row) = rows.next().unwrap() {
+            for column in 0..count {
+                let value = format!("{:?}", row.get_ref(column).unwrap());
+                output.extend_from_slice(&value.len().to_le_bytes());
+                output.extend_from_slice(value.as_bytes());
+            }
+        }
+    }
+    output.extend_from_slice(format!("{:?}", native_preservation_rows(c).unwrap()).as_bytes());
+    crate::codec::sha256(&output)
 }
+
 fn sample() -> IndexBuildInput {
     crate::core_tests::fixture(
         vec![
@@ -382,8 +409,14 @@ fn retired_preparation_and_predecessor_never_decode_snapshots_or_alter_pending_v
         };
         let mut forced = vec![0.; model.dimensions];
         forced[31] = 1.;
-        let job = start_reference_job(&write, "forced target").unwrap();
-        stage_pending_native_fixture(&write, &job, model, &prepared.descriptor(), &forced).unwrap();
+        stage_historical_pending_native_fixture(
+            &write,
+            "historical-forced-retry",
+            model,
+            &prepared.descriptor(),
+            &forced,
+        )
+        .unwrap();
         let before = numerical(c, &input);
         let saved_before = saved(c);
         let revision = write.reference_revision().unwrap();

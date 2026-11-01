@@ -30,12 +30,14 @@ pub fn compute_source_fingerprint(
     Ok(SourceCapture::capture(source_root, manifest_path)?.fingerprint)
 }
 
-/// Exact inventory for one preparation pass. Only hashes and path bindings are retained.
-/// Discovery uses this inventory and every consumed byte is checked before parsing;
-/// a final inventory comparison alone cannot detect transient (ABA) source edits.
+/// Captured inventory and owned manifest for one preparation pass. Documents stay
+/// hash-only until consumed; parsed records then belong to the attempt streams.
 pub(crate) struct SourceCapture {
     pub(crate) fingerprint: SourceFingerprint,
     pub(crate) manifest_path: PathBuf,
+    manifest: crate::source::ParsedManifest,
+    manifest_bytes: Vec<u8>,
+    english_catalog_paths: Vec<PathBuf>,
     files: BTreeMap<PathBuf, Vec<u8>>,
     packs: BTreeMap<String, (PathBuf, bool)>,
     // The ordinary loader quarantines unreadable files. Capture failures instead
@@ -75,12 +77,19 @@ impl SourceCapture {
                 collect_files(&path, &mut files)?;
             }
         }
+        let mut english_catalog_paths = Vec::new();
         for language in &parsed.manifest.languages {
             let path =
                 crate::source::localization::resolve_catalog_path(source_root, &language.path)?;
+            if language.lang == "en" {
+                english_catalog_paths.push(path.clone());
+            }
             if path.is_file() {
                 files.insert(path);
             }
+        }
+        if english_catalog_paths.is_empty() {
+            english_catalog_paths.push(source_root.join("static/lang/en.json"));
         }
         let mut hasher = Sha256::new();
         frame(&mut hasher, SOURCE_FINGERPRINT_VERSION.as_bytes());
@@ -124,10 +133,19 @@ impl SourceCapture {
         Ok(Self {
             fingerprint,
             manifest_path,
+            manifest: parsed,
+            manifest_bytes,
+            english_catalog_paths,
             files: hashes,
             packs,
             failed: false.into(),
         })
+    }
+    pub(crate) fn manifest(&self) -> &crate::source::ParsedManifest {
+        &self.manifest
+    }
+    pub(crate) fn english_catalog_paths(&self) -> &[PathBuf] {
+        &self.english_catalog_paths
     }
     pub(crate) fn require_complete_packs(&self) -> Result<(), IngestError> {
         for (declared, (path, present)) in &self.packs {
@@ -141,6 +159,9 @@ impl SourceCapture {
         Ok(())
     }
     pub(crate) fn read(&self, path: &Path) -> Result<Vec<u8>, IngestError> {
+        if path == self.manifest_path {
+            return Ok(self.manifest_bytes.clone());
+        }
         let result = fs::read(path)
             .map_err(|e| IngestError::SourceUnavailable(format!("{}: {e}", path.display())))
             .and_then(|bytes| {

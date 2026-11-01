@@ -84,7 +84,7 @@ fn mutate(path: &std::path::Path, sql: &str) {
         .connection()
         .execute_batch("PRAGMA ignore_check_constraints=ON; PRAGMA defer_foreign_keys=ON;")
         .unwrap();
-    write.connection().execute_batch(sql).unwrap();
+    assert!(write.connection().execute(sql, []).unwrap() > 0);
     write.commit().unwrap();
 }
 
@@ -324,7 +324,7 @@ fn original_prepare_error_wins_before_malformed_selected_metadata_and_cached_reu
             .to_string(),
         reader.similarity_candidates(r).unwrap_err().to_string()
     );
-    let table = crate::schema::vector_table(&input.context.search_profiles[0]).unwrap();
+    let table = crate::schema::native_vector_table(&input.context.search_profiles[0]).unwrap();
     reader
         .native()
         .unwrap()
@@ -689,7 +689,7 @@ fn native_execution_and_malformed_eligibility_failures_keep_the_original_error_o
     let input = crate::core_tests::nested_fixture(true);
     let (_dir, path) = crate::foundation_tests::build(&input);
     let model = &input.context.search_profiles[0];
-    let table = crate::schema::vector_table(model).unwrap();
+    let table = crate::schema::native_vector_table(model).unwrap();
     mutate(
         &path,
         &format!("UPDATE {table}_vector_chunks00 SET vectors=x'00'"),

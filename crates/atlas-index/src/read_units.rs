@@ -346,7 +346,7 @@ impl SqliteIndexReader {
             ));
         }
         let model = self.context().search_profile(profile)?;
-        let table = crate::schema::vector_table(model)?;
+        let table = crate::schema::native_vector_table(model)?;
         crate::validation::check_vector(vector, model.dimensions)?;
         self.require_vectors()?;
         let (mut eligible, mut params) = eligible_sql(query, keys)?;
@@ -362,8 +362,12 @@ impl SqliteIndexReader {
         let limit_param = all.len() + 1;
         all.push(Value::Integer(limit as i64));
         let content_sql = semantic_content_sql(content_scope);
+        let units = format!(
+            "SELECT su.unit_id FROM semantic_units su WHERE su.profile_id=?{profile_param} AND su.record_id IN (SELECT record_id FROM eligible){content_sql}"
+        );
         let sql = format!(
-            "WITH eligible AS ({eligible}) SELECT {SEMANTIC_LOCATION_COLUMNS},knn.distance FROM (SELECT unit_id,distance FROM {table} WHERE embedding MATCH ?{vector_param} AND k=?{limit_param} AND unit_id IN (SELECT su.unit_id FROM semantic_units su WHERE su.profile_id=?{profile_param} AND su.record_id IN (SELECT record_id FROM eligible){content_sql})) knn JOIN semantic_units su ON su.unit_id=knn.unit_id JOIN semantic_locations sl USING(location_id) JOIN records r ON r.record_id=su.record_id LEFT JOIN selected_sections ss ON ss.section_id=sl.section_id AND ss.record_id=su.record_id ORDER BY knn.distance,su.unit_id"
+            "WITH eligible AS ({eligible}) {}",
+            crate::similarity_candidates::selection_sql(&table, &units, vector_param, limit_param)
         );
         self.count_knn();
         let c = self.native()?;
@@ -384,11 +388,11 @@ impl SqliteIndexReader {
         key: &RecordKey,
     ) -> Result<Option<SourceIdentityVector>, IndexError> {
         let model = self.context().search_profile(profile)?;
-        let table = crate::schema::vector_table(model)?;
+        let table = crate::schema::native_vector_table(model)?;
         self.require_vectors()?;
         let c = self.native()?;
         self.count_statement();
-        let bytes:Option<Vec<u8>>=c.query_row(&format!("SELECT sv.embedding FROM {table} sv JOIN semantic_units su ON su.unit_id=sv.unit_id JOIN records r ON r.record_id=su.record_id WHERE r.key=? AND su.profile_id=? AND r.document_kind<>'Macro' AND su.unit_kind='identity'"),rusqlite::params![key.to_string(),profile.as_str()],|r|r.get(0)).optional()?;
+        let bytes:Option<Vec<u8>>=c.query_row(&format!("SELECT sv.embedding FROM {table} sv JOIN semantic_units su ON su.input_id=sv.input_id JOIN records r ON r.record_id=su.record_id WHERE r.key=? AND su.profile_id=? AND r.document_kind<>'Macro' AND su.unit_kind='identity'"),rusqlite::params![key.to_string(),profile.as_str()],|r|r.get(0)).optional()?;
         bytes
             .map(|b| {
                 let vector = decode_vector(&b)?;

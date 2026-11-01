@@ -95,6 +95,8 @@ pub(crate) fn write(
     input: &dyn PublicationSource,
     identities: &[crate::writer::CheckedRootIdentity],
     values: &dyn NativeValueSource,
+    reusable_context: bool,
+    scratch: &std::path::Path,
 ) -> Result<(), IndexError> {
     let started = std::time::Instant::now();
     let affected_before = c.total_changes();
@@ -103,10 +105,6 @@ pub(crate) fn write(
     let mut content_root_replacements = 0u64;
     let mut relationship_root_replacements = 0u64;
     let old_context = crate::read_stored_reference_context(c)?;
-    let reusable_context = !matches!(
-        crate::classify_reference_upgrade(c)?,
-        crate::ReferenceUpgrade::SourcePreparation | crate::ReferenceUpgrade::SourceReplacement
-    );
     let mut prior = BTreeMap::new();
     for identity in identities {
         let key = &identity.key;
@@ -152,7 +150,7 @@ pub(crate) fn write(
             products.insert(identity.key.clone(), id);
         }
     }
-    let mut next_digests = crate::BuildFrameStream::<(i64, ComponentDigests)>::new()?;
+    let mut next_digests = crate::BuildFrameStream::<(i64, ComponentDigests)>::new_in(scratch)?;
     let mut sections = BTreeSet::new();
     input.records(&mut |frame|{
         let source=frame.source;let id=ids[source.record.key()];

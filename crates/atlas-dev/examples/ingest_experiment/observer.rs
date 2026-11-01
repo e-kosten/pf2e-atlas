@@ -144,9 +144,10 @@ impl tracing::Subscriber for Observer {
         if mutation_boundary(event.metadata().target(), &fields)
             && let Some((path, marker)) = &self.interruption
         {
-            // The index writer emits this event after UpdateOwner::maintenance
-            // durably marks and owns exclusive admission, before validate_input
-            // or the publication transaction can mutate reference projections.
+            // PreparedPublication emits this event after UpdateOwner::maintenance
+            // durably marks and owns exclusive admission, before the publication
+            // transaction can mutate reference projections. Metadata admission
+            // may already have completed before this observation boundary.
             if !boundary_matches(marker, &fields) {
                 eprintln!(
                     "ingest-experiment: publication changed before maintenance; no bound marker written"

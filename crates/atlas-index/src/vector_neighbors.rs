@@ -51,7 +51,7 @@ impl SqliteIndexReader {
             ));
         }
         let model = self.context().search_profile(request.profile)?;
-        crate::schema::vector_table(model)?;
+        crate::schema::native_vector_table(model)?;
         crate::validation::check_vector(request.vector, model.dimensions)?;
         self.require_vectors()?;
         // Compile even an empty successful window, preserving request failures.

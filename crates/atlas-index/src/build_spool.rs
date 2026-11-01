@@ -74,9 +74,19 @@ pub struct BuildFrameStream<T> {
     kind: PhantomData<T>,
 }
 impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
+    #[cfg(any(test, feature = "test-support"))]
     pub fn new() -> Result<Self, IndexError> {
         Ok(Self {
             file: tempfile::NamedTempFile::new().map_err(io)?,
+            count: 0,
+            max_encoded: 0,
+            max_decoded: 0,
+            kind: PhantomData,
+        })
+    }
+    pub fn new_in(path: &std::path::Path) -> Result<Self, IndexError> {
+        Ok(Self {
+            file: tempfile::NamedTempFile::new_in(path).map_err(io)?,
             count: 0,
             max_encoded: 0,
             max_decoded: 0,
@@ -143,7 +153,7 @@ impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
         }
         Ok(())
     }
-    fn cursor(&self) -> Result<BuildFrameCursor<T>, IndexError> {
+    pub fn cursor(&self) -> Result<BuildFrameCursor<T>, IndexError> {
         let file = File::open(self.file.path()).map_err(io)?;
         let length = file.metadata().map_err(io)?.len();
         Ok(BuildFrameCursor {
@@ -156,28 +166,9 @@ impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
             kind: PhantomData,
         })
     }
-    pub fn digest(&self) -> Result<String, IndexError> {
-        let mut file = File::open(self.file.path()).map_err(io)?;
-        let mut hash = Sha256::new();
-        let mut buffer = [0; 65536];
-        loop {
-            let n = file.read(&mut buffer).map_err(io)?;
-            if n == 0 {
-                break;
-            }
-            hash.update(&buffer[..n]);
-        }
-        Ok(format!(
-            "{}:{}:{}:{:x}",
-            self.count,
-            self.max_encoded,
-            self.max_decoded,
-            hash.finalize()
-        ))
-    }
 }
 
-/// Independent forward reader for a sealed, bounded frame stream.
+/// Independent forward reader for an owned, bounded frame stream.
 /// Each call owns at most one decoded frame; repeatable readers have independent offsets.
 pub struct BuildFrameCursor<T> {
     file: File,
@@ -257,58 +248,6 @@ impl<T: DeserializeOwned> BuildFrameCursor<T> {
     }
 }
 
-/// Immutable, context-bound metadata used across inference phases. The seal is
-/// held outside the file, so truncated/replaced bytes cannot supply authority.
-pub struct SealedBuildFrameStream<T> {
-    stream: BuildFrameStream<T>,
-    binding: String,
-    digest: String,
-}
-impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
-    pub fn seal(self, binding: &impl Serialize) -> Result<SealedBuildFrameStream<T>, IndexError> {
-        let digest = self.digest()?;
-        Ok(SealedBuildFrameStream {
-            stream: self,
-            binding: crate::codec::sha256(&serde_json::to_vec(binding)?),
-            digest,
-        })
-    }
-}
-impl<T: Serialize + DeserializeOwned> SealedBuildFrameStream<T> {
-    pub fn len(&self) -> usize {
-        self.stream.len()
-    }
-    pub fn file_usage(&self) -> Result<BuildFileUsage, IndexError> {
-        self.stream.file_usage()
-    }
-    pub fn is_empty(&self) -> bool {
-        self.stream.is_empty()
-    }
-    pub fn check_binding(&self, binding: &impl Serialize) -> Result<(), IndexError> {
-        if self.binding != crate::codec::sha256(&serde_json::to_vec(binding)?)
-            || self.digest != self.stream.digest()?
-        {
-            return Err(io("sealed stream binding or bytes differ"));
-        }
-        Ok(())
-    }
-    pub fn cursor(&self) -> Result<BuildFrameCursor<T>, IndexError> {
-        if self.digest != self.stream.digest()? {
-            return Err(io("sealed stream bytes differ"));
-        }
-        self.stream.cursor()
-    }
-    pub fn visit(
-        &self,
-        visitor: &mut dyn FnMut(T) -> Result<(), IndexError>,
-    ) -> Result<(), IndexError> {
-        if self.digest != self.stream.digest()? {
-            return Err(io("sealed stream bytes differ"));
-        }
-        self.stream.visit(visitor)
-    }
-}
-
 #[derive(Serialize, Deserialize)]
 pub struct PreparedRecordFrame {
     pub pack: String,
@@ -359,19 +298,6 @@ impl PreparedRecordFrame {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-struct SpoolSeal {
-    version: u32,
-    workspace: String,
-    revision: u64,
-    context: String,
-    source: String,
-    records: usize,
-    semantic: usize,
-    streams: Vec<String>,
-    packs: Vec<IndexBuildPack>,
-}
-
 pub struct PublicationSpool {
     pub context: SourceArtifactBuildContext,
     pub packs: Vec<IndexBuildPack>,
@@ -386,6 +312,28 @@ pub struct PublicationSpool {
     pub trait_seeds: BuildFrameStream<TraitSeedOccurrence>,
 }
 impl PublicationSpool {
+    pub fn new_in(
+        scratch: &std::path::Path,
+        context: SourceArtifactBuildContext,
+        packs: Vec<IndexBuildPack>,
+        inventory: CompleteSourceInventory,
+        expected: ArtifactInstance,
+    ) -> Result<Self, IndexError> {
+        Ok(Self {
+            context,
+            packs,
+            inventory,
+            expected,
+            records: BuildFrameStream::new_in(scratch)?,
+            lexical: BuildFrameStream::new_in(scratch)?,
+            semantic: BuildFrameStream::new_in(scratch)?,
+            aliases: BuildFrameStream::new_in(scratch)?,
+            remaster_pairs: BuildFrameStream::new_in(scratch)?,
+            traits: BuildFrameStream::new_in(scratch)?,
+            trait_seeds: BuildFrameStream::new_in(scratch)?,
+        })
+    }
+    #[cfg(any(test, feature = "test-support"))]
     pub fn new(
         context: SourceArtifactBuildContext,
         packs: Vec<IndexBuildPack>,
@@ -420,72 +368,31 @@ impl PublicationSpool {
         }
         Ok(usage)
     }
-    fn seal_data(&self) -> Result<SpoolSeal, IndexError> {
-        Ok(SpoolSeal {
-            version: 1,
-            workspace: self.expected.workspace_key().into(),
-            revision: self.expected.reference_revision(),
-            context: self.context.sha256()?,
-            source: self.context.source_fingerprint.clone(),
-            records: self.records.len(),
-            semantic: self.semantic.len(),
-            packs: self.packs.clone(),
-            streams: vec![
-                self.records.digest()?,
-                self.lexical.digest()?,
-                self.semantic.digest()?,
-                self.aliases.digest()?,
-                self.remaster_pairs.digest()?,
-                self.traits.digest()?,
-                self.trait_seeds.digest()?,
-            ],
-        })
-    }
-    pub fn seal(self) -> Result<SealedPublicationSpool, IndexError> {
-        let seal = serde_json::to_vec(&self.seal_data()?)?;
-        Ok(SealedPublicationSpool { spool: self, seal })
-    }
 }
-
-pub struct SealedPublicationSpool {
-    spool: PublicationSpool,
-    seal: Vec<u8>,
-}
-impl SealedPublicationSpool {
-    pub fn file_usage(&self) -> Result<BuildFileUsage, IndexError> {
-        self.spool.file_usage()
-    }
-}
-impl PublicationSource for SealedPublicationSpool {
+impl PublicationSource for PublicationSpool {
     fn context(&self) -> &SourceArtifactBuildContext {
-        &self.spool.context
+        &self.context
     }
     fn packs(&self) -> &[IndexBuildPack] {
-        &self.spool.packs
+        &self.packs
     }
     fn inventory(&self) -> &CompleteSourceInventory {
-        &self.spool.inventory
+        &self.inventory
     }
     fn record_count(&self) -> usize {
-        self.spool.records.len()
+        self.records.len()
     }
     fn semantic_count(&self) -> usize {
-        self.spool.semantic.len()
+        self.semantic.len()
     }
     fn expected_instance(&self) -> Option<&ArtifactInstance> {
-        Some(&self.spool.expected)
-    }
-    fn check_seal(&self) -> Result<(), IndexError> {
-        if serde_json::to_vec(&self.spool.seal_data()?)? != self.seal {
-            return Err(io("sealed stream or context changed"));
-        }
-        Ok(())
+        Some(&self.expected)
     }
     fn records(
         &self,
         visitor: &mut dyn FnMut(PreparedRecordRef<'_>) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
-        self.spool.records.visit(&mut |frame| {
+        self.records.visit(&mut |frame| {
             let (source, snapshot, selection, lexical) = frame.decode()?;
             visitor(PreparedRecordRef {
                 source: &source,
@@ -499,37 +406,37 @@ impl PublicationSource for SealedPublicationSpool {
         &self,
         v: &mut dyn FnMut(&SourceLexicalUnitInput) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
-        self.spool.lexical.visit(&mut |row| v(&row))
+        self.lexical.visit(&mut |row| v(&row))
     }
     fn semantic(
         &self,
         v: &mut dyn FnMut(&SemanticOccurrence) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
-        self.spool.semantic.visit(&mut |row| v(&row))
+        self.semantic.visit(&mut |row| v(&row))
     }
     fn aliases(
         &self,
         v: &mut dyn FnMut(&SourceAliasInput) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
-        self.spool.aliases.visit(&mut |row| v(&row))
+        self.aliases.visit(&mut |row| v(&row))
     }
     fn remaster_pairs(
         &self,
         v: &mut dyn FnMut(&SourceRemasterPairInput) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
-        self.spool.remaster_pairs.visit(&mut |row| v(&row))
+        self.remaster_pairs.visit(&mut |row| v(&row))
     }
     fn traits(
         &self,
         v: &mut dyn FnMut(&TraitDefinition) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
-        self.spool.traits.visit(&mut |row| v(&row))
+        self.traits.visit(&mut |row| v(&row))
     }
     fn trait_seeds(
         &self,
         v: &mut dyn FnMut(&TraitSeedOccurrence) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
-        self.spool.trait_seeds.visit(&mut |row| v(&row))
+        self.trait_seeds.visit(&mut |row| v(&row))
     }
 }
 
@@ -537,12 +444,12 @@ impl PublicationSource for SealedPublicationSpool {
 mod tests {
     use super::*;
     #[test]
-    fn sealed_forward_cursors_are_independent_and_reject_changed_frames() {
+    fn forward_cursors_are_independent_and_reject_changed_frames_on_consumption() {
         let mut stream = BuildFrameStream::<usize>::new().unwrap();
         for value in 0..513 {
             stream.push(&value).unwrap();
         }
-        let mut sealed = stream.seal(&"binding").unwrap();
+        let mut sealed = stream;
         let mut left = sealed.cursor().unwrap();
         let mut right = sealed.cursor().unwrap();
         for value in 0..513 {
@@ -552,15 +459,10 @@ mod tests {
         assert_eq!(left.next_frame().unwrap(), None);
         assert_eq!(left.next_frame().unwrap(), None);
         let mut cursor = sealed.cursor().unwrap();
-        sealed
-            .stream
-            .file
-            .as_file_mut()
-            .seek(SeekFrom::Start(48))
-            .unwrap();
-        sealed.stream.file.as_file_mut().write_all(&[0]).unwrap();
+        sealed.file.as_file_mut().seek(SeekFrom::Start(48)).unwrap();
+        sealed.file.as_file_mut().write_all(&[0]).unwrap();
         assert!(cursor.next_frame().is_err());
-        assert!(sealed.cursor().is_err());
+        assert!(sealed.cursor().unwrap().next_frame().is_err());
     }
     #[test]
     fn framed_stream_is_repeatable_and_rejects_truncated_or_changed_payloads() {
@@ -589,38 +491,6 @@ mod tests {
             .unwrap();
         changed.file.as_file_mut().write_all(&[0]).unwrap();
         assert!(changed.visit(&mut |_| Ok(())).is_err());
-    }
-    #[test]
-    fn publication_seal_binds_context_revision_inventory_and_every_stream() {
-        let input = crate::foundation_tests::fixture(false);
-        let expected = ArtifactInstance::new("workspace".into(), 7);
-        let builder = PublicationSpool::new(
-            input.context.clone(),
-            input.packs,
-            input.inventory,
-            expected,
-        )
-        .unwrap();
-        let mut sealed = builder.seal().unwrap();
-        sealed.check_seal().unwrap();
-        sealed.spool.context.indexing_locale = "fr".into();
-        assert!(sealed.check_seal().is_err());
-        sealed.spool.context.indexing_locale = "en".into();
-        sealed.check_seal().unwrap();
-        sealed.spool.expected = ArtifactInstance::new("workspace".into(), 8);
-        assert!(sealed.check_seal().is_err());
-        sealed.spool.expected = ArtifactInstance::new("workspace".into(), 7);
-        sealed.check_seal().unwrap();
-        sealed
-            .spool
-            .aliases
-            .push(&SourceAliasInput {
-                record: input.records[0].record.key().clone(),
-                alias: "changed".into(),
-                evidence: "changed".into(),
-            })
-            .unwrap();
-        assert!(sealed.check_seal().is_err());
     }
 }
 
@@ -657,7 +527,7 @@ mod bound_tests {
 mod file_usage_tests {
     use super::*;
     #[test]
-    fn file_usage_tracks_complete_stream_files_and_survives_sealing() {
+    fn file_usage_tracks_complete_stream_files() {
         let mut stream = BuildFrameStream::<String>::new().unwrap();
         assert_eq!(stream.file_usage().unwrap().file_bytes, 0);
         stream.push(&"first frame".into()).unwrap();
@@ -665,8 +535,7 @@ mod file_usage_tests {
         stream.push(&"second frame".into()).unwrap();
         let next = stream.file_usage().unwrap();
         assert!(next.file_bytes > first.file_bytes);
-        let sealed = stream.seal(&"binding").unwrap();
-        assert_eq!(sealed.file_usage().unwrap(), next);
+        assert_eq!(stream.file_usage().unwrap(), next);
         assert_eq!(
             first.combine(next).unwrap().file_bytes,
             first.file_bytes + next.file_bytes

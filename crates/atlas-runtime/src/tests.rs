@@ -194,41 +194,42 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
         reuse_key: "backfill-preservation".into(),
         token_count: unit.input_token_count,
     };
-    let job = atlas_index::start_reference_job(&write, "next-preparation").unwrap();
+    let job = "next-preparation";
     if initial_schema == 2 {
+        write.connection().execute(
+            "INSERT INTO reference_update_jobs(job_key,expected_revision,target_hash,state) VALUES(?,?,'fixture-target','preparing')",
+            (job,write.reference_revision().unwrap()),
+        ).unwrap();
         atlas_index::test_support::stage_historical_embedding_fixture(
             &write,
-            &job,
+            job,
             model,
             &checkpoint,
             &unit.vector,
         )
         .unwrap();
     } else {
-        atlas_index::test_support::stage_pending_native_fixture(
-            &write,
-            &job,
-            model,
-            &checkpoint.descriptor(),
-            &unit.vector,
-        )
-        .unwrap();
+        let id: i64 = write.connection().query_row(
+            "SELECT input_id FROM embedding_inputs i JOIN embedding_models m USING(model_id) WHERE m.identity_json=? AND lower(hex(i.input_hash))=?",
+            (serde_json::to_string(model).unwrap(),&unit.input_hash), |row| row.get(0),
+        ).unwrap();
+        let bytes = unit
+            .vector
+            .iter()
+            .flat_map(|value| value.to_le_bytes())
+            .collect::<Vec<_>>();
+        let hash = atlas_search::test_support::hash(&bytes);
+        let hash = (0..hash.len())
+            .step_by(2)
+            .map(|offset| u8::from_str_radix(&hash[offset..offset + 2], 16).unwrap())
+            .collect::<Vec<_>>();
+        write.connection().execute(
+            "INSERT INTO pending_embedding_values(input_id,vector,vector_hash,cached_at) VALUES(?,?,?,0)",
+            rusqlite::params![id,bytes,hash],
+        ).unwrap();
     }
-    // Inspect stored vector bytes, not a retrieval score that could hide replacement.
-    let vector_table: String = write.connection().query_row(
-        "SELECT name FROM sqlite_schema WHERE type='table' AND sql LIKE 'CREATE VIRTUAL TABLE%USING vec0%'", [], |r| r.get(0),
-    ).unwrap();
-    let stored_vectors = |connection: &rusqlite::Connection| {
-        connection
-            .prepare(&format!(
-                "SELECT unit_id,embedding FROM {vector_table} ORDER BY unit_id"
-            ))
-            .unwrap()
-            .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Vec<u8>>(1)?)))
-            .unwrap()
-            .collect::<Result<Vec<_>, _>>()
-            .unwrap()
-    };
+    // Inspect each retained occurrence's bytes across the actual old/new layouts.
+    let stored_vectors = crate::test_support::occurrence_vector_bits;
     let vectors_before = stored_vectors(write.connection());
     assert!(!vectors_before.is_empty());
     let before = write.reference_revision().unwrap();
@@ -409,11 +410,17 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
                 assert_eq!(aliases, 1);
             }
         }
-        let checkpoint =
-            atlas_index::test_support::native_fixture_value(&read, model, &checkpoint.descriptor())
-                .unwrap()
-                .unwrap();
-        assert_eq!(checkpoint, unit.vector);
+        let cached: Vec<u8> = read.connection().query_row(
+            "SELECT p.vector FROM pending_embedding_values p JOIN embedding_inputs i USING(input_id) JOIN embedding_models m USING(model_id) WHERE m.identity_json=? AND lower(hex(i.input_hash))=?",
+            (serde_json::to_string(model).unwrap(),&checkpoint.input_sha256),|row|row.get(0),
+        ).unwrap();
+        assert_eq!(
+            cached,
+            unit.vector
+                .iter()
+                .flat_map(|value| value.to_le_bytes())
+                .collect::<Vec<_>>()
+        );
     }
     assert!(!paths.source_root.exists());
     {

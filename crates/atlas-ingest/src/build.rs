@@ -1,16 +1,10 @@
 //! Build orchestration: source admission, preparation, inference, atomic publication.
 use crate::source::localization::LocalizationCatalog;
-use crate::{
-    BuildArtifactOptions, BuildArtifactReport, IngestError, compute_source_fingerprint,
-    source_git_commit_if_clean,
-};
-#[cfg(test)]
-use atlas_index::PublicationSource;
+use crate::{BuildArtifactOptions, BuildArtifactReport, IngestError, source_git_commit_if_clean};
 use atlas_index::{
     ARTIFACT_FORMAT_VERSION, ASSET_POLICY_VERSION, LEXICAL_SELECTION_VERSION,
     LOCALIZATION_POLICY_VERSION, RELATIONSHIP_POLICY_VERSION, SOURCE_LOOKUP_VERSION,
     SOURCE_PROJECTION_VERSION, SourceArtifactBuildContext, SourceSearchProfileIdentity,
-    SqliteIndexWriter,
 };
 use atlas_record::{
     source_content::{CONTENT_INTERPRETATION_VERSION, ContentAudience, ContentVisibilityRule},
@@ -91,6 +85,7 @@ pub(crate) fn build_artifact(
         ));
     }
     let update_owner = workspace.update_owner()?;
+    let scratch = atlas_index::BuildScratch::new(&update_owner).map_err(index_error)?;
     atlas_index::recover_reference_publication(&update_owner, schema)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let requested = atlas_index::RequestedReferenceConfig {
@@ -117,13 +112,11 @@ pub(crate) fn build_artifact(
     write.commit()?;
     let reuse = atlas_index::ReferenceReuseReader::new(workspace, schema).map_err(index_error)?;
     let phase_started = Instant::now();
-    let mut prepared = crate::product_preparation::prepare(&options, &reuse)?;
+    let mut prepared = crate::product_preparation::prepare(&options, &reuse, scratch.path())?;
     tracing::info!(target:"atlas_build_diagnostic",stage="source_preparation",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,"Completed ingest phase");
     tracing::info!(target:"atlas_build_diagnostic",reused_sections=prepared.reused_sections,selection_calls=prepared.work.selection_calls,"Prepared shared passage layouts");
-    prepared.check_execution_streams()?;
-    let target_hash = prepared.spool.context.sha256().map_err(index_error)?;
     let phase_started = Instant::now();
-    let plans = crate::native_execution::prepare_profiles(&mut prepared, &options)?;
+    let plans = crate::native_execution::prepare_profiles(&mut prepared, &options, scratch.path())?;
     tracing::info!(target:"atlas_build_diagnostic",stage="all_profile_prevalidation",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,"Completed ingest phase");
     let record_count = prepared.spool.records.len();
     let pack_count = prepared.spool.packs.len();
@@ -148,19 +141,18 @@ pub(crate) fn build_artifact(
     let admission = prepared.spool.context.admission.clone().ok_or_else(|| {
         IngestError::ArtifactWriteFailed("publication admission summary is absent".into())
     })?;
-    let sealed = prepared.spool.seal().map_err(index_error)?;
-    let phase_started = Instant::now();
-    let job = atlas_index::register_native_target(&update_owner, workspace, schema, &sealed)
-        .map_err(index_error)?;
-    tracing::info!(target:"atlas_build_diagnostic",stage="native_target_registration_and_pruning",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,"Completed ingest phase");
+    let mut publication = atlas_index::PreparedPublication::new_in(
+        &update_owner,
+        schema,
+        scratch.path(),
+        prepared.spool,
+    )
+    .map_err(index_error)?;
     let mut profiles = Vec::new();
     for (plan, config) in plans.iter().zip(&options.search_profiles) {
         profiles.push(
             crate::native_execution::NativeExecution {
-                workspace,
-                schema,
-                job: &job,
-                source: &sealed,
+                publication: &mut publication,
                 raw_inputs: &prepared.native_inputs,
                 options: &options,
                 semantic_units: prepared.document_units,
@@ -170,57 +162,28 @@ pub(crate) fn build_artifact(
     }
     let inferred_inputs = profiles.iter().map(|p| p.inferred_inputs).sum();
     let reused_inputs = profiles.iter().map(|p| p.reused_inputs).sum();
-    let phase_started = Instant::now();
-    let values = atlas_index::freeze_native_values(&update_owner, workspace, schema, &job, &sealed)
-        .map_err(index_error)?;
-    tracing::info!(target:"atlas_build_diagnostic",stage="native_value_freeze",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,"Completed ingest phase");
-    let mut usage = sealed
+    let mut usage = publication
         .file_usage()
         .map_err(index_error)?
         .combine(prepared.native_inputs.file_usage().map_err(index_error)?)
         .map_err(index_error)?
         .combine(prepared.occurrences.file_usage().map_err(index_error)?)
-        .map_err(index_error)?
-        .combine(values.temporary_file_usage().map_err(index_error)?)
         .map_err(index_error)?;
     for plan in &plans {
         usage = usage
             .combine(plan.file_usage().map_err(index_error)?)
             .map_err(index_error)?;
     }
-    tracing::info!(target:"atlas_build_diagnostic",stage="sealed_metadata_and_frozen_values",file_bytes=usage.file_bytes,allocated_bytes=usage.allocated_bytes.unwrap_or(0),allocated_bytes_known=usage.allocated_bytes.is_some(),"Observed live metadata and numerical spool files");
-    tracing::info!(target:"atlas_build_diagnostic",logical_native_bytes=values.logical_bytes(),
-        temporary_native_bytes=values.temporary_file_bytes().map_err(index_error)?,"Froze selected native values");
+    tracing::info!(target:"atlas_build_diagnostic",stage="owned_metadata_and_staged_values",file_bytes=usage.file_bytes,allocated_bytes=usage.allocated_bytes.unwrap_or(0),allocated_bytes_known=usage.allocated_bytes.is_some(),"Observed live metadata and numerical spool files");
+    tracing::info!(target:"atlas_build_diagnostic",logical_native_bytes=publication.logical_native_bytes().map_err(index_error)?,
+        temporary_native_bytes=publication.temporary_native_bytes().map_err(index_error)?,"Observed staged native values");
     drop(prepared.native_inputs);
     drop(prepared.occurrences);
-    let phase_started = Instant::now();
-    progress("recheck_source", "Checking source for changes");
-    let final_fingerprint =
-        compute_source_fingerprint(&options.source_root, options.manifest_path.as_deref())?;
-    let final_catalog = LocalizationCatalog::load(
-        &options.source_root,
-        &options.locale,
-        options.manifest_path.as_deref(),
-    )?;
-    if prepared.fingerprint != final_fingerprint
-        || prepared.catalog.locale_sha256 != final_catalog.locale_sha256
-        || prepared.catalog.english_sha256 != final_catalog.english_sha256
-    {
-        return Err(IngestError::SourceUnavailable(
-            "source changed during artifact preparation; retry build".into(),
-        ));
-    }
-    tracing::info!(target:"atlas_build_diagnostic",stage="final_source_freshness",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,"Completed ingest phase");
+    drop(plans);
     let phase_started = Instant::now();
     progress("write_artifact", "Saving and checking search index");
-    let maintenance = update_owner.maintenance(schema, "publishing reference update")?;
-    SqliteIndexWriter::new(&maintenance)
-        .write_job(&sealed, &values, &job, &target_hash)
-        .map_err(index_error)?;
-    drop(maintenance);
+    publication.publish().map_err(index_error)?;
     tracing::info!(target:"atlas_build_diagnostic",stage="exclusive_publication",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,"Completed ingest phase");
-    drop(values);
-    drop(sealed);
     let phase_started = Instant::now();
     let reclaimed = update_owner
         .reclaim_space(schema)
@@ -258,41 +221,17 @@ pub(crate) fn publish_fixture_without_inference(
     let schema = atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
     let owner = workspace.update_owner()?;
     let reuse = atlas_index::ReferenceReuseReader::new(&workspace, schema).map_err(index_error)?;
-    let mut prepared = crate::product_preparation::prepare(options, &reuse)?;
-    let _plans = crate::native_execution::prepare_profiles(&mut prepared, options)?;
-    let target = prepared.spool.context.sha256().map_err(index_error)?;
-    let sealed = prepared.spool.seal().map_err(index_error)?;
-    let job = atlas_index::register_native_target(&owner, &workspace, schema, &sealed)
-        .map_err(index_error)?;
-    struct FixtureValues(atlas_index::SourceArtifactBuildContext);
-    impl atlas_index::NativeValueSource for FixtureValues {
-        fn value<'a>(
-            &'a self,
-            model: &SourceSearchProfileIdentity,
-            _: &atlas_embedding::NativeInputDescriptor,
-        ) -> Result<std::borrow::Cow<'a, [f32]>, atlas_index::IndexError> {
-            if self.0.search_profile(&model.profile_id)? != model {
-                return Err(atlas_index::IndexError::Invalid(
-                    "fixture model differs".into(),
-                ));
-            }
-            let mut vector = vec![0.; model.dimensions];
-            vector[0] = 1.;
-            Ok(std::borrow::Cow::Owned(vector))
-        }
-    }
-    let values = atlas_index::freeze_fixture_native_values(
-        &sealed,
-        &FixtureValues(sealed.context().clone()),
-        Some(&job),
-        sealed
-            .expected_instance()
-            .ok_or_else(|| IngestError::ArtifactWriteFailed("fixture origin absent".into()))?,
-    )
-    .map_err(index_error)?;
-    let maintenance = owner.maintenance(schema, "publishing tokenizer-only fixture")?;
-    SqliteIndexWriter::new(&maintenance)
-        .write_job(&sealed, &values, &job, &target)
-        .map_err(index_error)?;
+    let scratch = atlas_index::BuildScratch::new(&owner).map_err(index_error)?;
+    let mut prepared = crate::product_preparation::prepare(options, &reuse, scratch.path())?;
+    let plans = crate::native_execution::prepare_profiles(&mut prepared, options, scratch.path())?;
+    let mut publication =
+        atlas_index::PreparedPublication::new_in(&owner, schema, scratch.path(), prepared.spool)
+            .map_err(index_error)?;
+    crate::native_execution::stage_fixture_values(
+        &mut publication,
+        &plans,
+        options.reuse_embeddings,
+    )?;
+    publication.publish().map_err(index_error)?;
     Ok(())
 }

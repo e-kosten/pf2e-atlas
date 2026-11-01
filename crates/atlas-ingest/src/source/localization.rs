@@ -38,29 +38,34 @@ impl LocalizationCatalog {
                 "locale must be an explicit catalog identifier".into(),
             ));
         }
-        let manifest_path = capture
-            .map(|capture| capture.manifest_path.clone())
-            .or_else(|| manifest.map(Path::to_owned))
-            .unwrap_or_else(|| super::discovery::default_manifest_path(source_root));
-        let manifest_bytes = match capture {
-            Some(capture) => capture.read(&manifest_path)?,
-            None => fs::read(&manifest_path)
-                .map_err(|e| IngestError::LocalizationFailed(e.to_string()))?,
+        let english_paths = if let Some(capture) = capture {
+            capture.english_catalog_paths().to_vec()
+        } else {
+            let manifest_path = manifest
+                .map(Path::to_owned)
+                .unwrap_or_else(|| super::discovery::default_manifest_path(source_root));
+            let manifest_bytes = fs::read(&manifest_path)
+                .map_err(|e| IngestError::LocalizationFailed(e.to_string()))?;
+            let parsed = super::discovery::parse_manifest_bytes(&manifest_bytes)?;
+            let mut paths = parsed
+                .manifest
+                .languages
+                .iter()
+                .filter(|language| language.lang == "en")
+                .map(|language| resolve_catalog_path(source_root, &language.path))
+                .collect::<Result<Vec<_>, _>>()?;
+            if paths.is_empty() {
+                paths.push(source_root.join("static/lang/en.json"));
+            }
+            paths
         };
-        let parsed = super::discovery::parse_manifest_bytes(&manifest_bytes)?;
-        let mut english_paths = parsed
-            .manifest
-            .languages
-            .iter()
-            .filter(|language| language.lang == "en")
-            .map(|language| resolve_catalog_path(source_root, &language.path))
-            .collect::<Result<Vec<_>, _>>()?;
-        // Minimal source exports without language declarations retain their
-        // explicit static/lang/en.json catalog convention.
-        if english_paths.is_empty() {
-            english_paths.push(source_root.join("static/lang/en.json"));
-        }
-        let (mut entries, english_sha256) = load_catalogs(source_root, &english_paths, capture)?;
+        let mut owned_catalog_bytes = BTreeMap::new();
+        let (mut entries, english_sha256) = load_catalogs(
+            source_root,
+            &english_paths,
+            capture,
+            &mut owned_catalog_bytes,
+        )?;
         let locale_sha256 = if locale == "en" {
             english_sha256.clone()
         } else {
@@ -68,6 +73,7 @@ impl LocalizationCatalog {
                 source_root,
                 &[source_root.join(format!("static/lang/{locale}.json"))],
                 capture,
+                &mut owned_catalog_bytes,
             )?;
             entries.extend(selected);
             hash
@@ -111,16 +117,24 @@ fn load_catalogs(
     source_root: &Path,
     paths: &[PathBuf],
     capture: Option<&crate::source_fingerprint::SourceCapture>,
+    owned: &mut BTreeMap<PathBuf, Vec<u8>>,
 ) -> Result<(BTreeMap<String, String>, String), IngestError> {
     let mut hasher = Sha256::new();
     let mut entries = BTreeMap::new();
     for path in paths {
-        let bytes = match capture {
-            Some(c) => c.read(path)?,
-            None => fs::read(path)
-                .map_err(|e| IngestError::LocalizationFailed(format!("{}: {e}", path.display())))?,
-        };
-        let value: Value = serde_json::from_slice(&bytes)
+        if !owned.contains_key(path) {
+            let bytes = match capture {
+                Some(c) => c.read(path)?,
+                None => fs::read(path).map_err(|e| {
+                    IngestError::LocalizationFailed(format!("{}: {e}", path.display()))
+                })?,
+            };
+            owned.insert(path.clone(), bytes);
+        }
+        let bytes = owned.get(path).ok_or_else(|| {
+            IngestError::LocalizationFailed("owned catalog bytes are absent".into())
+        })?;
+        let value: Value = serde_json::from_slice(bytes)
             .map_err(|e| IngestError::LocalizationFailed(format!("{}: {e}", path.display())))?;
         if !value.is_object() {
             return Err(IngestError::LocalizationFailed(format!(

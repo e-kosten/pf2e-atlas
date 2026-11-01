@@ -16,8 +16,8 @@ pub struct ConfiguredSimilarityCandidates<'a> {
 
 struct CandidatePlan {
     table: String,
-    eligibility_prefix: usize,
-    eligibility_units: std::ops::Range<usize>,
+    prefix: String,
+    units: String,
     native_sql: String,
     values: Vec<Value>,
     setup_parameters: usize,
@@ -72,7 +72,7 @@ impl SqliteIndexReader {
         let model = self.context().search_profile(profile)?;
         crate::validation::check_vector(vector, model.dimensions)?;
         self.require_vectors()?;
-        let table = crate::schema::vector_table(model)?;
+        let table = crate::schema::native_vector_table(model)?;
         let (mut eligible, mut values) = crate::read_units::eligible_sql(query, keys)?;
         if let Some(exclude) = exclude {
             eligible.push_str(&format!(" AND r.key<>?{}", values.len() + 1));
@@ -120,15 +120,11 @@ impl SqliteIndexReader {
         let v = values.len();
         values.push(Value::Integer(limit as i64));
         let k = values.len();
-        let (head, tail) = selection_parts(&table, v, k);
-        let eligibility_prefix = prefix.len();
-        let start = prefix.len() + head.len();
-        let eligibility_units = start..start + units.len();
-        let native_sql = format!("{prefix}{head}{units}{tail}");
+        let native_sql = format!("{prefix}{}", selection_sql(&table, &units, v, k));
         Ok(Some(CandidatePlan {
             table,
-            eligibility_prefix,
-            eligibility_units,
+            prefix,
+            units,
             native_sql,
             values,
             setup_parameters,
@@ -138,24 +134,20 @@ impl SqliteIndexReader {
 
 // Keep the exact native traversal, outer joins, location decoding and ordering in
 // one place. Reuse changes only the source of the IN-set, never k or traversal.
-fn selection_parts(table: &str, vector: usize, k: usize) -> (String, &'static str) {
-    (
-        format!(
-            "SELECT {},knn.distance FROM (SELECT unit_id,distance FROM {table} WHERE embedding MATCH ?{vector} AND k=?{k} AND unit_id IN (",
-            crate::read_units::SEMANTIC_LOCATION_COLUMNS
-        ),
-        ")) knn JOIN semantic_units su USING(unit_id) JOIN semantic_locations sl USING(location_id) JOIN records r ON r.record_id=su.record_id LEFT JOIN selected_sections ss ON ss.section_id=sl.section_id AND ss.record_id=su.record_id ORDER BY knn.distance,su.unit_id",
+pub(crate) fn selection_sql(table: &str, units: &str, vector: usize, k: usize) -> String {
+    // PK membership selects only inputs with eligible document occurrences.
+    // Keep native KNN first, expand by the input adjacency index, then truth-filter
+    // occurrences before the accepted occurrence cap. Trait-only inputs never enter.
+    format!(
+        "SELECT {},knn.distance FROM (SELECT input_id,distance FROM {table} WHERE embedding MATCH ?{vector} AND k=?{k} AND input_id IN (SELECT eu.input_id FROM semantic_units eu WHERE eu.unit_id IN ({units}))) knn CROSS JOIN semantic_units su ON su.input_id=knn.input_id JOIN semantic_locations sl USING(location_id) JOIN records r ON r.record_id=su.record_id LEFT JOIN selected_sections ss ON ss.section_id=sl.section_id AND ss.record_id=su.record_id WHERE (su.unit_id IN ({units})) IS TRUE ORDER BY knn.distance,su.unit_id LIMIT ?{k}",
+        crate::read_units::SEMANTIC_LOCATION_COLUMNS
     )
-}
-fn selection_sql(table: &str, units: &str, vector: usize, k: usize) -> String {
-    let (head, tail) = selection_parts(table, vector, k);
-    format!("{head}{units}{tail}")
 }
 impl CandidatePlan {
     fn key(&self) -> EligibilityKey<'_> {
         EligibilityKey {
-            prefix: &self.native_sql[..self.eligibility_prefix],
-            units: &self.native_sql[self.eligibility_units.clone()],
+            prefix: &self.prefix,
+            units: &self.units,
             values: SqlValues(&self.values[..self.setup_parameters]),
         }
     }

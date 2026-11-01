@@ -1,11 +1,8 @@
-//! Exact native input identity and values. Published passage vectors live only in
-//! vec0; trait-only native values and unfinished computations have bounded stores.
+//! Exact registry identity and the immutable historical publication checksum helper.
 use crate::{
-    IndexError, SourceSearchProfileIdentity,
-    read_units::{decode_vector, vector_bytes},
-    validation::check_vector,
+    IndexError, SourceSearchProfileIdentity, read_units::vector_bytes, validation::check_vector,
 };
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, params};
 
 pub(crate) fn digest(value: &str) -> Result<Vec<u8>, IndexError> {
     if !crate::codec::checked_hash(value) {
@@ -72,41 +69,4 @@ pub(crate) fn publish_input(
     let checksum = hash_bytes(&vector_bytes(vector));
     c.prepare_cached("UPDATE embedding_inputs SET published_hash=?1 WHERE input_id=?2 AND published_hash IS NOT ?1")?.execute(params![checksum,id])?;
     Ok(id)
-}
-/// Final activation releases pending values and unreferenced published metadata.
-/// Complete-target replacement owns bounded preparation cleanup separately.
-/// Retain native values needed by traits whose last document disappeared.
-pub(crate) fn prune(c: &Connection) -> Result<(), IndexError> {
-    c.execute_batch("DELETE FROM trait_native_values WHERE EXISTS(SELECT 1 FROM semantic_units u WHERE u.input_id=trait_native_values.input_id) OR NOT EXISTS(SELECT 1 FROM trait_seed_chunks t WHERE t.input_id=trait_native_values.input_id);
-DELETE FROM pending_embedding_values;
-DELETE FROM embedding_inputs WHERE NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.input_id=embedding_inputs.input_id) AND NOT EXISTS(SELECT 1 FROM trait_seed_chunks t WHERE t.input_id=embedding_inputs.input_id) AND NOT EXISTS(SELECT 1 FROM native_target_inputs n WHERE n.input_id=embedding_inputs.input_id);
-DELETE FROM embedding_models WHERE NOT EXISTS(SELECT 1 FROM embedding_inputs i WHERE i.model_id=embedding_models.model_id);
-DELETE FROM semantic_locations WHERE NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.location_id=semantic_locations.location_id);")?;
-    Ok(())
-}
-pub(crate) fn native_value(
-    c: &Connection,
-    input: i64,
-    model: &SourceSearchProfileIdentity,
-) -> Result<Vec<f32>, IndexError> {
-    let table = crate::schema::vector_table(model)?;
-    let expected = model
-        .dimensions
-        .checked_mul(std::mem::size_of::<f32>())
-        .ok_or_else(|| IndexError::Invalid("native vector length overflow".into()))?;
-    let shape:Option<(usize,usize)>=c.prepare_cached(&format!("SELECT length(v.embedding),length(i.published_hash) FROM embedding_inputs i JOIN {table} v ON v.unit_id=(SELECT min(unit_id) FROM semantic_units u WHERE u.input_id=i.input_id) WHERE i.input_id=? UNION ALL SELECT length(t.vector),length(i.published_hash) FROM trait_native_values t JOIN embedding_inputs i USING(input_id) WHERE input_id=?1 LIMIT 1"))?.query_row([input],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
-    if shape != Some((expected, 32)) {
-        return Err(IndexError::Invalid(
-            "published native embedding missing or length mismatch".into(),
-        ));
-    }
-    let (bytes,hash):(Vec<u8>,Vec<u8>)=c.prepare_cached(&format!("SELECT v.embedding,i.published_hash FROM embedding_inputs i JOIN {table} v ON v.unit_id=(SELECT min(unit_id) FROM semantic_units u WHERE u.input_id=i.input_id) WHERE i.input_id=?1 AND length(v.embedding)=?2 AND length(i.published_hash)=32 UNION ALL SELECT t.vector,i.published_hash FROM trait_native_values t JOIN embedding_inputs i USING(input_id) WHERE input_id=?1 AND length(t.vector)=?2 AND length(i.published_hash)=32 LIMIT 1"))?.query_row(params![input,expected],|r|Ok((r.get(0)?,r.get(1)?)))?;
-    if hash_bytes(&bytes) != hash {
-        return Err(IndexError::Invalid(
-            "native embedding checksum mismatch".into(),
-        ));
-    }
-    let vector = decode_vector(&bytes)?;
-    check_vector(&vector, model.dimensions)?;
-    Ok(vector)
 }

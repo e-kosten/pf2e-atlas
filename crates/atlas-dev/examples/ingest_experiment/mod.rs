@@ -1,4 +1,5 @@
 //! Controlled observations through existing owners, with no lifecycle SQL.
+//! Input-owned native storage: reused values retain handles; staged bytes are unpublished payload only.
 mod args;
 mod observer;
 use args::{Args, Stage};
@@ -297,7 +298,7 @@ pub(super) fn run() -> Result<(), String> {
     std::fs::create_dir(&args.output).map_err(|e| e.to_string())?;
     write_json(
         &args.output.join("input.json"),
-        &json!({"database":args.database,"source":args.source,"models":args.models,"stage":format!("{:?}",args.stage),"profiles":args.profiles,"declared_candidate":args.candidate,"actual_executable":executable,"executable_sha256":executable_sha256,"before":before,"schema_target":WORKSPACE_SCHEMA_VERSION,"instrumentation":"developer-only scoped workspace SQL trace events; other threads/independent temporary SQLite connections excluded; instrumented wall time is not shipping CLI timing"}),
+        &json!({"database":args.database,"source":args.source,"models":args.models,"stage":format!("{:?}",args.stage),"profiles":args.profiles,"declared_candidate":args.candidate,"actual_executable":executable,"executable_sha256":executable_sha256,"before":before,"schema_target":WORKSPACE_SCHEMA_VERSION,"driver_contract":"input-owned-publication/v2","native_metric_scope":"logical_native_bytes is staged payload only; temporary_native_bytes is selection SQLite file length, including metadata; file lengths/stat blocks are not exclusive physical allocation or peak; no durable target/job history","instrumentation":"developer-only scoped workspace SQL trace events; other threads/independent temporary SQLite connections excluded; instrumented wall time is not shipping CLI timing"}),
     )?;
     let interruption = if args.stage == Stage::Interrupt {
         let publication = before
@@ -443,9 +444,10 @@ mod tests {
                 .collect::<Vec<_>>();
             for stage in [
                 "source_preparation",
-                "native_target_registration_and_pruning",
-                "native_value_freeze",
-                "final_source_freshness",
+                "all_profile_prevalidation",
+                "publication_input_validation",
+                "native_installation",
+                "publication_delta_and_prune",
                 "exclusive_publication",
                 "physical_reclamation",
                 "publication_exact_validation",
@@ -465,11 +467,30 @@ mod tests {
             assert_eq!(delta["content_root_replacements"], u64::from(changed));
             let files = &events
                 .iter()
-                .find(|event| event["fields"]["stage"] == "sealed_metadata_and_frozen_values")
+                .find(|event| event["fields"]["stage"] == "owned_metadata_and_staged_values")
                 .unwrap()["fields"];
             assert!(files["file_bytes"].as_u64().unwrap() > 0);
             #[cfg(unix)]
             assert_eq!(files["allocated_bytes_known"], true);
+            // This lexical fixture owns selection metadata but no numerical payload.
+            let native = &events
+                .iter()
+                .find(|event| event["fields"].get("logical_native_bytes").is_some())
+                .unwrap()["fields"];
+            assert_eq!(native["logical_native_bytes"], 0);
+            assert!(native["temporary_native_bytes"].as_u64().unwrap() > 0);
+            for retired in [
+                "native_target_registration_and_pruning",
+                "native_value_freeze",
+                "final_source_freshness",
+                "sealed_metadata_and_frozen_values",
+            ] {
+                assert!(
+                    events
+                        .iter()
+                        .all(|event| event["fields"]["stage"] != retired)
+                );
+            }
         }
     }
     #[test]

@@ -103,28 +103,26 @@ pub(crate) struct PreparationWork {
 }
 pub(crate) struct PreparedSourceBuild {
     pub spool: PublicationSpool,
-    pub native_inputs: atlas_index::SealedBuildFrameStream<PreparedNativeInput>,
-    pub occurrences: atlas_index::SealedBuildFrameStream<RawOccurrence>,
+    pub native_inputs: BuildFrameStream<PreparedNativeInput>,
+    pub occurrences: BuildFrameStream<RawOccurrence>,
     pub source_report: SourceEnrichmentReport,
     pub fingerprint: SourceFingerprint,
-    pub catalog: LocalizationCatalog,
     pub context_shortened: usize,
     pub reused_sections: usize,
     pub document_units: usize,
     pub work: PreparationWork,
+    // Field order closes every child stream before its fixture-owned directory.
+    #[cfg(test)]
+    _scratch: Option<tempfile::TempDir>,
 }
 
+#[cfg(test)]
 impl PreparedSourceBuild {
-    pub(crate) fn check_execution_streams(&self) -> Result<(), IngestError> {
-        let binding = (
-            &self.spool.context,
-            self.spool.expected.workspace_key(),
-            self.spool.expected.reference_revision(),
-            self.native_inputs.len(),
-            self.occurrences.len(),
-        );
-        self.native_inputs.check_binding(&binding).map_err(index)?;
-        self.occurrences.check_binding(&binding).map_err(index)
+    pub(crate) fn fixture_scratch_path(&self) -> &std::path::Path {
+        self._scratch
+            .as_ref()
+            .expect("fixture owns its scratch")
+            .path()
     }
 }
 
@@ -156,13 +154,14 @@ fn envelope(raw: &SourceValue) -> (Vec<String>, Vec<String>) {
 pub(crate) fn prepare(
     options: &BuildArtifactOptions,
     reuse: &ReferenceReuseReader,
+    scratch: &std::path::Path,
 ) -> Result<PreparedSourceBuild, IngestError> {
-    crate::validate_source_compatibility(&options.source_root, options.manifest_path.as_deref())?;
     let capture = SourceCapture::capture(&options.source_root, options.manifest_path.as_deref())?;
+    tracing::debug!(target:"atlas_build_diagnostic",stage="source_capture",captured_files=capture.fingerprint.file_count,"Captured source inventory and manifest");
     capture.require_complete_packs()?;
-    crate::source_compatibility::validate_manifest(
+    crate::source_compatibility::validate_parsed_manifest(
         &capture.manifest_path,
-        &capture.read(&capture.manifest_path)?,
+        &capture.manifest().manifest,
     )?;
     let catalog = LocalizationCatalog::load_captured(
         &options.source_root,
@@ -173,8 +172,7 @@ pub(crate) fn prepare(
     let fingerprint = capture.fingerprint.clone();
     let mut context = crate::build::build_context(options, &catalog, &fingerprint)?;
     let preparation_hash = context.preparation_sha256().map_err(index)?;
-    let manifest =
-        crate::source::discovery::parse_manifest_bytes(&capture.read(&capture.manifest_path)?)?;
+    let manifest = capture.manifest();
     let packs = manifest
         .manifest
         .packs
@@ -187,39 +185,61 @@ pub(crate) fn prepare(
         })
         .collect::<Vec<_>>();
     let identities = reuse.identities().map_err(index)?;
-    let mut admitted = BuildFrameStream::<AdmittedFrame>::new().map_err(index)?;
-    let mut envelopes = Vec::new();
+    // Bind each captured physical path once, then admit that owned batch separately
+    // for every declaration. Per-pack streams retain manifest order even when two
+    // declarations share a directory and use different admission/reuse contexts.
+    let mut bindings = BTreeMap::<std::path::PathBuf, Vec<usize>>::new();
+    let mut admitted = Vec::with_capacity(packs.len());
+    let mut envelopes = (0..packs.len()).map(|_| Vec::new()).collect::<Vec<_>>();
+    for (position, pack) in packs.iter().enumerate() {
+        admitted.push(BuildFrameStream::<AdmittedFrame>::new_in(scratch).map_err(index)?);
+        for path in capture.paths(&capture.pack(&pack.declared_path).0) {
+            if path.extension().is_some_and(|s| s == "json")
+                && path.file_name().is_none_or(|s| s != "_folders.json")
+            {
+                bindings.entry(path).or_default().push(position);
+            }
+        }
+    }
+    let bindings = bindings.into_iter().collect::<Vec<_>>();
     let mut id_counts = BTreeMap::new();
     let mut excluded = Vec::new();
     let mut report = SourceEnrichmentReport::default();
     let mut work = PreparationWork::default();
-    for pack in &packs {
-        let directory = &capture.pack(&pack.declared_path).0;
-        let paths = capture
-            .paths(directory)
-            .into_iter()
-            .filter(|p| {
-                p.extension().is_some_and(|s| s == "json")
-                    && p.file_name().is_none_or(|s| s != "_folders.json")
-            })
-            .collect::<Vec<_>>();
-        for paths in paths.chunks(PREPARATION_REUSE_BATCH) {
-            let mut captured = Vec::with_capacity(paths.len());
-            for path in paths {
-                report.discovered_files += 1;
-                let path_relative =
-                    crate::source::discovery::relative_source_path(&options.source_root, path);
-                let bytes = capture.read(path)?;
-                work.largest_source_bytes = work.largest_source_bytes.max(bytes.len());
-                let hash = format!("{:x}", Sha256::digest(&bytes));
-                let previous_key = identities
-                    .get(&(pack.pack_id.clone(), path_relative.clone()))
-                    .filter(|old| {
-                        old.content_hash == hash && old.document_kind == pack.document_kind
-                    })
-                    .map(|old| old.key.clone());
-                captured.push((path_relative, bytes, hash, previous_key));
-            }
+    for bindings in bindings.chunks(PREPARATION_REUSE_BATCH) {
+        let mut owned = Vec::with_capacity(bindings.len());
+        for (path, positions) in bindings {
+            let path_relative =
+                crate::source::discovery::relative_source_path(&options.source_root, path);
+            let bytes = capture.read(path)?;
+            work.largest_source_bytes = work.largest_source_bytes.max(bytes.len());
+            let hash = format!("{:x}", Sha256::digest(&bytes));
+            owned.push((path_relative, bytes, hash, positions));
+        }
+        tracing::trace!(target:"atlas_build_diagnostic",stage="captured_document_batch",source_files=owned.len(),"Owned checked document batch");
+        work.largest_admission_batch_source_bytes = work
+            .largest_admission_batch_source_bytes
+            .max(owned.iter().map(|(_, bytes, _, _)| bytes.len()).sum());
+        let positions = owned
+            .iter()
+            .flat_map(|(_, _, _, positions)| positions.iter().copied())
+            .collect::<BTreeSet<_>>();
+        for position in positions {
+            let pack = &packs[position];
+            let captured = owned
+                .iter()
+                .filter(|(_, _, _, positions)| positions.contains(&position))
+                .map(|(path, bytes, hash, _)| {
+                    let previous = identities
+                        .get(&(pack.pack_id.clone(), path.clone()))
+                        .filter(|old| {
+                            old.content_hash == *hash && old.document_kind == pack.document_kind
+                        })
+                        .map(|old| old.key.clone());
+                    (path.clone(), bytes.as_slice(), hash.clone(), previous)
+                })
+                .collect::<Vec<_>>();
+            report.discovered_files += captured.len();
             let requests = captured
                 .iter()
                 .filter_map(|(_, _, _, key)| key.as_ref())
@@ -232,11 +252,8 @@ pub(crate) fn prepare(
             work.reusable_record_read_calls += requests.len();
             work.reusable_record_read_batches += usize::from(!requests.is_empty());
             let previous = reuse.read_batch(&requests).map_err(index)?;
-            work.largest_admission_batch_source_bytes = work
-                .largest_admission_batch_source_bytes
-                .max(captured.iter().map(|(_, bytes, _, _)| bytes.len()).sum());
             let overlap = PreparationBatchOverlap {
-                raw_sources: captured.len(),
+                raw_sources: owned.len(),
                 retained_records: previous.iter().filter(|p| p.record.is_some()).count(),
                 ..Default::default()
             };
@@ -267,7 +284,7 @@ pub(crate) fn prepare(
                         .iter()
                         .all(|d| d.source_diagnostic.is_some())
                 }) {
-                    let raw = atlas_foundry_model::parse_source_value(&bytes);
+                    let raw = atlas_foundry_model::parse_source_value(bytes);
                     match raw {
                         Ok(raw) => {
                             reused = true;
@@ -296,7 +313,7 @@ pub(crate) fn prepare(
                             &path_relative,
                             "$",
                         ),
-                        &bytes,
+                        bytes,
                     )
                     .map_err(|error| error.to_string())
                 };
@@ -351,7 +368,7 @@ pub(crate) fn prepare(
                                 .map_err(|e| IngestError::SourceSelectionFailed(e.to_string()))?;
                             let snapshot = String::from_utf8(snapshot)
                                 .map_err(|e| IngestError::SourceSelectionFailed(e.to_string()))?;
-                            admitted
+                            admitted[position]
                                 .push(&AdmittedFrame {
                                     key,
                                     pack: pack.pack_id.clone(),
@@ -370,7 +387,7 @@ pub(crate) fn prepare(
                     report.raw_only_documents += 1;
                     observation.reason = Some("UnsupportedRoot".into());
                 }
-                envelopes.push(observation);
+                envelopes[position].push(observation);
             }
         }
     }
@@ -378,7 +395,7 @@ pub(crate) fn prepare(
     let mut resolver = SourceReferenceIndex::default();
     let mut active = BTreeSet::new();
     let mut partial_records = 0usize;
-    for mut observation in envelopes {
+    for mut observation in envelopes.into_iter().flatten() {
         if let Some(key) = &observation.key
             && id_counts
                 .get(&(key.pack().as_str().to_owned(), key.id().as_str().to_owned()))
@@ -450,103 +467,111 @@ pub(crate) fn prepare(
         packs.iter().map(|p| p.pack_id.clone()),
     )
     .map_err(index)?;
-    let mut spool = PublicationSpool::new(context, packs, inventory, reuse.expected().clone())
-        .map_err(index)?;
-    let mut prepared = BuildFrameStream::<PreparedRecordFrame>::new().map_err(index)?;
+    let mut spool =
+        PublicationSpool::new_in(scratch, context, packs, inventory, reuse.expected().clone())
+            .map_err(index)?;
+    let mut prepared = BuildFrameStream::<PreparedRecordFrame>::new_in(scratch).map_err(index)?;
     let mut names = BTreeMap::new();
     let mut families = BTreeMap::new();
     let mut journal_ordinals = BTreeSet::new();
-    admitted
-        .visit(&mut |frame| {
-            if !active.contains(&frame.key) {
-                return Ok(());
-            }
-            let source = atlas_foundry_model::decode_snapshot(frame.snapshot.as_bytes())?;
-            let record = SourceBackedRecord::new(&frame.pack, source).map_err(|_| {
-                atlas_index::IndexError::Invalid("admitted identity differs".into())
-            })?;
-            let relationships = resolve_source_relationships(&record, Some(&resolver));
-            let content = match frame.previous {
-                Some(previous)
-                    if previous.hash == preparation_hash
-                        && previous.relationships == relationships
-                        && crate::source_enrichment::references_unchanged(
-                            &previous.content,
-                            &resolver,
-                        ) =>
-                {
-                    report.reused_preparations += 1;
-                    previous.content
+    for stream in &admitted {
+        stream
+            .visit(&mut |frame| {
+                if !active.contains(&frame.key) {
+                    return Ok(());
                 }
-                _ => prepare_record_content(
+                let source = atlas_foundry_model::decode_snapshot(frame.snapshot.as_bytes())?;
+                let record = SourceBackedRecord::new(&frame.pack, source).map_err(|_| {
+                    atlas_index::IndexError::Invalid("admitted identity differs".into())
+                })?;
+                let relationships = resolve_source_relationships(&record, Some(&resolver));
+                let content = match frame.previous {
+                    Some(previous)
+                        if previous.hash == preparation_hash
+                            && previous.relationships == relationships
+                            && crate::source_enrichment::references_unchanged(
+                                &previous.content,
+                                &resolver,
+                            ) =>
+                    {
+                        report.reused_preparations += 1;
+                        previous.content
+                    }
+                    _ => prepare_record_content(
+                        &record,
+                        default_audience(),
+                        Some(&catalog),
+                        Some(&resolver),
+                    ),
+                };
+                count_prepared(&mut report, &record, &content, relationships.len());
+                work.selection_calls += 1;
+                let selection = select_record_search(
                     &record,
+                    &content,
                     default_audience(),
-                    Some(&catalog),
-                    Some(&resolver),
-                ),
-            };
-            count_prepared(&mut report, &record, &content, relationships.len());
-            work.selection_calls += 1;
-            let selection = select_record_search(
-                &record,
-                &content,
-                default_audience(),
-                &frame.label,
-                &spool.context.used_trait_labels,
-            )
-            .map_err(|e| atlas_index::IndexError::Invalid(e.to_string()))?;
-            let node = SourceNodeView::from(record.source());
-            if node.document_kind() != "Macro"
-                && let Some(name) = node.name().value()
-            {
-                names.insert(frame.key.clone(), name.clone());
-            }
-            families.insert(
-                frame.key.clone(),
-                node.source_type().value().map(str::to_owned),
-            );
-            if node.document_kind() == "JournalEntry"
-                && node
-                    .name()
-                    .value()
-                    .is_some_and(|name| name == "Remaster Changes")
-            {
-                journal_ordinals.insert(prepared.len());
-            }
-            prepared.push(&PreparedRecordFrame {
-                pack: frame.pack,
-                snapshot: frame.snapshot,
-                source_path: frame.path,
-                content_hash: frame.hash,
-                preparation_context_hash: preparation_hash.clone(),
-                content,
-                relationships,
-                diagnostics: frame
-                    .diagnostics
-                    .into_iter()
-                    .map(|d| SourceArtifactDiagnostic {
-                        owners: None,
-                        field: Some(d.json_path.clone()),
-                        stage: "admission".into(),
-                        code: "unparseable_source_field".into(),
-                        message: d.to_string(),
-                        source_diagnostic: Some(d),
-                    })
-                    .collect(),
-                selection,
-                lexical: Vec::new(),
-            })?;
-            Ok(())
-        })
-        .map_err(index)?;
-    work.largest_admitted_frame_bytes = admitted.max_decoded_frame_bytes();
-    let usage = admitted
+                    &frame.label,
+                    &spool.context.used_trait_labels,
+                )
+                .map_err(|e| atlas_index::IndexError::Invalid(e.to_string()))?;
+                let node = SourceNodeView::from(record.source());
+                if node.document_kind() != "Macro"
+                    && let Some(name) = node.name().value()
+                {
+                    names.insert(frame.key.clone(), name.clone());
+                }
+                families.insert(
+                    frame.key.clone(),
+                    node.source_type().value().map(str::to_owned),
+                );
+                if node.document_kind() == "JournalEntry"
+                    && node
+                        .name()
+                        .value()
+                        .is_some_and(|name| name == "Remaster Changes")
+                {
+                    journal_ordinals.insert(prepared.len());
+                }
+                prepared.push(&PreparedRecordFrame {
+                    pack: frame.pack,
+                    snapshot: frame.snapshot,
+                    source_path: frame.path,
+                    content_hash: frame.hash,
+                    preparation_context_hash: preparation_hash.clone(),
+                    content,
+                    relationships,
+                    diagnostics: frame
+                        .diagnostics
+                        .into_iter()
+                        .map(|d| SourceArtifactDiagnostic {
+                            owners: None,
+                            field: Some(d.json_path.clone()),
+                            stage: "admission".into(),
+                            code: "unparseable_source_field".into(),
+                            message: d.to_string(),
+                            source_diagnostic: Some(d),
+                        })
+                        .collect(),
+                    selection,
+                    lexical: Vec::new(),
+                })?;
+                Ok(())
+            })
+            .map_err(index)?;
+        work.largest_admitted_frame_bytes = work
+            .largest_admitted_frame_bytes
+            .max(stream.max_decoded_frame_bytes());
+    }
+    let mut usage = prepared
         .file_usage()
-        .map_err(index)?
-        .combine(prepared.file_usage().map_err(index)?)
         .map_err(index)?
         .combine(spool.file_usage().map_err(index)?)
         .map_err(index)?;
+    for stream in &admitted {
+        usage = usage
+            .combine(stream.file_usage().map_err(index)?)
+            .map_err(index)?;
+    }
     tracing::info!(target:"atlas_build_diagnostic",stage="admitted_prepared_overlap",file_bytes=usage.file_bytes,allocated_bytes=usage.allocated_bytes.unwrap_or(0),allocated_bytes_known=usage.allocated_bytes.is_some(),"Observed live metadata spool files");
     drop(admitted);
     let (aliases, pairs) = crate::source_aliases::extract_prepared_aliases(
@@ -580,8 +605,8 @@ pub(crate) fn prepare(
         .map(|c| TextEmbeddingTokenizer::load_baseline(&c.cache_root))
         .transpose()
         .map_err(embedding)?;
-    let mut native_inputs = BuildFrameStream::new().map_err(index)?;
-    let mut occurrences = BuildFrameStream::new().map_err(index)?;
+    let mut native_inputs = BuildFrameStream::new_in(scratch).map_err(index)?;
+    let mut occurrences = BuildFrameStream::new_in(scratch).map_err(index)?;
     let mut context_shortened = 0usize;
     let mut reused_sections = 0usize;
     let mut document_units = 0usize;
@@ -715,26 +740,18 @@ pub(crate) fn prepare(
     work.largest_prepared_frame_bytes = spool.records.max_decoded_frame_bytes();
     work.largest_encoded_prepared_frame_bytes = spool.records.max_encoded_frame_bytes();
     tracing::info!(target:"atlas_build_diagnostic",phase="source_preparation",structural_reuse_record_batch=PREPARATION_REUSE_BATCH,reusable_record_read_batches=work.reusable_record_read_batches,reusable_layout_read_calls=work.reusable_layout_read_calls,reusable_layout_read_batches=work.reusable_layout_read_batches,largest_admission_batch_source_bytes=work.largest_admission_batch_source_bytes,admission_overlap_raw_sources=work.largest_admission_overlap.raw_sources,admission_overlap_retained_records=work.largest_admission_overlap.retained_records,semantic_overlap_prepared_records=work.largest_semantic_overlap.prepared_records,semantic_overlap_layout_roots=work.largest_semantic_overlap.layout_roots,selection_calls=work.selection_calls,reusable_record_read_calls=work.reusable_record_read_calls,largest_source_bytes=work.largest_source_bytes,largest_admitted_frame_bytes=work.largest_admitted_frame_bytes,largest_prepared_frame_bytes=work.largest_prepared_frame_bytes,largest_encoded_prepared_frame_bytes=work.largest_encoded_prepared_frame_bytes,record_frames=spool.records.len(),native_input_frames=native_inputs.len(),occurrence_frames=occurrences.len(),"Observed source preparation work and frame sizes");
-    let binding = (
-        &spool.context,
-        spool.expected.workspace_key(),
-        spool.expected.reference_revision(),
-        native_inputs.len(),
-        occurrences.len(),
-    );
-    let native_inputs = native_inputs.seal(&binding).map_err(index)?;
-    let occurrences = occurrences.seal(&binding).map_err(index)?;
     Ok(PreparedSourceBuild {
         spool,
         native_inputs,
         occurrences,
         source_report: report,
         fingerprint,
-        catalog,
         context_shortened,
         reused_sections,
         document_units,
         work,
+        #[cfg(test)]
+        _scratch: None,
     })
 }
 
@@ -779,7 +796,13 @@ pub(crate) fn prepare_fixture(
         atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
     )
     .map_err(index)?;
-    prepare(options, &reuse)
+    // Preparation-only fixtures can survive a later publication to the same
+    // workspace. Their directory is not an abandoned production attempt.
+    let scratch =
+        tempfile::tempdir().map_err(|e| IngestError::ArtifactWriteFailed(e.to_string()))?;
+    let mut prepared = prepare(options, &reuse, scratch.path())?;
+    prepared._scratch = Some(scratch);
+    Ok(prepared)
 }
 
 #[cfg(test)]

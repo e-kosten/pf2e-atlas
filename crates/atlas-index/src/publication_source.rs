@@ -44,7 +44,13 @@ pub struct TraitChunkOccurrence {
     pub address: SourcePassageAddress,
 }
 
-pub trait NativeValueSource {
+pub(crate) trait NativeValueSource {
+    /// Read-only selected-value identity. Installation belongs solely to the writer.
+    fn selected_checksum(
+        &self,
+        model: &SourceSearchProfileIdentity,
+        input: &NativeInputDescriptor,
+    ) -> Result<Vec<u8>, IndexError>;
     fn value<'a>(
         &'a self,
         model: &SourceSearchProfileIdentity,
@@ -52,7 +58,7 @@ pub trait NativeValueSource {
     ) -> Result<Cow<'a, [f32]>, IndexError>;
 }
 
-pub trait PublicationSource {
+pub(crate) trait PublicationSource {
     fn context(&self) -> &SourceArtifactBuildContext;
     fn packs(&self) -> &[IndexBuildPack];
     fn inventory(&self) -> &crate::CompleteSourceInventory;
@@ -61,7 +67,6 @@ pub trait PublicationSource {
     fn expected_instance(&self) -> Option<&crate::ArtifactInstance> {
         None
     }
-    fn check_seal(&self) -> Result<(), IndexError>;
     fn records(
         &self,
         visitor: &mut dyn FnMut(PreparedRecordRef<'_>) -> Result<(), IndexError>,
@@ -108,9 +113,6 @@ impl PublicationSource for IndexBuildInput {
     }
     fn semantic_count(&self) -> usize {
         self.semantic_units.len()
-    }
-    fn check_seal(&self) -> Result<(), IndexError> {
-        Ok(())
     }
     fn records(
         &self,
@@ -242,6 +244,16 @@ impl PublicationSource for IndexBuildInput {
 }
 #[cfg(any(test, feature = "test-support"))]
 impl NativeValueSource for IndexBuildInput {
+    fn selected_checksum(
+        &self,
+        model: &SourceSearchProfileIdentity,
+        input: &NativeInputDescriptor,
+    ) -> Result<Vec<u8>, IndexError> {
+        let vector = self.value(model, input)?;
+        Ok(crate::embedding_values::hash_bytes(
+            &crate::read_units::vector_bytes(&vector),
+        ))
+    }
     fn value<'a>(
         &'a self,
         model: &SourceSearchProfileIdentity,

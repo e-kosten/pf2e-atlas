@@ -47,12 +47,13 @@ preventing unchanged BGE vector reuse, model-free reads or internally coherent
 stored-vector Similar. This does not admit a previous-format reader or arbitrary
 profile/dimension extensions.
 
-Both profiles emit 768-dimensional normalized vectors, held in a model-owned vec0 table
-with globally unique unit IDs. Semantic units identify their profile explicitly.
-Every KNN scan restricts unit IDs by selected profile and canonical eligible roots
-inside the vector scan. Similar identity seeds, witnesses and vector reuse use the
-same profile. Equal dimensions never establish model compatibility. Adding another
-dimension requires a separate physical-index decision.
+Both profiles emit 768-dimensional normalized vectors in model-owned vec0 tables
+addressed by exact native input ID. Occurrences identify their profile and location
+separately. KNN admits inputs with eligible occurrences before native selection,
+expands only those eligible occurrences and enforces the occurrence candidate cap.
+Similar identity seeds, witnesses and reuse share the same full profile identity.
+Equal dimensions never establish compatibility. Adding another dimension requires
+a separate physical-index decision.
 
 Ingest admits, enriches and prepares shared source content once. Both profiles
 retain baseline BGE tokenizer segmentation: body 256, context 64, overlap 32,
@@ -73,27 +74,26 @@ each replacement verifies. Incomplete packages remain unusable and retryable; no
 old-layout bridge or package-wide staging is introduced. Cache location is outside
 vector execution identity.
 
-All requested profiles first native-validate bounded windows from the same sealed
-raw-input stream. Profile descriptor streams contain ordinal, raw input hash and
-native token count; occurrence addresses remain in the metadata streams. Complete
-all-profile membership, including profiles with no inputs, is registered before
-inference or pending-work retirement. Inference then runs profiles sequentially.
-Within a bounded window, ingest deduplicates exact inputs before selection; the
-active target deduplicates subsequent windows. Reuse verifies the full selected
-execution identity, input hash and native token count. Missing inputs pass through
-normal bounded native validation again before inference; this deliberately repeats
-tokenizer work rather than trusting serialized counts. Cached-only work loads no
-model. Each profile's lazy runner loads at most once, checkpoints bounded results
-before releasing them, and returns counts rather than occurrence vectors.
+All requested profiles native-validate bounded windows from owned raw-input
+streams. Descriptor streams retain ordinal, raw input hash and token count while
+metadata retains occurrence attribution. Profiles execute sequentially; an owned
+publication deduplicates exact selection across windows, including forced work.
+Reuse binds full execution identity, input hash, token count and selected checksum.
+Missing inputs undergo normal bounded native validation again before inference.
+Cached-only work loads no model. Each lazy runner loads at most once, saves its
+bounded results to recovery cache and owned staging, then releases them.
 
-Selected numerical bytes are frozen by index before publication can overwrite
-slots or profile tables. The same immutable provider supplies document values and
-ordered trait centroids. Centroid accumulation retains one f64 sum per dimension;
-every chunk is normalized and added in original order, including repeated chunks,
-then the sum is normalized. No corpus native-text array or numerical value map is
-retained by ingest. Source/catalog freshness is checked before one validated atomic
-publication. Failures preserve the previous complete artifact and eligible durable
-checkpoints for explicit retry.
+Published input rows stay stable across occurrence changes. New/forced bytes are
+staged and installed inside atomic publication; the same transaction supplies
+values to ordered trait-centroid consumers. Every normalized chunk contributes in
+authored order, including repetitions, using one f64 sum per dimension before
+normalizing the result. Numerical changes invalidate affected centroids even when
+text hashes are unchanged. Ingest retains no full corpus text/vector array.
+
+Source preparation publishes captured inputs without a final freshness rescan.
+Failures preserve the prior publication and useful unpublished inference results;
+a successful complete commit clears recovery data. See
+[ADR0065](0065-input-owned-reference-publication.md) for lifetime and cache rules.
 
 Runtime retains one query-inference session for each loaded profile, shared across
 independent SQL workers. The default warms at startup; another profile loads on
@@ -144,8 +144,9 @@ restriction. ADR0049's artifact lifetime, generation and abandonment guarantees
 remain, with query sessions shared independently of SQL readers.
 
 Native reuse normalizes complete model contracts and raw input metadata. Published
-vec0 entries provide document reuse; no second full numerical checkpoint corpus is
+input-addressed vec0 entries provide reuse; no second full numerical authority is
 retained. Unfinished computations have separate pending bytes/checksums and survive
-failed builds. Trait-only native values share input identity; derived centroids
-remain independent. Exact-distance cutoff selection is arbitrary; compaction may
+failed builds. Trait-only native values share the same input-owned storage and stay outside
+document KNN unless they also have an eligible document occurrence. Derived
+centroids remain independent. Exact-distance cutoff selection is arbitrary; compaction may
 change tied witnesses without changing eligibility or ranking policy.

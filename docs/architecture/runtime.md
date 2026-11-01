@@ -106,10 +106,10 @@ never supplies guessed identity. Traits use the same complete resolver.
 
 Shared selection runs once per prepared root. Disposable typed files stage checked
 snapshot bytes, prepared content, relationships, lexical evidence and semantic
-occurrence attribution. Their sealed identities bind workspace/revision, source,
-full context, inventory, counts and checksums. Framing checks trusted observed
-record bounds before allocation and bounds decompression. Only sealed, current
-streams can authorize publication or removals. Index owns the codec and the single
+occurrence attribution under one owned attempt. The publication binds workspace/
+revision, source, full context and inventory once. Framing checks observed record
+bounds before allocation, verifies consumed bytes and bounds decoding. Ownership
+and expected generation authorize publication/removals. Index owns the codec and the single
 streaming writer; frames carry neutral metadata rather than SQL or internal IDs.
 Developer source inspection keeps its separate rich diagnostic loading lifetime.
 Developer diagnostics report observed selection/reuse calls, frame counts and
@@ -136,15 +136,16 @@ resolver destinations/names and collision facts, stable identity/live sets, prio
 component digests, retained section/unit IDs, checked publication keys/names/product
 facts, and validation trait evidence/offset maps. Rich DTO/HTML/selection and
 occurrence payloads reside in disposable streams.
-Native raw inputs, profile descriptors and occurrence metadata remain in sealed
-file streams. These compact sets and native model memory are measured separately
+Native raw inputs, profile descriptors and occurrence metadata remain in owned
+attempt-local streams with consumed-frame integrity and allocation bounds. These compact sets and native model memory are measured separately
 from the bounded Rust preparation and numerical buffers.
 
 Every requested profile validates address-free inputs with its own tokenizer in
-bounded windows before inference begins. The complete sealed profile membership,
-including profiles with no inputs, is registered before checkpoint pruning. Native
-execution visits one profile and bounded input batch at a time; its session loads
-only for actual misses. Checkpoint writes finish before another inference batch.
+bounded windows before inference begins. The owned publication binds the complete
+profile manifest, including empty profiles, and deduplicates selection locally.
+Native execution visits one profile and bounded input batch at a time; its session
+loads only for actual misses. Recovery and owned staging finish before releasing
+that inference batch.
 No workspace SQL snapshot or writer is retained during inference. Full input
 validation retains only key, optional name and product classification for identity
 consumers; payload consumers continue to decode bounded full frames. Publication
@@ -178,10 +179,11 @@ preparation-context digest binds shared preparation plus the complete profile
 manifest. Public generation instead binds workspace key and reference revision.
 Index stores each exact model execution contract once in a native-input registry.
 Native input metadata binds raw input hash, token count and a published vector
-checksum; dimensions derive from the model. Published document vectors remain in
-the profile's vec0 index and also supply incremental rebuild reuse. Trait chunks
-reference the same registry and retain a binary native value only when no document
-occurrence supplies it. Derived trait centroids remain separate binary values.
+checksum; dimensions derive from the model. Each published input owns one row in
+the profile's input-addressed vec0 index. Document occurrences and ordered trait
+chunks reference it; removing an occurrence does not move or destroy its numerical
+bytes. Trait-only inputs share that native authority and remain excluded from
+document KNN without an eligible occurrence. Derived centroids remain separate.
 
 Ingest composes the English catalog from every `lang: en` entry in the chosen
 source manifest, in declaration order; later entries override earlier keys.
@@ -193,52 +195,50 @@ passages. Undeclared files, such as SF2e overrides in a PF2e checkout, are not
 merged. The existing selected-locale file override remains separate; this does
 not add translation-module ingestion or multilingual product support.
 
-Ingest prepares current literal inputs with the pinned tokenizers. Index resolves
-exact native inputs in bounded windows and pins each selected checksum. Pending
-values take precedence over published values. Already-selected membership avoids
-repeated inference across batches, including forced recomputation; repeated inputs
-inside a batch are deduplicated before selection. Missing inference inputs undergo
-the ordinary native guard again in their bounded batch. Disabling embedding reuse
-still forces one new computation per unique requested identity; passage-layout
-reuse remains independent.
+Ingest prepares current literal inputs with pinned tokenizers. One concrete
+`PreparedPublication` binds context/inventory, expected workspace generation,
+metadata streams and compact build-local selection. Selection first reuses its own
+chosen checksum, then unpublished recovery results, then compatible published
+values when reuse is enabled. Missing inputs undergo the normal bounded native
+guard before inference; disabling reuse forces one computation per unique input
+unless matching unfinished work already exists. Passage-layout reuse is separate.
 
-One update owner registers at most one candidate alongside the prior active target.
-A complete second traversal verifies descriptor counts, distinct membership and the
-full model/hash/token digest before atomic promotion. Incomplete registration
-cannot prune pending bytes or replace active retry work. Retired candidate/target
-metadata is removed in bounded transactions. Pre-registration metadata collection
-protects every pending value, published consumer and live membership. Only complete
-promotion permits pruning unrequested pending blobs, including blobs for inputs
-that still have published occurrences; their published bytes remain untouched.
-Matching computations survive target changes and later-profile failures. Historical
-unknown-membership checkpoints remain protected until the first complete promotion.
+A published hit retains a stable input/checksum handle. A cache hit or new/forced
+result becomes an owned staged value before eviction can affect it. Per-batch SQL
+sessions close before inference. The recovery cache keeps one value per exact
+model/input key and evicts oldest entries under a coarse 1 GiB raw-payload cap.
+This cap limits optional reuse, not required staging or physical disk allocation.
+There is no durable target-membership lifecycle or history of failed build targets.
 
-Each inferred batch commits a pending value and its own checksum after computation.
-A forced result may differ from the publication; staging never updates its published
-checksum. Before final maintenance, index copies every selected native value into
-one disposable file with a bounded page cache. Its seal binds workspace key,
-reference revision, complete context/membership and exact selected checksums.
-Lengths are checked before payload allocation; reads verify native counts,
-dimensions, normalization and checksums. This file outlives every document/trait
-consumer and final validation, so slot overwrite, occurrence removal or profile-table
-replacement cannot destroy a later consumer's source. The existing single writer
-reads one native value at a time. Trait centroids preserve authored chunk order and
-repeated weights using an f64 accumulator.
+One atomic activation resolves reused handles through its own connection, installs
+selected new/forced bytes and reconciles occurrence/trait consumers. Occurrence
+metadata references already selected numerical inputs without materializing a
+vector per occurrence. Centroids preserve authored chunk order/repetition and f64
+accumulation; forced numerical changes invalidate them even with unchanged text.
+Reclaim obsolete rows after all consumers, clear the recovery cache and completely
+validate the final transaction before commit. Failure preserves the old publication,
+saved state and useful committed recovery results. Startup/ordinary reads perform
+no cache or scratch cleanup.
 
-Source/catalog freshness is checked after freezing and immediately before exclusive
-maintenance. One atomic activation validates the exact final artifact, clears
-pending values and retires its target. Failure during temporary staging or activation
-preserves the previous publication and retry work. Startup and ordinary reads do no
-cleanup or inference. Diagnostics distinguish logical durable pending bytes,
-temporary bound native-value bytes, temporary file allocation and observed execution
-buffer peaks; these are separate from native model memory and process RSS.
+One update-owned attempt directory contains all staging files. Normal completion
+and error close children before cleanup; a later explicit update can safely remove
+recognized abandoned attempts for that same workspace. Consumed frames retain
+checksums and observed decoding/allocation bounds. Private relationships are
+maintained by ownership, without repeated whole-build file authentication.
 
-Passage addresses are shared across profiles without merging occurrence identity
-or model-specific native token counts. Publication updates compatible vector slots
-in place and packs substantially sparse vec0 indexes through supported public DDL
-and inserts, within the existing maintenance transaction. Exact-distance boundary
-ties may select different occurrences after packing; strict-distance ordering,
-pre-KNN eligibility, candidate windows and fusion policy are unchanged.
+Publication uses the captured input set. External bytes are checked against their
+capture when consumed, then retained as owned data without consulting the original
+again. Manifest/catalog path bindings and aliased packs use that same rule; later
+changes belong to the next build. No final source/catalog rescan gates publication.
+Numerical diagnostics distinguish durable pending bytes, owned selected staged
+bytes, file allocation and bounded execution buffers from model/process memory.
+
+Native KNN selects only inputs having eligible occurrences, expands only those
+eligible occurrences and caps to the occurrence budget. Profile masks, Core,
+exclusions and configured Similar correspondence remain explicit. Exact-distance
+cutoff ties may choose different witnesses. Stable rows and supported public vec0
+maintenance preserve numerical ownership; no shadow-table writes are permitted.
+See [ADR0065](decisions/0065-input-owned-reference-publication.md).
 
 Schema migration performs typed backfills inside the checksum-verified migration
 transaction, preserving native values and unfinished forced work without requiring
@@ -261,7 +261,7 @@ attestations are checked before retained payloads enter reuse or metadata
 maintenance. These stable checks use stored preparation identity and remain
 independent of current query, lexical and Core policy upgrades. Codec-valid
 altered payloads cannot be accepted as new input and restamped. Private readers for
-migrations 20 and 27 preserve their historical callbacks. The pre-component reader
+migrations 20 and 28 preserve their versioned callback owners. The pre-component reader
 rejects schema 28 onward and any present attestation storage; current readers never
 fall back when that storage is missing.
 

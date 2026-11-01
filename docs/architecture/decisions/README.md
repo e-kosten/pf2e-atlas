@@ -27,6 +27,7 @@ implementation status does not require a new ADR; a new durable decision does.
 - [0022: Artifact policy ownership](0022-rust-artifact-policy-ownership.md)
 - [0048: Atomic mutable workflows](0048-atomic-mutable-workflows.md)
 - [0051: Persistent workspace and bounded sessions](0051-persistent-workspace.md)
+- [0065: Input-owned vectors and owned publication](0065-input-owned-reference-publication.md)
 - [0052: Pinned reference source](0052-pinned-reference-source.md)
 - [0055: Condition evaluation](0055-encounter-condition-evaluation.md)
 - [0061: Encounter recovery](0061-encounter-recovery.md)

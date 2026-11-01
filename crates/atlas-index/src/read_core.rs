@@ -24,13 +24,13 @@ impl SqliteIndexReader {
             return Ok(());
         }
         let model = self.context().search_profile(profile)?;
-        let table = crate::schema::vector_table(model)?;
+        let table = crate::schema::native_vector_table(model)?;
         let placeholders = (2..keys.len() + 2)
             .map(|parameter| format!("?{parameter}"))
             .collect::<Vec<_>>()
             .join(",");
         let sql = format!(
-            "WITH requested AS (SELECT r.record_id FROM records r WHERE r.key IN ({placeholders}) AND r.document_kind<>'Macro') SELECT EXISTS(SELECT 1 FROM requested r WHERE NOT EXISTS(SELECT 1 FROM semantic_units su JOIN {table} sv USING(unit_id) WHERE su.record_id=r.record_id AND su.unit_kind='identity' AND su.profile_id=?1)) OR EXISTS(SELECT 1 FROM core_parts cp JOIN selected_sections sp USING(section_id) WHERE cp.record_id IN(SELECT record_id FROM requested) AND NOT EXISTS(SELECT 1 FROM semantic_units su JOIN semantic_locations sl USING(location_id) JOIN {table} sv USING(unit_id) WHERE sl.section_id=sp.section_id AND su.profile_id=?1))",
+            "WITH requested AS (SELECT r.record_id FROM records r WHERE r.key IN ({placeholders}) AND r.document_kind<>'Macro') SELECT EXISTS(SELECT 1 FROM requested r WHERE NOT EXISTS(SELECT 1 FROM semantic_units su JOIN {table} sv USING(input_id) WHERE su.record_id=r.record_id AND su.unit_kind='identity' AND su.profile_id=?1)) OR EXISTS(SELECT 1 FROM core_parts cp JOIN selected_sections sp USING(section_id) WHERE cp.record_id IN(SELECT record_id FROM requested) AND NOT EXISTS(SELECT 1 FROM semantic_units su JOIN semantic_locations sl USING(location_id) JOIN {table} sv USING(input_id) WHERE sl.section_id=sp.section_id AND su.profile_id=?1))",
         );
         let mut values = vec![profile.to_string()];
         values.extend(keys.iter().map(ToString::to_string));

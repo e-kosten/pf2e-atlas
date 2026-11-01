@@ -64,8 +64,9 @@ record corpus. See [ADR0056](./decisions/0056-trait-reference-entities.md).
    locale, audience and reference resolution inputs, prepares sanitized HTML and
    builds query/search/relationship inputs. Embedding independently covers selected
    explanatory prose and compact identity units.
-3. Index consumes sealed typed streams through one writer and reconciles closed
-   record components, then independently validates changes in one transaction inside the
+3. Index consumes one owned prepared publication with bounded typed streams and
+   selected native inputs, reconciles closed record components, then independently
+   validates the complete result in one transaction inside the
    existing workspace. Saved state and stable identities survive publication.
    Checked snapshots are authoritative; named relational query rows,
    HTML caches, lookup evidence and lexical/vector units are rebuildable projections.

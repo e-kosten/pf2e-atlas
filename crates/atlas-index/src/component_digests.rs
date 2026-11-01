@@ -621,7 +621,7 @@ mod retained_payload_tests {
         assert!(
             error
                 .to_string()
-                .contains("restricted to historical migration27"),
+                .contains("restricted to historical migration28"),
             "{error}"
         );
     }
@@ -633,20 +633,27 @@ mod historical_payload_tests {
     fn bodies(c: &Connection) -> Vec<(String, String)> {
         c.prepare("SELECT r.key,b.snapshot FROM records r JOIN record_bodies b USING(record_id) ORDER BY r.key").unwrap().query_map([],|r|Ok((r.get(0)?,crate::codec::sha256(&r.get::<_,Vec<u8>>(1)?)))).unwrap().collect::<Result<_,_>>().unwrap()
     }
-    fn vectors(c: &Connection, table: &str) -> Vec<(i64, String)> {
-        c.prepare(&format!(
-            "SELECT unit_id,embedding FROM {table} ORDER BY unit_id"
-        ))
-        .unwrap()
-        .query_map([], |r| {
-            Ok((r.get(0)?, crate::codec::sha256(&r.get::<_, Vec<u8>>(1)?)))
-        })
-        .unwrap()
-        .collect::<Result<_, _>>()
-        .unwrap()
+    fn vectors(c: &Connection, table: &str, input_owned: bool) -> Vec<(i64, String)> {
+        // Compare occurrence-attributed bytes across the released and current layouts.
+        // Shared inputs must preserve every historical occurrence, not merely one row.
+        let sql = if input_owned {
+            format!(
+                "SELECT su.unit_id,v.embedding FROM semantic_units su JOIN {table} v USING(input_id) ORDER BY su.unit_id"
+            )
+        } else {
+            format!("SELECT unit_id,embedding FROM {table} ORDER BY unit_id")
+        };
+        c.prepare(&sql)
+            .unwrap()
+            .query_map([], |r| {
+                Ok((r.get(0)?, crate::codec::sha256(&r.get::<_, Vec<u8>>(1)?)))
+            })
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap()
     }
     #[test]
-    fn populated_pre20_upgrade_preserves_payloads_through_frozen20_and_guarded25() {
+    fn populated_pre20_upgrade_preserves_occurrence_payloads_through_current_schema() {
         use crate::test_support::*;
         let input = crate::foundation_tests::fixture(true);
         atlas_sqlite_vec::register_sqlite_vec_auto_extension().unwrap();
@@ -667,7 +674,7 @@ mod historical_payload_tests {
         let c = Connection::open(&path).unwrap();
         c.execute_batch("INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at) VALUES(1,'kept','kept','Kept pre20 state','now','now')").unwrap();
         let old_bodies = bodies(&c);
-        let old_vectors = vectors(&c, &table);
+        let old_vectors = vectors(&c, &table, false);
         assert!(!old_bodies.is_empty());
         assert!(!old_vectors.is_empty());
         workspace.migrate(TEST_MIGRATIONS, |_| Ok(())).unwrap();
@@ -675,7 +682,9 @@ mod historical_payload_tests {
             crate::ensure_reference_projections(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap()
         );
         assert_eq!(bodies(&c), old_bodies);
-        assert_eq!(vectors(&c, &table), old_vectors);
+        let current_table =
+            crate::schema::native_vector_table(&input.context.search_profiles[0]).unwrap();
+        assert_eq!(vectors(&c, &current_table, true), old_vectors);
         assert_eq!(
             c.query_row("SELECT name FROM saved_lists WHERE id=1", [], |r| r
                 .get::<_, String>(0))

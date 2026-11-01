@@ -8,7 +8,7 @@ use atlas_embedding::{
     TextEmbeddingTokenizer,
 };
 use atlas_index::{
-    BuildFrameStream, SealedBuildFrameStream, SemanticOccurrence, SourceSearchProfileIdentity,
+    BuildFrameStream, PreparedPublication, SemanticOccurrence, SourceSearchProfileIdentity,
     TraitChunkOccurrence, TraitSeedOccurrence,
 };
 use serde::{Deserialize, Serialize};
@@ -34,7 +34,7 @@ struct NativeFrame {
 }
 pub(crate) struct NativeProfilePlan {
     model: SourceSearchProfileIdentity,
-    descriptors: SealedBuildFrameStream<NativeFrame>,
+    descriptors: BuildFrameStream<NativeFrame>,
 }
 impl NativeProfilePlan {
     pub(crate) fn file_usage(
@@ -59,13 +59,13 @@ fn counted_progress(
         current=current as u64,total=total as u64,unit="passages",profile=model.id,"{action}");
 }
 
-/// Validate every requested native profile before the complete target is registered.
+/// Validate every requested native profile before numerical selection starts.
 /// Raw text remains in its single existing spool; the new stream contains no text.
 pub(crate) fn prepare_profiles(
     prepared: &mut PreparedSourceBuild,
     options: &BuildArtifactOptions,
+    scratch: &std::path::Path,
 ) -> Result<Vec<NativeProfilePlan>, IngestError> {
-    prepared.check_execution_streams()?;
     let mut plans = Vec::new();
     for config in &options.search_profiles {
         let started = std::time::Instant::now();
@@ -80,7 +80,7 @@ pub(crate) fn prepare_profiles(
         let tokenizer = TextEmbeddingTokenizer::load(config).map_err(embedding)?;
         let mut raw = prepared.native_inputs.cursor().map_err(index)?;
         let mut occurrences = prepared.occurrences.cursor().map_err(index)?;
-        let mut descriptors = BuildFrameStream::new().map_err(index)?;
+        let mut descriptors = BuildFrameStream::new_in(scratch).map_err(index)?;
         let mut ordinal = 0;
         let mut seed = None;
         let mut max_validated_batch = 0;
@@ -171,16 +171,9 @@ pub(crate) fn prepare_profiles(
         }
         flush_seed(&mut prepared.spool, &mut seed).map_err(index)?;
         tracing::info!(target:"atlas_build_diagnostic",profile=%profile,elapsed_ms=started.elapsed().as_secs_f64()*1000.,max_native_prevalidation_batch=max_validated_batch,native_prevalidation_inputs=ordinal,"Validated native descriptor stream");
-        let binding = (
-            &prepared.spool.context,
-            prepared.spool.expected.workspace_key(),
-            prepared.spool.expected.reference_revision(),
-            &model,
-            ordinal,
-        );
         plans.push(NativeProfilePlan {
             model: model.clone(),
-            descriptors: descriptors.seal(&binding).map_err(index)?,
+            descriptors,
         });
     }
     Ok(plans)
@@ -211,18 +204,15 @@ fn flush_seed(
 }
 
 /// Selection commits before model loading; checkpoints commit before releasing outputs.
-pub(crate) struct NativeExecution<'a> {
-    pub workspace: &'a atlas_storage::Workspace,
-    pub schema: u32,
-    pub job: &'a str,
-    pub source: &'a dyn atlas_index::PublicationSource,
-    pub raw_inputs: &'a SealedBuildFrameStream<PreparedNativeInput>,
+pub(crate) struct NativeExecution<'a, 'owner> {
+    pub publication: &'a mut PreparedPublication<'owner>,
+    pub raw_inputs: &'a BuildFrameStream<PreparedNativeInput>,
     pub options: &'a BuildArtifactOptions,
     pub semantic_units: usize,
 }
-impl NativeExecution<'_> {
+impl NativeExecution<'_, '_> {
     pub(crate) fn execute_profile(
-        &self,
+        self,
         plan: &NativeProfilePlan,
         config: &atlas_embedding::EmbeddingRuntimeConfig,
     ) -> Result<crate::ProfileBuildReport, IngestError> {
@@ -231,29 +221,20 @@ impl NativeExecution<'_> {
         let mut revalidation_elapsed = std::time::Duration::ZERO;
         let mut inference_checkpoint_elapsed = std::time::Duration::ZERO;
         let mut checkpoint_elapsed = std::time::Duration::ZERO;
-        let mut selection_affected_rows = 0u64;
-        let mut checkpoint_affected_rows = 0u64;
         let Self {
-            workspace,
-            schema,
-            job,
-            source,
+            publication,
             raw_inputs,
             options,
             semantic_units,
-        } = *self;
-        let expected = source
-            .expected_instance()
-            .ok_or_else(|| invalid("native execution workspace binding absent"))?;
-        plan.descriptors
-            .check_binding(&(
-                source.context(),
-                expected.workspace_key(),
-                expected.reference_revision(),
-                &plan.model,
-                raw_inputs.len(),
-            ))
-            .map_err(index)?;
+        } = self;
+        if publication
+            .context()
+            .search_profile(&plan.model.profile_id)
+            .map_err(index)?
+            != &plan.model
+        {
+            return Err(invalid("native profile differs from owned publication"));
+        }
         let mut raw = raw_inputs.cursor().map_err(index)?;
         let mut descriptors = plan.descriptors.cursor().map_err(index)?;
         let mut runner =
@@ -268,7 +249,7 @@ impl NativeExecution<'_> {
         counted_progress(profile, "reuse_selection", 0, raw_inputs.len());
         loop {
             // Deduplicate inside this bounded window before selection. Across windows,
-            // the active target owns selected membership, including forced execution.
+            // the owned publication retains selected membership, including forced execution.
             let mut unique =
                 BTreeMap::<(String, usize), (NativeInputDescriptor, PreparedNativeInput)>::new();
             let mut consumed = 0;
@@ -307,21 +288,9 @@ impl NativeExecution<'_> {
                 .map(|(descriptor, _)| descriptor.clone())
                 .collect::<Vec<_>>();
             let selection_started = std::time::Instant::now();
-            let selected = {
-                let write = workspace.write(schema)?;
-                let affected_before = write.connection().total_changes();
-                let selected = atlas_index::select_native_values(
-                    &write,
-                    job,
-                    &plan.model,
-                    &requested,
-                    options.reuse_embeddings,
-                )
+            let selected = publication
+                .select_native(&plan.model, &requested, options.reuse_embeddings)
                 .map_err(index)?;
-                selection_affected_rows += write.connection().total_changes() - affected_before;
-                write.commit()?;
-                selected
-            };
             selection_elapsed += selection_started.elapsed();
             counted_progress(profile, "reuse_selection", ordinal, raw_inputs.len());
             if selected.len() != entries.len() {
@@ -379,13 +348,9 @@ impl NativeExecution<'_> {
                             .zip(values)
                             .map(|(descriptor, (_, value))| (descriptor, *value))
                             .collect::<Vec<_>>();
-                        let write = workspace.write(schema)?;
-                        let affected_before = write.connection().total_changes();
-                        atlas_index::stage_native_values(&write, job, &plan.model, &values)
+                        publication
+                            .stage_inferred(&plan.model, &values)
                             .map_err(index)?;
-                        checkpoint_affected_rows +=
-                            write.connection().total_changes() - affected_before;
-                        write.commit()?;
                         Ok(())
                     })();
                     checkpoint_elapsed += checkpoint_started.elapsed();
@@ -401,7 +366,7 @@ impl NativeExecution<'_> {
         if ordinal != raw_inputs.len() {
             return Err(invalid("native descriptor count differs"));
         }
-        tracing::info!(target:"atlas_build_diagnostic",profile=%plan.model.profile_id,elapsed_ms=execution_started.elapsed().as_secs_f64()*1000.,selection_ms=selection_elapsed.as_secs_f64()*1000.,revalidation_ms=revalidation_elapsed.as_secs_f64()*1000.,inference_with_checkpoint_ms=inference_checkpoint_elapsed.as_secs_f64()*1000.,checkpoint_ms=checkpoint_elapsed.as_secs_f64()*1000.,selection_sqlite_affected_rows=selection_affected_rows,checkpoint_sqlite_affected_rows=checkpoint_affected_rows,max_distinct_native_batch=max_batch,max_raw_native_batch=max_raw_batch,
+        tracing::info!(target:"atlas_build_diagnostic",profile=%plan.model.profile_id,elapsed_ms=execution_started.elapsed().as_secs_f64()*1000.,selection_ms=selection_elapsed.as_secs_f64()*1000.,revalidation_ms=revalidation_elapsed.as_secs_f64()*1000.,inference_with_checkpoint_ms=inference_checkpoint_elapsed.as_secs_f64()*1000.,checkpoint_ms=checkpoint_elapsed.as_secs_f64()*1000.,max_distinct_native_batch=max_batch,max_raw_native_batch=max_raw_batch,
         max_missing_native_batch=max_missing_batch,max_native_output_vectors=runner.peak_output_vectors(),
         native_prevalidation_inputs=ordinal,native_inference_revalidation_inputs=runner.inferred_inputs(),"Completed bounded native execution");
         Ok(crate::ProfileBuildReport {
@@ -411,4 +376,52 @@ impl NativeExecution<'_> {
             reused_inputs: reused,
         })
     }
+}
+
+/// Exercise the real selection/cache/publication route without loading inference.
+#[cfg(test)]
+pub(crate) fn stage_fixture_values(
+    publication: &mut PreparedPublication<'_>,
+    plans: &[NativeProfilePlan],
+    reuse_published: bool,
+) -> Result<(), IngestError> {
+    for plan in plans {
+        let mut frames = plan.descriptors.cursor().map_err(index)?;
+        loop {
+            let mut requested = Vec::new();
+            while requested.len() < window() {
+                match frames.next_frame().map_err(index)? {
+                    Some(frame) => requested.push(frame.input),
+                    None => break,
+                }
+            }
+            if requested.is_empty() {
+                break;
+            }
+            let mut seen = std::collections::BTreeSet::new();
+            requested.retain(|input| seen.insert((input.input_sha256.clone(), input.token_count)));
+            let selected = publication
+                .select_native(&plan.model, &requested, reuse_published)
+                .map_err(index)?;
+            if selected.len() != requested.len() {
+                return Err(invalid("fixture selection coverage differs"));
+            }
+            let mut vector = vec![0.; plan.model.dimensions];
+            vector[0] = 1.;
+            let missing = requested
+                .iter()
+                .zip(selected)
+                .filter_map(|(input, status)| {
+                    matches!(status, atlas_index::NativeValueSelection::Missing)
+                        .then_some((input, vector.as_slice()))
+                })
+                .collect::<Vec<_>>();
+            if !missing.is_empty() {
+                publication
+                    .stage_inferred(&plan.model, &missing)
+                    .map_err(index)?;
+            }
+        }
+    }
+    Ok(())
 }

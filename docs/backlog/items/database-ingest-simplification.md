@@ -27,7 +27,7 @@ peak RSS and took longer than the matched baseline.
 3. Separate compact lifetime Next-turn receipts from one current outgoing snapshot; retain receipts across reset/rest. Batch all six roster child collections, including manual trackers, within one snapshot.
 4. Store canonical selected content sections and reference them from lexical/semantic occurrences, Core and navigation. Remove JSON identity joins and address reconstruction from chunk coverage.
 5. Replace eager previous-corpus hydration with compact inventory/resolver evidence, bounded preparation and component-aware reconciliation. Preserve reference dependency invalidation.
-6. Replace per-occurrence owned vectors with exact numerical handles and bounded publication. Give abandoned inference jobs/checkpoints an explicit lifecycle while retaining required retry work.
+6. Store native vectors by exact input identity and publish through one owned preparation/selection object. Keep unpublished inference in a bounded disposable recovery cache; stage new/forced values and retain useful retry work without target history.
 7. Add index-friendly positive eligibility lowering with exact membership parity and evidence-backed index maintenance.
 
 ## Acceptance and boundaries
@@ -83,27 +83,31 @@ Accepted intended changes, pending implementation:
 
 The [numerical ownership study](../../research/embedding-value-ownership.md)
 measured 0.629% duplicate document excess and completed 192 paired SQL cases.
-The occurrence-capped input-index comparison preserved eligible counts/distances,
-with three
-same-record cutoff-witness changes, but added roughly 10.4–13.5% to the equal-case
-warm SQL aggregates. The user accepted stable input ownership with an explicit occurrence cap, for
-ingest lifetime simplification rather than query speed. One active input row with atomic forced replacement needs no permanent
-version history. Revised implementation and validation are authorized; research measurements
-remain evidence for the isolated prototype, not the final product.
+Occurrence-capped input lookup preserved eligible counts/distances, with three
+same-record cutoff-witness changes, but added 10.4–13.5% to the equal-case warm
+SQL aggregates. The selected design uses stable input ownership and an explicit
+occurrence cap for lifetime simplification. One active value with atomic forced
+replacement requires no permanent version history; see
+[ADR0065](../../architecture/decisions/0065-input-owned-reference-publication.md).
 
-Next: implement the accepted pipeline simplifications and stable numerical
-layout together. Revise the PR-only migration suffix directly against main
-(schema24): released migrations/callbacks stay immutable, and the suffix creates
-the final design without adding and later reversing experimental target schemas. Validate real migration,
-forced numerical dependency invalidation, trait lifetimes, rollback/crash recovery,
-saved state and cache/scratch cleanup. Measure matched completed rebuilds and
-product queries; the isolated prototype does not establish ingest speed, physical
-migration peaks or product relevance. Keep one PR184; refresh final local/CI
-validation for the actual revised candidate.
+The first revised ownership/capture/migration block is implemented and passed its
+owning index, ingest and runtime suites, plus independent source/evidence review.
+This is a local integration checkpoint, not final performance or release evidence.
+The migration suffix directly transforms main schema24 into the final design;
+released migrations/callback behavior remain immutable, and no intermediate target
+schema is added and later reversed.
 
-The local plan retains implementation ordering and validation obligations. Cache
-thresholds and slice sizes can follow measured resource use; they do not block implementation. Final integration, validation and matched
-measurements remain pending.
+Next: finish preparation/encoding simplification, bound admission file handles and
+restore sparse maintenance for input-owned indexes. Measure the ownership checkpoint
+and final preparation changes against matching controls. Complete controlled corpus
+migration/preservation, forced numerical dependency, trait/profile lifetime, actual
+interruption/recovery, cache/scratch and product-query evidence. Retain one PR184
+and refresh full local/platform/CI validation for the actual final candidate.
+
+The local plan owns implementation ordering and validation obligations. Cache
+thresholds and slice sizes can follow measured resource use. Asset-dependent tests,
+full-workspace/platform gates, controlled performance evidence and final-head CI
+remain pending.
 
 ## Related owners
 

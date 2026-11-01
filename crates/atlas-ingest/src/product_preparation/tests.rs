@@ -1,8 +1,6 @@
 use super::*;
-use atlas_index::PublicationSource;
-use atlas_index::{NativeValueSource, SqliteIndexWriter};
 use rusqlite::Connection;
-use std::{borrow::Cow, fs};
+use std::fs;
 
 struct SourceFixture(tempfile::TempDir);
 impl SourceFixture {
@@ -216,41 +214,13 @@ fn observed_preparation_counts_and_frame_sizes_are_separate_from_structural_wind
     );
 }
 
-struct NoNativeValues;
-impl NativeValueSource for NoNativeValues {
-    fn value<'a>(
-        &'a self,
-        _: &atlas_index::SourceSearchProfileIdentity,
-        _: &atlas_embedding::NativeInputDescriptor,
-    ) -> Result<Cow<'a, [f32]>, atlas_index::IndexError> {
-        Err(atlas_index::IndexError::Invalid(
-            "fixture has no native profile".into(),
-        ))
-    }
-}
 #[test]
-fn stale_sealed_stream_cannot_remove_roots_or_advance_publication() {
+fn stale_owned_metadata_cannot_remove_roots_or_advance_publication() {
     let fixture = SourceFixture::new();
     fixture.build("incremental");
     let options = fixture.options("incremental");
     fs::remove_file(fixture.0.path().join("packs/items/b.json")).unwrap();
     let prepared = prepare_fixture(&options).unwrap();
-    let target = prepared.spool.context.sha256().unwrap();
-    let sealed = prepared.spool.seal().unwrap();
-    let workspace = atlas_storage::Workspace::at(&options.output_path).unwrap();
-    let schema = atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
-    let (job, values) = {
-        let owner = workspace.update_owner().unwrap();
-        let job = atlas_index::register_native_target(&owner, &workspace, schema, &sealed).unwrap();
-        let values = atlas_index::freeze_fixture_native_values(
-            &sealed,
-            &NoNativeValues,
-            Some(&job),
-            sealed.expected_instance().unwrap(),
-        )
-        .unwrap();
-        (job, values)
-    };
     fixture.document(
         "b",
         "bbbbbbbbbbbbbbbb",
@@ -263,39 +233,29 @@ fn stale_sealed_stream_cannot_remove_roots_or_advance_publication() {
     let revision: u64 = c
         .query_row("SELECT reference_revision FROM workspace", [], |r| r.get(0))
         .unwrap();
+    let workspace = atlas_storage::Workspace::at(&options.output_path).unwrap();
+    let schema = atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
     let owner = workspace.update_owner().unwrap();
-    let maintenance = owner
-        .maintenance(schema, "stale fixture publication")
-        .unwrap();
-    let error = SqliteIndexWriter::new(&maintenance)
-        .write_job(&sealed, &values, &job, &target)
-        .unwrap_err();
+    let scratch = atlas_index::BuildScratch::new(&owner).unwrap();
+    let error = match atlas_index::PreparedPublication::new_in(
+        &owner,
+        schema,
+        scratch.path(),
+        prepared.spool,
+    ) {
+        Ok(_) => panic!("stale captured metadata was accepted"),
+        Err(error) => error,
+    };
     assert!(
         error.to_string().contains("stale workspace revision"),
         "{error}"
     );
-    drop(maintenance);
-    drop(owner);
     assert_eq!(components(&options.output_path), before);
     assert_eq!(
         c.query_row("SELECT reference_revision FROM workspace", [], |r| r
             .get::<_, u64>(0))
             .unwrap(),
         revision
-    );
-}
-#[test]
-fn native_metadata_seal_binds_full_profile_context_and_expected_revision() {
-    let fixture = SourceFixture::new();
-    let mut prepared = prepare_fixture(&fixture.options("binding")).unwrap();
-    prepared.check_execution_streams().unwrap();
-    prepared.spool.context.lookup_version.push_str("-changed");
-    assert!(
-        prepared
-            .check_execution_streams()
-            .unwrap_err()
-            .to_string()
-            .contains("binding")
     );
 }
 
@@ -423,6 +383,8 @@ fn production_admission_batches_count_real_sessions_and_bound_simultaneous_paylo
             atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
         )
         .unwrap();
+        let owner = workspace.update_owner().unwrap();
+        let scratch = atlas_index::BuildScratch::new(&owner).unwrap();
         for subset in [false, true] {
             if subset {
                 for ordinal in (1..count).step_by(2) {
@@ -434,8 +396,10 @@ fn production_admission_batches_count_real_sessions_and_bound_simultaneous_paylo
                     );
                 }
             }
-            let (prepared, metrics) =
-                atlas_storage::diagnostics::capture_sql_work(|| prepare(&options, &reuse)).unwrap();
+            let (prepared, metrics) = atlas_storage::diagnostics::capture_sql_work(|| {
+                prepare(&options, &reuse, scratch.path())
+            })
+            .unwrap();
             let prepared = prepared.unwrap();
             let expected_records = if subset { count.div_ceil(2) } else { count };
             let batches = count.div_ceil(PREPARATION_REUSE_BATCH);
@@ -521,15 +485,18 @@ fn production_layout_batches_follow_active_phase_preserve_flags_and_bound_sessio
             atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
         )
         .unwrap();
+        let owner = workspace.update_owner().unwrap();
+        let scratch = atlas_index::BuildScratch::new(&owner).unwrap();
         let mut expected = None;
         let mut expected_native = None;
         for numerical in [true, false] {
             for layouts in [true, false] {
                 options.reuse_embeddings = numerical;
                 options.reuse_passage_layouts = layouts;
-                let (prepared, metrics) =
-                    atlas_storage::diagnostics::capture_sql_work(|| prepare(&options, &reuse))
-                        .unwrap();
+                let (prepared, metrics) = atlas_storage::diagnostics::capture_sql_work(|| {
+                    prepare(&options, &reuse, scratch.path())
+                })
+                .unwrap();
                 let prepared = prepared.unwrap();
                 let batches = count.div_ceil(PREPARATION_REUSE_BATCH);
                 assert_eq!(prepared.work.reusable_record_read_calls, count);
@@ -702,17 +669,17 @@ fn admitted_and_prepared_streams_preserve_exact_utf8_snapshot_bytes_near_source_
         prepared.work.largest_prepared_frame_bytes
             < (expected.values().map(Vec::len).max().unwrap() * 2) as u64
     );
-    let sealed = prepared.spool.seal().unwrap();
-    sealed.check_seal().unwrap();
     let mut actual = BTreeMap::new();
-    sealed
-        .records(&mut |frame| {
-            let bytes = frame.snapshot.to_vec();
+    prepared
+        .spool
+        .records
+        .visit(&mut |frame| {
+            let (source, bytes, _, _) = frame.decode()?;
             assert_eq!(
-                atlas_foundry_model::encode_snapshot(frame.source.record.source())?,
+                atlas_foundry_model::encode_snapshot(source.record.source())?,
                 bytes
             );
-            actual.insert(frame.source.record.key().to_string(), bytes);
+            actual.insert(source.record.key().to_string(), bytes);
             Ok(())
         })
         .unwrap();

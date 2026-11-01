@@ -1,63 +1,7 @@
-//! Admission-derived identity facts keep metadata consumers off rich streams.
+//! Owned publication preserves admission identity and pre-mutation snapshot checks.
 use super::*;
 use crate::{test_support::*, *};
 use atlas_record::source_record::select_record_search;
-use std::cell::Cell;
-
-struct Counted<'a> {
-    source: &'a dyn PublicationSource,
-    traversals: Cell<usize>,
-    visits: Cell<usize>,
-}
-macro_rules! delegate_stream {
-    ($method:ident, $row:ty) => {
-        fn $method(
-            &self,
-            visitor: &mut dyn FnMut(&$row) -> Result<(), IndexError>,
-        ) -> Result<(), IndexError> {
-            self.source.$method(visitor)
-        }
-    };
-}
-impl PublicationSource for Counted<'_> {
-    fn context(&self) -> &SourceArtifactBuildContext {
-        self.source.context()
-    }
-    fn packs(&self) -> &[IndexBuildPack] {
-        self.source.packs()
-    }
-    fn inventory(&self) -> &CompleteSourceInventory {
-        self.source.inventory()
-    }
-    fn record_count(&self) -> usize {
-        self.source.record_count()
-    }
-    fn semantic_count(&self) -> usize {
-        self.source.semantic_count()
-    }
-    fn expected_instance(&self) -> Option<&ArtifactInstance> {
-        self.source.expected_instance()
-    }
-    fn check_seal(&self) -> Result<(), IndexError> {
-        self.source.check_seal()
-    }
-    fn records(
-        &self,
-        visitor: &mut dyn FnMut(PreparedRecordRef<'_>) -> Result<(), IndexError>,
-    ) -> Result<(), IndexError> {
-        self.traversals.set(self.traversals.get() + 1);
-        self.source.records(&mut |record| {
-            self.visits.set(self.visits.get() + 1);
-            visitor(record)
-        })
-    }
-    delegate_stream!(lexical, SourceLexicalUnitInput);
-    delegate_stream!(semantic, SemanticOccurrence);
-    delegate_stream!(aliases, SourceAliasInput);
-    delegate_stream!(remaster_pairs, SourceRemasterPairInput);
-    delegate_stream!(traits, TraitDefinition);
-    delegate_stream!(trait_seeds, TraitSeedOccurrence);
-}
 fn fixture() -> IndexBuildInput {
     let mut input = crate::foundation_tests::fixture(false);
     input.records.reverse();
@@ -99,12 +43,19 @@ fn fixture() -> IndexBuildInput {
     input
 }
 fn spool(
+    scratch: &Path,
     input: IndexBuildInput,
     expected: ArtifactInstance,
     damage: Option<&str>,
-) -> SealedPublicationSpool {
-    let mut builder =
-        PublicationSpool::new(input.context, input.packs, input.inventory, expected).unwrap();
+) -> PublicationSpool {
+    let mut builder = PublicationSpool::new_in(
+        scratch,
+        input.context,
+        input.packs,
+        input.inventory,
+        expected,
+    )
+    .unwrap();
     let count = input.records.len();
     for (ordinal, source) in input.records.into_iter().enumerate() {
         let label = &builder
@@ -161,7 +112,7 @@ fn spool(
     for row in input.lexical_units {
         builder.lexical.push(&row).unwrap();
     }
-    builder.seal().unwrap()
+    builder
 }
 fn origin(workspace: &atlas_storage::Workspace) -> ArtifactInstance {
     let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
@@ -170,66 +121,28 @@ fn origin(workspace: &atlas_storage::Workspace) -> ArtifactInstance {
         read.reference_revision().unwrap(),
     )
 }
-fn publish(
-    workspace: &atlas_storage::Workspace,
-    source: &dyn PublicationSource,
-) -> ArtifactValidationReport {
-    let owner = workspace.update_owner().unwrap();
-    let job =
-        register_native_target(&owner, workspace, TEST_WORKSPACE_SCHEMA_VERSION, source).unwrap();
-    let values = freeze_native_values(
-        &owner,
-        workspace,
-        TEST_WORKSPACE_SCHEMA_VERSION,
-        &job,
-        source,
-    )
-    .unwrap();
-    let maintenance = owner
-        .maintenance(TEST_WORKSPACE_SCHEMA_VERSION, "checked identity test")
-        .unwrap();
-    SqliteIndexWriter::new(&maintenance)
-        .write_job(source, &values, &job, &source.context().sha256().unwrap())
-        .unwrap()
-}
+
 fn stable_rows(c: &Connection) -> std::collections::BTreeMap<String, Vec<Vec<Value>>> {
-    let mut rows = reference_preservation_rows(c).unwrap();
-    for operation in [
-        "reference_update_jobs",
-        "native_update_targets",
-        "native_target_inputs",
-    ] {
-        rows.remove(operation);
-    }
-    rows
+    reference_preservation_rows(c).unwrap()
 }
 #[test]
-fn production_publication_bounds_rich_visits_and_preserves_stream_order_optional_names_and_saved_rows()
- {
+fn owned_publication_preserves_stream_order_optional_names_macro_exclusion_and_saved_rows() {
     let directory = tempfile::tempdir().unwrap();
     let workspace = initialize_workspace(directory.path().join("identities.sqlite")).unwrap();
     let mut previous = None;
     for iteration in 0..2 {
-        let source = spool(fixture(), origin(&workspace), None);
-        let counted = Counted {
-            source: &source,
-            traversals: Cell::new(0),
-            visits: Cell::new(0),
-        };
-        let report = publish(&workspace, &counted);
+        let owner = workspace.update_owner().unwrap();
+        let scratch = BuildScratch::new(&owner).unwrap();
+        let source = spool(scratch.path(), fixture(), origin(&workspace), None);
+        let publication = PreparedPublication::new_in(
+            &owner,
+            TEST_WORKSPACE_SCHEMA_VERSION,
+            scratch.path(),
+            source,
+        )
+        .unwrap();
+        let report = publication.publish().unwrap();
         assert_eq!(report.roots, 6);
-        eprintln!(
-            "rich_publication iteration={iteration} traversals={} visits={} roots={}",
-            counted.traversals.get(),
-            counted.visits.get(),
-            source.record_count()
-        );
-        assert!(
-            counted.traversals.get() <= 4 && counted.visits.get() <= 4 * source.record_count(),
-            "identity consumers must not rehydrate complete prepared records: traversals={} visits={}",
-            counted.traversals.get(),
-            counted.visits.get()
-        );
         let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
         let c = read.connection();
         let identities = c
@@ -277,7 +190,7 @@ fn production_publication_bounds_rich_visits_and_preserves_stream_order_optional
     }
 }
 #[test]
-fn sealed_late_snapshot_contract_or_root_error_precedes_reference_mutation() {
+fn late_snapshot_contract_or_root_error_precedes_reference_mutation() {
     for (damage, expected_error) in [
         ("contract", "Unsupported source contract"),
         ("root", "selection belongs to another root"),
@@ -286,43 +199,30 @@ fn sealed_late_snapshot_contract_or_root_error_precedes_reference_mutation() {
         let path = directory.path().join("late-corruption.sqlite");
         let workspace = initialize_workspace(&path).unwrap();
         publish_input(&path, &fixture()).unwrap();
-        let source = spool(fixture(), origin(&workspace), Some(damage));
-        source.check_seal().unwrap();
         let owner = workspace.update_owner().unwrap();
-        let job =
-            register_native_target(&owner, &workspace, TEST_WORKSPACE_SCHEMA_VERSION, &source)
-                .unwrap();
-        let values = freeze_native_values(
+        let scratch = BuildScratch::new(&owner).unwrap();
+        let source = spool(scratch.path(), fixture(), origin(&workspace), Some(damage));
+        let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        write.connection().execute_batch("CREATE TRIGGER reject_reference_mutation BEFORE INSERT ON artifact_context BEGIN SELECT RAISE(ABORT,'unexpected reference mutation'); END;").unwrap();
+        let before = reference_preservation_rows(write.connection()).unwrap();
+        write.commit().unwrap();
+        let error = PreparedPublication::new_in(
             &owner,
-            &workspace,
             TEST_WORKSPACE_SCHEMA_VERSION,
-            &job,
-            &source,
+            scratch.path(),
+            source,
         )
+        .err()
         .unwrap();
-        let maintenance = owner
-            .maintenance(TEST_WORKSPACE_SCHEMA_VERSION, "late damaged input")
-            .unwrap();
-        maintenance.connection().execute_batch("CREATE TRIGGER reject_reference_mutation BEFORE INSERT ON artifact_context BEGIN SELECT RAISE(ABORT,'unexpected reference mutation'); END;").unwrap();
-        let before = reference_preservation_rows(maintenance.connection()).unwrap();
-        let error = SqliteIndexWriter::new(&maintenance)
-            .write_job(&source, &values, &job, &source.context().sha256().unwrap())
-            .unwrap_err();
         assert!(
             error.to_string().contains(expected_error),
             "{damage}: {error}"
         );
+        let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
         assert_eq!(
-            reference_preservation_rows(maintenance.connection()).unwrap(),
+            reference_preservation_rows(read.connection()).unwrap(),
             before
         );
-        assert_eq!(
-            maintenance
-                .connection()
-                .query_row("SELECT reference_revision FROM workspace", [], |r| r
-                    .get::<_, u64>(0))
-                .unwrap(),
-            1
-        );
+        assert_eq!(read.reference_revision().unwrap(), 1);
     }
 }

@@ -629,45 +629,42 @@ fn validate_vectors(
 ) -> Result<(), IndexError> {
     validate_profile_storage(c, context)?;
     crate::semantic_locations::validate(c)?;
-    if context.search_profiles.is_empty() {
-        return Ok(());
+    let invalid: bool = c.query_row("SELECT EXISTS(SELECT 1 FROM semantic_units u JOIN embedding_inputs i USING(input_id) WHERE i.published_hash IS NULL) OR EXISTS(SELECT 1 FROM trait_seed_chunks t JOIN embedding_inputs i USING(input_id) WHERE i.published_hash IS NULL) OR EXISTS(SELECT 1 FROM embedding_inputs i WHERE published_hash IS NOT NULL AND NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.input_id=i.input_id) AND NOT EXISTS(SELECT 1 FROM trait_seed_chunks t WHERE t.input_id=i.input_id))",[],|r|r.get(0))?;
+    if invalid {
+        return Err(bad("published native consumer/registry coverage mismatch"));
     }
     for model in &context.search_profiles {
-        let covered:usize=c.query_row("SELECT count(*) FROM records r WHERE r.document_kind<>'Macro' AND (SELECT count(*) FROM semantic_units s WHERE s.record_id=r.record_id AND s.unit_kind='identity' AND s.profile_id=?1)=1",[model.profile_id.as_str()],|r|r.get(0))?;
+        let covered: usize = c.query_row("SELECT count(*) FROM records r WHERE r.document_kind<>'Macro' AND (SELECT count(*) FROM semantic_units s WHERE s.record_id=r.record_id AND s.unit_kind='identity' AND s.profile_id=?1)=1",[model.profile_id.as_str()],|r|r.get(0))?;
         if covered != product_count {
             return Err(bad("per-profile semantic identity coverage is incomplete"));
         }
-    }
-    for model in &context.search_profiles {
-        let table = crate::schema::vector_table(model)?;
-        let total: usize = c.query_row(
-            "SELECT count(*) FROM semantic_units WHERE profile_id=?",
-            [model.profile_id.as_str()],
-            |row| row.get(0),
-        )?;
+        let table = crate::schema::native_vector_table(model)?;
+        let identity = serde_json::to_string(model)?;
+        let total: usize = c.query_row("SELECT count(*) FROM embedding_inputs i JOIN embedding_models m USING(model_id) WHERE m.identity_json=? AND i.published_hash IS NOT NULL",[&identity],|r|r.get(0))?;
         if count(c, &table)? != total {
-            return Err(bad("vector/unit coverage mismatch"));
+            return Err(bad("native vector/input coverage mismatch"));
         }
-        // The profile/input-hash index produces scattered vec0 chunk reads.
-        // This is a complete scan, so walk unit IDs in storage order instead.
-        // Preserve the LEFT JOIN: a missing vector must still fail validation.
-        let mut statement = c.prepare(&format!("SELECT i.token_count,i.input_hash,v.embedding,i.published_hash FROM semantic_units u NOT INDEXED JOIN embedding_inputs i USING(input_id) LEFT JOIN {table} v USING(unit_id) WHERE u.profile_id=? ORDER BY u.unit_id"))?;
-        let mut rows = statement.query([model.profile_id.as_str()])?;
+        let expected = crate::native_values::expected_bytes(model)?;
+        // LEFT JOIN and guarded payloads preserve missing/oversized-row failure
+        // without allocating an untrusted BLOB before its geometry is checked.
+        let mut statement = c.prepare(&format!("SELECT i.token_count,length(i.input_hash),CASE WHEN length(v.embedding)=?2 THEN v.embedding ELSE zeroblob(0) END,CASE WHEN length(i.published_hash)=32 THEN i.published_hash ELSE zeroblob(0) END FROM embedding_inputs i JOIN embedding_models m USING(model_id) LEFT JOIN {table} v USING(input_id) WHERE m.identity_json=?1 AND i.published_hash IS NOT NULL ORDER BY i.input_id"))?;
+        let mut rows = statement.query(rusqlite::params![identity, expected])?;
         let mut checked = 0usize;
         while let Some(row) = rows.next()? {
             let tokens: usize = row.get(0)?;
-            if tokens == 0 || tokens > model.token_limit || row.get::<_, Vec<u8>>(1)?.len() != 32 {
-                return Err(bad("invalid semantic input metadata"));
+            if tokens == 0 || tokens > model.token_limit || row.get::<_, usize>(1)? != 32 {
+                return Err(bad("invalid native input metadata"));
             }
             let bytes: Vec<u8> = row.get(2)?;
-            if crate::embedding_values::hash_bytes(&bytes) != row.get::<_, Vec<u8>>(3)? {
-                return Err(bad("published embedding checksum mismatch"));
-            }
-            check_vector(&crate::read_units::decode_vector(&bytes)?, model.dimensions)?;
+            let checksum: Vec<u8> = row.get(3)?;
+            crate::native_values::check_bytes(&bytes, &checksum, model)?;
             checked += 1;
             if checked.is_multiple_of(1000) || checked == total {
-                tracing::info!(target:"atlas_progress", phase="artifact_vector_integrity", current=checked as u64, total=total as u64, unit="passages", profile=%model.profile_id,"Checking search embeddings");
+                tracing::info!(target:"atlas_progress",phase="artifact_vector_integrity",current=checked as u64,total=total as u64,unit="inputs",profile=%model.profile_id,"Checking search embeddings");
             }
+        }
+        if checked != total {
+            return Err(bad("native validation coverage mismatch"));
         }
     }
     Ok(())
@@ -698,7 +695,7 @@ fn validate_profile_storage(
     let expected = context
         .search_profiles
         .iter()
-        .map(crate::schema::vector_table)
+        .map(crate::schema::native_vector_table)
         .collect::<Result<std::collections::BTreeSet<_>, _>>()?;
     let actual = c.prepare("SELECT name FROM sqlite_master WHERE type='table' AND sql LIKE 'CREATE VIRTUAL TABLE%USING vec0%' ORDER BY name")?.query_map([], |row| row.get::<_,String>(0))?.collect::<Result<std::collections::BTreeSet<_>,_>>()?;
     if actual != expected {
@@ -708,13 +705,13 @@ fn validate_profile_storage(
         return Err(bad("semantic storage exists without profiles"));
     }
     for model in &context.search_profiles {
-        let table = crate::schema::vector_table(model)?;
+        let table = crate::schema::native_vector_table(model)?;
         let sql: String = c.query_row(
             "SELECT sql FROM sqlite_master WHERE name=?",
             [&table],
             |row| row.get(0),
         )?;
-        if sql != crate::schema::vector_ddl(model)? {
+        if sql != crate::schema::native_vector_ddl(model)? {
             return Err(bad(
                 "profile vector table dimensions or distance policy differs",
             ));

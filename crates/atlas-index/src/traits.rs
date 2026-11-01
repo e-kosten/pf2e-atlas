@@ -66,11 +66,10 @@ pub struct TraitMembership {
     pub owners: Vec<OwnedContentLocator>,
 }
 
-pub(crate) fn write_traits_stream(
+fn write_trait_relations(
     c: &Connection,
     input: &dyn crate::PublicationSource,
-    values: &dyn crate::NativeValueSource,
-) -> Result<(), IndexError> {
+) -> Result<std::collections::BTreeSet<String>, IndexError> {
     let mut kept = std::collections::BTreeSet::new();
     input.traits(&mut |definition|{
         if definition.label.trim().is_empty(){return Err(IndexError::Invalid("empty trait label".into()));}
@@ -99,6 +98,15 @@ pub(crate) fn write_traits_stream(
         for row in references{c.execute("DELETE FROM trait_references WHERE trait_key=? AND record_key=? AND evidence=?",params![row.0,row.1,row.2])?;}
         Ok(())
     })?;
+    Ok(kept)
+}
+
+pub(crate) fn write_traits_stream(
+    c: &Connection,
+    input: &dyn crate::PublicationSource,
+    values: &dyn crate::NativeValueSource,
+) -> Result<(), IndexError> {
+    let kept = write_trait_relations(c, input)?;
     let mut seeds = std::collections::BTreeSet::new();
     input.trait_seeds(&mut |seed| {
         let model = input.context().search_profile(&seed.profile_id)?;
@@ -143,6 +151,44 @@ pub(crate) fn write_traits_stream(
     }
     Ok(())
 }
+/// Populate the genuine released trait layout for published-prefix fixtures.
+/// The migration10 write_seed/validate_seed closure below is unchanged.
+#[cfg(any(test, feature = "test-support"))]
+pub(crate) fn write_historical_traits(
+    c: &Connection,
+    input: &crate::IndexBuildInput,
+) -> Result<(), IndexError> {
+    crate::writer::fixture_native_values(input)?;
+    let kept = write_trait_relations(c, input)?;
+    c.execute_batch("DELETE FROM trait_seed_chunks; DELETE FROM trait_vectors; DELETE FROM trait_native_values;")?;
+    for seed in &input.trait_vectors {
+        let model = input.context.search_profile(&seed.profile_id)?;
+        let definition = input
+            .traits
+            .iter()
+            .find(|d| d.key == seed.key)
+            .ok_or_else(|| IndexError::Invalid("historical trait seed has no definition".into()))?;
+        validate_seed(
+            definition,
+            model,
+            &seed.input_hash,
+            &seed.vector,
+            &seed.chunks,
+        )?;
+        write_seed(c, seed, model)?;
+    }
+    let old = c
+        .prepare("SELECT key FROM trait_definitions")?
+        .query_map([], |r| r.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    for key in old {
+        if !kept.contains(&key) {
+            c.execute("DELETE FROM trait_definitions WHERE key=?", [key])?;
+        }
+    }
+    Ok(())
+}
+
 impl SqliteIndexReader {
     pub fn trait_definition(&self, key: &TraitKey) -> Result<Option<TraitDefinition>, IndexError> {
         let row: Option<(String, String)> = self
@@ -336,24 +382,8 @@ fn write_seed_occurrence(
     let bytes = crate::read_units::vector_bytes(vector);
     c.execute("INSERT INTO trait_vectors VALUES(?,?,?,?,?) ON CONFLICT(trait_key,profile_id) DO UPDATE SET input_hash=excluded.input_hash,vector=excluded.vector,vector_hash=excluded.vector_hash WHERE input_hash IS NOT excluded.input_hash OR vector_hash IS NOT excluded.vector_hash",params![seed.key.to_string(),seed.profile_id.as_str(),seed.input_hash,bytes,crate::embedding_values::hash_bytes(&bytes)])?;
     for (ordinal, chunk) in seed.chunks.iter().enumerate() {
-        let value = values.value(model, &chunk.descriptor)?;
-        let id = crate::embedding_values::publish_input(
-            c,
-            model,
-            &chunk.descriptor.input_sha256,
-            chunk.descriptor.token_count,
-            &value,
-        )?;
+        let id = crate::native_values::selected_input(c, values, model, &chunk.descriptor)?;
         c.execute("INSERT INTO trait_seed_chunks VALUES(?,?,?,?,?,?) ON CONFLICT(trait_key,profile_id,ordinal) DO UPDATE SET input_id=excluded.input_id,input=excluded.input,address_json=excluded.address_json WHERE input_id IS NOT excluded.input_id OR input IS NOT excluded.input OR address_json IS NOT excluded.address_json",params![seed.key.to_string(),seed.profile_id.as_str(),ordinal,id,chunk.input,serde_json::to_string(&chunk.address)?])?;
-        let document: bool = c.query_row(
-            "SELECT EXISTS(SELECT 1 FROM semantic_units WHERE input_id=?)",
-            [id],
-            |r| r.get(0),
-        )?;
-        if !document {
-            let bytes = crate::read_units::vector_bytes(&value);
-            c.execute("INSERT INTO trait_native_values VALUES(?,?) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector WHERE vector IS NOT excluded.vector",params![id,bytes])?;
-        }
     }
     c.execute(
         "DELETE FROM trait_seed_chunks WHERE trait_key=? AND profile_id=? AND ordinal>=?",
@@ -440,7 +470,7 @@ pub(crate) fn read_chunks(
             input_hash: row.get(4)?,
             token_count: row.get(5)?,
             address: serde_json::from_str(&row.get::<_, String>(3)?)?,
-            vector: crate::embedding_values::native_value(c, row.get(1)?, model)?,
+            vector: crate::native_values::read(c, row.get(1)?, model)?,
         });
     }
     Ok(chunks)
@@ -637,7 +667,7 @@ fn validate_published_seed(
             digest.update(b":");
         }
         digest.update(input_hash.as_bytes());
-        let native = crate::embedding_values::native_value(c, row.get(1)?, model)?;
+        let native = crate::native_values::read(c, row.get(1)?, model)?;
         centroid
             .push(&native)
             .map_err(|e| IndexError::Invalid(e.to_string()))?;
@@ -1158,37 +1188,18 @@ mod tests {
                     .unwrap(),
                 0
             );
-            let target = input.context.sha256().unwrap();
             write.commit().unwrap();
-            let job = crate::register_native_target(
+            let scratch = crate::BuildScratch::new(&owner).unwrap();
+            let publication = crate::test_support::prepare_publication_in(
                 &owner,
-                &workspace,
                 crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
+                scratch.path(),
                 &input,
+                true,
             )
             .unwrap();
-            let frozen = crate::freeze_fixture_native_values(
-                &input,
-                &input,
-                Some(&job),
-                &crate::frozen_native_values::origin(
-                    workspace
-                        .read(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
-                        .unwrap()
-                        .connection(),
-                )
-                .unwrap(),
-            )
-            .unwrap();
-            let maintenance = owner
-                .maintenance(
-                    crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
-                    "trait checkpoint pruning test",
-                )
-                .unwrap();
-            crate::SqliteIndexWriter::new(&maintenance)
-                .write_job(&input, &frozen, &job, &target)
-                .unwrap();
+            assert_eq!(publication.logical_native_bytes().unwrap(), 0);
+            publication.publish().unwrap();
         }
 
         {
@@ -1218,14 +1229,24 @@ mod tests {
             assert_eq!(
                 write
                     .connection()
-                    .query_row("SELECT count(*) FROM trait_native_values", [], |r| r
-                        .get::<_, usize>(0))
+                    .query_row(
+                        "SELECT count(DISTINCT input_id) FROM trait_seed_chunks",
+                        [],
+                        |r| r.get::<_, usize>(0)
+                    )
                     .unwrap(),
                 1
             );
             write
                 .connection()
-                .execute("DELETE FROM trait_native_values", [])
+                .execute(
+                    &format!(
+                        "DELETE FROM {} WHERE input_id IN (SELECT input_id FROM trait_seed_chunks)",
+                        crate::schema::native_vector_table(&input.context.search_profiles[0])
+                            .unwrap()
+                    ),
+                    [],
+                )
                 .unwrap();
             assert!(crate::validate_reference(write.connection()).is_err());
         }

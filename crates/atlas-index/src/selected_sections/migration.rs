@@ -1,4 +1,4 @@
-//! Schema-27 reconstruction; retired source contracts are never decoded.
+//! Schema-28 reconstruction; retired source contracts are never decoded.
 use super::{SelectedSection, project, upsert};
 use crate::{IndexError, ReferenceUpgrade};
 use atlas_domain::SourcePassageAddress;

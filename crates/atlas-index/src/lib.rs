@@ -13,6 +13,9 @@ pub use core_projection::CORE_SECTIONS_SCHEMA_SQL;
 mod discovery;
 mod embedding_storage_migration;
 mod embedding_values;
+mod native_storage_migration;
+mod native_values;
+pub use native_storage_migration::{INPUT_OWNED_STORAGE_SCHEMA_SQL, backfill_input_owned_storage};
 mod passage_layouts;
 mod persisted_inputs;
 mod reuse_reader;
@@ -28,7 +31,7 @@ mod historical_core_projection;
 mod historical_locations;
 #[cfg(any(test, feature = "test-support"))]
 mod historical_publication;
-mod reference_jobs;
+mod maintenance_recovery;
 mod reference_recovery;
 pub use reference_recovery::ReferencePublicationExpectation;
 mod selected_sections;
@@ -49,7 +52,13 @@ mod requested_config;
 pub use requested_config::{
     RequestedReferenceConfig, read_requested_reference_config, write_requested_reference_config,
 };
+mod build_scratch;
 mod build_spool;
+pub use build_scratch::BuildScratch;
+mod prepared_publication;
+pub use prepared_publication::{
+    NATIVE_VALUE_BATCH_LIMIT, NativeValueSelection, PreparedPublication,
+};
 #[cfg(test)]
 mod core_tests;
 mod eligibility_buffer;
@@ -61,12 +70,9 @@ mod input;
 mod publication_source;
 pub use build_spool::{
     BuildFileUsage, BuildFrameCursor, BuildFrameStream, PreparedRecordFrame, PublicationSpool,
-    SealedBuildFrameStream, SealedPublicationSpool,
 };
-pub use publication_source::{
-    NativeValueSource, PreparedRecordRef, PublicationSource, SemanticOccurrence,
-    TraitChunkOccurrence, TraitSeedOccurrence,
-};
+pub(crate) use publication_source::{NativeValueSource, PreparedRecordRef, PublicationSource};
+pub use publication_source::{SemanticOccurrence, TraitChunkOccurrence, TraitSeedOccurrence};
 mod numeric;
 mod persistence;
 #[cfg(test)]
@@ -117,6 +123,9 @@ pub use input::{
 };
 #[cfg(any(test, feature = "test-support"))]
 pub use input::{IndexBuildInput, SourceSemanticUnitInput};
+pub use maintenance_recovery::{
+    recover_reference_publication, recover_reference_publication_checked,
+};
 pub use query::{ValidatedQuery, parse_where, query_capabilities, validate_query};
 pub use read_content::{
     SourceAttributedContentBundle, SourceContentBundle, SourceRelationshipBundle,
@@ -132,9 +141,6 @@ pub use reader::{
     SourceArtifactStatistics, SourceProfileStatistics, SourceReadCapabilities, SourceSummaryBatch,
     SqliteIndexReader,
 };
-#[cfg(any(test, feature = "test-support"))]
-pub use reference_jobs::start_reference_job;
-pub use reference_jobs::{recover_reference_publication, recover_reference_publication_checked};
 pub use schema::{
     CONSUMABLE_FILTER_SCHEMA_SQL, PHYSICAL_BASE_TYPE_SCHEMA_SQL,
     REFERENCE_NUMERIC_FILTER_SCHEMA_SQL, REFERENCE_SCHEMA_SQL,
@@ -144,6 +150,7 @@ pub use validation::validate_artifact;
 pub use validation::{ArtifactValidationReport, validate_reference};
 #[cfg(any(test, feature = "test-support"))]
 pub use writer::IndexArtifactWriter;
+#[cfg(any(test, feature = "test-support"))]
 pub use writer::SqliteIndexWriter;
 
 mod lexical_projection;
@@ -164,21 +171,3 @@ pub use result_order::SourceUnitPrice;
 
 #[cfg(test)]
 mod embedding_values_tests;
-
-pub use schema::NATIVE_TARGETS_SCHEMA_SQL;
-mod native_manifest;
-pub use native_manifest::NATIVE_VALUE_BATCH_LIMIT;
-
-mod native_selection;
-pub use native_selection::{NativeValueSelection, select_native_values, stage_native_values};
-
-mod native_targets;
-pub use native_targets::register_native_target;
-
-mod frozen_native_values;
-#[cfg(any(test, feature = "test-support"))]
-pub use frozen_native_values::freeze_fixture_native_values;
-pub use frozen_native_values::{FrozenNativeValues, freeze_native_values};
-
-#[cfg(test)]
-mod native_targets_tests;

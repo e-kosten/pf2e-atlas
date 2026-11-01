@@ -1,6 +1,7 @@
 # ADR0051: Persistent workspace and bounded database operations
 
-Status: accepted
+Status: accepted; numerical ownership, recovery and captured-input publication
+amended by [ADR0065](0065-input-owned-reference-publication.md).
 
 ## Context
 
@@ -66,27 +67,19 @@ inference occurs outside write transactions, with bounded persisted checkpoints.
 Final publication validates the exact transaction before advancing reference
 revision. User-state edits do not advance that revision.
 
-Native updates register complete requested membership across all profiles before
-inference or pending-value garbage collection. A single unpromoted candidate may
-coexist with the previous active target. Independent sealed-stream traversal checks
-full model/hash/token identity, counts and membership digest before promotion;
-zero-input profiles remain part of the full context. An interrupted candidate leaves
-active checkpoints intact. Retired memberships/jobs and inert unreferenced input
-metadata are collected in bounded explicit-update transactions, protecting all
-pending and published references. Only a complete active target authorizes pruning
-unrequested pending blobs. That pruning never removes published vec0 or trait
-values, even when a discarded pending blob shares their input identity. Legacy
-unknown-membership work is preserved until complete promotion.
+Index owns one concrete prepared publication binding its context/inventory,
+expected generation, prepared metadata and selected numerical data. Published
+native values are input-owned; occurrence edits cannot overwrite another input's
+bytes. Only new/forced selected values require owned numerical staging. The
+publication transaction resolves reused handles through its own connection and
+retains values until all document/trait consumers finish.
 
-Index pins selected checksums with membership and copies selected values before
-any publication mutation into one disposable file. The numerical seal binds the
-origin workspace/revision, full context, source expectation and complete membership;
-file integrity and exact value lengths/checksums are checked before allocation or
-consumption. The file remains alive through the existing writer's exact final
-validation. It is temporary publication input, not a second persistent cache or
-reference authority. Ordinary reads and startup do no cleanup. Successful activation
-atomically clears pending values and retires the target; failed staging or activation
-preserves both the prior publication and durable retry work.
+Unpublished inference results form one recovery cache with simple bounded eviction.
+Selection is independent of eviction once owned. Successful complete publication
+clears the cache atomically; staging/publication failure retains useful committed
+recovery results and the previous publication. Ordinary reads and startup do no
+cleanup or inference. [ADR0065](0065-input-owned-reference-publication.md) owns the
+numerical lifetime and occurrence-budget rationale.
 
 Startup authenticates an already-current migration ledger under shared admission,
 without taking publisher ownership or scanning all foreign-key rows. A new CLI
@@ -97,15 +90,17 @@ Keep stable record identities when sources disappear. Remove obsolete current
 content/projections and mark identities unavailable; saved references and snapshots
 remain. Returning source keys reuse the identity. Requested configuration is
 independent of active output. An optional model can prepare while the active
-profile remains available, then activate during a short maintenance boundary.
+profile remains available, then activate under exclusive maintenance. Maintenance downtime is accepted; a
+short final-only interval and continuous availability are not requirements.
 Reuse vectors only with exact verified model/input identity. Schema or display
 changes alone do not justify inference.
 
 Source preparation binds every consumed file to a captured SHA-256 inventory.
-Pack bindings and document/migration discovery use that inventory; each read
-validates its bytes before parsing. Publication rechecks the complete inventory,
-so transient edits or temporarily omitted files cannot produce mismatched
-provenance.
+Pack bindings and document/migration discovery use that inventory. A consumed
+external file is checked against capture, then its data is owned and the original
+is no longer consulted. Manifests/catalogs follow the same rule. Publication uses
+that captured set; subsequent edits, additions and removals belong to the next
+build. Missing/unreadable declared packs fail discovery before publication.
 
 Public filter names express domain concepts, with explicit `embedded.*`
 collections. Embedded predicates match immediate children only; a root-kind filter
@@ -133,8 +128,11 @@ guidance. Isolated storage tests do not establish those obligations.
 ## Disposable build staging
 
 Product preparation stages checked record metadata and occurrence attribution in
-sealed task-owned files. Their complete source/context and expected workspace
-revision bind deletion authority; unsealed or changed bytes cannot publish.
+one owned attempt directory. The concrete publication binds complete source/context
+and expected workspace revision. Private child streams retain consumed-frame
+checksums, observed allocation bounds and fallible typed decoding without repeated
+whole-file authentication. Update ownership permits safely cleaning recognizable
+abandoned attempts for that workspace; live child handles close before cleanup.
 This keeps rich source/HTML state bounded without introducing another persistent
 store. The writer owns SQL and internal identity allocation, and all input sources
 use the same fallible streaming contract. Component digests are reconciliation
@@ -142,14 +140,13 @@ hints verified against actual projections in the exact final transaction; absent
 entries remain unknown. Final validation may recompute expected semantics one
 root at a time independently of preparation's shared selection.
 
-Native raw text, profile descriptors and occurrence metadata use repeatable sealed
+Native raw text, profile descriptors and occurrence metadata use owned repeatable
 files. Native validation, selection and inference consume bounded batches; only
-actual misses load a per-profile inference session. Selected values are copied
-before mutation into the index-owned frozen numerical file described above.
-Complete model/hash/token/checksum identity and pending precedence survive slot
-replacement and all trait/document consumers. Compact capture/resolver identities,
-live sets, component digests and validation evidence still grow with corpus size;
-native model memory and observed process RSS remain separate measurements.
+actual misses load an inference session. New/forced values are staged, while
+published values remain stable input/checksum handles through document/trait
+consumers and final validation. Compact capture/resolver identities, live sets,
+component digests and validation evidence still grow with corpus size; model memory
+and observed process RSS remain separate measurements.
 
 ## Saved-domain integrity
 
