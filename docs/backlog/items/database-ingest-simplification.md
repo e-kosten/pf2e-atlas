@@ -36,16 +36,20 @@ Keep one SQLite workspace, checked source authority, explicit unavailable states
 
 Validate the incomplete-pack failure path, populated migrations/rollback, source/relationship changes, lexical-only and single/two-profile sections, forced pending-vs-published values, retry/reset lifetimes and nested filter uncertainty. Measure current release builds for preparation, memory, logical writes, maintenance downtime and selective query plans before claiming performance improvements. Each completed refactor removes its replaced production path.
 
-Local integration and measurements use main
+The pre-revision measurements used main
 `d7187e7834110e3a524e651147ee866b3ad8cd27`, whose published schema 24 includes manual
-trackers and the encounter clock. Preserve migrations
-23/24 and their countdown conversion; this work adds named steps 25–29 in one PR
-and one release slice. Populated 24→29 upgrades must preserve configured round
-length, timed condition progress, trackers, baseline/outgoing payloads and all prior
-saved identities. Earlier schema-27 task measurements remain historical. Fresh
-integrated validation and all eight current corpus-operation closeouts passed, including
-24→29 preservation and the final original-source/schema-22 restore followed by a
-normal 22→29 metadata upgrade.
+trackers and the encounter clock. The revised branch integrated main `f76232c8`
+before implementation. Preserve released migrations 23/24 and their countdown
+conversion; the final suffix adds named steps 25–29 in one PR and one release
+slice. Populated 24→29 upgrades must preserve configured round length, timed condition
+progress, trackers, baseline/outgoing payloads and saved identities.
+
+Earlier schema-27 task measurements remain historical. The pre-revision candidate
+passed its then-current integrated validation and
+eight corpus-operation closeouts, including 24→29 preservation and the final
+original-source/schema 22 restore followed by a normal 22→29 metadata upgrade.
+Those results describe that earlier candidate and migration suffix; revised
+release evidence is collected separately.
 
 The local execution plan retains the ordered blocks, evidence matrix and candidate
 lineage. Independent review covers the local candidate; hosted CI covers the
@@ -102,11 +106,16 @@ with a narrow journal pass for aliases. Current input-owned indexes have sparse
 maintenance, and full model keys bind registry IDs only within each admitted
 session. The revised owning suites pass locally; full release evidence is pending.
 
-Next: measure the frozen ownership checkpoint and final preparation changes against
-matching controls. Complete controlled corpus
-migration/preservation, forced numerical dependency, trait/profile lifetime, actual
-interruption/recovery, cache/scratch and product-query evidence. Retain one PR184
-and refresh full local/platform/CI validation for the actual final candidate.
+The controlled main24 upgrade and first/steady ownership checkpoint passed
+preservation checks. The steady cached rebuild took 424.62 seconds and 0.89 GiB
+peak RSS, compared with 319.59 seconds and 4.53 GiB for the fresh main control.
+These checkpoint results do not establish the final preparation/validation cost.
+
+Next: measure the final preparation and validation changes, complete explicit
+asset-dependent fixtures, affected browsers, controlled source-change/recovery
+operations and product-query evidence. Retain one PR184 and verify hosted CI on
+the actual published candidate. The full local Rust/frontend/developer gates pass
+for the current implementation; later source changes require applicable checks.
 
 The local plan owns implementation ordering and validation obligations. Cache
 thresholds and slice sizes can follow measured resource use. Asset-dependent tests,
