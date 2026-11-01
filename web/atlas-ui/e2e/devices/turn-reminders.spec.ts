@@ -954,7 +954,7 @@ for (const boundary of ["start", "end"] as const) {
       await editor.getByLabel("Name", { exact: true }).fill("Countdown");
       await expect(editor.getByRole("radio", { name: "Starts on" })).toBeChecked();
       if (boundary === "end")
-        await activate(editor.getByRole("radio", { name: "Ends on" }), info);
+        await activate(editor.getByText("Ends on", { exact: true }), info);
       await activate(editor.getByRole("button", { name: "Save tracker" }), info);
       await expect(editor).not.toBeVisible();
       const advance = () =>
@@ -966,7 +966,7 @@ for (const boundary of ["start", "end"] as const) {
         );
       await activate(
         page
-          .getByRole("button", { name: "Start turn", exact: true })
+          .getByRole("button", { name: /^(Start|Next) turn$/ })
           .filter({ visible: true }),
         info,
       );
