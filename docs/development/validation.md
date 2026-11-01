@@ -44,6 +44,10 @@ or compile the same version with:
 cargo install cargo-nextest --locked --version 0.9.150
 ```
 
+The full gate also lints and tests `atlas-cli --no-default-features` before
+preparing the frontend bundle. This keeps CLI-only command availability and agent
+behavior covered independently of the default full workspace build.
+
 The full gate checks runner availability and the configured minimum version before
 formatting, as ordinary phases in the same Node validation session.
 

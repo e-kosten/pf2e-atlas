@@ -11,7 +11,8 @@ import { generateManifest } from '../src/generate-release-manifest.js';
 import { notices } from '../src/generate-notices.js';
 import { pruneManifest } from '../src/prune-dist-manifest.js';
 import { fixture, writeZip } from './release-fixtures.js';
-import { jsonText, object, readJson, repoRoot, sha256, targets, writeJson } from '../src/release-data.js';
+import { jsonText, object, readJson, repoRoot, sha256, targets, variants, archiveName, writeJson } from '../src/release-data.js';
+import { stageCliOnly } from '../src/stage-cli-only.js';
 import { validateAssets } from '../src/validate-release-assets.js';
 
 function temporary(t: TestContext): string {
@@ -31,14 +32,15 @@ test('manifest and checksums cover supported packages and release extras determi
     { target: 'x86_64-pc-windows-msvc', os: 'windows', arch: 'x86_64', name: 'atlas-cli-x86_64-pc-windows-msvc.zip' },
     { target: 'x86_64-unknown-linux-gnu', os: 'linux', arch: 'x86_64', name: 'atlas-cli-x86_64-unknown-linux-gnu.tar.xz' },
   ];
-  for (const item of packages) writeFileSync(path.join(dist, item.name), item.target);
+  const bothPackages = variants.flatMap((variant) => packages.map((item) => ({ ...item, variant, name: archiveName(item.target, variant) })));
+  for (const item of bothPackages) writeFileSync(path.join(dist, item.name), item.target);
   writeFileSync(path.join(dist, 'unrecognized.zip'), 'ignored');
   for (const name of ['atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md']) writeFileSync(path.join(dist, name), 'installer\n');
   await generateManifest('v9.9.9', dist);
   const manifestText = readFileSync(path.join(dist, 'atlas-release-manifest.json'), 'utf8');
   const manifest = object(readJson(path.join(dist, 'atlas-release-manifest.json')));
   assert.equal(manifest.version, 'v9.9.9');
-  const expectedAssets = packages.map((item) => ({ ...item, sha256: createHash('sha256').update(item.target).digest('hex') }));
+  const expectedAssets = bothPackages.map((item) => ({ ...item, sha256: createHash('sha256').update(item.target).digest('hex') }));
   assert.deepEqual(manifest.assets, expectedAssets);
   assert.ok(manifestText.indexOf('"arch"') < manifestText.indexOf('"target"'));
   const sums = readFileSync(path.join(dist, 'SHA256SUMS'), 'utf8');
@@ -164,8 +166,8 @@ test('ZIP names are inspected without extraction; malformed ZIP fails', async (t
 test('asset checks reject missing metadata, bad hashes, runtime data in archives and loose files', async (t) => {
   const root = temporary(t), dist = path.join(root, 'dist'); mkdirSync(dist);
   const archiveRoot = path.join(root, 'atlas'); mkdirSync(archiveRoot); writeFileSync(path.join(archiveRoot, 'atlas'), 'stub');
-  for (const target of Object.keys(targets)) {
-    const file = path.join(dist, `atlas-cli-${target}${target.includes('windows') ? '.zip' : '.tar.xz'}`);
+  for (const [target, variant] of Object.keys(targets).flatMap((target) => variants.map((variant) => [target, variant] as const))) {
+    const file = path.join(dist, archiveName(target, variant));
     if (target.includes('windows')) await writeZip(file, { 'atlas/atlas.exe': 'stub' });
     else await fixture(['unix-archive', file, archiveRoot]);
   }
@@ -190,4 +192,59 @@ test('asset checks reject missing metadata, bad hashes, runtime data in archives
   await assert.rejects(validateAssets(bad), /release archive contains runtime data.*model.onnx/);
   await reset(); writeFileSync(path.join(bad, 'pf2e-index.sqlite'), 'forbidden');
   await assert.rejects(validateAssets(bad), /release assets contain runtime data/);
+});
+
+
+test('CLI-only staging preserves cargo-dist archive contents and merges distinct build metadata', async (t) => {
+  const dist = temporary(t), target = 'aarch64-apple-darwin';
+  const original = archiveName(target, 'full'), renamed = archiveName(target, 'cli-only');
+  writeFileSync(path.join(dist, original), 'CLI-only binary archive');
+  writeFileSync(path.join(dist, `${original}.sha256`), 'old-name');
+  const extra = path.join(dist, 'build.json');
+  const executableId = `atlas-cli-${target}-exe-atlas`;
+  writeJson(extra, {
+    artifacts: { [original]: { kind: 'executable-zip', name: original, checksum: `${original}.sha256`, assets: [{ id: executableId }] },
+      [`${original}.sha256`]: { kind: 'checksum', name: `${original}.sha256` } },
+    assets: { [executableId]: { id: executableId, name: 'atlas', system: 'build:local:host', target_triples: [target], linkage: { system: [], other: ['native-inference'] } } },
+    systems: { 'build:local:host': { id: 'build:local:host', cargo_version_line: 'cargo fixture' } },
+    linkage: [{ binary: 'atlas', target: target, system: [], other: ['native-inference'] }],
+    releases: [{ app_name: 'atlas-cli', app_version: '9.9.9', artifacts: [original, `${original}.sha256`] }],
+  });
+  await stageCliOnly(target, dist, extra);
+  assert.equal(readFileSync(path.join(dist, renamed), 'utf8'), 'CLI-only binary archive');
+  assert.equal(existsSync(path.join(dist, original)), false);
+  assert.equal(readFileSync(path.join(dist, `${renamed}.sha256`), 'utf8'), `${await sha256(path.join(dist, renamed))}  ${renamed}\n`);
+  writeFileSync(path.join(dist, original), 'full binary archive');
+  const full = path.join(dist, 'full.json');
+  writeJson(full, { artifacts: { [original]: { kind: 'executable-zip', name: original } },
+    releases: [{ app_name: 'atlas-cli', app_version: '9.9.9', artifacts: [original] }] });
+  pruneManifest(full, dist);
+  const merged = object(readJson(full));
+  assert.ok(object(merged.artifacts)[original]);
+  const cliArtifact = object(object(merged.artifacts)[renamed]);
+  assert.equal(cliArtifact.checksum, `${renamed}.sha256`);
+  assert.deepEqual(cliArtifact.assets, [{ id: `atlas-cli-only-${target}-exe-atlas` }]);
+  const cliAsset = object(object(merged.assets)[`atlas-cli-only-${target}-exe-atlas`]);
+  const systemId = `cli-only:${target}:build:local:host`;
+  assert.equal(cliAsset.system, systemId);
+  assert.equal(object(object(merged.systems)[systemId]).id, systemId);
+  assert.deepEqual(merged.linkage, [{ binary: 'atlas', target: target, system: [], other: ['native-inference'] }]);
+  assert.equal(existsSync(path.join(dist, `cli-only-${target}.json`)), false);
+  assert.deepEqual(object((merged.releases as import('../src/release-data.js').Json[])[0]).artifacts, [original, renamed, `${renamed}.sha256`]);
+});
+
+test('asset validation requires one correctly named package per variant and legacy-compatible ordering', async (t) => {
+  const dist = temporary(t);
+  for (const variant of variants) for (const target of Object.keys(targets)) {
+    writeFileSync(path.join(dist, archiveName(target, variant)), 'stub');
+  }
+  for (const name of ['atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md', 'dist-manifest.json']) writeFileSync(path.join(dist, name), '{}');
+  await generateManifest('v9.9.9', dist);
+  const file = path.join(dist, 'atlas-release-manifest.json');
+  const manifest = object(readJson(file));
+  const assets = manifest.assets as import('../src/release-data.js').Json[];
+  assets.push(assets[0]); writeJson(file, manifest);
+  await assert.rejects(validateAssets(dist), /duplicates/);
+  assets.pop(); assets.reverse(); writeJson(file, manifest);
+  await assert.rejects(validateAssets(dist), /must precede/);
 });

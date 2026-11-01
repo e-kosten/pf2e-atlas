@@ -4,6 +4,10 @@
 
 Accepted.
 
+[ADR0064](0064-optional-web-distribution.md) makes web hosting an optional CLI
+build feature, enabled by default. The web/app ownership and compatibility
+contract below applies to full builds.
+
 The app-layer ownership and pooled web execution decision remain current.
 ADR0046 replaces capability-trait retrieval with the concrete search service;
 [ADR0049](./0049-search-lifetimes-and-pages.md) supersedes result-window state and

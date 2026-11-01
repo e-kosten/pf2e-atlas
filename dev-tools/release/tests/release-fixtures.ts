@@ -44,6 +44,21 @@ export async function fixture(args: string[]): Promise<void> {
       artifacts.SHA256SUMS = { kind: 'unified-checksum' };
       writeJson(file, { artifacts }); break;
     }
+    case 'target-last': {
+      if (!extra) throw new Error('Target is required');
+      const manifest = object(readJson(file));
+      if (!Array.isArray(manifest.assets)) throw new Error('Expected assets');
+      manifest.assets.sort((a, b) => Number(object(a).target === extra && object(a).variant === 'cli-only') - Number(object(b).target === extra && object(b).variant === 'cli-only'));
+      writeJson(file, manifest); break;
+    }
+    case 'legacy-manifest': {
+      const manifest = object(readJson(file));
+      if (!Array.isArray(manifest.assets)) throw new Error('Expected assets');
+      manifest.assets = manifest.assets.filter((asset) => object(asset).variant === 'full').map((asset) => {
+        const { variant: _variant, ...legacy } = object(asset); return legacy;
+      });
+      writeJson(file, manifest); break;
+    }
     case 'remove-target': {
       const manifest = object(readJson(file));
       if (!Array.isArray(manifest.assets)) throw new Error('Expected assets');

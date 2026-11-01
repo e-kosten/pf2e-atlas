@@ -61,6 +61,8 @@ See [Getting started](docs/getting-started.md) for your first list and encounter
 For alternate versions, supported platforms or a manual download, see
 [Installation](docs/installation.md).
 
+For a CLI-only install, see [installation without the web UI](docs/installation.md#install-without-the-web-ui).
+
 ## Use the CLI or an agent
 
 ```bash

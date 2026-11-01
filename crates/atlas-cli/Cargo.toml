@@ -17,11 +17,15 @@ include = ["../../THIRD-PARTY-NOTICES.md"]
 name = "atlas"
 path = "src/main.rs"
 
+[features]
+default = ["web"]
+web = ["dep:atlas-web", "dep:axum", "dep:tokio"]
+
 [dependencies]
 atlas-cli-support.workspace = true
 atlas-app-service.workspace = true
 atlas-app-model.workspace = true
-atlas-web.workspace = true
+atlas-web = { workspace = true, optional = true }
 atlas-domain.workspace = true
 atlas-dice.workspace = true
 atlas-embedding.workspace = true
@@ -31,7 +35,7 @@ atlas-record.workspace = true
 atlas-runtime.workspace = true
 atlas-search.workspace = true
 atlas-tags.workspace = true
-axum.workspace = true
+axum = { workspace = true, optional = true }
 clap.workspace = true
 clap_complete.workspace = true
 inquire.workspace = true
@@ -41,7 +45,7 @@ serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 rand.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, optional = true }
 tracing.workspace = true
 
 [dev-dependencies]

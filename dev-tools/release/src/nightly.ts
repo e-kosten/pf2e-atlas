@@ -141,6 +141,12 @@ export async function publishNightly(root: string, tag: string, sha: string, dis
     run('sh', [path.join(directory, 'atlas-installer.sh'), '--version', tag, '--install-dir', directory, '--yes']);
     const actual = run(path.join(directory, 'atlas'), ['--version']).trim();
     if (actual !== `atlas ${version}`) throw new Error(`Downloaded binary version mismatch: ${actual}`);
+    run('sh', [path.join(directory, 'atlas-installer.sh'), '--version', tag, '--install-dir', directory, '--without-web', '--yes']);
+    const cliVersion = run(path.join(directory, 'atlas'), ['--version']).trim();
+    const cliInfo = JSON.parse(run(path.join(directory, 'atlas'), ['build-info', '--json']));
+    if (cliVersion !== `atlas ${version}` || cliInfo.status !== 'ok' || cliInfo.data.version !== version || cliInfo.data.variant !== 'cli-only') {
+      throw new Error('Downloaded CLI-only binary version or build variant mismatch');
+    }
     if (!existing.some((item) => item.tag_name === 'nightly')) {
       run('gh', ['release', 'create', 'nightly', '--target', sha, '--title', 'Nightly installer channel', '--notes',
         'Installers and a pointer to the newest validated nightly. Dated releases contain the binaries and source commit.',

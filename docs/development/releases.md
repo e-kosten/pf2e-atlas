@@ -14,6 +14,16 @@ and validate it with `npm --prefix dev-tools/release run verify`. See
 [release tooling](../../dev-tools/release/README.md) for notices, manifest, checksum and
 platform smoke-test commands. These dependencies stay out of product bundles.
 
+Each supported target ships a full archive (`atlas-cli-<target>.*`) and a CLI-only
+archive (`atlas-cli-only-<target>.*`). Both contain `atlas`; full is the default.
+Cargo-dist uses `precise-builds = true` to build the shipped CLI package rather
+than every workspace member. The packaging matrix disables default features for
+CLI-only without building the frontend, then stages cargo-dist's archive and metadata under distinct identities.
+Assembly merges both sets of cargo-dist metadata. The Atlas release manifest
+requires one asset per target/variant, with full entries first for older installers.
+Keep that ordering, archive naming and the installer's legacy-manifest behavior
+when changing packaging. See [ADR0064](../architecture/decisions/0064-optional-web-distribution.md).
+
 ### Nightly publication
 
 `.github/workflows/nightly.yml` runs daily at 09:23 UTC and can be dispatched
@@ -24,8 +34,7 @@ publication. Runs from other branches do not publish.
 The workflow calls the existing CI and release-build-check workflows. Nightly
 packaging edits only the CI checkout's CLI manifest and lockfile, using a version
 such as `0.1.0-nightly.20261018092300.gabcdef123456`. No version-bump commits or
-handwritten release notes are needed. The four-platform packaging checks run the
-actual binaries before upload. The publication job validates all assets, publishes
+handwritten release notes are needed. The four-platform packaging checks run both variants before upload. The publication job validates all assets, publishes
 a dated prerelease, and smoke-tests its downloaded Linux installer and binary.
 Only then does it update `nightly-version.txt` in the `nightly` installer-channel
 release. Installers resolve that pointer once and download all remaining assets

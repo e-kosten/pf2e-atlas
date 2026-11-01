@@ -6,6 +6,7 @@ VERSION="${ATLAS_VERSION:-latest}"
 INSTALL_DIR="${ATLAS_INSTALL_DIR:-$HOME/.local/bin}"
 YES="${ATLAS_YES:-0}"
 DRY_RUN=0
+VARIANT=""
 
 usage() {
   cat <<'USAGE'
@@ -14,6 +15,9 @@ Usage: atlas-installer.sh [options]
 Options:
   --install-dir <dir>   Install atlas into this directory
   --version <version>   Install a version tag, nightly, or latest (stable)
+  --without-web         Install CLI and agent tooling without the web command
+  --with-web            Install CLI, agent tooling and web UI
+                        Omission preserves an existing build; fresh installs include web
   --yes                 Replace an existing atlas without prompting
   --dry-run             Print planned actions without downloading or installing
   --help                Show this help
@@ -36,7 +40,13 @@ die() {
   printf '\nSource fallback for contributors with Rust 1.95+:\n' >&2
   printf '  git clone https://github.com/%s.git\n' "$REPO" >&2
   printf '  cd pf2e-atlas\n' >&2
-  printf '  cargo install --path crates/atlas-cli --locked\n' >&2
+  if [ "$VARIANT" = "cli-only" ]; then
+    printf '  cargo install --path crates/atlas-cli --locked --no-default-features\n' >&2
+  else
+    printf '  npm --prefix web/atlas-ui ci\n' >&2
+    printf '  npm --prefix web/atlas-ui run build\n' >&2
+    printf '  cargo install --path crates/atlas-cli --locked\n' >&2
+  fi
   exit 1
 }
 
@@ -55,6 +65,13 @@ while [ "$#" -gt 0 ]; do
       [ "$#" -ge 2 ] || die "--version requires a value"
       VERSION="$2"
       shift 2
+      ;;
+    --without-web|--with-web)
+      selected="full"
+      [ "$1" != "--without-web" ] || selected="cli-only"
+      [ -z "$VARIANT" ] || [ "$VARIANT" = "$selected" ] || die "--with-web and --without-web cannot be combined"
+      VARIANT="$selected"
+      shift
       ;;
     --yes)
       YES=1
@@ -112,6 +129,32 @@ if [ -e "$install_path" ]; then
   existing_version=$("$install_path" --version 2>/dev/null || printf 'unknown')
 fi
 
+build_variant() {
+  if metadata=$("$1" build-info --json 2>/dev/null); then
+    detected=$(printf '%s\n' "$metadata" | sed -n 's/^[[:space:]]*"variant"[[:space:]]*:[[:space:]]*"\([^"]*\)"[[:space:]]*,\{0,1\}[[:space:]]*$/\1/p')
+    case "$detected" in
+      full|cli-only) printf '%s\n' "$detected" ;;
+      *) return 1 ;;
+    esac
+  else
+    printf 'legacy\n'
+  fi
+}
+
+existing_variant="none"
+if [ "$existing" = "at-destination" ]; then
+  if ! existing_variant=$(build_variant "$install_path"); then
+    [ -n "$VARIANT" ] || die "could not read build variant from $install_path; select --with-web or --without-web to replace it"
+    existing_variant="unknown"
+  fi
+fi
+if [ -z "$VARIANT" ]; then
+  case "$existing_variant" in
+    cli-only) VARIANT="cli-only" ;;
+    *) VARIANT="full" ;;
+  esac
+fi
+
 shadow=""
 found_at=$(command -v atlas 2>/dev/null || true)
 if [ -n "$found_at" ] && [ "$found_at" != "$install_path" ]; then
@@ -121,6 +164,8 @@ fi
 printf 'Atlas installer\n'
 printf '  target:      %s\n' "$target"
 printf '  version:     %s\n' "$VERSION"
+printf '  build:       %s\n' "$VARIANT"
+[ "$existing_variant" = "none" ] || printf '  current build: %s\n' "$existing_variant"
 if [ "$VERSION" = "nightly" ]; then
   printf '  channel:     %s/nightly-version.txt (resolved when installing)\n' "$base_url"
 else
@@ -185,25 +230,35 @@ fi
 
 download "$base_url/SHA256SUMS" "$tmp/SHA256SUMS"
 download "$manifest_url" "$tmp/atlas-release-manifest.json"
-archive=$(awk -v target="$target" '
-  /^[[:space:]]*\{/ {
-    name = ""
-    matched = 0
+selection=$(awk -v target="$target" -v requested="$VARIANT" '
+  function value(line) {
+    sub(/^.*:[[:space:]]*"/, "", line)
+    sub(/".*$/, "", line)
+    return line
   }
-  $0 ~ "\"name\"" {
-    sub(/^.*"name"[[:space:]]*:[[:space:]]*"/, "")
-    sub(/".*$/, "")
-    name = $0
+  /^[[:space:]]*\{/ { name = ""; asset_target = ""; variant = "legacy" }
+  /"name"[[:space:]]*:/ { name = value($0) }
+  /"target"[[:space:]]*:/ { asset_target = value($0) }
+  /"variant"[[:space:]]*:/ { variant = value($0) }
+  /^[[:space:]]*}/ {
+    effective = variant == "legacy" ? "full" : variant
+    if (asset_target == target && effective == requested && name != "") {
+      selected_name = name; selected_variant = variant; count++
+    }
+    name = ""; asset_target = ""; variant = "legacy"
   }
-  $0 ~ "\"target\"[[:space:]]*:[[:space:]]*\"" target "\"" {
-    matched = 1
+  END {
+    if (count != 1) exit 1
+    print selected_name " " selected_variant
   }
-  matched && name != "" {
-    print name
-    exit
-  }
-' "$tmp/atlas-release-manifest.json")
-[ -n "$archive" ] || die "manifest did not contain an asset for $target"
+' "$tmp/atlas-release-manifest.json") || die "release does not contain exactly one $VARIANT asset for $target; choose a release that provides it"
+archive=${selection% *}
+asset_variant=${selection##* }
+case "$archive" in
+  "atlas-cli-$target.tar.xz") [ "$VARIANT" = "full" ] || die "manifest archive does not match requested build" ;;
+  "atlas-cli-only-$target.tar.xz") [ "$VARIANT" = "cli-only" ] || die "manifest archive does not match requested build" ;;
+  *) die "unexpected release archive: $archive" ;;
+esac
 printf '  asset:       %s\n' "$archive"
 download "$base_url/$archive" "$tmp/$archive"
 
@@ -217,8 +272,13 @@ tar -xJf "$tmp/$archive" -C "$tmp/extract" || die "failed to extract $archive"
 new_binary=$(find "$tmp/extract" -type f -name atlas | head -n 1)
 [ -n "$new_binary" ] || die "archive did not contain atlas binary"
 chmod +x "$new_binary"
-new_version=$("$new_binary" --version 2>/dev/null || printf 'unknown')
+new_version=$("$new_binary" --version 2>/dev/null) || die "downloaded atlas failed its version check"
 printf '  target bin:  %s\n' "$new_version"
+new_variant=$(build_variant "$new_binary") || die "downloaded atlas has invalid build information"
+if [ "$asset_variant" = "legacy" ] && [ "$new_variant" = "legacy" ]; then
+  new_variant="full"
+fi
+[ "$new_variant" = "$VARIANT" ] || die "downloaded atlas build does not match requested $VARIANT variant"
 
 version_number() {
   printf '%s\n' "$1" | awk '{ print $NF }'

@@ -62,6 +62,7 @@ function publisher(t: TestContext, options: { existing?: object[]; failInstall?:
     calls.push([program, ...args]);
     if (program === 'gh' && args[0] === 'api') return JSON.stringify([options.existing ?? []]);
     if (program === 'sh' && options.failInstall) throw new Error('install failed');
+    if (path.basename(program) === 'atlas' && args[0] === 'build-info') return JSON.stringify({ status: 'ok', data: { version: nightlyVersion(tag), variant: 'cli-only' } });
     if (path.basename(program) === 'atlas') return options.wrongVersion ? 'atlas wrong' : `atlas ${nightlyVersion(tag)}`;
     return '';
   };
@@ -80,6 +81,8 @@ test('channel advances only after dated publication and successful downloaded in
   assert.notEqual(channelPublication, -1, 'nightly channel must be published');
   assert.ok(datedPublication < installation);
   assert.ok(installation < channelPublication);
+  const cliInstallation = calls.findIndex((call) => call[0] === 'sh' && call.includes('--without-web'));
+  assert.ok(cliInstallation > installation && cliInstallation < channelPublication);
   const uploads = calls.filter((call) => call.slice(0, 4).join(' ') === 'gh release upload nightly');
   assert.equal(path.basename(uploads.at(-1)![4]), 'nightly-version.txt');
   for (const call of calls.filter((call) => call[1] === 'release' && ['create', 'edit'].includes(call[2]))) {

@@ -48,6 +48,27 @@ const clippy = (scope) => [
 const rustPrerequisites = [
   cargo("nextest availability", "nextest", "--version"),
   cargo("nextest configuration", "nextest", "show-config", "version"),
+  cargo(
+    "CLI-only clippy",
+    "clippy",
+    "-p",
+    "atlas-cli",
+    "--no-default-features",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings",
+    "-D",
+    "clippy::dbg_macro",
+  ),
+  cargo(
+    "CLI-only tests",
+    "nextest",
+    "run",
+    "-p",
+    "atlas-cli",
+    "--no-default-features",
+  ),
 ];
 const rust = [
   fmt,

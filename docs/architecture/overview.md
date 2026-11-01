@@ -3,6 +3,9 @@
 PF2e Atlas keeps Foundry reference data and saved lists/encounters in one persistent
 SQLite workspace. Product surfaces are the `atlas` CLI, the local web service launched
 by `atlas web`, and the first-party agent skill installed by `atlas agent skills`.
+Full builds include all three surfaces by default. CLI-only builds disable the
+CLI's `web` feature, omitting the web command, transport and frontend assets while
+retaining the shared runtime/app services and bundled skill (ADR0064).
 
 Read this document first, then the [runtime architecture](./runtime.md),
 [artifact contract](./artifact-contract.md), [tagging architecture](./tagging.md)

@@ -16,6 +16,7 @@ use crate::commands::setup::args::SetupArgs;
 use crate::commands::similar::args::SimilarOptions;
 use crate::commands::tags::args::{TagsArgs, TagsCommand};
 use crate::commands::traits::{TraitArgs, TraitCommand};
+#[cfg(feature = "web")]
 use crate::commands::web::args::WebArgs;
 use atlas_cli_support::CliProgressMode;
 use atlas_cli_support::{ProgressOptions, init_tracing, write_json_error};
@@ -45,6 +46,8 @@ pub(crate) struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum Command {
+    #[command(about = "Show the installed Atlas version and build variant")]
+    BuildInfo(commands::build_info::BuildInfoArgs),
     #[command(about = "Roll dice with a complete result breakdown; no setup required")]
     Roll(RollArgs),
     #[command(about = "Install, repair, or check local Atlas runtime data")]
@@ -61,6 +64,7 @@ pub(crate) enum Command {
     Similar(Box<SimilarOptions>),
     #[command(about = "Search by text or browse records with filters")]
     Search(Box<SearchOptions>),
+    #[cfg(feature = "web")]
     #[command(about = "Start the local Atlas web service")]
     Web(WebArgs),
     #[command(about = "Discover filter fields and values")]
@@ -113,6 +117,7 @@ pub(crate) fn main() -> ExitCode {
 impl Command {
     fn uses_json(&self) -> bool {
         match self {
+            Self::BuildInfo(args) => args.json,
             Self::Roll(args) => args.json,
             Self::Setup(args) => args.paths.json,
             Self::Index(args) => match &args.command {
@@ -137,6 +142,7 @@ impl Command {
             },
             Self::Similar(options) => options.json,
             Self::Search(options) => options.json,
+            #[cfg(feature = "web")]
             Self::Web(_) => false,
             Self::Filters(filters) => match &filters.command {
                 FiltersCommand::Fields(options) => options.json,
@@ -169,6 +175,7 @@ impl Command {
 
 fn run(cli: Cli) -> Result<ExitCode, String> {
     match cli.command {
+        Command::BuildInfo(args) => commands::build_info::run(args),
         Command::Roll(args) => commands::roll::run_roll(args),
         Command::Setup(args) => commands::setup::run_setup(args),
         Command::Index(index) => match index.command {
@@ -193,6 +200,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
         },
         Command::Similar(options) => commands::similar::run_similar(*options),
         Command::Search(options) => commands::search::run_search(*options),
+        #[cfg(feature = "web")]
         Command::Web(args) => commands::web::run_web(args),
         Command::Filters(filters) => match filters.command {
             FiltersCommand::Fields(options) => {

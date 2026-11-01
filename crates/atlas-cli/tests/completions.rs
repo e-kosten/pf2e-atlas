@@ -30,6 +30,8 @@ fn completions_register_live_bash_completion_and_offer_product_commands() {
     for name in ["record", "search", "setup"] {
         assert!(candidates.contains(&name));
     }
+    assert_eq!(candidates.contains(&"web"), cfg!(feature = "web"));
+    assert!(candidates.contains(&"build-info"));
     for name in ["analyze", "audit-source-paths", "inspect"] {
         assert!(!candidates.contains(&name));
     }
