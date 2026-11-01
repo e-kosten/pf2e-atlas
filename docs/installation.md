@@ -10,6 +10,50 @@ the latest stable release, then run `atlas setup`. Restart a running web session
 The installer updates the executable; setup updates reference data while retaining
 your saved lists and encounters. Atlas does not update itself automatically.
 
+## Install without the web UI
+
+Fresh installations include the CLI, agent tooling and web UI. To install only
+the CLI and agent tooling on macOS/Linux:
+
+```bash
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.sh \
+  | sh -s -- --without-web
+```
+
+On Windows:
+
+```powershell
+Invoke-WebRequest https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.ps1 -OutFile atlas-installer.ps1
+./atlas-installer.ps1 -WithoutWeb
+```
+
+Continue with `atlas setup` and, for your agent, `atlas agent skills install`.
+CLI-only Atlas supports the existing CLI commands and semantic search. Its help
+and completions omit `atlas web`.
+
+Rerunning the installer preserves the build variant already installed at its
+destination. Use `--with-web` (`-WithWeb` on Windows) to add the UI, or
+`--without-web` (`-WithoutWeb`) to remove it. These options replace the same
+`atlas` executable, including when its version is unchanged. Switching variants
+at the same version keeps your workspace, saved work and model cache. After a
+version upgrade, run `atlas setup` as usual.
+
+Check your installed variant:
+
+```bash
+atlas build-info
+atlas build-info --json
+```
+
+These commands work before setup. JSON uses the standard envelope with
+`data.version` and `data.variant` (`full` or `cli-only`). `atlas --version` keeps
+its existing format.
+
+The variant options also work with `--version` / `-Version` for stable, nightly
+and specific releases. Releases from before CLI-only support provide the full
+build; requesting CLI-only from one reports that the asset is unavailable.
+
 ## Platforms and versions
 
 The installer adds the `atlas` command to your computer. Run `atlas setup` to
@@ -75,6 +119,10 @@ Download the archive for your operating system from the
 [releases page](https://github.com/e-kosten/pf2e-atlas/releases), verify it against
 `SHA256SUMS`, extract `atlas`, put it on `PATH`, then run `atlas setup`.
 
+Full archives are named `atlas-cli-<target>.tar.xz` (Windows: `.zip`). CLI-only
+archives are named `atlas-cli-only-<target>.tar.xz` (Windows: `.zip`). Both contain
+the command named `atlas` or `atlas.exe`.
+
 Early release binaries are unsigned. macOS or Windows may show an operating-system warning until signing and notarization are added in a later release.
 
 ## Agent skill
@@ -137,5 +185,16 @@ npm --prefix web/atlas-ui ci
 npm --prefix web/atlas-ui run build
 cargo install --path crates/atlas-cli --locked
 ```
+
+For CLI-only source installation, skip the frontend steps and disable the default
+web feature:
+
+```bash
+cargo install --path crates/atlas-cli --locked --no-default-features
+```
+
+The CLI-only source build requires the pinned Rust toolchain; it does not require
+Node.js or built frontend assets. Both builds use the same runtime data and agent
+skill package.
 
 See [CONTRIBUTING](../CONTRIBUTING.md) for source development and diagnostic commands.

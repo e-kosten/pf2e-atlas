@@ -669,7 +669,15 @@ the shared native inference owner serializes only model loading and inference.
 Web routes are transport glue. App-model generates intentional browser DTOs;
 the browser neither receives whole Foundry bodies nor reimplements gameplay rules.
 
-Web hosting embeds the built frontend into debug and release binaries. A running
+Full builds enable the CLI's default `web` Cargo feature and embed the built
+frontend into debug and release binaries. CLI-only builds disable default features,
+so `atlas-web` and its frontend build contract are outside the CLI dependency graph.
+The web command is absent from parsing, help and completions. Both variants retain
+the same app-service/model/runtime ownership and workspace format.
+`atlas build-info --json` reports the package version and `full` or `cli-only`
+variant without workspace access; `atlas --version` stays unchanged.
+
+Web hosting embeds the built frontend into full debug and release binaries. A running
 server retains its compiled frontend/backend pair when later builds change the
 checkout's frontend output. Frontend hot reload uses the separate Vite dev server.
 

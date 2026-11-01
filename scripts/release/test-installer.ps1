@@ -25,10 +25,24 @@ try {
     node (Join-Path $RepoRoot "dev-tools/release/dist/tests/release-fixtures.js") unix-archive $archive $root
   }
 
-  function New-WindowsArchive($Target) {
-    $root = Join-Path $tmp "atlas-cli-$Target"
+  function New-WindowsArchive($Target, $Variant = "full", $Destination = $dist) {
+    $prefix = if ($Variant -eq "cli-only") { "atlas-cli-only" } else { "atlas-cli" }
+    $root = Join-Path $tmp "$prefix-$Target-$Variant"
     New-Item -ItemType Directory -Force -Path $root | Out-Null
-    $appDir = Join-Path $tmp "stub-app"
+    $appDir = Join-Path $tmp "stub-app-$Variant"
+    if (-not $IsWindows) {
+      @'
+#!/bin/sh
+case "$1" in
+  --version) printf 'atlas 9.9.9\n' ;;
+  build-info)
+    [ '__VARIANT__' != legacy ] || exit 2
+    printf '{"status":"ok","data":{"version":"9.9.9","variant":"__VARIANT__"}}\n' ;;
+  *) exit 2 ;;
+esac
+'@.Replace('__VARIANT__', $Variant) | Set-Content -Path (Join-Path $root "atlas.exe") -NoNewline
+      chmod +x (Join-Path $root "atlas.exe")
+    } else {
     if (-not (Test-Path (Join-Path $appDir "bin"))) {
       New-Item -ItemType Directory -Force -Path $appDir | Out-Null
       @'
@@ -42,26 +56,33 @@ try {
 </Project>
 '@ | Set-Content -Path (Join-Path $appDir "atlas-stub.csproj")
       @'
-Console.WriteLine("atlas 9.9.9");
-'@ | Set-Content -Path (Join-Path $appDir "Program.cs")
+if (args.Length > 0 && args[0] == "--version") { Console.WriteLine("atlas 9.9.9"); }
+else if (args.Length > 0 && args[0] == "build-info" && "__VARIANT__" != "legacy") {
+  Console.WriteLine("{\"status\":\"ok\",\"data\":{\"version\":\"9.9.9\",\"variant\":\"__VARIANT__\"}}");
+} else { Environment.Exit(2); }
+'@.Replace('__VARIANT__', $Variant) | Set-Content -Path (Join-Path $appDir "Program.cs")
       dotnet publish $appDir --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true --output (Join-Path $appDir "out") | Out-Null
     }
     Copy-Item (Join-Path $appDir "out/atlas-stub.exe") (Join-Path $root "atlas.exe")
+    }
     Copy-Item (Join-Path $RepoRoot "LICENSE") (Join-Path $root "LICENSE")
     Copy-Item (Join-Path $RepoRoot "README.md") (Join-Path $root "README.md")
     Copy-Item (Join-Path $RepoRoot "THIRD-PARTY-NOTICES.md") (Join-Path $root "THIRD-PARTY-NOTICES.md")
-    Compress-Archive -Path $root -DestinationPath (Join-Path $dist "atlas-cli-$Target.zip")
+    Compress-Archive -Path $root -DestinationPath (Join-Path $Destination "$prefix-$Target.zip") -Force
   }
 
   @(
     "aarch64-apple-darwin",
     "x86_64-unknown-linux-gnu",
     "aarch64-unknown-linux-gnu"
-  ) | ForEach-Object { New-UnixArchive $_ }
+  ) | ForEach-Object {
+    New-UnixArchive $_
+    Copy-Item (Join-Path $dist "atlas-cli-$_.tar.xz") (Join-Path $dist "atlas-cli-only-$_.tar.xz")
+  }
 
   @(
     "x86_64-pc-windows-msvc"
-  ) | ForEach-Object { New-WindowsArchive $_ }
+  ) | ForEach-Object { New-WindowsArchive $_ full; New-WindowsArchive $_ cli-only }
 
   Copy-Item (Join-Path $RepoRoot "scripts/install/atlas-installer.sh") (Join-Path $dist "atlas-installer.sh")
   Copy-Item (Join-Path $RepoRoot "scripts/install/atlas-installer.ps1") (Join-Path $dist "atlas-installer.ps1")
@@ -104,12 +125,27 @@ Copy-Item (Join-Path $env:ATLAS_FAKE_RELEASE_DIR $name) $OutFile
 function Invoke-WebRequest {
   & (Join-Path $env:ATLAS_FAKE_BIN "Invoke-WebRequest.ps1") @args
 }
-& $env:ATLAS_INSTALLER -InstallDir $env:ATLAS_TEST_INSTALL_DIR -Version v9.9.9 -Yes
+function Expand-Archive {
+  param([string]$Path, [string]$DestinationPath)
+  Microsoft.PowerShell.Archive\Expand-Archive -Path $Path -DestinationPath $DestinationPath
+  if (-not $IsWindows) { Get-ChildItem $DestinationPath -Filter atlas.exe -Recurse | ForEach-Object { chmod +x $_.FullName } }
+}
+$variantArgs = @{}
+if ($env:ATLAS_TEST_VARIANT -eq "cli-only") { $variantArgs.WithoutWeb = $true }
+if ($env:ATLAS_TEST_VARIANT -eq "full") { $variantArgs.WithWeb = $true }
+& $env:ATLAS_INSTALLER -InstallDir $env:ATLAS_TEST_INSTALL_DIR -Version v9.9.9 -Yes @variantArgs
 '@ | Set-Content -Path (Join-Path $fakeBin "run-install.ps1")
 
   $env:ATLAS_FAKE_BIN = $fakeBin
   $env:ATLAS_FAKE_RELEASE_DIR = $dist
   $env:ATLAS_INSTALLER = Join-Path $RepoRoot "scripts/install/atlas-installer.ps1"
+  if (-not $IsWindows) {
+    # Exercise the native installer logic locally with executable script fixtures.
+    $portableInstaller = Join-Path $tmp "atlas-installer.ps1"
+    (Get-Content $env:ATLAS_INSTALLER -Raw).Replace('[System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()', '"X64"') |
+      Set-Content $portableInstaller
+    $env:ATLAS_INSTALLER = $portableInstaller
+  }
   $env:ATLAS_TEST_INSTALL_DIR = $installDir
   $dryRunDir = Join-Path $tmp "dry-run-install"
   & $env:ATLAS_INSTALLER -InstallDir $dryRunDir -Version v9.9.9 -DryRun | Out-Null
@@ -129,9 +165,50 @@ function Invoke-WebRequest {
     throw "PowerShell installer did not print PATH guidance"
   }
 
+  foreach ($choice in @("cli-only", "preserve-cli", "full", "preserve-full")) {
+    $env:ATLAS_TEST_VARIANT = if ($choice.StartsWith("preserve")) { "" } else { $choice }
+    pwsh -NoProfile -File (Join-Path $fakeBin "run-install.ps1") | Out-Null
+    $info = (& (Join-Path $installDir "atlas.exe") build-info --json) | ConvertFrom-Json
+    $expected = if ($choice -in @("cli-only", "preserve-cli")) { "cli-only" } else { "full" }
+    if ($info.data.variant -ne $expected) { throw "PowerShell installer failed variant selection: $choice" }
+  }
+  Remove-Item Env:ATLAS_TEST_VARIANT
+  $failed = $false
+  try { pwsh -NoProfile -File $env:ATLAS_INSTALLER -InstallDir $installDir -WithWeb -WithoutWeb -DryRun | Out-Null } catch { $failed = $true }
+  if (-not $failed) { throw "PowerShell installer accepted conflicting web choices" }
+
+  "invalid existing executable" | Set-Content (Join-Path $installDir "atlas.exe")
+  $env:ATLAS_TEST_VARIANT = "cli-only"
+  pwsh -NoProfile -File (Join-Path $fakeBin "run-install.ps1") | Out-Null
+  $info = (& (Join-Path $installDir "atlas.exe") build-info --json) | ConvertFrom-Json
+  if ($info.data.variant -ne "cli-only") { throw "PowerShell explicit selection could not repair an invalid destination" }
+  $env:ATLAS_TEST_VARIANT = "full"
+  pwsh -NoProfile -File (Join-Path $fakeBin "run-install.ps1") | Out-Null
+  Remove-Item Env:ATLAS_TEST_VARIANT
+
+  $legacyDist = Join-Path $tmp "legacy-dist"
+  Copy-Item $dist $legacyDist -Recurse
+  New-WindowsArchive "x86_64-pc-windows-msvc" legacy $legacyDist
+  node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/generate-release-manifest.js") v9.9.9 $legacyDist
+  node (Join-Path $RepoRoot "dev-tools/release/dist/tests/release-fixtures.js") legacy-manifest (Join-Path $legacyDist "atlas-release-manifest.json")
+  $env:ATLAS_FAKE_RELEASE_DIR = $legacyDist
+  pwsh -NoProfile -File (Join-Path $fakeBin "run-install.ps1") | Out-Null
+  $env:ATLAS_TEST_VARIANT = "cli-only"
+  $failed = $false
+  try { pwsh -NoProfile -File (Join-Path $fakeBin "run-install.ps1") | Out-Null } catch { $failed = $true }
+  if (-not $failed) { throw "PowerShell installer substituted full for unavailable CLI-only" }
+  Remove-Item Env:ATLAS_TEST_VARIANT
+  $env:ATLAS_FAKE_RELEASE_DIR = $dist
+  pwsh -NoProfile -File (Join-Path $fakeBin "run-install.ps1") | Out-Null
+
   @'
 function Invoke-WebRequest {
   & (Join-Path $env:ATLAS_FAKE_BIN "Invoke-WebRequest.ps1") @args
+}
+function Expand-Archive {
+  param([string]$Path, [string]$DestinationPath)
+  Microsoft.PowerShell.Archive\Expand-Archive -Path $Path -DestinationPath $DestinationPath
+  if (-not $IsWindows) { Get-ChildItem $DestinationPath -Filter atlas.exe -Recurse | ForEach-Object { chmod +x $_.FullName } }
 }
 & $env:ATLAS_INSTALLER -InstallDir $env:ATLAS_TEST_INSTALL_DIR -Version v9.9.9
 '@ | Set-Content -Path (Join-Path $fakeBin "run-install-no-yes.ps1")

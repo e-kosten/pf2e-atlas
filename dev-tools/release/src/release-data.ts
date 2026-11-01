@@ -10,6 +10,11 @@ export const targets = {
   'aarch64-unknown-linux-gnu': ['linux', 'aarch64'],
   'x86_64-pc-windows-msvc': ['windows', 'x86_64'],
 } as const;
+export const variants = ['full', 'cli-only'] as const;
+export type Variant = typeof variants[number];
+export function archiveName(target: string, variant: Variant): string {
+  return `${variant === 'full' ? 'atlas-cli' : 'atlas-cli-only'}-${target}${target.includes('windows') ? '.zip' : '.tar.xz'}`;
+}
 export type Target = keyof typeof targets;
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export function object(value: Json | undefined): { [key: string]: Json } {

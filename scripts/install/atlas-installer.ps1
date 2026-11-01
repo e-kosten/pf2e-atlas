@@ -1,6 +1,8 @@
 param(
   [string]$InstallDir = $env:ATLAS_INSTALL_DIR,
   [string]$Version = $env:ATLAS_VERSION,
+  [switch]$WithoutWeb,
+  [switch]$WithWeb,
   [switch]$Yes,
   [switch]$DryRun
 )
@@ -24,8 +26,33 @@ function Fail($Message) {
   Write-Host "Source fallback for contributors with Rust 1.95+:"
   Write-Host "  git clone https://github.com/$Repo.git"
   Write-Host "  cd pf2e-atlas"
-  Write-Host "  cargo install --path crates/atlas-cli --locked"
+  if ($WithoutWeb) {
+    Write-Host "  cargo install --path crates/atlas-cli --locked --no-default-features"
+  } else {
+    Write-Host "  npm --prefix web/atlas-ui ci"
+    Write-Host "  npm --prefix web/atlas-ui run build"
+    Write-Host "  cargo install --path crates/atlas-cli --locked"
+  }
   exit 1
+}
+
+if ($WithoutWeb -and $WithWeb) { Fail "-WithWeb and -WithoutWeb cannot be combined" }
+
+function Get-BuildVariant($Binary) {
+  # Older releases do not provide build-info and are full builds.
+  $previousNativePreference = $PSNativeCommandUseErrorActionPreference
+  $PSNativeCommandUseErrorActionPreference = $false
+  try {
+    $metadata = & $Binary build-info --json 2>$null
+    if ($LASTEXITCODE -ne 0) { return "legacy" }
+    $info = ($metadata -join "`n") | ConvertFrom-Json
+    if ($info.status -ne "ok" -or $info.data.variant -cnotin @("full", "cli-only")) {
+      throw "invalid build information"
+    }
+    return $info.data.variant
+  } finally {
+    $PSNativeCommandUseErrorActionPreference = $previousNativePreference
+  }
 }
 
 $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
@@ -56,6 +83,17 @@ if (Test-Path $installPath) {
   try { $existingVersion = & $installPath --version } catch { $existingVersion = "unknown" }
 }
 
+$existingVariant = "none"
+if ($existing -eq "at-destination") {
+  try { $existingVariant = Get-BuildVariant $installPath }
+  catch {
+    if (-not ($WithWeb -or $WithoutWeb)) { Fail "could not read build variant from $installPath`; select -WithWeb or -WithoutWeb to replace it" }
+    $existingVariant = "unknown"
+  }
+}
+$variant = if ($WithoutWeb) { "cli-only" } elseif ($WithWeb) { "full" }
+  elseif ($existingVariant -eq "cli-only") { "cli-only" } else { "full" }
+
 $shadow = $null
 $cmd = Get-Command atlas.exe -ErrorAction SilentlyContinue
 if ($cmd -and ($cmd.Source -ne $installPath)) { $shadow = $cmd.Source }
@@ -63,6 +101,8 @@ if ($cmd -and ($cmd.Source -ne $installPath)) { $shadow = $cmd.Source }
 Write-Host "Atlas installer"
 Write-Host "  target:      $target"
 Write-Host "  version:     $Version"
+Write-Host "  build:       $variant"
+if ($existingVariant -ne "none") { Write-Host "  current build: $existingVariant" }
 if ($Version -eq "nightly") {
   Write-Host "  channel:     $baseUrl/nightly-version.txt (resolved when installing)"
 } else {
@@ -100,8 +140,14 @@ try {
   Invoke-WebRequest -Uri "$baseUrl/SHA256SUMS" -OutFile $sums
   Invoke-WebRequest -Uri $manifestUrl -OutFile $manifestPath
   $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
-  $asset = $manifest.assets | Where-Object { $_.target -eq $target } | Select-Object -First 1
-  if (-not $asset) { Fail "manifest did not contain an asset for $target" }
+  $assets = @($manifest.assets | Where-Object {
+    $assetVariant = if ($null -eq $_.variant) { "full" } else { $_.variant }
+    $_.target -ceq $target -and $assetVariant -ceq $variant
+  })
+  if ($assets.Count -ne 1) { Fail "release does not contain exactly one $variant asset for $target; choose a release that provides it" }
+  $asset = $assets[0]
+  $expectedArchive = if ($variant -eq "full") { "atlas-cli-$target.zip" } else { "atlas-cli-only-$target.zip" }
+  if ($asset.name -cne $expectedArchive) { Fail "manifest archive does not match requested build" }
   $archive = $asset.name
   $zip = Join-Path $tmp $archive
   Write-Host "  asset:       $archive"
@@ -121,7 +167,12 @@ try {
   $newBinary = Get-ChildItem -Path $extract -Filter atlas.exe -Recurse | Select-Object -First 1
   if (-not $newBinary) { Fail "archive did not contain atlas.exe" }
   $newVersion = & $newBinary.FullName --version
+  if ($LASTEXITCODE -ne 0) { Fail "downloaded atlas failed its version check" }
   Write-Host "  target bin:  $newVersion"
+  try { $newVariant = Get-BuildVariant $newBinary.FullName }
+  catch { Fail "downloaded atlas has invalid build information: $_" }
+  if ($null -eq $asset.variant -and $newVariant -eq "legacy") { $newVariant = "full" }
+  if ($newVariant -cne $variant) { Fail "downloaded atlas build does not match requested $variant variant" }
 
   function VersionNumber($Text) {
     if (-not $Text -or $Text -eq "unknown") { return "unknown" }

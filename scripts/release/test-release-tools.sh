@@ -15,25 +15,36 @@ make_unix_archive_in() {
   dest="$1"
   target="$2"
   body="$3"
-  work="$tmp/work/$dest/$target"
+  variant="${4:-full}"
+  prefix="atlas-cli"
+  [ "$variant" != "cli-only" ] || prefix="atlas-cli-only"
+  work="$tmp/work/$dest/$prefix-$target"
   mkdir -p "$work/$target"
   printf '%s\n' "$body" > "$work/$target/atlas"
   chmod +x "$work/$target/atlas"
   cp "$repo_root/LICENSE" "$work/$target/LICENSE"
   cp "$repo_root/README.md" "$work/$target/README.md"
   cp "$repo_root/THIRD-PARTY-NOTICES.md" "$work/$target/THIRD-PARTY-NOTICES.md"
-  tar -cJf "$dest/atlas-cli-$target.tar.xz" -C "$work" "$target"
+  tar -cJf "$dest/$prefix-$target.tar.xz" -C "$work" "$target"
 }
 
 make_unix_archive() {
   target="$1"
+  variant="${2:-full}"
   make_unix_archive_in "$dist" "$target" "#!/bin/sh
-printf 'atlas 9.9.9\\n'"
+case \"\$1\" in
+  --version) printf 'atlas 9.9.9\\n' ;;
+  build-info) printf '{\\n  \"status\": \"ok\",\\n  \"data\": {\\n    \"version\": \"9.9.9\",\\n    \"variant\": \"$variant\"\\n  }\\n}\\n' ;;
+  *) exit 2 ;;
+esac" "$variant"
 }
 
 make_windows_archive() {
   target="$1"
-  archive="$dist/atlas-cli-$target.zip"
+  variant="${2:-full}"
+  prefix="atlas-cli"
+  [ "$variant" != "cli-only" ] || prefix="atlas-cli-only"
+  archive="$dist/$prefix-$target.zip"
   node "$repo_root/dev-tools/release/dist/tests/release-fixtures.js" windows-archive "$archive" "$repo_root"
 }
 
@@ -42,13 +53,15 @@ for target in \
   x86_64-unknown-linux-gnu \
   aarch64-unknown-linux-gnu
 do
-  make_unix_archive "$target"
+  make_unix_archive "$target" full
+  make_unix_archive "$target" cli-only
 done
 
 for target in \
   x86_64-pc-windows-msvc
 do
-  make_windows_archive "$target"
+  make_windows_archive "$target" full
+  make_windows_archive "$target" cli-only
 done
 
 cp "$repo_root/scripts/install/atlas-installer.sh" "$dist/atlas-installer.sh"
@@ -162,6 +175,50 @@ EOF_CURL
     "$repo_root/scripts/install/atlas-installer.sh" \
     --install-dir "$install_dir" --version v9.9.9 --yes >/dev/null
 
+  node "$repo_root/dev-tools/release/dist/tests/release-fixtures.js" target-last "$dist/atlas-release-manifest.json" "$host_target"
+  for choice in --without-web preserve-cli --with-web preserve-full; do
+    case "$choice" in
+      --without-web|--with-web) set -- "$choice" ;;
+      *) set -- ;;
+    esac
+    PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" \
+      "$repo_root/scripts/install/atlas-installer.sh" \
+      --install-dir "$install_dir" --version v9.9.9 --yes "$@" >/dev/null
+    variant=$("$install_dir/atlas" build-info --json | sed -n 's/.*"variant": "\([^"]*\)".*/\1/p')
+    case "$choice" in
+      --without-web|preserve-cli) [ "$variant" = "cli-only" ] ;;
+      *) [ "$variant" = "full" ] ;;
+    esac
+  done
+  if "$repo_root/scripts/install/atlas-installer.sh" --without-web --with-web --dry-run >/dev/null 2>&1; then
+    echo "installer accepted conflicting web choices" >&2; exit 1
+  fi
+  cat > "$install_dir/atlas" <<'BROKEN_ATLAS'
+#!/bin/sh
+printf 'invalid build information\n'
+BROKEN_ATLAS
+  PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" \
+    "$repo_root/scripts/install/atlas-installer.sh" --install-dir "$install_dir" --version v9.9.9 --without-web --yes >/dev/null
+  PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" \
+    "$repo_root/scripts/install/atlas-installer.sh" --install-dir "$install_dir" --version v9.9.9 --with-web --yes >/dev/null
+  legacy_dist="$tmp/legacy-dist"
+  cp -R "$dist" "$legacy_dist"
+  node "$repo_root/dev-tools/release/dist/tests/release-fixtures.js" legacy-manifest "$legacy_dist/atlas-release-manifest.json"
+  # A real old binary rejects the new command rather than returning modern metadata.
+  make_unix_archive_in "$legacy_dist" "$host_target" '#!/bin/sh
+[ "$1" = "--version" ] || exit 2
+printf "atlas 9.9.9\n"'
+  node "$repo_root/dev-tools/release/dist/src/cli/generate-release-manifest.js" v9.9.9 "$legacy_dist"
+  node "$repo_root/dev-tools/release/dist/tests/release-fixtures.js" legacy-manifest "$legacy_dist/atlas-release-manifest.json"
+  PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$legacy_dist" \
+    "$repo_root/scripts/install/atlas-installer.sh" --install-dir "$install_dir" --version v9.9.9 --yes >/dev/null
+  if PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$legacy_dist" \
+    "$repo_root/scripts/install/atlas-installer.sh" --install-dir "$install_dir" --version v9.9.9 --without-web --yes >/dev/null 2>&1; then
+    echo "installer silently substituted full for unavailable CLI-only" >&2; exit 1
+  fi
+  PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" \
+    "$repo_root/scripts/install/atlas-installer.sh" --install-dir "$install_dir" --version v9.9.9 --yes >/dev/null
+
   if PATH="$fake_bin:$PATH" ATLAS_FAKE_RELEASE_DIR="$dist" \
     "$repo_root/scripts/install/atlas-installer.sh" \
     --install-dir "$install_dir" --version v9.9.9 </dev/null >/dev/null 2>&1
@@ -216,7 +273,7 @@ exit 42"
 
   bad_dist="$tmp/bad-dist"
   cp -R "$dist" "$bad_dist"
-  first_sum=$(awk -v target="$host_target" '$2 ~ target { print $1; exit }' "$bad_dist/SHA256SUMS")
+  first_sum=$(awk -v archive="atlas-cli-$host_target.tar.xz" '$2 == archive { print $1; exit }' "$bad_dist/SHA256SUMS")
   [ -n "$first_sum" ] || {
     echo "missing checksum for $host_target" >&2
     exit 1

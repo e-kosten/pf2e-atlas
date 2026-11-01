@@ -72,7 +72,7 @@ jobs:
           fi
 
   build:
-    name: cargo-dist ${{ matrix.target }}
+    name: cargo-dist ${{ matrix.target }} (${{ matrix.variant }})
     needs: validate-tag
     runs-on: ${{ matrix.os }}
     strategy:
@@ -81,12 +81,28 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-24.04
+            variant: full
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-24.04-arm
+            variant: full
           - target: aarch64-apple-darwin
             os: macos-26
+            variant: full
           - target: x86_64-pc-windows-msvc
             os: windows-2022
+            variant: full
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-24.04
+            variant: cli-only
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+            variant: cli-only
+          - target: aarch64-apple-darwin
+            os: macos-26
+            variant: cli-only
+          - target: x86_64-pc-windows-msvc
+            os: windows-2022
+            variant: cli-only
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v6
@@ -110,10 +126,15 @@ jobs:
         shell: pwsh
         run: irm "https://github.com/axodotdev/cargo-dist/releases/download/v$env:DIST_VERSION/cargo-dist-installer.ps1" | iex
       - name: Build web UI bundle
+        if: ${{ matrix.variant == 'full' }}
         shell: bash
         run: |
           npm --prefix web/atlas-ui ci
           npm --prefix web/atlas-ui run build
+      - name: Select CLI-only build
+        if: ${{ matrix.variant == 'cli-only' }}
+        shell: bash
+        run: printf '\ndefault-features = false\n' >> dist-workspace.toml
       - name: Generate notices
         shell: bash
         run: node dev-tools/release/dist/src/cli/generate-notices.js
@@ -127,18 +148,62 @@ jobs:
       - name: Build archives with cargo-dist
         if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
         shell: bash
-        run: dist build --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.validate-tag.outputs.tag }}" --print linkage
+        run: |
+          mkdir -p target
+          dist build --allow-dirty --no-local-paths --output-format json --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.validate-tag.outputs.tag }}" > target/package-dist-manifest.json
       - name: Build archives with cargo-dist on Windows
         if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
         shell: pwsh
         env:
           RUSTFLAGS: "-C target-feature=-crt-static -C link-arg=/NODEFAULTLIB:libcmt -C link-arg=msvcprt.lib -C link-arg=legacy_stdio_definitions.lib"
-        run: dist build --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.validate-tag.outputs.tag }}" --print linkage
+        run: |
+          New-Item -ItemType Directory -Force target | Out-Null
+          dist build --allow-dirty --no-local-paths --output-format json --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.validate-tag.outputs.tag }}" > target/package-dist-manifest.json
+      - name: Stage CLI-only artifacts
+        if: ${{ matrix.variant == 'cli-only' }}
+        shell: bash
+        run: node dev-tools/release/dist/src/cli/stage-cli-only.js "${{ matrix.target }}" target/distrib target/package-dist-manifest.json
+      - name: Check packaged binary on Unix
+        if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
+        shell: bash
+        env:
+          EXPECTED_VERSION: ${{ needs.validate-tag.outputs.version }}
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          mkdir -p target/package-smoke
+          prefix=atlas-cli
+          if [[ "$VARIANT" == cli-only ]]; then prefix=atlas-cli-only; fi
+          tar -xJf "target/distrib/$prefix-${{ matrix.target }}.tar.xz" -C target/package-smoke
+          binary=$(find target/package-smoke -type f -name atlas -print -quit)
+          test -n "$binary"
+          node dev-tools/release/dist/src/cli/smoke-packaged-cli.js "$binary" "$EXPECTED_VERSION" "$VARIANT"
+          if [[ "$VARIANT" == full ]]; then
+            node dev-tools/release/dist/src/cli/smoke-packaged-web.js "$binary" web/atlas-ui/dist
+          fi
+      - name: Check packaged binary on Windows
+        if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
+        shell: pwsh
+        env:
+          EXPECTED_VERSION: ${{ needs.validate-tag.outputs.version }}
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          $prefix = if ($env:VARIANT -eq "full") { "atlas-cli" } else { "atlas-cli-only" }
+          Expand-Archive "target/distrib/$prefix-${{ matrix.target }}.zip" target/package-smoke
+          $binary = Get-ChildItem target/package-smoke -Filter atlas.exe -Recurse | Select-Object -First 1
+          if (-not $binary) { throw "packaged atlas.exe is missing" }
+          node dev-tools/release/dist/src/cli/smoke-packaged-cli.js $binary.FullName $env:EXPECTED_VERSION $env:VARIANT
+          if ($LASTEXITCODE -ne 0) { throw "packaged CLI smoke test failed" }
+          if ($env:VARIANT -eq "full") {
+            node dev-tools/release/dist/src/cli/smoke-packaged-web.js $binary.FullName web/atlas-ui/dist
+            if ($LASTEXITCODE -ne 0) { throw "packaged web smoke test failed" }
+          }
       - name: Upload cargo-dist artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: package-${{ matrix.target }}
-          path: target/distrib/atlas-cli-${{ matrix.target }}.*
+          name: package-${{ matrix.target }}-${{ matrix.variant }}
+          path: |
+            target/distrib/atlas-cli*-${{ matrix.target }}.*
+            target/distrib/cli-only-${{ matrix.target }}.json
           if-no-files-found: error
 
   publish:

@@ -42,11 +42,12 @@ Release jobs install and build the private package once, then call its emitted
 entry points directly. `prepare-release.sh` regenerates notices through npm.
 Invalid arguments exit 2; malformed inputs and failed validation exit 1.
 
-Manifests retain their existing schema, lexical key ordering, ASCII escapes and
+Manifest asset entries include `variant` (`full` or `cli-only`), with full entries
+first for older installers. Both variants retain lexical key ordering, ASCII escapes and
 LF formatting. Hashes stream file bytes. ZIP inspection uses `yauzl` to read
 central-directory names without decompressing binaries; `yazl` constructs test
 fixtures. XZ tar archives use the system `tar`. Archive inspection never extracts
-release files. The validator checks the four target packages, checksum metadata,
+release files. The validator checks both variants for all four targets, checksum metadata,
 cargo-dist references and excluded runtime-data paths. Its tag argument retains
 the existing command interface; tag/version agreement belongs to the workflow's
 earlier validation step.
@@ -75,3 +76,17 @@ status, content types and exact HTML/entry JavaScript/CSS bytes against the UI
 bundle built by that job, then terminates the server and removes its temporary
 directory. It needs no game data or model downloads. This checks embedded asset
 serving; browser interactions and search readiness remain separate acceptance checks.
+
+## Build variants
+
+Each platform job builds one variant. CLI-only jobs set cargo-dist's
+`default-features = false`, skip frontend preparation and run `stage-cli-only` to
+rename the archive/checksum and rewrite its actual cargo-dist metadata under
+`atlas-cli-only-<target>` identities. Assembly merges this metadata before pruning
+references to absent artifacts. Full archive names remain compatible with older
+installers. Both archive sets carry the release's third-party notices.
+
+`smoke-packaged-cli` checks version, variant, command availability, JSON dice
+output and workspace-scoped bundled skill installation in a disposable directory.
+Full jobs additionally run `smoke-packaged-web`. Nightly publication tests both
+downloaded variants before advancing its channel pointer.

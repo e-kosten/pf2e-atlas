@@ -28,7 +28,13 @@ function execute(f, script) {
 
 test("mixed application checks share one bundle before the fixed frontend/Rust pair", () => {
   const plan = validationPlan(new Set(["rust", "web", "browser"]));
-  assert.deepEqual(plan[2].slice(1), [
+  const bundleIndex = plan.findIndex(
+    (task) => Array.isArray(task) && task.includes("verify:bundle"),
+  );
+  assert(
+    plan.slice(0, bundleIndex).some((task) => task[0] === "CLI-only tests"),
+  );
+  assert.deepEqual(plan[bundleIndex].slice(1), [
     "npm",
     "--prefix",
     "web/atlas-ui",
@@ -36,7 +42,7 @@ test("mixed application checks share one bundle before the fixed frontend/Rust p
     "verify:bundle",
   ]);
   assert.equal(plan.filter((task) => task.parallel).length, 1);
-  assert.deepEqual(plan[3].parallel.frontend[0].slice(1), [
+  assert.deepEqual(plan[bundleIndex + 1].parallel.frontend[0].slice(1), [
     "npm",
     "--prefix",
     "web/atlas-ui",

@@ -1,11 +1,10 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { archiveEntries } from './archives.js';
-import { compare, isFile, object, readJson, sha256, targets } from './release-data.js';
+import { archiveName, compare, isFile, object, readJson, sha256, targets, variants } from './release-data.js';
 
 const required = [
-  'atlas-cli-aarch64-apple-darwin.tar.xz', 'atlas-cli-x86_64-unknown-linux-gnu.tar.xz',
-  'atlas-cli-aarch64-unknown-linux-gnu.tar.xz', 'atlas-cli-x86_64-pc-windows-msvc.zip',
+  ...variants.flatMap((variant) => Object.keys(targets).map((target) => archiveName(target, variant))),
   'SHA256SUMS', 'dist-manifest.json', 'atlas-installer.sh', 'atlas-installer.ps1',
   'atlas-release-manifest.json', 'THIRD-PARTY-NOTICES.md',
 ];
@@ -17,14 +16,22 @@ export async function validateAssets(dist: string): Promise<void> {
   const assets = object(readJson(path.join(dist, 'atlas-release-manifest.json'))).assets;
   if (!Array.isArray(assets)) throw new Error('Expected release manifest assets array');
   const checksums = readFileSync(path.join(dist, 'SHA256SUMS'), 'utf8').split(/\r?\n/);
-  for (const target of Object.keys(targets)) {
-    const asset = assets.map(object).find((entry) => entry.target === target);
-    if (!asset || typeof asset.name !== 'string' || !isFile(path.join(dist, asset.name)) || statSync(path.join(dist, asset.name)).size === 0) {
-      throw new Error(`manifest is missing required target asset: ${target}`);
+  for (const variant of variants) {
+    for (const target of Object.keys(targets)) {
+      const matching = assets.map(object).filter((entry) => entry.target === target && entry.variant === variant);
+      const asset = matching[0];
+      if (matching.length !== 1 || !asset || asset.name !== archiveName(target, variant)) {
+        throw new Error(`manifest is missing required target asset or has duplicates: ${target} (${variant})`);
+      }
+      const actual = await sha256(path.join(dist, asset.name));
+      const sums = checksums.filter((line) => line.trim().split(/\s+/)[1] === asset.name).map((line) => line.trim().split(/\s+/)[0]);
+      if (asset.sha256 !== actual || sums.length !== 1 || sums[0] !== actual) throw new Error(`checksum metadata mismatch for ${asset.name}`);
     }
-    const actual = await sha256(path.join(dist, asset.name));
-    const sums = checksums.filter((line) => line.trim().split(/\s+/)[1] === asset.name).map((line) => line.trim().split(/\s+/)[0]);
-    if (asset.sha256 !== actual || sums.length !== 1 || sums[0] !== actual) throw new Error(`checksum metadata mismatch for ${asset.name}`);
+  }
+  if (assets.length !== variants.length * Object.keys(targets).length) throw new Error('unexpected release manifest assets');
+  for (const target of Object.keys(targets)) {
+    const first = assets.map(object).find((entry) => entry.target === target);
+    if (first?.variant !== 'full') throw new Error(`full build must precede CLI-only for legacy installers: ${target}`);
   }
   const artifacts = object(object(readJson(path.join(dist, 'dist-manifest.json'))).artifacts ?? {});
   for (const [name, entry] of Object.entries(artifacts)) {

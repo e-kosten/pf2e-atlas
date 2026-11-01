@@ -16,6 +16,7 @@ implementation status does not require a new ADR; a new durable decision does.
 - [0023: CLI JSON and batch results](0023-rust-cli-json-contract.md)
 - [0026: Rust product surface](0026-rust-cli-product-surface.md)
 - [0029: Web/app boundary and browser compatibility](0029-local-web-app-boundary.md)
+- [0064: Optional web distribution](0064-optional-web-distribution.md)
 - [0033: Developer command surfaces](0033-developer-command-surfaces.md)
 - [0047: Semantic record presentation](0047-semantic-record-presentation.md)
 - [0058: Browser routing](0058-browser-routing.md)

@@ -1,19 +1,21 @@
-import { readdirSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { compare, isFile, sha256, targets, writeJson } from './release-data.js';
+import { archiveName, compare, isFile, sha256, targets, variants, writeJson } from './release-data.js';
 
 export async function generateManifest(tag: string, dist: string): Promise<void> {
   const assets = [];
   const sums: string[] = [];
-  for (const name of readdirSync(dist).sort(compare)) {
-    const file = path.join(dist, name);
-    if (!isFile(file) || !(name.endsWith('.tar.xz') || name.endsWith('.zip'))) continue;
-    const target = (Object.keys(targets) as (keyof typeof targets)[]).find((candidate) => name.includes(candidate));
-    if (!target) continue;
-    const digest = await sha256(file);
-    const [os, arch] = targets[target];
-    assets.push({ target, os, arch, name, sha256: digest });
-    sums.push(`${digest}  ${name}`);
+  // Legacy installers select the first matching target, so full builds come first.
+  for (const variant of variants) {
+    for (const target of Object.keys(targets).sort(compare) as (keyof typeof targets)[]) {
+      const name = archiveName(target, variant);
+      const file = path.join(dist, name);
+      if (!isFile(file)) continue;
+      const digest = await sha256(file);
+      const [os, arch] = targets[target];
+      assets.push({ target, os, arch, name, variant, sha256: digest });
+      sums.push(`${digest}  ${name}`);
+    }
   }
   writeJson(path.join(dist, 'atlas-release-manifest.json'), { version: tag, assets });
   for (const name of ['atlas-installer.sh', 'atlas-installer.ps1', 'atlas-release-manifest.json', 'THIRD-PARTY-NOTICES.md']) {
