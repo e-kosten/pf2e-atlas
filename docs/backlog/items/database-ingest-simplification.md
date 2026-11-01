@@ -3,13 +3,21 @@
 Status: in_progress
 Priority: soon
 Owner: database-ingest workstream
-Last reviewed: 2026-10-31
+Last reviewed: 2026-11-01
 
 ## Outcome and evidence
 
-Implement the DB/ingest review scope selected by the user on 2026-10-31. The review used clean `64171f6d5b00e7aeec2a815ce103169b46fb90b0`, source tracing and isolated SQLite probes. It identified an incomplete-source publication risk, repeated content/numerical representations, saved-domain integrity gaps and mismatched data lifetimes. Full-corpus performance gains remain to be measured.
+Implementation and local validation are complete for the DB/ingest review scope
+selected by the user on 2026-10-31; the single feature PR awaits review. The original
+review used clean `64171f6d5b00e7aeec2a815ce103169b46fb90b0`, source tracing and
+isolated SQLite probes. It identified an incomplete-source publication risk,
+repeated content/numerical representations, saved-domain integrity gaps and
+mismatched data lifetimes. The
+[dated findings](../../research/database-ingest-simplification.md) record actual
+preservation, recovery and query results. Cached release builds used less observed
+peak RSS and took longer than the matched baseline.
 
-## Selected work
+## Implemented scope
 
 1. Reject publication when declared pack discovery is incomplete; preserve prior output and expose compact admission/exclusion evidence through setup reporting.
 2. Enforce closed saved-state enums and encounter/participant membership, with strict decoding and atomic state-preserving migrations. Remove the unused participant-adjustments table only after accounting for historical rows.
@@ -25,15 +33,22 @@ Keep one SQLite workspace, checked source authority, explicit unavailable states
 
 Validate the incomplete-pack failure path, populated migrations/rollback, source/relationship changes, lexical-only and single/two-profile sections, forced pending-vs-published values, retry/reset lifetimes and nested filter uncertainty. Measure current release builds for preparation, memory, logical writes, maintenance downtime and selective query plans before claiming performance improvements. Each completed refactor removes its replaced production path.
 
-Integration targets main `d7187e7834110e3a524e651147ee866b3ad8cd27`, whose published
-schema 24 includes manual trackers and the encounter clock. Preserve migrations
+Local integration and measurements use main
+`d7187e7834110e3a524e651147ee866b3ad8cd27`, whose published schema 24 includes manual
+trackers and the encounter clock. Preserve migrations
 23/24 and their countdown conversion; this work adds named steps 25–29 in one PR
 and one release slice. Populated 24→29 upgrades must preserve configured round
 length, timed condition progress, trackers, baseline/outgoing payloads and all prior
-saved identities. Earlier schema-27 task measurements remain historical; fresh
-integrated validation and corpus observations are required before completion.
+saved identities. Earlier schema-27 task measurements remain historical. Fresh
+integrated validation and all eight current corpus-operation closeouts passed, including
+24→29 preservation and the final original-source/schema-22 restore followed by a
+normal 22→29 metadata upgrade.
 
-The local execution plan defines the ordered blocks and evidence matrix. The user authorized implementation on 2026-10-31; delivery follows repository review/validation requirements, with merge authorization separate. Reconcile this item as blocks land; do not infer completion from a passing benchmark alone.
+The local execution plan retains the ordered blocks, evidence matrix and candidate
+lineage. Independent review covers the local candidate; hosted CI covers the
+published candidate.
+This item stays in progress during PR review; merge and release remain separately
+authorized. No further performance optimization is assigned by these observations.
 
 ## Related owners
 

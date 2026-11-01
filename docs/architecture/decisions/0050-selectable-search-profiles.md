@@ -99,9 +99,10 @@ Runtime retains one query-inference session for each loaded profile, shared acro
 independent SQL workers. The default warms at startup; another profile loads on
 first use and remains retained. One global native mutex serializes loads/inference
 with four inference threads, using the existing bounded retrieval admission.
-The mutex releases before SQL ranking. Reader pools retain their single verified
-physical artifact instance and full generation; adopting publication requires
-restart. Short-lived commands retain their first successful service.
+The mutex releases before SQL ranking. Under
+[ADR0051](0051-persistent-workspace.md), SQL workers use bounded workspace snapshots
+and admit the current publication per operation. Short-lived commands retain their
+first successful service.
 
 Lookup, lexical search, filter vocabulary, lists, encounters and stored-vector
 Similar do not load or require unused model weights. Metadata distinguishes stored

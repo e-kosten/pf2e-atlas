@@ -133,8 +133,9 @@ execution and final process RSS are measured separately.
 
 Compact collections still grow with corpus size: captured path/hash manifests,
 resolver destinations/names and collision facts, stable identity/live sets, prior
-component digests, retained section/unit IDs, and validation trait evidence/offset
-maps. Rich DTO/HTML/selection and occurrence payloads reside in disposable streams.
+component digests, retained section/unit IDs, checked publication keys/names/product
+facts, and validation trait evidence/offset maps. Rich DTO/HTML/selection and
+occurrence payloads reside in disposable streams.
 Native raw inputs, profile descriptors and occurrence metadata remain in sealed
 file streams. These compact sets and native model memory are measured separately
 from the bounded Rust preparation and numerical buffers.
@@ -144,7 +145,9 @@ bounded windows before inference begins. The complete sealed profile membership,
 including profiles with no inputs, is registered before checkpoint pruning. Native
 execution visits one profile and bounded input batch at a time; its session loads
 only for actual misses. Checkpoint writes finish before another inference batch.
-No workspace SQL snapshot or writer is retained during inference. Publication
+No workspace SQL snapshot or writer is retained during inference. Full input
+validation retains only key, optional name and product classification for identity
+consumers; payload consumers continue to decode bounded full frames. Publication
 independently validates every current component inside its exact transaction,
 including a bounded second source decode and selection pass. A failed publication
 rolls back reference changes and preserves saved state.

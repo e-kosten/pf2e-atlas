@@ -5,6 +5,10 @@ Priority: later
 Owner: unassigned
 Last reviewed: 2026-10-30
 
+The later [database and ingest findings](../../research/database-ingest-simplification.md)
+record a separate matched release comparison and its cached-build RSS/elapsed-time
+tradeoff. The historical observations below retain their original candidates.
+
 ## Remaining work
 
 No additional optimization is assigned. The

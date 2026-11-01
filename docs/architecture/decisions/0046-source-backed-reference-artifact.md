@@ -1,6 +1,7 @@
 # ADR 0046: Source-backed reference artifact and query projections
 
-Status: Accepted.
+Status: Accepted. [ADR0051](0051-persistent-workspace.md) amends the physical
+artifact and saved-database lifetimes; source authority and query policy remain.
 
 ## Decision
 
@@ -185,11 +186,11 @@ evidence relation rather than trusted as arbitrary FTS input.
 Generated artifacts are rebuilt with the new writer, readers, search and consumers
 together. There is no legacy artifact compatibility reader or second authority
 path. Temporary writes publish only after coherence validation; failure preserves
-the prior artifact. A live reader keeps its SQLite connections on one verified
-artifact generation; publication cannot mix an older body with newer caches or
-query units through a newly opened path. Saved lists and encounters stay in their separate local-state
-database. Unresolved saved keys retain snapshots. New encounter HP uses known
-effective typed maxima and one supported source/participant adjustment; saved HP,
+the prior artifact. Under [ADR0051](0051-persistent-workspace.md), each composed read
+uses one bounded, verified workspace snapshot; publication cannot mix an older
+body with newer caches or query units. Saved lists and encounters share that workspace, with
+domain ownership retained by `atlas-local-state`. Unresolved saved keys retain
+snapshots. New encounter HP uses known effective typed maxima and one supported source/participant adjustment; saved HP,
 explicit overrides and edit intent are preserved.
 
 Missing adjustment within a known typed NPC attributes object uses an unadjusted
