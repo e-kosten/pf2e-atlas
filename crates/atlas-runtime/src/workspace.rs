@@ -258,6 +258,10 @@ mod saved_state_integrity_tests;
 mod native_storage_tests;
 
 #[cfg(test)]
+#[path = "historical_similarity_tests.rs"]
+mod historical_similarity_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
@@ -606,7 +610,8 @@ mod tests {
         ] {
             let c = rusqlite::Connection::open_in_memory().unwrap();
             c.execute_batch("CREATE TABLE artifact_context(singleton INTEGER PRIMARY KEY,format_version INTEGER,context_hash TEXT,context_json TEXT);").unwrap();
-            let context = atlas_search::test_support::context(false);
+            let mut context = atlas_search::test_support::context(false);
+            context.selected_sections_recipe.clear();
             let mut stored = serde_json::to_value(context).unwrap();
             stored[field] = serde_json::json!(retired);
             let json = serde_json::to_string(&stored).unwrap();

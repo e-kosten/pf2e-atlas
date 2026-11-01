@@ -32,6 +32,7 @@ mod historical_core_projection;
 mod historical_locations;
 #[cfg(any(test, feature = "test-support"))]
 mod historical_publication;
+mod historical_similarity_admission;
 mod maintenance_recovery;
 mod reference_recovery;
 pub use reference_recovery::ReferencePublicationExpectation;

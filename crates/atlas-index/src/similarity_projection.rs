@@ -27,28 +27,9 @@ pub fn backfill_similarity_parts(c: &Connection) -> atlas_storage::StorageResult
 }
 
 fn backfill(c: &Connection) -> Result<(), IndexError> {
-    let Some(context) = crate::read_stored_reference_context(c)? else {
+    let Some(context) = crate::historical_similarity_admission::for_backfill(c)? else {
         return Ok(());
     };
-    if context.snapshot_version != atlas_foundry_model::SNAPSHOT_VERSION
-        || context.source_contract != atlas_foundry_model::SOURCE_CONTRACT_ID
-        || context.content_selection_version
-            != atlas_record::source_record::SOURCE_CONTENT_SELECTION_VERSION
-        || context.content_interpretation_version
-            != atlas_record::source_content::CONTENT_INTERPRETATION_VERSION
-    {
-        // Existing setup admission owns replacement of retired checked codecs.
-        return Ok(());
-    }
-    if matches!(
-        crate::classify_reference_upgrade(c)?,
-        crate::ReferenceUpgrade::SourcePreparation | crate::ReferenceUpgrade::SourceReplacement
-    ) {
-        // Setup owns replacing retired preparation outputs (localization, assets,
-        // authored relationships, lookup, content selection and trait policy).
-        // Reuse its classifier before reading any record rows or checked bodies.
-        return Ok(());
-    }
     let mut after = 0i64;
     loop {
         let roots = c.prepare("SELECT record_id,key FROM records WHERE record_id>? AND document_kind<>'Macro' ORDER BY record_id LIMIT 128")?
