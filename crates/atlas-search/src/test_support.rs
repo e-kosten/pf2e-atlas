@@ -266,6 +266,21 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
     }
 }
 
+/// Change a fixture's captured identity together with its checked pack inventory.
+pub fn set_input_source_fingerprint(
+    input: &mut IndexBuildInput,
+    fingerprint: String,
+) -> Result<(), crate::SearchError> {
+    let inventory = atlas_index::CompleteSourceInventory::checked(
+        &fingerprint,
+        input.packs.iter().map(|pack| pack.pack_id.clone()),
+        input.packs.iter().map(|pack| pack.pack_id.clone()),
+    )?;
+    input.context.source_fingerprint = fingerprint;
+    input.inventory = inventory;
+    Ok(())
+}
+
 /// Structural same-dimension fixtures for profile isolation and model-free app tests.
 pub fn input_with_both_profiles(records: Vec<SourceArtifactRecordInput>) -> IndexBuildInput {
     let mut input = input(records, true);
