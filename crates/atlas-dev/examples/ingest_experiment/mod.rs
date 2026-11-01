@@ -365,6 +365,18 @@ pub(super) fn run() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn observed_build(args: &Args, events: File) -> Value {
+        // All concurrent fixture builds need an active subscriber: tracing's
+        // single-dispatch callsite cache otherwise consults the unobserved
+        // thread and can disable a shared callsite for an observed build.
+        let observer = Arc::new(observer::Observer::new(events, None));
+        let report =
+            tracing::subscriber::with_default(Arc::clone(&observer), || build(args)).unwrap();
+        assert!(!observer.failed());
+        report
+    }
+
     #[test]
     fn real_lexical_build_reports_stage_files_and_only_changed_root_component_actions() {
         let directory = tempfile::tempdir().unwrap();
@@ -404,7 +416,7 @@ mod tests {
             interval_ms: 25,
             max_observations: 1,
         };
-        build(&args).unwrap();
+        observed_build(&args, tempfile::tempfile().unwrap());
         for changed in [false, true] {
             if changed {
                 std::fs::write(&document, original.replace("Original body", "Changed body"))
@@ -415,18 +427,15 @@ mod tests {
             } else {
                 "unchanged.jsonl"
             });
-            let observer = Arc::new(observer::Observer::new(
+            let report = observed_build(
+                &args,
                 OpenOptions::new()
                     .write(true)
                     .create_new(true)
                     .open(&path)
                     .unwrap(),
-                None,
-            ));
-            let report =
-                tracing::subscriber::with_default(Arc::clone(&observer), || build(&args)).unwrap();
+            );
             assert_eq!(report["inferred_inputs"], 0);
-            assert!(!observer.failed());
             let events = std::fs::read_to_string(path)
                 .unwrap()
                 .lines()
@@ -497,7 +506,7 @@ mod tests {
             max_observations: 1,
         };
         atlas_runtime::initialize_workspace(&args.database).unwrap();
-        build(&args).unwrap();
+        observed_build(&args, tempfile::tempfile().unwrap());
         let service = app_service(&args).unwrap();
         let encounter = service
             .create_encounter(

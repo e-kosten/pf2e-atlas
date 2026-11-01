@@ -1,6 +1,7 @@
 # Database and ingest simplification
 
-Findings, 2026-11-01 UTC. Candidate `c1387b92`; final operation results are reconciled below.
+Findings, 2026-11-01 UTC. Measured production candidate `c1387b92`; final operation
+results and the subsequent developer-test correction are reconciled below.
 
 ## Question and resulting design
 
@@ -30,7 +31,7 @@ callback remain unchanged.
 
 ## Experimental identity and method
 
-Current source is `c1387b92dc99a03ab36c460047d9b565a270d89d`, code-input SHA256
+Shipping measurements use `c1387b92dc99a03ab36c460047d9b565a270d89d`, code-input SHA256
 `03aa0ad19f36d396b8a6b0be8bd59325e2d9a4ba0881a2cf8a608e9a17ae04a7`.
 The matched baseline is main `d7187e7834110e3a524e651147ee866b3ad8cd27`.
 Both shipping executables use Rust 1.95.0, normal release optimization level 3,
@@ -264,6 +265,20 @@ tooling checks are explicitly reused through matched input provenance. This comb
 fresh affected checks with valid reuse; it is not 17 freshly run current phases.
 These establish local evidence for the recorded code inputs; hosted CI is a
 separate result tied to the published PR head.
+
+Hosted CI subsequently exposed a concurrent tracing-callsite race in the developer
+experiment fixture: an unobserved fixture build could disable a shared callsite
+for an observed build. A test-only correction gives every fixture build its own
+observer/file lifetime while retaining the exact stage/component assertions. The
+eight-test example passed twice under normal concurrency; the maintained five-phase
+standalone developer gate passed (55 tests, 4 default skips, format, both Clippy
+policies and build). Independent review passed. This correction is entirely under
+`cfg(test)`; production example bytes and frozen shipping artifacts are unchanged.
+Its code-input SHA256 is
+`1811e0b019c44f509adb06e77706b82f36ff110b8ff786fa0698adc7b49ae876`;
+local receipts live in `.atlas/validation/dev-ci-observer-fix/run.08URnr/`.
+The shipping/corpus evidence above remains bound to c138, rather than a newly
+measured descendant. Final PR-head CI remains a separate delivery gate.
 
 Batch fixtures observe 1/1/5 reuse batches for 1/32/129 records, bounded by 32 raw plus
 32 retained records or 32 prepared plus 32 layout roots. API requests cap at 128 and
