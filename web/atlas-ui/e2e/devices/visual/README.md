@@ -5,6 +5,16 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Manual encounter trackers
+
+macOS 27.2 (26B123), arm64, Playwright 1.62.1, application source
+`748d7646`: all 12 capture scenarios passed across the four projects. The new
+Trackers section appears below conditions, including behind open condition and
+turn dialogs. Review covers all 40 before/after frames; existing modal controls,
+condition facts and recovery anchors remain intact. Exact comparisons and geometry
+assertions remain enabled. Ordinary comparison results and Linux provenance follow
+the captured references; capture alone is not passing comparison evidence.
+
 ## Stable modal placement
 
 The shared modal geometry and short-work-area fixes use application source
