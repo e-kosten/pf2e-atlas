@@ -553,6 +553,7 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
             .unwrap()
             .is_empty()
     );
+    assert!(after.remove("encounter_turn_receipts").unwrap().is_empty());
     assert_eq!(after, before);
     let context_after = read_stored_reference_context(read.connection())
         .unwrap()

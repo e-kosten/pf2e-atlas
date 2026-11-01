@@ -164,6 +164,12 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
             apply: atlas_local_state::backfill_saved_state_integrity,
         }),
     },
+    Migration {
+        version: 24,
+        name: "turn-receipts",
+        sql: atlas_local_state::TURN_RECEIPTS_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()

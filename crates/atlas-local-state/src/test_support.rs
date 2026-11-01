@@ -31,6 +31,7 @@ impl TestStore {
                 .map_err(|error| LocalStateError::IncompatibleSchema(error.to_string()))?;
             transaction.commit()?;
             conn.pragma_update(None, "foreign_keys", true)?;
+            conn.execute_batch(TURN_RECEIPTS_SCHEMA_SQL)?;
         }
         Ok(store)
     }

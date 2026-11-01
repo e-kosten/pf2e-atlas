@@ -583,7 +583,9 @@ and admission can safely resume.
 
 Readers own bounded deferred transactions. One composed operation shares its
 snapshot across reference and saved-domain readers; idle CLI/web owners retain no
-SQLite session. Writes use immediate transactions and recheck preparation revisions
+SQLite session. Saved roster detail reads its five child collections through
+encounter-scoped batches, preserving owner-specific ordering and unknown values;
+query count is independent of participant count. Writes use immediate transactions and recheck preparation revisions
 before applying source-derived changes. Local-state actions use savepoints inside
 the outer transaction, so caught action errors cannot leak partial writes into a
 later commit. Durable receipt recovery precedes stale-source checks. Receipt JSON
@@ -741,9 +743,14 @@ so a retry cannot grant the same consequence again. Unconscious-created Prone
 remains after waking. Persistent-damage comparisons retain exact episode/source
 membership; boundary claims prevent replaying completed turn processing.
 
-Outgoing turn receipts store request identities and typed pre-advance saved-state
-snapshots. Advancement commits the boundary and next turn together. Only the latest
-completed boundary is actionable; closing the notification changes no saved state.
+`encounter_turn_receipts` retains compact Next-turn request/intent/boundary identities
+for the encounter lifetime. `encounter_outgoing_turns` holds at most one typed
+pre-advance snapshot per encounter and references its receipt. Advancement commits
+the receipt, context replacement and next turn together. Migration 24 preserves
+every historical receipt and only the maximum-ID snapshot per encounter, including
+boundaries without review. Reset/rest clears current context and retains receipts;
+retries recover before revision/source guards. Only the current completed boundary
+is actionable; closing the notification changes no saved state.
 There is no acknowledgment queue or persisted action-attempt/relationship workflow.
 Spell reminders and optional strike context are read-only projections. Spell
 resource writes and retained dice use their existing guarded mutation owners.

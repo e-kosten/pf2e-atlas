@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 23;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 24;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -154,6 +154,12 @@ const MIGRATIONS: &[Migration] = &[
             apply: atlas_local_state::backfill_saved_state_integrity,
         }),
     },
+    Migration {
+        version: 24,
+        name: "turn-receipts",
+        sql: atlas_local_state::TURN_RECEIPTS_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 
 /// Initialize or upgrade one workspace. Reference readiness is independent:
@@ -181,6 +187,10 @@ pub(crate) fn register_extensions() -> StorageResult<()> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
         .map_err(|e| atlas_storage::StorageError::Unsupported(e.to_string()))
 }
+
+#[cfg(test)]
+#[path = "turn_receipts_tests.rs"]
+mod turn_receipts_tests;
 
 #[cfg(test)]
 #[path = "saved_state_integrity_tests.rs"]
@@ -607,7 +617,7 @@ mod tests {
             .unwrap();
         let revision = write.reference_revision().unwrap();
         let stable_values = |c: &rusqlite::Connection| {
-            let tables=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'core_%' AND name NOT IN ('artifact_context','workspace','schema_migrations','encounter_participant_adjustments','encounter_participant_baselines','encounter_recovery_receipts') ORDER BY name").unwrap().query_map([],|row|row.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+            let tables=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'core_%' AND name NOT IN ('artifact_context','workspace','schema_migrations','encounter_participant_adjustments','encounter_participant_baselines','encounter_recovery_receipts','encounter_turn_receipts') ORDER BY name").unwrap().query_map([],|row|row.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
             tables
                 .into_iter()
                 .map(|table| {
@@ -669,6 +679,7 @@ mod tests {
         for table in [
             "encounter_participant_baselines",
             "encounter_recovery_receipts",
+            "encounter_turn_receipts",
         ] {
             assert_eq!(
                 reader

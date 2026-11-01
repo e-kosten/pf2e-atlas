@@ -1256,6 +1256,14 @@ fn failed_start_resource_write_rolls_back_turn_condition_changes_and_receipts()
         )?,
         0
     );
+    assert_eq!(
+        store.connection()?.query_row(
+            "SELECT count(*) FROM encounter_turn_receipts",
+            [],
+            |row| row.get::<_, i64>(0)
+        )?,
+        0
+    );
     store
         .connection()?
         .execute_batch("DROP TRIGGER reject_resources")?;
@@ -2725,3 +2733,8 @@ fn stored_closed_enums_reject_corruption_instead_of_reinterpreting_saved_gamepla
     );
     Ok(())
 }
+
+#[path = "roster_read_tests.rs"]
+mod roster_read_tests;
+#[path = "turn_receipts_tests.rs"]
+mod turn_receipts_tests;

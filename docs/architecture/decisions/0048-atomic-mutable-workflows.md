@@ -187,9 +187,14 @@ The browser advances first, then presents one optional notification for the turn
 just completed. Every close path finishes the notification without changing HP,
 conditions or initiative. There is no pending-reminder queue or acknowledgment.
 Only the latest completed boundary supports guarded actions while its notification
-is open; advancing again supersedes it. Durable receipts retain retry identity and
-frozen source context without exposing a past-turn workflow. ADR0055 owns the shared
-condition rules used by these actions.
+is open; advancing again supersedes it. Compact Next-turn receipts retain every
+request, intent and boundary identity for the encounter lifetime. One separate
+current snapshot retains frozen context, even when no review is needed; a newer
+boundary always supersedes the previous one. Reset/rest clears that context while
+preserving receipts. Retry recovery precedes source/revision guards and returns
+the current canonical encounter receipt. Intent reuse remains an error. Receipt,
+context replacement and gameplay changes commit in one action. ADR0055 owns the
+shared condition rules used by these actions.
 A condition duration stores one amount and its unit. For rounds the amount is
 remaining, and an explicit participant/start-or-end anchor identifies the event
 that decrements it. Nonround units are table reminders. Source attribution does

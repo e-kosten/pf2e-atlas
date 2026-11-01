@@ -165,7 +165,7 @@ impl EncountersWrite<'_> {
                     )?;
                 }
             }
-            // Outgoing snapshots include the whole roster and cannot survive a reset/rest.
+            // Clear superseded context; lifetime turn receipts survive reset/rest.
             self.connection.execute("DELETE FROM encounter_outgoing_turns WHERE encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1)", [key])?;
             if end_turn || reset_encounter {
                 self.connection.execute("UPDATE encounter_participants SET turn_resources_json=NULL,revision=revision+1 WHERE turn_resources_json IS NOT NULL AND encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1)", [key])?;

@@ -137,9 +137,9 @@ fn integrity_upgrade_preserves_populated_saved_graph_reference_snapshots_and_vec
     let vector_bits = vectors(read.connection());
     let ledger = rows(read.connection(), "schema_migrations");
     drop(read);
-    initialize_workspace(workspace.path()).unwrap();
-    initialize_workspace(workspace.path()).unwrap();
-    let read = workspace.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    workspace.migrate(&MIGRATIONS[..23], |_| Ok(())).unwrap();
+    workspace.migrate(&MIGRATIONS[..23], |_| Ok(())).unwrap();
+    let read = workspace.read(23).unwrap();
     assert_eq!(saved_rows(read.connection()), before);
     assert_eq!(
         ["workspace", "record_identity", "records", "record_bodies"]

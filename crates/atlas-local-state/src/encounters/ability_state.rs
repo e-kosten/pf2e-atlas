@@ -42,6 +42,25 @@ pub(super) fn read(
     let rows = statement.query_map([key], |row| row.get::<_, String>(0))?;
     rows.map(|row| receipt_codec::decode(&row?)).collect()
 }
+pub(super) fn read_for_encounter(
+    connection: &Connection,
+    encounter: &str,
+) -> LocalStateResult<std::collections::BTreeMap<String, Vec<ParticipantAbilityState>>> {
+    let mut statement = connection.prepare("SELECT p.participant_key,a.payload_json FROM encounter_participants p JOIN encounter_ability_states a USING(participant_key) WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) ORDER BY p.participant_key,a.owner_key,a.rule_ordinal")?;
+    let rows = statement.query_map([encounter], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?;
+    let mut grouped = std::collections::BTreeMap::<String, Vec<ParticipantAbilityState>>::new();
+    for row in rows {
+        let (key, payload) = row?;
+        grouped
+            .entry(key)
+            .or_default()
+            .push(receipt_codec::decode(&payload)?);
+    }
+    Ok(grouped)
+}
+
 impl EncountersWrite<'_> {
     pub(super) fn save_ability_state(
         &self,

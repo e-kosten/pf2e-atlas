@@ -9,15 +9,49 @@ pub(super) fn read(
 ) -> LocalStateResult<Vec<SpellResource>> {
     let mut statement = connection.prepare("SELECT resource_key,capacity,remaining,undo_remaining FROM encounter_spell_resources WHERE participant_id=(SELECT id FROM encounter_participants WHERE participant_key=?1) ORDER BY resource_key")?;
     Ok(statement
-        .query_map([participant], |row| {
-            Ok(SpellResource {
-                key: row.get(0)?,
-                capacity: row.get(1)?,
-                remaining: row.get(2)?,
-                undo_remaining: row.get(3)?,
-            })
-        })?
+        .query_map([participant], resource_from_row)?
         .collect::<Result<Vec<_>, _>>()?)
+}
+
+fn resource_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SpellResource> {
+    Ok(SpellResource {
+        key: row.get(0)?,
+        capacity: row.get(1)?,
+        remaining: row.get(2)?,
+        undo_remaining: row.get(3)?,
+    })
+}
+
+pub(super) fn read_for_encounter(
+    connection: &Connection,
+    encounter: &str,
+) -> LocalStateResult<std::collections::BTreeMap<String, Vec<SpellResource>>> {
+    let mut statement = connection.prepare("SELECT r.resource_key,r.capacity,r.remaining,r.undo_remaining,p.participant_key FROM encounter_participants p JOIN encounter_spell_resources r ON r.participant_id=p.id WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) ORDER BY p.participant_key,r.resource_key")?;
+    let rows = statement.query_map([encounter], |row| {
+        Ok((row.get::<_, String>(4)?, resource_from_row(row)?))
+    })?;
+    let mut grouped = std::collections::BTreeMap::<String, Vec<SpellResource>>::new();
+    for row in rows {
+        let (key, resource) = row?;
+        grouped.entry(key).or_default().push(resource);
+    }
+    Ok(grouped)
+}
+
+pub(super) fn read_expended_for_encounter(
+    connection: &Connection,
+    encounter: &str,
+) -> LocalStateResult<std::collections::BTreeMap<String, Vec<String>>> {
+    let mut statement = connection.prepare("SELECT p.participant_key,r.spell_id FROM encounter_participants p JOIN encounter_expended_spells r ON r.participant_id=p.id WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) ORDER BY p.participant_key,r.spell_id")?;
+    let rows = statement.query_map([encounter], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?;
+    let mut grouped = std::collections::BTreeMap::<String, Vec<String>>::new();
+    for row in rows {
+        let (key, spell) = row?;
+        grouped.entry(key).or_default().push(spell);
+    }
+    Ok(grouped)
 }
 
 impl EncountersWrite<'_> {

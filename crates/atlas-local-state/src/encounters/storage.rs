@@ -611,16 +611,23 @@ fn participants(
     )?;
     let rows = statement.query_map(params![encounter_key], participant_from_row)?;
     let mut participants = rows.collect::<Result<Vec<_>, _>>()?;
+    if participants.is_empty() {
+        return Ok(participants);
+    }
+    let mut abilities = super::ability_state::read_for_encounter(connection, encounter_key)?;
+    let mut conditions = conditions_for_encounter(connection, encounter_key)?;
+    let mut precedence =
+        super::persistent_precedence::read_for_encounter(connection, encounter_key)?;
+    let mut expended =
+        super::spell_resources::read_expended_for_encounter(connection, encounter_key)?;
+    let mut resources = super::spell_resources::read_for_encounter(connection, encounter_key)?;
     for participant in &mut participants {
-        participant.ability_states =
-            super::ability_state::read(connection, &participant.participant_key)?;
-        participant.conditions = participant_conditions(connection, &participant.participant_key)?;
-        participant.persistent_precedence =
-            super::persistent_precedence::read(connection, &participant.participant_key)?;
-        participant.expended_spells =
-            super::spell_resources::read_expended(connection, &participant.participant_key)?;
-        participant.spell_resources =
-            super::spell_resources::read(connection, &participant.participant_key)?;
+        let key = &participant.participant_key;
+        participant.ability_states = abilities.remove(key).unwrap_or_default();
+        participant.conditions = conditions.remove(key).unwrap_or_default();
+        participant.persistent_precedence = precedence.remove(key).unwrap_or_default();
+        participant.expended_spells = expended.remove(key).unwrap_or_default();
+        participant.spell_resources = resources.remove(key).unwrap_or_default();
     }
     Ok(participants)
 }
@@ -756,6 +763,23 @@ fn participant_conditions(
     )?;
     let rows = statement.query_map(params![participant_key], condition_from_row)?;
     rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+}
+
+fn conditions_for_encounter(
+    connection: &Connection,
+    encounter: &str,
+) -> LocalStateResult<std::collections::BTreeMap<String, Vec<EncounterParticipantCondition>>> {
+    let mut statement = connection.prepare("SELECT c.id,c.condition_key,c.name,c.value,c.source_participant_key,c.duration_amount,c.duration_unit,c.duration_anchor_key,c.duration_event,c.note,c.scope_json,c.extra_action_json,c.immunity_override,c.created_at,c.updated_at,c.parameters_json,c.origin_json,p.participant_key FROM encounter_participants p JOIN encounter_participant_conditions c ON c.participant_id=p.id WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) ORDER BY p.participant_key,c.created_at,c.id")?;
+    let rows = statement.query_map([encounter], |row| {
+        Ok((row.get::<_, String>(17)?, condition_from_row(row)?))
+    })?;
+    let mut grouped =
+        std::collections::BTreeMap::<String, Vec<EncounterParticipantCondition>>::new();
+    for row in rows {
+        let (key, condition) = row?;
+        grouped.entry(key).or_default().push(condition);
+    }
+    Ok(grouped)
 }
 
 fn decode_context<T: serde::de::DeserializeOwned>(

@@ -45,7 +45,6 @@ pub use saved_lists::{
     SavedListItemPlacement, SavedListItemSnapshot, SavedListItemStatus, SavedListWithItems,
     SavedListsRead, SavedListsWrite, UpdateSavedList, hydrate_saved_list_item,
 };
-pub use schema::ENCOUNTER_RECOVERY_SCHEMA_SQL;
 pub use schema::{
     ABILITY_STATE_SCHEMA_SQL, STATELESS_STRIKE_ROLLS_SCHEMA_SQL, TURN_RESOURCES_SCHEMA_SQL,
 };
@@ -55,6 +54,7 @@ pub use schema::{
     LOCAL_STATE_SCHEMA_SQL, PARTIES_SCHEMA_SQL, PARTY_LEVELS_SCHEMA_SQL,
     PERSISTENT_PREPARATION_SCHEMA_SQL,
 };
+pub use schema::{ENCOUNTER_RECOVERY_SCHEMA_SQL, TURN_RECEIPTS_SCHEMA_SQL};
 pub use slug::derive_slug;
 pub use store::{LocalStateRead, LocalStateWrite};
 #[cfg(test)]

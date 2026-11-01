@@ -33,3 +33,6 @@ pub const STATELESS_STRIKE_ROLLS_SCHEMA_SQL: &str = include_str!("stateless_stri
 
 /// Versioned participant creation baselines and recovery idempotency.
 pub const ENCOUNTER_RECOVERY_SCHEMA_SQL: &str = include_str!("encounter_recovery.sql");
+
+/// Lifetime turn request receipts and one current outgoing context per encounter.
+pub const TURN_RECEIPTS_SCHEMA_SQL: &str = include_str!("turn_receipts.sql");
