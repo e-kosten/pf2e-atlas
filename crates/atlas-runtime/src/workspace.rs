@@ -420,10 +420,31 @@ mod tests {
             INSERT INTO encounter_event_receipts VALUES(1,'prepared','{}','{"version":1,"payload":{"prepared":"persistent_damage"}}');
             INSERT INTO encounter_boundary_claims VALUES(1,'actor',4,'prepared_persistent_damage','fire','prepared');
         "#).unwrap();
-        let before = LocalStateWrite::new(&write)
-            .encounters()
-            .get_with_participants("kept")
-            .unwrap();
+        // Read the historical columns directly: current local-state readers
+        // require the latest schema, including the encounter clock.
+        let saved_state = |connection: &rusqlite::Connection| {
+            connection
+                .query_row(
+                    "SELECT json_object(
+                        'encounter_key', e.encounter_key, 'slug', e.slug, 'name', e.name,
+                        'status', e.status, 'current_turn', e.current_turn_participant_key,
+                        'round', e.round_number, 'revision', e.revision,
+                        'created_at', e.created_at, 'updated_at', e.updated_at,
+                        'participant_key', p.participant_key, 'kind', p.participant_kind,
+                        'position', p.position, 'display_name', p.display_name,
+                        'initiative_order', p.initiative_order, 'current_hp', p.current_hp,
+                        'max_hp', p.max_hp, 'temporary_hp', p.temporary_hp,
+                        'participant_revision', p.revision,
+                        'participant_created_at', p.created_at,
+                        'participant_updated_at', p.updated_at)
+                     FROM encounters e JOIN encounter_participants p ON p.encounter_id = e.id
+                     WHERE e.encounter_key = 'kept'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .unwrap()
+        };
+        let before = saved_state(write.connection());
         let retained = |connection: &rusqlite::Connection| {
             let mut statement = connection.prepare("SELECT request_id,request_json,receipt_json FROM encounter_roll_receipts WHERE request_id NOT IN ('attack','damage') ORDER BY request_id").unwrap();
             statement
@@ -442,14 +463,7 @@ mod tests {
         write.commit().unwrap();
         let upgraded = initialize_workspace(&path).unwrap();
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
-        let after = LocalStateRead::new(&read)
-            .encounters()
-            .get_with_participants("kept")
-            .unwrap();
-        assert_eq!(
-            serde_json::to_value(before).unwrap(),
-            serde_json::to_value(after).unwrap()
-        );
+        assert_eq!(saved_state(read.connection()), before);
         assert_eq!(retained(read.connection()), receipts);
         let strike_count: i64 = read.connection().query_row("SELECT COUNT(*) FROM encounter_roll_receipts WHERE request_id IN ('attack','damage')", [], |row| row.get(0)).unwrap();
         assert_eq!(strike_count, 0);
