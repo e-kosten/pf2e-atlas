@@ -168,8 +168,12 @@ it("keeps the keyboard action inside a dialog and lets Escape dismiss only the a
   const action = await searchAction();
   expect(screen.getByRole("dialog")).toContainElement(action);
   expect(origin).toHaveFocus();
+  const originalSelection = window.getSelection()?.toString();
   fireEvent.keyDown(document, { key: "Tab" });
   expect(action).toHaveFocus();
+  // WebKit clears native selection when keyboard focus moves to the action.
+  act(() => window.getSelection()?.removeAllRanges());
+  fireEvent(document, new Event("selectionchange"));
   const outerEscape = vi.fn();
   document.addEventListener("keydown", outerEscape);
   fireEvent.keyDown(action, { key: "Escape" });
@@ -177,7 +181,19 @@ it("keeps the keyboard action inside a dialog and lets Escape dismiss only the a
   expect(outerEscape).not.toHaveBeenCalled();
   expect(origin).toHaveFocus();
   expect(screen.getByRole("dialog")).toBeInTheDocument();
+  expect(window.getSelection()?.toString()).toBe(originalSelection);
+  fireEvent(document, new Event("selectionchange"));
+  await settled();
   expect(screen.queryByRole("link", { name: "Search Atlas" })).not.toBeInTheDocument();
+  act(() => {
+    const range = window.getSelection()!.getRangeAt(0);
+    range.setEnd(range.endContainer, range.endOffset - 3);
+    document.dispatchEvent(new Event("selectionchange"));
+  });
+  const nextAction = await searchAction();
+  expect(
+    new URL(nextAction.getAttribute("href")!, "http://localhost").searchParams.get("q"),
+  ).toBe(window.getSelection()!.toString().trim());
 });
 
 it.each(["scroll", "resize", "pointerdown", "clear"])(
@@ -217,4 +233,15 @@ it("offers no action in disabled reading content and hides an existing action wh
       screen.queryByRole("link", { name: "Search Atlas" }),
     ).not.toBeInTheDocument(),
   );
+});
+
+it("positions the initial action after a reader's queued layout scroll", async () => {
+  preview();
+  select(screen.getByText("Fire & ice?"));
+  fireEvent.scroll(screen.getByRole("article"));
+  await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
+  fireEvent.scroll(screen.getByRole("article"));
+  await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
+  fireEvent.scroll(screen.getByRole("article"));
+  expect(await searchAction()).toBeInTheDocument();
 });

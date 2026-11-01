@@ -18,6 +18,7 @@ const EDITABLE =
 type SelectedText = {
   text: string;
   scope: Element;
+  range: Range;
   container: HTMLElement;
   left: number;
   top: number;
@@ -26,6 +27,10 @@ type SelectedText = {
 
 function elementAt(node: Node | null) {
   return node instanceof Element ? node : node?.parentElement;
+}
+
+function normalizeSelection(text: string) {
+  return text.replace(/\s+/g, " ").trim();
 }
 
 function selectedText(): SelectedText | null {
@@ -45,7 +50,7 @@ function selectedText(): SelectedText | null {
     range.cloneContents().querySelector(EDITABLE)
   )
     return null;
-  const text = selection.toString().replace(/\s+/g, " ").trim();
+  const text = normalizeSelection(selection.toString());
   if (!text) return null;
   const rect = Array.from(range.getClientRects())
     .filter(
@@ -62,6 +67,7 @@ function selectedText(): SelectedText | null {
   return {
     text,
     scope,
+    range: range.cloneRange(),
     // Keep the action inside its reader's dialog and keyboard focus boundary.
     container: scope.closest<HTMLElement>('[role="dialog"]') ?? document.body,
     left: Math.max(8, Math.min(window.innerWidth - 8, rect.left + rect.width / 2)),
@@ -82,19 +88,35 @@ export function SelectionSearch() {
   }, [selected]);
   useEffect(() => {
     let selecting = false;
+    let dismissedRange: Range | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const dismiss = () => {
+    const cancelRead = () => {
       clearTimeout(timer);
+      timer = undefined;
+    };
+    const dismiss = () => {
+      cancelRead();
       current.current = null;
       setSelected(null);
     };
     const insidePopup = (target: EventTarget | null) =>
       target instanceof Node && popup.current?.contains(target);
     const read = () => {
-      clearTimeout(timer);
+      cancelRead();
       if (selecting || insidePopup(document.activeElement)) return;
       timer = setTimeout(() => {
+        timer = undefined;
         const next = selectedText();
+        if (
+          next &&
+          dismissedRange &&
+          next.range.startContainer === dismissedRange.startContainer &&
+          next.range.startOffset === dismissedRange.startOffset &&
+          next.range.endContainer === dismissedRange.endContainer &&
+          next.range.endOffset === dismissedRange.endOffset
+        )
+          return;
+        dismissedRange = null;
         current.current = next;
         setSelected(next);
       }, 180);
@@ -102,6 +124,7 @@ export function SelectionSearch() {
     const pointerDown = (event: PointerEvent) => {
       if (insidePopup(event.target)) return;
       selecting = true;
+      dismissedRange = null;
       dismiss();
     };
     const pointerUp = () => {
@@ -119,6 +142,18 @@ export function SelectionSearch() {
         event.stopPropagation();
         if (insidePopup(document.activeElement) && value.origin?.isConnected)
           value.origin.focus({ preventScroll: true });
+        dismissedRange = value.range.cloneRange();
+        if (
+          value.scope.isConnected &&
+          !value.range.collapsed &&
+          value.scope.contains(value.range.startContainer) &&
+          value.scope.contains(value.range.endContainer) &&
+          normalizeSelection(value.range.toString()) === value.text
+        ) {
+          const selection = window.getSelection();
+          selection?.removeAllRanges();
+          selection?.addRange(value.range);
+        }
         dismiss();
       } else if (
         event.key === "Tab" &&
@@ -132,7 +167,9 @@ export function SelectionSearch() {
       }
     };
     const scroll = (event: Event) => {
-      if (!insidePopup(event.target)) dismiss();
+      if (insidePopup(event.target)) return;
+      if (current.current) dismiss();
+      else if (timer !== undefined) read();
     };
     document.addEventListener("selectionchange", read);
     document.addEventListener("pointerdown", pointerDown, true);

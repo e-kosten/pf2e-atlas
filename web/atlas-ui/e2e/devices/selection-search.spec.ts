@@ -10,6 +10,7 @@ async function selectParagraph(page: Page, reading: Locator, info: TestInfo) {
   await expect(paragraph).toBeVisible();
   await paragraph.scrollIntoViewIfNeeded();
   if (info.project.use.hasTouch) {
+    await paragraph.tap({ position: { x: 4, y: 8 } });
     // Emulated touch has no OS text-selection handles. Exercise the DOM selection
     // lifecycle and touch activation; actual-device long press remains separate.
     await paragraph.evaluate((element) => {
