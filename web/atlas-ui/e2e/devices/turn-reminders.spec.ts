@@ -825,7 +825,10 @@ test("manual trackers persist minute countdowns and restart after becoming ready
       dialog.getByRole("combobox", { name: "Tracker duration unit" }),
       info,
     );
-    await page.getByRole("option", { name: "minutes", exact: true }).click();
+    await activate(
+      page.getByText("minutes", { exact: true }).filter({ visible: true }),
+      info,
+    );
     await activate(
       dialog.getByRole("button", { name: "Save tracker", exact: true }),
       info,
@@ -840,7 +843,24 @@ test("manual trackers persist minute countdowns and restart after becoming ready
     });
     if (await participant.isVisible()) await activate(participant, info);
     await expect(page.getByText("10 rounds remaining", { exact: true })).toBeVisible();
+    await activate(
+      page.getByRole("button", { name: "Encounter settings", exact: true }),
+      info,
+    );
+    await activate(
+      page.getByRole("menuitem", { name: "Edit encounter", exact: true }),
+      info,
+    );
+    const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+    await expect(
+      settings.getByRole("spinbutton", { name: "Seconds per round" }),
+    ).toHaveValue("6");
+    await settings.getByRole("spinbutton", { name: "Seconds per round" }).fill("30");
+    await activate(settings.getByRole("button", { name: "Save", exact: true }), info);
+    await expect(settings).not.toBeVisible();
+    await expect(page.getByText("2 rounds remaining", { exact: true })).toBeVisible();
     let detail = await (await page.request.get(path)).json();
+    expect(detail.encounter.round_duration_seconds).toBe(30);
     expect(
       (
         await page.request.post(`${path}/advance`, {
@@ -851,7 +871,7 @@ test("manual trackers persist minute countdowns and restart after becoming ready
         })
       ).ok(),
     ).toBeTruthy();
-    for (let tick = 0; tick < 10; tick++) {
+    for (let tick = 0; tick < 2; tick++) {
       detail = await (await page.request.get(path)).json();
       const response = await page.request.post(`${path}/advance`, {
         data: {
@@ -868,7 +888,7 @@ test("manual trackers persist minute countdowns and restart after becoming ready
       page.getByRole("button", { name: "Restart Breath ready", exact: true }),
       info,
     );
-    await expect(page.getByText("10 rounds remaining", { exact: true })).toBeVisible();
+    await expect(page.getByText("2 rounds remaining", { exact: true })).toBeVisible();
     await activate(
       page.getByRole("button", { name: "Edit tracker Breath ready", exact: true }),
       info,

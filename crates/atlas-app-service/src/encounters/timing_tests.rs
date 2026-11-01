@@ -1483,6 +1483,10 @@ fn legacy_outgoing_and_baseline_payloads_default_missing_tracker_fields() {
         next_participant_key: Some(a),
     };
     let mut json = serde_json::to_value(&outgoing).unwrap();
+    json["snapshot"]["encounter"]
+        .as_object_mut()
+        .unwrap()
+        .remove("round_duration_seconds");
     for participant in json["snapshot"]["participants"].as_array_mut().unwrap() {
         participant
             .as_object_mut()

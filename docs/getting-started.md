@@ -46,7 +46,7 @@ Use the encounter controls to set initiative, move through turns, adjust HP,
 track conditions and spell resources, and roll dice.
 
 Select a participant and choose **Add tracker** under Trackers for reminders such
-as “Breath ready.” Enter a duration and choose whose turn counts it down, at its
+as “Breath Weapon.” Enter a duration and choose whose turn counts it down, at its
 start or end. Trackers stay visible as **Ready** at zero; use **Restart**
 to begin the same countdown again. Editing the duration or timing restarts it;
 renaming preserves its progress.
