@@ -14,6 +14,7 @@ import { DEFAULT_SEARCH_PREFERENCES } from "./searchPreferences";
 import { DEFAULT_SEARCH_STATE, type SearchFormState } from "../filters/searchState";
 import { readinessFixture } from "../../test/fixtures";
 import { SearchSettings } from "./SearchSettings";
+import { SimilaritySectionChoices } from "./SimilaritySectionChoices";
 import { AtlasApiError } from "../../api/atlasApi";
 import type { SimilarityPartsView, SimilaritySeed } from "../../generated/atlas";
 
@@ -578,6 +579,34 @@ it("names the trait baseline by its content while preserving its wire value", as
   );
 });
 
+it("establishes the source opener before handing off a touch-like activation", () => {
+  let focusedAtHandoff: Element | null = null;
+  const onReference = vi.fn(
+    (_part: SimilarityPartsView["parts"][number], opener: HTMLElement) => {
+      focusedAtHandoff = opener.ownerDocument.activeElement;
+    },
+  );
+  const onChange = vi.fn();
+  render(
+    <SimilaritySectionChoices
+      seed={seed}
+      parts={inventory.parts}
+      selected={null}
+      onReference={onReference}
+      onChange={onChange}
+    />,
+  );
+  const checkbox = screen.getByRole("checkbox", { name: "Description" });
+  const link = screen.getByRole("link", { name: "Description" });
+  checkbox.focus();
+  // Like WebKit touch activation, fireEvent does not focus the link for us.
+  fireEvent.click(link);
+  expect(onReference).toHaveBeenCalledExactlyOnceWith(inventory.parts[0], link);
+  expect(focusedAtHandoff).toBe(link);
+  expect(onChange).not.toHaveBeenCalled();
+  expect(checkbox).toBeChecked();
+});
+
 it("opens a section's source separately from its checkbox and preserves the complete draft across views", async () => {
   const { apply } = setup();
   fireEvent.change(screen.getByRole("spinbutton", { name: "Match decay" }), {
@@ -622,6 +651,7 @@ it("keeps modified section activation native and leaves selection and the active
   setup();
   chooseSections();
   const description = await screen.findByRole("checkbox", { name: "Description" });
+  description.focus();
   const event = new MouseEvent("click", {
     bubbles: true,
     cancelable: true,
@@ -629,6 +659,7 @@ it("keeps modified section activation native and leaves selection and the active
   });
   screen.getByRole("link", { name: "Description" }).dispatchEvent(event);
   expect(event.defaultPrevented).toBe(false);
+  expect(description).toHaveFocus();
   expect(description).toBeChecked();
   expect(screen.getByRole("radio", { name: "Search settings" })).toBeChecked();
 });
