@@ -78,6 +78,11 @@ pub(crate) struct SelectedNative {
     pub checksum: Vec<u8>,
     pub staged: Option<Vec<u8>>,
 }
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct CachedNative {
+    pub bytes: Vec<u8>,
+    pub checksum: Vec<u8>,
+}
 impl<'session> NativeModel<'session> {
     pub fn bind(
         connection: &'session Connection,
@@ -152,7 +157,7 @@ impl<'session> NativeModel<'session> {
             .transpose()
             .map(Option::flatten)
     }
-    fn cache(&self, id: i64) -> Result<Option<(Vec<u8>, Vec<u8>)>, IndexError> {
+    fn cache(&self, id: i64) -> Result<Option<CachedNative>, IndexError> {
         let shape: Option<(usize,usize)> = self.connection.prepare_cached("SELECT length(vector),length(vector_hash) FROM pending_embedding_values WHERE input_id=?")?
             .query_row([id], |r| Ok((r.get(0)?,r.get(1)?))).optional()?;
         let Some((length, hash_length)) = shape else {
@@ -164,7 +169,10 @@ impl<'session> NativeModel<'session> {
         let (bytes,hash): (Vec<u8>,Vec<u8>) = self.connection.prepare_cached("SELECT vector,vector_hash FROM pending_embedding_values WHERE input_id=? AND length(vector)=? AND length(vector_hash)=32")?
             .query_row(params![id,length], |r| Ok((r.get(0)?,r.get(1)?)))?;
         check_bytes(&bytes, &hash, &self.key.model)?;
-        Ok(Some((bytes, hash)))
+        Ok(Some(CachedNative {
+            bytes,
+            checksum: hash,
+        }))
     }
     /// One exact input lookup, retaining pending-over-published precedence.
     pub fn select(
@@ -175,10 +183,10 @@ impl<'session> NativeModel<'session> {
         let Some(row) = self.find(input)? else {
             return Ok(None);
         };
-        if let Some((bytes, hash)) = self.cache(row.id)? {
+        if let Some(cached) = self.cache(row.id)? {
             return Ok(Some(SelectedNative {
-                checksum: hash,
-                staged: Some(bytes),
+                checksum: cached.checksum,
+                staged: Some(cached.bytes),
             }));
         }
         if !reuse_published {
@@ -389,7 +397,7 @@ pub(crate) fn cached(
     c: &Connection,
     model: &SourceSearchProfileIdentity,
     input: &NativeInputDescriptor,
-) -> Result<Option<(Vec<u8>, Vec<u8>)>, IndexError> {
+) -> Result<Option<CachedNative>, IndexError> {
     let keys = NativeModelKey::all(std::slice::from_ref(model))?;
     let binding = NativeModel::bind(c, &keys[0], false)?;
     binding
@@ -586,7 +594,13 @@ mod tests {
             params![bytes, hash],
         )
         .unwrap();
-        assert_eq!(cached(&c, &model, &input).unwrap(), Some((bytes, hash)));
+        assert_eq!(
+            cached(&c, &model, &input).unwrap(),
+            Some(CachedNative {
+                bytes,
+                checksum: hash
+            })
+        );
         c.execute(
             "UPDATE pending_embedding_values SET vector_hash=zeroblob(32)",
             [],
@@ -706,7 +720,10 @@ mod tests {
         );
         assert_eq!(
             cached(&c, &model, &input).unwrap(),
-            Some((new_bytes, new_hash))
+            Some(CachedNative {
+                bytes: new_bytes,
+                checksum: new_hash,
+            })
         );
     }
 

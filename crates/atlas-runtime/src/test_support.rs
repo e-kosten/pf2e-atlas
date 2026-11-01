@@ -34,12 +34,20 @@ pub fn initialize_historical_embedding_storage_probe(
     crate::workspace::initialize_historical_embedding_storage_probe(path)
 }
 
+/// Literal model identity and ordered occurrence bytes for fixture equality.
+#[cfg(test)]
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct OccurrenceVectorSnapshot {
+    identity_json: String,
+    rows: Vec<(i64, Vec<u8>)>,
+}
+
 /// Compare attributed numerical values across actual published storage layouts.
 /// This fixture oracle expands input-owned rows back to the retained occurrence IDs.
 #[cfg(test)]
 pub(crate) fn occurrence_vector_bits(
     connection: &rusqlite::Connection,
-) -> Vec<(String, Vec<(i64, Vec<u8>)>)> {
+) -> Vec<OccurrenceVectorSnapshot> {
     let profiles = connection
         .prepare("SELECT profile_id,identity_json FROM search_profiles ORDER BY profile_id")
         .unwrap()
@@ -65,6 +73,6 @@ pub(crate) fn occurrence_vector_bits(
         let rows = connection.prepare(&sql).unwrap()
             .query_map([profile], |row| Ok((row.get(0)?,row.get(1)?))).unwrap()
             .collect::<Result<Vec<_>,_>>().unwrap();
-        (json,rows)
+        OccurrenceVectorSnapshot { identity_json: json, rows }
     }).collect()
 }

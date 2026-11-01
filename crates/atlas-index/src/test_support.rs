@@ -303,11 +303,14 @@ pub fn prepare_publication_in<'owner>(
     drop(read);
     let metadata = publication_spool_in(scratch, input, expected)?;
     let mut publication = crate::PreparedPublication::new_in(owner, schema, scratch, metadata)?;
-    for (model, descriptor, vector) in native {
-        let selected =
-            publication.select_native(model, std::slice::from_ref(&descriptor), reuse_published)?;
+    for value in native {
+        let selected = publication.select_native(
+            value.model,
+            std::slice::from_ref(&value.input),
+            reuse_published,
+        )?;
         if selected == [crate::NativeValueSelection::Missing] {
-            publication.stage_inferred(model, &[(&descriptor, vector)])?;
+            publication.stage_inferred(value.model, &[(&value.input, value.vector)])?;
         }
     }
     Ok(publication)
@@ -594,8 +597,8 @@ pub fn native_fixture_value(
     model: &crate::SourceSearchProfileIdentity,
     input: &atlas_embedding::NativeInputDescriptor,
 ) -> Result<Option<Vec<f32>>, IndexError> {
-    if let Some((bytes, _)) = crate::native_values::cached(session.connection(), model, input)? {
-        return Ok(Some(crate::read_units::decode_vector(&bytes)?));
+    if let Some(cached) = crate::native_values::cached(session.connection(), model, input)? {
+        return Ok(Some(crate::read_units::decode_vector(&cached.bytes)?));
     }
     if crate::native_values::published_checksum(session.connection(), model, input)?.is_none() {
         return Ok(None);

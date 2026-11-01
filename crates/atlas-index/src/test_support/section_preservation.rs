@@ -175,12 +175,12 @@ pub fn native_preservation_rows(c: &rusqlite::Connection) -> Result<TableRows, c
             }
         }
         for (input, bytes) in collected {
-            if let Some(old) = values.insert((model_id, input), bytes.clone()) {
-                if old != bytes {
-                    return Err(crate::IndexError::Invalid(
-                        "preservation fixture has conflicting values for one native input".into(),
-                    ));
-                }
+            if let Some(old) = values.insert((model_id, input), bytes.clone())
+                && old != bytes
+            {
+                return Err(crate::IndexError::Invalid(
+                    "preservation fixture has conflicting values for one native input".into(),
+                ));
             }
         }
         let expected: usize = c.query_row(

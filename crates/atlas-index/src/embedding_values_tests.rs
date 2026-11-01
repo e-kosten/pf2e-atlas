@@ -18,9 +18,8 @@ fn reused_fixture_values(
     let mut output = std::collections::BTreeMap::new();
     for input in inputs {
         let descriptor = input.descriptor();
-        let vector = if let Some((bytes, _)) = crate::native_values::cached(c, model, &descriptor)?
-        {
-            Some(crate::read_units::decode_vector(&bytes)?)
+        let vector = if let Some(cached) = crate::native_values::cached(c, model, &descriptor)? {
+            Some(crate::read_units::decode_vector(&cached.bytes)?)
         } else if crate::native_values::published_checksum(c, model, &descriptor)?.is_some() {
             let id = crate::native_values::lookup_input(c, model, &descriptor)?.unwrap();
             Some(crate::native_values::read(c, id, model)?)

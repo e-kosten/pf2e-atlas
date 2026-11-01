@@ -15,7 +15,7 @@ fn worthwhile(blocks: u64, capacity: u64, live: u64) -> Result<bool, IndexError>
         };
     }
     let block_size = capacity / blocks;
-    if block_size == 0 || capacity % blocks != 0 || live > capacity {
+    if block_size == 0 || !capacity.is_multiple_of(blocks) || live > capacity {
         return Err(invalid("native allocation capacity is invalid"));
     }
     let needed = live.div_ceil(block_size);

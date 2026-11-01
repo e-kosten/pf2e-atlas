@@ -160,36 +160,36 @@ impl<'owner> PreparedPublication<'owner> {
             }
             check_input(model, input)?;
             crate::validation::check_vector(vector, model.dimensions)?;
-            if let Some(expected) = self.selection(ordinal, input)? {
-                if expected
+            if let Some(expected) = self.selection(ordinal, input)?
+                && expected
                     != crate::embedding_values::hash_bytes(&crate::read_units::vector_bytes(vector))
-                {
-                    return Err(invalid(
-                        "attempted to replace an already selected native value",
-                    ));
-                }
+            {
+                return Err(invalid(
+                    "attempted to replace an already selected native value",
+                ));
             }
         }
         let write = self.workspace.write(self.schema)?;
         crate::writer::check_expected(write.connection(), &self.metadata)?;
         let mut next_cache_bytes = self.cache_bytes;
-        let binding = crate::native_values::NativeModel::bind(
-            write.connection(),
-            &self.models[ordinal],
-            true,
-        )?;
-        for (input, vector) in batch {
-            let id = binding.ensure_input(input)?;
-            let bytes = crate::read_units::vector_bytes(vector);
-            let checksum = crate::embedding_values::hash_bytes(&bytes);
-            let old: u64 = write.connection().query_row("SELECT coalesce((SELECT length(vector) FROM pending_embedding_values WHERE input_id=?),0)", [id], |r| r.get(0))?;
-            write.connection().execute("INSERT INTO pending_embedding_values(input_id,vector,vector_hash,cached_at) VALUES(?,?,?,unixepoch()) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,cached_at=excluded.cached_at", params![id,bytes,checksum])?;
-            next_cache_bytes = next_cache_bytes
-                .checked_sub(old)
-                .and_then(|n| n.checked_add(bytes.len() as u64))
-                .ok_or_else(|| invalid("cache payload accounting mismatch"))?;
+        {
+            let binding = crate::native_values::NativeModel::bind(
+                write.connection(),
+                &self.models[ordinal],
+                true,
+            )?;
+            for (input, vector) in batch {
+                let id = binding.ensure_input(input)?;
+                let bytes = crate::read_units::vector_bytes(vector);
+                let checksum = crate::embedding_values::hash_bytes(&bytes);
+                let old: u64 = write.connection().query_row("SELECT coalesce((SELECT length(vector) FROM pending_embedding_values WHERE input_id=?),0)", [id], |r| r.get(0))?;
+                write.connection().execute("INSERT INTO pending_embedding_values(input_id,vector,vector_hash,cached_at) VALUES(?,?,?,unixepoch()) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,cached_at=excluded.cached_at", params![id,bytes,checksum])?;
+                next_cache_bytes = next_cache_bytes
+                    .checked_sub(old)
+                    .and_then(|n| n.checked_add(bytes.len() as u64))
+                    .ok_or_else(|| invalid("cache payload accounting mismatch"))?;
+            }
         }
-        drop(binding);
         write.commit()?;
         self.cache_bytes = next_cache_bytes;
         let selected_tx = rusqlite::Transaction::new_unchecked(
@@ -224,16 +224,17 @@ impl<'owner> PreparedPublication<'owner> {
             crate::writer::check_expected(connection, &self.metadata)?;
             let reusable = crate::writer::prior_compatible(connection)?;
             let native_started = std::time::Instant::now();
-            let mut bindings = crate::native_values::NativeBindings::new(connection, &self.models, true)?;
-            bindings.ensure_tables()?;
-            self.install_staged(&mut bindings)?;
-            tracing::info!(target:"atlas_build_diagnostic",stage="native_installation",elapsed_ms=native_started.elapsed().as_secs_f64()*1000.,"Installed selected unpublished values");
-            let values = PublicationValues { selected: &self.selected, bindings: &bindings };
-            let scratch = self.selected_file.path().parent().ok_or_else(|| invalid("publication scratch parent absent"))?;
-            let delta_started = std::time::Instant::now();
-            crate::stream_publication::write(connection, &self.metadata, &self.identities, &values, &bindings, reusable, scratch)?;
-            drop(values);
-            drop(bindings);
+            let delta_started = {
+                let mut bindings = crate::native_values::NativeBindings::new(connection, &self.models, true)?;
+                bindings.ensure_tables()?;
+                self.install_staged(&mut bindings)?;
+                tracing::info!(target:"atlas_build_diagnostic",stage="native_installation",elapsed_ms=native_started.elapsed().as_secs_f64()*1000.,"Installed selected unpublished values");
+                let values = PublicationValues { selected: &self.selected, bindings: &bindings };
+                let scratch = self.selected_file.path().parent().ok_or_else(|| invalid("publication scratch parent absent"))?;
+                let delta_started = std::time::Instant::now();
+                crate::stream_publication::write(connection, &self.metadata, &self.identities, &values, &bindings, reusable, scratch)?;
+                delta_started
+            };
             connection.execute("DELETE FROM pending_embedding_values", [])?;
             crate::native_values::prune(connection)?;
             crate::native_allocation::compact_profiles(connection, &self.metadata.context)?;
@@ -354,7 +355,7 @@ impl<'owner> PreparedPublication<'owner> {
                     return Err(invalid("staged vector length mismatch"));
                 }
                 let bytes: Vec<u8> = self.selected.query_row("SELECT vector FROM selected WHERE model=? AND input_hash=? AND length(vector)=?", params![model_key,hash,length], |r| r.get(0))?;
-                crate::native_values::check_bytes(&bytes, &expected, &model)?;
+                crate::native_values::check_bytes(&bytes, &expected, model)?;
                 binding.install(&input, &bytes, &expected)?;
             } else {
                 let actual = binding.published_checksum(&input)?;

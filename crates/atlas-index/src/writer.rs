@@ -72,16 +72,16 @@ impl IndexArtifactWriter for SqliteIndexWriter<'_, '_> {
             let reusable = prior_compatible(connection)?;
             let mut bindings = crate::native_values::NativeBindings::new(connection, &keys, true)?;
             bindings.ensure_tables()?;
-            for (model, descriptor, vector) in &native {
-                let bytes = crate::read_units::vector_bytes(vector);
+            for value in &native {
+                let bytes = crate::read_units::vector_bytes(value.vector);
                 let ordinal = input
                     .context
                     .search_profiles
                     .iter()
-                    .position(|p| p == *model)
+                    .position(|p| p == value.model)
                     .ok_or_else(|| IndexError::Invalid("fixture native model absent".into()))?;
                 bindings.ordinal_mut(ordinal)?.install(
-                    descriptor,
+                    &value.input,
                     &bytes,
                     &crate::embedding_values::hash_bytes(&bytes),
                 )?;
@@ -111,21 +111,18 @@ pub(crate) fn prior_compatible(c: &Connection) -> Result<bool, IndexError> {
 }
 
 #[cfg(any(test, feature = "test-support"))]
+pub(crate) struct FixtureNativeValue<'a> {
+    pub model: &'a SourceSearchProfileIdentity,
+    pub input: atlas_embedding::NativeInputDescriptor,
+    pub vector: &'a [f32],
+}
+
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn fixture_native_values<'a>(
     input: &'a IndexBuildInput,
-) -> Result<
-    Vec<(
-        &'a SourceSearchProfileIdentity,
-        atlas_embedding::NativeInputDescriptor,
-        &'a [f32],
-    )>,
-    IndexError,
-> {
+) -> Result<Vec<FixtureNativeValue<'a>>, IndexError> {
     use atlas_embedding::NativeInputDescriptor;
-    let mut selected = BTreeMap::<
-        (String, String),
-        (&SourceSearchProfileIdentity, NativeInputDescriptor, &[f32]),
-    >::new();
+    let mut selected = BTreeMap::<(String, String), FixtureNativeValue<'a>>::new();
     let mut accept = |profile: &atlas_domain::SearchProfileId,
                       hash: &str,
                       tokens: usize,
@@ -140,10 +137,11 @@ pub(crate) fn fixture_native_values<'a>(
             ));
         }
         let key = (profile.to_string(), hash.to_owned());
-        if let Some((_, old_input, old)) = selected.get(&key) {
-            if old_input.token_count != tokens
-                || old.len() != vector.len()
+        if let Some(old) = selected.get(&key) {
+            if old.input.token_count != tokens
+                || old.vector.len() != vector.len()
                 || old
+                    .vector
                     .iter()
                     .zip(vector)
                     .any(|(a, b)| a.to_bits() != b.to_bits())
@@ -155,14 +153,14 @@ pub(crate) fn fixture_native_values<'a>(
         } else {
             selected.insert(
                 key,
-                (
+                FixtureNativeValue {
                     model,
-                    NativeInputDescriptor {
+                    input: NativeInputDescriptor {
                         input_sha256: hash.into(),
                         token_count: tokens,
                     },
                     vector,
-                ),
+                },
             );
         }
         Ok(())

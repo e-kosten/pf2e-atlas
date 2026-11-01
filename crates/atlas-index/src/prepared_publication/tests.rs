@@ -346,11 +346,11 @@ fn real_scratch_sqlite_full_keeps_committed_cache_and_old_publication() {
         .pragma_update(None, "max_page_count", pages)
         .unwrap();
     let native = crate::writer::fixture_native_values(&input).unwrap();
-    let model = native[0].0;
+    let model = native[0].model;
     let batch = native
         .iter()
-        .filter(|(m, _, _)| m.profile_id == model.profile_id)
-        .map(|(_, d, v)| (d, *v))
+        .filter(|value| value.model.profile_id == model.profile_id)
+        .map(|value| (&value.input, value.vector))
         .collect::<Vec<_>>();
     let error = publication.stage_inferred(model, &batch).unwrap_err();
     assert!(error.to_string().contains("full"), "{error}");
@@ -1041,16 +1041,16 @@ fn inferred_batches_rebind_after_every_cache_entry_and_model_are_evicted() {
     .unwrap();
     publication.cache_limit = 0;
     let native = crate::writer::fixture_native_values(&input).unwrap();
-    for (model, desc, vector) in native {
+    for value in native {
         publication
-            .stage_inferred(model, &[(&desc, vector)])
+            .stage_inferred(value.model, &[(&value.input, value.vector)])
             .unwrap();
         assert_eq!(count(&workspace, "pending_embedding_values"), 0);
         assert_eq!(count(&workspace, "embedding_inputs"), 0);
         assert_eq!(count(&workspace, "embedding_models"), 0);
         assert_eq!(
             publication
-                .select_native(model, std::slice::from_ref(&desc), false)
+                .select_native(value.model, std::slice::from_ref(&value.input), false)
                 .unwrap(),
             [NativeValueSelection::AlreadySelected]
         );
