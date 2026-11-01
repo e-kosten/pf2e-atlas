@@ -657,3 +657,102 @@ fn excluded_changed_renamed_duplicates_do_not_read_corrupt_layouts_but_active_ro
     assert_eq!(no_profiles.work.reusable_layout_read_calls, 0);
     assert_eq!(no_profiles.spool.records.len(), 3);
 }
+
+#[test]
+fn admitted_and_prepared_streams_preserve_exact_utf8_snapshot_bytes_near_source_depth_limit() {
+    let fixture = SourceFixture::new();
+    let text = "Unicode 🐉 café, quotes \" and slash \\, newline\n\r\t; controls:\u{0000}\u{001f}";
+    let leaf = serde_json::to_string(&text.repeat(128)).unwrap();
+    let mut expected = BTreeMap::new();
+    for (path, id, open, close) in [
+        ("a", "aaaaaaaaaaaaaaaa", "[", "]"),
+        ("b", "bbbbbbbbbbbbbbbb", "{\"x\":", "}"),
+    ] {
+        let base = serde_json::json!({"_id":id,"name":text,"type":"effect","system":{"description":{"value":text}}}).to_string();
+        let future = format!("{}{leaf}{}", open.repeat(125), close.repeat(125));
+        let bytes = format!("{},\"future\":{future}}}", &base[..base.len() - 1]);
+        fs::write(
+            fixture.0.path().join(format!("packs/items/{path}.json")),
+            &bytes,
+        )
+        .unwrap();
+        let admission = atlas_foundry_model::admit_document_source(
+            "Item",
+            atlas_foundry_model::SourceContext::new(
+                "items",
+                format!("packs/items/{path}.json"),
+                "$",
+            ),
+            bytes.as_bytes(),
+        )
+        .unwrap();
+        assert!(
+            admission.diagnostics.is_empty(),
+            "{:?}",
+            admission.diagnostics
+        );
+        expected.insert(
+            format!("items:{id}"),
+            atlas_foundry_model::encode_snapshot(&admission.model.unwrap()).unwrap(),
+        );
+    }
+    let prepared = prepare_fixture(&fixture.options("utf8-frames")).unwrap();
+    // Large opaque snapshots should not expand into per-byte numeric JSON arrays.
+    assert!(
+        prepared.work.largest_prepared_frame_bytes
+            < (expected.values().map(Vec::len).max().unwrap() * 2) as u64
+    );
+    let sealed = prepared.spool.seal().unwrap();
+    sealed.check_seal().unwrap();
+    let mut actual = BTreeMap::new();
+    sealed
+        .records(&mut |frame| {
+            let bytes = frame.snapshot.to_vec();
+            assert_eq!(
+                atlas_foundry_model::encode_snapshot(frame.source.record.source())?,
+                bytes
+            );
+            actual.insert(frame.source.record.key().to_string(), bytes);
+            Ok(())
+        })
+        .unwrap();
+    assert_eq!(actual, expected);
+}
+
+#[test]
+fn text_framed_snapshots_still_require_checked_contract_grammar_depth_and_root_identity() {
+    let fixture = SourceFixture::new();
+    for corruption in ["contract", "version", "grammar", "depth", "root"] {
+        let prepared = prepare_fixture(&fixture.options(corruption)).unwrap();
+        let mut checked = false;
+        prepared
+            .spool
+            .records
+            .visit(&mut |mut frame| {
+                if checked {
+                    return Ok(());
+                }
+                checked = true;
+                frame.snapshot = match corruption {
+                    "contract" => frame.snapshot.replace(
+                        atlas_foundry_model::SOURCE_CONTRACT_ID,
+                        "retired-fixture-contract",
+                    ),
+                    "version" => frame.snapshot.replacen("\"version\":1", "\"version\":2", 1),
+                    "grammar" => "{broken".into(),
+                    "depth" => format!("{}0{}", "[".repeat(1025), "]".repeat(1025)),
+                    "root" => frame
+                        .snapshot
+                        .replace("aaaaaaaaaaaaaaaa", "ffffffffffffffff"),
+                    _ => unreachable!(),
+                };
+                assert!(
+                    frame.decode().is_err(),
+                    "{corruption} corruption passed checked decoding"
+                );
+                Ok(())
+            })
+            .unwrap();
+        assert!(checked);
+    }
+}

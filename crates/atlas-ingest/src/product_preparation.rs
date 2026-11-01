@@ -40,7 +40,7 @@ struct AdmittedFrame {
     label: String,
     path: String,
     hash: String,
-    snapshot: Vec<u8>,
+    snapshot: String,
     diagnostics: Vec<atlas_foundry_model::SourceDiagnostic>,
     previous: Option<PreviousPreparation>,
 }
@@ -349,6 +349,8 @@ pub(crate) fn prepare(
                             observation.key = Some(key.clone());
                             let snapshot = atlas_foundry_model::encode_snapshot(record.source())
                                 .map_err(|e| IngestError::SourceSelectionFailed(e.to_string()))?;
+                            let snapshot = String::from_utf8(snapshot)
+                                .map_err(|e| IngestError::SourceSelectionFailed(e.to_string()))?;
                             admitted
                                 .push(&AdmittedFrame {
                                     key,
@@ -459,7 +461,7 @@ pub(crate) fn prepare(
             if !active.contains(&frame.key) {
                 return Ok(());
             }
-            let source = atlas_foundry_model::decode_snapshot(&frame.snapshot)?;
+            let source = atlas_foundry_model::decode_snapshot(frame.snapshot.as_bytes())?;
             let record = SourceBackedRecord::new(&frame.pack, source).map_err(|_| {
                 atlas_index::IndexError::Invalid("admitted identity differs".into())
             })?;

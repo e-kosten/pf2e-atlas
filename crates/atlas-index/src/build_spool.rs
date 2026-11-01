@@ -312,7 +312,8 @@ impl<T: Serialize + DeserializeOwned> SealedBuildFrameStream<T> {
 #[derive(Serialize, Deserialize)]
 pub struct PreparedRecordFrame {
     pub pack: String,
-    pub snapshot: Vec<u8>,
+    /// Exact checked JSON bytes transported as text rather than a JSON byte array.
+    pub snapshot: String,
     pub source_path: String,
     pub content_hash: String,
     pub preparation_context_hash: String,
@@ -334,7 +335,8 @@ impl PreparedRecordFrame {
         ),
         IndexError,
     > {
-        let source = atlas_foundry_model::decode_snapshot(&self.snapshot)?;
+        let snapshot = self.snapshot.into_bytes();
+        let source = atlas_foundry_model::decode_snapshot(&snapshot)?;
         let record = SourceBackedRecord::new(&self.pack, source)
             .map_err(|_| io("checked snapshot has no record identity"))?;
         if self.selection.root != *record.key() {
@@ -350,7 +352,7 @@ impl PreparedRecordFrame {
                 relationships: self.relationships,
                 diagnostics: self.diagnostics,
             },
-            self.snapshot,
+            snapshot,
             self.selection,
             self.lexical,
         ))

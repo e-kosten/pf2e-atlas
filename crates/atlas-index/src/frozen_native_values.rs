@@ -10,6 +10,10 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 use sha2::{Digest, Sha256};
 use std::{borrow::Cow, io::Read};
 
+// Keyset order belongs to the membership primary key, so each page stops before
+// joining later memberships. Missing metadata remains a row and fails typed decode.
+const SELECTED_NATIVE_PAGE_SQL: &str = "SELECT n.input_id,m.identity_json,lower(hex(i.input_hash)),i.token_count,CASE WHEN n.selected_hash IS NULL OR length(n.selected_hash)=32 THEN n.selected_hash ELSE zeroblob(0) END FROM native_target_inputs n LEFT JOIN embedding_inputs i USING(input_id) LEFT JOIN embedding_models m USING(model_id) WHERE n.job_key=? AND n.input_id>? ORDER BY n.input_id LIMIT 128";
+
 fn io(error: impl std::fmt::Display) -> IndexError {
     IndexError::Operation(format!("frozen native values: {error}"))
 }
@@ -347,7 +351,18 @@ fn freeze_native_values_into(
         let read = workspace.read(schema)?;
         let c = read.connection();
         crate::native_selection::require_active(c, job)?;
-        let rows=c.prepare("SELECT i.input_id,m.identity_json,lower(hex(i.input_hash)),i.token_count,CASE WHEN n.selected_hash IS NULL OR length(n.selected_hash)=32 THEN n.selected_hash ELSE zeroblob(0) END FROM native_target_inputs n JOIN embedding_inputs i USING(input_id) JOIN embedding_models m USING(model_id) WHERE n.job_key=? AND i.input_id>? ORDER BY i.input_id LIMIT 128")?.query_map(params![job,after],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,r.get::<_,usize>(3)?,r.get::<_,Option<Vec<u8>>>(4)?)))?.collect::<Result<Vec<_>,_>>()?;
+        let rows = c
+            .prepare(SELECTED_NATIVE_PAGE_SQL)?
+            .query_map(params![job, after], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, usize>(3)?,
+                    r.get::<_, Option<Vec<u8>>>(4)?,
+                ))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
         if rows.is_empty() {
             break;
         }
@@ -693,3 +708,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "frozen_native_values/page_tests.rs"]
+mod page_tests;
