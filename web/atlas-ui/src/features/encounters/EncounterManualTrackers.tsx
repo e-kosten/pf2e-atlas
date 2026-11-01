@@ -1,5 +1,5 @@
 import { Pencil, Plus, RotateCcw, X } from "lucide-react";
-import { Button, Form, Input, InputNumber, Select, Space, Tooltip } from "antd";
+import { Button, Form, Input, Space, Tooltip } from "antd";
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type {
   ConditionDurationView,
@@ -10,6 +10,7 @@ import type {
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { nonNegativeIntegerRule } from "../../shared/ui/forms/nonNegativeIntegerRule";
 import { restoreOverlayFocus } from "../../shared/ui/overlays/restoreOverlayFocus";
+import { EncounterDurationFields } from "./EncounterDurationFields";
 import { EncounterModal } from "./EncounterModal";
 import { conditionDurationLabel } from "./conditionDurationLabel";
 
@@ -18,10 +19,10 @@ export type ManualTrackerHandler = (
 ) => Promise<{ active: boolean; refreshed: boolean }>;
 type Values = {
   name: string;
-  amount: number;
-  unit: ConditionDurationView["unit"];
-  event: "start" | "end";
-  participant: string;
+  durationAmount: number;
+  durationUnit: ConditionDurationView["unit"];
+  durationEvent: "start" | "end";
+  durationParticipant: string;
 };
 export function EncounterManualTrackers({
   participant,
@@ -205,15 +206,14 @@ export function EncounterManualTrackers({
               </Tooltip>
             </span>
             <span className="encounter-condition-meta">
+              {tracker.duration.unit !== "rounds"
+                ? `${conditionDurationLabel(tracker.duration)} · `
+                : ""}
               <span role="status">
                 {tracker.remaining_rounds === 0n
                   ? "Ready"
                   : `${tracker.remaining_rounds} ${tracker.remaining_rounds === 1n ? "round" : "rounds"} remaining`}
               </span>
-              {tracker.duration.unit !== "rounds"
-                ? ` · ${conditionDurationLabel(tracker.duration)}`
-                : ""}{" "}
-              · {tracker.timing_label}
             </span>
           </div>
         ))}
@@ -307,10 +307,10 @@ export function EncounterManualTrackers({
           }
           initialValues={{
             name: editor?.tracker?.name ?? "",
-            amount: Number(editor?.tracker?.duration.amount ?? 1n),
-            unit: editor?.tracker?.duration.unit ?? "rounds",
-            event: editor?.tracker?.duration.timing?.event ?? "end",
-            participant:
+            durationAmount: Number(editor?.tracker?.duration.amount ?? 1n),
+            durationUnit: editor?.tracker?.duration.unit ?? "rounds",
+            durationEvent: editor?.tracker?.duration.timing?.event ?? "start",
+            durationParticipant:
               editor?.tracker?.duration.timing?.participant_key ??
               participant.participant_key,
           }}
@@ -318,9 +318,12 @@ export function EncounterManualTrackers({
           disabled={disabled}
           onFinish={(values) => {
             const duration: ConditionDurationView = {
-              amount: BigInt(values.amount),
-              unit: values.unit,
-              timing: { participant_key: values.participant, event: values.event },
+              amount: BigInt(values.durationAmount),
+              unit: values.durationUnit,
+              timing: {
+                participant_key: values.durationParticipant,
+                event: values.durationEvent,
+              },
             };
             void apply(
               editor?.tracker
@@ -345,71 +348,23 @@ export function EncounterManualTrackers({
           >
             <Input maxLength={120} />
           </Form.Item>
-          <Space align="start" wrap>
-            <Form.Item
-              name="amount"
-              label="Duration"
-              extra={
-                editor?.tracker
-                  ? "Changing duration or timing restarts the countdown."
-                  : undefined
-              }
-              rules={[nonNegativeIntegerRule(true)]}
-            >
-              <InputNumber
-                aria-label="Tracker duration"
-                min={0}
-                max={Number.MAX_SAFE_INTEGER}
-                precision={0}
-              />
-            </Form.Item>
-            <Form.Item name="unit" label="Unit" rules={[{ required: true }]}>
-              <Select
-                aria-label="Tracker duration unit"
-                style={{ minWidth: 120 }}
-                options={["rounds", "minutes", "hours", "days"].map((value) => ({
-                  value,
-                  label: value,
-                }))}
-              />
-            </Form.Item>
-          </Space>
-          <Space align="start" wrap>
-            <Form.Item name="event" label="Count down at" rules={[{ required: true }]}>
-              <Select
-                aria-label="Tracker turn boundary"
-                style={{ minWidth: 130 }}
-                options={[
-                  { value: "start", label: "Start of turn" },
-                  { value: "end", label: "End of turn" },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item
-              name="participant"
-              label="Whose turn"
-              rules={[
-                { required: true, message: "Choose whose turn counts down." },
-                {
-                  validator: (_, value) =>
-                    participants.some((p) => p.participant_key === value)
-                      ? Promise.resolve()
-                      : Promise.reject(
-                          new Error("Choose a participant in this encounter."),
-                        ),
-                },
-              ]}
-            >
-              <Select
-                aria-label="Tracker timing participant"
-                style={{ minWidth: 180 }}
-                options={participants.map((p) => ({
-                  value: p.participant_key,
-                  label: p.display_name,
-                }))}
-              />
-            </Form.Item>
-          </Space>
+          <EncounterDurationFields
+            participants={participants}
+            amountRules={[nonNegativeIntegerRule(true)]}
+            maximumAmount={Number.MAX_SAFE_INTEGER}
+            timingRules={[{ required: true }]}
+            participantRules={[
+              { required: true, message: "Choose whose turn counts down." },
+              {
+                validator: (_, value) =>
+                  participants.some((p) => p.participant_key === value)
+                    ? Promise.resolve()
+                    : Promise.reject(
+                        new Error("Choose a participant in this encounter."),
+                      ),
+              },
+            ]}
+          />
         </Form>
       </EncounterModal>
     </section>

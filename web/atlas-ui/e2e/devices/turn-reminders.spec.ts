@@ -821,10 +821,7 @@ test("manual trackers persist minute countdowns and restart after becoming ready
     const dialog = page.getByRole("dialog", { name: "Add tracker", exact: true });
     await expect(dialog).toBeVisible();
     await dialog.getByLabel("Name", { exact: true }).fill("Breath ready");
-    await activate(
-      dialog.getByRole("combobox", { name: "Tracker duration unit" }),
-      info,
-    );
+    await activate(dialog.getByRole("combobox", { name: "Duration unit" }), info);
     await activate(
       page.getByText("minutes", { exact: true }).filter({ visible: true }),
       info,

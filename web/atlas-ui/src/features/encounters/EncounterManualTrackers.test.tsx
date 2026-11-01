@@ -22,7 +22,7 @@ it("retains an unsuccessful tracker draft and its original revisions across refr
   fireEvent.change(screen.getByLabelText("Name"), {
     target: { value: "Breath ready" },
   });
-  fireEvent.change(screen.getByRole("spinbutton", { name: "Tracker duration" }), {
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Duration amount" }), {
     target: { value: "3" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Save tracker" }));
@@ -37,7 +37,7 @@ it("retains an unsuccessful tracker draft and its original revisions across refr
       duration: {
         amount: 3n,
         unit: "rounds",
-        timing: { participant_key: "dragon", event: "end" },
+        timing: { participant_key: "dragon", event: "start" },
       },
     },
   });
@@ -50,7 +50,7 @@ it("retains an unsuccessful tracker draft and its original revisions across refr
     />,
   );
   expect(screen.getByLabelText("Name")).toHaveValue("Breath ready");
-  expect(screen.getByRole("spinbutton", { name: "Tracker duration" })).toHaveValue("3");
+  expect(screen.getByRole("spinbutton", { name: "Duration amount" })).toHaveValue("3");
   expect(screen.getByRole("button", { name: /Save tracker/ })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "Use refreshed encounter" }));
   onChange.mockResolvedValue({ active: true, refreshed: true });
@@ -90,6 +90,10 @@ it("keeps a ready tracker visible and sends separate restart and removal actions
     />,
   );
   expect(screen.getByRole("status")).toHaveTextContent("Ready");
+  expect(screen.getByRole("status").parentElement).toHaveTextContent(
+    "1 minute · Ready",
+  );
+  expect(screen.queryByText("End of Dragon’s turn")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Restart Breath ready" }));
   await waitFor(() =>
     expect(onChange).toHaveBeenCalledWith(

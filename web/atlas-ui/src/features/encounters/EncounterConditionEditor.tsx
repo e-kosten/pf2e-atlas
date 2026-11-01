@@ -13,15 +13,15 @@ import {
   Input,
   InputNumber,
   Select,
-  Segmented,
   Space,
   Tooltip,
   Typography,
 } from "antd";
 import { createPortal } from "react-dom";
 import { EncounterPersistentPrecedence } from "./EncounterPersistentPrecedence";
+import { EncounterDurationFields } from "./EncounterDurationFields";
 import { ConditionValueInput } from "./ConditionValueInput";
-import { Info, X } from "lucide-react";
+import { Info } from "lucide-react";
 import { useEffect, useEffectEvent, useId, useState, type ReactNode } from "react";
 import type {
   EncounterConditionDefinitionView,
@@ -793,94 +793,31 @@ export function EncounterConditionEditor({
             )}
           </>
         )}
-        <>
-          <div
-            style={{
-              display: durationUnit === "none" && !durationInstead ? "none" : undefined,
-            }}
-          >
-            <Form.Item label="Duration">
-              <Space.Compact>
-                <Form.Item
-                  name="durationAmount"
-                  noStyle
-                  rules={[nonNegativeIntegerRule(durationUnit !== "none")]}
-                >
-                  <InputNumber
-                    aria-label="Duration amount"
-                    min={0}
-                    step={1}
-                    onKeyDown={(event) => {
-                      if (event.key === "-") event.preventDefault();
-                    }}
-                    onPaste={(event) => {
-                      if (/^\s*[-−]/.test(event.clipboardData.getData("text")))
-                        event.preventDefault();
-                    }}
-                    style={{ width: 88 }}
-                  />
-                </Form.Item>
-                <Form.Item name="durationUnit" noStyle>
-                  <Select
-                    aria-label="Duration unit"
-                    onChange={() => {
-                      form.setFieldsValue({
-                        durationEvent: form.getFieldValue("durationEvent") ?? "end",
-                        durationParticipant:
-                          form.getFieldValue("durationParticipant") ?? participantKey,
-                      });
-                    }}
-                    style={{ width: 128 }}
-                    options={["rounds", "minutes", "hours", "days"].map((value) => ({
-                      value,
-                      label: value,
-                    }))}
-                  />
-                </Form.Item>
-                {!durationInstead && (
-                  <Tooltip title="Remove duration" trigger={["hover", "focus"]}>
-                    <Button
-                      aria-label="Remove duration"
-                      icon={<X size={14} aria-hidden="true" />}
-                      onClick={() =>
-                        form.setFieldsValue({
-                          durationUnit: "none",
-                          durationAmount: undefined,
-                          durationEvent: undefined,
-                          durationParticipant: undefined,
-                        })
-                      }
-                    />
-                  </Tooltip>
-                )}
-              </Space.Compact>
-            </Form.Item>
-          </div>
-          {isTimed && (
-            <Space align="start" wrap>
-              <Form.Item name="durationEvent" rules={[timingRule]}>
-                <Segmented
-                  aria-label="Duration boundary"
-                  options={[
-                    { label: "Starts on", value: "start" },
-                    { label: "Ends on", value: "end" },
-                  ]}
-                />
-              </Form.Item>
-              <Form.Item name="durationParticipant" rules={[timingRule]}>
-                <Select
-                  aria-label="Whose turn"
-                  placeholder="Whose turn"
-                  style={{ minWidth: 180 }}
-                  options={participants.map((p) => ({
-                    value: p.participant_key,
-                    label: `${p.display_name}’s turn`,
-                  }))}
-                />
-              </Form.Item>
-            </Space>
-          )}
-        </>
+        <EncounterDurationFields
+          visible={durationUnit !== "none" || !!durationInstead}
+          timed={isTimed}
+          participants={participants}
+          amountRules={[nonNegativeIntegerRule(durationUnit !== "none")]}
+          timingRules={[timingRule]}
+          onUnitChange={() => {
+            form.setFieldsValue({
+              durationEvent: form.getFieldValue("durationEvent") ?? "end",
+              durationParticipant:
+                form.getFieldValue("durationParticipant") ?? participantKey,
+            });
+          }}
+          onRemove={
+            durationInstead
+              ? undefined
+              : () =>
+                  form.setFieldsValue({
+                    durationUnit: "none",
+                    durationAmount: undefined,
+                    durationEvent: undefined,
+                    durationParticipant: undefined,
+                  })
+          }
+        />
         {
           <section
             aria-label="Condition details"
