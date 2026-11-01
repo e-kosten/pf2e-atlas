@@ -43,7 +43,14 @@ const review: import("../../generated/atlas").EncounterTurnReviewView = {
 
   next_turn_unavailable_reason: null,
 };
-function setup(onAdvance: (revision: bigint) => Promise<boolean>, onFinish = vi.fn()) {
+function setup(
+  onAdvance: (revision: bigint) => Promise<boolean>,
+  onFinish = vi.fn(),
+  turn: { participantKey: string | null; roundNumber: bigint } = {
+    participantKey: "actor",
+    roundNumber: 1n,
+  },
+) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const run = vi.fn().mockResolvedValue({
     active: true,
@@ -64,7 +71,7 @@ function setup(onAdvance: (revision: bigint) => Promise<boolean>, onFinish = vi.
         useEncounterTurnReview({
           encounterRef: "encounter",
           expectedRevision: 7n,
-          turn: { participantKey: "actor", roundNumber: 1n },
+          turn,
           mutations,
           onAdvance,
           onFinish,
@@ -567,5 +574,45 @@ it("retry does not present a boundary that superseded the unseen turn", async ()
   });
   expect(result.current.open).toBe(false);
   expect(result.current.boundaryKey).toBeUndefined();
+  expect(advance).toHaveBeenCalledOnce();
+});
+
+it("opens a tracker completion on the first start boundary without an outgoing actor", async () => {
+  vi.mocked(getEncounterTurnReview).mockResolvedValue({
+    ...review,
+    current_participant_key: null,
+    outgoing: null,
+  });
+  const advance = vi.fn().mockImplementation(async () => {
+    vi.mocked(getEncounterTurnReview).mockResolvedValue({
+      ...review,
+      current_participant_key: "incoming",
+      outgoing: {
+        ...review.outgoing!,
+        participant_key: "incoming",
+        persistent_damage_groups: [],
+        reminders: [
+          {
+            kind: "tracker_elapsed",
+            participant_key: "incoming",
+            participant_name: "Incoming",
+            tracker_key: "timer",
+            tracker_name: "Countdown",
+          },
+        ],
+      },
+    });
+    return true;
+  });
+  const { result, onFinish } = setup(advance, vi.fn(), {
+    participantKey: null,
+    roundNumber: 1n,
+  });
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  await act(() => result.current.begin());
+  expect(result.current.open).toBe(true);
+  expect(result.current.boundaryKey).toBe("outgoing");
+  act(() => result.current.close());
+  expect(onFinish).toHaveBeenCalledOnce();
   expect(advance).toHaveBeenCalledOnce();
 });

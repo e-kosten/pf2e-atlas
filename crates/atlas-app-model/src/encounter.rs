@@ -96,6 +96,15 @@ pub struct EncounterTurnReviewView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum EncounterTurnReminderView {
+    TrackerElapsed {
+        participant_key: String,
+        participant_name: String,
+        tracker_key: String,
+        tracker_name: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        result: Option<String>,
+    },
     /// Confirmed current-state or boundary-receipt result for a retained reminder.
     Resolved {
         participant_key: String,
@@ -1006,4 +1015,29 @@ pub struct EncounterOutgoingTurnView {
     pub round_number: i64,
     pub reminders: Vec<EncounterTurnReminderView>,
     pub persistent_damage_groups: Vec<crate::PersistentDamageGroupView>,
+}
+
+#[cfg(test)]
+mod tracker_reminder_tests {
+    use super::EncounterTurnReminderView;
+    #[test]
+    fn tracker_elapsed_reminder_omits_an_unresolved_result_and_retains_canonical_status() {
+        let reminder = EncounterTurnReminderView::TrackerElapsed {
+            participant_key: "dragon".into(),
+            participant_name: "Dragon".into(),
+            tracker_key: "breath".into(),
+            tracker_name: "Breath".into(),
+            result: None,
+        };
+        let mut wire = serde_json::to_value(&reminder).unwrap();
+        assert!(wire.get("result").is_none());
+        assert_eq!(
+            serde_json::from_value::<EncounterTurnReminderView>(wire.clone()).unwrap(),
+            reminder
+        );
+        wire["result"] = serde_json::json!("Removed");
+        assert!(
+            matches!(serde_json::from_value::<EncounterTurnReminderView>(wire).unwrap(), EncounterTurnReminderView::TrackerElapsed { result: Some(result), .. } if result == "Removed")
+        );
+    }
 }

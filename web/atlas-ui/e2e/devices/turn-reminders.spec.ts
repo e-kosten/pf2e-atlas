@@ -787,7 +787,7 @@ test("real turn counts retain explanations and guard an explicit action", async 
   }
 });
 
-test("manual trackers persist minute countdowns and restart after becoming ready", async ({
+test("manual trackers persist minute countdowns and restart after elapsing", async ({
   page,
 }, info) => {
   const created = await page.request.post("/api/encounters", {
@@ -879,7 +879,7 @@ test("manual trackers persist minute countdowns and restart after becoming ready
     }
     await page.reload();
     await activate(participant, info);
-    await expect(page.getByRole("status").filter({ hasText: "Ready" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Elapsed" })).toBeVisible();
     await activate(
       page.getByRole("button", { name: "Restart Breath ready", exact: true }),
       info,
@@ -920,3 +920,98 @@ test("manual trackers persist minute countdowns and restart after becoming ready
     await page.request.delete(path);
   }
 });
+
+for (const boundary of ["start", "end"] as const) {
+  test(`tracker completion notifies once at turn ${boundary} and can be removed`, async ({
+    page,
+  }, info) => {
+    const created = await page.request.post("/api/encounters", {
+      data: { name: `Tracker notification ${boundary} ${Date.now()}` },
+    });
+    const { encounter } = await created.json();
+    const path = `/api/encounters/${encounter.encounter_key}`;
+    try {
+      expect(
+        (
+          await page.request.post(`${path}/participants/manual`, {
+            data: {
+              encounter_ref: encounter.encounter_key,
+              display_name: "Tracker owner",
+              initiative: 20,
+              max_hp: 20,
+              current_hp: 20,
+            },
+          })
+        ).ok(),
+      ).toBeTruthy();
+      await page.goto(`/encounters/${encounter.slug}`);
+      await activate(
+        page.getByRole("button", { name: "Tracker owner", exact: true }),
+        info,
+      );
+      await activate(page.getByRole("button", { name: "Add tracker" }), info);
+      const editor = page.getByRole("dialog", { name: "Add tracker", exact: true });
+      await editor.getByLabel("Name", { exact: true }).fill("Countdown");
+      await expect(editor.getByRole("radio", { name: "Starts on" })).toBeChecked();
+      if (boundary === "end")
+        await activate(editor.getByRole("radio", { name: "Ends on" }), info);
+      await activate(editor.getByRole("button", { name: "Save tracker" }), info);
+      await expect(editor).not.toBeVisible();
+      const advance = () =>
+        activate(
+          page
+            .getByRole("button", { name: "Next turn", exact: true })
+            .filter({ visible: true }),
+          info,
+        );
+      await activate(
+        page
+          .getByRole("button", { name: "Start turn", exact: true })
+          .filter({ visible: true }),
+        info,
+      );
+      const notification = page.getByRole("dialog", {
+        name: "Turn reminders",
+        exact: true,
+      });
+      if (boundary === "end") {
+        await expect(notification).not.toBeVisible();
+        await advance();
+      }
+      await expect(
+        notification.getByRole("heading", { name: "Countdown" }),
+      ).toBeVisible();
+      await expect(
+        notification.getByRole("status").filter({ hasText: "Elapsed" }),
+      ).toBeVisible();
+      await activate(
+        notification.getByRole("button", { name: "Close", exact: true }).last(),
+        info,
+      );
+      let detail = await (await page.request.get(path)).json();
+      expect(detail.participants[0].manual_trackers[0].remaining_rounds).toBe(0);
+      await advance();
+      await expect(notification).not.toBeVisible();
+      await activate(page.getByRole("button", { name: "Restart Countdown" }), info);
+      await advance();
+      await expect(
+        notification.getByRole("heading", { name: "Countdown" }),
+      ).toBeVisible();
+      await activate(
+        notification.getByRole("button", {
+          name: "Remove tracker Countdown from Tracker owner",
+          exact: true,
+        }),
+        info,
+      );
+      await expect(
+        notification.getByRole("status").filter({ hasText: "Removed" }),
+      ).toBeVisible();
+      detail = await (await page.request.get(path)).json();
+      expect(detail.participants[0].manual_trackers).toEqual([]);
+      await noPageOverflow(page);
+    } finally {
+      await page.request.delete(path);
+    }
+  });
+}

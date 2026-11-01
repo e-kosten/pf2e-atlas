@@ -38,6 +38,7 @@ export function EncounterTurnReview({
   onRecoverPersistent,
   onLifecycle,
   onRemove,
+  onRemoveTracker,
 }: {
   open: boolean;
   boundaryKey?: string;
@@ -69,6 +70,10 @@ export function EncounterTurnReview({
       "request_id"
     >,
   ) => Promise<import("../../generated/atlas").PersistentRecoveryResultView>;
+  onRemoveTracker?: (
+    reminder: Extract<EncounterTurnReminderView, { kind: "tracker_elapsed" }>,
+    boundaryKey: string,
+  ) => Promise<unknown>;
   onRemove: (
     reminder: Extract<
       EncounterTurnReminderView,
@@ -89,8 +94,11 @@ export function EncounterTurnReview({
       !identity ||
       !reminders.some(
         (r) =>
-          r.kind === "resolved" &&
-          `${r.participant_key}:${r.condition_id}` === identity,
+          (r.kind === "resolved" &&
+            `${r.participant_key}:${r.condition_id}` === identity) ||
+          (r.kind === "tracker_elapsed" &&
+            !!r.result &&
+            `tracker:${r.participant_key}:${r.tracker_key}` === identity),
       )
     )
       return;
@@ -201,6 +209,48 @@ export function EncounterTurnReview({
               ),
           )
           .map((reminder) => {
+            if (reminder.kind === "tracker_elapsed") {
+              const identity = `tracker:${reminder.participant_key}:${reminder.tracker_key}`;
+              return (
+                <section
+                  key={identity}
+                  data-reminder-identity={identity}
+                  className="encounter-turn-reminder encounter-turn-reminder--condition"
+                >
+                  <div className="encounter-turn-reminder__heading">
+                    <h3>
+                      {reminder.participant_key !== outgoing?.participant_key &&
+                        `${reminder.participant_name}: `}
+                      {reminder.tracker_name}
+                    </h3>
+                  </div>
+                  <p role="status" tabIndex={-1}>
+                    {reminder.result ?? "Elapsed"}
+                  </p>
+                  {!reminder.result && (
+                    <Button
+                      style={{ justifySelf: "start" }}
+                      disabled={
+                        disabled || pending || loading || !!error || !onRemoveTracker
+                      }
+                      icon={<DeleteOutlined />}
+                      aria-label={`Remove tracker ${reminder.tracker_name} from ${reminder.participant_name}`}
+                      onClick={(event) => {
+                        if (document.activeElement === event.currentTarget)
+                          removalFocus.current = identity;
+                        void onRemoveTracker?.(reminder, outgoing!.boundary_key).catch(
+                          () => {
+                            removalFocus.current = null;
+                          },
+                        );
+                      }}
+                    >
+                      Remove tracker
+                    </Button>
+                  )}
+                </section>
+              );
+            }
             if (reminder.kind === "condition_recovery") {
               const participant = participants.find(
                 (p) => p.participant_key === reminder.participant_key,
@@ -319,6 +369,8 @@ function reminderText(
   participants: EncounterParticipantView[],
 ): string {
   switch (reminder.kind) {
+    case "tracker_elapsed":
+      return reminder.result ?? "Elapsed";
     case "resolved":
       return reminder.result;
     case "condition_recovery":

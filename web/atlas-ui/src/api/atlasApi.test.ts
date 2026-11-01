@@ -387,16 +387,37 @@ describe("source-backed API transport", () => {
     const manual = detail.participants.find(
       (p) => p.participant_key === "fixture-manual",
     )!;
-    expect(manual.manual_trackers[0]).toMatchObject({
+    const tracker = manual.manual_trackers.find((t) => t.name === "Breath ready")!;
+    expect(tracker).toMatchObject({
       name: "Breath ready",
       remaining_rounds: 10n,
       duration: { amount: 1n, unit: "minutes" },
     });
-    expect(manual.manual_trackers[0].duration).not.toHaveProperty("remaining_rounds");
+    expect(tracker.duration).not.toHaveProperty("remaining_rounds");
     expect(manual.conditions[0].duration).toMatchObject({
       amount: 1n,
       unit: "minutes",
       remaining_rounds: 10n,
+    });
+  });
+  it("decodes tracker completion and removal from the real router fixture", async () => {
+    const fixture: Record<string, unknown> =
+      await import("./__fixtures__/wire-conversion.json");
+    respond(fixture.turn_review);
+    const completed = await getEncounterTurnReview("ambush");
+    expect(completed.outgoing?.reminders[0]).toEqual({
+      kind: "tracker_elapsed",
+      participant_key: "fixture-manual",
+      participant_name: "Kyra",
+      tracker_key: "tracker_wire-completion",
+      tracker_name: "Countdown",
+    });
+    expect(typeof completed.expected_revision).toBe("bigint");
+    respond(fixture.turn_review_removed);
+    const removed = await getEncounterTurnReview("ambush");
+    expect(removed.outgoing?.reminders[0]).toMatchObject({
+      kind: "tracker_elapsed",
+      result: "Removed",
     });
   });
   it("normalizes actual HTTP encounter integers for display and revision-bound edits", async () => {

@@ -27,7 +27,9 @@ fn canonicalize(value: &mut Value, identities: &BTreeMap<String, String>) {
                     ("artifact_generation", Value::String(text)) => {
                         *text = "fixture-generation".into();
                     }
-                    ("turn_key", Value::String(text)) => *text = "fixture-turn".into(),
+                    ("turn_key" | "boundary_key", Value::String(text)) => {
+                        *text = "fixture-turn".into();
+                    }
                     _ => canonicalize(value, identities),
                 }
             }
@@ -152,6 +154,17 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         "expected_participant_revision":participant.revision,"participant_key":"path-is-authoritative",
         "action":{"kind":"add","name":"Breath ready","duration":{"amount":1,"unit":"minutes","remaining_rounds":null,"timing":{"participant_key":fixture.participant_key,"event":"end"}}}
     }))).await;
+    let current = fixture.service.encounter("ambush").unwrap();
+    let participant = current
+        .participants
+        .iter()
+        .find(|p| p.participant_key == fixture.participant_key)
+        .unwrap();
+    response(&fixture, Method::POST, &format!("/api/encounters/ambush/participants/{}/manual-trackers", fixture.participant_key), Some(json!({
+        "request_id":"wire-completion", "expected_encounter_revision":current.revision,
+        "expected_participant_revision":participant.revision, "participant_key":fixture.participant_key,
+        "action":{"kind":"add","name":"Countdown","duration":{"amount":1,"unit":"rounds","timing":{"participant_key":fixture.participant_key,"event":"start"}}}
+    }))).await;
     let pending = response(&fixture, Method::GET, "/api/encounters/ambush", None).await;
     assert!(pending["participants"][0]["turn_resources"]["regular_total"].is_null());
     assert!(pending["participants"][0]["turn_resources"]["round_number"].is_null());
@@ -170,12 +183,14 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         .iter()
         .find(|p| p["participant_key"] == fixture.participant_key)
         .unwrap();
-    assert_eq!(manual["manual_trackers"][0]["remaining_rounds"], 10);
-    assert!(
-        manual["manual_trackers"][0]["duration"]
-            .get("remaining_rounds")
-            .is_none()
-    );
+    let tracker = manual["manual_trackers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["name"] == "Breath ready")
+        .unwrap();
+    assert_eq!(tracker["remaining_rounds"], 10);
+    assert!(tracker["duration"].get("remaining_rounds").is_none());
     assert_eq!(manual["conditions"][0]["duration"]["remaining_rounds"], 10);
     assert_eq!(manual["turn_resources"]["regular_total"], 2);
     assert_eq!(manual["turn_resources"]["round_number"], 1);
@@ -189,6 +204,17 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
     assert_eq!(zero["current_hp"], 0);
     assert!(zero["turn_resources"]["regular_total"].is_null());
     assert!(zero["turn_resources"]["round_number"].is_null());
+    let turn_review = response(
+        &fixture,
+        Method::GET,
+        "/api/encounters/ambush/turn-review",
+        None,
+    )
+    .await;
+    let completion = &turn_review["outgoing"]["reminders"][0];
+    assert_eq!(completion["kind"], "tracker_elapsed");
+    assert_eq!(completion["tracker_key"], "tracker_wire-completion");
+    assert!(completion.get("result").is_none());
     let recovery = response(
         &fixture,
         Method::POST,
@@ -211,6 +237,28 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         && p["resulting_hp"] == 0
         && p["resulting_max_hp"] == 20
         && p["healing"] == 0));
+    let current = fixture.service.encounter("ambush").unwrap();
+    let participant = current
+        .participants
+        .iter()
+        .find(|p| p.participant_key == fixture.participant_key)
+        .unwrap();
+    response(&fixture, Method::POST, &format!("/api/encounters/ambush/participants/{}/manual-trackers", fixture.participant_key), Some(json!({
+        "request_id":"wire-remove-completion", "expected_encounter_revision":current.revision,
+        "expected_participant_revision":participant.revision, "participant_key":fixture.participant_key,
+        "action":{"kind":"remove", "tracker_key":"tracker_wire-completion"}
+    }))).await;
+    let turn_review_removed = response(
+        &fixture,
+        Method::GET,
+        "/api/encounters/ambush/turn-review",
+        None,
+    )
+    .await;
+    assert_eq!(
+        turn_review_removed["outgoing"]["reminders"][0]["result"],
+        "Removed"
+    );
     response(
         &fixture,
         Method::POST,
@@ -275,6 +323,8 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         "encounter":encounter,
         "record_detail":record_detail,
         "recovery_preview":recovery,
+        "turn_review":turn_review,
+        "turn_review_removed":turn_review_removed,
         "flat_check_serialization_control":flat_control
     });
     let identities = BTreeMap::from([

@@ -1776,3 +1776,409 @@ fn renaming_a_spent_large_legacy_tracker_does_not_readmit_or_restart_its_templat
         "restarting still requires an exactly representable projected count"
     );
 }
+
+fn add_transition_tracker(
+    f: &FixtureWorker,
+    key: &str,
+    owner: &str,
+    name: &str,
+    duration: ConditionDurationView,
+) -> String {
+    let request = tracker_request(
+        f,
+        key,
+        owner,
+        name,
+        EncounterManualTrackerAction::Add {
+            name: name.into(),
+            duration,
+        },
+    );
+    f.worker
+        .update_encounter_manual_tracker(key, request)
+        .unwrap();
+    snapshot(f, key)
+        .participants
+        .iter()
+        .find(|p| p.participant_key == owner)
+        .unwrap()
+        .manual_trackers
+        .iter()
+        .find(|t| t.name == name)
+        .unwrap()
+        .tracker_key
+        .clone()
+}
+fn elapsed_rows(reminders: &[EncounterTurnReminderView]) -> Vec<(&str, &str, Option<&str>)> {
+    reminders
+        .iter()
+        .filter_map(|reminder| match reminder {
+            EncounterTurnReminderView::TrackerElapsed {
+                participant_key,
+                tracker_name,
+                result,
+                ..
+            } => Some((
+                participant_key.as_str(),
+                tracker_name.as_str(),
+                result.as_deref(),
+            )),
+            _ => None,
+        })
+        .collect()
+}
+#[test]
+fn elapsed_trackers_use_actual_end_and_foreign_start_transitions_without_repeating() {
+    let (f, key, a, b) = fixture();
+    for (owner, name, anchor, event, amount) in [
+        (&a, "own-end", &a, ConditionTurnEvent::End, 1),
+        (&a, "foreign-start", &b, ConditionTurnEvent::Start, 1),
+        (&b, "foreign-end", &a, ConditionTurnEvent::End, 1),
+        (&a, "already-zero", &a, ConditionTurnEvent::End, 0),
+    ] {
+        add_transition_tracker(
+            &f,
+            &key,
+            owner,
+            name,
+            ConditionDurationView {
+                amount,
+                unit: ConditionDurationUnit::Rounds,
+                remaining_rounds: None,
+                timing: Some(ConditionTimingView {
+                    participant_key: anchor.clone(),
+                    event,
+                }),
+            },
+        );
+    }
+    set(&f, &key, &a);
+    let unchanged = snapshot(&f, &key);
+    for _ in 0..2 {
+        let review = f.worker.encounter_turn_review(&key).unwrap();
+        assert_eq!(
+            std::collections::BTreeSet::from_iter(elapsed_rows(&review.reminders)),
+            std::collections::BTreeSet::from([
+                (a.as_str(), "own-end", None),
+                (a.as_str(), "foreign-start", None),
+                (b.as_str(), "foreign-end", None),
+            ])
+        );
+    }
+    assert_eq!(
+        snapshot(&f, &key),
+        unchanged,
+        "forecast reads do not tick trackers"
+    );
+    let request = AdvanceEncounterTurnRequest {
+        request_id: "elapsed-boundary".into(),
+        expected_revision: unchanged.encounter.revision,
+    };
+    f.worker
+        .advance_encounter_turn(&key, request.clone())
+        .unwrap();
+    let outgoing = f
+        .worker
+        .encounter_turn_review(&key)
+        .unwrap()
+        .outgoing
+        .unwrap();
+    assert_eq!(outgoing.participant_key, a);
+    assert_eq!(elapsed_rows(&outgoing.reminders).len(), 3);
+    assert!(elapsed_rows(&f.worker.encounter_turn_review(&key).unwrap().reminders).is_empty());
+    let after = snapshot(&f, &key);
+    f.worker.advance_encounter_turn(&key, request).unwrap();
+    assert_eq!(
+        snapshot(&f, &key),
+        after,
+        "replay cannot tick or create another boundary"
+    );
+    assert_eq!(
+        f.worker.encounter_turn_review(&key).unwrap().outgoing,
+        Some(outgoing)
+    );
+    for _ in 0..4 {
+        next(&f, &key);
+        assert!(
+            f.worker
+                .encounter_turn_review(&key)
+                .unwrap()
+                .outgoing
+                .is_none(),
+            "existing zero trackers do not keep notifying"
+        );
+    }
+}
+#[test]
+fn elapsed_tracker_initial_start_retains_a_review_without_spurious_outgoing_damage() {
+    let (f, key, a, b) = fixture();
+    add_transition_tracker(
+        &f,
+        &key,
+        &b,
+        "first-start",
+        ConditionDurationView {
+            amount: 1,
+            unit: ConditionDurationUnit::Rounds,
+            remaining_rounds: None,
+            timing: Some(ConditionTimingView {
+                participant_key: a.clone(),
+                event: ConditionTurnEvent::Start,
+            }),
+        },
+    );
+    let persistent = super::conditions::modeled_condition_by_rule(
+        super::conditions::ConditionRule::PersistentDamage,
+    )
+    .unwrap();
+    f.worker
+        .with_write(|session| {
+            Ok(session.local_state().encounters().add_condition(
+                AddEncounterParticipantCondition {
+                    participant_key: a.clone(),
+                    condition_key: Some(persistent.condition_ref.into()),
+                    name: "Persistent fire".into(),
+                    value: None,
+                    source_participant_key: None,
+                    duration: None,
+                    note: None,
+                    scope: Default::default(),
+                    extra_action: Default::default(),
+                    immunity_override: false,
+                    origin: None,
+                    parameters: atlas_local_state::ConditionParameters::PersistentDamage {
+                        formula: "1d6".into(),
+                        damage_type: "fire".into(),
+                        multiplier: atlas_local_state::DamageMultiplier::Normal,
+                        recovery: atlas_local_state::PersistentRecovery::Standard,
+                        episode_id: "initial-fire".into(),
+                    },
+                },
+            )?)
+        })
+        .unwrap();
+    assert_eq!(
+        f.worker.encounter(&key).unwrap().participants[0]
+            .persistent_damage_groups
+            .len(),
+        1
+    );
+    assert!(
+        snapshot(&f, &key)
+            .encounter
+            .current_turn_participant_key
+            .is_none()
+    );
+    let before_start = snapshot(&f, &key);
+    f.worker
+        .with_write(|session| {
+            Ok(session
+                .local_state()
+                .encounters()
+                .apply_claimed_condition_event(
+                    &key,
+                    "pre-start-damage-claim",
+                    &serde_json::json!({"pre_start":true}),
+                    before_start.encounter.revision,
+                    atlas_local_state::ConditionEventBoundary {
+                        claims: &[atlas_local_state::EncounterBoundaryClaim {
+                            participant_key: a.clone(),
+                            round_number: before_start.encounter.round_number,
+                            kind: atlas_local_state::EncounterBoundaryKind::PersistentDamage,
+                            scope_key: String::new(),
+                        }],
+                        outgoing_boundary_key: None,
+                    },
+                    Default::default(),
+                )?)
+        })
+        .unwrap();
+    next(&f, &key);
+    let review = f.worker.encounter_turn_review(&key).unwrap();
+    let outgoing = review.outgoing.unwrap();
+    assert_eq!(outgoing.participant_key, a);
+    assert_eq!(
+        elapsed_rows(&outgoing.reminders),
+        [(b.as_str(), "first-start", None)]
+    );
+    assert!(outgoing.persistent_damage_groups.is_empty());
+    assert!(!outgoing.damage_applied);
+    assert!(
+        outgoing
+            .reminders
+            .iter()
+            .all(|r| !matches!(r, EncounterTurnReminderView::PersistentDamage { .. }))
+    );
+    assert_eq!(snapshot(&f, &key).participants[0].current_hp, Some(20));
+    next(&f, &key);
+    let outgoing = f
+        .worker
+        .encounter_turn_review(&key)
+        .unwrap()
+        .outgoing
+        .unwrap();
+    assert_eq!(
+        outgoing.persistent_damage_groups.len(),
+        1,
+        "real end-of-turn damage remains available"
+    );
+    assert!(elapsed_rows(&outgoing.reminders).is_empty());
+}
+#[test]
+fn elapsed_tracker_current_status_distinguishes_restart_removal_and_removed_owner() {
+    let (f, key, a, _) = fixture();
+    set_round_seconds(&f, &key, Some(7)).unwrap();
+    let tracker = add_transition_tracker(&f, &key, &a, "minute-complete", minute(&a));
+    set(&f, &key, &a);
+    for _ in 0..16 {
+        next(&f, &key);
+    }
+    let saved = snapshot(&f, &key);
+    assert_eq!(
+        saved.participants[0].manual_trackers[0].progress,
+        atlas_local_state::TrackerProgress::Seconds(4)
+    );
+    assert_eq!(
+        elapsed_rows(&f.worker.encounter_turn_review(&key).unwrap().reminders),
+        [(a.as_str(), "minute-complete", None)]
+    );
+    next(&f, &key);
+    let outgoing = f
+        .worker
+        .encounter_turn_review(&key)
+        .unwrap()
+        .outgoing
+        .unwrap();
+    let boundary = outgoing.boundary_key.clone();
+    assert_eq!(
+        elapsed_rows(&outgoing.reminders),
+        [(a.as_str(), "minute-complete", None)]
+    );
+    let restart = tracker_request(
+        &f,
+        &key,
+        &a,
+        "elapsed-restart",
+        EncounterManualTrackerAction::Restart {
+            tracker_key: tracker.clone(),
+        },
+    );
+    f.worker
+        .update_encounter_manual_tracker(&key, restart)
+        .unwrap();
+    let review = f
+        .worker
+        .encounter_turn_review(&key)
+        .unwrap()
+        .outgoing
+        .unwrap();
+    assert_eq!(review.boundary_key, boundary);
+    assert_eq!(
+        elapsed_rows(&review.reminders),
+        [(a.as_str(), "minute-complete", Some("Restarted"))]
+    );
+    let remove = tracker_request(
+        &f,
+        &key,
+        &a,
+        "elapsed-remove",
+        EncounterManualTrackerAction::Remove {
+            tracker_key: tracker,
+        },
+    );
+    f.worker
+        .update_encounter_manual_tracker(&key, remove.clone())
+        .unwrap();
+    f.worker
+        .update_encounter_manual_tracker(&key, remove)
+        .unwrap();
+    let review = f
+        .worker
+        .encounter_turn_review(&key)
+        .unwrap()
+        .outgoing
+        .unwrap();
+    assert_eq!(review.boundary_key, boundary);
+    assert_eq!(
+        elapsed_rows(&review.reminders),
+        [(a.as_str(), "minute-complete", Some("Removed"))]
+    );
+    f.worker.remove_encounter_participant(&key, &a).unwrap();
+    let review = f
+        .worker
+        .encounter_turn_review(&key)
+        .unwrap()
+        .outgoing
+        .unwrap();
+    assert_eq!(
+        elapsed_rows(&review.reminders),
+        [(a.as_str(), "minute-complete", Some("Participant removed"))]
+    );
+}
+#[test]
+fn elapsed_tracker_single_actor_start_and_end_are_independent_and_legacy_snapshots_have_no_trackers()
+ {
+    let (f, key, a, b) = fixture();
+    f.worker.remove_encounter_participant(&key, &b).unwrap();
+    for (name, event) in [
+        ("single-start", ConditionTurnEvent::Start),
+        ("single-end", ConditionTurnEvent::End),
+    ] {
+        add_transition_tracker(
+            &f,
+            &key,
+            &a,
+            name,
+            ConditionDurationView {
+                amount: 1,
+                unit: ConditionDurationUnit::Rounds,
+                remaining_rounds: None,
+                timing: Some(ConditionTimingView {
+                    participant_key: a.clone(),
+                    event,
+                }),
+            },
+        );
+    }
+    let legacy = atlas_local_state::SavedOutgoingTurn {
+        boundary_key: "legacy".into(),
+        snapshot: snapshot(&f, &key),
+        next_participant_key: Some(a.clone()),
+    };
+    let mut json = serde_json::to_value(legacy).unwrap();
+    for p in json["snapshot"]["participants"].as_array_mut().unwrap() {
+        p.as_object_mut().unwrap().remove("manual_trackers");
+    }
+    let decoded: atlas_local_state::SavedOutgoingTurn = serde_json::from_value(json).unwrap();
+    assert!(elapsed_rows(&super::timing::turn_review(&decoded.snapshot).reminders).is_empty());
+    next(&f, &key);
+    let review = f
+        .worker
+        .encounter_turn_review(&key)
+        .unwrap()
+        .outgoing
+        .unwrap();
+    assert_eq!(
+        elapsed_rows(&review.reminders),
+        [(a.as_str(), "single-start", None)]
+    );
+    next(&f, &key);
+    let review = f
+        .worker
+        .encounter_turn_review(&key)
+        .unwrap()
+        .outgoing
+        .unwrap();
+    assert_eq!(
+        elapsed_rows(&review.reminders),
+        [(a.as_str(), "single-end", None)]
+    );
+    next(&f, &key);
+    assert!(
+        f.worker
+            .encounter_turn_review(&key)
+            .unwrap()
+            .outgoing
+            .is_none()
+    );
+}

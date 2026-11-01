@@ -47,9 +47,11 @@ track conditions and spell resources, and roll dice.
 
 Select a participant and choose **Add tracker** under Trackers for reminders such
 as “Breath Weapon.” Enter a duration and choose whose turn counts it down, at its
-start or end. Trackers stay visible as **Ready** at zero; use **Restart**
+start or end. Trackers stay visible as **Elapsed** at zero; use **Restart**
 to begin the same countdown again. Editing the duration or timing restarts it;
-renaming preserves its progress.
+renaming preserves its progress. New trackers default to the start of their owner's
+turn. When a countdown finishes, turn reminders show it once for that boundary.
+You can remove it there or close the reminder and keep it.
 
 Timed conditions also accept rounds, minutes, hours or days. With turn timing
 configured, one minute counts down over ten normal rounds. For encounters using

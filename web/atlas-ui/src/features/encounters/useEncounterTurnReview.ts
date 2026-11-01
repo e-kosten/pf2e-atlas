@@ -9,7 +9,7 @@ import type {
   useEncounterMutations,
 } from "./useEncounterMutations";
 
-/** One notification for the turn just completed; closing has no gameplay effect. */
+/** One notification for the completed turn boundary; closing has no gameplay effect. */
 export function useEncounterTurnReview({
   encounterRef,
   mutations,
@@ -64,7 +64,8 @@ export function useEncounterTurnReview({
     if (
       pending.encounterRef !== encounterRef ||
       !outgoing ||
-      outgoing.participant_key !== pending.participantKey ||
+      outgoing.participant_key !==
+        (pending.participantKey ?? data.current_participant_key) ||
       outgoing.round_number !== pending.roundNumber ||
       outgoing.boundary_key === pending.previousBoundary ||
       (!outgoing.reminders.length && !outgoing.persistent_damage_groups.length)

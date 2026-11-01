@@ -249,6 +249,27 @@ pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurn
     let next_key = update.turn.participant_key.as_deref();
     let current_key = snapshot.encounter.current_turn_participant_key.as_deref();
     let mut reminders = Vec::new();
+    for change in &update.manual_trackers {
+        let Some(tracker) = change.value.as_ref().filter(|tracker| {
+            tracker_rounds(&tracker.progress, snapshot.encounter.round_duration_seconds) == 0
+        }) else {
+            continue;
+        };
+        let Some(owner) = snapshot
+            .participants
+            .iter()
+            .find(|participant| participant.participant_key == change.participant_key)
+        else {
+            continue;
+        };
+        reminders.push(EncounterTurnReminderView::TrackerElapsed {
+            participant_key: owner.participant_key.clone(),
+            participant_name: owner.display_name.clone(),
+            tracker_key: tracker.tracker_key.clone(),
+            tracker_name: tracker.name.clone(),
+            result: None,
+        });
+    }
     for participant in &snapshot.participants {
         let owner_ending =
             next_key.is_some() && current_key == Some(participant.participant_key.as_str());

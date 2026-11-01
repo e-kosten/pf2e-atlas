@@ -214,3 +214,46 @@ it("shows the supplied current Frightened value without guessing an unavailable 
   expect(screen.getByRole("heading", { name: "Frightened" })).toBeVisible();
   expect(screen.queryByRole("heading", { name: "Frightened 0" })).toBeNull();
 });
+
+it("offers optional tracker removal and keeps its confirmed result with focus", () => {
+  const { props, view } = setup();
+  const reminder = {
+    kind: "tracker_elapsed" as const,
+    participant_key: "latest",
+    participant_name: "Latest",
+    tracker_key: "countdown",
+    tracker_name: "Countdown",
+  };
+  const onRemoveTracker = vi.fn().mockResolvedValue(undefined);
+  const notice = (result?: string, pending = false) => (
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterTurnReview
+        {...props}
+        onRemoveTracker={onRemoveTracker}
+        pending={pending}
+        data={{
+          ...props.data,
+          outgoing: {
+            ...props.data.outgoing!,
+            reminders: [{ ...reminder, ...(result ? { result } : {}) }],
+          },
+        }}
+      />
+    </ConfigProvider>
+  );
+  view.rerender(notice());
+  expect(screen.getByRole("status")).toHaveTextContent("Elapsed");
+  const remove = screen.getByRole("button", {
+    name: "Remove tracker Countdown from Latest",
+  });
+  remove.focus();
+  fireEvent.click(remove);
+  expect(onRemoveTracker).toHaveBeenCalledExactlyOnceWith(reminder, "latest");
+  view.rerender(notice(undefined, true));
+  expect(remove).toBeDisabled();
+  view.rerender(notice("Removed"));
+  expect(screen.getByRole("status")).toHaveTextContent("Removed");
+  expect(screen.getByRole("status")).toHaveFocus();
+  expect(screen.queryByRole("button", { name: /Remove tracker/ })).toBeNull();
+  expect(screen.getByText("Countdown")).toBeVisible();
+});

@@ -163,10 +163,15 @@ remaining round projections use ceiling division. Changing that setting preserve
 elapsed-time progress, while round-unit countdowns continue to count turns.
 Local-state saves trackers, outgoing snapshots and condition progress in the guarded
 turn transaction. Request replay, reads and manual turn selection do not tick them.
-A tracker retains its entered duration and zero as Ready; editing its duration or
+A tracker retains its entered duration and zero as Elapsed; editing its duration or
 anchor restarts it, while renaming preserves progress. Missing anchors stay explicit
 and do not receive a guessed replacement. Creation-baseline reset restores baseline
 trackers, and overnight recovery advances their counters by eight hours.
+Only an actual positive-to-zero transition adds a tracker completion to the frozen
+turn-boundary reminder. The latest snapshot retains that notice after optional
+removal or restart, with its result projected from canonical state. Existing zero
+trackers do not notify on later boundaries. The first turn start can retain a
+completion notice without presenting end-of-turn damage groups or claims.
 
 Anchored non-round conditions retain their entered amount/unit plus separate saved
 remaining-second progress. Round conditions retain their existing remaining amount.

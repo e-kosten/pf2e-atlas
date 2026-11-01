@@ -74,6 +74,7 @@ pub(super) fn latest_review(
         .encounter
         .current_turn_participant_key
         .as_deref()
+        .or(saved.next_participant_key.as_deref())
     else {
         return Ok(None);
     };
@@ -90,7 +91,16 @@ pub(super) fn latest_review(
             AppServiceError::invalid_request("Outgoing participant snapshot unavailable")
         })?;
     let frozen = frozen_participant(&saved, live.unwrap_or(original))?;
-    let claims = store.boundary_claims(encounter, key, saved.snapshot.encounter.round_number)?;
+    let has_outgoing = saved
+        .snapshot
+        .encounter
+        .current_turn_participant_key
+        .is_some();
+    let claims = if has_outgoing {
+        store.boundary_claims(encounter, key, saved.snapshot.encounter.round_number)?
+    } else {
+        vec![]
+    };
     let damage_claim = super::persistent_damage::boundary_claim(
         &frozen,
         saved.snapshot.encounter.round_number,
@@ -117,12 +127,16 @@ pub(super) fn latest_review(
             }
         }
     }
-    let groups = super::persistent_damage::group_views(
-        &frozen,
-        live.unwrap_or(original),
-        None,
-        &super::rules::source_conditions::SourceConditions::unavailable(),
-    );
+    let groups = if has_outgoing {
+        super::persistent_damage::group_views(
+            &frozen,
+            live.unwrap_or(original),
+            None,
+            &super::rules::source_conditions::SourceConditions::unavailable(),
+        )
+    } else {
+        vec![]
+    };
     let recovery_recorded = claims.iter().any(|claim| {
         claim.kind == atlas_local_state::EncounterBoundaryKind::TurnEnd
             && claim.scope_key == "frightened"
@@ -132,7 +146,13 @@ pub(super) fn latest_review(
         .reminders
         .into_iter()
         .filter_map(|reminder| {
-            retain_reminder(reminder, &current.participants, &groups, recovery_recorded)
+            retain_reminder(
+                reminder,
+                &current.participants,
+                &groups,
+                recovery_recorded,
+                current.encounter.round_duration_seconds,
+            )
         })
         .filter(|reminder| match reminder {
             atlas_app_model::EncounterTurnReminderView::Resolved {
@@ -166,9 +186,44 @@ fn retain_reminder(
     current: &[EncounterParticipant],
     groups: &[atlas_app_model::PersistentDamageGroupView],
     recovery_recorded: bool,
+    round_seconds: i64,
 ) -> Option<atlas_app_model::EncounterTurnReminderView> {
     use atlas_app_model::EncounterTurnReminderView as R;
     let (participant_key, participant_name, condition_id, condition_name) = match &reminder {
+        R::TrackerElapsed {
+            participant_key,
+            participant_name,
+            tracker_key,
+            tracker_name,
+            ..
+        } => {
+            let participant = current
+                .iter()
+                .find(|p| p.participant_key == *participant_key);
+            let result = match participant {
+                None => Some("Participant removed".into()),
+                Some(participant) => match participant
+                    .manual_trackers
+                    .iter()
+                    .find(|t| t.tracker_key == *tracker_key)
+                {
+                    None => Some("Removed".into()),
+                    Some(tracker)
+                        if super::timing::tracker_rounds(&tracker.progress, round_seconds) > 0 =>
+                    {
+                        Some("Restarted".into())
+                    }
+                    Some(_) => None,
+                },
+            };
+            return Some(R::TrackerElapsed {
+                participant_key: participant_key.clone(),
+                participant_name: participant_name.clone(),
+                tracker_key: tracker_key.clone(),
+                tracker_name: tracker_name.clone(),
+                result,
+            });
+        }
         R::ConditionRecovery {
             participant_key,
             participant_name,

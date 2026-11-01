@@ -89,9 +89,9 @@ it("keeps a ready tracker visible and sends separate restart and removal actions
       onChange={onChange}
     />,
   );
-  expect(screen.getByRole("status")).toHaveTextContent("Ready");
+  expect(screen.getByRole("status")).toHaveTextContent("Elapsed");
   expect(screen.getByRole("status").parentElement).toHaveTextContent(
-    "1 minute · Ready",
+    "1 minute · Elapsed",
   );
   expect(screen.queryByText("End of Dragon’s turn")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Restart Breath ready" }));

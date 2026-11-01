@@ -772,6 +772,21 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
               throw new Error("Recovery result unavailable.");
             return receipt;
           }}
+          onRemoveTracker={(reminder) => {
+            const participant = encounter.data?.participants.find(
+              (p) => p.participant_key === reminder.participant_key,
+            );
+            if (!participant) return Promise.resolve();
+            return turnReview.execute({
+              kind: "manual-tracker",
+              request: {
+                participant_key: reminder.participant_key,
+                expected_encounter_revision: turnReview.data!.expected_revision,
+                expected_participant_revision: participant.revision,
+                action: { kind: "remove", tracker_key: reminder.tracker_key },
+              },
+            });
+          }}
           onRemove={(reminder) =>
             turnReview.execute({
               kind: "remove-condition",

@@ -1039,6 +1039,7 @@ async function atlasFetchEncounter<T>(
     };
   };
   const reminder = (value: unknown) => {
+    if (isRecord(value) && value.kind === "tracker_elapsed") return value;
     if (isRecord(value) && value.kind === "condition_recovery") {
       if (!Array.isArray(value.condition_ids))
         throw new AtlasApiError(200, "Invalid condition recovery reminder");

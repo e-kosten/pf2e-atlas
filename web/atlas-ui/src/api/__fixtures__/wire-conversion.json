@@ -194,6 +194,21 @@
             "duration": {
               "amount": 1,
               "timing": {
+                "event": "start",
+                "participant_key": "fixture-manual"
+              },
+              "unit": "rounds"
+            },
+            "name": "Countdown",
+            "remaining_rounds": 0,
+            "timing_available": true,
+            "timing_label": "Start of Kyra’s turn",
+            "tracker_key": "tracker_wire-completion"
+          },
+          {
+            "duration": {
+              "amount": 1,
+              "timing": {
                 "event": "end",
                 "participant_key": "fixture-manual"
               },
@@ -403,7 +418,7 @@
             "traits": []
           }
         },
-        "revision": 3,
+        "revision": 5,
         "side": "pc",
         "status": "manual",
         "temporary_hp": 0,
@@ -770,7 +785,7 @@
         "variant_origin": "explicit"
       }
     ],
-    "revision": 8
+    "revision": 9
   },
   "flat_check_serialization_control": {
     "dc": 11,
@@ -1361,7 +1376,7 @@
     "can_apply": true,
     "changes": ["End the current turn and clear turn reminders."],
     "encounter_key": "fixture-encounter",
-    "encounter_revision": 8,
+    "encounter_revision": 9,
     "participants": [
       {
         "changes": ["Expire Slowed", "Breath ready ready"],
@@ -1445,5 +1460,60 @@
     ],
     "search_profile": null,
     "trait_key": "trait:fire"
+  },
+  "turn_review": {
+    "current_participant_key": "fixture-manual",
+    "encounter_key": "fixture-encounter",
+    "expected_revision": 9,
+    "next_participant_key": "fixture-zero",
+    "next_turn_unavailable_reason": null,
+    "outgoing": {
+      "boundary_key": "fixture-turn",
+      "damage_applied": false,
+      "participant_key": "fixture-manual",
+      "participant_name": "Kyra",
+      "participant_removed": false,
+      "persistent_damage_groups": [],
+      "recovered_episode_ids": [],
+      "reminders": [
+        {
+          "kind": "tracker_elapsed",
+          "participant_key": "fixture-manual",
+          "participant_name": "Kyra",
+          "tracker_key": "tracker_wire-completion",
+          "tracker_name": "Countdown"
+        }
+      ],
+      "round_number": 1
+    },
+    "reminders": []
+  },
+  "turn_review_removed": {
+    "current_participant_key": "fixture-manual",
+    "encounter_key": "fixture-encounter",
+    "expected_revision": 10,
+    "next_participant_key": "fixture-zero",
+    "next_turn_unavailable_reason": null,
+    "outgoing": {
+      "boundary_key": "fixture-turn",
+      "damage_applied": false,
+      "participant_key": "fixture-manual",
+      "participant_name": "Kyra",
+      "participant_removed": false,
+      "persistent_damage_groups": [],
+      "recovered_episode_ids": [],
+      "reminders": [
+        {
+          "kind": "tracker_elapsed",
+          "participant_key": "fixture-manual",
+          "participant_name": "Kyra",
+          "result": "Removed",
+          "tracker_key": "tracker_wire-completion",
+          "tracker_name": "Countdown"
+        }
+      ],
+      "round_number": 1
+    },
+    "reminders": []
   }
 }

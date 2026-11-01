@@ -211,7 +211,7 @@ export function EncounterManualTrackers({
                 : ""}
               <span role="status">
                 {tracker.remaining_rounds === 0n
-                  ? "Ready"
+                  ? "Elapsed"
                   : `${tracker.remaining_rounds} ${tracker.remaining_rounds === 1n ? "round" : "rounds"} remaining`}
               </span>
             </span>
