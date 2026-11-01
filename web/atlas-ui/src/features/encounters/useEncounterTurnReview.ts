@@ -34,7 +34,7 @@ export function useEncounterTurnReview({
   const [preparing, setPreparing] = useState(false);
   const [open, setOpen] = useState(false);
   const [event, setEvent] = useState<ConditionTurnEvent>("end");
-  const nextStart = useRef<string | null>(null);
+  const [nextStart, setNextStart] = useState<string | null>(null);
   const [boundaryKey, setBoundaryKey] = useState<string>();
   const [contextKey, setContextKey] = useState(0);
   const [readError, setReadError] = useState<Error | null>(null);
@@ -122,8 +122,9 @@ export function useEncounterTurnReview({
     await Promise.allSettled(reads);
     if (!active.current || unseen.current !== pending) return;
     unseen.current = null;
-    nextStart.current =
-      first.event === "end" && meaningful(incoming) ? incoming!.boundary_key : null;
+    setNextStart(
+      first.event === "end" && meaningful(incoming) ? incoming!.boundary_key : null,
+    );
     onPresent?.(first.participant_key, first.event);
     setContextKey((value) => value + 1);
     setBoundaryKey(first.boundary_key);
@@ -154,7 +155,7 @@ export function useEncounterTurnReview({
     if (mutations.pending || advancing.current) return;
     advancing.current = true;
     unseen.current = null;
-    nextStart.current = null;
+    setNextStart(null);
     setPreparing(true);
     setOpen(false);
     setBoundaryKey(undefined);
@@ -212,7 +213,7 @@ export function useEncounterTurnReview({
   return {
     open,
     event,
-    hasNext: event === "end" && nextStart.current !== null,
+    hasNext: event === "end" && nextStart !== null,
     preparing,
     contextKey,
     boundaryKey,
@@ -228,12 +229,8 @@ export function useEncounterTurnReview({
       if (!open) return;
       unseen.current = null;
       const incoming = review.data?.incoming;
-      if (
-        event === "end" &&
-        nextStart.current &&
-        incoming?.boundary_key === nextStart.current
-      ) {
-        nextStart.current = null;
+      if (event === "end" && nextStart && incoming?.boundary_key === nextStart) {
+        setNextStart(null);
         onPresent?.(incoming.participant_key, incoming.event);
         setEvent("start");
         setBoundaryKey(incoming.boundary_key);
@@ -242,7 +239,7 @@ export function useEncounterTurnReview({
         setOutcomes([]);
         return;
       }
-      nextStart.current = null;
+      setNextStart(null);
       onFinish?.();
       setOpen(false);
       setBoundaryKey(undefined);
