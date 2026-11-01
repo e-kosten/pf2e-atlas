@@ -19,7 +19,10 @@ mod reuse_reader;
 pub use passage_layouts::SourcePassageLayout;
 #[cfg(any(test, feature = "test-support"))]
 pub use passage_layouts::read_reusable_passage_layouts;
-pub use reuse_reader::{ReferenceReuseReader, ReusableSourceIdentity, visit_persisted_inputs};
+pub use reuse_reader::{
+    ReferenceReuseReader, ReusableSourceIdentity, ReusedSourceRecord, SOURCE_REUSE_BATCH_LIMIT,
+    SourceReuseRequest, visit_persisted_inputs,
+};
 #[cfg(any(test, feature = "test-support"))]
 mod historical_core_projection;
 mod historical_locations;

@@ -100,7 +100,7 @@ failures and detailed reports remain ingest/developer concerns.
 `BuildArtifactOptions` composes source paths, locale, selected profile configurations,
 batching/reuse and output paths. An empty profile collection builds lexical content.
 The product path captures and hashes every consumed source byte, builds a compact
-complete reference resolver, and prepares one checked root at a time. Raw envelope
+complete reference resolver, and prepares checked roots through bounded batches. Raw envelope
 collision evidence from excluded roots remains in that resolver; unreadable JSON
 never supplies guessed identity. Traits use the same complete resolver.
 
@@ -113,9 +113,22 @@ streams can authorize publication or removals. Index owns the codec and the sing
 streaming writer; frames carry neutral metadata rather than SQL or internal IDs.
 Developer source inspection keeps its separate rich diagnostic loading lifetime.
 Developer diagnostics report observed selection/reuse calls, frame counts and
-maximum encoded/decoded frame byte sizes. The preparation API's one-record window
-is a structural phase bound, not an observed process peak. Publication's comparison
-may simultaneously hold a new frame and its prior retained record; native
+maximum encoded/decoded frame byte sizes. Production admission reads retained
+records in batches of at most 32 source files; semantic preparation reads layouts
+in batches of at most 32 active prepared records after collision and alias
+filtering. The public owned reuse API caps requests at 128 and rejects oversized
+batches before compatibility checks or I/O; empty and no-output requests open no
+session. Repeated keys retain request order and independent output flags.
+Each batch authenticates the actual workspace, reference revision and complete
+context in one snapshot, returns checked owned values, then closes the session
+before source processing, tokenization or inference. Record-only reads do not
+inspect layouts; layout-only reads do not decode retained source bodies.
+Diagnostics count source and layout requests/batches, aggregate live source-buffer
+bytes and simultaneously owned raw/retained or prepared/layout payloads at each
+phase's batch boundary. These separate phase observations exclude compact sets
+and one record's processing temporaries; individual maximum frame sizes are not
+added into a claimed live-byte total. The structural batch bounds are not an
+observed process peak. Publication's comparison may simultaneously hold a new frame and its prior retained record; native
 execution and final process RSS are measured separately.
 
 Compact collections still grow with corpus size: captured path/hash manifests,

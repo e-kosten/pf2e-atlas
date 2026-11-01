@@ -91,6 +91,9 @@ fn bounded_incremental_stream_matches_fresh_after_dependency_and_membership_chan
         "ambiguous name",
         "rename ambiguity",
         "locale",
+        "renamed path",
+        "changed key",
+        "changed kind",
     ] {
         match case {
             "body" => fixture.document(
@@ -121,6 +124,32 @@ fn bounded_incremental_stream_matches_fresh_after_dependency_and_membership_chan
                 "<p>Another target.</p>",
             ),
             "locale" => fixture.locale("Changed localized text"),
+            "renamed path" => fs::rename(
+                fixture.0.path().join("packs/items/b.json"),
+                fixture.0.path().join("packs/items/renamed.json"),
+            )
+            .unwrap(),
+            "changed key" => fixture.document(
+                "renamed",
+                "ffffffffffffffff",
+                "Target",
+                "<p>New identity.</p>",
+            ),
+            "changed kind" => {
+                fs::write(fixture.0.path().join("module.json"),r#"{"packs":[{"name":"items","label":"Items","type":"JournalEntry","path":"packs/items"}]}"#).unwrap();
+                for (path, id) in [
+                    ("a", "aaaaaaaaaaaaaaaa"),
+                    ("renamed", "ffffffffffffffff"),
+                    ("c", "cccccccccccccccc"),
+                ] {
+                    fs::write(
+                        fixture.0.path().join(format!("packs/items/{path}.json")),
+                        serde_json::json!({"_id":id,"name":"Changed document kind","pages":[]})
+                            .to_string(),
+                    )
+                    .unwrap();
+                }
+            }
             _ => {}
         }
         fixture.build("incremental");
@@ -364,4 +393,267 @@ fn ordinary_same_source_build_rejects_valid_but_unattested_retained_payload_chan
                 .is_none()
         );
     }
+}
+
+fn uniform_source(count: usize) -> SourceFixture {
+    let fixture = SourceFixture::new();
+    for name in ["a", "b"] {
+        fs::remove_file(fixture.0.path().join(format!("packs/items/{name}.json"))).unwrap();
+    }
+    for ordinal in 0..count {
+        fixture.document(
+            &format!("root{ordinal:03}"),
+            &format!("{ordinal:016x}"),
+            "Independent",
+            "<p>Same bounded source body.</p>",
+        );
+    }
+    fixture
+}
+
+#[test]
+fn production_admission_batches_count_real_sessions_and_bound_simultaneous_payloads() {
+    for count in [1usize, 32, 129] {
+        let fixture = uniform_source(count);
+        fixture.build("prior");
+        let options = fixture.options("prior");
+        let workspace = atlas_storage::Workspace::at(&options.output_path).unwrap();
+        let reuse = ReferenceReuseReader::new(
+            &workspace,
+            atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
+        )
+        .unwrap();
+        for subset in [false, true] {
+            if subset {
+                for ordinal in (1..count).step_by(2) {
+                    fixture.document(
+                        &format!("root{ordinal:03}"),
+                        &format!("{ordinal:016x}"),
+                        "Independent",
+                        "<p>Changed source body.</p>",
+                    );
+                }
+            }
+            let (prepared, metrics) =
+                atlas_storage::diagnostics::capture_sql_work(|| prepare(&options, &reuse)).unwrap();
+            let prepared = prepared.unwrap();
+            let expected_records = if subset { count.div_ceil(2) } else { count };
+            let batches = count.div_ceil(PREPARATION_REUSE_BATCH);
+            assert_eq!(prepared.work.reusable_record_read_calls, expected_records);
+            assert_eq!(prepared.work.reusable_record_read_batches, batches);
+            assert_eq!(prepared.work.reusable_layout_read_calls, 0);
+            // Identity enumeration opens one snapshot per128 rows, then one empty probe.
+            assert_eq!(
+                metrics.workspace_connections as usize,
+                count.div_ceil(128) + 1 + batches
+            );
+            assert_eq!(prepared.source_report.reused_admissions, expected_records);
+            assert_eq!(prepared.spool.records.len(), count);
+            assert_eq!(prepared.work.selection_calls, count);
+            let overlap = prepared.work.largest_admission_overlap;
+            assert_eq!(overlap.raw_sources, count.min(PREPARATION_REUSE_BATCH));
+            assert_eq!(
+                overlap.retained_records,
+                expected_records.min(if subset { 16 } else { 32 })
+            );
+            assert_eq!(overlap.prepared_records, 0);
+            assert_eq!(overlap.layout_roots, 0);
+            assert!(
+                prepared.work.largest_admission_batch_source_bytes
+                    <= prepared.work.largest_source_bytes * PREPARATION_REUSE_BATCH
+            );
+            eprintln!(
+                "admission_batches records={count} subset={subset} reads={expected_records} batches={batches} workspace_connections={} overlap={overlap:?}",
+                metrics.workspace_connections
+            );
+        }
+    }
+}
+
+fn tokenizer_only_options(fixture: &SourceFixture) -> BuildArtifactOptions {
+    let shared = std::path::PathBuf::from(
+        std::env::var_os("ATLAS_TEST_MODEL_CACHE").expect("set pinned tokenizer cache"),
+    );
+    // Validate the consumed asset through its normal owner before copying it.
+    TextEmbeddingTokenizer::load_baseline(&shared).unwrap();
+    let private = fixture.0.path().join("tokenizer-only");
+    let source = atlas_embedding::baseline_tokenizer_cache_file(&shared);
+    let target = atlas_embedding::baseline_tokenizer_cache_file(&private);
+    fs::create_dir_all(target.local_path.parent().unwrap()).unwrap();
+    fs::copy(source.local_path, &target.local_path).unwrap();
+    let mut options = fixture.options("native-structure");
+    options.search_profiles = vec![atlas_embedding::EmbeddingRuntimeConfig::new(
+        atlas_embedding::EmbeddingModelId::BgeBaseEnV15,
+        private,
+    )];
+    assert!(
+        !options.search_profiles[0]
+            .model_dir()
+            .join("onnx/model.onnx")
+            .exists()
+    );
+    options
+}
+
+fn prepared_frames(prepared: &PreparedSourceBuild) -> Vec<String> {
+    let mut output = Vec::new();
+    prepared
+        .spool
+        .records
+        .visit(&mut |frame| {
+            output.push(serde_json::to_string(&frame)?);
+            Ok(())
+        })
+        .unwrap();
+    output
+}
+
+#[test]
+#[ignore = "requires pinned BGE tokenizer only; private structural publication, no weights/inference"]
+fn production_layout_batches_follow_active_phase_preserve_flags_and_bound_sessions() {
+    for count in [1usize, 32, 129] {
+        let fixture = uniform_source(count);
+        let mut options = tokenizer_only_options(&fixture);
+        crate::build::publish_fixture_without_inference(&options).unwrap();
+        let workspace = atlas_storage::Workspace::at(&options.output_path).unwrap();
+        let reuse = ReferenceReuseReader::new(
+            &workspace,
+            atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
+        )
+        .unwrap();
+        let mut expected = None;
+        let mut expected_native = None;
+        for numerical in [true, false] {
+            for layouts in [true, false] {
+                options.reuse_embeddings = numerical;
+                options.reuse_passage_layouts = layouts;
+                let (prepared, metrics) =
+                    atlas_storage::diagnostics::capture_sql_work(|| prepare(&options, &reuse))
+                        .unwrap();
+                let prepared = prepared.unwrap();
+                let batches = count.div_ceil(PREPARATION_REUSE_BATCH);
+                assert_eq!(prepared.work.reusable_record_read_calls, count);
+                assert_eq!(prepared.work.reusable_record_read_batches, batches);
+                assert_eq!(
+                    prepared.work.reusable_layout_read_calls,
+                    if layouts { count } else { 0 }
+                );
+                assert_eq!(
+                    prepared.work.reusable_layout_read_batches,
+                    if layouts { batches } else { 0 }
+                );
+                assert_eq!(
+                    metrics.workspace_connections as usize,
+                    count.div_ceil(128) + 1 + batches + if layouts { batches } else { 0 }
+                );
+                assert_eq!(prepared.source_report.reused_admissions, count);
+                assert_eq!(prepared.spool.records.len(), count);
+                assert_eq!(prepared.reused_sections > 0, layouts);
+                assert!(prepared.work.largest_semantic_overlap.raw_sources <= 32);
+                assert!(prepared.work.largest_semantic_overlap.retained_records <= 32);
+                assert_eq!(
+                    prepared.work.largest_semantic_overlap.prepared_records,
+                    count.min(32)
+                );
+                assert_eq!(
+                    prepared.work.largest_semantic_overlap.layout_roots,
+                    if layouts { count.min(32) } else { 0 }
+                );
+                assert!(prepared.work.largest_semantic_overlap.total() <= 64);
+                let frames = prepared_frames(&prepared);
+                if let Some(expected) = &expected {
+                    assert_eq!(&frames, expected);
+                } else {
+                    expected = Some(frames);
+                }
+                let mut native = Vec::new();
+                let mut occurrences = Vec::new();
+                prepared
+                    .native_inputs
+                    .visit(&mut |input| {
+                        native.push(serde_json::to_string(&input)?);
+                        Ok(())
+                    })
+                    .unwrap();
+                prepared
+                    .occurrences
+                    .visit(&mut |occurrence| {
+                        occurrences.push(serde_json::to_string(&occurrence)?);
+                        Ok(())
+                    })
+                    .unwrap();
+                let actual_native = (native, occurrences);
+                if let Some(expected) = &expected_native {
+                    assert_eq!(&actual_native, expected);
+                } else {
+                    expected_native = Some(actual_native);
+                }
+                eprintln!(
+                    "layout_batches records={count} numerical={numerical} layouts={layouts} batches={batches} workspace_connections={} overlap={:?}",
+                    metrics.workspace_connections, prepared.work.largest_semantic_overlap
+                );
+            }
+        }
+    }
+}
+
+#[test]
+#[ignore = "requires pinned BGE tokenizer only; private structural publication, no weights/inference"]
+fn excluded_changed_renamed_duplicates_do_not_read_corrupt_layouts_but_active_roots_do() {
+    let fixture = uniform_source(3);
+    let mut options = tokenizer_only_options(&fixture);
+    crate::build::publish_fixture_without_inference(&options).unwrap();
+    let c = Connection::open(&options.output_path).unwrap();
+    assert_eq!(c.execute("UPDATE semantic_locations SET section_id=NULL,chunk_ordinal=NULL,chunk_start=NULL,chunk_end=NULL WHERE location_id=(SELECT min(su.location_id) FROM semantic_units su JOIN records r USING(record_id) WHERE r.key='items:0000000000000001' AND su.unit_kind='passage')", []).unwrap(),1);
+    fixture.document(
+        "root001",
+        "0000000000000001",
+        "Changed",
+        "<p>Changed description.</p>",
+    );
+    fs::rename(
+        fixture.0.path().join("packs/items/root001.json"),
+        fixture.0.path().join("packs/items/renamed.json"),
+    )
+    .unwrap();
+    fixture.document(
+        "duplicate",
+        "0000000000000001",
+        "Duplicate",
+        "<p>Collision evidence.</p>",
+    );
+    let prepared = prepare_fixture(&options).unwrap();
+    assert_eq!(
+        prepared
+            .source_report
+            .identity_unavailable
+            .get("DuplicateId"),
+        Some(&2)
+    );
+    assert_eq!(prepared.spool.records.len(), 2);
+    assert_eq!(prepared.work.reusable_layout_read_calls, 2);
+    assert!(prepared.reused_sections > 0);
+    assert!(
+        prepared_frames(&prepared)
+            .iter()
+            .all(|frame| !frame.contains("items:0000000000000001"))
+    );
+    fs::remove_file(fixture.0.path().join("packs/items/duplicate.json")).unwrap();
+    for numerical in [true, false] {
+        options.reuse_embeddings = numerical;
+        let error = prepare_fixture(&options)
+            .err()
+            .expect("active corrupt layout must fail");
+        assert!(
+            error.to_string().contains("canonical section ownership"),
+            "{error}"
+        );
+    }
+    options.reuse_passage_layouts = false;
+    assert_eq!(prepare_fixture(&options).unwrap().spool.records.len(), 3);
+    options.reuse_passage_layouts = true;
+    options.search_profiles.clear();
+    let no_profiles = prepare_fixture(&options).unwrap();
+    assert_eq!(no_profiles.work.reusable_layout_read_calls, 0);
+    assert_eq!(no_profiles.spool.records.len(), 3);
 }

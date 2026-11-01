@@ -208,10 +208,29 @@ fn published_layout_reuse_full_corpus_benchmark() {
     );
     let changed_key = changed[0].key.clone();
     drop(changed);
-    // Count layouts record by record outside the measured preparation region.
-    let layout_count: usize = identities
+    // Count layouts in bounded owned batches outside measured preparation.
+    let keys = identities
         .values()
-        .map(|record| reuse.layouts(&record.key).unwrap().len())
+        .map(|record| &record.key)
+        .collect::<Vec<_>>();
+    let layout_count: usize = keys
+        .chunks(32)
+        .map(|keys| {
+            let requests = keys
+                .iter()
+                .map(|key| atlas_index::SourceReuseRequest {
+                    key,
+                    record: false,
+                    layouts: true,
+                })
+                .collect::<Vec<_>>();
+            reuse
+                .read_batch(&requests)
+                .unwrap()
+                .iter()
+                .map(|r| r.layouts.len())
+                .sum::<usize>()
+        })
         .sum();
     drop(identities);
     let fresh_directory = tempfile::tempdir().unwrap();
