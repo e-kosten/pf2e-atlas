@@ -31,6 +31,22 @@ chunks reference that input; retain their separate record/location identities.
 Derived trait centroids remain separate. There is one permanent native authority,
 without a second full occurrence-vector projection or compulsory value versions.
 
+```mermaid
+erDiagram
+    EMBEDDING_MODEL ||--o{ EMBEDDING_INPUT : identifies
+    RECORD ||--o{ SEMANTIC_UNIT : contains
+    SEMANTIC_LOCATION ||--o{ SEMANTIC_UNIT : locates
+    EMBEDDING_INPUT ||--o{ SEMANTIC_UNIT : supplies
+    TRAIT_DEFINITION ||--o{ TRAIT_SEED_CHUNK : orders
+    EMBEDDING_INPUT ||--o{ TRAIT_SEED_CHUNK : supplies
+    EMBEDDING_INPUT ||--o| NATIVE_VECTOR : owns
+    EMBEDDING_INPUT ||--o| PENDING_VALUE : caches
+```
+
+These are logical relationships. A registry input can have a published vector
+and a pending replacement; only the published value is searchable. Repeated
+occurrences and trait chunks retain separate attribution while sharing that value.
+
 A forced result can differ for the same input. Bind the selected checksum as well
 as model/input/token identity. Keep new or forced bytes in owned attempt staging,
 then replace the active value only inside atomic publication. Every new-generation

@@ -279,6 +279,7 @@ pub(crate) fn search_units(
     input: &dyn crate::PublicationSource,
     ids: &BTreeMap<RecordKey, i64>,
     values: &dyn crate::NativeValueSource,
+    native: &crate::native_values::NativeBindings<'_>,
 ) -> Result<(), IndexError> {
     lexical_stream(c, ids, &mut |visitor| input.lexical(visitor))?;
     let old_profiles = c
@@ -307,10 +308,11 @@ pub(crate) fn search_units(
         }
     }
     input.semantic(&mut |unit| {
-        let model = input.context().search_profile(&unit.profile_id)?;
         // Values were installed once before reconciliation. Occurrences own only
         // attribution and a stable input handle, so this path never fetches BLOBs.
-        let native = crate::native_values::selected_input(c, values, model, &unit.input)?;
+        let native = native
+            .profile(&unit.profile_id)?
+            .selected_input(values, &unit.input)?;
         let id = crate::writer::product_id(ids, &unit.record)?;
         let location = crate::semantic_locations::location_id(c, id, unit)?;
         let previous = if old_profiles.get(unit.profile_id.as_str())

@@ -186,6 +186,9 @@ fn observed_preparation_counts_and_frame_sizes_are_separate_from_structural_wind
     let fixture = SourceFixture::new();
     let small = prepare_fixture(&fixture.options("small-counters")).unwrap();
     assert_eq!(small.work.selection_calls, 2);
+    assert_eq!(small.work.admitted_record_reads, 2);
+    assert_eq!(small.work.main_fresh_preparations, 2);
+    assert_eq!(small.work.alias_journal_reads, 0);
     assert_eq!(small.work.reusable_record_read_calls, 0);
     assert!(small.work.largest_source_bytes > 0);
     assert_eq!(
@@ -499,6 +502,10 @@ fn production_layout_batches_follow_active_phase_preserve_flags_and_bound_sessio
                 .unwrap();
                 let prepared = prepared.unwrap();
                 let batches = count.div_ceil(PREPARATION_REUSE_BATCH);
+                assert_eq!(prepared.work.admitted_record_reads, count);
+                assert_eq!(prepared.work.largest_admitted_batch, count.min(32));
+                assert!(prepared.work.largest_content_overlap.total() <= 32);
+                assert_eq!(prepared.work.alias_journal_reads, 0);
                 assert_eq!(prepared.work.reusable_record_read_calls, count);
                 assert_eq!(prepared.work.reusable_record_read_batches, batches);
                 assert_eq!(
@@ -722,4 +729,199 @@ fn text_framed_snapshots_still_require_checked_contract_grammar_depth_and_root_i
             .unwrap();
         assert!(checked);
     }
+}
+
+#[test]
+fn indexed_admission_preserves_many_interleaved_pack_bindings_with_bounded_handles() {
+    #[cfg(unix)]
+    const CHILD: &str = "ATLAS_TEST_INDEXED_ADMISSION_FD_CHILD";
+    const COMPLETE: &str = "indexed admission: 257 declarations preserved under bounded handles";
+    #[cfg(unix)]
+    if std::env::var_os(CHILD).is_none() {
+        // Constrain only this child, not the concurrent Rust test process. The
+        // previous eager per-pack streams exceed this budget before preparation.
+        let output = std::process::Command::new("sh")
+            .args(["-c", "ulimit -n 64 && exec \"$1\" --exact product_preparation::tests::indexed_admission_preserves_many_interleaved_pack_bindings_with_bounded_handles --nocapture", "atlas-indexed-admission"])
+            .arg(std::env::current_exe().unwrap()).env(CHILD, "1").output().unwrap();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            output.status.success(),
+            "{}\n{}\n{stderr}",
+            output.status,
+            String::from_utf8_lossy(&output.stdout)
+        );
+        assert!(stderr.lines().any(|line| line == COMPLETE), "{stderr}");
+        return;
+    }
+    let fixture = SourceFixture::new();
+    let mut paths = BTreeMap::new();
+    paths.insert(
+        "packs/items",
+        vec![
+            ("a.json", "aaaaaaaaaaaaaaaa"),
+            ("b.json", "bbbbbbbbbbbbbbbb"),
+        ],
+    );
+    for (directory, file, id) in [
+        ("packs/alpha", "c.json", "cccccccccccccccc"),
+        ("packs/zeta", "d.json", "dddddddddddddddd"),
+    ] {
+        fs::create_dir_all(fixture.0.path().join(directory)).unwrap();
+        fs::write(fixture.0.path().join(directory).join(file), serde_json::json!({"_id":id,"name":"Independent","type":"effect","system":{"description":{"value":"<p>Bounded source.</p>"}}}).to_string()).unwrap();
+        paths.insert(directory, vec![(file, id)]);
+    }
+    let mut packs = Vec::new();
+    let mut expected = Vec::new();
+    for ordinal in (0..257).rev() {
+        let path = ["packs/zeta", "packs/items", "packs/alpha"][ordinal % 3];
+        let name = format!("binding{ordinal:03}");
+        let label = format!("Declared label {ordinal}");
+        packs.push(serde_json::json!({"name":name,"label":label,"type":"Item","path":path}));
+        for (file, id) in &paths[path] {
+            expected.push((
+                name.clone(),
+                format!("{path}/{file}"),
+                format!("{name}:{id}"),
+                label.clone(),
+            ));
+        }
+    }
+    fs::write(
+        fixture.0.path().join("module.json"),
+        serde_json::json!({"packs":packs}).to_string(),
+    )
+    .unwrap();
+    let prepared = prepare_fixture(&fixture.options("many-packs")).unwrap();
+    let mut actual = Vec::new();
+    prepared
+        .spool
+        .records
+        .visit(&mut |frame| {
+            actual.push((
+                frame.pack,
+                frame.source_path,
+                frame.selection.root.to_string(),
+                frame.selection.pack_label,
+            ));
+            Ok(())
+        })
+        .unwrap();
+    assert_eq!(actual, expected);
+    assert_eq!(prepared.spool.packs.len(), 257);
+    assert_eq!(prepared.work.captured_document_reads, 4);
+    assert!(actual.len() > prepared.fingerprint.file_count);
+    assert_eq!(prepared.work.admitted_record_reads, actual.len());
+    assert_eq!(prepared.work.selection_calls, actual.len());
+    assert_eq!(prepared.work.main_fresh_preparations, actual.len());
+    assert_eq!(prepared.work.alias_journal_reads, 0);
+    assert_eq!(prepared.work.largest_admitted_batch, 32);
+    assert!(prepared.work.largest_content_overlap.total() <= 32);
+    assert!(prepared.work.largest_semantic_overlap.total() <= 32);
+    assert_eq!(prepared.work.reusable_layout_read_calls, 0);
+    assert_eq!(prepared.work.largest_admission_overlap.raw_sources, 4);
+    drop(prepared);
+    fixture.build("many-packs");
+    let published = Connection::open(fixture.options("many-packs").output_path)
+        .unwrap()
+        .prepare("SELECT key FROM records ORDER BY record_id")
+        .unwrap()
+        .query_map([], |row| row.get::<_, String>(0))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    assert_eq!(
+        published,
+        expected
+            .iter()
+            .map(|(_, _, key, _)| key.clone())
+            .collect::<Vec<_>>()
+    );
+    eprintln!("{COMPLETE}");
+}
+
+#[test]
+fn alias_journal_barrier_filters_duplicates_and_keeps_final_preparation_counts_and_dependencies() {
+    let fixture = SourceFixture::new();
+    fs::create_dir_all(fixture.0.path().join("packs/journals")).unwrap();
+    fs::write(fixture.0.path().join("module.json"),serde_json::json!({"packs":[
+        {"name":"journals","label":"Journals first","type":"JournalEntry","path":"packs/journals"},
+        {"name":"items","label":"Items","type":"Item","path":"packs/items"}
+    ]}).to_string()).unwrap();
+    let journal = |file: &str, id: &str, alias: &str| {
+        let body = format!(
+            "<table><tr><td>{alias}</td><td>@UUID[Compendium.pf2e.items.Item.bbbbbbbbbbbbbbbb]</td></tr></table>"
+        );
+        fs::write(fixture.0.path().join("packs/journals").join(file),serde_json::json!({
+            "_id":id,"name":"Remaster Changes","pages":[{"_id":"ffffffffffffffff","name":"Changes","type":"text","text":{"format":1,"content":body}}]
+        }).to_string()).unwrap();
+    };
+    journal("one.json", "cccccccccccccccc", "First old name");
+    journal("two.json", "dddddddddddddddd", "Second old name");
+    journal("duplicate-a.json", "eeeeeeeeeeeeeeee", "Excluded old name");
+    journal("duplicate-b.json", "eeeeeeeeeeeeeeee", "Excluded old name");
+    let options = fixture.options("journal-barrier");
+    let fresh = prepare_fixture(&options).unwrap();
+    assert_eq!(fresh.work.admitted_record_reads, 6);
+    assert_eq!(fresh.work.alias_journal_reads, 2);
+    assert_eq!(fresh.work.alias_journal_fresh_preparations, 2);
+    assert_eq!(fresh.work.alias_journal_reused_preparations, 0);
+    assert_eq!(fresh.work.main_fresh_preparations, 4);
+    assert_eq!(fresh.work.selection_calls, 4);
+    assert_eq!(
+        fresh.source_report.identity_unavailable.get("DuplicateId"),
+        Some(&2)
+    );
+    let mut aliases = Vec::new();
+    fresh
+        .spool
+        .aliases
+        .visit(&mut |alias| {
+            aliases.push((alias.record.to_string(), alias.alias));
+            Ok(())
+        })
+        .unwrap();
+    assert_eq!(
+        aliases,
+        [
+            (
+                "items:bbbbbbbbbbbbbbbb".to_owned(),
+                "First old name".to_owned()
+            ),
+            (
+                "items:bbbbbbbbbbbbbbbb".to_owned(),
+                "Second old name".to_owned()
+            )
+        ]
+    );
+    let expected = prepared_frames(&fresh);
+    fixture.build("journal-barrier");
+    let cached = prepare_fixture(&options).unwrap();
+    assert_eq!(prepared_frames(&cached), expected);
+    assert_eq!(cached.source_report.reused_preparations, 4);
+    assert_eq!(cached.work.main_fresh_preparations, 0);
+    assert_eq!(cached.work.alias_journal_fresh_preparations, 0);
+    assert_eq!(cached.work.alias_journal_reused_preparations, 2);
+    assert_eq!(
+        cached.work.selection_calls, 4,
+        "journal prepass does not repeat selection"
+    );
+    // The UUID remains valid, but its rendered target name changes. Both the
+    // prepass and final slice must reject stale retained journal content.
+    fixture.document(
+        "b",
+        "bbbbbbbbbbbbbbbb",
+        "Renamed target",
+        "<p>Changed target.</p>",
+    );
+    let changed = prepare_fixture(&options).unwrap();
+    let independently_fresh = prepare_fixture(&fixture.options("journal-fresh")).unwrap();
+    assert_eq!(
+        prepared_frames(&changed),
+        prepared_frames(&independently_fresh)
+    );
+    assert_eq!(changed.work.alias_journal_fresh_preparations, 2);
+    assert_eq!(changed.work.alias_journal_reused_preparations, 0);
+    assert_eq!(changed.work.selection_calls, 4);
+    assert!(changed.work.largest_content_overlap.total() <= 32);
+    assert!(changed.work.largest_semantic_overlap.total() <= 32);
 }

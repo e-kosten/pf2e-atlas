@@ -54,9 +54,9 @@ This item stays in progress during architecture research and revision; merge and
 release remain separately authorized. Earlier validation applies to its recorded
 candidate and must not be presented as validation of the revised design.
 
-## Architecture revision and next decision
+## Architecture revision
 
-Accepted intended changes, pending implementation:
+The revised implementation follows these accepted decisions:
 
 - Publish captured inputs. Check each external file, manifest and catalog against
   capture when consuming it, then own the data; later changes belong to the next
@@ -97,9 +97,13 @@ The migration suffix directly transforms main schema24 into the final design;
 released migrations/callback behavior remain immutable, and no intermediate target
 schema is added and later reversed.
 
-Next: finish preparation/encoding simplification, bound admission file handles and
-restore sparse maintenance for input-owned indexes. Measure the ownership checkpoint
-and final preparation changes against matching controls. Complete controlled corpus
+Preparation now uses one indexed raw admission stream and bounded combined slices,
+with a narrow journal pass for aliases. Current input-owned indexes have sparse
+maintenance, and full model keys bind registry IDs only within each admitted
+session. The revised owning suites pass locally; full release evidence is pending.
+
+Next: measure the frozen ownership checkpoint and final preparation changes against
+matching controls. Complete controlled corpus
 migration/preservation, forced numerical dependency, trait/profile lifetime, actual
 interruption/recovery, cache/scratch and product-query evidence. Retain one PR184
 and refresh full local/platform/CI validation for the actual final candidate.

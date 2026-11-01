@@ -13,6 +13,7 @@ pub use core_projection::CORE_SECTIONS_SCHEMA_SQL;
 mod discovery;
 mod embedding_storage_migration;
 mod embedding_values;
+mod native_allocation;
 mod native_storage_migration;
 mod native_values;
 pub use native_storage_migration::{INPUT_OWNED_STORAGE_SCHEMA_SQL, backfill_input_owned_storage};
@@ -69,7 +70,8 @@ mod identity;
 mod input;
 mod publication_source;
 pub use build_spool::{
-    BuildFileUsage, BuildFrameCursor, BuildFrameStream, PreparedRecordFrame, PublicationSpool,
+    BuildFileUsage, BuildFrameCursor, BuildFrameOffset, BuildFrameStream, PreparedRecordFrame,
+    PublicationSpool,
 };
 pub(crate) use publication_source::{NativeValueSource, PreparedRecordRef, PublicationSource};
 pub use publication_source::{SemanticOccurrence, TraitChunkOccurrence, TraitSeedOccurrence};

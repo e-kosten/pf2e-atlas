@@ -195,6 +195,14 @@ passages. Undeclared files, such as SF2e overrides in a PF2e checkout, are not
 merged. The existing selected-locale file override remains separate; this does
 not add translation-module ingestion or multilingual product support.
 
+Admission writes one indexed temporary stream. Compact per-pack frame addresses
+preserve declaration order, including packs sharing a physical directory, without
+holding a file open for each pack. Global collision/reference knowledge remains
+compact. After that inventory is complete, only the remaster-alias journals need
+early content preparation. With aliases resolved, bounded record slices combine
+content, search selection, lexical projection and passage preparation directly
+into the owned publication. They do not replay a second full rich-record stream.
+
 Ingest prepares current literal inputs with pinned tokenizers. One concrete
 `PreparedPublication` binds context/inventory, expected workspace generation,
 metadata streams and compact build-local selection. Selection first reuses its own
@@ -205,7 +213,9 @@ unless matching unfinished work already exists. Passage-layout reuse is separate
 
 A published hit retains a stable input/checksum handle. A cache hit or new/forced
 result becomes an owned staged value before eviction can affect it. Per-batch SQL
-sessions close before inference. The recovery cache keeps one value per exact
+sessions close before inference. Full model keys are immutable; registry IDs are
+resolved within each admitted session and released before cache collection. The
+recovery cache keeps one value per exact
 model/input key and evicts oldest entries under a coarse 1 GiB raw-payload cap.
 This cap limits optional reuse, not required staging or physical disk allocation.
 There is no durable target-membership lifecycle or history of failed build targets.
@@ -223,7 +233,9 @@ no cache or scratch cleanup.
 One update-owned attempt directory contains all staging files. Normal completion
 and error close children before cleanup; a later explicit update can safely remove
 recognized abandoned attempts for that same workspace. Consumed frames retain
-checksums and observed decoding/allocation bounds. Private relationships are
+checksums and observed decoding/allocation bounds. These disposable frames use
+uncompressed JSON; persistent checked snapshots and prepared HTML retain their
+stored compression contracts. Private relationships are
 maintained by ownership, without repeated whole-build file authentication.
 
 Publication uses the captured input set. External bytes are checked against their

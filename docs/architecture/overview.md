@@ -57,8 +57,9 @@ record corpus. See [ADR0056](./decisions/0056-trait-reference-entities.md).
 
 ## Data flow
 
-1. Ingest captures source bytes and stages one admitted authored root at a time,
-   retaining compact global resolver/collision evidence and developer diagnostics. `SourceBackedRecord` retains a key and
+1. Ingest captures the source inventory and consumes checked files into bounded
+   admission slices, retaining compact global resolver/collision evidence and
+   developer diagnostics. `SourceBackedRecord` retains a key and
    one DTO; it does not duplicate or normalize every source field.
 2. Pure record policies select content and useful facts. Ingest supplies explicit
    locale, audience and reference resolution inputs, prepares sanitized HTML and

@@ -129,8 +129,8 @@ source/native recipes and historical migration callbacks retain their owners.
 
 One owned prepared publication binds workspace/revision, context, complete source
 inventory, metadata and selected values. Its private files are disposable attempt
-state. Typed frames retain observed allocation bounds, consumed-byte checksums and
-bounded decoding; they cannot supply SQL or persistent identity. The owner and
+state. Disposable frames contain uncompressed typed JSON with observed allocation
+bounds, consumed-byte checksums and bounded decoding; they cannot supply SQL or persistent identity. The owner and
 expected generation establish deletion authority without repeated whole-file
 authentication. Truncated or damaged consumed data fails publication.
 

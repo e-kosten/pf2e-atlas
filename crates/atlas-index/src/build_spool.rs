@@ -71,8 +71,13 @@ pub struct BuildFrameStream<T> {
     count: usize,
     max_encoded: u64,
     max_decoded: u64,
+    written: u64,
     kind: PhantomData<T>,
 }
+
+/// An address produced by this build's writer, never a stored or supplied identity.
+#[derive(Clone, Copy, Debug)]
+pub struct BuildFrameOffset(u64);
 impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
     #[cfg(any(test, feature = "test-support"))]
     pub fn new() -> Result<Self, IndexError> {
@@ -81,6 +86,7 @@ impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
             count: 0,
             max_encoded: 0,
             max_decoded: 0,
+            written: 0,
             kind: PhantomData,
         })
     }
@@ -90,6 +96,7 @@ impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
             count: 0,
             max_encoded: 0,
             max_decoded: 0,
+            written: 0,
             kind: PhantomData,
         })
     }
@@ -111,23 +118,32 @@ impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
     }
 
     pub fn push(&mut self, value: &T) -> Result<(), IndexError> {
-        let decoded = serde_json::to_vec(value)?;
-        let payload = crate::codec::gzip(&decoded)?;
+        self.push_indexed(value).map(|_| ())
+    }
+    pub fn push_indexed(&mut self, value: &T) -> Result<BuildFrameOffset, IndexError> {
+        let payload = serde_json::to_vec(value)?;
+        let size = u64::try_from(payload.len()).map_err(io)?;
+        let end = self
+            .written
+            .checked_add(40)
+            .and_then(|n| n.checked_add(size))
+            .ok_or_else(|| io("frame offset overflow"))?;
         let file = self.file.as_file_mut();
-        file.seek(SeekFrom::End(0)).map_err(io)?;
-        file.write_all(&(payload.len() as u64).to_le_bytes())
-            .map_err(io)?;
-        file.write_all(&(decoded.len() as u64).to_le_bytes())
-            .map_err(io)?;
+        if file.seek(SeekFrom::End(0)).map_err(io)? != self.written {
+            return Err(io("frame file length differs"));
+        }
+        let offset = BuildFrameOffset(self.written);
+        file.write_all(&size.to_le_bytes()).map_err(io)?;
         file.write_all(&Sha256::digest(&payload)).map_err(io)?;
         file.write_all(&payload).map_err(io)?;
-        self.max_encoded = self.max_encoded.max(payload.len() as u64);
-        self.max_decoded = self.max_decoded.max(decoded.len() as u64);
+        self.max_encoded = self.max_encoded.max(size);
+        self.max_decoded = self.max_decoded.max(size);
+        self.written = end;
         self.count = self
             .count
             .checked_add(1)
             .ok_or_else(|| io("frame count overflow"))?;
-        Ok(())
+        Ok(offset)
     }
     pub fn visit(
         &self,
@@ -156,6 +172,9 @@ impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
     pub fn cursor(&self) -> Result<BuildFrameCursor<T>, IndexError> {
         let file = File::open(self.file.path()).map_err(io)?;
         let length = file.metadata().map_err(io)?.len();
+        if length != self.written {
+            return Err(io("frame file length differs"));
+        }
         Ok(BuildFrameCursor {
             file,
             length,
@@ -180,6 +199,46 @@ pub struct BuildFrameCursor<T> {
     kind: PhantomData<T>,
 }
 impl<T: DeserializeOwned> BuildFrameCursor<T> {
+    /// Direct reads leave the independent sequential position/count unchanged.
+    pub fn read_at(&mut self, offset: BuildFrameOffset) -> Result<T, IndexError> {
+        if offset.0 >= self.length || self.file.metadata().map_err(io)?.len() != self.length {
+            return Err(io("frame offset or length differs"));
+        }
+        let position = self.file.stream_position().map_err(io)?;
+        self.file.seek(SeekFrom::Start(offset.0)).map_err(io)?;
+        let result = self.frame_size().and_then(|size| self.payload(size));
+        self.file.seek(SeekFrom::Start(position)).map_err(io)?;
+        result
+    }
+
+    fn frame_size(&mut self) -> Result<u64, IndexError> {
+        let mut size = [0; 8];
+        self.file.read_exact(&mut size).map_err(io)?;
+        let size = u64::from_le_bytes(size);
+        if size > self.max_encoded || size > self.max_decoded {
+            return Err(io("frame exceeds observed record bounds"));
+        }
+        let remaining = self
+            .length
+            .checked_sub(self.file.stream_position().map_err(io)?)
+            .ok_or_else(|| io("frame offset overflow"))?;
+        if remaining < 32 || size > remaining - 32 {
+            return Err(io("truncated frame"));
+        }
+        Ok(size)
+    }
+
+    fn payload(&mut self, size: u64) -> Result<T, IndexError> {
+        let mut expected = [0; 32];
+        self.file.read_exact(&mut expected).map_err(io)?;
+        let mut payload = vec![0; usize::try_from(size).map_err(io)?];
+        self.file.read_exact(&mut payload).map_err(io)?;
+        if Sha256::digest(&payload).as_slice() != expected {
+            return Err(io("frame checksum differs"));
+        }
+        Ok(serde_json::from_slice(&payload)?)
+    }
+
     pub fn next_frame(&mut self) -> Result<Option<T>, IndexError> {
         self.next_selected(&mut |_| true)
     }
@@ -191,22 +250,7 @@ impl<T: DeserializeOwned> BuildFrameCursor<T> {
             if self.ordinal >= self.count {
                 return Err(io("frame count differs"));
             }
-            let mut size = [0; 8];
-            self.file.read_exact(&mut size).map_err(io)?;
-            let size = u64::from_le_bytes(size);
-            let mut decoded = [0; 8];
-            self.file.read_exact(&mut decoded).map_err(io)?;
-            let decoded = u64::from_le_bytes(decoded);
-            if size > self.max_encoded || decoded > self.max_decoded {
-                return Err(io("frame exceeds observed record bounds"));
-            }
-            let remaining = self
-                .length
-                .checked_sub(self.file.stream_position().map_err(io)?)
-                .ok_or_else(|| io("frame offset overflow"))?;
-            if remaining < 32 || size > remaining - 32 {
-                return Err(io("truncated frame"));
-            }
+            let size = self.frame_size()?;
             let include = selected(self.ordinal);
             self.ordinal += 1;
             if !include {
@@ -221,25 +265,7 @@ impl<T: DeserializeOwned> BuildFrameCursor<T> {
                     .map_err(io)?;
                 continue;
             }
-            let mut expected = [0; 32];
-            self.file.read_exact(&mut expected).map_err(io)?;
-            let mut payload = vec![0; usize::try_from(size).map_err(io)?];
-            self.file.read_exact(&mut payload).map_err(io)?;
-            if Sha256::digest(&payload).as_slice() != expected {
-                return Err(io("frame checksum differs"));
-            }
-            let limit = decoded
-                .checked_add(1)
-                .ok_or_else(|| io("decoded frame size overflow"))?;
-            let mut plain = Vec::new();
-            flate2::read::GzDecoder::new(payload.as_slice())
-                .take(limit)
-                .read_to_end(&mut plain)
-                .map_err(io)?;
-            if plain.len() as u64 != decoded {
-                return Err(io("decoded frame length differs"));
-            }
-            return Ok(Some(serde_json::from_slice(&plain)?));
+            return self.payload(size).map(Some);
         }
         if self.ordinal != self.count || self.file.metadata().map_err(io)?.len() != self.length {
             return Err(io("frame count or length differs"));
@@ -444,6 +470,67 @@ impl PublicationSource for PublicationSpool {
 mod tests {
     use super::*;
     #[test]
+    fn indexed_reads_are_direct_checked_and_do_not_disturb_forward_order() {
+        let mut stream = BuildFrameStream::<String>::new().unwrap();
+        let mut packs = [Vec::new(), Vec::new(), Vec::new()];
+        for ordinal in 0..513 {
+            let value = format!("{ordinal} 🐉");
+            packs[ordinal % 3].push((stream.push_indexed(&value).unwrap(), value));
+        }
+        let mut cursor = stream.cursor().unwrap();
+        assert_eq!(cursor.next_frame().unwrap().unwrap(), "0 🐉");
+        for pack in &packs {
+            for (offset, expected) in pack {
+                assert_eq!(&cursor.read_at(*offset).unwrap(), expected);
+            }
+        }
+        assert_eq!(cursor.next_frame().unwrap().unwrap(), "1 🐉");
+        // Damaging an unselected frame cannot turn indexed access into a full scan.
+        stream
+            .file
+            .as_file_mut()
+            .seek(SeekFrom::Start(packs[0][0].0.0))
+            .unwrap();
+        stream
+            .file
+            .as_file_mut()
+            .write_all(&u64::MAX.to_le_bytes())
+            .unwrap();
+        assert_eq!(cursor.read_at(packs[2][170].0).unwrap(), packs[2][170].1);
+        assert!(cursor.read_at(packs[0][0].0).is_err());
+        assert!(cursor.read_at(BuildFrameOffset(u64::MAX)).is_err());
+    }
+
+    #[test]
+    fn indexed_cursor_rejects_changed_length_and_checked_invalid_json() {
+        let mut stream = BuildFrameStream::<String>::new().unwrap();
+        let address = stream.push_indexed(&"bounded".into()).unwrap();
+        let mut cursor = stream.cursor().unwrap();
+        stream.file.as_file_mut().seek(SeekFrom::Start(8)).unwrap();
+        let invalid = b"!bounded!";
+        stream
+            .file
+            .as_file_mut()
+            .write_all(&Sha256::digest(invalid))
+            .unwrap();
+        stream.file.as_file_mut().write_all(invalid).unwrap();
+        assert!(cursor.read_at(address).is_err());
+        stream
+            .file
+            .as_file_mut()
+            .set_len(stream.written + 1)
+            .unwrap();
+        assert!(cursor.read_at(address).is_err());
+        assert!(stream.cursor().is_err());
+        stream
+            .file
+            .as_file_mut()
+            .set_len(stream.written - 1)
+            .unwrap();
+        assert!(stream.cursor().is_err());
+    }
+
+    #[test]
     fn forward_cursors_are_independent_and_reject_changed_frames_on_consumption() {
         let mut stream = BuildFrameStream::<usize>::new().unwrap();
         for value in 0..513 {
@@ -459,7 +546,7 @@ mod tests {
         assert_eq!(left.next_frame().unwrap(), None);
         assert_eq!(left.next_frame().unwrap(), None);
         let mut cursor = sealed.cursor().unwrap();
-        sealed.file.as_file_mut().seek(SeekFrom::Start(48)).unwrap();
+        sealed.file.as_file_mut().seek(SeekFrom::Start(40)).unwrap();
         sealed.file.as_file_mut().write_all(&[0]).unwrap();
         assert!(cursor.next_frame().is_err());
         assert!(sealed.cursor().unwrap().next_frame().is_err());
@@ -487,7 +574,7 @@ mod tests {
         changed
             .file
             .as_file_mut()
-            .seek(SeekFrom::Start(48))
+            .seek(SeekFrom::Start(40))
             .unwrap();
         changed.file.as_file_mut().write_all(&[0]).unwrap();
         assert!(changed.visit(&mut |_| Ok(())).is_err());
@@ -499,16 +586,12 @@ mod bound_tests {
     use super::*;
     #[test]
     fn damaged_lengths_cannot_allocate_or_expand_beyond_observed_record_sizes() {
-        for (offset, declared) in [(0, u64::MAX), (8, u64::MAX), (8, 1)] {
+        for declared in [u64::MAX, 1] {
             let mut stream = BuildFrameStream::<String>::new().unwrap();
             for _ in 0..32 {
                 stream.push(&"one bounded record".into()).unwrap();
             }
-            stream
-                .file
-                .as_file_mut()
-                .seek(SeekFrom::Start(offset))
-                .unwrap();
+            stream.file.as_file_mut().seek(SeekFrom::Start(0)).unwrap();
             stream
                 .file
                 .as_file_mut()
@@ -516,7 +599,8 @@ mod bound_tests {
                 .unwrap();
             let error = stream.visit(&mut |_| Ok(())).unwrap_err().to_string();
             assert!(
-                error.contains("observed record bounds") || error.contains("decoded frame length"),
+                error.contains("observed record bounds")
+                    || error.contains("frame checksum differs"),
                 "{error}"
             );
         }

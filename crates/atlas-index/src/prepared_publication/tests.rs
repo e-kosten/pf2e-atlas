@@ -801,16 +801,21 @@ fn oversized_selected_hash_or_key_is_rejected_on_consumption_without_losing_rows
         if field == "selected_hash" {
             assert!(
                 publication
-                    .selection(model, &desc)
+                    .selection(publication.model_key(model).unwrap(), &desc)
                     .unwrap_err()
                     .to_string()
                     .contains("selected native identity mismatch")
             );
             let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+            let bindings = crate::native_values::NativeBindings::new(
+                read.connection(),
+                &publication.models,
+                false,
+            )
+            .unwrap();
             let values = PublicationValues {
-                connection: read.connection(),
                 selected: &publication.selected,
-                models: &publication.metadata.context.search_profiles,
+                bindings: &bindings,
             };
             assert!(
                 values
@@ -1014,4 +1019,42 @@ fn unpublished_input_without_consumers_is_missing_and_cache_only_input_is_reused
         (model.dimensions * 4) as u64
     );
     assert_eq!(count(&workspace, "pending_embedding_values"), 1);
+}
+
+#[test]
+fn inferred_batches_rebind_after_every_cache_entry_and_model_are_evicted() {
+    let directory = tempfile::tempdir().unwrap();
+    let workspace = initialize_workspace(directory.path().join("rebind.sqlite")).unwrap();
+    let input = crate::foundation_tests::fixture(true);
+    let owner = workspace.update_owner().unwrap();
+    let scratch = BuildScratch::new(&owner).unwrap();
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    let expected = ArtifactInstance::new(read.workspace_key().unwrap(), 0);
+    drop(read);
+    let metadata = publication_spool_in(scratch.path(), &input, expected).unwrap();
+    let mut publication = PreparedPublication::new_in(
+        &owner,
+        TEST_WORKSPACE_SCHEMA_VERSION,
+        scratch.path(),
+        metadata,
+    )
+    .unwrap();
+    publication.cache_limit = 0;
+    let native = crate::writer::fixture_native_values(&input).unwrap();
+    for (model, desc, vector) in native {
+        publication
+            .stage_inferred(model, &[(&desc, vector)])
+            .unwrap();
+        assert_eq!(count(&workspace, "pending_embedding_values"), 0);
+        assert_eq!(count(&workspace, "embedding_inputs"), 0);
+        assert_eq!(count(&workspace, "embedding_models"), 0);
+        assert_eq!(
+            publication
+                .select_native(model, std::slice::from_ref(&desc), false)
+                .unwrap(),
+            [NativeValueSelection::AlreadySelected]
+        );
+    }
+    publication.publish().unwrap();
+    crate::validate_artifact(workspace.path()).unwrap();
 }

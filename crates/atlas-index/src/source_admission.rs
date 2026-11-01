@@ -6,6 +6,8 @@ use std::collections::BTreeSet;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceAdmissionSummary {
+    /// Document bindings across declarations; one physical file can belong to
+    /// several distinct packs. Context source_file_count counts fingerprint files.
     pub discovered_files: usize,
     pub admitted_records: usize,
     pub partial_records: usize,
@@ -98,9 +100,49 @@ impl SourceAdmissionSummary {
     }
 }
 
+/// Current admission counts declaration-specific roots, while the fingerprint
+/// counts physical files. Historical unknown admission retains its old bound.
+pub(crate) fn validate_root_count(
+    context: &crate::SourceArtifactBuildContext,
+    roots: usize,
+) -> Result<(), IndexError> {
+    if let Some(admission) = &context.admission {
+        admission.validate()?;
+        if admission.admitted_records != roots {
+            return Err(IndexError::Invalid(
+                "source admission root count differs from publication".into(),
+            ));
+        }
+    } else if roots > context.source_file_count {
+        return Err(IndexError::Invalid(
+            "source input count is smaller than admitted root count".into(),
+        ));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn root_counts_use_checked_admission_and_preserve_unknown_historical_bound() {
+        let mut context = crate::foundation_tests::fixture(false).context;
+        context.source_file_count = 1;
+        assert!(validate_root_count(&context, 2).is_err());
+        assert!(validate_root_count(&context, 1).is_ok());
+        context.admission = Some(SourceAdmissionSummary {
+            discovered_files: 2,
+            admitted_records: 2,
+            partial_records: 0,
+            quarantined_files: 0,
+            excluded_documents: 0,
+            exclusions: vec![],
+        });
+        assert!(validate_root_count(&context, 2).is_ok());
+        assert!(validate_root_count(&context, 1).is_err());
+        context.admission.as_mut().unwrap().discovered_files = 1;
+        assert!(validate_root_count(&context, 2).is_err());
+    }
     #[test]
     fn complete_discovery_requires_every_declaration_and_exact_publication_identity() {
         let hash = "a".repeat(64);

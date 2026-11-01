@@ -105,6 +105,7 @@ pub(crate) fn write_traits_stream(
     c: &Connection,
     input: &dyn crate::PublicationSource,
     values: &dyn crate::NativeValueSource,
+    native: &crate::native_values::NativeBindings<'_>,
 ) -> Result<(), IndexError> {
     let kept = write_trait_relations(c, input)?;
     let mut seeds = std::collections::BTreeSet::new();
@@ -126,7 +127,7 @@ pub(crate) fn write_traits_stream(
         let vector = centroid
             .finish()
             .map_err(|e| IndexError::Invalid(e.to_string()))?;
-        write_seed_occurrence(c, seed, model, &vector, values)
+        write_seed_occurrence(c, seed, model, &vector, values, native)
     })?;
     let old = c
         .prepare("SELECT trait_key,profile_id FROM trait_vectors")?
@@ -374,6 +375,7 @@ fn write_seed_occurrence(
     model: &crate::SourceSearchProfileIdentity,
     vector: &[f32],
     values: &dyn crate::NativeValueSource,
+    native: &crate::native_values::NativeBindings<'_>,
 ) -> Result<(), IndexError> {
     crate::validation::check_vector(vector, model.dimensions)?;
     if !crate::codec::checked_hash(&seed.input_hash) {
@@ -382,7 +384,9 @@ fn write_seed_occurrence(
     let bytes = crate::read_units::vector_bytes(vector);
     c.execute("INSERT INTO trait_vectors VALUES(?,?,?,?,?) ON CONFLICT(trait_key,profile_id) DO UPDATE SET input_hash=excluded.input_hash,vector=excluded.vector,vector_hash=excluded.vector_hash WHERE input_hash IS NOT excluded.input_hash OR vector_hash IS NOT excluded.vector_hash",params![seed.key.to_string(),seed.profile_id.as_str(),seed.input_hash,bytes,crate::embedding_values::hash_bytes(&bytes)])?;
     for (ordinal, chunk) in seed.chunks.iter().enumerate() {
-        let id = crate::native_values::selected_input(c, values, model, &chunk.descriptor)?;
+        let id = native
+            .profile(&seed.profile_id)?
+            .selected_input(values, &chunk.descriptor)?;
         c.execute("INSERT INTO trait_seed_chunks VALUES(?,?,?,?,?,?) ON CONFLICT(trait_key,profile_id,ordinal) DO UPDATE SET input_id=excluded.input_id,input=excluded.input,address_json=excluded.address_json WHERE input_id IS NOT excluded.input_id OR input IS NOT excluded.input OR address_json IS NOT excluded.address_json",params![seed.key.to_string(),seed.profile_id.as_str(),ordinal,id,chunk.input,serde_json::to_string(&chunk.address)?])?;
     }
     c.execute(
@@ -454,13 +458,16 @@ pub(crate) fn read_chunks(
     key: &str,
     model: &crate::SourceSearchProfileIdentity,
 ) -> Result<Vec<TraitSeedChunk>, IndexError> {
+    let keys = crate::native_values::NativeModelKey::all(std::slice::from_ref(model))?;
+    let native = crate::native_values::NativeModel::bind(c, &keys[0], false)?;
+    let model_json = serde_json::to_string(model)?;
     let mut s=c.prepare("SELECT t.ordinal,t.input_id,t.input,t.address_json,lower(hex(i.input_hash)),i.token_count,m.identity_json FROM trait_seed_chunks t JOIN embedding_inputs i USING(input_id) JOIN embedding_models m USING(model_id) WHERE trait_key=? AND profile_id=? ORDER BY ordinal")?;
     let mut rows = s.query(params![key, model.profile_id.as_str()])?;
     let mut chunks = Vec::new();
     while let Some(row) = rows.next()? {
         let ordinal: usize = row.get(0)?;
         let stored: String = row.get(6)?;
-        if ordinal != chunks.len() || stored != serde_json::to_string(model)? {
+        if ordinal != chunks.len() || stored != model_json {
             return Err(IndexError::Invalid(
                 "trait chunk model or ordinal mismatch".into(),
             ));
@@ -470,7 +477,7 @@ pub(crate) fn read_chunks(
             input_hash: row.get(4)?,
             token_count: row.get(5)?,
             address: serde_json::from_str(&row.get::<_, String>(3)?)?,
-            vector: crate::native_values::read(c, row.get(1)?, model)?,
+            vector: native.read(row.get(1)?)?,
         });
     }
     Ok(chunks)
@@ -612,6 +619,8 @@ fn validate_published_seed(
     );
     let text_hash = crate::codec::sha256(text.as_bytes());
     let model_json = serde_json::to_string(model)?;
+    let keys = crate::native_values::NativeModelKey::all(std::slice::from_ref(model))?;
+    let native_values = crate::native_values::NativeModel::bind(c, &keys[0], false)?;
     let mut covered = 0;
     let mut count = 0;
     let mut digest = Sha256::new();
@@ -667,7 +676,7 @@ fn validate_published_seed(
             digest.update(b":");
         }
         digest.update(input_hash.as_bytes());
-        let native = crate::native_values::read(c, row.get(1)?, model)?;
+        let native = native_values.read(row.get(1)?)?;
         centroid
             .push(&native)
             .map_err(|e| IndexError::Invalid(e.to_string()))?;

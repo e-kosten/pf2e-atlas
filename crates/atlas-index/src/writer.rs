@@ -63,30 +63,42 @@ impl IndexArtifactWriter for SqliteIndexWriter<'_, '_> {
         let identities = validate_input(input)?;
         let native = fixture_native_values(input)?;
         let scratch = tempfile::tempdir()?;
+        let keys = crate::native_values::NativeModelKey::all(&input.context.search_profiles)?;
+        self.maintenance
+            .connection()
+            .execute_batch("PRAGMA temp_store=FILE;")?;
         self.maintenance.publish(|connection| {
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
             let reusable = prior_compatible(connection)?;
+            let mut bindings = crate::native_values::NativeBindings::new(connection, &keys, true)?;
+            bindings.ensure_tables()?;
             for (model, descriptor, vector) in &native {
                 let bytes = crate::read_units::vector_bytes(vector);
-                crate::native_values::install(
-                    connection,
-                    model,
+                let ordinal = input
+                    .context
+                    .search_profiles
+                    .iter()
+                    .position(|p| p == *model)
+                    .ok_or_else(|| IndexError::Invalid("fixture native model absent".into()))?;
+                bindings.ordinal_mut(ordinal)?.install(
                     descriptor,
                     &bytes,
                     &crate::embedding_values::hash_bytes(&bytes),
                 )?;
             }
-            crate::native_values::ensure_profiles(connection, &input.context)?;
             crate::stream_publication::write(
                 connection,
                 input,
                 &identities,
                 input,
+                &bindings,
                 reusable,
                 scratch.path(),
             )?;
+            drop(bindings);
             connection.execute("DELETE FROM pending_embedding_values", [])?;
             crate::native_values::prune(connection)?;
+            crate::native_allocation::compact_profiles(connection, &input.context)?;
             crate::validation::validate_reference(connection)
         })
     }
@@ -336,16 +348,7 @@ pub(crate) fn validate_input(
     input
         .inventory()
         .validate_parts(&input.context().source_fingerprint, input.packs())?;
-    if input
-        .context()
-        .admission
-        .as_ref()
-        .is_some_and(|a| a.admitted_records != input.record_count())
-    {
-        return Err(IndexError::Invalid(
-            "source admission root count differs from publication".into(),
-        ));
-    }
+    crate::source_admission::validate_root_count(input.context(), input.record_count())?;
     validate_context(input.context())?;
     for profile in &input.context().search_profiles {
         let spec = atlas_embedding::search_profile(&profile.profile_id)
@@ -355,11 +358,6 @@ pub(crate) fn validate_input(
                 "writer requires the exact current search profile execution and recipe".into(),
             ));
         }
-    }
-    if input.context().source_file_count < input.record_count() {
-        return Err(IndexError::Invalid(
-            "source input count is smaller than admitted root count".into(),
-        ));
     }
     if input.context().search_profiles.is_empty() && input.semantic_count() != 0 {
         return Err(IndexError::Invalid(

@@ -45,10 +45,11 @@ pub struct TraitChunkOccurrence {
 }
 
 pub(crate) trait NativeValueSource {
-    /// Read-only selected-value identity. Installation belongs solely to the writer.
+    /// The ordinal is constructor-bound to the complete immutable model manifest.
+    /// Read-only identity; installation belongs solely to the writer.
     fn selected_checksum(
         &self,
-        model: &SourceSearchProfileIdentity,
+        model_ordinal: usize,
         input: &NativeInputDescriptor,
     ) -> Result<Vec<u8>, IndexError>;
     fn value<'a>(
@@ -246,9 +247,14 @@ impl PublicationSource for IndexBuildInput {
 impl NativeValueSource for IndexBuildInput {
     fn selected_checksum(
         &self,
-        model: &SourceSearchProfileIdentity,
+        model_ordinal: usize,
         input: &NativeInputDescriptor,
     ) -> Result<Vec<u8>, IndexError> {
+        let model = self
+            .context
+            .search_profiles
+            .get(model_ordinal)
+            .ok_or_else(|| IndexError::Invalid("selected model ordinal invalid".into()))?;
         let vector = self.value(model, input)?;
         Ok(crate::embedding_values::hash_bytes(
             &crate::read_units::vector_bytes(&vector),

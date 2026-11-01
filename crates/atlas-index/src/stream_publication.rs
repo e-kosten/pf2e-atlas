@@ -95,6 +95,7 @@ pub(crate) fn write(
     input: &dyn PublicationSource,
     identities: &[crate::writer::CheckedRootIdentity],
     values: &dyn NativeValueSource,
+    native: &crate::native_values::NativeBindings<'_>,
     reusable_context: bool,
     scratch: &std::path::Path,
 ) -> Result<(), IndexError> {
@@ -207,7 +208,7 @@ pub(crate) fn write(
         row.text("definition_json", serde_json::to_string(&definition)?);
         crate::publication_delta::upsert(c, &row, "field")?;
     }
-    crate::publication_delta::search_units(c, input, &products, values)?;
+    crate::publication_delta::search_units(c, input, &products, values, native)?;
     c.execute("DELETE FROM semantic_locations WHERE NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.location_id=semantic_locations.location_id)",[])?;
     let old_sections = c
         .prepare("SELECT section_id FROM selected_sections")?
@@ -219,7 +220,7 @@ pub(crate) fn write(
         }
     }
     crate::publication_delta::remove_absent_roots(c, &live)?;
-    crate::traits::write_traits_stream(c, input, values)?;
+    crate::traits::write_traits_stream(c, input, values, native)?;
     input.records(&mut |frame| {
         let id = ids[frame.source.record.key()];
         if products.contains_key(frame.source.record.key()) {

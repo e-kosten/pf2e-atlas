@@ -24,6 +24,7 @@ pub struct PreparedPublication<'owner> {
     schema: u32,
     metadata: PublicationSpool,
     identities: Vec<crate::writer::CheckedRootIdentity>,
+    models: Vec<crate::native_values::NativeModelKey>,
     cache_bytes: u64,
     cache_limit: u64,
 }
@@ -53,6 +54,7 @@ impl<'owner> PreparedPublication<'owner> {
             selected_hash BLOB NOT NULL CHECK(length(selected_hash)=32),vector BLOB,
             PRIMARY KEY(model,input_hash)) WITHOUT ROWID,STRICT;")?;
         selected.set_prepared_statement_cache_capacity(32);
+        let models = crate::native_values::NativeModelKey::all(&metadata.context.search_profiles)?;
         let mut publication = Self {
             selected,
             selected_file,
@@ -61,6 +63,7 @@ impl<'owner> PreparedPublication<'owner> {
             schema,
             metadata,
             identities,
+            models,
             cache_bytes,
             cache_limit: CACHE_PAYLOAD_LIMIT,
         };
@@ -95,12 +98,17 @@ impl<'owner> PreparedPublication<'owner> {
         reuse_published: bool,
     ) -> Result<Vec<NativeValueSelection>, IndexError> {
         bounded(inputs.len())?;
-        self.model_key(model)?;
+        let ordinal = self.model_key(model)?;
         if inputs.is_empty() {
             return Ok(Vec::new());
         }
         let read = self.workspace.read(self.schema)?;
         crate::writer::check_expected(read.connection(), &self.metadata)?;
+        let binding = crate::native_values::NativeModel::bind(
+            read.connection(),
+            &self.models[ordinal],
+            false,
+        )?;
         let selected_tx = rusqlite::Transaction::new_unchecked(
             &self.selected,
             rusqlite::TransactionBehavior::Immediate,
@@ -108,27 +116,18 @@ impl<'owner> PreparedPublication<'owner> {
         let mut output = Vec::with_capacity(inputs.len());
         for input in inputs {
             check_input(model, input)?;
-            if self.selection(model, input)?.is_some() {
+            if self.selection(ordinal, input)?.is_some() {
                 output.push(NativeValueSelection::AlreadySelected);
                 continue;
             }
-            if let Some((bytes, checksum)) =
-                crate::native_values::cached(read.connection(), model, input)?
-            {
-                self.remember(model, input, &checksum, Some(&bytes))?;
+            if let Some(selected) = binding.select(input, reuse_published)? {
+                self.remember(
+                    ordinal,
+                    input,
+                    &selected.checksum,
+                    selected.staged.as_deref(),
+                )?;
                 output.push(NativeValueSelection::Reused);
-            } else if reuse_published {
-                if let Some(checksum) =
-                    crate::native_values::published_checksum(read.connection(), model, input)?
-                {
-                    let id = crate::native_values::lookup_input(read.connection(), model, input)?
-                        .ok_or_else(|| invalid("published native input disappeared"))?;
-                    crate::native_values::read(read.connection(), id, model)?;
-                    self.remember(model, input, &checksum, None)?;
-                    output.push(NativeValueSelection::Reused);
-                } else {
-                    output.push(NativeValueSelection::Missing);
-                }
             } else {
                 output.push(NativeValueSelection::Missing);
             }
@@ -142,7 +141,7 @@ impl<'owner> PreparedPublication<'owner> {
         batch: &[(&NativeInputDescriptor, &[f32])],
     ) -> Result<(), IndexError> {
         bounded(batch.len())?;
-        self.model_key(model)?;
+        let ordinal = self.model_key(model)?;
         if batch.is_empty() {
             return Ok(());
         }
@@ -161,7 +160,7 @@ impl<'owner> PreparedPublication<'owner> {
             }
             check_input(model, input)?;
             crate::validation::check_vector(vector, model.dimensions)?;
-            if let Some(expected) = self.selection(model, input)? {
+            if let Some(expected) = self.selection(ordinal, input)? {
                 if expected
                     != crate::embedding_values::hash_bytes(&crate::read_units::vector_bytes(vector))
                 {
@@ -174,13 +173,13 @@ impl<'owner> PreparedPublication<'owner> {
         let write = self.workspace.write(self.schema)?;
         crate::writer::check_expected(write.connection(), &self.metadata)?;
         let mut next_cache_bytes = self.cache_bytes;
+        let binding = crate::native_values::NativeModel::bind(
+            write.connection(),
+            &self.models[ordinal],
+            true,
+        )?;
         for (input, vector) in batch {
-            let id = crate::embedding_values::input_id(
-                write.connection(),
-                model,
-                &input.input_sha256,
-                input.token_count,
-            )?;
+            let id = binding.ensure_input(input)?;
             let bytes = crate::read_units::vector_bytes(vector);
             let checksum = crate::embedding_values::hash_bytes(&bytes);
             let old: u64 = write.connection().query_row("SELECT coalesce((SELECT length(vector) FROM pending_embedding_values WHERE input_id=?),0)", [id], |r| r.get(0))?;
@@ -190,6 +189,7 @@ impl<'owner> PreparedPublication<'owner> {
                 .and_then(|n| n.checked_add(bytes.len() as u64))
                 .ok_or_else(|| invalid("cache payload accounting mismatch"))?;
         }
+        drop(binding);
         write.commit()?;
         self.cache_bytes = next_cache_bytes;
         let selected_tx = rusqlite::Transaction::new_unchecked(
@@ -199,7 +199,7 @@ impl<'owner> PreparedPublication<'owner> {
         for (input, vector) in batch {
             let bytes = crate::read_units::vector_bytes(vector);
             self.remember(
-                model,
+                ordinal,
                 input,
                 &crate::embedding_values::hash_bytes(&bytes),
                 Some(&bytes),
@@ -212,6 +212,9 @@ impl<'owner> PreparedPublication<'owner> {
         let maintenance = self
             .owner
             .maintenance(self.schema, "publishing reference update")?;
+        maintenance
+            .connection()
+            .execute_batch("PRAGMA temp_store=FILE;")?;
         let prior = crate::ReferencePublicationExpectation::read(maintenance.connection())?;
         // This synchronous observation point follows durable maintenance admission
         // and precedes all publication mutations; guarded recovery authenticates it.
@@ -221,15 +224,19 @@ impl<'owner> PreparedPublication<'owner> {
             crate::writer::check_expected(connection, &self.metadata)?;
             let reusable = crate::writer::prior_compatible(connection)?;
             let native_started = std::time::Instant::now();
-            self.install_staged(connection)?;
-            crate::native_values::ensure_profiles(connection,&self.metadata.context)?;
+            let mut bindings = crate::native_values::NativeBindings::new(connection, &self.models, true)?;
+            bindings.ensure_tables()?;
+            self.install_staged(&mut bindings)?;
             tracing::info!(target:"atlas_build_diagnostic",stage="native_installation",elapsed_ms=native_started.elapsed().as_secs_f64()*1000.,"Installed selected unpublished values");
-            let values = PublicationValues { connection, selected: &self.selected, models: &self.metadata.context.search_profiles };
+            let values = PublicationValues { selected: &self.selected, bindings: &bindings };
             let scratch = self.selected_file.path().parent().ok_or_else(|| invalid("publication scratch parent absent"))?;
             let delta_started = std::time::Instant::now();
-            crate::stream_publication::write(connection, &self.metadata, &self.identities, &values, reusable, scratch)?;
+            crate::stream_publication::write(connection, &self.metadata, &self.identities, &values, &bindings, reusable, scratch)?;
+            drop(values);
+            drop(bindings);
             connection.execute("DELETE FROM pending_embedding_values", [])?;
             crate::native_values::prune(connection)?;
+            crate::native_allocation::compact_profiles(connection, &self.metadata.context)?;
             tracing::info!(target:"atlas_build_diagnostic",stage="publication_delta_and_prune",elapsed_ms=delta_started.elapsed().as_secs_f64()*1000.,"Completed reference reconciliation");
             let validation_started = std::time::Instant::now();
             let report = crate::validation::validate_reference(connection)?;
@@ -251,10 +258,10 @@ impl<'owner> PreparedPublication<'owner> {
     }
     fn selection(
         &self,
-        model: &SourceSearchProfileIdentity,
+        ordinal: usize,
         input: &NativeInputDescriptor,
     ) -> Result<Option<Vec<u8>>, IndexError> {
-        let row: Option<(usize, Vec<u8>)> = self.selected.prepare_cached("SELECT token_count,CASE WHEN length(selected_hash)=32 THEN selected_hash ELSE zeroblob(0) END FROM selected WHERE model=? AND input_hash=?")?.query_row(params![self.model_key(model)?,crate::embedding_values::digest(&input.input_sha256)?], |r| Ok((r.get(0)?,r.get(1)?))).optional()?;
+        let row: Option<(usize, Vec<u8>)> = self.selected.prepare_cached("SELECT token_count,CASE WHEN length(selected_hash)=32 THEN selected_hash ELSE zeroblob(0) END FROM selected WHERE model=? AND input_hash=?")?.query_row(params![ordinal,crate::embedding_values::digest(&input.input_sha256)?], |r| Ok((r.get(0)?,r.get(1)?))).optional()?;
         match row {
             Some((tokens, checksum)) if tokens == input.token_count && checksum.len() == 32 => {
                 Ok(Some(checksum))
@@ -265,12 +272,12 @@ impl<'owner> PreparedPublication<'owner> {
     }
     fn remember(
         &self,
-        model: &SourceSearchProfileIdentity,
+        ordinal: usize,
         input: &NativeInputDescriptor,
         checksum: &[u8],
         bytes: Option<&[u8]>,
     ) -> Result<(), IndexError> {
-        if let Some(old) = self.selection(model, input)? {
+        if let Some(old) = self.selection(ordinal, input)? {
             if old != checksum {
                 return Err(invalid("selected native checksum changed"));
             }
@@ -279,7 +286,7 @@ impl<'owner> PreparedPublication<'owner> {
         self.selected
             .prepare_cached("INSERT INTO selected VALUES(?,?,?,?,?)")?
             .execute(params![
-                self.model_key(model)?,
+                ordinal,
                 crate::embedding_values::digest(&input.input_sha256)?,
                 input.token_count,
                 checksum,
@@ -318,17 +325,17 @@ impl<'owner> PreparedPublication<'owner> {
         }
         Ok(())
     }
-    fn install_staged(&self, connection: &Connection) -> Result<(), IndexError> {
+    fn install_staged(
+        &self,
+        bindings: &mut crate::native_values::NativeBindings<'_>,
+    ) -> Result<(), IndexError> {
         let mut statement = self.selected.prepare("SELECT model,CASE WHEN length(input_hash)=32 THEN input_hash ELSE zeroblob(0) END,token_count,CASE WHEN length(selected_hash)=32 THEN selected_hash ELSE zeroblob(0) END,length(vector) FROM selected ORDER BY model,input_hash")?;
         let mut rows = statement.query([])?;
         while let Some(row) = rows.next()? {
             let model_key: usize = row.get(0)?;
             let hash: Vec<u8> = row.get(1)?;
-            let model = self
-                .context()
-                .search_profiles
-                .get(model_key)
-                .ok_or_else(|| invalid("selected model ordinal invalid"))?;
+            let binding = bindings.ordinal_mut(model_key)?;
+            let model = binding.key.model();
             let input = NativeInputDescriptor {
                 input_sha256: hex_hash(&hash)?,
                 token_count: row.get(2)?,
@@ -348,9 +355,9 @@ impl<'owner> PreparedPublication<'owner> {
                 }
                 let bytes: Vec<u8> = self.selected.query_row("SELECT vector FROM selected WHERE model=? AND input_hash=? AND length(vector)=?", params![model_key,hash,length], |r| r.get(0))?;
                 crate::native_values::check_bytes(&bytes, &expected, &model)?;
-                crate::native_values::install(connection, &model, &input, &bytes, &expected)?;
+                binding.install(&input, &bytes, &expected)?;
             } else {
-                let actual = crate::native_values::published_checksum(connection, &model, &input)?;
+                let actual = binding.published_checksum(&input)?;
                 if actual.as_ref() != Some(&expected) {
                     return Err(invalid("published selection changed before activation"));
                 }
@@ -359,24 +366,18 @@ impl<'owner> PreparedPublication<'owner> {
         Ok(())
     }
 }
-struct PublicationValues<'a> {
-    connection: &'a Connection,
+struct PublicationValues<'a, 'session> {
     selected: &'a Connection,
-    models: &'a [SourceSearchProfileIdentity],
+    bindings: &'a crate::native_values::NativeBindings<'session>,
 }
-impl NativeValueSource for PublicationValues<'_> {
+impl NativeValueSource for PublicationValues<'_, '_> {
     fn selected_checksum(
         &self,
-        model: &SourceSearchProfileIdentity,
+        ordinal: usize,
         input: &NativeInputDescriptor,
     ) -> Result<Vec<u8>, IndexError> {
-        let model_key = self
-            .models
-            .iter()
-            .position(|stored| stored == model)
-            .ok_or_else(|| invalid("native model differs from publication"))?;
         let (tokens,hash): (usize,Vec<u8>) = self.selected.prepare_cached("SELECT token_count,CASE WHEN length(selected_hash)=32 THEN selected_hash ELSE zeroblob(0) END FROM selected WHERE model=? AND input_hash=?")?
-            .query_row(params![model_key,crate::embedding_values::digest(&input.input_sha256)?],|r|Ok((r.get(0)?,r.get(1)?)))?;
+            .query_row(params![ordinal,crate::embedding_values::digest(&input.input_sha256)?],|r|Ok((r.get(0)?,r.get(1)?)))?;
         if tokens != input.token_count || hash.len() != 32 {
             return Err(invalid("selected native identity mismatch"));
         }
@@ -388,19 +389,12 @@ impl NativeValueSource for PublicationValues<'_> {
         input: &NativeInputDescriptor,
     ) -> Result<Cow<'a, [f32]>, IndexError> {
         check_input(model, input)?;
-        let expected = self.selected_checksum(model, input)?;
-        let id = crate::native_values::lookup_input(self.connection, model, input)?
-            .ok_or_else(|| invalid("selected native input missing"))?;
-        if crate::native_values::published_checksum(self.connection, model, input)?.as_ref()
-            != Some(&expected)
-        {
-            return Err(invalid("selected native checksum mismatch"));
+        let binding = self.bindings.profile(&model.profile_id)?;
+        if binding.key.model() != model {
+            return Err(invalid("native model differs from publication"));
         }
-        Ok(Cow::Owned(crate::native_values::read(
-            self.connection,
-            id,
-            model,
-        )?))
+        let id = binding.selected_input(self, input)?;
+        Ok(Cow::Owned(binding.read(id)?))
     }
 }
 fn bounded(length: usize) -> Result<(), IndexError> {
