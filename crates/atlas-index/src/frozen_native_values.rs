@@ -31,6 +31,7 @@ fn file_digest(path: &std::path::Path) -> Result<Vec<u8>, IndexError> {
 /// SQL connections here refer only to this temporary file, not the workspace.
 pub struct FrozenNativeValues {
     connection: Connection,
+    models: Vec<FrozenModel>,
     file: tempfile::NamedTempFile,
     file_digest: Vec<u8>,
     target: String,
@@ -40,11 +41,16 @@ pub struct FrozenNativeValues {
     manifest: crate::native_manifest::NativeManifest,
     logical_bytes: u64,
 }
+struct FrozenModel {
+    identity: SourceSearchProfileIdentity,
+    id: i64,
+    json: String,
+}
 struct Freezer {
     connection: Connection,
     file: tempfile::NamedTempFile,
     logical_bytes: u64,
-    models: Vec<(SourceSearchProfileIdentity, i64)>,
+    models: Vec<FrozenModel>,
 }
 impl Freezer {
     fn new() -> Result<Self, IndexError> {
@@ -82,8 +88,8 @@ impl Freezer {
         // Only the finite requested model contracts are cached here; numerical
         // values remain in the bounded-page temporary file.
         let model_id =
-            if let Some((_, id)) = self.models.iter().find(|(identity, _)| identity == model) {
-                *id
+            if let Some(stored) = self.models.iter().find(|stored| stored.identity == *model) {
+                stored.id
             } else {
                 let json = serde_json::to_string(model)?;
                 self.connection.execute(
@@ -92,10 +98,14 @@ impl Freezer {
                 )?;
                 let id = self.connection.query_row(
                     "SELECT model_id FROM frozen_models WHERE identity_json=?",
-                    [json],
+                    [&json],
                     |r| r.get(0),
                 )?;
-                self.models.push((model.clone(), id));
+                self.models.push(FrozenModel {
+                    identity: model.clone(),
+                    id,
+                    json,
+                });
                 id
             };
         let hash = crate::embedding_values::digest(&input.input_sha256)?;
@@ -162,7 +172,25 @@ impl Freezer {
         if integrity != "ok" {
             return Err(io("temporary file integrity check failed"));
         }
+        let model_count: usize =
+            connection.query_row("SELECT count(*) FROM frozen_models", [], |row| row.get(0))?;
+        if model_count != self.models.len() {
+            return Err(io("frozen model identity coverage differs"));
+        }
+        for model in &self.models {
+            let json: String = connection.query_row(
+                "SELECT identity_json FROM frozen_models WHERE model_id=?",
+                [model.id],
+                |row| row.get(0),
+            )?;
+            if json != model.json
+                || serde_json::from_str::<SourceSearchProfileIdentity>(&json)? != model.identity
+            {
+                return Err(io("frozen model identity differs"));
+            }
+        }
         Ok(FrozenNativeValues {
+            models: self.models,
             file: self.file,
             connection,
             file_digest: digest,
@@ -235,15 +263,23 @@ impl NativeValueSource for FrozenNativeValues {
             .dimensions
             .checked_mul(std::mem::size_of::<f32>())
             .ok_or_else(|| IndexError::Invalid("frozen vector length overflow".into()))?;
-        let model_json = serde_json::to_string(model)?;
+        let stored = self
+            .models
+            .iter()
+            .find(|stored| stored.identity == *model)
+            .ok_or_else(|| io("frozen native model identity mismatch"))?;
         let hash = crate::embedding_values::digest(&input.input_sha256)?;
-        let lengths:Option<(usize,usize)>=self.connection.query_row("SELECT length(v.vector),length(v.checksum) FROM native_values v JOIN frozen_models m USING(model_id) WHERE m.identity_json=? AND v.input_hash=?",params![model_json,hash],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
+        let lengths: Option<(usize, usize)> = self.connection.prepare_cached(
+            "SELECT length(v.vector),length(v.checksum) FROM native_values v JOIN frozen_models m USING(model_id) WHERE v.model_id=? AND m.identity_json=? AND v.input_hash=?"
+        )?.query_row(params![stored.id, &stored.json, hash], |row| Ok((row.get(0)?, row.get(1)?))).optional()?;
         if lengths != Some((expected, 32)) {
             return Err(IndexError::Invalid(
                 "frozen native value missing or length mismatch".into(),
             ));
         }
-        let row:Option<(usize,Vec<u8>,Vec<u8>)>=self.connection.query_row("SELECT v.token_count,v.checksum,v.vector FROM native_values v JOIN frozen_models m USING(model_id) WHERE m.identity_json=? AND v.input_hash=? AND length(v.vector)=? AND length(v.checksum)=32",params![model_json,hash,expected],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?;
+        let row: Option<(usize, Vec<u8>, Vec<u8>)> = self.connection.prepare_cached(
+            "SELECT v.token_count,v.checksum,v.vector FROM native_values v JOIN frozen_models m USING(model_id) WHERE v.model_id=? AND m.identity_json=? AND v.input_hash=? AND length(v.vector)=? AND length(v.checksum)=32"
+        )?.query_row(params![stored.id, &stored.json, hash, expected], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).optional()?;
         let (tokens, checksum, bytes) = row
             .ok_or_else(|| IndexError::Invalid("selected frozen native input is missing".into()))?;
         if tokens != input.token_count || crate::embedding_values::hash_bytes(&bytes) != checksum {
@@ -502,6 +538,59 @@ mod tests {
             1
         );
     }
+    #[test]
+    fn repeated_profile_lookups_keep_exact_model_binding_and_observe_model_tampering() {
+        let dir = tempfile::tempdir().unwrap();
+        let workspace = initialize_workspace(dir.path().join("native.sqlite")).unwrap();
+        let input = crate::profile_tests::both();
+        let initial = origin(
+            workspace
+                .read(TEST_WORKSPACE_SCHEMA_VERSION)
+                .unwrap()
+                .connection(),
+        )
+        .unwrap();
+        let frozen = freeze_fixture_native_values(&input, &input, None, &initial).unwrap();
+        for _ in 0..2 {
+            for unit in &input.semantic_units {
+                let model = input.context.search_profile(&unit.profile_id).unwrap();
+                let descriptor = NativeInputDescriptor {
+                    input_sha256: unit.input_hash.clone(),
+                    token_count: unit.input_token_count,
+                };
+                assert_eq!(
+                    frozen.value(model, &descriptor).unwrap().as_ref(),
+                    unit.vector.as_slice()
+                );
+            }
+        }
+        let model = &input.context.search_profiles[0];
+        let unit = input
+            .semantic_units
+            .iter()
+            .find(|unit| unit.profile_id == model.profile_id)
+            .unwrap();
+        let descriptor = NativeInputDescriptor {
+            input_sha256: unit.input_hash.clone(),
+            token_count: unit.input_token_count,
+        };
+        let mut changed = model.clone();
+        changed.input_recipe.push_str("/changed");
+        assert!(frozen.value(&changed, &descriptor).is_err());
+        let corrupt = Connection::open(frozen.file.path()).unwrap();
+        corrupt
+            .execute(
+                "UPDATE frozen_models SET identity_json=? WHERE identity_json=?",
+                params![
+                    serde_json::to_string(&changed).unwrap(),
+                    serde_json::to_string(model).unwrap()
+                ],
+            )
+            .unwrap();
+        assert!(frozen.value(model, &descriptor).is_err());
+        assert!(frozen.check(&input, None).is_err());
+    }
+
     #[test]
     fn frozen_seal_binds_workspace_revision_and_source_expectation_including_empty_origin() {
         let dir = tempfile::tempdir().unwrap();
