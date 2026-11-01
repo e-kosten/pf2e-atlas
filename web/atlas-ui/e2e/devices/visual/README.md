@@ -5,6 +5,28 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Consistent encounter empty notes
+
+Source `c68a3d4dcb0b273ac7673e12db79f3d2ffcdd66a`, macOS 27.2 (26B123),
+arm64, Playwright 1.62.1. The user approved applying the existing Conditions
+empty-note presentation to Trackers: compact muted text with zero paragraph
+margins. Thirty-seven macOS frames reflect that line and resulting scroll shifts.
+The three unchanged desktop frames remain intact, including two preview frames
+whose only capture differences were incidental 1–2 RGB levels.
+
+All 12 capture scenarios and all 12 ordinary comparison scenarios passed across
+the four projects. Desktop comparisons passed again after restoring the unchanged
+preview references. Parent review covered desktop/tablet; independent Astra review
+covered all phone before/after pairs and full-size condition, recovery and turn
+states. Existing geometry and comparison tolerances remain unchanged.
+
+Capture used a disposable source checkout and the authenticated candidate fixture,
+separately from the ordinary full validation run. Binary SHA-256:
+`d0266a5da0498121922a2885c2becf04cdb0454fd70d982553b397511532094f`.
+Frontend index SHA-256:
+`22c05204479ca0fa01c9eeaacdb27f2a11fc6a9b9157bae7f75f4c2f59952f0e`.
+Linux reference capture/review and hosted comparisons remain pending publication.
+
 ## Manual encounter trackers
 
 macOS 27.2 (26B123), arm64, Playwright 1.62.1, application source
