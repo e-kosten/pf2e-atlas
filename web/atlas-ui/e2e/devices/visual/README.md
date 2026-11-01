@@ -25,7 +25,21 @@ separately from the ordinary full validation run. Binary SHA-256:
 `d0266a5da0498121922a2885c2becf04cdb0454fd70d982553b397511532094f`.
 Frontend index SHA-256:
 `22c05204479ca0fa01c9eeaacdb27f2a11fc6a9b9157bae7f75f4c2f59952f0e`.
-Linux reference capture/review and hosted comparisons remain pending publication.
+Linux x64, Ubuntu 24.04, Playwright 1.62.1:
+[capture 41271088784](https://github.com/e-kosten/pf2e-atlas/actions/runs/41271088784)
+passed all 12 scenarios against CI 41270849491's authenticated fixture, PR head
+`49b92494e2e28cc80bc75a91d9cba356b86e468d`, synthetic merge
+`c043d97c14c75d46b72be2aacbdc6e3f42cec917`. Binary SHA-256:
+`af13e4227f5cec001c3cca0fd22b464a7636ae034ea7db84f03cdfe80d864730`;
+frontend index SHA-256:
+`22c05204479ca0fa01c9eeaacdb27f2a11fc6a9b9157bae7f75f4c2f59952f0e`.
+All 40 Linux before/candidate pairs were reviewed: parent desktop/tablet and
+independent Astra phones, with capture manifest and image hashes authenticated.
+Changes add Trackers and the accepted compact empty note, with corresponding
+phone scroll shifts. Condition dialogs, recovery anchors/results and turn actions
+remain intact. Ordinary hosted comparisons on the published reference-update head
+remain required; capture alone is not comparison evidence. Review evidence is in
+`scratch/pr182-linux/` during PR review.
 
 ## Manual encounter trackers
 
