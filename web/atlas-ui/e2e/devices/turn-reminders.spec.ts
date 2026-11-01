@@ -838,10 +838,9 @@ test("manual trackers persist minute countdowns and restart after becoming ready
     await noPageOverflow(page);
     await page.reload();
     const participant = page.getByRole("button", {
-      name: "Tracker dragon",
-      exact: true,
+      name: /^Tracker dragon(?:, Current turn)?$/,
     });
-    if (await participant.isVisible()) await activate(participant, info);
+    await activate(participant, info);
     await expect(page.getByText("10 rounds remaining", { exact: true })).toBeVisible();
     await activate(
       page.getByRole("button", { name: "Encounter settings", exact: true }),
@@ -882,16 +881,24 @@ test("manual trackers persist minute countdowns and restart after becoming ready
       expect(response.ok(), await response.text()).toBeTruthy();
     }
     await page.reload();
-    if (await participant.isVisible()) await activate(participant, info);
+    await activate(participant, info);
     await expect(page.getByRole("status").filter({ hasText: "Ready" })).toBeVisible();
     await activate(
       page.getByRole("button", { name: "Restart Breath ready", exact: true }),
       info,
     );
     await expect(page.getByText("2 rounds remaining", { exact: true })).toBeVisible();
-    await activate(
-      page.getByRole("button", { name: "Edit tracker Breath ready", exact: true }),
-      info,
+    const editTracker = page.getByRole("button", {
+      name: "Edit tracker Breath ready",
+      exact: true,
+    });
+    await editTracker.focus();
+    await expect(
+      page.getByRole("tooltip", { name: "Edit", exact: true }),
+    ).toBeVisible();
+    await editTracker.press("Enter");
+    await expect(page.getByRole("tooltip", { name: "Edit", exact: true })).toHaveCount(
+      0,
     );
     const edit = page.getByRole("dialog", { name: "Edit tracker", exact: true });
     await edit.getByLabel("Name", { exact: true }).fill("Cold breath ready");

@@ -63,6 +63,7 @@ export function EncounterManualTrackers({
     !committed &&
     (editor.revision !== encounterRevision ||
       editor.participantRevision !== participant.revision);
+  const editorOpen = editor !== null && !(committed && !disabled);
   const currentTracker = editor?.tracker
     ? participant.manual_trackers.find(
         (t) => t.tracker_key === editor.tracker!.tracker_key,
@@ -150,7 +151,12 @@ export function EncounterManualTrackers({
           <div key={tracker.tracker_key} className="encounter-condition-row">
             <span className="encounter-condition-row__name">{tracker.name}</span>
             <span className="encounter-condition-actions">
-              <Tooltip title="Restart" trigger={["hover", "focus"]}>
+              <Tooltip
+                title="Restart"
+                trigger={["hover", "focus"]}
+                open={editorOpen ? false : undefined}
+                styles={{ root: { pointerEvents: "none" } }}
+              >
                 <Button
                   size="small"
                   type="text"
@@ -162,7 +168,12 @@ export function EncounterManualTrackers({
                   }
                 />
               </Tooltip>
-              <Tooltip title="Edit" trigger={["hover", "focus"]}>
+              <Tooltip
+                title="Edit"
+                trigger={["hover", "focus"]}
+                open={editorOpen ? false : undefined}
+                styles={{ root: { pointerEvents: "none" } }}
+              >
                 <Button
                   size="small"
                   type="text"
@@ -175,7 +186,12 @@ export function EncounterManualTrackers({
                   }}
                 />
               </Tooltip>
-              <Tooltip title="Remove" trigger={["hover", "focus"]}>
+              <Tooltip
+                title="Remove"
+                trigger={["hover", "focus"]}
+                open={editorOpen ? false : undefined}
+                styles={{ root: { pointerEvents: "none" } }}
+              >
                 <Button
                   size="small"
                   type="text"
@@ -203,7 +219,7 @@ export function EncounterManualTrackers({
         ))}
       </div>
       <EncounterModal
-        open={editor !== null && !(committed && !disabled)}
+        open={editorOpen}
         title={editor?.tracker ? "Edit tracker" : "Add tracker"}
         onCancel={() => {
           if (!pending) setEditor(null);

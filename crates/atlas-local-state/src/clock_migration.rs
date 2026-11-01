@@ -64,10 +64,11 @@ fn convert(value: &mut Value) -> StorageResult<()> {
                     }
                 };
                 fields.insert("progress".into(), progress);
-            } else if fields.contains_key("amount") && fields.contains_key("unit") {
-                if let Some(rounds) = fields.remove("remaining_rounds").and_then(|v| v.as_i64()) {
-                    fields.insert("remaining_seconds".into(), json!(seconds(rounds)?));
-                }
+            } else if fields.contains_key("amount")
+                && fields.contains_key("unit")
+                && let Some(rounds) = fields.remove("remaining_rounds").and_then(|v| v.as_i64())
+            {
+                fields.insert("remaining_seconds".into(), json!(seconds(rounds)?));
             }
             for value in fields.values_mut() {
                 convert(value)?;

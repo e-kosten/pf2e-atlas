@@ -215,12 +215,15 @@ pub(super) fn turn_update(snapshot: &EncounterWithParticipants) -> EncounterTurn
         .participants
         .iter()
         .flat_map(|p| {
-            p.manual_trackers.iter().filter_map(|tracker| {
-                (tracker_rounds(&tracker.progress, snapshot.encounter.round_duration_seconds) > 0
-                    && tracker.duration.timing.as_ref().is_some_and(|timing| {
-                        matches_boundary(snapshot, turn.participant_key.as_deref(), timing)
-                    }))
-                .then(|| {
+            p.manual_trackers
+                .iter()
+                .filter(|tracker| {
+                    tracker_rounds(&tracker.progress, snapshot.encounter.round_duration_seconds) > 0
+                        && tracker.duration.timing.as_ref().is_some_and(|timing| {
+                            matches_boundary(snapshot, turn.participant_key.as_deref(), timing)
+                        })
+                })
+                .map(|tracker| {
                     let mut value = tracker.clone();
                     value.progress =
                         tick_tracker(&value.progress, snapshot.encounter.round_duration_seconds);
@@ -230,7 +233,6 @@ pub(super) fn turn_update(snapshot: &EncounterWithParticipants) -> EncounterTurn
                         value: Some(value),
                     }
                 })
-            })
         })
         .collect();
     EncounterTurnUpdate {
