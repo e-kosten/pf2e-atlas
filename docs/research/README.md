@@ -17,6 +17,9 @@ including source snapshots and cleanup boundaries.
 For the database and ingest changes, see [database and ingest findings](database-ingest-simplification.md).
 It records preserved data, release measurements, recovery/query observations and
 the measured lower cached-build RSS versus longer elapsed time.
+For the subsequent architecture revision, see [embedding ownership and occurrence
+retrieval](embedding-value-ownership.md): corpus sharing, the 192-case SQL
+comparison, lifetime alternatives and remaining migration/product evidence.
 
 Research notes should capture:
 

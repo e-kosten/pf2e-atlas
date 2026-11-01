@@ -56,22 +56,53 @@ candidate and must not be presented as validation of the revised design.
 
 ## Architecture revision and next decision
 
-The accepted direction publishes captured inputs without a late source rescan,
-uses one owned prepared publication and one scratch directory per attempt, and
-retains bounded numerical batches plus atomic validated maintenance. Recovery
-results remain a disposable cache of unpublished inference, cleared after a
-successful complete publication, with simple eviction rather than a durable
-history of build targets. These are intended revisions, not implemented behavior.
+Accepted intended changes, pending implementation:
 
-Research numerical ownership and query granularity next: compare the existing
-occurrence-based vector index with transient staging, a shared unique-input index,
-and stable native-value ownership with an occurrence search projection. Measure
-actual sharing, filtered nearest-neighbor work/latency, candidate limits, hit
-expansion/ties, storage and overwrite/trait/force lifetimes. Do not assume current
-denormalization is necessary for performance or that normalization improves it.
-Keep full validation of real publications; no unchanged-update/forced-build/audit
-semantics change is implicitly accepted. Record remaining implementation choices
-in the current local plan and durable findings in research when evidence exists.
+- Publish captured inputs. Check each external file, manifest and catalog against
+  capture when consuming it, then own the data; later changes belong to the next
+  build. Remove the final freshness rescan. Missing/unreadable declared packs
+  still fail discovery; deliberate removal and existing empty packs remain valid.
+- Bind context, generation, prepared records and selected numerical data in one
+  owned publication. Keep bounded decoding and consumed-data corruption checks;
+  remove repeated whole-build authentication between private stages.
+- Prepare related rich metadata in bounded slices, retaining compact global
+  relation knowledge and efficient model batches. Hold only a bounded inference
+  result batch in RAM, cache/stage it and release it. Two temporary disk copies of
+  new inference for recovery and publication are acceptable.
+- Retain one recovery result per exact model/execution/input key for unpublished
+  inference; reuse published values separately. Preserve cache results after
+  failure, allow simple oldest-first eviction and clear the cache on successful
+  complete publication. Selected publication data must survive cache eviction.
+  Remove build-target history maintained solely to make early eviction safe.
+- Group staging under one owned attempt directory, clean normal completion/error
+  and safely remove abandoned attempts using update ownership. No staging quota
+  manager or per-record reservation ledger has been agreed.
+- Setup/upgrades may be maintenance windows. Preserve atomic publication, saved
+  state and complete validation of every real publication. No unchanged-update,
+  forced-build or deep-audit semantics change is implicitly accepted.
+
+The [numerical ownership study](../../research/embedding-value-ownership.md)
+measured 0.629% duplicate document excess and completed 192 paired SQL cases.
+The occurrence-capped input-index comparison preserved eligible counts/distances,
+with three
+same-record cutoff-witness changes, but added roughly 10.4–13.5% to the equal-case
+warm SQL aggregates. The leading recommendation is stable input ownership with
+an explicit occurrence cap, for ingest lifetime simplification rather than query
+speed. One active input row with atomic forced replacement needs no permanent
+version history. This is a proposal awaiting user design input; the conservative
+alternative retains occurrence indexing and one owned transient value copy.
+
+Next: choose that ownership/query tradeoff, then implement the accepted pipeline
+simplifications and selected numerical layout together. Validate real migration,
+forced numerical dependency invalidation, trait lifetimes, rollback/crash recovery,
+saved state and cache/scratch cleanup. Measure matched completed rebuilds and
+product queries; the isolated prototype does not establish ingest speed, physical
+migration peaks or product relevance. Keep one PR184; refresh final local/CI
+validation for the actual revised candidate.
+
+The local plan retains implementation ordering and validation obligations. Cache
+thresholds and slice sizes can follow measured resource use; they do not block the
+numerical-ownership decision. No revised product implementation is claimed yet.
 
 ## Related owners
 
