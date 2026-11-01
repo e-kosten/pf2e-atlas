@@ -15,6 +15,11 @@ condition facts and recovery anchors remain intact. Exact comparisons and geomet
 assertions remain enabled. Ordinary comparison results and Linux provenance follow
 the captured references; capture alone is not passing comparison evidence.
 
+Ordinary isolated validation at `c6f886b5` passed all 40 affected encounter scenarios
+on desktop Chromium and phone WebKit, plus all six condition-refinement scenarios
+on phone Chromium and tablet WebKit. Snapshot updates were disabled. Linux
+capture/review and hosted comparison remain pending publication.
+
 ## Stable modal placement
 
 The shared modal geometry and short-work-area fixes use application source
