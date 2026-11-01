@@ -4,7 +4,6 @@ use crate::{
     SourceStoredRelationship, component_digests::ComponentDigests, persistence::ProjectionRow,
     projections::root_rows,
 };
-use atlas_record::source_record::SourceNodeView;
 use rusqlite::{Connection, OptionalExtension, params};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -94,6 +93,7 @@ fn previous(
 pub(crate) fn write(
     c: &Connection,
     input: &dyn PublicationSource,
+    identities: &[crate::writer::CheckedRootIdentity],
     values: &dyn NativeValueSource,
 ) -> Result<(), IndexError> {
     let started = std::time::Instant::now();
@@ -108,8 +108,8 @@ pub(crate) fn write(
         crate::ReferenceUpgrade::SourcePreparation | crate::ReferenceUpgrade::SourceReplacement
     );
     let mut prior = BTreeMap::new();
-    input.records(&mut |frame| {
-        let key = frame.source.record.key();
+    for identity in identities {
+        let key = &identity.key;
         let id: Option<i64> = c
             .query_row(
                 "SELECT record_id FROM records WHERE key=?",
@@ -125,8 +125,7 @@ pub(crate) fn write(
             _ => None,
         };
         prior.insert(key.clone(), value);
-        Ok(())
-    })?;
+    }
     let mut canonical = input.context().clone();
     canonical.search_profiles = canonical.canonical_profiles()?;
     let json = serde_json::to_string(&canonical)?;
@@ -145,20 +144,14 @@ pub(crate) fn write(
     let mut ids = BTreeMap::new();
     let mut products = BTreeMap::new();
     let mut live = BTreeSet::new();
-    input.records(&mut |frame| {
-        let source = frame.source;
-        let name = SourceNodeView::from(source.record.source())
-            .name()
-            .value()
-            .cloned();
-        let id = crate::identity::retain_source(c, source.record.key(), name.as_deref())?;
-        ids.insert(source.record.key().clone(), id);
+    for identity in identities {
+        let id = crate::identity::retain_source(c, &identity.key, identity.name.as_deref())?;
+        ids.insert(identity.key.clone(), id);
         live.insert(id);
-        if SourceNodeView::from(source.record.source()).document_kind() != "Macro" {
-            products.insert(source.record.key().clone(), id);
+        if identity.is_product {
+            products.insert(identity.key.clone(), id);
         }
-        Ok(())
-    })?;
+    }
     let mut next_digests = crate::BuildFrameStream::<(i64, ComponentDigests)>::new()?;
     let mut sections = BTreeSet::new();
     input.records(&mut |frame|{

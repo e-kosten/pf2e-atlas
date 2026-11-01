@@ -28,6 +28,14 @@ use {
 pub struct SqliteIndexWriter<'a, 'owner> {
     maintenance: &'a atlas_storage::MaintenanceSession<'owner>,
 }
+
+/// Compact facts observed by the full input check, retained only for this
+/// publication in its original record order. Rich source state stays in the stream.
+pub(crate) struct CheckedRootIdentity {
+    pub(crate) key: RecordKey,
+    pub(crate) name: Option<String>,
+    pub(crate) is_product: bool,
+}
 #[cfg(any(test, feature = "test-support"))]
 use crate::IndexBuildInput;
 #[cfg(any(test, feature = "test-support"))]
@@ -51,7 +59,7 @@ impl<'a, 'owner> SqliteIndexWriter<'a, 'owner> {
             crate::ReferencePublicationExpectation::read(self.maintenance.connection())?;
         tracing::info!(target:"atlas_progress",phase="validate_build_input",workspace_key=publication.instance().workspace_key(),reference_revision=publication.instance().reference_revision(),context_sha256=publication.context_sha256().unwrap_or(""),"Checking prepared records");
         let input_started = std::time::Instant::now();
-        validate_input(input)?;
+        let identities = validate_input(input)?;
         if input.context().sha256()? != target_hash {
             return Err(IndexError::Invalid(
                 "publication input differs from update job target".into(),
@@ -66,7 +74,7 @@ impl<'a, 'owner> SqliteIndexWriter<'a, 'owner> {
             crate::native_selection::require_active(connection,job)?;
             let delta_started=std::time::Instant::now();
             let delta_changes=connection.total_changes();
-            crate::stream_publication::write(connection, input, values)?;
+            crate::stream_publication::write(connection, input, &identities, values)?;
             crate::embedding_values::prune(connection)?;
             tracing::info!(target:"atlas_build_diagnostic",stage="publication_delta_and_prune",elapsed_ms=delta_started.elapsed().as_secs_f64()*1000.,sqlite_affected_rows=connection.total_changes()-delta_changes,"Completed publication phase");
             let validation_started=std::time::Instant::now();
@@ -90,7 +98,7 @@ impl IndexArtifactWriter for SqliteIndexWriter<'_, '_> {
         &self,
         input: &IndexBuildInput,
     ) -> Result<crate::ArtifactValidationReport, IndexError> {
-        validate_input(input)?;
+        let identities = validate_input(input)?;
         let origin = crate::frozen_native_values::origin(self.maintenance.connection())?;
         let values = crate::freeze_fixture_native_values(input, input, None, &origin)?;
         self.maintenance.publish(|connection| {
@@ -98,7 +106,7 @@ impl IndexArtifactWriter for SqliteIndexWriter<'_, '_> {
             // Cross-root edges may temporarily point at a root being replaced.
             // Validation and commit both require every final reference to exist.
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
-            crate::stream_publication::write(connection, input, &values)?;
+            crate::stream_publication::write(connection, input, &identities, &values)?;
             crate::embedding_values::prune(connection)?;
             let report = crate::validation::validate_reference(connection)?;
             values.check_publication(connection, input, None)?;
@@ -260,7 +268,9 @@ pub(crate) fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), Ind
     }
     Ok(())
 }
-fn validate_input(input: &dyn crate::PublicationSource) -> Result<(), IndexError> {
+fn validate_input(
+    input: &dyn crate::PublicationSource,
+) -> Result<Vec<CheckedRootIdentity>, IndexError> {
     input.check_seal()?;
     input
         .inventory()
@@ -305,6 +315,7 @@ fn validate_input(input: &dyn crate::PublicationSource) -> Result<(), IndexError
     }
     let context_hash = input.context().preparation_sha256()?;
     let mut keys = std::collections::BTreeSet::new();
+    let mut identities = Vec::new();
     input.records(&mut |frame| {
         let r = frame.source;
         if !keys.insert(r.record.key().clone()) {
@@ -316,9 +327,8 @@ fn validate_input(input: &dyn crate::PublicationSource) -> Result<(), IndexError
         let pack = packs
             .get(r.record.key().pack().as_str())
             .ok_or_else(|| IndexError::Invalid("record pack is absent".into()))?;
-        if atlas_record::source_record::SourceNodeView::from(r.record.source()).document_kind()
-            != pack.document_kind
-        {
+        let node = atlas_record::source_record::SourceNodeView::from(r.record.source());
+        if node.document_kind() != pack.document_kind {
             return Err(IndexError::Invalid(
                 "record document family disagrees with pack".into(),
             ));
@@ -339,6 +349,11 @@ fn validate_input(input: &dyn crate::PublicationSource) -> Result<(), IndexError
                 "source path must be relative and contain no traversal".into(),
             ));
         }
+        identities.push(CheckedRootIdentity {
+            key: r.record.key().clone(),
+            name: node.name().value().cloned(),
+            is_product: node.document_kind() != "Macro",
+        });
         Ok(())
     })?;
     if keys.len() != input.record_count() {
@@ -346,7 +361,7 @@ fn validate_input(input: &dyn crate::PublicationSource) -> Result<(), IndexError
             "record stream count differs from publication".into(),
         ));
     }
-    Ok(())
+    Ok(identities)
 }
 fn check_expected(c: &Connection, input: &dyn crate::PublicationSource) -> Result<(), IndexError> {
     if let Some(expected) = input.expected_instance() {
@@ -842,3 +857,7 @@ pub(crate) fn write_relationship(
     r.push("target_url", url.map(Value::Text).unwrap_or(Value::Null));
     r.insert(c)
 }
+
+#[cfg(test)]
+#[path = "writer/identity_tests.rs"]
+mod identity_tests;
