@@ -239,6 +239,9 @@ fn remove_unkept(
     Ok(())
 }
 
+const PREVIOUS_EXACT_LOCATION_SQL: &str = "SELECT u.unit_id FROM semantic_units u JOIN semantic_locations l USING(location_id) WHERE u.location_id=?5 AND u.profile_id=?2 AND l.record_id=?1 AND l.section_id IS ?3 AND l.chunk_ordinal=?4 ORDER BY u.unit_id";
+const PREVIOUS_OTHER_LOCATION_SQL: &str = "SELECT u.unit_id FROM semantic_locations l JOIN semantic_units u USING(location_id) WHERE l.record_id=?1 AND u.profile_id=?2 AND l.section_id IS ?3 AND l.chunk_ordinal=?4 AND l.location_id<>?5 ORDER BY u.unit_id";
+
 struct PreviousSemanticSlot<'a> {
     record: i64,
     profile: &'a str,
@@ -253,25 +256,27 @@ fn previous_semantic_vector(
     slot: PreviousSemanticSlot<'_>,
     kept: &BTreeSet<i64>,
 ) -> Result<Option<(i64, Vec<u8>)>, IndexError> {
-    let mut candidates = c.prepare_cached("SELECT u.unit_id FROM semantic_locations l JOIN semantic_units u USING(location_id) WHERE l.record_id=? AND u.profile_id=? AND l.section_id IS ? AND l.chunk_ordinal=? ORDER BY (l.location_id=?) DESC,u.unit_id")?;
-    let mut rows = candidates.query(rusqlite::params![
-        slot.record,
-        slot.profile,
-        slot.section,
-        slot.chunk_ordinal,
-        slot.location
-    ])?;
     let mut vector = c.prepare_cached(&format!("SELECT embedding FROM {table} WHERE unit_id=?"))?;
-    while let Some(row) = rows.next()? {
-        let candidate: i64 = row.get(0)?;
-        if kept.contains(&candidate) {
-            continue;
-        }
-        let bytes = vector
-            .query_row([candidate], |row| row.get::<_, Vec<u8>>(0))
-            .optional()?;
-        if let Some(bytes) = bytes {
-            return Ok(Some((candidate, bytes)));
+    for sql in [PREVIOUS_EXACT_LOCATION_SQL, PREVIOUS_OTHER_LOCATION_SQL] {
+        let mut candidates = c.prepare_cached(sql)?;
+        let mut rows = candidates.query(rusqlite::params![
+            slot.record,
+            slot.profile,
+            slot.section,
+            slot.chunk_ordinal,
+            slot.location
+        ])?;
+        while let Some(row) = rows.next()? {
+            let candidate: i64 = row.get(0)?;
+            if kept.contains(&candidate) {
+                continue;
+            }
+            let bytes = vector
+                .query_row([candidate], |row| row.get::<_, Vec<u8>>(0))
+                .optional()?;
+            if let Some(bytes) = bytes {
+                return Ok(Some((candidate, bytes)));
+            }
         }
     }
     Ok(None)
@@ -692,5 +697,170 @@ mod previous_semantic_tests {
             )
             .unwrap();
         assert_eq!(retained, 0);
+    }
+    #[test]
+    fn exact_location_scope_and_remaining_group_preserve_all_original_predicates() {
+        let c = fixture();
+        for (record, profile, section, chunk, expected) in [
+            (9, "profile", Some(8), 0, Some(1)),
+            (7, "profile", Some(9), 0, Some(2)),
+            (7, "profile", Some(8), 1, Some(3)),
+            (7, "other-profile", Some(8), 0, Some(4)),
+            (7, "profile", None, 0, None),
+        ] {
+            let candidate = previous_semantic_vector(
+                &c,
+                "stored_vectors",
+                PreviousSemanticSlot {
+                    record,
+                    profile,
+                    section,
+                    chunk_ordinal: chunk,
+                    location: 3,
+                },
+                &BTreeSet::new(),
+            )
+            .unwrap();
+            assert_eq!(candidate.map(|(id, _)| id), expected);
+        }
+        c.execute_batch("INSERT INTO semantic_locations VALUES(7,7,NULL,0),(8,9,NULL,0); INSERT INTO semantic_units VALUES(40,7,'profile'),(41,8,'profile'); INSERT INTO stored_vectors VALUES(40,x'40'),(41,x'41');").unwrap();
+        for (record, expected) in [(7, 40), (9, 41)] {
+            assert_eq!(
+                previous_semantic_vector(
+                    &c,
+                    "stored_vectors",
+                    PreviousSemanticSlot {
+                        record,
+                        profile: "profile",
+                        section: None,
+                        chunk_ordinal: 0,
+                        location: 7,
+                    },
+                    &BTreeSet::new()
+                )
+                .unwrap()
+                .unwrap()
+                .0,
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn exact_group_keeps_unit_order_before_any_remaining_location() {
+        let c = fixture();
+        c.execute_batch("INSERT INTO semantic_units VALUES(35,3,'profile'); INSERT INTO stored_vectors VALUES(35,x'35');").unwrap();
+        for (kept, expected) in [
+            (BTreeSet::new(), 30),
+            (BTreeSet::from([30]), 35),
+            (BTreeSet::from([30, 35]), 10),
+        ] {
+            assert_eq!(
+                previous_semantic_vector(&c, "stored_vectors", slot(), &kept)
+                    .unwrap()
+                    .unwrap()
+                    .0,
+                expected
+            );
+        }
+        c.execute("DELETE FROM stored_vectors WHERE unit_id=30", [])
+            .unwrap();
+        assert_eq!(
+            previous_semantic_vector(&c, "stored_vectors", slot(), &BTreeSet::new())
+                .unwrap()
+                .unwrap()
+                .0,
+            35
+        );
+        c.execute("DELETE FROM stored_vectors WHERE unit_id=35", [])
+            .unwrap();
+        assert_eq!(
+            previous_semantic_vector(&c, "stored_vectors", slot(), &BTreeSet::new())
+                .unwrap()
+                .unwrap()
+                .0,
+            10
+        );
+    }
+
+    #[test]
+    fn unchanged_location_probe_uses_production_unique_keys_with_bounded_metadata_work() {
+        use rusqlite::StatementStatus;
+        let values=(1..=512).map(|id|("items","Item",serde_json::json!({
+            "_id":format!("{id:016x}"),"name":format!("Record {id}"),"type":"effect",
+            "system":{"description":{"value":"<h2>Rules</h2><p>Independent source prose.</p>"}}
+        }))).collect();
+        let input = crate::core_tests::fixture(values, false);
+        let (_directory, path) = crate::foundation_tests::build(&input);
+        let model = &input.context.search_profiles[0];
+        let table = crate::schema::vector_table(model).unwrap();
+        let key = input.records[256].record.key().to_string();
+        for (kind, section_expected) in [("identity", false), ("passage", true)] {
+            // A fresh connection gives counters for this single real helper call.
+            let c = Connection::open(&path).unwrap();
+            let (unit,location,section,ordinal,record):(i64,i64,Option<i64>,usize,i64)=c.query_row(
+                "SELECT u.unit_id,l.location_id,l.section_id,l.chunk_ordinal,l.record_id FROM semantic_units u JOIN semantic_locations l USING(location_id) JOIN records r ON r.record_id=l.record_id WHERE r.key=?1 AND u.profile_id=?2 AND u.unit_kind=?3 ORDER BY u.unit_id LIMIT 1",
+                rusqlite::params![key,model.profile_id.as_str(),kind],
+                |row|Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?))
+            ).unwrap();
+            assert_eq!(section.is_some(), section_expected);
+            let plan = c
+                .prepare(&format!("EXPLAIN QUERY PLAN {PREVIOUS_EXACT_LOCATION_SQL}"))
+                .unwrap()
+                .query_map(
+                    rusqlite::params![
+                        record,
+                        model.profile_id.as_str(),
+                        section,
+                        ordinal,
+                        location
+                    ],
+                    |row| row.get::<_, String>(3),
+                )
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap();
+            assert!(
+                plan.iter().any(|detail| detail.contains("SEARCH")
+                    && detail.contains("location_id=?")
+                    && detail.contains("profile_id=?")),
+                "expected existing location/profile index access: {plan:?}"
+            );
+            let found = previous_semantic_vector(
+                &c,
+                &table,
+                PreviousSemanticSlot {
+                    record,
+                    profile: model.profile_id.as_str(),
+                    section,
+                    chunk_ordinal: ordinal,
+                    location,
+                },
+                &BTreeSet::new(),
+            )
+            .unwrap()
+            .unwrap();
+            assert_eq!(found.0, unit);
+            let exact = c.prepare_cached(PREVIOUS_EXACT_LOCATION_SQL).unwrap();
+            let vm = exact.get_status(StatementStatus::VmStep);
+            assert!(
+                vm > 0 && vm <= 200,
+                "exact metadata probe must execute bounded point work: {vm}"
+            );
+            assert_eq!(exact.get_status(StatementStatus::FullscanStep), 0);
+            assert_eq!(exact.get_status(StatementStatus::Sort), 0);
+            assert_eq!(exact.get_status(StatementStatus::AutoIndex), 0);
+            drop(exact);
+            let fallback = c.prepare_cached(PREVIOUS_OTHER_LOCATION_SQL).unwrap();
+            assert_eq!(
+                fallback.get_status(StatementStatus::VmStep),
+                0,
+                "unchanged exact hit must not execute the broad fallback"
+            );
+            eprintln!(
+                "candidate_metadata_probe kind={kind} exact_vm={vm} fullscan=0 sort=0 autoindex=0 fallback_vm={}",
+                fallback.get_status(StatementStatus::VmStep)
+            );
+        }
     }
 }

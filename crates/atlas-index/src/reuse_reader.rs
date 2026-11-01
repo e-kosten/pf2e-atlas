@@ -20,6 +20,7 @@ pub struct ReferenceReuseReader {
     schema: u32,
     expected: ArtifactInstance,
     context: Option<SourceArtifactBuildContext>,
+    expected_context_hash: Option<String>,
 }
 impl ReferenceReuseReader {
     pub fn new(workspace: &Workspace, schema: u32) -> Result<Self, IndexError> {
@@ -40,7 +41,12 @@ impl ReferenceReuseReader {
             }
             _ => None,
         };
+        let expected_context_hash = context
+            .as_ref()
+            .map(SourceArtifactBuildContext::sha256)
+            .transpose()?;
         Ok(Self {
+            expected_context_hash,
             path: workspace.path().to_owned(),
             schema,
             expected,
@@ -64,11 +70,7 @@ impl ReferenceReuseReader {
             .as_ref()
             .map(SourceArtifactBuildContext::sha256)
             .transpose()?
-            != self
-                .context
-                .as_ref()
-                .map(SourceArtifactBuildContext::sha256)
-                .transpose()?
+            != self.expected_context_hash
             && self.context.is_some()
         {
             return Err(IndexError::Invalid(
@@ -170,4 +172,91 @@ pub fn visit_persisted_inputs(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::*;
+
+    #[test]
+    fn later_bounded_reads_recheck_actual_context_and_reference_revision() {
+        let input = crate::foundation_tests::fixture(true);
+        let (_directory, path) = crate::foundation_tests::build(&input);
+        let workspace = initialize_workspace(&path).unwrap();
+        let reader = ReferenceReuseReader::new(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        let key = input.records[0].record.key();
+        assert!(reader.record(key).unwrap().is_some());
+        assert!(reader.layouts(key).is_ok());
+        let mut changed = input.context.clone();
+        changed.indexing_locale.push_str("-changed");
+        {
+            let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+            write
+                .connection()
+                .execute(
+                    "UPDATE artifact_context SET context_json=?,context_hash=?",
+                    rusqlite::params![
+                        serde_json::to_string(&changed).unwrap(),
+                        changed.sha256().unwrap()
+                    ],
+                )
+                .unwrap();
+            write.commit().unwrap();
+        }
+        assert!(
+            reader
+                .record(key)
+                .unwrap_err()
+                .to_string()
+                .contains("reference context changed")
+        );
+        assert!(
+            reader
+                .layouts(key)
+                .unwrap_err()
+                .to_string()
+                .contains("reference context changed")
+        );
+        {
+            let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+            write
+                .connection()
+                .execute(
+                    "UPDATE artifact_context SET context_json=?,context_hash=?",
+                    rusqlite::params![
+                        serde_json::to_string(&input.context).unwrap(),
+                        input.context.sha256().unwrap()
+                    ],
+                )
+                .unwrap();
+            write.commit().unwrap();
+        }
+        assert!(reader.record(key).unwrap().is_some());
+        {
+            let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+            write
+                .connection()
+                .execute(
+                    "UPDATE workspace SET reference_revision=reference_revision+1 WHERE id=1",
+                    [],
+                )
+                .unwrap();
+            write.commit().unwrap();
+        }
+        assert!(
+            reader
+                .record(key)
+                .unwrap_err()
+                .to_string()
+                .contains("reference revision changed")
+        );
+        assert!(
+            reader
+                .layouts(key)
+                .unwrap_err()
+                .to_string()
+                .contains("reference revision changed")
+        );
+    }
 }

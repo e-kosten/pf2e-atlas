@@ -27,15 +27,14 @@ pub(crate) fn model_id(
     model: &SourceSearchProfileIdentity,
 ) -> Result<i64, IndexError> {
     let identity = serde_json::to_string(model)?;
-    c.execute(
+    c.prepare_cached(
         "INSERT INTO embedding_models(identity_json) VALUES(?) ON CONFLICT DO NOTHING",
-        [&identity],
-    )?;
-    Ok(c.query_row(
-        "SELECT model_id FROM embedding_models WHERE identity_json=?",
-        [identity],
-        |r| r.get(0),
-    )?)
+    )?
+    .execute([&identity])?;
+    Ok(
+        c.prepare_cached("SELECT model_id FROM embedding_models WHERE identity_json=?")?
+            .query_row([identity], |r| r.get(0))?,
+    )
 }
 pub(crate) fn input_id(
     c: &Connection,
@@ -48,12 +47,12 @@ pub(crate) fn input_id(
     }
     let model = model_id(c, model)?;
     let hash = digest(hash)?;
-    c.execute("INSERT INTO embedding_inputs(model_id,input_hash,token_count) VALUES(?,?,?) ON CONFLICT DO NOTHING",params![model,hash,tokens])?;
-    let (id, stored): (i64, usize) = c.query_row(
-        "SELECT input_id,token_count FROM embedding_inputs WHERE model_id=? AND input_hash=?",
-        params![model, hash],
-        |r| Ok((r.get(0)?, r.get(1)?)),
-    )?;
+    c.prepare_cached("INSERT INTO embedding_inputs(model_id,input_hash,token_count) VALUES(?,?,?) ON CONFLICT DO NOTHING")?.execute(params![model,hash,tokens])?;
+    let (id, stored): (i64, usize) = c
+        .prepare_cached(
+            "SELECT input_id,token_count FROM embedding_inputs WHERE model_id=? AND input_hash=?",
+        )?
+        .query_row(params![model, hash], |r| Ok((r.get(0)?, r.get(1)?)))?;
     if stored != tokens {
         return Err(IndexError::Invalid(
             "native input token count mismatch".into(),
@@ -71,7 +70,7 @@ pub(crate) fn publish_input(
     check_vector(vector, model.dimensions)?;
     let id = input_id(c, model, hash, tokens)?;
     let checksum = hash_bytes(&vector_bytes(vector));
-    c.execute("UPDATE embedding_inputs SET published_hash=?1 WHERE input_id=?2 AND published_hash IS NOT ?1",params![checksum,id])?;
+    c.prepare_cached("UPDATE embedding_inputs SET published_hash=?1 WHERE input_id=?2 AND published_hash IS NOT ?1")?.execute(params![checksum,id])?;
     Ok(id)
 }
 /// Final activation releases pending values and unreferenced published metadata.
@@ -95,13 +94,13 @@ pub(crate) fn native_value(
         .dimensions
         .checked_mul(std::mem::size_of::<f32>())
         .ok_or_else(|| IndexError::Invalid("native vector length overflow".into()))?;
-    let shape:Option<(usize,usize)>=c.query_row(&format!("SELECT length(v.embedding),length(i.published_hash) FROM embedding_inputs i JOIN {table} v ON v.unit_id=(SELECT min(unit_id) FROM semantic_units u WHERE u.input_id=i.input_id) WHERE i.input_id=? UNION ALL SELECT length(t.vector),length(i.published_hash) FROM trait_native_values t JOIN embedding_inputs i USING(input_id) WHERE input_id=?1 LIMIT 1"),[input],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
+    let shape:Option<(usize,usize)>=c.prepare_cached(&format!("SELECT length(v.embedding),length(i.published_hash) FROM embedding_inputs i JOIN {table} v ON v.unit_id=(SELECT min(unit_id) FROM semantic_units u WHERE u.input_id=i.input_id) WHERE i.input_id=? UNION ALL SELECT length(t.vector),length(i.published_hash) FROM trait_native_values t JOIN embedding_inputs i USING(input_id) WHERE input_id=?1 LIMIT 1"))?.query_row([input],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
     if shape != Some((expected, 32)) {
         return Err(IndexError::Invalid(
             "published native embedding missing or length mismatch".into(),
         ));
     }
-    let (bytes,hash):(Vec<u8>,Vec<u8>)=c.query_row(&format!("SELECT v.embedding,i.published_hash FROM embedding_inputs i JOIN {table} v ON v.unit_id=(SELECT min(unit_id) FROM semantic_units u WHERE u.input_id=i.input_id) WHERE i.input_id=?1 AND length(v.embedding)=?2 AND length(i.published_hash)=32 UNION ALL SELECT t.vector,i.published_hash FROM trait_native_values t JOIN embedding_inputs i USING(input_id) WHERE input_id=?1 AND length(t.vector)=?2 AND length(i.published_hash)=32 LIMIT 1"),params![input,expected],|r|Ok((r.get(0)?,r.get(1)?)))?;
+    let (bytes,hash):(Vec<u8>,Vec<u8>)=c.prepare_cached(&format!("SELECT v.embedding,i.published_hash FROM embedding_inputs i JOIN {table} v ON v.unit_id=(SELECT min(unit_id) FROM semantic_units u WHERE u.input_id=i.input_id) WHERE i.input_id=?1 AND length(v.embedding)=?2 AND length(i.published_hash)=32 UNION ALL SELECT t.vector,i.published_hash FROM trait_native_values t JOIN embedding_inputs i USING(input_id) WHERE input_id=?1 AND length(t.vector)=?2 AND length(i.published_hash)=32 LIMIT 1"))?.query_row(params![input,expected],|r|Ok((r.get(0)?,r.get(1)?)))?;
     if hash_bytes(&bytes) != hash {
         return Err(IndexError::Invalid(
             "native embedding checksum mismatch".into(),

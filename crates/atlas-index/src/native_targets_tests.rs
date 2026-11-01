@@ -836,3 +836,92 @@ fn abrupt_process_exit_during_registration_preserves_active_retry_and_retires_ca
     );
     assert_eq!(count(&workspace, "native_update_targets"), 1);
 }
+
+#[test]
+fn full_execution_identity_is_rechecked_after_external_model_row_change_between_sessions() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("native-identity.sqlite");
+    let input = crate::profile_tests::both();
+    publish_input(&path, &input).unwrap();
+    let workspace = initialize_workspace(&path).unwrap();
+    let owner = workspace.update_owner().unwrap();
+    let job =
+        register_native_target(&owner, &workspace, TEST_WORKSPACE_SCHEMA_VERSION, &input).unwrap();
+    let model = &input.context.search_profiles[0];
+    let desc = descriptor(
+        input
+            .semantic_units
+            .iter()
+            .find(|unit| unit.profile_id == model.profile_id)
+            .unwrap(),
+    );
+    let mut changed = model.clone();
+    changed.input_recipe.push_str("/different-execution");
+    {
+        let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        assert!(
+            select_native_values(&write, &job, &changed, std::slice::from_ref(&desc), true)
+                .is_err()
+        );
+        assert_eq!(
+            select_native_values(&write, &job, model, std::slice::from_ref(&desc), true).unwrap(),
+            [NativeValueSelection::Reused]
+        );
+        assert_eq!(
+            select_native_values(&write, &job, model, std::slice::from_ref(&desc), false).unwrap(),
+            [NativeValueSelection::AlreadySelected]
+        );
+        write.commit().unwrap();
+    }
+    {
+        let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        assert_eq!(
+            write
+                .connection()
+                .execute(
+                    "UPDATE embedding_models SET identity_json=? WHERE identity_json=?",
+                    rusqlite::params![
+                        serde_json::to_string(&changed).unwrap(),
+                        serde_json::to_string(model).unwrap()
+                    ]
+                )
+                .unwrap(),
+            1
+        );
+        write.commit().unwrap();
+    }
+    {
+        let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        assert!(
+            select_native_values(&write, &job, model, std::slice::from_ref(&desc), true).is_err()
+        );
+        assert!(
+            crate::native_selection::load_value(write.connection(), model, &desc)
+                .unwrap()
+                .is_none()
+        );
+        write
+            .connection()
+            .execute(
+                "UPDATE embedding_models SET identity_json=? WHERE identity_json=?",
+                rusqlite::params![
+                    serde_json::to_string(model).unwrap(),
+                    serde_json::to_string(&changed).unwrap()
+                ],
+            )
+            .unwrap();
+        write.commit().unwrap();
+    }
+    let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(
+        select_native_values(&write, &job, model, std::slice::from_ref(&desc), false).unwrap(),
+        [NativeValueSelection::AlreadySelected]
+    );
+    assert_eq!(
+        crate::native_selection::load_value(write.connection(), model, &desc)
+            .unwrap()
+            .unwrap()
+            .vector,
+        input.value(model, &desc).unwrap().as_ref()
+    );
+}

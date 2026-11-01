@@ -26,7 +26,7 @@ pub(crate) fn bounded(length: usize) -> Result<(), IndexError> {
 }
 
 pub(crate) fn require_active(c: &Connection, job: &str) -> Result<(), IndexError> {
-    let active: bool = c.query_row("SELECT EXISTS(SELECT 1 FROM native_update_targets t JOIN reference_update_jobs j USING(job_key) WHERE job_key=? AND phase='active' AND state='preparing' AND membership_digest IS NOT NULL AND expected_revision=(SELECT reference_revision FROM workspace WHERE id=1))", [job], |r|r.get(0))?;
+    let active: bool = c.prepare_cached("SELECT EXISTS(SELECT 1 FROM native_update_targets t JOIN reference_update_jobs j USING(job_key) WHERE job_key=? AND phase='active' AND state='preparing' AND membership_digest IS NOT NULL AND expected_revision=(SELECT reference_revision FROM workspace WHERE id=1))")?.query_row( [job], |r|r.get(0))?;
     if !active {
         return Err(IndexError::Invalid(
             "native target is not active for this reference revision".into(),
@@ -41,7 +41,9 @@ pub(crate) fn member(
     model: &SourceSearchProfileIdentity,
     input: &NativeInputDescriptor,
 ) -> Result<(i64, Option<Vec<u8>>), IndexError> {
-    let row:Option<(i64,usize,Option<usize>)>=c.query_row("SELECT i.input_id,i.token_count,length(t.selected_hash) FROM native_target_inputs t JOIN embedding_inputs i USING(input_id) JOIN embedding_models m USING(model_id) WHERE t.job_key=? AND m.identity_json=? AND i.input_hash=?",params![job,serde_json::to_string(model)?,crate::embedding_values::digest(&input.input_sha256)?],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?;
+    let identity = serde_json::to_string(model)?;
+    let input_hash = crate::embedding_values::digest(&input.input_sha256)?;
+    let row:Option<(i64,usize,Option<usize>)>=c.prepare_cached("SELECT i.input_id,i.token_count,length(t.selected_hash) FROM native_target_inputs t JOIN embedding_inputs i USING(input_id) JOIN embedding_models m USING(model_id) WHERE t.job_key=? AND m.identity_json=? AND i.input_hash=?")?.query_row(params![job,identity,input_hash],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?;
     let (id, tokens, length) = row.ok_or_else(|| {
         IndexError::Invalid("native input is absent from complete target membership".into())
     })?;
@@ -56,7 +58,7 @@ pub(crate) fn member(
                 "selected native checksum length mismatch".into(),
             ));
         }
-        Some(c.query_row("SELECT selected_hash FROM native_target_inputs WHERE job_key=? AND input_id=? AND length(selected_hash)=32",params![job,id],|r|r.get::<_,Vec<u8>>(0))?)
+        Some(c.prepare_cached("SELECT selected_hash FROM native_target_inputs WHERE job_key=? AND input_id=? AND length(selected_hash)=32")?.query_row(params![job,id],|r|r.get::<_,Vec<u8>>(0))?)
     } else {
         None
     };
@@ -70,7 +72,9 @@ pub(crate) fn load_value(
     model: &SourceSearchProfileIdentity,
     input: &NativeInputDescriptor,
 ) -> Result<Option<NativeValue>, IndexError> {
-    let row:Option<(i64,usize,Option<usize>)>=c.query_row("SELECT i.input_id,i.token_count,length(i.published_hash) FROM embedding_inputs i JOIN embedding_models m USING(model_id) WHERE m.identity_json=? AND i.input_hash=?",params![serde_json::to_string(model)?,crate::embedding_values::digest(&input.input_sha256)?],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?;
+    let identity = serde_json::to_string(model)?;
+    let input_hash = crate::embedding_values::digest(&input.input_sha256)?;
+    let row:Option<(i64,usize,Option<usize>)>=c.prepare_cached("SELECT i.input_id,i.token_count,length(i.published_hash) FROM embedding_inputs i JOIN embedding_models m USING(model_id) WHERE m.identity_json=? AND i.input_hash=?")?.query_row(params![identity,input_hash],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?;
     let Some((id, tokens, published)) = row else {
         return Ok(None);
     };
@@ -83,23 +87,21 @@ pub(crate) fn load_value(
         .dimensions
         .checked_mul(std::mem::size_of::<f32>())
         .ok_or_else(|| IndexError::Invalid("native vector length overflow".into()))?;
-    let pending:Option<(usize,usize)>=c.query_row("SELECT length(vector),length(vector_hash) FROM pending_embedding_values WHERE input_id=?",[id],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
+    let pending:Option<(usize,usize)>=c.prepare_cached("SELECT length(vector),length(vector_hash) FROM pending_embedding_values WHERE input_id=?")?.query_row([id],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
     let bytes = if let Some((length, hash_length)) = pending {
         if length != expected || hash_length != 32 {
             return Err(IndexError::Invalid(
                 "pending native value length mismatch".into(),
             ));
         }
-        Some(c.query_row("SELECT vector,vector_hash FROM pending_embedding_values WHERE input_id=? AND length(vector)=? AND length(vector_hash)=32",params![id,expected],|r|Ok((r.get::<_,Vec<u8>>(0)?,r.get::<_,Vec<u8>>(1)?)))?)
+        Some(c.prepare_cached("SELECT vector,vector_hash FROM pending_embedding_values WHERE input_id=? AND length(vector)=? AND length(vector_hash)=32")?.query_row(params![id,expected],|r|Ok((r.get::<_,Vec<u8>>(0)?,r.get::<_,Vec<u8>>(1)?)))?)
     } else {
         let table = crate::schema::vector_table(model)?;
-        let exists: bool = c.query_row(
-            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name=?)",
-            [&table],
-            |r| r.get(0),
-        )?;
+        let exists: bool = c
+            .prepare_cached("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name=?)")?
+            .query_row([&table], |r| r.get(0))?;
         let document: Option<usize> = if exists {
-            c.query_row(&format!("SELECT length(embedding) FROM {table} WHERE unit_id=(SELECT min(unit_id) FROM semantic_units WHERE input_id=?)"),[id],|r|r.get(0)).optional()?
+            c.prepare_cached(&format!("SELECT length(embedding) FROM {table} WHERE unit_id=(SELECT min(unit_id) FROM semantic_units WHERE input_id=?)"))?.query_row([id],|r|r.get(0)).optional()?
         } else {
             None
         };
@@ -109,14 +111,11 @@ pub(crate) fn load_value(
                     "published document native value length mismatch".into(),
                 ));
             }
-            Some(c.query_row(&format!("SELECT embedding FROM {table} WHERE unit_id=(SELECT min(unit_id) FROM semantic_units WHERE input_id=?1) AND length(embedding)=?2"),params![id,expected],|r|r.get::<_,Vec<u8>>(0))?)
+            Some(c.prepare_cached(&format!("SELECT embedding FROM {table} WHERE unit_id=(SELECT min(unit_id) FROM semantic_units WHERE input_id=?1) AND length(embedding)=?2"))?.query_row(params![id,expected],|r|r.get::<_,Vec<u8>>(0))?)
         } else {
             let length: Option<usize> = c
-                .query_row(
-                    "SELECT length(vector) FROM trait_native_values WHERE input_id=?",
-                    [id],
-                    |r| r.get(0),
-                )
+                .prepare_cached("SELECT length(vector) FROM trait_native_values WHERE input_id=?")?
+                .query_row([id], |r| r.get(0))
                 .optional()?;
             if let Some(length) = length {
                 if length != expected {
@@ -124,8 +123,7 @@ pub(crate) fn load_value(
                         "trait native value length mismatch".into(),
                     ));
                 }
-                Some(c.query_row(
-                    "SELECT vector FROM trait_native_values WHERE input_id=? AND length(vector)=?",
+                Some(c.prepare_cached("SELECT vector FROM trait_native_values WHERE input_id=? AND length(vector)=?")?.query_row(
                     params![id, expected],
                     |r| r.get::<_, Vec<u8>>(0),
                 )?)
@@ -140,7 +138,7 @@ pub(crate) fn load_value(
                         "published native checksum missing or length mismatch".into(),
                     ));
                 }
-                let checksum=c.query_row("SELECT published_hash FROM embedding_inputs WHERE input_id=? AND length(published_hash)=32",[id],|r|r.get::<_,Vec<u8>>(0))?;
+                let checksum=c.prepare_cached("SELECT published_hash FROM embedding_inputs WHERE input_id=? AND length(published_hash)=32")?.query_row([id],|r|r.get::<_,Vec<u8>>(0))?;
                 Some((bytes, checksum))
             }
             None => None,
@@ -183,7 +181,7 @@ pub fn select_native_values(
             output.push(NativeValueSelection::AlreadySelected);
         } else if reuse {
             if let Some(value) = load_value(c, model, input)? {
-                c.execute("UPDATE native_target_inputs SET selected_hash=? WHERE job_key=? AND input_id=?",params![value.checksum,job,id])?;
+                c.prepare_cached("UPDATE native_target_inputs SET selected_hash=? WHERE job_key=? AND input_id=?")?.execute(params![value.checksum,job,id])?;
                 output.push(NativeValueSelection::Reused);
             } else {
                 output.push(NativeValueSelection::Missing);
@@ -215,11 +213,11 @@ pub fn stage_native_values(
                 "attempted to replace an already selected native value".into(),
             ));
         }
-        c.execute("INSERT INTO pending_embedding_values VALUES(?,?,?,?) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,touched_job=excluded.touched_job",params![id,bytes,checksum,job])?;
-        c.execute(
+        c.prepare_cached("INSERT INTO pending_embedding_values VALUES(?,?,?,?) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,touched_job=excluded.touched_job")?.execute(params![id,bytes,checksum,job])?;
+        c.prepare_cached(
             "UPDATE native_target_inputs SET selected_hash=? WHERE job_key=? AND input_id=?",
-            params![checksum, job, id],
-        )?;
+        )?
+        .execute(params![checksum, job, id])?;
     }
     Ok(())
 }
