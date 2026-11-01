@@ -469,7 +469,8 @@ fn unavailable_sources_do_not_establish_an_exact_hp_cap_or_overnight_admission()
             Some(5),
             atlas_app_model::OvernightHealingMode::Natural,
             None,
-            &mut row
+            &mut row,
+            6,
         )
         .unwrap()
         .is_none()

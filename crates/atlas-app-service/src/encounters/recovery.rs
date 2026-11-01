@@ -200,7 +200,14 @@ impl AtlasAppService {
                     .find(|v| v.participant_key == p.participant_key)
                     .ok_or_else(|| AppServiceError::invalid_request("Missing rest participant"))?;
                 let record = p.record_key.as_ref().and_then(|k| records.get(k));
-                super::rules::overnight::prepare(p, input.healing, *healing_mode, record, &mut row)?
+                super::rules::overnight::prepare(
+                    p,
+                    input.healing,
+                    *healing_mode,
+                    record,
+                    &mut row,
+                    snapshot.encounter.round_duration_seconds,
+                )?
             } else if let Some(Some(baseline)) = baselines.get(&p.participant_key) {
                 let mut reset = baseline.clone();
                 reset.level_override = p.level_override;

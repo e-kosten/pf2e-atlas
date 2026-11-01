@@ -273,7 +273,7 @@ describe("source-backed API transport", () => {
   it("normalizes persistent source identity and recovery DCs together", async () => {
     respond({
       revision: 4,
-      encounter: { round_number: 1 },
+      encounter: { round_duration_seconds: 6, round_number: 1 },
       participants: [
         {
           ...participantJson,
@@ -337,7 +337,7 @@ describe("source-backed API transport", () => {
       };
       respond({
         revision: 8,
-        encounter: { round_number: 1 },
+        encounter: { round_duration_seconds: 6, round_number: 1 },
         participants: [{ ...participantJson, presentation }],
       });
       const encounter = await getEncounter("test");
@@ -402,7 +402,7 @@ describe("source-backed API transport", () => {
   it("normalizes actual HTTP encounter integers for display and revision-bound edits", async () => {
     respond({
       revision: 8,
-      encounter: { round_number: 1 },
+      encounter: { round_duration_seconds: 6, round_number: 1 },
       participants: [participantJson],
     });
     const detail = await getEncounter("test");
@@ -446,7 +446,7 @@ describe("source-backed API transport", () => {
     async (revision) => {
       respond({
         revision: 8,
-        encounter: { round_number: 1 },
+        encounter: { round_duration_seconds: 6, round_number: 1 },
         participants: [{ ...participantJson, revision }],
       });
       await expect(getEncounter("test")).rejects.toBeInstanceOf(AtlasApiError);
@@ -455,7 +455,7 @@ describe("source-backed API transport", () => {
   it("normalizes the largest safe revision without rounding", async () => {
     respond({
       revision: 8,
-      encounter: { round_number: 1 },
+      encounter: { round_duration_seconds: 6, round_number: 1 },
       participants: [{ ...participantJson, revision: Number.MAX_SAFE_INTEGER }],
     });
     expect((await getEncounter("test")).participants[0].revision).toBe(
@@ -648,7 +648,11 @@ describe("source-backed API transport", () => {
   });
   it("preserves unavailable HP and rejects already-rounded integer responses", async () => {
     const unknown = { ...participantJson, current_hp: undefined, max_hp: undefined };
-    respond({ revision: 8, encounter: { round_number: 1 }, participants: [unknown] });
+    respond({
+      revision: 8,
+      encounter: { round_duration_seconds: 6, round_number: 1 },
+      participants: [unknown],
+    });
     const participant = (await getEncounter("test")).participants[0];
     expect(participant.current_hp).toBeUndefined();
     for (const invalid of [
@@ -658,7 +662,7 @@ describe("source-backed API transport", () => {
     ]) {
       respond({
         revision: 8,
-        encounter: { round_number: 1 },
+        encounter: { round_duration_seconds: 6, round_number: 1 },
         participants: [{ ...participantJson, current_hp: invalid }],
       });
       await expect(getEncounter("test")).rejects.toThrow("Invalid numeric field");

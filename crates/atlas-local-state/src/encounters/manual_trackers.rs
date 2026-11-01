@@ -9,7 +9,13 @@ pub struct ManualTracker {
     pub tracker_key: String,
     pub name: String,
     pub duration: ConditionDuration,
-    pub remaining_rounds: i64,
+    pub progress: TrackerProgress,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "unit", content = "remaining", rename_all = "snake_case")]
+pub enum TrackerProgress {
+    Rounds(i64),
+    Seconds(i64),
 }
 #[derive(Debug, Clone)]
 pub struct ManualTrackerChange {

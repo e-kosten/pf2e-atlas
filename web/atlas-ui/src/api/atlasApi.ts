@@ -994,7 +994,11 @@ async function atlasFetchEncounter<T>(
   const result = { ...payload };
   const summary = (value: unknown) => {
     if (!isRecord(value)) throw new AtlasApiError(200, "Invalid encounter summary");
-    return { ...value, round_number: toBigInt(value.round_number) };
+    return {
+      ...value,
+      round_number: toBigInt(value.round_number),
+      round_duration_seconds: toBigInt(value.round_duration_seconds),
+    };
   };
   const optionalIntegers = (value: Record<string, unknown>, fields: string[]) =>
     Object.fromEntries(

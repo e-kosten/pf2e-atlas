@@ -52,7 +52,10 @@ to begin the same countdown again. Editing the duration or timing restarts it;
 renaming preserves its progress.
 
 Timed conditions also accept rounds, minutes, hours or days. With turn timing
-configured, one minute counts down over ten rounds (six seconds per round).
+configured, one minute counts down over ten normal rounds. For encounters using
+longer turns, change **Seconds per round** in encounter settings; the default is 6.
+Changing this setting preserves the remaining time of minute/hour/day timers.
+Trackers entered in rounds continue to count turns.
 Advancing turns updates the remaining count; selecting a turn manually does not.
 An ended condition remains visible until you remove it. Existing durations without
 turn timing remain reminders until you edit them to choose a timing participant

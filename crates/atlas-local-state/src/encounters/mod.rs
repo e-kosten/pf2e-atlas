@@ -1,5 +1,5 @@
 mod manual_trackers;
-pub use manual_trackers::{ManualTracker, ManualTrackerChange};
+pub use manual_trackers::{ManualTracker, ManualTrackerChange, TrackerProgress};
 mod recovery;
 pub use recovery::{ApplyEncounterRecovery, ParticipantGameplay};
 mod ability_state;

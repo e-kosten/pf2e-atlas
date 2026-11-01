@@ -50,16 +50,32 @@ impl AtlasAppService {
                 duration,
             } => {
                 let old = existing(tracker_key)?;
-                let mut value = prepare(&snapshot, tracker_key, name, duration.clone())?;
-                if old.duration == value.duration {
-                    value.remaining_rounds = old.remaining_rounds;
-                }
+                let mut input = duration.clone();
+                input.remaining_rounds = None;
+                let value = if input
+                    == timing::duration_view(
+                        old.duration.clone(),
+                        snapshot.encounter.round_duration_seconds,
+                    ) {
+                    let mut value = old.clone();
+                    value.name = tracker_name(name)?;
+                    value
+                } else {
+                    prepare(&snapshot, tracker_key, name, input)?
+                };
                 (tracker_key.clone(), Some(value))
             }
             Action::Restart { tracker_key } => {
-                let mut value = existing(tracker_key)?.clone();
-                value.remaining_rounds =
-                    timing::duration_rounds(value.duration.amount, value.duration.unit)?;
+                let old = existing(tracker_key)?;
+                let value = prepare(
+                    &snapshot,
+                    tracker_key,
+                    &old.name,
+                    timing::duration_view(
+                        old.duration.clone(),
+                        snapshot.encounter.round_duration_seconds,
+                    ),
+                )?;
                 (tracker_key.clone(), Some(value))
             }
             Action::Remove { tracker_key } => {
@@ -99,12 +115,7 @@ fn prepare(
     name: &str,
     mut input: atlas_app_model::ConditionDurationView,
 ) -> AppServiceResult<ManualTracker> {
-    let name = name.trim();
-    if name.is_empty() || name.chars().count() > 120 {
-        return Err(AppServiceError::invalid_request(
-            "Tracker name must contain 1 to 120 characters.",
-        ));
-    }
+    let name = tracker_name(name)?;
     input.remaining_rounds = None;
     let mut duration = timing::duration_input(Some(input), None, snapshot)?
         .ok_or_else(|| AppServiceError::invalid_request("Choose a tracker duration."))?;
@@ -113,18 +124,19 @@ fn prepare(
             "Choose whose turn counts down the tracker.",
         ));
     }
-    let remaining_rounds = timing::duration_rounds(duration.amount, duration.unit)?;
-    duration.remaining_rounds = None;
+    let progress = timing::tracker_progress(&duration)?;
+    duration.remaining_seconds = None;
     Ok(ManualTracker {
         tracker_key: key.into(),
-        name: name.into(),
+        name,
         duration,
-        remaining_rounds,
+        progress,
     })
 }
 pub(super) fn views(
     participant: &EncounterParticipant,
     participants: &[EncounterParticipant],
+    round_seconds: i64,
 ) -> Vec<EncounterManualTrackerView> {
     participant
         .manual_trackers
@@ -139,8 +151,8 @@ pub(super) fn views(
             EncounterManualTrackerView {
                 tracker_key: tracker.tracker_key.clone(),
                 name: tracker.name.clone(),
-                duration: timing::duration_view(tracker.duration.clone()),
-                remaining_rounds: tracker.remaining_rounds,
+                duration: timing::duration_view(tracker.duration.clone(), round_seconds),
+                remaining_rounds: timing::tracker_rounds(&tracker.progress, round_seconds),
                 timing_available: anchor.is_some(),
                 timing_label: anchor
                     .map(|(p, event)| {
@@ -157,4 +169,14 @@ pub(super) fn views(
             }
         })
         .collect()
+}
+
+fn tracker_name(name: &str) -> AppServiceResult<String> {
+    let name = name.trim();
+    if name.is_empty() || name.chars().count() > 120 {
+        return Err(AppServiceError::invalid_request(
+            "Tracker name must contain 1 to 120 characters.",
+        ));
+    }
+    Ok(name.into())
 }

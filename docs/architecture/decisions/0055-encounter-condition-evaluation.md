@@ -156,8 +156,11 @@ semantics; no cooldown or reset trigger is inferred from names or descriptions.
 
 Manual participant trackers provide explicit named countdowns independent of source
 ability declarations and condition causes. App-service validates duration and turn
-anchors, converts each minute/hour/day to 10/600/14400 six-second ticks, and plans
+anchors, retains minute/hour/day countdowns as exact remaining seconds, and plans
 countdown changes at the same actual start/end boundaries as timed conditions.
+Encounter round length defaults to six seconds and is explicitly configurable;
+remaining round projections use ceiling division. Changing that setting preserves
+elapsed-time progress, while round-unit countdowns continue to count turns.
 Local-state saves trackers, outgoing snapshots and condition progress in the guarded
 turn transaction. Request replay, reads and manual turn selection do not tick them.
 A tracker retains its entered duration and zero as Ready; editing its duration or
@@ -166,7 +169,7 @@ and do not receive a guessed replacement. Creation-baseline reset restores basel
 trackers, and overnight recovery advances their counters by eight hours.
 
 Anchored non-round conditions retain their entered amount/unit plus separate saved
-remaining-round progress. Round conditions retain their existing remaining amount.
+remaining-second progress. Round conditions retain their existing remaining amount.
 Metadata-only edits preserve saved progress; changed durations reinitialize it.
 Unconfigured legacy durations remain manual reminders until explicitly anchored.
 Zero uses the existing duration-ended/removal workflow and does not silently remove

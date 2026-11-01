@@ -82,6 +82,7 @@
       "encounter_key": "fixture-encounter",
       "name": "Ambush",
       "participant_count": 2,
+      "round_duration_seconds": 6,
       "round_number": 1,
       "slug": "ambush",
       "status": "running",
@@ -1363,7 +1364,7 @@
     "encounter_revision": 8,
     "participants": [
       {
-        "changes": [],
+        "changes": ["Expire Slowed", "Breath ready ready"],
         "current_hp": null,
         "display_name": "Kyra",
         "healing": 0,

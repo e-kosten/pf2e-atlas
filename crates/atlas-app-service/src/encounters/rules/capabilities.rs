@@ -594,7 +594,7 @@ mod tests {
             None
         );
         p.conditions[0].duration = Some(ConditionDuration {
-            remaining_rounds: None,
+            remaining_seconds: None,
             amount: 2,
             unit: ConditionDurationUnit::Minutes,
             timing: None,
@@ -625,7 +625,7 @@ mod tests {
         assert!(plan.allocation().is_none());
         p.conditions = vec![condition("Stunned", None)];
         p.conditions[0].duration = Some(ConditionDuration {
-            remaining_rounds: None,
+            remaining_seconds: None,
             amount: 1,
             unit: ConditionDurationUnit::Minutes,
             timing: None,

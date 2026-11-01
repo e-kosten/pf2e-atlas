@@ -1,4 +1,5 @@
-import { Button, Form, Input, InputNumber, Select, Space, Typography } from "antd";
+import { Pencil, Plus, RotateCcw, X } from "lucide-react";
+import { Button, Form, Input, InputNumber, Select, Space, Tooltip } from "antd";
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type {
   ConditionDurationView,
@@ -116,18 +117,26 @@ export function EncounterManualTrackers({
     }
   };
   return (
-    <section aria-labelledby={heading} className="encounter-manual-trackers">
-      <Space wrap>
+    <section
+      aria-labelledby={heading}
+      className="encounter-conditions encounter-manual-trackers"
+    >
+      <div className="encounter-conditions__header">
         <h3 id={heading}>Trackers</h3>
         <Button
           ref={addTrigger}
           size="small"
+          type="text"
+          aria-label="Add tracker"
+          title="Add tracker"
+          icon={<Plus size={16} aria-hidden="true" />}
           disabled={disabled || !onChange}
-          onClick={() => open()}
-        >
-          Add tracker
-        </Button>
-      </Space>
+          onClick={(event) => {
+            event.currentTarget.focus({ preventScroll: true });
+            open();
+          }}
+        />
+      </div>
       {error && !editor && (
         <ErrorNotice
           error={error}
@@ -135,53 +144,64 @@ export function EncounterManualTrackers({
           description={error}
         />
       )}
-      {participant.manual_trackers?.map((tracker) => (
-        <div key={tracker.tracker_key} className="encounter-manual-trackers__row">
-          <div>
-            <strong>{tracker.name}</strong>
-            {" · "}
-            <span role="status">
-              {tracker.remaining_rounds === 0n
-                ? "Ready"
-                : `${tracker.remaining_rounds} ${tracker.remaining_rounds === 1n ? "round" : "rounds"} remaining`}
+      {!participant.manual_trackers?.length && <p className="muted">No trackers</p>}
+      <div className="encounter-condition-list">
+        {participant.manual_trackers?.map((tracker) => (
+          <div key={tracker.tracker_key} className="encounter-condition-row">
+            <span className="encounter-condition-row__name">{tracker.name}</span>
+            <span className="encounter-condition-actions">
+              <Tooltip title="Restart" trigger={["hover", "focus"]}>
+                <Button
+                  size="small"
+                  type="text"
+                  icon={<RotateCcw size={14} aria-hidden="true" />}
+                  disabled={disabled || !onChange || !tracker.timing_available}
+                  aria-label={`Restart ${tracker.name}`}
+                  onClick={() =>
+                    void apply({ kind: "restart", tracker_key: tracker.tracker_key })
+                  }
+                />
+              </Tooltip>
+              <Tooltip title="Edit" trigger={["hover", "focus"]}>
+                <Button
+                  size="small"
+                  type="text"
+                  icon={<Pencil size={14} aria-hidden="true" />}
+                  disabled={disabled || !onChange}
+                  aria-label={`Edit tracker ${tracker.name}`}
+                  onClick={(event) => {
+                    event.currentTarget.focus({ preventScroll: true });
+                    open(tracker);
+                  }}
+                />
+              </Tooltip>
+              <Tooltip title="Remove" trigger={["hover", "focus"]}>
+                <Button
+                  size="small"
+                  type="text"
+                  icon={<X size={14} aria-hidden="true" />}
+                  disabled={disabled || !onChange}
+                  aria-label={`Remove tracker ${tracker.name}`}
+                  onClick={() =>
+                    void apply({ kind: "remove", tracker_key: tracker.tracker_key })
+                  }
+                />
+              </Tooltip>
             </span>
-            <div className="muted">
-              {conditionDurationLabel(tracker.duration)} · {tracker.timing_label}
-            </div>
+            <span className="encounter-condition-meta">
+              <span role="status">
+                {tracker.remaining_rounds === 0n
+                  ? "Ready"
+                  : `${tracker.remaining_rounds} ${tracker.remaining_rounds === 1n ? "round" : "rounds"} remaining`}
+              </span>
+              {tracker.duration.unit !== "rounds"
+                ? ` · ${conditionDurationLabel(tracker.duration)}`
+                : ""}{" "}
+              · {tracker.timing_label}
+            </span>
           </div>
-          <Space size="small" wrap>
-            <Button
-              size="small"
-              disabled={disabled || !onChange || !tracker.timing_available}
-              aria-label={`Restart ${tracker.name}`}
-              onClick={() =>
-                void apply({ kind: "restart", tracker_key: tracker.tracker_key })
-              }
-            >
-              Restart
-            </Button>
-            <Button
-              size="small"
-              disabled={disabled || !onChange}
-              aria-label={`Edit tracker ${tracker.name}`}
-              onClick={() => open(tracker)}
-            >
-              Edit
-            </Button>
-            <Button
-              size="small"
-              type="text"
-              disabled={disabled || !onChange}
-              aria-label={`Remove tracker ${tracker.name}`}
-              onClick={() =>
-                void apply({ kind: "remove", tracker_key: tracker.tracker_key })
-              }
-            >
-              Remove
-            </Button>
-          </Space>
-        </div>
-      ))}
+        ))}
+      </div>
       <EncounterModal
         open={editor !== null && !(committed && !disabled)}
         title={editor?.tracker ? "Edit tracker" : "Add tracker"}
@@ -307,12 +327,17 @@ export function EncounterManualTrackers({
               { max: 120 },
             ]}
           >
-            <Input placeholder="Breath ready" maxLength={120} />
+            <Input maxLength={120} />
           </Form.Item>
           <Space align="start" wrap>
             <Form.Item
               name="amount"
               label="Duration"
+              extra={
+                editor?.tracker
+                  ? "Changing duration or timing restarts the countdown."
+                  : undefined
+              }
               rules={[nonNegativeIntegerRule(true)]}
             >
               <InputNumber
@@ -369,12 +394,6 @@ export function EncounterManualTrackers({
               />
             </Form.Item>
           </Space>
-          <Typography.Paragraph type="secondary">
-            Each round counts as 6 seconds. The tracker stays visible when ready.
-            {editor?.tracker
-              ? " Changing duration or timing restarts the countdown."
-              : ""}
-          </Typography.Paragraph>
         </Form>
       </EncounterModal>
     </section>

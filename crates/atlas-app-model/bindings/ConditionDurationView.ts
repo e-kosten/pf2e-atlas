@@ -7,6 +7,6 @@ import type { ConditionTimingView } from "./ConditionTimingView";
  */
 export type ConditionDurationView = {
 /**
- * Six-second ticks remaining for a configured non-round duration.
+ * Remaining turns at the encounter’s current round length.
  */
 remaining_rounds?: bigint, amount: bigint, unit: ConditionDurationUnit, timing: ConditionTimingView | null, };

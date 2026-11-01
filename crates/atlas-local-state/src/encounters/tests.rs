@@ -463,7 +463,7 @@ fn encounter_conditions_are_added_updated_removed_and_cascade()
         parameters: Default::default(),
         origin: None,
         duration: Some(crate::ConditionDuration {
-            remaining_rounds: None,
+            remaining_seconds: None,
             amount: 2,
             unit: crate::ConditionDurationUnit::Rounds,
             timing: None,
@@ -487,7 +487,7 @@ fn encounter_conditions_are_added_updated_removed_and_cascade()
             parameters: Default::default(),
             origin: None,
             duration: Some(crate::ConditionDuration {
-                remaining_rounds: None,
+                remaining_seconds: None,
                 amount: 1,
                 unit: crate::ConditionDurationUnit::Rounds,
                 timing: None,
@@ -509,7 +509,7 @@ fn encounter_conditions_are_added_updated_removed_and_cascade()
     assert_eq!(
         saved.duration,
         Some(crate::ConditionDuration {
-            remaining_rounds: None,
+            remaining_seconds: None,
             amount: 1,
             unit: crate::ConditionDurationUnit::Rounds,
             timing: None,
@@ -1090,7 +1090,7 @@ fn reviewed_turn_revision_prevents_replay_and_concurrent_double_ticks()
             parameters: Default::default(),
             origin: None,
             duration: Some(crate::ConditionDuration {
-                remaining_rounds: None,
+                remaining_seconds: None,
                 amount: 2,
                 unit: crate::ConditionDurationUnit::Rounds,
                 timing: Some(crate::ConditionTiming {
@@ -1305,7 +1305,7 @@ fn failed_turn_write_rolls_back_duration_and_revision() -> Result<(), Box<dyn st
             parameters: Default::default(),
             origin: None,
             duration: Some(crate::ConditionDuration {
-                remaining_rounds: None,
+                remaining_seconds: None,
                 amount: 1,
                 unit: crate::ConditionDurationUnit::Rounds,
                 timing: None,
@@ -1369,7 +1369,7 @@ fn condition_update_checks_encounter_revision_inside_write_transaction()
             parameters: Default::default(),
             origin: None,
             duration: Some(crate::ConditionDuration {
-                remaining_rounds: None,
+                remaining_seconds: None,
                 amount: 3,
                 unit: crate::ConditionDurationUnit::Rounds,
                 timing: None,

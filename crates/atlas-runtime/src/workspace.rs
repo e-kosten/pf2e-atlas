@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 23;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 24;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -148,6 +148,15 @@ const MIGRATIONS: &[Migration] = &[
         sql: atlas_local_state::MANUAL_TRACKERS_SCHEMA_SQL,
         backfill: None,
     },
+    Migration {
+        version: 24,
+        name: "encounter-round-duration",
+        sql: atlas_local_state::ENCOUNTER_CLOCK_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            id: "encounter-clock-seconds/v1",
+            apply: atlas_local_state::backfill_encounter_clock,
+        }),
+    },
 ];
 
 /// Initialize or upgrade one workspace. Reference readiness is independent:
@@ -182,6 +191,71 @@ mod tests {
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
 
     #[test]
+    fn round_clock_upgrade_preserves_existing_six_second_progress_and_snapshots() {
+        let directory = tempfile::tempdir().unwrap();
+        register_extensions().unwrap();
+        let path = directory.path().join("round-clock-upgrade.sqlite");
+        let old = Workspace::at(&path).unwrap();
+        old.migrate(&MIGRATIONS[..23], |_| Ok(())).unwrap();
+        let write = old.write(23).unwrap();
+        write.connection().execute_batch(r#"
+        INSERT INTO encounters(id,encounter_key,slug,name,status,round_number,created_at,updated_at) VALUES(1,'legacy','legacy','Legacy','running',3,'before','before');
+        INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,side,created_at,updated_at) VALUES(1,1,'owner','pc',1,'Owner',1,'ally','before','before');
+        INSERT INTO encounter_participant_conditions(id,participant_id,name,duration_amount,duration_unit,duration_anchor_key,duration_event,duration_remaining_rounds,created_at,updated_at) VALUES(9,1,'Minute',1,'minutes','owner','end',9,'before','before');
+        "#).unwrap();
+        let tracker = serde_json::json!({"tracker_key":"breath","name":"Breath","duration":{"amount":1,"unit":"minutes","timing":{"participant_key":"owner","event":"end"}},"remaining_rounds":9});
+        let payload = serde_json::json!({"version":1,"payload":tracker});
+        write
+            .connection()
+            .execute(
+                "INSERT INTO encounter_manual_trackers VALUES('owner','breath',?1)",
+                [payload.to_string()],
+            )
+            .unwrap();
+        let snapshot = serde_json::json!({"version":1,"payload":{"snapshot":{"participants":[{"manual_trackers":[tracker],"conditions":[{"duration":{"amount":1,"unit":"minutes","remaining_rounds":9}}]}]},"marker":"preserve"}});
+        write.connection().execute("INSERT INTO encounter_outgoing_turns(encounter_id,boundary_key,request_id,intent_json,payload_json) VALUES(1,'old','old','{}',?1)",[snapshot.to_string()]).unwrap();
+        write.commit().unwrap();
+        let upgraded = initialize_workspace(&path).unwrap();
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let saved = LocalStateRead::new(&read)
+            .encounters()
+            .get_with_participants("legacy")
+            .unwrap()
+            .unwrap();
+        assert_eq!(saved.encounter.round_duration_seconds, 6);
+        assert_eq!(
+            saved.participants[0].conditions[0]
+                .duration
+                .as_ref()
+                .unwrap()
+                .remaining_seconds,
+            Some(54)
+        );
+        assert_eq!(
+            saved.participants[0].manual_trackers[0].progress,
+            atlas_local_state::TrackerProgress::Seconds(54)
+        );
+        let payload: String = read
+            .connection()
+            .query_row(
+                "SELECT payload_json FROM encounter_outgoing_turns",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let json: serde_json::Value = serde_json::from_str(&payload).unwrap();
+        assert_eq!(json["payload"]["marker"], "preserve");
+        assert_eq!(
+            json["payload"]["snapshot"]["participants"][0]["conditions"][0]["duration"]["remaining_seconds"],
+            54
+        );
+        assert_eq!(
+            json["payload"]["snapshot"]["participants"][0]["manual_trackers"][0]["progress"]["remaining"],
+            54
+        );
+    }
+
+    #[test]
     fn tracker_migration_preserves_conditions_and_deleted_identity_high_water() {
         let directory = tempfile::tempdir().unwrap();
         register_extensions().unwrap();
@@ -211,10 +285,10 @@ mod tests {
             condition.duration.as_ref().unwrap().unit,
             atlas_local_state::ConditionDurationUnit::Minutes
         );
-        assert_eq!(condition.duration.as_ref().unwrap().remaining_rounds, None);
+        assert_eq!(condition.duration.as_ref().unwrap().remaining_seconds, None);
         assert!(condition.duration.as_ref().unwrap().timing.is_none());
         assert!(saved.participants[0].manual_trackers.is_empty());
-        write.connection().execute("INSERT INTO encounter_participant_conditions(participant_id,name,duration_amount,duration_unit,duration_anchor_key,duration_event,duration_remaining_rounds,created_at,updated_at) VALUES(1,'Timed',1,'minutes','owner','end',10,'now','now')",[]).unwrap();
+        write.connection().execute("INSERT INTO encounter_participant_conditions(participant_id,name,duration_amount,duration_unit,duration_anchor_key,duration_event,duration_remaining_seconds,created_at,updated_at) VALUES(1,'Timed',1,'minutes','owner','end',10,'now','now')",[]).unwrap();
         assert_eq!(write.connection().last_insert_rowid(), 100);
         assert_eq!(
             write
@@ -566,7 +640,7 @@ mod tests {
         write
             .connection()
             .execute_batch(
-                "DROP TABLE encounter_manual_trackers; ALTER TABLE encounter_participant_conditions DROP COLUMN duration_remaining_rounds; DROP TABLE encounter_recovery_receipts; DROP TABLE encounter_participant_baselines; DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DROP TABLE similarity_parts; DELETE FROM schema_migrations WHERE version>=20; PRAGMA user_version=19;",
+                "DROP TABLE encounter_manual_trackers; ALTER TABLE encounters DROP COLUMN round_duration_seconds; ALTER TABLE encounter_participant_conditions DROP COLUMN duration_remaining_seconds; DROP TABLE encounter_recovery_receipts; DROP TABLE encounter_participant_baselines; DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DROP TABLE similarity_parts; DELETE FROM schema_migrations WHERE version>=20; PRAGMA user_version=19;",
             )
             .unwrap();
         let main_ledger = |connection: &rusqlite::Connection| {
@@ -702,7 +776,7 @@ mod tests {
                 ],
             )
             .unwrap();
-        write.connection().execute_batch("DROP TABLE encounter_manual_trackers; ALTER TABLE encounter_participant_conditions DROP COLUMN duration_remaining_rounds; DROP TABLE encounter_recovery_receipts; DROP TABLE encounter_participant_baselines; DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DELETE FROM schema_migrations WHERE version>=21; PRAGMA user_version=20;").unwrap();
+        write.connection().execute_batch("DROP TABLE encounter_manual_trackers; ALTER TABLE encounters DROP COLUMN round_duration_seconds; ALTER TABLE encounter_participant_conditions DROP COLUMN duration_remaining_seconds; DROP TABLE encounter_recovery_receipts; DROP TABLE encounter_participant_baselines; DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DELETE FROM schema_migrations WHERE version>=21; PRAGMA user_version=20;").unwrap();
         write.commit().unwrap();
         let source = directory.path().join("absent-source");
         let models = directory.path().join("absent-models");

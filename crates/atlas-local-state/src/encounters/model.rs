@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Encounter {
+    #[serde(default = "default_round_duration_seconds")]
+    pub round_duration_seconds: i64,
     #[serde(default)]
     pub difficulty_reference: EncounterDifficultyReference,
     pub revision: i64,
@@ -270,6 +272,7 @@ pub struct NewEncounter {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateEncounter {
+    pub round_duration_seconds: Option<i64>,
     pub encounter_key: String,
     pub slug: String,
     pub name: String,
@@ -458,9 +461,9 @@ pub struct ConditionTiming {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConditionDuration {
-    /// Remaining six-second ticks for anchored non-round durations.
+    /// Exact seconds remaining for anchored non-round durations.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub remaining_rounds: Option<i64>,
+    pub remaining_seconds: Option<i64>,
     pub amount: i64,
     pub unit: ConditionDurationUnit,
     pub timing: Option<ConditionTiming>,
@@ -480,4 +483,8 @@ pub struct SpellResource {
     pub capacity: i64,
     pub remaining: i64,
     pub undo_remaining: Option<i64>,
+}
+
+fn default_round_duration_seconds() -> i64 {
+    6
 }

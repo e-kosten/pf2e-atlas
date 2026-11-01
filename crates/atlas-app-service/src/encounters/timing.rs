@@ -14,9 +14,14 @@ use crate::error::{AppServiceError, AppServiceResult};
 // Canonical Foundry condition identity; a custom condition with the same name is not this rule.
 const PERSISTENT_DAMAGE_KEY: &str = "conditionitems:lDVqvLKA6eF3Df60";
 
-pub(super) fn duration_view(duration: ConditionDuration) -> ConditionDurationView {
+pub(super) fn duration_view(
+    duration: ConditionDuration,
+    round_seconds: i64,
+) -> ConditionDurationView {
     ConditionDurationView {
-        remaining_rounds: duration.remaining_rounds,
+        remaining_rounds: duration
+            .remaining_seconds
+            .map(|s| rounds_for_seconds(s, round_seconds)),
         amount: duration.amount,
         unit: match duration.unit {
             ConditionDurationUnit::Rounds => ViewUnit::Rounds,
@@ -34,24 +39,61 @@ pub(super) fn duration_view(duration: ConditionDuration) -> ConditionDurationVie
     }
 }
 
-/// A round advances six seconds; preserve the authored duration separately.
-pub(super) fn duration_rounds(amount: i64, unit: ConditionDurationUnit) -> AppServiceResult<i64> {
+/// Explicit elapsed time remains exact when the encounter's round length changes.
+pub(super) fn duration_seconds(amount: i64, unit: ConditionDurationUnit) -> AppServiceResult<i64> {
     let multiplier = match unit {
         ConditionDurationUnit::Rounds => 1,
-        ConditionDurationUnit::Minutes => 10,
-        ConditionDurationUnit::Hours => 600,
-        ConditionDurationUnit::Days => 14400,
+        ConditionDurationUnit::Minutes => 60,
+        ConditionDurationUnit::Hours => 3600,
+        ConditionDurationUnit::Days => 86400,
     };
     amount
         .checked_mul(multiplier)
-        .filter(|v| (0..=9_007_199_254_740_991).contains(v))
+        .filter(|v| *v >= 0 && amount <= 9_007_199_254_740_991)
         .ok_or_else(|| AppServiceError::invalid_request("Duration is outside the supported range."))
 }
-pub(super) fn remaining_rounds(duration: &ConditionDuration) -> Option<i64> {
+pub(super) fn rounds_for_seconds(seconds: i64, round_seconds: i64) -> i64 {
+    seconds.div_euclid(round_seconds) + i64::from(seconds.rem_euclid(round_seconds) > 0)
+}
+pub(super) fn remaining_rounds(duration: &ConditionDuration, round_seconds: i64) -> Option<i64> {
     if duration.unit == ConditionDurationUnit::Rounds {
         Some(duration.amount)
     } else {
-        duration.remaining_rounds
+        duration
+            .remaining_seconds
+            .map(|s| rounds_for_seconds(s, round_seconds))
+    }
+}
+pub(super) fn tracker_progress(
+    duration: &ConditionDuration,
+) -> AppServiceResult<atlas_local_state::TrackerProgress> {
+    let amount = duration_seconds(duration.amount, duration.unit)?;
+    Ok(if duration.unit == ConditionDurationUnit::Rounds {
+        atlas_local_state::TrackerProgress::Rounds(amount)
+    } else {
+        atlas_local_state::TrackerProgress::Seconds(amount)
+    })
+}
+pub(super) fn tracker_rounds(
+    progress: &atlas_local_state::TrackerProgress,
+    round_seconds: i64,
+) -> i64 {
+    match progress {
+        atlas_local_state::TrackerProgress::Rounds(v) => *v,
+        atlas_local_state::TrackerProgress::Seconds(v) => rounds_for_seconds(*v, round_seconds),
+    }
+}
+pub(super) fn tick_tracker(
+    progress: &atlas_local_state::TrackerProgress,
+    round_seconds: i64,
+) -> atlas_local_state::TrackerProgress {
+    match progress {
+        atlas_local_state::TrackerProgress::Rounds(v) => {
+            atlas_local_state::TrackerProgress::Rounds((v - 1).max(0))
+        }
+        atlas_local_state::TrackerProgress::Seconds(v) => {
+            atlas_local_state::TrackerProgress::Seconds(v.saturating_sub(round_seconds).max(0))
+        }
     }
 }
 pub(super) fn duration_input(
@@ -77,7 +119,7 @@ pub(super) fn duration_input(
                 ViewEvent::End => ConditionTurnEvent::End,
             },
         }),
-        remaining_rounds: None,
+        remaining_seconds: None,
     };
     // Metadata-only edits preserve saved progress, including unresolved legacy anchors.
     if let Some(old) = existing.filter(|old| {
@@ -85,7 +127,14 @@ pub(super) fn duration_input(
     }) {
         return Ok(Some(old.clone()));
     }
-    let ticks = duration_rounds(local.amount, local.unit)?;
+    let seconds = duration_seconds(local.amount, local.unit)?;
+    let count = if local.unit == ConditionDurationUnit::Rounds {
+        local.amount
+    } else {
+        rounds_for_seconds(seconds, snapshot.encounter.round_duration_seconds)
+    };
+    require_exact_round_count(count)?;
+
     match &local.timing {
         Some(timing)
             if !snapshot
@@ -105,7 +154,7 @@ pub(super) fn duration_input(
         _ => {}
     }
     if local.unit != ConditionDurationUnit::Rounds && local.timing.is_some() {
-        local.remaining_rounds = Some(ticks);
+        local.remaining_seconds = Some(seconds);
     }
     Ok(Some(local))
 }
@@ -141,14 +190,23 @@ pub(super) fn turn_update(snapshot: &EncounterWithParticipants) -> EncounterTurn
         .flat_map(|p| &p.conditions)
         .filter_map(|condition| {
             let duration = condition.duration.as_ref()?;
-            (remaining_rounds(duration).is_some_and(|count| count > 0)
+            (remaining_rounds(duration, snapshot.encounter.round_duration_seconds)
+                .is_some_and(|count| count > 0)
                 && duration.timing.as_ref().is_some_and(|timing| {
                     matches_boundary(snapshot, turn.participant_key.as_deref(), timing)
                 }))
             .then(|| {
                 (
                     condition.condition_id,
-                    remaining_rounds(duration).unwrap_or(0) - 1,
+                    if duration.unit == ConditionDurationUnit::Rounds {
+                        duration.amount - 1
+                    } else {
+                        duration
+                            .remaining_seconds
+                            .unwrap_or(0)
+                            .saturating_sub(snapshot.encounter.round_duration_seconds)
+                            .max(0)
+                    },
                 )
             })
         })
@@ -158,13 +216,14 @@ pub(super) fn turn_update(snapshot: &EncounterWithParticipants) -> EncounterTurn
         .iter()
         .flat_map(|p| {
             p.manual_trackers.iter().filter_map(|tracker| {
-                (tracker.remaining_rounds > 0
+                (tracker_rounds(&tracker.progress, snapshot.encounter.round_duration_seconds) > 0
                     && tracker.duration.timing.as_ref().is_some_and(|timing| {
                         matches_boundary(snapshot, turn.participant_key.as_deref(), timing)
                     }))
                 .then(|| {
                     let mut value = tracker.clone();
-                    value.remaining_rounds -= 1;
+                    value.progress =
+                        tick_tracker(&value.progress, snapshot.encounter.round_duration_seconds);
                     atlas_local_state::ManualTrackerChange {
                         participant_key: p.participant_key.clone(),
                         tracker_key: tracker.tracker_key.clone(),
@@ -237,14 +296,18 @@ pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurn
             let Some(duration) = condition.duration.as_ref() else {
                 continue;
             };
-            let reminder = if remaining_rounds(duration) == Some(0) && owner_boundary {
+            let reminder = if remaining_rounds(duration, snapshot.encounter.round_duration_seconds)
+                == Some(0)
+                && owner_boundary
+            {
                 Some(EncounterTurnReminderView::DurationEnded {
                     participant_key,
                     participant_name,
                     condition_id,
                     condition_name,
                 })
-            } else if remaining_rounds(duration).is_none()
+            } else if remaining_rounds(duration, snapshot.encounter.round_duration_seconds)
+                .is_none()
                 && duration.unit != ConditionDurationUnit::Rounds
                 && duration.timing.is_none()
                 && owner_boundary
@@ -254,23 +317,27 @@ pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurn
                     participant_name,
                     condition_id,
                     condition_name,
-                    duration: duration_view(duration.clone()),
+                    duration: duration_view(
+                        duration.clone(),
+                        snapshot.encounter.round_duration_seconds,
+                    ),
                 })
-            } else if remaining_rounds(duration) == Some(1)
+            } else if remaining_rounds(duration, snapshot.encounter.round_duration_seconds)
+                == Some(1)
                 && duration
                     .timing
                     .as_ref()
                     .is_some_and(|timing| matches_boundary(snapshot, next_key, timing))
             {
-                duration_view(duration.clone()).timing.map(|timing| {
-                    EncounterTurnReminderView::DurationEnding {
+                duration_view(duration.clone(), snapshot.encounter.round_duration_seconds)
+                    .timing
+                    .map(|timing| EncounterTurnReminderView::DurationEnding {
                         participant_key,
                         participant_name,
                         condition_id,
                         condition_name,
                         timing,
-                    }
-                })
+                    })
             } else if (duration.unit == ConditionDurationUnit::Rounds || duration.timing.is_some())
                 && owner_boundary
                 && !duration.timing.as_ref().is_some_and(|timing| {
@@ -285,7 +352,10 @@ pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurn
                     participant_name,
                     condition_id,
                     condition_name,
-                    duration: duration_view(duration.clone()),
+                    duration: duration_view(
+                        duration.clone(),
+                        snapshot.encounter.round_duration_seconds,
+                    ),
                 })
             } else {
                 None
@@ -312,4 +382,42 @@ pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurn
         next_participant_key: update.turn.participant_key,
         reminders,
     }
+}
+
+fn require_exact_round_count(count: i64) -> AppServiceResult<()> {
+    if count > 9_007_199_254_740_991 {
+        return Err(AppServiceError::invalid_request(
+            "Round duration produces an unsupported countdown size.",
+        ));
+    }
+    Ok(())
+}
+pub(super) fn validate_round_clock(
+    snapshot: &EncounterWithParticipants,
+    seconds: i64,
+) -> AppServiceResult<()> {
+    if !(1..=86400).contains(&seconds) {
+        return Err(AppServiceError::invalid_request(
+            "Round duration must be between 1 and 86400 seconds.",
+        ));
+    }
+    for participant in &snapshot.participants {
+        for remaining in participant
+            .conditions
+            .iter()
+            .filter_map(|c| c.duration.as_ref()?.remaining_seconds)
+            .chain(
+                participant
+                    .manual_trackers
+                    .iter()
+                    .filter_map(|t| match t.progress {
+                        atlas_local_state::TrackerProgress::Seconds(v) => Some(v),
+                        _ => None,
+                    }),
+            )
+        {
+            require_exact_round_count(rounds_for_seconds(remaining, seconds))?;
+        }
+    }
+    Ok(())
 }

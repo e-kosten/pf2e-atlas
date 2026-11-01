@@ -201,7 +201,7 @@ fn replace(
             .iter()
             .find(|v| v.condition_id == old.condition_id)
         {
-            c.execute("UPDATE encounter_participant_conditions SET value=?2,duration_amount=?3,duration_unit=?4,duration_remaining_rounds=?5 WHERE id=?1",params![old.condition_id,new.value,new.duration.as_ref().map(|d|d.amount),new.duration.as_ref().map(|d|d.unit.as_str()),new.duration.as_ref().and_then(|d|d.remaining_rounds)])?;
+            c.execute("UPDATE encounter_participant_conditions SET value=?2,duration_amount=?3,duration_unit=?4,duration_remaining_seconds=?5 WHERE id=?1",params![old.condition_id,new.value,new.duration.as_ref().map(|d|d.amount),new.duration.as_ref().map(|d|d.unit.as_str()),new.duration.as_ref().and_then(|d|d.remaining_seconds)])?;
         } else {
             c.execute(
                 "DELETE FROM encounter_participant_conditions WHERE id=?1",

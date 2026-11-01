@@ -251,7 +251,7 @@ this same owner. Directed detection and attitude knowledge retain provenance and
 unknown/conflicting states. See [ADR0055](./decisions/0055-encounter-condition-evaluation.md).
 
 Manual encounter trackers are independent saved countdowns. App-service owns
-six-second duration conversion and explicit turn-boundary updates; local-state
+configurable round-length conversion and explicit turn-boundary updates; local-state
 persists tracker values and non-round condition progress atomically with advancement.
 Frontend controls consume those facts without inferring cooldowns from prose.
 

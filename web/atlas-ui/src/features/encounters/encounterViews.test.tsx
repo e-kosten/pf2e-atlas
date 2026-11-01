@@ -202,6 +202,7 @@ function setupPersistentReview(damageApplied = false) {
           boundary_key: "original-turn",
           participant_key: "participant_a",
           participant_name: "Goblin",
+          round_duration_seconds: 6n,
           round_number: 1n,
           persistent_damage_groups: participant.persistent_damage_groups,
           reminders: state.recoveryResults.length
@@ -225,6 +226,7 @@ function setupPersistentReview(damageApplied = false) {
     damage_groups: state.recoveryResults.some((result) => result.success)
       ? []
       : participant.persistent_damage_groups,
+    round_duration_seconds: 6n,
     round_number: 1n,
     damage_applied: state.damageApplied,
     episodes: state.recoveryResults.length
@@ -333,6 +335,7 @@ describe("encounter views", () => {
     apiMocks.getEncounterPersistentReview.mockResolvedValue({
       encounter_revision: serverEncounter.revision,
       damage_groups: [],
+      round_duration_seconds: 6n,
       round_number: 1n,
       damage_applied: false,
       episodes: [],
@@ -2403,6 +2406,7 @@ describe("encounter views", () => {
             boundary_key: "outgoing",
             participant_key: "participant_a",
             participant_name: "Goblin",
+            round_duration_seconds: 6n,
             round_number: 1n,
             persistent_damage_groups: [],
             reminders,
@@ -3169,6 +3173,7 @@ function encounterIndexFixture(): EncounterIndexViewDto {
         name: "Ambush",
         description: "Road fight",
         status: "draft",
+        round_duration_seconds: 6n,
         round_number: 1n,
         participant_count: 2,
         created_at: "2026-01-01T00:00:00Z",
@@ -3179,6 +3184,7 @@ function encounterIndexFixture(): EncounterIndexViewDto {
         slug: "old-fight",
         name: "Old Fight",
         status: "archived",
+        round_duration_seconds: 6n,
         round_number: 1n,
         participant_count: 1,
         created_at: "2026-01-01T00:00:00Z",

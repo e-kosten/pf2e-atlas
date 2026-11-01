@@ -265,6 +265,7 @@ export function convertEncounterDetail(
     encounter: {
       ...value.encounter,
       round_number: toBigInt(value.encounter.round_number),
+      round_duration_seconds: toBigInt(value.encounter.round_duration_seconds),
     },
     participants: value.participants.map(participant),
   };

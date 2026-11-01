@@ -113,6 +113,7 @@ fn overnight_calculates_source_healing_and_restores_daily_but_preserves_weekly_u
         OvernightHealingMode::Natural,
         Some(record),
         &mut row,
+        6,
     )
     .unwrap()
     .unwrap();
