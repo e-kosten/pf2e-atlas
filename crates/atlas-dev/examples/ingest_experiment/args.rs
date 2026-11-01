@@ -34,6 +34,7 @@ pub(super) struct Args {
     pub locale: String,
     #[arg(long)]
     pub interruption_marker: Option<PathBuf>,
+    /// Encounter for roster reads, or optional composed saved/reference observer reads.
     #[arg(long)]
     pub encounter: Option<String>,
     #[arg(long, default_value_t=5, value_parser=clap::value_parser!(u32).range(1..=20))]

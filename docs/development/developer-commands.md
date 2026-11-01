@@ -150,8 +150,21 @@ A workspace without interrupted maintenance is not authenticated recovery. An ab
 serialization and service startup outside each sample. `--repetitions` accepts1–20.
 `observe --stop-file /absolute/task/checkout/scratch/new-stop-file` first writes
 `ready.json`, then records repeated product readiness requests until the caller
-creates that initially absent file. Its sampled request intervals bound observed
-availability; it can perturb locks and belongs in a separate observation run.
+creates that initially absent file. Add `--encounter REF` to also sample the
+composed AppService encounter read: saved participants and hydrated reference
+presentation come from that service operation. Each readiness and encounter
+request has its own begin/end/duration; the two requests are not an atomic pair.
+Encounter success records its artifact generation, participant/record identities,
+source fingerprints exposed by owned navigation links, and a response digest.
+Missing fingerprints remain missing evidence. Only the first successful full
+encounter view is retained in `encounter-first-success.json`; later samples keep
+compact evidence. Errors retain the typed app error DTO (maintenance maps to
+`setup_required`, which is not a maintenance-only classification). Service startup,
+serialization and file output are outside per-request timings; on-demand sessions
+end before sleep. Without `--encounter`, this measures readiness only. Final
+coherent reference/saved availability acceptance must supply a source-backed
+encounter. Sampled intervals bound observed availability; the observer can perturb
+locks and belongs in a separate observation run.
 
 The example enables a typed, calling-thread storage diagnostic scope. It counts
 workspace connection and SQLite statement-start/completion/subprogram events,

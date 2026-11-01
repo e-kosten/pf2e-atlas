@@ -144,6 +144,69 @@ fn roster(args: &Args) -> Result<Value, String> {
         json!({"encounter":encounter,"samples":samples,"timing_scope":"AppService::encounter only; service startup and response serialization excluded; first sample context-cold, following samples reuse one on-demand service; uncontrolled OS caches"}),
     )
 }
+// Each AppService call opens and releases its own on-demand session. The two
+// request intervals are independent; serializing evidence holds no read session.
+fn observation_sample(
+    service: &atlas_app_service::AtlasAppService,
+    encounter: Option<&str>,
+    started: &Instant,
+    first_success: Option<&Path>,
+) -> Result<(Value, bool), String> {
+    let begin = started.elapsed();
+    let request = Instant::now();
+    let readiness = service.readiness();
+    let elapsed = request.elapsed();
+    let end = started.elapsed();
+    let readiness = json!({
+        "begin_ns":begin.as_nanos(),"end_ns":end.as_nanos(),
+        "request_ns":elapsed.as_nanos(),"view":readiness,
+    });
+    let Some(encounter) = encounter else {
+        return Ok((json!({"readiness":readiness}), false));
+    };
+    let begin = started.elapsed();
+    let request = Instant::now();
+    let result = service.encounter(encounter);
+    let elapsed = request.elapsed();
+    let end = started.elapsed();
+    let success = result.is_ok();
+    let outcome = match result {
+        Ok(view) => {
+            let bytes = serde_json::to_vec(&view).map_err(|e| e.to_string())?;
+            // These fingerprints come from this composed DTO's existing owned
+            // navigation links. Missing fingerprints remain missing evidence.
+            let participants = view.participants.iter().filter_map(|participant| {
+                let record = participant.record.as_ref()?;
+                let fingerprints = participant.presentation.iter()
+                    .flat_map(|presentation| &presentation.owned)
+                    .filter_map(|link| link.navigation.source_fingerprint.as_deref())
+                    .collect::<std::collections::BTreeSet<_>>();
+                Some(json!({"participant_key":participant.participant_key,
+                    "participant_revision":participant.revision,
+                    "saved_record_key":participant.record_key,
+                    "record_key":record.record_key,
+                    "presentation_record_key":participant.presentation.as_ref().map(|p| &p.identity.record_key),
+                    "source_fingerprints":fingerprints}))
+            }).collect::<Vec<_>>();
+            if let Some(path) = first_success {
+                write_json(path, &view)?;
+            }
+            json!({"kind":"ok","artifact_generation":view.artifact_generation,
+                "encounter_key":view.encounter.encounter_key,"encounter_revision":view.revision,
+                "participant_count":view.participants.len(),"source_backed_participants":participants,
+                "response_sha256":format!("{:x}",Sha256::digest(&bytes)),
+                "first_response_evidence":first_success})
+        }
+        Err(error) => json!({"kind":"error","error":error.into_app_error()}),
+    };
+    Ok((
+        json!({"readiness":readiness,"encounter":{
+            "reference":encounter,"begin_ns":begin.as_nanos(),"end_ns":end.as_nanos(),
+            "request_ns":elapsed.as_nanos(),"outcome":outcome,
+        }}),
+        success,
+    ))
+}
 fn observe(args: &Args) -> Result<Value, String> {
     let service = app_service(args)?;
     let stop = args
@@ -159,15 +222,23 @@ fn observe(args: &Args) -> Result<Value, String> {
         .map_err(|e| e.to_string())?;
     let started = Instant::now();
     let mut observed = 0;
+    let mut encounter_successes = 0;
+    let first_response = args.output.join("encounter-first-success.json");
     for sample in 0..args.max_observations {
         if stop.exists() {
             break;
         }
-        let begin = started.elapsed();
-        let request = Instant::now();
-        let view = service.readiness();
-        let elapsed = request.elapsed();
-        serde_json::to_writer(&mut file,&json!({"sample":sample,"begin_ns":begin.as_nanos(),"request_ns":elapsed.as_nanos(),"readiness":view})).map_err(|e|e.to_string())?;
+        let (mut observation, encounter_succeeded) = observation_sample(
+            &service,
+            args.encounter.as_deref(),
+            &started,
+            (encounter_successes == 0).then_some(first_response.as_path()),
+        )?;
+        if encounter_succeeded {
+            encounter_successes += 1;
+        }
+        observation["sample"] = json!(sample);
+        serde_json::to_writer(&mut file, &observation).map_err(|e| e.to_string())?;
         writeln!(file)
             .and_then(|()| file.flush())
             .map_err(|e| e.to_string())?;
@@ -184,7 +255,10 @@ fn observe(args: &Args) -> Result<Value, String> {
         );
     }
     Ok(
-        json!({"observations":observed,"elapsed_ns":started.elapsed().as_nanos(),"interval_ms":args.interval_ms,"scope":"separate product readiness observations; request intervals bound observed availability, not exact admission transition timestamps; observer can perturb locks; never combine silently with shipping CLI timing"}),
+        json!({"observations":observed,"encounter":args.encounter,"encounter_successes":encounter_successes,
+            "first_response_evidence":(encounter_successes > 0).then_some(first_response),
+            "elapsed_ns":started.elapsed().as_nanos(),"interval_ms":args.interval_ms,
+            "scope":"separate AppService readiness and optional composed encounter requests with independent intervals; not a shared snapshot or atomic pair; startup, serialization and evidence output excluded from each request; sessions released before sleep; sampled availability can perturb locks and never joins shipping CLI timing"}),
     )
 }
 pub(super) fn run() -> Result<(), String> {
@@ -388,6 +462,150 @@ mod tests {
             #[cfg(unix)]
             assert_eq!(files["allocated_bytes_known"], true);
         }
+    }
+    #[test]
+    fn encounter_observations_hydrate_source_and_report_maintenance_then_recovery() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().canonicalize().unwrap();
+        let source = root.join("source");
+        std::fs::create_dir_all(source.join("packs/actors")).unwrap();
+        std::fs::create_dir_all(source.join("static/lang")).unwrap();
+        std::fs::write(source.join("module.json"),
+            r#"{"packs":[{"name":"actors","label":"Actors","type":"Actor","path":"packs/actors"}]}"#).unwrap();
+        std::fs::write(source.join("static/lang/en.json"), "{}").unwrap();
+        std::fs::write(source.join("packs/actors/goblin.json"),
+            r#"{"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Fixture Goblin","system":{"traits":{"value":[]},"details":{"level":{"value":1},"publicNotes":"<p>Fixture creature.</p>"},"attributes":{"adjustment":null,"ac":{"value":16},"hp":{"max":20},"speed":{"value":25,"otherSpeeds":[]}},"saves":{"fortitude":{"value":5},"reflex":{"value":7},"will":{"value":3}},"perception":{"mod":5}},"items":[{"_id":"bbbbbbbbbbbbbbbb","type":"melee","name":"Claw","system":{"range":null,"traits":{"value":[]},"bonus":{"value":7},"damageRolls":{"main":{"damage":"1d6+2","damageType":"slashing"}},"description":{"value":"<p>Fixture claw.</p>"}}}]}"#).unwrap();
+        let output = root.join("evidence");
+        std::fs::create_dir(&output).unwrap();
+        let models = root.join("models");
+        std::fs::create_dir(&models).unwrap();
+        let args = Args {
+            task_root: root.clone(),
+            database: root.join("workspace.sqlite"),
+            source,
+            models,
+            output,
+            candidate: "composed observer fixture".into(),
+            stage: Stage::Observe,
+            profiles: Some("none".into()),
+            locale: "en".into(),
+            interruption_marker: None,
+            encounter: None,
+            repetitions: 1,
+            stop_file: None,
+            interval_ms: 25,
+            max_observations: 1,
+        };
+        atlas_runtime::initialize_workspace(&args.database).unwrap();
+        build(&args).unwrap();
+        let service = app_service(&args).unwrap();
+        let encounter = service
+            .create_encounter(
+                serde_json::from_value(json!({
+                    "name":"Observed encounter","description":null,"note":null,
+                }))
+                .unwrap(),
+            )
+            .unwrap()
+            .encounter
+            .encounter_key;
+        service
+            .add_encounter_record_participant(
+                serde_json::from_value(json!({
+                    "encounter_ref":encounter,"record_ref":"actors:aaaaaaaaaaaaaaaa",
+                    "quantity":1,"participant_variant":null,"initiative":null,
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+        let started = Instant::now();
+        let first = args.output.join("encounter-first-success.json");
+        let (sample, success) =
+            observation_sample(&service, Some(&encounter), &started, Some(&first)).unwrap();
+        assert!(success);
+        assert_eq!(sample["readiness"]["view"]["status"], "ready");
+        let result = &sample["encounter"]["outcome"];
+        assert_eq!(result["kind"], "ok");
+        assert!(result["artifact_generation"].is_string());
+        assert_eq!(result["encounter_key"], encounter);
+        let participant = &result["source_backed_participants"][0];
+        assert!(participant["participant_key"].is_string());
+        assert_eq!(participant["record_key"], "actors:aaaaaaaaaaaaaaaa");
+        assert_eq!(participant["saved_record_key"], participant["record_key"]);
+        assert_eq!(
+            participant["presentation_record_key"],
+            participant["record_key"]
+        );
+        // Composed roster presentation does not expose these optional owned
+        // links. Preserve missing fingerprint evidence instead of inventing it.
+        assert!(
+            participant["source_fingerprints"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
+        let view = service.encounter(&encounter).unwrap();
+        let hydrated = serde_json::to_value(&view).unwrap();
+        assert_eq!(
+            hydrated["participants"][0]["record"]["title"],
+            "Fixture Goblin"
+        );
+        let body = &hydrated["participants"][0]["presentation"]["body"];
+        assert_eq!(body["kind"], "creature");
+        assert_eq!(body["value"]["level"]["value"], 1);
+        assert_eq!(body["value"]["armor_class"]["value"], 16);
+        assert_eq!(body["value"]["maximum_hp"]["value"], 20);
+        assert_eq!(
+            result["response_sha256"],
+            format!("{:x}", Sha256::digest(serde_json::to_vec(&view).unwrap()))
+        );
+        assert_eq!(
+            serde_json::from_reader::<_, Value>(File::open(&first).unwrap()).unwrap(),
+            serde_json::to_value(&view).unwrap()
+        );
+        let (readiness_only, success) = observation_sample(&service, None, &started, None).unwrap();
+        assert!(!success);
+        assert!(readiness_only.get("encounter").is_none());
+        let (missing, success) =
+            observation_sample(&service, Some("missing-encounter"), &started, None).unwrap();
+        assert!(!success);
+        assert_eq!(
+            missing["encounter"]["outcome"]["error"]["code"],
+            "encounter_not_found"
+        );
+
+        // Acquiring maintenance proves no on-demand reader survived the sample.
+        // Drop the exclusive admission while retaining its durable marker: reads
+        // now report maintenance through the existing typed SetupRequired DTO.
+        let workspace = atlas_storage::Workspace::at(&args.database).unwrap();
+        let owner = workspace.update_owner().unwrap();
+        drop(
+            owner
+                .maintenance(WORKSPACE_SCHEMA_VERSION, "observer fixture maintenance")
+                .unwrap(),
+        );
+        let (blocked, success) =
+            observation_sample(&service, Some(&encounter), &started, None).unwrap();
+        assert!(!success);
+        assert_eq!(blocked["readiness"]["view"]["status"], "blocked");
+        assert_eq!(blocked["encounter"]["outcome"]["kind"], "error");
+        assert_eq!(
+            blocked["encounter"]["outcome"]["error"]["code"],
+            "setup_required"
+        );
+        atlas_index::recover_reference_publication(&owner, WORKSPACE_SCHEMA_VERSION).unwrap();
+        let (recovered, success) =
+            observation_sample(&service, Some(&encounter), &started, None).unwrap();
+        assert!(success);
+        assert_eq!(
+            recovered["encounter"]["outcome"]["response_sha256"],
+            result["response_sha256"]
+        );
+        assert_eq!(
+            recovered["encounter"]["outcome"]["artifact_generation"],
+            result["artifact_generation"]
+        );
+        assert_eq!(std::fs::read_dir(&args.output).unwrap().count(), 1);
     }
     #[test]
     fn bound_markers_are_fresh_and_keep_exact_generation_fields() {
