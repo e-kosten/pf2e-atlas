@@ -79,7 +79,9 @@ serving; browser interactions and search readiness remain separate acceptance ch
 
 ## Build variants
 
-Each platform job builds one variant. CLI-only jobs set cargo-dist's
+Each platform job builds one variant. Cargo-dist uses `precise-builds = true`
+to isolate the shipped package; a workspace build would include `atlas-web` even
+when the CLI disables it. CLI-only jobs set cargo-dist's
 `default-features = false`, skip frontend preparation and run `stage-cli-only` to
 rename the archive/checksum and rewrite its actual cargo-dist metadata under
 `atlas-cli-only-<target>` identities. Assembly merges this metadata before pruning

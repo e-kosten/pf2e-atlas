@@ -16,8 +16,9 @@ platform smoke-test commands. These dependencies stay out of product bundles.
 
 Each supported target ships a full archive (`atlas-cli-<target>.*`) and a CLI-only
 archive (`atlas-cli-only-<target>.*`). Both contain `atlas`; full is the default.
-The packaging matrix disables default features for CLI-only without building the
-frontend, then stages cargo-dist's archive and metadata under distinct identities.
+Cargo-dist uses `precise-builds = true` to build the shipped CLI package rather
+than every workspace member. The packaging matrix disables default features for
+CLI-only without building the frontend, then stages cargo-dist's archive and metadata under distinct identities.
 Assembly merges both sets of cargo-dist metadata. The Atlas release manifest
 requires one asset per target/variant, with full entries first for older installers.
 Keep that ordering, archive naming and the installer's legacy-manifest behavior
