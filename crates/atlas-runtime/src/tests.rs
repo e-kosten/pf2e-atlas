@@ -499,7 +499,7 @@ fn forced_setup_resplits_passages_without_disabling_vector_reuse() {
         .statistics()
         .unwrap();
     let c = rusqlite::Connection::open(&paths.index_path).unwrap();
-    c.execute("UPDATE semantic_locations SET location_hash=zeroblob(32) WHERE location_id=(SELECT min(location_id) FROM semantic_units WHERE unit_kind='passage')", []).unwrap();
+    c.execute("UPDATE semantic_locations SET section_id=NULL,chunk_ordinal=NULL,chunk_start=NULL,chunk_end=NULL WHERE location_id=(SELECT min(location_id) FROM semantic_units WHERE unit_kind='passage')", []).unwrap();
     let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
     let read = workspace.read(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
     assert!(atlas_index::read_reusable_passage_layouts(&read).is_err());

@@ -105,6 +105,21 @@ records, named typed projections, selected content, verified identity evidence a
 attributed lexical/semantic units. The index writer owns physical encoding and
 publication. A failed publication rolls back reference changes and preserves saved state.
 
+Record-owned selection also supplies canonical whole-section addresses. Index
+stores each selected section once, with lexical evidence and shared semantic
+chunk locations referencing it. Similar, Core, source navigation and neighbor
+hydration read those relations without reconstructing section identity from JSON
+or combining active vector ranges. Trait seeds and non-section identity units
+retain their explicit representations.
+
+A compatible section-storage upgrade uses retained checked snapshots and prepared
+content without source acquisition, tokenizers or inference. The independent
+projection marker activates through validated metadata publication. Retired
+preparation or the known predecessor source contract is classified before source
+or normalized-location decoding: product reads remain blocked, while saved-state
+upgrades and exact numerical reuse remain possible. Explicit source-backed setup
+replaces unavailable passage metadata and then validates the complete publication.
+
 The aggregate source fingerprint hashes the ordered actual relevant inputs,
 including manifest/pack definitions and excluded records. A Git revision alone
 does not capture exported checkouts or local edits. Shared content preparation

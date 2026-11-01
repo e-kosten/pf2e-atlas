@@ -30,8 +30,7 @@ impl SqliteIndexReader {
             .collect::<Vec<_>>()
             .join(",");
         let sql = format!(
-            "WITH requested AS (SELECT r.record_id FROM records r WHERE r.key IN ({placeholders}) AND r.document_kind<>'Macro') SELECT EXISTS(SELECT 1 FROM requested r WHERE NOT EXISTS(SELECT 1 FROM semantic_units su JOIN {table} sv USING(unit_id) WHERE su.record_id=r.record_id AND su.unit_kind='identity' AND su.profile_id=?1)) OR EXISTS(SELECT 1 FROM core_parts cp JOIN similarity_parts sp USING(selector) WHERE cp.record_id IN(SELECT record_id FROM requested) AND NOT EXISTS(SELECT 1 FROM semantic_units su JOIN semantic_locations sl USING(location_id) JOIN {table} sv USING(unit_id) WHERE {} AND su.profile_id=?1))",
-            crate::read_similarity::PART_JOIN
+            "WITH requested AS (SELECT r.record_id FROM records r WHERE r.key IN ({placeholders}) AND r.document_kind<>'Macro') SELECT EXISTS(SELECT 1 FROM requested r WHERE NOT EXISTS(SELECT 1 FROM semantic_units su JOIN {table} sv USING(unit_id) WHERE su.record_id=r.record_id AND su.unit_kind='identity' AND su.profile_id=?1)) OR EXISTS(SELECT 1 FROM core_parts cp JOIN selected_sections sp USING(section_id) WHERE cp.record_id IN(SELECT record_id FROM requested) AND NOT EXISTS(SELECT 1 FROM semantic_units su JOIN semantic_locations sl USING(location_id) JOIN {table} sv USING(unit_id) WHERE sl.section_id=sp.section_id AND su.profile_id=?1))",
         );
         let mut values = vec![profile.to_string()];
         values.extend(keys.iter().map(ToString::to_string));
@@ -132,7 +131,7 @@ impl SqliteIndexReader {
             .map(|value| serde_json::from_value(serde_json::Value::String(value)))
             .transpose()?;
         self.count_statement();
-        let mut selectors=c.prepare("SELECT cp.selector FROM core_parts cp JOIN records r USING(record_id) WHERE r.key=? ORDER BY cp.selector")?.query_map([record.to_string()],|row|Ok(SimilarityPartSelector(row.get(0)?)))?.collect::<Result<Vec<_>,_>>()?;
+        let mut selectors=c.prepare("SELECT ss.selector FROM core_parts cp JOIN selected_sections ss USING(section_id) JOIN records r ON r.record_id=cp.record_id WHERE r.key=? ORDER BY ss.selector")?.query_map([record.to_string()],|row|Ok(SimilarityPartSelector(row.get(0)?)))?.collect::<Result<Vec<_>,_>>()?;
         let representation = if selectors.is_empty() {
             CoreSectionRepresentation::IdentityOnly
         } else {

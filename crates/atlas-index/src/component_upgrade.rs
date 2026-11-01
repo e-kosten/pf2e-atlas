@@ -42,6 +42,7 @@ pub enum ReferenceUpgrade {
     QueryProjections,
     LexicalProjections,
     CoreProjections,
+    SectionProjections,
     SourcePreparation,
     SourceReplacement,
 }
@@ -118,6 +119,12 @@ fn upgrade_plan(
             atlas_domain::CORE_SECTIONS_RECIPE,
         )?;
     target.core_sections_recipe = atlas_domain::CORE_SECTIONS_RECIPE.into();
+    let sections_changed = target.selected_sections_recipe.is_empty()
+        || older_policy(
+            &target.selected_sections_recipe,
+            crate::SELECTED_SECTIONS_RECIPE,
+        )?;
+    target.selected_sections_recipe = crate::SELECTED_SECTIONS_RECIPE.into();
     let mut source_changed = match target.trait_policy.as_str() {
         "" => true,
         "trait-definition-centroid/v1" => false,
@@ -171,6 +178,9 @@ fn upgrade_plan(
     }
     if core_changed {
         return Ok((ReferenceUpgrade::CoreProjections, Some(target)));
+    }
+    if sections_changed {
+        return Ok((ReferenceUpgrade::SectionProjections, Some(target)));
     }
     crate::validation::validate_open(c)?;
     Ok((ReferenceUpgrade::Current, None))

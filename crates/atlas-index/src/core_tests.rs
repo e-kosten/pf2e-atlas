@@ -448,39 +448,7 @@ fn no_core_prose_and_unmodelled_kind_keep_distinct_identity_only_outcomes() {
     }
 }
 
-fn table_values(c: &rusqlite::Connection) -> BTreeMap<String, Vec<Vec<rusqlite::types::Value>>> {
-    let tables=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'core_%' AND name NOT IN ('artifact_context','workspace','schema_migrations') ORDER BY name").unwrap().query_map([],|row|row.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
-    tables
-        .into_iter()
-        .map(|table| {
-            let quoted = format!("\"{}\"", table.replace('"', "\"\""));
-            let columns = c
-                .prepare(&format!("PRAGMA table_info({quoted})"))
-                .unwrap()
-                .query_map([], |row| row.get::<_, String>(1))
-                .unwrap()
-                .collect::<Result<Vec<_>, _>>()
-                .unwrap();
-            let order = (1..=columns.len())
-                .map(|i| i.to_string())
-                .collect::<Vec<_>>()
-                .join(",");
-            let mut statement = c
-                .prepare(&format!("SELECT * FROM {quoted} ORDER BY {order}"))
-                .unwrap();
-            let rows = statement
-                .query_map([], |row| {
-                    (0..columns.len())
-                        .map(|i| row.get(i))
-                        .collect::<Result<Vec<rusqlite::types::Value>, _>>()
-                })
-                .unwrap()
-                .collect::<Result<Vec<_>, _>>()
-                .unwrap();
-            (table, rows)
-        })
-        .collect()
-}
+use crate::test_support::reference_preservation_rows as table_values;
 
 #[test]
 fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generation() {
@@ -554,7 +522,15 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
             .is_empty()
     );
     assert!(after.remove("encounter_turn_receipts").unwrap().is_empty());
-    assert_eq!(after, before);
+    assert!(
+        after == before,
+        "unexpected changed logical tables: {:?}",
+        before
+            .keys()
+            .chain(after.keys())
+            .filter(|key| before.get(*key) != after.get(*key))
+            .collect::<std::collections::BTreeSet<_>>()
+    );
     let context_after = read_stored_reference_context(read.connection())
         .unwrap()
         .unwrap();

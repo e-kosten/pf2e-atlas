@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 24;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 25;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -160,6 +160,16 @@ const MIGRATIONS: &[Migration] = &[
         sql: atlas_local_state::TURN_RECEIPTS_SCHEMA_SQL,
         backfill: None,
     },
+    Migration {
+        version: 25,
+        name: "canonical-selected-sections",
+        sql: atlas_index::SELECTED_SECTIONS_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: true,
+            id: "canonical-selected-sections/v1",
+            apply: atlas_index::backfill_selected_sections,
+        }),
+    },
 ];
 
 /// Initialize or upgrade one workspace. Reference readiness is independent:
@@ -168,6 +178,17 @@ pub fn initialize_workspace(path: impl AsRef<Path>) -> StorageResult<Workspace> 
     register_extensions()?;
     let workspace = Workspace::at(path)?;
     workspace.migrate(MIGRATIONS, |_| Ok(()))?;
+    Ok(workspace)
+}
+
+/// Fixed immutable prefix for the opt-in historical numerical-storage probe.
+#[cfg(any(test, feature = "test-support"))]
+pub(crate) fn initialize_historical_embedding_storage_probe(
+    path: impl AsRef<Path>,
+) -> StorageResult<Workspace> {
+    register_extensions()?;
+    let workspace = Workspace::at(path)?;
+    workspace.migrate(&MIGRATIONS[..10], |_| Ok(()))?;
     Ok(workspace)
 }
 
@@ -200,6 +221,41 @@ mod saved_state_integrity_tests;
 mod tests {
     use super::*;
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
+
+    #[test]
+    fn historical_embedding_storage_probe_uses_only_the_published_ten_prefix() {
+        let directory = tempfile::tempdir().unwrap();
+        let workspace = super::initialize_historical_embedding_storage_probe(
+            directory.path().join("historical.sqlite"),
+        )
+        .unwrap();
+        let read = workspace.read(10).unwrap();
+        assert_eq!(
+            read.connection()
+                .query_row("SELECT max(version) FROM schema_migrations", [], |r| r
+                    .get::<_, u32>(0))
+                .unwrap(),
+            10
+        );
+        assert!(
+            read.connection()
+                .prepare("SELECT location_hash FROM semantic_locations")
+                .is_ok()
+        );
+        assert!(
+            read.connection()
+                .prepare("SELECT * FROM selected_sections")
+                .is_err()
+        );
+        assert!(
+            !read
+                .connection()
+                .prepare("PRAGMA foreign_key_check")
+                .unwrap()
+                .exists([])
+                .unwrap()
+        );
+    }
 
     #[test]
     fn recovery_upgrade_from_published_twenty_one_preserves_encounters_and_migration_history() {
@@ -554,7 +610,7 @@ mod tests {
         );
         let roles = read
             .connection()
-            .prepare("SELECT role FROM similarity_parts ORDER BY role")
+            .prepare("SELECT role FROM selected_sections ORDER BY role")
             .unwrap()
             .query_map([], |row| row.get::<_, String>(0))
             .unwrap()
@@ -617,26 +673,18 @@ mod tests {
             .unwrap();
         let revision = write.reference_revision().unwrap();
         let stable_values = |c: &rusqlite::Connection| {
-            let tables=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'core_%' AND name NOT IN ('artifact_context','workspace','schema_migrations','encounter_participant_adjustments','encounter_participant_baselines','encounter_recovery_receipts','encounter_turn_receipts') ORDER BY name").unwrap().query_map([],|row|row.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
-            tables
-                .into_iter()
-                .map(|table| {
-                    let quoted = format!("\"{}\"", table.replace('"', "\"\""));
-                    let mut statement = c.prepare(&format!("SELECT * FROM {quoted}")).unwrap();
-                    let count = statement.column_count();
-                    let mut rows = statement
-                        .query_map([], |row| {
-                            (0..count)
-                                .map(|column| row.get::<_, rusqlite::types::Value>(column))
-                                .collect::<Result<Vec<_>, _>>()
-                        })
-                        .unwrap()
-                        .collect::<Result<Vec<_>, _>>()
-                        .unwrap();
-                    rows.sort_by_key(|row| format!("{row:?}"));
-                    (table, rows)
-                })
-                .collect::<Vec<_>>()
+            let mut values = atlas_index::test_support::reference_preservation_rows(c);
+            for table in [
+                "encounter_participant_adjustments",
+                "encounter_participant_baselines",
+                "encounter_recovery_receipts",
+                "encounter_turn_receipts",
+            ] {
+                if let Some(rows) = values.remove(table) {
+                    assert!(rows.is_empty(), "unexpected rows in {table}");
+                }
+            }
+            values
         };
         let before = stable_values(write.connection());
         let ledger=write.connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=20 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
@@ -672,9 +720,15 @@ mod tests {
             reader.workspace_session().reference_revision().unwrap(),
             revision + 1
         );
-        assert_eq!(
-            stable_values(reader.workspace_session().connection()),
+        let after = stable_values(reader.workspace_session().connection());
+        assert!(
+            after == before,
+            "unexpected changed logical tables: {:?}",
             before
+                .keys()
+                .chain(after.keys())
+                .filter(|key| before.get(*key) != after.get(*key))
+                .collect::<std::collections::BTreeSet<_>>()
         );
         for table in [
             "encounter_participant_baselines",

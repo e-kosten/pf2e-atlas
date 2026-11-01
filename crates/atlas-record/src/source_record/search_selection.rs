@@ -42,6 +42,32 @@ pub struct SourceSelectedField {
     pub prepared_html_sha256: Option<String>,
     pub sections: Vec<SourceSelectedSection>,
 }
+impl SourceSelectedField {
+    pub fn section_address(&self, section: &SourceSelectedSection) -> SourcePassageAddress {
+        let chunk_bytes = SourceByteRange {
+            start: 0,
+            end: section.text.len(),
+        };
+        let text_hash = hash(&section.text);
+        match &self.prepared_html_sha256 {
+            Some(html_hash) => SourcePassageAddress::HtmlSection {
+                prepared_html_sha256: html_hash.clone(),
+                canonical_text_sha256: text_hash,
+                selection_version: SOURCE_CONTENT_SELECTION_VERSION.into(),
+                section_ordinal: section.section_ordinal,
+                label: section.label.clone(),
+                chunk_bytes,
+            },
+            None => SourcePassageAddress::PlainSection {
+                source_text_sha256: text_hash,
+                selection_version: SOURCE_CONTENT_SELECTION_VERSION.into(),
+                section_ordinal: section.section_ordinal,
+                label: section.label.clone(),
+                chunk_bytes,
+            },
+        }
+    }
+}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceSelectedIdentity {
     pub owners: Vec<OwnedContentLocator>,

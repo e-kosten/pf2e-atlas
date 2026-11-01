@@ -1,5 +1,8 @@
 //! Reference-layer fixtures and artifact mutations. Runtime fixtures use the
 //! runtime-owned workspace composition and supply its version to mutation helpers.
+mod section_preservation;
+pub use section_preservation::reference_preservation_rows;
+
 use crate::{
     ArtifactValidationReport, IndexArtifactWriter, IndexBuildInput, IndexError, SqliteIndexReader,
     SqliteIndexWriter,
@@ -170,6 +173,16 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         sql: atlas_local_state::TURN_RECEIPTS_SCHEMA_SQL,
         backfill: None,
     },
+    Migration {
+        version: 25,
+        name: "canonical-selected-sections",
+        sql: crate::SELECTED_SECTIONS_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: true,
+            id: "canonical-selected-sections/v1",
+            apply: crate::backfill_selected_sections,
+        }),
+    },
 ];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
@@ -207,13 +220,15 @@ pub fn publish_pre_core_fixture(
             ));
         }
         connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
-        crate::writer::write_record_rows(connection, input)?;
+        let (ids, _) = crate::writer::write_record_base(connection, input)?;
+        crate::historical_publication::search_units(connection, input, &ids)?;
         crate::traits::write_traits(connection, input)?;
         if version == 20 {
             crate::similarity_projection::write_similarity_parts(connection, input)?;
         }
         let mut context = input.context.clone();
         context.core_sections_recipe.clear();
+        context.selected_sections_recipe.clear();
         connection.execute(
             "UPDATE artifact_context SET context_hash=?,context_json=?",
             rusqlite::params![context.sha256()?, serde_json::to_string(&context)?],
@@ -221,6 +236,40 @@ pub fn publish_pre_core_fixture(
         if connection.prepare("PRAGMA foreign_key_check")?.exists([])? {
             return Err(IndexError::Invalid(
                 "invalid pre-Core fixture references".into(),
+            ));
+        }
+        Ok(())
+    })
+}
+
+/// Publish the real schema-21 through schema-24 reference shape before sections.
+pub fn publish_pre_section_fixture(
+    maintenance: &atlas_storage::MaintenanceSession<'_>,
+    input: &IndexBuildInput,
+) -> Result<(), IndexError> {
+    maintenance.publish(|connection| {
+        let version: u32 = connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+        if !(21..=24).contains(&version) {
+            return Err(IndexError::Invalid(
+                "pre-section fixtures require an actual schema-21 through schema-24 workspace"
+                    .into(),
+            ));
+        }
+        connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
+        let (ids, _) = crate::writer::write_record_base(connection, input)?;
+        crate::historical_publication::search_units(connection, input, &ids)?;
+        crate::traits::write_traits(connection, input)?;
+        crate::similarity_projection::write_similarity_parts(connection, input)?;
+        crate::historical_core_projection::write_core_sections(connection, input)?;
+        let mut context = input.context.clone();
+        context.selected_sections_recipe.clear();
+        connection.execute(
+            "UPDATE artifact_context SET context_hash=?,context_json=?",
+            rusqlite::params![context.sha256()?, serde_json::to_string(&context)?],
+        )?;
+        if connection.prepare("PRAGMA foreign_key_check")?.exists([])? {
+            return Err(IndexError::Invalid(
+                "invalid historical section fixture references".into(),
             ));
         }
         Ok(())
@@ -253,7 +302,8 @@ pub fn publish_historical_record_fixture(
         let historical_columns = tables.iter().map(|table| columns(table)).collect::<Result<Vec<_>, _>>()?;
         connection.execute_batch(crate::REFERENCE_NUMERIC_FILTER_SCHEMA_SQL)?;
         connection.execute_batch(crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL)?;
-        crate::writer::write_record_rows(connection, input)?;
+        let (ids,_)=crate::writer::write_record_base(connection,input)?;
+        crate::historical_publication::search_units(connection,input,&ids)?;
         // Modern projection columns are fixture scaffolding, not part of the
         // historical schema exercised by the embedding conversion/rollback.
         for (table, historical) in tables.iter().zip(historical_columns) {
@@ -261,6 +311,8 @@ pub fn publish_historical_record_fixture(
                 connection.execute_batch(&format!("ALTER TABLE {table} DROP COLUMN {column}"))?;
             }
         }
+        let mut context=input.context.clone();context.selected_sections_recipe.clear();context.core_sections_recipe.clear();
+        connection.execute("UPDATE artifact_context SET context_hash=?,context_json=?",rusqlite::params![context.sha256()?,serde_json::to_string(&context)?])?;
         connection.execute_batch("INSERT INTO legacy_semantic_units SELECT u.unit_id,u.record_id,u.profile_id,l.owners_json,u.unit_kind,l.field_path,l.section_json,l.chunk_ordinal,i.token_count,lower(hex(i.input_hash)) FROM semantic_units u JOIN semantic_locations l USING(location_id) JOIN embedding_inputs i USING(input_id);
 DROP TABLE semantic_units;
 ALTER TABLE legacy_semantic_units RENAME TO semantic_units;
@@ -285,6 +337,19 @@ pub fn set_content_interpretation_version(
 ) -> Result<(), IndexError> {
     set_preparation_policy(path, workspace_schema_version, |context| {
         context.content_interpretation_version = version.into()
+    })
+}
+
+/// Model the one known predecessor contract in an isolated fixture, including
+/// preparation/allocation dependencies. Production never decodes this contract.
+pub fn set_predecessor_source_contract(
+    path: impl AsRef<Path>,
+    workspace_schema_version: u32,
+) -> Result<(), IndexError> {
+    set_preparation_policy(path, workspace_schema_version, |context| {
+        context.snapshot_version = 1;
+        context.source_contract =
+            "6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8".into();
     })
 }
 
@@ -318,6 +383,7 @@ fn set_preparation_policy(
     let c = write.connection();
     let mut context = crate::read_stored_reference_context(c)?
         .ok_or_else(|| IndexError::Invalid("fixture has no reference context".into()))?;
+    let records = crate::read_persisted_inputs(c, &context)?;
     update(&mut context);
     let json = serde_json::to_string(&context)?;
     c.execute(
@@ -328,7 +394,8 @@ fn set_preparation_policy(
         "UPDATE prepared_content SET preparation_context_hash=?",
         [context.preparation_sha256()?],
     )?;
-    for source in crate::read_persisted_inputs(c, &context)? {
+    for mut source in records {
+        source.preparation_context_hash = context.preparation_sha256()?;
         let (id, label): (i64, String) = c.query_row(
             "SELECT r.record_id,p.label FROM records r JOIN packs p USING(pack_id) WHERE r.key=?",
             [source.record.key().to_string()],

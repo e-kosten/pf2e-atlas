@@ -1,5 +1,4 @@
 use super::*;
-use atlas_index::IndexArtifactWriter;
 use atlas_local_state::{LocalStateRead, LocalStateWrite};
 use rusqlite::{Connection, types::Value};
 
@@ -125,9 +124,7 @@ fn integrity_upgrade_preserves_populated_saved_graph_reference_snapshots_and_vec
     {
         let owner = workspace.update_owner().unwrap();
         let maintenance = owner.maintenance(22, "integrity upgrade fixture").unwrap();
-        atlas_index::SqliteIndexWriter::new(&maintenance)
-            .write(&input)
-            .unwrap();
+        atlas_index::test_support::publish_pre_section_fixture(&maintenance, &input).unwrap();
     }
     populate(&workspace);
     let read = workspace.read(22).unwrap();

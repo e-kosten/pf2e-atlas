@@ -1,0 +1,262 @@
+//! Authentic pre-schema25 occurrence writer, used only by historical fixtures.
+use crate::publication_delta::upsert;
+use crate::{
+    IndexBuildInput, IndexError,
+    codec::sha256,
+    persistence::{ProjectionRow, execute},
+};
+use atlas_domain::RecordKey;
+use rusqlite::{Connection, OptionalExtension, types::Value};
+use std::collections::{BTreeMap, BTreeSet};
+fn nullable(value: Option<String>) -> Value {
+    value.map(Value::Text).unwrap_or(Value::Null)
+}
+fn remove_unkept(
+    c: &Connection,
+    table: &str,
+    key: &str,
+    kept: &BTreeSet<i64>,
+) -> Result<(), IndexError> {
+    let ids = c
+        .prepare(&format!("SELECT {key} FROM {table}"))?
+        .query_map([], |r| r.get::<_, i64>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    for id in ids {
+        if !kept.contains(&id) {
+            c.execute(&format!("DELETE FROM {table} WHERE {key}=?"), [id])?;
+        }
+    }
+    Ok(())
+}
+pub(crate) fn search_units(
+    c: &Connection,
+    input: &IndexBuildInput,
+    ids: &BTreeMap<RecordKey, i64>,
+) -> Result<(), IndexError> {
+    lexical_units(c, &input.lexical_units, ids)?;
+
+    let old_profiles = c
+        .prepare("SELECT profile_id,identity_json FROM search_profiles")?
+        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+        .collect::<Result<BTreeMap<_, _>, _>>()?;
+    let mut current_profiles = BTreeMap::new();
+    for model in input.context.canonical_profiles()? {
+        let json = serde_json::to_string(&model)?;
+        current_profiles.insert(model.profile_id.to_string(), json.clone());
+        let mut row = ProjectionRow::new("search_profiles");
+        row.text("profile_id", model.profile_id.as_str());
+        row.text("identity_json", json);
+        row.id("dimensions", model.dimensions as i64);
+        upsert(c, &row, "profile_id")?;
+    }
+    let mut old_tables = BTreeMap::new();
+    for (profile, json) in &old_profiles {
+        let model = serde_json::from_str::<crate::SourceSearchProfileIdentity>(json)?;
+        old_tables.insert(profile.clone(), crate::schema::vector_table(&model)?);
+    }
+    let mut current_tables = BTreeSet::new();
+    for model in &input.context.search_profiles {
+        let table = crate::schema::vector_table(model)?;
+        let exists: bool = c.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name=?)",
+            [&table],
+            |row| row.get(0),
+        )?;
+        if !exists {
+            c.execute_batch(&crate::schema::vector_ddl(model)?)?;
+        }
+        current_tables.insert(table);
+    }
+    let mut kept = BTreeSet::new();
+    let mut next: i64 = c.query_row(
+        "SELECT coalesce(max(unit_id),0) FROM semantic_units",
+        [],
+        |r| r.get(0),
+    )?;
+    let mut pending = Vec::new();
+    for unit in &input.semantic_units {
+        let model = input.context.search_profile(&unit.profile_id)?;
+        crate::validation::check_vector(&unit.vector, model.dimensions)?;
+        let id = crate::writer::product_id(ids, &unit.record)?;
+        let table = crate::schema::vector_table(model)?;
+        let location = crate::historical_locations::location_id(
+            c,
+            id,
+            &serde_json::to_string(&unit.owners)?,
+            unit.field.as_deref(),
+            &serde_json::to_string(&unit.address)?,
+            unit.chunk_ordinal,
+        )?;
+        let native = crate::embedding_values::publish_input(
+            c,
+            model,
+            &unit.input_hash,
+            unit.input_token_count,
+            &unit.vector,
+        )?;
+        let previous: Option<(i64, Vec<u8>)> = if old_profiles.get(unit.profile_id.as_str())
+            == current_profiles.get(unit.profile_id.as_str())
+        {
+            let section = match &unit.address {
+                atlas_domain::SourcePassageAddress::Identity {} => None,
+                atlas_domain::SourcePassageAddress::HtmlSection {
+                    section_ordinal, ..
+                }
+                | atlas_domain::SourcePassageAddress::PlainSection {
+                    section_ordinal, ..
+                } => Some(*section_ordinal as i64),
+            };
+            let mut statement=c.prepare_cached(&format!("SELECT u.unit_id,v.embedding FROM semantic_locations l JOIN semantic_units u USING(location_id) JOIN {table} v USING(unit_id) WHERE l.record_id=? AND u.profile_id=? AND l.owners_json=? AND l.field_path IS ? AND l.chunk_ordinal=? AND json_extract(l.section_json,'$.section_ordinal') IS ? ORDER BY (l.location_id=?) DESC,u.unit_id"))?;
+            let mut rows = statement.query(rusqlite::params![
+                id,
+                unit.profile_id.as_str(),
+                serde_json::to_string(&unit.owners)?,
+                unit.field,
+                unit.chunk_ordinal,
+                section,
+                location
+            ])?;
+            let mut available = None;
+            while let Some(row) = rows.next()? {
+                let candidate: i64 = row.get(0)?;
+                if !kept.contains(&candidate) {
+                    available = Some((candidate, row.get(1)?));
+                    break;
+                }
+            }
+            available
+        } else {
+            None
+        };
+        let reused = previous.as_ref().map(|(id, _)| *id);
+        let bytes = crate::read_units::vector_bytes(&unit.vector);
+        let changed = previous.as_ref().is_none_or(|(_, old)| *old != bytes);
+        let unit_id = if let Some(id) = reused {
+            id
+        } else {
+            next = next
+                .checked_add(1)
+                .ok_or_else(|| IndexError::Invalid("semantic ID overflow".into()))?;
+            next
+        };
+        kept.insert(unit_id);
+        let mut row = ProjectionRow::new("semantic_units");
+        row.id("unit_id", unit_id);
+        row.id("record_id", id);
+        row.text("profile_id", unit.profile_id.as_str());
+        row.id("location_id", location);
+        row.id("input_id", native);
+        row.text(
+            "unit_kind",
+            if matches!(
+                unit.address,
+                atlas_domain::SourcePassageAddress::Identity {}
+            ) {
+                "identity"
+            } else {
+                "passage"
+            },
+        );
+        // Keep the input vector borrowed while obsolete rows are removed.
+        // Materialize only the current insert's blob, not a full second corpus.
+        pending.push((
+            row,
+            table,
+            changed.then_some((unit.vector.as_slice(), reused.is_some())),
+        ));
+    }
+    let old_ids = c
+        .prepare("SELECT unit_id,profile_id FROM semantic_units")?
+        .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?
+        .collect::<Result<Vec<_>, _>>()?;
+    for (id, profile) in old_ids {
+        if !kept.contains(&id) {
+            let table = old_tables.get(&profile).ok_or_else(|| {
+                IndexError::Invalid("semantic profile has no vector table".into())
+            })?;
+            c.execute(&format!("DELETE FROM {table} WHERE unit_id=?"), [id])?;
+            c.execute("DELETE FROM semantic_units WHERE unit_id=?", [id])?;
+        }
+    }
+    for (row, table, vector) in pending {
+        let unit_id = row.values[0].clone();
+        upsert(c, &row, "unit_id")?;
+        if let Some((vector, update)) = vector {
+            execute(
+                c,
+                &if update {
+                    format!("UPDATE {table} SET embedding=?2 WHERE unit_id=?1")
+                } else {
+                    format!("INSERT INTO {table}(unit_id,embedding) VALUES(?1,?2)")
+                },
+                &[
+                    unit_id,
+                    Value::Blob(crate::read_units::vector_bytes(vector)),
+                ],
+            )?;
+        }
+    }
+    for profile in old_profiles.keys() {
+        if !current_profiles.contains_key(profile) {
+            c.execute("DELETE FROM search_profiles WHERE profile_id=?", [profile])?;
+        }
+    }
+    for table in old_tables.values() {
+        if !current_tables.contains(table) {
+            c.execute_batch(&format!("DROP TABLE {table}"))?;
+        }
+    }
+    for model in &input.context.search_profiles {
+        crate::vector_allocation::compact(c, model)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn lexical_units(
+    c: &Connection,
+    units: &[crate::SourceLexicalUnitInput],
+    ids: &BTreeMap<RecordKey, i64>,
+) -> Result<(), IndexError> {
+    let mut lexical = BTreeSet::new();
+    for unit in units {
+        let id = crate::writer::product_id(ids, &unit.record)?;
+        let hash = sha256(&serde_json::to_vec(unit)?);
+        let existing: Option<i64> = c
+            .query_row(
+                "SELECT unit_id FROM lexical_units WHERE input_hash=?",
+                [&hash],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if let Some(unit_id) = existing {
+            if !lexical.insert(unit_id) {
+                return Err(IndexError::Invalid("duplicate lexical unit".into()));
+            }
+            continue;
+        }
+        let mut row = ProjectionRow::new("lexical_units");
+        row.text("input_hash", hash);
+        row.id("record_id", id);
+        row.text("owners_json", serde_json::to_string(&unit.owners)?);
+        row.push("field_path", nullable(unit.field.clone()));
+        row.push(
+            "section_json",
+            nullable(
+                unit.address
+                    .as_ref()
+                    .map(serde_json::to_string)
+                    .transpose()?,
+            ),
+        );
+        row.text("unit_kind", unit.kind.as_str());
+        row.text("identity_terms", &unit.identity_terms);
+        row.text("alias_terms", &unit.alias_terms);
+        row.text("structured_terms", &unit.structured_terms);
+        row.text("definition_terms", &unit.definition_terms);
+        row.insert(c)?;
+        lexical.insert(c.last_insert_rowid());
+    }
+    remove_unkept(c, "lexical_units", "unit_id", &lexical)?;
+
+    Ok(())
+}

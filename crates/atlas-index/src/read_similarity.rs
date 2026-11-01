@@ -8,8 +8,6 @@ use atlas_domain::{
 };
 use rusqlite::{params_from_iter, types::Value};
 
-pub(crate) const PART_JOIN: &str = "sp.record_id=su.record_id AND sp.owners_json=sl.owners_json AND sp.field_path=sl.field_path AND sp.section_ordinal=json_extract(sl.section_json,'$.section_ordinal') AND sp.body_hash=coalesce(json_extract(sl.section_json,'$.canonical_text_sha256'),json_extract(sl.section_json,'$.source_text_sha256'))";
-
 #[derive(Debug, Clone)]
 pub struct SourceSimilarityUnit {
     pub component: SimilarityComponent,
@@ -29,15 +27,6 @@ pub struct SourceSimilarityCandidateRequest<'a> {
     pub content_scope: SearchContentScope,
     pub include_identity: bool,
     pub limit: usize,
-}
-
-fn parse_part(json: &str, recipe: &str) -> Result<SimilarityPart, IndexError> {
-    if recipe != SIMILARITY_ROLE_RECIPE {
-        return Err(IndexError::Unsupported(
-            "similarity role projection recipe differs".into(),
-        ));
-    }
-    Ok(serde_json::from_str(json)?)
 }
 
 impl SqliteIndexReader {
@@ -112,32 +101,20 @@ impl SqliteIndexReader {
         let parts = match seed {
             SimilaritySeed::Record { record_key } => {
                 let sql = format!(
-                    "SELECT sp.metadata_json,sp.recipe,EXISTS(SELECT 1 FROM semantic_units su JOIN semantic_locations sl USING(location_id) WHERE {PART_JOIN} AND su.profile_id=?2) FROM similarity_parts sp JOIN records r USING(record_id) WHERE r.key=?1 AND r.document_kind<>'Macro' ORDER BY sp.owners_json,sp.field_path,sp.section_ordinal"
+                    "SELECT {},EXISTS(SELECT 1 FROM semantic_units su JOIN semantic_locations sl USING(location_id) WHERE sl.section_id=ss.section_id AND su.profile_id=?2) FROM selected_sections ss JOIN records r USING(record_id) WHERE r.key=?1 AND r.document_kind<>'Macro' ORDER BY ss.owners_json,ss.field_path,ss.section_ordinal",
+                    crate::selected_sections::COLUMNS
                 );
-                let rows = c
-                    .prepare(&sql)?
-                    .query_map(
-                        rusqlite::params![
-                            record_key.to_string(),
-                            profile.map(SearchProfileId::as_str)
-                        ],
-                        |row| {
-                            Ok((
-                                row.get::<_, String>(0)?,
-                                row.get::<_, String>(1)?,
-                                row.get::<_, bool>(2)?,
-                            ))
-                        },
-                    )?
-                    .collect::<Result<Vec<_>, _>>()?;
-                let mut parts = rows
-                    .into_iter()
-                    .map(|(json, recipe, has_vectors)| {
-                        let mut part = parse_part(&json, &recipe)?;
-                        part.has_vectors = has_vectors;
-                        Ok(SimilarityComponent::Section { part })
-                    })
-                    .collect::<Result<Vec<_>, IndexError>>()?;
+                let mut statement = c.prepare(&sql)?;
+                let mut rows = statement.query(rusqlite::params![
+                    record_key.to_string(),
+                    profile.map(SearchProfileId::as_str)
+                ])?;
+                let mut parts = Vec::new();
+                while let Some(row) = rows.next()? {
+                    let mut section = crate::selected_sections::SelectedSection::read(row, 0)?;
+                    section.part.has_vectors = row.get(15)?;
+                    parts.push(SimilarityComponent::Section { part: section.part });
+                }
                 let identity = self
                     .identity_components(std::slice::from_ref(record_key), profile)?
                     .remove(record_key)
@@ -285,7 +262,7 @@ impl SqliteIndexReader {
                     .map(|selector| Value::Text(selector.0.clone())),
             );
             format!(
-                " AND sp.selector IN ({})",
+                " AND ss.selector IN ({})",
                 (start..start + selectors.len())
                     .map(|i| format!("?{i}"))
                     .collect::<Vec<_>>()
@@ -300,7 +277,7 @@ impl SqliteIndexReader {
             let start = values.len() + 1;
             values.extend(selected_identity_keys.into_iter().map(Value::Text));
             format!(
-                "su.unit_kind='identity' AND sl.field_path IS NULL AND sl.owners_json='[]' AND r.key IN ({})",
+                "su.unit_kind='identity' AND r.key IN ({})",
                 (start..=values.len())
                     .map(|parameter| format!("?{parameter}"))
                     .collect::<Vec<_>>()
@@ -310,7 +287,9 @@ impl SqliteIndexReader {
         let content_sql = crate::read_units::semantic_content_sql(content_scope);
         values.push(Value::Integer((max_units + 1) as i64));
         let sql = format!(
-            "SELECT sp.metadata_json,sp.recipe,su.unit_id,r.key,sl.owners_json,sl.field_path,sl.section_json,sv.embedding,su.unit_kind FROM semantic_units su JOIN semantic_locations sl USING(location_id) LEFT JOIN similarity_parts sp ON {PART_JOIN} JOIN records r ON r.record_id=su.record_id JOIN {table} sv ON sv.unit_id=su.unit_id WHERE su.profile_id=?1 AND r.document_kind<>'Macro' AND r.key IN ({placeholders}){content_sql} AND ((su.unit_kind='passage' AND sp.selector IS NOT NULL {selection_sql}) OR ({identity_sql})) ORDER BY r.key,sp.selector,sl.chunk_ordinal,su.unit_id LIMIT ?{}",
+            "SELECT {},{},sv.embedding FROM semantic_units su JOIN semantic_locations sl USING(location_id) LEFT JOIN selected_sections ss ON ss.section_id=sl.section_id AND ss.record_id=su.record_id JOIN records r ON r.record_id=su.record_id JOIN {table} sv ON sv.unit_id=su.unit_id WHERE su.profile_id=?1 AND r.document_kind<>'Macro' AND r.key IN ({placeholders}){content_sql} AND ((su.unit_kind='passage' AND (ss.section_id IS NULL OR (ss.selector IS NOT NULL {selection_sql}))) OR ({identity_sql})) ORDER BY r.key,ss.selector,sl.chunk_ordinal,su.unit_id LIMIT ?{}",
+            crate::selected_sections::COLUMNS,
+            crate::read_units::SEMANTIC_LOCATION_COLUMNS,
             values.len()
         );
         self.count_statement();
@@ -323,26 +302,21 @@ impl SqliteIndexReader {
                     "This comparison is too broad to complete. Deselect some sections under Sections to compare, or add filters to narrow the results. (Vector limit: {max_units}.)"
                 )));
             }
-            let address: SourcePassageAddress = serde_json::from_str(&row.get::<_, String>(6)?)?;
-            let vector = crate::read_units::decode_vector(&row.get::<_, Vec<u8>>(7)?)?;
+            let location = crate::read_units::location_at(row, 15)?;
+            let address = location
+                .address
+                .clone()
+                .ok_or_else(|| IndexError::Invalid("semantic unit has no source address".into()))?;
+            let vector = crate::read_units::decode_vector(&row.get::<_, Vec<u8>>("embedding")?)?;
             crate::validation::check_vector(&vector, model.dimensions)?;
-            let location = SourceUnitLocation {
-                unit_id: row.get(2)?,
-                record: row.get::<_, String>(3)?.parse().map_err(|error| {
-                    IndexError::Invalid(format!("invalid similarity record key: {error}"))
-                })?,
-                owners: serde_json::from_str(&row.get::<_, String>(4)?)?,
-                field: row.get(5)?,
-                address: Some(address.clone()),
-            };
-            let component = if row.get::<_, String>(8)? == "identity" {
+            let component = if row.get::<_, String>(28)? == "identity" {
                 identities.get(&location.record).cloned().ok_or_else(|| {
                     IndexError::Invalid("identity component metadata disappeared".into())
                 })?
             } else {
-                let mut part = parse_part(&row.get::<_, String>(0)?, &row.get::<_, String>(1)?)?;
-                part.has_vectors = true;
-                SimilarityComponent::Section { part }
+                let mut section = crate::selected_sections::SelectedSection::read(row, 0)?;
+                section.part.has_vectors = true;
+                SimilarityComponent::Section { part: section.part }
             };
             units.push(SourceSimilarityUnit {
                 component,

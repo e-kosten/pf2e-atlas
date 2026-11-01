@@ -1,5 +1,5 @@
 //! Reuse published source addresses without storing a second model-input corpus.
-use crate::{IndexError, embedding_values::hash_bytes};
+use crate::IndexError;
 use atlas_domain::{OwnedContentLocator, RecordKey};
 use atlas_embedding::PassageLayout;
 use atlas_storage::ReadSession;
@@ -30,55 +30,46 @@ pub fn read_reusable_passage_layouts(
     }) else {
         return Ok(BTreeMap::new());
     };
+    if matches!(
+        crate::classify_reference_upgrade(c)?,
+        crate::ReferenceUpgrade::SourcePreparation | crate::ReferenceUpgrade::SourceReplacement
+    ) {
+        return Ok(BTreeMap::new());
+    }
     let model_identity = serde_json::to_string(profile)?;
-    let mut statement = c.prepare("SELECT r.key,u.record_id,l.record_id,l.location_hash,l.owners_json,l.field_path,l.section_json,l.chunk_ordinal,lower(hex(i.input_hash)),m.identity_json=?2 FROM semantic_units u JOIN records r ON r.record_id=u.record_id JOIN semantic_locations l USING(location_id) JOIN embedding_inputs i USING(input_id) JOIN embedding_models m USING(model_id) WHERE u.profile_id=?1 AND u.unit_kind='passage' ORDER BY u.record_id,l.location_id")?;
+    let mut statement=c.prepare(&format!("SELECT {},sl.chunk_ordinal AS passage_chunk_ordinal,lower(hex(i.input_hash)) AS passage_input_hash,m.identity_json=?2 AS passage_model_matches FROM semantic_units su JOIN records r ON r.record_id=su.record_id JOIN semantic_locations sl USING(location_id) LEFT JOIN selected_sections ss ON ss.section_id=sl.section_id AND ss.record_id=su.record_id JOIN embedding_inputs i USING(input_id) JOIN embedding_models m USING(model_id) WHERE su.profile_id=?1 AND su.unit_kind='passage' ORDER BY su.record_id,sl.location_id",crate::read_units::SEMANTIC_LOCATION_COLUMNS))?;
     let mut rows = statement.query([profile.profile_id.as_str(), model_identity.as_str()])?;
     let mut output: BTreeMap<RecordKey, Vec<SourcePassageLayout>> = BTreeMap::new();
     while let Some(row) = rows.next()? {
-        let key: String = row.get(0)?;
-        let record: i64 = row.get(1)?;
-        let located_record: i64 = row.get(2)?;
-        let checksum: Vec<u8> = row.get(3)?;
-        let owners: String = row.get(4)?;
-        let field: Option<String> = row.get(5)?;
-        let address: String = row.get(6)?;
-        let ordinal: usize = row.get(7)?;
-        if !row.get::<_, bool>(9)? {
+        let location = crate::read_units::location(row)?;
+        if !row.get::<_, bool>("passage_model_matches")? {
             return Err(IndexError::Invalid(
-                "published passage model/profile mismatch".into(),
+                "published passage model or section ownership mismatch".into(),
             ));
         }
-        if record != located_record
-            || checksum
-                != hash_bytes(&serde_json::to_vec(&(
-                    record, &owners, &field, &address, ordinal,
-                ))?)
-        {
-            return Err(IndexError::Invalid(
-                "published passage location checksum mismatch".into(),
-            ));
-        }
-        let input_sha256: String = row.get(8)?;
+        let input_sha256: String = row.get("passage_input_hash")?;
         if !crate::codec::checked_hash(&input_sha256) {
             return Err(IndexError::Invalid(
                 "published passage input hash is invalid".into(),
             ));
         }
-        let address: atlas_domain::SourcePassageAddress = serde_json::from_str(&address)?;
+        let address = location
+            .address
+            .ok_or_else(|| IndexError::Invalid("published passage address unavailable".into()))?;
         if matches!(address, atlas_domain::SourcePassageAddress::Identity {}) {
             return Err(IndexError::Invalid(
                 "published passage has an identity address".into(),
             ));
         }
         output
-            .entry(crate::read_units::parse_key(key)?)
+            .entry(location.record)
             .or_default()
             .push(SourcePassageLayout {
-                owners: serde_json::from_str(&owners)?,
-                field: field.ok_or_else(|| {
-                    IndexError::Invalid("published passage field is absent".into())
+                owners: location.owners,
+                field: location.field.ok_or_else(|| {
+                    IndexError::Invalid("published passage field unavailable".into())
                 })?,
-                chunk_ordinal: ordinal,
+                chunk_ordinal: row.get("passage_chunk_ordinal")?,
                 passage: PassageLayout {
                     address,
                     input_sha256,
@@ -160,13 +151,13 @@ mod tests {
             ],
         )
         .unwrap();
-        c.execute("UPDATE semantic_locations SET location_hash=zeroblob(32) WHERE location_id=(SELECT min(location_id) FROM semantic_units WHERE unit_kind='passage')", []).unwrap();
+        c.execute("UPDATE semantic_locations SET section_id=NULL,chunk_ordinal=NULL,chunk_start=NULL,chunk_end=NULL WHERE location_id=(SELECT min(location_id) FROM semantic_units WHERE unit_kind='passage')", []).unwrap();
         let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
         assert!(
             read_reusable_passage_layouts(&read)
                 .unwrap_err()
                 .to_string()
-                .contains("checksum")
+                .contains("unit canonical section ownership is invalid")
         );
     }
 
@@ -186,14 +177,7 @@ mod tests {
                 )
                 .unwrap();
             } else {
-                let (id, record, owners, field, ordinal): (i64,i64,String,Option<String>,usize) = c.query_row("SELECT location_id,record_id,owners_json,field_path,chunk_ordinal FROM semantic_locations WHERE location_id=(SELECT min(location_id) FROM semantic_units WHERE unit_kind='passage')", [], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?))).unwrap();
-                let address =
-                    serde_json::to_string(&atlas_domain::SourcePassageAddress::Identity {})
-                        .unwrap();
-                let hash = hash_bytes(
-                    &serde_json::to_vec(&(record, &owners, &field, &address, ordinal)).unwrap(),
-                );
-                c.execute("UPDATE semantic_locations SET section_json=?1,location_hash=?2 WHERE location_id=?3", rusqlite::params![address,hash,id]).unwrap();
+                c.execute("UPDATE semantic_locations SET section_id=NULL,chunk_ordinal=NULL,chunk_start=NULL,chunk_end=NULL WHERE location_id=(SELECT min(location_id) FROM semantic_units WHERE unit_kind='passage')",[]).unwrap();
             }
             let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
             assert!(

@@ -130,6 +130,30 @@ is recovered from source/prepared content; vector metadata does not retain a
 second prose corpus. A typed passage address binds section ordinal and UTF-8 byte
 range to source/preparation hashes, with no fabricated identity range.
 
+Selected source sections have one canonical relational row, including their whole
+neutral address, byte extent, role, labels and existing public selector. Lexical
+section evidence and semantic chunks reference that row; chunks retain only their
+ordinal and byte range. Locations share a row only when the section, chunk ordinal
+and exact range agree; profile and native input identities stay on the unit.
+Root/alias names, owned names and root semantic identity
+remain explicit non-section cases. Trait definitions keep their separate typed
+identity and seed addresses. Reading a whole section therefore does not depend
+on a lexical heading or active vector coverage. Core and Similar use section
+foreign keys instead of matching duplicated JSON addresses.
+
+The canonical-section projection has an independent context marker. It is absent
+from historical context serialization and excluded from prepared-content,
+native-input and public-selector hashes. A compatible metadata upgrade derives
+whole sections from retained checked snapshots and prepared content, preserves
+unit IDs and vector bytes, and activates the marker through one validated
+reference publication. Retired preparation or the known predecessor source
+contract is classified before source decoding. Its numerical registry, published
+vectors and forced pending values remain intact; passage section references may
+remain explicitly unavailable while product reference reads stay blocked.
+Explicit source-backed setup resolves those unavailable locations before final
+validation and pruning. It cannot reinterpret them as identity or infer trusted
+whole-section extents from old chunk coverage.
+
 The two pinned baseline profiles and their shared artifact/input/session contract
 are specified in [ADR0050](./0050-selectable-search-profiles.md). FastEmbed owns
 inference, pooling, normalization and generic batching; text-splitter owns generic

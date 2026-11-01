@@ -85,6 +85,8 @@ pub fn audience() -> ContentAudience {
 }
 pub fn context(semantic: bool) -> SourceArtifactBuildContext {
     SourceArtifactBuildContext {
+        selected_sections_recipe: atlas_index::SELECTED_SECTIONS_RECIPE.into(),
+
         admission: None,
         trait_policy: "trait-definition-centroid/v1".into(),
         format_version: ARTIFACT_FORMAT_VERSION,

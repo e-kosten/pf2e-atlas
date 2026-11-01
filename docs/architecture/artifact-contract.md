@@ -99,6 +99,20 @@ captures final creation HP after source-condition initialization and persists
 reset/rest replacements under one encounter revision guard and savepoint. Names,
 notes, assigned levels, sides, roster dimming and roster positions are retained.
 
+Workspace migration 25 reconstructs section-backed lexical and semantic metadata
+with canonical section references, retaining compatible unit/location IDs, FTS
+postings and native bytes. Whole extents come from checked source/prepared
+selection, including prose without headings or vectors. The independent
+`selected_sections_recipe` marker is omitted when absent and does not affect
+prepared-content, model-input or public-selector identity. Its activation uses
+normal exact-transaction validation and one reference-generation advance.
+Retired preparation and the known predecessor snapshot contract defer section
+projection before decoding. Their saved rows, native registry, published vectors
+and pending computations remain intact. Missing passage section metadata remains
+unavailable under the blocked context; current publication and bounded decoders
+reject it. Explicit setup prepares current sections and reuses exact native values
+before removing obsolete occurrences. Empty fields have no invented section row.
+
 Pre-release separate-file formats have no compatibility reader or conversion
 shim. Future workspace upgrades use ordered migrations with recorded checksums,
 a consistent backup before structural changes, and transaction-scoped validation.
@@ -132,8 +146,9 @@ and non-null ownership, with owner-scoped slug uniqueness.
 | Developer reports | `developer_diagnostics`: attributed admission/preparation/resolution/projection evidence. Product record responses do not expose these reports. |
 | Relationships | `relationship_occurrences`: attributed structured and visible content occurrences, preserving repeated links and resolved/unverified/unresolved/blocked status. |
 | Verified identity evidence | `verified_aliases`, `remaster_pairs`: explicit evidence-backed lookup names and edition relationships. |
+| Selected sections | `selected_sections`: one canonical record/owner/field/ordinal, whole typed address and extent, body hash, role, labels, recipe and public selector. Address components are stored once in named columns. |
 | Precision lexical search | `lexical_units`, `lexical_fts`: root names, verified aliases, typed vocabulary, owned names, headings and structural definition labels. |
-| Semantic search | `search_profiles`, `semantic_units`, profile-specific `semantic_vectors_<identity hash>` tables: complete profile identity, profile-scoped attributed section/chunk addresses, raw input hashes and vectors. |
+| Semantic search | `search_profiles`, `semantic_units`, profile-specific `semantic_vectors_<identity hash>` tables: complete profile identity and native vectors. `semantic_locations` references a canonical section plus chunk ordinal/range; `semantic_units` binds occurrences to profile/native inputs. |
 
 There is no generic metric EAV store, persisted RichDocument, synthetic canonical
 affliction table, copied embedded Item authority or complete plain-text/model-input

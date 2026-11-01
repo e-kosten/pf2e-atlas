@@ -313,10 +313,7 @@ fn original_prepare_error_wins_before_malformed_selected_metadata_and_cached_reu
     let p = &input.context.search_profiles[0].profile_id;
     let q = crate::validate_query(&QueryPredicate::boolean(true)).unwrap();
     let v = vector();
-    mutate(
-        &path,
-        "UPDATE semantic_locations SET section_json='broken' WHERE field_path IS NOT NULL",
-    );
+    mutate(&path, "UPDATE selected_sections SET owners_json='broken'");
     let reader = test_support::open_reader(&path).unwrap();
     let r = request(p, &q, &v);
     assert_eq!(
@@ -435,7 +432,10 @@ fn tied_native_membership_is_exact_for_each_k_and_setup_without_new_native_budge
                 let read_bits = |statement: &mut Statement<'_>, parameters| {
                     statement
                         .query_map(parameters, |row| {
-                            Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(5)?.to_bits()))
+                            Ok((
+                                row.get::<_, i64>(0)?,
+                                row.get::<_, f64>("distance")?.to_bits(),
+                            ))
                         })
                         .unwrap()
                         .collect::<Result<Vec<_>, _>>()
@@ -458,7 +458,12 @@ fn tied_native_membership_is_exact_for_each_k_and_setup_without_new_native_budge
                             &plan.values[plan.setup_parameters + 1],
                             ids
                         ],
-                        |row| Ok((row.get::<_, i64>(0)?, row.get::<_, f64>(5)?.to_bits())),
+                        |row| {
+                            Ok((
+                                row.get::<_, i64>(0)?,
+                                row.get::<_, f64>("distance")?.to_bits(),
+                            ))
+                        },
                     )
                     .unwrap()
                     .collect::<Result<Vec<_>, _>>()
@@ -612,7 +617,7 @@ fn duplicate_eligibility_rows_keep_sql_set_semantics_and_large_integer_json_exac
     let (_dir, path) = crate::foundation_tests::build(&input);
     let reader = test_support::open_reader(&path).unwrap();
     // Duplicate-producing joins must still form exactly the same SQL IN-set.
-    reader.native().unwrap().execute_batch("CREATE TEMP TABLE similarity_parts AS SELECT * FROM main.similarity_parts; INSERT INTO similarity_parts SELECT * FROM main.similarity_parts;").unwrap();
+    reader.native().unwrap().execute_batch("CREATE TEMP TABLE selected_sections AS SELECT * FROM main.selected_sections; INSERT INTO selected_sections SELECT * FROM main.selected_sections;").unwrap();
     let p = &input.context.search_profiles[0].profile_id;
     let q = crate::validate_query(&QueryPredicate::boolean(true)).unwrap();
     let v = vector();
@@ -631,7 +636,7 @@ fn duplicate_eligibility_rows_keep_sql_set_semantics_and_large_integer_json_exac
             .native()
             .unwrap()
             .query_row(
-                "SELECT count(*) FROM sqlite_temp_master WHERE name='similarity_parts'",
+                "SELECT count(*) FROM sqlite_temp_master WHERE name='selected_sections'",
                 [],
                 |row| row.get::<_, usize>(0)
             )
@@ -708,16 +713,19 @@ fn native_execution_and_malformed_eligibility_failures_keep_the_original_error_o
             exact
         );
     }
-    mutate(
-        &path,
-        "UPDATE semantic_locations SET section_json='broken' WHERE field_path IS NOT NULL",
-    );
     let reader = test_support::open_reader(&path).unwrap();
+    reader
+        .native()
+        .unwrap()
+        .execute_batch(
+            "CREATE TEMP TABLE selected_sections(eligibility_column_unavailable INTEGER)",
+        )
+        .unwrap();
     let r = request(&model.profile_id, &q, &v);
     let exact = reader.similarity_candidates(r).unwrap_err().to_string();
     assert!(
-        exact.contains("malformed JSON"),
-        "eligibility failure must win: {exact}"
+        exact.contains("no such column"),
+        "eligibility preparation failure must win: {exact}"
     );
     let mut operation = reader.configured_similarity_candidates();
     assert_eq!(

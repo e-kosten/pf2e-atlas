@@ -110,9 +110,6 @@ impl SourceSearchProfileIdentity {
     }
 }
 pub(crate) fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), IndexError> {
-    if let Some(admission) = &c.admission {
-        admission.validate()?;
-    }
     if c.core_sections_recipe != atlas_domain::CORE_SECTIONS_RECIPE {
         return Err(IndexError::Unsupported("Core section projection requires an offline metadata update; run atlas setup --offline".into()));
     }
@@ -166,6 +163,12 @@ pub(crate) fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), Ind
         return Err(IndexError::Invalid(
             "build context policy or locale is empty".into(),
         ));
+    }
+    if c.selected_sections_recipe != crate::SELECTED_SECTIONS_RECIPE {
+        return Err(IndexError::Unsupported("canonical section projection requires an offline metadata update; run atlas setup --offline".into()));
+    }
+    if let Some(admission) = &c.admission {
+        admission.validate()?;
     }
     for profile in c.canonical_profiles()? {
         let spec = atlas_embedding::search_profile(&profile.profile_id)
@@ -309,13 +312,15 @@ fn write_rows(c: &Connection, input: &IndexBuildInput) -> Result<(), IndexError>
     c.execute("DELETE FROM trait_definitions", [])?;
     write_record_rows(c, input)?;
     crate::traits::write_traits(c, input)?;
-    crate::similarity_projection::write_similarity_parts(c, input)?;
     crate::core_projection::write_core_sections(c, input)
 }
 
 /// Record-component composition is shared with deliberately historical fixtures;
 /// ordinary publication always includes the vocabulary component above.
-pub(crate) fn write_record_rows(c: &Connection, input: &IndexBuildInput) -> Result<(), IndexError> {
+pub(crate) fn write_record_base(
+    c: &Connection,
+    input: &IndexBuildInput,
+) -> Result<(BTreeMap<RecordKey, i64>, std::collections::BTreeSet<i64>), IndexError> {
     tracing::info!(target:"atlas_progress",phase="artifact_identity","Updating record identities");
     let mut canonical = input.context.clone();
     canonical.search_profiles = input.context.canonical_profiles()?;
@@ -478,8 +483,30 @@ pub(crate) fn write_record_rows(c: &Connection, input: &IndexBuildInput) -> Resu
         r.text("definition_json", serde_json::to_string(&definition)?);
         crate::publication_delta::upsert(c, &r, "field")?;
     }
+    Ok((product_ids, live))
+}
+pub(crate) fn write_record_rows(c: &Connection, input: &IndexBuildInput) -> Result<(), IndexError> {
+    let (product_ids, live) = write_record_base(c, input)?;
+    let mut sections = std::collections::BTreeSet::new();
+    for source in &input.records {
+        sections.extend(crate::selected_sections::write_record(
+            c,
+            &input.context,
+            source,
+        )?);
+    }
     tracing::info!(target:"atlas_progress",phase="artifact_search","Updating search indexes");
     crate::publication_delta::search_units(c, input, &product_ids)?;
+    c.execute("DELETE FROM semantic_locations WHERE NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.location_id=semantic_locations.location_id)",[])?;
+    let existing = c
+        .prepare("SELECT section_id FROM selected_sections")?
+        .query_map([], |r| r.get::<_, i64>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    for id in existing {
+        if !sections.contains(&id) {
+            c.execute("DELETE FROM selected_sections WHERE section_id=?", [id])?;
+        }
+    }
     tracing::info!(target:"atlas_progress",phase="artifact_removals","Removing outdated records");
     crate::publication_delta::remove_absent_roots(c, &live)?;
     c.execute(

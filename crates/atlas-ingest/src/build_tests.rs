@@ -1723,7 +1723,7 @@ fn unreadable_declared_pack_fails_with_pack_identity_and_preserves_publication()
     build_artifact(fixture.options()).unwrap();
     let path = fixture.0.join("packs/macros");
     let original = fs::metadata(&path).unwrap().permissions();
-    fs::set_permissions(&path, fs::Permissions::from_mode(0)).unwrap();
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o0)).unwrap();
     let cannot_read = fs::read_dir(&path).is_err();
     let result = build_artifact(fixture.options());
     fs::set_permissions(&path, original).unwrap();
@@ -1837,6 +1837,114 @@ fn wholly_quarantined_or_unaddressable_source_preserves_active_publication_and_s
                 .unwrap()
                 .admitted_records,
             2
+        );
+    }
+}
+
+#[test]
+fn retired_preparation_and_predecessor_skip_unreadable_cached_dtos_before_source_rebuild() {
+    for replacement in [false, true] {
+        let fixture = Fixture::new();
+        let first = build_artifact(fixture.options()).unwrap();
+        if replacement {
+            atlas_index::test_support::set_predecessor_source_contract(
+                &first.output_path,
+                atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
+            )
+            .unwrap();
+        } else {
+            atlas_index::test_support::set_relationship_policy(
+                &first.output_path,
+                atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
+                "typed-authored-occurrences/v6",
+            )
+            .unwrap();
+        }
+        let database = rusqlite::Connection::open(&first.output_path).unwrap();
+        // Invalid cached bytes must never be decoded by the source-backed path.
+        database
+            .execute("UPDATE record_bodies SET snapshot=x'00'", [])
+            .unwrap();
+        database.execute_batch("INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at) VALUES(1,'kept','kept','Kept','now','now')").unwrap();
+        let revision: i64 = database
+            .query_row("SELECT reference_revision FROM workspace", [], |r| r.get(0))
+            .unwrap();
+        drop(database);
+        let workspace = atlas_storage::Workspace::at(&first.output_path).unwrap();
+        let owner = workspace.update_owner().unwrap();
+        // Dropping a real unfinished publication keeps durable maintenance set.
+        drop(
+            owner
+                .maintenance(
+                    atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
+                    "interrupted retired reference publication",
+                )
+                .unwrap(),
+        );
+        drop(owner);
+        assert!(atlas_index::test_support::open_reader(&first.output_path).is_err());
+        let database = rusqlite::Connection::open(&first.output_path).unwrap();
+        assert!(
+            database
+                .query_row("SELECT maintenance FROM workspace", [], |r| r
+                    .get::<_, Option<String>>(0))
+                .unwrap()
+                .is_some()
+        );
+        drop(database);
+        // Source absence remains a truthful acquisition error, not a DTO error.
+        let source = fixture.0.join("packs/items");
+        let hidden = fixture.0.join("hidden-items");
+        fs::rename(&source, &hidden).unwrap();
+        let failure = build_artifact(fixture.options()).unwrap_err().to_string();
+        assert!(failure.contains("items"), "{failure}");
+        let database = rusqlite::Connection::open(&first.output_path).unwrap();
+        assert_eq!(
+            database
+                .query_row("SELECT reference_revision FROM workspace", [], |r| r
+                    .get::<_, i64>(0))
+                .unwrap(),
+            revision
+        );
+        assert_eq!(
+            database
+                .query_row("SELECT name FROM saved_lists WHERE id=1", [], |r| r
+                    .get::<_, String>(0))
+                .unwrap(),
+            "Kept"
+        );
+        assert!(
+            database
+                .query_row("SELECT maintenance FROM workspace", [], |r| r
+                    .get::<_, Option<String>>(0))
+                .unwrap()
+                .is_none()
+        );
+        assert!(atlas_index::test_support::open_reader(&first.output_path).is_err());
+        drop(database);
+        fs::rename(hidden, source).unwrap();
+        let rebuilt = build_artifact(fixture.options()).unwrap();
+        let reader = atlas_index::test_support::open_reader(&rebuilt.output_path).unwrap();
+        assert_eq!(
+            reader
+                .similarity_part_addresses(&"items:aaaaaaaaaaaaaaaa".parse().unwrap())
+                .unwrap()
+                .len(),
+            1
+        );
+        assert!(
+            reader
+                .read_source_record_for_inspection(&"items:aaaaaaaaaaaaaaaa".parse().unwrap())
+                .unwrap()
+                .is_some()
+        );
+        let database = rusqlite::Connection::open(&first.output_path).unwrap();
+        assert_eq!(
+            database
+                .query_row("SELECT name FROM saved_lists WHERE id=1", [], |r| r
+                    .get::<_, String>(0))
+                .unwrap(),
+            "Kept"
         );
     }
 }

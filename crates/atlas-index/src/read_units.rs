@@ -101,23 +101,77 @@ pub(crate) fn eligible_sql(
 pub(crate) fn parse_key(s: String) -> Result<RecordKey, IndexError> {
     RecordKey::parse(&s).map_err(|e| IndexError::Invalid(e.to_string()))
 }
+pub(crate) const SEMANTIC_LOCATION_COLUMNS: &str = "su.unit_id,r.key,coalesce(ss.owners_json,'[]'),ss.field_path,ss.address_kind,ss.prepared_html_sha256,ss.body_hash,ss.selection_version,ss.section_ordinal,ss.section_label,ss.byte_length,sl.chunk_start,sl.chunk_end,su.unit_kind,sl.chunk_ordinal AS location_chunk_ordinal,(sl.record_id=su.record_id AND ((sl.section_id IS NULL AND su.unit_kind='identity') OR (sl.section_id IS NOT NULL AND ss.section_id IS NOT NULL AND ss.record_id=su.record_id AND su.unit_kind='passage'))) AS location_owner_valid";
+pub(crate) const LEXICAL_LOCATION_COLUMNS: &str = "lu.unit_id,r.key,coalesce(lu.owners_json,ss.owners_json),ss.field_path,ss.address_kind,ss.prepared_html_sha256,ss.body_hash,ss.selection_version,ss.section_ordinal,ss.section_label,ss.byte_length,CASE WHEN ss.section_id IS NOT NULL THEN 0 END,ss.byte_length,lu.unit_kind,CASE WHEN ss.section_id IS NOT NULL THEN 0 END AS location_chunk_ordinal,(lu.section_id IS NULL OR (ss.section_id IS NOT NULL AND ss.record_id=lu.record_id)) AS location_owner_valid";
+pub(crate) const LOCATION_WIDTH: usize = 16;
 pub(crate) fn location(row: &rusqlite::Row<'_>) -> rusqlite::Result<SourceUnitLocation> {
+    location_at(row, 0)
+}
+pub(crate) fn location_at(
+    row: &rusqlite::Row<'_>,
+    offset: usize,
+) -> rusqlite::Result<SourceUnitLocation> {
     let decode = |e: Box<dyn std::error::Error + Send + Sync>| {
-        rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, e)
+        rusqlite::Error::FromSqlConversionFailure(offset, rusqlite::types::Type::Text, e)
     };
-    let key: String = row.get(1)?;
-    let owners: String = row.get(2)?;
-    let section: Option<String> = row.get(4)?;
+    let invalid = |message: &str| decode(Box::new(IndexError::Invalid(message.into())));
+    if !row.get::<_, bool>(offset + 15)? {
+        return Err(invalid("unit canonical section ownership is invalid"));
+    }
+    let key: String = row.get(offset + 1)?;
+    let owners: String = row.get(offset + 2)?;
+    let owners = serde_json::from_str::<Vec<OwnedContentLocator>>(&owners)
+        .map_err(|e| decode(Box::new(e)))?;
+    let field: Option<String> = row.get(offset + 3)?;
+    let kind: String = row.get(offset + 13)?;
+    let section_kind: Option<String> = row.get(offset + 4)?;
+    let address = if let Some(section_kind) = section_kind {
+        if !matches!(kind.as_str(), "passage" | "heading" | "definition_label") {
+            return Err(invalid("non-section unit points to a canonical section"));
+        }
+        let range = crate::semantic_locations::range(row, offset + 11, offset + 12)?;
+        let extent: usize = row.get(offset + 10)?;
+        if row.get::<_, Option<usize>>(offset + 14)?.is_none()
+            || field.is_none()
+            || range.start > range.end
+            || range.end > extent
+            || range.start == range.end
+        {
+            return Err(invalid("unit range exceeds its canonical section"));
+        }
+        Some(
+            crate::selected_sections::address(
+                section_kind,
+                row.get(offset + 5)?,
+                row.get(offset + 6)?,
+                row.get(offset + 7)?,
+                row.get(offset + 8)?,
+                row.get(offset + 9)?,
+                range,
+            )
+            .map_err(|e| decode(Box::new(e)))?,
+        )
+    } else {
+        match kind.as_str() {
+            "identity"
+                if row.get::<_, Option<usize>>(offset + 14)? == Some(0)
+                    && owners.is_empty()
+                    && field.is_none()
+                    && row.get::<_, Option<usize>>(offset + 11)?.is_none()
+                    && row.get::<_, Option<usize>>(offset + 12)?.is_none() =>
+            {
+                Some(SourcePassageAddress::Identity {})
+            }
+            "root_name" | "root_alias" | "owned_name" if field.is_none() => None,
+            _ => return Err(invalid("unit canonical section is unavailable")),
+        }
+    };
     Ok(SourceUnitLocation {
-        unit_id: row.get(0)?,
+        unit_id: row.get(offset)?,
         record: RecordKey::parse(&key).map_err(|e| decode(Box::new(e)))?,
-        owners: serde_json::from_str::<Vec<OwnedContentLocator>>(&owners)
-            .map_err(|e| decode(Box::new(e)))?,
-        field: row.get(3)?,
-        address: section
-            .map(|s| serde_json::from_str::<SourcePassageAddress>(&s))
-            .transpose()
-            .map_err(|e| decode(Box::new(e)))?,
+        owners,
+        field,
+        address,
     })
 }
 impl SqliteIndexReader {
@@ -264,7 +318,7 @@ impl SqliteIndexReader {
         let limit_param = all.len();
         let content_sql = lexical_content_sql(content_scope);
         let sql = format!(
-            "WITH eligible AS ({eligible}) SELECT lu.unit_id,r.key,lu.owners_json,lu.field_path,lu.section_json,bm25(lexical_fts,10.0,8.0,1.0,6.0),lu.unit_kind,CASE WHEN lu.unit_kind='root_alias' THEN lu.alias_terms ELSE lu.identity_terms END,lu.definition_terms,r.name_state FROM lexical_fts JOIN lexical_units lu ON lu.unit_id=lexical_fts.rowid JOIN records r ON r.record_id=lu.record_id WHERE lexical_fts MATCH ?{term_param} AND lu.record_id IN (SELECT record_id FROM eligible){content_sql} ORDER BY 6,lu.unit_id LIMIT ?{limit_param}"
+            "WITH eligible AS ({eligible}) SELECT {LEXICAL_LOCATION_COLUMNS},bm25(lexical_fts,10.0,8.0,1.0,6.0) AS lexical_rank,CASE WHEN lu.unit_kind='root_alias' THEN lu.alias_terms ELSE lu.identity_terms END AS witness_identity_terms,lu.definition_terms AS witness_definition_terms,r.name_state AS witness_name_state FROM lexical_fts JOIN lexical_units lu ON lu.unit_id=lexical_fts.rowid JOIN records r ON r.record_id=lu.record_id LEFT JOIN selected_sections ss ON ss.section_id=lu.section_id AND ss.record_id=lu.record_id WHERE lexical_fts MATCH ?{term_param} AND lu.record_id IN (SELECT record_id FROM eligible){content_sql} ORDER BY lexical_rank,lu.unit_id LIMIT ?{limit_param}"
         );
         let c = self.native()?;
         self.count_statement();
@@ -309,7 +363,7 @@ impl SqliteIndexReader {
         all.push(Value::Integer(limit as i64));
         let content_sql = semantic_content_sql(content_scope);
         let sql = format!(
-            "WITH eligible AS ({eligible}) SELECT su.unit_id,r.key,sl.owners_json,sl.field_path,sl.section_json,knn.distance FROM (SELECT unit_id,distance FROM {table} WHERE embedding MATCH ?{vector_param} AND k=?{limit_param} AND unit_id IN (SELECT su.unit_id FROM semantic_units su WHERE su.profile_id=?{profile_param} AND su.record_id IN (SELECT record_id FROM eligible){content_sql})) knn JOIN semantic_units su ON su.unit_id=knn.unit_id JOIN semantic_locations sl USING(location_id) JOIN records r ON r.record_id=su.record_id ORDER BY knn.distance,su.unit_id"
+            "WITH eligible AS ({eligible}) SELECT {SEMANTIC_LOCATION_COLUMNS},knn.distance FROM (SELECT unit_id,distance FROM {table} WHERE embedding MATCH ?{vector_param} AND k=?{limit_param} AND unit_id IN (SELECT su.unit_id FROM semantic_units su WHERE su.profile_id=?{profile_param} AND su.record_id IN (SELECT record_id FROM eligible){content_sql})) knn JOIN semantic_units su ON su.unit_id=knn.unit_id JOIN semantic_locations sl USING(location_id) JOIN records r ON r.record_id=su.record_id LEFT JOIN selected_sections ss ON ss.section_id=sl.section_id AND ss.record_id=su.record_id ORDER BY knn.distance,su.unit_id"
         );
         self.count_knn();
         let c = self.native()?;
@@ -319,7 +373,7 @@ impl SqliteIndexReader {
             .query_map(params_from_iter(all.iter()), |r| {
                 Ok(SourceVectorHit {
                     location: location(r)?,
-                    distance: r.get(5)?,
+                    distance: r.get("distance")?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?)
@@ -477,10 +531,10 @@ fn literal_fts_query(text: &str) -> Result<String, IndexError> {
 
 fn lexical_hit(row: &rusqlite::Row<'_>, text: &str) -> rusqlite::Result<SourceLexicalHit> {
     let location = location(row)?;
-    let kind: String = row.get(6)?;
-    let identity: String = row.get(7)?;
-    let definition: String = row.get(8)?;
-    let name_state: String = row.get(9)?;
+    let kind: String = row.get(13)?;
+    let identity: String = row.get("witness_identity_terms")?;
+    let definition: String = row.get("witness_definition_terms")?;
+    let name_state: String = row.get("witness_name_state")?;
     let label = match kind.as_str() {
         "root_name" | "root_alias" if name_state == "value" => Some(identity.as_str()),
         "owned_name" | "heading" | "definition_label" => Some(definition.as_str()),
@@ -498,7 +552,7 @@ fn lexical_hit(row: &rusqlite::Row<'_>, text: &str) -> rusqlite::Result<SourceLe
     });
     Ok(SourceLexicalHit {
         location,
-        rank: row.get(5)?,
+        rank: row.get("lexical_rank")?,
         exact_label,
         label: label.map(str::to_owned),
         unit_kind: serde_json::from_str(&format!("\"{kind}\"")).map_err(|e| {
@@ -524,7 +578,7 @@ impl SqliteIndexReader {
         params.push(Value::Text(expression));
         let content_sql = lexical_content_sql(content_scope);
         let sql = format!(
-            "WITH eligible AS ({eligible}) SELECT lu.unit_id,r.key,lu.owners_json,lu.field_path,lu.section_json,bm25(lexical_fts,10.0,8.0,1.0,6.0),lu.unit_kind,CASE WHEN lu.unit_kind='root_alias' THEN lu.alias_terms ELSE lu.identity_terms END,lu.definition_terms,r.name_state FROM lexical_fts JOIN lexical_units lu ON lu.unit_id=lexical_fts.rowid JOIN records r ON r.record_id=lu.record_id WHERE lexical_fts MATCH ?{text_param} AND lu.record_id IN (SELECT record_id FROM eligible){content_sql} ORDER BY 6,lu.unit_id"
+            "WITH eligible AS ({eligible}) SELECT {LEXICAL_LOCATION_COLUMNS},bm25(lexical_fts,10.0,8.0,1.0,6.0) AS lexical_rank,CASE WHEN lu.unit_kind='root_alias' THEN lu.alias_terms ELSE lu.identity_terms END AS witness_identity_terms,lu.definition_terms AS witness_definition_terms,r.name_state AS witness_name_state FROM lexical_fts JOIN lexical_units lu ON lu.unit_id=lexical_fts.rowid JOIN records r ON r.record_id=lu.record_id LEFT JOIN selected_sections ss ON ss.section_id=lu.section_id AND ss.record_id=lu.record_id WHERE lexical_fts MATCH ?{text_param} AND lu.record_id IN (SELECT record_id FROM eligible){content_sql} ORDER BY lexical_rank,lu.unit_id"
         );
         let c = self.native()?;
         self.count_statement();

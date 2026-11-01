@@ -84,6 +84,8 @@ fn audience() -> ContentAudience {
 }
 fn context(n: usize, semantic: bool) -> SourceArtifactBuildContext {
     SourceArtifactBuildContext {
+        selected_sections_recipe: crate::SELECTED_SECTIONS_RECIPE.into(),
+
         admission: None,
         core_sections_recipe: atlas_domain::CORE_SECTIONS_RECIPE.into(),
         trait_policy: "trait-definition-centroid/v1".into(),

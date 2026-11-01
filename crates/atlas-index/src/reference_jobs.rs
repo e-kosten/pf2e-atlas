@@ -18,7 +18,8 @@ pub fn recover_reference_publication(
                 crate::component_upgrade::ReferenceUpgrade::Current => {
                     crate::validate_reference(connection)?;
                 }
-                crate::component_upgrade::ReferenceUpgrade::SourceReplacement => {
+                crate::component_upgrade::ReferenceUpgrade::SourceReplacement
+                | crate::component_upgrade::ReferenceUpgrade::SourcePreparation => {
                     // Recovery opens the workspace for an explicit source rebuild,
                     // not for product reads of the retired snapshot contract.
                     let integrity: String =
@@ -37,8 +38,8 @@ pub fn recover_reference_publication(
                 }
                 crate::component_upgrade::ReferenceUpgrade::QueryProjections
                 | crate::component_upgrade::ReferenceUpgrade::LexicalProjections
-                | crate::component_upgrade::ReferenceUpgrade::CoreProjections
-                | crate::component_upgrade::ReferenceUpgrade::SourcePreparation => {
+                | crate::component_upgrade::ReferenceUpgrade::SectionProjections
+                | crate::component_upgrade::ReferenceUpgrade::CoreProjections => {
                     // Old derived outputs cannot be validated against new policy.
                     // Authenticate retained inputs and storage integrity; product
                     // readers remain blocked by their component-version checks.

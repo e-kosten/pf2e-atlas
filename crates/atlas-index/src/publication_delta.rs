@@ -203,9 +203,6 @@ fn remove_unkept(
     }
     Ok(())
 }
-fn nullable(value: Option<String>) -> Value {
-    value.map(Value::Text).unwrap_or(Value::Null)
-}
 
 pub(crate) fn search_units(
     c: &Connection,
@@ -258,14 +255,7 @@ pub(crate) fn search_units(
         crate::validation::check_vector(&unit.vector, model.dimensions)?;
         let id = crate::writer::product_id(ids, &unit.record)?;
         let table = crate::schema::vector_table(model)?;
-        let location = crate::semantic_locations::location_id(
-            c,
-            id,
-            &serde_json::to_string(&unit.owners)?,
-            unit.field.as_deref(),
-            &serde_json::to_string(&unit.address)?,
-            unit.chunk_ordinal,
-        )?;
+        let location = crate::semantic_locations::location_id(c, id, unit)?;
         let native = crate::embedding_values::publish_input(
             c,
             model,
@@ -276,23 +266,17 @@ pub(crate) fn search_units(
         let previous: Option<(i64, Vec<u8>)> = if old_profiles.get(unit.profile_id.as_str())
             == current_profiles.get(unit.profile_id.as_str())
         {
-            let section = match &unit.address {
-                atlas_domain::SourcePassageAddress::Identity {} => None,
-                atlas_domain::SourcePassageAddress::HtmlSection {
-                    section_ordinal, ..
-                }
-                | atlas_domain::SourcePassageAddress::PlainSection {
-                    section_ordinal, ..
-                } => Some(*section_ordinal as i64),
-            };
-            let mut statement=c.prepare_cached(&format!("SELECT u.unit_id,v.embedding FROM semantic_locations l JOIN semantic_units u USING(location_id) JOIN {table} v USING(unit_id) WHERE l.record_id=? AND u.profile_id=? AND l.owners_json=? AND l.field_path IS ? AND l.chunk_ordinal=? AND json_extract(l.section_json,'$.section_ordinal') IS ? ORDER BY (l.location_id=?) DESC,u.unit_id"))?;
+            let section: Option<i64> = c.query_row(
+                "SELECT section_id FROM semantic_locations WHERE location_id=?",
+                [location],
+                |row| row.get(0),
+            )?;
+            let mut statement=c.prepare_cached(&format!("SELECT u.unit_id,v.embedding FROM semantic_locations l JOIN semantic_units u USING(location_id) JOIN {table} v USING(unit_id) WHERE l.record_id=? AND u.profile_id=? AND l.section_id IS ? AND l.chunk_ordinal=? ORDER BY (l.location_id=?) DESC,u.unit_id"))?;
             let mut rows = statement.query(rusqlite::params![
                 id,
                 unit.profile_id.as_str(),
-                serde_json::to_string(&unit.owners)?,
-                unit.field,
-                unit.chunk_ordinal,
                 section,
+                unit.chunk_ordinal,
                 location
             ])?;
             let mut available = None;
@@ -416,16 +400,52 @@ pub(crate) fn lexical_units(
         let mut row = ProjectionRow::new("lexical_units");
         row.text("input_hash", hash);
         row.id("record_id", id);
-        row.text("owners_json", serde_json::to_string(&unit.owners)?);
-        row.push("field_path", nullable(unit.field.clone()));
+        let section = match &unit.address {
+            Some(address) => {
+                let ordinal = match address {
+                    atlas_domain::SourcePassageAddress::HtmlSection {
+                        section_ordinal, ..
+                    }
+                    | atlas_domain::SourcePassageAddress::PlainSection {
+                        section_ordinal, ..
+                    } => *section_ordinal,
+                    atlas_domain::SourcePassageAddress::Identity {} => {
+                        return Err(IndexError::Invalid(
+                            "lexical identity has a fabricated section".into(),
+                        ));
+                    }
+                };
+                let field = unit
+                    .field
+                    .as_deref()
+                    .ok_or_else(|| IndexError::Invalid("lexical section field missing".into()))?;
+                let section = crate::selected_sections::find(
+                    c,
+                    id,
+                    &serde_json::to_string(&unit.owners)?,
+                    field,
+                    ordinal,
+                )?;
+                if section.address != *address {
+                    return Err(IndexError::Invalid(
+                        "lexical section differs from canonical whole address".into(),
+                    ));
+                }
+                Some(section.id)
+            }
+            None => None,
+        };
         row.push(
-            "section_json",
-            nullable(
-                unit.address
-                    .as_ref()
-                    .map(serde_json::to_string)
-                    .transpose()?,
-            ),
+            "section_id",
+            section.map(Value::Integer).unwrap_or(Value::Null),
+        );
+        row.push(
+            "owners_json",
+            if section.is_none() {
+                Value::Text(serde_json::to_string(&unit.owners)?)
+            } else {
+                Value::Null
+            },
         );
         row.text("unit_kind", unit.kind.as_str());
         row.text("identity_terms", &unit.identity_terms);

@@ -56,7 +56,7 @@ fn states() -> Connection {
                 ("armor_class", ac.map(Value::Integer).unwrap_or(Value::Null)),
             ],
         );
-        if id >= 3 && id <= 6 {
+        if (3..=6).contains(&id) {
             db.execute(
                 "UPDATE records SET traits_state=?1 WHERE record_id=?2",
                 rusqlite::params![state, id],

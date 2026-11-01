@@ -76,6 +76,7 @@ pub(crate) fn prepare_build(
         ));
     }
     let mut context = SourceArtifactBuildContext {
+        selected_sections_recipe: atlas_index::SELECTED_SECTIONS_RECIPE.into(),
         admission: None,
         core_sections_recipe: atlas_domain::CORE_SECTIONS_RECIPE.into(),
         trait_policy: "trait-definition-centroid/v1".into(),
@@ -200,7 +201,13 @@ pub(crate) fn build_artifact(
         {
             Some(context)
                 if context.snapshot_version == atlas_foundry_model::SNAPSHOT_VERSION
-                    && context.source_contract == atlas_foundry_model::SOURCE_CONTRACT_ID =>
+                    && context.source_contract == atlas_foundry_model::SOURCE_CONTRACT_ID
+                    && !matches!(
+                        atlas_index::classify_reference_upgrade(read.connection())
+                            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?,
+                        atlas_index::ReferenceUpgrade::SourcePreparation
+                            | atlas_index::ReferenceUpgrade::SourceReplacement
+                    ) =>
             {
                 progress(
                     "read_previous",

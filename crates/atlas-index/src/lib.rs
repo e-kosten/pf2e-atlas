@@ -14,8 +14,17 @@ mod embedding_values;
 mod passage_layouts;
 mod persisted_inputs;
 pub use passage_layouts::{SourcePassageLayout, read_reusable_passage_layouts};
+#[cfg(any(test, feature = "test-support"))]
+mod historical_core_projection;
+mod historical_locations;
+#[cfg(any(test, feature = "test-support"))]
+mod historical_publication;
 mod reference_jobs;
+mod selected_sections;
 mod semantic_locations;
+pub use selected_sections::{
+    SELECTED_SECTIONS_RECIPE, SELECTED_SECTIONS_SCHEMA_SQL, backfill_selected_sections,
+};
 mod similarity_projection;
 pub use similarity_projection::{SIMILARITY_SCHEMA_SQL, backfill_similarity_parts};
 mod vector_allocation;

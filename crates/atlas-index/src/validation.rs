@@ -238,7 +238,7 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
         [],
         |r| r.get(0),
     )?;
-    let root_lexical:usize=c.query_row("SELECT count(*) FROM records r WHERE r.document_kind<>'Macro' AND (SELECT count(*) FROM lexical_units u WHERE u.record_id=r.record_id AND u.unit_kind='root_name' AND u.owners_json='[]' AND u.field_path IS NULL AND u.section_json IS NULL)=1",[],|r|r.get(0))?;
+    let root_lexical:usize=c.query_row("SELECT count(*) FROM records r WHERE r.document_kind<>'Macro' AND (SELECT count(*) FROM lexical_units u WHERE u.record_id=r.record_id AND u.unit_kind='root_name' AND u.owners_json='[]' AND u.section_id IS NULL)=1",[],|r|r.get(0))?;
     if root_lexical != product_count {
         return Err(IndexError::Invalid(
             "lexical identity coverage is incomplete".into(),

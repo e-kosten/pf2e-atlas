@@ -1,53 +1,82 @@
-//! Shared source addresses across profiles; digests index full checked metadata.
-use crate::{IndexError, embedding_values::hash_bytes};
-use rusqlite::{Connection, params};
+//! Shared section references and chunk ranges across native search profiles.
+use crate::{IndexError, SourceSemanticUnitInput};
+use atlas_domain::{SourceByteRange, SourcePassageAddress};
+use rusqlite::{Connection, OptionalExtension, params};
 
 pub(crate) fn location_id(
     c: &Connection,
     record: i64,
-    owners: &str,
-    field: Option<&str>,
-    address: &str,
-    ordinal: usize,
+    unit: &SourceSemanticUnitInput,
 ) -> Result<i64, IndexError> {
-    let hash = hash_bytes(&serde_json::to_vec(&(
-        record, owners, field, address, ordinal,
-    ))?);
-    c.execute("INSERT INTO semantic_locations(record_id,location_hash,owners_json,field_path,section_json,chunk_ordinal) VALUES(?,?,?,?,?,?) ON CONFLICT DO NOTHING",params![record,hash,owners,field,address,ordinal])?;
-    let (id,r,o,f,a,n):(i64,i64,String,Option<String>,String,usize)=c.query_row("SELECT location_id,record_id,owners_json,field_path,section_json,chunk_ordinal FROM semantic_locations WHERE location_hash=?",[hash],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?)))?;
-    if (r, o.as_str(), f.as_deref(), a.as_str(), n) != (record, owners, field, address, ordinal) {
-        return Err(IndexError::Invalid(
-            "semantic location digest collision".into(),
-        ));
-    }
-    Ok(id)
+    let (section, ordinal, start, end) = match &unit.address {
+        SourcePassageAddress::Identity {} => {
+            if !unit.owners.is_empty() || unit.field.is_some() || unit.chunk_ordinal != 0 {
+                return Err(IndexError::Invalid(
+                    "invalid semantic identity attribution".into(),
+                ));
+            }
+            let previous:Option<i64>=c.query_row("SELECT location_id FROM semantic_locations WHERE record_id=? AND section_id IS NULL AND chunk_ordinal=0",[record],|r|r.get(0)).optional()?;
+            if let Some(id) = previous {
+                return Ok(id);
+            }
+            (None, 0, None, None)
+        }
+        SourcePassageAddress::HtmlSection {
+            section_ordinal,
+            chunk_bytes,
+            ..
+        }
+        | SourcePassageAddress::PlainSection {
+            section_ordinal,
+            chunk_bytes,
+            ..
+        } => {
+            let field = unit
+                .field
+                .as_deref()
+                .ok_or_else(|| IndexError::Invalid("semantic passage has no field".into()))?;
+            let section = crate::selected_sections::find(
+                c,
+                record,
+                &serde_json::to_string(&unit.owners)?,
+                field,
+                *section_ordinal,
+            )?;
+            if section.chunk_address(*chunk_bytes)? != unit.address {
+                return Err(IndexError::Invalid(
+                    "semantic passage identity differs from its canonical section".into(),
+                ));
+            }
+            (
+                Some(section.id),
+                unit.chunk_ordinal,
+                Some(chunk_bytes.start),
+                Some(chunk_bytes.end),
+            )
+        }
+    };
+    c.execute("INSERT INTO semantic_locations(record_id,section_id,chunk_ordinal,chunk_start,chunk_end) VALUES(?,?,?,?,?) ON CONFLICT(section_id,chunk_ordinal,chunk_start,chunk_end) DO NOTHING",params![record,section,ordinal,start,end])?;
+    Ok(match section {
+        Some(section)=>c.query_row("SELECT location_id FROM semantic_locations WHERE section_id=? AND chunk_ordinal=? AND chunk_start=? AND chunk_end=?",params![section,ordinal,start,end],|r|r.get(0))?,
+        None=>c.query_row("SELECT location_id FROM semantic_locations WHERE record_id=? AND section_id IS NULL AND chunk_ordinal=0",[record],|r|r.get(0))?,
+    })
 }
 pub(crate) fn validate(c: &Connection) -> Result<(), IndexError> {
-    let mut s=c.prepare("SELECT location_id,record_id,location_hash,owners_json,field_path,section_json,chunk_ordinal FROM semantic_locations")?;
-    let mut rows = s.query([])?;
-    while let Some(row) = rows.next()? {
-        let id: i64 = row.get(0)?;
-        let record: i64 = row.get(1)?;
-        let hash: Vec<u8> = row.get(2)?;
-        let owners: String = row.get(3)?;
-        let field: Option<String> = row.get(4)?;
-        let address: String = row.get(5)?;
-        let ordinal: usize = row.get(6)?;
-        if hash
-            != hash_bytes(&serde_json::to_vec(&(
-                record, &owners, &field, &address, ordinal,
-            ))?)
-        {
-            return Err(IndexError::Invalid(format!(
-                "semantic location {id} checksum mismatch"
-            )));
-        }
-    }
-    let invalid:bool=c.query_row("SELECT EXISTS(SELECT 1 FROM semantic_units u JOIN semantic_locations l USING(location_id) JOIN embedding_inputs i USING(input_id) JOIN embedding_models m USING(model_id) JOIN search_profiles p USING(profile_id) WHERE u.record_id<>l.record_id OR m.identity_json<>p.identity_json OR (u.unit_kind='identity')<>(l.field_path IS NULL))",[],|r|r.get(0))?;
+    let invalid:bool=c.query_row("SELECT EXISTS(SELECT 1 FROM semantic_units u JOIN semantic_locations l USING(location_id) LEFT JOIN selected_sections s USING(section_id) JOIN embedding_inputs i USING(input_id) JOIN embedding_models m USING(model_id) JOIN search_profiles p USING(profile_id) WHERE u.record_id<>l.record_id OR m.identity_json<>p.identity_json OR (u.unit_kind='identity' AND (l.section_id IS NOT NULL OR l.chunk_ordinal IS NOT 0 OR l.chunk_start IS NOT NULL OR l.chunk_end IS NOT NULL)) OR (u.unit_kind='passage' AND (s.section_id IS NULL OR s.record_id<>u.record_id OR l.chunk_ordinal IS NULL OR l.chunk_start IS NULL OR l.chunk_end IS NULL OR l.chunk_start<0 OR l.chunk_end<=l.chunk_start OR l.chunk_end>s.byte_length)))",[],|r|r.get(0))?;
     if invalid {
         return Err(IndexError::Invalid(
-            "semantic unit model or attribution mismatch".into(),
+            "semantic unit model, section or chunk attribution mismatch".into(),
         ));
     }
     Ok(())
+}
+pub(crate) fn range(
+    row: &rusqlite::Row<'_>,
+    start: usize,
+    end: usize,
+) -> rusqlite::Result<SourceByteRange> {
+    Ok(SourceByteRange {
+        start: row.get(start)?,
+        end: row.get(end)?,
+    })
 }

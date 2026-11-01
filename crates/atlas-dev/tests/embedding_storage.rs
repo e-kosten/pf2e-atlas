@@ -1,4 +1,5 @@
-//! Explicit full-corpus regression/size probe; never modifies its source workspace.
+//! Explicit historical schema-9 to schema-10 numerical-storage probe.
+//! Never modifies its source workspace or claims current reference readiness.
 use atlas_index::{SourceSearchProfileIdentity, read_stored_reference_context};
 use atlas_storage::{ReadSession, Workspace};
 use sha2::{Digest, Sha256};
@@ -101,15 +102,18 @@ fn knn(read: &ReadSession, models: &[SourceSearchProfileIdentity]) -> Vec<Vec<f6
     results
 }
 #[test]
-#[ignore = "requires ATLAS_STORAGE_PROBE_SOURCE pointing at a schema-9 repository development corpus; creates one disposable copy"]
-fn full_corpus_storage_upgrade_preserves_values_and_reuse() {
+#[ignore = "requires ATLAS_STORAGE_PROBE_SOURCE pointing at a schema-9 repository development corpus; upgrades one disposable copy only through historical schema 10"]
+fn historical_nine_to_ten_storage_upgrade_preserves_values_and_reuse() {
     let source = PathBuf::from(
         std::env::var_os("ATLAS_STORAGE_PROBE_SOURCE").expect("set source corpus path"),
     );
     let directory = tempfile::tempdir().unwrap();
     // Register the normal runtime extension without upgrading the source.
     drop(
-        atlas_runtime::initialize_workspace(directory.path().join("registration.sqlite")).unwrap(),
+        atlas_runtime::test_support::initialize_historical_embedding_storage_probe(
+            directory.path().join("registration.sqlite"),
+        )
+        .unwrap(),
     );
     let path = directory.path().join("probe.sqlite");
     Workspace::at(source).unwrap().snapshot_to(&path).unwrap();
@@ -127,13 +131,12 @@ fn full_corpus_storage_upgrade_preserves_values_and_reuse() {
     let before_size = std::fs::metadata(&path).unwrap().len();
     drop(before);
     let start = Instant::now();
-    let workspace = atlas_runtime::initialize_workspace(&path).unwrap();
+    let workspace =
+        atlas_runtime::test_support::initialize_historical_embedding_storage_probe(&path).unwrap();
     eprintln!("migration seconds={:.2}", start.elapsed().as_secs_f64());
     let owner = workspace.update_owner().unwrap();
     assert!(
-        owner
-            .reclaim_space(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
-            .unwrap(),
+        owner.reclaim_space(10).unwrap(),
         "the full-corpus fixture must cross the reclamation threshold and have capacity"
     );
     drop(owner);
@@ -142,9 +145,7 @@ fn full_corpus_storage_upgrade_preserves_values_and_reuse() {
         before_size > after_size + 32 * 1024 * 1024,
         "before={before_size}, after={after_size}"
     );
-    let read = workspace
-        .read(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
-        .unwrap();
+    let read = workspace.read(10).unwrap();
     assert_eq!(read.workspace_key().unwrap(), key);
     assert_eq!(read.reference_revision().unwrap(), revision);
     assert_eq!(saved_digest(&read), saved);
@@ -205,13 +206,24 @@ fn full_corpus_storage_upgrade_preserves_values_and_reuse() {
     );
     drop(read);
     let start = Instant::now();
-    let read = workspace
-        .read(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
-        .unwrap();
-    atlas_index::validate_reference(read.connection()).unwrap();
+    let read = workspace.read(10).unwrap();
+    assert_eq!(
+        read.connection()
+            .query_row("PRAGMA integrity_check", [], |r| r.get::<_, String>(0))
+            .unwrap(),
+        "ok"
+    );
+    assert!(
+        !read
+            .connection()
+            .prepare("PRAGMA foreign_key_check")
+            .unwrap()
+            .exists([])
+            .unwrap()
+    );
     drop(read);
     eprintln!(
-        "deep_validation seconds={:.2}",
+        "historical_sqlite_integrity seconds={:.2}",
         start.elapsed().as_secs_f64()
     );
     eprintln!(

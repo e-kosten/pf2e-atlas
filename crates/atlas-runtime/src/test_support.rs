@@ -25,3 +25,11 @@ pub fn open_reader(
     let session = atlas_storage::Workspace::at(path)?.read(crate::WORKSPACE_SCHEMA_VERSION)?;
     Ok(atlas_index::SqliteIndexReader::from_session(session)?)
 }
+
+/// Initialize exactly the published schema-10 embedding-storage prefix. This
+/// isolated historical probe never admits current product reference sessions.
+pub fn initialize_historical_embedding_storage_probe(
+    path: impl AsRef<std::path::Path>,
+) -> atlas_storage::StorageResult<atlas_storage::Workspace> {
+    crate::workspace::initialize_historical_embedding_storage_probe(path)
+}

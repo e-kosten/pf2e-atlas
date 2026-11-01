@@ -370,7 +370,8 @@ fn migration_preserves_published_values_and_interrupted_forced_progress() {
     workspace
         .migrate(&TEST_MIGRATIONS[..4], |_| Ok(()))
         .unwrap();
-    let input = crate::foundation_tests::fixture(true);
+    let mut input = crate::foundation_tests::fixture(true);
+    input.context.query_projection_version = "authored-query/v4".into();
     let owner = workspace.update_owner().unwrap();
     let maintenance = owner.maintenance(4, "legacy fixture").unwrap();
     publish_historical_record_fixture(&maintenance, &input).unwrap();
@@ -387,6 +388,32 @@ fn migration_preserves_published_values_and_interrupted_forced_progress() {
             "CREATE TABLE saved_probe(value TEXT); INSERT INTO saved_probe VALUES('retain me');",
         )
         .unwrap();
+    // This fixture manually publishes the schema-8 trait component below. Its
+    // current policy also requires the authored memberships; schema creation
+    // alone cannot certify an empty derived membership table.
+    for source in &input.records {
+        for membership in atlas_record::source_record::trait_record_memberships(
+            &source.record,
+            input.context.audience,
+        ) {
+            write
+                .connection()
+                .execute(
+                    "INSERT INTO trait_memberships VALUES(?,?,?,?)",
+                    rusqlite::params![
+                        membership.trait_key.to_string(),
+                        source.record.key().to_string(),
+                        serde_json::to_string(&membership.owners).unwrap(),
+                        if membership.owners.is_empty() {
+                            None
+                        } else {
+                            membership.source_label
+                        }
+                    ],
+                )
+                .unwrap();
+        }
+    }
     let model = &input.context.search_profiles[0];
     let unit = &input.semantic_units[0];
     let prepared = prepared(unit);
@@ -443,6 +470,11 @@ fn migration_preserves_published_values_and_interrupted_forced_progress() {
         replacement
     );
     assert_eq!(count(read.connection(), "trait_native_values"), 1);
+    drop(read);
+    assert!(ensure_reference_projections(&upgraded, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
+    let read = upgraded.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(read.reference_revision().unwrap(), 2);
+    assert_eq!(count(read.connection(), "pending_embedding_values"), 1);
     let reader = SqliteIndexReader::from_session(read).unwrap();
     assert_eq!(
         reader
