@@ -2,6 +2,8 @@ use super::*;
 use atlas_local_state::{LocalStateRead, LocalStateWrite};
 use rusqlite::{Connection, types::Value};
 
+const DELETED_CONDITION_ID: i64 = 4096;
+
 const SAVED_TABLES: [&str; 23] = [
     "principals",
     "saved_lists",
@@ -68,6 +70,20 @@ fn historical() -> (tempfile::TempDir, Workspace) {
 pub(super) fn populate(workspace: &Workspace, schema: u32) {
     let write = workspace.write(schema).unwrap();
     write.connection().execute_batch(POPULATED).unwrap();
+    write
+        .connection()
+        .execute(
+            "INSERT INTO encounter_participant_conditions(id,participant_id,name,value,note,created_at,updated_at) VALUES(?1,11,'Frightened',1,'Deleted before upgrade','before','after')",
+            [DELETED_CONDITION_ID],
+        )
+        .unwrap();
+    write
+        .connection()
+        .execute(
+            "DELETE FROM encounter_participant_conditions WHERE id=?1",
+            [DELETED_CONDITION_ID],
+        )
+        .unwrap();
     write.commit().unwrap();
 }
 
@@ -165,6 +181,56 @@ fn integrity_upgrade_preserves_populated_saved_graph_reference_snapshots_and_vec
             .unwrap()
     );
     assert!(workspace.upgrade_backup_path().exists());
+}
+
+#[test]
+fn main24_upgrade_preserves_deleted_condition_high_water_and_allocates_above_it() {
+    let (_directory, workspace) = historical();
+    populate(&workspace, 24);
+    let read = workspace.read(24).unwrap();
+    let conditions = rows(read.connection(), "encounter_participant_conditions");
+    assert_eq!(conditions.len(), 1);
+    assert_eq!(conditions[0][0], Value::Integer(31));
+    let sequences = rows(read.connection(), "sqlite_sequence");
+    assert_eq!(
+        sequences,
+        vec![vec![
+            Value::Text("encounter_participant_conditions".into()),
+            Value::Integer(DELETED_CONDITION_ID),
+        ]]
+    );
+    // Migration 26 intentionally reshapes outgoing turns; its receipt/payload
+    // preservation is covered separately. Every other saved table stays exact.
+    let saved = SAVED_TABLES
+        .iter()
+        .filter(|table| **table != "encounter_outgoing_turns")
+        .map(|table| (*table, rows(read.connection(), table)))
+        .collect::<Vec<_>>();
+    let ledger = rows(read.connection(), "schema_migrations");
+    drop(read);
+    let upgraded = initialize_workspace(workspace.path()).unwrap();
+    let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(rows(read.connection(), "sqlite_sequence"), sequences);
+    assert_eq!(
+        rows(read.connection(), "encounter_participant_conditions"),
+        conditions
+    );
+    for (table, before) in saved {
+        assert_eq!(rows(read.connection(), table), before, "{table}");
+    }
+    assert_eq!(&rows(read.connection(), "schema_migrations")[..24], ledger);
+    drop(read);
+    let write = upgraded.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+    write
+        .connection()
+        .execute(
+            "INSERT INTO encounter_participant_conditions(participant_id,name,value,created_at,updated_at) VALUES(11,'Frightened',1,'after upgrade','after upgrade')",
+            [],
+        )
+        .unwrap();
+    let automatic_id = write.connection().last_insert_rowid();
+    assert!(automatic_id > DELETED_CONDITION_ID, "{automatic_id}");
+    write.commit().unwrap();
 }
 
 #[test]
