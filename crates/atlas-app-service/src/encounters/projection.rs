@@ -79,6 +79,7 @@ pub(super) fn encounter_detail_from_records(
         super::difficulty::project(encounter.difficulty_reference, &participants, |key| {
             records_by_key.get(key).map(|record| &record.detail)
         });
+    let round_seconds = encounter.round_duration_seconds;
     EncounterDetailView {
         difficulty,
         revision: encounter.revision,
@@ -95,6 +96,7 @@ pub(super) fn encounter_detail_from_records(
                     &presentations,
                     &participants,
                     &condition_sources,
+                    round_seconds,
                 );
                 view.turn_resources = super::turn_resources::view(
                     participant,
@@ -112,6 +114,7 @@ pub(super) fn encounter_summary(
     participant_count: u32,
 ) -> EncounterSummaryView {
     EncounterSummaryView {
+        round_duration_seconds: encounter.round_duration_seconds,
         encounter_key: encounter.encounter_key,
         slug: encounter.slug,
         name: encounter.name,
@@ -130,6 +133,7 @@ fn participant_view(
     presentations: &BTreeMap<String, ParticipantPresentation>,
     participants: &[EncounterParticipant],
     condition_sources: &BTreeMap<String, super::rules::source_conditions::SourceConditions>,
+    round_seconds: i64,
 ) -> EncounterParticipantView {
     let relationship_causes = super::rules::relationships::observer_defense_causes(
         &participant.participant_key,
@@ -270,6 +274,7 @@ fn participant_view(
         vec![]
     };
     EncounterParticipantView {
+        manual_trackers: super::manual_trackers::views(&participant, participants, round_seconds),
         ability_states: Some(super::ability_state::views(
             &participant,
             sources,
@@ -344,7 +349,7 @@ fn participant_view(
         conditions: participant
             .conditions
             .into_iter()
-            .map(condition_view)
+            .map(|c| condition_view(c, round_seconds))
             .collect(),
         presentation,
         record,
@@ -414,7 +419,10 @@ pub(super) fn reorder_placement(
     }
 }
 
-fn condition_view(condition: EncounterParticipantCondition) -> EncounterParticipantConditionView {
+fn condition_view(
+    condition: EncounterParticipantCondition,
+    round_seconds: i64,
+) -> EncounterParticipantConditionView {
     EncounterParticipantConditionView {
         condition_id: condition.condition_id,
         condition_key: condition.condition_key,
@@ -426,7 +434,9 @@ fn condition_view(condition: EncounterParticipantCondition) -> EncounterParticip
         immunity_override: condition.immunity_override,
         parameters: condition_parameters_view(condition.parameters),
         origin: condition.origin.map(condition_origin_view),
-        duration: condition.duration.map(super::timing::duration_view),
+        duration: condition
+            .duration
+            .map(|d| super::timing::duration_view(d, round_seconds)),
         note: condition.note,
         created_at: condition.created_at,
         updated_at: condition.updated_at,

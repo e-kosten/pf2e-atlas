@@ -16,6 +16,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 );
 
 const participant: EncounterParticipantView = {
+  manual_trackers: [],
   knockout_options: [],
   effective_max_hp: { state: "value", value: 20, adjustment: null },
   persistent_damage_groups: [],

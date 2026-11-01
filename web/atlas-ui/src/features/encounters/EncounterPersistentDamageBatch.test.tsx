@@ -66,6 +66,7 @@ const participant: EncounterParticipantView = {
   track_dying: true,
   mortality: "alive",
   base_death_threshold: 4n,
+  manual_trackers: [],
   knockout_options: [],
   effective_max_hp: { state: "value", value: 20, adjustment: null },
   persistent_damage_groups: [

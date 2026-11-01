@@ -5,6 +5,8 @@ import type { EncounterTurnReviewView } from "../../generated/atlas";
 import { encounterParticipant } from "./encounterTestFixtures";
 function outgoing(boundary_key: string, participant_name: string) {
   return {
+    event: "end" as const,
+    source_revision: 8n,
     participant_removed: false,
     damage_applied: false,
     recovered_episode_ids: [],
@@ -34,10 +36,13 @@ function setup() {
     next_participant_key: "next",
     reminders: [],
     outgoing: outgoing("latest", "Latest"),
+    incoming: null,
     next_turn_unavailable_reason: null,
   };
   const props = {
     open: true,
+    event: "end" as const,
+    hasNext: false,
     boundaryKey: "latest",
     data,
     participants: [],
@@ -213,4 +218,86 @@ it("shows the supplied current Frightened value without guessing an unavailable 
   view.rerender(renderValue(null));
   expect(screen.getByRole("heading", { name: "Frightened" })).toBeVisible();
   expect(screen.queryByRole("heading", { name: "Frightened 0" })).toBeNull();
+});
+
+it("offers optional tracker removal and keeps its confirmed result with focus", () => {
+  const { props, view } = setup();
+  const reminder = {
+    kind: "tracker_elapsed" as const,
+    participant_key: "latest",
+    participant_name: "Latest",
+    tracker_key: "countdown",
+    tracker_name: "Countdown",
+  };
+  const onRemoveTracker = vi.fn().mockResolvedValue(undefined);
+  const notice = (result?: string, pending = false) => (
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterTurnReview
+        {...props}
+        onRemoveTracker={onRemoveTracker}
+        pending={pending}
+        data={{
+          ...props.data,
+          outgoing: {
+            ...props.data.outgoing!,
+            reminders: [{ ...reminder, ...(result ? { result } : {}) }],
+          },
+        }}
+      />
+    </ConfigProvider>
+  );
+  view.rerender(notice());
+  expect(screen.getByRole("status")).toHaveTextContent("Elapsed");
+  const remove = screen.getByRole("button", {
+    name: "Remove tracker Countdown from Latest",
+  });
+  remove.focus();
+  fireEvent.click(remove);
+  expect(onRemoveTracker).toHaveBeenCalledExactlyOnceWith(reminder, "latest");
+  view.rerender(notice(undefined, true));
+  expect(remove).toBeDisabled();
+  view.rerender(notice("Removed"));
+  expect(screen.getByRole("status")).toHaveTextContent("Removed");
+  expect(screen.getByRole("status")).toHaveFocus();
+  expect(screen.queryByRole("button", { name: /Remove tracker/ })).toBeNull();
+  expect(screen.getByText("Countdown")).toBeVisible();
+});
+
+it("shows the incoming actor and only start reminders during the start phase", () => {
+  const { props, view } = setup();
+  view.rerender(
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <EncounterTurnReview
+        {...props}
+        event="start"
+        data={{
+          ...props.data,
+          incoming: {
+            ...props.data.outgoing!,
+            event: "start",
+            participant_key: "dragon",
+            participant_name: "Green Dragon",
+            round_number: 3n,
+            reminders: [
+              {
+                kind: "tracker_elapsed",
+                participant_key: "dragon",
+                participant_name: "Green Dragon",
+                tracker_key: "breath",
+                tracker_name: "Breath",
+              },
+            ],
+          },
+        }}
+        onRemoveTracker={vi.fn()}
+      />
+    </ConfigProvider>,
+  );
+  expect(screen.getByRole("heading", { name: "Green Dragon" })).toBeVisible();
+  expect(screen.queryByRole("heading", { name: "Latest" })).toBeNull();
+  expect(screen.queryByText("Condition")).toBeNull();
+  expect(screen.getByText("Round 3")).toBeVisible();
+  expect(
+    screen.getByRole("button", { name: "Remove tracker Breath from Green Dragon" }),
+  ).toHaveTextContent("Remove");
 });

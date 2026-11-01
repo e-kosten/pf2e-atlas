@@ -725,6 +725,7 @@ mod recovery_tests {
             let mut actor = participant();
             let mut duration = condition(2, ConditionRule::Stunned, None);
             duration.duration = Some(atlas_local_state::ConditionDuration {
+                remaining_seconds: None,
                 amount: 1,
                 unit: atlas_local_state::ConditionDurationUnit::Minutes,
                 timing: None,

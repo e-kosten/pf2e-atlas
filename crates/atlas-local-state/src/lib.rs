@@ -1,6 +1,8 @@
 #![deny(unsafe_code)]
 
 mod atomic_action;
+mod clock_migration;
+pub use clock_migration::backfill_encounter_clock;
 mod encounters;
 mod error;
 mod parties;
@@ -36,6 +38,7 @@ pub use encounters::{
     EncounterDifficultyReference, SavedOutgoingTurn, TurnActionAdjustment, TurnActionAllocation,
     TurnResourceEffect, TurnResources,
 };
+pub use encounters::{ManualTracker, ManualTrackerChange, TrackerProgress};
 pub use error::{LocalStateError, LocalStateResult};
 pub use saved_lists::{
     AddSavedListItemOutcome, HydratedSavedListItem, ImportSavedList, ImportSavedListItem,
@@ -43,7 +46,6 @@ pub use saved_lists::{
     SavedListItemPlacement, SavedListItemSnapshot, SavedListItemStatus, SavedListWithItems,
     SavedListsRead, SavedListsWrite, UpdateSavedList, hydrate_saved_list_item,
 };
-pub use schema::ENCOUNTER_RECOVERY_SCHEMA_SQL;
 pub use schema::{
     ABILITY_STATE_SCHEMA_SQL, STATELESS_STRIKE_ROLLS_SCHEMA_SQL, TURN_RESOURCES_SCHEMA_SQL,
 };
@@ -52,6 +54,9 @@ pub use schema::{
     ENCOUNTER_DIFFICULTY_SCHEMA_SQL, ENCOUNTER_STATUS_SCHEMA_SQL, HAZARD_PARTICIPATION_SCHEMA_SQL,
     LOCAL_STATE_SCHEMA_SQL, PARTIES_SCHEMA_SQL, PARTY_LEVELS_SCHEMA_SQL,
     PERSISTENT_PREPARATION_SCHEMA_SQL,
+};
+pub use schema::{
+    ENCOUNTER_CLOCK_SCHEMA_SQL, ENCOUNTER_RECOVERY_SCHEMA_SQL, MANUAL_TRACKERS_SCHEMA_SQL,
 };
 pub use slug::derive_slug;
 pub use store::{LocalStateRead, LocalStateWrite};

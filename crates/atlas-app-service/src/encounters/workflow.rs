@@ -171,11 +171,20 @@ impl AtlasAppService {
         request: UpdateEncounterRequest,
     ) -> AppServiceResult<EncounterMutationView> {
         self.with_write(move |session| {
+            if let Some(seconds) = request.round_duration_seconds {
+                let snapshot = session
+                    .local_state()
+                    .encounters()
+                    .get_with_participants(&request.encounter_key)?
+                    .ok_or_else(|| encounter_not_found(&request.encounter_key))?;
+                super::timing::validate_round_clock(&snapshot, seconds)?;
+            }
             let encounter = session
                 .local_state()
                 .encounters()
                 .update(LocalUpdateEncounter {
                     encounter_key: request.encounter_key.clone(),
+                    round_duration_seconds: request.round_duration_seconds,
                     slug: request.slug,
                     name: request.name,
                     description: request.description,
@@ -630,10 +639,12 @@ impl AtlasAppService {
                 .get_with_participants(encounter_ref)?
                 .ok_or_else(|| encounter_not_found(encounter_ref))?;
             let mut view = turn_review(&snapshot);
-            view.outgoing = super::outgoing_turns::latest_review(
+            let boundaries = super::outgoing_turns::latest_reviews(
                 &session.local_state().encounters(),
                 &snapshot.encounter.encounter_key,
             )?;
+            view.outgoing = boundaries.outgoing;
+            view.incoming = boundaries.incoming;
             Ok(view)
         })
     }

@@ -1,6 +1,6 @@
 //! The latest completed turn supplies frozen context while its reminder is open.
 use crate::{AppServiceError, AppServiceResult};
-use atlas_app_model::EncounterOutgoingTurnView;
+use atlas_app_model::{ConditionTurnEvent, EncounterTurnBoundaryView};
 use atlas_local_state::{EncounterParticipant, EncountersRead, SavedOutgoingTurn};
 
 pub(super) fn boundary(
@@ -59,22 +59,60 @@ pub(super) fn frozen_participant(
     }
     Ok(participant)
 }
-pub(super) fn latest_review(
+#[derive(Default)]
+pub(super) struct TurnBoundaryReviews {
+    pub outgoing: Option<EncounterTurnBoundaryView>,
+    pub incoming: Option<EncounterTurnBoundaryView>,
+}
+pub(super) fn latest_reviews(
     store: &EncountersRead<'_>,
     encounter: &str,
-) -> AppServiceResult<Option<EncounterOutgoingTurnView>> {
+) -> AppServiceResult<TurnBoundaryReviews> {
     let Some(saved) = store.latest_outgoing_turn(encounter)? else {
-        return Ok(None);
+        return Ok(TurnBoundaryReviews::default());
     };
     let current = store
         .get_with_participants(encounter)?
         .ok_or_else(|| super::projection::encounter_not_found(encounter))?;
-    let Some(key) = saved
-        .snapshot
-        .encounter
-        .current_turn_participant_key
-        .as_deref()
-    else {
+    let reminders = super::timing::turn_boundary_reminders(&saved.snapshot);
+    let outgoing = phase_review(
+        store,
+        encounter,
+        &saved,
+        &current,
+        ConditionTurnEvent::End,
+        saved.snapshot.encounter.round_number,
+        reminders.end,
+    )?;
+    let incoming = phase_review(
+        store,
+        encounter,
+        &saved,
+        &current,
+        ConditionTurnEvent::Start,
+        reminders.next.round_number,
+        reminders.start,
+    )?;
+    Ok(TurnBoundaryReviews { outgoing, incoming })
+}
+fn phase_review(
+    store: &EncountersRead<'_>,
+    encounter: &str,
+    saved: &SavedOutgoingTurn,
+    current: &atlas_local_state::EncounterWithParticipants,
+    event: ConditionTurnEvent,
+    round_number: i64,
+    reminders: Vec<atlas_app_model::EncounterTurnReminderView>,
+) -> AppServiceResult<Option<EncounterTurnBoundaryView>> {
+    let key = match event {
+        ConditionTurnEvent::End => saved
+            .snapshot
+            .encounter
+            .current_turn_participant_key
+            .as_deref(),
+        ConditionTurnEvent::Start => saved.next_participant_key.as_deref(),
+    };
+    let Some(key) = key else {
         return Ok(None);
     };
     let live = current
@@ -87,13 +125,18 @@ pub(super) fn latest_review(
         .iter()
         .find(|p| p.participant_key == key)
         .ok_or_else(|| {
-            AppServiceError::invalid_request("Outgoing participant snapshot unavailable")
+            AppServiceError::invalid_request("Turn boundary participant snapshot unavailable")
         })?;
-    let frozen = frozen_participant(&saved, live.unwrap_or(original))?;
-    let claims = store.boundary_claims(encounter, key, saved.snapshot.encounter.round_number)?;
+    let frozen = frozen_participant(saved, live.unwrap_or(original))?;
+    let ending = event == ConditionTurnEvent::End;
+    let claims = if ending {
+        store.boundary_claims(encounter, key, round_number)?
+    } else {
+        vec![]
+    };
     let damage_claim = super::persistent_damage::boundary_claim(
         &frozen,
-        saved.snapshot.encounter.round_number,
+        round_number,
         atlas_local_state::EncounterBoundaryKind::PersistentDamage,
         "",
     );
@@ -117,22 +160,31 @@ pub(super) fn latest_review(
             }
         }
     }
-    let groups = super::persistent_damage::group_views(
-        &frozen,
-        live.unwrap_or(original),
-        None,
-        &super::rules::source_conditions::SourceConditions::unavailable(),
-    );
+    let groups = if ending {
+        super::persistent_damage::group_views(
+            &frozen,
+            live.unwrap_or(original),
+            None,
+            &super::rules::source_conditions::SourceConditions::unavailable(),
+        )
+    } else {
+        vec![]
+    };
     let recovery_recorded = claims.iter().any(|claim| {
         claim.kind == atlas_local_state::EncounterBoundaryKind::TurnEnd
             && claim.scope_key == "frightened"
     });
     let mut resolved_ids = std::collections::BTreeSet::new();
-    let reminders = super::timing::turn_review(&saved.snapshot)
-        .reminders
+    let reminders = reminders
         .into_iter()
         .filter_map(|reminder| {
-            retain_reminder(reminder, &current.participants, &groups, recovery_recorded)
+            retain_reminder(
+                reminder,
+                &current.participants,
+                &groups,
+                recovery_recorded,
+                current.encounter.round_duration_seconds,
+            )
         })
         .filter(|reminder| match reminder {
             atlas_app_model::EncounterTurnReminderView::Resolved {
@@ -146,14 +198,16 @@ pub(super) fn latest_review(
     if reminders.is_empty() && groups.is_empty() {
         return Ok(None);
     }
-    Ok(Some(EncounterOutgoingTurnView {
+    Ok(Some(EncounterTurnBoundaryView {
+        source_revision: saved.snapshot.encounter.revision,
+        event,
         participant_removed: live.is_none(),
         damage_applied,
         recovered_episode_ids,
         participant_key: key.into(),
         participant_name: frozen.display_name.clone(),
-        round_number: saved.snapshot.encounter.round_number,
-        boundary_key: saved.boundary_key,
+        round_number,
+        boundary_key: saved.boundary_key.clone(),
         reminders,
         persistent_damage_groups: groups,
     }))
@@ -166,9 +220,44 @@ fn retain_reminder(
     current: &[EncounterParticipant],
     groups: &[atlas_app_model::PersistentDamageGroupView],
     recovery_recorded: bool,
+    round_seconds: i64,
 ) -> Option<atlas_app_model::EncounterTurnReminderView> {
     use atlas_app_model::EncounterTurnReminderView as R;
     let (participant_key, participant_name, condition_id, condition_name) = match &reminder {
+        R::TrackerElapsed {
+            participant_key,
+            participant_name,
+            tracker_key,
+            tracker_name,
+            ..
+        } => {
+            let participant = current
+                .iter()
+                .find(|p| p.participant_key == *participant_key);
+            let result = match participant {
+                None => Some("Participant removed".into()),
+                Some(participant) => match participant
+                    .manual_trackers
+                    .iter()
+                    .find(|t| t.tracker_key == *tracker_key)
+                {
+                    None => Some("Removed".into()),
+                    Some(tracker)
+                        if super::timing::tracker_rounds(&tracker.progress, round_seconds) > 0 =>
+                    {
+                        Some("Restarted".into())
+                    }
+                    Some(_) => None,
+                },
+            };
+            return Some(R::TrackerElapsed {
+                participant_key: participant_key.clone(),
+                participant_name: participant_name.clone(),
+                tracker_key: tracker_key.clone(),
+                tracker_name: tracker_name.clone(),
+                result,
+            });
+        }
         R::ConditionRecovery {
             participant_key,
             participant_name,

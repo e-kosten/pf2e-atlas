@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Encounter {
+    #[serde(default = "default_round_duration_seconds")]
+    pub round_duration_seconds: i64,
     #[serde(default)]
     pub difficulty_reference: EncounterDifficultyReference,
     pub revision: i64,
@@ -64,6 +66,8 @@ impl EncounterStatus {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EncounterParticipant {
+    #[serde(default)]
+    pub manual_trackers: Vec<super::ManualTracker>,
     #[serde(default)]
     pub ability_states: Vec<super::ParticipantAbilityState>,
     #[serde(default)]
@@ -268,6 +272,7 @@ pub struct NewEncounter {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateEncounter {
+    pub round_duration_seconds: Option<i64>,
     pub encounter_key: String,
     pub slug: String,
     pub name: String,
@@ -456,12 +461,16 @@ pub struct ConditionTiming {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConditionDuration {
+    /// Exact seconds remaining for anchored non-round durations.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remaining_seconds: Option<i64>,
     pub amount: i64,
     pub unit: ConditionDurationUnit,
     pub timing: Option<ConditionTiming>,
 }
 #[derive(Debug, Clone)]
 pub struct EncounterTurnUpdate {
+    pub manual_trackers: Vec<super::ManualTrackerChange>,
     pub start_event: Option<super::PreparedConditionEvent>,
     pub start_claims: Vec<super::EncounterBoundaryClaim>,
     pub turn: EncounterTurnState,
@@ -474,4 +483,8 @@ pub struct SpellResource {
     pub capacity: i64,
     pub remaining: i64,
     pub undo_remaining: Option<i64>,
+}
+
+fn default_round_duration_seconds() -> i64 {
+    6
 }

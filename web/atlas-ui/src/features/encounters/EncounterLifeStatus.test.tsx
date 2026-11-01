@@ -24,6 +24,7 @@ it("starts tracking a defeated zero-HP enemy using knockout choices without ente
     track_dying: false,
     current_hp: 0n,
     defeated: true,
+    manual_trackers: [],
     knockout_options: [{ label: "Normal", result: "Dying 2 · Unconscious", context }],
   });
   render(

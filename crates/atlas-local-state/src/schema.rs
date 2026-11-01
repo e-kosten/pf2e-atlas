@@ -1,3 +1,7 @@
+/// Manual countdowns and non-round condition progress.
+pub const ENCOUNTER_CLOCK_SCHEMA_SQL: &str = include_str!("encounter_clock.sql");
+pub const MANUAL_TRACKERS_SCHEMA_SQL: &str = include_str!("manual_trackers.sql");
+
 pub const PARTIES_SCHEMA_SQL: &str = include_str!("parties.sql");
 pub const PARTY_LEVELS_SCHEMA_SQL: &str = include_str!("party_levels.sql");
 

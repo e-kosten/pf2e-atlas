@@ -424,6 +424,7 @@ fn reference_independent_mutations_commit_with_unavailable_artifact() {
     assert_receipt(
         worker
             .update_encounter(UpdateEncounterRequest {
+                round_duration_seconds: None,
                 encounter_key: key.clone(),
                 slug: encounter.slug,
                 name: encounter.name,
@@ -1599,6 +1600,7 @@ fn inherited_elite_applies_once_unknown_adjustment_stays_unknown_and_active_hp_p
     );
     f.worker
         .update_encounter(UpdateEncounterRequest {
+            round_duration_seconds: None,
             encounter_key: e.encounter_key.clone(),
             slug: e.slug.clone(),
             name: e.name.clone(),

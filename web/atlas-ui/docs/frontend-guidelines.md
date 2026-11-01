@@ -1939,11 +1939,14 @@ removes the duration. Full condition drafts retain their opening encounter revis
 conflict, explicit Reload condition replaces the draft with canonical remaining
 duration and a fresh revision. Do not silently refresh a retained draft's guard.
 
-Next turn commits eligible progression once, then presents one non-blocking
-notification for the just-completed turn. Keep that outgoing participant visible
-behind the notification through canonical HP/condition refreshes; follow the saved
-current participant after dismissal. Quiet boundaries follow immediately. Load the
-new boundary’s required damage/recovery read models before revealing the dialog;
+Next turn commits eligible progression once, then presents the server's separate
+end and start reminder contexts. Keep the outgoing participant behind end reminders;
+select the incoming participant before showing start reminders. When both have
+content, show end first and continue to start without another advance. Closing the
+last phase follows the saved current participant; quiet phases are skipped. Match
+each phase's frozen source revision to the submitted advance revision before
+presenting it, including after read failure or while a stale observer is visible.
+Load the boundary's required damage/recovery read models before revealing the dialog;
 do not open a short spinner shell and then recenter a larger form. Slow reads show
 delayed progress at Next turn, while failed sections open with their local Retry.
 Retain canonical refreshes and revision/source guards after opening. Do not

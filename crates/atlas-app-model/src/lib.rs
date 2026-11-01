@@ -1,4 +1,8 @@
 #![deny(unsafe_code)]
+mod encounter_tracker;
+pub use encounter_tracker::{
+    EncounterManualTrackerAction, EncounterManualTrackerView, UpdateEncounterManualTrackerRequest,
+};
 mod encounter_recovery;
 pub use encounter_recovery::{
     ApplyEncounterRecoveryRequest, EncounterRecoveryAction, EncounterRecoveryParticipantView,
@@ -134,13 +138,13 @@ pub use encounter::{
     EncounterConditionCategoryView, EncounterConditionDefinitionView,
     EncounterConditionEligibilityView, EncounterCreateView, EncounterDetailView, EncounterHpAction,
     EncounterHpValueInput, EncounterIndexView, EncounterMutationView,
-    EncounterNextTurnUnavailableReason, EncounterOutgoingTurnView,
-    EncounterParticipantConditionView, EncounterParticipantKindView, EncounterParticipantSideView,
-    EncounterParticipantStatusView, EncounterParticipantVariantView, EncounterParticipantView,
-    EncounterReferenceRequest, EncounterSpellAction, EncounterSpellRankView,
-    EncounterSpellResourceScope, EncounterSpellResourceView, EncounterSpellView,
-    EncounterSpellcastingView, EncounterStatusView, EncounterSummaryView,
-    EncounterTurnReminderView, EncounterTurnReviewView, ReorderEncounterParticipantPlacementView,
+    EncounterNextTurnUnavailableReason, EncounterParticipantConditionView,
+    EncounterParticipantKindView, EncounterParticipantSideView, EncounterParticipantStatusView,
+    EncounterParticipantVariantView, EncounterParticipantView, EncounterReferenceRequest,
+    EncounterSpellAction, EncounterSpellRankView, EncounterSpellResourceScope,
+    EncounterSpellResourceView, EncounterSpellView, EncounterSpellcastingView, EncounterStatusView,
+    EncounterSummaryView, EncounterTurnBoundaryView, EncounterTurnReminderView,
+    EncounterTurnReviewView, ReorderEncounterParticipantPlacementView,
     ReorderEncounterParticipantRequest, RuntimeAdjustmentView, RuntimeCapabilityView,
     RuntimeCountSegmentView, RuntimeCountView, RuntimeEffectNoteView, SetEncounterTurnRequest,
     StatModifierTypeView, StatModifierView, UnappliedEffectView,
@@ -263,6 +267,7 @@ mod tests {
         RollContentRequest::export_all_to(path).expect("content roll request bindings");
         ContentRollResultView::export_all_to(path).expect("content roll result bindings");
         UpdateEncounterAbilityStateRequest::export_all_to(path).expect("ability state bindings");
+        UpdateEncounterManualTrackerRequest::export_all_to(path).expect("manual tracker bindings");
         EncounterAbilityStateView::export_all_to(path).expect("ability state view bindings");
         UpdateTurnResourcesRequest::export_all_to(path).expect("turn resource request");
         TurnResourcesView::export_all_to(path).expect("turn resources");

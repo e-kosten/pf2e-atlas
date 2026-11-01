@@ -115,6 +115,7 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
         )
         .unwrap();
     let encounter = Encounter {
+        round_duration_seconds: 6,
         encounter_key: "historical-encounter".into(),
         slug: "kept-encounter".into(),
         name: "Kept encounter".into(),

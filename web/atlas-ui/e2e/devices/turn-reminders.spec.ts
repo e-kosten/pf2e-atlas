@@ -786,3 +786,354 @@ test("real turn counts retain explanations and guard an explicit action", async 
     await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
   }
 });
+
+test("manual trackers persist minute countdowns and restart after elapsing", async ({
+  page,
+}, info) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Manual tracker ${Date.now()}` },
+  });
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    expect(
+      (
+        await page.request.post(`${path}/participants/manual`, {
+          data: {
+            encounter_ref: encounter.encounter_key,
+            display_name: "Tracker dragon",
+            initiative: 20,
+            max_hp: 20,
+            current_hp: 20,
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    await page.goto(`/encounters/${encounter.slug}`);
+    await activate(
+      page.getByRole("button", { name: "Tracker dragon", exact: true }),
+      info,
+    );
+    await activate(
+      page.getByRole("button", { name: "Add tracker", exact: true }),
+      info,
+    );
+    const dialog = page.getByRole("dialog", { name: "Add tracker", exact: true });
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel("Name", { exact: true }).fill("Breath ready");
+    await activate(dialog.getByRole("combobox", { name: "Duration unit" }), info);
+    await activate(
+      page.getByText("minutes", { exact: true }).filter({ visible: true }),
+      info,
+    );
+    await activate(
+      dialog.getByRole("button", { name: "Save tracker", exact: true }),
+      info,
+    );
+    await expect(dialog).not.toBeVisible();
+    await expect(page.getByText("10 rounds remaining", { exact: true })).toBeVisible();
+    await noPageOverflow(page);
+    await page.reload();
+    const participant = page.getByRole("button", {
+      name: /^Tracker dragon(?:, Current turn)?$/,
+    });
+    await activate(participant, info);
+    await expect(page.getByText("10 rounds remaining", { exact: true })).toBeVisible();
+    await activate(
+      page.getByRole("button", { name: "Encounter settings", exact: true }),
+      info,
+    );
+    await activate(
+      page.getByRole("menuitem", { name: "Edit encounter", exact: true }),
+      info,
+    );
+    const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+    await expect(
+      settings.getByRole("spinbutton", { name: "Seconds per round" }),
+    ).toHaveValue("6");
+    await settings.getByRole("spinbutton", { name: "Seconds per round" }).fill("30");
+    await activate(settings.getByRole("button", { name: "Save", exact: true }), info);
+    await expect(settings).not.toBeVisible();
+    await expect(page.getByText("2 rounds remaining", { exact: true })).toBeVisible();
+    let detail = await (await page.request.get(path)).json();
+    expect(detail.encounter.round_duration_seconds).toBe(30);
+    expect(
+      (
+        await page.request.post(`${path}/advance`, {
+          data: {
+            request_id: `tracker-start-${Date.now()}`,
+            expected_revision: detail.revision,
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    for (let tick = 0; tick < 2; tick++) {
+      detail = await (await page.request.get(path)).json();
+      const response = await page.request.post(`${path}/advance`, {
+        data: {
+          request_id: `tracker-tick-${tick}-${Date.now()}`,
+          expected_revision: detail.revision,
+        },
+      });
+      expect(response.ok(), await response.text()).toBeTruthy();
+    }
+    await page.reload();
+    await activate(participant, info);
+    await expect(page.getByRole("status").filter({ hasText: "Elapsed" })).toBeVisible();
+    await activate(
+      page.getByRole("button", { name: "Restart Breath ready", exact: true }),
+      info,
+    );
+    await expect(page.getByText("2 rounds remaining", { exact: true })).toBeVisible();
+    const editTracker = page.getByRole("button", {
+      name: "Edit tracker Breath ready",
+      exact: true,
+    });
+    await editTracker.focus();
+    await expect(
+      page.getByRole("tooltip", { name: "Edit", exact: true }),
+    ).toBeVisible();
+    await editTracker.press("Enter");
+    await expect(page.getByRole("tooltip", { name: "Edit", exact: true })).toHaveCount(
+      0,
+    );
+    const edit = page.getByRole("dialog", { name: "Edit tracker", exact: true });
+    await edit.getByLabel("Name", { exact: true }).fill("Cold breath ready");
+    await activate(
+      edit.getByRole("button", { name: "Save tracker", exact: true }),
+      info,
+    );
+    await expect(edit).not.toBeVisible();
+    await expect(page.getByText("Cold breath ready", { exact: true })).toBeVisible();
+    await activate(
+      page.getByRole("button", {
+        name: "Remove tracker Cold breath ready",
+        exact: true,
+      }),
+      info,
+    );
+    await expect(
+      page.getByText("Cold breath ready", { exact: true }),
+    ).not.toBeVisible();
+    await noPageOverflow(page);
+  } finally {
+    await page.request.delete(path);
+  }
+});
+
+for (const boundary of ["start", "end"] as const) {
+  test(`tracker completion notifies once at turn ${boundary} and can be removed`, async ({
+    page,
+  }, info) => {
+    const created = await page.request.post("/api/encounters", {
+      data: { name: `Tracker notification ${boundary} ${Date.now()}` },
+    });
+    const { encounter } = await created.json();
+    const path = `/api/encounters/${encounter.encounter_key}`;
+    try {
+      expect(
+        (
+          await page.request.post(`${path}/participants/manual`, {
+            data: {
+              encounter_ref: encounter.encounter_key,
+              display_name: "Tracker owner",
+              initiative: 20,
+              max_hp: 20,
+              current_hp: 20,
+            },
+          })
+        ).ok(),
+      ).toBeTruthy();
+      await page.goto(`/encounters/${encounter.slug}`);
+      await activate(
+        page.getByRole("button", { name: "Tracker owner", exact: true }),
+        info,
+      );
+      await activate(page.getByRole("button", { name: "Add tracker" }), info);
+      const editor = page.getByRole("dialog", { name: "Add tracker", exact: true });
+      await editor.getByLabel("Name", { exact: true }).fill("Countdown");
+      await expect(editor.getByRole("radio", { name: "Starts on" })).toBeChecked();
+      if (boundary === "end")
+        await activate(editor.getByText("Ends on", { exact: true }), info);
+      await activate(editor.getByRole("button", { name: "Save tracker" }), info);
+      await expect(editor).not.toBeVisible();
+      const advance = () =>
+        activate(
+          page
+            .getByRole("button", { name: "Next turn", exact: true })
+            .filter({ visible: true }),
+          info,
+        );
+      await activate(
+        page
+          .getByRole("button", { name: /^(Start|Next) turn$/ })
+          .filter({ visible: true }),
+        info,
+      );
+      const notification = page.getByRole("dialog", {
+        name: "Turn reminders",
+        exact: true,
+      });
+      if (boundary === "end") {
+        await expect(notification).not.toBeVisible();
+        await advance();
+      }
+      await expect(
+        notification.getByRole("heading", { name: "Countdown" }),
+      ).toBeVisible();
+      await expect(
+        notification.getByRole("status").filter({ hasText: "Elapsed" }),
+      ).toBeVisible();
+      await activate(
+        notification.getByRole("button", { name: "Close", exact: true }).last(),
+        info,
+      );
+      let detail = await (await page.request.get(path)).json();
+      expect(detail.participants[0].manual_trackers[0].remaining_rounds).toBe(0);
+      await advance();
+      await expect(notification).not.toBeVisible();
+      await activate(page.getByRole("button", { name: "Restart Countdown" }), info);
+      await advance();
+      await expect(
+        notification.getByRole("heading", { name: "Countdown" }),
+      ).toBeVisible();
+      await activate(
+        notification.getByRole("button", {
+          name: "Remove tracker Countdown from Tracker owner",
+          exact: true,
+        }),
+        info,
+      );
+      await expect(
+        notification.getByRole("status").filter({ hasText: "Removed" }),
+      ).toBeVisible();
+      detail = await (await page.request.get(path)).json();
+      expect(detail.participants[0].manual_trackers).toEqual([]);
+      await noPageOverflow(page);
+    } finally {
+      await page.request.delete(path);
+    }
+  });
+}
+
+test("end and start reminders use their own actors and background sheets", async ({
+  page,
+}, info) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Boundary actors ${Date.now()}` },
+  });
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    for (const [display_name, initiative] of [
+      ["Adventurer", 20],
+      ["Green Dragon", 10],
+    ] as const) {
+      expect(
+        (
+          await page.request.post(`${path}/participants/manual`, {
+            data: {
+              encounter_ref: encounter.encounter_key,
+              display_name,
+              initiative,
+              max_hp: 20,
+              current_hp: 20,
+            },
+          })
+        ).ok(),
+      ).toBeTruthy();
+    }
+    for (const [owner, event, name] of [
+      ["Adventurer", "end", "End countdown"],
+      ["Green Dragon", "start", "Start countdown"],
+    ] as const) {
+      const detail = await (await page.request.get(path)).json();
+      const participant = detail.participants.find(
+        (p: { display_name: string }) => p.display_name === owner,
+      );
+      expect(
+        (
+          await page.request.post(
+            `${path}/participants/${participant.participant_key}/manual-trackers`,
+            {
+              data: {
+                request_id: `phase-${event}-${Date.now()}`,
+                participant_key: participant.participant_key,
+                expected_encounter_revision: detail.revision,
+                expected_participant_revision: participant.revision,
+                action: {
+                  kind: "add",
+                  name,
+                  duration: {
+                    amount: 1,
+                    unit: "rounds",
+                    timing: { participant_key: participant.participant_key, event },
+                  },
+                },
+              },
+            },
+          )
+        ).ok(),
+      ).toBeTruthy();
+    }
+    await page.goto(`/encounters/${encounter.slug}`);
+    await activate(
+      page
+        .getByRole("button", { name: "Start turn", exact: true })
+        .filter({ visible: true }),
+      info,
+    );
+    const popup = page.getByRole("dialog", { name: "Turn reminders", exact: true });
+    await expect(popup).not.toBeVisible();
+    await expect(
+      page.locator(".encounter-record-pane").getByRole("button", {
+        name: "Edit Participant name",
+        includeHidden: true,
+      }),
+    ).toBeVisible();
+    await activate(
+      page
+        .getByRole("button", { name: "Next turn", exact: true })
+        .filter({ visible: true }),
+      info,
+    );
+    const identity = popup.locator(".encounter-turn-review__identity");
+    const backgroundActor = page
+      .locator(".encounter-record-pane")
+      .getByRole("button", { name: "Edit Participant name", includeHidden: true });
+    await expect(
+      identity.getByRole("heading", { name: "Adventurer", exact: true }),
+    ).toBeVisible();
+    await expect(popup.getByText("End countdown", { exact: true })).toBeVisible();
+    await expect(popup.getByText("Start countdown", { exact: true })).toHaveCount(0);
+    await expect(backgroundActor).toHaveText("Adventurer");
+    const committed = await (await page.request.get(path)).json();
+    await activate(popup.getByRole("button", { name: "Continue", exact: true }), info);
+    await expect(
+      identity.getByRole("heading", { name: "Green Dragon", exact: true }),
+    ).toBeVisible();
+    await expect(backgroundActor).toHaveText("Green Dragon");
+    await expect(popup.getByText("Start countdown", { exact: true })).toBeVisible();
+    await expect(popup.getByText("End countdown", { exact: true })).toHaveCount(0);
+    expect((await (await page.request.get(path)).json()).revision).toBe(
+      committed.revision,
+    );
+    const remove = popup.getByRole("button", {
+      name: "Remove tracker Start countdown from Green Dragon",
+      exact: true,
+    });
+    await expect(remove).toHaveText("Remove");
+    await activate(remove, info);
+    await expect(popup.getByRole("status")).toHaveText("Removed");
+    await activate(
+      popup.getByRole("button", { name: "Close", exact: true }).last(),
+      info,
+    );
+    await expect(popup).not.toBeVisible();
+    await expect(backgroundActor).toHaveText("Green Dragon");
+    await expect(page.locator(".encounter-record-pane")).toBeFocused();
+    await noPageOverflow(page);
+  } finally {
+    await page.request.delete(path);
+  }
+});

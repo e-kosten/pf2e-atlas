@@ -1,7 +1,11 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { persistentReviewQuery } from "./usePersistentReview";
 import { conditionLifecycleQuery } from "./conditionLifecycleQuery";
-import type { RollOutcome } from "../../generated/atlas";
+import type {
+  ConditionTurnEvent,
+  EncounterTurnBoundaryView,
+  RollOutcome,
+} from "../../generated/atlas";
 import { useEffect, useRef, useState } from "react";
 import { getEncounterTurnReview } from "../../api/atlasApi";
 import type {
@@ -9,26 +13,28 @@ import type {
   useEncounterMutations,
 } from "./useEncounterMutations";
 
-/** One notification for the turn just completed; closing has no gameplay effect. */
+/** One notification for the completed turn boundary; closing has no gameplay effect. */
 export function useEncounterTurnReview({
   encounterRef,
   mutations,
   onAdvance,
   expectedRevision,
-  turn,
   onFinish,
+  onPresent,
 }: {
   encounterRef: string;
   expectedRevision: bigint;
-  turn: { participantKey: string | null; roundNumber: bigint };
   mutations: ReturnType<typeof useEncounterMutations>;
   onAdvance: (expectedRevision: bigint) => Promise<boolean>;
   onFinish?: () => void;
+  onPresent?: (participantKey: string, event: ConditionTurnEvent) => void;
 }) {
   const client = useQueryClient();
   const key = ["encounter-turn-review", encounterRef, expectedRevision.toString()];
   const [preparing, setPreparing] = useState(false);
   const [open, setOpen] = useState(false);
+  const [event, setEvent] = useState<ConditionTurnEvent>("end");
+  const [nextStart, setNextStart] = useState<string | null>(null);
   const [boundaryKey, setBoundaryKey] = useState<string>();
   const [contextKey, setContextKey] = useState(0);
   const [readError, setReadError] = useState<Error | null>(null);
@@ -38,8 +44,7 @@ export function useEncounterTurnReview({
   const advancing = useRef(false);
   const unseen = useRef<{
     encounterRef: string;
-    participantKey: string | null;
-    roundNumber: bigint;
+    sourceRevision: bigint;
     previousBoundary?: string;
   } | null>(null);
   useEffect(() => {
@@ -60,21 +65,34 @@ export function useEncounterTurnReview({
   ) => {
     const pending = unseen.current;
     if (!pending) return;
-    const outgoing = data.outgoing;
-    if (
-      pending.encounterRef !== encounterRef ||
-      !outgoing ||
-      outgoing.participant_key !== pending.participantKey ||
-      outgoing.round_number !== pending.roundNumber ||
-      outgoing.boundary_key === pending.previousBoundary ||
-      (!outgoing.reminders.length && !outgoing.persistent_damage_groups.length)
-    ) {
+    const belongsToAdvance = (boundary: EncounterTurnBoundaryView | null) =>
+      boundary?.source_revision === pending.sourceRevision &&
+      boundary.boundary_key !== pending.previousBoundary;
+    const outgoing = belongsToAdvance(data.outgoing) ? data.outgoing! : undefined;
+    const incoming =
+      belongsToAdvance(data.incoming) &&
+      (!outgoing || data.incoming!.boundary_key === outgoing.boundary_key)
+        ? data.incoming!
+        : undefined;
+    const meaningful = (boundary?: EncounterTurnBoundaryView) =>
+      !!boundary &&
+      (boundary.reminders.length > 0 || boundary.persistent_damage_groups.length > 0);
+    const first = meaningful(outgoing)
+      ? outgoing
+      : meaningful(incoming)
+        ? incoming
+        : undefined;
+    if (pending.encounterRef !== encounterRef || !first) {
       unseen.current = null;
       onFinish?.();
       return;
     }
     const reads: Promise<unknown>[] = [];
-    if (!outgoing.participant_removed && outgoing.persistent_damage_groups.length)
+    if (
+      outgoing &&
+      !outgoing.participant_removed &&
+      outgoing.persistent_damage_groups.length
+    )
       reads.push(
         client.fetchQuery(
           persistentReviewQuery(
@@ -86,7 +104,7 @@ export function useEncounterTurnReview({
         ),
       );
     for (const participantKey of new Set(
-      outgoing.reminders
+      (outgoing?.reminders ?? [])
         .filter((r) => r.kind === "condition_recovery")
         .map((r) => r.participant_key),
     )) {
@@ -96,7 +114,7 @@ export function useEncounterTurnReview({
             encounterRef,
             participantKey,
             data.expected_revision,
-            outgoing.boundary_key,
+            outgoing!.boundary_key,
           ),
         ),
       );
@@ -104,8 +122,13 @@ export function useEncounterTurnReview({
     await Promise.allSettled(reads);
     if (!active.current || unseen.current !== pending) return;
     unseen.current = null;
+    setNextStart(
+      first.event === "end" && meaningful(incoming) ? incoming!.boundary_key : null,
+    );
+    onPresent?.(first.participant_key, first.event);
     setContextKey((value) => value + 1);
-    setBoundaryKey(outgoing.boundary_key);
+    setBoundaryKey(first.boundary_key);
+    setEvent(first.event);
     setOpen(true);
   };
   const refresh = async () => {
@@ -132,6 +155,7 @@ export function useEncounterTurnReview({
     if (mutations.pending || advancing.current) return;
     advancing.current = true;
     unseen.current = null;
+    setNextStart(null);
     setPreparing(true);
     setOpen(false);
     setBoundaryKey(undefined);
@@ -141,14 +165,14 @@ export function useEncounterTurnReview({
       const before = review.data ?? (await refresh());
       if (!active.current || !(await onAdvance(expectedRevision)) || !active.current)
         return;
-      if (before)
-        unseen.current = {
-          encounterRef,
-          ...turn,
-          previousBoundary: before.outgoing?.boundary_key,
-        };
+      unseen.current = {
+        encounterRef,
+        sourceRevision: expectedRevision,
+        previousBoundary:
+          before?.outgoing?.boundary_key ?? before?.incoming?.boundary_key,
+      };
       const after = await refresh();
-      if ((!after || !before) && active.current) onFinish?.();
+      if (!after && active.current) onFinish?.();
     } finally {
       advancing.current = false;
       if (active.current) setPreparing(false);
@@ -188,6 +212,8 @@ export function useEncounterTurnReview({
   };
   return {
     open,
+    event,
+    hasNext: event === "end" && nextStart !== null,
     preparing,
     contextKey,
     boundaryKey,
@@ -202,6 +228,18 @@ export function useEncounterTurnReview({
     close: () => {
       if (!open) return;
       unseen.current = null;
+      const incoming = review.data?.incoming;
+      if (event === "end" && nextStart && incoming?.boundary_key === nextStart) {
+        setNextStart(null);
+        onPresent?.(incoming.participant_key, incoming.event);
+        setEvent("start");
+        setBoundaryKey(incoming.boundary_key);
+        setContextKey((value) => value + 1);
+        setReceipt("");
+        setOutcomes([]);
+        return;
+      }
+      setNextStart(null);
       onFinish?.();
       setOpen(false);
       setBoundaryKey(undefined);

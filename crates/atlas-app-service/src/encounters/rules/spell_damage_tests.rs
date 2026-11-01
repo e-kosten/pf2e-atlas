@@ -3,6 +3,7 @@ use atlas_local_state::*;
 use serde_json::json;
 fn participant() -> EncounterParticipant {
     EncounterParticipant {
+        manual_trackers: vec![],
         ability_states: vec![],
         turn_resources: None,
         level_override: None,

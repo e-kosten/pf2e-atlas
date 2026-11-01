@@ -29,6 +29,7 @@ const row: PendingHpLifecycleView = {
 };
 const actor = encounterParticipant({
   current_hp: 0n,
+  manual_trackers: [],
   knockout_options: [
     {
       label: "Normal",

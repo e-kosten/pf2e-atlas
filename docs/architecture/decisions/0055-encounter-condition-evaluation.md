@@ -120,8 +120,8 @@ Structured ability frequency exposes authored capacity/interval and independentl
 saved encounter expenditure. Use and Restore are explicit, independent of dice and
 action/reaction tracking. Initiative advancement refreshes per-turn frequencies
 for all participants and per-round frequencies at their owner's turn start, matching
-the pinned Foundry recharge policy. Longer intervals restore explicitly because
-Atlas has no game clock. Reads and unrelated source refreshes do not reset bound expenditure.
+the pinned Foundry recharge policy. Longer intervals restore explicitly; encounter timing does not establish a world
+clock. Reads and unrelated source refreshes do not reset bound expenditure.
 Turn advancement prepares incoming source conditions and frequency refreshes in
 one reference snapshot before the guarded write; it never re-resolves a mutable
 encounter slug between preparations. Ordinary resolved damage that needs no
@@ -153,6 +153,33 @@ never rewrites an existing participant. Source-derived capacity is never charged
 again by reading or refreshing a record.
 Breath recharge prose and inline roll labels do not establish structured cooldown
 semantics; no cooldown or reset trigger is inferred from names or descriptions.
+
+Manual participant trackers provide explicit named countdowns independent of source
+ability declarations and condition causes. App-service validates duration and turn
+anchors, retains minute/hour/day countdowns as exact remaining seconds, and plans
+countdown changes at the same actual start/end boundaries as timed conditions.
+Encounter round length defaults to six seconds and is explicitly configurable;
+remaining round projections use ceiling division. Changing that setting preserves
+elapsed-time progress, while round-unit countdowns continue to count turns.
+Local-state saves trackers, outgoing snapshots and condition progress in the guarded
+turn transaction. Request replay, reads and manual turn selection do not tick them.
+A tracker retains its entered duration and zero as Elapsed; editing its duration or
+anchor restarts it, while renaming preserves progress. Missing anchors stay explicit
+and do not receive a guessed replacement. Creation-baseline reset restores baseline
+trackers, and overnight recovery advances their counters by eight hours.
+Only an actual positive-to-zero transition adds a tracker completion to the frozen
+turn-boundary reminder. The latest snapshot retains that notice after optional
+removal or restart, with its result projected from canonical state. Existing zero
+trackers do not notify on later boundaries. The first turn start can retain a
+completion notice without presenting end-of-turn damage groups or claims.
+
+Anchored non-round conditions retain their entered amount/unit plus separate saved
+remaining-second progress. Round conditions retain their existing remaining amount.
+Metadata-only edits preserve saved progress; changed durations reinitialize it.
+Unconfigured legacy durations remain manual reminders until explicitly anchored.
+Zero uses the existing duration-ended/removal workflow and does not silently remove
+condition causes or claim gameplay consequences. Conversion rejects overflow and
+values outside the browser's exact integer range.
 
 Unknown facts stay unknown. An unavailable calculation does not silently use an
 authored subtotal, assume a missing trait is false, or substitute an unheightened
@@ -282,14 +309,16 @@ rule ordinal and fingerprint identity. Switching a condition-granting option ret
 previous advice immediately, including during failed refreshes; spending an ability
 use or a spell resource preserves still-valid advice and the anchored spell view.
 
-Next turn advances atomically before the browser presents one notification for the
-turn just completed. Closing by Escape, backdrop or the close icon finishes the
-interaction without changing HP, conditions or initiative. The browser pins the outgoing
-participant inspector while reminders are open, retaining live canonical updates
-for that participant. Dismissal follows the saved current turn; a quiet boundary
-follows immediately. This display choice does not defer the atomic turn advance.
-Reads and refreshes do
-not reopen it. There is no acknowledgment, past-turn queue, selector or pagination.
+Next turn advances atomically before the browser presents reminders for the
+completed transition. Rust projects separate end and start contexts from the same
+frozen snapshot, each with its boundary actor, event and actual round. End reminders
+retain the outgoing participant inspector; start reminders select the incoming
+participant before their popup opens. A transition with both presents end first,
+then start; quiet phases are skipped. Continue, Escape, backdrop or the close icon
+finishes the current phase without changing HP, conditions or initiative. Closing
+the last phase follows the saved current turn. This presentation does not defer or
+repeat the atomic advance. Reads and refreshes do not reopen reminders. There is no
+acknowledgment, past-turn queue, selector or pagination.
 Durable advance receipts retain the original participant and frozen source context
 for retry safety while the current notification is open. Only the latest completed
 boundary is actionable; advancing again supersedes it. Completed condition reminders

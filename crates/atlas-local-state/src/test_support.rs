@@ -24,6 +24,9 @@ impl TestStore {
             conn.execute_batch(TURN_RESOURCES_SCHEMA_SQL)?;
             conn.execute_batch(CONSUMED_CONDITION_APPLICATIONS_SCHEMA_SQL)?;
             conn.execute_batch(ENCOUNTER_RECOVERY_SCHEMA_SQL)?;
+            conn.execute_batch(MANUAL_TRACKERS_SCHEMA_SQL)?;
+            conn.execute_batch(ENCOUNTER_CLOCK_SCHEMA_SQL)?;
+            backfill_encounter_clock(&conn).expect("fresh workspace clock backfill");
         }
         Ok(store)
     }
@@ -413,6 +416,10 @@ mod tests {
         connection.execute_batch(ABILITY_STATE_SCHEMA_SQL)?;
         connection.execute_batch(HAZARD_PARTICIPATION_SCHEMA_SQL)?;
         connection.execute_batch(CONDITION_SYSTEM_SCHEMA_SQL)?;
+        connection.execute_batch(ENCOUNTER_RECOVERY_SCHEMA_SQL)?;
+        connection.execute_batch(MANUAL_TRACKERS_SCHEMA_SQL)?;
+        connection.execute_batch(ENCOUNTER_CLOCK_SCHEMA_SQL)?;
+        backfill_encounter_clock(&connection).expect("fresh workspace clock backfill");
         Ok(connection)
     }
 

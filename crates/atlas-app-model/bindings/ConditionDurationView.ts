@@ -3,6 +3,10 @@ import type { ConditionDurationUnit } from "./ConditionDurationUnit";
 import type { ConditionTimingView } from "./ConditionTimingView";
 
 /**
- * For rounds, amount is the remaining count; zero awaits explicit removal.
+ * Condition rounds use a remaining amount; tracker durations retain the restart amount.
  */
-export type ConditionDurationView = { amount: bigint, unit: ConditionDurationUnit, timing: ConditionTimingView | null, };
+export type ConditionDurationView = {
+/**
+ * Remaining turns at the encounter’s current round length.
+ */
+remaining_rounds?: bigint, amount: bigint, unit: ConditionDurationUnit, timing: ConditionTimingView | null, };

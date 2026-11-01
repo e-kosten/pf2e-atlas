@@ -88,7 +88,7 @@ impl EncountersWrite<'_> {
                 snapshot,
             };
             // Even an empty boundary retains the once-only request identity.
-            self.connection.execute("INSERT INTO encounter_outgoing_turns(encounter_id,boundary_key,request_id,intent_json,payload_json,requires_review) SELECT id,?2,?3,?4,?5,?6 FROM encounters WHERE encounter_key=?1",params![saved.snapshot.encounter.encounter_key,saved.boundary_key,request_id,serde_json::to_string(intent)?,receipt_codec::encode(&saved)?,i64::from(review_needed&&saved.snapshot.encounter.current_turn_participant_key.is_some()&&saved.next_participant_key.is_some())])?;
+            self.connection.execute("INSERT INTO encounter_outgoing_turns(encounter_id,boundary_key,request_id,intent_json,payload_json,requires_review) SELECT id,?2,?3,?4,?5,?6 FROM encounters WHERE encounter_key=?1",params![saved.snapshot.encounter.encounter_key,saved.boundary_key,request_id,serde_json::to_string(intent)?,receipt_codec::encode(&saved)?,i64::from(review_needed&&saved.next_participant_key.is_some())])?;
             for (condition_id, amount) in update.durations {
                 storage::update_duration_amount(self.connection, condition_id, amount)?;
             }
@@ -113,6 +113,9 @@ impl EncountersWrite<'_> {
                     },
                     start,
                 )?;
+            }
+            for change in &update.manual_trackers {
+                self.save_manual_tracker(&saved.snapshot.encounter.encounter_key, change)?;
             }
             storage::get(self.connection, encounter_ref)
         })

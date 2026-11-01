@@ -50,9 +50,7 @@ export function conditionDuration(values: ConditionFormValues): Duration | undef
     amount: BigInt(values.durationAmount),
     unit: values.durationUnit,
     timing:
-      values.durationUnit === "rounds" &&
-      values.durationEvent &&
-      values.durationParticipant
+      values.durationEvent && values.durationParticipant
         ? {
             participant_key: values.durationParticipant,
             event: values.durationEvent,

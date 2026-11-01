@@ -92,6 +92,7 @@ it("retains a rejected inline formula for correction and retry", async () => {
 it("shows updated derived HP after a submitted edit and variant capacity change", async () => {
   const current: EncounterParticipantView = {
     revision: 0n,
+    manual_trackers: [],
     knockout_options: [],
     effective_max_hp: { state: "value", value: 20, adjustment: null },
     persistent_damage_groups: [],
