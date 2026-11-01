@@ -103,3 +103,71 @@ key scopes. Actual cardinalities establish selectivity on the supplied corpus.
 Root eligibility is profile independent. Measure shipped CLI filtered retrieval
 separately for each configured profile; these counters do not measure native KNN
 work, query inference or end-to-end CLI latency.
+
+
+## Controlled ingest observations
+
+Use the private example to observe one explicitly selected disposable task workspace
+through the normal runtime, ingest, index and app-service owners. Build it first:
+
+```bash
+cargo build --release --locked -p atlas-dev --example ingest_experiment
+```
+
+Pass canonical absolute paths, an existing repository checkout as `--task-root`,
+and a fresh `--output` directory inside that checkout whose parent already exists.
+The database must also be inside the task checkout. Source/model directories are
+read-only inputs; restore/capture the desired seed separately before upgrading it.
+The candidate label is declared; reports also hash the actual executable.
+
+```bash
+target/release/examples/ingest_experiment \
+  --task-root /absolute/task/checkout \
+  --database /absolute/task/checkout/.atlas/workspace.sqlite \
+  --source /absolute/private/pf2e --models /absolute/verified/models \
+  --candidate 'commit and build receipt' --stage upgrade \
+  --output /absolute/task/checkout/scratch/fresh-upgrade-evidence
+```
+
+`upgrade` performs the ordinary schema and compatible metadata update without
+calling setup or inference. `build` calls the real ingest pipeline and requires
+`--profiles bge-base,embeddinggemma`, either single ID, or `none` as the complete
+requested set. It persists that explicit intent through index's normal owner;
+this differs from the product CLI's additive profile selection. Removing and
+then adding a profile can require new inference, so use tiny native fixtures for
+that case unless a full inference experiment was deliberately selected.
+
+`interrupt` accepts the same build options and exits72 only after synchronously
+writing `interruption.json` at the writer's existing prepared-input validation
+phase: maintenance is durable and reference mutation has not begun. The marker
+binds the canonical database, actual executable hash, declared candidate and exact
+prior workspace/revision/context. `recover --interruption-marker /path/to/that/file`
+uses the guarded form of ordinary validated recovery, compares the exact prior
+publication before clearing maintenance, and refuses to initialize or migrate.
+A workspace without interrupted maintenance is not authenticated recovery. An absent marker or another exit code proves no successful interruption.
+
+`roster --encounter REF` records5 AppService encounter reads by default, with
+serialization and service startup outside each sample. `--repetitions` accepts1–20.
+`observe --stop-file /absolute/task/checkout/scratch/new-stop-file` first writes
+`ready.json`, then records repeated product readiness requests until the caller
+creates that initially absent file. Its sampled request intervals bound observed
+availability; it can perturb locks and belongs in a separate observation run.
+
+The example enables a typed, calling-thread storage diagnostic scope. It counts
+workspace connection and SQLite statement-start/completion/subprogram events,
+including rolled-back execution, without retaining SQL. Previously attached
+connections reused in another explicit scope contribute their execution events;
+connection counts describe new attachments in that scope. Other threads and
+independently opened temporary SQLite files are outside those counts. Existing
+build diagnostics add nested phase durations, owned-connection `total_changes`
+deltas and four root-component replacement-action counts. SQLite affected rows
+include trigger, virtual-table shadow and temporary work according to SQLite's
+counter semantics; they are not committed product-row or physical-write counts.
+Phase durations can overlap and must not be summed indiscriminately.
+
+Spool diagnostics report live file lengths and filesystem allocated-block bytes
+at named boundaries, including overlapping old/new streams and frozen values.
+They do not establish exclusive physical allocation, a process-wide temporary
+peak, or SQLite's unlinked temporary files. Keep shipping CLI wall/RSS measurements
+separate from these instrumented observations, and retain the exact binary,
+source/model/context identities and fresh deep-validation receipt.

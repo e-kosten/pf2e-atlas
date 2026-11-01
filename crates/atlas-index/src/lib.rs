@@ -26,6 +26,8 @@ mod historical_locations;
 #[cfg(any(test, feature = "test-support"))]
 mod historical_publication;
 mod reference_jobs;
+mod reference_recovery;
+pub use reference_recovery::ReferencePublicationExpectation;
 mod selected_sections;
 mod semantic_locations;
 pub use selected_sections::{
@@ -55,7 +57,7 @@ mod identity;
 mod input;
 mod publication_source;
 pub use build_spool::{
-    BuildFrameCursor, BuildFrameStream, PreparedRecordFrame, PublicationSpool,
+    BuildFileUsage, BuildFrameCursor, BuildFrameStream, PreparedRecordFrame, PublicationSpool,
     SealedBuildFrameStream, SealedPublicationSpool,
 };
 pub use publication_source::{
@@ -127,9 +129,9 @@ pub use reader::{
     SourceArtifactStatistics, SourceProfileStatistics, SourceReadCapabilities, SourceSummaryBatch,
     SqliteIndexReader,
 };
-pub use reference_jobs::recover_reference_publication;
 #[cfg(any(test, feature = "test-support"))]
 pub use reference_jobs::start_reference_job;
+pub use reference_jobs::{recover_reference_publication, recover_reference_publication_checked};
 pub use schema::{
     CONSUMABLE_FILTER_SCHEMA_SQL, PHYSICAL_BASE_TYPE_SCHEMA_SQL,
     REFERENCE_NUMERIC_FILTER_SCHEMA_SQL, REFERENCE_SCHEMA_SQL,

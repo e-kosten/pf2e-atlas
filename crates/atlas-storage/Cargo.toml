@@ -6,6 +6,9 @@ license.workspace = true
 publish.workspace = true
 rust-version.workspace = true
 
+[features]
+diagnostics = ["rusqlite/trace"]
+
 [dependencies]
 fs2 = "0.4.3"
 rusqlite.workspace = true

@@ -8,7 +8,38 @@ pub fn recover_reference_publication(
     owner: &atlas_storage::UpdateOwner,
     schema: u32,
 ) -> Result<bool, IndexError> {
+    recover_reference_publication_inner(owner, schema, None)
+}
+
+/// Recover only an interrupted maintenance operation whose exact prior
+/// publication matches the expectation. A workspace without maintenance returns
+/// an error: no guarded/authenticated recovery was performed in that case.
+pub fn recover_reference_publication_checked(
+    owner: &atlas_storage::UpdateOwner,
+    schema: u32,
+    expected: &crate::ReferencePublicationExpectation,
+) -> Result<(), IndexError> {
+    expected.validate()?;
+    atlas_sqlite_vec::register_sqlite_vec_auto_extension()
+        .map_err(|e| IndexError::Operation(e.to_string()))?;
+    if !recover_reference_publication_inner(owner, schema, Some(expected))? {
+        return Err(IndexError::Invalid(
+            "guarded recovery requires interrupted maintenance; expectation was not authenticated"
+                .into(),
+        ));
+    }
+    Ok(())
+}
+fn recover_reference_publication_inner(
+    owner: &atlas_storage::UpdateOwner,
+    schema: u32,
+    expected: Option<&crate::ReferencePublicationExpectation>,
+) -> Result<bool, IndexError> {
     owner.recover_maintenance(schema, |connection| {
+        if let Some(expected) = expected {
+            expected.check(connection)?;
+        }
+
         let revision: u64 = connection.query_row(
             "SELECT reference_revision FROM workspace WHERE id=1",
             [],

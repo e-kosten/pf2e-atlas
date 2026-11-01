@@ -96,6 +96,12 @@ pub(crate) fn write(
     input: &dyn PublicationSource,
     values: &dyn NativeValueSource,
 ) -> Result<(), IndexError> {
+    let started = std::time::Instant::now();
+    let affected_before = c.total_changes();
+    let mut query_root_replacements = 0u64;
+    let mut snapshot_root_replacements = 0u64;
+    let mut content_root_replacements = 0u64;
+    let mut relationship_root_replacements = 0u64;
     let old_context = crate::read_stored_reference_context(c)?;
     let reusable_context = !matches!(
         crate::classify_reference_upgrade(c)?,
@@ -166,6 +172,7 @@ pub(crate) fn write(
         let relationships_changed=old.as_ref().is_none_or(|old|old.relationships!=desired.relationships);
         let digest=crate::publication_delta::root_digest_encoded(source,label,frame.snapshot)?;
         if query_changed {
+            query_root_replacements+=1;
             crate::publication_delta::clear_query(c,id)?;
             let mut allocation=crate::publication_delta::allocate(c,source,label,id,&digest)?;
             for row in root_rows(source,label,id,&mut allocation)?{if row.table=="records"{crate::publication_delta::upsert(c,&row,"record_id")?;}else{row.insert(c)?;}}
@@ -174,14 +181,15 @@ pub(crate) fn write(
             c.execute("UPDATE projection_allocations SET input_hash=? WHERE record_id=? AND input_hash IS NOT ?1",params![digest,id])?;
         }
         if snapshot_changed {
+            snapshot_root_replacements+=1;
             let bytes=crate::codec::gzip(frame.snapshot)?;
             c.execute("INSERT INTO record_bodies VALUES(?,?,?,?) ON CONFLICT(record_id) DO UPDATE SET codec_version=excluded.codec_version,encoding=excluded.encoding,snapshot=excluded.snapshot WHERE codec_version IS NOT excluded.codec_version OR encoding IS NOT excluded.encoding OR snapshot IS NOT excluded.snapshot",params![id,atlas_foundry_model::SNAPSHOT_VERSION,"gzip6",bytes])?;
             c.execute("DELETE FROM developer_diagnostics WHERE record_id=? AND stage<>'preparation'",[id])?;
             for diagnostic in &source.diagnostics{crate::writer::write_diagnostic(c,id,diagnostic)?;}
         }else if query_changed{c.execute("DELETE FROM developer_diagnostics WHERE record_id=? AND stage='projection'",[id])?;}
         if snapshot_changed || query_changed{for diagnostic in crate::projections::projection_diagnostics(&source.record){crate::writer::write_diagnostic(c,id,&diagnostic)?;}}
-        if content_changed {c.execute("DELETE FROM prepared_content WHERE record_id=?",[id])?;c.execute("DELETE FROM developer_diagnostics WHERE record_id=? AND stage='preparation'",[id])?;}
-        if relationships_changed {c.execute("DELETE FROM relationship_occurrences WHERE record_id=?",[id])?;}
+        if content_changed {content_root_replacements+=1;c.execute("DELETE FROM prepared_content WHERE record_id=?",[id])?;c.execute("DELETE FROM developer_diagnostics WHERE record_id=? AND stage='preparation'",[id])?;}
+        if relationships_changed {relationship_root_replacements+=1;c.execute("DELETE FROM relationship_occurrences WHERE record_id=?",[id])?;}
         if content_changed || relationships_changed{crate::writer::write_content(c,source,id,&ids,input.context().audience,content_changed,relationships_changed)?;}
         if relationships_changed {for (ordinal,relationship) in source.relationships.iter().enumerate(){
             if relationship.locator.record!=*source.record.key() || source.record.node_at(&relationship.locator.owners).is_none(){return Err(IndexError::Invalid("structured relationship owner differs".into()));}
@@ -236,5 +244,7 @@ pub(crate) fn write(
         [],
     )?;
     c.cache_flush()?;
+    let usage = next_digests.file_usage()?;
+    tracing::info!(target:"atlas_build_diagnostic",stage="reference_delta",elapsed_ms=started.elapsed().as_secs_f64()*1000.,sqlite_affected_rows=c.total_changes()-affected_before,query_root_replacements,snapshot_root_replacements,content_root_replacements,relationship_root_replacements,digest_spool_file_bytes=usage.file_bytes,digest_spool_allocated_bytes=usage.allocated_bytes.unwrap_or(0),allocated_bytes_known=usage.allocated_bytes.is_some(),"Observed reference reconciliation work");
     Ok(())
 }

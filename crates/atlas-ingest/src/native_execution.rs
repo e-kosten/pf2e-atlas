@@ -36,6 +36,13 @@ pub(crate) struct NativeProfilePlan {
     model: SourceSearchProfileIdentity,
     descriptors: SealedBuildFrameStream<NativeFrame>,
 }
+impl NativeProfilePlan {
+    pub(crate) fn file_usage(
+        &self,
+    ) -> Result<atlas_index::BuildFileUsage, atlas_index::IndexError> {
+        self.descriptors.file_usage()
+    }
+}
 
 fn counted_progress(
     model: atlas_embedding::SearchProfileSpec,
@@ -61,6 +68,7 @@ pub(crate) fn prepare_profiles(
     prepared.check_execution_streams()?;
     let mut plans = Vec::new();
     for config in &options.search_profiles {
+        let started = std::time::Instant::now();
         let spec = atlas_embedding::profile_for_model(config.model);
         let profile = spec.profile_id();
         let model = prepared
@@ -162,7 +170,7 @@ pub(crate) fn prepare_profiles(
             return Err(invalid("native stream coverage differs"));
         }
         flush_seed(&mut prepared.spool, &mut seed).map_err(index)?;
-        tracing::info!(target:"atlas_build_diagnostic",profile=%profile,max_native_prevalidation_batch=max_validated_batch,native_prevalidation_inputs=ordinal,"Validated native descriptor stream");
+        tracing::info!(target:"atlas_build_diagnostic",profile=%profile,elapsed_ms=started.elapsed().as_secs_f64()*1000.,max_native_prevalidation_batch=max_validated_batch,native_prevalidation_inputs=ordinal,"Validated native descriptor stream");
         let binding = (
             &prepared.spool.context,
             prepared.spool.expected.workspace_key(),
@@ -218,6 +226,13 @@ impl NativeExecution<'_> {
         plan: &NativeProfilePlan,
         config: &atlas_embedding::EmbeddingRuntimeConfig,
     ) -> Result<crate::ProfileBuildReport, IngestError> {
+        let execution_started = std::time::Instant::now();
+        let mut selection_elapsed = std::time::Duration::ZERO;
+        let mut revalidation_elapsed = std::time::Duration::ZERO;
+        let mut inference_checkpoint_elapsed = std::time::Duration::ZERO;
+        let mut checkpoint_elapsed = std::time::Duration::ZERO;
+        let mut selection_affected_rows = 0u64;
+        let mut checkpoint_affected_rows = 0u64;
         let Self {
             workspace,
             schema,
@@ -291,8 +306,10 @@ impl NativeExecution<'_> {
                 .iter()
                 .map(|(descriptor, _)| descriptor.clone())
                 .collect::<Vec<_>>();
+            let selection_started = std::time::Instant::now();
             let selected = {
                 let write = workspace.write(schema)?;
+                let affected_before = write.connection().total_changes();
                 let selected = atlas_index::select_native_values(
                     &write,
                     job,
@@ -301,9 +318,11 @@ impl NativeExecution<'_> {
                     options.reuse_embeddings,
                 )
                 .map_err(index)?;
+                selection_affected_rows += write.connection().total_changes() - affected_before;
                 write.commit()?;
                 selected
             };
+            selection_elapsed += selection_started.elapsed();
             counted_progress(profile, "reuse_selection", ordinal, raw_inputs.len());
             if selected.len() != entries.len() {
                 return Err(invalid("native selection coverage differs"));
@@ -324,6 +343,7 @@ impl NativeExecution<'_> {
             if missing.is_empty() {
                 continue;
             }
+            let revalidation_started = std::time::Instant::now();
             if tokenizer.is_none() {
                 tokenizer = Some(TextEmbeddingTokenizer::load(config).map_err(embedding)?);
             }
@@ -344,9 +364,12 @@ impl NativeExecution<'_> {
             {
                 return Err(invalid("revalidated native descriptors differ"));
             }
+            revalidation_elapsed += revalidation_started.elapsed();
+            let inference_started = std::time::Instant::now();
             runner
                 .infer(&batch, |values| {
-                    let checkpoint = || -> Result<(), IngestError> {
+                    let checkpoint_started = std::time::Instant::now();
+                    let checkpoint = (|| -> Result<(), IngestError> {
                         let descriptors = values
                             .iter()
                             .map(|(input, _)| input.descriptor())
@@ -357,23 +380,28 @@ impl NativeExecution<'_> {
                             .map(|(descriptor, (_, value))| (descriptor, *value))
                             .collect::<Vec<_>>();
                         let write = workspace.write(schema)?;
+                        let affected_before = write.connection().total_changes();
                         atlas_index::stage_native_values(&write, job, &plan.model, &values)
                             .map_err(index)?;
+                        checkpoint_affected_rows +=
+                            write.connection().total_changes() - affected_before;
                         write.commit()?;
                         Ok(())
-                    };
-                    checkpoint().map_err(|e| {
+                    })();
+                    checkpoint_elapsed += checkpoint_started.elapsed();
+                    checkpoint.map_err(|e| {
                         atlas_embedding::EmbeddingError::ModelRunFailed(format!(
                             "could not checkpoint inferred batch: {e}"
                         ))
                     })
                 })
                 .map_err(embedding)?;
+            inference_checkpoint_elapsed += inference_started.elapsed();
         }
         if ordinal != raw_inputs.len() {
             return Err(invalid("native descriptor count differs"));
         }
-        tracing::info!(target:"atlas_build_diagnostic",profile=%plan.model.profile_id,max_distinct_native_batch=max_batch,max_raw_native_batch=max_raw_batch,
+        tracing::info!(target:"atlas_build_diagnostic",profile=%plan.model.profile_id,elapsed_ms=execution_started.elapsed().as_secs_f64()*1000.,selection_ms=selection_elapsed.as_secs_f64()*1000.,revalidation_ms=revalidation_elapsed.as_secs_f64()*1000.,inference_with_checkpoint_ms=inference_checkpoint_elapsed.as_secs_f64()*1000.,checkpoint_ms=checkpoint_elapsed.as_secs_f64()*1000.,selection_sqlite_affected_rows=selection_affected_rows,checkpoint_sqlite_affected_rows=checkpoint_affected_rows,max_distinct_native_batch=max_batch,max_raw_native_batch=max_raw_batch,
         max_missing_native_batch=max_missing_batch,max_native_output_vectors=runner.peak_output_vectors(),
         native_prevalidation_inputs=ordinal,native_inference_revalidation_inputs=runner.inferred_inputs(),"Completed bounded native execution");
         Ok(crate::ProfileBuildReport {

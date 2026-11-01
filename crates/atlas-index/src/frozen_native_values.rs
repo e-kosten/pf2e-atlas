@@ -194,7 +194,10 @@ impl FrozenNativeValues {
         self.check(source, job)
     }
     pub fn temporary_file_bytes(&self) -> Result<u64, IndexError> {
-        Ok(self.file.as_file().metadata().map_err(io)?.len())
+        Ok(self.temporary_file_usage()?.file_bytes)
+    }
+    pub fn temporary_file_usage(&self) -> Result<crate::BuildFileUsage, IndexError> {
+        crate::BuildFileUsage::of(self.file.as_file())
     }
     pub(crate) fn check(
         &self,

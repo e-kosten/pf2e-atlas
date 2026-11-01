@@ -47,7 +47,10 @@ impl<'a, 'owner> SqliteIndexWriter<'a, 'owner> {
         job: &str,
         target_hash: &str,
     ) -> Result<crate::ArtifactValidationReport, IndexError> {
-        tracing::info!(target:"atlas_progress",phase="validate_build_input","Checking prepared records");
+        let publication =
+            crate::ReferencePublicationExpectation::read(self.maintenance.connection())?;
+        tracing::info!(target:"atlas_progress",phase="validate_build_input",workspace_key=publication.instance().workspace_key(),reference_revision=publication.instance().reference_revision(),context_sha256=publication.context_sha256().unwrap_or(""),"Checking prepared records");
+        let input_started = std::time::Instant::now();
         validate_input(input)?;
         if input.context().sha256()? != target_hash {
             return Err(IndexError::Invalid(
@@ -55,15 +58,22 @@ impl<'a, 'owner> SqliteIndexWriter<'a, 'owner> {
             ));
         }
         values.check(input, Some(job))?;
+        tracing::info!(target:"atlas_build_diagnostic",stage="publication_input_validation",elapsed_ms=input_started.elapsed().as_secs_f64()*1000.,"Completed publication phase");
         self.maintenance.publish(|connection| {
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
             check_expected(connection,input)?;
             values.check_publication(connection,input,Some(job))?;
             crate::native_selection::require_active(connection,job)?;
+            let delta_started=std::time::Instant::now();
+            let delta_changes=connection.total_changes();
             crate::stream_publication::write(connection, input, values)?;
             crate::embedding_values::prune(connection)?;
+            tracing::info!(target:"atlas_build_diagnostic",stage="publication_delta_and_prune",elapsed_ms=delta_started.elapsed().as_secs_f64()*1000.,sqlite_affected_rows=connection.total_changes()-delta_changes,"Completed publication phase");
+            let validation_started=std::time::Instant::now();
+            let validation_changes=connection.total_changes();
             let report = crate::validation::validate_reference(connection)?;
             values.check_publication(connection,input,Some(job))?;
+            tracing::info!(target:"atlas_build_diagnostic",stage="publication_exact_validation",elapsed_ms=validation_started.elapsed().as_secs_f64()*1000.,sqlite_affected_rows=connection.total_changes()-validation_changes,"Completed publication phase");
             tracing::info!(target:"atlas_progress",phase="prune_checkpoints","Removing obsolete saved embeddings");
             crate::reference_jobs::finish_reference_job(connection, job, target_hash)?;
             tracing::info!(target:"atlas_progress",phase="commit_reference","Finishing reference update");

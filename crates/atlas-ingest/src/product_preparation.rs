@@ -467,6 +467,14 @@ pub(crate) fn prepare(
         })
         .map_err(index)?;
     work.largest_admitted_frame_bytes = admitted.max_decoded_frame_bytes();
+    let usage = admitted
+        .file_usage()
+        .map_err(index)?
+        .combine(prepared.file_usage().map_err(index)?)
+        .map_err(index)?
+        .combine(spool.file_usage().map_err(index)?)
+        .map_err(index)?;
+    tracing::info!(target:"atlas_build_diagnostic",stage="admitted_prepared_overlap",file_bytes=usage.file_bytes,allocated_bytes=usage.allocated_bytes.unwrap_or(0),allocated_bytes_known=usage.allocated_bytes.is_some(),"Observed live metadata spool files");
     drop(admitted);
     let (aliases, pairs) = crate::source_aliases::extract_prepared_aliases(
         &names,
@@ -550,6 +558,16 @@ pub(crate) fn prepare(
             Ok(())
         })
         .map_err(index)?;
+    let usage = prepared
+        .file_usage()
+        .map_err(index)?
+        .combine(spool.file_usage().map_err(index)?)
+        .map_err(index)?
+        .combine(native_inputs.file_usage().map_err(index)?)
+        .map_err(index)?
+        .combine(occurrences.file_usage().map_err(index)?)
+        .map_err(index)?;
+    tracing::info!(target:"atlas_build_diagnostic",stage="prepared_publication_overlap",file_bytes=usage.file_bytes,allocated_bytes=usage.allocated_bytes.unwrap_or(0),allocated_bytes_known=usage.allocated_bytes.is_some(),"Observed live metadata spool files");
     drop(prepared);
     crate::traits::prepare_traits_stream(
         &catalog,

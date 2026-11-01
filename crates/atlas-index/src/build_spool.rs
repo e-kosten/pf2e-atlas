@@ -20,6 +20,51 @@ fn io(error: impl std::fmt::Display) -> IndexError {
     IndexError::Operation(format!("build spool: {error}"))
 }
 
+/// File metadata observed at one boundary. Allocated bytes use filesystem
+/// block accounting where available; they do not establish exclusive physical
+/// allocation on copy-on-write filesystems or include SQLite's separate files.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BuildFileUsage {
+    pub file_bytes: u64,
+    pub allocated_bytes: Option<u64>,
+}
+impl BuildFileUsage {
+    pub(crate) fn of(file: &File) -> Result<Self, IndexError> {
+        let metadata = file.metadata().map_err(io)?;
+        #[cfg(unix)]
+        let allocated_bytes = {
+            use std::os::unix::fs::MetadataExt;
+            Some(
+                metadata
+                    .blocks()
+                    .checked_mul(512)
+                    .ok_or_else(|| io("allocated byte count overflow"))?,
+            )
+        };
+        #[cfg(not(unix))]
+        let allocated_bytes = None;
+        Ok(Self {
+            file_bytes: metadata.len(),
+            allocated_bytes,
+        })
+    }
+    pub fn combine(self, other: Self) -> Result<Self, IndexError> {
+        Ok(Self {
+            file_bytes: self
+                .file_bytes
+                .checked_add(other.file_bytes)
+                .ok_or_else(|| io("file byte count overflow"))?,
+            allocated_bytes: match (self.allocated_bytes, other.allocated_bytes) {
+                (Some(a), Some(b)) => Some(
+                    a.checked_add(b)
+                        .ok_or_else(|| io("allocated byte count overflow"))?,
+                ),
+                _ => None,
+            },
+        })
+    }
+}
+
 /// A record-sized, checksummed stream owned by this build and removed on drop.
 pub struct BuildFrameStream<T> {
     file: tempfile::NamedTempFile,
@@ -40,6 +85,9 @@ impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
     }
     pub fn len(&self) -> usize {
         self.count
+    }
+    pub fn file_usage(&self) -> Result<BuildFileUsage, IndexError> {
+        BuildFileUsage::of(self.file.as_file())
     }
     pub fn is_empty(&self) -> bool {
         self.count == 0
@@ -230,6 +278,9 @@ impl<T: Serialize + DeserializeOwned> SealedBuildFrameStream<T> {
     pub fn len(&self) -> usize {
         self.stream.len()
     }
+    pub fn file_usage(&self) -> Result<BuildFileUsage, IndexError> {
+        self.stream.file_usage()
+    }
     pub fn is_empty(&self) -> bool {
         self.stream.is_empty()
     }
@@ -353,6 +404,20 @@ impl PublicationSpool {
             trait_seeds: BuildFrameStream::new()?,
         })
     }
+    pub fn file_usage(&self) -> Result<BuildFileUsage, IndexError> {
+        let mut usage = self.records.file_usage()?;
+        for next in [
+            self.lexical.file_usage()?,
+            self.semantic.file_usage()?,
+            self.aliases.file_usage()?,
+            self.remaster_pairs.file_usage()?,
+            self.traits.file_usage()?,
+            self.trait_seeds.file_usage()?,
+        ] {
+            usage = usage.combine(next)?;
+        }
+        Ok(usage)
+    }
     fn seal_data(&self) -> Result<SpoolSeal, IndexError> {
         Ok(SpoolSeal {
             version: 1,
@@ -383,6 +448,11 @@ impl PublicationSpool {
 pub struct SealedPublicationSpool {
     spool: PublicationSpool,
     seal: Vec<u8>,
+}
+impl SealedPublicationSpool {
+    pub fn file_usage(&self) -> Result<BuildFileUsage, IndexError> {
+        self.spool.file_usage()
+    }
 }
 impl PublicationSource for SealedPublicationSpool {
     fn context(&self) -> &SourceArtifactBuildContext {
@@ -578,5 +648,28 @@ mod bound_tests {
                 "{error}"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod file_usage_tests {
+    use super::*;
+    #[test]
+    fn file_usage_tracks_complete_stream_files_and_survives_sealing() {
+        let mut stream = BuildFrameStream::<String>::new().unwrap();
+        assert_eq!(stream.file_usage().unwrap().file_bytes, 0);
+        stream.push(&"first frame".into()).unwrap();
+        let first = stream.file_usage().unwrap();
+        stream.push(&"second frame".into()).unwrap();
+        let next = stream.file_usage().unwrap();
+        assert!(next.file_bytes > first.file_bytes);
+        let sealed = stream.seal(&"binding").unwrap();
+        assert_eq!(sealed.file_usage().unwrap(), next);
+        assert_eq!(
+            first.combine(next).unwrap().file_bytes,
+            first.file_bytes + next.file_bytes
+        );
+        #[cfg(unix)]
+        assert!(next.allocated_bytes.is_some());
     }
 }
