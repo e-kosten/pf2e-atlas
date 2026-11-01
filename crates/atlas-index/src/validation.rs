@@ -219,6 +219,15 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
             )));
         }
     }
+    if context
+        .admission
+        .as_ref()
+        .is_some_and(|a| a.admitted_records != roots)
+    {
+        return Err(bad(
+            "source admission root count differs from stored records",
+        ));
+    }
     if roots != count(c, "record_bodies")? || roots > context.source_file_count {
         return Err(IndexError::Invalid(
             "snapshot/root/source count mismatch".into(),
@@ -229,7 +238,7 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
         [],
         |r| r.get(0),
     )?;
-    let root_lexical:usize=c.query_row("SELECT count(*) FROM records r WHERE r.document_kind<>'Macro' AND (SELECT count(*) FROM lexical_units u WHERE u.record_id=r.record_id AND u.unit_kind='root_name' AND u.owners_json='[]' AND u.field_path IS NULL AND u.section_json IS NULL)=1",[],|r|r.get(0))?;
+    let root_lexical:usize=c.query_row("SELECT count(*) FROM records r WHERE r.document_kind<>'Macro' AND (SELECT count(*) FROM lexical_units u WHERE u.record_id=r.record_id AND u.unit_kind='root_name' AND u.owners_json='[]' AND u.section_id IS NULL)=1",[],|r|r.get(0))?;
     if root_lexical != product_count {
         return Err(IndexError::Invalid(
             "lexical identity coverage is incomplete".into(),
@@ -240,6 +249,7 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
     tracing::info!(target:"atlas_progress",phase="artifact_vector_integrity","Checking semantic search index");
     validate_vectors(c, &context, product_count)?;
     validate_aliases(c)?;
+    crate::component_digests::validate_present(c, &context)?;
     let mut urls=c.prepare("SELECT target_url FROM relationship_occurrences WHERE resolution IN ('resolved_url','unverified_url')")?;
     for url in urls.query_map([], |r| r.get::<_, String>(0))? {
         if !atlas_record::source_content::is_safe_content_url(&url?) {

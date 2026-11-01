@@ -161,7 +161,9 @@ complete reference data and can be retried without repeating inference.
 For the schema-9 to schema-10 storage change, an optional corpus probe captures
 one consistent disposable snapshot, verifies every vector and source attribution,
 compares saved-state hashes and filtered distances, checks exact-input reuse and
-runs deep validation. It never migrates its source. Use a repository development
+checks migration-10 conversion semantics and SQLite integrity/foreign keys. It
+uses the fixed historical schema-10 test initializer and does not claim current
+reference readiness. It never migrates its source. Use a repository development
 corpus, with enough temporary space for the snapshot, normal migration backup and
 SQLite staging; all copies are removed on completion:
 

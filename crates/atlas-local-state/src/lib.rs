@@ -9,7 +9,9 @@ mod parties;
 pub use parties::{PartiesRead, PartiesWrite, Party, PartyMember, PartyMemberInput};
 mod references;
 mod saved_lists;
+mod saved_state_integrity;
 mod schema;
+pub use saved_state_integrity::backfill_saved_state_integrity;
 mod slug;
 mod store;
 
@@ -57,6 +59,7 @@ pub use schema::{
 };
 pub use schema::{
     ENCOUNTER_CLOCK_SCHEMA_SQL, ENCOUNTER_RECOVERY_SCHEMA_SQL, MANUAL_TRACKERS_SCHEMA_SQL,
+    TURN_RECEIPTS_SCHEMA_SQL,
 };
 pub use slug::derive_slug;
 pub use store::{LocalStateRead, LocalStateWrite};

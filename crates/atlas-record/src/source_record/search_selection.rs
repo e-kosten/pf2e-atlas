@@ -14,14 +14,14 @@ use std::{collections::BTreeMap, fmt};
 
 pub const SOURCE_CONTENT_SELECTION_VERSION: &str = "structural-source-sections/v4";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum SourceSelectedSectionKind {
     Unlabeled,
     Heading,
     DefinitionLabel,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SourceSelectedSection {
     pub kind: SourceSelectedSectionKind,
     pub section_ordinal: usize,
@@ -35,21 +35,47 @@ impl SourceSelectedSection {
         self.kind != SourceSelectedSectionKind::Unlabeled
     }
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SourceSelectedField {
     pub locator: SourceContentLocator,
     pub role: SourceContentRole,
     pub prepared_html_sha256: Option<String>,
     pub sections: Vec<SourceSelectedSection>,
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl SourceSelectedField {
+    pub fn section_address(&self, section: &SourceSelectedSection) -> SourcePassageAddress {
+        let chunk_bytes = SourceByteRange {
+            start: 0,
+            end: section.text.len(),
+        };
+        let text_hash = hash(&section.text);
+        match &self.prepared_html_sha256 {
+            Some(html_hash) => SourcePassageAddress::HtmlSection {
+                prepared_html_sha256: html_hash.clone(),
+                canonical_text_sha256: text_hash,
+                selection_version: SOURCE_CONTENT_SELECTION_VERSION.into(),
+                section_ordinal: section.section_ordinal,
+                label: section.label.clone(),
+                chunk_bytes,
+            },
+            None => SourcePassageAddress::PlainSection {
+                source_text_sha256: text_hash,
+                selection_version: SOURCE_CONTENT_SELECTION_VERSION.into(),
+                section_ordinal: section.section_ordinal,
+                label: section.label.clone(),
+                chunk_bytes,
+            },
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SourceSelectedIdentity {
     pub owners: Vec<OwnedContentLocator>,
     pub field: Option<String>,
     pub name: String,
     pub vocabulary: Vec<String>,
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SourceSearchSelection {
     pub root: RecordKey,
     pub pack_label: String,
@@ -59,7 +85,7 @@ pub struct SourceSearchSelection {
     pub identity_required: String,
     pub identity_optional: Vec<String>,
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SourceSelectionError(pub String);
 impl fmt::Display for SourceSelectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -73,6 +99,47 @@ fn hash(text: &str) -> String {
 fn plain(html: &str) -> Result<String, SourceSelectionError> {
     crate::source_content::prepared_plain_text(html)
         .map_err(|error| SourceSelectionError(error.to_string()))
+}
+
+fn visible_identity_name(node: SourceNodeView<'_>, audience: ContentAudience) -> bool {
+    select_content(node)
+        .into_iter()
+        .find(|selected| selected.role == SourceContentRole::Name)
+        .is_some_and(|selected| {
+            selected
+                .visibility
+                .value()
+                .is_some_and(|visibility| audience.permits(visibility))
+        })
+}
+/// Compact vocabulary admission shares the identity visibility policy with full
+/// search selection, without selecting or parsing any prose/sections.
+pub fn searchable_identity_traits(
+    record: &SourceBackedRecord,
+    audience: ContentAudience,
+) -> std::collections::BTreeSet<String> {
+    let mut traits = std::collections::BTreeSet::new();
+    if matches!(
+        SourceNodeView::from(record.source()),
+        SourceNodeView::Macro(_)
+    ) {
+        return traits;
+    }
+    visit_source_nodes(record.source(), |owners, node| {
+        if visible_identity_name(node, audience)
+            && (owners.is_empty() || node.name().value().is_some())
+            && let Some(values) = (SourceQueryView {
+                source: node,
+                pack_id: record.key().pack().as_str(),
+                pack_label: "",
+            })
+            .traits()
+            .value()
+        {
+            traits.extend(values.iter().cloned());
+        }
+    });
+    traits
 }
 
 /// Select admitted values and compatible prepared HTML; unknown visibility,
@@ -149,15 +216,7 @@ pub fn select_record_search(
         }
         vocabulary.sort();
         vocabulary.dedup();
-        let visible_name = select_content(node)
-            .into_iter()
-            .find(|selected| selected.role == SourceContentRole::Name)
-            .is_some_and(|selected| {
-                selected
-                    .visibility
-                    .value()
-                    .is_some_and(|visibility| audience.permits(visibility))
-            });
+        let visible_name = visible_identity_name(node, audience);
         if let Some(name) = node.name().value().filter(|_| visible_name) {
             result.identities.push(SourceSelectedIdentity {
                 owners: owners.to_vec(),
@@ -725,6 +784,46 @@ mod tests {
                 .model
                 .unwrap();
         SourceBackedRecord::new(pack, source).unwrap()
+    }
+    #[test]
+    fn compact_trait_contribution_preserves_searchable_owned_identity_policy() {
+        let record = make_record(
+            "Actor",
+            "actors",
+            serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","name":"Owner","type":"npc","system":{"traits":{"value":["dragon"]}},"items":[{"_id":"bbbbbbbbbbbbbbbb","name":"Named","type":"weapon","system":{"traits":{"value":["agile"]}}},{"_id":"cccccccccccccccc","type":"weapon","system":{"traits":{"value":["fire"]}}}]}),
+        );
+        let compact = searchable_identity_traits(&record, audience());
+        assert_eq!(
+            compact,
+            ["agile".to_owned(), "dragon".to_owned()]
+                .into_iter()
+                .collect()
+        );
+        let selected =
+            select_record_search(&record, &[], audience(), "Actors", &BTreeMap::new()).unwrap();
+        let expected = selected
+            .identities
+            .iter()
+            .flat_map(|identity| {
+                let node = record.node_at(&identity.owners).unwrap();
+                SourceQueryView {
+                    source: node,
+                    pack_id: "actors",
+                    pack_label: "Actors",
+                }
+                .traits()
+                .value()
+                .map(<[String]>::to_vec)
+                .unwrap_or_default()
+            })
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(compact, expected);
+        let macro_record = make_record(
+            "Macro",
+            "macros",
+            serde_json::json!({"_id":"dddddddddddddddd","name":"Tool","type":"script","command":"// authored"}),
+        );
+        assert!(searchable_identity_traits(&macro_record, audience()).is_empty());
     }
     #[test]
     fn checked_passage_marker_preserves_structure_and_distinguishes_duplicate_headings() {

@@ -211,6 +211,7 @@ dependencies = [
 name = "atlas-dev"
 version = "0.1.0"
 dependencies = [
+ "atlas-app-service",
  "atlas-cli-support",
  "atlas-domain",
  "atlas-embedding",
@@ -259,6 +260,7 @@ version = "0.1.0"
 dependencies = [
  "atlas-domain",
  "fastembed",
+ "serde",
  "serde_json",
  "sha2",
  "tempfile",

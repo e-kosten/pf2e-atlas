@@ -81,6 +81,16 @@ preparation/native-input identity. Existing lexical postings, native inputs,
 vectors and saved state are preserved. Query paths read membership without
 decoding source bodies.
 
+Workspace migration 27 replaces the overlapping part/occurrence address storage
+with canonical selected sections. Core part membership names internal section
+IDs; lexical and semantic eligibility reach the same sections through foreign
+keys. Root identity and permitted owned names retain their separate membership
+rules. The public source selector algorithm and scoring recipes are unchanged.
+A separate section-projection marker activates through the existing validated
+metadata publication, preserving native values and advancing one generation.
+Whole-section navigation remains available for unlabeled and lexical-only prose,
+independent of active profiles. Empty fields still contribute zero prose sections.
+
 Core lexical membership references concrete lexical-unit IDs. Any lexical
 projection rebuild must refresh that membership within the same publication,
 even when the Core recipe itself is unchanged. Validation and the single

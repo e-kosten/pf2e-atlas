@@ -14,6 +14,10 @@ history](derived-tags/README.md). It consolidates the Node implementation, local
 concept mappings, Rust seed experiments and ontology/assessment discussion,
 including source snapshots and cleanup boundaries.
 
+For the database and ingest changes, see [database and ingest findings](database-ingest-simplification.md).
+It records preserved data, release measurements, recovery/query observations and
+the measured lower cached-build RSS versus longer elapsed time.
+
 Research notes should capture:
 
 - the question the spike tried to answer;

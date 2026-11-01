@@ -72,6 +72,7 @@ fn backfill(c: &Connection) -> Result<(), IndexError> {
     Ok(())
 }
 
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn write_similarity_parts(
     c: &Connection,
     input: &crate::IndexBuildInput,
@@ -181,67 +182,4 @@ fn project_parts(
         }
     }
     Ok(projected)
-}
-
-pub(crate) fn validate_record_parts(
-    c: &Connection,
-    id: i64,
-    record: &SourceBackedRecord,
-    context: &SourceArtifactBuildContext,
-    selection: &SourceSearchSelection,
-) -> Result<(), IndexError> {
-    let content_hash: String = c.query_row(
-        "SELECT content_hash FROM records WHERE record_id=?",
-        [id],
-        |row| row.get(0),
-    )?;
-    let mut expected = project_parts(
-        record,
-        selection,
-        &content_hash,
-        &context.preparation_sha256()?,
-    )?
-    .into_iter()
-    .map(|(part, body_hash)| {
-        Ok((
-            part.selector.0.clone(),
-            serde_json::to_string(&part.owners)?,
-            part.field.clone(),
-            part.section_ordinal,
-            body_hash,
-            serde_json::to_value(part.role)?
-                .as_str()
-                .unwrap_or("")
-                .to_owned(),
-            serde_json::to_string(&part)?,
-            SIMILARITY_ROLE_RECIPE.to_owned(),
-        ))
-    })
-    .collect::<Result<std::collections::BTreeSet<_>, IndexError>>()?;
-    let mut statement=c.prepare("SELECT selector,owners_json,field_path,section_ordinal,body_hash,role,metadata_json,recipe FROM similarity_parts WHERE record_id=?")?;
-    let rows = statement.query_map([id], |row| {
-        Ok((
-            row.get::<_, String>(0)?,
-            row.get::<_, String>(1)?,
-            row.get::<_, String>(2)?,
-            row.get::<_, usize>(3)?,
-            row.get::<_, String>(4)?,
-            row.get::<_, String>(5)?,
-            row.get::<_, String>(6)?,
-            row.get::<_, String>(7)?,
-        ))
-    })?;
-    for row in rows {
-        if !expected.remove(&row?) {
-            return Err(IndexError::Invalid(
-                "similarity part metadata differs from its checked source or role policy".into(),
-            ));
-        }
-    }
-    if !expected.is_empty() {
-        return Err(IndexError::Invalid(
-            "similarity part projection is incomplete".into(),
-        ));
-    }
-    Ok(())
 }

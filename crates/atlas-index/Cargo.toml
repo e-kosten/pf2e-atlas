@@ -29,6 +29,7 @@ tracing.workspace = true
 
 [dev-dependencies]
 atlas-local-state.workspace = true
+atlas-storage = { workspace = true, features = ["diagnostics"] }
 
 [[example]]
 name = "core_projection_pilot"

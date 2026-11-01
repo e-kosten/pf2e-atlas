@@ -31,3 +31,7 @@ pub const REFERENCE_NUMERIC_FILTER_SCHEMA_SQL: &str =
     include_str!("../migrations/00000000000004_reference_numeric_filters/up.sql");
 pub const PHYSICAL_BASE_TYPE_SCHEMA_SQL: &str =
     include_str!("../migrations/00000000000005_physical_base_type/up.sql");
+
+/// Complete native target membership and selected numerical checksums.
+pub const NATIVE_TARGETS_SCHEMA_SQL: &str =
+    include_str!("../migrations/00000000000008_native_targets/up.sql");

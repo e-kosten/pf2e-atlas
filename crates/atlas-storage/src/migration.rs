@@ -12,6 +12,12 @@ use std::path::PathBuf;
 /// Change the immutable identifier whenever the executable backfill changes.
 #[derive(Clone, Copy)]
 pub struct DataBackfill {
+    /// Suspend foreign keys before BEGIN for the entire pending migration batch.
+    /// This includes SQL and callbacks that do not request reconstruction themselves.
+    /// Every pending migration must be safe without foreign-key actions: final
+    /// validation detects dangling keys but cannot reproduce skipped cascades.
+    /// Enforcement is restored after the batch transaction closes.
+    pub reconstruct_tables: bool,
     pub id: &'static str,
     pub apply: fn(&Connection) -> StorageResult<()>,
 }
@@ -32,6 +38,9 @@ impl Migration {
         if let Some(backfill) = self.backfill {
             hash.update(b"\0atlas-data-backfill/v1\0");
             hash.update(backfill.id.as_bytes());
+            if backfill.reconstruct_tables {
+                hash.update(b"\0atlas-table-reconstruction/v1\0");
+            }
         }
         format!("{hash:x}", hash = hash.finalize())
     }
@@ -115,25 +124,41 @@ impl Workspace {
             }
         }
         connection.execute_batch("PRAGMA journal_mode=WAL;")?;
-        let transaction = Transaction::new_unchecked(&connection, TransactionBehavior::Immediate)?;
-        if fresh {
-            transaction.execute_batch(HEADER)?;
-            transaction.pragma_update(None, "application_id", APPLICATION_ID)?;
+        let reconstruction = migrations.iter().skip(current as usize).any(|migration| {
+            migration
+                .backfill
+                .is_some_and(|backfill| backfill.reconstruct_tables)
+        });
+        if reconstruction {
+            connection.pragma_update(None, "foreign_keys", false)?;
         }
-        for migration in migrations.iter().skip(current as usize) {
-            transaction.execute_batch(migration.sql)?;
-            if let Some(backfill) = migration.backfill {
-                (backfill.apply)(&transaction)?;
+        let result = (|| -> StorageResult<()> {
+            let transaction =
+                Transaction::new_unchecked(&connection, TransactionBehavior::Immediate)?;
+            if fresh {
+                transaction.execute_batch(HEADER)?;
+                transaction.pragma_update(None, "application_id", APPLICATION_ID)?;
             }
-            transaction.execute(
-                "INSERT INTO schema_migrations(version,name,checksum) VALUES(?,?,?)",
-                rusqlite::params![migration.version, migration.name, migration.checksum()],
-            )?;
+            for migration in migrations.iter().skip(current as usize) {
+                transaction.execute_batch(migration.sql)?;
+                if let Some(backfill) = migration.backfill {
+                    (backfill.apply)(&transaction)?;
+                }
+                transaction.execute(
+                    "INSERT INTO schema_migrations(version,name,checksum) VALUES(?,?,?)",
+                    rusqlite::params![migration.version, migration.name, migration.checksum()],
+                )?;
+            }
+            transaction.pragma_update(None, "user_version", target)?;
+            validate(&transaction)?;
+            validate_foreign_keys(&transaction)?;
+            transaction.commit()?;
+            Ok(())
+        })();
+        if reconstruction {
+            connection.pragma_update(None, "foreign_keys", true)?;
         }
-        transaction.pragma_update(None, "user_version", target)?;
-        validate(&transaction)?;
-        validate_foreign_keys(&transaction)?;
-        transaction.commit()?;
+        result?;
         Ok(())
     }
 

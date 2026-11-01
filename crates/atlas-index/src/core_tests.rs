@@ -42,6 +42,12 @@ pub(super) fn fixture(values: Vec<(&str, &str, Value)>, both: bool) -> IndexBuil
             declared_path: "packs/journals".into(),
         },
     ];
+    input.inventory = CompleteSourceInventory::checked(
+        &input.context.source_fingerprint,
+        input.packs.iter().map(|p| p.pack_id.clone()),
+        input.packs.iter().map(|p| p.pack_id.clone()),
+    )
+    .unwrap();
     input.context.source_file_count = input.records.len();
     if both {
         input
@@ -442,49 +448,25 @@ fn no_core_prose_and_unmodelled_kind_keep_distinct_identity_only_outcomes() {
     }
 }
 
-fn table_values(c: &rusqlite::Connection) -> BTreeMap<String, Vec<Vec<rusqlite::types::Value>>> {
-    let tables=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'core_%' AND name NOT IN ('artifact_context','workspace','schema_migrations') ORDER BY name").unwrap().query_map([],|row|row.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
-    tables
-        .into_iter()
-        .map(|table| {
-            let quoted = format!("\"{}\"", table.replace('"', "\"\""));
-            let columns = c
-                .prepare(&format!("PRAGMA table_info({quoted})"))
-                .unwrap()
-                .query_map([], |row| row.get::<_, String>(1))
-                .unwrap()
-                .collect::<Result<Vec<_>, _>>()
-                .unwrap();
-            let order = (1..=columns.len())
-                .map(|i| i.to_string())
-                .collect::<Vec<_>>()
-                .join(",");
-            let mut statement = c
-                .prepare(&format!("SELECT * FROM {quoted} ORDER BY {order}"))
-                .unwrap();
-            let rows = statement
-                .query_map([], |row| {
-                    (0..columns.len())
-                        .map(|i| row.get(i))
-                        .collect::<Result<Vec<rusqlite::types::Value>, _>>()
-                })
-                .unwrap()
-                .collect::<Result<Vec<_>, _>>()
-                .unwrap();
-            (table, rows)
-        })
-        .collect()
-}
+use crate::test_support::reference_preservation_rows as table_values;
 
 #[test]
 fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generation() {
     use atlas_local_state::{LocalStateWrite, NewSavedList};
     let input = nested_fixture(true);
-    let (_directory, path) = crate::foundation_tests::build(&input);
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("core-upgrade.sqlite");
+    atlas_sqlite_vec::register_sqlite_vec_auto_extension().unwrap();
     let workspace = atlas_storage::Workspace::at(&path).unwrap();
-    let write = workspace
-        .write(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
+    workspace
+        .migrate(&crate::test_support::TEST_MIGRATIONS[..20], |_| Ok(()))
         .unwrap();
+    {
+        let owner = workspace.update_owner().unwrap();
+        let maintenance = owner.maintenance(20, "pre-Core fixture").unwrap();
+        crate::test_support::publish_pre_core_fixture(&maintenance, &input).unwrap();
+    }
+    let write = workspace.write(20).unwrap();
     LocalStateWrite::new(&write)
         .saved_lists()
         .create(NewSavedList {
@@ -497,16 +479,25 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
     let revision = write.reference_revision().unwrap();
     let mut context = input.context.clone();
     context.core_sections_recipe.clear();
-    let json = serde_json::to_string(&context).unwrap();
-    write
-        .connection()
-        .execute(
-            "UPDATE artifact_context SET context_hash=?,context_json=?",
-            rusqlite::params![crate::codec::sha256(json.as_bytes()), json],
-        )
-        .unwrap();
-    write.connection().execute_batch("DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DELETE FROM schema_migrations WHERE version=21; PRAGMA user_version=20;").unwrap();
-    let before = table_values(write.connection());
+    let mut before = table_values(write.connection()).unwrap();
+    assert!(
+        before
+            .remove("encounter_participant_adjustments")
+            .unwrap()
+            .is_empty()
+    );
+    let sequences = before.get_mut("sqlite_sequence").unwrap();
+    assert!(!sequences.iter().any(
+        |row| row[0] == rusqlite::types::Value::Text("encounter_participant_conditions".into())
+    ));
+    sequences.push(vec![
+        rusqlite::types::Value::Text("encounter_participant_conditions".into()),
+        rusqlite::types::Value::Integer(0),
+    ]);
+    sequences.sort_by_key(|row| match &row[0] {
+        rusqlite::types::Value::Text(name) => name.clone(),
+        _ => panic!("SQLite sequence name must remain text"),
+    });
     write.commit().unwrap();
     let upgraded = crate::test_support::initialize_workspace(&path).unwrap();
     let read = upgraded
@@ -529,7 +520,44 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
         .read(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
         .unwrap();
     assert_eq!(read.reference_revision().unwrap(), revision + 1);
-    assert_eq!(table_values(read.connection()), before);
+    let mut after = table_values(read.connection()).unwrap();
+    assert!(
+        after
+            .remove("encounter_participant_baselines")
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        after
+            .remove("encounter_recovery_receipts")
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        after
+            .remove("encounter_manual_trackers")
+            .unwrap()
+            .is_empty()
+    );
+    assert!(after.remove("encounter_turn_receipts").unwrap().is_empty());
+    assert!(after.remove("native_update_targets").unwrap().is_empty());
+    assert!(after.remove("native_target_inputs").unwrap().is_empty());
+    assert!(
+        after
+            .remove("reference_component_digests")
+            .unwrap()
+            .is_empty(),
+        "schema-only upgrades must leave component attestations unknown"
+    );
+    assert!(
+        after == before,
+        "unexpected changed logical tables: {:?}",
+        before
+            .keys()
+            .chain(after.keys())
+            .filter(|key| before.get(*key) != after.get(*key))
+            .collect::<std::collections::BTreeSet<_>>()
+    );
     let context_after = read_stored_reference_context(read.connection())
         .unwrap()
         .unwrap();
@@ -713,7 +741,7 @@ fn metadata_publication_failure_rolls_back_core_and_keeps_the_old_generation() {
     let write = workspace
         .write(crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
         .unwrap();
-    let before = table_values(write.connection());
+    let before = table_values(write.connection()).unwrap();
     let revision = write.reference_revision().unwrap();
     let mut context = input.context.clone();
     context.core_sections_recipe.clear();
@@ -737,7 +765,7 @@ fn metadata_publication_failure_rolls_back_core_and_keeps_the_old_generation() {
     assert!(error.to_string().contains("core publication fault"));
     // Explicit fault inspection is not an ordinary product read while closed.
     let c = rusqlite::Connection::open(&path).unwrap();
-    assert_eq!(table_values(&c), before);
+    assert_eq!(table_values(&c).unwrap(), before);
     assert_eq!(
         c.query_row("SELECT reference_revision FROM workspace", [], |row| row
             .get::<_, u64>(0))
@@ -807,7 +835,19 @@ fn lexical_backfill_refreshes_current_core_atomically_without_rewriting_other_da
         "INSERT INTO verified_aliases(record_id,alias,alias_lookup_key,evidence_json) SELECT record_id,'Snow Keeper','snow keeper','\"source redirect\"' FROM records WHERE key=?",
         [input.records[0].record.key().to_string()],
     ).unwrap();
-    let before = table_values(write.connection());
+    let before = table_values(write.connection()).unwrap();
+    let prior_digests = write
+        .connection()
+        .prepare(
+            "SELECT record_id,digests_json FROM reference_component_digests ORDER BY record_id",
+        )
+        .unwrap()
+        .query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })
+        .unwrap()
+        .collect::<Result<BTreeMap<_, _>, _>>()
+        .unwrap();
     let core_values = |c: &rusqlite::Connection| {
         [
             "core_roots",
@@ -843,7 +883,7 @@ fn lexical_backfill_refreshes_current_core_atomically_without_rewriting_other_da
     assert!(error.to_string().contains("core publication fault"));
     // The Core refresh is part of the lexical publication, not a later repair.
     let c = rusqlite::Connection::open(&path).unwrap();
-    assert_eq!(table_values(&c), before);
+    assert_eq!(table_values(&c).unwrap(), before);
     assert_eq!(core_values(&c), core_before);
     assert_eq!(read_stored_reference_context(&c).unwrap().unwrap(), context);
     assert_eq!(
@@ -866,15 +906,76 @@ fn lexical_backfill_refreshes_current_core_atomically_without_rewriting_other_da
         [], |row| row.get(0),
     ).unwrap();
     assert_eq!(alias_members, 1);
+    let after_values = table_values(read.connection()).unwrap();
+    let new_digests = read
+        .connection()
+        .prepare(
+            "SELECT record_id,digests_json FROM reference_component_digests ORDER BY record_id",
+        )
+        .unwrap()
+        .query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })
+        .unwrap()
+        .collect::<Result<BTreeMap<_, _>, _>>()
+        .unwrap();
+    assert_eq!(
+        prior_digests.keys().collect::<Vec<_>>(),
+        new_digests.keys().collect::<Vec<_>>()
+    );
+    let alias_root: i64 = read
+        .connection()
+        .query_row(
+            "SELECT record_id FROM records WHERE key=?",
+            [input.records[0].record.key().to_string()],
+            |r| r.get(0),
+        )
+        .unwrap();
+    for (id, prior) in &prior_digests {
+        let prior: serde_json::Value = serde_json::from_str(prior).unwrap();
+        let updated: serde_json::Value = serde_json::from_str(&new_digests[id]).unwrap();
+        for component in [
+            "snapshot",
+            "query",
+            "content",
+            "relationships",
+            "sections",
+            "trait_associations",
+            "core",
+        ] {
+            assert_eq!(
+                updated[component], prior[component],
+                "unrelated {component} digest changed for root {id}"
+            );
+        }
+        if *id == alias_root {
+            assert_ne!(updated["lexical"], prior["lexical"]);
+        } else {
+            assert_eq!(updated["lexical"], prior["lexical"]);
+        }
+    }
+    let active = read_stored_reference_context(read.connection())
+        .unwrap()
+        .unwrap();
+    crate::component_digests::validate_present(read.connection(), &active).unwrap();
     let nonlexical = |values: BTreeMap<String, Vec<Vec<rusqlite::types::Value>>>| {
         values
             .into_iter()
-            .filter(|(table, _)| !table.starts_with("lexical_"))
+            .filter(|(table, _)| {
+                !table.starts_with("lexical_") && table != "reference_component_digests"
+            })
             .collect::<BTreeMap<_, _>>()
     };
-    assert_eq!(
-        nonlexical(table_values(read.connection())),
-        nonlexical(before)
+    let after_values = nonlexical(after_values);
+    let before_values = nonlexical(before);
+    assert!(
+        after_values == before_values,
+        "unexpected changed nonlexical tables: {:?}",
+        before_values
+            .keys()
+            .chain(after_values.keys())
+            .filter(|key| before_values.get(*key) != after_values.get(*key))
+            .collect::<std::collections::BTreeSet<_>>()
     );
     assert_eq!(
         read_stored_reference_context(read.connection())

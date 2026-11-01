@@ -83,6 +83,14 @@ developer original-file inspection remains a separate hash-verified operation.
 
 ## Build and preparation
 
+Product preparation requires complete discovery of every declared pack before
+loading tokenizers or running inference. Missing or unreadable declared packs
+reject the update; readable empty packs remain valid. Developer source diagnosis
+continues to report unavailable packs without requiring publication admission.
+Typed partial records and quarantined roots keep their existing admission policy.
+A nonempty discovered inventory with no addressable records rejects publication;
+zero roots are publishable only when complete discovery found no input files.
+
 Ingest first establishes source/reference identity, then supplies explicit locale,
 audience and resolver context to record-owned preparation and relationship policies.
 The record itself remains a key and DTO. Content outcomes and resolved relationship
@@ -91,11 +99,73 @@ failures and detailed reports remain ingest/developer concerns.
 
 `BuildArtifactOptions` composes source paths, locale, selected profile configurations,
 batching/reuse and output paths. An empty profile collection builds lexical content.
-The build prepares shared source content once, then checks native inputs and runs
-inference/reuse sequentially per selected profile. It produces index-owned inputs: checked
-records, named typed projections, selected content, verified identity evidence and
-attributed lexical/semantic units. The index writer owns physical encoding and
-publication. A failed publication rolls back reference changes and preserves saved state.
+The product path captures and hashes every consumed source byte, builds a compact
+complete reference resolver, and prepares checked roots through bounded batches. Raw envelope
+collision evidence from excluded roots remains in that resolver; unreadable JSON
+never supplies guessed identity. Traits use the same complete resolver.
+
+Shared selection runs once per prepared root. Disposable typed files stage checked
+snapshot bytes, prepared content, relationships, lexical evidence and semantic
+occurrence attribution. Their sealed identities bind workspace/revision, source,
+full context, inventory, counts and checksums. Framing checks trusted observed
+record bounds before allocation and bounds decompression. Only sealed, current
+streams can authorize publication or removals. Index owns the codec and the single
+streaming writer; frames carry neutral metadata rather than SQL or internal IDs.
+Developer source inspection keeps its separate rich diagnostic loading lifetime.
+Developer diagnostics report observed selection/reuse calls, frame counts and
+maximum encoded/decoded frame byte sizes. Production admission reads retained
+records in batches of at most 32 source files; semantic preparation reads layouts
+in batches of at most 32 active prepared records after collision and alias
+filtering. The public owned reuse API caps requests at 128 and rejects oversized
+batches before compatibility checks or I/O; empty and no-output requests open no
+session. Repeated keys retain request order and independent output flags.
+Each batch authenticates the actual workspace, reference revision and complete
+context in one snapshot, returns checked owned values, then closes the session
+before source processing, tokenization or inference. Record-only reads do not
+inspect layouts; layout-only reads do not decode retained source bodies.
+Diagnostics count source and layout requests/batches, aggregate live source-buffer
+bytes and simultaneously owned raw/retained or prepared/layout payloads at each
+phase's batch boundary. These separate phase observations exclude compact sets
+and one record's processing temporaries; individual maximum frame sizes are not
+added into a claimed live-byte total. The structural batch bounds are not an
+observed process peak. Publication's comparison may simultaneously hold a new frame and its prior retained record; native
+execution and final process RSS are measured separately.
+
+Compact collections still grow with corpus size: captured path/hash manifests,
+resolver destinations/names and collision facts, stable identity/live sets, prior
+component digests, retained section/unit IDs, checked publication keys/names/product
+facts, and validation trait evidence/offset maps. Rich DTO/HTML/selection and
+occurrence payloads reside in disposable streams.
+Native raw inputs, profile descriptors and occurrence metadata remain in sealed
+file streams. These compact sets and native model memory are measured separately
+from the bounded Rust preparation and numerical buffers.
+
+Every requested profile validates address-free inputs with its own tokenizer in
+bounded windows before inference begins. The complete sealed profile membership,
+including profiles with no inputs, is registered before checkpoint pruning. Native
+execution visits one profile and bounded input batch at a time; its session loads
+only for actual misses. Checkpoint writes finish before another inference batch.
+No workspace SQL snapshot or writer is retained during inference. Full input
+validation retains only key, optional name and product classification for identity
+consumers; payload consumers continue to decode bounded full frames. Publication
+independently validates every current component inside its exact transaction,
+including a bounded second source decode and selection pass. A failed publication
+rolls back reference changes and preserves saved state.
+
+Record-owned selection also supplies canonical whole-section addresses. Index
+stores each selected section once, with lexical evidence and shared semantic
+chunk locations referencing it. Similar, Core, source navigation and neighbor
+hydration read those relations without reconstructing section identity from JSON
+or combining active vector ranges. Trait seeds and non-section identity units
+retain their explicit representations.
+
+A compatible section-storage upgrade uses retained checked snapshots and prepared
+content without source acquisition, tokenizers or inference. The independent
+projection marker activates through validated metadata publication. Retired
+preparation or the known predecessor source contract is classified before source
+or normalized-location decoding: product reads remain blocked, while saved-state
+upgrades and exact numerical reuse remain possible. Explicit source-backed setup
+replaces unavailable passage metadata and then validates the complete publication.
 
 The aggregate source fingerprint hashes the ordered actual relevant inputs,
 including manifest/pack definitions and excluded records. A Git revision alone
@@ -123,20 +193,45 @@ passages. Undeclared files, such as SF2e overrides in a PF2e checkout, are not
 merged. The existing selected-locale file override remains separate; this does
 not add translation-module ingestion or multilingual product support.
 
-Ingest prepares current literal inputs with the pinned tokenizers. Lookup first
-resolves compatible unfinished computations, then published native values, in
-batched SQL scans. Profile-native preparation produces one immutable checked batch
-in `atlas-embedding`; reuse and generation consume its exact counts and execution
-identities without repeating full-batch token validation. An inference session
-loads only for actual misses; disabling reuse still forces fresh computation.
+Ingest prepares current literal inputs with the pinned tokenizers. Index resolves
+exact native inputs in bounded windows and pins each selected checksum. Pending
+values take precedence over published values. Already-selected membership avoids
+repeated inference across batches, including forced recomputation; repeated inputs
+inside a batch are deduplicated before selection. Missing inference inputs undergo
+the ordinary native guard again in their bounded batch. Disabling embedding reuse
+still forces one new computation per unique requested identity; passage-layout
+reuse remains independent.
 
-Each inferred batch commits a pending value and its own checksum after computation,
-with no SQL writer held during inference. A forced recomputation may differ from
-the current published value for the same input; pending writes never change the
-published checksum. Final atomic publication activates complete coverage, validates
-all physical occurrences and trait centroids, then clears pending values and
-unreferenced metadata. A failed attempt preserves both the old publication and
-completed computations for retry. Successful builds retain no second native corpus.
+One update owner registers at most one candidate alongside the prior active target.
+A complete second traversal verifies descriptor counts, distinct membership and the
+full model/hash/token digest before atomic promotion. Incomplete registration
+cannot prune pending bytes or replace active retry work. Retired candidate/target
+metadata is removed in bounded transactions. Pre-registration metadata collection
+protects every pending value, published consumer and live membership. Only complete
+promotion permits pruning unrequested pending blobs, including blobs for inputs
+that still have published occurrences; their published bytes remain untouched.
+Matching computations survive target changes and later-profile failures. Historical
+unknown-membership checkpoints remain protected until the first complete promotion.
+
+Each inferred batch commits a pending value and its own checksum after computation.
+A forced result may differ from the publication; staging never updates its published
+checksum. Before final maintenance, index copies every selected native value into
+one disposable file with a bounded page cache. Its seal binds workspace key,
+reference revision, complete context/membership and exact selected checksums.
+Lengths are checked before payload allocation; reads verify native counts,
+dimensions, normalization and checksums. This file outlives every document/trait
+consumer and final validation, so slot overwrite, occurrence removal or profile-table
+replacement cannot destroy a later consumer's source. The existing single writer
+reads one native value at a time. Trait centroids preserve authored chunk order and
+repeated weights using an f64 accumulator.
+
+Source/catalog freshness is checked after freezing and immediately before exclusive
+maintenance. One atomic activation validates the exact final artifact, clears
+pending values and retires its target. Failure during temporary staging or activation
+preserves the previous publication and retry work. Startup and ordinary reads do no
+cleanup or inference. Diagnostics distinguish logical durable pending bytes,
+temporary bound native-value bytes, temporary file allocation and observed execution
+buffer peaks; these are separate from native model memory and process RSS.
 
 Passage addresses are shared across profiles without merging occurrence identity
 or model-specific native token counts. Publication updates compatible vector slots
@@ -156,10 +251,29 @@ does not reserve space. Startup never vacuums. A failed physical reclamation ret
 complete reference data and uses validated maintenance recovery, without requiring
 inference again.
 
-Unchanged admitted sources reuse checked DTOs and prepared content when the source
-and preparation identities agree. References are resolved again against the current
-identity catalog, including previously unresolved targets, so dependency changes
-can invalidate a dependent record without changing its own source bytes.
+Unchanged admitted sources reuse checked DTOs and prepared content through bounded
+revision-bound reads when source and complete preparation identities agree.
+References are checked against the current compact resolver, including previously
+unresolved targets, so dependent projections can change without their own source
+bytes changing. Retired preparation/source contracts are classified before any
+cached DTO decoding. Present snapshot/provenance, cache and stored-reference
+attestations are checked before retained payloads enter reuse or metadata
+maintenance. These stable checks use stored preparation identity and remain
+independent of current query, lexical and Core policy upgrades. Codec-valid
+altered payloads cannot be accepted as new input and restamped. Private readers for
+migrations 20 and 27 preserve their historical callbacks. The pre-component reader
+rejects schema 28 onward and any present attestation storage; current readers never
+fall back when that storage is missing.
+
+Closed per-root component digests distinguish snapshot/provenance, query rows,
+content caches, relationships, canonical sections, lexical evidence, trait
+associations and logical Core selection. Missing digests require bounded comparison
+with actual retained output under the prior compatible policies; components with
+incompatible policies reconcile explicitly. Present digests are independently reconstructed and checked against
+the fully validated actual publication. Concrete Core bindings reconcile after
+lexical/location allocation; numerical checksums remain independent of metadata
+hash equality. Unchanged trait definitions retain their seeds. Global trait source
+revision provenance remains an output dependency even for unchanged root bytes.
 
 Passage preparation can reuse already-published source byte ranges from one
 profile with matching passage policy, shared segmentation tokenizer and input

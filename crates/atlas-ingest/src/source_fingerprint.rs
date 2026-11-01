@@ -60,7 +60,13 @@ impl SourceCapture {
             let present = path.is_dir();
             packs.insert(pack.path.clone(), (path.clone(), present));
             if present {
-                collect_files(&path, &mut files)?;
+                collect_files(&path, &mut files).map_err(|error| {
+                    IngestError::SourceUnavailable(format!(
+                        "declared pack {} at {} could not be read: {error}",
+                        pack.name,
+                        path.display()
+                    ))
+                })?;
             }
         }
         for directory in ["static/lang", "src/module/migration/migrations"] {
@@ -122,6 +128,17 @@ impl SourceCapture {
             packs,
             failed: false.into(),
         })
+    }
+    pub(crate) fn require_complete_packs(&self) -> Result<(), IngestError> {
+        for (declared, (path, present)) in &self.packs {
+            if !present {
+                return Err(IngestError::SourceUnavailable(format!(
+                    "declared pack {declared} is missing or unreadable at {}; restore the pack or remove its declaration before rebuilding",
+                    path.display()
+                )));
+            }
+        }
+        Ok(())
     }
     pub(crate) fn read(&self, path: &Path) -> Result<Vec<u8>, IngestError> {
         let result = fs::read(path)

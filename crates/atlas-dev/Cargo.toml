@@ -30,6 +30,13 @@ ureq.workspace = true
 signal-hook = "0.3.18"
 
 [dev-dependencies]
+atlas-storage = { workspace = true, features = ["diagnostics"] }
+atlas-app-service.workspace = true
+atlas-runtime = { workspace = true, features = ["test-support"] }
 atlas-index = { workspace = true, features = ["test-support"] }
 atlas-record.workspace = true
 atlas-embedding.workspace = true
+
+[[example]]
+name = "ingest_experiment"
+test = true

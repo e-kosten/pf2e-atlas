@@ -188,15 +188,11 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
     let saved_participants = participant_rows(write.connection());
     let model = &input.context.search_profiles[0];
     let unit = &input.semantic_units[0];
-    let checkpoint = atlas_embedding::PreparedEmbeddingInput {
-        address: unit.address.clone(),
+    let checkpoint = atlas_embedding::PreparedNativeInput {
         input: String::new(),
         input_sha256: unit.input_hash.clone(),
         reuse_key: "backfill-preservation".into(),
         token_count: unit.input_token_count,
-        body_token_count: unit.input_token_count,
-        overlap_token_count: 0,
-        context_shortened: false,
     };
     let job = atlas_index::start_reference_job(&write, "next-preparation").unwrap();
     if initial_schema == 2 {
@@ -209,8 +205,14 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
         )
         .unwrap();
     } else {
-        atlas_index::stage_embedding_values(&write, &job, model, &[(&checkpoint, &unit.vector)])
-            .unwrap();
+        atlas_index::test_support::stage_pending_native_fixture(
+            &write,
+            &job,
+            model,
+            &checkpoint.descriptor(),
+            &unit.vector,
+        )
+        .unwrap();
     }
     // Inspect stored vector bytes, not a retrieval score that could hide replacement.
     let vector_table: String = write.connection().query_row(
@@ -407,10 +409,11 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
                 assert_eq!(aliases, 1);
             }
         }
-        let checkpoints =
-            atlas_index::read_reusable_embeddings(&read, model, std::slice::from_ref(&checkpoint))
+        let checkpoint =
+            atlas_index::test_support::native_fixture_value(&read, model, &checkpoint.descriptor())
+                .unwrap()
                 .unwrap();
-        assert_eq!(checkpoints[&checkpoint.reuse_key], unit.vector);
+        assert_eq!(checkpoint, unit.vector);
     }
     assert!(!paths.source_root.exists());
     {
@@ -500,7 +503,7 @@ fn forced_setup_resplits_passages_without_disabling_vector_reuse() {
         .statistics()
         .unwrap();
     let c = rusqlite::Connection::open(&paths.index_path).unwrap();
-    c.execute("UPDATE semantic_locations SET location_hash=zeroblob(32) WHERE location_id=(SELECT min(location_id) FROM semantic_units WHERE unit_kind='passage')", []).unwrap();
+    c.execute("UPDATE semantic_locations SET section_id=NULL,chunk_ordinal=NULL,chunk_start=NULL,chunk_end=NULL WHERE location_id=(SELECT min(location_id) FROM semantic_units WHERE unit_kind='passage')", []).unwrap();
     let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
     let read = workspace.read(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
     assert!(atlas_index::read_reusable_passage_layouts(&read).is_err());

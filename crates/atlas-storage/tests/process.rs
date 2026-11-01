@@ -41,6 +41,22 @@ fn process_worker() {
                 .unwrap();
             write.commit().unwrap();
         }
+        "interrupt-reconstruction" => {
+            let migration = Migration {
+                version: 2,
+                name: "interrupted-reconstruction",
+                sql: "",
+                backfill: Some(DataBackfill {
+                    id: "interrupted-reconstruction/v1",
+                    reconstruct_tables: true,
+                    apply: |connection| {
+                        connection.execute_batch("CREATE TABLE saved_rebuilt(id INTEGER PRIMARY KEY,title TEXT NOT NULL) STRICT; INSERT INTO saved_rebuilt SELECT * FROM saved; DROP TABLE saved;")?;
+                        std::process::exit(72);
+                    },
+                }),
+            };
+            workspace.migrate(&[FIRST, migration], |_| Ok(())).unwrap();
+        }
         "interrupt" => {
             let owner = workspace.update_owner().unwrap();
             let maintenance = owner.maintenance(1, "interrupted source update").unwrap();
@@ -228,4 +244,40 @@ fn mapping_worker(workspace: &Workspace) {
             .unwrap(),
         7
     );
+}
+
+#[test]
+fn abrupt_reconstruction_exit_restores_previous_schema_data_and_enforcement() {
+    let (_directory, workspace) = fixture();
+    assert_eq!(
+        worker(&workspace, "interrupt-reconstruction").status.code(),
+        Some(72)
+    );
+    workspace.migrate(&[FIRST], |_| Ok(())).unwrap();
+    let read = workspace.read(1).unwrap();
+    assert_eq!(
+        read.connection()
+            .query_row("SELECT title FROM saved WHERE id=1", [], |row| row
+                .get::<_, String>(0))
+            .unwrap(),
+        "retained"
+    );
+    assert_eq!(
+        read.connection()
+            .query_row("SELECT count(*) FROM schema_migrations", [], |row| row
+                .get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+    assert!(
+        read.connection()
+            .prepare("SELECT * FROM saved_rebuilt")
+            .is_err()
+    );
+    assert!(
+        read.connection()
+            .query_row("PRAGMA foreign_keys", [], |row| row.get::<_, bool>(0))
+            .unwrap()
+    );
+    assert!(workspace.upgrade_backup_path().exists());
 }

@@ -16,6 +16,7 @@ pub struct BuildArtifactOptions {
 }
 #[derive(Debug)]
 pub struct BuildArtifactReport {
+    pub admission: atlas_index::SourceAdmissionSummary,
     pub profiles: Vec<ProfileBuildReport>,
     pub output_path: PathBuf,
     pub pack_count: usize,

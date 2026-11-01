@@ -248,7 +248,7 @@ fn full_segmentation_digest_changes_generation_and_invalidates_each_affected_pro
     }
 }
 
-fn move_fixture_vectors(
+pub(super) fn move_fixture_vectors(
     connection: &rusqlite::Connection,
     old: &SourceSearchProfileIdentity,
     new: &SourceSearchProfileIdentity,
@@ -272,7 +272,79 @@ fn move_fixture_vectors(
 
 #[test]
 fn adding_and_removing_profile_preserves_existing_vector_rows() {
-    let single = fixture(true);
+    let profile_fixture = |dual: bool| {
+        let mut input = crate::foundation_tests::fixture_with_description(
+            true,
+            "<h2>Flame</h2><p>@UUID[Compendium.pf2e.actors.Actor.aaaaaaaaaaaaaaaa] @Localize[PF2E.TraitDescriptionDragon] Dragon breath.</p>",
+        );
+        if dual {
+            input
+                .context
+                .search_profiles
+                .push(SourceSearchProfileIdentity::from_spec(
+                    atlas_embedding::SEARCH_PROFILES[1],
+                ));
+            let alternate = input.records[1].record.key();
+            let mut units = input.semantic_units.clone();
+            for unit in &mut units {
+                unit.profile_id = SearchProfileId::new("embeddinggemma");
+                unit.vector.fill(0.0);
+                unit.vector[if &unit.record == alternate { 0 } else { 2 }] = 1.0;
+            }
+            input.semantic_units.extend(units);
+        }
+        let key = atlas_domain::TraitKey::new("dragon").unwrap();
+        input.traits.push(TraitDefinition {
+            key: key.clone(),
+            label: "Dragon".into(),
+            label_key: None,
+            description_key: None,
+            description_html: None,
+            authored_markup: None,
+            prepared: None,
+            catalogs: vec!["creatureTraits".into()],
+            source_locations: vec![],
+            source_revision: input.context.source_revision.clone(),
+            indexing_locale: input.context.indexing_locale.clone(),
+        });
+        let text = "Dragon\n";
+        let hash = crate::codec::sha256(text.as_bytes());
+        for model in &input.context.search_profiles {
+            let vector = input
+                .semantic_units
+                .iter()
+                .find(|unit| unit.profile_id == model.profile_id)
+                .unwrap()
+                .vector
+                .clone();
+            input.trait_vectors.push(TraitVectorInput {
+                key: key.clone(),
+                profile_id: model.profile_id.clone(),
+                input_hash: crate::codec::sha256(
+                    format!("trait-definition-centroid/v1:{hash}").as_bytes(),
+                ),
+                vector: vector.clone(),
+                chunks: vec![TraitSeedChunk {
+                    input: text.into(),
+                    input_hash: hash.clone(),
+                    token_count: 2,
+                    address: atlas_domain::SourcePassageAddress::PlainSection {
+                        source_text_sha256: hash.clone(),
+                        selection_version: "trait-definition-centroid/v1".into(),
+                        section_ordinal: 0,
+                        label: Some("Dragon".into()),
+                        chunk_bytes: atlas_domain::SourceByteRange {
+                            start: 0,
+                            end: text.len(),
+                        },
+                    },
+                    vector,
+                }],
+            });
+        }
+        input
+    };
+    let single = profile_fixture(false);
     let (_directory, path) = build(&single);
     let table = crate::schema::vector_table(&single.context.search_profiles[0]).unwrap();
     let snapshot = |c: &rusqlite::Connection| {
@@ -287,17 +359,65 @@ fn adding_and_removing_profile_preserves_existing_vector_rows() {
         .collect::<Result<Vec<_>, _>>()
         .unwrap()
     };
-    let before = snapshot(&rusqlite::Connection::open(&path).unwrap());
-    let dual = both();
+    let c = rusqlite::Connection::open(&path).unwrap();
+    let before = snapshot(&c);
+    let protected = [
+        "records",
+        "record_traits",
+        "actor_projection",
+        "physical_projection",
+        "weapon_projection",
+        "spell_projection",
+        "spell_traditions",
+        "query_field_catalog",
+        "projection_allocations",
+        "record_bodies",
+        "prepared_content",
+        "relationship_occurrences",
+        "selected_sections",
+        "lexical_units",
+        "trait_definitions",
+        "trait_memberships",
+        "trait_references",
+        "reference_component_digests",
+    ];
+    c.execute_batch(
+        "CREATE TABLE profile_unrelated_write_audit(component TEXT NOT NULL,event TEXT NOT NULL)",
+    )
+    .unwrap();
+    for table in protected {
+        let count: usize = c
+            .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert!(
+            count > 0,
+            "protected component {table} must be populated before write auditing"
+        );
+        for event in ["INSERT", "UPDATE", "DELETE"] {
+            c.execute_batch(&format!("CREATE TRIGGER profile_audit_{table}_{event} AFTER {event} ON {table} BEGIN INSERT INTO profile_unrelated_write_audit VALUES('{table}','{event}'); END;")).unwrap();
+        }
+    }
+    let assert_untouched = |c: &rusqlite::Connection, phase: &str| {
+        let writes = c.prepare("SELECT component,event,count(*) FROM profile_unrelated_write_audit GROUP BY component,event ORDER BY component,event").unwrap().query_map([], |row| Ok((row.get::<_,String>(0)?,row.get::<_,String>(1)?,row.get::<_,usize>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+        assert!(
+            writes.is_empty(),
+            "{phase} rewrote unrelated components: {writes:?}"
+        );
+    };
+    drop(c);
+    let dual = profile_fixture(true);
     crate::test_support::publish_input(&path, &dual).unwrap();
-    assert_eq!(
-        snapshot(&rusqlite::Connection::open(&path).unwrap()),
-        before
-    );
+    let c = rusqlite::Connection::open(&path).unwrap();
+    assert_eq!(snapshot(&c), before);
+    assert_untouched(&c, "adding a profile");
+    drop(c);
     let removed_table = crate::schema::vector_table(&dual.context.search_profiles[1]).unwrap();
     crate::test_support::publish_input(&path, &single).unwrap();
     let c = rusqlite::Connection::open(&path).unwrap();
     assert_eq!(snapshot(&c), before);
+    assert_untouched(&c, "removing a profile");
     let exists: bool = c
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name=?)",

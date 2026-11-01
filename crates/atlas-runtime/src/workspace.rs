@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 24;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 29;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -63,6 +63,7 @@ const MIGRATIONS: &[Migration] = &[
         name: "embedding-storage",
         sql: atlas_index::EMBEDDING_STORAGE_SCHEMA_SQL,
         backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
             id: "native-embedding-storage/v1",
             apply: atlas_index::backfill_embedding_storage,
         }),
@@ -126,6 +127,7 @@ const MIGRATIONS: &[Migration] = &[
         name: "similarity-parts",
         sql: atlas_index::SIMILARITY_SCHEMA_SQL,
         backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
             id: "typed-content-correspondence/v1",
             apply: atlas_index::backfill_similarity_parts,
         }),
@@ -153,9 +155,48 @@ const MIGRATIONS: &[Migration] = &[
         name: "encounter-round-duration",
         sql: atlas_local_state::ENCOUNTER_CLOCK_SCHEMA_SQL,
         backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
             id: "encounter-clock-seconds/v1",
             apply: atlas_local_state::backfill_encounter_clock,
         }),
+    },
+    Migration {
+        version: 25,
+        name: "saved-state-integrity",
+        sql: "",
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: true,
+            id: "saved-state-integrity/v1",
+            apply: atlas_local_state::backfill_saved_state_integrity,
+        }),
+    },
+    Migration {
+        version: 26,
+        name: "turn-receipts",
+        sql: atlas_local_state::TURN_RECEIPTS_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 27,
+        name: "canonical-selected-sections",
+        sql: atlas_index::SELECTED_SECTIONS_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: true,
+            id: "canonical-selected-sections/v1",
+            apply: atlas_index::backfill_selected_sections,
+        }),
+    },
+    Migration {
+        version: 28,
+        name: "reference-component-reconciliation",
+        sql: atlas_index::COMPONENT_DIGEST_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 29,
+        name: "native-update-targets",
+        sql: atlas_index::NATIVE_TARGETS_SCHEMA_SQL,
+        backfill: None,
     },
 ];
 
@@ -165,6 +206,17 @@ pub fn initialize_workspace(path: impl AsRef<Path>) -> StorageResult<Workspace> 
     register_extensions()?;
     let workspace = Workspace::at(path)?;
     workspace.migrate(MIGRATIONS, |_| Ok(()))?;
+    Ok(workspace)
+}
+
+/// Fixed immutable prefix for the opt-in historical numerical-storage probe.
+#[cfg(any(test, feature = "test-support"))]
+pub(crate) fn initialize_historical_embedding_storage_probe(
+    path: impl AsRef<Path>,
+) -> StorageResult<Workspace> {
+    register_extensions()?;
+    let workspace = Workspace::at(path)?;
+    workspace.migrate(&MIGRATIONS[..10], |_| Ok(()))?;
     Ok(workspace)
 }
 
@@ -184,6 +236,22 @@ pub(crate) fn register_extensions() -> StorageResult<()> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
         .map_err(|e| atlas_storage::StorageError::Unsupported(e.to_string()))
 }
+
+#[cfg(test)]
+#[path = "clock_integrity_tests.rs"]
+mod clock_integrity_tests;
+
+#[cfg(test)]
+#[path = "turn_receipts_tests.rs"]
+mod turn_receipts_tests;
+
+#[cfg(test)]
+#[path = "saved_state_integrity_tests.rs"]
+mod saved_state_integrity_tests;
+
+#[cfg(test)]
+#[path = "native_targets_tests.rs"]
+mod native_targets_tests;
 
 #[cfg(test)]
 mod tests {
@@ -299,6 +367,41 @@ mod tests {
                 ))
                 .unwrap(),
             0
+        );
+    }
+
+    #[test]
+    fn historical_embedding_storage_probe_uses_only_the_published_ten_prefix() {
+        let directory = tempfile::tempdir().unwrap();
+        let workspace = super::initialize_historical_embedding_storage_probe(
+            directory.path().join("historical.sqlite"),
+        )
+        .unwrap();
+        let read = workspace.read(10).unwrap();
+        assert_eq!(
+            read.connection()
+                .query_row("SELECT max(version) FROM schema_migrations", [], |r| r
+                    .get::<_, u32>(0))
+                .unwrap(),
+            10
+        );
+        assert!(
+            read.connection()
+                .prepare("SELECT location_hash FROM semantic_locations")
+                .is_ok()
+        );
+        assert!(
+            read.connection()
+                .prepare("SELECT * FROM selected_sections")
+                .is_err()
+        );
+        assert!(
+            !read
+                .connection()
+                .prepare("PRAGMA foreign_key_check")
+                .unwrap()
+                .exists([])
+                .unwrap()
         );
     }
 
@@ -537,10 +640,11 @@ mod tests {
     #[test]
     fn similarity_metadata_upgrade_from_published_nineteen_preserves_saved_state_and_exact_vectors()
     {
-        use atlas_index::IndexArtifactWriter;
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("similarity-upgrade.sqlite");
-        let workspace = initialize_workspace(&path).unwrap();
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace.migrate(&MIGRATIONS[..19], |_| Ok(())).unwrap();
         let input = atlas_search::test_support::input_with_both_profiles(vec![
             atlas_search::test_support::record(
                 "hazards",
@@ -551,13 +655,11 @@ mod tests {
         {
             let owner = workspace.update_owner().unwrap();
             let maintenance = owner
-                .maintenance(WORKSPACE_SCHEMA_VERSION, "similarity migration fixture")
+                .maintenance(19, "similarity migration fixture")
                 .unwrap();
-            atlas_index::SqliteIndexWriter::new(&maintenance)
-                .write(&input)
-                .unwrap();
+            atlas_index::test_support::publish_pre_core_fixture(&maintenance, &input).unwrap();
         }
-        let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let write = workspace.write(19).unwrap();
         LocalStateWrite::new(&write)
             .saved_lists()
             .create(NewSavedList {
@@ -638,25 +740,6 @@ mod tests {
                 |row| row.get::<_, i64>(0),
             )
             .unwrap();
-        // Model published main's numeric/base-type schema before adding Similar.
-        let mut historical_context = input.context.clone();
-        historical_context.core_sections_recipe.clear();
-        write
-            .connection()
-            .execute(
-                "UPDATE artifact_context SET context_hash=?,context_json=?",
-                rusqlite::params![
-                    historical_context.sha256().unwrap(),
-                    serde_json::to_string(&historical_context).unwrap()
-                ],
-            )
-            .unwrap();
-        write
-            .connection()
-            .execute_batch(
-                "DROP TABLE encounter_manual_trackers; ALTER TABLE encounters DROP COLUMN round_duration_seconds; ALTER TABLE encounter_participant_conditions DROP COLUMN duration_remaining_seconds; DROP TABLE encounter_recovery_receipts; DROP TABLE encounter_participant_baselines; DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DROP TABLE similarity_parts; DELETE FROM schema_migrations WHERE version>=20; PRAGMA user_version=19;",
-            )
-            .unwrap();
         let main_ledger = |connection: &rusqlite::Connection| {
             connection
                 .prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=19 ORDER BY version")
@@ -689,7 +772,7 @@ mod tests {
         );
         let roles = read
             .connection()
-            .prepare("SELECT role FROM similarity_parts ORDER BY role")
+            .prepare("SELECT role FROM selected_sections ORDER BY role")
             .unwrap()
             .query_map([], |row| row.get::<_, String>(0))
             .unwrap()
@@ -723,10 +806,11 @@ mod tests {
 
     #[test]
     fn runtime_automatically_upgrades_core_without_source_models_or_changed_reference_values() {
-        use atlas_index::IndexArtifactWriter;
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("core-runtime.sqlite");
-        let workspace = initialize_workspace(&path).unwrap();
+        register_extensions().unwrap();
+        let workspace = Workspace::at(&path).unwrap();
+        workspace.migrate(&MIGRATIONS[..20], |_| Ok(())).unwrap();
         let input = atlas_search::test_support::input_with_both_profiles(vec![
             atlas_search::test_support::record(
                 "actors",
@@ -736,14 +820,10 @@ mod tests {
         ]);
         {
             let owner = workspace.update_owner().unwrap();
-            let maintenance = owner
-                .maintenance(WORKSPACE_SCHEMA_VERSION, "runtime Core fixture")
-                .unwrap();
-            atlas_index::SqliteIndexWriter::new(&maintenance)
-                .write(&input)
-                .unwrap();
+            let maintenance = owner.maintenance(20, "runtime Core fixture").unwrap();
+            atlas_index::test_support::publish_pre_core_fixture(&maintenance, &input).unwrap();
         }
-        let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let write = workspace.write(20).unwrap();
         LocalStateWrite::new(&write)
             .saved_lists()
             .create(NewSavedList {
@@ -755,42 +835,49 @@ mod tests {
             .unwrap();
         let revision = write.reference_revision().unwrap();
         let stable_values = |c: &rusqlite::Connection| {
-            let tables=c.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'core_%' AND name NOT IN ('artifact_context','workspace','schema_migrations') ORDER BY name").unwrap().query_map([],|row|row.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
-            tables
-                .into_iter()
-                .map(|table| {
-                    let quoted = format!("\"{}\"", table.replace('"', "\"\""));
-                    let mut statement = c.prepare(&format!("SELECT * FROM {quoted}")).unwrap();
-                    let count = statement.column_count();
-                    let mut rows = statement
-                        .query_map([], |row| {
-                            (0..count)
-                                .map(|column| row.get::<_, rusqlite::types::Value>(column))
-                                .collect::<Result<Vec<_>, _>>()
-                        })
-                        .unwrap()
-                        .collect::<Result<Vec<_>, _>>()
-                        .unwrap();
-                    rows.sort_by_key(|row| format!("{row:?}"));
-                    (table, rows)
-                })
-                .collect::<Vec<_>>()
+            let mut values = atlas_index::test_support::reference_preservation_rows(c).unwrap();
+            for table in [
+                "encounter_participant_adjustments",
+                "encounter_manual_trackers",
+                "encounter_participant_baselines",
+                "encounter_recovery_receipts",
+                "encounter_turn_receipts",
+                "reference_component_digests",
+                "native_update_targets",
+                "native_target_inputs",
+            ] {
+                if let Some(rows) = values.remove(table) {
+                    assert!(rows.is_empty(), "unexpected rows in {table}");
+                }
+            }
+            values
         };
-        let before = stable_values(write.connection());
+        let mut before = stable_values(write.connection());
+        let sequences = before.get_mut("sqlite_sequence").unwrap();
+        assert!(
+            !sequences.iter().any(|row| row[0]
+                == rusqlite::types::Value::Text("encounter_participant_conditions".into()))
+        );
+        sequences.push(vec![
+            rusqlite::types::Value::Text("encounter_participant_conditions".into()),
+            rusqlite::types::Value::Integer(0),
+        ]);
+        sequences.sort_by_key(|row| match &row[0] {
+            rusqlite::types::Value::Text(name) => name.clone(),
+            _ => panic!("SQLite sequence name must remain text"),
+        });
         let ledger=write.connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=20 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
-        let mut historical_context = input.context.clone();
-        historical_context.core_sections_recipe.clear();
-        write
-            .connection()
-            .execute(
-                "UPDATE artifact_context SET context_hash=?,context_json=?",
-                rusqlite::params![
-                    historical_context.sha256().unwrap(),
-                    serde_json::to_string(&historical_context).unwrap()
-                ],
-            )
-            .unwrap();
-        write.connection().execute_batch("DROP TABLE encounter_manual_trackers; ALTER TABLE encounters DROP COLUMN round_duration_seconds; ALTER TABLE encounter_participant_conditions DROP COLUMN duration_remaining_seconds; DROP TABLE encounter_recovery_receipts; DROP TABLE encounter_participant_baselines; DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DELETE FROM schema_migrations WHERE version>=21; PRAGMA user_version=20;").unwrap();
+        assert_eq!(
+            write
+                .connection()
+                .query_row(
+                    "SELECT count(*) FROM encounter_participant_adjustments",
+                    [],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            0
+        );
         write.commit().unwrap();
         let source = directory.path().join("absent-source");
         let models = directory.path().join("absent-models");
@@ -812,9 +899,40 @@ mod tests {
             reader.workspace_session().reference_revision().unwrap(),
             revision + 1
         );
-        assert_eq!(
-            stable_values(reader.workspace_session().connection()),
+        let after = stable_values(reader.workspace_session().connection());
+        assert!(
+            after == before,
+            "unexpected changed logical tables: {:?}",
             before
+                .keys()
+                .chain(after.keys())
+                .filter(|key| before.get(*key) != after.get(*key))
+                .collect::<std::collections::BTreeSet<_>>()
+        );
+        for table in [
+            "encounter_participant_baselines",
+            "encounter_recovery_receipts",
+            "encounter_turn_receipts",
+            "reference_component_digests",
+            "native_update_targets",
+            "native_target_inputs",
+        ] {
+            assert_eq!(
+                reader
+                    .workspace_session()
+                    .connection()
+                    .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| row
+                        .get::<_, i64>(0))
+                    .unwrap(),
+                0
+            );
+        }
+        assert!(
+            reader
+                .workspace_session()
+                .connection()
+                .prepare("SELECT * FROM encounter_participant_adjustments")
+                .is_err()
         );
         let actual_ledger=reader.workspace_session().connection().prepare("SELECT version,name,checksum FROM schema_migrations WHERE version<=20 ORDER BY version").unwrap().query_map([],|row|Ok((row.get::<_,u32>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
         assert_eq!(actual_ledger, ledger);

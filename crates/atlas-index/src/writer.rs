@@ -1,13 +1,12 @@
 //! Incremental reference publication on the caller-owned workspace transaction.
 use crate::{
-    IndexBuildInput, IndexError, SourceArtifactBuildContext, SourceSearchProfileIdentity,
+    IndexError, SourceArtifactBuildContext, SourceSearchProfileIdentity,
     codec::{checked_hash, gzip, sha256},
     input::*,
-    persistence::{ProjectionRow, execute},
-    projections::root_rows,
+    persistence::ProjectionRow,
 };
 use atlas_domain::RecordKey;
-use atlas_foundry_model::{SNAPSHOT_VERSION, SOURCE_CONTRACT_ID, encode_snapshot};
+use atlas_foundry_model::{SNAPSHOT_VERSION, SOURCE_CONTRACT_ID};
 use atlas_record::{
     source_content::{
         CONTENT_INTERPRETATION_VERSION, ContentAudience, ContentReferenceKind,
@@ -16,13 +15,30 @@ use atlas_record::{
     },
     source_record::{FieldAvailability, SourceContentStatus},
 };
+use rusqlite::Connection;
 use rusqlite::types::Value;
-use rusqlite::{Connection, OptionalExtension};
 use std::{collections::BTreeMap, path::Path};
+#[cfg(any(test, feature = "test-support"))]
+use {
+    crate::{persistence::execute, projections::root_rows},
+    atlas_foundry_model::encode_snapshot,
+    rusqlite::OptionalExtension,
+};
 
 pub struct SqliteIndexWriter<'a, 'owner> {
     maintenance: &'a atlas_storage::MaintenanceSession<'owner>,
 }
+
+/// Compact facts observed by the full input check, retained only for this
+/// publication in its original record order. Rich source state stays in the stream.
+pub(crate) struct CheckedRootIdentity {
+    pub(crate) key: RecordKey,
+    pub(crate) name: Option<String>,
+    pub(crate) is_product: bool,
+}
+#[cfg(any(test, feature = "test-support"))]
+use crate::IndexBuildInput;
+#[cfg(any(test, feature = "test-support"))]
 pub trait IndexArtifactWriter {
     fn output_path(&self) -> &Path;
     fn write(&self, input: &IndexBuildInput)
@@ -34,22 +50,38 @@ impl<'a, 'owner> SqliteIndexWriter<'a, 'owner> {
     }
     pub fn write_job(
         &self,
-        input: &IndexBuildInput,
+        input: &dyn crate::PublicationSource,
+        values: &crate::FrozenNativeValues,
         job: &str,
         target_hash: &str,
     ) -> Result<crate::ArtifactValidationReport, IndexError> {
-        tracing::info!(target:"atlas_progress",phase="validate_build_input","Checking prepared records");
-        validate_input(input)?;
-        if input.context.sha256()? != target_hash {
+        let publication =
+            crate::ReferencePublicationExpectation::read(self.maintenance.connection())?;
+        tracing::info!(target:"atlas_progress",phase="validate_build_input",workspace_key=publication.instance().workspace_key(),reference_revision=publication.instance().reference_revision(),context_sha256=publication.context_sha256().unwrap_or(""),"Checking prepared records");
+        let input_started = std::time::Instant::now();
+        let identities = validate_input(input)?;
+        if input.context().sha256()? != target_hash {
             return Err(IndexError::Invalid(
                 "publication input differs from update job target".into(),
             ));
         }
+        values.check(input, Some(job))?;
+        tracing::info!(target:"atlas_build_diagnostic",stage="publication_input_validation",elapsed_ms=input_started.elapsed().as_secs_f64()*1000.,"Completed publication phase");
         self.maintenance.publish(|connection| {
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
-            write_rows(connection, input)?;
+            check_expected(connection,input)?;
+            values.check_publication(connection,input,Some(job))?;
+            crate::native_selection::require_active(connection,job)?;
+            let delta_started=std::time::Instant::now();
+            let delta_changes=connection.total_changes();
+            crate::stream_publication::write(connection, input, &identities, values)?;
             crate::embedding_values::prune(connection)?;
+            tracing::info!(target:"atlas_build_diagnostic",stage="publication_delta_and_prune",elapsed_ms=delta_started.elapsed().as_secs_f64()*1000.,sqlite_affected_rows=connection.total_changes()-delta_changes,"Completed publication phase");
+            let validation_started=std::time::Instant::now();
+            let validation_changes=connection.total_changes();
             let report = crate::validation::validate_reference(connection)?;
+            values.check_publication(connection,input,Some(job))?;
+            tracing::info!(target:"atlas_build_diagnostic",stage="publication_exact_validation",elapsed_ms=validation_started.elapsed().as_secs_f64()*1000.,sqlite_affected_rows=connection.total_changes()-validation_changes,"Completed publication phase");
             tracing::info!(target:"atlas_progress",phase="prune_checkpoints","Removing obsolete saved embeddings");
             crate::reference_jobs::finish_reference_job(connection, job, target_hash)?;
             tracing::info!(target:"atlas_progress",phase="commit_reference","Finishing reference update");
@@ -57,6 +89,7 @@ impl<'a, 'owner> SqliteIndexWriter<'a, 'owner> {
         })
     }
 }
+#[cfg(any(test, feature = "test-support"))]
 impl IndexArtifactWriter for SqliteIndexWriter<'_, '_> {
     fn output_path(&self) -> &Path {
         self.maintenance.path()
@@ -65,14 +98,19 @@ impl IndexArtifactWriter for SqliteIndexWriter<'_, '_> {
         &self,
         input: &IndexBuildInput,
     ) -> Result<crate::ArtifactValidationReport, IndexError> {
-        validate_input(input)?;
+        let identities = validate_input(input)?;
+        let origin = crate::frozen_native_values::origin(self.maintenance.connection())?;
+        let values = crate::freeze_fixture_native_values(input, input, None, &origin)?;
         self.maintenance.publish(|connection| {
+            values.check_publication(connection, input, None)?;
             // Cross-root edges may temporarily point at a root being replaced.
             // Validation and commit both require every final reference to exist.
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
-            write_rows(connection, input)?;
+            crate::stream_publication::write(connection, input, &identities, &values)?;
             crate::embedding_values::prune(connection)?;
-            crate::validation::validate_reference(connection)
+            let report = crate::validation::validate_reference(connection)?;
+            values.check_publication(connection, input, None)?;
+            Ok(report)
         })
     }
 }
@@ -164,6 +202,12 @@ pub(crate) fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), Ind
             "build context policy or locale is empty".into(),
         ));
     }
+    if c.selected_sections_recipe != crate::SELECTED_SECTIONS_RECIPE {
+        return Err(IndexError::Unsupported("canonical section projection requires an offline metadata update; run atlas setup --offline".into()));
+    }
+    if let Some(admission) = &c.admission {
+        admission.validate()?;
+    }
     for profile in c.canonical_profiles()? {
         let spec = atlas_embedding::search_profile(&profile.profile_id)
             .map_err(|e| IndexError::Unsupported(e.to_string()))?;
@@ -224,9 +268,25 @@ pub(crate) fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), Ind
     }
     Ok(())
 }
-fn validate_input(input: &IndexBuildInput) -> Result<(), IndexError> {
-    validate_context(&input.context)?;
-    for profile in &input.context.search_profiles {
+fn validate_input(
+    input: &dyn crate::PublicationSource,
+) -> Result<Vec<CheckedRootIdentity>, IndexError> {
+    input.check_seal()?;
+    input
+        .inventory()
+        .validate_parts(&input.context().source_fingerprint, input.packs())?;
+    if input
+        .context()
+        .admission
+        .as_ref()
+        .is_some_and(|a| a.admitted_records != input.record_count())
+    {
+        return Err(IndexError::Invalid(
+            "source admission root count differs from publication".into(),
+        ));
+    }
+    validate_context(input.context())?;
+    for profile in &input.context().search_profiles {
         let spec = atlas_embedding::search_profile(&profile.profile_id)
             .map_err(|e| IndexError::Unsupported(e.to_string()))?;
         if profile != &SourceSearchProfileIdentity::from_spec(spec) {
@@ -235,28 +295,30 @@ fn validate_input(input: &IndexBuildInput) -> Result<(), IndexError> {
             ));
         }
     }
-    if input.context.source_file_count < input.records.len() {
+    if input.context().source_file_count < input.record_count() {
         return Err(IndexError::Invalid(
             "source input count is smaller than admitted root count".into(),
         ));
     }
-    if input.context.search_profiles.is_empty() && !input.semantic_units.is_empty() {
+    if input.context().search_profiles.is_empty() && input.semantic_count() != 0 {
         return Err(IndexError::Invalid(
             "semantic units supplied without a model".into(),
         ));
     }
     let mut packs = BTreeMap::new();
-    for p in &input.packs {
+    for p in input.packs() {
         if p.pack_id.is_empty() || packs.insert(p.pack_id.as_str(), p).is_some() {
             return Err(IndexError::Invalid(
                 "duplicate or empty pack identity".into(),
             ));
         }
     }
-    let context_hash = input.context.preparation_sha256()?;
+    let context_hash = input.context().preparation_sha256()?;
     let mut keys = std::collections::BTreeSet::new();
-    for r in &input.records {
-        if !keys.insert(r.record.key()) {
+    let mut identities = Vec::new();
+    input.records(&mut |frame| {
+        let r = frame.source;
+        if !keys.insert(r.record.key().clone()) {
             return Err(IndexError::Invalid(format!(
                 "duplicate root {}",
                 r.record.key()
@@ -265,9 +327,8 @@ fn validate_input(input: &IndexBuildInput) -> Result<(), IndexError> {
         let pack = packs
             .get(r.record.key().pack().as_str())
             .ok_or_else(|| IndexError::Invalid("record pack is absent".into()))?;
-        if atlas_record::source_record::SourceNodeView::from(r.record.source()).document_kind()
-            != pack.document_kind
-        {
+        let node = atlas_record::source_record::SourceNodeView::from(r.record.source());
+        if node.document_kind() != pack.document_kind {
             return Err(IndexError::Invalid(
                 "record document family disagrees with pack".into(),
             ));
@@ -288,20 +349,42 @@ fn validate_input(input: &IndexBuildInput) -> Result<(), IndexError> {
                 "source path must be relative and contain no traversal".into(),
             ));
         }
+        identities.push(CheckedRootIdentity {
+            key: r.record.key().clone(),
+            name: node.name().value().cloned(),
+            is_product: node.document_kind() != "Macro",
+        });
+        Ok(())
+    })?;
+    if keys.len() != input.record_count() {
+        return Err(IndexError::Invalid(
+            "record stream count differs from publication".into(),
+        ));
+    }
+    Ok(identities)
+}
+fn check_expected(c: &Connection, input: &dyn crate::PublicationSource) -> Result<(), IndexError> {
+    if let Some(expected) = input.expected_instance() {
+        let (key, revision): (String, u64) = c.query_row(
+            "SELECT workspace_key,reference_revision FROM workspace WHERE id=1",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        if key != expected.workspace_key() || revision != expected.reference_revision() {
+            return Err(IndexError::Invalid(
+                "sealed publication belongs to a stale workspace revision".into(),
+            ));
+        }
     }
     Ok(())
 }
-fn write_rows(c: &Connection, input: &IndexBuildInput) -> Result<(), IndexError> {
-    c.execute("DELETE FROM trait_definitions", [])?;
-    write_record_rows(c, input)?;
-    crate::traits::write_traits(c, input)?;
-    crate::similarity_projection::write_similarity_parts(c, input)?;
-    crate::core_projection::write_core_sections(c, input)
-}
-
 /// Record-component composition is shared with deliberately historical fixtures;
 /// ordinary publication always includes the vocabulary component above.
-pub(crate) fn write_record_rows(c: &Connection, input: &IndexBuildInput) -> Result<(), IndexError> {
+#[cfg(any(test, feature = "test-support"))]
+pub(crate) fn write_record_base(
+    c: &Connection,
+    input: &IndexBuildInput,
+) -> Result<(BTreeMap<RecordKey, i64>, std::collections::BTreeSet<i64>), IndexError> {
     tracing::info!(target:"atlas_progress",phase="artifact_identity","Updating record identities");
     let mut canonical = input.context.clone();
     canonical.search_profiles = input.context.canonical_profiles()?;
@@ -403,7 +486,7 @@ pub(crate) fn write_record_rows(c: &Connection, input: &IndexBuildInput) -> Resu
         if !changed.contains(&id) {
             continue;
         }
-        write_content(c, source, id, &root_ids, input.context.audience)?;
+        write_content(c, source, id, &root_ids, input.context.audience, true, true)?;
         for (ordinal, relationship) in source.relationships.iter().enumerate() {
             if relationship.locator.record != *source.record.key()
                 || source
@@ -464,21 +547,9 @@ pub(crate) fn write_record_rows(c: &Connection, input: &IndexBuildInput) -> Resu
         r.text("definition_json", serde_json::to_string(&definition)?);
         crate::publication_delta::upsert(c, &r, "field")?;
     }
-    tracing::info!(target:"atlas_progress",phase="artifact_search","Updating search indexes");
-    crate::publication_delta::search_units(c, input, &product_ids)?;
-    tracing::info!(target:"atlas_progress",phase="artifact_removals","Removing outdated records");
-    crate::publication_delta::remove_absent_roots(c, &live)?;
-    c.execute(
-        "DELETE FROM packs WHERE pack_id NOT IN (SELECT pack_id FROM records)",
-        [],
-    )?;
-    // Release dirty-page pressure before scanning newly populated vec0 chunks.
-    // SQLite flushes pages within this transaction; it does not commit them.
-    // Validation failure still rolls back the entire publication, including DDL.
-    tracing::info!(target:"atlas_progress",phase="flush_reference","Flushing database writes");
-    c.cache_flush()?;
-    Ok(())
+    Ok((product_ids, live))
 }
+
 fn id_for(ids: &BTreeMap<RecordKey, i64>, key: &RecordKey) -> Result<i64, IndexError> {
     ids.get(key)
         .copied()
@@ -502,12 +573,14 @@ pub(crate) fn permits(a: ContentAudience, v: ContentVisibilityRule) -> bool {
         ContentVisibilityRule::None => false,
     }
 }
-fn write_content(
+pub(crate) fn write_content(
     c: &Connection,
     source: &SourceArtifactRecordInput,
     id: i64,
     ids: &BTreeMap<RecordKey, i64>,
     audience: ContentAudience,
+    write_fields: bool,
+    write_references: bool,
 ) -> Result<(), IndexError> {
     for outcome in &source.content {
         let locator = outcome.locator();
@@ -565,7 +638,7 @@ fn write_content(
                 )
                 .map_err(|e| IndexError::Invalid(e.to_string()))?;
                 for reference in &prepared.references {
-                    if reference.visible && published {
+                    if reference.visible && published && write_references {
                         let kind = match reference.kind {
                             ContentReferenceKind::Uuid => "uuid",
                             ContentReferenceKind::Compendium => "compendium",
@@ -595,7 +668,11 @@ fn write_content(
                         )?;
                     }
                 }
-                for diagnostic in prepared.diagnostics.iter().filter(|_| published) {
+                for diagnostic in prepared
+                    .diagnostics
+                    .iter()
+                    .filter(|_| published && write_fields)
+                {
                     write_diagnostic(
                         c,
                         id,
@@ -630,7 +707,7 @@ fn write_content(
             }
         };
         r.text("outcome", status);
-        if published && !matches!(status, "prepared" | "empty") {
+        if write_fields && published && !matches!(status, "prepared" | "empty") {
             write_diagnostic(
                 c,
                 id,
@@ -659,7 +736,9 @@ fn write_content(
         }
         r.push("html_gzip", html);
         r.text("interactions_json", interactions);
-        r.insert(c)?;
+        if write_fields {
+            r.insert(c)?;
+        }
     }
     Ok(())
 }
@@ -697,7 +776,7 @@ pub(crate) fn write_diagnostic(
     );
     r.insert(c)
 }
-fn write_relationship(
+pub(crate) fn write_relationship(
     c: &Connection,
     id: i64,
     occurrence: &SourceStoredRelationship,
@@ -778,3 +857,7 @@ fn write_relationship(
     r.push("target_url", url.map(Value::Text).unwrap_or(Value::Null));
     r.insert(c)
 }
+
+#[cfg(test)]
+#[path = "writer/identity_tests.rs"]
+mod identity_tests;

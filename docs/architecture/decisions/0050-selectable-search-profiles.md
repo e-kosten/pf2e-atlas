@@ -73,18 +73,36 @@ each replacement verifies. Incomplete packages remain unusable and retryable; no
 old-layout bridge or package-wide staging is introduced. Cache location is outside
 vector execution identity.
 
-Requested profiles build sequentially. Exact reuse verifies selected identity,
-reconstructed raw input, source address, ordinal and native token count. All
-profiles finish and source/catalog freshness is rechecked before one validated
-atomic publication. Any failure preserves the previous complete artifact.
+All requested profiles first native-validate bounded windows from the same sealed
+raw-input stream. Profile descriptor streams contain ordinal, raw input hash and
+native token count; occurrence addresses remain in the metadata streams. Complete
+all-profile membership, including profiles with no inputs, is registered before
+inference or pending-work retirement. Inference then runs profiles sequentially.
+Within a bounded window, ingest deduplicates exact inputs before selection; the
+active target deduplicates subsequent windows. Reuse verifies the full selected
+execution identity, input hash and native token count. Missing inputs pass through
+normal bounded native validation again before inference; this deliberately repeats
+tokenizer work rather than trusting serialized counts. Cached-only work loads no
+model. Each profile's lazy runner loads at most once, checkpoints bounded results
+before releasing them, and returns counts rather than occurrence vectors.
+
+Selected numerical bytes are frozen by index before publication can overwrite
+slots or profile tables. The same immutable provider supplies document values and
+ordered trait centroids. Centroid accumulation retains one f64 sum per dimension;
+every chunk is normalized and added in original order, including repeated chunks,
+then the sum is normalized. No corpus native-text array or numerical value map is
+retained by ingest. Source/catalog freshness is checked before one validated atomic
+publication. Failures preserve the previous complete artifact and eligible durable
+checkpoints for explicit retry.
 
 Runtime retains one query-inference session for each loaded profile, shared across
 independent SQL workers. The default warms at startup; another profile loads on
 first use and remains retained. One global native mutex serializes loads/inference
 with four inference threads, using the existing bounded retrieval admission.
-The mutex releases before SQL ranking. Reader pools retain their single verified
-physical artifact instance and full generation; adopting publication requires
-restart. Short-lived commands retain their first successful service.
+The mutex releases before SQL ranking. Under
+[ADR0051](0051-persistent-workspace.md), SQL workers use bounded workspace snapshots
+and admit the current publication per operation. Short-lived commands retain their
+first successful service.
 
 Lookup, lexical search, filter vocabulary, lists, encounters and stored-vector
 Similar do not load or require unused model weights. Metadata distinguishes stored

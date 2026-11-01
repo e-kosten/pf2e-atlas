@@ -1,4 +1,4 @@
-//! Durable outgoing-turn identity; rule planning remains in app-service.
+//! Lifetime turn receipts and one current outgoing context; rules stay in app-service.
 use super::{
     Encounter, EncounterTurnUpdate, EncounterWithParticipants, EncountersRead, EncountersWrite,
     receipt_codec, storage,
@@ -28,7 +28,7 @@ impl EncountersRead<'_> {
         encounter_ref: &str,
         boundary_key: &str,
     ) -> LocalStateResult<Option<SavedOutgoingTurn>> {
-        let payload:Option<String> = self.connection.query_row("SELECT t.payload_json FROM encounter_outgoing_turns t JOIN encounters e ON e.id=t.encounter_id WHERE (e.encounter_key=?1 OR e.slug=?1) AND t.boundary_key=?2 AND t.id=(SELECT MAX(id) FROM encounter_outgoing_turns WHERE encounter_id=e.id)",params![encounter_ref,boundary_key],|row|row.get(0)).optional()?;
+        let payload:Option<String> = self.connection.query_row("SELECT t.payload_json FROM encounter_outgoing_turns t JOIN encounter_turn_receipts r USING(encounter_id,request_id) JOIN encounters e ON e.id=t.encounter_id WHERE (e.encounter_key=?1 OR e.slug=?1) AND r.boundary_key=?2",params![encounter_ref,boundary_key],|row|row.get(0)).optional()?;
         payload
             .map(|payload| receipt_codec::decode(&payload))
             .transpose()
@@ -38,7 +38,7 @@ impl EncountersRead<'_> {
         encounter_ref: &str,
     ) -> LocalStateResult<Option<SavedOutgoingTurn>> {
         let payload: Option<String> = self.connection.query_row(
-            "SELECT t.payload_json FROM encounter_outgoing_turns t JOIN encounters e ON e.id=t.encounter_id WHERE (e.encounter_key=?1 OR e.slug=?1) AND t.id=(SELECT MAX(id) FROM encounter_outgoing_turns WHERE encounter_id=e.id) AND t.requires_review=1",
+            "SELECT t.payload_json FROM encounter_outgoing_turns t JOIN encounters e ON e.id=t.encounter_id WHERE (e.encounter_key=?1 OR e.slug=?1) AND t.requires_review=1",
             [encounter_ref], |row| row.get(0)).optional()?;
         payload
             .map(|payload| receipt_codec::decode(&payload))
@@ -87,8 +87,8 @@ impl EncountersWrite<'_> {
                 next_participant_key: update.turn.participant_key.clone(),
                 snapshot,
             };
-            // Even an empty boundary retains the once-only request identity.
-            self.connection.execute("INSERT INTO encounter_outgoing_turns(encounter_id,boundary_key,request_id,intent_json,payload_json,requires_review) SELECT id,?2,?3,?4,?5,?6 FROM encounters WHERE encounter_key=?1",params![saved.snapshot.encounter.encounter_key,saved.boundary_key,request_id,serde_json::to_string(intent)?,receipt_codec::encode(&saved)?,i64::from(review_needed&&saved.next_participant_key.is_some())])?;
+            self.connection.execute("INSERT INTO encounter_turn_receipts(encounter_id,request_id,boundary_key,intent_json) SELECT id,?2,?3,?4 FROM encounters WHERE encounter_key=?1",params![saved.snapshot.encounter.encounter_key,request_id,saved.boundary_key,serde_json::to_string(intent)?])?;
+            self.connection.execute("INSERT INTO encounter_outgoing_turns(encounter_id,request_id,payload_json,requires_review) SELECT id,?2,?3,?4 FROM encounters WHERE encounter_key=?1 ON CONFLICT(encounter_id) DO UPDATE SET request_id=excluded.request_id,payload_json=excluded.payload_json,requires_review=excluded.requires_review",params![saved.snapshot.encounter.encounter_key,request_id,receipt_codec::encode(&saved)?,i64::from(review_needed&&saved.next_participant_key.is_some())])?;
             for (condition_id, amount) in update.durations {
                 storage::update_duration_amount(self.connection, condition_id, amount)?;
             }
@@ -129,7 +129,7 @@ fn recover_advance(
     intent: &serde_json::Value,
 ) -> LocalStateResult<Option<Encounter>> {
     let prior: Option<String> = connection.query_row(
-        "SELECT t.intent_json FROM encounter_outgoing_turns t JOIN encounters e ON e.id=t.encounter_id WHERE (e.encounter_key=?1 OR e.slug=?1) AND t.request_id=?2",
+        "SELECT t.intent_json FROM encounter_turn_receipts t JOIN encounters e ON e.id=t.encounter_id WHERE (e.encounter_key=?1 OR e.slug=?1) AND t.request_id=?2",
         params![encounter_ref, request_id], |row| row.get(0),
     ).optional()?;
     let Some(prior) = prior else {

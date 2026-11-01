@@ -44,6 +44,11 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Soon
 
+- [Database and ingest simplification](items/database-ingest-simplification.md)
+  Complete-source publication, bounded preparation and vectors, canonical sections,
+  saved-state integrity/lifetimes and indexed eligibility. Implementation and local
+  validation complete; awaiting PR review. Status: in_progress.
+
 - [Broader exact neighbor reuse](items/search-neighbor-reuse-expansion.md)
   Evaluate scoped trait-reference text search and configured Similar with complete
   native selection identity and matched measurements. Unscoped baseline Similar

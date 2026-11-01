@@ -1,7 +1,7 @@
 //! Reconciliation of complete prepared input with the active reference revision.
 //! Only changed owned rows are written; identity and mutable-domain rows survive.
 use crate::{
-    IndexBuildInput, IndexError, SourceArtifactRecordInput,
+    IndexError, SourceArtifactRecordInput,
     codec::sha256,
     persistence::{ProjectionRow, execute},
     projections::{ProjectionIds, root_rows},
@@ -39,8 +39,15 @@ pub(crate) fn root_digest(
     source: &SourceArtifactRecordInput,
     label: &str,
 ) -> Result<String, IndexError> {
+    root_digest_encoded(source, label, &encode_snapshot(source.record.source())?)
+}
+pub(crate) fn root_digest_encoded(
+    source: &SourceArtifactRecordInput,
+    label: &str,
+    snapshot: &[u8],
+) -> Result<String, IndexError> {
     Ok(sha256(&serde_json::to_vec(&(
-        encode_snapshot(source.record.source())?,
+        snapshot,
         &source.source_path,
         &source.content_hash,
         &source.preparation_context_hash,
@@ -88,6 +95,27 @@ pub(crate) fn allocate(
     Ok(ProjectionIds::seeded(seed))
 }
 
+pub(crate) fn clear_query(c: &Connection, id: i64) -> Result<(), IndexError> {
+    // Family leaves cascade from their declared owner; incoming edges and semantic
+    // occurrences are reconciled separately and never cascade with a replacement.
+    for table in ["record_traits", "actor_projection"] {
+        c.execute(&format!("DELETE FROM {table} WHERE record_id=?"), [id])?;
+    }
+    for table in [
+        "spell_projection",
+        "physical_projection",
+        "ability_projection",
+        "heritage_projection",
+        "effect_projection",
+        "condition_projection",
+        "deity_projection",
+    ] {
+        c.execute(&format!("DELETE FROM {table} WHERE root_record_id=?"), [id])?;
+    }
+    Ok(())
+}
+
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn clear_root_derived(c: &Connection, id: i64) -> Result<(), IndexError> {
     // Family leaves cascade from their declared owner; incoming edges and semantic
     // occurrences are reconciled separately and never cascade with a replacement.
@@ -122,6 +150,11 @@ pub(crate) fn remove_absent_roots(c: &Connection, live: &BTreeSet<i64>) -> Resul
         .collect::<Result<Vec<_>, _>>()?;
     for id in ids {
         if !live.contains(&id) {
+            // These associations reference the removable reference row, while
+            // saved state references the enduring identity registry. Prune the
+            // exact removed key before its deferred parent FK is deleted.
+            c.execute("DELETE FROM trait_memberships WHERE record_key=(SELECT key FROM records WHERE record_id=?)",[id])?;
+            c.execute("DELETE FROM trait_references WHERE record_key=(SELECT key FROM records WHERE record_id=?)",[id])?;
             c.execute("DELETE FROM records WHERE record_id=?", [id])?;
             c.execute(
                 "UPDATE record_identity SET availability='unavailable' WHERE id=?",
@@ -134,11 +167,11 @@ pub(crate) fn remove_absent_roots(c: &Connection, live: &BTreeSet<i64>) -> Resul
 
 pub(crate) fn aliases(
     c: &Connection,
-    input: &IndexBuildInput,
+    input: &dyn crate::PublicationSource,
     ids: &BTreeMap<RecordKey, i64>,
 ) -> Result<(), IndexError> {
     let mut kept = BTreeSet::new();
-    for alias in &input.aliases {
+    input.aliases(&mut |alias| {
         if alias.alias.trim().is_empty() || alias.evidence.trim().is_empty() {
             return Err(IndexError::Invalid("alias needs text and evidence".into()));
         }
@@ -155,7 +188,8 @@ pub(crate) fn aliases(
         );
         row.text("evidence_json", serde_json::to_string(&alias.evidence)?);
         upsert(c, &row, "record_id,alias")?;
-    }
+        Ok(())
+    })?;
     for pair in c
         .prepare("SELECT record_id,alias FROM verified_aliases")?
         .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?
@@ -169,7 +203,7 @@ pub(crate) fn aliases(
         }
     }
     let mut kept = BTreeSet::new();
-    for pair in &input.remaster_pairs {
+    input.remaster_pairs(&mut |pair| {
         let legacy = crate::writer::product_id(ids, &pair.legacy)?;
         if !kept.insert(legacy) {
             return Err(IndexError::Invalid("duplicate remaster pair".into()));
@@ -182,7 +216,8 @@ pub(crate) fn aliases(
         );
         row.text("evidence_json", serde_json::to_string(&pair.provenance)?);
         upsert(c, &row, "legacy_record_id")?;
-    }
+        Ok(())
+    })?;
     remove_unkept(c, "remaster_pairs", "legacy_record_id", &kept)?;
     Ok(())
 }
@@ -203,23 +238,64 @@ fn remove_unkept(
     }
     Ok(())
 }
-fn nullable(value: Option<String>) -> Value {
-    value.map(Value::Text).unwrap_or(Value::Null)
+
+const PREVIOUS_EXACT_LOCATION_SQL: &str = "SELECT u.unit_id FROM semantic_units u JOIN semantic_locations l USING(location_id) WHERE u.location_id=?5 AND u.profile_id=?2 AND l.record_id=?1 AND l.section_id IS ?3 AND l.chunk_ordinal=?4 ORDER BY u.unit_id";
+const PREVIOUS_OTHER_LOCATION_SQL: &str = "SELECT u.unit_id FROM semantic_locations l JOIN semantic_units u USING(location_id) WHERE l.record_id=?1 AND u.profile_id=?2 AND l.section_id IS ?3 AND l.chunk_ordinal=?4 AND l.location_id<>?5 ORDER BY u.unit_id";
+
+struct PreviousSemanticSlot<'a> {
+    record: i64,
+    profile: &'a str,
+    section: Option<i64>,
+    chunk_ordinal: usize,
+    location: i64,
+}
+
+fn previous_semantic_vector(
+    c: &Connection,
+    table: &str,
+    slot: PreviousSemanticSlot<'_>,
+    kept: &BTreeSet<i64>,
+) -> Result<Option<(i64, Vec<u8>)>, IndexError> {
+    let mut vector = c.prepare_cached(&format!("SELECT embedding FROM {table} WHERE unit_id=?"))?;
+    for sql in [PREVIOUS_EXACT_LOCATION_SQL, PREVIOUS_OTHER_LOCATION_SQL] {
+        let mut candidates = c.prepare_cached(sql)?;
+        let mut rows = candidates.query(rusqlite::params![
+            slot.record,
+            slot.profile,
+            slot.section,
+            slot.chunk_ordinal,
+            slot.location
+        ])?;
+        while let Some(row) = rows.next()? {
+            let candidate: i64 = row.get(0)?;
+            if kept.contains(&candidate) {
+                continue;
+            }
+            let bytes = vector
+                .query_row([candidate], |row| row.get::<_, Vec<u8>>(0))
+                .optional()?;
+            if let Some(bytes) = bytes {
+                return Ok(Some((candidate, bytes)));
+            }
+        }
+    }
+    Ok(None)
 }
 
 pub(crate) fn search_units(
     c: &Connection,
-    input: &IndexBuildInput,
+    input: &dyn crate::PublicationSource,
     ids: &BTreeMap<RecordKey, i64>,
+    values: &dyn crate::NativeValueSource,
 ) -> Result<(), IndexError> {
-    lexical_units(c, &input.lexical_units, ids)?;
+    lexical_stream(c, ids, &mut |visitor| input.lexical(visitor))?;
 
     let old_profiles = c
         .prepare("SELECT profile_id,identity_json FROM search_profiles")?
         .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
         .collect::<Result<BTreeMap<_, _>, _>>()?;
     let mut current_profiles = BTreeMap::new();
-    for model in input.context.canonical_profiles()? {
+    for model in input.context().canonical_profiles()? {
         let json = serde_json::to_string(&model)?;
         current_profiles.insert(model.profile_id.to_string(), json.clone());
         let mut row = ProjectionRow::new("search_profiles");
@@ -234,7 +310,7 @@ pub(crate) fn search_units(
         old_tables.insert(profile.clone(), crate::schema::vector_table(&model)?);
     }
     let mut current_tables = BTreeSet::new();
-    for model in &input.context.search_profiles {
+    for model in &input.context().search_profiles {
         let table = crate::schema::vector_table(model)?;
         let exists: bool = c.query_row(
             "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name=?)",
@@ -252,63 +328,53 @@ pub(crate) fn search_units(
         [],
         |r| r.get(0),
     )?;
-    let mut pending = Vec::new();
-    for unit in &input.semantic_units {
-        let model = input.context.search_profile(&unit.profile_id)?;
-        crate::validation::check_vector(&unit.vector, model.dimensions)?;
+    for (profile, json) in &old_profiles {
+        if current_profiles.get(profile) != Some(json) {
+            let table = &old_tables[profile];
+            c.execute(&format!("DELETE FROM {table}"), [])?;
+            c.execute("DELETE FROM semantic_units WHERE profile_id=?", [profile])?;
+        }
+    }
+    input.semantic(&mut |occurrence| {
+        let model = input.context().search_profile(&occurrence.profile_id)?;
+        let value = values.value(model, &occurrence.input)?;
+        let unit = occurrence;
+        crate::validation::check_vector(value.as_ref(), model.dimensions)?;
         let id = crate::writer::product_id(ids, &unit.record)?;
         let table = crate::schema::vector_table(model)?;
-        let location = crate::semantic_locations::location_id(
-            c,
-            id,
-            &serde_json::to_string(&unit.owners)?,
-            unit.field.as_deref(),
-            &serde_json::to_string(&unit.address)?,
-            unit.chunk_ordinal,
-        )?;
+        let location = crate::semantic_locations::location_id(c, id, unit)?;
         let native = crate::embedding_values::publish_input(
             c,
             model,
-            &unit.input_hash,
-            unit.input_token_count,
-            &unit.vector,
+            &unit.input.input_sha256,
+            unit.input.token_count,
+            value.as_ref(),
         )?;
         let previous: Option<(i64, Vec<u8>)> = if old_profiles.get(unit.profile_id.as_str())
             == current_profiles.get(unit.profile_id.as_str())
         {
-            let section = match &unit.address {
-                atlas_domain::SourcePassageAddress::Identity {} => None,
-                atlas_domain::SourcePassageAddress::HtmlSection {
-                    section_ordinal, ..
-                }
-                | atlas_domain::SourcePassageAddress::PlainSection {
-                    section_ordinal, ..
-                } => Some(*section_ordinal as i64),
-            };
-            let mut statement=c.prepare_cached(&format!("SELECT u.unit_id,v.embedding FROM semantic_locations l JOIN semantic_units u USING(location_id) JOIN {table} v USING(unit_id) WHERE l.record_id=? AND u.profile_id=? AND l.owners_json=? AND l.field_path IS ? AND l.chunk_ordinal=? AND json_extract(l.section_json,'$.section_ordinal') IS ? ORDER BY (l.location_id=?) DESC,u.unit_id"))?;
-            let mut rows = statement.query(rusqlite::params![
-                id,
-                unit.profile_id.as_str(),
-                serde_json::to_string(&unit.owners)?,
-                unit.field,
-                unit.chunk_ordinal,
-                section,
-                location
-            ])?;
-            let mut available = None;
-            while let Some(row) = rows.next()? {
-                let candidate: i64 = row.get(0)?;
-                if !kept.contains(&candidate) {
-                    available = Some((candidate, row.get(1)?));
-                    break;
-                }
-            }
-            available
+            let section: Option<i64> = c.query_row(
+                "SELECT section_id FROM semantic_locations WHERE location_id=?",
+                [location],
+                |row| row.get(0),
+            )?;
+            previous_semantic_vector(
+                c,
+                &table,
+                PreviousSemanticSlot {
+                    record: id,
+                    profile: unit.profile_id.as_str(),
+                    section,
+                    chunk_ordinal: unit.chunk_ordinal,
+                    location,
+                },
+                &kept,
+            )?
         } else {
             None
         };
         let reused = previous.as_ref().map(|(id, _)| *id);
-        let bytes = crate::read_units::vector_bytes(&unit.vector);
+        let bytes = crate::read_units::vector_bytes(value.as_ref());
         let changed = previous.as_ref().is_none_or(|(_, old)| *old != bytes);
         let unit_id = if let Some(id) = reused {
             id
@@ -336,14 +402,20 @@ pub(crate) fn search_units(
                 "passage"
             },
         );
-        // Keep the input vector borrowed while obsolete rows are removed.
-        // Materialize only the current insert's blob, not a full second corpus.
-        pending.push((
-            row,
-            table,
-            changed.then_some((unit.vector.as_slice(), reused.is_some())),
-        ));
-    }
+        upsert(c, &row, "unit_id")?;
+        if changed {
+            execute(
+                c,
+                &if reused.is_some() {
+                    format!("UPDATE {table} SET embedding=?2 WHERE unit_id=?1")
+                } else {
+                    format!("INSERT INTO {table}(unit_id,embedding) VALUES(?1,?2)")
+                },
+                &[Value::Integer(unit_id), Value::Blob(bytes)],
+            )?;
+        }
+        Ok(())
+    })?;
     let old_ids = c
         .prepare("SELECT unit_id,profile_id FROM semantic_units")?
         .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?
@@ -357,24 +429,6 @@ pub(crate) fn search_units(
             c.execute("DELETE FROM semantic_units WHERE unit_id=?", [id])?;
         }
     }
-    for (row, table, vector) in pending {
-        let unit_id = row.values[0].clone();
-        upsert(c, &row, "unit_id")?;
-        if let Some((vector, update)) = vector {
-            execute(
-                c,
-                &if update {
-                    format!("UPDATE {table} SET embedding=?2 WHERE unit_id=?1")
-                } else {
-                    format!("INSERT INTO {table}(unit_id,embedding) VALUES(?1,?2)")
-                },
-                &[
-                    unit_id,
-                    Value::Blob(crate::read_units::vector_bytes(vector)),
-                ],
-            )?;
-        }
-    }
     for profile in old_profiles.keys() {
         if !current_profiles.contains_key(profile) {
             c.execute("DELETE FROM search_profiles WHERE profile_id=?", [profile])?;
@@ -385,19 +439,22 @@ pub(crate) fn search_units(
             c.execute_batch(&format!("DROP TABLE {table}"))?;
         }
     }
-    for model in &input.context.search_profiles {
+    for model in &input.context().search_profiles {
         crate::vector_allocation::compact(c, model)?;
     }
     Ok(())
 }
 
-pub(crate) fn lexical_units(
+type LexicalVisitor<'a> = dyn FnMut(&crate::SourceLexicalUnitInput) -> Result<(), IndexError> + 'a;
+type LexicalStream<'a> = dyn FnMut(&mut LexicalVisitor<'_>) -> Result<(), IndexError> + 'a;
+
+pub(crate) fn lexical_stream(
     c: &Connection,
-    units: &[crate::SourceLexicalUnitInput],
     ids: &BTreeMap<RecordKey, i64>,
+    emit: &mut LexicalStream<'_>,
 ) -> Result<(), IndexError> {
     let mut lexical = BTreeSet::new();
-    for unit in units {
+    emit(&mut |unit| {
         let id = crate::writer::product_id(ids, &unit.record)?;
         let hash = sha256(&serde_json::to_vec(unit)?);
         let existing: Option<i64> = c
@@ -411,21 +468,57 @@ pub(crate) fn lexical_units(
             if !lexical.insert(unit_id) {
                 return Err(IndexError::Invalid("duplicate lexical unit".into()));
             }
-            continue;
+            return Ok(());
         }
         let mut row = ProjectionRow::new("lexical_units");
         row.text("input_hash", hash);
         row.id("record_id", id);
-        row.text("owners_json", serde_json::to_string(&unit.owners)?);
-        row.push("field_path", nullable(unit.field.clone()));
+        let section = match &unit.address {
+            Some(address) => {
+                let ordinal = match address {
+                    atlas_domain::SourcePassageAddress::HtmlSection {
+                        section_ordinal, ..
+                    }
+                    | atlas_domain::SourcePassageAddress::PlainSection {
+                        section_ordinal, ..
+                    } => *section_ordinal,
+                    atlas_domain::SourcePassageAddress::Identity {} => {
+                        return Err(IndexError::Invalid(
+                            "lexical identity has a fabricated section".into(),
+                        ));
+                    }
+                };
+                let field = unit
+                    .field
+                    .as_deref()
+                    .ok_or_else(|| IndexError::Invalid("lexical section field missing".into()))?;
+                let section = crate::selected_sections::find(
+                    c,
+                    id,
+                    &serde_json::to_string(&unit.owners)?,
+                    field,
+                    ordinal,
+                )?;
+                if section.address != *address {
+                    return Err(IndexError::Invalid(
+                        "lexical section differs from canonical whole address".into(),
+                    ));
+                }
+                Some(section.id)
+            }
+            None => None,
+        };
         row.push(
-            "section_json",
-            nullable(
-                unit.address
-                    .as_ref()
-                    .map(serde_json::to_string)
-                    .transpose()?,
-            ),
+            "section_id",
+            section.map(Value::Integer).unwrap_or(Value::Null),
+        );
+        row.push(
+            "owners_json",
+            if section.is_none() {
+                Value::Text(serde_json::to_string(&unit.owners)?)
+            } else {
+                Value::Null
+            },
         );
         row.text("unit_kind", unit.kind.as_str());
         row.text("identity_terms", &unit.identity_terms);
@@ -434,8 +527,340 @@ pub(crate) fn lexical_units(
         row.text("definition_terms", &unit.definition_terms);
         row.insert(c)?;
         lexical.insert(c.last_insert_rowid());
-    }
+        Ok(())
+    })?;
     remove_unkept(c, "lexical_units", "unit_id", &lexical)?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod previous_semantic_tests {
+    use super::*;
+
+    fn fixture() -> Connection {
+        let c = Connection::open_in_memory().unwrap();
+        c.execute_batch(
+            "CREATE TABLE semantic_locations(location_id INTEGER PRIMARY KEY,record_id INTEGER,section_id INTEGER,chunk_ordinal INTEGER);
+             CREATE TABLE semantic_units(unit_id INTEGER PRIMARY KEY,location_id INTEGER,profile_id TEXT);
+             CREATE TABLE stored_vectors(unit_id INTEGER PRIMARY KEY,embedding BLOB);
+             INSERT INTO semantic_locations VALUES(1,7,8,0),(2,7,8,0),(3,7,8,0),(4,9,8,0),(5,7,9,0),(6,7,8,1);
+             INSERT INTO semantic_units VALUES(10,1,'profile'),(20,2,'profile'),(30,3,'profile'),(1,4,'profile'),(2,5,'profile'),(3,6,'profile'),(4,1,'other-profile');
+             INSERT INTO stored_vectors VALUES(10,x'10'),(20,x'20'),(30,x'30'),(1,x'01'),(2,x'02'),(3,x'03'),(4,x'04');"
+        ).unwrap();
+        c
+    }
+
+    fn slot() -> PreviousSemanticSlot<'static> {
+        PreviousSemanticSlot {
+            record: 7,
+            profile: "profile",
+            section: Some(8),
+            chunk_ordinal: 0,
+            location: 3,
+        }
+    }
+
+    #[test]
+    fn exact_location_precedes_lower_ids_and_keeps_scope() {
+        let c = fixture();
+        assert_eq!(
+            previous_semantic_vector(&c, "stored_vectors", slot(), &BTreeSet::new()).unwrap(),
+            Some((30, vec![0x30]))
+        );
+        assert_eq!(
+            previous_semantic_vector(&c, "stored_vectors", slot(), &BTreeSet::from([30])).unwrap(),
+            Some((10, vec![0x10]))
+        );
+    }
+
+    #[test]
+    fn kept_and_later_candidates_do_not_evaluate_vector_payloads() {
+        let c = fixture();
+        c.execute_batch("CREATE VIEW observed_vectors AS SELECT unit_id, CASE WHEN unit_id IN (20,30) THEN json('invalid-json') ELSE embedding END AS embedding FROM stored_vectors;").unwrap();
+        assert!(
+            c.query_row(
+                "SELECT embedding FROM observed_vectors WHERE unit_id=30",
+                [],
+                |row| row.get::<_, Vec<u8>>(0)
+            )
+            .is_err()
+        );
+        assert_eq!(
+            previous_semantic_vector(&c, "observed_vectors", slot(), &BTreeSet::from([30]))
+                .unwrap(),
+            Some((10, vec![0x10]))
+        );
+    }
+
+    #[test]
+    fn missing_vectors_fall_back_in_order_and_all_missing_returns_none() {
+        let c = fixture();
+        for (removed, expected) in [
+            (30, Some((10, vec![0x10]))),
+            (10, Some((20, vec![0x20]))),
+            (20, None),
+        ] {
+            c.execute("DELETE FROM stored_vectors WHERE unit_id=?", [removed])
+                .unwrap();
+            assert_eq!(
+                previous_semantic_vector(&c, "stored_vectors", slot(), &BTreeSet::new()).unwrap(),
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn candidate_comparison_reads_exact_bytes_across_native_chunks() {
+        atlas_sqlite_vec::register_sqlite_vec_auto_extension().unwrap();
+        let c = fixture();
+        c.execute_batch("CREATE VIRTUAL TABLE native_vectors USING vec0(unit_id INTEGER PRIMARY KEY,embedding FLOAT[8],chunk_size=8)").unwrap();
+        for unit in 1..=33_u8 {
+            let mut vector = [0_f32; 8];
+            vector[usize::from(unit) % 8] = 1.;
+            c.execute(
+                "INSERT INTO native_vectors(unit_id,embedding) VALUES(?,?)",
+                rusqlite::params![i64::from(unit), crate::read_units::vector_bytes(&vector)],
+            )
+            .unwrap();
+        }
+        let mut expected = [0_f32; 8];
+        expected[30 % 8] = 1.;
+        assert_eq!(
+            previous_semantic_vector(&c, "native_vectors", slot(), &BTreeSet::new()).unwrap(),
+            Some((30, crate::read_units::vector_bytes(&expected)))
+        );
+        c.execute("DELETE FROM native_vectors WHERE unit_id=30", [])
+            .unwrap();
+        expected.fill(0.);
+        expected[10 % 8] = 1.;
+        assert_eq!(
+            previous_semantic_vector(&c, "native_vectors", slot(), &BTreeSet::new()).unwrap(),
+            Some((10, crate::read_units::vector_bytes(&expected)))
+        );
+    }
+    #[test]
+    fn publication_repairs_selected_old_bytes_and_removes_obsolete_corrupt_slots() {
+        use crate::test_support::*;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("native.sqlite");
+        let input = crate::foundation_tests::fixture(true);
+        publish_input(&path, &input).unwrap();
+        let model = &input.context.search_profiles[0];
+        let table = crate::schema::vector_table(model).unwrap();
+        let unit = input
+            .semantic_units
+            .iter()
+            .find(|unit| {
+                matches!(
+                    unit.address,
+                    atlas_domain::SourcePassageAddress::Identity {}
+                )
+            })
+            .unwrap();
+        let c = Connection::open(&path).unwrap();
+        let identity: i64 = c.query_row("SELECT u.unit_id FROM semantic_units u JOIN records r USING(record_id) WHERE r.key=? AND u.profile_id=? AND u.unit_kind='identity'", rusqlite::params![unit.record.to_string(), unit.profile_id.as_str()], |row| row.get(0)).unwrap();
+        c.execute(
+            &format!("UPDATE {table} SET embedding=? WHERE unit_id=?"),
+            rusqlite::params![vec![0_u8; model.dimensions * 4], identity],
+        )
+        .unwrap();
+        drop(c);
+        publish_input(&path, &input).unwrap();
+        crate::validate_artifact(&path).unwrap();
+        let c = Connection::open(&path).unwrap();
+        let bytes: Vec<u8> = c
+            .query_row(
+                &format!("SELECT embedding FROM {table} WHERE unit_id=?"),
+                [identity],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(bytes, crate::read_units::vector_bytes(&unit.vector));
+        let item = input.records[1].record.key();
+        let obsolete: i64 = c.query_row("SELECT u.unit_id FROM semantic_units u JOIN records r USING(record_id) WHERE r.key=? AND u.profile_id=? AND u.unit_kind='passage' ORDER BY u.unit_id LIMIT 1", rusqlite::params![item.to_string(), model.profile_id.as_str()], |row| row.get(0)).unwrap();
+        c.execute(
+            &format!("UPDATE {table} SET embedding=? WHERE unit_id=?"),
+            rusqlite::params![vec![0_u8; model.dimensions * 4], obsolete],
+        )
+        .unwrap();
+        drop(c);
+        let next = crate::foundation_tests::fixture_with_description(true, "");
+        publish_input(&path, &next).unwrap();
+        crate::validate_artifact(&path).unwrap();
+        let c = Connection::open(&path).unwrap();
+        let retained: usize = c
+            .query_row(
+                "SELECT count(*) FROM semantic_units WHERE unit_id=?",
+                [obsolete],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(retained, 0);
+    }
+    #[test]
+    fn exact_location_scope_and_remaining_group_preserve_all_original_predicates() {
+        let c = fixture();
+        for (record, profile, section, chunk, expected) in [
+            (9, "profile", Some(8), 0, Some(1)),
+            (7, "profile", Some(9), 0, Some(2)),
+            (7, "profile", Some(8), 1, Some(3)),
+            (7, "other-profile", Some(8), 0, Some(4)),
+            (7, "profile", None, 0, None),
+        ] {
+            let candidate = previous_semantic_vector(
+                &c,
+                "stored_vectors",
+                PreviousSemanticSlot {
+                    record,
+                    profile,
+                    section,
+                    chunk_ordinal: chunk,
+                    location: 3,
+                },
+                &BTreeSet::new(),
+            )
+            .unwrap();
+            assert_eq!(candidate.map(|(id, _)| id), expected);
+        }
+        c.execute_batch("INSERT INTO semantic_locations VALUES(7,7,NULL,0),(8,9,NULL,0); INSERT INTO semantic_units VALUES(40,7,'profile'),(41,8,'profile'); INSERT INTO stored_vectors VALUES(40,x'40'),(41,x'41');").unwrap();
+        for (record, expected) in [(7, 40), (9, 41)] {
+            assert_eq!(
+                previous_semantic_vector(
+                    &c,
+                    "stored_vectors",
+                    PreviousSemanticSlot {
+                        record,
+                        profile: "profile",
+                        section: None,
+                        chunk_ordinal: 0,
+                        location: 7,
+                    },
+                    &BTreeSet::new()
+                )
+                .unwrap()
+                .unwrap()
+                .0,
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn exact_group_keeps_unit_order_before_any_remaining_location() {
+        let c = fixture();
+        c.execute_batch("INSERT INTO semantic_units VALUES(35,3,'profile'); INSERT INTO stored_vectors VALUES(35,x'35');").unwrap();
+        for (kept, expected) in [
+            (BTreeSet::new(), 30),
+            (BTreeSet::from([30]), 35),
+            (BTreeSet::from([30, 35]), 10),
+        ] {
+            assert_eq!(
+                previous_semantic_vector(&c, "stored_vectors", slot(), &kept)
+                    .unwrap()
+                    .unwrap()
+                    .0,
+                expected
+            );
+        }
+        c.execute("DELETE FROM stored_vectors WHERE unit_id=30", [])
+            .unwrap();
+        assert_eq!(
+            previous_semantic_vector(&c, "stored_vectors", slot(), &BTreeSet::new())
+                .unwrap()
+                .unwrap()
+                .0,
+            35
+        );
+        c.execute("DELETE FROM stored_vectors WHERE unit_id=35", [])
+            .unwrap();
+        assert_eq!(
+            previous_semantic_vector(&c, "stored_vectors", slot(), &BTreeSet::new())
+                .unwrap()
+                .unwrap()
+                .0,
+            10
+        );
+    }
+
+    #[test]
+    fn unchanged_location_probe_uses_production_unique_keys_with_bounded_metadata_work() {
+        use rusqlite::StatementStatus;
+        let values=(1..=512).map(|id|("items","Item",serde_json::json!({
+            "_id":format!("{id:016x}"),"name":format!("Record {id}"),"type":"effect",
+            "system":{"description":{"value":"<h2>Rules</h2><p>Independent source prose.</p>"}}
+        }))).collect();
+        let input = crate::core_tests::fixture(values, false);
+        let (_directory, path) = crate::foundation_tests::build(&input);
+        let model = &input.context.search_profiles[0];
+        let table = crate::schema::vector_table(model).unwrap();
+        let key = input.records[256].record.key().to_string();
+        for (kind, section_expected) in [("identity", false), ("passage", true)] {
+            // A fresh connection gives counters for this single real helper call.
+            let c = Connection::open(&path).unwrap();
+            let (unit,location,section,ordinal,record):(i64,i64,Option<i64>,usize,i64)=c.query_row(
+                "SELECT u.unit_id,l.location_id,l.section_id,l.chunk_ordinal,l.record_id FROM semantic_units u JOIN semantic_locations l USING(location_id) JOIN records r ON r.record_id=l.record_id WHERE r.key=?1 AND u.profile_id=?2 AND u.unit_kind=?3 ORDER BY u.unit_id LIMIT 1",
+                rusqlite::params![key,model.profile_id.as_str(),kind],
+                |row|Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?))
+            ).unwrap();
+            assert_eq!(section.is_some(), section_expected);
+            let plan = c
+                .prepare(&format!("EXPLAIN QUERY PLAN {PREVIOUS_EXACT_LOCATION_SQL}"))
+                .unwrap()
+                .query_map(
+                    rusqlite::params![
+                        record,
+                        model.profile_id.as_str(),
+                        section,
+                        ordinal,
+                        location
+                    ],
+                    |row| row.get::<_, String>(3),
+                )
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap();
+            assert!(
+                plan.iter().any(|detail| detail.contains("SEARCH")
+                    && detail.contains("location_id=?")
+                    && detail.contains("profile_id=?")),
+                "expected existing location/profile index access: {plan:?}"
+            );
+            let found = previous_semantic_vector(
+                &c,
+                &table,
+                PreviousSemanticSlot {
+                    record,
+                    profile: model.profile_id.as_str(),
+                    section,
+                    chunk_ordinal: ordinal,
+                    location,
+                },
+                &BTreeSet::new(),
+            )
+            .unwrap()
+            .unwrap();
+            assert_eq!(found.0, unit);
+            let exact = c.prepare_cached(PREVIOUS_EXACT_LOCATION_SQL).unwrap();
+            let vm = exact.get_status(StatementStatus::VmStep);
+            assert!(
+                vm > 0 && vm <= 200,
+                "exact metadata probe must execute bounded point work: {vm}"
+            );
+            assert_eq!(exact.get_status(StatementStatus::FullscanStep), 0);
+            assert_eq!(exact.get_status(StatementStatus::Sort), 0);
+            assert_eq!(exact.get_status(StatementStatus::AutoIndex), 0);
+            drop(exact);
+            let fallback = c.prepare_cached(PREVIOUS_OTHER_LOCATION_SQL).unwrap();
+            assert_eq!(
+                fallback.get_status(StatementStatus::VmStep),
+                0,
+                "unchanged exact hit must not execute the broad fallback"
+            );
+            eprintln!(
+                "candidate_metadata_probe kind={kind} exact_vm={vm} fullscan=0 sort=0 autoindex=0 fallback_vm={}",
+                fallback.get_status(StatementStatus::VmStep)
+            );
+        }
+    }
 }

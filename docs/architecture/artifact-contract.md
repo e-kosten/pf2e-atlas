@@ -26,6 +26,19 @@ must not reconcile saved state across rebuilds.
 Product navigation using snapshot-local positions carries the source fingerprint;
 detail rejects missing or stale generation context for those explicit addresses.
 
+Workspace migration 25 adds closed SQL constraints and strict decoding for saved
+encounter enums. Current-turn participants and participant-owned consequences,
+boundary claims and application markers must belong to the same encounter through
+composite foreign keys.
+Current-turn checking is deferred; participant removal clears its pointer before
+deletion. Consumed application markers retain nullable or historical condition
+IDs independently of a live condition row. Saved-state reconstruction fails
+atomically on invalid history or nonempty retired adjustment data. It retains
+configured round length, timed condition progress, manual trackers and saved
+baseline/outgoing payloads. The
+[workspace decision](decisions/0051-persistent-workspace.md#saved-domain-integrity)
+owns its preflight and preservation contract.
+
 The reference format, checked snapshot codec, preparation policies and query
 catalog have separate version identities. `artifact_context` contains the typed,
 hashed active build context. SQLite `user_version` instead tracks the shared
@@ -89,6 +102,37 @@ captures final creation HP after source-condition initialization and persists
 reset/rest replacements under one encounter revision guard and savepoint. Names,
 notes, assigned levels, sides, roster dimming and roster positions are retained.
 
+Workspace migration 27 reconstructs section-backed lexical and semantic metadata
+with canonical section references, retaining compatible unit/location IDs, FTS
+postings and native bytes. Whole extents come from checked source/prepared
+selection, including prose without headings or vectors. The independent
+`selected_sections_recipe` marker is omitted when absent and does not affect
+prepared-content, model-input or public-selector identity. Its activation uses
+normal exact-transaction validation and one reference-generation advance.
+Retired preparation and the known predecessor snapshot contract defer section
+projection before decoding. Their saved rows, native registry, published vectors
+and pending computations remain intact. Missing passage section metadata remains
+unavailable under the blocked context; current publication and bounded decoders
+reject it. Explicit setup prepares current sections and reuses exact native values
+before removing obsolete occurrences. Empty fields have no invented section row.
+
+Workspace migration 28 adds closed index-owned record component digests and root-key
+indexes for trait membership/reference reconciliation. Existing trait-key primary
+keys remain the trait lookup owner. Removed-root associations are pruned by their
+exact old key before parent deletion, preserving live-root rows and saved identities. Schema
+upgrade leaves entries absent until actual publication; absence attests nothing.
+The fixed recipe binds eight named component hashes, with strict typed decoding.
+Publication writes them only with coherent projections and independently checks
+all present hashes inside the exact final transaction. Metadata-only upgrades
+refresh existing hashes after their dependent projections change. Saved state,
+source/native recipes and historical migration callbacks retain their owners.
+
+Prepared publication files are disposable task state rather than another
+persistent database. A sealed stream binds workspace/revision, context, complete
+source inventory, counts and byte checksums. Typed frames have trusted observed
+size bounds and bounded decoding; they cannot supply SQL or persistent identity.
+A stale, truncated, damaged or unsealed stream cannot authorize deletion.
+
 Pre-release separate-file formats have no compatibility reader or conversion
 shim. Future workspace upgrades use ordered migrations with recorded checksums,
 a consistent backup before structural changes, and transaction-scoped validation.
@@ -122,8 +166,9 @@ and non-null ownership, with owner-scoped slug uniqueness.
 | Developer reports | `developer_diagnostics`: attributed admission/preparation/resolution/projection evidence. Product record responses do not expose these reports. |
 | Relationships | `relationship_occurrences`: attributed structured and visible content occurrences, preserving repeated links and resolved/unverified/unresolved/blocked status. |
 | Verified identity evidence | `verified_aliases`, `remaster_pairs`: explicit evidence-backed lookup names and edition relationships. |
+| Selected sections | `selected_sections`: one canonical record/owner/field/ordinal, whole typed address and extent, body hash, role, labels, recipe and public selector. Address components are stored once in named columns. |
 | Precision lexical search | `lexical_units`, `lexical_fts`: root names, verified aliases, typed vocabulary, owned names, headings and structural definition labels. |
-| Semantic search | `search_profiles`, `semantic_units`, profile-specific `semantic_vectors_<identity hash>` tables: complete profile identity, profile-scoped attributed section/chunk addresses, raw input hashes and vectors. |
+| Semantic search | `search_profiles`, `semantic_units`, profile-specific `semantic_vectors_<identity hash>` tables: complete profile identity and native vectors. `semantic_locations` references a canonical section plus chunk ordinal/range; `semantic_units` binds occurrences to profile/native inputs. |
 
 There is no generic metric EAV store, persisted RichDocument, synthetic canonical
 affliction table, copied embedded Item authority or complete plain-text/model-input
@@ -550,6 +595,19 @@ by selected vocabulary. Exact lexical terms can therefore be reconstructed
 offline; there is no duplicate full localization catalog. Root alias terms must
 match the verified alias relation, with no arbitrary additional FTS vocabulary.
 
+A new publication carries checked complete-discovery evidence bound to its source
+fingerprint and declared pack set. Missing or unreadable declared packs cannot
+publish removals. Complete discovery can publish a readable empty pack or an
+intentional file/declaration removal. A zero-root publication requires zero
+discovered input files; a nonempty wholly quarantined or unaddressable source
+fails without replacing the active reference. The authenticated active context retains
+admitted/partial/quarantined/excluded counts and excluded input paths/reasons,
+without retaining rejected raw source or another complete file manifest.
+Historical contexts without this optional summary have unknown admission counts;
+metadata-only upgrades preserve that absence. Failed attempts preserve the active
+summary and reference revision. Product setup and direct build reports expose the
+new publication's counts.
+
 The writer reconciles changed reference rows inside a maintenance transaction in
 the existing workspace. Unchanged rows retain their identity; removed sources lose
 current projections and become unavailable identities without deleting saved
@@ -560,8 +618,11 @@ and admission can safely resume.
 
 Readers own bounded deferred transactions. One composed operation shares its
 snapshot across reference and saved-domain readers; idle CLI/web owners retain no
-SQLite session. Writes use immediate transactions and recheck preparation revisions
-before applying source-derived changes. Local-state actions use savepoints inside
+SQLite session. Saved roster detail reads ability state, conditions, persistent
+precedence, expended spells, spell resources and manual trackers through
+encounter-scoped batches, preserving owner-specific ordering and unknown values.
+Query count is independent of participant count. Writes use immediate transactions
+and recheck preparation revisions before applying source-derived changes. Local-state actions use savepoints inside
 the outer transaction, so caught action errors cannot leak partial writes into a
 later commit. Durable receipt recovery precedes stale-source checks. Receipt JSON
 uses explicit storage versions and domain facts rather than application DTOs.
@@ -718,9 +779,14 @@ so a retry cannot grant the same consequence again. Unconscious-created Prone
 remains after waking. Persistent-damage comparisons retain exact episode/source
 membership; boundary claims prevent replaying completed turn processing.
 
-Outgoing turn receipts store request identities and typed pre-advance saved-state
-snapshots. Advancement commits the boundary and next turn together. Only the latest
-completed boundary is actionable; closing the notification changes no saved state.
+`encounter_turn_receipts` retains compact Next-turn request/intent/boundary identities
+for the encounter lifetime. `encounter_outgoing_turns` holds at most one typed
+pre-advance snapshot per encounter and references its receipt. Advancement commits
+the receipt, context replacement and next turn together. Migration 26 preserves
+every historical receipt and only the maximum-ID snapshot per encounter, including
+boundaries without review. Reset/rest clears current context and retains receipts;
+retries recover before revision/source guards. Only the current completed boundary
+is actionable; closing the notification changes no saved state.
 There is no acknowledgment queue or persisted action-attempt/relationship workflow.
 Spell reminders and optional strike context are read-only projections. Spell
 resource writes and retained dice use their existing guarded mutation owners.
@@ -750,6 +816,26 @@ source addresses, unit IDs, saved-domain rows and pending inference from prepari
 jobs. Published and pending values may legitimately differ for a forced rebuild.
 The conversion validates retained numerical evidence without decoding source DTOs
 that might require a separate source upgrade. Existing migrations remain immutable.
+
+Migration 29 adds complete native-update membership and selected checksums without
+rewriting historical values. One candidate may coexist with one active resumable
+target. Its proof covers the full requested model manifest, including empty profiles,
+and exact raw hashes/native counts before promotion can authorize pending GC.
+Incomplete candidates protect prior active work. Explicit updates retire metadata
+and unrequested pending blobs in bounded transactions; published document and trait
+values remain protected independently. Matching pending computations survive target
+changes, and legacy unknown membership is preserved until complete promotion.
+
+Numerical publication uses a disposable index-owned frozen file. Its checked seal
+binds workspace key/revision, full model/context, source expectation, complete
+membership and selected checksums. Pending bytes win over older published bytes.
+Lengths are checked before materializing values; hash, native count, dimensions and
+normalization remain mandatory. Values are copied before any vec0 slot mutation,
+occurrence deletion or profile-table replacement, and survive until all document
+and trait consumers plus final transaction validation finish. Centroid accumulation
+preserves f64 arithmetic, authored order and repeated-chunk weights. Successful
+activation clears pending values atomically; ordinary startup/reads never prune.
+Temporary numerical bytes and durable pending bytes are reported separately.
 
 Vector maintenance reuses compatible slots and packs indexes only when at least
 two blocks and 10% of allocation can be reclaimed. It uses supported vec0 public

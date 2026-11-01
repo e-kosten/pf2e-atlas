@@ -1,13 +1,45 @@
 //! Reference update job lifecycle and validated maintenance recovery.
-use crate::{IndexError, codec::sha256};
-use atlas_storage::WriteSession;
+use crate::IndexError;
 use rusqlite::params;
+#[cfg(any(test, feature = "test-support"))]
+use {crate::codec::sha256, atlas_storage::WriteSession};
 
 pub fn recover_reference_publication(
     owner: &atlas_storage::UpdateOwner,
     schema: u32,
 ) -> Result<bool, IndexError> {
+    recover_reference_publication_inner(owner, schema, None)
+}
+
+/// Recover only an interrupted maintenance operation whose exact prior
+/// publication matches the expectation. A workspace without maintenance returns
+/// an error: no guarded/authenticated recovery was performed in that case.
+pub fn recover_reference_publication_checked(
+    owner: &atlas_storage::UpdateOwner,
+    schema: u32,
+    expected: &crate::ReferencePublicationExpectation,
+) -> Result<(), IndexError> {
+    expected.validate()?;
+    atlas_sqlite_vec::register_sqlite_vec_auto_extension()
+        .map_err(|e| IndexError::Operation(e.to_string()))?;
+    if !recover_reference_publication_inner(owner, schema, Some(expected))? {
+        return Err(IndexError::Invalid(
+            "guarded recovery requires interrupted maintenance; expectation was not authenticated"
+                .into(),
+        ));
+    }
+    Ok(())
+}
+fn recover_reference_publication_inner(
+    owner: &atlas_storage::UpdateOwner,
+    schema: u32,
+    expected: Option<&crate::ReferencePublicationExpectation>,
+) -> Result<bool, IndexError> {
     owner.recover_maintenance(schema, |connection| {
+        if let Some(expected) = expected {
+            expected.check(connection)?;
+        }
+
         let revision: u64 = connection.query_row(
             "SELECT reference_revision FROM workspace WHERE id=1",
             [],
@@ -18,7 +50,8 @@ pub fn recover_reference_publication(
                 crate::component_upgrade::ReferenceUpgrade::Current => {
                     crate::validate_reference(connection)?;
                 }
-                crate::component_upgrade::ReferenceUpgrade::SourceReplacement => {
+                crate::component_upgrade::ReferenceUpgrade::SourceReplacement
+                | crate::component_upgrade::ReferenceUpgrade::SourcePreparation => {
                     // Recovery opens the workspace for an explicit source rebuild,
                     // not for product reads of the retired snapshot contract.
                     let integrity: String =
@@ -37,8 +70,8 @@ pub fn recover_reference_publication(
                 }
                 crate::component_upgrade::ReferenceUpgrade::QueryProjections
                 | crate::component_upgrade::ReferenceUpgrade::LexicalProjections
-                | crate::component_upgrade::ReferenceUpgrade::CoreProjections
-                | crate::component_upgrade::ReferenceUpgrade::SourcePreparation => {
+                | crate::component_upgrade::ReferenceUpgrade::SectionProjections
+                | crate::component_upgrade::ReferenceUpgrade::CoreProjections => {
                     // Old derived outputs cannot be validated against new policy.
                     // Authenticate retained inputs and storage integrity; product
                     // readers remain blocked by their component-version checks.
@@ -53,7 +86,7 @@ pub fn recover_reference_publication(
                         crate::read_stored_reference_context(connection)?.ok_or_else(|| {
                             IndexError::Invalid("published reference has no context".into())
                         })?;
-                    crate::read_persisted_inputs(connection, &context)?;
+                    crate::visit_persisted_inputs(connection, &context, &mut |_| Ok(()))?;
                 }
             }
         } else {
@@ -72,6 +105,7 @@ pub fn recover_reference_publication(
     })
 }
 
+#[cfg(any(test, feature = "test-support"))]
 pub fn start_reference_job(
     session: &WriteSession,
     target_hash: &str,
@@ -101,6 +135,16 @@ pub(crate) fn finish_reference_job(
             "reference update job no longer matches the workspace revision or target".into(),
         ));
     }
-    connection.execute("DELETE FROM reference_update_jobs WHERE job_key<>?", [job])?;
+    let retired = connection.execute(
+        "UPDATE native_update_targets SET phase='retired' WHERE job_key=? AND phase='active'",
+        [job],
+    )?;
+    if retired != 1 {
+        return Err(IndexError::Invalid(
+            "published native target is no longer active".into(),
+        ));
+    }
+    // Metadata is retired in bounded transactions on the next explicit update.
+    // Deleting a parent here would bypass that lifecycle or strand memberships.
     Ok(())
 }

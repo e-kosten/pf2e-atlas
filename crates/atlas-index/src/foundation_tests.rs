@@ -84,6 +84,9 @@ fn audience() -> ContentAudience {
 }
 fn context(n: usize, semantic: bool) -> SourceArtifactBuildContext {
     SourceArtifactBuildContext {
+        selected_sections_recipe: crate::SELECTED_SECTIONS_RECIPE.into(),
+
+        admission: None,
         core_sections_recipe: atlas_domain::CORE_SECTIONS_RECIPE.into(),
         trait_policy: "trait-definition-centroid/v1".into(),
         format_version: ARTIFACT_FORMAT_VERSION,
@@ -168,6 +171,12 @@ pub(super) fn fixture_with_description(semantic: bool, description: &str) -> Ind
         ),
     ];
     let mut input = IndexBuildInput {
+        inventory: crate::CompleteSourceInventory::checked(
+            &"a".repeat(64),
+            ["actors", "items", "macros"].map(str::to_owned),
+            ["actors", "items", "macros"].map(str::to_owned),
+        )
+        .unwrap(),
         traits: vec![],
         trait_vectors: vec![],
         context: context(records.len(), semantic),
@@ -602,7 +611,7 @@ fn reference_validation_rejects_missing_reference_sidecar() {
     synchronize_fixture_terms(&mut input);
     let (_directory, path) = build(&input);
     let db = Connection::open(&path).unwrap();
-    let records = crate::read_persisted_inputs(&db, &input.context).unwrap();
+    let records = crate::collect_persisted_inputs_for_fixture(&db, &input.context).unwrap();
     assert!(records.iter().any(|r| r.record.key() == &key));
     db.execute_batch("SAVEPOINT reference_metadata").unwrap();
     assert_eq!(db.execute(
@@ -972,6 +981,12 @@ fn world_table_result_cannot_resolve_into_the_compendium_namespace() {
         document_kind: "RollTable".into(),
         declared_path: "packs/tables".into(),
     });
+    input.inventory = crate::CompleteSourceInventory::checked(
+        &input.context.source_fingerprint,
+        input.packs.iter().map(|p| p.pack_id.clone()),
+        input.packs.iter().map(|p| p.pack_id.clone()),
+    )
+    .unwrap();
     input.context.source_file_count = input.records.len();
     let hash = input.context.preparation_sha256().unwrap();
     let mut resolver = SourceReferenceIndex::default();
@@ -1585,7 +1600,8 @@ fn persisted_preparation_reconstructs_exact_publication_inputs_without_query_cat
     connection
         .execute("DELETE FROM query_field_catalog", [])
         .unwrap();
-    let restored = crate::read_persisted_inputs(&connection, &input.context).unwrap();
+    let restored =
+        crate::collect_persisted_inputs_for_fixture(&connection, &input.context).unwrap();
     assert_eq!(restored.len(), input.records.len());
     for original in &input.records {
         let restored = restored

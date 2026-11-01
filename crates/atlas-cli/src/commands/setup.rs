@@ -232,6 +232,7 @@ struct SetupEmbeddingData {
 
 #[derive(Debug, Serialize)]
 struct SetupBuildData {
+    admission: atlas_index::SourceAdmissionSummary,
     profiles: Vec<atlas_ingest::ProfileBuildReport>,
     source_fingerprint: String,
     record_count: usize,
@@ -312,6 +313,14 @@ fn print_setup_report(report: &atlas_runtime::RuntimeSetupReport) {
         println!();
         println!("build:");
         println!(
+            "  source files: {} discovered, {} admitted, {} partial, {} quarantined, {} excluded",
+            build.admission.discovered_files,
+            build.admission.admitted_records,
+            build.admission.partial_records,
+            build.admission.quarantined_files,
+            build.admission.excluded_documents
+        );
+        println!(
             "  duration: {}",
             format_duration_ms(build.build_duration_ms)
         );
@@ -389,6 +398,7 @@ fn setup_json_data(report: &atlas_runtime::RuntimeSetupReport) -> SetupData {
             })
             .collect(),
         build: report.build.as_ref().map(|build| SetupBuildData {
+            admission: build.admission.clone(),
             profiles: build.profiles.clone(),
             source_fingerprint: build.source_fingerprint.clone(),
             record_count: build.record_count,

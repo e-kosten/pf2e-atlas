@@ -86,13 +86,17 @@ impl SqliteIndexReader {
             // Admission already checks native capabilities and complete DDL;
             // this phase validates current metadata and full eligibility.
             let sql = format!(
-                "WITH eligible AS ({eligible}), requested(unit_id,ordinal) AS (VALUES {requested}) SELECT su.unit_id,r.key,sl.owners_json,sl.field_path,sl.section_json,q.ordinal FROM requested q JOIN semantic_units su ON su.unit_id=q.unit_id JOIN semantic_locations sl USING(location_id) JOIN records r ON r.record_id=su.record_id WHERE su.profile_id=?{profile_param} AND su.record_id IN (SELECT record_id FROM eligible){content} ORDER BY q.ordinal"
+                "WITH eligible AS ({eligible}), requested(unit_id,ordinal) AS (VALUES {requested}) SELECT {},q.ordinal FROM requested q JOIN semantic_units su ON su.unit_id=q.unit_id JOIN semantic_locations sl USING(location_id) JOIN records r ON r.record_id=su.record_id LEFT JOIN selected_sections ss ON ss.section_id=sl.section_id AND ss.record_id=su.record_id WHERE su.profile_id=?{profile_param} AND su.record_id IN (SELECT record_id FROM eligible){content} ORDER BY q.ordinal",
+                crate::read_units::SEMANTIC_LOCATION_COLUMNS
             );
             self.count_statement();
             let mut statement = self.native()?.prepare(&sql)?;
             let mut count = 0;
             for row in statement.query_map(params_from_iter(params.iter()), |row| {
-                Ok((crate::read_units::location(row)?, row.get::<_, usize>(5)?))
+                Ok((
+                    crate::read_units::location(row)?,
+                    row.get::<_, usize>(crate::read_units::LOCATION_WIDTH)?,
+                ))
             })? {
                 let (location, ordinal) = row?;
                 if ordinal != count || batch.get(ordinal).is_none_or(|n| n.0 != location.unit_id) {

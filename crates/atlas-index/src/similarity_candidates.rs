@@ -98,12 +98,14 @@ impl SqliteIndexReader {
         let prose_sql = if comparison_key == Some(SimilarityComparisonKey::Identity) {
             "0".to_owned()
         } else {
-            format!("su.unit_kind='passage' AND sp.selector IS NOT NULL {role_sql}")
+            format!(
+                "su.unit_kind='passage' AND (sp.section_id IS NULL OR (sp.selector IS NOT NULL {role_sql}))"
+            )
         };
         let identity_allowed =
             (include_identity || content_scope == SearchContentScope::Core) && role.is_none();
         let identity_sql = if identity_allowed {
-            "su.unit_kind='identity' AND sl.field_path IS NULL AND sl.owners_json='[]'"
+            "su.unit_kind='identity'"
         } else {
             "0"
         };
@@ -111,8 +113,7 @@ impl SqliteIndexReader {
         // One eligibility formula supplies materialization, identity and bypass.
         let prefix = format!("WITH eligible AS ({eligible}) ");
         let units = format!(
-            "SELECT su.unit_id FROM semantic_units su JOIN semantic_locations sl USING(location_id) LEFT JOIN similarity_parts sp ON {} WHERE su.profile_id=?{p} AND su.record_id IN (SELECT record_id FROM eligible){content_sql} AND (({prose_sql}) OR ({identity_sql}))",
-            crate::read_similarity::PART_JOIN
+            "SELECT su.unit_id FROM semantic_units su JOIN semantic_locations sl USING(location_id) LEFT JOIN selected_sections sp ON sp.section_id=sl.section_id AND sp.record_id=su.record_id WHERE su.profile_id=?{p} AND su.record_id IN (SELECT record_id FROM eligible){content_sql} AND (({prose_sql}) OR ({identity_sql}))",
         );
         let setup_parameters = values.len();
         values.push(Value::Blob(crate::read_units::vector_bytes(vector)));
@@ -140,9 +141,10 @@ impl SqliteIndexReader {
 fn selection_parts(table: &str, vector: usize, k: usize) -> (String, &'static str) {
     (
         format!(
-            "SELECT su.unit_id,r.key,sl.owners_json,sl.field_path,sl.section_json,knn.distance FROM (SELECT unit_id,distance FROM {table} WHERE embedding MATCH ?{vector} AND k=?{k} AND unit_id IN ("
+            "SELECT {},knn.distance FROM (SELECT unit_id,distance FROM {table} WHERE embedding MATCH ?{vector} AND k=?{k} AND unit_id IN (",
+            crate::read_units::SEMANTIC_LOCATION_COLUMNS
         ),
-        ")) knn JOIN semantic_units su USING(unit_id) JOIN semantic_locations sl USING(location_id) JOIN records r ON r.record_id=su.record_id ORDER BY knn.distance,su.unit_id",
+        ")) knn JOIN semantic_units su USING(unit_id) JOIN semantic_locations sl USING(location_id) JOIN records r ON r.record_id=su.record_id LEFT JOIN selected_sections ss ON ss.section_id=sl.section_id AND ss.record_id=su.record_id ORDER BY knn.distance,su.unit_id",
     )
 }
 fn selection_sql(table: &str, units: &str, vector: usize, k: usize) -> String {
@@ -176,7 +178,7 @@ fn collect(
         .query_map(parameters, |row| {
             Ok(SourceVectorHit {
                 location: crate::read_units::location(row)?,
-                distance: row.get(5)?,
+                distance: row.get("distance")?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?)

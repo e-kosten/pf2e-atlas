@@ -431,6 +431,7 @@ pub(crate) fn ensure_setup(
 impl From<BuildArtifactReport> for SetupBuildReport {
     fn from(r: BuildArtifactReport) -> Self {
         Self {
+            admission: r.admission,
             profiles: r.profiles,
             pack_count: r.pack_count,
             record_count: r.record_count,

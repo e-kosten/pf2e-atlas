@@ -78,6 +78,8 @@ export function SimilaritySectionChoices({
                       onClick={(event) => {
                         if (!isPrimaryActivation(event)) return;
                         event.preventDefault();
+                        // Touch activation need not focus the link before this handler.
+                        event.currentTarget.focus({ preventScroll: true });
                         onReference(part, event.currentTarget);
                       }}
                     >

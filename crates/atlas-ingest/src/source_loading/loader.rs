@@ -22,28 +22,14 @@ pub fn load_foundry_documents(
     source_root: impl AsRef<Path>,
     manifest_path: Option<&Path>,
 ) -> Result<LoadedFoundrySource, IngestError> {
-    load_foundry_documents_with_reuse(source_root, manifest_path, Vec::new())
-}
-
-/// Reuse admitted DTOs only when the original source bytes and identity envelope match.
-pub fn load_foundry_documents_with_reuse(
-    source_root: impl AsRef<Path>,
-    manifest_path: Option<&Path>,
-    previous: Vec<atlas_index::SourceArtifactRecordInput>,
-) -> Result<LoadedFoundrySource, IngestError> {
-    load_captured_source(source_root.as_ref(), manifest_path, previous, None)
+    load_captured_source(source_root.as_ref(), manifest_path, None)
 }
 
 pub(crate) fn load_captured_source(
     source_root: &Path,
     manifest_path: Option<&Path>,
-    previous: Vec<atlas_index::SourceArtifactRecordInput>,
     capture: Option<&crate::source_fingerprint::SourceCapture>,
 ) -> Result<LoadedFoundrySource, IngestError> {
-    let mut previous = previous
-        .into_iter()
-        .map(|r| (r.source_path.clone(), r))
-        .collect::<std::collections::BTreeMap<_, _>>();
     if !source_root.is_dir() {
         return Err(IngestError::SourceUnavailable(format!(
             "{} is not a readable directory",
@@ -87,8 +73,6 @@ pub(crate) fn load_captured_source(
         });
         let paths = discovery.unwrap_or_default();
         let discovered_file_count = paths.len();
-        // Consume candidates in manifest/path order. Aliased pack paths may be
-        // discovered again, but a previous record belongs to at most one load.
         let inputs = paths
             .into_iter()
             .map(|path| {
@@ -97,15 +81,12 @@ pub(crate) fn load_captured_source(
                     document_type: declared.document_type.clone(),
                     source_path: relative_source_path(source_root, &path),
                 };
-                let candidate = previous.remove(&provenance.source_path);
-                (path, provenance, candidate)
+                (path, provenance)
             })
             .collect::<Vec<_>>();
         let outcomes: Vec<_> = inputs
             .into_par_iter()
-            .map(|(path, provenance, candidate)| {
-                load_document(&path, provenance, candidate, capture)
-            })
+            .map(|(path, provenance)| load_document(&path, provenance, capture))
             .collect();
         let mut documents = Vec::new();
         let mut quarantined_files = Vec::new();
@@ -145,7 +126,6 @@ pub(crate) fn load_captured_source(
 fn load_document(
     path: &Path,
     provenance: SourceFileProvenance,
-    previous: Option<atlas_index::SourceArtifactRecordInput>,
     capture: Option<&crate::source_fingerprint::SourceCapture>,
 ) -> Result<LoadedFoundryDocument, Box<QuarantinedSourceFile>> {
     let bytes = match capture {
@@ -164,40 +144,6 @@ fn load_document(
         })
     })?;
     let content_hash = format!("{:x}", Sha256::digest(&bytes));
-    if let Some(old) = previous
-        && old.content_hash == content_hash
-        && old.record.key().pack().as_str() == provenance.pack_name
-        && atlas_record::source_record::SourceNodeView::from(old.record.source()).document_kind()
-            == provenance.document_type
-        && old
-            .diagnostics
-            .iter()
-            .all(|d| d.source_diagnostic.is_some())
-    {
-        // Parsing the original envelope preserves duplicate IDs/names for corpus collision exclusion.
-        // Generated schema admission is intentionally bypassed for byte-identical inputs.
-        if let Ok(raw) = atlas_foundry_model::parse_source_value(&bytes) {
-            return Ok(LoadedFoundryDocument {
-                provenance,
-                content_hash,
-                bytes,
-                admission: atlas_foundry_model::SourceAdmission {
-                    raw,
-                    model: Some(old.record.source().clone()),
-                    diagnostics: old
-                        .diagnostics
-                        .into_iter()
-                        .filter_map(|d| d.source_diagnostic)
-                        .collect(),
-                },
-                reused_preparation: Some(super::model::ReusedPreparation {
-                    context_hash: old.preparation_context_hash,
-                    content: old.content,
-                    relationships: old.relationships,
-                }),
-            });
-        }
-    }
     // A path-based locator works even when _id is missing, invalid or duplicated.
     // It is diagnostic context, not an invented canonical Atlas RecordKey.
     let context = SourceContext::new(
@@ -212,7 +158,6 @@ fn load_document(
             content_hash,
             bytes,
             admission,
-            reused_preparation: None,
         }),
         Err(error) => Err(Box::new(QuarantinedSourceFile {
             failure: SourceLoadFailure {
