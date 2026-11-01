@@ -129,6 +129,7 @@ function setEncounterDetail(view: EncounterDetailViewDto) {
 }
 
 function setupPersistentReview(damageApplied = false) {
+  const initialTurnRevision = serverEncounter.revision;
   const participant = serverEncounter.participants[0];
   participant.conditions[0] = {
     ...participant.conditions[0],
@@ -197,11 +198,15 @@ function setupPersistentReview(damageApplied = false) {
     current_participant_key: "participant_a",
     next_participant_key: "participant_b",
     reminders: [],
+    incoming: null,
     outgoing: apiMocks.advanceEncounterTurn.mock.calls.length
       ? {
+          event: "end" as const,
+          source_revision: initialTurnRevision,
           boundary_key: "original-turn",
           participant_key: "participant_a",
           participant_name: "Goblin",
+          round_duration_seconds: 6n,
           round_number: 1n,
           persistent_damage_groups: participant.persistent_damage_groups,
           reminders: state.recoveryResults.length
@@ -225,6 +230,7 @@ function setupPersistentReview(damageApplied = false) {
     damage_groups: state.recoveryResults.some((result) => result.success)
       ? []
       : participant.persistent_damage_groups,
+    round_duration_seconds: 6n,
     round_number: 1n,
     damage_applied: state.damageApplied,
     episodes: state.recoveryResults.length
@@ -333,6 +339,7 @@ describe("encounter views", () => {
     apiMocks.getEncounterPersistentReview.mockResolvedValue({
       encounter_revision: serverEncounter.revision,
       damage_groups: [],
+      round_duration_seconds: 6n,
       round_number: 1n,
       damage_applied: false,
       episodes: [],
@@ -364,6 +371,7 @@ describe("encounter views", () => {
         current_participant_key: serverEncounter.current_turn_participant_key ?? null,
         next_participant_key: "participant_b",
         reminders: [],
+        incoming: null,
         outgoing: null,
         next_turn_unavailable_reason: null,
       }),
@@ -2391,6 +2399,7 @@ describe("encounter views", () => {
         duration: { amount: 2n, unit: "rounds", timing: null },
       },
     ];
+    const initialTurnRevision = serverEncounter.revision;
     apiMocks.getEncounterTurnReview.mockImplementation(async () => ({
       encounter_key: "encounter_ambush",
       expected_revision: serverEncounter.revision,
@@ -2398,11 +2407,15 @@ describe("encounter views", () => {
       next_participant_key: "participant_a",
       reminders: [],
       next_turn_unavailable_reason: null,
+      incoming: null,
       outgoing: apiMocks.advanceEncounterTurn.mock.calls.length
         ? {
+            event: "end" as const,
+            source_revision: initialTurnRevision,
             boundary_key: "outgoing",
             participant_key: "participant_a",
             participant_name: "Goblin",
+            round_duration_seconds: 6n,
             round_number: 1n,
             persistent_damage_groups: [],
             reminders,
@@ -3169,6 +3182,7 @@ function encounterIndexFixture(): EncounterIndexViewDto {
         name: "Ambush",
         description: "Road fight",
         status: "draft",
+        round_duration_seconds: 6n,
         round_number: 1n,
         participant_count: 2,
         created_at: "2026-01-01T00:00:00Z",
@@ -3179,6 +3193,7 @@ function encounterIndexFixture(): EncounterIndexViewDto {
         slug: "old-fight",
         name: "Old Fight",
         status: "archived",
+        round_duration_seconds: 6n,
         round_number: 1n,
         participant_count: 1,
         created_at: "2026-01-01T00:00:00Z",
@@ -3379,6 +3394,7 @@ function participantFixture(
   overrides: Partial<EncounterParticipantView>,
 ): EncounterParticipantView {
   return {
+    manual_trackers: [],
     knockout_options: [],
     effective_max_hp: {
       state: overrides.max_hp === undefined ? "missing" : "value",

@@ -12,16 +12,16 @@ fn historical(input: &IndexBuildInput) -> (tempfile::TempDir, PathBuf, Workspace
     let path = directory.path().join("sections.sqlite");
     let workspace = Workspace::at(&path).unwrap();
     workspace
-        .migrate(&TEST_MIGRATIONS[..24], |_| Ok(()))
+        .migrate(&TEST_MIGRATIONS[..26], |_| Ok(()))
         .unwrap();
     let owner = workspace.update_owner().unwrap();
     let maintenance = owner
-        .maintenance(24, "authentic pre-section fixture")
+        .maintenance(26, "authentic pre-section fixture")
         .unwrap();
     publish_pre_section_fixture(&maintenance, input).unwrap();
     drop(maintenance);
     drop(owner);
-    let write = workspace.write(24).unwrap();
+    let write = workspace.write(26).unwrap();
     atlas_local_state::LocalStateWrite::new(&write)
         .saved_lists()
         .create(atlas_local_state::NewSavedList {
@@ -170,7 +170,7 @@ fn compatible_upgrade_preserves_values_saved_state_and_selectors_for_zero_one_an
             .semantic_units
             .retain(|u| profiles.contains(&u.profile_id.as_str()));
         let (_directory, path, workspace) = historical(&input);
-        let write = workspace.write(24).unwrap();
+        let write = workspace.write(26).unwrap();
         write.connection().execute_batch("CREATE TABLE saved_probe(id INTEGER PRIMARY KEY,note TEXT); INSERT INTO saved_probe VALUES(77,'Retain exact saved note');").unwrap();
         let before = numerical(write.connection(), &input);
         let saved_before = saved(write.connection());
@@ -312,7 +312,7 @@ fn profile_specific_ranges_share_whole_sections_without_collapsing_locations() {
         }
     }
     let (_directory, path, workspace) = historical(&input);
-    let read = workspace.read(24).unwrap();
+    let read = workspace.read(26).unwrap();
     let before = numerical(read.connection(), &input);
     drop(read);
     let upgraded = initialize_workspace(&path).unwrap();
@@ -367,7 +367,7 @@ fn retired_preparation_and_predecessor_never_decode_snapshots_or_alter_pending_v
             source.preparation_context_hash = retired_preparation.clone();
         }
         let (_directory, path, workspace) = historical(&input);
-        let write = workspace.write(24).unwrap();
+        let write = workspace.write(26).unwrap();
         let c = write.connection();
         c.execute("UPDATE record_bodies SET snapshot=x'00'", [])
             .unwrap();
@@ -448,7 +448,7 @@ fn corrupt_historical_ranges_roll_back_schema_ledger_and_native_values() {
     for corruption in ["checksum", "range", "owner", "lexical whole extent"] {
         let input = sample();
         let (_directory, path, workspace) = historical(&input);
-        let write = workspace.write(24).unwrap();
+        let write = workspace.write(26).unwrap();
         let c = write.connection();
         if corruption == "lexical whole extent" {
             let (unit, json):(i64,String)=c.query_row("SELECT unit_id,section_json FROM lexical_units WHERE unit_kind='heading' LIMIT 1",[],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
@@ -496,7 +496,7 @@ fn corrupt_historical_ranges_roll_back_schema_ledger_and_native_values() {
         let revision = write.reference_revision().unwrap();
         write.commit().unwrap();
         assert!(initialize_workspace(&path).is_err(), "{corruption}");
-        let read = workspace.read(24).unwrap();
+        let read = workspace.read(26).unwrap();
         assert_eq!(read.reference_revision().unwrap(), revision);
         assert_eq!(numerical(read.connection(), &input), before);
         assert_eq!(saved(read.connection()), saved_before);

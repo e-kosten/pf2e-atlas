@@ -48,7 +48,7 @@ before BEGIN for the **whole pending migration batch**, including ordinary SQL
 and callbacks before or after the opted-in backfill. Every migration in that
 batch must be safe without foreign-key actions; the final key check detects
 dangling references but cannot reproduce a skipped cascade. The published
-migration 1–22 suffixes used with the saved-state reconstruction use explicit
+migration 1–24 suffixes used with the saved-state reconstruction use explicit
 changes and have no dependency on such cascades. Domain-owned preflight and
 reconstruction, exact row-count checks, ledger updates and complete foreign-key
 validation share the upgrade transaction.
@@ -193,10 +193,10 @@ Storage tests cover cross-process admission, abrupt process exit, interrupted
 maintenance and migration while recovery is pending. Runtime regression coverage
 exercises automatic query backfill while retaining saved lists, encounter state,
 vector bytes and reusable checkpoints. CLI tests protect workspace retention
-during cleanup and fail-closed handling of inconsistent schemas. Rust, frontend
-and real-browser gates passed for the implementation; native-model inference and
-full-corpus performance were not rerun. These checks establish local implementation
-evidence, not release or hosted-CI acceptance.
+during cleanup and fail-closed handling of inconsistent schemas. Recorded Rust,
+frontend and real-browser gates establish local implementation evidence for their
+tested inputs. Native-model inference, full-corpus performance and hosted-CI
+acceptance require separate evidence for the candidate under review.
 
 Physical free-page reclamation runs only during explicit maintenance, outside a
 SQL transaction under exclusive admission and a durable recovery marker. It keeps

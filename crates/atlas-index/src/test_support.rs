@@ -159,6 +159,22 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 23,
+        name: "manual-encounter-trackers",
+        sql: atlas_local_state::MANUAL_TRACKERS_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 24,
+        name: "encounter-round-duration",
+        sql: atlas_local_state::ENCOUNTER_CLOCK_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
+            id: "encounter-clock-seconds/v1",
+            apply: atlas_local_state::backfill_encounter_clock,
+        }),
+    },
+    Migration {
+        version: 25,
         name: "saved-state-integrity",
         sql: "",
         backfill: Some(atlas_storage::DataBackfill {
@@ -168,13 +184,13 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         }),
     },
     Migration {
-        version: 24,
+        version: 26,
         name: "turn-receipts",
         sql: atlas_local_state::TURN_RECEIPTS_SCHEMA_SQL,
         backfill: None,
     },
     Migration {
-        version: 25,
+        version: 27,
         name: "canonical-selected-sections",
         sql: crate::SELECTED_SECTIONS_SCHEMA_SQL,
         backfill: Some(atlas_storage::DataBackfill {
@@ -184,13 +200,13 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         }),
     },
     Migration {
-        version: 26,
+        version: 28,
         name: "reference-component-reconciliation",
         sql: crate::COMPONENT_DIGEST_SCHEMA_SQL,
         backfill: None,
     },
     Migration {
-        version: 27,
+        version: 29,
         name: "native-update-targets",
         sql: crate::NATIVE_TARGETS_SCHEMA_SQL,
         backfill: None,
@@ -254,16 +270,16 @@ pub fn publish_pre_core_fixture(
     })
 }
 
-/// Publish the real schema-21 through schema-24 reference shape before sections.
+/// Publish the real schema-21 through schema-26 reference shape before sections.
 pub fn publish_pre_section_fixture(
     maintenance: &atlas_storage::MaintenanceSession<'_>,
     input: &IndexBuildInput,
 ) -> Result<(), IndexError> {
     maintenance.publish(|connection| {
         let version: u32 = connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-        if !(21..=24).contains(&version) {
+        if !(21..=26).contains(&version) {
             return Err(IndexError::Invalid(
-                "pre-section fixtures require an actual schema-21 through schema-24 workspace"
+                "pre-section fixtures require an actual schema-21 through schema-26 workspace"
                     .into(),
             ));
         }

@@ -486,6 +486,18 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
             .unwrap()
             .is_empty()
     );
+    let sequences = before.get_mut("sqlite_sequence").unwrap();
+    assert!(!sequences.iter().any(
+        |row| row[0] == rusqlite::types::Value::Text("encounter_participant_conditions".into())
+    ));
+    sequences.push(vec![
+        rusqlite::types::Value::Text("encounter_participant_conditions".into()),
+        rusqlite::types::Value::Integer(0),
+    ]);
+    sequences.sort_by_key(|row| match &row[0] {
+        rusqlite::types::Value::Text(name) => name.clone(),
+        _ => panic!("SQLite sequence name must remain text"),
+    });
     write.commit().unwrap();
     let upgraded = crate::test_support::initialize_workspace(&path).unwrap();
     let read = upgraded
@@ -518,6 +530,12 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
     assert!(
         after
             .remove("encounter_recovery_receipts")
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        after
+            .remove("encounter_manual_trackers")
             .unwrap()
             .is_empty()
     );

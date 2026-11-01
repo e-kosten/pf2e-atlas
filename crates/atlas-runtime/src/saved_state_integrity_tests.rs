@@ -2,7 +2,7 @@ use super::*;
 use atlas_local_state::{LocalStateRead, LocalStateWrite};
 use rusqlite::{Connection, types::Value};
 
-const SAVED_TABLES: [&str; 22] = [
+const SAVED_TABLES: [&str; 23] = [
     "principals",
     "saved_lists",
     "saved_list_items",
@@ -12,6 +12,7 @@ const SAVED_TABLES: [&str; 22] = [
     "encounters",
     "encounter_participants",
     "encounter_participant_conditions",
+    "encounter_manual_trackers",
     "encounter_spell_resources",
     "encounter_expended_spells",
     "encounter_roll_receipts",
@@ -60,12 +61,12 @@ fn historical() -> (tempfile::TempDir, Workspace) {
     let directory = tempfile::tempdir().unwrap();
     register_extensions().unwrap();
     let workspace = Workspace::at(directory.path().join("integrity.sqlite")).unwrap();
-    workspace.migrate(&MIGRATIONS[..22], |_| Ok(())).unwrap();
+    workspace.migrate(&MIGRATIONS[..24], |_| Ok(())).unwrap();
     (directory, workspace)
 }
 
-pub(super) fn populate(workspace: &Workspace) {
-    let write = workspace.write(22).unwrap();
+pub(super) fn populate(workspace: &Workspace, schema: u32) {
+    let write = workspace.write(schema).unwrap();
     write.connection().execute_batch(POPULATED).unwrap();
     write.commit().unwrap();
 }
@@ -123,20 +124,20 @@ fn integrity_upgrade_preserves_populated_saved_graph_reference_snapshots_and_vec
     ]);
     {
         let owner = workspace.update_owner().unwrap();
-        let maintenance = owner.maintenance(22, "integrity upgrade fixture").unwrap();
+        let maintenance = owner.maintenance(24, "integrity upgrade fixture").unwrap();
         atlas_index::test_support::publish_pre_section_fixture(&maintenance, &input).unwrap();
     }
-    populate(&workspace);
-    let read = workspace.read(22).unwrap();
+    populate(&workspace, 24);
+    let read = workspace.read(24).unwrap();
     let before = saved_rows(read.connection());
     let reference = ["workspace", "record_identity", "records", "record_bodies"]
         .map(|table| rows(read.connection(), table));
     let vector_bits = vectors(read.connection());
     let ledger = rows(read.connection(), "schema_migrations");
     drop(read);
-    workspace.migrate(&MIGRATIONS[..23], |_| Ok(())).unwrap();
-    workspace.migrate(&MIGRATIONS[..23], |_| Ok(())).unwrap();
-    let read = workspace.read(23).unwrap();
+    workspace.migrate(&MIGRATIONS[..25], |_| Ok(())).unwrap();
+    workspace.migrate(&MIGRATIONS[..25], |_| Ok(())).unwrap();
+    let read = workspace.read(25).unwrap();
     assert_eq!(saved_rows(read.connection()), before);
     assert_eq!(
         ["workspace", "record_identity", "records", "record_bodies"]
@@ -144,7 +145,7 @@ fn integrity_upgrade_preserves_populated_saved_graph_reference_snapshots_and_vec
         reference
     );
     assert_eq!(vectors(read.connection()), vector_bits);
-    assert_eq!(&rows(read.connection(), "schema_migrations")[..22], ledger);
+    assert_eq!(&rows(read.connection(), "schema_migrations")[..24], ledger);
     assert_eq!(
         read.connection()
             .query_row(
@@ -211,8 +212,8 @@ fn integrity_upgrade_rejects_invalid_history_without_changing_rows_or_ledger() {
         ),
     ] {
         let (_directory, workspace) = historical();
-        populate(&workspace);
-        let write = workspace.write(22).unwrap();
+        populate(&workspace, 24);
+        let write = workspace.write(24).unwrap();
         write.connection().execute_batch(corrupt).unwrap();
         let before = saved_rows(write.connection());
         let adjustments = rows(write.connection(), "encounter_participant_adjustments");
@@ -222,7 +223,7 @@ fn integrity_upgrade_rejects_invalid_history_without_changing_rows_or_ledger() {
             .unwrap_err()
             .to_string();
         assert!(error.contains(diagnostic), "{error}");
-        let read = workspace.read(22).unwrap();
+        let read = workspace.read(24).unwrap();
         assert_eq!(saved_rows(read.connection()), before, "{corrupt}");
         assert_eq!(
             rows(read.connection(), "encounter_participant_adjustments"),
@@ -251,7 +252,7 @@ fn integrity_upgrade_rejects_invalid_history_without_changing_rows_or_ledger() {
 #[test]
 fn integrity_constraints_reject_invalid_writes_and_defer_current_turn_until_commit() {
     let (_directory, workspace) = historical();
-    populate(&workspace);
+    populate(&workspace, 24);
     initialize_workspace(workspace.path()).unwrap();
     let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
     for sql in [
@@ -290,7 +291,7 @@ fn integrity_constraints_reject_invalid_writes_and_defer_current_turn_until_comm
 fn integrity_constraints_allow_current_participant_and_encounter_deletion() {
     for remove_encounter in [false, true] {
         let (_directory, workspace) = historical();
-        populate(&workspace);
+        populate(&workspace, 24);
         initialize_workspace(workspace.path()).unwrap();
         let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
         let state = LocalStateWrite::new(&write);

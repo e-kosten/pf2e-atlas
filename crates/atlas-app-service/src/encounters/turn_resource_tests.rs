@@ -148,6 +148,7 @@ fn turn_preparation_cannot_retarget_a_reassigned_slug() {
     let rename = |encounter: &EncounterSummaryView, slug: &str| {
         f.worker
             .update_encounter(UpdateEncounterRequest {
+                round_duration_seconds: None,
                 encounter_key: encounter.encounter_key.clone(),
                 slug: slug.into(),
                 name: encounter.name.clone(),

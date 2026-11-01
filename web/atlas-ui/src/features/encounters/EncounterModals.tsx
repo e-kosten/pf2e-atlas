@@ -2,7 +2,7 @@ import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { encounterStatusLabels } from "./encounterStatus";
 import { EncounterModal } from "./EncounterModal";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Form, Input, Popconfirm, Select } from "antd";
+import { Button, Form, Input, InputNumber, Popconfirm, Select } from "antd";
 import { useEffect, useId, useRef } from "react";
 import { createEncounter } from "../../api/atlasApi";
 import type {
@@ -16,6 +16,7 @@ type CreateEncounterForm = {
 };
 
 type EditEncounterFormValues = {
+  roundDurationSeconds: number;
   name: string;
   description?: string;
   note?: string;
@@ -95,18 +96,30 @@ export function EditEncounterModal({
   pending?: boolean;
   error?: string;
 }) {
+  const formId = useId();
   return (
     <EncounterModal
       title="Settings"
       open={open}
       destroyOnHidden
       onCancel={onCancel}
-      footer={null}
+      footer={
+        <EncounterEditActions
+          name={encounter.name}
+          formId={formId}
+          onCancel={onCancel}
+          onDelete={onDelete}
+          disabled={disabled}
+          pending={pending}
+        />
+      }
       closable={!pending}
       keyboard={!pending}
       mask={{ closable: !pending }}
     >
       <EditEncounterForm
+        externalFormId={formId}
+        hideActions
         encounter={encounter}
         disabled={disabled}
         pending={pending}
@@ -129,6 +142,8 @@ export function EditEncounterForm({
   disabled = false,
   pending = false,
   error,
+  externalFormId,
+  hideActions = false,
 }: {
   encounter: EncounterSummaryView;
   encounterNote: string | undefined;
@@ -138,13 +153,17 @@ export function EditEncounterForm({
   disabled?: boolean;
   pending?: boolean;
   error?: string;
+  externalFormId?: string;
+  hideActions?: boolean;
 }) {
-  const formId = useId();
+  const generatedFormId = useId();
+  const formId = externalFormId ?? generatedFormId;
   const [form] = Form.useForm<EditEncounterFormValues>();
   const initializedKey = useRef<string | null>(null);
   useEffect(() => {
     const values = {
       name: encounter.name,
+      roundDurationSeconds: Number(encounter.round_duration_seconds),
       description: encounter.description,
       note: encounterNote,
       status: encounter.status,
@@ -168,6 +187,7 @@ export function EditEncounterForm({
   return (
     <Form
       name={formId}
+      id={formId}
       disabled={disabled}
       form={form}
       layout="vertical"
@@ -176,6 +196,9 @@ export function EditEncounterForm({
         try {
           await onSave({
             encounter_key: encounter.encounter_key,
+            ...(form.isFieldTouched("roundDurationSeconds")
+              ? { round_duration_seconds: BigInt(values.roundDurationSeconds) }
+              : {}),
             slug: encounter.slug,
             name: values.name,
             ...(values.description ? { description: values.description } : {}),
@@ -208,6 +231,21 @@ export function EditEncounterForm({
       <Form.Item name="note" label="Note">
         <Input.TextArea />
       </Form.Item>
+      <Form.Item
+        name="roundDurationSeconds"
+        label="Seconds per round"
+        rules={[
+          { required: true, type: "number", min: 1, max: 86400, transform: Number },
+          {
+            validator: (_, value) =>
+              Number.isSafeInteger(value)
+                ? Promise.resolve()
+                : Promise.reject(new Error("Enter a whole number of seconds.")),
+          },
+        ]}
+      >
+        <InputNumber min={1} max={86400} precision={0} />
+      </Form.Item>
       <Form.Item name="status" label="Status" rules={[{ required: true }]}>
         <Select<EncounterStatusView>
           options={["draft", "running", "complete", "archived"].map((value) => ({
@@ -216,38 +254,68 @@ export function EditEncounterForm({
           }))}
         />
       </Form.Item>
-      <div className="encounter-actions">
-        {onCancel ? (
-          <Button disabled={pending} onClick={onCancel}>
-            Cancel
-          </Button>
-        ) : null}
-        {onDelete ? (
-          <Popconfirm
-            title={`Delete ${encounter.name}?`}
-            description="This permanently deletes the encounter."
-            placement="topLeft"
-            okText="Delete"
-            cancelText="Cancel"
-            okButtonProps={{ danger: true, loading: pending }}
-            cancelButtonProps={{ disabled: pending }}
-            disabled={disabled}
-            onConfirm={onDelete}
-          >
-            <Button disabled={disabled} danger>
-              Delete
-            </Button>
-          </Popconfirm>
-        ) : null}
-        <Button
+      {!hideActions && (
+        <EncounterEditActions
+          name={encounter.name}
+          formId={formId}
+          onCancel={onCancel}
+          onDelete={onDelete}
           disabled={disabled}
-          loading={pending}
-          type="primary"
-          onClick={() => form.submit()}
-        >
-          Save
-        </Button>
-      </div>
+          pending={pending}
+        />
+      )}
     </Form>
+  );
+}
+
+function EncounterEditActions({
+  name,
+  formId,
+  onCancel,
+  onDelete,
+  disabled,
+  pending,
+}: {
+  name: string;
+  formId: string;
+  onCancel?: () => void;
+  onDelete?: () => Promise<unknown>;
+  disabled: boolean;
+  pending: boolean;
+}) {
+  return (
+    <div className="encounter-actions">
+      {onCancel ? (
+        <Button disabled={pending} onClick={onCancel}>
+          Cancel
+        </Button>
+      ) : null}
+      {onDelete ? (
+        <Popconfirm
+          title={`Delete ${name}?`}
+          description="This permanently deletes the encounter."
+          placement="topLeft"
+          okText="Delete"
+          cancelText="Cancel"
+          okButtonProps={{ danger: true, loading: pending }}
+          cancelButtonProps={{ disabled: pending }}
+          disabled={disabled}
+          onConfirm={onDelete}
+        >
+          <Button disabled={disabled} danger>
+            Delete
+          </Button>
+        </Popconfirm>
+      ) : null}
+      <Button
+        disabled={disabled}
+        loading={pending}
+        type="primary"
+        htmlType="submit"
+        form={formId}
+      >
+        Save
+      </Button>
+    </div>
   );
 }

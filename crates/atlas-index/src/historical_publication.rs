@@ -1,4 +1,4 @@
-//! Authentic pre-schema25 occurrence writer, used only by historical fixtures.
+//! Authentic pre-schema27 occurrence writer, used only by historical fixtures.
 use crate::publication_delta::upsert;
 use crate::{
     IndexBuildInput, IndexError,

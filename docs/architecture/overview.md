@@ -251,6 +251,11 @@ one-time consequences. Strikes, casting, contextual action previews and display 
 this same owner. Directed detection and attitude knowledge retain provenance and
 unknown/conflicting states. See [ADR0055](./decisions/0055-encounter-condition-evaluation.md).
 
+Manual encounter trackers are independent saved countdowns. App-service owns
+configurable round-length conversion and explicit turn-boundary updates; local-state
+persists tracker values and non-round condition progress atomically with advancement.
+Frontend controls consume those facts without inferring cooldowns from prose.
+
 Do not implement a Foundry world/rule/macro execution engine through presentation.
 
 Saved parties are ordered reusable PC names and optional levels owned by local-state.
@@ -277,11 +282,12 @@ Local-state owns complete atomic user actions and coherent aggregate reads.
 Participant replacements require the revision the caller read; stale writes
 receive a conflict without changing state. App-service owns pure turn selection
 over the local-state transaction snapshot. Next turn checks revision and request
-identity, decrements explicitly anchored round durations, and retains outgoing reminder
-context with the turn in one transaction. The browser shows reminders for the latest
-completed boundary after progression; closing them changes neither turn state nor
-gameplay. Zero duration retains the condition for explicit removal, and nonround
-durations remain table reminders. Existing-encounter mutations return
+identity, decrements explicitly anchored durations, and retains frozen transition
+context with the turn in one transaction. App-service projects separate end/start
+reminders with their actor, round and saved source revision. The browser shows end
+reminders over the outgoing participant, then start reminders over the incoming
+participant. Closing or continuing changes no turn state or gameplay. Zero duration
+retains the condition for explicit removal; unanchored durations remain table reminders. Existing-encounter mutations return
 a canonical identity receipt without postcommit reference hydration; explicit
 reads independently refresh presentation. See
 [ADR0048](./decisions/0048-atomic-mutable-workflows.md).

@@ -218,13 +218,21 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
     encounterRef: encounter.data?.encounter.encounter_key ?? route.slug,
     mutations,
     onAdvance: advanceTurn,
+    onPresent: (participantKey, event) => {
+      setSelectedParticipantKey(participantKey);
+      setParticipantOpen(true);
+      recordPreview.close();
+      focusDestination.current = null;
+      if (event === "start") {
+        const reader = host.current?.querySelector<HTMLElement>(
+          ".encounter-record-pane",
+        );
+        if (reader) reader.scrollTop = 0;
+      }
+    },
     onFinish: () =>
       followTurn(client.getQueryData<typeof encounter.data>(["encounter", route.slug])),
     expectedRevision: encounter.data?.revision ?? 0n,
-    turn: {
-      participantKey: encounter.data?.current_turn_participant_key ?? null,
-      roundNumber: encounter.data?.encounter.round_number ?? 1n,
-    },
   });
   const disabled = mutationDisabled || turnReview.preparing;
   const encounterSummary = encounter.data?.encounter ?? null;
@@ -558,6 +566,13 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 spellError={
                   mutations.errorKind === "spell" ? mutations.errorMessage : undefined
                 }
+                onManualTracker={async (request) => {
+                  const result = await mutations.run({
+                    kind: "manual-tracker",
+                    request,
+                  });
+                  return { active: result.active, refreshed: result.refreshed };
+                }}
                 onAbilityState={async (ability, action) => {
                   const participant = selected;
                   if (!participant || !encounter.data) return false;
@@ -718,6 +733,8 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
         <EncounterTurnReview
           key={turnReview.contextKey}
           open={turnReview.open}
+          event={turnReview.event}
+          hasNext={turnReview.hasNext}
           boundaryKey={turnReview.boundaryKey}
           data={turnReview.data}
           participants={encounter.data?.participants ?? []}
@@ -735,6 +752,14 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
           outcomes={turnReview.outcomes}
           onRetry={() => void turnReview.refresh()}
           onCancel={turnReview.close}
+          afterClose={() => {
+            if (!turnReview.open)
+              restoreOverlayFocus(
+                host.current?.querySelector<HTMLElement>(".encounter-record-pane") ??
+                  null,
+                null,
+              );
+          }}
           encounterRef={encounter.data?.encounter.encounter_key ?? route.slug}
           generation={encounter.data?.artifact_generation ?? null}
           damageTypes={conditionDefinitions.data?.damage_types ?? []}
@@ -764,6 +789,21 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
             if (!receipt || !("success" in receipt))
               throw new Error("Recovery result unavailable.");
             return receipt;
+          }}
+          onRemoveTracker={(reminder) => {
+            const participant = encounter.data?.participants.find(
+              (p) => p.participant_key === reminder.participant_key,
+            );
+            if (!participant) return Promise.resolve();
+            return turnReview.execute({
+              kind: "manual-tracker",
+              request: {
+                participant_key: reminder.participant_key,
+                expected_encounter_revision: turnReview.data!.expected_revision,
+                expected_participant_revision: participant.revision,
+                action: { kind: "remove", tracker_key: reminder.tracker_key },
+              },
+            });
           }}
           onRemove={(reminder) =>
             turnReview.execute({

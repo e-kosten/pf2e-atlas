@@ -73,7 +73,10 @@ describe("source-backed API transport", () => {
       reminders: [],
 
       next_turn_unavailable_reason: null,
+      incoming: null,
       outgoing: {
+        event: "end",
+        source_revision: 6,
         boundary_key: "original",
         participant_key: "a",
         participant_name: "Goblin",
@@ -109,6 +112,8 @@ describe("source-backed API transport", () => {
     });
     const review = await getEncounterTurnReview("ambush");
     expect(review.outgoing!).toMatchObject({
+      event: "end",
+      source_revision: 6n,
       round_number: 2n,
       reminders: [{ condition_ids: [7n, 8n] }],
       persistent_damage_groups: [
@@ -273,7 +278,7 @@ describe("source-backed API transport", () => {
   it("normalizes persistent source identity and recovery DCs together", async () => {
     respond({
       revision: 4,
-      encounter: { round_number: 1 },
+      encounter: { round_duration_seconds: 6, round_number: 1 },
       participants: [
         {
           ...participantJson,
@@ -337,7 +342,7 @@ describe("source-backed API transport", () => {
       };
       respond({
         revision: 8,
-        encounter: { round_number: 1 },
+        encounter: { round_duration_seconds: 6, round_number: 1 },
         participants: [{ ...participantJson, presentation }],
       });
       const encounter = await getEncounter("test");
@@ -380,10 +385,53 @@ describe("source-backed API transport", () => {
       ).toEqual(expected);
     },
   );
+  it("decodes tracker and non-round condition progress from the real router fixture", async () => {
+    const fixture = await import("./__fixtures__/wire-conversion.json");
+    respond(fixture.encounter);
+    const detail = await getEncounter("ambush");
+    const manual = detail.participants.find(
+      (p) => p.participant_key === "fixture-manual",
+    )!;
+    const tracker = manual.manual_trackers.find((t) => t.name === "Breath ready")!;
+    expect(tracker).toMatchObject({
+      name: "Breath ready",
+      remaining_rounds: 10n,
+      duration: { amount: 1n, unit: "minutes" },
+    });
+    expect(tracker.duration).not.toHaveProperty("remaining_rounds");
+    expect(manual.conditions[0].duration).toMatchObject({
+      amount: 1n,
+      unit: "minutes",
+      remaining_rounds: 10n,
+    });
+  });
+  it("decodes tracker completion and removal from the real router fixture", async () => {
+    const fixture: Record<string, unknown> =
+      await import("./__fixtures__/wire-conversion.json");
+    respond(fixture.turn_review);
+    const completed = await getEncounterTurnReview("ambush");
+    expect(completed.incoming?.reminders[0]).toEqual({
+      kind: "tracker_elapsed",
+      participant_key: "fixture-manual",
+      participant_name: "Kyra",
+      tracker_key: "tracker_wire-completion",
+      tracker_name: "Countdown",
+    });
+    expect(typeof completed.expected_revision).toBe("bigint");
+    expect(completed.outgoing).toBeNull();
+    expect(completed.incoming?.event).toBe("start");
+    expect(typeof completed.incoming?.source_revision).toBe("bigint");
+    respond(fixture.turn_review_removed);
+    const removed = await getEncounterTurnReview("ambush");
+    expect(removed.incoming?.reminders[0]).toMatchObject({
+      kind: "tracker_elapsed",
+      result: "Removed",
+    });
+  });
   it("normalizes actual HTTP encounter integers for display and revision-bound edits", async () => {
     respond({
       revision: 8,
-      encounter: { round_number: 1 },
+      encounter: { round_duration_seconds: 6, round_number: 1 },
       participants: [participantJson],
     });
     const detail = await getEncounter("test");
@@ -427,7 +475,7 @@ describe("source-backed API transport", () => {
     async (revision) => {
       respond({
         revision: 8,
-        encounter: { round_number: 1 },
+        encounter: { round_duration_seconds: 6, round_number: 1 },
         participants: [{ ...participantJson, revision }],
       });
       await expect(getEncounter("test")).rejects.toBeInstanceOf(AtlasApiError);
@@ -436,7 +484,7 @@ describe("source-backed API transport", () => {
   it("normalizes the largest safe revision without rounding", async () => {
     respond({
       revision: 8,
-      encounter: { round_number: 1 },
+      encounter: { round_duration_seconds: 6, round_number: 1 },
       participants: [{ ...participantJson, revision: Number.MAX_SAFE_INTEGER }],
     });
     expect((await getEncounter("test")).participants[0].revision).toBe(
@@ -629,7 +677,11 @@ describe("source-backed API transport", () => {
   });
   it("preserves unavailable HP and rejects already-rounded integer responses", async () => {
     const unknown = { ...participantJson, current_hp: undefined, max_hp: undefined };
-    respond({ revision: 8, encounter: { round_number: 1 }, participants: [unknown] });
+    respond({
+      revision: 8,
+      encounter: { round_duration_seconds: 6, round_number: 1 },
+      participants: [unknown],
+    });
     const participant = (await getEncounter("test")).participants[0];
     expect(participant.current_hp).toBeUndefined();
     for (const invalid of [
@@ -639,7 +691,7 @@ describe("source-backed API transport", () => {
     ]) {
       respond({
         revision: 8,
-        encounter: { round_number: 1 },
+        encounter: { round_duration_seconds: 6, round_number: 1 },
         participants: [{ ...participantJson, current_hp: invalid }],
       });
       await expect(getEncounter("test")).rejects.toThrow("Invalid numeric field");

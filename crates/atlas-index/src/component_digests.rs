@@ -446,29 +446,29 @@ mod tests {
         );
     }
     #[test]
-    fn populated_schema25_upgrade_compares_actual_prior_rows_without_rewriting_them() {
+    fn populated_schema27_upgrade_compares_actual_prior_rows_without_rewriting_them() {
         use crate::test_support::*;
         let input = crate::foundation_tests::fixture(false);
         atlas_sqlite_vec::register_sqlite_vec_auto_extension().unwrap();
         let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("schema25.sqlite");
+        let path = directory.path().join("schema27.sqlite");
         let workspace = atlas_storage::Workspace::at(&path).unwrap();
         workspace
-            .migrate(&TEST_MIGRATIONS[..24], |_| Ok(()))
+            .migrate(&TEST_MIGRATIONS[..26], |_| Ok(()))
             .unwrap();
         let owner = workspace.update_owner().unwrap();
         let maintenance = owner
-            .maintenance(24, "populating actual schema24 source fixture")
+            .maintenance(26, "populating actual schema26 source fixture")
             .unwrap();
         publish_pre_section_fixture(&maintenance, &input).unwrap();
         drop(maintenance);
         drop(owner);
         workspace
-            .migrate(&TEST_MIGRATIONS[..25], |_| Ok(()))
+            .migrate(&TEST_MIGRATIONS[..27], |_| Ok(()))
             .unwrap();
         // The physical section migration has rebuilt actual selected rows. This
-        // fixture activates that independently versioned marker at schema25.
-        let write = workspace.write(25).unwrap();
+        // fixture activates that independently versioned marker at schema27.
+        let write = workspace.write(27).unwrap();
         write
             .connection()
             .execute(
@@ -496,7 +496,7 @@ mod tests {
         let writes:usize=c.query_row("SELECT count(*) FROM component_write_audit WHERE component<>'reference_component_digests'",[],|r|r.get(0)).unwrap();
         assert_eq!(
             writes, 0,
-            "first post26 publication rewrote unchanged actual components"
+            "first post28 publication rewrote unchanged actual components"
         );
         crate::validate_reference(&c).unwrap();
     }
@@ -621,7 +621,7 @@ mod retained_payload_tests {
         assert!(
             error
                 .to_string()
-                .contains("restricted to historical migration25"),
+                .contains("restricted to historical migration27"),
             "{error}"
         );
     }

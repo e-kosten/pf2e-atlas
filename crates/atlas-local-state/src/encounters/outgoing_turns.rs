@@ -88,7 +88,7 @@ impl EncountersWrite<'_> {
                 snapshot,
             };
             self.connection.execute("INSERT INTO encounter_turn_receipts(encounter_id,request_id,boundary_key,intent_json) SELECT id,?2,?3,?4 FROM encounters WHERE encounter_key=?1",params![saved.snapshot.encounter.encounter_key,request_id,saved.boundary_key,serde_json::to_string(intent)?])?;
-            self.connection.execute("INSERT INTO encounter_outgoing_turns(encounter_id,request_id,payload_json,requires_review) SELECT id,?2,?3,?4 FROM encounters WHERE encounter_key=?1 ON CONFLICT(encounter_id) DO UPDATE SET request_id=excluded.request_id,payload_json=excluded.payload_json,requires_review=excluded.requires_review",params![saved.snapshot.encounter.encounter_key,request_id,receipt_codec::encode(&saved)?,i64::from(review_needed&&saved.snapshot.encounter.current_turn_participant_key.is_some()&&saved.next_participant_key.is_some())])?;
+            self.connection.execute("INSERT INTO encounter_outgoing_turns(encounter_id,request_id,payload_json,requires_review) SELECT id,?2,?3,?4 FROM encounters WHERE encounter_key=?1 ON CONFLICT(encounter_id) DO UPDATE SET request_id=excluded.request_id,payload_json=excluded.payload_json,requires_review=excluded.requires_review",params![saved.snapshot.encounter.encounter_key,request_id,receipt_codec::encode(&saved)?,i64::from(review_needed&&saved.next_participant_key.is_some())])?;
             for (condition_id, amount) in update.durations {
                 storage::update_duration_amount(self.connection, condition_id, amount)?;
             }
@@ -113,6 +113,9 @@ impl EncountersWrite<'_> {
                     },
                     start,
                 )?;
+            }
+            for change in &update.manual_trackers {
+                self.save_manual_tracker(&saved.snapshot.encounter.encounter_key, change)?;
             }
             storage::get(self.connection, encounter_ref)
         })

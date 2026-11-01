@@ -22,6 +22,7 @@ fn advance(
                             round_number: current.round_number + 1,
                             mark_running: true,
                         },
+                        manual_trackers: vec![],
                         durations: vec![],
                         start_event: None,
                         start_claims: vec![],
@@ -193,6 +194,152 @@ fn encounter_deletion_removes_lifetime_receipts_and_current_context() -> crate::
                 .get::<_, i64>(0))?,
             0
         );
+    }
+    Ok(())
+}
+
+#[test]
+fn tracker_turn_changes_are_atomic_and_lifetime_retries_after_reset_or_rest_do_not_tick()
+-> crate::LocalStateResult<()> {
+    for reset_encounter in [false, true] {
+        let store = fixture(if reset_encounter {
+            "tracker-reset-retry"
+        } else {
+            "tracker-rest-retry"
+        })?;
+        let actor = store
+            .encounters()
+            .add_participant("test", creature("Actor", Some(10), 20))?;
+        let mut connection = store.connection()?;
+        let transaction = connection.transaction()?;
+        let domain = EncountersWrite::from_connection(&transaction);
+        let tracker = ManualTracker {
+            tracker_key: "timer".into(),
+            name: "Timer".into(),
+            duration: ConditionDuration {
+                amount: 1,
+                unit: ConditionDurationUnit::Rounds,
+                timing: Some(ConditionTiming {
+                    participant_key: actor.participant_key.clone(),
+                    event: ConditionTurnEvent::Start,
+                }),
+                remaining_seconds: None,
+            },
+            progress: TrackerProgress::Rounds(1),
+        };
+        domain.save_manual_tracker(
+            &domain.get("test")?.unwrap().encounter_key,
+            &ManualTrackerChange {
+                participant_key: actor.participant_key.clone(),
+                tracker_key: "timer".into(),
+                value: Some(tracker.clone()),
+            },
+        )?;
+        super::super::recovery::capture_baseline(&transaction, &actor.participant_key)?;
+        let current = domain.get("test")?.unwrap();
+        let mut elapsed = tracker.clone();
+        elapsed.progress = TrackerProgress::Rounds(0);
+        let intent = serde_json::json!({"next":"first"});
+        domain.advance_turn_once("test", "first", &intent, current.revision, |_| {
+            Ok((
+                EncounterTurnUpdate {
+                    turn: EncounterTurnState {
+                        participant_key: Some(actor.participant_key.clone()),
+                        round_number: 1,
+                        mark_running: true,
+                    },
+                    durations: vec![],
+                    start_event: None,
+                    start_claims: vec![],
+                    manual_trackers: vec![ManualTrackerChange {
+                        participant_key: actor.participant_key.clone(),
+                        tracker_key: "timer".into(),
+                        value: Some(elapsed.clone()),
+                    }],
+                },
+                true,
+            ))
+        })?;
+        assert!(
+            domain.latest_outgoing_turn("test")?.is_some(),
+            "first-start completion must retain its incoming reminder"
+        );
+        let after = domain.get_with_participants("test")?.unwrap();
+        assert_eq!(
+            after.participants[0].manual_trackers[0].progress,
+            TrackerProgress::Rounds(0)
+        );
+        assert!(
+            domain
+                .advance_turn_once(
+                    "test",
+                    "bad",
+                    &serde_json::json!({"bad":true}),
+                    after.encounter.revision,
+                    |_| Ok((
+                        EncounterTurnUpdate {
+                            turn: EncounterTurnState {
+                                participant_key: Some(actor.participant_key.clone()),
+                                round_number: 2,
+                                mark_running: true
+                            },
+                            durations: vec![],
+                            start_event: None,
+                            start_claims: vec![],
+                            manual_trackers: vec![
+                                ManualTrackerChange {
+                                    participant_key: actor.participant_key.clone(),
+                                    tracker_key: "timer".into(),
+                                    value: Some(tracker.clone()),
+                                },
+                                ManualTrackerChange {
+                                    participant_key: "missing".into(),
+                                    tracker_key: "timer".into(),
+                                    value: Some(tracker.clone()),
+                                },
+                            ],
+                        },
+                        true
+                    ))
+                )
+                .is_err()
+        );
+        assert_eq!(domain.get_with_participants("test")?.unwrap(), after);
+        let mut replacement = domain
+            .participant_baseline(&actor.participant_key)?
+            .unwrap();
+        if !reset_encounter {
+            replacement.manual_trackers[0].progress = TrackerProgress::Rounds(0);
+        }
+        domain.apply_recovery(ApplyEncounterRecovery {
+            encounter_key: &after.encounter.encounter_key,
+            request_id: "recovery",
+            intent: &serde_json::json!({"reset":reset_encounter}),
+            expected_revision: after.encounter.revision,
+            reset_encounter,
+            end_turn: true,
+            replacements: &[(actor.participant_key.clone(), replacement.clone())],
+        })?;
+        let recovered = domain.get_with_participants("test")?.unwrap();
+        assert_eq!(
+            recovered.participants[0].manual_trackers,
+            replacement.manual_trackers
+        );
+        assert!(domain.latest_outgoing_turn("test")?.is_none());
+        assert_eq!(
+            domain.advance_turn_once("test", "first", &intent, -1, |_| panic!(
+                "retry must recover before preparing or ticking timers"
+            ))?,
+            Some(recovered.encounter.clone())
+        );
+        assert_eq!(domain.get_with_participants("test")?.unwrap(), recovered);
+        assert_eq!(
+            transaction.query_row("SELECT count(*) FROM encounter_turn_receipts", [], |r| {
+                r.get::<_, usize>(0)
+            })?,
+            1
+        );
+        transaction.commit()?;
     }
     Ok(())
 }

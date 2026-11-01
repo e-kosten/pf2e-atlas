@@ -26,13 +26,16 @@ must not reconcile saved state across rebuilds.
 Product navigation using snapshot-local positions carries the source fingerprint;
 detail rejects missing or stale generation context for those explicit addresses.
 
-Saved encounter enums use closed SQL constraints and strict decoding. Current-turn
-participants and participant-owned consequences, boundary claims and application
-markers must belong to the same encounter through composite foreign keys.
+Workspace migration 25 adds closed SQL constraints and strict decoding for saved
+encounter enums. Current-turn participants and participant-owned consequences,
+boundary claims and application markers must belong to the same encounter through
+composite foreign keys.
 Current-turn checking is deferred; participant removal clears its pointer before
 deletion. Consumed application markers retain nullable or historical condition
 IDs independently of a live condition row. Saved-state reconstruction fails
-atomically on invalid history or nonempty retired adjustment data; the
+atomically on invalid history or nonempty retired adjustment data. It retains
+configured round length, timed condition progress, manual trackers and saved
+baseline/outgoing payloads. The
 [workspace decision](decisions/0051-persistent-workspace.md#saved-domain-integrity)
 owns its preflight and preservation contract.
 
@@ -99,7 +102,7 @@ captures final creation HP after source-condition initialization and persists
 reset/rest replacements under one encounter revision guard and savepoint. Names,
 notes, assigned levels, sides, roster dimming and roster positions are retained.
 
-Workspace migration 25 reconstructs section-backed lexical and semantic metadata
+Workspace migration 27 reconstructs section-backed lexical and semantic metadata
 with canonical section references, retaining compatible unit/location IDs, FTS
 postings and native bytes. Whole extents come from checked source/prepared
 selection, including prose without headings or vectors. The independent
@@ -113,7 +116,7 @@ unavailable under the blocked context; current publication and bounded decoders
 reject it. Explicit setup prepares current sections and reuses exact native values
 before removing obsolete occurrences. Empty fields have no invented section row.
 
-Workspace migration 26 adds closed index-owned record component digests and root-key
+Workspace migration 28 adds closed index-owned record component digests and root-key
 indexes for trait membership/reference reconciliation. Existing trait-key primary
 keys remain the trait lookup owner. Removed-root associations are pruned by their
 exact old key before parent deletion, preserving live-root rows and saved identities. Schema
@@ -615,10 +618,11 @@ and admission can safely resume.
 
 Readers own bounded deferred transactions. One composed operation shares its
 snapshot across reference and saved-domain readers; idle CLI/web owners retain no
-SQLite session. Saved roster detail reads its five child collections through
-encounter-scoped batches, preserving owner-specific ordering and unknown values;
-query count is independent of participant count. Writes use immediate transactions and recheck preparation revisions
-before applying source-derived changes. Local-state actions use savepoints inside
+SQLite session. Saved roster detail reads ability state, conditions, persistent
+precedence, expended spells, spell resources and manual trackers through
+encounter-scoped batches, preserving owner-specific ordering and unknown values.
+Query count is independent of participant count. Writes use immediate transactions
+and recheck preparation revisions before applying source-derived changes. Local-state actions use savepoints inside
 the outer transaction, so caught action errors cannot leak partial writes into a
 later commit. Durable receipt recovery precedes stale-source checks. Receipt JSON
 uses explicit storage versions and domain facts rather than application DTOs.
@@ -778,7 +782,7 @@ membership; boundary claims prevent replaying completed turn processing.
 `encounter_turn_receipts` retains compact Next-turn request/intent/boundary identities
 for the encounter lifetime. `encounter_outgoing_turns` holds at most one typed
 pre-advance snapshot per encounter and references its receipt. Advancement commits
-the receipt, context replacement and next turn together. Migration 24 preserves
+the receipt, context replacement and next turn together. Migration 26 preserves
 every historical receipt and only the maximum-ID snapshot per encounter, including
 boundaries without review. Reset/rest clears current context and retains receipts;
 retries recover before revision/source guards. Only the current completed boundary
@@ -813,7 +817,7 @@ jobs. Published and pending values may legitimately differ for a forced rebuild.
 The conversion validates retained numerical evidence without decoding source DTOs
 that might require a separate source upgrade. Existing migrations remain immutable.
 
-Migration 27 adds complete native-update membership and selected checksums without
+Migration 29 adds complete native-update membership and selected checksums without
 rewriting historical values. One candidate may coexist with one active resumable
 target. Its proof covers the full requested model manifest, including empty profiles,
 and exact raw hashes/native counts before promotion can authorize pending GC.
@@ -838,3 +842,19 @@ two blocks and 10% of allocation can be reclaimed. It uses supported vec0 public
 DDL/inserts and file-backed temporary staging, not extension shadow-table writes.
 Free SQLite pages are reclaimed separately through explicit setup/build maintenance;
 this changes neither logical reference revision nor workspace identity.
+
+### Manual encounter countdowns
+
+Workspace migration 23 adds participant-owned manual trackers and saved remaining
+rounds for non-round conditions. It rebuilds the saved condition table to permit
+explicit turn timing for every supported unit, preserving condition IDs, deleted-ID
+high water, source metadata and existing unresolved durations. Old baseline and
+outgoing-turn payloads decode absent trackers/progress as empty/unconfigured.
+The reference artifact and snapshot codec remain unchanged. See [ADR0055](decisions/0055-encounter-condition-evaluation.md).
+
+Workspace migration 24 adds encounter round length (six seconds by default) and
+converts configured non-round progress to exact seconds. Its typed backfill also
+converts tracker, creation-baseline and outgoing-turn payloads from migration 23's
+six-second representation. Changing round length preserves remaining elapsed time;
+round-unit durations continue counting turns. The old remaining-round storage
+column and tracker payload path are removed in the same migration.

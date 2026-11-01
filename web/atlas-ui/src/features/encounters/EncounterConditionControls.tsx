@@ -317,9 +317,14 @@ export function EncounterConditionControls({
       )}
       {condition.duration && (
         <span className="encounter-condition-meta">
-          {condition.duration.unit === "rounds" && condition.duration.amount === 0n
+          {(condition.duration.unit === "rounds" && condition.duration.amount === 0n) ||
+          condition.duration.remaining_rounds === 0n
             ? "Duration ended"
             : conditionDurationLabel(condition.duration)}
+          {condition.duration.remaining_rounds !== undefined &&
+          condition.duration.remaining_rounds > 0n
+            ? ` · ${condition.duration.remaining_rounds} rounds remaining`
+            : ""}
           {condition.duration.unit === "rounds" && condition.duration.timing === null
             ? " · timing not configured"
             : ""}

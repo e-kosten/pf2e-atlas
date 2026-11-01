@@ -5,6 +5,57 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Consistent encounter empty notes
+
+Source `c68a3d4dcb0b273ac7673e12db79f3d2ffcdd66a`, macOS 27.2 (26B123),
+arm64, Playwright 1.62.1. The user approved applying the existing Conditions
+empty-note presentation to Trackers: compact muted text with zero paragraph
+margins. Thirty-seven macOS frames reflect that line and resulting scroll shifts.
+The three unchanged desktop frames remain intact, including two preview frames
+whose only capture differences were incidental 1–2 RGB levels.
+
+All 12 capture scenarios and all 12 ordinary comparison scenarios passed across
+the four projects. Desktop comparisons passed again after restoring the unchanged
+preview references. Parent review covered desktop/tablet; independent Astra review
+covered all phone before/after pairs and full-size condition, recovery and turn
+states. Existing geometry and comparison tolerances remain unchanged.
+
+Capture used a disposable source checkout and the authenticated candidate fixture,
+separately from the ordinary full validation run. Binary SHA-256:
+`d0266a5da0498121922a2885c2becf04cdb0454fd70d982553b397511532094f`.
+Frontend index SHA-256:
+`22c05204479ca0fa01c9eeaacdb27f2a11fc6a9b9157bae7f75f4c2f59952f0e`.
+Linux x64, Ubuntu 24.04, Playwright 1.62.1:
+[capture 41271088784](https://github.com/e-kosten/pf2e-atlas/actions/runs/41271088784)
+passed all 12 scenarios against CI 41270849491's authenticated fixture, PR head
+`49b92494e2e28cc80bc75a91d9cba356b86e468d`, synthetic merge
+`c043d97c14c75d46b72be2aacbdc6e3f42cec917`. Binary SHA-256:
+`af13e4227f5cec001c3cca0fd22b464a7636ae034ea7db84f03cdfe80d864730`;
+frontend index SHA-256:
+`22c05204479ca0fa01c9eeaacdb27f2a11fc6a9b9157bae7f75f4c2f59952f0e`.
+All 40 Linux before/candidate pairs were reviewed: parent desktop/tablet and
+independent Astra phones, with capture manifest and image hashes authenticated.
+Changes add Trackers and the accepted compact empty note, with corresponding
+phone scroll shifts. Condition dialogs, recovery anchors/results and turn actions
+remain intact. Ordinary hosted comparisons on the published reference-update head
+remain required; capture alone is not comparison evidence. Review evidence is in
+`scratch/pr182-linux/` during PR review.
+
+## Manual encounter trackers
+
+macOS 27.2 (26B123), arm64, Playwright 1.62.1, application source
+`748d7646`: all 12 capture scenarios passed across the four projects. The new
+Trackers section appears below conditions, including behind open condition and
+turn dialogs. Review covers all 40 before/after frames; existing modal controls,
+condition facts and recovery anchors remain intact. Exact comparisons and geometry
+assertions remain enabled. Ordinary comparison results and Linux provenance follow
+the captured references; capture alone is not passing comparison evidence.
+
+Ordinary isolated validation at `c6f886b5` passed all 40 affected encounter scenarios
+on desktop Chromium and phone WebKit, plus all six condition-refinement scenarios
+on phone Chromium and tablet WebKit. Snapshot updates were disabled. Linux
+capture/review and hosted comparison remain pending publication.
+
 ## Stable modal placement
 
 The shared modal geometry and short-work-area fixes use application source

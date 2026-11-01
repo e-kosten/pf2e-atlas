@@ -113,7 +113,7 @@ pub(crate) fn read_persisted_input(
     }
     Ok(decode_persisted_input(c, context, key)?.map(|decoded| decoded.source))
 }
-/// Only schema25's historical callback can read before attestations exist. This
+/// Only schema27's historical callback can read before attestations exist. This
 /// is private migration composition, never a current reader fallback.
 pub(crate) fn read_pre_component_digest_migration_input(
     c: &Connection,
@@ -126,9 +126,9 @@ pub(crate) fn read_pre_component_digest_migration_input(
         [],
         |r| r.get(0),
     )?;
-    if version >= 26 || present {
+    if version >= 28 || present {
         return Err(IndexError::Invalid(
-            "pre-component payload decoder is restricted to historical migration25".into(),
+            "pre-component payload decoder is restricted to historical migration27".into(),
         ));
     }
     Ok(decode_persisted_input(c, context, key)?.map(|decoded| decoded.source))

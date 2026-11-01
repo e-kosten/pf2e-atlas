@@ -38,7 +38,7 @@ fn roster_statement_count_depends_on_collections_instead_of_participant_count()
         if [1, 2, 8, 40].contains(&count) {
             let (roster, statements) = measured_roster(&connection)?;
             assert_eq!(roster.participants.len(), count as usize);
-            assert_eq!(statements, 7, "roster size {count}");
+            assert_eq!(statements, 8, "roster size {count}");
         }
     }
     Ok(())
@@ -119,8 +119,37 @@ fn batched_roster_preserves_child_order_empty_values_and_other_encounter_isolati
             .get_with_participants("other")
             .is_err()
     );
+    connection.execute("UPDATE encounter_participant_conditions SET duration_amount=1,duration_unit='minutes',duration_anchor_key=?1,duration_event='end',duration_remaining_seconds=7 WHERE id=91", [&one.participant_key])?;
+    let trackers = ["a", "z"].map(|key| ManualTracker {
+        tracker_key: key.into(),
+        name: format!("Tracker {key}"),
+        duration: ConditionDuration {
+            amount: 1,
+            unit: ConditionDurationUnit::Minutes,
+            timing: Some(ConditionTiming {
+                participant_key: one.participant_key.clone(),
+                event: ConditionTurnEvent::End,
+            }),
+            remaining_seconds: None,
+        },
+        progress: TrackerProgress::Seconds(7),
+    });
+    for tracker in trackers.iter().rev() {
+        connection.execute(
+            "INSERT INTO encounter_manual_trackers VALUES(?1,?2,?3)",
+            rusqlite::params![
+                one.participant_key,
+                tracker.tracker_key,
+                super::super::receipt_codec::encode(tracker)?
+            ],
+        )?;
+    }
+    connection.execute(
+        "INSERT INTO encounter_manual_trackers VALUES(?1,'invalid','not-json')",
+        [&other.participant_key],
+    )?;
     let (roster, statements) = measured_roster(&connection)?;
-    assert_eq!(statements, 7);
+    assert_eq!(statements, 8);
     assert_eq!(
         roster
             .participants
@@ -140,6 +169,19 @@ fn batched_roster_preserves_child_order_empty_values_and_other_encounter_isolati
         vec![92, 93, 91]
     );
     assert!(first.conditions.iter().all(|c| c.value.is_none()));
+    assert_eq!(
+        first
+            .conditions
+            .iter()
+            .find(|c| c.condition_id == 91)
+            .unwrap()
+            .duration
+            .as_ref()
+            .unwrap()
+            .remaining_seconds,
+        Some(7)
+    );
+    assert_eq!(first.manual_trackers, trackers);
     assert_eq!(
         first.persistent_precedence,
         vec![
@@ -174,7 +216,8 @@ fn batched_roster_preserves_child_order_empty_values_and_other_encounter_isolati
     let empty = &roster.participants[1];
     assert!(empty.max_hp.is_none() && empty.current_hp.is_none() && empty.turn_resources.is_none());
     assert!(
-        empty.ability_states.is_empty()
+        empty.manual_trackers.is_empty()
+            && empty.ability_states.is_empty()
             && empty.conditions.is_empty()
             && empty.persistent_precedence.is_empty()
             && empty.expended_spells.is_empty()

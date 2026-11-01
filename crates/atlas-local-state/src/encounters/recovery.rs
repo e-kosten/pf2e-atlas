@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ParticipantGameplay {
+    #[serde(default)]
+    pub manual_trackers: Vec<ManualTracker>,
     pub participant_variant: ParticipantVariant,
     pub variant_origin: ParticipantVariantOrigin,
     pub level_override: Option<i64>,
@@ -46,6 +48,7 @@ impl From<&EncounterParticipant> for ParticipantGameplay {
             spell_resources: p.spell_resources.clone(),
             expended_spells: p.expended_spells.clone(),
             ability_states: p.ability_states.clone(),
+            manual_trackers: p.manual_trackers.clone(),
             persistent_precedence: p.persistent_precedence.clone(),
         }
     }
@@ -198,7 +201,7 @@ fn replace(
             .iter()
             .find(|v| v.condition_id == old.condition_id)
         {
-            c.execute("UPDATE encounter_participant_conditions SET value=?2,duration_amount=?3,duration_unit=?4 WHERE id=?1",params![old.condition_id,new.value,new.duration.as_ref().map(|d|d.amount),new.duration.as_ref().map(|d|d.unit.as_str())])?;
+            c.execute("UPDATE encounter_participant_conditions SET value=?2,duration_amount=?3,duration_unit=?4,duration_remaining_seconds=?5 WHERE id=?1",params![old.condition_id,new.value,new.duration.as_ref().map(|d|d.amount),new.duration.as_ref().map(|d|d.unit.as_str()),new.duration.as_ref().and_then(|d|d.remaining_seconds)])?;
         } else {
             c.execute(
                 "DELETE FROM encounter_participant_conditions WHERE id=?1",
@@ -235,6 +238,16 @@ fn replace(
                 a.rule_ordinal.map(|v| v as i64).unwrap_or(-1),
                 receipt_codec::encode(a)?
             ],
+        )?;
+    }
+    c.execute(
+        "DELETE FROM encounter_manual_trackers WHERE participant_key=?1",
+        [key],
+    )?;
+    for tracker in &s.manual_trackers {
+        c.execute(
+            "INSERT INTO encounter_manual_trackers VALUES(?1,?2,?3)",
+            params![key, tracker.tracker_key, receipt_codec::encode(tracker)?],
         )?;
     }
     Ok(())

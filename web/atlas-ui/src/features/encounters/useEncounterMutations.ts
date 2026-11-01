@@ -8,6 +8,7 @@ import {
   previewEncounterRecovery,
   updateTurnResources,
   updateEncounterAbilityState,
+  updateEncounterManualTracker,
   applyEncounterHpAction,
   applyEncounterConditionLifecycle,
   rollInitiative,
@@ -47,6 +48,13 @@ import type {
 } from "../../generated/atlas";
 
 export type EncounterMutationCommand =
+  | {
+      kind: "manual-tracker";
+      request: Omit<
+        import("../../generated/atlas").UpdateEncounterManualTrackerRequest,
+        "request_id"
+      >;
+    }
   | {
       kind: "recovery";
       request: Omit<
@@ -266,6 +274,11 @@ export function useEncounterMutations(encounterRef: string, encounterKey?: strin
       switch (command.kind) {
         case "recovery":
           return applyEncounterRecovery(currentRef, {
+            ...command.request,
+            request_id: eventRequestId(command),
+          });
+        case "manual-tracker":
+          return updateEncounterManualTracker(currentRef, {
             ...command.request,
             request_id: eventRequestId(command),
           });

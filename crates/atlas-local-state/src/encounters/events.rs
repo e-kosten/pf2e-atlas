@@ -398,6 +398,9 @@ impl EncountersWrite<'_> {
                     }
                 }
             }
+            for change in &changes.manual_trackers {
+                self.save_manual_tracker(encounter_key, change)?;
+            }
             for change in &changes.ability_states {
                 self.save_ability_state(encounter_key, change)?;
             }

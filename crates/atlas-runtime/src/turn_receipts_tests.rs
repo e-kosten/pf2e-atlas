@@ -16,7 +16,7 @@ fn rows(connection: &Connection, table: &str) -> Vec<Vec<Value>> {
 
 #[test]
 fn turn_receipt_upgrade_preserves_all_requests_and_only_the_latest_snapshot() {
-    for previous in [22, 23] {
+    for previous in [24, 25] {
         register_extensions().unwrap();
         let directory = tempfile::tempdir().unwrap();
         let workspace = Workspace::at(directory.path().join("turns.sqlite")).unwrap();
@@ -76,9 +76,9 @@ CREATE VIRTUAL TABLE turn_vector_witness USING vec0(unit_id INTEGER PRIMARY KEY,
         ];
         let before = tables.map(|table| rows(write.connection(), table));
         write.commit().unwrap();
-        workspace.migrate(&MIGRATIONS[..24], |_| Ok(())).unwrap();
-        workspace.migrate(&MIGRATIONS[..24], |_| Ok(())).unwrap();
-        let read = workspace.read(24).unwrap();
+        workspace.migrate(&MIGRATIONS[..26], |_| Ok(())).unwrap();
+        workspace.migrate(&MIGRATIONS[..26], |_| Ok(())).unwrap();
+        let read = workspace.read(26).unwrap();
         assert_eq!(tables.map(|table| rows(read.connection(), table)), before);
         let actual=read.connection().prepare("SELECT encounter_id,request_id,boundary_key,intent_json FROM encounter_turn_receipts ORDER BY CAST(substr(request_id,9) AS INTEGER)").unwrap().query_map([],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,String>(3)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
         assert_eq!(actual, receipts);
@@ -139,7 +139,7 @@ CREATE VIRTUAL TABLE turn_vector_witness USING vec0(unit_id INTEGER PRIMARY KEY,
                 .unwrap()
         );
         drop(read);
-        let write = workspace.write(24).unwrap();
+        let write = workspace.write(26).unwrap();
         write
             .connection()
             .execute(
@@ -166,14 +166,14 @@ fn failed_turn_receipt_upgrade_restores_old_payloads_schema_and_ledger() {
     register_extensions().unwrap();
     let directory = tempfile::tempdir().unwrap();
     let workspace = Workspace::at(directory.path().join("turn-rollback.sqlite")).unwrap();
-    workspace.migrate(&MIGRATIONS[..23], |_| Ok(())).unwrap();
-    let write = workspace.write(23).unwrap();
+    workspace.migrate(&MIGRATIONS[..25], |_| Ok(())).unwrap();
+    let write = workspace.write(25).unwrap();
     write.connection().execute_batch("INSERT INTO encounters(id,encounter_key,slug,name,status,created_at,updated_at) VALUES(1,'kept','kept','Kept','draft','before','before'); INSERT INTO encounter_outgoing_turns VALUES(7,1,'boundary','request','{}','opaque payload retained exactly',0);").unwrap();
     let before = rows(write.connection(), "encounter_outgoing_turns");
     let ledger = rows(write.connection(), "schema_migrations");
     write.commit().unwrap();
-    let mut failing = MIGRATIONS[..24].to_vec();
-    failing[23].backfill = Some(atlas_storage::DataBackfill {
+    let mut failing = MIGRATIONS[..26].to_vec();
+    failing[25].backfill = Some(atlas_storage::DataBackfill {
         id: "injected-turn-upgrade-failure/v1",
         reconstruct_tables: false,
         apply: |_| {
@@ -182,8 +182,14 @@ fn failed_turn_receipt_upgrade_restores_old_payloads_schema_and_ledger() {
             ))
         },
     });
-    assert!(workspace.migrate(&failing, |_| Ok(())).is_err());
-    let read = workspace.read(23).unwrap();
+    assert!(
+        workspace
+            .migrate(&failing, |_| Ok(()))
+            .unwrap_err()
+            .to_string()
+            .contains("injected after turn reconstruction")
+    );
+    let read = workspace.read(25).unwrap();
     assert_eq!(rows(read.connection(), "encounter_outgoing_turns"), before);
     assert_eq!(rows(read.connection(), "schema_migrations"), ledger);
     assert!(
@@ -192,8 +198,8 @@ fn failed_turn_receipt_upgrade_restores_old_payloads_schema_and_ledger() {
             .is_err()
     );
     drop(read);
-    workspace.migrate(&MIGRATIONS[..24], |_| Ok(())).unwrap();
-    let read = workspace.read(24).unwrap();
+    workspace.migrate(&MIGRATIONS[..26], |_| Ok(())).unwrap();
+    let read = workspace.read(26).unwrap();
     assert_eq!(
         read.connection()
             .query_row(

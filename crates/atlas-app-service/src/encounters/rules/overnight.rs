@@ -18,6 +18,7 @@ pub(in crate::encounters) fn prepare(
     healing_mode: OvernightHealingMode,
     record: Option<&PreparedParticipantRecord>,
     row: &mut EncounterRecoveryParticipantView,
+    round_seconds: i64,
 ) -> AppServiceResult<Option<ParticipantGameplay>> {
     let baseline = record.and_then(|r| r.arithmetic_baseline.as_ref());
     let unavailable = super::source_conditions::SourceConditions::unavailable();
@@ -114,9 +115,17 @@ pub(in crate::encounters) fn prepare(
         let Some(duration) = &mut condition.duration else {
             return true;
         };
+        if let Some(remaining) = &mut duration.remaining_seconds {
+            *remaining = remaining.saturating_sub(28800).max(0);
+            if *remaining == 0 {
+                row.changes.push(format!("Expire {}", condition.name));
+                return false;
+            }
+            return true;
+        }
         use atlas_local_state::ConditionDurationUnit as Unit;
         let elapsed = match duration.unit {
-            Unit::Rounds => 4800,
+            Unit::Rounds => 28800 / round_seconds,
             Unit::Minutes => 480,
             Unit::Hours => 8,
             Unit::Days => {
@@ -133,6 +142,23 @@ pub(in crate::encounters) fn prepare(
             true
         }
     });
+    for tracker in &mut state.manual_trackers {
+        let before = super::super::timing::tracker_rounds(&tracker.progress, round_seconds);
+        tracker.progress = match tracker.progress {
+            atlas_local_state::TrackerProgress::Rounds(v) => {
+                atlas_local_state::TrackerProgress::Rounds(
+                    v.saturating_sub(28800 / round_seconds).max(0),
+                )
+            }
+            atlas_local_state::TrackerProgress::Seconds(v) => {
+                atlas_local_state::TrackerProgress::Seconds(v.saturating_sub(28800).max(0))
+            }
+        };
+        if before > 0 && super::super::timing::tracker_rounds(&tracker.progress, round_seconds) == 0
+        {
+            row.changes.push(format!("{} ready", tracker.name));
+        }
+    }
     let mut after = p.clone();
     after.conditions = state.conditions.clone();
     let maximum = super::effective_hp_maximum(&after, sources, level);

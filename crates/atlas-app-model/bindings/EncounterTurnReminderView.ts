@@ -2,7 +2,7 @@
 import type { ConditionDurationView } from "./ConditionDurationView";
 import type { ConditionTimingView } from "./ConditionTimingView";
 
-export type EncounterTurnReminderView = { "kind": "resolved", participant_key: string, participant_name: string, condition_id: bigint, condition_name: string, result: string, } | { "kind": "condition_recovery", participant_key: string, participant_name: string, condition_ids: Array<bigint>, condition_name: string,
+export type EncounterTurnReminderView = { "kind": "tracker_elapsed", participant_key: string, participant_name: string, tracker_key: string, tracker_name: string, result?: string, } | { "kind": "resolved", participant_key: string, participant_name: string, condition_id: bigint, condition_name: string, result: string, } | { "kind": "condition_recovery", participant_key: string, participant_name: string, condition_ids: Array<bigint>, condition_name: string,
 /**
  * Current effective value; unavailable if any contributing source is unknown.
  */

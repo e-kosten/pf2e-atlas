@@ -81,7 +81,7 @@ preparation/native-input identity. Existing lexical postings, native inputs,
 vectors and saved state are preserved. Query paths read membership without
 decoding source bodies.
 
-Workspace migration 25 replaces the overlapping part/occurrence address storage
+Workspace migration 27 replaces the overlapping part/occurrence address storage
 with canonical selected sections. Core part membership names internal section
 IDs; lexical and semantic eligibility reach the same sections through foreign
 keys. Root identity and permitted owned names retain their separate membership

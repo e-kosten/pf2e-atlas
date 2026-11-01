@@ -468,6 +468,7 @@ fn running_variant_edit_preserves_damage_below_conditioned_capacity() {
     let initial = service.encounter(&key).unwrap();
     service
         .update_encounter(UpdateEncounterRequest {
+            round_duration_seconds: None,
             encounter_key: key.clone(),
             slug: initial.encounter.slug.clone(),
             name: initial.encounter.name.clone(),

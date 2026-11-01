@@ -994,7 +994,11 @@ async function atlasFetchEncounter<T>(
   const result = { ...payload };
   const summary = (value: unknown) => {
     if (!isRecord(value)) throw new AtlasApiError(200, "Invalid encounter summary");
-    return { ...value, round_number: toBigInt(value.round_number) };
+    return {
+      ...value,
+      round_number: toBigInt(value.round_number),
+      round_duration_seconds: toBigInt(value.round_duration_seconds),
+    };
   };
   const optionalIntegers = (value: Record<string, unknown>, fields: string[]) =>
     Object.fromEntries(
@@ -1004,7 +1008,11 @@ async function atlasFetchEncounter<T>(
     );
   const duration = (value: unknown) => {
     if (!isRecord(value)) throw new AtlasApiError(200, "Invalid condition duration");
-    return { ...value, amount: toBigInt(value.amount) };
+    return {
+      ...value,
+      amount: toBigInt(value.amount),
+      ...optionalIntegers(value, ["remaining_rounds"]),
+    };
   };
   const conditionParameters = (value: unknown) => {
     if (!isRecord(value)) throw new AtlasApiError(200, "Invalid condition parameters");
@@ -1031,6 +1039,7 @@ async function atlasFetchEncounter<T>(
     };
   };
   const reminder = (value: unknown) => {
+    if (isRecord(value) && value.kind === "tracker_elapsed") return value;
     if (isRecord(value) && value.kind === "condition_recovery") {
       if (!Array.isArray(value.condition_ids))
         throw new AtlasApiError(200, "Invalid condition recovery reminder");
@@ -1090,16 +1099,18 @@ async function atlasFetchEncounter<T>(
   }
   if (result.expected_revision !== undefined)
     result.expected_revision = toBigInt(result.expected_revision);
-  if (result.outgoing != null) {
-    const turn = result.outgoing;
+  for (const field of ["outgoing", "incoming"] as const) {
+    const turn = result[field];
+    if (turn == null) continue;
     if (
       !isRecord(turn) ||
       !Array.isArray(turn.reminders) ||
       !Array.isArray(turn.persistent_damage_groups)
     )
-      throw new AtlasApiError(200, "Invalid outgoing turn");
-    result.outgoing = {
+      throw new AtlasApiError(200, "Invalid turn boundary");
+    result[field] = {
       ...turn,
+      source_revision: toBigInt(turn.source_revision),
       round_number: toBigInt(turn.round_number),
       reminders: turn.reminders.map(reminder),
       persistent_damage_groups: turn.persistent_damage_groups.map(persistentGroup),
@@ -1468,6 +1479,16 @@ export async function getTraitRecords(
       "The Similar response does not match the selected search model. Retry.",
     );
   return { ...result, page: convertSearchPage(result.page) };
+}
+
+export async function updateEncounterManualTracker(
+  encounterRef: string,
+  request: import("../generated/atlas").UpdateEncounterManualTrackerRequest,
+): Promise<import("../generated/atlas").EncounterMutationView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/manual-trackers`,
+    { intent: "action", method: "POST", body: jsonBody(request) },
+  );
 }
 
 export async function updateEncounterAbilityState(
