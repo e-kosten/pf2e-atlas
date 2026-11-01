@@ -27,6 +27,7 @@ declare module "@tanstack/react-router" {
   }
   interface HistoryState {
     atlasSearchReset?: string;
+    atlasReadingDismissal?: string;
     atlasFilterResetNotice?: boolean;
     atlasOwnerOrigin?: { recordKey: string; href: string };
   }

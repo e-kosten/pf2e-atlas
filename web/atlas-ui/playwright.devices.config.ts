@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { browserFixture } from "../../scripts/browser-fixture.mjs";
 
 const touchSpecs = [
+  "selection-search.spec.ts",
   "journeys.spec.ts",
   "modal-layout.spec.ts",
   "list-metadata.spec.ts",

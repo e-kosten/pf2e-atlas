@@ -1,3 +1,4 @@
+import { atlasRouter } from "../../../app/router";
 import { recordDetailQueryOptions } from "../../records/recordDetailQuery";
 import { chooseAttributeSort } from "../../../test/sortControls";
 import type { ResultSort } from "../../../generated/atlas";
@@ -46,6 +47,7 @@ vi.mock("../../../api/atlasApi", async (original) => ({
 }));
 const search = vi.mocked(searchPage);
 const addSelected = vi.fn();
+const cancelPicker = vi.fn();
 function result(
   title = "Ghoul",
   generation = "generation-a",
@@ -116,7 +118,7 @@ function Picker({
       onSelectionChange={(selection) =>
         setSelected(selection?.record.record_key ?? null)
       }
-      onCancel={vi.fn()}
+      onCancel={cancelPicker}
       onFinish={() => addSelected(selected)}
       okButtonProps={{ disabled: !selected }}
     >
@@ -865,4 +867,69 @@ it("rereads an externally retired picker against its generation and preserves it
   expect(search.mock.lastCall?.[0].expected_artifact_generation).toBe("generation-a");
   expect(screen.getByLabelText("Note")).toHaveValue("Unsubmitted Add note");
   await expectRetainedCandidate();
+});
+
+it("dismisses an open picker on same-href navigation while honoring the pending-write guard", () => {
+  const picker = renderPicker();
+  picker.setDisabled(true);
+  const navigate = () =>
+    act(() =>
+      atlasRouter.emit({
+        type: "onBeforeNavigate",
+        fromLocation: atlasRouter.latestLocation,
+        toLocation: {
+          ...atlasRouter.latestLocation,
+          state: {
+            ...atlasRouter.latestLocation.state,
+            atlasReadingDismissal: "new-search",
+          },
+        },
+        pathChanged: false,
+        hrefChanged: false,
+        hashChanged: false,
+      }),
+    );
+  navigate();
+  expect(cancelPicker).not.toHaveBeenCalled();
+  picker.setDisabled(false);
+  navigate();
+  expect(cancelPicker).toHaveBeenCalledTimes(1);
+  picker.setOpen(false);
+  navigate();
+  expect(cancelPicker).toHaveBeenCalledTimes(1);
+});
+
+it("keeps picker selections and drafts through profile/page continuation navigation", async () => {
+  renderPicker();
+  fireEvent.click(await screen.findByRole("link", { name: /Ghoul/ }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
+  );
+  fireEvent.change(screen.getByLabelText("Note"), {
+    target: { value: "Keep this draft" },
+  });
+  const location = {
+    ...atlasRouter.latestLocation,
+    state: {
+      ...atlasRouter.latestLocation.state,
+      atlasReadingDismissal: "prior-search",
+    },
+  };
+  act(() =>
+    atlasRouter.emit({
+      type: "onBeforeNavigate",
+      fromLocation: location,
+      toLocation: {
+        ...location,
+        search: { search_profile: "embeddinggemma", page: "2" },
+      },
+      pathChanged: false,
+      hrefChanged: true,
+      hashChanged: false,
+    }),
+  );
+  expect(screen.getByLabelText("Note")).toHaveValue("Keep this draft");
+  expect(screen.getByRole("button", { name: "Add" })).toBeEnabled();
+  expect(cancelPicker).not.toHaveBeenCalled();
+  expect(screen.getByRole("dialog", { name: "Choose record" })).toBeInTheDocument();
 });
