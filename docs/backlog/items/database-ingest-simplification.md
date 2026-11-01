@@ -86,14 +86,15 @@ measured 0.629% duplicate document excess and completed 192 paired SQL cases.
 The occurrence-capped input-index comparison preserved eligible counts/distances,
 with three
 same-record cutoff-witness changes, but added roughly 10.4–13.5% to the equal-case
-warm SQL aggregates. The leading recommendation is stable input ownership with
-an explicit occurrence cap, for ingest lifetime simplification rather than query
-speed. One active input row with atomic forced replacement needs no permanent
-version history. This is a proposal awaiting user design input; the conservative
-alternative retains occurrence indexing and one owned transient value copy.
+warm SQL aggregates. The user accepted stable input ownership with an explicit occurrence cap, for
+ingest lifetime simplification rather than query speed. One active input row with atomic forced replacement needs no permanent
+version history. Revised implementation and validation are authorized; research measurements
+remain evidence for the isolated prototype, not the final product.
 
-Next: choose that ownership/query tradeoff, then implement the accepted pipeline
-simplifications and selected numerical layout together. Validate real migration,
+Next: implement the accepted pipeline simplifications and stable numerical
+layout together. Revise the PR-only migration suffix directly against main
+(schema24): released migrations/callbacks stay immutable, and the suffix creates
+the final design without adding and later reversing experimental target schemas. Validate real migration,
 forced numerical dependency invalidation, trait lifetimes, rollback/crash recovery,
 saved state and cache/scratch cleanup. Measure matched completed rebuilds and
 product queries; the isolated prototype does not establish ingest speed, physical
@@ -101,8 +102,8 @@ migration peaks or product relevance. Keep one PR184; refresh final local/CI
 validation for the actual revised candidate.
 
 The local plan retains implementation ordering and validation obligations. Cache
-thresholds and slice sizes can follow measured resource use; they do not block the
-numerical-ownership decision. No revised product implementation is claimed yet.
+thresholds and slice sizes can follow measured resource use; they do not block implementation. Final integration, validation and matched
+measurements remain pending.
 
 ## Related owners
 
