@@ -1,3 +1,6 @@
+export type { EncounterManualTrackerView } from "../../../../crates/atlas-app-model/bindings/EncounterManualTrackerView";
+export type { EncounterManualTrackerAction } from "../../../../crates/atlas-app-model/bindings/EncounterManualTrackerAction";
+export type { UpdateEncounterManualTrackerRequest } from "../../../../crates/atlas-app-model/bindings/UpdateEncounterManualTrackerRequest";
 export type { OvernightHealingMode } from "../../../../crates/atlas-app-model/bindings/OvernightHealingMode";
 export type { EncounterRecoveryAction } from "../../../../crates/atlas-app-model/bindings/EncounterRecoveryAction";
 export type { OvernightParticipantInput } from "../../../../crates/atlas-app-model/bindings/OvernightParticipantInput";

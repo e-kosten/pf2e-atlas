@@ -1004,7 +1004,11 @@ async function atlasFetchEncounter<T>(
     );
   const duration = (value: unknown) => {
     if (!isRecord(value)) throw new AtlasApiError(200, "Invalid condition duration");
-    return { ...value, amount: toBigInt(value.amount) };
+    return {
+      ...value,
+      amount: toBigInt(value.amount),
+      ...optionalIntegers(value, ["remaining_rounds"]),
+    };
   };
   const conditionParameters = (value: unknown) => {
     if (!isRecord(value)) throw new AtlasApiError(200, "Invalid condition parameters");
@@ -1468,6 +1472,16 @@ export async function getTraitRecords(
       "The Similar response does not match the selected search model. Retry.",
     );
   return { ...result, page: convertSearchPage(result.page) };
+}
+
+export async function updateEncounterManualTracker(
+  encounterRef: string,
+  request: import("../generated/atlas").UpdateEncounterManualTrackerRequest,
+): Promise<import("../generated/atlas").EncounterMutationView> {
+  return atlasFetch(
+    `/api/encounters/${encodeURIComponent(encounterRef)}/participants/${encodeURIComponent(request.participant_key)}/manual-trackers`,
+    { intent: "action", method: "POST", body: jsonBody(request) },
+  );
 }
 
 export async function updateEncounterAbilityState(

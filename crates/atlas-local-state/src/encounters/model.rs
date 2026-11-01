@@ -65,6 +65,8 @@ impl EncounterStatus {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EncounterParticipant {
     #[serde(default)]
+    pub manual_trackers: Vec<super::ManualTracker>,
+    #[serde(default)]
     pub ability_states: Vec<super::ParticipantAbilityState>,
     #[serde(default)]
     pub turn_resources: Option<super::TurnResources>,
@@ -456,12 +458,16 @@ pub struct ConditionTiming {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConditionDuration {
+    /// Remaining six-second ticks for anchored non-round durations.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remaining_rounds: Option<i64>,
     pub amount: i64,
     pub unit: ConditionDurationUnit,
     pub timing: Option<ConditionTiming>,
 }
 #[derive(Debug, Clone)]
 pub struct EncounterTurnUpdate {
+    pub manual_trackers: Vec<super::ManualTrackerChange>,
     pub start_event: Option<super::PreparedConditionEvent>,
     pub start_claims: Vec<super::EncounterBoundaryClaim>,
     pub turn: EncounterTurnState,

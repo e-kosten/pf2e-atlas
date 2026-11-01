@@ -72,7 +72,8 @@ async fn apply_condition(fixture: &Fixture, participant_key: &str, name: &str) {
             "extra_action":{"kind":"unspecified"},
             "immunity_override":false,
             "parameters":{"kind":"none"},
-            "value":1
+            "value":1,
+            "duration":{"amount":1,"unit":"minutes","timing":{"participant_key":participant_key,"event":"end"}}
         })),
     )
     .await;
@@ -140,6 +141,17 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         .participant_key
         .clone();
     apply_condition(&fixture, &fixture.participant_key, "Slowed").await;
+    let current = fixture.service.encounter("ambush").unwrap();
+    let participant = current
+        .participants
+        .iter()
+        .find(|p| p.participant_key == fixture.participant_key)
+        .unwrap();
+    response(&fixture,Method::POST,&format!("/api/encounters/ambush/participants/{}/manual-trackers",fixture.participant_key),Some(json!({
+        "request_id":"wire-tracker","expected_encounter_revision":current.revision,
+        "expected_participant_revision":participant.revision,"participant_key":"path-is-authoritative",
+        "action":{"kind":"add","name":"Breath ready","duration":{"amount":1,"unit":"minutes","remaining_rounds":null,"timing":{"participant_key":fixture.participant_key,"event":"end"}}}
+    }))).await;
     let pending = response(&fixture, Method::GET, "/api/encounters/ambush", None).await;
     assert!(pending["participants"][0]["turn_resources"]["regular_total"].is_null());
     assert!(pending["participants"][0]["turn_resources"]["round_number"].is_null());
@@ -158,6 +170,13 @@ async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
         .iter()
         .find(|p| p["participant_key"] == fixture.participant_key)
         .unwrap();
+    assert_eq!(manual["manual_trackers"][0]["remaining_rounds"], 10);
+    assert!(
+        manual["manual_trackers"][0]["duration"]
+            .get("remaining_rounds")
+            .is_none()
+    );
+    assert_eq!(manual["conditions"][0]["duration"]["remaining_rounds"], 10);
     assert_eq!(manual["turn_resources"]["regular_total"], 2);
     assert_eq!(manual["turn_resources"]["round_number"], 1);
     assert!(manual.get("current_hp").is_none());

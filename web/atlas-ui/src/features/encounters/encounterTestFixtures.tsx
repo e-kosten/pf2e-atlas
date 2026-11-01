@@ -12,6 +12,7 @@ export function encounterParticipant(
       value: overrides.max_hp === undefined ? null : Number(overrides.max_hp),
       adjustment: null,
     },
+    manual_trackers: [],
     knockout_options: [],
     participant_key: "actor",
     display_name: "Actor",

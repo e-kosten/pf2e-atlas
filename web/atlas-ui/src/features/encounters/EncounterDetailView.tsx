@@ -558,6 +558,13 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 spellError={
                   mutations.errorKind === "spell" ? mutations.errorMessage : undefined
                 }
+                onManualTracker={async (request) => {
+                  const result = await mutations.run({
+                    kind: "manual-tracker",
+                    request,
+                  });
+                  return { active: result.active, refreshed: result.refreshed };
+                }}
                 onAbilityState={async (ability, action) => {
                   const participant = selected;
                   if (!participant || !encounter.data) return false;

@@ -1,5 +1,6 @@
 import type {
   EncounterDetailView,
+  ConditionDurationView,
   EncounterParticipantConditionView,
   EncounterParticipantView,
   PersistentDamageGroupView,
@@ -106,6 +107,19 @@ export function convertConditionParameters(
   }
 }
 
+export function convertConditionDuration(
+  value: Wire<ConditionDurationView>,
+): ConditionDurationView {
+  const { remaining_rounds, ...rest } = value;
+  return {
+    ...rest,
+    amount: toBigInt(value.amount),
+    ...(remaining_rounds === undefined
+      ? {}
+      : { remaining_rounds: toBigInt(remaining_rounds) }),
+  };
+}
+
 export function convertCondition(
   value: Wire<EncounterParticipantConditionView>,
 ): EncounterParticipantConditionView {
@@ -121,9 +135,7 @@ export function convertCondition(
     condition_id: toBigInt(value.condition_id),
     parameters: convertConditionParameters(parameters),
     ...(magnitude === undefined ? {} : { value: toBigInt(magnitude) }),
-    ...(duration === undefined
-      ? {}
-      : { duration: { ...duration, amount: toBigInt(duration.amount) } }),
+    ...(duration === undefined ? {} : { duration: convertConditionDuration(duration) }),
   };
 }
 
@@ -187,6 +199,11 @@ function participant(value: Wire<EncounterParticipantView>): EncounterParticipan
       ? {}
       : { level_override: toBigInt(level_override) }),
     conditions: value.conditions.map(convertCondition),
+    manual_trackers: mapArray(value.manual_trackers, (tracker) => ({
+      ...tracker,
+      duration: convertConditionDuration(tracker.duration),
+      remaining_rounds: toBigInt(tracker.remaining_rounds),
+    })),
     effective_max_hp: convertNumberFact(value.effective_max_hp),
     knockout_options: Array.isArray(value.knockout_options)
       ? value.knockout_options.map((option) => ({

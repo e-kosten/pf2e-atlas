@@ -4,6 +4,10 @@ import {
   EncounterAbilityControls,
   type AbilityStateHandler,
 } from "./EncounterAbilityControls";
+import {
+  EncounterManualTrackers,
+  type ManualTrackerHandler,
+} from "./EncounterManualTrackers";
 import { EncounterAbilityStates } from "./EncounterAbilityStates";
 import { destinationHref } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
@@ -72,6 +76,7 @@ export function EncounterInspectorPane({
   onPreviewCondition,
   onTurnResources,
   onAbilityState,
+  onManualTracker,
   onHpAction,
   onSpellAction,
   onConditionRecovery,
@@ -101,6 +106,7 @@ export function EncounterInspectorPane({
 }: {
   onReset?: () => void;
   onAbilityState?: AbilityStateHandler;
+  onManualTracker?: ManualTrackerHandler;
   disabled: boolean;
   encounterRevision: bigint;
   currentTurnKey?: string | null;
@@ -244,6 +250,7 @@ export function EncounterInspectorPane({
           onPreviewCondition={onPreviewCondition}
           onTurnResources={onTurnResources}
           onAbilityState={onAbilityState}
+          onManualTracker={onManualTracker}
           onHpAction={onHpAction}
           onSpellAction={onSpellAction}
           onUpdateCondition={onUpdateCondition}
@@ -332,6 +339,7 @@ function EncounterParticipantSurface({
   onPreviewCondition,
   onTurnResources,
   onAbilityState,
+  onManualTracker,
   onHpAction,
   onSpellAction,
   onUpdateCondition,
@@ -344,6 +352,7 @@ function EncounterParticipantSurface({
   participants,
 }: {
   onAbilityState?: AbilityStateHandler;
+  onManualTracker?: ManualTrackerHandler;
   disabled: boolean;
   encounterRevision: bigint;
   currentTurnKey?: string | null;
@@ -524,6 +533,16 @@ function EncounterParticipantSurface({
         onRecoverPersistent={onRecoverPersistent}
         onResolveDrained={onResolveDrained}
         participants={participants}
+      />
+      <EncounterManualTrackers
+        participant={participant}
+        participants={participants}
+        encounterRevision={encounterRevision}
+        disabled={disabled}
+        pending={pending}
+        recovery={recovery}
+        error={errorFor("manual-tracker")}
+        onChange={onManualTracker}
       />
       <EncounterAbilityStates
         participantKey={participant.participant_key}

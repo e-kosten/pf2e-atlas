@@ -270,6 +270,7 @@ fn participant_view(
         vec![]
     };
     EncounterParticipantView {
+        manual_trackers: super::manual_trackers::views(&participant, participants),
         ability_states: Some(super::ability_state::views(
             &participant,
             sources,

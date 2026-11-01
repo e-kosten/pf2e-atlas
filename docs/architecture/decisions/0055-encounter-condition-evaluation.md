@@ -154,6 +154,25 @@ again by reading or refreshing a record.
 Breath recharge prose and inline roll labels do not establish structured cooldown
 semantics; no cooldown or reset trigger is inferred from names or descriptions.
 
+Manual participant trackers provide explicit named countdowns independent of source
+ability declarations and condition causes. App-service validates duration and turn
+anchors, converts each minute/hour/day to 10/600/14400 six-second ticks, and plans
+countdown changes at the same actual start/end boundaries as timed conditions.
+Local-state saves trackers, outgoing snapshots and condition progress in the guarded
+turn transaction. Request replay, reads and manual turn selection do not tick them.
+A tracker retains its entered duration and zero as Ready; editing its duration or
+anchor restarts it, while renaming preserves progress. Missing anchors stay explicit
+and do not receive a guessed replacement. Creation-baseline reset restores baseline
+trackers, and overnight recovery advances their counters by eight hours.
+
+Anchored non-round conditions retain their entered amount/unit plus separate saved
+remaining-round progress. Round conditions retain their existing remaining amount.
+Metadata-only edits preserve saved progress; changed durations reinitialize it.
+Unconfigured legacy durations remain manual reminders until explicitly anchored.
+Zero uses the existing duration-ended/removal workflow and does not silently remove
+condition causes or claim gameplay consequences. Conversion rejects overflow and
+values outside the browser's exact integer range.
+
 Unknown facts stay unknown. An unavailable calculation does not silently use an
 authored subtotal, assume a missing trait is false, or substitute an unheightened
 spell. Ask only for facts relevant to the requested operation. Browsing a creature

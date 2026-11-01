@@ -295,6 +295,9 @@ fn reset_changes(
                 .join(", ")
         ));
     }
+    if p.manual_trackers != baseline.manual_trackers {
+        changes.push("Restore baseline trackers".into());
+    }
     if p.mortality != baseline.mortality {
         changes.push("Return to Alive".into());
     }

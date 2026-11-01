@@ -756,3 +756,12 @@ two blocks and 10% of allocation can be reclaimed. It uses supported vec0 public
 DDL/inserts and file-backed temporary staging, not extension shadow-table writes.
 Free SQLite pages are reclaimed separately through explicit setup/build maintenance;
 this changes neither logical reference revision nor workspace identity.
+
+### Manual encounter countdowns
+
+Workspace migration 23 adds participant-owned manual trackers and saved remaining
+rounds for non-round conditions. It rebuilds the saved condition table to permit
+explicit turn timing for every supported unit, preserving condition IDs, deleted-ID
+high water, source metadata and existing unresolved durations. Old baseline and
+outgoing-turn payloads decode absent trackers/progress as empty/unconfigured.
+The reference artifact and snapshot codec remain unchanged. See [ADR0055](decisions/0055-encounter-condition-evaluation.md).

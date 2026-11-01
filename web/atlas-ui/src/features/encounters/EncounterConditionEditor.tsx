@@ -134,10 +134,8 @@ export function EncounterConditionEditor({
 
   const durationAmount = Form.useWatch("durationAmount", form);
   const durationUnit = Form.useWatch("durationUnit", form) ?? "none";
-  const isRounds =
-    durationAmount !== undefined &&
-    durationAmount !== null &&
-    durationUnit === "rounds";
+  const isTimed =
+    durationAmount !== undefined && durationAmount !== null && durationUnit !== "none";
   useEffect(() => {
     if (!condition) return;
     const values: ConditionFormValues = {
@@ -218,12 +216,12 @@ export function EncounterConditionEditor({
   const timingRule = {
     validator: (_rule: unknown, value: string | undefined) => {
       const unchangedUnresolved =
-        condition?.duration?.unit === "rounds" &&
+        condition?.duration !== undefined &&
         condition.duration.timing === null &&
         !form.isFieldsTouched(durationFields);
-      return !isRounds || value || unchangedUnresolved
+      return !isTimed || value || unchangedUnresolved
         ? Promise.resolve()
-        : Promise.reject(new Error("Choose when these rounds count down."));
+        : Promise.reject(new Error("Choose when this duration counts down."));
     },
   };
   const normalizeDraft = (values: ConditionFormValues): ConditionEventInput => {
@@ -825,13 +823,12 @@ export function EncounterConditionEditor({
                 <Form.Item name="durationUnit" noStyle>
                   <Select
                     aria-label="Duration unit"
-                    onChange={(unit) => {
-                      if (unit === "rounds")
-                        form.setFieldsValue({
-                          durationEvent: form.getFieldValue("durationEvent") ?? "end",
-                          durationParticipant:
-                            form.getFieldValue("durationParticipant") ?? participantKey,
-                        });
+                    onChange={() => {
+                      form.setFieldsValue({
+                        durationEvent: form.getFieldValue("durationEvent") ?? "end",
+                        durationParticipant:
+                          form.getFieldValue("durationParticipant") ?? participantKey,
+                      });
                     }}
                     style={{ width: 128 }}
                     options={["rounds", "minutes", "hours", "days"].map((value) => ({
@@ -859,7 +856,7 @@ export function EncounterConditionEditor({
               </Space.Compact>
             </Form.Item>
           </div>
-          {isRounds && (
+          {isTimed && (
             <Space align="start" wrap>
               <Form.Item name="durationEvent" rules={[timingRule]}>
                 <Segmented

@@ -8,6 +8,7 @@ mod hydration;
 mod initiative;
 #[cfg(test)]
 mod initiative_tests;
+mod manual_trackers;
 pub(crate) mod mechanics;
 mod outgoing_turns;
 mod projection;

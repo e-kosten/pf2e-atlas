@@ -423,9 +423,9 @@ pub(crate) fn add_condition(
     connection.execute(
         "INSERT INTO encounter_participant_conditions (
             participant_id, condition_key, name, value, source_participant_key,
-            duration_amount, duration_unit, duration_anchor_key, duration_event, note, scope_json, extra_action_json, immunity_override, created_at, updated_at, parameters_json, origin_json
+            duration_amount, duration_unit, duration_anchor_key, duration_event, note, scope_json, extra_action_json, immunity_override, created_at, updated_at, parameters_json, origin_json, duration_remaining_rounds
          )
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?14, ?15, ?16)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?14, ?15, ?16, ?17)",
         params![
             participant_id,
             condition.condition_key,
@@ -443,6 +443,7 @@ pub(crate) fn add_condition(
             now,
             serde_json::to_string(&condition.parameters)?,
             condition.origin.as_ref().map(serde_json::to_string).transpose()?,
+            condition.duration.as_ref().and_then(|d|d.remaining_rounds),
         ],
     )?;
     let condition_id = connection.last_insert_rowid();
@@ -488,7 +489,7 @@ pub(crate) fn update_condition(
     let updated = connection.execute(
         "UPDATE encounter_participant_conditions
          SET condition_key = ?1, name = ?2, value = ?3, source_participant_key = ?4,
-             duration_amount = ?5, duration_unit = ?6, duration_anchor_key = ?7, duration_event = ?8, note = ?9, scope_json = ?10, extra_action_json = ?11, immunity_override = ?12, updated_at = ?13, parameters_json = ?16, origin_json = ?17
+             duration_amount = ?5, duration_unit = ?6, duration_anchor_key = ?7, duration_event = ?8, note = ?9, scope_json = ?10, extra_action_json = ?11, immunity_override = ?12, updated_at = ?13, parameters_json = ?16, origin_json = ?17, duration_remaining_rounds = ?18
          WHERE id = ?14 AND participant_id = ?15",
         params![
             condition.condition_key,
@@ -508,6 +509,7 @@ pub(crate) fn update_condition(
             participant_id,
             serde_json::to_string(&condition.parameters)?,
             condition.origin.as_ref().map(serde_json::to_string).transpose()?,
+            condition.duration.as_ref().and_then(|d|d.remaining_rounds),
         ],
     )?;
     if updated > 0 {
@@ -614,6 +616,8 @@ fn participants(
     let rows = statement.query_map(params![encounter_key], participant_from_row)?;
     let mut participants = rows.collect::<Result<Vec<_>, _>>()?;
     for participant in &mut participants {
+        participant.manual_trackers =
+            super::manual_trackers::read(connection, &participant.participant_key)?;
         participant.ability_states =
             super::ability_state::read(connection, &participant.participant_key)?;
         participant.conditions = participant_conditions(connection, &participant.participant_key)?;
@@ -700,6 +704,7 @@ fn participant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPa
         updated_at: row.get(18)?,
         hp_origin: crate::ParticipantHpOrigin::from_str(&row.get::<_, String>(19)?),
         variant_origin: crate::ParticipantVariantOrigin::from_str(&row.get::<_, String>(20)?),
+        manual_trackers: vec![],
         ability_states: vec![],
         conditions: Vec::new(),
     })
@@ -725,6 +730,7 @@ pub(crate) fn participant(
     else {
         return Ok(None);
     };
+    participant.manual_trackers = super::manual_trackers::read(connection, participant_key)?;
     participant.ability_states = super::ability_state::read(connection, participant_key)?;
     participant.conditions = participant_conditions(connection, participant_key)?;
     participant.expended_spells =
@@ -742,7 +748,7 @@ fn participant_conditions(
     let mut statement = connection.prepare(
         "SELECT condition.id, condition.condition_key, condition.name, condition.value,
                 condition.source_participant_key, condition.duration_amount, condition.duration_unit, condition.duration_anchor_key, condition.duration_event, condition.note,
-                condition.scope_json, condition.extra_action_json, condition.immunity_override, condition.created_at, condition.updated_at, condition.parameters_json, condition.origin_json
+                condition.scope_json, condition.extra_action_json, condition.immunity_override, condition.created_at, condition.updated_at, condition.parameters_json, condition.origin_json, condition.duration_remaining_rounds
          FROM encounter_participant_conditions condition
          JOIN encounter_participants participant ON participant.id = condition.participant_id
          WHERE participant.participant_key = ?1
@@ -776,6 +782,7 @@ fn condition_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPart
         duration: match row.get::<_, Option<i64>>(5)? {
             None => None,
             Some(amount) => Some(ConditionDuration {
+                remaining_rounds: row.get(17)?,
                 amount,
                 unit: match row.get::<_, String>(6)?.as_str() {
                     "rounds" => ConditionDurationUnit::Rounds,
@@ -826,7 +833,7 @@ pub(crate) fn condition(
     connection
         .query_row(
             "SELECT id, condition_key, name, value, source_participant_key,
-                duration_amount, duration_unit, duration_anchor_key, duration_event, note, scope_json, extra_action_json, immunity_override, created_at, updated_at, parameters_json, origin_json
+                duration_amount, duration_unit, duration_anchor_key, duration_event, note, scope_json, extra_action_json, immunity_override, created_at, updated_at, parameters_json, origin_json, duration_remaining_rounds
          FROM encounter_participant_conditions WHERE id = ?1",
             [condition_id],
             condition_from_row,
@@ -1067,7 +1074,7 @@ pub(crate) fn update_duration_amount(
     amount: i64,
 ) -> LocalStateResult<()> {
     connection.execute(
-        "UPDATE encounter_participant_conditions SET duration_amount=?1,updated_at=?2 WHERE id=?3",
+        "UPDATE encounter_participant_conditions SET duration_amount=CASE WHEN duration_unit='rounds' THEN ?1 ELSE duration_amount END,duration_remaining_rounds=CASE WHEN duration_unit='rounds' THEN NULL ELSE ?1 END,updated_at=?2 WHERE id=?3",
         params![amount, now_rfc3339()?, condition_id],
     )?;
     Ok(())

@@ -45,6 +45,19 @@ a party member only needs a name. See [saved parties](#saved-parties) for later 
 Use the encounter controls to set initiative, move through turns, adjust HP,
 track conditions and spell resources, and roll dice.
 
+Select a participant and choose **Add tracker** under Trackers for reminders such
+as “Breath ready.” Enter a duration and choose whose turn counts it down, at its
+start or end. Trackers stay visible as **Ready** at zero; use **Restart**
+to begin the same countdown again. Editing the duration or timing restarts it;
+renaming preserves its progress.
+
+Timed conditions also accept rounds, minutes, hours or days. With turn timing
+configured, one minute counts down over ten rounds (six seconds per round).
+Advancing turns updates the remaining count; selecting a turn manually does not.
+An ended condition remains visible until you remove it. Existing durations without
+turn timing remain reminders until you edit them to choose a timing participant
+and boundary.
+
 ## Use commands or an agent
 
 You can use Atlas from any directory after setup:

@@ -786,3 +786,113 @@ test("real turn counts retain explanations and guard an explicit action", async 
     await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
   }
 });
+
+test("manual trackers persist minute countdowns and restart after becoming ready", async ({
+  page,
+}, info) => {
+  const created = await page.request.post("/api/encounters", {
+    data: { name: `Manual tracker ${Date.now()}` },
+  });
+  const { encounter } = await created.json();
+  const path = `/api/encounters/${encounter.encounter_key}`;
+  try {
+    expect(
+      (
+        await page.request.post(`${path}/participants/manual`, {
+          data: {
+            encounter_ref: encounter.encounter_key,
+            display_name: "Tracker dragon",
+            initiative: 20,
+            max_hp: 20,
+            current_hp: 20,
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    await page.goto(`/encounters/${encounter.slug}`);
+    await activate(
+      page.getByRole("button", { name: "Tracker dragon", exact: true }),
+      info,
+    );
+    await activate(
+      page.getByRole("button", { name: "Add tracker", exact: true }),
+      info,
+    );
+    const dialog = page.getByRole("dialog", { name: "Add tracker", exact: true });
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel("Name", { exact: true }).fill("Breath ready");
+    await activate(
+      dialog.getByRole("combobox", { name: "Tracker duration unit" }),
+      info,
+    );
+    await page.getByRole("option", { name: "minutes", exact: true }).click();
+    await activate(
+      dialog.getByRole("button", { name: "Save tracker", exact: true }),
+      info,
+    );
+    await expect(dialog).not.toBeVisible();
+    await expect(page.getByText("10 rounds remaining", { exact: true })).toBeVisible();
+    await noPageOverflow(page);
+    await page.reload();
+    const participant = page.getByRole("button", {
+      name: "Tracker dragon",
+      exact: true,
+    });
+    if (await participant.isVisible()) await activate(participant, info);
+    await expect(page.getByText("10 rounds remaining", { exact: true })).toBeVisible();
+    let detail = await (await page.request.get(path)).json();
+    expect(
+      (
+        await page.request.post(`${path}/advance`, {
+          data: {
+            request_id: `tracker-start-${Date.now()}`,
+            expected_revision: detail.revision,
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    for (let tick = 0; tick < 10; tick++) {
+      detail = await (await page.request.get(path)).json();
+      const response = await page.request.post(`${path}/advance`, {
+        data: {
+          request_id: `tracker-tick-${tick}-${Date.now()}`,
+          expected_revision: detail.revision,
+        },
+      });
+      expect(response.ok(), await response.text()).toBeTruthy();
+    }
+    await page.reload();
+    if (await participant.isVisible()) await activate(participant, info);
+    await expect(page.getByRole("status").filter({ hasText: "Ready" })).toBeVisible();
+    await activate(
+      page.getByRole("button", { name: "Restart Breath ready", exact: true }),
+      info,
+    );
+    await expect(page.getByText("10 rounds remaining", { exact: true })).toBeVisible();
+    await activate(
+      page.getByRole("button", { name: "Edit tracker Breath ready", exact: true }),
+      info,
+    );
+    const edit = page.getByRole("dialog", { name: "Edit tracker", exact: true });
+    await edit.getByLabel("Name", { exact: true }).fill("Cold breath ready");
+    await activate(
+      edit.getByRole("button", { name: "Save tracker", exact: true }),
+      info,
+    );
+    await expect(edit).not.toBeVisible();
+    await expect(page.getByText("Cold breath ready", { exact: true })).toBeVisible();
+    await activate(
+      page.getByRole("button", {
+        name: "Remove tracker Cold breath ready",
+        exact: true,
+      }),
+      info,
+    );
+    await expect(
+      page.getByText("Cold breath ready", { exact: true }),
+    ).not.toBeVisible();
+    await noPageOverflow(page);
+  } finally {
+    await page.request.delete(path);
+  }
+});

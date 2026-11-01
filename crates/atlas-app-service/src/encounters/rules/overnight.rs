@@ -114,6 +114,14 @@ pub(in crate::encounters) fn prepare(
         let Some(duration) = &mut condition.duration else {
             return true;
         };
+        if let Some(remaining) = &mut duration.remaining_rounds {
+            *remaining = remaining.saturating_sub(4800).max(0);
+            if *remaining == 0 {
+                row.changes.push(format!("Expire {}", condition.name));
+                return false;
+            }
+            return true;
+        }
         use atlas_local_state::ConditionDurationUnit as Unit;
         let elapsed = match duration.unit {
             Unit::Rounds => 4800,
@@ -133,6 +141,14 @@ pub(in crate::encounters) fn prepare(
             true
         }
     });
+    for tracker in &mut state.manual_trackers {
+        if tracker.remaining_rounds > 0 {
+            tracker.remaining_rounds = tracker.remaining_rounds.saturating_sub(4800).max(0);
+            if tracker.remaining_rounds == 0 {
+                row.changes.push(format!("{} ready", tracker.name));
+            }
+        }
+    }
     let mut after = p.clone();
     after.conditions = state.conditions.clone();
     let maximum = super::effective_hp_maximum(&after, sources, level);

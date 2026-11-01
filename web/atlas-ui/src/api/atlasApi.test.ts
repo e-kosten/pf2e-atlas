@@ -380,6 +380,25 @@ describe("source-backed API transport", () => {
       ).toEqual(expected);
     },
   );
+  it("decodes tracker and non-round condition progress from the real router fixture", async () => {
+    const fixture = await import("./__fixtures__/wire-conversion.json");
+    respond(fixture.encounter);
+    const detail = await getEncounter("ambush");
+    const manual = detail.participants.find(
+      (p) => p.participant_key === "fixture-manual",
+    )!;
+    expect(manual.manual_trackers[0]).toMatchObject({
+      name: "Breath ready",
+      remaining_rounds: 10n,
+      duration: { amount: 1n, unit: "minutes" },
+    });
+    expect(manual.manual_trackers[0].duration).not.toHaveProperty("remaining_rounds");
+    expect(manual.conditions[0].duration).toMatchObject({
+      amount: 1n,
+      unit: "minutes",
+      remaining_rounds: 10n,
+    });
+  });
   it("normalizes actual HTTP encounter integers for display and revision-bound edits", async () => {
     respond({
       revision: 8,

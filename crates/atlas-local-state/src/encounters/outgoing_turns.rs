@@ -114,6 +114,9 @@ impl EncountersWrite<'_> {
                     start,
                 )?;
             }
+            for change in &update.manual_trackers {
+                self.save_manual_tracker(&saved.snapshot.encounter.encounter_key, change)?;
+            }
             storage::get(self.connection, encounter_ref)
         })
     }

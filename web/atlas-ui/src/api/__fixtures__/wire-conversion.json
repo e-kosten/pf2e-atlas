@@ -97,6 +97,15 @@
             "condition_id": 1,
             "condition_key": "conditionitems:xYTAsEpcJE1Ccni3",
             "created_at": "2026-01-01T00:00:00Z",
+            "duration": {
+              "amount": 1,
+              "remaining_rounds": 10,
+              "timing": {
+                "event": "end",
+                "participant_key": "fixture-manual"
+              },
+              "unit": "minutes"
+            },
             "extra_action": {
               "kind": "unspecified"
             },
@@ -177,6 +186,23 @@
             },
             "label": "Nonlethal",
             "result": "Unconscious"
+          }
+        ],
+        "manual_trackers": [
+          {
+            "duration": {
+              "amount": 1,
+              "timing": {
+                "event": "end",
+                "participant_key": "fixture-manual"
+              },
+              "unit": "minutes"
+            },
+            "name": "Breath ready",
+            "remaining_rounds": 10,
+            "timing_available": true,
+            "timing_label": "End of Kyra’s turn",
+            "tracker_key": "tracker_wire-tracker"
           }
         ],
         "mortality": "alive",
@@ -376,7 +402,7 @@
             "traits": []
           }
         },
-        "revision": 2,
+        "revision": 3,
         "side": "pc",
         "status": "manual",
         "temporary_hp": 0,
@@ -501,6 +527,7 @@
             "result": "Unconscious"
           }
         ],
+        "manual_trackers": [],
         "max_hp": 20,
         "mortality": "alive",
         "note_hint": null,
@@ -742,7 +769,7 @@
         "variant_origin": "explicit"
       }
     ],
-    "revision": 7
+    "revision": 8
   },
   "flat_check_serialization_control": {
     "dc": 11,
@@ -1333,7 +1360,7 @@
     "can_apply": true,
     "changes": ["End the current turn and clear turn reminders."],
     "encounter_key": "fixture-encounter",
-    "encounter_revision": 7,
+    "encounter_revision": 8,
     "participants": [
       {
         "changes": [],

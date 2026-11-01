@@ -441,6 +441,7 @@ mod tests {
 
     fn participant() -> EncounterParticipant {
         EncounterParticipant {
+            manual_trackers: vec![],
             ability_states: vec![],
             turn_resources: None,
             level_override: None,
@@ -593,6 +594,7 @@ mod tests {
             None
         );
         p.conditions[0].duration = Some(ConditionDuration {
+            remaining_rounds: None,
             amount: 2,
             unit: ConditionDurationUnit::Minutes,
             timing: None,
@@ -623,6 +625,7 @@ mod tests {
         assert!(plan.allocation().is_none());
         p.conditions = vec![condition("Stunned", None)];
         p.conditions[0].duration = Some(ConditionDuration {
+            remaining_rounds: None,
             amount: 1,
             unit: ConditionDurationUnit::Minutes,
             timing: None,

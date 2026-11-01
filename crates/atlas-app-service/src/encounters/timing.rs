@@ -16,6 +16,7 @@ const PERSISTENT_DAMAGE_KEY: &str = "conditionitems:lDVqvLKA6eF3Df60";
 
 pub(super) fn duration_view(duration: ConditionDuration) -> ConditionDurationView {
     ConditionDurationView {
+        remaining_rounds: duration.remaining_rounds,
         amount: duration.amount,
         unit: match duration.unit {
             ConditionDurationUnit::Rounds => ViewUnit::Rounds,
@@ -33,62 +34,78 @@ pub(super) fn duration_view(duration: ConditionDuration) -> ConditionDurationVie
     }
 }
 
+/// A round advances six seconds; preserve the authored duration separately.
+pub(super) fn duration_rounds(amount: i64, unit: ConditionDurationUnit) -> AppServiceResult<i64> {
+    let multiplier = match unit {
+        ConditionDurationUnit::Rounds => 1,
+        ConditionDurationUnit::Minutes => 10,
+        ConditionDurationUnit::Hours => 600,
+        ConditionDurationUnit::Days => 14400,
+    };
+    amount
+        .checked_mul(multiplier)
+        .filter(|v| (0..=9_007_199_254_740_991).contains(v))
+        .ok_or_else(|| AppServiceError::invalid_request("Duration is outside the supported range."))
+}
+pub(super) fn remaining_rounds(duration: &ConditionDuration) -> Option<i64> {
+    if duration.unit == ConditionDurationUnit::Rounds {
+        Some(duration.amount)
+    } else {
+        duration.remaining_rounds
+    }
+}
 pub(super) fn duration_input(
     duration: Option<ConditionDurationView>,
     existing: Option<&ConditionDuration>,
     snapshot: &EncounterWithParticipants,
 ) -> AppServiceResult<Option<ConditionDuration>> {
-    let Some(duration) = duration else {
+    let Some(input) = duration else {
         return Ok(None);
     };
-    let local = ConditionDuration {
-        amount: duration.amount,
-        unit: match duration.unit {
+    let mut local = ConditionDuration {
+        amount: input.amount,
+        unit: match input.unit {
             ViewUnit::Rounds => ConditionDurationUnit::Rounds,
             ViewUnit::Minutes => ConditionDurationUnit::Minutes,
             ViewUnit::Hours => ConditionDurationUnit::Hours,
             ViewUnit::Days => ConditionDurationUnit::Days,
         },
-        timing: duration.timing.map(|timing| ConditionTiming {
-            participant_key: timing.participant_key,
-            event: match timing.event {
+        timing: input.timing.map(|t| ConditionTiming {
+            participant_key: t.participant_key,
+            event: match t.event {
                 ViewEvent::Start => ConditionTurnEvent::Start,
                 ViewEvent::End => ConditionTurnEvent::End,
             },
         }),
+        remaining_rounds: None,
     };
-    // Preserve unresolved migrated durations on unrelated edits, including historical outliers.
-    if existing == Some(&local) {
-        return Ok(Some(local));
+    // Metadata-only edits preserve saved progress, including unresolved legacy anchors.
+    if let Some(old) = existing.filter(|old| {
+        old.amount == local.amount && old.unit == local.unit && old.timing == local.timing
+    }) {
+        return Ok(Some(old.clone()));
     }
-    if local.amount < 0 {
-        return Err(AppServiceError::invalid_request(
-            "condition duration amount must be nonnegative",
-        ));
-    }
-    match (&local.unit, &local.timing) {
-        (ConditionDurationUnit::Rounds, Some(timing)) => {
+    let ticks = duration_rounds(local.amount, local.unit)?;
+    match &local.timing {
+        Some(timing)
             if !snapshot
                 .participants
                 .iter()
-                .any(|p| p.participant_key == timing.participant_key)
-            {
-                return Err(AppServiceError::invalid_request(
-                    "round duration timing participant must belong to this encounter",
-                ));
-            }
-        }
-        (ConditionDurationUnit::Rounds, None) => {
+                .any(|p| p.participant_key == timing.participant_key) =>
+        {
             return Err(AppServiceError::invalid_request(
-                "round duration requires an explicit turn participant and start/end timing",
+                "Duration timing participant must belong to this encounter.",
             ));
         }
-        (_, Some(_)) => {
+        None if local.unit == ConditionDurationUnit::Rounds => {
             return Err(AppServiceError::invalid_request(
-                "only round durations have turn timing",
+                "Round duration requires an explicit turn participant and start/end timing.",
             ));
         }
-        (_, None) => {}
+        _ => {}
+    }
+    if local.unit != ConditionDurationUnit::Rounds && local.timing.is_some() {
+        local.remaining_rounds = Some(ticks);
     }
     Ok(Some(local))
 }
@@ -124,15 +141,41 @@ pub(super) fn turn_update(snapshot: &EncounterWithParticipants) -> EncounterTurn
         .flat_map(|p| &p.conditions)
         .filter_map(|condition| {
             let duration = condition.duration.as_ref()?;
-            (duration.unit == ConditionDurationUnit::Rounds
-                && duration.amount > 0
+            (remaining_rounds(duration).is_some_and(|count| count > 0)
                 && duration.timing.as_ref().is_some_and(|timing| {
                     matches_boundary(snapshot, turn.participant_key.as_deref(), timing)
                 }))
-            .then(|| (condition.condition_id, duration.amount - 1))
+            .then(|| {
+                (
+                    condition.condition_id,
+                    remaining_rounds(duration).unwrap_or(0) - 1,
+                )
+            })
+        })
+        .collect();
+    let manual_trackers = snapshot
+        .participants
+        .iter()
+        .flat_map(|p| {
+            p.manual_trackers.iter().filter_map(|tracker| {
+                (tracker.remaining_rounds > 0
+                    && tracker.duration.timing.as_ref().is_some_and(|timing| {
+                        matches_boundary(snapshot, turn.participant_key.as_deref(), timing)
+                    }))
+                .then(|| {
+                    let mut value = tracker.clone();
+                    value.remaining_rounds -= 1;
+                    atlas_local_state::ManualTrackerChange {
+                        participant_key: p.participant_key.clone(),
+                        tracker_key: tracker.tracker_key.clone(),
+                        value: Some(value),
+                    }
+                })
+            })
         })
         .collect();
     EncounterTurnUpdate {
+        manual_trackers,
         turn,
         durations,
         start_event: None,
@@ -194,17 +237,18 @@ pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurn
             let Some(duration) = condition.duration.as_ref() else {
                 continue;
             };
-            let reminder = if duration.unit == ConditionDurationUnit::Rounds
-                && duration.amount == 0
-                && owner_boundary
-            {
+            let reminder = if remaining_rounds(duration) == Some(0) && owner_boundary {
                 Some(EncounterTurnReminderView::DurationEnded {
                     participant_key,
                     participant_name,
                     condition_id,
                     condition_name,
                 })
-            } else if duration.unit != ConditionDurationUnit::Rounds && owner_boundary {
+            } else if remaining_rounds(duration).is_none()
+                && duration.unit != ConditionDurationUnit::Rounds
+                && duration.timing.is_none()
+                && owner_boundary
+            {
                 Some(EncounterTurnReminderView::DurationReminder {
                     participant_key,
                     participant_name,
@@ -212,8 +256,7 @@ pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurn
                     condition_name,
                     duration: duration_view(duration.clone()),
                 })
-            } else if duration.unit == ConditionDurationUnit::Rounds
-                && duration.amount == 1
+            } else if remaining_rounds(duration) == Some(1)
                 && duration
                     .timing
                     .as_ref()
@@ -228,7 +271,7 @@ pub(super) fn turn_review(snapshot: &EncounterWithParticipants) -> EncounterTurn
                         timing,
                     }
                 })
-            } else if duration.unit == ConditionDurationUnit::Rounds
+            } else if (duration.unit == ConditionDurationUnit::Rounds || duration.timing.is_some())
                 && owner_boundary
                 && !duration.timing.as_ref().is_some_and(|timing| {
                     snapshot

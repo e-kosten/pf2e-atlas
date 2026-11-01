@@ -53,3 +53,22 @@
   font-size: 1rem;
   font-weight: 600;
 }
+
+.encounter-manual-trackers {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-control);
+}
+.encounter-manual-trackers h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.encounter-manual-trackers__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-control);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

@@ -3379,6 +3379,7 @@ function participantFixture(
   overrides: Partial<EncounterParticipantView>,
 ): EncounterParticipantView {
   return {
+    manual_trackers: [],
     knockout_options: [],
     effective_max_hp: {
       state: overrides.max_hp === undefined ? "missing" : "value",

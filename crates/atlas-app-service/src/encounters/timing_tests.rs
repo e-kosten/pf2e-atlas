@@ -72,6 +72,7 @@ fn add(
 }
 fn rounds(amount: i64, anchor: Option<&str>, event: LocalEvent) -> Option<ConditionDuration> {
     Some(ConditionDuration {
+        remaining_rounds: None,
         amount,
         unit: LocalUnit::Rounds,
         timing: anchor.map(|key| ConditionTiming {
@@ -260,6 +261,7 @@ fn canonical_persistent_only_owner_end_and_nonround_reminders_never_apply_hp_or_
         &a,
         None,
         Some(ConditionDuration {
+            remaining_rounds: None,
             amount: 5,
             unit: LocalUnit::Minutes,
             timing: None,
@@ -348,6 +350,7 @@ fn new_duration_requires_valid_amount_unit_anchor_and_legacy_unchanged_is_preser
     let snapshot = snapshot(&f, &key);
     let input = |amount, unit, timing| {
         Some(ConditionDurationView {
+            remaining_rounds: None,
             amount,
             unit,
             timing,
@@ -365,7 +368,7 @@ fn new_duration_requires_valid_amount_unit_anchor_and_legacy_unchanged_is_preser
             }),
         ),
         input(
-            2,
+            i64::MAX,
             ConditionDurationUnit::Days,
             Some(ConditionTimingView {
                 participant_key: a.clone(),
@@ -379,6 +382,7 @@ fn new_duration_requires_valid_amount_unit_anchor_and_legacy_unchanged_is_preser
         assert_eq!(error.code, AppErrorCode::InvalidRequest);
     }
     let legacy = ConditionDuration {
+        remaining_rounds: None,
         amount: 3,
         unit: LocalUnit::Rounds,
         timing: None,
@@ -588,6 +592,7 @@ fn zero_nonround_duration_is_only_a_manual_reminder() {
         &a,
         None,
         Some(ConditionDuration {
+            remaining_rounds: None,
             amount: 0,
             unit: LocalUnit::Hours,
             timing: None,
@@ -644,6 +649,7 @@ fn expired_rounds_do_not_disable_modeled_condition_effects() {
                 value: Some(2),
                 source_participant_key: None,
                 duration: Some(ConditionDurationView {
+                    remaining_rounds: None,
                     amount: 1,
                     unit: ConditionDurationUnit::Rounds,
                     timing: Some(ConditionTimingView {
@@ -867,6 +873,7 @@ fn completed_reminders_are_canonical_results_until_the_next_boundary() {
             &a,
             None,
             Some(ConditionDuration {
+                remaining_rounds: None,
                 amount: 3,
                 unit: LocalUnit::Minutes,
                 timing: None,
@@ -1034,4 +1041,461 @@ fn frightened_reminder_value_uses_known_effective_sources_without_guessing_unkno
     assert_eq!(value(&state), Some(4));
     state.participants[0].conditions[0].value = None;
     assert_eq!(value(&state), None);
+}
+
+fn tracker_request(
+    f: &FixtureWorker,
+    key: &str,
+    participant: &str,
+    id: &str,
+    action: EncounterManualTrackerAction,
+) -> UpdateEncounterManualTrackerRequest {
+    let view = f.worker.encounter(key).unwrap();
+    let p = view
+        .participants
+        .iter()
+        .find(|p| p.participant_key == participant)
+        .unwrap();
+    UpdateEncounterManualTrackerRequest {
+        request_id: id.into(),
+        expected_encounter_revision: view.revision,
+        expected_participant_revision: p.revision,
+        participant_key: participant.into(),
+        action,
+    }
+}
+fn minute(anchor: &str) -> ConditionDurationView {
+    ConditionDurationView {
+        amount: 1,
+        unit: ConditionDurationUnit::Minutes,
+        timing: Some(ConditionTimingView {
+            participant_key: anchor.into(),
+            event: ConditionTurnEvent::End,
+        }),
+        remaining_rounds: None,
+    }
+}
+#[test]
+fn manual_trackers_preserve_progress_replay_and_independent_participants() {
+    let (f, key, a, b) = fixture();
+    let request = tracker_request(
+        &f,
+        &key,
+        &a,
+        "breath",
+        EncounterManualTrackerAction::Add {
+            name: "Breath ready".into(),
+            duration: minute(&a),
+        },
+    );
+    f.worker
+        .update_encounter_manual_tracker(&key, request.clone())
+        .unwrap();
+    f.worker
+        .update_encounter_manual_tracker(&key, request)
+        .unwrap();
+    let saved = snapshot(&f, &key);
+    assert_eq!(saved.participants[0].manual_trackers.len(), 1);
+    assert_eq!(
+        saved.participants[0].manual_trackers[0].remaining_rounds,
+        10
+    );
+    let tracker = saved.participants[0].manual_trackers[0].tracker_key.clone();
+    set(&f, &key, &a);
+    for _ in 0..3 {
+        f.worker.encounter(&key).unwrap();
+        f.worker.encounter_turn_review(&key).unwrap();
+    }
+    assert_eq!(
+        snapshot(&f, &key).participants[0].manual_trackers[0].remaining_rounds,
+        10
+    );
+    let advance = AdvanceEncounterTurnRequest {
+        request_id: "breath-tick".into(),
+        expected_revision: snapshot(&f, &key).encounter.revision,
+    };
+    f.worker
+        .advance_encounter_turn(&key, advance.clone())
+        .unwrap();
+    f.worker.advance_encounter_turn(&key, advance).unwrap();
+    assert_eq!(
+        snapshot(&f, &key).participants[0].manual_trackers[0].remaining_rounds,
+        9
+    );
+    let rename = tracker_request(
+        &f,
+        &key,
+        &a,
+        "rename",
+        EncounterManualTrackerAction::Edit {
+            tracker_key: tracker.clone(),
+            name: "Fire breath".into(),
+            duration: minute(&a),
+        },
+    );
+    f.worker
+        .update_encounter_manual_tracker(&key, rename)
+        .unwrap();
+    assert_eq!(
+        snapshot(&f, &key).participants[0].manual_trackers[0].remaining_rounds,
+        9
+    );
+    assert!(
+        snapshot(&f, &key).participants[1]
+            .manual_trackers
+            .is_empty()
+    );
+    next(&f, &key); // B end does not tick A's end anchor.
+    assert_eq!(
+        snapshot(&f, &key).participants[0].manual_trackers[0].remaining_rounds,
+        9
+    );
+    for _ in 0..18 {
+        next(&f, &key);
+    }
+    assert_eq!(
+        snapshot(&f, &key).participants[0].manual_trackers[0].remaining_rounds,
+        0
+    );
+    let view = f.worker.encounter(&key).unwrap();
+    assert_eq!(view.participants[0].manual_trackers[0].name, "Fire breath");
+    let restart = tracker_request(
+        &f,
+        &key,
+        &a,
+        "restart",
+        EncounterManualTrackerAction::Restart {
+            tracker_key: tracker.clone(),
+        },
+    );
+    f.worker
+        .update_encounter_manual_tracker(&key, restart)
+        .unwrap();
+    assert_eq!(
+        snapshot(&f, &key).participants[0].manual_trackers[0].remaining_rounds,
+        10
+    );
+    let foreign = tracker_request(
+        &f,
+        &key,
+        &b,
+        "foreign-tracker",
+        EncounterManualTrackerAction::Remove {
+            tracker_key: tracker.clone(),
+        },
+    );
+    assert!(
+        f.worker
+            .update_encounter_manual_tracker(&key, foreign)
+            .is_err()
+    );
+    let remove = tracker_request(
+        &f,
+        &key,
+        &a,
+        "remove-tracker",
+        EncounterManualTrackerAction::Remove {
+            tracker_key: tracker,
+        },
+    );
+    f.worker
+        .update_encounter_manual_tracker(&key, remove.clone())
+        .unwrap();
+    f.worker
+        .update_encounter_manual_tracker(&key, remove)
+        .unwrap();
+    assert!(
+        snapshot(&f, &key).participants[0]
+            .manual_trackers
+            .is_empty()
+    );
+}
+#[test]
+fn manual_tracker_admission_is_atomic_and_guards_revisions_and_timing() {
+    let (f, key, a, _) = fixture();
+    let original = snapshot(&f, &key);
+    for (i, duration) in [
+        ConditionDurationView {
+            amount: -1,
+            ..minute(&a)
+        },
+        ConditionDurationView {
+            amount: i64::MAX,
+            ..minute(&a)
+        },
+        ConditionDurationView {
+            timing: None,
+            ..minute(&a)
+        },
+        minute("foreign"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let request = tracker_request(
+            &f,
+            &key,
+            &a,
+            &format!("invalid-{i}"),
+            EncounterManualTrackerAction::Add {
+                name: "Breath".into(),
+                duration,
+            },
+        );
+        assert!(
+            f.worker
+                .update_encounter_manual_tracker(&key, request)
+                .is_err()
+        );
+        assert_eq!(snapshot(&f, &key), original);
+    }
+    let mut request = tracker_request(
+        &f,
+        &key,
+        &a,
+        "stale",
+        EncounterManualTrackerAction::Add {
+            name: "Breath".into(),
+            duration: minute(&a),
+        },
+    );
+    request.expected_participant_revision -= 1;
+    assert!(
+        f.worker
+            .update_encounter_manual_tracker(&key, request)
+            .is_err()
+    );
+    assert_eq!(snapshot(&f, &key), original);
+}
+#[test]
+fn configured_nonround_durations_count_exact_ticks_and_preserve_entered_units() {
+    let (f, key, a, _) = fixture();
+    let duration =
+        super::timing::duration_input(Some(minute(&a)), None, &snapshot(&f, &key)).unwrap();
+    add(&f, &a, None, duration);
+    set(&f, &key, &a);
+    for _ in 0..18 {
+        next(&f, &key);
+    }
+    let saved = snapshot(&f, &key);
+    let duration = saved.participants[0].conditions[0]
+        .duration
+        .as_ref()
+        .unwrap();
+    assert_eq!(
+        (duration.amount, duration.unit, duration.remaining_rounds),
+        (1, LocalUnit::Minutes, Some(1))
+    );
+    assert!(matches!(
+        &f.worker.encounter_turn_review(&key).unwrap().reminders[..],
+        [EncounterTurnReminderView::DurationEnding { .. }]
+    ));
+    let input = ConditionDurationView {
+        remaining_rounds: Some(999),
+        ..minute(&a)
+    };
+    assert_eq!(
+        super::timing::duration_input(Some(input), Some(duration), &saved)
+            .unwrap()
+            .as_ref(),
+        Some(duration),
+        "metadata edits cannot reset or forge saved progress"
+    );
+    next(&f, &key);
+    assert_eq!(
+        snapshot(&f, &key).participants[0].conditions[0]
+            .duration
+            .as_ref()
+            .unwrap()
+            .remaining_rounds,
+        Some(0)
+    );
+    for _ in 0..4 {
+        next(&f, &key);
+    }
+    assert_eq!(
+        snapshot(&f, &key).participants[0].conditions.len(),
+        1,
+        "expiry follows explicit-removal condition policy"
+    );
+    for (unit, expected) in [
+        (LocalUnit::Rounds, 1),
+        (LocalUnit::Minutes, 10),
+        (LocalUnit::Hours, 600),
+        (LocalUnit::Days, 14400),
+    ] {
+        assert_eq!(super::timing::duration_rounds(1, unit).unwrap(), expected);
+    }
+}
+
+#[test]
+fn tracker_start_timing_and_deleted_anchors_remain_explicit() {
+    let (f, key, a, b) = fixture();
+    let duration = ConditionDurationView {
+        timing: Some(ConditionTimingView {
+            participant_key: b.clone(),
+            event: ConditionTurnEvent::Start,
+        }),
+        amount: 2,
+        unit: ConditionDurationUnit::Rounds,
+        ..minute(&a)
+    };
+    let request = tracker_request(
+        &f,
+        &key,
+        &a,
+        "other-start",
+        EncounterManualTrackerAction::Add {
+            name: "Other turn".into(),
+            duration,
+        },
+    );
+    f.worker
+        .update_encounter_manual_tracker(&key, request)
+        .unwrap();
+    set(&f, &key, &a);
+    next(&f, &key);
+    assert_eq!(
+        snapshot(&f, &key).participants[0].manual_trackers[0].remaining_rounds,
+        1
+    );
+    f.worker.remove_encounter_participant(&key, &b).unwrap();
+    next(&f, &key);
+    let view = f.worker.encounter(&key).unwrap();
+    let tracker = &view.participants[0].manual_trackers[0];
+    assert_eq!(tracker.remaining_rounds, 1);
+    assert!(!tracker.timing_available);
+    assert_eq!(tracker.timing_label, "Timing participant unavailable");
+}
+
+#[test]
+fn overnight_expires_short_and_exact_durations_and_preserves_long_progress_then_reset_clears_trackers()
+ {
+    let (f, key, a, _) = fixture();
+    for (id, amount, unit) in [
+        ("short", 1, ConditionDurationUnit::Minutes),
+        ("exact", 8, ConditionDurationUnit::Hours),
+        ("long", 1, ConditionDurationUnit::Days),
+    ] {
+        let duration = ConditionDurationView {
+            amount,
+            unit,
+            ..minute(&a)
+        };
+        let request = tracker_request(
+            &f,
+            &key,
+            &a,
+            id,
+            EncounterManualTrackerAction::Add {
+                name: id.into(),
+                duration: duration.clone(),
+            },
+        );
+        f.worker
+            .update_encounter_manual_tracker(&key, request)
+            .unwrap();
+        let condition_duration =
+            super::timing::duration_input(Some(duration), None, &snapshot(&f, &key)).unwrap();
+        add(&f, &a, None, condition_duration);
+    }
+    let action = EncounterRecoveryAction::RestOvernight {
+        healing_mode: OvernightHealingMode::Natural,
+        participants: vec![OvernightParticipantInput {
+            participant_key: a.clone(),
+            healing: Some(0),
+        }],
+    };
+    let rest = ApplyEncounterRecoveryRequest {
+        request_id: "countdown-rest".into(),
+        expected_encounter_revision: snapshot(&f, &key).encounter.revision,
+        action,
+    };
+    f.worker
+        .apply_encounter_recovery(&key, rest.clone())
+        .unwrap();
+    f.worker.apply_encounter_recovery(&key, rest).unwrap();
+    let saved = snapshot(&f, &key);
+    let owner = &saved.participants[0];
+    for (name, remaining) in [("short", 0), ("exact", 0), ("long", 9600)] {
+        assert_eq!(
+            owner
+                .manual_trackers
+                .iter()
+                .find(|t| t.name == name)
+                .unwrap()
+                .remaining_rounds,
+            remaining
+        );
+    }
+    assert_eq!(owner.conditions.len(), 1);
+    let duration = owner.conditions[0].duration.as_ref().unwrap();
+    assert_eq!(
+        (duration.amount, duration.unit, duration.remaining_rounds),
+        (1, LocalUnit::Days, Some(9600))
+    );
+    let action = EncounterRecoveryAction::ResetParticipant { participant_key: a };
+    let preview = f
+        .worker
+        .preview_encounter_recovery(
+            &key,
+            PreviewEncounterRecoveryRequest {
+                expected_encounter_revision: saved.encounter.revision,
+                action: action.clone(),
+            },
+        )
+        .unwrap();
+    assert!(
+        preview.participants[0]
+            .changes
+            .iter()
+            .any(|c| c == "Restore baseline trackers")
+    );
+    f.worker
+        .apply_encounter_recovery(
+            &key,
+            ApplyEncounterRecoveryRequest {
+                request_id: "countdown-reset".into(),
+                expected_encounter_revision: saved.encounter.revision,
+                action,
+            },
+        )
+        .unwrap();
+    let reset = snapshot(&f, &key);
+    assert!(reset.participants[0].manual_trackers.is_empty());
+    assert!(reset.participants[0].conditions.is_empty());
+}
+
+#[test]
+fn legacy_outgoing_and_baseline_payloads_default_missing_tracker_fields() {
+    let (f, key, a, _) = fixture();
+    add(&f, &a, None, rounds(2, Some(&a), LocalEvent::End));
+    let snapshot = snapshot(&f, &key);
+    let outgoing = atlas_local_state::SavedOutgoingTurn {
+        boundary_key: "old-boundary".into(),
+        snapshot: snapshot.clone(),
+        next_participant_key: Some(a),
+    };
+    let mut json = serde_json::to_value(&outgoing).unwrap();
+    for participant in json["snapshot"]["participants"].as_array_mut().unwrap() {
+        participant
+            .as_object_mut()
+            .unwrap()
+            .remove("manual_trackers");
+        for condition in participant["conditions"].as_array_mut().unwrap() {
+            if let Some(duration) = condition
+                .get_mut("duration")
+                .and_then(serde_json::Value::as_object_mut)
+            {
+                duration.remove("remaining_rounds");
+            }
+        }
+    }
+    let decoded: atlas_local_state::SavedOutgoingTurn = serde_json::from_value(json).unwrap();
+    assert_eq!(decoded, outgoing);
+    let baseline = atlas_local_state::ParticipantGameplay::from(&snapshot.participants[0]);
+    let mut json = serde_json::to_value(&baseline).unwrap();
+    json.as_object_mut().unwrap().remove("manual_trackers");
+    let decoded: atlas_local_state::ParticipantGameplay = serde_json::from_value(json).unwrap();
+    assert_eq!(decoded, baseline);
 }

@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 22;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 23;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -142,6 +142,12 @@ const MIGRATIONS: &[Migration] = &[
         sql: atlas_local_state::ENCOUNTER_RECOVERY_SCHEMA_SQL,
         backfill: None,
     },
+    Migration {
+        version: 23,
+        name: "manual-encounter-trackers",
+        sql: atlas_local_state::MANUAL_TRACKERS_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 
 /// Initialize or upgrade one workspace. Reference readiness is independent:
@@ -176,6 +182,53 @@ mod tests {
     use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
 
     #[test]
+    fn tracker_migration_preserves_conditions_and_deleted_identity_high_water() {
+        let directory = tempfile::tempdir().unwrap();
+        register_extensions().unwrap();
+        let path = directory.path().join("tracker-upgrade.sqlite");
+        let old = Workspace::at(&path).unwrap();
+        old.migrate(&MIGRATIONS[..22], |_| Ok(())).unwrap();
+        let write = old.write(22).unwrap();
+        write.connection().execute_batch(r#"
+          INSERT INTO encounters(id,encounter_key,slug,name,status,round_number,created_at,updated_at) VALUES(1,'legacy','legacy','Legacy','running',3,'before','before');
+          INSERT INTO encounter_participants(id,encounter_id,participant_key,participant_kind,position,display_name,initiative_order,side,created_at,updated_at) VALUES(1,1,'owner','pc',1,'Owner',1,'ally','before','before');
+          INSERT INTO encounter_participant_conditions(id,participant_id,name,duration_amount,duration_unit,note,created_at,updated_at) VALUES(9,1,'Reminder',1,'minutes','Keep note','before','before'),(99,1,'Removed',NULL,NULL,NULL,'before','before');
+          DELETE FROM encounter_participant_conditions WHERE id=99;
+        "#).unwrap();
+        write.commit().unwrap();
+        let upgraded = initialize_workspace(&path).unwrap();
+        let write = upgraded.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+        let local = LocalStateWrite::new(&write);
+        let saved = local
+            .encounters()
+            .get_with_participants("legacy")
+            .unwrap()
+            .unwrap();
+        let condition = &saved.participants[0].conditions[0];
+        assert_eq!(condition.condition_id, 9);
+        assert_eq!(condition.note.as_deref(), Some("Keep note"));
+        assert_eq!(
+            condition.duration.as_ref().unwrap().unit,
+            atlas_local_state::ConditionDurationUnit::Minutes
+        );
+        assert_eq!(condition.duration.as_ref().unwrap().remaining_rounds, None);
+        assert!(condition.duration.as_ref().unwrap().timing.is_none());
+        assert!(saved.participants[0].manual_trackers.is_empty());
+        write.connection().execute("INSERT INTO encounter_participant_conditions(participant_id,name,duration_amount,duration_unit,duration_anchor_key,duration_event,duration_remaining_rounds,created_at,updated_at) VALUES(1,'Timed',1,'minutes','owner','end',10,'now','now')",[]).unwrap();
+        assert_eq!(write.connection().last_insert_rowid(), 100);
+        assert_eq!(
+            write
+                .connection()
+                .query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |r| r
+                    .get::<_, i64>(
+                    0
+                ))
+                .unwrap(),
+            0
+        );
+    }
+
+    #[test]
     fn recovery_upgrade_from_published_twenty_one_preserves_encounters_and_migration_history() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("recovery-upgrade.sqlite");
@@ -200,27 +253,27 @@ mod tests {
                 .collect::<Result<Vec<_>, _>>()
                 .unwrap()
         };
+        let saved_row = |connection: &rusqlite::Connection| {
+            connection.query_row("SELECT e.name,e.note,e.round_number,e.revision,p.display_name,p.current_hp,p.max_hp,p.note FROM encounters e JOIN encounter_participants p ON p.encounter_id=e.id WHERE p.participant_key='legacy-participant'",[],|r| Ok((r.get::<_,String>(0)?,r.get::<_,Option<String>>(1)?,r.get::<_,i64>(2)?,r.get::<_,i64>(3)?,r.get::<_,String>(4)?,r.get::<_,i64>(5)?,r.get::<_,i64>(6)?,r.get::<_,String>(7)?))).unwrap()
+        };
         let (before, ledger) = {
             let read = published.read(21).unwrap();
-            (
-                LocalStateRead::new(&read)
-                    .encounters()
-                    .get_with_participants("legacy")
-                    .unwrap()
-                    .unwrap(),
-                history(read.connection()),
-            )
+            (saved_row(read.connection()), history(read.connection()))
         };
         let upgraded = initialize_workspace(&path).unwrap();
         let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
         let local = LocalStateRead::new(&read);
-        assert_eq!(
-            local
-                .encounters()
-                .get_with_participants("legacy")
-                .unwrap()
-                .unwrap(),
-            before
+        assert_eq!(saved_row(read.connection()), before);
+        let upgraded_encounter = local
+            .encounters()
+            .get_with_participants("legacy")
+            .unwrap()
+            .unwrap();
+        assert_eq!(upgraded_encounter.participants[0].current_hp, Some(13));
+        assert!(
+            upgraded_encounter.participants[0]
+                .manual_trackers
+                .is_empty()
         );
         assert_eq!(history(read.connection()), ledger);
         assert!(
@@ -513,7 +566,7 @@ mod tests {
         write
             .connection()
             .execute_batch(
-                "DROP TABLE encounter_recovery_receipts; DROP TABLE encounter_participant_baselines; DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DROP TABLE similarity_parts; DELETE FROM schema_migrations WHERE version>=20; PRAGMA user_version=19;",
+                "DROP TABLE encounter_manual_trackers; ALTER TABLE encounter_participant_conditions DROP COLUMN duration_remaining_rounds; DROP TABLE encounter_recovery_receipts; DROP TABLE encounter_participant_baselines; DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DROP TABLE similarity_parts; DELETE FROM schema_migrations WHERE version>=20; PRAGMA user_version=19;",
             )
             .unwrap();
         let main_ledger = |connection: &rusqlite::Connection| {
@@ -649,7 +702,7 @@ mod tests {
                 ],
             )
             .unwrap();
-        write.connection().execute_batch("DROP TABLE encounter_recovery_receipts; DROP TABLE encounter_participant_baselines; DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DELETE FROM schema_migrations WHERE version>=21; PRAGMA user_version=20;").unwrap();
+        write.connection().execute_batch("DROP TABLE encounter_manual_trackers; ALTER TABLE encounter_participant_conditions DROP COLUMN duration_remaining_rounds; DROP TABLE encounter_recovery_receipts; DROP TABLE encounter_participant_baselines; DROP TABLE core_semantic_locations; DROP TABLE core_lexical_units; DROP TABLE core_parts; DROP TABLE core_roots; DELETE FROM schema_migrations WHERE version>=21; PRAGMA user_version=20;").unwrap();
         write.commit().unwrap();
         let source = directory.path().join("absent-source");
         let models = directory.path().join("absent-models");
