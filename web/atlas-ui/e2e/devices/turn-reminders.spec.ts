@@ -786,3 +786,142 @@ test("real turn counts retain explanations and guard an explicit action", async 
     await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
   }
 });
+
+for (const recovery of ["Reset encounter", "Rest overnight"] as const) {
+  test(`${recovery} clears outgoing reminders across reload without reopening history`, async ({
+    page,
+  }, info) => {
+    const created = await page.request.post("/api/encounters", {
+      data: { name: `Reminder lifecycle ${info.project.name} ${Date.now()}` },
+    });
+    expect(created.ok()).toBeTruthy();
+    const { encounter } = await created.json();
+    const path = `/api/encounters/${encounter.encounter_key}`;
+    try {
+      for (const [display_name, initiative] of [
+        ["Outgoing hero", 20],
+        ["Incoming hero", 10],
+      ] as const) {
+        const added = await page.request.post(`${path}/participants/manual`, {
+          data: {
+            encounter_ref: encounter.encounter_key,
+            display_name,
+            initiative,
+            max_hp: 30,
+            current_hp: 30,
+          },
+        });
+        expect(added.ok()).toBeTruthy();
+      }
+      let detail = await (await page.request.get(path)).json();
+      const actor = detail.participants.find(
+        (participant: { display_name: string }) =>
+          participant.display_name === "Outgoing hero",
+      );
+      const assigned = await page.request.post(`${path}/turn`, {
+        data: {
+          encounter_ref: encounter.encounter_key,
+          participant_key: actor.participant_key,
+        },
+      });
+      expect(assigned.ok()).toBeTruthy();
+      detail = await (await page.request.get(path)).json();
+      const catalog = await (
+        await page.request.get(
+          `${path}/participants/${actor.participant_key}/condition-definitions`,
+        )
+      ).json();
+      const hidden = catalog.conditions.find(
+        (condition: { name: string }) => condition.name === "Hidden",
+      );
+      const applied = await page.request.post(
+        `${path}/participants/${actor.participant_key}/conditions`,
+        {
+          data: {
+            request_id: crypto.randomUUID(),
+            expected_encounter_revision: detail.revision,
+            participant_key: actor.participant_key,
+            condition_ref: hidden.condition_ref,
+            event_intent: "apply",
+            decisions: { keep_upright: false },
+            scope: { kind: "everyone" },
+            extra_action: { kind: "unspecified" },
+            immunity_override: false,
+            parameters: { kind: "none" },
+            duration: {
+              amount: 1,
+              unit: "rounds",
+              timing: { participant_key: actor.participant_key, event: "end" },
+            },
+          },
+        },
+      );
+      expect(applied.ok(), await applied.text()).toBeTruthy();
+      await page.goto(`/encounters/${encounter.slug}`);
+      await activate(
+        page.getByRole("button", { name: "Next turn", exact: true }),
+        info,
+      );
+      const reminders = page.getByRole("dialog", {
+        name: "Turn reminders",
+        exact: true,
+      });
+      await expect(reminders).toBeVisible();
+      await expect(
+        reminders.getByRole("button", {
+          name: "Remove Hidden from Outgoing hero",
+          exact: true,
+        }),
+      ).toBeVisible();
+      const before = await (await page.request.get(`${path}/turn-review`)).json();
+      expect(before.outgoing.participant_key).toBe(actor.participant_key);
+      expect(before.outgoing.reminders).not.toEqual([]);
+      expect(before.outgoing.boundary_key).toBeTruthy();
+      await activate(
+        reminders.getByRole("button", { name: "Close", exact: true }).last(),
+        info,
+      );
+      await activate(
+        page.getByRole("button", { name: "Encounter settings", exact: true }),
+        info,
+      );
+      await activate(page.getByRole("menuitem", { name: recovery, exact: true }), info);
+      const review = page.getByRole("dialog", { name: recovery, exact: true });
+      await expect(review).toBeVisible();
+      if (recovery === "Rest overnight")
+        await activate(
+          review.getByRole("radio", { name: "Full HP", exact: true }),
+          info,
+        );
+      const submit = review.getByRole("button", { name: recovery, exact: true });
+      await expect(submit).toBeEnabled();
+      await activate(submit, info);
+      await expect(review).toBeHidden();
+      await expect
+        .poll(
+          async () =>
+            (await (await page.request.get(`${path}/turn-review`)).json()).outgoing,
+        )
+        .toBeNull();
+      await page.reload();
+      await expect(
+        page.getByRole("button", { name: "Encounter settings", exact: true }),
+      ).toBeVisible();
+      const reloaded = await (await page.request.get(`${path}/turn-review`)).json();
+      expect(reloaded.outgoing).toBeNull();
+      await expect(reminders).toBeHidden();
+      await expect(
+        page.getByRole("button", { name: "Outgoing turn reminders", exact: true }),
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole("button", {
+          name: "Remove Hidden from Outgoing hero",
+          exact: true,
+        }),
+      ).toHaveCount(0);
+      await noPageOverflow(page);
+    } finally {
+      await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
+    }
+  });
+}
