@@ -17,7 +17,7 @@ import { SpellRankValue } from "./SpellRankValue";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import { RecordProvenanceAction } from "./RecordProvenanceAction";
 import type { ReactNode, Ref } from "react";
-import { Button, Collapse, Space } from "antd";
+import { Button, Collapse, ConfigProvider, Space } from "antd";
 import type {
   PreparedContentFieldView,
   RecordNavigationView,
@@ -418,6 +418,7 @@ export function RecordPresentation({
     anchor: HTMLElement,
   ) => void;
 }) {
+  const { componentDisabled } = ConfigProvider.useConfig();
   const body = presentation.body;
   const descriptions = presentation.content.filter(
     (field) => field.role === "description" && contentFieldVisible(field),
@@ -479,6 +480,8 @@ export function RecordPresentation({
     ) : null;
   return (
     <article
+      data-selection-search
+      data-selection-search-disabled={componentDisabled || undefined}
       className={`record-reference${compact ? " record-reference--compact" : ""}${encounter ? " record-reference--encounter" : ""}`}
     >
       {!hideIdentity && !identityInHost && (
