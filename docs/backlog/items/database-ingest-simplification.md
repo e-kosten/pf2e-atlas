@@ -7,8 +7,11 @@ Last reviewed: 2026-11-01
 
 ## Outcome and evidence
 
-Implementation and local validation are complete for the DB/ingest review scope
-selected by the user on 2026-10-31; the single feature PR awaits review. The original
+An initial implementation and validation candidate exists in
+[PR184](https://github.com/e-kosten/pf2e-atlas/pull/184). The user requested an
+architectural revision before merge after cached rebuild time rose from about
+242 to 518 seconds despite lower peak memory. Passing candidate checks do not
+establish acceptance of that regression or of the revised design. The original
 review used clean `64171f6d5b00e7aeec2a815ce103169b46fb90b0`, source tracing and
 isolated SQLite probes. It identified an incomplete-source publication risk,
 repeated content/numerical representations, saved-domain integrity gaps and
@@ -47,8 +50,28 @@ normal 22→29 metadata upgrade.
 The local execution plan retains the ordered blocks, evidence matrix and candidate
 lineage. Independent review covers the local candidate; hosted CI covers the
 published candidate.
-This item stays in progress during PR review; merge and release remain separately
-authorized. No further performance optimization is assigned by these observations.
+This item stays in progress during architecture research and revision; merge and
+release remain separately authorized. Earlier validation applies to its recorded
+candidate and must not be presented as validation of the revised design.
+
+## Architecture revision and next decision
+
+The accepted direction publishes captured inputs without a late source rescan,
+uses one owned prepared publication and one scratch directory per attempt, and
+retains bounded numerical batches plus atomic validated maintenance. Recovery
+results remain a disposable cache of unpublished inference, cleared after a
+successful complete publication, with simple eviction rather than a durable
+history of build targets. These are intended revisions, not implemented behavior.
+
+Research numerical ownership and query granularity next: compare the existing
+occurrence-based vector index with transient staging, a shared unique-input index,
+and stable native-value ownership with an occurrence search projection. Measure
+actual sharing, filtered nearest-neighbor work/latency, candidate limits, hit
+expansion/ties, storage and overwrite/trait/force lifetimes. Do not assume current
+denormalization is necessary for performance or that normalization improves it.
+Keep full validation of real publications; no unchanged-update/forced-build/audit
+semantics change is implicitly accepted. Record remaining implementation choices
+in the current local plan and durable findings in research when evidence exists.
 
 ## Related owners
 
