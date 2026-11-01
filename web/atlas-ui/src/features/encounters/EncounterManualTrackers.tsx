@@ -146,7 +146,9 @@ export function EncounterManualTrackers({
           description={error}
         />
       )}
-      {!participant.manual_trackers?.length && <p className="muted">No trackers</p>}
+      {!participant.manual_trackers?.length && (
+        <p className="encounter-empty-note">No trackers</p>
+      )}
       <div className="encounter-condition-list">
         {participant.manual_trackers?.map((tracker) => (
           <div key={tracker.tracker_key} className="encounter-condition-row">
