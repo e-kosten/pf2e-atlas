@@ -1,5 +1,5 @@
 //! Complete source-discovery evidence and compact publication outcomes.
-use crate::{IndexBuildInput, IndexError};
+use crate::IndexError;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
@@ -55,13 +55,16 @@ impl CompleteSourceInventory {
         })
     }
 
-    pub(crate) fn validate(&self, input: &IndexBuildInput) -> Result<(), IndexError> {
-        let packs = input
-            .packs
+    pub(crate) fn validate_parts(
+        &self,
+        fingerprint: &str,
+        declared: &[crate::IndexBuildPack],
+    ) -> Result<(), IndexError> {
+        let packs = declared
             .iter()
             .map(|p| p.pack_id.clone())
             .collect::<BTreeSet<_>>();
-        if self.fingerprint != input.context.source_fingerprint || self.packs != packs {
+        if self.fingerprint != fingerprint || self.packs != packs {
             return Err(IndexError::Invalid(
                 "complete source inventory differs from publication input".into(),
             ));

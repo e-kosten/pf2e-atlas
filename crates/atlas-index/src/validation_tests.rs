@@ -2,7 +2,7 @@ use crate::foundation_tests::{build, hidden_preparation_fixture};
 use rusqlite::{Connection, params};
 
 #[test]
-fn unreferenced_prepared_content_preserves_metadata_status_acceptance() {
+fn unreferenced_metadata_status_remains_intrinsically_allowed_but_attested_changes_fail() {
     let input = crate::foundation_tests::fixture(false);
     let (_directory, path) = build(&input);
     let before = crate::validate_artifact(&path).unwrap();
@@ -21,7 +21,15 @@ fn unreferenced_prepared_content_preserves_metadata_status_acceptance() {
         r#"UPDATE prepared_content SET metadata_json=json_set(metadata_json,'$.status',json('{"PreparationFailed":"fixture"}')) WHERE content_id=(SELECT content_id FROM prepared_content WHERE outcome='prepared' LIMIT 1)"#,
         [],
     ).unwrap(), 1);
-    assert_eq!(crate::validate_reference(&connection).unwrap(), before);
+    let error = crate::validate_artifact(&path).unwrap_err();
+    assert!(
+        error.to_string().contains("component attestation"),
+        "{error}"
+    );
+    // Schema26 explicitly permits historical roots without attestations. Keep
+    // the intrinsic status policy separate from the new attestation invariant.
+    assert_eq!(connection.execute("DELETE FROM reference_component_digests WHERE record_id=(SELECT record_id FROM prepared_content WHERE content_id=(SELECT content_id FROM prepared_content WHERE outcome='prepared' LIMIT 1))",[]).unwrap(),1);
+    assert_eq!(crate::validate_artifact(&path).unwrap(), before);
 }
 
 #[test]
@@ -73,14 +81,26 @@ fn unpublished_cache_metadata_is_checked_without_changing_selected_field_counts(
 
 #[test]
 fn admission_diagnostic_shapes_are_checked_without_materializing_build_inputs() {
-    let input = hidden_preparation_fixture();
+    let mut input = hidden_preparation_fixture();
+    input.records[0]
+        .diagnostics
+        .push(crate::SourceArtifactDiagnostic {
+            source_diagnostic: None,
+            owners: Some(vec![]),
+            field: None,
+            stage: "admission".into(),
+            code: "fixture".into(),
+            message: "fixture".into(),
+        });
     let (_directory, path) = build(&input);
     let connection = Connection::open(&path).unwrap();
-    connection.execute(
-        "INSERT INTO developer_diagnostics(record_id,owners_json,stage,details_json) VALUES((SELECT min(record_id) FROM records),'[]','admission',?)",
-        [r#"{"code":"fixture","message":"fixture"}"#],
-    ).unwrap();
-    let diagnostic = connection.last_insert_rowid();
+    let diagnostic: i64 = connection
+        .query_row(
+            "SELECT diagnostic_id FROM developer_diagnostics WHERE stage='admission'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
     let before = crate::validate_artifact(&path).unwrap();
     for (column, value) in [
         ("owners_json", "{}"),

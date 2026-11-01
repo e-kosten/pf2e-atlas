@@ -587,7 +587,11 @@ fn actual_bge_batches_reuse_preserves_attribution_and_utf8() {
     }
     assert_ne!(duplicate.address, units[0].address);
     units.push(duplicate);
-    let batch = PreparedEmbeddingBatch::prepare(model.tokenizer(), units.clone()).unwrap();
+    let batch = PreparedEmbeddingBatch::prepare(
+        model.tokenizer(),
+        units.clone().into_iter().map(Into::into).collect(),
+    )
+    .unwrap();
     let initial =
         generate_prepared_embeddings(&config, &batch, &BTreeMap::new(), 16, |_| Ok(())).unwrap();
     assert_eq!(initial.inferred_inputs, 1);
@@ -600,7 +604,10 @@ fn actual_bge_batches_reuse_preserves_attribution_and_utf8() {
     assert_eq!(reused.vectors, initial.vectors);
     units[0].input.push_str("changed");
     assert!(matches!(
-        PreparedEmbeddingBatch::prepare(model.tokenizer(), units),
+        PreparedEmbeddingBatch::prepare(
+            model.tokenizer(),
+            units.into_iter().map(Into::into).collect()
+        ),
         Err(EmbeddingError::PreparedInputMismatch)
     ));
 }
@@ -611,7 +618,9 @@ fn cached_batch_needs_no_inference_assets_and_retains_occurrences() {
     let input = prepare_embedding_section(&tokenizer, plain("one one", "one"))
         .unwrap()
         .remove(0);
-    let batch = PreparedEmbeddingBatch::prepare(&tokenizer, vec![input.clone(), input]).unwrap();
+    let batch =
+        PreparedEmbeddingBatch::prepare(&tokenizer, vec![input.clone().into(), input.into()])
+            .unwrap();
     let mut vector = vec![0.0; tokenizer.spec().dimensions];
     vector[0] = 1.0;
     let reusable = BTreeMap::from([(batch.inputs()[0].reuse_key.clone(), vector.clone())]);

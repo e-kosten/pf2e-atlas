@@ -54,7 +54,7 @@ pub fn recover_reference_publication(
                         crate::read_stored_reference_context(connection)?.ok_or_else(|| {
                             IndexError::Invalid("published reference has no context".into())
                         })?;
-                    crate::read_persisted_inputs(connection, &context)?;
+                    crate::visit_persisted_inputs(connection, &context, &mut |_| Ok(()))?;
                 }
             }
         } else {

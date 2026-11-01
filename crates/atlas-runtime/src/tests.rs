@@ -187,15 +187,11 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
     let saved_participants = participant_rows(write.connection());
     let model = &input.context.search_profiles[0];
     let unit = &input.semantic_units[0];
-    let checkpoint = atlas_embedding::PreparedEmbeddingInput {
-        address: unit.address.clone(),
+    let checkpoint = atlas_embedding::PreparedNativeInput {
         input: String::new(),
         input_sha256: unit.input_hash.clone(),
         reuse_key: "backfill-preservation".into(),
         token_count: unit.input_token_count,
-        body_token_count: unit.input_token_count,
-        overlap_token_count: 0,
-        context_shortened: false,
     };
     let job = atlas_index::start_reference_job(&write, "next-preparation").unwrap();
     if initial_schema == 2 {

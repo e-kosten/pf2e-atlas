@@ -85,57 +85,6 @@ impl LocalizationResolver for LocalizationCatalog {
         self.entries.get(key).map(String::as_str)
     }
 }
-/// Persist only labels reached by an admitted product identity, using pinned key
-/// evidence and the same selected-locale/English resolver as content preparation.
-pub(crate) fn used_trait_labels(
-    source: &crate::EnrichedFoundrySource,
-    catalog: &LocalizationCatalog,
-) -> Result<BTreeMap<String, String>, IngestError> {
-    use atlas_record::source_record::{SourceQueryView, select_record_search};
-    let mut labels = BTreeMap::new();
-    for pack in &source.packs {
-        for document in &pack.documents {
-            let crate::EnrichedDocumentOutcome::Addressed { record, .. } = &document.outcome else {
-                continue;
-            };
-            // Identities use typed selection alone; empty prepared content avoids
-            // rebuilding or parsing any rich prose for this vocabulary pass.
-            let identities = select_record_search(
-                record,
-                &[],
-                crate::build::default_audience(),
-                &pack.metadata.label,
-                &BTreeMap::new(),
-            )
-            .map_err(|e| IngestError::SourceSelectionFailed(e.to_string()))?
-            .identities;
-            for identity in identities {
-                let Some(node) = record.node_at(&identity.owners) else {
-                    continue;
-                };
-                let query = SourceQueryView {
-                    source: node,
-                    pack_id: record.key().pack().as_str(),
-                    pack_label: &pack.metadata.label,
-                };
-                if let Some(traits) = query.traits().value() {
-                    for identifier in traits {
-                        if let Some(key) =
-                            atlas_foundry_model::generated::trait_definition(identifier)
-                                .and_then(|definition| definition.label_key)
-                            && let Some(label) = catalog
-                                .localized_value(key)
-                                .filter(|s| !s.trim().is_empty())
-                        {
-                            labels.insert(identifier.clone(), label.to_owned());
-                        }
-                    }
-                }
-            }
-        }
-    }
-    Ok(labels)
-}
 pub(crate) fn resolve_catalog_path(
     source_root: &Path,
     declared: &str,
@@ -209,3 +158,22 @@ fn flatten_entries(prefix: Option<&str>, value: &Value, entries: &mut BTreeMap<S
 
 #[cfg(test)]
 mod tests;
+
+pub(crate) fn record_trait_labels(
+    record: &atlas_record::source_record::SourceBackedRecord,
+    catalog: &LocalizationCatalog,
+) -> BTreeMap<String, String> {
+    atlas_record::source_record::searchable_identity_traits(
+        record,
+        crate::build::default_audience(),
+    )
+    .into_iter()
+    .filter_map(|id| {
+        let label = atlas_foundry_model::generated::trait_definition(&id)
+            .and_then(|d| d.label_key)
+            .and_then(|key| catalog.localized_value(key))
+            .filter(|s| !s.trim().is_empty())?;
+        Some((id, label.to_owned()))
+    })
+    .collect()
+}

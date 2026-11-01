@@ -215,60 +215,103 @@ pub fn ensure_reference_projections(
         return Ok(false);
     };
     maintenance.publish(|c| {
-        let stored = read_stored_reference_context(c)?.ok_or_else(|| IndexError::Invalid("projection upgrade lost its reference context".into()))?;
-        let query_changed = stored.query_catalog_version != target.query_catalog_version || stored.query_projection_version != target.query_projection_version;
+        let stored = read_stored_reference_context(c)?.ok_or_else(|| {
+            IndexError::Invalid("projection upgrade lost its reference context".into())
+        })?;
+        let query_changed = stored.query_catalog_version != target.query_catalog_version
+            || stored.query_projection_version != target.query_projection_version;
         let lexical_changed = stored.lexical_selection_version != target.lexical_selection_version;
         let core_changed = stored.core_sections_recipe != target.core_sections_recipe;
-        let records = if query_changed || lexical_changed { crate::read_persisted_inputs(c, &target)? } else { Vec::new() };
-        let mut lexical = Vec::new();
+        let mut lexical = if lexical_changed {
+            Some(crate::BuildFrameStream::<crate::SourceLexicalUnitInput>::new()?)
+        } else {
+            None
+        };
         let mut ids = std::collections::BTreeMap::new();
-        for source in records {
-            let (id, label): (i64, String) = c.query_row(
-                "SELECT r.record_id,p.label FROM records r JOIN packs p USING(pack_id) WHERE r.key=?", [source.record.key().to_string()],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )?;
-            ids.insert(source.record.key().clone(), id);
-            if lexical_changed {
-            let selection = atlas_record::source_record::select_record_search(
-                &source.record, &source.content, target.audience, &label, &target.used_trait_labels,
-            ).map_err(|error| IndexError::Invalid(error.to_string()))?;
-            let aliases = c.prepare("SELECT alias FROM verified_aliases WHERE record_id=? ORDER BY alias")?
-                .query_map([id], |row| row.get::<_, String>(0))?.collect::<Result<Vec<_>, _>>()?;
-            lexical.extend(crate::project_lexical_units(&selection, &aliases));
-            }
-            if !query_changed { continue; }
-            for table in ["record_traits", "actor_projection"] {
-                c.execute(&format!("DELETE FROM {table} WHERE record_id=?"), [id])?;
-            }
-            for table in ["spell_projection", "physical_projection", "ability_projection", "heritage_projection", "effect_projection", "condition_projection", "deity_projection"] {
-                c.execute(&format!("DELETE FROM {table} WHERE root_record_id=?"), [id])?;
-            }
-            let digest = crate::publication_delta::root_digest(&source, &label)?;
-            let mut ids = crate::publication_delta::allocate(c, &source, &label, id, &digest)?;
-            for row in crate::projections::root_rows(&source, &label, id, &mut ids)? {
-                if row.table == "records" { crate::publication_delta::upsert(c, &row, "record_id")?; }
-                else { row.insert(c)?; }
-            }
-            c.execute("DELETE FROM developer_diagnostics WHERE record_id=? AND stage='projection'", [id])?;
-            for diagnostic in crate::projections::projection_diagnostics(&source.record) {
-                crate::writer::write_diagnostic(c, id, &diagnostic)?;
-            }
+        if query_changed || lexical_changed {
+            crate::visit_persisted_inputs(c, &target, &mut |source| {
+                let (id, label): (i64, String) = c.query_row(
+                    "SELECT r.record_id,p.label FROM records r JOIN packs p USING(pack_id) WHERE r.key=?",
+                    [source.record.key().to_string()],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )?;
+                if let Some(frames) = &mut lexical {
+                    ids.insert(source.record.key().clone(), id);
+                    let selection = atlas_record::source_record::select_record_search(
+                        &source.record,
+                        &source.content,
+                        target.audience,
+                        &label,
+                        &target.used_trait_labels,
+                    )
+                    .map_err(|error| IndexError::Invalid(error.to_string()))?;
+                    let aliases = c
+                        .prepare("SELECT alias FROM verified_aliases WHERE record_id=? ORDER BY alias")?
+                        .query_map([id], |row| row.get::<_, String>(0))?
+                        .collect::<Result<Vec<_>, _>>()?;
+                    for unit in crate::project_lexical_units(&selection, &aliases) {
+                        frames.push(&unit)?;
+                    }
+                }
+                if !query_changed {
+                    return Ok(());
+                }
+                for table in ["record_traits", "actor_projection"] {
+                    c.execute(&format!("DELETE FROM {table} WHERE record_id=?"), [id])?;
+                }
+                for table in [
+                    "spell_projection",
+                    "physical_projection",
+                    "ability_projection",
+                    "heritage_projection",
+                    "effect_projection",
+                    "condition_projection",
+                    "deity_projection",
+                ] {
+                    c.execute(&format!("DELETE FROM {table} WHERE root_record_id=?"), [id])?;
+                }
+                let digest = crate::publication_delta::root_digest(&source, &label)?;
+                let mut projection_ids =
+                    crate::publication_delta::allocate(c, &source, &label, id, &digest)?;
+                for row in crate::projections::root_rows(&source, &label, id, &mut projection_ids)? {
+                    if row.table == "records" {
+                        crate::publication_delta::upsert(c, &row, "record_id")?;
+                    } else {
+                        row.insert(c)?;
+                    }
+                }
+                c.execute(
+                    "DELETE FROM developer_diagnostics WHERE record_id=? AND stage='projection'",
+                    [id],
+                )?;
+                for diagnostic in crate::projections::projection_diagnostics(&source.record) {
+                    crate::writer::write_diagnostic(c, id, &diagnostic)?;
+                }
+                Ok(())
+            })?;
         }
-        if lexical_changed { crate::publication_delta::lexical_units(c, &lexical, &ids)?; }
+        if let Some(frames) = &lexical {
+            crate::publication_delta::lexical_stream(c, &ids, &mut |visitor| {
+                frames.visit(&mut |row| visitor(&row))
+            })?;
+        }
         if query_changed {
-        c.execute("DELETE FROM query_field_catalog", [])?;
-        for definition in crate::query::query_capabilities()?.fields {
-            let mut row = ProjectionRow::new("query_field_catalog");
-            row.text("field", &definition.id);
-            row.text("definition_json", serde_json::to_string(&definition)?);
-            row.insert(c)?;
-        }
+            c.execute("DELETE FROM query_field_catalog", [])?;
+            for definition in crate::query::query_capabilities()?.fields {
+                let mut row = ProjectionRow::new("query_field_catalog");
+                row.text("field", &definition.id);
+                row.text("definition_json", serde_json::to_string(&definition)?);
+                row.insert(c)?;
+            }
         }
         // Core lexical membership names concrete lexical unit IDs. Rebuilding
         // lexical rows can replace those IDs even when the Core recipe is current.
-        if core_changed || lexical_changed { crate::core_projection::backfill_core_sections(c,&target)?; }
+        if core_changed || lexical_changed {
+            crate::core_projection::backfill_core_sections(c, &target)?;
+        }
         let json = serde_json::to_string(&target)?;
         c.execute("UPDATE artifact_context SET context_hash=?,context_json=? WHERE singleton=1", rusqlite::params![sha256(json.as_bytes()), json])?;
+        crate::component_digests::refresh_present(c, &target)?;
         crate::validate_reference(c)?;
         Ok::<_, IndexError>(true)
     })

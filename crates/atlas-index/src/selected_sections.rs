@@ -1,14 +1,13 @@
 //! Canonical selected source sections, shared by reading, lexical and semantic units.
-use crate::{IndexError, SourceArtifactBuildContext, SourceArtifactRecordInput};
+use crate::{IndexError, SourceArtifactBuildContext};
 use atlas_domain::{
     SIMILARITY_ROLE_RECIPE, SimilarityPart, SimilarityPartSelector, SourceByteRange,
     SourcePassageAddress,
 };
 use atlas_record::source_record::{
-    SourceBackedRecord, SourceSearchSelection, select_record_search, similarity_content_role,
+    SourceBackedRecord, SourceSearchSelection, similarity_content_role,
 };
 use rusqlite::{Connection, OptionalExtension, Row, params};
-use std::collections::BTreeSet;
 
 mod migration;
 pub use migration::backfill_selected_sections;
@@ -184,35 +183,6 @@ pub(crate) fn project(
         }
     }
     Ok(output)
-}
-pub(crate) fn write_record(
-    c: &Connection,
-    context: &SourceArtifactBuildContext,
-    source: &SourceArtifactRecordInput,
-) -> Result<BTreeSet<i64>, IndexError> {
-    let (id, label): (i64, String) = c.query_row(
-        "SELECT r.record_id,p.label FROM records r JOIN packs p USING(pack_id) WHERE r.key=?",
-        [source.record.key().to_string()],
-        |r| Ok((r.get(0)?, r.get(1)?)),
-    )?;
-    let selection = select_record_search(
-        &source.record,
-        &source.content,
-        context.audience,
-        &label,
-        &context.used_trait_labels,
-    )
-    .map_err(|e| IndexError::Invalid(e.to_string()))?;
-    let mut kept = BTreeSet::new();
-    for section in project(
-        &source.record,
-        &selection,
-        &source.content_hash,
-        &source.preparation_context_hash,
-    )? {
-        kept.insert(upsert(c, id, &section)?);
-    }
-    Ok(kept)
 }
 pub(crate) fn upsert(
     c: &Connection,

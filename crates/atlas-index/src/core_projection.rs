@@ -4,7 +4,7 @@ use atlas_domain::CORE_SECTIONS_RECIPE;
 use atlas_record::source_record::{
     SourceBackedRecord, SourceSearchSelection, core_search_selection, select_record_search,
 };
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, OptionalExtension, params};
 use std::collections::BTreeSet;
 
 pub const CORE_SECTIONS_SCHEMA_SQL: &str = "
@@ -131,6 +131,35 @@ pub(super) fn write_membership(
     id: i64,
     expected: &CoreMembership,
 ) -> Result<(), IndexError> {
+    let actual: Option<(String, bool, Option<String>, String)> = c
+        .query_row(
+            "SELECT family,modelled,fallback_reason,recipe FROM core_roots WHERE record_id=?",
+            [id],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+        )
+        .optional()?;
+    if actual
+        == Some((
+            expected.family.clone(),
+            expected.modelled,
+            expected.fallback_reason.clone(),
+            CORE_SECTIONS_RECIPE.into(),
+        ))
+    {
+        let read_set = |table: &str, column: &str| -> Result<BTreeSet<i64>, IndexError> {
+            Ok(
+                c.prepare(&format!("SELECT {column} FROM {table} WHERE record_id=?"))?
+                    .query_map([id], |r| r.get(0))?
+                    .collect::<Result<BTreeSet<_>, _>>()?,
+            )
+        };
+        if read_set("core_parts", "section_id")? == expected.parts
+            && read_set("core_lexical_units", "unit_id")? == expected.lexical_units
+            && read_set("core_semantic_locations", "location_id")? == expected.semantic_locations
+        {
+            return Ok(());
+        }
+    }
     c.execute("DELETE FROM core_roots WHERE record_id=?", [id])?;
     c.execute("INSERT INTO core_roots(record_id,family,modelled,fallback_reason,recipe) VALUES(?,?,?,?,?)", params![id,expected.family,expected.modelled,expected.fallback_reason,CORE_SECTIONS_RECIPE])?;
     let mut parts = c.prepare_cached("INSERT INTO core_parts(section_id,record_id) VALUES(?,?)")?;
@@ -171,20 +200,6 @@ pub(crate) fn write_record_core(
     write_membership(c, id, &membership(c, id, &source.record, &selection)?)
 }
 
-pub(crate) fn write_core_sections(
-    c: &Connection,
-    input: &crate::IndexBuildInput,
-) -> Result<(), IndexError> {
-    for source in &input.records {
-        if atlas_record::source_record::SourceNodeView::from(source.record.source()).document_kind()
-            != "Macro"
-        {
-            write_record_core(c, &input.context, source)?;
-        }
-    }
-    Ok(())
-}
-
 /// The caller publishes the policy/context and complete metadata in one maintenance transaction.
 pub(crate) fn backfill_core_sections(
     c: &Connection,
@@ -201,7 +216,7 @@ pub(crate) fn backfill_core_sections(
             let key = key.parse().map_err(|error| {
                 IndexError::Invalid(format!("invalid Core record key: {error}"))
             })?;
-            let source = crate::persisted_inputs::read_persisted_input(c, context, &key)?
+            let source = crate::persisted_inputs::read_attested_persisted_input(c, context, &key)?
                 .ok_or_else(|| {
                     IndexError::Invalid("Core backfill lost its checked source".into())
                 })?;

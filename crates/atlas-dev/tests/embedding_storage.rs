@@ -163,15 +163,11 @@ fn historical_nine_to_ten_storage_upgrade_preserves_values_and_reuse() {
             .collect::<Result<Vec<_>, _>>()
             .unwrap()
             .into_iter()
-            .map(|(hash, tokens)| atlas_embedding::PreparedEmbeddingInput {
-                address: atlas_domain::SourcePassageAddress::Identity {},
+            .map(|(hash, tokens)| atlas_embedding::PreparedNativeInput {
                 input: String::new(),
                 input_sha256: hash.clone(),
                 reuse_key: hash,
                 token_count: tokens,
-                body_token_count: tokens,
-                overlap_token_count: 0,
-                context_shortened: false,
             })
             .collect::<Vec<_>>();
         let start = Instant::now();

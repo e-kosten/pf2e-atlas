@@ -43,8 +43,10 @@ fn migrate(c: &Connection) -> Result<(), IndexError> {
             for (id, key, label) in roots {
                 after = id;
                 let key = crate::read_units::parse_key(key)?;
-                let source = crate::persisted_inputs::read_persisted_input(c, context, &key)?
-                    .ok_or_else(|| invalid("canonical section backfill lost its checked source"))?;
+                let source = crate::persisted_inputs::read_pre_component_digest_migration_input(
+                    c, context, &key,
+                )?
+                .ok_or_else(|| invalid("canonical section backfill lost its checked source"))?;
                 let selection = atlas_record::source_record::select_record_search(
                     &source.record,
                     &source.content,

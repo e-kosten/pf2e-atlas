@@ -99,11 +99,41 @@ failures and detailed reports remain ingest/developer concerns.
 
 `BuildArtifactOptions` composes source paths, locale, selected profile configurations,
 batching/reuse and output paths. An empty profile collection builds lexical content.
-The build prepares shared source content once, then checks native inputs and runs
-inference/reuse sequentially per selected profile. It produces index-owned inputs: checked
-records, named typed projections, selected content, verified identity evidence and
-attributed lexical/semantic units. The index writer owns physical encoding and
-publication. A failed publication rolls back reference changes and preserves saved state.
+The product path captures and hashes every consumed source byte, builds a compact
+complete reference resolver, and prepares one checked root at a time. Raw envelope
+collision evidence from excluded roots remains in that resolver; unreadable JSON
+never supplies guessed identity. Traits use the same complete resolver.
+
+Shared selection runs once per prepared root. Disposable typed files stage checked
+snapshot bytes, prepared content, relationships, lexical evidence and semantic
+occurrence attribution. Their sealed identities bind workspace/revision, source,
+full context, inventory, counts and checksums. Framing checks trusted observed
+record bounds before allocation and bounds decompression. Only sealed, current
+streams can authorize publication or removals. Index owns the codec and the single
+streaming writer; frames carry neutral metadata rather than SQL or internal IDs.
+Developer source inspection keeps its separate rich diagnostic loading lifetime.
+Developer diagnostics report observed selection/reuse calls, frame counts and
+maximum encoded/decoded frame byte sizes. The preparation API's one-record window
+is a structural phase bound, not an observed process peak. Publication's comparison
+may simultaneously hold a new frame and its prior retained record; native
+execution and final process RSS are measured separately.
+
+Compact collections still grow with corpus size: captured path/hash manifests,
+resolver destinations/names and collision facts, stable identity/live sets, prior
+component digests, retained section/unit IDs, and validation trait evidence/offset
+maps. Rich DTO/HTML/selection and occurrence payloads reside in disposable streams.
+These compact sets are separate from the temporary native text/descriptors and
+numerical arrays that remain until bounded numerical execution replaces them.
+
+Each native profile validates address-free input descriptors with its own tokenizer
+and executes inference/reuse sequentially. Native input text/descriptors and
+selected numerical outputs currently remain in memory for the build; this stage
+bounds rich metadata, not whole-process memory. Numerical outputs are selected
+before publication, with pending values taking precedence, and remain immutable
+through all occurrence updates. Short revision-bound metadata sessions end before
+inference. Publication independently validates every current component inside its
+exact transaction, including a bounded second source decode and selection pass.
+A failed publication rolls back reference changes and preserves saved state.
 
 Record-owned selection also supplies canonical whole-section addresses. Index
 stores each selected section once, with lexical evidence and shared semantic
@@ -179,10 +209,27 @@ does not reserve space. Startup never vacuums. A failed physical reclamation ret
 complete reference data and uses validated maintenance recovery, without requiring
 inference again.
 
-Unchanged admitted sources reuse checked DTOs and prepared content when the source
-and preparation identities agree. References are resolved again against the current
-identity catalog, including previously unresolved targets, so dependency changes
-can invalidate a dependent record without changing its own source bytes.
+Unchanged admitted sources reuse checked DTOs and prepared content through bounded
+revision-bound reads when source and complete preparation identities agree.
+References are checked against the current compact resolver, including previously
+unresolved targets, so dependent projections can change without their own source
+bytes changing. Retired preparation/source contracts are classified before any
+cached DTO decoding. Present snapshot/provenance, cache and stored-reference
+attestations are checked before retained payloads enter reuse or metadata
+maintenance. These stable checks use stored preparation identity and remain
+independent of current query, lexical and Core policy upgrades. Codec-valid
+altered payloads cannot be accepted as new input and restamped. Private migration-owned readers for20/25 preserve historical callbacks and reject
+current schemas; current readers never fall back when attestation storage is missing.
+
+Closed per-root component digests distinguish snapshot/provenance, query rows,
+content caches, relationships, canonical sections, lexical evidence, trait
+associations and logical Core selection. Missing digests require bounded comparison
+with actual retained output under the prior compatible policies; components with
+incompatible policies reconcile explicitly. Present digests are independently reconstructed and checked against
+the fully validated actual publication. Concrete Core bindings reconcile after
+lexical/location allocation; numerical checksums remain independent of metadata
+hash equality. Unchanged trait definitions retain their seeds. Global trait source
+revision provenance remains an output dependency even for unchanged root bytes.
 
 Passage preparation can reuse already-published source byte ranges from one
 profile with matching passage policy, shared segmentation tokenizer and input

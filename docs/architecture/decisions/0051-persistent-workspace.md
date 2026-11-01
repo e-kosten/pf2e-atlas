@@ -108,6 +108,25 @@ Changes to this boundary require production lifecycle integration,
 delta/backfill/checkpoint tests, consumer replacement and matching architecture
 guidance. Isolated storage tests do not establish those obligations.
 
+## Disposable build staging
+
+Product preparation stages checked record metadata and occurrence attribution in
+sealed task-owned files. Their complete source/context and expected workspace
+revision bind deletion authority; unsealed or changed bytes cannot publish.
+This keeps rich source/HTML state bounded without introducing another persistent
+store. The writer owns SQL and internal identity allocation, and all input sources
+use the same fallible streaming contract. Component digests are reconciliation
+hints verified against actual projections in the exact final transaction; absent
+entries remain unknown. Final validation may recompute expected semantics one
+root at a time independently of preparation's shared selection.
+
+Native execution has a separate lifetime: selected values must remain immutable
+while occurrence rows are replaced. Current execution retains address-free native
+text/descriptors and numerical outputs in memory; future bounded execution must
+preserve the same complete model/input identity and pending-over-published
+selection before destructive publication. A key alone does not make mutable vec0
+occurrences a safe lazy value source.
+
 ## Saved-domain integrity
 
 Encounter status and participant kind, variant and side are closed SQL enums.

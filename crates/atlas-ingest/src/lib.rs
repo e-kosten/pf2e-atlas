@@ -8,6 +8,7 @@ mod error;
 mod index_build_input;
 #[cfg(test)]
 mod passage_benchmark;
+mod product_preparation;
 mod report;
 mod source;
 mod source_aliases;
@@ -34,7 +35,6 @@ pub use source_loading::{
     LoadedFoundryDocument, LoadedFoundryPack, LoadedFoundrySource, QuarantinedSourceFile,
     SourceDocumentCounts, SourceFileProvenance, SourceLoadFailure, SourceLoadFailureStage,
     SourceLoadingReport, SourceMetadata, SourcePackMetadata, load_foundry_documents,
-    load_foundry_documents_with_reuse,
 };
 pub fn build_artifact(
     workspace: &atlas_storage::Workspace,

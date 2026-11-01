@@ -168,6 +168,7 @@ pub struct SourceSemanticUnitInput {
     pub input_hash: String,
     pub vector: Vec<f32>,
 }
+#[cfg(any(test, feature = "test-support"))]
 #[derive(Debug)]
 pub struct IndexBuildInput {
     pub inventory: crate::CompleteSourceInventory,
@@ -181,6 +182,7 @@ pub struct IndexBuildInput {
     pub lexical_units: Vec<SourceLexicalUnitInput>,
     pub semantic_units: Vec<SourceSemanticUnitInput>,
 }
+#[cfg(any(test, feature = "test-support"))]
 impl IndexBuildInput {
     pub fn artifact_record_count(&self) -> usize {
         self.records.len()

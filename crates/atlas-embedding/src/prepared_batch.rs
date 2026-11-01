@@ -1,20 +1,53 @@
 //! Profile-native inputs checked once before checkpoint lookup or inference.
 use crate::{
-    EmbeddingError, EmbeddingModelSpec, PreparedEmbeddingInput, TextEmbeddingTokenizer,
-    hash_document_embedding_input,
+    EmbeddingError, EmbeddingModelSpec, TextEmbeddingTokenizer, hash_document_embedding_input,
 };
+
+/// Address-free model input; source attribution belongs to the occurrence stream.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct PreparedNativeInput {
+    pub input: String,
+    pub input_sha256: String,
+    pub reuse_key: String,
+    pub token_count: usize,
+}
+
+/// Exact raw input and native budget identity requested from a numerical value source.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct NativeInputDescriptor {
+    pub input_sha256: String,
+    pub token_count: usize,
+}
+impl PreparedNativeInput {
+    pub fn descriptor(&self) -> NativeInputDescriptor {
+        NativeInputDescriptor {
+            input_sha256: self.input_sha256.clone(),
+            token_count: self.token_count,
+        }
+    }
+}
+impl From<crate::PreparedEmbeddingInput> for PreparedNativeInput {
+    fn from(input: crate::PreparedEmbeddingInput) -> Self {
+        Self {
+            input: input.input,
+            input_sha256: input.input_sha256,
+            reuse_key: input.reuse_key,
+            token_count: input.token_count,
+        }
+    }
+}
 
 /// Immutable native counts and execution identities for one verified tokenizer.
 /// Keeping fields private prevents callers from changing text after its guard.
 pub struct PreparedEmbeddingBatch {
     spec: EmbeddingModelSpec,
-    inputs: Vec<PreparedEmbeddingInput>,
+    inputs: Vec<PreparedNativeInput>,
 }
 
 impl PreparedEmbeddingBatch {
     pub fn prepare(
         tokenizer: &TextEmbeddingTokenizer,
-        mut inputs: Vec<PreparedEmbeddingInput>,
+        mut inputs: Vec<PreparedNativeInput>,
     ) -> Result<Self, EmbeddingError> {
         let spec = tokenizer.spec();
         let total = inputs.len();
@@ -48,7 +81,7 @@ impl PreparedEmbeddingBatch {
         Ok(Self { spec, inputs })
     }
 
-    pub fn inputs(&self) -> &[PreparedEmbeddingInput] {
+    pub fn inputs(&self) -> &[PreparedNativeInput] {
         &self.inputs
     }
 

@@ -25,24 +25,11 @@ fn published_passage_replay_matches_fresh_selection_after_dependency_changes() {
     let target = serde_json::json!({"_id":"cccccccccccccccc","name":"Target","type":"effect","system":{"description":{"value":"<p>Target prose</p>"}}});
     fs::write(&source_path, serde_json::to_vec(&source).unwrap()).unwrap();
     fs::write(&target_path, serde_json::to_vec(&target).unwrap()).unwrap();
-    let initial = crate::build::prepare_build(&options, vec![], Default::default()).unwrap();
-    let mut layouts: std::collections::BTreeMap<_, Vec<_>> = Default::default();
-    for pending in &initial.prepared.pending {
-        if let Some(field) = &pending.unit.field {
-            layouts
-                .entry(pending.unit.record.clone())
-                .or_default()
-                .push(atlas_index::SourcePassageLayout {
-                    owners: pending.unit.owners.clone(),
-                    field: field.clone(),
-                    chunk_ordinal: pending.unit.chunk_ordinal,
-                    passage: atlas_embedding::PassageLayout {
-                        address: pending.input.address.clone(),
-                        input_sha256: pending.input.input_sha256.clone(),
-                    },
-                });
-        }
-    }
+    crate::build::publish_fixture_without_inference(&options).unwrap();
+    let initial = crate::product_preparation::prepare_fixture(&options).unwrap();
+    let initial_signatures = crate::passage_benchmark::signatures(&initial);
+    drop(initial);
+    let fresh_directory = tempfile::tempdir().unwrap();
     let original_manifest = fs::read(fixture.0.join("module.json")).unwrap();
     let original_locale = fs::read(fixture.0.join("static/lang/en.json")).unwrap();
     for case in [
@@ -87,15 +74,20 @@ fn published_passage_replay_matches_fresh_selection_after_dependency_changes() {
             }
             _ => {}
         }
-        let fresh = crate::build::prepare_build(&options, vec![], Default::default()).unwrap();
-        let replay = crate::build::prepare_build(&options, vec![], layouts.clone()).unwrap();
-        assert_eq!(fresh.prepared.pending, replay.prepared.pending, "{case}");
+        let mut fresh_options = options.clone();
+        fresh_options.output_path = fresh_directory.path().join(format!("{case}.sqlite"));
+        fresh_options.reuse_passage_layouts = false;
+        let fresh = crate::product_preparation::prepare_fixture(&fresh_options).unwrap();
+        let replay = crate::product_preparation::prepare_fixture(&options).unwrap();
+        let fresh_signatures = crate::passage_benchmark::signatures(&fresh);
+        let replay_signatures = crate::passage_benchmark::signatures(&replay);
+        assert_eq!(fresh_signatures, replay_signatures, "{case}");
         if case == "unchanged" {
-            assert!(replay.prepared.reused_sections > 0);
-            assert_eq!(fresh.prepared.pending, initial.prepared.pending);
+            assert!(replay.reused_sections > 0);
+            assert_eq!(fresh_signatures, initial_signatures);
         } else {
             assert_ne!(
-                fresh.prepared.pending, initial.prepared.pending,
+                fresh_signatures, initial_signatures,
                 "{case} must exercise a changed input"
             );
         }
@@ -265,26 +257,42 @@ fn actual_tokenizer_prepares_identity_for_unavailable_authored_names() {
             serde_json::to_vec(&source).unwrap(),
         )
         .unwrap();
-        let prepared =
-            crate::build::prepare_build(&options, Vec::new(), Default::default()).unwrap();
-        let identity = prepared
-            .prepared
-            .pending
-            .iter()
-            .filter(|pending| {
-                matches!(
-                    pending.unit.address,
-                    atlas_domain::SourcePassageAddress::Identity {}
-                )
+        let prepared = crate::product_preparation::prepare_fixture(&options).unwrap();
+        let mut identities = std::collections::BTreeSet::new();
+        let mut has_passage = false;
+        prepared
+            .occurrences
+            .visit(&mut |occurrence| {
+                if let crate::product_preparation::RawOccurrence::Document { input, attribution } =
+                    occurrence
+                {
+                    if matches!(
+                        attribution.address,
+                        atlas_domain::SourcePassageAddress::Identity {}
+                    ) {
+                        assert_eq!(attribution.record.to_string(), "items:aaaaaaaaaaaaaaaa");
+                        identities.insert(input);
+                    } else {
+                        has_passage = true;
+                    }
+                }
+                Ok(())
             })
-            .collect::<Vec<_>>();
-        assert_eq!(identity.len(), 1);
-        assert!(identity[0].input.input.contains("items:aaaaaaaaaaaaaaaa"));
-        assert!(identity[0].input.token_count <= 512);
-        assert!(prepared.prepared.pending.iter().any(|pending| !matches!(
-            pending.unit.address,
-            atlas_domain::SourcePassageAddress::Identity {}
-        )));
+            .unwrap();
+        assert_eq!(identities.len(), 1);
+        let mut ordinal = 0usize;
+        prepared
+            .native_inputs
+            .visit(&mut |input| {
+                if identities.contains(&ordinal) {
+                    assert!(input.input.contains("items:aaaaaaaaaaaaaaaa"));
+                    assert!(input.token_count <= 512);
+                }
+                ordinal += 1;
+                Ok(())
+            })
+            .unwrap();
+        assert!(has_passage);
     }
 }
 #[test]
@@ -465,46 +473,41 @@ fn english_catalog_changes_reprepare_unchanged_documents_and_failures_preserve_p
         serde_json::from_slice(&fs::read(&document).unwrap()).unwrap();
     authored["system"]["description"]["value"] = serde_json::json!("@Localize[Rules]");
     fs::write(&document, authored.to_string()).unwrap();
-    let original =
-        crate::build::prepare_build(&fixture.options(), vec![], Default::default()).unwrap();
-    let original_hash = original
-        .prepared
-        .index
-        .context
-        .preparation_sha256()
-        .unwrap();
+    build_artifact(fixture.options()).unwrap();
+    let original = crate::product_preparation::prepare_fixture(&fixture.options()).unwrap();
+    let original_hash = original.spool.context.preparation_sha256().unwrap();
+    drop(original);
     fs::write(
         &rules,
         r#"{"Rules":"<h2>Updated rules</h2><p>Updated English passage.</p>"}"#,
     )
     .unwrap();
-    let updated = crate::build::prepare_build(
-        &fixture.options(),
-        original.prepared.index.records,
-        Default::default(),
-    )
-    .unwrap();
+    let updated = crate::product_preparation::prepare_fixture(&fixture.options()).unwrap();
     assert_eq!(updated.source_report.reused_admissions, 2);
     assert_eq!(updated.source_report.reused_preparations, 0);
     assert_ne!(
-        updated.prepared.index.context.preparation_sha256().unwrap(),
+        updated.spool.context.preparation_sha256().unwrap(),
         original_hash
     );
-    let content = updated
-        .prepared
-        .index
+    let mut checked = 0;
+    updated
+        .spool
         .records
-        .iter()
-        .flat_map(|record| &record.content)
-        .filter_map(|outcome| match &outcome.status {
-            SourceContentStatus::Prepared(content) => Some(content),
-            _ => None,
+        .visit(&mut |frame| {
+            for outcome in frame.content {
+                if let SourceContentStatus::Prepared(content) = outcome.status
+                    && content.locator.field == "/system/description/value"
+                {
+                    assert!(content.text.contains("Updated English passage."));
+                    assert!(!content.html.contains("Original English passage."));
+                    assert!(!content.html.contains("@Localize"));
+                    checked += 1;
+                }
+            }
+            Ok(())
         })
-        .find(|content| content.locator.field == "/system/description/value")
         .unwrap();
-    assert!(content.text.contains("Updated English passage."));
-    assert!(!content.html.contains("Original English passage."));
-    assert!(!content.html.contains("@Localize"));
+    assert_eq!(checked, 1);
     let published = build_artifact(fixture.options()).unwrap();
     let before = atlas_index::validate_artifact(&published.output_path).unwrap();
     fs::remove_file(rules).unwrap();
@@ -1120,9 +1123,10 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
                 .then_some(cache)
         })
         .unwrap();
+    let temporary = tempfile::tempdir().unwrap();
     let options = BuildArtifactOptions {
         source_root: root,
-        output_path: PathBuf::from("unused-preparation-only"),
+        output_path: temporary.path().join("preparation.sqlite"),
         manifest_path: None,
         locale: "en".into(),
         search_profiles: vec![atlas_embedding::EmbeddingRuntimeConfig::new(
@@ -1133,101 +1137,137 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
         reuse_passage_layouts: false,
         embedding_batch_size: 16,
     };
-    let prepared = crate::build::prepare_build(&options, Vec::new(), Default::default()).unwrap();
-    assert_eq!(prepared.prepared.index.records.len(), 29894);
+    let prepared = crate::product_preparation::prepare_fixture(&options).unwrap();
+    assert_eq!(prepared.spool.records.len(), 29894);
     let mut identities = std::collections::BTreeSet::new();
     let mut bytes = 0;
     let mut tokens = 0;
     let mut max_tokens = 0;
     let mut coverage = std::collections::BTreeMap::new();
-    for pending in &prepared.prepared.pending {
-        assert!(pending.unit.vector.is_empty());
-        assert!(pending.input.token_count <= 512);
-        assert!(
-            pending.input.body_token_count <= 256
-                || matches!(
-                    pending.unit.address,
-                    atlas_domain::SourcePassageAddress::Identity {}
-                )
-        );
-        tokens += pending.input.token_count;
-        max_tokens = max_tokens.max(pending.input.token_count);
-        let range = match &pending.unit.address {
-            atlas_domain::SourcePassageAddress::Identity {} => {
-                assert!(identities.insert(pending.unit.record.clone()));
-                continue;
-            }
-            atlas_domain::SourcePassageAddress::HtmlSection {
-                section_ordinal,
-                chunk_bytes,
-                ..
-            }
-            | atlas_domain::SourcePassageAddress::PlainSection {
-                section_ordinal,
-                chunk_bytes,
-                ..
-            } => (*section_ordinal, *chunk_bytes),
-        };
-        let key = (
-            pending.unit.record.clone(),
-            serde_json::to_string(&pending.unit.owners).unwrap(),
-            pending.unit.field.clone(),
-            range.0,
-        );
-        let end = coverage.entry(key).or_insert(0);
-        assert!(range.1.start <= *end);
-        assert!(range.1.end > *end);
-        bytes += range.1.end - *end;
-        *end = range.1.end;
-    }
+    let inputs = crate::passage_benchmark::native_evidence(&prepared);
+    let mut document_units = 0usize;
+    prepared
+        .occurrences
+        .visit(&mut |occurrence| {
+            let crate::product_preparation::RawOccurrence::Document { input, attribution } =
+                occurrence
+            else {
+                return Ok(());
+            };
+            document_units += 1;
+            assert!(inputs[input].token_count <= 512);
+            tokens += inputs[input].token_count;
+            max_tokens = max_tokens.max(inputs[input].token_count);
+            let range = match &attribution.address {
+                atlas_domain::SourcePassageAddress::Identity {} => {
+                    assert!(identities.insert(attribution.record));
+                    return Ok(());
+                }
+                atlas_domain::SourcePassageAddress::HtmlSection {
+                    section_ordinal,
+                    chunk_bytes,
+                    ..
+                }
+                | atlas_domain::SourcePassageAddress::PlainSection {
+                    section_ordinal,
+                    chunk_bytes,
+                    ..
+                } => (*section_ordinal, *chunk_bytes),
+            };
+            let key = (
+                attribution.record,
+                serde_json::to_string(&attribution.owners).unwrap(),
+                attribution.field,
+                range.0,
+            );
+            let end = coverage.entry(key).or_insert(0);
+            assert!(range.1.start <= *end);
+            assert!(range.1.end > *end);
+            bytes += range.1.end - *end;
+            *end = range.1.end;
+            Ok(())
+        })
+        .unwrap();
+    drop(inputs);
+    assert_eq!(document_units, prepared.document_units);
     assert_eq!(identities.len(), 29813);
+    let mut signatures = crate::passage_benchmark::signatures(&prepared);
+    let mut aliases = std::collections::BTreeMap::<_, Vec<String>>::new();
+    prepared
+        .spool
+        .aliases
+        .visit(&mut |alias| {
+            aliases.entry(alias.record).or_default().push(alias.alias);
+            Ok(())
+        })
+        .unwrap();
+    let tokenizer = atlas_embedding::TextEmbeddingTokenizer::load_baseline(
+        &options.search_profiles[0].cache_root,
+    )
+    .unwrap();
     let mut selected_fields = 0;
     let mut selected_sections = 0;
     let mut selected_bytes = 0;
-    for input in &prepared.prepared.index.records {
-        let pack = prepared
-            .prepared
-            .index
-            .packs
-            .iter()
-            .find(|pack| pack.pack_id == input.record.key().pack().as_str())
+    prepared
+        .spool
+        .records
+        .visit(&mut |frame| {
+            let (input, _, _, _) = frame.decode()?;
+            let pack = prepared
+                .spool
+                .packs
+                .iter()
+                .find(|pack| pack.pack_id == input.record.key().pack().as_str())
+                .unwrap();
+            let mut selected = atlas_record::source_record::select_record_search(
+                &input.record,
+                &input.content,
+                prepared.spool.context.audience,
+                &pack.label,
+                &prepared.spool.context.used_trait_labels,
+            )
             .unwrap();
-        let selected = atlas_record::source_record::select_record_search(
-            &input.record,
-            &input.content,
-            prepared.prepared.index.context.audience,
-            &pack.label,
-            &prepared.prepared.index.context.used_trait_labels,
-        )
-        .unwrap();
-        selected_fields += selected.fields.len();
-        for field in &selected.fields {
-            for section in &field.sections {
-                selected_sections += 1;
-                selected_bytes += section.text.len();
-                let key = (
-                    selected.root.clone(),
-                    serde_json::to_string(&field.locator.owners).unwrap(),
-                    Some(field.locator.field.clone()),
-                    section.section_ordinal,
-                );
-                assert_eq!(
-                    coverage.remove(&key),
-                    Some(section.text.len()),
-                    "{} {} {}",
-                    selected.root,
-                    field.locator.field,
-                    section.section_ordinal
-                );
+            selected
+                .identity_optional
+                .extend(aliases.remove(input.record.key()).unwrap_or_default());
+            assert_eq!(
+                crate::passage_benchmark::fresh_record_signature(&selected, &tokenizer),
+                signatures.remove(input.record.key()),
+                "{}",
+                input.record.key()
+            );
+            selected_fields += selected.fields.len();
+            for field in &selected.fields {
+                for section in &field.sections {
+                    selected_sections += 1;
+                    selected_bytes += section.text.len();
+                    let key = (
+                        selected.root.clone(),
+                        serde_json::to_string(&field.locator.owners).unwrap(),
+                        Some(field.locator.field.clone()),
+                        section.section_ordinal,
+                    );
+                    assert_eq!(
+                        coverage.remove(&key),
+                        Some(section.text.len()),
+                        "{} {} {}",
+                        selected.root,
+                        field.locator.field,
+                        section.section_ordinal
+                    );
+                }
             }
-        }
-    }
+            Ok(())
+        })
+        .unwrap();
+    assert!(signatures.is_empty());
+    assert!(aliases.is_empty());
     assert!(coverage.is_empty());
     assert_eq!(bytes, selected_bytes);
     let evidence =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../scratch/ingest-validation");
     fs::create_dir_all(&evidence).unwrap();
-    fs::write(evidence.join("full-semantic-preparation-census.json"),serde_json::to_vec_pretty(&serde_json::json!({"records":prepared.prepared.index.records.len(),"identity_units":identities.len(),"selected_fields":selected_fields,"selected_sections":selected_sections,"selected_body_bytes":selected_bytes,"prepared_inputs":prepared.prepared.pending.len(),"exact_input_tokens":tokens,"maximum_input_tokens":max_tokens,"context_shortened":prepared.prepared.context_shortened,"policy_version":atlas_embedding::EMBEDDING_UNIT_POLICY_VERSION,"source_fingerprint":prepared.fingerprint.value,"context_sha256":prepared.prepared.index.context.sha256().unwrap(),"content_interpretation_version":prepared.prepared.index.context.content_interpretation_version,"content_selection_version":prepared.prepared.index.context.content_selection_version,"relationship_policy":prepared.prepared.index.context.relationship_policy,"duration_ms":started.elapsed().as_millis(),"inference_performed":false})).unwrap()).unwrap();
+    fs::write(evidence.join("full-semantic-preparation-census.json"),serde_json::to_vec_pretty(&serde_json::json!({"records":prepared.spool.records.len(),"identity_units":identities.len(),"selected_fields":selected_fields,"selected_sections":selected_sections,"selected_body_bytes":selected_bytes,"prepared_inputs":document_units,"exact_input_tokens":tokens,"maximum_input_tokens":max_tokens,"context_shortened":prepared.context_shortened,"policy_version":atlas_embedding::EMBEDDING_UNIT_POLICY_VERSION,"source_fingerprint":prepared.fingerprint.value,"context_sha256":prepared.spool.context.sha256().unwrap(),"content_interpretation_version":prepared.spool.context.content_interpretation_version,"content_selection_version":prepared.spool.context.content_selection_version,"relationship_policy":prepared.spool.context.relationship_policy,"duration_ms":started.elapsed().as_millis(),"inference_performed":false})).unwrap()).unwrap();
 }
 
 #[test]
@@ -1336,7 +1376,6 @@ fn captured_document_change_is_fatal_even_when_original_bytes_return() {
     let result = crate::source_loading::load_captured_source(
         &fixture.0,
         Some(&capture.manifest_path),
-        vec![],
         Some(&capture),
     );
     fs::write(&path, original).unwrap();
@@ -1362,7 +1401,6 @@ fn captured_discovery_cannot_silently_omit_temporarily_missing_document() {
     let result = crate::source_loading::load_captured_source(
         &fixture.0,
         Some(&capture.manifest_path),
-        vec![],
         Some(&capture),
     );
     fs::write(&path, original).unwrap();
@@ -1392,7 +1430,6 @@ fn captured_manifest_localization_and_alias_inputs_reject_transient_changes() {
             crate::source_loading::load_captured_source(
                 &fixture.0,
                 Some(&capture.manifest_path),
-                vec![],
                 Some(&capture),
             )
             .map(|_| ())
@@ -1405,12 +1442,14 @@ fn captured_manifest_localization_and_alias_inputs_reject_transient_changes() {
             )
             .map(|_| ())
         } else {
-            let mut input =
-                crate::build::prepare_build(&fixture.options(), vec![], Default::default())
-                    .unwrap()
-                    .prepared
-                    .index;
-            crate::source_aliases::extract_source_aliases(&mut input, &fixture.0, &capture)
+            crate::source_aliases::extract_prepared_aliases(
+                &Default::default(),
+                &Default::default(),
+                &mut |_| Ok(()),
+                &fixture.0,
+                &capture,
+            )
+            .map(|_| ())
         };
         fs::write(&path, original).unwrap();
         assert_eq!(
@@ -1426,31 +1465,29 @@ fn captured_manifest_localization_and_alias_inputs_reject_transient_changes() {
 }
 
 #[test]
-fn aliased_pack_paths_consume_previous_preparation_once_in_manifest_order() {
+fn aliased_pack_paths_reuse_only_the_published_pack_and_preserve_manifest_order() {
     let fixture = Fixture::new();
-    let previous = crate::build::prepare_build(&fixture.options(), vec![], Default::default())
-        .unwrap()
-        .prepared
-        .index
-        .records;
+    build_artifact(fixture.options()).unwrap();
     fs::write(fixture.0.join("module.json"), r#"{"packs":[{"name":"items","label":"Items","type":"Item","path":"packs/items"},{"name":"alias","label":"Alias","type":"Item","path":"packs/items"}]}"#).unwrap();
-    let loaded = load_foundry_documents_with_reuse(&fixture.0, None, previous).unwrap();
+    let prepared = crate::product_preparation::prepare_fixture(&fixture.options()).unwrap();
+    assert_eq!(prepared.source_report.reused_admissions, 1);
+    assert_eq!(prepared.source_report.reused_preparations, 1);
+    let mut keys = Vec::new();
+    prepared
+        .spool
+        .records
+        .visit(&mut |frame| {
+            assert_eq!(frame.source_path, "packs/items/useful.json");
+            keys.push(frame.selection.root.to_string());
+            Ok(())
+        })
+        .unwrap();
+    assert_eq!(keys, ["items:aaaaaaaaaaaaaaaa", "alias:aaaaaaaaaaaaaaaa"]);
+    let loaded = load_foundry_documents(&fixture.0, None).unwrap();
     assert_eq!(loaded.packs.len(), 2);
     assert_eq!(
         loaded.packs[0].documents.len(),
         loaded.packs[1].documents.len()
-    );
-    assert!(
-        loaded.packs[0]
-            .documents
-            .iter()
-            .any(|d| d.reused_preparation.is_some())
-    );
-    assert!(
-        loaded.packs[1]
-            .documents
-            .iter()
-            .all(|d| d.reused_preparation.is_none())
     );
     assert!(
         loaded.packs[1]
@@ -1463,6 +1500,8 @@ fn aliased_pack_paths_consume_previous_preparation_once_in_manifest_order() {
 #[test]
 fn direct_preparation_rejects_incompatible_system_but_developer_loading_remains_available() {
     let fixture = Fixture::new();
+    let published = build_artifact(fixture.options()).unwrap();
+    let before = atlas_index::validate_artifact(&published.output_path).unwrap();
     let path = fixture.0.join("module.json");
     let mut manifest: serde_json::Value =
         serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
@@ -1470,11 +1509,30 @@ fn direct_preparation_rejects_incompatible_system_but_developer_loading_remains_
     manifest["version"] = serde_json::json!("7.9.1");
     fs::write(&path, manifest.to_string()).unwrap();
     assert!(crate::load_foundry_documents(&fixture.0, None).is_ok());
-    let result = crate::build::prepare_build(&fixture.options(), vec![], Default::default());
+    let result = crate::product_preparation::prepare_fixture(&fixture.options());
     assert!(
         matches!(result, Err(crate::IngestError::SourceIncompatible(message)) if message.contains("7.9.1") && message.contains(atlas_foundry_model::generated::REFERENCE_SOURCE_VERSION))
     );
-    assert!(!fixture.options().output_path.exists());
+    assert_eq!(
+        atlas_index::validate_artifact(published.output_path).unwrap(),
+        before
+    );
+    let fresh = tempfile::tempdir().unwrap();
+    let mut fresh_options = fixture.options();
+    fresh_options.output_path = fresh.path().join("incompatible.sqlite");
+    assert!(
+        matches!(crate::product_preparation::prepare_fixture(&fresh_options), Err(crate::IngestError::SourceIncompatible(message)) if message.contains("7.9.1"))
+    );
+    let workspace = atlas_storage::Workspace::at(&fresh_options.output_path).unwrap();
+    let read = workspace
+        .read(atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    assert_eq!(read.reference_revision().unwrap(), 0);
+    assert!(
+        atlas_index::read_stored_reference_context(read.connection())
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[test]
@@ -1843,24 +1901,47 @@ fn wholly_quarantined_or_unaddressable_source_preserves_active_publication_and_s
 
 #[test]
 fn retired_preparation_and_predecessor_skip_unreadable_cached_dtos_before_source_rebuild() {
-    for replacement in [false, true] {
+    for cause in ["relationship", "localization", "predecessor"] {
         let fixture = Fixture::new();
         let first = build_artifact(fixture.options()).unwrap();
-        if replacement {
+        if cause == "predecessor" {
             atlas_index::test_support::set_predecessor_source_contract(
                 &first.output_path,
                 atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
             )
             .unwrap();
-        } else {
+        } else if cause == "relationship" {
             atlas_index::test_support::set_relationship_policy(
                 &first.output_path,
                 atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
                 "typed-authored-occurrences/v6",
             )
             .unwrap();
+        } else {
+            let database = rusqlite::Connection::open(&first.output_path).unwrap();
+            let mut context = atlas_index::read_stored_reference_context(&database)
+                .unwrap()
+                .unwrap();
+            context.localization_policy = "selected-source-catalog/english-fallback/v1".into();
+            database
+                .execute(
+                    "UPDATE artifact_context SET context_hash=?,context_json=? WHERE singleton=1",
+                    rusqlite::params![
+                        context.sha256().unwrap(),
+                        serde_json::to_string(&context).unwrap()
+                    ],
+                )
+                .unwrap();
         }
         let database = rusqlite::Connection::open(&first.output_path).unwrap();
+        assert_eq!(
+            atlas_index::classify_reference_upgrade(&database).unwrap(),
+            if cause == "predecessor" {
+                atlas_index::ReferenceUpgrade::SourceReplacement
+            } else {
+                atlas_index::ReferenceUpgrade::SourcePreparation
+            }
+        );
         // Invalid cached bytes must never be decoded by the source-backed path.
         database
             .execute("UPDATE record_bodies SET snapshot=x'00'", [])
@@ -1946,5 +2027,132 @@ fn retired_preparation_and_predecessor_skip_unreadable_cached_dtos_before_source
                 .unwrap(),
             "Kept"
         );
+    }
+}
+
+#[test]
+fn bounded_product_preparation_keeps_excluded_collisions_and_stable_owned_destinations() {
+    use atlas_index::PublicationSource;
+    use atlas_record::source_content::{ContentReferenceResolution, ContentReferenceTarget};
+    use atlas_record::source_record::SourceContentStatus;
+    for cause in ["raw name", "missing ID name", "duplicate ID"] {
+        for reverse in [false, true] {
+            let fixture = Fixture::new();
+            fs::remove_file(fixture.0.join("packs/items/bad.json")).unwrap();
+            fs::create_dir_all(fixture.0.join("packs/journals")).unwrap();
+            fs::write(fixture.0.join("module.json"), r#"{"packs":[{"name":"items","label":"Items","type":"Item","path":"packs/items"},{"name":"journals","label":"Journals","type":"JournalEntry","path":"packs/journals"}]}"#).unwrap();
+            let targets = [
+                "Compendium.pf2e.items.Item.Same",
+                "Compendium.pf2e.items.Item.aaaaaaaaaaaaaaaa",
+                "Compendium.pf2e.items.Item.bbbbbbbbbbbbbbbb",
+                "Compendium.pf2e.journals.JournalEntry.cccccccccccccccc.JournalEntryPage.dddddddddddddddd",
+            ];
+            let markup = targets
+                .iter()
+                .map(|target| format!("@UUID[{target}]"))
+                .collect::<Vec<_>>()
+                .join(" ");
+            fs::write(fixture.0.join("packs/items/useful.json"), serde_json::to_vec(&serde_json::json!({"_id":"ffffffffffffffff","name":"Referring source","type":"effect","system":{"description":{"value":markup}}})).unwrap()).unwrap();
+            let valid = serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","type":"spell","name":"Same"});
+            let excluded = match cause {
+                "raw name" => {
+                    serde_json::json!({"_id":"bbbbbbbbbbbbbbbb","type":"unknown-family","name":"Same"})
+                }
+                "missing ID name" => serde_json::json!({"type":"spell","name":"Same"}),
+                _ => {
+                    serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","type":"unknown-family","name":"Same"})
+                }
+            };
+            for (name, source) in if reverse {
+                [("z-target.json", &valid), ("a-excluded.json", &excluded)]
+            } else {
+                [("a-target.json", &valid), ("z-excluded.json", &excluded)]
+            } {
+                fs::write(
+                    fixture.0.join("packs/items").join(name),
+                    serde_json::to_vec(source).unwrap(),
+                )
+                .unwrap();
+            }
+            fs::write(fixture.0.join("packs/journals/owned.json"), r#"{"_id":"cccccccccccccccc","name":"Owned pages","pages":[{"_id":"dddddddddddddddd","name":"Stable page","type":"text","text":{"format":1,"content":"<p>Stable owned prose.</p>"}}]}"#).unwrap();
+            let prepared = crate::product_preparation::prepare_fixture(&fixture.options()).unwrap();
+            assert!(prepared.native_inputs.is_empty());
+            assert_eq!(
+                prepared.source_report.raw_only_documents,
+                usize::from(cause != "missing ID name")
+            );
+            if cause == "missing ID name" {
+                assert_eq!(
+                    prepared.source_report.identity_unavailable.get("MissingId"),
+                    Some(&1)
+                );
+            }
+            if cause == "duplicate ID" {
+                assert_eq!(
+                    prepared
+                        .source_report
+                        .identity_unavailable
+                        .get("DuplicateId"),
+                    Some(&1)
+                );
+            }
+            let publication = prepared.spool.seal().unwrap();
+            assert_eq!(publication.semantic_count(), 0);
+            let mut roots = Vec::new();
+            let mut references = Vec::new();
+            publication
+                .records(&mut |frame| {
+                    roots.push(frame.source.record.key().to_string());
+                    if frame.source.record.key().to_string() == "items:ffffffffffffffff" {
+                        for outcome in &frame.source.content {
+                            if let SourceContentStatus::Prepared(content) = &outcome.status {
+                                references.extend(content.references.iter().map(|reference| {
+                                    (
+                                        reference.authored_target.clone(),
+                                        reference.resolution.clone(),
+                                    )
+                                }));
+                            }
+                        }
+                    }
+                    Ok(())
+                })
+                .unwrap();
+            let expected = [
+                ContentReferenceResolution::Unresolved,
+                if cause == "duplicate ID" {
+                    ContentReferenceResolution::Unresolved
+                } else {
+                    ContentReferenceResolution::Resolved(ContentReferenceTarget::Record {
+                        key: "items:aaaaaaaaaaaaaaaa".parse().unwrap(),
+                    })
+                },
+                ContentReferenceResolution::Unresolved,
+                ContentReferenceResolution::Resolved(ContentReferenceTarget::OwnedNode {
+                    key: "journals:cccccccccccccccc".parse().unwrap(),
+                    owners: vec![atlas_domain::OwnedContentLocator {
+                        collection: "/pages".into(),
+                        identity: atlas_domain::OwnedContentIdentity::Stable(
+                            "dddddddddddddddd".into(),
+                        ),
+                    }],
+                }),
+            ];
+            assert_eq!(
+                references,
+                targets
+                    .into_iter()
+                    .zip(expected)
+                    .map(|(target, resolution)| (target.to_owned(), resolution))
+                    .collect::<Vec<_>>(),
+                "{cause}, reverse={reverse}"
+            );
+            roots.sort();
+            let mut expected_roots = vec!["items:ffffffffffffffff", "journals:cccccccccccccccc"];
+            if cause != "duplicate ID" {
+                expected_roots.insert(0, "items:aaaaaaaaaaaaaaaa");
+            }
+            assert_eq!(roots, expected_roots, "{cause}, reverse={reverse}");
+        }
     }
 }

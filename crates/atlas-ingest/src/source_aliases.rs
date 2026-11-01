@@ -2,7 +2,7 @@
 //! A name rename is alias evidence; only two explicit root references form a pair.
 use crate::IngestError;
 use atlas_domain::{RecordKey, normalize_record_name};
-use atlas_index::{IndexBuildInput, SourceAliasInput, SourceRemasterPairInput};
+use atlas_index::{SourceAliasInput, SourceRemasterPairInput};
 use atlas_record::{
     source_content::{ContentReferenceResolution, ContentReferenceTarget, prepared_plain_text},
     source_record::SourceContentStatus,
@@ -13,11 +13,20 @@ use std::{
     path::Path,
 };
 
-pub(crate) fn extract_source_aliases(
-    input: &mut IndexBuildInput,
+type JournalVisitor<'a> = dyn FnMut(
+        &RecordKey,
+        &[atlas_record::source_record::SourceContentOutcome],
+    ) -> Result<(), IngestError>
+    + 'a;
+type JournalStream<'a> = dyn FnMut(&mut JournalVisitor<'_>) -> Result<(), IngestError> + 'a;
+
+pub(crate) fn extract_prepared_aliases(
+    names: &BTreeMap<RecordKey, String>,
+    families: &BTreeMap<RecordKey, Option<String>>,
+    journals: &mut JournalStream<'_>,
     root: &Path,
     capture: &crate::source_fingerprint::SourceCapture,
-) -> Result<(), IngestError> {
+) -> Result<(Vec<SourceAliasInput>, Vec<SourceRemasterPairInput>), IngestError> {
     let selector = |s: &str| {
         Selector::parse(s)
             .map_err(|e| IngestError::SourceSelectionFailed(format!("alias selector: {e}")))
@@ -26,46 +35,10 @@ pub(crate) fn extract_source_aliases(
     let row_selector = selector("tr")?;
     let cell_selector = selector("td")?;
     let list_selector = selector("li")?;
-    let names = input
-        .records
-        .iter()
-        .filter(|record| {
-            !matches!(
-                record.record.source(),
-                atlas_foundry_model::FoundryDocumentSource::Macro(_)
-            )
-        })
-        .filter_map(|record| {
-            record.record.node_at(&[]).and_then(|node| {
-                node.name()
-                    .value()
-                    .map(|name| (record.record.key().clone(), name.clone()))
-            })
-        })
-        .collect::<BTreeMap<_, _>>();
-    let families = input
-        .records
-        .iter()
-        .filter_map(|record| {
-            record.record.node_at(&[]).map(|node| {
-                (
-                    record.record.key().clone(),
-                    node.source_type().value().map(str::to_owned),
-                )
-            })
-        })
-        .collect::<BTreeMap<_, _>>();
     let mut aliases = BTreeSet::new();
     let mut pairs = BTreeMap::<_, Vec<_>>::new();
-    for record in &input.records {
-        if !matches!(
-            record.record.source(),
-            atlas_foundry_model::FoundryDocumentSource::JournalEntry(_)
-        ) || names.get(record.record.key()).map(String::as_str) != Some("Remaster Changes")
-        {
-            continue;
-        }
-        for outcome in &record.content {
+    journals(&mut |key, content| {
+        for outcome in content {
             let SourceContentStatus::Prepared(content) = &outcome.status else {
                 continue;
             };
@@ -91,7 +64,7 @@ pub(crate) fn extract_source_aliases(
             };
             let evidence = format!(
                 "journal:{}:{}:{}",
-                record.record.key(),
+                key,
                 serde_json::to_string(&content.locator.owners)
                     .map_err(|e| IngestError::SourceSelectionFailed(e.to_string()))?,
                 content.locator.field
@@ -164,13 +137,14 @@ pub(crate) fn extract_source_aliases(
                 }
             }
         }
-    }
+        Ok(())
+    })?;
     // These authored comments define textual renames, never old-record identity.
     let directory = root.join("src/module/migration/migrations");
     {
         let paths = capture.paths(&directory);
         let mut by_name = BTreeMap::<String, Vec<RecordKey>>::new();
-        for (key, name) in &names {
+        for (key, name) in names {
             by_name
                 .entry(normalize_record_name(name))
                 .or_default()
@@ -212,7 +186,7 @@ pub(crate) fn extract_source_aliases(
             }
         }
     }
-    input.aliases = aliases
+    let aliases = aliases
         .into_iter()
         .filter(|(key, alias, _)| {
             names
@@ -225,7 +199,7 @@ pub(crate) fn extract_source_aliases(
             evidence,
         })
         .collect();
-    input.remaster_pairs = pairs
+    let pairs = pairs
         .into_iter()
         .flat_map(|((legacy, remaster), sources)| {
             sources
@@ -237,7 +211,7 @@ pub(crate) fn extract_source_aliases(
                 })
         })
         .collect();
-    Ok(())
+    Ok((aliases, pairs))
 }
 fn plain(element: ElementRef<'_>) -> Result<String, IngestError> {
     prepared_plain_text(&element.html())

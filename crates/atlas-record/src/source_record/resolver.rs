@@ -19,7 +19,48 @@ pub struct SourceReferenceIndex {
     owned_item_families: BTreeMap<String, Option<&'static str>>,
 }
 
+/// Compact destinations and exclusion-relevant names for one checked source.
+/// It retains no DTO, authored markup or prepared prose.
+#[derive(Debug)]
+pub struct SourceReferenceContribution(SourceReferenceIndex);
+
 impl SourceReferenceIndex {
+    pub fn contribution(
+        key: &RecordKey,
+        source: &FoundryDocumentSource,
+    ) -> SourceReferenceContribution {
+        let mut index = Self::default();
+        index.insert_source(key, source);
+        SourceReferenceContribution(index)
+    }
+    pub fn extend_contribution(&mut self, contribution: SourceReferenceContribution) {
+        let other = contribution.0;
+        for root in other.roots {
+            if !self.roots.insert(root.clone()) {
+                self.duplicate_roots.insert(root);
+            }
+        }
+        self.duplicate_roots.extend(other.duplicate_roots);
+        for (key, value) in other.targets {
+            self.targets
+                .entry(key)
+                .and_modify(|old| *old = None)
+                .or_insert(value);
+        }
+        for (key, value) in other.names {
+            self.names
+                .entry(key)
+                .and_modify(|old| *old = None)
+                .or_insert(value);
+        }
+        for (key, value) in other.owned_item_families {
+            self.owned_item_families
+                .entry(key)
+                .and_modify(|old| *old = None)
+                .or_insert(value);
+        }
+    }
+
     /// Candidate lookup only: the complete reference must still pass this index's
     /// exact identity/name policy. Names may contain periods; never split them.
     pub fn root_lookup_hint(target: &str) -> Option<(&str, &str)> {

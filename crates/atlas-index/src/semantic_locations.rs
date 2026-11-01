@@ -1,12 +1,12 @@
 //! Shared section references and chunk ranges across native search profiles.
-use crate::{IndexError, SourceSemanticUnitInput};
+use crate::{IndexError, SemanticOccurrence};
 use atlas_domain::{SourceByteRange, SourcePassageAddress};
 use rusqlite::{Connection, OptionalExtension, params};
 
 pub(crate) fn location_id(
     c: &Connection,
     record: i64,
-    unit: &SourceSemanticUnitInput,
+    unit: &SemanticOccurrence,
 ) -> Result<i64, IndexError> {
     let (section, ordinal, start, end) = match &unit.address {
         SourcePassageAddress::Identity {} => {

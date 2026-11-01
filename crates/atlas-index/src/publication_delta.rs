@@ -1,7 +1,7 @@
 //! Reconciliation of complete prepared input with the active reference revision.
 //! Only changed owned rows are written; identity and mutable-domain rows survive.
 use crate::{
-    IndexBuildInput, IndexError, SourceArtifactRecordInput,
+    IndexError, SourceArtifactRecordInput,
     codec::sha256,
     persistence::{ProjectionRow, execute},
     projections::{ProjectionIds, root_rows},
@@ -39,8 +39,15 @@ pub(crate) fn root_digest(
     source: &SourceArtifactRecordInput,
     label: &str,
 ) -> Result<String, IndexError> {
+    root_digest_encoded(source, label, &encode_snapshot(source.record.source())?)
+}
+pub(crate) fn root_digest_encoded(
+    source: &SourceArtifactRecordInput,
+    label: &str,
+    snapshot: &[u8],
+) -> Result<String, IndexError> {
     Ok(sha256(&serde_json::to_vec(&(
-        encode_snapshot(source.record.source())?,
+        snapshot,
         &source.source_path,
         &source.content_hash,
         &source.preparation_context_hash,
@@ -88,6 +95,27 @@ pub(crate) fn allocate(
     Ok(ProjectionIds::seeded(seed))
 }
 
+pub(crate) fn clear_query(c: &Connection, id: i64) -> Result<(), IndexError> {
+    // Family leaves cascade from their declared owner; incoming edges and semantic
+    // occurrences are reconciled separately and never cascade with a replacement.
+    for table in ["record_traits", "actor_projection"] {
+        c.execute(&format!("DELETE FROM {table} WHERE record_id=?"), [id])?;
+    }
+    for table in [
+        "spell_projection",
+        "physical_projection",
+        "ability_projection",
+        "heritage_projection",
+        "effect_projection",
+        "condition_projection",
+        "deity_projection",
+    ] {
+        c.execute(&format!("DELETE FROM {table} WHERE root_record_id=?"), [id])?;
+    }
+    Ok(())
+}
+
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn clear_root_derived(c: &Connection, id: i64) -> Result<(), IndexError> {
     // Family leaves cascade from their declared owner; incoming edges and semantic
     // occurrences are reconciled separately and never cascade with a replacement.
@@ -122,6 +150,11 @@ pub(crate) fn remove_absent_roots(c: &Connection, live: &BTreeSet<i64>) -> Resul
         .collect::<Result<Vec<_>, _>>()?;
     for id in ids {
         if !live.contains(&id) {
+            // These associations reference the removable reference row, while
+            // saved state references the enduring identity registry. Prune the
+            // exact removed key before its deferred parent FK is deleted.
+            c.execute("DELETE FROM trait_memberships WHERE record_key=(SELECT key FROM records WHERE record_id=?)",[id])?;
+            c.execute("DELETE FROM trait_references WHERE record_key=(SELECT key FROM records WHERE record_id=?)",[id])?;
             c.execute("DELETE FROM records WHERE record_id=?", [id])?;
             c.execute(
                 "UPDATE record_identity SET availability='unavailable' WHERE id=?",
@@ -134,11 +167,11 @@ pub(crate) fn remove_absent_roots(c: &Connection, live: &BTreeSet<i64>) -> Resul
 
 pub(crate) fn aliases(
     c: &Connection,
-    input: &IndexBuildInput,
+    input: &dyn crate::PublicationSource,
     ids: &BTreeMap<RecordKey, i64>,
 ) -> Result<(), IndexError> {
     let mut kept = BTreeSet::new();
-    for alias in &input.aliases {
+    input.aliases(&mut |alias| {
         if alias.alias.trim().is_empty() || alias.evidence.trim().is_empty() {
             return Err(IndexError::Invalid("alias needs text and evidence".into()));
         }
@@ -155,7 +188,8 @@ pub(crate) fn aliases(
         );
         row.text("evidence_json", serde_json::to_string(&alias.evidence)?);
         upsert(c, &row, "record_id,alias")?;
-    }
+        Ok(())
+    })?;
     for pair in c
         .prepare("SELECT record_id,alias FROM verified_aliases")?
         .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?
@@ -169,7 +203,7 @@ pub(crate) fn aliases(
         }
     }
     let mut kept = BTreeSet::new();
-    for pair in &input.remaster_pairs {
+    input.remaster_pairs(&mut |pair| {
         let legacy = crate::writer::product_id(ids, &pair.legacy)?;
         if !kept.insert(legacy) {
             return Err(IndexError::Invalid("duplicate remaster pair".into()));
@@ -182,7 +216,8 @@ pub(crate) fn aliases(
         );
         row.text("evidence_json", serde_json::to_string(&pair.provenance)?);
         upsert(c, &row, "legacy_record_id")?;
-    }
+        Ok(())
+    })?;
     remove_unkept(c, "remaster_pairs", "legacy_record_id", &kept)?;
     Ok(())
 }
@@ -206,17 +241,18 @@ fn remove_unkept(
 
 pub(crate) fn search_units(
     c: &Connection,
-    input: &IndexBuildInput,
+    input: &dyn crate::PublicationSource,
     ids: &BTreeMap<RecordKey, i64>,
+    values: &dyn crate::NativeValueSource,
 ) -> Result<(), IndexError> {
-    lexical_units(c, &input.lexical_units, ids)?;
+    lexical_stream(c, ids, &mut |visitor| input.lexical(visitor))?;
 
     let old_profiles = c
         .prepare("SELECT profile_id,identity_json FROM search_profiles")?
         .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
         .collect::<Result<BTreeMap<_, _>, _>>()?;
     let mut current_profiles = BTreeMap::new();
-    for model in input.context.canonical_profiles()? {
+    for model in input.context().canonical_profiles()? {
         let json = serde_json::to_string(&model)?;
         current_profiles.insert(model.profile_id.to_string(), json.clone());
         let mut row = ProjectionRow::new("search_profiles");
@@ -231,7 +267,7 @@ pub(crate) fn search_units(
         old_tables.insert(profile.clone(), crate::schema::vector_table(&model)?);
     }
     let mut current_tables = BTreeSet::new();
-    for model in &input.context.search_profiles {
+    for model in &input.context().search_profiles {
         let table = crate::schema::vector_table(model)?;
         let exists: bool = c.query_row(
             "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name=?)",
@@ -249,19 +285,27 @@ pub(crate) fn search_units(
         [],
         |r| r.get(0),
     )?;
-    let mut pending = Vec::new();
-    for unit in &input.semantic_units {
-        let model = input.context.search_profile(&unit.profile_id)?;
-        crate::validation::check_vector(&unit.vector, model.dimensions)?;
+    for (profile, json) in &old_profiles {
+        if current_profiles.get(profile) != Some(json) {
+            let table = &old_tables[profile];
+            c.execute(&format!("DELETE FROM {table}"), [])?;
+            c.execute("DELETE FROM semantic_units WHERE profile_id=?", [profile])?;
+        }
+    }
+    input.semantic(&mut |occurrence| {
+        let model=input.context().search_profile(&occurrence.profile_id)?;
+        let value=values.value(model,&occurrence.input)?;
+        let unit=occurrence;
+        crate::validation::check_vector(value.as_ref(), model.dimensions)?;
         let id = crate::writer::product_id(ids, &unit.record)?;
         let table = crate::schema::vector_table(model)?;
         let location = crate::semantic_locations::location_id(c, id, unit)?;
         let native = crate::embedding_values::publish_input(
             c,
             model,
-            &unit.input_hash,
-            unit.input_token_count,
-            &unit.vector,
+            &unit.input.input_sha256,
+            unit.input.token_count,
+            value.as_ref(),
         )?;
         let previous: Option<(i64, Vec<u8>)> = if old_profiles.get(unit.profile_id.as_str())
             == current_profiles.get(unit.profile_id.as_str())
@@ -292,7 +336,7 @@ pub(crate) fn search_units(
             None
         };
         let reused = previous.as_ref().map(|(id, _)| *id);
-        let bytes = crate::read_units::vector_bytes(&unit.vector);
+        let bytes = crate::read_units::vector_bytes(value.as_ref());
         let changed = previous.as_ref().is_none_or(|(_, old)| *old != bytes);
         let unit_id = if let Some(id) = reused {
             id
@@ -320,14 +364,12 @@ pub(crate) fn search_units(
                 "passage"
             },
         );
-        // Keep the input vector borrowed while obsolete rows are removed.
-        // Materialize only the current insert's blob, not a full second corpus.
-        pending.push((
-            row,
-            table,
-            changed.then_some((unit.vector.as_slice(), reused.is_some())),
-        ));
-    }
+        upsert(c, &row, "unit_id")?;
+        if changed {
+            execute(c,&if reused.is_some(){format!("UPDATE {table} SET embedding=?2 WHERE unit_id=?1")}else{format!("INSERT INTO {table}(unit_id,embedding) VALUES(?1,?2)")},&[Value::Integer(unit_id),Value::Blob(bytes)])?;
+        }
+        Ok(())
+    })?;
     let old_ids = c
         .prepare("SELECT unit_id,profile_id FROM semantic_units")?
         .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?
@@ -341,24 +383,6 @@ pub(crate) fn search_units(
             c.execute("DELETE FROM semantic_units WHERE unit_id=?", [id])?;
         }
     }
-    for (row, table, vector) in pending {
-        let unit_id = row.values[0].clone();
-        upsert(c, &row, "unit_id")?;
-        if let Some((vector, update)) = vector {
-            execute(
-                c,
-                &if update {
-                    format!("UPDATE {table} SET embedding=?2 WHERE unit_id=?1")
-                } else {
-                    format!("INSERT INTO {table}(unit_id,embedding) VALUES(?1,?2)")
-                },
-                &[
-                    unit_id,
-                    Value::Blob(crate::read_units::vector_bytes(vector)),
-                ],
-            )?;
-        }
-    }
     for profile in old_profiles.keys() {
         if !current_profiles.contains_key(profile) {
             c.execute("DELETE FROM search_profiles WHERE profile_id=?", [profile])?;
@@ -369,19 +393,22 @@ pub(crate) fn search_units(
             c.execute_batch(&format!("DROP TABLE {table}"))?;
         }
     }
-    for model in &input.context.search_profiles {
+    for model in &input.context().search_profiles {
         crate::vector_allocation::compact(c, model)?;
     }
     Ok(())
 }
 
-pub(crate) fn lexical_units(
+type LexicalVisitor<'a> = dyn FnMut(&crate::SourceLexicalUnitInput) -> Result<(), IndexError> + 'a;
+type LexicalStream<'a> = dyn FnMut(&mut LexicalVisitor<'_>) -> Result<(), IndexError> + 'a;
+
+pub(crate) fn lexical_stream(
     c: &Connection,
-    units: &[crate::SourceLexicalUnitInput],
     ids: &BTreeMap<RecordKey, i64>,
+    emit: &mut LexicalStream<'_>,
 ) -> Result<(), IndexError> {
     let mut lexical = BTreeSet::new();
-    for unit in units {
+    emit(&mut |unit| {
         let id = crate::writer::product_id(ids, &unit.record)?;
         let hash = sha256(&serde_json::to_vec(unit)?);
         let existing: Option<i64> = c
@@ -395,7 +422,7 @@ pub(crate) fn lexical_units(
             if !lexical.insert(unit_id) {
                 return Err(IndexError::Invalid("duplicate lexical unit".into()));
             }
-            continue;
+            return Ok(());
         }
         let mut row = ProjectionRow::new("lexical_units");
         row.text("input_hash", hash);
@@ -454,7 +481,8 @@ pub(crate) fn lexical_units(
         row.text("definition_terms", &unit.definition_terms);
         row.insert(c)?;
         lexical.insert(c.last_insert_rowid());
-    }
+        Ok(())
+    })?;
     remove_unkept(c, "lexical_units", "unit_id", &lexical)?;
 
     Ok(())

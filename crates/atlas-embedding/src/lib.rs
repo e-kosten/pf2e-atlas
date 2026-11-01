@@ -41,7 +41,7 @@ pub use model_cache::{
 };
 pub use passage_reuse::{PassageLayout, reuse_embedding_section};
 pub use passages::{PassageSection, PreparedEmbeddingInput, prepare_embedding_section};
-pub use prepared_batch::PreparedEmbeddingBatch;
+pub use prepared_batch::{NativeInputDescriptor, PreparedEmbeddingBatch, PreparedNativeInput};
 pub use tokenization::TextEmbeddingTokenizer;
 #[cfg(test)]
 mod historical_passages;

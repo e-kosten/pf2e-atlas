@@ -15,8 +15,15 @@ pub struct SourcePassageLayout {
 
 /// Admit shared segmentation only; model-native token counts and vectors are not
 /// reused here. Current selected text must independently match every input hash.
+#[cfg(any(test, feature = "test-support"))]
 pub fn read_reusable_passage_layouts(
     session: &ReadSession,
+) -> Result<BTreeMap<RecordKey, Vec<SourcePassageLayout>>, IndexError> {
+    read_selected_passage_layouts(session, None)
+}
+pub(crate) fn read_selected_passage_layouts(
+    session: &ReadSession,
+    key: Option<&RecordKey>,
 ) -> Result<BTreeMap<RecordKey, Vec<SourcePassageLayout>>, IndexError> {
     let c = session.connection();
     let Some(context) = crate::read_stored_reference_context(c)? else {
@@ -37,8 +44,20 @@ pub fn read_reusable_passage_layouts(
         return Ok(BTreeMap::new());
     }
     let model_identity = serde_json::to_string(profile)?;
-    let mut statement=c.prepare(&format!("SELECT {},sl.chunk_ordinal AS passage_chunk_ordinal,lower(hex(i.input_hash)) AS passage_input_hash,m.identity_json=?2 AS passage_model_matches FROM semantic_units su JOIN records r ON r.record_id=su.record_id JOIN semantic_locations sl USING(location_id) LEFT JOIN selected_sections ss ON ss.section_id=sl.section_id AND ss.record_id=su.record_id JOIN embedding_inputs i USING(input_id) JOIN embedding_models m USING(model_id) WHERE su.profile_id=?1 AND su.unit_kind='passage' ORDER BY su.record_id,sl.location_id",crate::read_units::SEMANTIC_LOCATION_COLUMNS))?;
-    let mut rows = statement.query([profile.profile_id.as_str(), model_identity.as_str()])?;
+    let filter = if key.is_some() { " AND r.key=?3" } else { "" };
+    let mut statement=c.prepare(&format!("SELECT {},sl.chunk_ordinal AS passage_chunk_ordinal,lower(hex(i.input_hash)) AS passage_input_hash,m.identity_json=?2 AS passage_model_matches FROM semantic_units su JOIN records r ON r.record_id=su.record_id JOIN semantic_locations sl USING(location_id) LEFT JOIN selected_sections ss ON ss.section_id=sl.section_id AND ss.record_id=su.record_id JOIN embedding_inputs i USING(input_id) JOIN embedding_models m USING(model_id) WHERE su.profile_id=?1 AND su.unit_kind='passage' {filter} ORDER BY su.record_id,sl.location_id",crate::read_units::SEMANTIC_LOCATION_COLUMNS))?;
+    let selected = key.map(ToString::to_string);
+    let mut rows = match selected.as_deref() {
+        Some(key) => statement.query(rusqlite::params![
+            profile.profile_id.as_str(),
+            model_identity,
+            key
+        ])?,
+        None => statement.query(rusqlite::params![
+            profile.profile_id.as_str(),
+            model_identity
+        ])?,
+    };
     let mut output: BTreeMap<RecordKey, Vec<SourcePassageLayout>> = BTreeMap::new();
     while let Some(row) = rows.next()? {
         let location = crate::read_units::location(row)?;

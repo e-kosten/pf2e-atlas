@@ -1,16 +1,12 @@
 use crate::{test_support::*, *};
-use atlas_embedding::PreparedEmbeddingInput;
+use atlas_embedding::PreparedNativeInput;
 
-fn prepared(unit: &SourceSemanticUnitInput) -> PreparedEmbeddingInput {
-    PreparedEmbeddingInput {
-        address: unit.address.clone(),
+fn prepared(unit: &SourceSemanticUnitInput) -> PreparedNativeInput {
+    PreparedNativeInput {
         input: String::new(),
         input_sha256: unit.input_hash.clone(),
         reuse_key: format!("{}:{}", unit.profile_id, unit.input_hash),
         token_count: unit.input_token_count,
-        body_token_count: unit.input_token_count,
-        overlap_token_count: 0,
-        context_shortened: false,
     }
 }
 fn count(c: &rusqlite::Connection, table: &str) -> usize {
@@ -103,7 +99,7 @@ fn forced_computation_survives_reopen_without_mutating_published_values() {
     input.semantic_units[0].vector = replacement.clone();
     assert!(
         SqliteIndexWriter::new(&maintenance)
-            .write_job(&input, "wrong-job", &target)
+            .write_job(&input, &input, "wrong-job", &target)
             .is_err()
     );
     assert_eq!(
@@ -117,7 +113,7 @@ fn forced_computation_survives_reopen_without_mutating_published_values() {
         unit.vector
     );
     SqliteIndexWriter::new(&maintenance)
-        .write_job(&input, &job, &target)
+        .write_job(&input, &input, &job, &target)
         .unwrap();
     drop(maintenance);
     drop(owner);

@@ -127,8 +127,9 @@ pub(crate) fn run(path: &Path) -> Result<Value, IndexError> {
                     .parse()
                     .map_err(|error| IndexError::Invalid(format!("invalid pilot key:{error}")))?;
                 let clock = Instant::now();
-                let source = crate::persisted_inputs::read_persisted_input(&c, &context, &key)?
-                    .ok_or_else(|| IndexError::Invalid("pilot lost a checked record".into()))?;
+                let source =
+                    crate::persisted_inputs::read_attested_persisted_input(&c, &context, &key)?
+                        .ok_or_else(|| IndexError::Invalid("pilot lost a checked record".into()))?;
                 read_ms += clock.elapsed().as_secs_f64() * 1000.;
                 let clock = Instant::now();
                 let selection = select_record_search(

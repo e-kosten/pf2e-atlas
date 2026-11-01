@@ -523,6 +523,13 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
     );
     assert!(after.remove("encounter_turn_receipts").unwrap().is_empty());
     assert!(
+        after
+            .remove("reference_component_digests")
+            .unwrap()
+            .is_empty(),
+        "schema-only upgrades must leave component attestations unknown"
+    );
+    assert!(
         after == before,
         "unexpected changed logical tables: {:?}",
         before
@@ -809,6 +816,18 @@ fn lexical_backfill_refreshes_current_core_atomically_without_rewriting_other_da
         [input.records[0].record.key().to_string()],
     ).unwrap();
     let before = table_values(write.connection());
+    let prior_digests = write
+        .connection()
+        .prepare(
+            "SELECT record_id,digests_json FROM reference_component_digests ORDER BY record_id",
+        )
+        .unwrap()
+        .query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })
+        .unwrap()
+        .collect::<Result<BTreeMap<_, _>, _>>()
+        .unwrap();
     let core_values = |c: &rusqlite::Connection| {
         [
             "core_roots",
@@ -867,15 +886,76 @@ fn lexical_backfill_refreshes_current_core_atomically_without_rewriting_other_da
         [], |row| row.get(0),
     ).unwrap();
     assert_eq!(alias_members, 1);
+    let after_values = table_values(read.connection());
+    let new_digests = read
+        .connection()
+        .prepare(
+            "SELECT record_id,digests_json FROM reference_component_digests ORDER BY record_id",
+        )
+        .unwrap()
+        .query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })
+        .unwrap()
+        .collect::<Result<BTreeMap<_, _>, _>>()
+        .unwrap();
+    assert_eq!(
+        prior_digests.keys().collect::<Vec<_>>(),
+        new_digests.keys().collect::<Vec<_>>()
+    );
+    let alias_root: i64 = read
+        .connection()
+        .query_row(
+            "SELECT record_id FROM records WHERE key=?",
+            [input.records[0].record.key().to_string()],
+            |r| r.get(0),
+        )
+        .unwrap();
+    for (id, prior) in &prior_digests {
+        let prior: serde_json::Value = serde_json::from_str(prior).unwrap();
+        let updated: serde_json::Value = serde_json::from_str(&new_digests[id]).unwrap();
+        for component in [
+            "snapshot",
+            "query",
+            "content",
+            "relationships",
+            "sections",
+            "trait_associations",
+            "core",
+        ] {
+            assert_eq!(
+                updated[component], prior[component],
+                "unrelated {component} digest changed for root {id}"
+            );
+        }
+        if *id == alias_root {
+            assert_ne!(updated["lexical"], prior["lexical"]);
+        } else {
+            assert_eq!(updated["lexical"], prior["lexical"]);
+        }
+    }
+    let active = read_stored_reference_context(read.connection())
+        .unwrap()
+        .unwrap();
+    crate::component_digests::validate_present(read.connection(), &active).unwrap();
     let nonlexical = |values: BTreeMap<String, Vec<Vec<rusqlite::types::Value>>>| {
         values
             .into_iter()
-            .filter(|(table, _)| !table.starts_with("lexical_"))
+            .filter(|(table, _)| {
+                !table.starts_with("lexical_") && table != "reference_component_digests"
+            })
             .collect::<BTreeMap<_, _>>()
     };
-    assert_eq!(
-        nonlexical(table_values(read.connection())),
-        nonlexical(before)
+    let after_values = nonlexical(after_values);
+    let before_values = nonlexical(before);
+    assert!(
+        after_values == before_values,
+        "unexpected changed nonlexical tables: {:?}",
+        before_values
+            .keys()
+            .chain(after_values.keys())
+            .filter(|key| before_values.get(*key) != after_values.get(*key))
+            .collect::<std::collections::BTreeSet<_>>()
     );
     assert_eq!(
         read_stored_reference_context(read.connection())

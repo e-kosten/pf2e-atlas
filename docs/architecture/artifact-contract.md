@@ -113,6 +113,23 @@ unavailable under the blocked context; current publication and bounded decoders
 reject it. Explicit setup prepares current sections and reuses exact native values
 before removing obsolete occurrences. Empty fields have no invented section row.
 
+Workspace migration 26 adds closed index-owned record component digests and root-key
+indexes for trait membership/reference reconciliation. Existing trait-key primary
+keys remain the trait lookup owner. Removed-root associations are pruned by their
+exact old key before parent deletion, preserving live-root rows and saved identities. Schema
+upgrade leaves entries absent until actual publication; absence attests nothing.
+The fixed recipe binds eight named component hashes, with strict typed decoding.
+Publication writes them only with coherent projections and independently checks
+all present hashes inside the exact final transaction. Metadata-only upgrades
+refresh existing hashes after their dependent projections change. Saved state,
+source/native recipes and historical migration callbacks retain their owners.
+
+Prepared publication files are disposable task state rather than another
+persistent database. A sealed stream binds workspace/revision, context, complete
+source inventory, counts and byte checksums. Typed frames have trusted observed
+size bounds and bounded decoding; they cannot supply SQL or persistent identity.
+A stale, truncated, damaged or unsealed stream cannot authorize deletion.
+
 Pre-release separate-file formats have no compatibility reader or conversion
 shim. Future workspace upgrades use ordered migrations with recorded checksums,
 a consistent backup before structural changes, and transaction-scoped validation.

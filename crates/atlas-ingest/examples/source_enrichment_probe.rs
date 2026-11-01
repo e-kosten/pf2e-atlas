@@ -142,7 +142,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let enriched = enrich_loaded_source(
         loaded,
         SourceEnrichmentContext {
-            preparation_context_hash: None,
             audience,
             localization: Some(&locale),
         },

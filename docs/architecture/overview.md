@@ -57,14 +57,15 @@ record corpus. See [ADR0056](./decisions/0056-trait-reference-entities.md).
 
 ## Data flow
 
-1. Ingest loads the source checkout into admitted authored DTOs with compact
-   provenance and developer diagnostics. `SourceBackedRecord` retains a key and
+1. Ingest captures source bytes and stages one admitted authored root at a time,
+   retaining compact global resolver/collision evidence and developer diagnostics. `SourceBackedRecord` retains a key and
    one DTO; it does not duplicate or normalize every source field.
 2. Pure record policies select content and useful facts. Ingest supplies explicit
    locale, audience and reference resolution inputs, prepares sanitized HTML and
    builds query/search/relationship inputs. Embedding independently covers selected
    explanatory prose and compact identity units.
-3. Index reconciles and validates reference changes in one transaction inside the
+3. Index consumes sealed typed streams through one writer and reconciles closed
+   record components, then independently validates changes in one transaction inside the
    existing workspace. Saved state and stable identities survive publication.
    Checked snapshots are authoritative; named relational query rows,
    HTML caches, lookup evidence and lexical/vector units are rebuildable projections.

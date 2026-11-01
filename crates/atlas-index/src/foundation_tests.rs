@@ -611,7 +611,7 @@ fn reference_validation_rejects_missing_reference_sidecar() {
     synchronize_fixture_terms(&mut input);
     let (_directory, path) = build(&input);
     let db = Connection::open(&path).unwrap();
-    let records = crate::read_persisted_inputs(&db, &input.context).unwrap();
+    let records = crate::collect_persisted_inputs_for_fixture(&db, &input.context).unwrap();
     assert!(records.iter().any(|r| r.record.key() == &key));
     db.execute_batch("SAVEPOINT reference_metadata").unwrap();
     assert_eq!(db.execute(
@@ -1600,7 +1600,8 @@ fn persisted_preparation_reconstructs_exact_publication_inputs_without_query_cat
     connection
         .execute("DELETE FROM query_field_catalog", [])
         .unwrap();
-    let restored = crate::read_persisted_inputs(&connection, &input.context).unwrap();
+    let restored =
+        crate::collect_persisted_inputs_for_fixture(&connection, &input.context).unwrap();
     assert_eq!(restored.len(), input.records.len());
     for original in &input.records {
         let restored = restored

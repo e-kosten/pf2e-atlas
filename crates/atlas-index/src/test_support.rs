@@ -183,6 +183,12 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
             apply: crate::backfill_selected_sections,
         }),
     },
+    Migration {
+        version: 26,
+        name: "reference-component-reconciliation",
+        sql: crate::COMPONENT_DIGEST_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
@@ -222,7 +228,7 @@ pub fn publish_pre_core_fixture(
         connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
         let (ids, _) = crate::writer::write_record_base(connection, input)?;
         crate::historical_publication::search_units(connection, input, &ids)?;
-        crate::traits::write_traits(connection, input)?;
+        crate::traits::write_traits_stream(connection, input, input)?;
         if version == 20 {
             crate::similarity_projection::write_similarity_parts(connection, input)?;
         }
@@ -258,7 +264,7 @@ pub fn publish_pre_section_fixture(
         connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
         let (ids, _) = crate::writer::write_record_base(connection, input)?;
         crate::historical_publication::search_units(connection, input, &ids)?;
-        crate::traits::write_traits(connection, input)?;
+        crate::traits::write_traits_stream(connection, input, input)?;
         crate::similarity_projection::write_similarity_parts(connection, input)?;
         crate::historical_core_projection::write_core_sections(connection, input)?;
         let mut context = input.context.clone();
@@ -383,19 +389,11 @@ fn set_preparation_policy(
     let c = write.connection();
     let mut context = crate::read_stored_reference_context(c)?
         .ok_or_else(|| IndexError::Invalid("fixture has no reference context".into()))?;
-    let records = crate::read_persisted_inputs(c, &context)?;
+    let previous = context.clone();
     update(&mut context);
-    let json = serde_json::to_string(&context)?;
-    c.execute(
-        "UPDATE artifact_context SET context_hash=?1,context_json=?2",
-        [crate::codec::sha256(json.as_bytes()), json],
-    )?;
-    c.execute(
-        "UPDATE prepared_content SET preparation_context_hash=?",
-        [context.preparation_sha256()?],
-    )?;
-    for mut source in records {
-        source.preparation_context_hash = context.preparation_sha256()?;
+    let preparation = context.preparation_sha256()?;
+    crate::visit_persisted_inputs(c, &previous, &mut |mut source| {
+        source.preparation_context_hash = preparation.clone();
         let (id, label): (i64, String) = c.query_row(
             "SELECT r.record_id,p.label FROM records r JOIN packs p USING(pack_id) WHERE r.key=?",
             [source.record.key().to_string()],
@@ -405,7 +403,17 @@ fn set_preparation_policy(
             "UPDATE projection_allocations SET input_hash=? WHERE record_id=?",
             rusqlite::params![crate::publication_delta::root_digest(&source, &label)?, id],
         )?;
-    }
+        Ok(())
+    })?;
+    let json = serde_json::to_string(&context)?;
+    c.execute(
+        "UPDATE artifact_context SET context_hash=?1,context_json=?2",
+        [crate::codec::sha256(json.as_bytes()), json],
+    )?;
+    c.execute(
+        "UPDATE prepared_content SET preparation_context_hash=?",
+        [preparation],
+    )?;
     write.commit()?;
     Ok(())
 }
@@ -415,10 +423,46 @@ pub fn stage_historical_embedding_fixture(
     session: &atlas_storage::WriteSession,
     job: &str,
     model: &crate::SourceSearchProfileIdentity,
-    input: &atlas_embedding::PreparedEmbeddingInput,
+    input: &atlas_embedding::PreparedNativeInput,
     vector: &[f32],
 ) -> Result<(), IndexError> {
     let bytes = crate::read_units::vector_bytes(vector);
     session.connection().execute("INSERT INTO embedding_checkpoints VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(reuse_key) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,touched_job=excluded.touched_job",rusqlite::params![input.reuse_key,serde_json::to_string(model)?,input.input_sha256,input.token_count,model.dimensions,bytes,crate::codec::sha256(&bytes),job])?;
+    Ok(())
+}
+
+/// Deliberately encode a codec-valid altered retained snapshot for corruption
+/// fixtures. Callers leave the source bytes and prior component proof unchanged.
+pub fn altered_snapshot_for_fixture(
+    source: &atlas_foundry_model::FoundryDocumentSource,
+) -> Result<Vec<u8>, IndexError> {
+    crate::codec::gzip(&atlas_foundry_model::encode_snapshot(source)?)
+}
+
+/// Change visible prose while retaining valid gzip, reference markers and all
+/// existing cache sidecars. This deliberately leaves its prior proof stale.
+pub fn alter_retained_html_for_fixture(
+    connection: &rusqlite::Connection,
+    key: &atlas_domain::RecordKey,
+    field: &str,
+    from: &str,
+    to: &str,
+) -> Result<(), IndexError> {
+    let (id, bytes): (i64, Vec<u8>) = connection.query_row(
+        "SELECT content_id,html_gzip FROM prepared_content WHERE record_id=(SELECT record_id FROM records WHERE key=?) AND field_path=?",
+        rusqlite::params![key.to_string(), field],
+        |row| Ok((row.get(0)?,row.get(1)?)),
+    )?;
+    let html = String::from_utf8(crate::codec::gunzip(&bytes)?)
+        .map_err(|e| IndexError::Invalid(e.to_string()))?;
+    if !html.contains(from) {
+        return Err(IndexError::Invalid(
+            "fixture replacement prose is absent".into(),
+        ));
+    }
+    connection.execute(
+        "UPDATE prepared_content SET html_gzip=? WHERE content_id=?",
+        rusqlite::params![crate::codec::gzip(html.replace(from, to).as_bytes())?, id],
+    )?;
     Ok(())
 }

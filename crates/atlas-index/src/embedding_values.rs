@@ -5,7 +5,7 @@ use crate::{
     read_units::{decode_vector, vector_bytes},
     validation::check_vector,
 };
-use atlas_embedding::PreparedEmbeddingInput;
+use atlas_embedding::PreparedNativeInput;
 use atlas_storage::{ReadSession, WriteSession};
 use rusqlite::{Connection, OptionalExtension, params};
 use std::collections::BTreeMap;
@@ -82,7 +82,7 @@ pub(crate) fn publish_input(
 pub fn read_reusable_embeddings(
     session: &ReadSession,
     model: &SourceSearchProfileIdentity,
-    inputs: &[PreparedEmbeddingInput],
+    inputs: &[PreparedNativeInput],
 ) -> Result<BTreeMap<String, Vec<f32>>, IndexError> {
     let c = session.connection();
     let identity = serde_json::to_string(model)?;
@@ -98,7 +98,7 @@ pub fn read_reusable_embeddings(
                 || input.token_count > model.token_limit
                 || requested
                     .get(&hash)
-                    .is_some_and(|previous: &&PreparedEmbeddingInput| {
+                    .is_some_and(|previous: &&PreparedNativeInput| {
                         previous.token_count != input.token_count
                     })
             {
@@ -157,7 +157,7 @@ pub fn stage_embedding_values(
     session: &WriteSession,
     job: &str,
     model: &SourceSearchProfileIdentity,
-    batch: &[(&PreparedEmbeddingInput, &[f32])],
+    batch: &[(&PreparedNativeInput, &[f32])],
 ) -> Result<(), IndexError> {
     let c = session.connection();
     for (input, vector) in batch {

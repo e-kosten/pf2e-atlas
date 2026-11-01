@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 25;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 26;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -169,6 +169,12 @@ const MIGRATIONS: &[Migration] = &[
             id: "canonical-selected-sections/v1",
             apply: atlas_index::backfill_selected_sections,
         }),
+    },
+    Migration {
+        version: 26,
+        name: "reference-component-reconciliation",
+        sql: atlas_index::COMPONENT_DIGEST_SCHEMA_SQL,
+        backfill: None,
     },
 ];
 
@@ -679,6 +685,7 @@ mod tests {
                 "encounter_participant_baselines",
                 "encounter_recovery_receipts",
                 "encounter_turn_receipts",
+                "reference_component_digests",
             ] {
                 if let Some(rows) = values.remove(table) {
                     assert!(rows.is_empty(), "unexpected rows in {table}");
@@ -734,6 +741,7 @@ mod tests {
             "encounter_participant_baselines",
             "encounter_recovery_receipts",
             "encounter_turn_receipts",
+            "reference_component_digests",
         ] {
             assert_eq!(
                 reader

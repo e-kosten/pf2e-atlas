@@ -374,15 +374,11 @@ fn retired_preparation_and_predecessor_never_decode_snapshots_or_alter_pending_v
         c.execute_batch("CREATE TABLE saved_probe(id INTEGER PRIMARY KEY,note TEXT); INSERT INTO saved_probe VALUES(1,'survives retired source');").unwrap();
         let model = &input.context.search_profiles[0];
         let unit = &input.semantic_units[0];
-        let prepared = atlas_embedding::PreparedEmbeddingInput {
-            address: unit.address.clone(),
+        let prepared = atlas_embedding::PreparedNativeInput {
             input: String::new(),
             input_sha256: unit.input_hash.clone(),
             reuse_key: "forced".into(),
             token_count: unit.input_token_count,
-            body_token_count: unit.input_token_count,
-            overlap_token_count: 0,
-            context_shortened: false,
         };
         let mut forced = vec![0.; model.dimensions];
         forced[31] = 1.;

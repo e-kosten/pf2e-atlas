@@ -249,6 +249,7 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
     tracing::info!(target:"atlas_progress",phase="artifact_vector_integrity","Checking semantic search index");
     validate_vectors(c, &context, product_count)?;
     validate_aliases(c)?;
+    crate::component_digests::validate_present(c, &context)?;
     let mut urls=c.prepare("SELECT target_url FROM relationship_occurrences WHERE resolution IN ('resolved_url','unverified_url')")?;
     for url in urls.query_map([], |r| r.get::<_, String>(0))? {
         if !atlas_record::source_content::is_safe_content_url(&url?) {
