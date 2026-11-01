@@ -639,7 +639,8 @@ fn validate_vectors(
         let expected = crate::native_values::expected_bytes(model)?;
         // LEFT JOIN and guarded payloads preserve missing/oversized-row failure
         // without allocating an untrusted BLOB before its geometry is checked.
-        let mut statement = c.prepare(&format!("SELECT i.token_count,length(i.input_hash),CASE WHEN length(v.embedding)=?2 THEN v.embedding ELSE zeroblob(0) END,CASE WHEN length(i.published_hash)=32 THEN i.published_hash ELSE zeroblob(0) END FROM embedding_inputs i JOIN embedding_models m USING(model_id) LEFT JOIN {table} v USING(input_id) WHERE m.identity_json=?1 AND i.published_hash IS NOT NULL ORDER BY i.input_id"))?;
+        // Stream in input-ID order to avoid a sorter carrying numerical BLOBs.
+        let mut statement = c.prepare(&format!("SELECT i.token_count,length(i.input_hash),CASE WHEN length(v.embedding)=?2 THEN v.embedding ELSE zeroblob(0) END,CASE WHEN length(i.published_hash)=32 THEN i.published_hash ELSE zeroblob(0) END FROM embedding_inputs i NOT INDEXED JOIN embedding_models m USING(model_id) LEFT JOIN {table} v USING(input_id) WHERE m.identity_json=?1 AND i.published_hash IS NOT NULL ORDER BY i.input_id"))?;
         let mut rows = statement.query(rusqlite::params![identity, expected])?;
         let mut checked = 0usize;
         while let Some(row) = rows.next()? {
