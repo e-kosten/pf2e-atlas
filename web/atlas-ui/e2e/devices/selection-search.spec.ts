@@ -92,7 +92,7 @@ test("linked-preview search preserves the reader in a new tab and closes it for 
   await expect(drawer).toBeVisible();
   const originalUrl = page.url();
   let selected = await selectParagraph(page, drawer, info);
-  const opened = page.waitForEvent("popup");
+  const opened = page.context().waitForEvent("page");
   await selected.action.click({ modifiers: ["ControlOrMeta"] });
   const child = await opened;
   await child.waitForLoadState();

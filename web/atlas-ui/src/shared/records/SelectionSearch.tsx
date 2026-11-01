@@ -176,7 +176,7 @@ export function SelectionSearch() {
       placement="bottom"
       arrow={false}
       getPopupContainer={() => selected.container}
-      styles={{ container: { padding: 4 } }}
+      styles={{ root: { pointerEvents: "auto" }, container: { padding: 4 } }}
       content={
         <div ref={popup} role="group" aria-label="Search selected text">
           <Button
