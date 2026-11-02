@@ -2315,6 +2315,9 @@ test("Other editions keeps exact source citation navigation and comparison", asy
   const drawer = page.locator(".record-preview-drawer");
   await expect(drawer).toBeVisible();
   await expect(
+    page.locator(".record-preview-drawer-root .ant-drawer-content-wrapper"),
+  ).toHaveCSS("transform", "none");
+  await expect(
     drawer.getByRole("heading", { name: "Class Features", exact: true }).first(),
   ).toBeVisible();
   await expect(
