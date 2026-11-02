@@ -150,10 +150,13 @@ checksum checks. Complete reference audit remains `atlas index validate`. Tests
 of deliberately malformed internal fixture outputs exercise that explicit audit,
 while producer tests protect the normal generation loops.
 
-Implementation and focused tests are recorded in the current local plan; final
-measurements, full validation and published-head CI remain separate delivery gates.
-The mechanical-only checkpoint has not demonstrated an elapsed-time improvement;
-source work-count reductions alone do not establish a speedup.
+Implementation, independent review, full local validation and matched final
+measurements are complete at `ffe1b50f`. Cached ingest took 141.99 seconds and the
+same Heal edit took 144.68 seconds; separate complete audits passed afterward.
+The [dated R8 findings](../../research/database-ingest-revision.md#2026-11-02-r8-ingest-and-validation-simplification)
+record baselines, assurance changes and measurement limits. The mechanical-only
+checkpoint showed no measured speedup. Published-head CI and human acceptance
+remain separate delivery gates.
 
 ### Deferred reference rebuild
 

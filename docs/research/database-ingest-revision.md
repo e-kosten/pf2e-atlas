@@ -374,3 +374,74 @@ Asset and browser receipts are under `.atlas/validation/revised-cached-assets/`
 and `.atlas/validation/revised-browser/`; each operation's phase-event report is
 beside its closeout. The receipts retain the specific validation bindings and
 subordinate proofs used for each claim.
+
+## 2026-11-02: R8 ingest and validation simplification
+
+R8 removes repeated preparation and descriptor streams, combines bounded native
+preparation/selection/inference, and gates unchanged section, trait and Core work.
+Normal source publication remains atomic but uses typed construction and SQL
+constraints instead of reconstructing the complete result for a health audit.
+Untouched committed data is trusted; failed publication may reopen an already
+damaged prior state. `atlas index validate` retains explicit complete validation.
+The separate reference repair/rebuild command is deferred and was not added.
+
+The measured normal release is `ffe1b50f5093ddc01436f7cc70c63a034e7295d6`, code input
+`cc7abefc5c8011d9401878bd9aead66c4a5dcc9169d135f0b2768d27f2740cf2`, binary SHA256
+`44a81e4c231e91e24ff2e1ece227be01373e2026f29b6d60296fe878745ae708`.
+It uses Rust1.95.0, opt3/default+web, storage diagnostics disabled and rusqlite
+without trace. A SQL query linked to its bundled static library reports SQLite
+3.51.3, including the [WAL-reset correction](https://www.sqlite.org/wal.html#walreset);
+baseline/mechanical releases use 3.50.2. This prerequisite was a separate
+dependency commit, without a new migration.
+
+The fresh baseline is normal release `8bc73b73`, code input `e0374a13…`, binary
+`322b8789fb8a577136b55b7739cf35a45d5214212c099a0d4c6cb76362c684b8`.
+One authentic released main24 seed was converted into a private current29
+workspace; its initial conversion/build and recorded pause are excluded. Matched
+runs use the same original-source checkpoint, paths, model assets, both profiles
+and real `index build` command. The edit appends one fixed paragraph to Heal's
+description while preserving the source file's remaining bytes.
+
+| Normal ingest observation | Wall seconds | Peak process RSS | Inferred / reused inputs |
+| --- | ---: | ---: | ---: |
+| `8bc73b73`, cached | 243.977 | 0.845 GiB | 0 / 323,022 |
+| `ac1261b5`, mechanical-only cached | 247.044 | 0.889 GiB | 0 / 323,022 |
+| `ffe1b50f`, cached | 141.987 | 0.894 GiB | 0 / 323,022 |
+| `8bc73b73`, Heal edit | 249.781 | 4.432 GiB | 2 / 323,020 |
+| `ffe1b50f`, same Heal edit | 144.678 | 4.223 GiB | 2 / 323,020 |
+
+Explicit deep audits ran **after** the final ingest timers: 56.981 seconds for
+cached and 57.633 seconds for edited, each checking 29,894 snapshots and published
+numerical payloads. Optional ingest-plus-audit totals are therefore 198.968 and
+202.311 seconds. These committed-state audits do not recreate the former
+precommit rejection guarantee. Ordinary publication's zero checked-snapshot report
+is supported by source/tests; the build CLI JSON does not expose that field.
+
+The cached oracle found exact logical and physical metadata equality, including
+model/input/token/published-checksum bindings and ordered traits. The edit changed
+only Heal among 29,894 logical/physical roots; the other 29,893 were byte-equal.
+All 22 saved tables, allocation counters and 30,430 stable identities survived.
+Exactly two old native inputs were removed and two declared new inputs added;
+323,020 retained identities, token counts and published checksums were unchanged.
+Independent frozen input controls matched the new body hashes and profile token
+counts. Retained checksum equality plus fresh full-payload audits supports
+numerical-byte preservation; results were not independently re-inferred. Shared
+model bytes, metadata and link counts remained unchanged. The final main database is 1.558 GiB; process RSS is a different quantity.
+
+The mechanical-only observation shows no measured cached speedup. Final cached
+and edit observations are about 41.8% and 42.1% lower than their fresh baselines,
+with modest edit-RSS reduction. Single serial runs, uncontrolled host/model/OS
+caches, changed SQLite and audit placement prevent statistical or isolated causal
+claims. No net source-code reduction is claimed. Local Rust, developer, frontend,
+source, release, tooling/research/skill gates, three compatibility browser cases
+and three real-model cache/force/failure fixtures passed on the stated candidate.
+One unchanged managed-preview test exited 2 once; its discarded child output left
+the cause unproven. Isolated and full developer reruns passed without a source fix;
+the original failure remains retained.
+
+Local evidence is indexed by `.atlas/validation/r8-simplification/final-closeout.json`:
+`final-gates/closeout.json` identifies actual gate receipts and retained failures;
+`final/freeze.json`, `final/sqlite-version.json`, `final/cached-closeout.json` and
+`final/small-edit-closeout.json` bind releases, timings and separate audits.
+`final/cached-oracle-comparison.json` and `final/small-edit-proof.json` record the
+preservation proofs. Hosted PR/CI and human acceptance are separate delivery gates.
