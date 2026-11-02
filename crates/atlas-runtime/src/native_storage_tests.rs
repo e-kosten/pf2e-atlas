@@ -1,19 +1,11 @@
 //! Direct upgrades from published layouts preserve numerical and saved identities.
 use super::*;
+use crate::test_support::sql_rows as rows;
 use atlas_index::{IndexBuildInput, SourceSearchProfileIdentity};
 use rusqlite::{Connection, params, types::Value};
 use std::collections::BTreeMap;
 
 type Rows = Vec<Vec<Value>>;
-fn rows(c: &Connection, sql: &str) -> Rows {
-    let mut statement = c.prepare(sql).unwrap();
-    let count = statement.column_count();
-    statement
-        .query_map([], |row| (0..count).map(|column| row.get(column)).collect())
-        .unwrap()
-        .collect::<Result<_, _>>()
-        .unwrap()
-}
 fn bytes(vector: &[f32]) -> Vec<u8> {
     vector
         .iter()

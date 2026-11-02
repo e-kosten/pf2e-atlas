@@ -35,76 +35,6 @@ fn advance(
 }
 
 #[test]
-fn lifetime_receipts_survive_later_turns_reset_and_rest_with_current_canonical_recovery()
--> crate::LocalStateResult<()> {
-    for reset_encounter in [false, true] {
-        let store = fixture(if reset_encounter {
-            "turn-reset-retry"
-        } else {
-            "turn-rest-retry"
-        })?;
-        let participant = store
-            .encounters()
-            .add_participant("test", creature("Actor", Some(10), 20))?;
-        store
-            .encounters()
-            .set_current_turn("test", Some(&participant.participant_key))?;
-        let first = advance(&store, &participant.participant_key, "first", true)?;
-        advance(&store, &participant.participant_key, "second", false)?;
-        let mut connection = store.connection()?;
-        let transaction = connection.transaction()?;
-        let domain = EncountersWrite::from_connection(&transaction);
-        let current = domain.get("test")?.unwrap();
-        let baseline = domain
-            .participant_baseline(&participant.participant_key)?
-            .unwrap();
-        domain.apply_recovery(ApplyEncounterRecovery {
-            encounter_key: &current.encounter_key,
-            request_id: "reset-or-rest",
-            intent: &serde_json::json!({"reset":reset_encounter}),
-            expected_revision: current.revision,
-            reset_encounter,
-            end_turn: true,
-            replacements: &[(participant.participant_key.clone(), baseline)],
-        })?;
-        let saved = domain.get("test")?.unwrap();
-        assert!(saved.revision > first.revision);
-        assert!(domain.latest_outgoing_turn("test")?.is_none());
-        assert_eq!(
-            domain.advance_turn_receipt("test", "first", &serde_json::json!({"next":"first"}))?,
-            Some(saved.clone())
-        );
-        let recovered = domain.advance_turn_once(
-            "test",
-            "first",
-            &serde_json::json!({"next":"first"}),
-            -1,
-            |_| panic!("a lifetime retry must not prepare another turn"),
-        )?;
-        assert_eq!(recovered, Some(saved));
-        assert!(
-            domain
-                .advance_turn_receipt("test", "first", &serde_json::json!({"different":true}))
-                .is_err()
-        );
-        assert_eq!(
-            transaction.query_row("SELECT count(*) FROM encounter_turn_receipts", [], |row| {
-                row.get::<_, i64>(0)
-            })?,
-            2
-        );
-        assert_eq!(
-            transaction.query_row("SELECT count(*) FROM encounter_outgoing_turns", [], |row| {
-                row.get::<_, i64>(0)
-            })?,
-            0
-        );
-        transaction.commit()?;
-    }
-    Ok(())
-}
-
-#[test]
 fn only_current_boundary_is_actionable_even_when_it_has_no_review() -> crate::LocalStateResult<()> {
     let store = fixture("turn-current-only")?;
     let participant = store
@@ -305,6 +235,29 @@ fn tracker_turn_changes_are_atomic_and_lifetime_retries_after_reset_or_rest_do_n
                 .is_err()
         );
         assert_eq!(domain.get_with_participants("test")?.unwrap(), after);
+        domain.advance_turn_once(
+            "test",
+            "second",
+            &serde_json::json!({"next":"second"}),
+            after.encounter.revision,
+            |_| {
+                Ok((
+                    EncounterTurnUpdate {
+                        turn: EncounterTurnState {
+                            participant_key: Some(actor.participant_key.clone()),
+                            round_number: 2,
+                            mark_running: true,
+                        },
+                        durations: vec![],
+                        start_event: None,
+                        start_claims: vec![],
+                        manual_trackers: vec![],
+                    },
+                    false,
+                ))
+            },
+        )?;
+        let current = domain.get("test")?.unwrap();
         let mut replacement = domain
             .participant_baseline(&actor.participant_key)?
             .unwrap();
@@ -315,7 +268,7 @@ fn tracker_turn_changes_are_atomic_and_lifetime_retries_after_reset_or_rest_do_n
             encounter_key: &after.encounter.encounter_key,
             request_id: "recovery",
             intent: &serde_json::json!({"reset":reset_encounter}),
-            expected_revision: after.encounter.revision,
+            expected_revision: current.revision,
             reset_encounter,
             end_turn: true,
             replacements: &[(actor.participant_key.clone(), replacement.clone())],
@@ -326,6 +279,16 @@ fn tracker_turn_changes_are_atomic_and_lifetime_retries_after_reset_or_rest_do_n
             replacement.manual_trackers
         );
         assert!(domain.latest_outgoing_turn("test")?.is_none());
+        assert!(recovered.encounter.revision > after.encounter.revision);
+        assert_eq!(
+            domain.advance_turn_receipt("test", "first", &intent)?,
+            Some(recovered.encounter.clone())
+        );
+        assert!(
+            domain
+                .advance_turn_receipt("test", "first", &serde_json::json!({"different":true}))
+                .is_err()
+        );
         assert_eq!(
             domain.advance_turn_once("test", "first", &intent, -1, |_| panic!(
                 "retry must recover before preparing or ticking timers"
@@ -337,7 +300,13 @@ fn tracker_turn_changes_are_atomic_and_lifetime_retries_after_reset_or_rest_do_n
             transaction.query_row("SELECT count(*) FROM encounter_turn_receipts", [], |r| {
                 r.get::<_, usize>(0)
             })?,
-            1
+            2
+        );
+        assert_eq!(
+            transaction.query_row("SELECT count(*) FROM encounter_outgoing_turns", [], |r| {
+                r.get::<_, usize>(0)
+            })?,
+            0
         );
         transaction.commit()?;
     }

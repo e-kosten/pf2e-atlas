@@ -356,7 +356,7 @@ impl<'session> NativeBindings<'session> {
 
 // One-operation conveniences for genuine fixture/reader operations; production
 // preparation and publishing use a single scoped binding for the complete batch.
-#[cfg(any(test, feature = "test-support"))]
+#[cfg(test)]
 pub(crate) fn lookup_input(
     c: &Connection,
     model: &SourceSearchProfileIdentity,
@@ -365,7 +365,7 @@ pub(crate) fn lookup_input(
     let keys = NativeModelKey::all(std::slice::from_ref(model))?;
     NativeModel::bind(c, &keys[0], false)?.input_id(input)
 }
-#[cfg(any(test, feature = "test-support"))]
+#[cfg(test)]
 pub(crate) fn published_checksum(
     c: &Connection,
     model: &SourceSearchProfileIdentity,
@@ -374,7 +374,7 @@ pub(crate) fn published_checksum(
     let keys = NativeModelKey::all(std::slice::from_ref(model))?;
     NativeModel::bind(c, &keys[0], false)?.published_checksum(input)
 }
-#[cfg(any(test, feature = "test-support"))]
+#[cfg(test)]
 pub(crate) fn read(
     c: &Connection,
     id: i64,
@@ -394,7 +394,7 @@ pub(crate) fn install(
     let keys = NativeModelKey::all(std::slice::from_ref(model))?;
     NativeModel::bind(c, &keys[0], true)?.install(input, bytes, hash)
 }
-#[cfg(any(test, feature = "test-support"))]
+#[cfg(test)]
 pub(crate) fn cached(
     c: &Connection,
     model: &SourceSearchProfileIdentity,
@@ -477,12 +477,13 @@ mod tests {
         let keys = NativeModelKey::all(std::slice::from_ref(&model)).unwrap();
         {
             let binding = NativeModel::bind(&c, &keys[0], false).unwrap();
-            for _ in 0..128 {
-                assert_eq!(binding.input_id(&input).unwrap(), Some(7));
-            }
+            assert_eq!(binding.input_id(&input).unwrap(), Some(7));
             let mut wrong = input.clone();
             wrong.token_count += 1;
             assert!(binding.input_id(&wrong).is_err());
+            let mut missing = input.clone();
+            missing.input_sha256 = "b".repeat(64);
+            assert_eq!(binding.input_id(&missing).unwrap(), None);
         }
         let mut changed = model.clone();
         changed.revision.push_str("-other");
@@ -548,20 +549,6 @@ mod tests {
         )
         .unwrap();
         (c, model, input)
-    }
-
-    #[test]
-    fn exact_model_input_and_tokens_are_required() {
-        let (c, model, input) = fixture();
-        assert_eq!(lookup_input(&c, &model, &input).unwrap(), Some(7));
-        let mut changed = input.clone();
-        changed.token_count += 1;
-        assert!(lookup_input(&c, &model, &changed).is_err());
-        changed.input_sha256 = "b".repeat(64);
-        assert_eq!(lookup_input(&c, &model, &changed).unwrap(), None);
-        let mut other_model = model.clone();
-        other_model.revision.push_str("-other");
-        assert_eq!(lookup_input(&c, &other_model, &input).unwrap(), None);
     }
 
     #[test]

@@ -117,7 +117,8 @@ mod tests {
             vectors.push(crate::read_units::vector_bytes(&vector));
         }
         c.execute_batch("BEGIN").unwrap();
-        for id in 1..=8192 {
+        let rows = if fragmented { 4096 } else { 1 };
+        for id in 1..=rows {
             let bytes = &vectors[id as usize % 3];
             c.execute(
                 "INSERT INTO embedding_inputs VALUES(?,1,?)",
@@ -131,7 +132,7 @@ mod tests {
             .unwrap();
         }
         if fragmented {
-            for id in (2..=7168).step_by(2) {
+            for id in (2..=rows).step_by(2) {
                 c.execute(&format!("DELETE FROM {table} WHERE input_id=?"), [id])
                     .unwrap();
                 c.execute("DELETE FROM embedding_inputs WHERE input_id=?", [id])

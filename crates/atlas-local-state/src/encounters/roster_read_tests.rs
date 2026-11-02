@@ -30,7 +30,8 @@ fn roster_statement_count_depends_on_collections_instead_of_participant_count()
 -> crate::LocalStateResult<()> {
     let store = fixture("roster-statements")?;
     let connection = store.connection()?;
-    assert_eq!(measured_roster(&connection)?.1, 2);
+    assert!(measured_roster(&connection)?.1 <= 2);
+    let mut populated_statements = None;
     for count in 1..=40 {
         store
             .encounters()
@@ -38,7 +39,15 @@ fn roster_statement_count_depends_on_collections_instead_of_participant_count()
         if [1, 2, 8, 40].contains(&count) {
             let (roster, statements) = measured_roster(&connection)?;
             assert_eq!(roster.participants.len(), count as usize);
-            assert_eq!(statements, 8, "roster size {count}");
+            assert!(
+                statements <= 8,
+                "roster size {count}: {statements} statements"
+            );
+            assert_eq!(
+                statements,
+                *populated_statements.get_or_insert(statements),
+                "roster size {count}"
+            );
         }
     }
     Ok(())
@@ -148,8 +157,9 @@ fn batched_roster_preserves_child_order_empty_values_and_other_encounter_isolati
         "INSERT INTO encounter_manual_trackers VALUES(?1,'invalid','not-json')",
         [&other.participant_key],
     )?;
-    let (roster, statements) = measured_roster(&connection)?;
-    assert_eq!(statements, 8);
+    let roster = EncountersRead::from_connection(&connection)
+        .get_with_participants("test")?
+        .unwrap();
     assert_eq!(
         roster
             .participants

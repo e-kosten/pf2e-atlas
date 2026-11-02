@@ -88,17 +88,7 @@ pub(super) fn populate(workspace: &Workspace, schema: u32) {
 }
 
 fn rows(connection: &Connection, table: &str) -> Vec<Vec<Value>> {
-    let mut statement = connection
-        .prepare(&format!("SELECT * FROM {table} ORDER BY rowid"))
-        .unwrap();
-    let columns = statement.column_count();
-    statement
-        .query_map([], |row| {
-            (0..columns).map(|column| row.get(column)).collect()
-        })
-        .unwrap()
-        .collect::<Result<_, _>>()
-        .unwrap()
+    crate::test_support::sql_rows(connection, &format!("SELECT * FROM {table} ORDER BY rowid"))
 }
 
 fn saved_rows(connection: &Connection) -> Vec<Vec<Vec<Value>>> {

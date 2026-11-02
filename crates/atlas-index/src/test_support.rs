@@ -666,27 +666,6 @@ pub fn stage_historical_pending_native_fixture(
     session.connection().execute("INSERT INTO pending_embedding_values VALUES(?,?,?,?) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,touched_job=excluded.touched_job",rusqlite::params![id,bytes,crate::embedding_values::hash_bytes(&bytes),job])?;
     Ok(())
 }
-/// Inspect one native value in isolated preservation/corruption fixtures.
-pub fn native_fixture_value(
-    session: &atlas_storage::ReadSession,
-    model: &crate::SourceSearchProfileIdentity,
-    input: &atlas_embedding::NativeInputDescriptor,
-) -> Result<Option<Vec<f32>>, IndexError> {
-    if let Some(cached) = crate::native_values::cached(session.connection(), model, input)? {
-        return Ok(Some(crate::read_units::decode_vector(&cached.bytes)?));
-    }
-    if crate::native_values::published_checksum(session.connection(), model, input)?.is_none() {
-        return Ok(None);
-    }
-    let id = crate::native_values::lookup_input(session.connection(), model, input)?
-        .ok_or_else(|| IndexError::Invalid("fixture native input missing".into()))?;
-    Ok(Some(crate::native_values::read(
-        session.connection(),
-        id,
-        model,
-    )?))
-}
-
 #[derive(Debug)]
 pub(crate) struct FixtureNativeValue<'a> {
     pub model: &'a SourceSearchProfileIdentity,

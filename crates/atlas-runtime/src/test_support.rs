@@ -73,3 +73,19 @@ pub(crate) fn occurrence_vector_bits(
         OccurrenceVectorSnapshot { identity_json: json, rows }
     }).collect()
 }
+
+#[cfg(test)]
+pub(crate) fn sql_rows(
+    connection: &rusqlite::Connection,
+    sql: &str,
+) -> Vec<Vec<rusqlite::types::Value>> {
+    let mut statement = connection.prepare(sql).unwrap();
+    let columns = statement.column_count();
+    statement
+        .query_map([], |row| {
+            (0..columns).map(|column| row.get(column)).collect()
+        })
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap()
+}

@@ -14,21 +14,19 @@ fn reused_fixture_values(
     model: &SourceSearchProfileIdentity,
     inputs: &[PreparedNativeInput],
 ) -> Result<std::collections::BTreeMap<String, Vec<f32>>, IndexError> {
-    let c = session.connection();
+    let keys = crate::native_values::NativeModelKey::all(std::slice::from_ref(model))?;
+    let binding = crate::native_values::NativeModel::bind(session.connection(), &keys[0], false)?;
     let mut output = std::collections::BTreeMap::new();
     for input in inputs {
         let descriptor = input.descriptor();
-        let vector = if let Some(cached) = crate::native_values::cached(c, model, &descriptor)? {
-            Some(crate::read_units::decode_vector(&cached.bytes)?)
-        } else if crate::native_values::published_checksum(c, model, &descriptor)?.is_some() {
-            let id = crate::native_values::lookup_input(c, model, &descriptor)?.unwrap();
-            Some(crate::native_values::read(c, id, model)?)
-        } else {
-            None
+        let Some(selected) = binding.select(&descriptor, true)? else {
+            continue;
         };
-        if let Some(vector) = vector {
-            output.insert(input.reuse_key.clone(), vector);
-        }
+        let vector = match selected.staged {
+            Some(bytes) => crate::read_units::decode_vector(&bytes)?,
+            None => binding.read(binding.selected_input(&descriptor, &selected.checksum)?)?,
+        };
+        output.insert(input.reuse_key.clone(), vector);
     }
     Ok(output)
 }

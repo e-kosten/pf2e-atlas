@@ -729,9 +729,9 @@ fn forced_trait_bytes_recompute_centroid_with_unchanged_text_hash_and_repeated_c
     .unwrap()
     .publish()
     .unwrap();
-    let expected =
-        atlas_embedding::normalized_centroid(&[forced.as_slice(), t.as_slice(), forced.as_slice()])
-            .unwrap();
+    let mut expected = vec![0.; 768];
+    expected[8] = (2. / 5f64.sqrt()) as f32;
+    expected[3] = (1. / 5f64.sqrt()) as f32;
     let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
     let (actual_hash, bytes): (String, Vec<u8>) = read
         .connection()

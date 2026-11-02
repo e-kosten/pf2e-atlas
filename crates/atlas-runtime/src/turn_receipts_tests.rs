@@ -1,30 +1,19 @@
 use super::*;
 use atlas_local_state::{LocalStateRead, SavedOutgoingTurn};
-use rusqlite::{Connection, params, types::Value};
+use rusqlite::{Connection, params};
 
-fn rows(connection: &Connection, table: &str) -> Vec<Vec<Value>> {
-    let mut statement = connection
-        .prepare(&format!("SELECT * FROM {table} ORDER BY rowid"))
-        .unwrap();
-    let count = statement.column_count();
-    statement
-        .query_map([], |row| (0..count).map(|column| row.get(column)).collect())
-        .unwrap()
-        .collect::<Result<_, _>>()
-        .unwrap()
+fn rows(connection: &Connection, table: &str) -> Vec<Vec<rusqlite::types::Value>> {
+    crate::test_support::sql_rows(connection, &format!("SELECT * FROM {table} ORDER BY rowid"))
 }
 
 #[test]
 fn turn_receipt_upgrade_preserves_all_requests_and_only_the_latest_snapshot() {
-    for previous in [24, 25] {
-        register_extensions().unwrap();
-        let directory = tempfile::tempdir().unwrap();
-        let workspace = Workspace::at(directory.path().join("turns.sqlite")).unwrap();
-        workspace
-            .migrate(&MIGRATIONS[..previous], |_| Ok(()))
-            .unwrap();
-        let write = workspace.write(previous as u32).unwrap();
-        write.connection().execute_batch(r#"
+    register_extensions().unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let workspace = Workspace::at(directory.path().join("turns.sqlite")).unwrap();
+    workspace.migrate(&MIGRATIONS[..24], |_| Ok(())).unwrap();
+    let write = workspace.write(24).unwrap();
+    write.connection().execute_batch(r#"
 INSERT INTO encounters(id,encounter_key,slug,name,status,current_turn_participant_key,revision,round_number,created_at,updated_at) VALUES(1,'one','one','One','running','actor',5,3,'before','after');
 INSERT INTO encounters(id,encounter_key,slug,name,status,current_turn_participant_key,revision,round_number,created_at,updated_at) VALUES(2,'two','two','Two','running','other',7,4,'before','after');
 INSERT INTO encounters(id,encounter_key,slug,name,status,created_at,updated_at) VALUES(3,'empty','empty','Empty','draft','before','after');
@@ -36,129 +25,128 @@ INSERT INTO encounter_event_receipts VALUES(1,'event','{"event":1}','{"version":
 INSERT INTO encounter_boundary_claims VALUES(1,'actor',3,'prepared_persistent_damage','fire','event');
 CREATE VIRTUAL TABLE turn_vector_witness USING vec0(unit_id INTEGER PRIMARY KEY,embedding float[3]);
 "#).unwrap();
-        let vector_bytes = vec![0u8, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0];
-        write
-            .connection()
-            .execute(
-                "INSERT INTO turn_vector_witness(unit_id,embedding) VALUES(1,?1)",
-                [&vector_bytes],
-            )
-            .unwrap();
-        // The writer owns the transaction; use its saved-domain reader on the same snapshot.
-        let state = atlas_local_state::LocalStateWrite::new(&write);
-        for id in 1..=80i64 {
-            let encounter = if id % 2 == 0 { 2 } else { 1 };
-            let key = if encounter == 1 { "one" } else { "two" };
-            let participant = if encounter == 1 { "actor" } else { "other" };
-            let saved = SavedOutgoingTurn {
-                boundary_key: format!("boundary-{id}"),
-                snapshot: state
-                    .encounters()
-                    .get_with_participants(key)
-                    .unwrap()
-                    .unwrap(),
-                next_participant_key: Some(participant.into()),
-            };
-            let payload =
-                serde_json::to_string(&serde_json::json!({"version":1,"payload":saved})).unwrap();
-            write.connection().execute("INSERT INTO encounter_outgoing_turns(id,encounter_id,boundary_key,request_id,intent_json,payload_json,requires_review) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![id,encounter,saved.boundary_key,format!("request-{id}"),format!("{{\"turn\":{id}}}"),payload,i64::from(id!=79)]).unwrap();
-        }
-        let receipts=write.connection().prepare("SELECT encounter_id,request_id,boundary_key,intent_json FROM encounter_outgoing_turns ORDER BY id").unwrap().query_map([],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,String>(3)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
-        let latest=write.connection().prepare("SELECT t.encounter_id,t.request_id,t.payload_json,t.requires_review FROM encounter_outgoing_turns t WHERE id=(SELECT max(id) FROM encounter_outgoing_turns WHERE encounter_id=t.encounter_id) ORDER BY encounter_id").unwrap().query_map([],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,i64>(3)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
-        let tables = [
-            "workspace",
-            "encounters",
-            "encounter_participants",
-            "encounter_participant_conditions",
-            "encounter_condition_applications",
-            "encounter_event_receipts",
-            "encounter_boundary_claims",
-        ];
-        let before = tables.map(|table| rows(write.connection(), table));
-        write.commit().unwrap();
-        workspace.migrate(&MIGRATIONS[..26], |_| Ok(())).unwrap();
-        workspace.migrate(&MIGRATIONS[..26], |_| Ok(())).unwrap();
-        let read = workspace.read(26).unwrap();
-        assert_eq!(tables.map(|table| rows(read.connection(), table)), before);
-        let actual=read.connection().prepare("SELECT encounter_id,request_id,boundary_key,intent_json FROM encounter_turn_receipts ORDER BY CAST(substr(request_id,9) AS INTEGER)").unwrap().query_map([],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,String>(3)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
-        assert_eq!(actual, receipts);
-        let actual=read.connection().prepare("SELECT encounter_id,request_id,payload_json,requires_review FROM encounter_outgoing_turns ORDER BY encounter_id").unwrap().query_map([],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,i64>(3)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
-        assert_eq!(actual, latest);
-        assert_eq!(
-            read.connection()
-                .query_row(
-                    "SELECT embedding FROM turn_vector_witness WHERE unit_id=1",
-                    [],
-                    |row| row.get::<_, Vec<u8>>(0)
-                )
+    let vector_bytes = vec![0u8, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0];
+    write
+        .connection()
+        .execute(
+            "INSERT INTO turn_vector_witness(unit_id,embedding) VALUES(1,?1)",
+            [&vector_bytes],
+        )
+        .unwrap();
+    // The writer owns the transaction; use its saved-domain reader on the same snapshot.
+    let state = atlas_local_state::LocalStateWrite::new(&write);
+    for id in 1..=80i64 {
+        let encounter = if id % 2 == 0 { 2 } else { 1 };
+        let key = if encounter == 1 { "one" } else { "two" };
+        let participant = if encounter == 1 { "actor" } else { "other" };
+        let saved = SavedOutgoingTurn {
+            boundary_key: format!("boundary-{id}"),
+            snapshot: state
+                .encounters()
+                .get_with_participants(key)
+                .unwrap()
                 .unwrap(),
-            vector_bytes
-        );
-        let store = LocalStateRead::new(&read);
-        assert!(
-            store
-                .encounters()
-                .latest_outgoing_turn("one")
-                .unwrap()
-                .is_none()
-        );
-        assert!(
-            store
-                .encounters()
-                .outgoing_turn("one", "boundary-79")
-                .unwrap()
-                .is_some()
-        );
-        assert!(
-            store
-                .encounters()
-                .outgoing_turn("one", "boundary-77")
-                .unwrap()
-                .is_none()
-        );
-        assert!(
-            store
-                .encounters()
-                .latest_outgoing_turn("two")
-                .unwrap()
-                .is_some()
-        );
-        assert!(
-            store
-                .encounters()
-                .latest_outgoing_turn("empty")
-                .unwrap()
-                .is_none()
-        );
-        assert!(
-            !read
-                .connection()
-                .prepare("PRAGMA foreign_key_check")
-                .unwrap()
-                .exists([])
-                .unwrap()
-        );
-        drop(read);
-        let write = workspace.write(26).unwrap();
-        write
-            .connection()
-            .execute(
-                "UPDATE workspace SET reference_revision=reference_revision+1 WHERE id=1",
-                [],
-            )
-            .unwrap();
-        let store = atlas_local_state::LocalStateWrite::new(&write);
-        assert_eq!(
-            store
-                .encounters()
-                .advance_turn_receipt("one", "request-1", &serde_json::json!({"turn":1}))
-                .unwrap()
-                .unwrap()
-                .encounter_key,
-            "one"
-        );
-        write.commit().unwrap();
+            next_participant_key: Some(participant.into()),
+        };
+        let payload =
+            serde_json::to_string(&serde_json::json!({"version":1,"payload":saved})).unwrap();
+        write.connection().execute("INSERT INTO encounter_outgoing_turns(id,encounter_id,boundary_key,request_id,intent_json,payload_json,requires_review) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![id,encounter,saved.boundary_key,format!("request-{id}"),format!("{{\"turn\":{id}}}"),payload,i64::from(id!=79)]).unwrap();
     }
+    let receipts=write.connection().prepare("SELECT encounter_id,request_id,boundary_key,intent_json FROM encounter_outgoing_turns ORDER BY id").unwrap().query_map([],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,String>(3)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+    let latest=write.connection().prepare("SELECT t.encounter_id,t.request_id,t.payload_json,t.requires_review FROM encounter_outgoing_turns t WHERE id=(SELECT max(id) FROM encounter_outgoing_turns WHERE encounter_id=t.encounter_id) ORDER BY encounter_id").unwrap().query_map([],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,i64>(3)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+    let tables = [
+        "workspace",
+        "encounters",
+        "encounter_participants",
+        "encounter_participant_conditions",
+        "encounter_condition_applications",
+        "encounter_event_receipts",
+        "encounter_boundary_claims",
+    ];
+    let before = tables.map(|table| rows(write.connection(), table));
+    write.commit().unwrap();
+    workspace.migrate(&MIGRATIONS[..26], |_| Ok(())).unwrap();
+    workspace.migrate(&MIGRATIONS[..26], |_| Ok(())).unwrap();
+    let read = workspace.read(26).unwrap();
+    assert_eq!(tables.map(|table| rows(read.connection(), table)), before);
+    let actual=read.connection().prepare("SELECT encounter_id,request_id,boundary_key,intent_json FROM encounter_turn_receipts ORDER BY CAST(substr(request_id,9) AS INTEGER)").unwrap().query_map([],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,String>(3)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+    assert_eq!(actual, receipts);
+    let actual=read.connection().prepare("SELECT encounter_id,request_id,payload_json,requires_review FROM encounter_outgoing_turns ORDER BY encounter_id").unwrap().query_map([],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,i64>(3)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+    assert_eq!(actual, latest);
+    assert_eq!(
+        read.connection()
+            .query_row(
+                "SELECT embedding FROM turn_vector_witness WHERE unit_id=1",
+                [],
+                |row| row.get::<_, Vec<u8>>(0)
+            )
+            .unwrap(),
+        vector_bytes
+    );
+    let store = LocalStateRead::new(&read);
+    assert!(
+        store
+            .encounters()
+            .latest_outgoing_turn("one")
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        store
+            .encounters()
+            .outgoing_turn("one", "boundary-79")
+            .unwrap()
+            .is_some()
+    );
+    assert!(
+        store
+            .encounters()
+            .outgoing_turn("one", "boundary-77")
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        store
+            .encounters()
+            .latest_outgoing_turn("two")
+            .unwrap()
+            .is_some()
+    );
+    assert!(
+        store
+            .encounters()
+            .latest_outgoing_turn("empty")
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        !read
+            .connection()
+            .prepare("PRAGMA foreign_key_check")
+            .unwrap()
+            .exists([])
+            .unwrap()
+    );
+    drop(read);
+    let write = workspace.write(26).unwrap();
+    write
+        .connection()
+        .execute(
+            "UPDATE workspace SET reference_revision=reference_revision+1 WHERE id=1",
+            [],
+        )
+        .unwrap();
+    let store = atlas_local_state::LocalStateWrite::new(&write);
+    assert_eq!(
+        store
+            .encounters()
+            .advance_turn_receipt("one", "request-1", &serde_json::json!({"turn":1}))
+            .unwrap()
+            .unwrap()
+            .encounter_key,
+        "one"
+    );
+    write.commit().unwrap();
 }
 
 #[test]

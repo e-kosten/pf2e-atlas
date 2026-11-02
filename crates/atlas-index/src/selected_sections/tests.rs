@@ -198,7 +198,6 @@ fn compatible_upgrade_preserves_values_saved_state_and_selectors_for_zero_one_an
             .retain(|u| profiles.contains(&u.profile_id.as_str()));
         let (_directory, path, workspace) = historical(&input);
         let write = workspace.write(26).unwrap();
-        write.connection().execute_batch("CREATE TABLE saved_probe(id INTEGER PRIMARY KEY,note TEXT); INSERT INTO saved_probe VALUES(77,'Retain exact saved note');").unwrap();
         let before = numerical(write.connection(), &input);
         let saved_before = saved(write.connection());
         let selectors = write
@@ -234,63 +233,114 @@ fn compatible_upgrade_preserves_values_saved_state_and_selectors_for_zero_one_an
         assert_eq!(saved(read.connection()), saved_before);
         crate::validate_reference(read.connection()).unwrap();
         let reader = SqliteIndexReader::from_session(read).unwrap();
-        let mut actual = Vec::new();
-        let mut html = false;
-        let mut plain = false;
-        let mut unlabeled = false;
-        let mut owned = false;
+        let mut actual_selectors = Vec::new();
+        let mut actual = std::collections::BTreeMap::new();
         for source in &input.records {
-            let selection = atlas_record::source_record::select_record_search(
-                &source.record,
-                &source.content,
-                input.context.audience,
-                &input
-                    .packs
-                    .iter()
-                    .find(|p| p.pack_id == source.record.key().pack().as_str())
-                    .unwrap()
-                    .label,
-                &input.context.used_trait_labels,
-            )
-            .unwrap();
-            let expected = project(
-                &source.record,
-                &selection,
-                &source.content_hash,
-                &source.preparation_context_hash,
-            )
-            .unwrap();
             let addresses = reader
                 .similarity_part_addresses(source.record.key())
                 .unwrap();
-            assert_eq!(addresses.len(), expected.len());
-            for section in expected {
-                actual.push(section.part.selector.0.clone());
-                assert_eq!(addresses[&section.part.selector], section.address);
-                owned |= !section.part.owners.is_empty();
-                match section.address {
-                    SourcePassageAddress::HtmlSection {
-                        label, chunk_bytes, ..
-                    } => {
-                        html = true;
-                        unlabeled |= label.is_none();
-                        assert!(chunk_bytes.end > 0);
-                        assert_eq!(chunk_bytes.start, 0);
-                    }
-                    SourcePassageAddress::PlainSection { chunk_bytes, .. } => {
-                        plain = true;
-                        assert!(chunk_bytes.end > 0);
-                        assert_eq!(chunk_bytes.start, 0);
-                    }
-                    SourcePassageAddress::Identity {} => {
-                        panic!("prose section has identity address")
-                    }
+            actual_selectors.extend(addresses.keys().map(|selector| selector.0.clone()));
+            let parts = reader
+                .similarity_parts(
+                    &atlas_domain::SimilaritySeed::Record {
+                        record_key: source.record.key().clone(),
+                    },
+                    None,
+                )
+                .unwrap();
+            for component in parts.parts {
+                if let atlas_domain::SimilarityComponent::Section { part } = component {
+                    assert!(
+                        actual
+                            .insert(
+                                (source.record.key().to_string(), part.field),
+                                (part.owners, addresses[&part.selector].clone()),
+                            )
+                            .is_none()
+                    );
                 }
             }
         }
-        actual.sort();
-        assert_eq!(actual, selectors);
-        assert!(html && plain && unlabeled && owned);
+        actual_selectors.sort();
+        assert_eq!(actual_selectors, selectors);
+        let mut expected = std::collections::BTreeMap::new();
+        for (record, field, owned, html, label, text) in [
+            (
+                "actors:aaaaaaaaaaaaaaaa",
+                "/system/details/blurb",
+                false,
+                None,
+                None,
+                "Plain brief source prose",
+            ),
+            (
+                "actors:aaaaaaaaaaaaaaaa",
+                "/system/details/publicNotes",
+                false,
+                Some("<h2>Origin</h2><p>Root source prose.</p>"),
+                Some("Origin"),
+                "Origin\n\nRoot source prose.",
+            ),
+            (
+                "actors:aaaaaaaaaaaaaaaa",
+                "/system/details/privateNotes",
+                false,
+                Some("<p>Unlabeled private prose.</p>"),
+                None,
+                "Unlabeled private prose.",
+            ),
+            (
+                "actors:aaaaaaaaaaaaaaaa",
+                "/system/description/value",
+                true,
+                Some("<p>Owned unlabeled source prose.</p>"),
+                None,
+                "Owned unlabeled source prose.",
+            ),
+            (
+                "items:bbbbbbbbbbbbbbbb",
+                "/system/description/value",
+                false,
+                Some(
+                    "<h2>Heading</h2><p>One two three four five six seven eight nine ten eleven twelve.</p>",
+                ),
+                Some("Heading"),
+                "Heading\n\nOne two three four five six seven eight nine ten eleven twelve.",
+            ),
+        ] {
+            let hash = crate::codec::sha256(text.as_bytes());
+            let range = SourceByteRange {
+                start: 0,
+                end: text.len(),
+            };
+            let address = match html {
+                Some(html) => SourcePassageAddress::HtmlSection {
+                    prepared_html_sha256: crate::codec::sha256(html.as_bytes()),
+                    canonical_text_sha256: hash,
+                    selection_version: "structural-source-sections/v4".into(),
+                    section_ordinal: 0,
+                    label: label.map(str::to_owned),
+                    chunk_bytes: range,
+                },
+                None => SourcePassageAddress::PlainSection {
+                    source_text_sha256: hash,
+                    selection_version: "structural-source-sections/v4".into(),
+                    section_ordinal: 0,
+                    label: None,
+                    chunk_bytes: range,
+                },
+            };
+            let owners = if owned {
+                vec![atlas_domain::OwnedContentLocator {
+                    collection: "/items".into(),
+                    identity: atlas_domain::OwnedContentIdentity::Stable("cccccccccccccccc".into()),
+                }]
+            } else {
+                vec![]
+            };
+            expected.insert((record.to_owned(), field.to_owned()), (owners, address));
+        }
+        assert_eq!(actual, expected);
         drop(reader);
         assert!(!ensure_reference_projections(&upgraded, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
     }

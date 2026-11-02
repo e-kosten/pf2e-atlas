@@ -19,15 +19,10 @@ fn snapshot(c: &Connection, names: &[String]) -> Vec<TableSnapshot> {
     names
         .iter()
         .map(|name| {
-            let mut statement = c
-                .prepare(&format!("SELECT * FROM \"{}\"", name.replace('"', "\"\"")))
-                .unwrap();
-            let columns = statement.column_count();
-            let rows = statement
-                .query_map([], |row| (0..columns).map(|n| row.get(n)).collect())
-                .unwrap()
-                .collect::<Result<_, _>>()
-                .unwrap();
+            let rows = crate::test_support::sql_rows(
+                c,
+                &format!("SELECT * FROM \"{}\"", name.replace('"', "\"\"")),
+            );
             TableSnapshot {
                 table: name.clone(),
                 rows,

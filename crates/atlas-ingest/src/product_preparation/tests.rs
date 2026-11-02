@@ -696,38 +696,33 @@ fn admitted_and_prepared_streams_preserve_exact_utf8_snapshot_bytes_near_source_
 #[test]
 fn text_framed_snapshots_still_require_checked_contract_grammar_depth_and_root_identity() {
     let fixture = SourceFixture::new();
+    let prepared = prepare_fixture(&fixture.options("corrupt-snapshot")).unwrap();
     for corruption in ["contract", "version", "grammar", "depth", "root"] {
-        let prepared = prepare_fixture(&fixture.options(corruption)).unwrap();
-        let mut checked = false;
-        prepared
+        let mut frame = prepared
             .spool
             .records
-            .visit(&mut |mut frame| {
-                if checked {
-                    return Ok(());
-                }
-                checked = true;
-                frame.snapshot = match corruption {
-                    "contract" => frame.snapshot.replace(
-                        atlas_foundry_model::SOURCE_CONTRACT_ID,
-                        "retired-fixture-contract",
-                    ),
-                    "version" => frame.snapshot.replacen("\"version\":1", "\"version\":2", 1),
-                    "grammar" => "{broken".into(),
-                    "depth" => format!("{}0{}", "[".repeat(1025), "]".repeat(1025)),
-                    "root" => frame
-                        .snapshot
-                        .replace("aaaaaaaaaaaaaaaa", "ffffffffffffffff"),
-                    _ => unreachable!(),
-                };
-                assert!(
-                    frame.decode().is_err(),
-                    "{corruption} corruption passed checked decoding"
-                );
-                Ok(())
-            })
+            .cursor()
+            .unwrap()
+            .next_frame()
+            .unwrap()
             .unwrap();
-        assert!(checked);
+        frame.snapshot = match corruption {
+            "contract" => frame.snapshot.replace(
+                atlas_foundry_model::SOURCE_CONTRACT_ID,
+                "retired-fixture-contract",
+            ),
+            "version" => frame.snapshot.replacen("\"version\":1", "\"version\":2", 1),
+            "grammar" => "{broken".into(),
+            "depth" => format!("{}0{}", "[".repeat(1025), "]".repeat(1025)),
+            "root" => frame
+                .snapshot
+                .replace("aaaaaaaaaaaaaaaa", "ffffffffffffffff"),
+            _ => unreachable!(),
+        };
+        assert!(
+            frame.decode().is_err(),
+            "{corruption} corruption passed checked decoding"
+        );
     }
 }
 
