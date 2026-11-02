@@ -5,7 +5,6 @@ fn prepared(unit: &SourceSemanticUnitInput) -> PreparedNativeInput {
     PreparedNativeInput {
         input: String::new(),
         input_sha256: unit.input_hash.clone(),
-        reuse_key: format!("{}:{}", unit.profile_id, unit.input_hash),
         token_count: unit.input_token_count,
     }
 }
@@ -18,7 +17,7 @@ fn reused_fixture_values(
     let binding = crate::native_values::NativeModel::bind(session.connection(), &keys[0], false)?;
     let mut output = std::collections::BTreeMap::new();
     for input in inputs {
-        let descriptor = input.descriptor();
+        let descriptor = crate::native_values::NativeInput::new(model, &input.descriptor())?;
         let Some(selected) = binding.select(&descriptor, true)? else {
             continue;
         };
@@ -26,7 +25,7 @@ fn reused_fixture_values(
             Some(bytes) => crate::read_units::decode_vector(&bytes)?,
             None => binding.read(binding.selected_input(&descriptor, &selected.checksum)?)?,
         };
-        output.insert(input.reuse_key.clone(), vector);
+        output.insert(input.input_sha256.clone(), vector);
     }
     Ok(output)
 }
@@ -76,16 +75,15 @@ fn published_values_supply_exact_reuse_without_a_checkpoint_corpus() {
         let mut inputs = units.iter().map(|u| prepared(u)).collect::<Vec<_>>();
         let reused = reused_fixture_values(&read, model, &inputs).unwrap();
         for (unit, prepared) in units.iter().zip(&inputs) {
-            assert_eq!(reused[&prepared.reuse_key], unit.vector);
+            assert_eq!(reused[&prepared.input_sha256], unit.vector);
         }
         let mut missing = inputs[0].clone();
         missing.input_sha256 = crate::codec::sha256(b"changed input");
-        missing.reuse_key = "new".into();
         inputs.push(missing);
         assert!(
             !reused_fixture_values(&read, model, &inputs)
                 .unwrap()
-                .contains_key("new")
+                .contains_key(&crate::codec::sha256(b"changed input"))
         );
         let mut changed = model.clone();
         changed.input_recipe.push_str("/different");
@@ -128,7 +126,7 @@ fn forced_computation_survives_reopen_without_mutating_published_values() {
     let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
     assert_eq!(
         reused_fixture_values(&read, &model, std::slice::from_ref(&descriptor)).unwrap()
-            [&descriptor.reuse_key],
+            [&descriptor.input_sha256],
         replacement
     );
     assert_eq!(count(read.connection(), "pending_embedding_values"), 1);
@@ -208,7 +206,7 @@ fn forced_computation_survives_reopen_without_mutating_published_values() {
     assert_eq!(count(read.connection(), "pending_embedding_values"), 0);
     assert_eq!(
         reused_fixture_values(&read, &model, std::slice::from_ref(&descriptor)).unwrap()
-            [&descriptor.reuse_key],
+            [&descriptor.input_sha256],
         replacement
     );
 }
@@ -287,7 +285,7 @@ fn new_record_reuses_native_inputs_and_keeps_distinct_filtered_witnesses() {
     )
     .unwrap();
     for unit in &new_units {
-        assert_eq!(reuse[&prepared(unit).reuse_key], unit.vector);
+        assert_eq!(reuse[&unit.input_hash], unit.vector);
     }
     drop(read);
     let lexical = input
@@ -503,7 +501,15 @@ fn migration_preserves_published_values_and_interrupted_forced_progress() {
     let mut replacement = vec![0.; model.dimensions];
     replacement[27] = 1.;
     let job = legacy_job(&write, "forced target");
-    stage_historical_embedding_fixture(&write, &job, model, &prepared, &replacement).unwrap();
+    stage_historical_embedding_fixture(
+        &write,
+        &job,
+        &format!("{}:{}", unit.profile_id, unit.input_hash),
+        model,
+        &prepared,
+        &replacement,
+    )
+    .unwrap();
     let mut traits = crate::foundation_tests::fixture(true);
     add_label_only_trait(&mut traits);
     let definition = &traits.traits[0];
@@ -549,7 +555,7 @@ fn migration_preserves_published_values_and_interrupted_forced_progress() {
     assert_eq!(count(read.connection(), "pending_embedding_values"), 1);
     assert_eq!(
         reused_fixture_values(&read, model, std::slice::from_ref(&prepared)).unwrap()
-            [&prepared.reuse_key],
+            [&prepared.input_sha256],
         replacement
     );
     let chunk = &seed.chunks[0];
@@ -619,7 +625,15 @@ fn migration_corruption_rolls_back_new_schema_and_preserves_retryable_progress()
     let model = &input.context.search_profiles[0];
     let unit = &input.semantic_units[0];
     let job = legacy_job(&write, "target");
-    stage_historical_embedding_fixture(&write, &job, model, &prepared(unit), &unit.vector).unwrap();
+    stage_historical_embedding_fixture(
+        &write,
+        &job,
+        &format!("{}:{}", unit.profile_id, unit.input_hash),
+        model,
+        &prepared(unit),
+        &unit.vector,
+    )
+    .unwrap();
     write
         .connection()
         .execute("UPDATE embedding_checkpoints SET vector_hash='corrupt'", [])

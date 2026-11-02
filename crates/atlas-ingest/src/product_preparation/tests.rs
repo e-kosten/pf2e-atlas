@@ -409,11 +409,7 @@ fn production_admission_batches_count_real_sessions_and_bound_simultaneous_paylo
             assert_eq!(prepared.work.reusable_record_read_calls, expected_records);
             assert_eq!(prepared.work.reusable_record_read_batches, batches);
             assert_eq!(prepared.work.reusable_layout_read_calls, 0);
-            // Identity enumeration opens one snapshot per128 rows, then one empty probe.
-            assert_eq!(
-                metrics.workspace_connections as usize,
-                count.div_ceil(128) + 1 + batches
-            );
+            assert_eq!(metrics.workspace_connections as usize, 1 + batches);
             assert_eq!(prepared.source_report.reused_admissions, expected_records);
             assert_eq!(prepared.spool.records.len(), count);
             assert_eq!(prepared.work.selection_calls, count);

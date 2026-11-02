@@ -41,6 +41,10 @@ pub(crate) struct SourceCapture {
     files: BTreeMap<PathBuf, Vec<u8>>,
     packs: BTreeMap<String, (PathBuf, bool)>,
 }
+pub(crate) struct VerifiedSourceBytes {
+    pub(crate) bytes: Vec<u8>,
+    pub(crate) sha256: String,
+}
 impl SourceCapture {
     pub(crate) fn capture(
         source_root: &Path,
@@ -155,25 +159,36 @@ impl SourceCapture {
         Ok(())
     }
     pub(crate) fn read(&self, path: &Path) -> Result<Vec<u8>, IngestError> {
+        self.read_verified(path).map(|source| source.bytes)
+    }
+    pub(crate) fn read_verified(&self, path: &Path) -> Result<VerifiedSourceBytes, IngestError> {
         if path == self.manifest_path {
-            return Ok(self.manifest_bytes.clone());
+            let digest = self.files.get(path).ok_or_else(|| {
+                IngestError::SourceUnavailable("captured manifest digest is absent".into())
+            })?;
+            return Ok(VerifiedSourceBytes {
+                bytes: self.manifest_bytes.clone(),
+                sha256: digest.iter().map(|byte| format!("{byte:02x}")).collect(),
+            });
         }
-        fs::read(path)
-            .map_err(|e| IngestError::SourceUnavailable(format!("{}: {e}", path.display())))
-            .and_then(|bytes| {
-                if self
-                    .files
-                    .get(path)
-                    .is_some_and(|hash| *hash == Sha256::digest(&bytes).as_slice())
-                {
-                    Ok(bytes)
-                } else {
-                    Err(IngestError::SourceUnavailable(format!(
-                        "source changed after capture: {}",
-                        path.display()
-                    )))
-                }
+        let bytes = fs::read(path)
+            .map_err(|e| IngestError::SourceUnavailable(format!("{}: {e}", path.display())))?;
+        let digest = Sha256::digest(&bytes);
+        if self
+            .files
+            .get(path)
+            .is_some_and(|hash| *hash == digest.as_slice())
+        {
+            Ok(VerifiedSourceBytes {
+                bytes,
+                sha256: format!("{digest:x}"),
             })
+        } else {
+            Err(IngestError::SourceUnavailable(format!(
+                "source changed after capture: {}",
+                path.display()
+            )))
+        }
     }
     pub(crate) fn paths(&self, directory: &Path) -> Vec<PathBuf> {
         self.files

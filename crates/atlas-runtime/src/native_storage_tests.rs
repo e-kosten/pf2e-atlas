@@ -775,13 +775,13 @@ fn published_schema_nine_replay_preserves_vectors_and_forced_pending_without_ass
     let descriptor = atlas_embedding::PreparedNativeInput {
         input: String::new(),
         input_sha256: unit.input_hash.clone(),
-        reuse_key: "forced-retry".into(),
         token_count: unit.input_token_count,
     };
     let mut forced = vec![0.; model.dimensions];
     forced[71] = 1.;
     atlas_index::test_support::stage_historical_embedding_fixture(
         &write,
+        "forced-retry",
         "forced-retry",
         model,
         &descriptor,

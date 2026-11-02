@@ -454,7 +454,6 @@ fn retired_preparation_and_predecessor_never_decode_snapshots_or_alter_pending_v
         let prepared = atlas_embedding::PreparedNativeInput {
             input: String::new(),
             input_sha256: unit.input_hash.clone(),
-            reuse_key: "forced".into(),
             token_count: unit.input_token_count,
         };
         let mut forced = vec![0.; model.dimensions];

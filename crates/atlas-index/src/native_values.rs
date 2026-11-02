@@ -73,9 +73,45 @@ pub(crate) struct NativeModel<'session> {
     id: Option<i64>,
     native_exists: bool,
 }
+pub(crate) struct NativeInput {
+    hash: [u8; 32],
+    token_count: usize,
+}
+impl NativeInput {
+    pub fn new(
+        model: &SourceSearchProfileIdentity,
+        input: &NativeInputDescriptor,
+    ) -> Result<Self, IndexError> {
+        if !crate::codec::checked_hash(&input.input_sha256) {
+            return Err(invalid("invalid SHA-256 digest"));
+        }
+        let mut hash = [0; 32];
+        for (byte, index) in hash.iter_mut().zip((0..64).step_by(2)) {
+            *byte = u8::from_str_radix(&input.input_sha256[index..index + 2], 16)
+                .map_err(|error| IndexError::Invalid(error.to_string()))?;
+        }
+        Self::from_hash(model, hash, input.token_count)
+    }
+    pub fn from_hash(
+        model: &SourceSearchProfileIdentity,
+        hash: [u8; 32],
+        token_count: usize,
+    ) -> Result<Self, IndexError> {
+        if token_count == 0 || token_count > model.token_limit {
+            return Err(invalid("invalid native token count"));
+        }
+        Ok(Self { hash, token_count })
+    }
+    pub fn hash(&self) -> &[u8; 32] {
+        &self.hash
+    }
+    pub fn token_count(&self) -> usize {
+        self.token_count
+    }
+}
 struct InputRow {
     id: i64,
-    published_length: Option<usize>,
+    published_checksum: Option<Vec<u8>>,
 }
 pub(crate) struct SelectedNative {
     pub checksum: Vec<u8>,
@@ -113,48 +149,51 @@ impl<'session> NativeModel<'session> {
             native_exists,
         })
     }
-    fn find(&self, input: &NativeInputDescriptor) -> Result<Option<InputRow>, IndexError> {
-        let hash = crate::embedding_values::digest(&input.input_sha256)?;
-        if input.token_count == 0 || input.token_count > self.key.model.token_limit {
-            return Err(invalid("invalid native input token count"));
-        }
+    fn find(&self, input: &NativeInput) -> Result<Option<InputRow>, IndexError> {
         let Some(model_id) = self.id else {
             return Ok(None);
         };
-        let row: Option<(i64,usize,Option<usize>)> = self.connection.prepare_cached("SELECT input_id,token_count,length(published_hash) FROM embedding_inputs WHERE model_id=? AND input_hash=?")?
-            .query_row(params![model_id,hash], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?))).optional()?;
+        let row: Option<(i64, usize, Option<Vec<u8>>)> = self.connection.prepare_cached("SELECT input_id,token_count,CASE WHEN published_hash IS NULL THEN NULL WHEN typeof(published_hash)='blob' AND length(published_hash)=32 THEN published_hash ELSE zeroblob(0) END FROM embedding_inputs WHERE model_id=? AND input_hash=?")?
+            .query_row(params![model_id,input.hash()], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?))).optional()?;
         match row {
-            Some((id, tokens, published_length)) if tokens == input.token_count => {
+            Some((id, tokens, published_checksum)) if tokens == input.token_count => {
                 Ok(Some(InputRow {
                     id,
-                    published_length,
+                    published_checksum,
                 }))
             }
             Some(_) => Err(invalid("native input token count mismatch")),
             None => Ok(None),
         }
     }
-    pub fn input_id(&self, input: &NativeInputDescriptor) -> Result<Option<i64>, IndexError> {
+    pub fn input_id(&self, input: &NativeInput) -> Result<Option<i64>, IndexError> {
         Ok(self.find(input)?.map(|row| row.id))
     }
     fn checksum(&self, row: &InputRow) -> Result<Option<Vec<u8>>, IndexError> {
-        match row.published_length {
+        match &row.published_checksum {
             None => {
                 let consumers: bool = self.connection.prepare_cached("SELECT EXISTS(SELECT 1 FROM semantic_units WHERE input_id=?1) OR EXISTS(SELECT 1 FROM trait_seed_chunks WHERE input_id=?1)")?
                     .query_row([row.id], |r| r.get(0))?;
-                let native: bool = self.native_exists && self.connection.prepare_cached(&format!("SELECT EXISTS(SELECT 1 FROM {} WHERE input_id=?)",self.key.table))?
-                    .query_row([row.id], |r| r.get(0))?;
-                if consumers || native { return Err(invalid("published native checksum missing for existing value or consumer")); }
+                let native: bool = self.native_exists
+                    && self
+                        .connection
+                        .prepare_cached(&format!(
+                            "SELECT EXISTS(SELECT 1 FROM {} WHERE input_id=?)",
+                            self.key.table
+                        ))?
+                        .query_row([row.id], |r| r.get(0))?;
+                if consumers || native {
+                    return Err(invalid(
+                        "published native checksum missing for existing value or consumer",
+                    ));
+                }
                 Ok(None)
             }
-            Some(32) => Ok(Some(self.connection.prepare_cached("SELECT published_hash FROM embedding_inputs WHERE input_id=? AND length(published_hash)=32")?.query_row([row.id], |r| r.get(0))?)),
+            Some(hash) if hash.len() == 32 => Ok(Some(hash.clone())),
             Some(_) => Err(invalid("published native checksum length mismatch")),
         }
     }
-    pub fn published_checksum(
-        &self,
-        input: &NativeInputDescriptor,
-    ) -> Result<Option<Vec<u8>>, IndexError> {
+    pub fn published_checksum(&self, input: &NativeInput) -> Result<Option<Vec<u8>>, IndexError> {
         self.find(input)?
             .map(|row| self.checksum(&row))
             .transpose()
@@ -180,7 +219,7 @@ impl<'session> NativeModel<'session> {
     /// One exact input lookup, retaining pending-over-published precedence.
     pub fn select(
         &self,
-        input: &NativeInputDescriptor,
+        input: &NativeInput,
         reuse_published: bool,
     ) -> Result<Option<SelectedNative>, IndexError> {
         let Some(row) = self.find(input)? else {
@@ -223,15 +262,12 @@ impl<'session> NativeModel<'session> {
             .query_row(params![id,length], |r| Ok((r.get(0)?,r.get(1)?)))?;
         decode_checked(&bytes, &hash, &self.key.model)
     }
-    pub fn ensure_input(&self, input: &NativeInputDescriptor) -> Result<i64, IndexError> {
-        if input.token_count == 0 || input.token_count > self.key.model.token_limit {
-            return Err(invalid("invalid native input token count"));
-        }
+    pub fn ensure_input(&self, input: &NativeInput) -> Result<i64, IndexError> {
         let model_id = self
             .id
             .ok_or_else(|| invalid("native write model missing"))?;
         self.connection.prepare_cached("INSERT INTO embedding_inputs(model_id,input_hash,token_count) VALUES(?,?,?) ON CONFLICT DO NOTHING")?
-            .execute(params![model_id,crate::embedding_values::digest(&input.input_sha256)?,input.token_count])?;
+            .execute(params![model_id,input.hash(),input.token_count])?;
         self.input_id(input)?
             .ok_or_else(|| invalid("native input registration missing"))
     }
@@ -245,7 +281,7 @@ impl<'session> NativeModel<'session> {
     }
     pub fn install(
         &mut self,
-        input: &NativeInputDescriptor,
+        input: &NativeInput,
         bytes: &[u8],
         checksum: &[u8],
     ) -> Result<i64, IndexError> {
@@ -296,11 +332,7 @@ impl<'session> NativeModel<'session> {
         self.connection.prepare_cached("UPDATE embedding_inputs SET published_hash=? WHERE input_id=? AND published_hash IS NOT ?1")?.execute(params![checksum,id])?;
         Ok(id)
     }
-    pub fn selected_input(
-        &self,
-        input: &NativeInputDescriptor,
-        expected: &[u8],
-    ) -> Result<i64, IndexError> {
+    pub fn selected_input(&self, input: &NativeInput, expected: &[u8]) -> Result<i64, IndexError> {
         let row = self
             .find(input)?
             .ok_or_else(|| invalid("selected native input missing"))?;
@@ -363,7 +395,7 @@ pub(crate) fn lookup_input(
     input: &NativeInputDescriptor,
 ) -> Result<Option<i64>, IndexError> {
     let keys = NativeModelKey::all(std::slice::from_ref(model))?;
-    NativeModel::bind(c, &keys[0], false)?.input_id(input)
+    NativeModel::bind(c, &keys[0], false)?.input_id(&NativeInput::new(model, input)?)
 }
 #[cfg(test)]
 pub(crate) fn published_checksum(
@@ -372,7 +404,7 @@ pub(crate) fn published_checksum(
     input: &NativeInputDescriptor,
 ) -> Result<Option<Vec<u8>>, IndexError> {
     let keys = NativeModelKey::all(std::slice::from_ref(model))?;
-    NativeModel::bind(c, &keys[0], false)?.published_checksum(input)
+    NativeModel::bind(c, &keys[0], false)?.published_checksum(&NativeInput::new(model, input)?)
 }
 #[cfg(test)]
 pub(crate) fn read(
@@ -392,7 +424,7 @@ pub(crate) fn install(
     hash: &[u8],
 ) -> Result<i64, IndexError> {
     let keys = NativeModelKey::all(std::slice::from_ref(model))?;
-    NativeModel::bind(c, &keys[0], true)?.install(input, bytes, hash)
+    NativeModel::bind(c, &keys[0], true)?.install(&NativeInput::new(model, input)?, bytes, hash)
 }
 #[cfg(test)]
 pub(crate) fn cached(
@@ -403,7 +435,7 @@ pub(crate) fn cached(
     let keys = NativeModelKey::all(std::slice::from_ref(model))?;
     let binding = NativeModel::bind(c, &keys[0], false)?;
     binding
-        .find(input)?
+        .find(&NativeInput::new(model, input)?)?
         .map(|row| binding.cache(row.id))
         .transpose()
         .map(Option::flatten)
@@ -477,13 +509,27 @@ mod tests {
         let keys = NativeModelKey::all(std::slice::from_ref(&model)).unwrap();
         {
             let binding = NativeModel::bind(&c, &keys[0], false).unwrap();
-            assert_eq!(binding.input_id(&input).unwrap(), Some(7));
+            assert_eq!(
+                binding
+                    .input_id(&NativeInput::new(&model, &input).unwrap())
+                    .unwrap(),
+                Some(7)
+            );
             let mut wrong = input.clone();
             wrong.token_count += 1;
-            assert!(binding.input_id(&wrong).is_err());
+            assert!(
+                binding
+                    .input_id(&NativeInput::new(&model, &wrong).unwrap())
+                    .is_err()
+            );
             let mut missing = input.clone();
             missing.input_sha256 = "b".repeat(64);
-            assert_eq!(binding.input_id(&missing).unwrap(), None);
+            assert_eq!(
+                binding
+                    .input_id(&NativeInput::new(&model, &missing).unwrap())
+                    .unwrap(),
+                None
+            );
         }
         let mut changed = model.clone();
         changed.revision.push_str("-other");
@@ -495,7 +541,7 @@ mod tests {
         assert_eq!(
             NativeModel::bind(&c, &keys[0], false)
                 .unwrap()
-                .input_id(&input)
+                .input_id(&NativeInput::new(&model, &input).unwrap())
                 .unwrap(),
             None
         );
@@ -503,7 +549,9 @@ mod tests {
         // an unpublished model. No database ID survives in that immutable key.
         c.execute_batch("DELETE FROM embedding_inputs; DELETE FROM embedding_models; INSERT INTO embedding_models VALUES(9,'occupied');").unwrap();
         let binding = NativeModel::bind(&c, &keys[0], true).unwrap();
-        let id = binding.ensure_input(&input).unwrap();
+        let id = binding
+            .ensure_input(&NativeInput::new(&model, &input).unwrap())
+            .unwrap();
         assert_eq!(
             c.query_row(
                 "SELECT model_id FROM embedding_inputs WHERE input_id=?",
@@ -513,7 +561,12 @@ mod tests {
             .unwrap(),
             10
         );
-        assert_eq!(binding.input_id(&input).unwrap(), Some(id));
+        assert_eq!(
+            binding
+                .input_id(&NativeInput::new(&model, &input).unwrap())
+                .unwrap(),
+            Some(id)
+        );
     }
 
     fn model() -> SourceSearchProfileIdentity {
@@ -570,7 +623,7 @@ mod tests {
     }
 
     #[test]
-    fn cache_missing_corrupt_and_oversized_rows_are_distinct() {
+    fn cache_reuse_precedence_and_corruption_are_distinct() {
         let (c, model, input) = fixture();
         c.execute_batch("CREATE TABLE pending_embedding_values(input_id INTEGER PRIMARY KEY,vector BLOB,vector_hash BLOB,cached_at INTEGER);") .unwrap();
         assert!(cached(&c, &model, &input).unwrap().is_none());
@@ -583,6 +636,17 @@ mod tests {
             params![bytes, hash],
         )
         .unwrap();
+        c.execute(
+            "UPDATE embedding_inputs SET published_hash=zeroblob(8388608)",
+            [],
+        )
+        .unwrap();
+        let keys = NativeModelKey::all(std::slice::from_ref(&model)).unwrap();
+        let binding = NativeModel::bind(&c, &keys[0], false).unwrap();
+        let checked = NativeInput::new(&model, &input).unwrap();
+        let selected = binding.select(&checked, true).unwrap().unwrap();
+        assert_eq!(selected.staged.as_deref(), Some(bytes.as_slice()));
+        assert_eq!(selected.checksum, hash);
         assert_eq!(
             cached(&c, &model, &input).unwrap(),
             Some(CachedNative {
@@ -606,6 +670,16 @@ mod tests {
                 .unwrap_err()
                 .to_string()
                 .contains("length mismatch")
+        );
+        c.execute("DELETE FROM pending_embedding_values", [])
+            .unwrap();
+        assert!(
+            binding
+                .select(&checked, true)
+                .err()
+                .unwrap()
+                .to_string()
+                .contains("published native checksum length mismatch")
         );
     }
 

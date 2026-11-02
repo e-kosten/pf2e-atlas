@@ -5,6 +5,7 @@ use atlas_embedding::{
     prepare_embedding_section, reuse_embedding_section,
 };
 use atlas_record::source_record::{SOURCE_CONTENT_SELECTION_VERSION, SourceSearchSelection};
+use std::collections::BTreeMap;
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct DocumentAttribution {
     pub record: atlas_domain::RecordKey,
@@ -51,6 +52,45 @@ pub(crate) fn semantic_units(
     {
         push_pending(output, selection, vec![], None, 0, input)?;
     }
+    let mut layouts_by_section = BTreeMap::new();
+    for layout in layouts {
+        let section_ordinal = match &layout.passage.address {
+            atlas_domain::SourcePassageAddress::HtmlSection {
+                section_ordinal, ..
+            }
+            | atlas_domain::SourcePassageAddress::PlainSection {
+                section_ordinal, ..
+            } => *section_ordinal,
+            atlas_domain::SourcePassageAddress::Identity {} => continue,
+        };
+        layouts_by_section
+            .entry((
+                layout.owners.as_slice(),
+                layout.field.as_str(),
+                section_ordinal,
+            ))
+            .or_insert_with(Vec::new)
+            .push(layout);
+    }
+    let layouts_by_section = layouts_by_section
+        .into_iter()
+        .filter_map(|(key, mut candidates)| {
+            candidates.sort_by_key(|layout| layout.chunk_ordinal);
+            candidates
+                .iter()
+                .enumerate()
+                .all(|(ordinal, layout)| ordinal == layout.chunk_ordinal)
+                .then(|| {
+                    (
+                        key,
+                        candidates
+                            .into_iter()
+                            .map(|layout| layout.passage.clone())
+                            .collect::<Vec<_>>(),
+                    )
+                })
+        })
+        .collect::<BTreeMap<_, _>>();
     let mut reused = 0;
     for field in &selection.fields {
         for section in &field.sections {
@@ -94,41 +134,14 @@ pub(crate) fn semantic_units(
                     label: section.label.as_deref(),
                 }
             };
-            let mut candidates = layouts
-                .iter()
-                .filter(|layout| {
-                    layout.owners == field.locator.owners
-                        && layout.field == field.locator.field
-                        && match &layout.passage.address {
-                            atlas_domain::SourcePassageAddress::HtmlSection {
-                                section_ordinal,
-                                ..
-                            }
-                            | atlas_domain::SourcePassageAddress::PlainSection {
-                                section_ordinal,
-                                ..
-                            } => *section_ordinal == section.section_ordinal,
-                            atlas_domain::SourcePassageAddress::Identity {} => false,
-                        }
-                })
-                .collect::<Vec<_>>();
-            candidates.sort_by_key(|layout| layout.chunk_ordinal);
-            let cached = if candidates
-                .iter()
-                .enumerate()
-                .all(|(ordinal, layout)| ordinal == layout.chunk_ordinal)
-            {
-                reuse_embedding_section(
-                    tokenizer,
-                    passage,
-                    &candidates
-                        .iter()
-                        .map(|layout| layout.passage.clone())
-                        .collect::<Vec<_>>(),
-                )
-                .map_err(embedding_error)?
-            } else {
-                None
+            let cached = match layouts_by_section.get(&(
+                field.locator.owners.as_slice(),
+                field.locator.field.as_str(),
+                section.section_ordinal,
+            )) {
+                Some(candidates) => reuse_embedding_section(tokenizer, passage, candidates)
+                    .map_err(embedding_error)?,
+                None => None,
             };
             let inputs = match cached {
                 Some(inputs) => {

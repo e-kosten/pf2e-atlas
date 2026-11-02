@@ -264,11 +264,6 @@ fn splitting_covers_all_source_bytes_without_rewriting_unicode() {
                 unit.input_sha256,
                 hash_document_embedding_input(&unit.input)
             );
-            assert_eq!(
-                unit.reuse_key,
-                crate::embedding_model_spec(crate::EmbeddingModelId::BgeBaseEnV15)
-                    .document_reuse_key(&unit.input)
-            );
         }
     }
 }
@@ -515,21 +510,6 @@ fn final_document_and_query_budgets_count_official_prefixes_without_clipping() {
             Err(EmbeddingError::EmptyInput)
         ));
     }
-}
-
-#[test]
-fn prepared_reuse_identity_uses_the_selected_model() {
-    let native = tokenizer().tokenizer().clone();
-    let spec = embedding_model_spec(EmbeddingModelId::EmbeddingGemma300M);
-    let tokenizer = TextEmbeddingTokenizer::from_tokenizer(spec, native).unwrap();
-    let units = prepare_embedding_section(&tokenizer, plain("one one", "one")).unwrap();
-    assert_eq!(units[0].input, "one\none one");
-    assert_eq!(units[0].reuse_key, spec.document_reuse_key(&units[0].input));
-    assert_ne!(
-        units[0].reuse_key,
-        crate::embedding_model_spec(crate::EmbeddingModelId::BgeBaseEnV15)
-            .document_reuse_key(&units[0].input)
-    );
 }
 
 fn local_model_config() -> EmbeddingRuntimeConfig {

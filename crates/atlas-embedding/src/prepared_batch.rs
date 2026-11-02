@@ -8,7 +8,6 @@ use crate::{
 pub struct PreparedNativeInput {
     pub input: String,
     pub input_sha256: String,
-    pub reuse_key: String,
     pub token_count: usize,
 }
 
@@ -31,7 +30,6 @@ impl From<crate::PreparedEmbeddingInput> for PreparedNativeInput {
         Self {
             input: input.input,
             input_sha256: input.input_sha256,
-            reuse_key: input.reuse_key,
             token_count: input.token_count,
         }
     }
@@ -58,7 +56,6 @@ impl PreparedEmbeddingBatch {
                 return Err(EmbeddingError::PreparedInputMismatch);
             }
             input.token_count = tokenizer.validate_document_input(&input.input)?;
-            input.reuse_key = spec.document_reuse_key(&input.input);
         }
         Ok(Self { spec, inputs })
     }

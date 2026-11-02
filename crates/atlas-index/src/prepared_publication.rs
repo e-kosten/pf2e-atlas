@@ -1,4 +1,5 @@
 //! One owned publication: stable published handles and only unpublished staged bytes.
+use crate::native_values::NativeInput;
 use crate::{
     ArtifactInstance, ArtifactValidationReport, BuildFileUsage, IndexError, PublicationSpool,
     SourceArtifactBuildContext, SourceSearchProfileIdentity,
@@ -121,15 +122,15 @@ impl<'owner> PreparedPublication<'owner> {
         )?;
         let mut output = Vec::with_capacity(inputs.len());
         for input in inputs {
-            check_input(model, input)?;
-            if self.selection(ordinal, input)?.is_some() {
+            let input = NativeInput::new(model, input)?;
+            if self.selection(ordinal, &input)?.is_some() {
                 output.push(NativeValueSelection::AlreadySelected);
                 continue;
             }
-            if let Some(selected) = binding.select(input, reuse_published)? {
+            if let Some(selected) = binding.select(&input, reuse_published)? {
                 self.remember(
                     ordinal,
-                    input,
+                    &input,
                     &selected.checksum,
                     selected.staged.as_deref(),
                 )?;
@@ -154,20 +155,17 @@ impl<'owner> PreparedPublication<'owner> {
         let mut encoded = Vec::with_capacity(batch.len());
         let mut batch_hashes = std::collections::BTreeMap::new();
         for (input, vector) in batch {
-            check_input(model, input)?;
+            let input = NativeInput::new(model, input)?;
             crate::validation::check_vector(vector, model.dimensions)?;
             let bytes = crate::read_units::vector_bytes(vector);
             let checksum = crate::embedding_values::hash_bytes(&bytes);
             if batch_hashes
-                .insert(
-                    input.input_sha256.as_str(),
-                    (input.token_count, checksum.clone()),
-                )
-                .is_some_and(|old| old != (input.token_count, checksum.clone()))
+                .insert(*input.hash(), (input.token_count(), checksum.clone()))
+                .is_some_and(|old| old != (input.token_count(), checksum.clone()))
             {
                 return Err(invalid("conflicting inferred values within batch"));
             }
-            if let Some(expected) = self.selection(ordinal, input)?
+            if let Some(expected) = self.selection(ordinal, &input)?
                 && expected != checksum
             {
                 return Err(invalid(
@@ -190,7 +188,7 @@ impl<'owner> PreparedPublication<'owner> {
                 true,
             )?;
             for value in &encoded {
-                let id = binding.ensure_input(value.input)?;
+                let id = binding.ensure_input(&value.input)?;
                 let old: u64 = write.connection().query_row("SELECT coalesce((SELECT length(vector) FROM pending_embedding_values WHERE input_id=?),0)", [id], |r| r.get(0))?;
                 write.connection().execute("INSERT INTO pending_embedding_values(input_id,vector,vector_hash,cached_at) VALUES(?,?,?,unixepoch()) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,cached_at=excluded.cached_at", params![id,value.bytes,value.checksum])?;
                 next_cache_bytes = next_cache_bytes
@@ -206,7 +204,7 @@ impl<'owner> PreparedPublication<'owner> {
             rusqlite::TransactionBehavior::Immediate,
         )?;
         for value in &encoded {
-            self.remember(ordinal, value.input, &value.checksum, Some(&value.bytes))?;
+            self.remember(ordinal, &value.input, &value.checksum, Some(&value.bytes))?;
         }
         selected_tx.commit()?;
         self.evict_cache()
@@ -263,11 +261,11 @@ impl<'owner> PreparedPublication<'owner> {
     fn selection(
         &self,
         ordinal: usize,
-        input: &NativeInputDescriptor,
+        input: &NativeInput,
     ) -> Result<Option<Vec<u8>>, IndexError> {
-        let row: Option<(usize, Vec<u8>)> = self.selected.prepare_cached("SELECT token_count,CASE WHEN length(selected_hash)=32 THEN selected_hash ELSE zeroblob(0) END FROM selected WHERE model=? AND input_hash=?")?.query_row(params![ordinal,crate::embedding_values::digest(&input.input_sha256)?], |r| Ok((r.get(0)?,r.get(1)?))).optional()?;
+        let row: Option<(usize, Vec<u8>)> = self.selected.prepare_cached("SELECT token_count,CASE WHEN length(selected_hash)=32 THEN selected_hash ELSE zeroblob(0) END FROM selected WHERE model=? AND input_hash=?")?.query_row(params![ordinal,input.hash()], |r| Ok((r.get(0)?,r.get(1)?))).optional()?;
         match row {
-            Some((tokens, checksum)) if tokens == input.token_count && checksum.len() == 32 => {
+            Some((tokens, checksum)) if tokens == input.token_count() && checksum.len() == 32 => {
                 Ok(Some(checksum))
             }
             Some(_) => Err(invalid("selected native identity mismatch")),
@@ -277,7 +275,7 @@ impl<'owner> PreparedPublication<'owner> {
     fn remember(
         &self,
         ordinal: usize,
-        input: &NativeInputDescriptor,
+        input: &NativeInput,
         checksum: &[u8],
         bytes: Option<&[u8]>,
     ) -> Result<(), IndexError> {
@@ -291,8 +289,8 @@ impl<'owner> PreparedPublication<'owner> {
             .prepare_cached("INSERT INTO selected VALUES(?,?,?,?,?)")?
             .execute(params![
                 ordinal,
-                crate::embedding_values::digest(&input.input_sha256)?,
-                input.token_count,
+                input.hash(),
+                input.token_count(),
                 checksum,
                 bytes
             ])?;
@@ -340,10 +338,12 @@ impl<'owner> PreparedPublication<'owner> {
             let hash: Vec<u8> = row.get(1)?;
             let binding = bindings.ordinal_mut(model_key)?;
             let model = binding.key.model();
-            let input = NativeInputDescriptor {
-                input_sha256: hex_hash(&hash)?,
-                token_count: row.get(2)?,
-            };
+            let input = NativeInput::from_hash(
+                model,
+                hash.try_into()
+                    .map_err(|_| invalid("native input hash length mismatch"))?,
+                row.get(2)?,
+            )?;
             let expected: Vec<u8> = row.get(3)?;
             if expected.len() != 32 {
                 return Err(invalid("selected native checksum length mismatch"));
@@ -357,7 +357,7 @@ impl<'owner> PreparedPublication<'owner> {
                 {
                     return Err(invalid("staged vector length mismatch"));
                 }
-                let bytes: Vec<u8> = self.selected.query_row("SELECT vector FROM selected WHERE model=? AND input_hash=? AND length(vector)=?", params![model_key,hash,length], |r| r.get(0))?;
+                let bytes: Vec<u8> = self.selected.query_row("SELECT vector FROM selected WHERE model=? AND input_hash=? AND length(vector)=?", params![model_key,input.hash(),length], |r| r.get(0))?;
                 binding.install(&input, &bytes, &expected)?;
             } else {
                 let actual = binding.published_checksum(&input)?;
@@ -369,8 +369,8 @@ impl<'owner> PreparedPublication<'owner> {
         Ok(())
     }
 }
-struct EncodedNativeValue<'a> {
-    input: &'a NativeInputDescriptor,
+struct EncodedNativeValue {
+    input: NativeInput,
     bytes: Vec<u8>,
     checksum: Vec<u8>,
 }
@@ -382,11 +382,11 @@ impl PublicationValues<'_, '_> {
     fn selected_checksum(
         &self,
         ordinal: usize,
-        input: &NativeInputDescriptor,
+        input: &NativeInput,
     ) -> Result<Vec<u8>, IndexError> {
         let (tokens,hash): (usize,Vec<u8>) = self.selected.prepare_cached("SELECT token_count,CASE WHEN length(selected_hash)=32 THEN selected_hash ELSE zeroblob(0) END FROM selected WHERE model=? AND input_hash=?")?
-            .query_row(params![ordinal,crate::embedding_values::digest(&input.input_sha256)?],|r|Ok((r.get(0)?,r.get(1)?)))?;
-        if tokens != input.token_count || hash.len() != 32 {
+            .query_row(params![ordinal,input.hash()],|r|Ok((r.get(0)?,r.get(1)?)))?;
+        if tokens != input.token_count() || hash.len() != 32 {
             return Err(invalid("selected native identity mismatch"));
         }
         Ok(hash)
@@ -397,15 +397,15 @@ impl PublicationValues<'_, '_> {
         input: &NativeInputDescriptor,
     ) -> Result<i64, IndexError> {
         let binding = self.bindings.profile(profile)?;
-        let checksum = self.selected_checksum(binding.key.ordinal(), input)?;
-        binding.selected_input(input, &checksum)
+        let input = NativeInput::new(binding.key.model(), input)?;
+        let checksum = self.selected_checksum(binding.key.ordinal(), &input)?;
+        binding.selected_input(&input, &checksum)
     }
     pub(crate) fn value(
         &self,
         model: &SourceSearchProfileIdentity,
         input: &NativeInputDescriptor,
     ) -> Result<Vec<f32>, IndexError> {
-        check_input(model, input)?;
         let binding = self.bindings.profile(&model.profile_id)?;
         if binding.key.model() != model {
             return Err(invalid("native model differs from publication"));
@@ -419,22 +419,6 @@ fn bounded(length: usize) -> Result<(), IndexError> {
         return Err(invalid("native value batch exceeds its bound"));
     }
     Ok(())
-}
-fn check_input(
-    model: &SourceSearchProfileIdentity,
-    input: &NativeInputDescriptor,
-) -> Result<(), IndexError> {
-    crate::embedding_values::digest(&input.input_sha256)?;
-    if input.token_count == 0 || input.token_count > model.token_limit {
-        return Err(invalid("invalid native token count"));
-    }
-    Ok(())
-}
-fn hex_hash(bytes: &[u8]) -> Result<String, IndexError> {
-    if bytes.len() != 32 {
-        return Err(invalid("native input hash length mismatch"));
-    }
-    Ok(bytes.iter().map(|b| format!("{b:02x}")).collect())
 }
 fn invalid(message: &str) -> IndexError {
     IndexError::Invalid(message.into())

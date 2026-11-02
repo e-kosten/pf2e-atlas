@@ -191,7 +191,6 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
     let checkpoint = atlas_embedding::PreparedNativeInput {
         input: String::new(),
         input_sha256: unit.input_hash.clone(),
-        reuse_key: "backfill-preservation".into(),
         token_count: unit.input_token_count,
     };
     let job = "next-preparation";
@@ -203,6 +202,7 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
         atlas_index::test_support::stage_historical_embedding_fixture(
             &write,
             job,
+            "backfill-preservation",
             model,
             &checkpoint,
             &unit.vector,

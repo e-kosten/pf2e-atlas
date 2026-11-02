@@ -18,7 +18,6 @@ use atlas_record::source_record::{
     source_owned_document_count, source_record_key,
 };
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
 fn index(error: atlas_index::IndexError) -> IngestError {
@@ -187,6 +186,9 @@ pub(crate) fn prepare(
     let fingerprint = capture.fingerprint.clone();
     let mut context = crate::build::build_context(options, &catalog, &fingerprint)?;
     let preparation_hash = context.preparation_sha256().map_err(index)?;
+    let reuse_preparation = reuse
+        .preparation_matches(&preparation_hash)
+        .map_err(index)?;
     let manifest = capture.manifest();
     let packs = manifest
         .manifest
@@ -226,11 +228,10 @@ pub(crate) fn prepare(
         for (path, positions) in bindings {
             let path_relative =
                 crate::source::discovery::relative_source_path(&options.source_root, path);
-            let bytes = capture.read(path)?;
+            let source = capture.read_verified(path)?;
             work.captured_document_reads += 1;
-            work.largest_source_bytes = work.largest_source_bytes.max(bytes.len());
-            let hash = format!("{:x}", Sha256::digest(&bytes));
-            owned.push((path_relative, bytes, hash, positions));
+            work.largest_source_bytes = work.largest_source_bytes.max(source.bytes.len());
+            owned.push((path_relative, source.bytes, source.sha256, positions));
         }
         tracing::trace!(target:"atlas_build_diagnostic",stage="captured_document_batch",source_files=owned.len(),"Owned checked document batch");
         work.largest_admission_batch_source_bytes = work
@@ -262,7 +263,33 @@ pub(crate) fn prepare(
                 .collect::<Vec<_>>();
             work.reusable_record_read_calls += requests.len();
             work.reusable_record_read_batches += usize::from(!requests.is_empty());
-            let previous = reuse.read_records(&requests).map_err(index)?;
+            let previous = if reuse_preparation {
+                reuse
+                    .read_records(&requests)
+                    .map_err(index)?
+                    .into_iter()
+                    .map(|old| {
+                        old.map(|old| {
+                            (
+                                old.record,
+                                old.diagnostics,
+                                Some(PreviousPreparation {
+                                    hash: old.preparation_context_hash,
+                                    content: old.content,
+                                    relationships: old.relationships,
+                                }),
+                            )
+                        })
+                    })
+                    .collect::<Vec<_>>()
+            } else {
+                reuse
+                    .read_admissions(&requests)
+                    .map_err(index)?
+                    .into_iter()
+                    .map(|old| old.map(|old| (old.record, old.diagnostics, None)))
+                    .collect::<Vec<_>>()
+            };
             let overlap = PreparationBatchOverlap {
                 raw_sources: owned.len(),
                 retained_records: previous.iter().filter(|p| p.is_some()).count(),
@@ -280,25 +307,19 @@ pub(crate) fn prepare(
                 };
                 let mut reused = false;
                 let mut previous_preparation = None;
-                let admission = if let Some(old) = previous.filter(|old| {
-                    old.diagnostics
-                        .iter()
-                        .all(|d| d.source_diagnostic.is_some())
-                }) {
+                let admission = if let Some((record, diagnostics, preparation)) =
+                    previous.filter(|(_, diagnostics, _)| {
+                        diagnostics.iter().all(|d| d.source_diagnostic.is_some())
+                    }) {
                     let raw = atlas_foundry_model::parse_source_value(bytes);
                     match raw {
                         Ok(raw) => {
                             reused = true;
-                            previous_preparation = Some(PreviousPreparation {
-                                hash: old.preparation_context_hash,
-                                content: old.content,
-                                relationships: old.relationships,
-                            });
+                            previous_preparation = preparation;
                             Ok(SourceAdmission {
                                 raw,
-                                model: Some(old.record.into_source()),
-                                diagnostics: old
-                                    .diagnostics
+                                model: Some(record.into_source()),
+                                diagnostics: diagnostics
                                     .into_iter()
                                     .filter_map(|d| d.source_diagnostic)
                                     .collect(),

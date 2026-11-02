@@ -61,6 +61,31 @@ impl PreparationMetadata {
     }
 }
 
+#[derive(Debug)]
+pub struct ReusableSourceAdmission {
+    pub record: SourceBackedRecord,
+    pub source_path: String,
+    pub content_hash: String,
+    pub diagnostics: Vec<SourceArtifactDiagnostic>,
+}
+
+pub(crate) fn read_attested_source_admission(
+    c: &Connection,
+    context: &SourceArtifactBuildContext,
+    key: &atlas_domain::RecordKey,
+) -> Result<Option<ReusableSourceAdmission>, IndexError> {
+    let Some(decoded) = decode_persisted_admission(c, context, key)? else {
+        return Ok(None);
+    };
+    crate::component_digests::validate_retained_admission(
+        c,
+        decoded.id,
+        &decoded.admission,
+        &decoded.snapshot,
+    )?;
+    Ok(Some(decoded.admission))
+}
+
 /// Fixture-only eager collection; production maintenance visits bounded roots.
 #[cfg(any(test, feature = "test-support"))]
 pub fn collect_persisted_inputs_for_fixture(
@@ -138,11 +163,16 @@ struct DecodedPersistedInput {
     source: SourceArtifactRecordInput,
     snapshot: Vec<u8>,
 }
-fn decode_persisted_input(
+struct DecodedPersistedAdmission {
+    id: i64,
+    admission: ReusableSourceAdmission,
+    snapshot: Vec<u8>,
+}
+fn decode_persisted_admission(
     c: &Connection,
     context: &SourceArtifactBuildContext,
     key: &atlas_domain::RecordKey,
-) -> Result<Option<DecodedPersistedInput>, IndexError> {
+) -> Result<Option<DecodedPersistedAdmission>, IndexError> {
     if context.source_contract != atlas_foundry_model::SOURCE_CONTRACT_ID
         || context.snapshot_version != atlas_foundry_model::SNAPSHOT_VERSION
     {
@@ -150,7 +180,6 @@ fn decode_persisted_input(
             "persisted source admission contract differs".into(),
         ));
     }
-    let preparation_hash = context.preparation_sha256()?;
     let mut statement = c.prepare_cached(RECORD_INPUT_SQL)?;
     let mut rows = statement.query([key.to_string()])?;
     let Some(row) = rows.next()? else {
@@ -173,6 +202,33 @@ fn decode_persisted_input(
     if record.key().to_string() != key {
         return Err(IndexError::Invalid("persisted snapshot key differs".into()));
     }
+    Ok(Some(DecodedPersistedAdmission {
+        id,
+        snapshot,
+        admission: ReusableSourceAdmission {
+            record,
+            source_path: row.get(3)?,
+            content_hash: row.get(4)?,
+            diagnostics: admission_diagnostics(c, id)?,
+        },
+    }))
+}
+
+fn decode_persisted_input(
+    c: &Connection,
+    context: &SourceArtifactBuildContext,
+    key: &atlas_domain::RecordKey,
+) -> Result<Option<DecodedPersistedInput>, IndexError> {
+    let Some(DecodedPersistedAdmission {
+        id,
+        snapshot,
+        admission,
+    }) = decode_persisted_admission(c, context, key)?
+    else {
+        return Ok(None);
+    };
+    let preparation_hash = context.preparation_sha256()?;
+    let record = admission.record;
     let mut references = crate::read_content::content_references_for_record(c, id)?;
     let mut content = Vec::new();
     let mut fields = c.prepare("SELECT owners_json,field_path,role,visibility,authored_markup_sha256,html_gzip,interactions_json,metadata_json,preparation_context_hash FROM prepared_content WHERE record_id=? ORDER BY content_id")?;
@@ -279,6 +335,25 @@ fn decode_persisted_input(
             resolution: edge.resolution,
         });
     }
+    Ok(Some(DecodedPersistedInput {
+        id,
+        snapshot,
+        source: SourceArtifactRecordInput {
+            record,
+            source_path: admission.source_path,
+            content_hash: admission.content_hash,
+            preparation_context_hash: preparation_hash,
+            content,
+            relationships,
+            diagnostics: admission.diagnostics,
+        },
+    }))
+}
+
+fn admission_diagnostics(
+    c: &Connection,
+    id: i64,
+) -> Result<Vec<SourceArtifactDiagnostic>, IndexError> {
     let mut diagnostics = Vec::new();
     let mut ds=c.prepare("SELECT owners_json,field_path,stage,details_json FROM developer_diagnostics WHERE record_id=? AND stage='admission' ORDER BY diagnostic_id")?;
     let mut ds = ds.query([id])?;
@@ -297,19 +372,7 @@ fn decode_persisted_input(
             source_diagnostic: details.source_diagnostic,
         });
     }
-    Ok(Some(DecodedPersistedInput {
-        id,
-        snapshot,
-        source: SourceArtifactRecordInput {
-            record,
-            source_path: row.get(3)?,
-            content_hash: row.get(4)?,
-            preparation_context_hash: preparation_hash,
-            content,
-            relationships,
-            diagnostics,
-        },
-    }))
+    Ok(diagnostics)
 }
 
 // An optional-key OR predicate would prevent using the unique key index.

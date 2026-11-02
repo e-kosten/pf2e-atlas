@@ -1876,11 +1876,46 @@ fn incremental_preparation_reuses_admission_and_replays_missing_and_renamed_targ
 }
 
 #[test]
+fn changed_preparation_reuses_admission_without_consuming_obsolete_html() {
+    let fixture = Fixture::new();
+    let options = fixture.options();
+    build_artifact(options.clone()).unwrap();
+    let connection = rusqlite::Connection::open(&options.output_path).unwrap();
+    assert!(
+        connection
+            .execute(
+                "UPDATE prepared_content SET html_gzip=X'00' WHERE html_gzip IS NOT NULL",
+                [],
+            )
+            .unwrap()
+            > 0
+    );
+    assert!(crate::product_preparation::prepare_fixture(&options).is_err());
+    fs::write(
+        fixture.0.join("static/lang/en.json"),
+        r#"{"PF2E":{"Label":"Changed catalog"}}"#,
+    )
+    .unwrap();
+    let prepared = crate::product_preparation::prepare_fixture(&options).unwrap();
+    assert_eq!(
+        prepared.source_report.reused_admissions,
+        prepared.spool.records.len()
+    );
+    assert_eq!(prepared.source_report.reused_preparations, 0);
+}
+
+#[test]
 fn captured_document_change_is_fatal_even_when_original_bytes_return() {
     let fixture = Fixture::new();
     let capture = crate::source_fingerprint::SourceCapture::capture(&fixture.0, None).unwrap();
     let path = fixture.0.join("packs/items/useful.json");
     let original = fs::read(&path).unwrap();
+    let checked = capture.read_verified(&path).unwrap();
+    assert_eq!(checked.bytes, original);
+    assert_eq!(checked.sha256, {
+        use sha2::Digest;
+        format!("{:x}", sha2::Sha256::digest(&original))
+    });
     fs::write(
         &path,
         r#"{"_id":"aaaaaaaaaaaaaaaa","name":"Transient","type":"effect"}"#,

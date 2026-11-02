@@ -162,18 +162,50 @@ impl RetainedPayloadDigests {
             })
             .collect::<Vec<_>>();
         Ok(Self {
-            snapshot: hash(&(
-                RECIPE,
+            snapshot: retained_snapshot_digest(
                 snapshot,
                 &source.source_path,
                 &source.content_hash,
                 &source.diagnostics,
-            ))?,
+            )?,
             content: hash(&(&source.preparation_context_hash, &source.content))?,
             relationships: hash(&(&source.relationships, references))?,
         })
     }
 }
+fn retained_snapshot_digest(
+    snapshot: &[u8],
+    source_path: &str,
+    content_hash: &str,
+    diagnostics: &[crate::SourceArtifactDiagnostic],
+) -> Result<String, IndexError> {
+    hash(&(RECIPE, snapshot, source_path, content_hash, diagnostics))
+}
+
+pub(crate) fn validate_retained_admission(
+    c: &Connection,
+    id: i64,
+    admission: &crate::ReusableSourceAdmission,
+    snapshot: &[u8],
+) -> Result<(), IndexError> {
+    let Some(stored) = ComponentDigests::read(c, id)? else {
+        return Ok(());
+    };
+    if stored.snapshot
+        != retained_snapshot_digest(
+            snapshot,
+            &admission.source_path,
+            &admission.content_hash,
+            &admission.diagnostics,
+        )?
+    {
+        return Err(IndexError::Invalid(
+            "retained snapshot payload differs from its component attestation".into(),
+        ));
+    }
+    Ok(())
+}
+
 /// Verify before retained bytes can become new preparation or maintenance input.
 /// Missing entries remain historical unknowns; present proofs cannot be restamped
 /// from codec-valid corrupted payloads. This has no recursive validation/read.

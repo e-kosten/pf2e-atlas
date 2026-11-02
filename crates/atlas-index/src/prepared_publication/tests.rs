@@ -801,7 +801,10 @@ fn oversized_selected_hash_or_key_is_rejected_on_consumption_without_losing_rows
         if field == "selected_hash" {
             assert!(
                 publication
-                    .selection(publication.model_key(model).unwrap(), &desc)
+                    .selection(
+                        publication.model_key(model).unwrap(),
+                        &crate::native_values::NativeInput::new(model, &desc).unwrap()
+                    )
                     .unwrap_err()
                     .to_string()
                     .contains("selected native identity mismatch")

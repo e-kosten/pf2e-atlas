@@ -112,7 +112,7 @@ fn native_signatures(
                     PreparedEmbeddingBatch::prepare(&tokenizer, std::mem::take(pending)).unwrap();
                 for input in batch.inputs() {
                     let metadata = serde_json::to_vec(&(
-                        &input.reuse_key,
+                        &tokenizer.spec().document_reuse_key(&input.input),
                         &input.input_sha256,
                         input.token_count,
                     ))

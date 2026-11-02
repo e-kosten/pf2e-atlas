@@ -19,6 +19,7 @@ mod native_values;
 pub use native_storage_migration::{INPUT_OWNED_STORAGE_SCHEMA_SQL, backfill_input_owned_storage};
 mod passage_layouts;
 mod persisted_inputs;
+pub use persisted_inputs::ReusableSourceAdmission;
 mod reuse_reader;
 pub use passage_layouts::SourcePassageLayout;
 #[cfg(any(test, feature = "test-support"))]

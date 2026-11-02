@@ -89,42 +89,59 @@ impl ReferenceReuseReader {
         if self.context.is_none() {
             return Ok(output);
         }
-        let mut after = 0i64;
-        loop {
-            let session = self.read()?;
-            let mut statement=session.connection().prepare("SELECT record_id,key,source_path,content_hash,document_kind FROM records WHERE record_id>? ORDER BY record_id LIMIT 128")?;
-            let rows = statement
-                .query_map([after], |r| {
-                    Ok((
-                        r.get::<_, i64>(0)?,
-                        r.get::<_, String>(1)?,
-                        r.get::<_, String>(2)?,
-                        r.get::<_, String>(3)?,
-                        r.get::<_, String>(4)?,
-                    ))
-                })?
-                .collect::<Result<Vec<_>, _>>()?;
-            if rows.is_empty() {
-                break;
-            }
-            for (id, key, path, hash, kind) in rows {
-                after = id;
-                let key: RecordKey = key
-                    .parse()
-                    .map_err(|e| IndexError::Invalid(format!("invalid reusable key: {e}")))?;
-                output.insert(
-                    (key.pack().as_str().into(), path.clone()),
-                    ReusableSourceIdentity {
-                        key,
-                        source_path: path,
-                        content_hash: hash,
-                        document_kind: kind,
-                    },
-                );
-            }
+        let session = self.read()?;
+        let mut statement = session.connection().prepare(
+            "SELECT key,source_path,content_hash,document_kind FROM records ORDER BY record_id",
+        )?;
+        let mut rows = statement.query([])?;
+        while let Some(row) = rows.next()? {
+            let key: String = row.get(0)?;
+            let path: String = row.get(1)?;
+            let key: RecordKey = key
+                .parse()
+                .map_err(|e| IndexError::Invalid(format!("invalid reusable key: {e}")))?;
+            output.insert(
+                (key.pack().as_str().into(), path.clone()),
+                ReusableSourceIdentity {
+                    key,
+                    source_path: path,
+                    content_hash: row.get(2)?,
+                    document_kind: row.get(3)?,
+                },
+            );
         }
         Ok(output)
     }
+    pub fn preparation_matches(&self, preparation_hash: &str) -> Result<bool, IndexError> {
+        self.context
+            .as_ref()
+            .map(|context| {
+                context
+                    .preparation_sha256()
+                    .map(|hash| hash == preparation_hash)
+            })
+            .transpose()
+            .map(|matches| matches.unwrap_or(false))
+    }
+
+    pub fn read_admissions(
+        &self,
+        keys: &[&RecordKey],
+    ) -> Result<Vec<Option<crate::ReusableSourceAdmission>>, IndexError> {
+        let Some((session, context)) = self.batch_session(keys.len())? else {
+            return Ok(keys.iter().map(|_| None).collect());
+        };
+        keys.iter()
+            .map(|key| {
+                crate::persisted_inputs::read_attested_source_admission(
+                    session.connection(),
+                    context,
+                    key,
+                )
+            })
+            .collect()
+    }
+
     pub fn read_records(
         &self,
         keys: &[&RecordKey],
@@ -302,6 +319,9 @@ mod tests {
         let workspace = initialize_workspace(&path).unwrap();
         let mut reader =
             ReferenceReuseReader::new(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        let (identities, metrics) = capture_sql_work(|| reader.identities()).unwrap();
+        assert_eq!(identities.unwrap().len(), input.records.len());
+        assert_eq!(metrics.workspace_connections, 1);
         let key = input.records[1].record.key();
         let first = input.records[0].record.key();
         let absent: RecordKey = "items:0000000000000000".parse().unwrap();
@@ -321,6 +341,25 @@ mod tests {
             records[0].as_ref().unwrap().content,
             records[2].as_ref().unwrap().content
         );
+        let (admissions, metrics) = capture_sql_work(|| reader.read_admissions(&keys)).unwrap();
+        let admissions = admissions.unwrap();
+        assert_eq!(metrics.workspace_connections, 1);
+        for (admission, record) in admissions.iter().zip(&records) {
+            assert_eq!(
+                admission.as_ref().map(|a| (
+                    &a.record,
+                    &a.source_path,
+                    &a.content_hash,
+                    &a.diagnostics
+                )),
+                record.as_ref().map(|r| (
+                    &r.record,
+                    &r.source_path,
+                    &r.content_hash,
+                    &r.diagnostics
+                )),
+            );
+        }
         let (layouts, metrics) = capture_sql_work(|| reader.read_layouts(&keys)).unwrap();
         let layouts = layouts.unwrap();
         assert_eq!(metrics.workspace_connections, 1);
@@ -394,7 +433,18 @@ mod tests {
         assert!(!reader.read_layouts(&[body_bad]).unwrap()[0].is_empty());
         assert!(reader.read_records(&[layout_bad]).unwrap()[0].is_some());
         assert!(reader.read_records(&[body_bad]).is_err());
+        assert!(reader.read_admissions(&[body_bad]).is_err());
         assert!(reader.read_layouts(&[layout_bad]).is_err());
+        assert_eq!(c.execute("UPDATE prepared_content SET html_gzip=X'00' WHERE record_id=(SELECT record_id FROM records WHERE key=?) AND html_gzip IS NOT NULL",[layout_bad.to_string()]).unwrap(), 1);
+        assert_eq!(
+            reader.read_admissions(&[layout_bad]).unwrap()[0]
+                .as_ref()
+                .unwrap()
+                .record
+                .key(),
+            layout_bad
+        );
+        assert!(reader.read_records(&[layout_bad]).is_err());
         assert_eq!(c.execute("DELETE FROM record_bodies WHERE record_id=(SELECT record_id FROM records WHERE key=?)",[body_bad.to_string()]).unwrap(),1);
         let unavailable = reader.read_records(&[body_bad]).unwrap();
         assert!(unavailable[0].is_none());

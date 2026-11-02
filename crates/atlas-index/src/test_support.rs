@@ -601,12 +601,13 @@ fn set_preparation_policy(
 pub fn stage_historical_embedding_fixture(
     session: &atlas_storage::WriteSession,
     job: &str,
+    reuse_key: &str,
     model: &crate::SourceSearchProfileIdentity,
     input: &atlas_embedding::PreparedNativeInput,
     vector: &[f32],
 ) -> Result<(), IndexError> {
     let bytes = crate::read_units::vector_bytes(vector);
-    session.connection().execute("INSERT INTO embedding_checkpoints VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(reuse_key) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,touched_job=excluded.touched_job",rusqlite::params![input.reuse_key,serde_json::to_string(model)?,input.input_sha256,input.token_count,model.dimensions,bytes,crate::codec::sha256(&bytes),job])?;
+    session.connection().execute("INSERT INTO embedding_checkpoints VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(reuse_key) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,touched_job=excluded.touched_job",rusqlite::params![reuse_key,serde_json::to_string(model)?,input.input_sha256,input.token_count,model.dimensions,bytes,crate::codec::sha256(&bytes),job])?;
     Ok(())
 }
 
