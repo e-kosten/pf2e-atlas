@@ -1,4 +1,4 @@
-//! Owned publication preserves admission identity and pre-mutation snapshot checks.
+//! Owned publication preserves admission identities and rolls back malformed consumed frames.
 use super::*;
 use crate::{test_support::*, *};
 use atlas_record::source_record::select_record_search;
@@ -56,12 +56,11 @@ fn spool(
         expected,
     )
     .unwrap();
-    let count = input.records.len();
-    for (ordinal, source) in input.records.into_iter().enumerate() {
+    for source in input.records {
         let label = &builder
             .packs
             .iter()
-            .find(|p| p.pack_id == source.record.key().pack().as_str())
+            .find(|pack| pack.pack_id == source.record.key().pack().as_str())
             .unwrap()
             .label;
         let selection = select_record_search(
@@ -78,36 +77,35 @@ fn spool(
             .filter(|row| row.record == *source.record.key())
             .cloned()
             .collect();
-        let mut snapshot = String::from_utf8(
-            atlas_foundry_model::encode_snapshot(source.record.source()).unwrap(),
-        )
-        .unwrap();
-        if ordinal + 1 == count {
-            snapshot = match damage {
-                Some("contract") => snapshot.replace(
-                    atlas_foundry_model::SOURCE_CONTRACT_ID,
-                    "retired-fixture-contract",
-                ),
-                Some("root") => snapshot.replace("eeeeeeeeeeeeeeee", "qqqqqqqqqqqqqqqq"),
-                None => snapshot,
-                Some(other) => panic!("unknown corruption {other}"),
-            };
-        }
         builder
-            .records
-            .push(&PreparedRecordFrame {
-                pack: source.record.key().pack().as_str().into(),
-                snapshot,
-                source_path: source.source_path,
-                content_hash: source.content_hash,
-                preparation_context_hash: source.preparation_context_hash,
-                content: source.content,
-                relationships: source.relationships,
-                diagnostics: source.diagnostics,
+            .push_record(PreparedRecordInput {
+                source,
                 selection,
                 lexical,
             })
             .unwrap();
+    }
+    if let Some(damage) = damage {
+        let mut altered = BuildFrameStream::new_in(scratch).unwrap();
+        let mut frames = builder.records.cursor().unwrap();
+        let count = builder.record_count();
+        for ordinal in 0..count {
+            let mut frame = frames.next_frame().unwrap().unwrap();
+            if ordinal + 1 == count {
+                frame.snapshot = match damage {
+                    "contract" => frame.snapshot.replace(
+                        atlas_foundry_model::SOURCE_CONTRACT_ID,
+                        "retired-fixture-contract",
+                    ),
+                    "root" => frame
+                        .snapshot
+                        .replace("eeeeeeeeeeeeeeee", "qqqqqqqqqqqqqqqq"),
+                    other => panic!("unknown corruption {other}"),
+                };
+            }
+            altered.push(&frame).unwrap();
+        }
+        builder.records = altered;
     }
     for row in input.lexical_units {
         builder.lexical.push(&row).unwrap();
@@ -190,7 +188,7 @@ fn owned_publication_preserves_stream_order_optional_names_macro_exclusion_and_s
     }
 }
 #[test]
-fn late_snapshot_contract_or_root_error_precedes_reference_mutation() {
+fn late_snapshot_contract_or_root_error_rolls_back_reference_changes() {
     for (damage, expected_error) in [
         ("contract", "Unsupported source contract"),
         ("root", "selection belongs to another root"),
@@ -203,7 +201,6 @@ fn late_snapshot_contract_or_root_error_precedes_reference_mutation() {
         let scratch = BuildScratch::new(&owner).unwrap();
         let source = spool(scratch.path(), fixture(), origin(&workspace), Some(damage));
         let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-        write.connection().execute_batch("CREATE TRIGGER reject_reference_mutation BEFORE INSERT ON artifact_context BEGIN SELECT RAISE(ABORT,'unexpected reference mutation'); END;").unwrap();
         let before = reference_preservation_rows(write.connection()).unwrap();
         write.commit().unwrap();
         let error = PreparedPublication::new_in(
@@ -212,8 +209,9 @@ fn late_snapshot_contract_or_root_error_precedes_reference_mutation() {
             scratch.path(),
             source,
         )
-        .err()
-        .unwrap();
+        .unwrap()
+        .publish()
+        .unwrap_err();
         assert!(
             error.to_string().contains(expected_error),
             "{damage}: {error}"
@@ -225,4 +223,22 @@ fn late_snapshot_contract_or_root_error_precedes_reference_mutation() {
         );
         assert_eq!(read.reference_revision().unwrap(), 1);
     }
+}
+
+#[test]
+fn mismatched_preparation_stamp_is_rejected_before_published_state_changes() {
+    let input = crate::foundation_tests::fixture(false);
+    let (_directory, path) = crate::foundation_tests::build(&input);
+    let workspace = initialize_workspace(&path).unwrap();
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    let before = stable_rows(read.connection());
+    let revision = read.reference_revision().unwrap();
+    drop(read);
+    let mut bad = input;
+    bad.records[1].preparation_context_hash = "0".repeat(64);
+    assert!(publish_input(&path, &bad).is_err());
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(read.reference_revision().unwrap(), revision);
+    assert_eq!(stable_rows(read.connection()), before);
+    crate::validate_reference(read.connection()).unwrap();
 }

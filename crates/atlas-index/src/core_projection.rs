@@ -50,6 +50,14 @@ pub(super) fn membership(
 ) -> Result<CoreMembership, IndexError> {
     let core = core_search_selection(record, selection)
         .map_err(|error| IndexError::Invalid(error.to_string()))?;
+    membership_from_selection(c, id, &core)
+}
+
+pub(crate) fn membership_from_selection(
+    c: &Connection,
+    id: i64,
+    core: &atlas_record::source_record::CoreSearchSelection,
+) -> Result<CoreMembership, IndexError> {
     let owners = core
         .owners
         .iter()

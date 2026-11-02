@@ -124,17 +124,19 @@ upgrade leaves entries absent until actual publication; absence attests nothing.
 Migration 29 also retires the obsolete whole-root hash from
 `projection_allocations`; allocation identity retains `record_id`, `seed` and
 `end_id`. The fixed recipe binds eight named component hashes, with strict typed decoding.
-Publication writes them only with coherent projections and independently checks
-all present hashes inside the exact final transaction. Metadata-only upgrades
-refresh existing hashes after their dependent projections change. Saved state,
+Publication derives them with their dependent outputs and writes changed entries
+in the same transaction. Ordinary ingest trusts unchanged components; explicit
+deep audit independently reconstructs and checks present hashes. Metadata-only
+upgrades refresh existing hashes after their dependent projections change. Saved state,
 source/native recipes and historical migration callbacks retain their owners.
 
 One owned prepared publication binds workspace/revision, context, complete source
 inventory, metadata and selected values. Its private files are disposable attempt
 state. Disposable frames contain uncompressed typed JSON with observed allocation
-bounds, consumed-byte checksums and bounded decoding; they cannot supply SQL or persistent identity. The owner and
-expected generation establish deletion authority without repeated whole-file
-authentication. Truncated or damaged consumed data fails publication.
+bounds, counts and bounded decoding; they cannot supply SQL or persistent identity.
+They carry no per-frame checksum. Typed record append seals compact identities
+before serialization, and the owner/expected generation establish deletion
+authority. Truncated or structurally invalid consumed data fails publication.
 
 Pre-release separate-file formats have no compatibility reader or conversion
 shim. Future workspace upgrades use ordered migrations with recorded checksums,
@@ -400,10 +402,11 @@ does not expand passages. No silent truncation or token-estimator fallback is al
 Passage metadata addresses a selected section and UTF-8 byte range, with source or
 prepared HTML/canonical-text hashes and selection version. Identity units have no
 fabricated prose range. Readers recover text from checked source/prepared content.
-Vector reuse requires exact model/input identity, token count, dimensions and
-verified vector bytes. Durable checkpoints survive interrupted builds and content
-policy changes; changed prepared text obtains a different input identity. Input
-reuse does not merge source attributions. Offline validation checks addresses,
+Vector reuse binds exact model/input identity, token count and the selected
+published checksum. Identity-only published reuse retains a handle without reading
+the vector payload. Durable recovery bytes are shape/checksum-verified when
+consumed; changed prepared text obtains a different input identity. Input reuse
+does not merge source attributions. Offline validation checks addresses,
 coverage and vector integrity without requiring model assets.
 Each stored profile has complete semantic coverage. An empty profile manifest is
 lexical-only. Each exact profile identity owns a dimensioned vec0 table; KNN
@@ -413,15 +416,16 @@ eligibility remains constrained to eligible roots within the selected profile.
 and native-input metadata. Compact digests index full checked addresses; validation
 recomputes them and key conflicts compare the complete metadata. Each published input
 owns one vector in its model-owned vec0 table, shared by document occurrences and
-trait chunks. Rebuild reuse checks its published checksum. `trait_seed_chunks`
-retains ordered input/coverage evidence, including repetitions. Trait-only inputs
+trait chunks. Reuse verifies the selected checksum's binding, not the untouched
+payload. `trait_seed_chunks` retains ordered input/coverage evidence, including
+repetitions. Trait-only inputs
 stay outside document KNN unless an eligible document occurrence uses them. Trait
 centroids use separate binary f32 values/checksums; there is no second permanent
 native-value corpus.
-Final publication reconciles and validates active units and clears pending values
-and unused metadata in the same transaction, never before a complete replacement
-is available. Pending values have priority for resuming unfinished builds while
-published readers retain the old generation.
+Final publication reconciles active units and clears pending values and unused
+metadata in the same transaction, after their consumers are installed. Pending
+values have priority for resuming unfinished builds while published readers retain
+the old generation.
 Lexical/reference reads and stored-vector Similar do not require query weights.
 
 Lexical rows keep each root name and verified alias separate with root vocabulary;
@@ -560,9 +564,9 @@ schema or published migration checksum. Setup preserves saved lists/encounters,
 record identities and compatible vector reuse. Without compatible source, old
 reference preparation remains unavailable with the normal rebuild guidance.
 
-Checked publication and explicit full validation decode every remaster citation
-and verify its source field against checked content. Ordinary suppression reads
-only relevant legacy identities through complete SQL candidate membership at both
+Preparation retains remaster citations from checked source fields. Explicit full
+validation decodes every citation and verifies its source field against checked
+content. Ordinary suppression reads only relevant legacy identities through complete SQL candidate membership at both
 endpoints, with one JSON-bound candidate relation and no provenance decoding.
 Unrelated malformed provenance therefore cannot fail a valid search; detail
 consumers still decode their selected citations and never fabricate navigation.
@@ -614,13 +618,22 @@ metadata-only upgrades preserve that absence. Failed attempts preserve the activ
 summary and reference revision. Product setup and direct build reports expose the
 new publication's counts.
 
-The writer reconciles changed reference rows inside a maintenance transaction in
-the existing workspace. Unchanged rows retain their identity; removed sources lose
-current projections and become unavailable identities without deleting saved
-references. Reference publication and profile activation advance the workspace's
-reference revision; user-state writes do not. Failed publication rolls back the
-whole delta. Durable maintenance remains set until committed data is validated
-and admission can safely resume.
+The writer reconciles changed reference rows in one storage-owned immediate
+transaction under exclusive access in the existing workspace. Unchanged rows keep
+their identity; removed sources become unavailable without deleting saved references.
+Typed construction, consumed-input/binding checks and SQL constraints establish
+normal publication's write contract. It trusts untouched committed data rather
+than reconstructing outputs for a second audit. Normal reports contain persisted
+counts with `checked_snapshots=0`; they do not certify whole-reference health.
+
+Reference publication/profile activation advance the reference revision; user-state
+writes do not. Normal source publication adds no durable maintenance marker. Failure
+rolls back the whole delta and readers can reopen the old committed state, even if
+it already contained defects. Pre-existing markers block this operation; an explicit
+update may first recover them through the existing validated recovery path. Schema
+and metadata upgrades, physical reclamation and their validated recovery retain their
+separate durable maintenance contract. Postcommit reclamation failure is distinct
+from publication failure: the new reference may already be committed.
 
 Readers own bounded deferred transactions. One composed operation shares its
 snapshot across reference and saved-domain readers; idle CLI/web owners retain no
@@ -645,8 +658,8 @@ hashes, cache/section coverage, sanitized markers, attributed relationships,
 identity evidence, FTS postings and vector coverage/dimensions/finiteness/normalization.
 Within a validation pass, each root's checked prepared content feeds search
 selection directly. Its bytes and sidecars are validated once in the caller's
-transaction and discarded after that root; no cross-transaction validation cache
-or weaker publication check is introduced.
+transaction and discarded after that root. This full diagnostic pass is separate
+from ordinary publication; there is no cross-transaction validation cache.
 Trait membership and reference evidence is accumulated with the compact checked
 record identity traversal. Deep validation does not reconstruct whole-corpus
 build inputs for those comparisons. Cached-row metadata, including unpublished
@@ -685,10 +698,9 @@ change. SQLite's documented mapped-I/O error and filesystem constraints still ap
 see [SQLite memory-mapped I/O](https://www.sqlite.org/mmap.html) and
 [effective mapping limits](https://www.sqlite.org/pragma.html#pragma_mmap_size).
 
-After reconciliation, the writer flushes dirty SQLite pages before validation so
-freshly written vector chunks do not compete with dirty pages for the cache.
-This is a mid-transaction cache flush, not a commit or early activation; any
-flush or validation failure still rolls back the complete publication.
+After reconciliation, the writer flushes dirty SQLite pages within the publication
+transaction. This is not a commit or early activation; a flush failure rolls back
+the complete publication.
 Pending vector inserts borrow prepared vectors and encode one blob at a time;
 reconciliation does not retain another full corpus of encoded vectors.
 Query summaries and selected cache reads do not decode bodies. Explicit detail
@@ -838,22 +850,28 @@ then unpublished cache, then compatible published values when reuse is enabled.
 New/forced/cache-hit bytes become owned staging independent of eviction; reused
 published vectors remain stable handles. Per-batch sessions close before inference.
 Atomic activation installs selected changes and reconciles document/trait consumers
-using that same transaction connection. Length-before-allocation, hash, native
-count, dimensions and normalization remain checked. Centroids preserve f64 order
+using that same transaction connection. The embedding owner checks inference output
+count, dimensions, finiteness and normalization once. Private staging/install reads
+retain structural bounds; they do not repeat checksum or numerical scans. Durable
+cache/repack reads verify shape and checksum. Numerical calculations and explicit
+deep audit decode and check the values they consume. Centroids preserve f64 order
 and repeated weights; numerical changes invalidate them even with unchanged text.
 
 The cache retains one value per model/input key, with a 1 GiB logical-payload cap
 and coarse oldest-first eviction. Eviction affects future reuse, not already-owned
 publication data. This is not a staging quota or physical-space reservation.
 Successful complete publication clears recovery data atomically; failure retains
-useful committed recovery work. Final validation covers the complete post-cleanup
-transaction. Ordinary startup/reads never prune. Temporary selected numerical bytes
-and durable pending bytes are reported separately. See
+useful committed recovery work. Ordinary publication does not run a complete
+post-cleanup audit; `atlas index validate` owns that explicit operation. Ordinary
+startup/reads never prune. Temporary selected numerical bytes and durable pending
+bytes are reported separately. See
 [ADR0065](decisions/0065-input-owned-reference-publication.md).
 
 Vector maintenance reuses stable input rows and packs indexes only when at least
 two blocks and 10% of allocation can be reclaimed. It uses supported vec0 public
 DDL/inserts and file-backed temporary staging, not extension shadow-table writes.
+The existing copy pass verifies durable bytes against their checksums before
+replacing the table; untouched profiles are not scanned for this purpose.
 Free SQLite pages are reclaimed separately through explicit setup/build maintenance;
 this changes neither logical reference revision nor workspace identity.
 

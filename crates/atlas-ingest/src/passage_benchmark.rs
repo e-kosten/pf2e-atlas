@@ -9,29 +9,8 @@ use atlas_embedding::{PreparedEmbeddingBatch, PreparedNativeInput, TextEmbedding
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, path::PathBuf, time::Instant};
 
-pub(super) struct NativeEvidence {
-    pub signature: String,
-    pub token_count: usize,
-}
-
 pub(super) fn native_signature(input: &PreparedNativeInput) -> String {
     format!("{:x}", Sha256::digest(serde_json::to_vec(input).unwrap()))
-}
-
-/// Retain only hashes/counts; model text is released after each stream callback.
-pub(super) fn native_evidence(prepared: &PreparedSourceBuild) -> Vec<NativeEvidence> {
-    let mut output = Vec::new();
-    prepared
-        .native_inputs
-        .visit(&mut |input| {
-            output.push(NativeEvidence {
-                signature: native_signature(&input),
-                token_count: input.token_count,
-            });
-            Ok(())
-        })
-        .unwrap();
-    output
 }
 
 pub(super) fn update_document_signature(
@@ -45,14 +24,13 @@ pub(super) fn update_document_signature(
 }
 
 pub(super) fn signatures(prepared: &PreparedSourceBuild) -> BTreeMap<RecordKey, String> {
-    let inputs = native_evidence(prepared);
     let mut records = BTreeMap::<RecordKey, Sha256>::new();
     prepared
-        .occurrences
-        .visit(&mut |occurrence| {
-            if let RawOccurrence::Document { input, attribution } = occurrence {
+        .native_inputs
+        .visit(&mut |frame| {
+            if let RawOccurrence::Document { attribution } = frame.occurrence {
                 let hash = records.entry(attribution.record.clone()).or_default();
-                update_document_signature(hash, &attribution, &inputs[input].signature);
+                update_document_signature(hash, &attribution, &native_signature(&frame.input));
             }
             Ok(())
         })
@@ -124,7 +102,7 @@ fn native_signatures(
             prepared
                 .native_inputs
                 .visit(&mut |input| {
-                    pending.push(input);
+                    pending.push(input.input);
                     if pending.len() == limit {
                         flush(&mut pending);
                     }
@@ -259,9 +237,9 @@ fn published_layout_reuse_full_corpus_benchmark() {
         let owner = selected_workspace.update_owner().unwrap();
         let scratch = atlas_index::BuildScratch::new(&owner).unwrap();
         let started = Instant::now();
+        let inputs = crate::CapturedBuildInputs::capture(case_options).unwrap();
         let prepared =
-            crate::product_preparation::prepare(&case_options, selected_reuse, scratch.path())
-                .unwrap();
+            crate::product_preparation::prepare(&inputs, selected_reuse, scratch.path()).unwrap();
         let preparation_seconds = started.elapsed().as_secs_f64();
         let signatures = signatures(&prepared);
         let native_started = Instant::now();
@@ -291,24 +269,23 @@ fn published_layout_reuse_full_corpus_benchmark() {
                 let mut checked = false;
                 prepared
                     .spool
-                    .records
-                    .visit(&mut |frame| {
+                    .records(&mut |frame| {
                         if frame.selection.root != changed_key {
                             return Ok(());
                         }
-                        let (source, _, _, _) = frame.decode()?;
+                        let source = frame.source;
                         let pack = prepared
                             .spool
-                            .packs
+                            .packs()
                             .iter()
                             .find(|pack| pack.pack_id == changed_key.pack().as_str())
                             .unwrap();
                         let mut selection = atlas_record::source_record::select_record_search(
                             &source.record,
                             &source.content,
-                            prepared.spool.context.audience,
+                            prepared.spool.context().audience,
                             &pack.label,
-                            &prepared.spool.context.used_trait_labels,
+                            &prepared.spool.context().used_trait_labels,
                         )
                         .unwrap();
                         selection.identity_optional.extend(aliases.iter().cloned());
@@ -336,7 +313,7 @@ fn published_layout_reuse_full_corpus_benchmark() {
         } else {
             expected_native = Some(native);
         }
-        let entry = serde_json::json!({"case":case,"preparation_seconds":preparation_seconds,"native_validation_seconds":native_seconds,"layout_count":if case=="forced_fresh"{0}else{layout_count},"layout_count_timing":"bounded inventory before measured preparation","reused_sections":prepared.reused_sections,"records":prepared.spool.records.len(),"document_inputs":prepared.document_units,"trait_inputs":prepared.occurrences.len()-prepared.document_units,"source_fingerprint":prepared.fingerprint.value,"context":prepared.spool.context.sha256().unwrap()});
+        let entry = serde_json::json!({"case":case,"preparation_seconds":preparation_seconds,"native_validation_seconds":native_seconds,"layout_count":if case=="forced_fresh"{0}else{layout_count},"layout_count_timing":"bounded inventory before measured preparation","reused_sections":prepared.reused_sections,"records":prepared.spool.record_count(),"document_inputs":prepared.document_units,"trait_inputs":prepared.native_inputs.len()-prepared.document_units,"source_fingerprint":prepared.fingerprint.value,"context":prepared.spool.context().sha256().unwrap()});
         eprintln!("{entry}");
         report.push(entry);
         std::fs::write(&evidence, serde_json::to_vec_pretty(&report).unwrap()).unwrap();

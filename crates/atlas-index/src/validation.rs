@@ -259,6 +259,24 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
         source_fingerprint: context.source_fingerprint,
     })
 }
+pub(crate) fn publication_report(
+    c: &Connection,
+    context: &SourceArtifactBuildContext,
+) -> Result<ArtifactValidationReport, IndexError> {
+    Ok(ArtifactValidationReport {
+        roots: count(c, "records")?,
+        checked_snapshots: 0,
+        projection_rows: PROJECTION_TABLES.iter().try_fold(0, |total, table| {
+            Ok::<_, IndexError>(total + count(c, table)?)
+        })?,
+        prepared_fields: count(c, "prepared_content")?,
+        relationships: count(c, "relationship_occurrences")?,
+        lexical_units: count(c, "lexical_units")?,
+        semantic_units: count(c, "semantic_units")?,
+        source_fingerprint: context.source_fingerprint.clone(),
+    })
+}
+
 fn checked_record_row(row: &rusqlite::Row<'_>) -> Result<SourceBackedRecord, IndexError> {
     let key: String = row.get(1)?;
     let pack: String = row.get(2)?;
@@ -713,19 +731,13 @@ fn validate_profile_storage(
     Ok(())
 }
 pub(crate) fn check_vector(vector: &[f32], dimensions: usize) -> Result<(), IndexError> {
-    if dimensions == 0 || vector.len() != dimensions || vector.iter().any(|v| !v.is_finite()) {
-        return Err(bad("vector dimensions/finiteness mismatch"));
-    }
-    let squared = vector.iter().map(|v| f64::from(*v).powi(2)).sum::<f64>();
-    if !squared.is_finite() || (squared - 1.0).abs() > 1e-4 {
-        return Err(bad("vector is not L2 normalized"));
-    }
-    Ok(())
+    atlas_embedding::validate_embedding_vector(vector, dimensions)
+        .map_err(|error| bad(error.to_string()))
 }
 // Compare index postings against SQLite's own tokenizer output, without writing the artifact.
 fn validate_fts(c: &Connection) -> Result<(), IndexError> {
     let mut expected = Connection::open_in_memory()?;
-    expected.execute_batch("CREATE VIRTUAL TABLE expected_fts USING fts5(identity_terms,alias_terms,structured_terms,definition_terms,tokenize='unicode61 remove_diacritics 2'); CREATE VIRTUAL TABLE expected_vocab USING fts5vocab(expected_fts,instance);")?;
+    expected.execute_batch("CREATE VIRTUAL TABLE expected_fts USING fts5(identity_terms,alias_terms,structured_terms,definition_terms,content='',tokenize='unicode61 remove_diacritics 2'); CREATE VIRTUAL TABLE expected_vocab USING fts5vocab(expected_fts,instance);")?;
     let transaction = expected.transaction()?;
     {
         let mut insert=transaction.prepare("INSERT INTO expected_fts(rowid,identity_terms,alias_terms,structured_terms,definition_terms) VALUES(?,?,?,?,?)")?;

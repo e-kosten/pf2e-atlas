@@ -100,14 +100,12 @@ fn write_trait_definition(
     }
     Ok(())
 }
-fn write_record_trait_relations(
+pub(crate) fn write_record_trait_relations(
     c: &Connection,
-    record: &atlas_record::source_record::SourceBackedRecord,
-    audience: atlas_record::source_content::ContentAudience,
+    record: &RecordKey,
+    evidence: TraitEvidence,
 ) -> Result<(), IndexError> {
-    let key = record.key().to_string();
-    let mut evidence = TraitEvidence::default();
-    evidence.add_record(record, audience)?;
+    let key = record.to_string();
     let mut memberships=c.prepare("SELECT trait_key,record_key,owners_json,source_label FROM trait_memberships WHERE record_key=?")?.query_map([&key],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,r.get::<_,Option<String>>(3)?)))?.collect::<Result<std::collections::BTreeSet<_>,_>>()?;
     for row in evidence.memberships {
         let prior = memberships
@@ -144,15 +142,12 @@ fn write_record_trait_relations(
     }
     Ok(())
 }
-fn write_trait_relations(
+pub(crate) fn write_trait_definitions(
     c: &Connection,
     input: &crate::PublicationSpool,
 ) -> Result<BTreeSet<String>, IndexError> {
     let mut kept = BTreeSet::new();
     input.traits(&mut |definition| write_trait_definition(c, definition, &mut kept))?;
-    input.records(&mut |frame| {
-        write_record_trait_relations(c, &frame.source.record, input.context.audience)
-    })?;
     Ok(kept)
 }
 
@@ -160,8 +155,8 @@ pub(crate) fn write_traits_stream(
     c: &Connection,
     input: &crate::PublicationSpool,
     values: &crate::prepared_publication::PublicationValues<'_, '_>,
+    kept: &BTreeSet<String>,
 ) -> Result<(), IndexError> {
-    let kept = write_trait_relations(c, input)?;
     let mut seeds = std::collections::BTreeSet::new();
     input.trait_seeds(&mut |seed| {
         let model = input.context.search_profile(&seed.profile_id)?;
@@ -219,7 +214,9 @@ pub(crate) fn write_historical_traits(
         write_trait_definition(c, definition, &mut kept)?;
     }
     for source in &input.records {
-        write_record_trait_relations(c, &source.record, input.context.audience)?;
+        let mut evidence = TraitEvidence::default();
+        evidence.add_record(&source.record, input.context.audience)?;
+        write_record_trait_relations(c, source.record.key(), evidence)?;
     }
     c.execute_batch("DELETE FROM trait_seed_chunks; DELETE FROM trait_vectors; DELETE FROM trait_native_values;")?;
     for seed in &input.trait_vectors {
@@ -1503,7 +1500,7 @@ mod tests {
         }
     }
     #[test]
-    fn trait_seed_profile_coverage_failure_retains_previous_generation() {
+    fn explicit_audit_rejects_removed_trait_seed_profile() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("workspace.sqlite");
         let mut input = crate::profile_tests::both();
@@ -1542,44 +1539,30 @@ mod tests {
             });
         }
         crate::test_support::publish_input(&path, &input).unwrap();
-        let before = crate::validate_artifact(&path).unwrap();
-        let generation = || {
-            let connection = rusqlite::Connection::open(&path).unwrap();
-            connection
-                .query_row(
-                    "SELECT workspace_key,reference_revision FROM workspace WHERE id=1",
-                    [],
-                    |r| Ok((r.get::<_, String>(0)?, r.get::<_, u64>(1)?)),
-                )
-                .unwrap()
-        };
-        let before_generation = generation();
+        crate::validate_artifact(&path).unwrap();
         input
             .trait_vectors
             .retain(|seed| seed.profile_id.as_str() == "bge-base");
-        let error = crate::test_support::publish_input(&path, &input).unwrap_err();
+        crate::test_support::publish_input(&path, &input).unwrap();
+        let error = crate::validate_artifact(&path).unwrap_err();
         assert!(error.to_string().contains("trait `trait:agile` has no seed vector for configured search profile `embeddinggemma`"),"{error}");
-        assert_eq!(generation(), before_generation);
-        assert_eq!(crate::validate_artifact(&path).unwrap(), before);
         assert_eq!(
             rusqlite::Connection::open(&path)
                 .unwrap()
                 .query_row("SELECT count(*) FROM trait_vectors", [], |r| r
                     .get::<_, usize>(0))
                 .unwrap(),
-            2
+            1
         );
     }
     #[test]
-    fn trait_seed_coverage_requires_each_configured_profile_but_allows_metadata_only() {
+    fn explicit_audit_requires_trait_seed_coverage_but_allows_metadata_only() {
         let directory = tempfile::tempdir().unwrap();
         let mut configured = crate::foundation_tests::fixture(true);
         configured.traits.push(definition(&configured, "agile"));
-        let error = crate::test_support::publish_input(
-            directory.path().join("incomplete.sqlite"),
-            &configured,
-        )
-        .unwrap_err();
+        let path = directory.path().join("incomplete.sqlite");
+        crate::test_support::publish_input(&path, &configured).unwrap();
+        let error = crate::validate_artifact(&path).unwrap_err();
         assert!(
             error.to_string().contains(
                 "trait `trait:agile` has no seed vector for configured search profile `bge-base`"

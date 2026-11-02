@@ -397,6 +397,7 @@ atlas index check --no-embeddings --json
 atlas index validate --json
 ```
 
-Deep validation scans the reference database. Use it to investigate problems,
-rather than before every query. For a workspace without models, also add
+Deep validation scans the reference database; ordinary source ingest does not run
+this complete audit. Use it to investigate problems, rather than before every query.
+For a workspace without models, also add
 `--no-embeddings` to validation.

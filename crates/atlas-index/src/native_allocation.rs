@@ -73,16 +73,26 @@ fn compact(c: &Connection, model: &SourceSearchProfileIdentity) -> Result<bool, 
     let bytes = crate::native_values::expected_bytes(model)?;
     c.cache_flush()?;
     c.execute_batch(&format!("CREATE TEMP TABLE native_repack(input_id INTEGER PRIMARY KEY,embedding BLOB NOT NULL CHECK(length(embedding)={bytes}))"))?;
-    // Registry rowid order avoids sorting numerical BLOBs. LEFT JOIN preserves
-    // missing values so NOT NULL fails before any destructive DDL, even when an
-    // orphan happens to balance the missing row in the count above.
-    c.execute(&format!("INSERT INTO temp.native_repack SELECT i.input_id,v.embedding FROM embedding_inputs i NOT INDEXED LEFT JOIN {table} v USING(input_id) WHERE i.model_id=? AND i.published_hash IS NOT NULL ORDER BY i.input_id"), [model_id])?;
+    {
+        let mut source = c.prepare(&format!("SELECT i.input_id,CASE WHEN length(v.embedding)=?2 THEN v.embedding ELSE zeroblob(0) END,CASE WHEN typeof(i.published_hash)='blob' AND length(i.published_hash)=32 THEN i.published_hash ELSE zeroblob(0) END FROM embedding_inputs i NOT INDEXED LEFT JOIN {table} v USING(input_id) WHERE i.model_id=?1 AND i.published_hash IS NOT NULL ORDER BY i.input_id"))?;
+        let mut rows = source.query(rusqlite::params![model_id, bytes])?;
+        let mut insert =
+            c.prepare("INSERT INTO temp.native_repack(input_id,embedding) VALUES(?,?)")?;
+        while let Some(row) = rows.next()? {
+            let id: i64 = row.get(0)?;
+            let value: Vec<u8> = row.get(1)?;
+            let checksum: Vec<u8> = row.get(2)?;
+            crate::native_values::verify_bytes(&value, &checksum, model)?;
+            insert.execute(rusqlite::params![id, value])?;
+        }
+    }
     let copied: u64 = c.query_row("SELECT count(*) FROM temp.native_repack", [], |r| r.get(0))?;
     if copied != expected {
         return Err(invalid("native packing copy coverage differs"));
     }
     c.execute_batch(&format!("DROP TABLE {table}"))?;
     c.execute_batch(&crate::schema::native_vector_ddl(model)?)?;
+    tracing::info!(target:"atlas_build_diagnostic",stage="native_repack_replaced",profile=%model.profile_id,"Installing compacted search embeddings");
     c.execute_batch(&format!("INSERT INTO {table}(input_id,embedding) SELECT input_id,embedding FROM temp.native_repack ORDER BY input_id; DROP TABLE temp.native_repack;"))?;
     tracing::info!(target:"atlas_progress",phase="compact_vectors",profile=%model.profile_id,blocks,live,"Compacted search embeddings");
     Ok(true)

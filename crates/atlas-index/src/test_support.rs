@@ -312,18 +312,22 @@ fn spool_input_in(
             &input.context.used_trait_labels,
         )
         .map_err(|error| IndexError::Invalid(error.to_string()))?;
-        spool.records.push(&crate::PreparedRecordFrame {
-            pack: source.record.key().pack().as_str().into(),
-            snapshot: String::from_utf8(atlas_foundry_model::encode_snapshot(
-                source.record.source(),
-            )?)
-            .map_err(|error| IndexError::Invalid(error.to_string()))?,
-            source_path: source.source_path.clone(),
-            content_hash: source.content_hash.clone(),
-            preparation_context_hash: source.preparation_context_hash.clone(),
-            content: serde_json::from_slice(&serde_json::to_vec(&source.content)?)?,
-            relationships: serde_json::from_slice(&serde_json::to_vec(&source.relationships)?)?,
-            diagnostics: source.diagnostics.clone(),
+        spool.push_record(crate::PreparedRecordInput {
+            source: crate::SourceArtifactRecordInput {
+                record: atlas_record::source_record::SourceBackedRecord::new(
+                    source.record.key().pack().as_str(),
+                    atlas_foundry_model::decode_snapshot(&atlas_foundry_model::encode_snapshot(
+                        source.record.source(),
+                    )?)?,
+                )
+                .map_err(|_| IndexError::Invalid("fixture source identity differs".into()))?,
+                source_path: source.source_path.clone(),
+                content_hash: source.content_hash.clone(),
+                preparation_context_hash: source.preparation_context_hash.clone(),
+                content: serde_json::from_slice(&serde_json::to_vec(&source.content)?)?,
+                relationships: serde_json::from_slice(&serde_json::to_vec(&source.relationships)?)?,
+                diagnostics: source.diagnostics.clone(),
+            },
             selection,
             lexical: input
                 .lexical_units

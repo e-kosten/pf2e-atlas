@@ -103,21 +103,20 @@ fn equal_dimension_profiles_isolate_knn_seeds_and_witnesses_before_top_k() {
     );
 }
 #[test]
-fn every_profile_requires_complete_coverage_and_native_limits_before_atomic_publication() {
-    let input = both();
-    let (_dir, path) = build(&input);
-    let before = validate_artifact(&path).unwrap();
-    let mut missing = input;
+fn explicit_audit_checks_profile_coverage_and_publication_checks_native_limits() {
+    let mut missing = both();
     let gemma = SearchProfileId::new("embeddinggemma");
     let index = missing
         .semantic_units
         .iter()
         .position(|u| u.profile_id == gemma && u.field.is_some())
         .unwrap();
-    let removed = missing.semantic_units.remove(index);
-    assert!(crate::test_support::publish_input(&path, &missing).is_err());
-    assert_eq!(validate_artifact(&path).unwrap(), before);
-    missing.semantic_units.insert(index, removed);
+    missing.semantic_units.remove(index);
+    let (_incomplete_dir, incomplete_path) = build(&missing);
+    assert!(validate_artifact(&incomplete_path).is_err());
+    let mut missing = both();
+    let (_dir, path) = build(&missing);
+    let before = validate_artifact(&path).unwrap();
     missing.semantic_units[0].input_token_count = 513;
     assert!(crate::test_support::publish_input(&path, &missing).is_err());
     assert_eq!(validate_artifact(&path).unwrap(), before);

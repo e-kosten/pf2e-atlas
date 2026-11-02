@@ -1,7 +1,7 @@
 # ADR0051: Persistent workspace and bounded database operations
 
-Status: accepted; numerical ownership, recovery and captured-input publication
-amended by [ADR0065](0065-input-owned-reference-publication.md).
+Status: accepted; numerical ownership, recovery, captured-input publication and
+publication assurance amended by [ADR0065](0065-input-owned-reference-publication.md).
 
 ## Context
 
@@ -61,11 +61,14 @@ The ordinary admission validator remains read-only and never runs backfills. One
 publisher owns source/configuration updates. Preparation can run while ordinary
 operations continue: publisher ownership does not hold the exclusive access lock
 or a long-lived SQLite write transaction. Final activation takes exclusive access.
-Durable maintenance state prevents
-ordinary operations from opening incomplete work after interruption. Expensive
-inference occurs outside write transactions, with bounded persisted checkpoints.
-Final publication validates the exact transaction before advancing reference
-revision. User-state edits do not advance that revision.
+Normal source publication uses one immediate transaction and advances the
+reference revision with its writes. It adds no durable maintenance marker; failure
+restores the prior committed state and permits readers to reopen it. Pre-existing
+markers still block admission. Schema/metadata upgrades and physical reclamation
+retain durable maintenance and validated recovery. Expensive inference occurs
+outside write transactions, with bounded recovery results. User-state edits do
+not advance the reference revision. [ADR0065](0065-input-owned-reference-publication.md)
+records why ordinary publication trusts unchanged data and keeps deep audit explicit.
 
 Index owns one concrete prepared publication binding its context/inventory,
 expected generation, prepared metadata and selected numerical data. Published
@@ -129,24 +132,24 @@ guidance. Isolated storage tests do not establish those obligations.
 
 Product preparation stages checked record metadata and occurrence attribution in
 one owned attempt directory. The concrete publication binds complete source/context
-and expected workspace revision. Private child streams retain consumed-frame
-checksums, observed allocation bounds and fallible typed decoding without repeated
+and expected workspace revision. Private child streams retain observed allocation
+bounds, counts and fallible typed decoding without per-frame checksums or repeated
 whole-file authentication. Update ownership permits safely cleaning recognizable
 abandoned attempts for that workspace; live child handles close before cleanup.
 This keeps rich source/HTML state bounded without introducing another persistent
 store. The writer owns SQL and internal identity allocation, and all input sources
-use the same fallible streaming contract. Component digests are reconciliation
-hints verified against actual projections in the exact final transaction; absent
-entries remain unknown. Final validation may recompute expected semantics one
-root at a time independently of preparation's shared selection.
+use the same fallible streaming contract. Record append seals compact identity
+facts; one per-root bundle supplies component digests and derived write inputs.
+Missing digests mark components changed. Ordinary ingest trusts unchanged components;
+explicit deep audit reconstructs expected semantics independently.
 
-Native raw text, profile descriptors and occurrence metadata use owned repeatable
-files. Native validation, selection and inference consume bounded batches; only
-actual misses load an inference session. New/forced values are staged, while
-published values remain stable input/checksum handles through document/trait
-consumers and final validation. Compact capture/resolver identities, live sets,
-component digests and validation evidence still grow with corpus size; model memory
-and observed process RSS remain separate measurements.
+One repeatable stream pairs native text and occurrence metadata. Bounded windows
+prepare once, select reusable values and infer missing inputs. Every occurrence
+and ordered trait repetition survives numerical deduplication. Only misses load
+an inference session, whose lifetime ends with its profile. New/forced values are
+staged, while published values remain stable input/checksum handles. Compact
+capture/resolver identities, live sets and component digests grow with corpus size;
+model memory and observed process RSS remain separate measurements.
 
 ## Saved-domain integrity
 

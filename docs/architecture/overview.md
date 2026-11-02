@@ -66,9 +66,11 @@ record corpus. See [ADR0056](./decisions/0056-trait-reference-entities.md).
    builds query/search/relationship inputs. Embedding independently covers selected
    explanatory prose and compact identity units.
 3. Index consumes one owned prepared publication with bounded typed streams and
-   selected native inputs, reconciles closed record components, then independently
-   validates the complete result in one transaction inside the
-   existing workspace. Saved state and stable identities survive publication.
+   selected native inputs. It reconciles changed record components in one atomic
+   transaction, trusting untouched committed data. Typed construction, binding
+   checks and SQL constraints establish the write contract; `atlas index validate`
+   owns deep consistency checking. Saved state and stable identities survive
+   publication.
    Checked snapshots are authoritative; named relational query rows,
    HTML caches, lookup evidence and lexical/vector units are rebuildable projections.
 4. Runtime resolves paths and constructs bounded search sessions. Query embeddings

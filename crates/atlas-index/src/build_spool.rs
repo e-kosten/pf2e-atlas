@@ -9,7 +9,6 @@ use atlas_record::source_record::{
     SourceBackedRecord, SourceContentOutcome, SourceRelationshipOccurrence, SourceSearchSelection,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use sha2::{Digest, Sha256};
 use std::{
     fs::File,
     io::{Read, Seek, SeekFrom, Write},
@@ -65,7 +64,7 @@ impl BuildFileUsage {
     }
 }
 
-/// A record-sized, checksummed stream owned by this build and removed on drop.
+/// A record-sized stream owned by this build and removed on drop.
 pub struct BuildFrameStream<T> {
     file: tempfile::NamedTempFile,
     count: usize,
@@ -118,7 +117,7 @@ impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
         let size = u64::try_from(payload.len()).map_err(io)?;
         let end = self
             .written
-            .checked_add(40)
+            .checked_add(8)
             .and_then(|n| n.checked_add(size))
             .ok_or_else(|| io("frame offset overflow"))?;
         let file = self.file.as_file_mut();
@@ -127,7 +126,6 @@ impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
         }
         let offset = BuildFrameOffset(self.written);
         file.write_all(&size.to_le_bytes()).map_err(io)?;
-        file.write_all(&Sha256::digest(&payload)).map_err(io)?;
         file.write_all(&payload).map_err(io)?;
         self.max_frame = self.max_frame.max(size);
         self.written = end;
@@ -198,20 +196,15 @@ impl<T: DeserializeOwned> BuildFrameCursor<T> {
             .length
             .checked_sub(self.file.stream_position().map_err(io)?)
             .ok_or_else(|| io("frame offset overflow"))?;
-        if remaining < 32 || size > remaining - 32 {
+        if size > remaining {
             return Err(io("truncated frame"));
         }
         Ok(size)
     }
 
     fn payload(&mut self, size: u64) -> Result<T, IndexError> {
-        let mut expected = [0; 32];
-        self.file.read_exact(&mut expected).map_err(io)?;
         let mut payload = vec![0; usize::try_from(size).map_err(io)?];
         self.file.read_exact(&mut payload).map_err(io)?;
-        if Sha256::digest(&payload).as_slice() != expected {
-            return Err(io("frame checksum differs"));
-        }
         Ok(serde_json::from_slice(&payload)?)
     }
 
@@ -231,8 +224,14 @@ impl<T: DeserializeOwned> BuildFrameCursor<T> {
     }
 }
 
+pub struct PreparedRecordInput {
+    pub source: SourceArtifactRecordInput,
+    pub selection: SourceSearchSelection,
+    pub lexical: Vec<SourceLexicalUnitInput>,
+}
+
 #[derive(Serialize, Deserialize)]
-pub struct PreparedRecordFrame {
+pub(crate) struct PreparedRecordFrame {
     pub pack: String,
     /// Exact checked JSON bytes transported as text rather than a JSON byte array.
     pub snapshot: String,
@@ -246,7 +245,7 @@ pub struct PreparedRecordFrame {
     pub lexical: Vec<SourceLexicalUnitInput>,
 }
 impl PreparedRecordFrame {
-    pub fn decode(
+    pub(crate) fn decode(
         self,
     ) -> Result<
         (
@@ -282,17 +281,20 @@ impl PreparedRecordFrame {
 }
 
 pub struct PublicationSpool {
-    pub context: SourceArtifactBuildContext,
-    pub packs: Vec<IndexBuildPack>,
-    pub inventory: CompleteSourceInventory,
-    pub expected: ArtifactInstance,
-    pub records: BuildFrameStream<PreparedRecordFrame>,
+    pub(crate) context: SourceArtifactBuildContext,
+    pub(crate) packs: Vec<IndexBuildPack>,
+    pub(crate) inventory: CompleteSourceInventory,
+    pub(crate) expected: ArtifactInstance,
+    pub(crate) records: BuildFrameStream<PreparedRecordFrame>,
     pub lexical: BuildFrameStream<SourceLexicalUnitInput>,
     pub semantic: BuildFrameStream<SemanticOccurrence>,
     pub aliases: BuildFrameStream<SourceAliasInput>,
     pub remaster_pairs: BuildFrameStream<SourceRemasterPairInput>,
     pub traits: BuildFrameStream<TraitDefinition>,
     pub trait_seeds: BuildFrameStream<TraitSeedOccurrence>,
+    preparation_hash: String,
+    root_keys: std::collections::BTreeSet<atlas_domain::RecordKey>,
+    identities: Vec<crate::writer::CheckedRootIdentity>,
 }
 impl PublicationSpool {
     pub fn new_in(
@@ -302,11 +304,15 @@ impl PublicationSpool {
         inventory: CompleteSourceInventory,
         expected: ArtifactInstance,
     ) -> Result<Self, IndexError> {
+        let preparation_hash = context.preparation_sha256()?;
         Ok(Self {
             context,
             packs,
             inventory,
             expected,
+            preparation_hash,
+            root_keys: std::collections::BTreeSet::new(),
+            identities: Vec::new(),
             records: BuildFrameStream::new_in(scratch)?,
             lexical: BuildFrameStream::new_in(scratch)?,
             semantic: BuildFrameStream::new_in(scratch)?,
@@ -323,11 +329,15 @@ impl PublicationSpool {
         inventory: CompleteSourceInventory,
         expected: ArtifactInstance,
     ) -> Result<Self, IndexError> {
+        let preparation_hash = context.preparation_sha256()?;
         Ok(Self {
             context,
             packs,
             inventory,
             expected,
+            preparation_hash,
+            root_keys: std::collections::BTreeSet::new(),
+            identities: Vec::new(),
             records: BuildFrameStream::new()?,
             lexical: BuildFrameStream::new()?,
             semantic: BuildFrameStream::new()?,
@@ -336,6 +346,57 @@ impl PublicationSpool {
             traits: BuildFrameStream::new()?,
             trait_seeds: BuildFrameStream::new()?,
         })
+    }
+    pub fn context(&self) -> &SourceArtifactBuildContext {
+        &self.context
+    }
+    pub fn packs(&self) -> &[IndexBuildPack] {
+        &self.packs
+    }
+    pub fn record_count(&self) -> usize {
+        self.records.len()
+    }
+    pub fn pack_count(&self) -> usize {
+        self.packs.len()
+    }
+    pub fn semantic_count(&self) -> usize {
+        self.semantic.len()
+    }
+    pub fn max_record_frame_bytes(&self) -> u64 {
+        self.records.max_frame_bytes()
+    }
+    pub(crate) fn identities(&self) -> &[crate::writer::CheckedRootIdentity] {
+        &self.identities
+    }
+    pub fn push_record(&mut self, input: PreparedRecordInput) -> Result<(), IndexError> {
+        let source = input.source;
+        let identity =
+            crate::writer::checked_root_identity(&source, &self.packs, &self.preparation_hash)?;
+        if input.selection.root != *source.record.key()
+            || !self.root_keys.insert(source.record.key().clone())
+        {
+            return Err(IndexError::Invalid(
+                "duplicate root or mismatched selection".into(),
+            ));
+        }
+        let snapshot = String::from_utf8(atlas_foundry_model::encode_snapshot(
+            source.record.source(),
+        )?)
+        .map_err(|error| io(error))?;
+        self.records.push(&PreparedRecordFrame {
+            pack: source.record.key().pack().as_str().into(),
+            snapshot,
+            source_path: source.source_path,
+            content_hash: source.content_hash,
+            preparation_context_hash: source.preparation_context_hash,
+            content: source.content,
+            relationships: source.relationships,
+            diagnostics: source.diagnostics,
+            selection: input.selection,
+            lexical: input.lexical,
+        })?;
+        self.identities.push(identity);
+        Ok(())
     }
     pub fn file_usage(&self) -> Result<BuildFileUsage, IndexError> {
         let mut usage = self.records.file_usage()?;
@@ -353,7 +414,7 @@ impl PublicationSpool {
     }
 }
 impl PublicationSpool {
-    pub(crate) fn records(
+    pub fn records(
         &self,
         visitor: &mut dyn FnMut(PreparedRecordRef<'_>) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
@@ -447,11 +508,6 @@ mod tests {
         let mut cursor = stream.cursor().unwrap();
         stream.file.as_file_mut().seek(SeekFrom::Start(8)).unwrap();
         let invalid = b"!bounded!";
-        stream
-            .file
-            .as_file_mut()
-            .write_all(&Sha256::digest(invalid))
-            .unwrap();
         stream.file.as_file_mut().write_all(invalid).unwrap();
         assert!(cursor.read_at(address).is_err());
         stream
@@ -485,7 +541,7 @@ mod tests {
         assert_eq!(left.next_frame().unwrap(), None);
         assert_eq!(left.next_frame().unwrap(), None);
         let mut cursor = sealed.cursor().unwrap();
-        sealed.file.as_file_mut().seek(SeekFrom::Start(40)).unwrap();
+        sealed.file.as_file_mut().seek(SeekFrom::Start(8)).unwrap();
         sealed.file.as_file_mut().write_all(&[0]).unwrap();
         assert!(cursor.next_frame().is_err());
         assert!(sealed.cursor().unwrap().next_frame().is_err());
@@ -510,11 +566,7 @@ mod tests {
         assert!(stream.visit(&mut |_| Ok(())).is_err());
         let mut changed = BuildFrameStream::<String>::new().unwrap();
         changed.push(&"first".into()).unwrap();
-        changed
-            .file
-            .as_file_mut()
-            .seek(SeekFrom::Start(40))
-            .unwrap();
+        changed.file.as_file_mut().seek(SeekFrom::Start(8)).unwrap();
         changed.file.as_file_mut().write_all(&[0]).unwrap();
         assert!(changed.visit(&mut |_| Ok(())).is_err());
     }
@@ -536,12 +588,7 @@ mod bound_tests {
                 .as_file_mut()
                 .write_all(&declared.to_le_bytes())
                 .unwrap();
-            let error = stream.visit(&mut |_| Ok(())).unwrap_err().to_string();
-            assert!(
-                error.contains("observed record bounds")
-                    || error.contains("frame checksum differs"),
-                "{error}"
-            );
+            assert!(stream.visit(&mut |_| Ok(())).is_err());
         }
     }
 }

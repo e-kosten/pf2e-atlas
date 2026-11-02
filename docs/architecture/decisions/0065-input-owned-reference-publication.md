@@ -23,6 +23,13 @@ Early pruning of recovery work also couples cache eviction to complete historica
 build membership. Treating recovery data as a disposable cache lets eviction cost
 recomputation without threatening a prepared publication.
 
+The initial implementation also independently audited the whole result before
+every publication and retained a durable quarantine marker after rollback. Review
+showed these were broader obligations than ordinary ingest needed: a failed update
+need not establish the health of the state it restores, and typed construction can
+maintain private relationships without replaying each representation. The refined
+boundary keeps atomicity and explicit deep audit while trusting untouched data.
+
 ## Decision
 
 Store one active searchable native vector per full model/input identity, addressed
@@ -57,16 +64,26 @@ recovery value needs its metadata.
 
 Use one concrete prepared-publication owner for the captured context/inventory,
 expected workspace generation, prepared metadata and build-local value selection.
-The constructor and private interfaces maintain their relationship. Consumers
-validate bounded frames, vector shape/checksum and actual consumed data; they do
-not repeatedly authenticate unrelated complete private files. Stable published
-values remain handles until consumed through the publication transaction; only
-unpublished selected bytes require numerical staging.
+Typed record append seals compact identities while each record is in hand; the
+constructor and private interfaces maintain their relationship without a rich
+replay. Private frames retain bounded structural decoding rather than checksums.
+The embedding owner checks each inference output contract once. Durable recovery
+and repack bytes receive shape/checksum checks when consumed; actual numerical
+calculations and explicit audit retain their numerical checks. Stable published
+values remain identity/checksum handles without payload reads merely for reuse.
+Only unpublished selected bytes require numerical staging.
 
 Current-schema fixtures publish through this same owner. Their explicit numerical
 values are staged directly, so unrelated pending values cannot override fixture
 intent. Historical fixtures seed their released representation separately and
 exercise real upgrade callbacks; they do not retain another incremental publisher.
+
+One attributed text stream feeds per-profile bounded prepare/select/infer windows,
+without a separate corpus prevalidation or descriptor stream. Prepare each window
+once and infer its missing subset; retain every occurrence and ordered trait
+repetition while deduplicating numerical work. Drop each profile's inference runner
+before the next profile. A later input error may preserve earlier useful recovery
+work, but cannot publish partial reference data.
 
 Inference runs outside database transactions in bounded batches. Reuse precedence
 is same-attempt selection, matching unpublished recovery value, compatible
@@ -95,11 +112,21 @@ additions and removals belong to the next build; remove the final freshness resc
 Missing or unreadable declared packs still fail capture, while existing empty packs
 and deliberate declaration removals remain valid.
 
-Maintain one SQLite workspace and complete final transactional validation. Setup
-and upgrades may be maintenance windows; no continuous-availability or short final-
-only interval is required. Failed activation preserves the prior publication,
-saved state and committed recovery results. Private staging failure cannot authorize
-a partial publication. Existing command/force/deep-audit semantics remain.
+Maintain one SQLite workspace and one immediate source-publication transaction
+under exclusive access. Typed construction, identity/binding checks and SQL
+constraints establish the write contract; ordinary ingest trusts untouched
+committed state. Derive each root's related outputs together and reconcile only
+changed components and their dependencies. Keep full consistency checking in the
+explicit `atlas index validate` operation rather than rebuilding expected outputs
+inside every ingest.
+
+Normal source publication adds no durable maintenance marker. Rollback or process
+termination permits reopening the previous committed state even if it was already
+damaged; the new update is not responsible for repairing it. Reject pre-existing
+markers, and retain durable maintenance/recovery for schema/metadata upgrades and
+physical reclamation. Setup and upgrades may be maintenance windows. Failed
+activation preserves saved state and committed recovery results; private staging
+failure cannot authorize partial publication. Existing build/force meanings remain.
 
 ## Retrieval contract
 
@@ -149,8 +176,8 @@ Protect all product retrieval consumers and cache lifetimes. In-memory feasibili
 fixtures and isolated SQL comparisons do not establish product integration,
 migration peaks, relevance quality or final ingest performance.
 
-This amends the numerical ownership, recovery-cache and source-freshness portions
-of [ADR0051](0051-persistent-workspace.md) and the numerical execution/publication
+This amends the numerical ownership, recovery-cache, source-freshness and
+publication-assurance portions of [ADR0051](0051-persistent-workspace.md) and the numerical execution/publication
 portions of [ADR0050](0050-selectable-search-profiles.md). Their workspace/session,
 profile identity, source authority and atomicity boundaries remain active. The
 [runtime](../runtime.md) and [artifact contract](../artifact-contract.md) own current

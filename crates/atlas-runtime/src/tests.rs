@@ -647,6 +647,161 @@ fn stale_build_configuration_is_rejected_before_reading_source() {
     assert!(!paths.embedding_cache_root.exists());
 }
 #[test]
+fn setup_chooses_metadata_refresh_or_one_source_publication() {
+    for action in ["metadata", "force", "source edit", "manual"] {
+        let directory = tempfile::tempdir().unwrap();
+        let paths = paths(directory.path());
+        source(&paths);
+        assert!(crate::setup::ensure_setup(&paths, options(false)).ready);
+        let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
+        let mut context = open_reader(&paths.index_path).unwrap().context().clone();
+        context.core_sections_recipe.clear();
+        let before = {
+            let write = workspace.write(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
+            write
+                .connection()
+                .execute(
+                    "UPDATE artifact_context SET context_json=?,context_hash=?",
+                    rusqlite::params![
+                        serde_json::to_string(&context).unwrap(),
+                        context.sha256().unwrap()
+                    ],
+                )
+                .unwrap();
+            let revision = write.reference_revision().unwrap();
+            write.commit().unwrap();
+            revision
+        };
+        assert!(!crate::setup::ensure_setup(&paths, options(true)).ready);
+        assert_eq!(
+            workspace
+                .read(crate::WORKSPACE_SCHEMA_VERSION)
+                .unwrap()
+                .reference_revision()
+                .unwrap(),
+            before
+        );
+        if action == "source edit" {
+            fs::write(
+                paths.source_root.join("packs/items/one.json"),
+                r#"{"_id":"aaaaaaaaaaaaaaaa","name":"Changed","type":"effect"}"#,
+            )
+            .unwrap();
+        }
+        if action == "manual" {
+            let config =
+                crate::source_configuration::resolve_configuration(&paths, &options(false), None)
+                    .unwrap();
+            assert_eq!(
+                workspace
+                    .read(crate::WORKSPACE_SCHEMA_VERSION)
+                    .unwrap()
+                    .reference_revision()
+                    .unwrap(),
+                before
+            );
+            atlas_ingest::build_artifact(
+                &workspace,
+                crate::WORKSPACE_SCHEMA_VERSION,
+                atlas_ingest::BuildArtifactOptions {
+                    source_root: config.source_root,
+                    output_path: paths.index_path.clone(),
+                    manifest_path: config.manifest_path,
+                    locale: config.indexing_locale,
+                    search_profiles: vec![],
+                    reuse_embeddings: true,
+                    reuse_passage_layouts: true,
+                    embedding_batch_size: 32,
+                },
+            )
+            .unwrap();
+        } else {
+            let report = crate::setup::ensure_setup(
+                &paths,
+                RuntimeSetupOptions {
+                    force_rebuild: action == "force",
+                    ..options(false)
+                },
+            );
+            assert!(report.ready, "{action}: {:?}", report.actions);
+            assert_eq!(report.build.is_some(), action != "metadata", "{action}");
+        }
+        assert_eq!(
+            workspace
+                .read(crate::WORKSPACE_SCHEMA_VERSION)
+                .unwrap()
+                .reference_revision()
+                .unwrap(),
+            before + 1,
+            "{action}"
+        );
+        assert!(open_reader(&paths.index_path).is_ok());
+    }
+}
+
+#[test]
+fn owned_build_inputs_keep_captured_manifest_and_reject_unconsumed_source_changes() {
+    let directory = tempfile::tempdir().unwrap();
+    let paths = paths(directory.path());
+    source(&paths);
+    crate::source_configuration::resolve_configuration(&paths, &options(false), None).unwrap();
+    let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
+    let build_options = atlas_ingest::BuildArtifactOptions {
+        source_root: paths.source_root.clone(),
+        output_path: paths.index_path.clone(),
+        manifest_path: None,
+        locale: "en".into(),
+        search_profiles: vec![],
+        reuse_embeddings: true,
+        reuse_passage_layouts: true,
+        embedding_batch_size: 32,
+    };
+    let manifest_path = paths.source_root.join("module.json");
+    let manifest = fs::read(&manifest_path).unwrap();
+    let captured = atlas_ingest::CapturedBuildInputs::capture(build_options.clone()).unwrap();
+    let fingerprint = captured.fingerprint().clone();
+    fs::write(&manifest_path, "invalid after capture").unwrap();
+    let report = captured
+        .build(&workspace, crate::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    assert_eq!(report.source_fingerprint, fingerprint.value);
+    let before = workspace
+        .read(crate::WORKSPACE_SCHEMA_VERSION)
+        .unwrap()
+        .reference_revision()
+        .unwrap();
+    fs::write(&manifest_path, manifest).unwrap();
+    let captured = atlas_ingest::CapturedBuildInputs::capture(build_options).unwrap();
+    fs::write(
+        paths.source_root.join("packs/items/one.json"),
+        r#"{"_id":"aaaaaaaaaaaaaaaa","name":"Changed","type":"effect"}"#,
+    )
+    .unwrap();
+    let error = captured
+        .build(&workspace, crate::WORKSPACE_SCHEMA_VERSION)
+        .unwrap_err();
+    assert!(
+        error.to_string().contains("source changed after capture"),
+        "{error}"
+    );
+    assert_eq!(
+        workspace
+            .read(crate::WORKSPACE_SCHEMA_VERSION)
+            .unwrap()
+            .reference_revision()
+            .unwrap(),
+        before
+    );
+    assert_eq!(
+        open_reader(&paths.index_path)
+            .unwrap()
+            .context()
+            .source_fingerprint,
+        fingerprint.value
+    );
+}
+
+#[test]
 fn explicit_setup_freshness_tracks_actual_bytes_and_preserves_locale() {
     let dir = tempfile::tempdir().unwrap();
     let paths = paths(dir.path());

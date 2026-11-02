@@ -323,12 +323,14 @@ fn empty_content_is_explicitly_skipped_and_direct_inference_rejects_it() {
 #[test]
 fn vector_validation_rejects_bad_shapes_nonfinite_and_unnormalized_data() {
     assert!(validate_embedding_vector(&[1.0, 0.0], 2).is_ok());
+    assert!(validate_embedding_vector(&[1.000025, 0.0], 2).is_ok());
     for (name, vector) in [
         ("zero", &[0.0, 0.0][..]),
         ("nan", &[f32::NAN, 0.0][..]),
         ("infinity", &[f32::INFINITY, 0.0][..]),
         ("wrong dimensions", &[1.0][..]),
         ("nonunit", &[2.0, 0.0][..]),
+        ("squared-norm tolerance", &[1.000075, 0.0][..]),
     ] {
         assert!(validate_embedding_vector(vector, 2).is_err(), "{name}");
     }

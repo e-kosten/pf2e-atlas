@@ -19,8 +19,8 @@ use rusqlite::Connection;
 use rusqlite::types::Value;
 use std::{collections::BTreeMap, path::Path};
 
-/// Compact facts observed by the full input check, retained only for this
-/// publication in its original record order. Rich source state stays in the stream.
+/// Compact root facts retained in publication order while rich state is staged.
+#[derive(Clone)]
 pub(crate) struct CheckedRootIdentity {
     pub(crate) key: RecordKey,
     pub(crate) name: Option<String>,
@@ -217,55 +217,50 @@ pub(crate) fn validate_input(
             ));
         }
     }
-    let context_hash = input.context.preparation_sha256()?;
-    let mut keys = std::collections::BTreeSet::new();
-    let mut identities = Vec::new();
-    input.records(&mut |frame| {
-        let r = frame.source;
-        if !keys.insert(r.record.key().clone()) {
-            return Err(IndexError::Invalid(format!(
-                "duplicate root {}",
-                r.record.key()
-            )));
-        }
-        let pack = packs
-            .get(r.record.key().pack().as_str())
-            .ok_or_else(|| IndexError::Invalid("record pack is absent".into()))?;
-        let node = atlas_record::source_record::SourceNodeView::from(r.record.source());
-        if node.document_kind() != pack.document_kind {
-            return Err(IndexError::Invalid(
-                "record document family disagrees with pack".into(),
-            ));
-        }
-        if !checked_hash(&r.content_hash) || r.preparation_context_hash != context_hash {
-            return Err(IndexError::Invalid(
-                "source/preparation hash is invalid or context disagrees".into(),
-            ));
-        }
-        let path = Path::new(&r.source_path);
-        if r.source_path.is_empty()
-            || path.is_absolute()
-            || path
-                .components()
-                .any(|c| !matches!(c, std::path::Component::Normal(_)))
-        {
-            return Err(IndexError::Invalid(
-                "source path must be relative and contain no traversal".into(),
-            ));
-        }
-        identities.push(CheckedRootIdentity {
-            key: r.record.key().clone(),
-            name: node.name().value().cloned(),
-            is_product: node.document_kind() != "Macro",
-        });
-        Ok(())
-    })?;
-    if keys.len() != input.records.len() {
+    if input.identities().len() != input.records.len() {
         return Err(IndexError::Invalid(
             "record stream count differs from publication".into(),
         ));
     }
-    Ok(identities)
+    Ok(input.identities().to_vec())
+}
+
+pub(crate) fn checked_root_identity(
+    source: &SourceArtifactRecordInput,
+    packs: &[IndexBuildPack],
+    preparation_hash: &str,
+) -> Result<CheckedRootIdentity, IndexError> {
+    let pack = packs
+        .iter()
+        .find(|pack| pack.pack_id == source.record.key().pack().as_str())
+        .ok_or_else(|| IndexError::Invalid("record pack is absent".into()))?;
+    let node = atlas_record::source_record::SourceNodeView::from(source.record.source());
+    if node.document_kind() != pack.document_kind {
+        return Err(IndexError::Invalid(
+            "record document family disagrees with pack".into(),
+        ));
+    }
+    if !checked_hash(&source.content_hash) || source.preparation_context_hash != preparation_hash {
+        return Err(IndexError::Invalid(
+            "source/preparation hash is invalid or context disagrees".into(),
+        ));
+    }
+    let path = Path::new(&source.source_path);
+    if source.source_path.is_empty()
+        || path.is_absolute()
+        || path
+            .components()
+            .any(|part| !matches!(part, std::path::Component::Normal(_)))
+    {
+        return Err(IndexError::Invalid(
+            "source path must be relative and contain no traversal".into(),
+        ));
+    }
+    Ok(CheckedRootIdentity {
+        key: source.record.key().clone(),
+        name: node.name().value().cloned(),
+        is_product: node.document_kind() != "Macro",
+    })
 }
 pub(crate) fn check_expected(
     c: &Connection,

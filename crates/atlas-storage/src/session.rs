@@ -120,6 +120,37 @@ impl UpdateOwner {
         Ok(true)
     }
 
+    /// Publish one atomic reference update under exclusive access. A failed or
+    /// interrupted transaction leaves the prior committed state available.
+    pub fn publish<T, E>(
+        &self,
+        schema: u32,
+        apply: impl FnOnce(&Connection) -> Result<T, E>,
+    ) -> Result<T, E>
+    where
+        E: From<crate::StorageError>,
+    {
+        let _admission = acquire(&self.workspace.path, ".access.lock", true)?;
+        let connection = self.workspace.connect(true, false)?;
+        validate(&connection, schema, false)?;
+        connection
+            .execute_batch("PRAGMA temp_store=FILE")
+            .map_err(crate::StorageError::from)?;
+        let transaction = Transaction::new_unchecked(&connection, TransactionBehavior::Immediate)
+            .map_err(crate::StorageError::from)?;
+        let value = apply(&transaction)?;
+        transaction
+            .execute(
+                "UPDATE workspace SET reference_revision=reference_revision+1 WHERE id=1",
+                [],
+            )
+            .map_err(crate::StorageError::from)?;
+        tracing::info!(target: "atlas_build_diagnostic", stage = "publication_before_commit", "Committing reference update");
+        transaction.commit().map_err(crate::StorageError::from)?;
+        tracing::info!(target: "atlas_build_diagnostic", stage = "publication_after_commit", "Committed reference update");
+        Ok(value)
+    }
+
     /// Blocks new product sessions, then durably marks maintenance before work
     /// that may span transactions. An interrupted updater must explicitly resume.
     pub fn maintenance(&self, schema: u32, reason: &str) -> StorageResult<MaintenanceSession<'_>> {

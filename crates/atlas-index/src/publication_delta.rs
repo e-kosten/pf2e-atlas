@@ -1,10 +1,10 @@
 //! Reconciliation of complete prepared input with the active reference revision.
 //! Only changed owned rows are written; identity and mutable-domain rows survive.
 use crate::{
-    IndexError, SourceArtifactRecordInput,
+    IndexError,
     codec::sha256,
     persistence::{ProjectionRow, execute},
-    projections::{ProjectionIds, root_rows},
+    projections::ProjectionIds,
 };
 use atlas_domain::RecordKey;
 use rusqlite::{Connection, OptionalExtension, types::Value};
@@ -36,13 +36,9 @@ pub(crate) fn upsert(c: &Connection, row: &ProjectionRow, key: &str) -> Result<(
 
 pub(crate) fn allocate(
     c: &Connection,
-    source: &SourceArtifactRecordInput,
-    label: &str,
     id: i64,
+    required: i64,
 ) -> Result<ProjectionIds, IndexError> {
-    let mut counter = ProjectionIds::default();
-    root_rows(source, label, id, &mut counter)?;
-    let required = counter.end();
     let previous: Option<(i64, i64)> = c
         .query_row(
             "SELECT seed,end_id FROM projection_allocations WHERE record_id=?",
@@ -225,8 +221,8 @@ pub(crate) fn search_units(
     input: &crate::PublicationSpool,
     ids: &BTreeMap<RecordKey, i64>,
     values: &crate::prepared_publication::PublicationValues<'_, '_>,
-) -> Result<(), IndexError> {
-    lexical_stream(c, ids, &mut |visitor| input.lexical(visitor))?;
+) -> Result<BTreeSet<i64>, IndexError> {
+    let mut changed = lexical_stream(c, ids, &mut |visitor| input.lexical(visitor))?;
     let old_profiles = c
         .prepare("SELECT profile_id,identity_json FROM search_profiles")?
         .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
@@ -240,6 +236,9 @@ pub(crate) fn search_units(
         row.text("identity_json", json);
         row.id("dimensions", model.dimensions as i64);
         upsert(c, &row, "profile_id")?;
+    }
+    if old_profiles != current_profiles {
+        changed.extend(ids.values().copied());
     }
     let mut kept = BTreeSet::new();
     let mut next: i64 = c.query_row(
@@ -308,16 +307,20 @@ pub(crate) fn search_units(
                 "passage"
             },
         );
+        let before = c.total_changes();
         upsert(c, &row, "unit_id")?;
+        if c.total_changes() != before {
+            changed.insert(id);
+        }
         Ok(())
     })?;
-    remove_unkept(c, "semantic_units", "unit_id", &kept)?;
+    remove_unkept_units(c, "semantic_units", &kept, &mut changed)?;
     for profile in old_profiles.keys() {
         if !current_profiles.contains_key(profile) {
             c.execute("DELETE FROM search_profiles WHERE profile_id=?", [profile])?;
         }
     }
-    Ok(())
+    Ok(changed)
 }
 
 type LexicalVisitor<'a> = dyn FnMut(&crate::SourceLexicalUnitInput) -> Result<(), IndexError> + 'a;
@@ -327,7 +330,8 @@ pub(crate) fn lexical_stream(
     c: &Connection,
     ids: &BTreeMap<RecordKey, i64>,
     emit: &mut LexicalStream<'_>,
-) -> Result<(), IndexError> {
+) -> Result<BTreeSet<i64>, IndexError> {
+    let mut changed = BTreeSet::new();
     let mut lexical = BTreeSet::new();
     emit(&mut |unit| {
         let id = crate::writer::product_id(ids, &unit.record)?;
@@ -401,11 +405,31 @@ pub(crate) fn lexical_stream(
         row.text("structured_terms", &unit.structured_terms);
         row.text("definition_terms", &unit.definition_terms);
         row.insert(c)?;
+        changed.insert(id);
         lexical.insert(c.last_insert_rowid());
         Ok(())
     })?;
-    remove_unkept(c, "lexical_units", "unit_id", &lexical)?;
+    remove_unkept_units(c, "lexical_units", &lexical, &mut changed)?;
 
+    Ok(changed)
+}
+
+fn remove_unkept_units(
+    c: &Connection,
+    table: &str,
+    kept: &BTreeSet<i64>,
+    changed: &mut BTreeSet<i64>,
+) -> Result<(), IndexError> {
+    let rows = c
+        .prepare(&format!("SELECT unit_id,record_id FROM {table}"))?
+        .query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)))?
+        .collect::<Result<Vec<_>, _>>()?;
+    for (unit, record) in rows {
+        if !kept.contains(&unit) {
+            c.execute(&format!("DELETE FROM {table} WHERE unit_id=?"), [unit])?;
+            changed.insert(record);
+        }
+    }
     Ok(())
 }
 

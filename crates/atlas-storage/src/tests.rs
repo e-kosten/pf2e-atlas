@@ -961,3 +961,39 @@ fn reconstruction_suspends_enforcement_for_the_whole_pending_batch_and_restores_
     );
     write.commit().unwrap();
 }
+
+#[test]
+fn atomic_publication_drains_sessions_and_rejects_existing_maintenance() {
+    let (_directory, workspace) = fixture();
+    let owner = workspace.update_owner().unwrap();
+    let read = workspace.read(1).unwrap();
+    let blocked: StorageResult<()> = owner.publish(1, |_| panic!("reader admission is still held"));
+    assert!(matches!(blocked, Err(StorageError::Busy)));
+    drop(read);
+    let write = workspace.write(1).unwrap();
+    let blocked: StorageResult<()> = owner.publish(1, |_| panic!("writer admission is still held"));
+    assert!(matches!(blocked, Err(StorageError::Busy)));
+    drop(write);
+    let failed: StorageResult<()> = owner.publish(1, |c| {
+        c.execute("UPDATE saved SET title='uncommitted'", [])?;
+        Err(StorageError::Migration("injected failure".into()))
+    });
+    assert!(failed.is_err());
+    let read = workspace.read(1).unwrap();
+    assert_eq!(read.reference_revision().unwrap(), 0);
+    assert_eq!(
+        read.connection()
+            .query_row("SELECT title FROM saved", [], |row| row.get::<_, String>(0))
+            .unwrap(),
+        "retained"
+    );
+    drop(read);
+    drop(owner.maintenance(1, "existing upgrade").unwrap());
+    let blocked: StorageResult<()> =
+        owner.publish(1, |_| panic!("old maintenance must not be bypassed"));
+    assert!(matches!(blocked, Err(StorageError::Maintenance(_))));
+    assert!(matches!(
+        workspace.read(1),
+        Err(StorageError::Maintenance(_))
+    ));
+}

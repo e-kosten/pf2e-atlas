@@ -309,6 +309,16 @@ fn bounded_cached_native_windows_deduplicate_without_loading_weights() {
     assert!(!config.model_dir().join("onnx/model.onnx").exists());
     let mut options = fixture.options();
     options.search_profiles = vec![config];
+    let long_trait = atlas_foundry_model::generated::trait_definitions()
+        .iter()
+        .find(|definition| definition.description_key.is_some())
+        .unwrap();
+    let catalog_path = fixture.0.join("static/lang/en.json");
+    let mut catalog: serde_json::Value =
+        serde_json::from_slice(&fs::read(&catalog_path).unwrap()).unwrap();
+    catalog[long_trait.description_key.unwrap()] =
+        serde_json::json!(format!("<p>{}</p>", "one ".repeat(50_000)));
+    fs::write(catalog_path, serde_json::to_vec(&catalog).unwrap()).unwrap();
     let original: serde_json::Value =
         serde_json::from_slice(&fs::read(fixture.0.join("packs/items/useful.json")).unwrap())
             .unwrap();
@@ -324,45 +334,43 @@ fn bounded_cached_native_windows_deduplicate_without_loading_weights() {
         .unwrap();
     }
     crate::build::publish_fixture_without_inference(&options).unwrap();
-    let mut prepared = crate::product_preparation::prepare_fixture(&options).unwrap();
-    let scratch_path = prepared.fixture_scratch_path().to_owned();
-    let plans =
-        crate::native_execution::prepare_profiles(&mut prepared, &options, &scratch_path).unwrap();
-    assert_eq!(plans.len(), 1);
+    let prepared = crate::product_preparation::prepare_fixture(&options).unwrap();
     assert!(prepared.native_inputs.len() > atlas_index::NATIVE_VALUE_BATCH_LIMIT * 2);
     let mut unique = std::collections::BTreeSet::new();
+    let model = &prepared.spool.context().search_profiles[0];
     prepared
-        .spool
-        .semantic
-        .visit(&mut |row| {
-            let model = prepared.spool.context.search_profile(&row.profile_id)?;
+        .native_inputs
+        .visit(&mut |frame| {
             unique.insert((
                 serde_json::to_string(model)?,
-                row.input.input_sha256.clone(),
-                row.input.token_count,
+                frame.input.input_sha256,
+                frame.input.token_count,
             ));
             Ok(())
         })
         .unwrap();
-    assert!(unique.len() < prepared.spool.semantic.len());
-    // The owned publication includes trait inputs as well as document
-    // occurrences; count exact profile/model-bound identities independently.
+    assert!(unique.len() < prepared.native_inputs.len());
+    let mut expected_trait_hashes = Vec::new();
     prepared
-        .spool
-        .trait_seeds
-        .visit(&mut |seed| {
-            let model = prepared.spool.context.search_profile(&seed.profile_id)?;
-            let identity = serde_json::to_string(model)?;
-            for chunk in &seed.chunks {
-                unique.insert((
-                    identity.clone(),
-                    chunk.descriptor.input_sha256.clone(),
-                    chunk.descriptor.token_count,
-                ));
+        .native_inputs
+        .visit(&mut |frame| {
+            if let crate::product_preparation::RawOccurrence::Trait { key, .. } = frame.occurrence
+                && key.identifier() == long_trait.identifier
+            {
+                expected_trait_hashes.push(frame.input.input_sha256);
             }
             Ok(())
         })
         .unwrap();
+    assert!(expected_trait_hashes.len() > atlas_index::NATIVE_VALUE_BATCH_LIMIT);
+    assert!(
+        expected_trait_hashes
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len()
+            < expected_trait_hashes.len()
+    );
+
     let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
     let captured = std::sync::Arc::clone(&events);
     let observer = BuildTraceObserver(move |event: &tracing::Event<'_>| {
@@ -375,27 +383,25 @@ fn bounded_cached_native_windows_deduplicate_without_loading_weights() {
     let report =
         tracing::subscriber::with_default(observer, || build_artifact(options.clone())).unwrap();
     let events = events.lock().unwrap();
-    for phase in ["bge-base:native_validation", "bge-base:reuse_selection"] {
-        let rows = events
-            .iter()
-            .filter(|event| event.get("phase").is_some_and(|value| value == phase))
-            .collect::<Vec<_>>();
-        let counts = rows
-            .iter()
-            .map(|event| event["current"].parse::<usize>().unwrap())
-            .collect::<Vec<_>>();
-        assert_eq!(counts.first(), Some(&0));
-        assert_eq!(counts.last(), Some(&prepared.native_inputs.len()));
-        assert!(
-            counts.windows(2).all(|pair| pair[0] < pair[1]),
-            "aggregate progress must not reset between windows"
-        );
-        assert!(
-            rows.iter()
-                .all(|event| event["total"].parse::<usize>().unwrap()
-                    == prepared.native_inputs.len())
-        );
-    }
+    let phase = "bge-base:reuse_selection";
+    let rows = events
+        .iter()
+        .filter(|event| event.get("phase").is_some_and(|value| value == phase))
+        .collect::<Vec<_>>();
+    let counts = rows
+        .iter()
+        .map(|event| event["current"].parse::<usize>().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(counts.first(), Some(&0));
+    assert_eq!(counts.last(), Some(&prepared.native_inputs.len()));
+    assert!(
+        counts.windows(2).all(|pair| pair[0] < pair[1]),
+        "aggregate progress must not reset between windows"
+    );
+    assert!(
+        rows.iter()
+            .all(|event| event["total"].parse::<usize>().unwrap() == prepared.native_inputs.len())
+    );
     assert!(events.iter().all(|event| {
         !event
             .get("message")
@@ -407,6 +413,13 @@ fn bounded_cached_native_windows_deduplicate_without_loading_weights() {
     atlas_index::validate_artifact(&options.output_path).unwrap();
     let workspace = atlas_index::test_support::initialize_workspace(&options.output_path).unwrap();
     let schema = atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
+    {
+        let read = workspace.read(schema).unwrap();
+        let actual_hashes = read.connection().prepare("SELECT lower(hex(i.input_hash)) FROM trait_seed_chunks t JOIN embedding_inputs i USING(input_id) WHERE trait_key=? ORDER BY ordinal").unwrap()
+            .query_map([format!("trait:{}", long_trait.identifier)], |row| row.get::<_, String>(0)).unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>().unwrap();
+        assert_eq!(actual_hashes, expected_trait_hashes);
+    }
     let before_revision = workspace
         .read(schema)
         .unwrap()
@@ -439,6 +452,25 @@ fn bounded_cached_native_windows_deduplicate_without_loading_weights() {
         reader.context().source_fingerprint,
         report.source_fingerprint
     );
+    drop(reader);
+    options
+        .search_profiles
+        .push(atlas_embedding::EmbeddingRuntimeConfig::new(
+            atlas_embedding::EmbeddingModelId::EmbeddingGemma300M,
+            fixture.0.join("missing-second-profile"),
+        ));
+    assert!(crate::build::publish_fixture_without_inference(&options).is_err());
+    let read = workspace.read(schema).unwrap();
+    assert_eq!(read.reference_revision().unwrap(), before_revision);
+    assert!(
+        read.connection()
+            .query_row("SELECT count(*) FROM pending_embedding_values", [], |row| {
+                row.get::<_, usize>(0)
+            })
+            .unwrap()
+            > 0
+    );
+    atlas_index::validate_reference(read.connection()).unwrap();
 }
 
 #[test]
@@ -696,17 +728,19 @@ fn actual_tokenizer_prepares_identity_for_unavailable_authored_names() {
         let mut identities = std::collections::BTreeSet::new();
         let mut has_passage = false;
         prepared
-            .occurrences
-            .visit(&mut |occurrence| {
-                if let crate::product_preparation::RawOccurrence::Document { input, attribution } =
-                    occurrence
+            .native_inputs
+            .visit(&mut |frame| {
+                if let crate::product_preparation::RawOccurrence::Document { attribution } =
+                    frame.occurrence
                 {
                     if matches!(
                         attribution.address,
                         atlas_domain::SourcePassageAddress::Identity {}
                     ) {
                         assert_eq!(attribution.record.to_string(), "items:aaaaaaaaaaaaaaaa");
-                        identities.insert(input);
+                        assert!(frame.input.input.contains("items:aaaaaaaaaaaaaaaa"));
+                        assert!(frame.input.token_count <= 512);
+                        identities.insert(attribution.record);
                     } else {
                         has_passage = true;
                     }
@@ -715,18 +749,6 @@ fn actual_tokenizer_prepares_identity_for_unavailable_authored_names() {
             })
             .unwrap();
         assert_eq!(identities.len(), 1);
-        let mut ordinal = 0usize;
-        prepared
-            .native_inputs
-            .visit(&mut |input| {
-                if identities.contains(&ordinal) {
-                    assert!(input.input.contains("items:aaaaaaaaaaaaaaaa"));
-                    assert!(input.token_count <= 512);
-                }
-                ordinal += 1;
-                Ok(())
-            })
-            .unwrap();
         assert!(has_passage);
     }
 }
@@ -910,7 +932,7 @@ fn english_catalog_changes_reprepare_unchanged_documents_and_failures_preserve_p
     fs::write(&document, authored.to_string()).unwrap();
     build_artifact(fixture.options()).unwrap();
     let original = crate::product_preparation::prepare_fixture(&fixture.options()).unwrap();
-    let original_hash = original.spool.context.preparation_sha256().unwrap();
+    let original_hash = original.spool.context().preparation_sha256().unwrap();
     drop(original);
     fs::write(
         &rules,
@@ -921,16 +943,15 @@ fn english_catalog_changes_reprepare_unchanged_documents_and_failures_preserve_p
     assert_eq!(updated.source_report.reused_admissions, 2);
     assert_eq!(updated.source_report.reused_preparations, 0);
     assert_ne!(
-        updated.spool.context.preparation_sha256().unwrap(),
+        updated.spool.context().preparation_sha256().unwrap(),
         original_hash
     );
     let mut checked = 0;
     updated
         .spool
-        .records
-        .visit(&mut |frame| {
-            for outcome in frame.content {
-                if let SourceContentStatus::Prepared(content) = outcome.status
+        .records(&mut |frame| {
+            for outcome in &frame.source.content {
+                if let SourceContentStatus::Prepared(content) = &outcome.status
                     && content.locator.field == "/system/description/value"
                 {
                     assert!(content.text.contains("Updated English passage."));
@@ -1651,26 +1672,25 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
         embedding_batch_size: 16,
     };
     let prepared = crate::product_preparation::prepare_fixture(&options).unwrap();
-    assert_eq!(prepared.spool.records.len(), 29894);
+    assert_eq!(prepared.spool.record_count(), 29894);
     let mut identities = std::collections::BTreeSet::new();
     let mut bytes = 0;
     let mut tokens = 0;
     let mut max_tokens = 0;
     let mut coverage = std::collections::BTreeMap::new();
-    let inputs = crate::passage_benchmark::native_evidence(&prepared);
     let mut document_units = 0usize;
     prepared
-        .occurrences
-        .visit(&mut |occurrence| {
-            let crate::product_preparation::RawOccurrence::Document { input, attribution } =
-                occurrence
+        .native_inputs
+        .visit(&mut |frame| {
+            let crate::product_preparation::RawOccurrence::Document { attribution } =
+                frame.occurrence
             else {
                 return Ok(());
             };
             document_units += 1;
-            assert!(inputs[input].token_count <= 512);
-            tokens += inputs[input].token_count;
-            max_tokens = max_tokens.max(inputs[input].token_count);
+            assert!(frame.input.token_count <= 512);
+            tokens += frame.input.token_count;
+            max_tokens = max_tokens.max(frame.input.token_count);
             let range = match &attribution.address {
                 atlas_domain::SourcePassageAddress::Identity {} => {
                     assert!(identities.insert(attribution.record));
@@ -1701,7 +1721,6 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
             Ok(())
         })
         .unwrap();
-    drop(inputs);
     assert_eq!(document_units, prepared.document_units);
     assert_eq!(identities.len(), 29813);
     let mut signatures = crate::passage_benchmark::signatures(&prepared);
@@ -1723,21 +1742,20 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
     let mut selected_bytes = 0;
     prepared
         .spool
-        .records
-        .visit(&mut |frame| {
-            let (input, _, _, _) = frame.decode()?;
+        .records(&mut |frame| {
+            let input = frame.source;
             let pack = prepared
                 .spool
-                .packs
+                .packs()
                 .iter()
                 .find(|pack| pack.pack_id == input.record.key().pack().as_str())
                 .unwrap();
             let mut selected = atlas_record::source_record::select_record_search(
                 &input.record,
                 &input.content,
-                prepared.spool.context.audience,
+                prepared.spool.context().audience,
                 &pack.label,
-                &prepared.spool.context.used_trait_labels,
+                &prepared.spool.context().used_trait_labels,
             )
             .unwrap();
             selected
@@ -1780,7 +1798,7 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
     let evidence =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../scratch/ingest-validation");
     fs::create_dir_all(&evidence).unwrap();
-    fs::write(evidence.join("full-semantic-preparation-census.json"),serde_json::to_vec_pretty(&serde_json::json!({"records":prepared.spool.records.len(),"identity_units":identities.len(),"selected_fields":selected_fields,"selected_sections":selected_sections,"selected_body_bytes":selected_bytes,"prepared_inputs":document_units,"exact_input_tokens":tokens,"maximum_input_tokens":max_tokens,"context_shortened":prepared.context_shortened,"policy_version":atlas_embedding::EMBEDDING_UNIT_POLICY_VERSION,"source_fingerprint":prepared.fingerprint.value,"context_sha256":prepared.spool.context.sha256().unwrap(),"content_interpretation_version":prepared.spool.context.content_interpretation_version,"content_selection_version":prepared.spool.context.content_selection_version,"relationship_policy":prepared.spool.context.relationship_policy,"duration_ms":started.elapsed().as_millis(),"inference_performed":false})).unwrap()).unwrap();
+    fs::write(evidence.join("full-semantic-preparation-census.json"),serde_json::to_vec_pretty(&serde_json::json!({"records":prepared.spool.record_count(),"identity_units":identities.len(),"selected_fields":selected_fields,"selected_sections":selected_sections,"selected_body_bytes":selected_bytes,"prepared_inputs":document_units,"exact_input_tokens":tokens,"maximum_input_tokens":max_tokens,"context_shortened":prepared.context_shortened,"policy_version":atlas_embedding::EMBEDDING_UNIT_POLICY_VERSION,"source_fingerprint":prepared.fingerprint.value,"context_sha256":prepared.spool.context().sha256().unwrap(),"content_interpretation_version":prepared.spool.context().content_interpretation_version,"content_selection_version":prepared.spool.context().content_selection_version,"relationship_policy":prepared.spool.context().relationship_policy,"duration_ms":started.elapsed().as_millis(),"inference_performed":false})).unwrap()).unwrap();
 }
 
 #[test]
@@ -1899,7 +1917,7 @@ fn changed_preparation_reuses_admission_without_consuming_obsolete_html() {
     let prepared = crate::product_preparation::prepare_fixture(&options).unwrap();
     assert_eq!(
         prepared.source_report.reused_admissions,
-        prepared.spool.records.len()
+        prepared.spool.record_count()
     );
     assert_eq!(prepared.source_report.reused_preparations, 0);
 }
@@ -2004,9 +2022,8 @@ fn aliased_pack_paths_reuse_only_the_published_pack_and_preserve_manifest_order(
     let mut keys = Vec::new();
     prepared
         .spool
-        .records
-        .visit(&mut |frame| {
-            assert_eq!(frame.source_path, "packs/items/useful.json");
+        .records(&mut |frame| {
+            assert_eq!(frame.source.source_path, "packs/items/useful.json");
             keys.push(frame.selection.root.to_string());
             Ok(())
         })
@@ -2629,9 +2646,8 @@ fn bounded_product_preparation_keeps_excluded_collisions_and_stable_owned_destin
             let mut roots = Vec::new();
             let mut references = Vec::new();
             publication
-                .records
-                .visit(&mut |frame| {
-                    let (source, _, _, _) = frame.decode()?;
+                .records(&mut |frame| {
+                    let source = frame.source;
                     roots.push(source.record.key().to_string());
                     if source.record.key().to_string() == "items:ffffffffffffffff" {
                         for outcome in &source.content {

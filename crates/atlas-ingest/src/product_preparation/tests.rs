@@ -194,7 +194,7 @@ fn observed_preparation_counts_and_frame_sizes_are_separate_from_structural_wind
     assert!(small.work.largest_prepared_frame_bytes > 0);
     assert_eq!(
         small.work.largest_prepared_frame_bytes,
-        small.spool.records.max_frame_bytes()
+        small.spool.max_record_frame_bytes()
     );
     for ordinal in 0..32 {
         fixture.document(
@@ -206,10 +206,10 @@ fn observed_preparation_counts_and_frame_sizes_are_separate_from_structural_wind
     }
     let large = prepare_fixture(&fixture.options("large-counters")).unwrap();
     assert_eq!(large.work.selection_calls, 34);
-    assert_eq!(large.spool.records.len(), 34);
+    assert_eq!(large.spool.record_count(), 34);
     assert_eq!(
         large.work.largest_prepared_frame_bytes,
-        large.spool.records.max_frame_bytes()
+        large.spool.max_record_frame_bytes()
     );
     assert!(
         large.work.largest_prepared_frame_bytes < small.work.largest_prepared_frame_bytes * 2,
@@ -400,7 +400,11 @@ fn production_admission_batches_count_real_sessions_and_bound_simultaneous_paylo
                 }
             }
             let (prepared, metrics) = atlas_storage::diagnostics::capture_sql_work(|| {
-                prepare(&options, &reuse, scratch.path())
+                prepare(
+                    &CapturedBuildInputs::capture(options.clone())?,
+                    &reuse,
+                    scratch.path(),
+                )
             })
             .unwrap();
             let prepared = prepared.unwrap();
@@ -411,7 +415,7 @@ fn production_admission_batches_count_real_sessions_and_bound_simultaneous_paylo
             assert_eq!(prepared.work.reusable_layout_read_calls, 0);
             assert_eq!(metrics.workspace_connections as usize, 1 + batches);
             assert_eq!(prepared.source_report.reused_admissions, expected_records);
-            assert_eq!(prepared.spool.records.len(), count);
+            assert_eq!(prepared.spool.record_count(), count);
             assert_eq!(prepared.work.selection_calls, count);
             let overlap = prepared.work.largest_admission_overlap;
             assert_eq!(overlap.raw_sources, count.min(PREPARATION_REUSE_BATCH));
@@ -462,9 +466,18 @@ fn prepared_frames(prepared: &PreparedSourceBuild) -> Vec<String> {
     let mut output = Vec::new();
     prepared
         .spool
-        .records
-        .visit(&mut |frame| {
-            output.push(serde_json::to_string(&frame)?);
+        .records(&mut |frame| {
+            output.push(serde_json::to_string(&(
+                frame.snapshot,
+                &frame.source.source_path,
+                &frame.source.content_hash,
+                &frame.source.preparation_context_hash,
+                &frame.source.content,
+                &frame.source.relationships,
+                &frame.source.diagnostics,
+                frame.selection,
+                frame.lexical,
+            ))?);
             Ok(())
         })
         .unwrap();
@@ -493,7 +506,11 @@ fn production_layout_batches_follow_active_phase_preserve_flags_and_bound_sessio
                 options.reuse_embeddings = numerical;
                 options.reuse_passage_layouts = layouts;
                 let (prepared, metrics) = atlas_storage::diagnostics::capture_sql_work(|| {
-                    prepare(&options, &reuse, scratch.path())
+                    prepare(
+                        &CapturedBuildInputs::capture(options.clone())?,
+                        &reuse,
+                        scratch.path(),
+                    )
                 })
                 .unwrap();
                 let prepared = prepared.unwrap();
@@ -514,10 +531,10 @@ fn production_layout_batches_follow_active_phase_preserve_flags_and_bound_sessio
                 );
                 assert_eq!(
                     metrics.workspace_connections as usize,
-                    count.div_ceil(128) + 1 + batches + if layouts { batches } else { 0 }
+                    1 + batches + if layouts { batches } else { 0 }
                 );
                 assert_eq!(prepared.source_report.reused_admissions, count);
-                assert_eq!(prepared.spool.records.len(), count);
+                assert_eq!(prepared.spool.record_count(), count);
                 assert_eq!(prepared.reused_sections > 0, layouts);
                 assert!(prepared.work.largest_semantic_overlap.raw_sources <= 32);
                 assert!(prepared.work.largest_semantic_overlap.retained_records <= 32);
@@ -536,23 +553,14 @@ fn production_layout_batches_follow_active_phase_preserve_flags_and_bound_sessio
                 } else {
                     expected = Some(frames);
                 }
-                let mut native = Vec::new();
-                let mut occurrences = Vec::new();
+                let mut actual_native = Vec::new();
                 prepared
                     .native_inputs
                     .visit(&mut |input| {
-                        native.push(serde_json::to_string(&input)?);
+                        actual_native.push(serde_json::to_string(&input)?);
                         Ok(())
                     })
                     .unwrap();
-                prepared
-                    .occurrences
-                    .visit(&mut |occurrence| {
-                        occurrences.push(serde_json::to_string(&occurrence)?);
-                        Ok(())
-                    })
-                    .unwrap();
-                let actual_native = (native, occurrences);
                 if let Some(expected) = &expected_native {
                     assert_eq!(&actual_native, expected);
                 } else {
@@ -600,7 +608,7 @@ fn excluded_changed_renamed_duplicates_do_not_read_corrupt_layouts_but_active_ro
             .get("DuplicateId"),
         Some(&2)
     );
-    assert_eq!(prepared.spool.records.len(), 2);
+    assert_eq!(prepared.spool.record_count(), 2);
     assert_eq!(prepared.work.reusable_layout_read_calls, 2);
     assert!(prepared.reused_sections > 0);
     assert!(
@@ -620,12 +628,12 @@ fn excluded_changed_renamed_duplicates_do_not_read_corrupt_layouts_but_active_ro
         );
     }
     options.reuse_passage_layouts = false;
-    assert_eq!(prepare_fixture(&options).unwrap().spool.records.len(), 3);
+    assert_eq!(prepare_fixture(&options).unwrap().spool.record_count(), 3);
     options.reuse_passage_layouts = true;
     options.search_profiles.clear();
     let no_profiles = prepare_fixture(&options).unwrap();
     assert_eq!(no_profiles.work.reusable_layout_read_calls, 0);
-    assert_eq!(no_profiles.spool.records.len(), 3);
+    assert_eq!(no_profiles.spool.record_count(), 3);
 }
 
 #[test]
@@ -675,9 +683,9 @@ fn admitted_and_prepared_streams_preserve_exact_utf8_snapshot_bytes_near_source_
     let mut actual = BTreeMap::new();
     prepared
         .spool
-        .records
-        .visit(&mut |frame| {
-            let (source, bytes, _, _) = frame.decode()?;
+        .records(&mut |frame| {
+            let source = frame.source;
+            let bytes = frame.snapshot.to_owned();
             assert_eq!(
                 atlas_foundry_model::encode_snapshot(source.record.source())?,
                 bytes
@@ -687,39 +695,6 @@ fn admitted_and_prepared_streams_preserve_exact_utf8_snapshot_bytes_near_source_
         })
         .unwrap();
     assert_eq!(actual, expected);
-}
-
-#[test]
-fn text_framed_snapshots_still_require_checked_contract_grammar_depth_and_root_identity() {
-    let fixture = SourceFixture::new();
-    let prepared = prepare_fixture(&fixture.options("corrupt-snapshot")).unwrap();
-    for corruption in ["contract", "version", "grammar", "depth", "root"] {
-        let mut frame = prepared
-            .spool
-            .records
-            .cursor()
-            .unwrap()
-            .next_frame()
-            .unwrap()
-            .unwrap();
-        frame.snapshot = match corruption {
-            "contract" => frame.snapshot.replace(
-                atlas_foundry_model::SOURCE_CONTRACT_ID,
-                "retired-fixture-contract",
-            ),
-            "version" => frame.snapshot.replacen("\"version\":1", "\"version\":2", 1),
-            "grammar" => "{broken".into(),
-            "depth" => format!("{}0{}", "[".repeat(1025), "]".repeat(1025)),
-            "root" => frame
-                .snapshot
-                .replace("aaaaaaaaaaaaaaaa", "ffffffffffffffff"),
-            _ => unreachable!(),
-        };
-        assert!(
-            frame.decode().is_err(),
-            "{corruption} corruption passed checked decoding"
-        );
-    }
 }
 
 #[test]
@@ -786,19 +761,18 @@ fn indexed_admission_preserves_many_interleaved_pack_bindings_with_bounded_handl
     let mut actual = Vec::new();
     prepared
         .spool
-        .records
-        .visit(&mut |frame| {
+        .records(&mut |frame| {
             actual.push((
-                frame.pack,
-                frame.source_path,
+                frame.source.record.key().pack().as_str().to_owned(),
+                frame.source.source_path.clone(),
                 frame.selection.root.to_string(),
-                frame.selection.pack_label,
+                frame.selection.pack_label.clone(),
             ));
             Ok(())
         })
         .unwrap();
     assert_eq!(actual, expected);
-    assert_eq!(prepared.spool.packs.len(), 257);
+    assert_eq!(prepared.spool.pack_count(), 257);
     assert_eq!(prepared.work.captured_document_reads, 4);
     assert!(actual.len() > prepared.fingerprint.file_count);
     assert_eq!(prepared.work.admitted_record_reads, actual.len());

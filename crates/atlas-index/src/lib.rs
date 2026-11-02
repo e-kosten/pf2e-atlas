@@ -71,11 +71,12 @@ mod identity;
 mod input;
 mod publication_source;
 pub use build_spool::{
-    BuildFileUsage, BuildFrameCursor, BuildFrameOffset, BuildFrameStream, PreparedRecordFrame,
+    BuildFileUsage, BuildFrameCursor, BuildFrameOffset, BuildFrameStream, PreparedRecordInput,
     PublicationSpool,
 };
-pub(crate) use publication_source::PreparedRecordRef;
-pub use publication_source::{SemanticOccurrence, TraitChunkOccurrence, TraitSeedOccurrence};
+pub use publication_source::{
+    PreparedRecordRef, SemanticOccurrence, TraitChunkOccurrence, TraitSeedOccurrence,
+};
 mod numeric;
 mod persistence;
 #[cfg(test)]
@@ -170,3 +171,6 @@ pub use result_order::SourceUnitPrice;
 
 #[cfg(test)]
 mod embedding_values_tests;
+
+#[cfg(test)]
+mod publication_crash_tests;

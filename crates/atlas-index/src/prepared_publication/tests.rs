@@ -202,79 +202,68 @@ fn cache_eviction_collects_unpublished_metadata_without_invalidating_owned_stagi
 }
 
 #[test]
-fn final_validation_failure_rolls_back_installed_values_saved_state_and_cache_clear() {
-    let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("rollback.sqlite");
-    let input = crate::foundation_tests::fixture(true);
-    publish_input(&path, &input).unwrap();
-    let workspace = initialize_workspace(&path).unwrap();
-    let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    write.connection().execute_batch("INSERT INTO saved_lists(list_key,slug,name,created_at,updated_at) VALUES('keep','keep','Saved name','before','before');
-        CREATE TRIGGER corrupt_after_activation AFTER DELETE ON pending_embedding_values BEGIN
-        SELECT CASE WHEN (SELECT published_hash FROM embedding_inputs WHERE input_id=OLD.input_id) IS NOT OLD.vector_hash THEN RAISE(ABORT,'selected value was not installed before failure injection') END;
-        UPDATE records SET content_hash='bad-final-hash'; END;").unwrap();
-    write.commit().unwrap();
-    let owner = workspace.update_owner().unwrap();
-    let scratch = BuildScratch::new(&owner).unwrap();
-    let mut next = crate::foundation_tests::fixture(true);
-    next.context.source_revision = Some("changed-context".into());
-    for unit in &mut next.semantic_units {
-        unit.vector = vec![0.; 768];
-        unit.vector[11] = 1.;
-    }
-    let publication = prepare_publication_in(
-        &owner,
-        TEST_WORKSPACE_SCHEMA_VERSION,
-        scratch.path(),
-        &next,
-        false,
-    )
-    .unwrap();
-    let pending = count(&workspace, "pending_embedding_values");
-    assert!(pending > 0);
-    let error = publication.publish().unwrap_err();
-    assert!(
-        error.to_string().contains("invalid source provenance"),
-        "{error}"
-    );
-    let maintenance = owner
-        .maintenance(TEST_WORKSPACE_SCHEMA_VERSION, "inspect failed publication")
-        .unwrap();
-    let c = maintenance.connection();
-    assert_eq!(
-        c.query_row("SELECT reference_revision FROM workspace", [], |r| r
-            .get::<_, u64>(0))
-            .unwrap(),
-        1
-    );
-    assert_eq!(
-        c.query_row("SELECT count(*) FROM pending_embedding_values", [], |r| {
-            r.get::<_, usize>(0)
-        })
-        .unwrap(),
-        pending
-    );
-    assert_eq!(
-        c.query_row(
-            "SELECT name FROM saved_lists WHERE list_key='keep'",
-            [],
-            |r| r.get::<_, String>(0)
+fn failed_publication_reopens_exact_prior_state_without_repairing_old_damage() {
+    for damaged in [false, true] {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("rollback.sqlite");
+        let input = crate::foundation_tests::fixture(true);
+        publish_input(&path, &input).unwrap();
+        let workspace = initialize_workspace(&path).unwrap();
+        let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        write.connection().execute_batch("INSERT INTO saved_lists(list_key,slug,name,created_at,updated_at) VALUES('keep','keep','Saved name','before','before');
+            CREATE TRIGGER reject_after_activation AFTER DELETE ON pending_embedding_values BEGIN
+            SELECT CASE WHEN (SELECT published_hash FROM embedding_inputs WHERE input_id=OLD.input_id) IS NOT OLD.vector_hash THEN RAISE(ABORT,'selected value was not installed before failure injection') END;
+            SELECT RAISE(ABORT,'injected publication failure'); END;").unwrap();
+        if damaged {
+            write
+                .connection()
+                .execute("UPDATE records SET content_hash='already-damaged'", [])
+                .unwrap();
+        }
+        let mut before = reference_preservation_rows(write.connection()).unwrap();
+        before.remove("pending_embedding_values");
+        write.commit().unwrap();
+        let owner = workspace.update_owner().unwrap();
+        let scratch = BuildScratch::new(&owner).unwrap();
+        let mut next = crate::foundation_tests::fixture(true);
+        next.context.source_revision = Some("changed-context".into());
+        for unit in &mut next.semantic_units {
+            unit.vector = vec![0.; 768];
+            unit.vector[11] = 1.;
+        }
+        let publication = prepare_publication_in(
+            &owner,
+            TEST_WORKSPACE_SCHEMA_VERSION,
+            scratch.path(),
+            &next,
+            false,
         )
-        .unwrap(),
-        "Saved name"
-    );
-    let unit = &input.semantic_units[0];
-    let model = &input.context.search_profiles[0];
-    let id = crate::native_values::lookup_input(c, model, &descriptor(unit))
-        .unwrap()
         .unwrap();
-    assert_eq!(
-        crate::native_values::read(c, id, model).unwrap(),
-        unit.vector
-    );
-    crate::validate_reference(c).unwrap();
-    drop(maintenance);
-    crate::recover_reference_publication(&owner, TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        let pending = count(&workspace, "pending_embedding_values");
+        assert!(pending > 0);
+        let error = publication.publish().unwrap_err();
+        assert!(
+            error.to_string().contains("injected publication failure"),
+            "{error}"
+        );
+        let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        assert_eq!(read.reference_revision().unwrap(), 1);
+        let mut after = reference_preservation_rows(read.connection()).unwrap();
+        after.remove("pending_embedding_values");
+        assert_eq!(after, before);
+        assert_eq!(
+            read.connection()
+                .query_row("SELECT count(*) FROM pending_embedding_values", [], |row| {
+                    row.get::<_, usize>(0)
+                })
+                .unwrap(),
+            pending
+        );
+        assert_eq!(
+            crate::validate_reference(read.connection()).is_err(),
+            damaged
+        );
+    }
 }
 
 #[test]

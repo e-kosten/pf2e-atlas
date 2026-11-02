@@ -1,6 +1,9 @@
 //! Build orchestration: source admission, preparation, inference, atomic publication.
 use crate::source::localization::LocalizationCatalog;
-use crate::{BuildArtifactOptions, BuildArtifactReport, IngestError, source_git_commit_if_clean};
+use crate::{
+    BuildArtifactOptions, BuildArtifactReport, IngestError, SourceFingerprint,
+    source_fingerprint::SourceCapture, source_git_commit_if_clean,
+};
 use atlas_index::{
     ARTIFACT_FORMAT_VERSION, ASSET_POLICY_VERSION, LEXICAL_SELECTION_VERSION,
     LOCALIZATION_POLICY_VERSION, RELATIONSHIP_POLICY_VERSION, SOURCE_LOOKUP_VERSION,
@@ -73,12 +76,58 @@ pub(crate) fn build_context(
     };
     Ok(context)
 }
+pub struct CapturedBuildInputs {
+    options: BuildArtifactOptions,
+    capture: SourceCapture,
+}
+impl CapturedBuildInputs {
+    pub fn capture(options: BuildArtifactOptions) -> Result<Self, IngestError> {
+        let started = Instant::now();
+        let capture =
+            SourceCapture::capture(&options.source_root, options.manifest_path.as_deref())?;
+        crate::source_compatibility::validate_parsed_manifest(
+            &capture.manifest_path,
+            &capture.manifest().manifest,
+        )?;
+        tracing::info!(target:"atlas_build_diagnostic",stage="source_capture",captured_files=capture.fingerprint.file_count,elapsed_ms=started.elapsed().as_secs_f64()*1000.,"Captured source inventory and manifest");
+        Ok(Self { options, capture })
+    }
+    pub fn fingerprint(&self) -> &SourceFingerprint {
+        &self.capture.fingerprint
+    }
+    pub fn build(
+        self,
+        workspace: &atlas_storage::Workspace,
+        schema: u32,
+    ) -> Result<BuildArtifactReport, IngestError> {
+        let started = Instant::now();
+        let (owner, scratch) = begin_build(workspace, schema, &self.options)?;
+        finish_build(workspace, schema, owner, scratch, self, started)
+    }
+    pub(crate) fn options(&self) -> &BuildArtifactOptions {
+        &self.options
+    }
+    pub(crate) fn source(&self) -> &SourceCapture {
+        &self.capture
+    }
+}
+
 pub(crate) fn build_artifact(
     workspace: &atlas_storage::Workspace,
     schema: u32,
     options: BuildArtifactOptions,
 ) -> Result<BuildArtifactReport, IngestError> {
     let started = Instant::now();
+    let (owner, scratch) = begin_build(workspace, schema, &options)?;
+    let inputs = CapturedBuildInputs::capture(options)?;
+    finish_build(workspace, schema, owner, scratch, inputs, started)
+}
+
+fn begin_build(
+    workspace: &atlas_storage::Workspace,
+    schema: u32,
+    options: &BuildArtifactOptions,
+) -> Result<(atlas_storage::UpdateOwner, atlas_index::BuildScratch), IngestError> {
     if atlas_storage::Workspace::at(&options.output_path)?.path() != workspace.path() {
         return Err(IngestError::ArtifactWriteFailed(
             "build destination differs from the admitted workspace".into(),
@@ -110,18 +159,27 @@ pub(crate) fn build_artifact(
     atlas_index::write_requested_reference_config(&write, &requested)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     write.commit()?;
+    Ok((update_owner, scratch))
+}
+
+fn finish_build(
+    workspace: &atlas_storage::Workspace,
+    schema: u32,
+    update_owner: atlas_storage::UpdateOwner,
+    scratch: atlas_index::BuildScratch,
+    inputs: CapturedBuildInputs,
+    started: Instant,
+) -> Result<BuildArtifactReport, IngestError> {
     let reuse = atlas_index::ReferenceReuseReader::new(workspace, schema).map_err(index_error)?;
     let phase_started = Instant::now();
-    let mut prepared = crate::product_preparation::prepare(&options, &reuse, scratch.path())?;
+    let prepared = crate::product_preparation::prepare(&inputs, &reuse, scratch.path())?;
+    let CapturedBuildInputs { options, capture } = inputs;
+    drop(capture);
     tracing::info!(target:"atlas_build_diagnostic",stage="source_preparation",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,"Completed ingest phase");
     tracing::info!(target:"atlas_build_diagnostic",reused_sections=prepared.reused_sections,selection_calls=prepared.work.selection_calls,"Prepared shared passage layouts");
-    let phase_started = Instant::now();
-    let plans = crate::native_execution::prepare_profiles(&mut prepared, &options, scratch.path())?;
-    tracing::info!(target:"atlas_build_diagnostic",stage="all_profile_prevalidation",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,"Completed ingest phase");
-    let record_count = prepared.spool.records.len();
-    let pack_count = prepared.spool.packs.len();
-    let semantic_unit_count = prepared.spool.semantic.len();
-    let admission = prepared.spool.context.admission.clone().ok_or_else(|| {
+    let record_count = prepared.spool.record_count();
+    let pack_count = prepared.spool.pack_count();
+    let admission = prepared.spool.context().admission.clone().ok_or_else(|| {
         IngestError::ArtifactWriteFailed("publication admission summary is absent".into())
     })?;
     let mut publication = atlas_index::PreparedPublication::new_in(
@@ -133,7 +191,7 @@ pub(crate) fn build_artifact(
     .map_err(index_error)?;
     let product_record_count = publication.product_record_count();
     let mut profiles = Vec::new();
-    for (plan, config) in plans.iter().zip(&options.search_profiles) {
+    for config in &options.search_profiles {
         profiles.push(
             crate::native_execution::NativeExecution {
                 publication: &mut publication,
@@ -141,29 +199,21 @@ pub(crate) fn build_artifact(
                 options: &options,
                 semantic_units: prepared.document_units,
             }
-            .execute_profile(plan, config)?,
+            .execute_profile(config)?,
         );
     }
     let inferred_inputs = profiles.iter().map(|p| p.inferred_inputs).sum();
     let reused_inputs = profiles.iter().map(|p| p.reused_inputs).sum();
-    let mut usage = publication
+    let semantic_unit_count = publication.semantic_unit_count();
+    let usage = publication
         .file_usage()
         .map_err(index_error)?
         .combine(prepared.native_inputs.file_usage().map_err(index_error)?)
-        .map_err(index_error)?
-        .combine(prepared.occurrences.file_usage().map_err(index_error)?)
         .map_err(index_error)?;
-    for plan in &plans {
-        usage = usage
-            .combine(plan.file_usage().map_err(index_error)?)
-            .map_err(index_error)?;
-    }
     tracing::info!(target:"atlas_build_diagnostic",stage="owned_metadata_and_staged_values",file_bytes=usage.file_bytes,allocated_bytes=usage.allocated_bytes.unwrap_or(0),allocated_bytes_known=usage.allocated_bytes.is_some(),"Observed live metadata and numerical spool files");
     tracing::info!(target:"atlas_build_diagnostic",logical_native_bytes=publication.logical_native_bytes().map_err(index_error)?,
         temporary_native_bytes=publication.temporary_native_bytes().map_err(index_error)?,"Observed staged native values");
     drop(prepared.native_inputs);
-    drop(prepared.occurrences);
-    drop(plans);
     let phase_started = Instant::now();
     progress("write_artifact", "Saving and checking search index");
     publication.publish().map_err(index_error)?;
@@ -206,15 +256,16 @@ pub(crate) fn publish_fixture_without_inference(
     let owner = workspace.update_owner()?;
     let reuse = atlas_index::ReferenceReuseReader::new(&workspace, schema).map_err(index_error)?;
     let scratch = atlas_index::BuildScratch::new(&owner).map_err(index_error)?;
-    let mut prepared = crate::product_preparation::prepare(options, &reuse, scratch.path())?;
-    let plans = crate::native_execution::prepare_profiles(&mut prepared, options, scratch.path())?;
+    let inputs = CapturedBuildInputs::capture(options.clone())?;
+    let prepared = crate::product_preparation::prepare(&inputs, &reuse, scratch.path())?;
     let mut publication =
         atlas_index::PreparedPublication::new_in(&owner, schema, scratch.path(), prepared.spool)
             .map_err(index_error)?;
     crate::native_execution::stage_fixture_values(
         &mut publication,
-        &plans,
-        options.reuse_embeddings,
+        &prepared.native_inputs,
+        options,
+        prepared.document_units,
     )?;
     publication.publish().map_err(index_error)?;
     Ok(())

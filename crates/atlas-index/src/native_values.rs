@@ -20,17 +20,26 @@ pub(crate) fn check_bytes(
     decode_checked(bytes, checksum, model).map(|_| ())
 }
 
-fn decode_checked(
+pub(crate) fn verify_bytes(
     bytes: &[u8],
     checksum: &[u8],
     model: &SourceSearchProfileIdentity,
-) -> Result<Vec<f32>, IndexError> {
+) -> Result<(), IndexError> {
     if bytes.len() != expected_bytes(model)?
         || checksum.len() != 32
         || crate::embedding_values::hash_bytes(bytes) != checksum
     {
         return Err(invalid("native vector length or checksum mismatch"));
     }
+    Ok(())
+}
+
+fn decode_checked(
+    bytes: &[u8],
+    checksum: &[u8],
+    model: &SourceSearchProfileIdentity,
+) -> Result<Vec<f32>, IndexError> {
+    verify_bytes(bytes, checksum, model)?;
     let vector = crate::read_units::decode_vector(bytes)?;
     crate::validation::check_vector(&vector, model.dimensions)?;
     Ok(vector)
@@ -210,7 +219,7 @@ impl<'session> NativeModel<'session> {
         }
         let (bytes,hash): (Vec<u8>,Vec<u8>) = self.connection.prepare_cached("SELECT vector,vector_hash FROM pending_embedding_values WHERE input_id=? AND length(vector)=? AND length(vector_hash)=32")?
             .query_row(params![id,length], |r| Ok((r.get(0)?,r.get(1)?)))?;
-        check_bytes(&bytes, &hash, &self.key.model)?;
+        verify_bytes(&bytes, &hash, &self.key.model)?;
         Ok(Some(CachedNative {
             bytes,
             checksum: hash,
@@ -237,7 +246,6 @@ impl<'session> NativeModel<'session> {
         let Some(hash) = self.checksum(&row)? else {
             return Ok(None);
         };
-        self.read(row.id)?;
         Ok(Some(SelectedNative {
             checksum: hash,
             staged: None,
@@ -285,7 +293,9 @@ impl<'session> NativeModel<'session> {
         bytes: &[u8],
         checksum: &[u8],
     ) -> Result<i64, IndexError> {
-        check_bytes(bytes, checksum, &self.key.model)?;
+        if bytes.len() != expected_bytes(&self.key.model)? || checksum.len() != 32 {
+            return Err(invalid("native vector length or checksum mismatch"));
+        }
         let id = self.ensure_input(input)?;
         self.ensure_table()?;
         let previous_length: Option<usize> = self
@@ -423,6 +433,7 @@ pub(crate) fn install(
     bytes: &[u8],
     hash: &[u8],
 ) -> Result<i64, IndexError> {
+    check_bytes(bytes, hash, model)?;
     let keys = NativeModelKey::all(std::slice::from_ref(model))?;
     NativeModel::bind(c, &keys[0], true)?.install(&NativeInput::new(model, input)?, bytes, hash)
 }

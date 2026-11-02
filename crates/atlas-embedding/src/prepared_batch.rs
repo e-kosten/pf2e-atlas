@@ -60,6 +60,34 @@ impl PreparedEmbeddingBatch {
         Ok(Self { spec, inputs })
     }
 
+    pub fn into_subset(self, indices: &[usize]) -> Result<Self, EmbeddingError> {
+        if indices.windows(2).any(|pair| pair[0] >= pair[1])
+            || indices
+                .last()
+                .is_some_and(|index| *index >= self.inputs.len())
+        {
+            return Err(EmbeddingError::PreparedInputMismatch);
+        }
+        let mut selected = indices.iter().copied().peekable();
+        let inputs = self
+            .inputs
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, input)| {
+                if selected.peek() == Some(&index) {
+                    selected.next();
+                    Some(input)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        Ok(Self {
+            spec: self.spec,
+            inputs,
+        })
+    }
+
     pub fn inputs(&self) -> &[PreparedNativeInput] {
         &self.inputs
     }

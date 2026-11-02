@@ -173,7 +173,7 @@ fn forced_computation_survives_reopen_without_mutating_published_values() {
         publication.publish().is_err(),
         "a prepared publication cannot activate over a different generation"
     );
-    assert!(recover_reference_publication(&owner, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
+    assert!(!recover_reference_publication(&owner, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
     let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
     assert!(
         !reused_fixture_values(&read, &model, std::slice::from_ref(&descriptor))

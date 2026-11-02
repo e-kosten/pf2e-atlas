@@ -124,14 +124,31 @@ impl TextEmbedder {
         for text in texts {
             self.tokenizer.validate_document_input(text)?;
         }
+        let vectors = self.infer_prepared_documents(texts)?;
+        check_outputs(&vectors, texts.len(), self.spec.dimensions)?;
+        Ok(vectors)
+    }
+    fn infer_prepared_documents(
+        &mut self,
+        texts: &[&str],
+    ) -> Result<Vec<Vec<f32>>, EmbeddingError> {
         let inputs = texts
             .iter()
             .map(|text| self.spec.document_input(text))
             .collect::<Vec<_>>();
         let inputs = inputs.iter().map(String::as_str).collect::<Vec<_>>();
-        self.infer(&inputs, 16)
+        self.infer_backend(&inputs, 16)
     }
     fn infer(
+        &mut self,
+        texts: &[&str],
+        batch_size: usize,
+    ) -> Result<Vec<Vec<f32>>, EmbeddingError> {
+        let vectors = self.infer_backend(texts, batch_size)?;
+        check_outputs(&vectors, texts.len(), self.spec.dimensions)?;
+        Ok(vectors)
+    }
+    fn infer_backend(
         &mut self,
         texts: &[&str],
         batch_size: usize,
@@ -166,18 +183,26 @@ impl TextEmbedder {
             .library
             .embed(texts, Some(batch_size))
             .map_err(|e| EmbeddingError::ModelRunFailed(e.to_string()))?;
-        if vectors.len() != texts.len() {
-            return Err(EmbeddingError::UnexpectedEmbeddingOutputCount {
-                expected: texts.len(),
-                actual: vectors.len(),
-            });
-        }
-        for vector in &vectors {
-            validate_embedding_vector(vector, self.spec.dimensions)?;
-        }
         Ok(vectors)
     }
 }
+fn check_outputs(
+    vectors: &[Vec<f32>],
+    expected: usize,
+    dimensions: usize,
+) -> Result<(), EmbeddingError> {
+    if vectors.len() != expected {
+        return Err(EmbeddingError::UnexpectedEmbeddingOutputCount {
+            expected,
+            actual: vectors.len(),
+        });
+    }
+    for vector in vectors {
+        validate_embedding_vector(vector, dimensions)?;
+    }
+    Ok(())
+}
+
 fn load_error(directory: &Path, error: impl std::fmt::Display) -> EmbeddingError {
     EmbeddingError::ModelLoadFailed {
         path: directory.display().to_string(),
@@ -192,12 +217,9 @@ pub fn validate_embedding_vector(vector: &[f32], dimensions: usize) -> Result<()
             actual: vector.len(),
         });
     }
-    let norm = vector
-        .iter()
-        .map(|v| f64::from(*v).powi(2))
-        .sum::<f64>()
-        .sqrt();
-    if vector.iter().any(|v| !v.is_finite()) || (norm - 1.0).abs() > 1e-4 {
+    let squared = vector.iter().map(|v| f64::from(*v).powi(2)).sum::<f64>();
+    if vector.iter().any(|v| !v.is_finite()) || !squared.is_finite() || (squared - 1.0).abs() > 1e-4
+    {
         return Err(EmbeddingError::InvalidVector);
     }
     Ok(())
@@ -247,16 +269,8 @@ impl<M> NativeInferenceState<M> {
                     .ok_or(EmbeddingError::PreparedInputMismatch)?,
                 &texts,
             )?;
-            if vectors.len() != inputs.len() {
-                return Err(EmbeddingError::UnexpectedEmbeddingOutputCount {
-                    expected: inputs.len(),
-                    actual: vectors.len(),
-                });
-            }
+            check_outputs(&vectors, inputs.len(), batch.spec().dimensions)?;
             self.peak_vectors = self.peak_vectors.max(vectors.len());
-            for vector in &vectors {
-                validate_embedding_vector(vector, batch.spec().dimensions)?;
-            }
             let values = inputs
                 .iter()
                 .zip(&vectors)
@@ -321,7 +335,7 @@ impl NativeInferenceRunner {
             tracing::info!(target:"atlas_progress",phase="load_embeddings",model=config.model_spec().model_id,
                 "Loading {} model", profile.label);
             TextEmbedder::load(config)
-        }, TextEmbedder::embed_documents, checkpoint)
+        }, TextEmbedder::infer_prepared_documents, checkpoint)
     }
 }
 

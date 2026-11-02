@@ -1,17 +1,15 @@
-//! Native validation and execution use bounded windows over immutable task streams.
+//! Bounded native preparation, reuse and inference over attributed inputs.
 use crate::{
     BuildArtifactOptions, IngestError,
-    product_preparation::{PreparedSourceBuild, RawOccurrence},
+    product_preparation::{AttributedNativeInput, RawOccurrence},
 };
 use atlas_embedding::{
-    NativeInferenceRunner, NativeInputDescriptor, PreparedEmbeddingBatch, PreparedNativeInput,
-    TextEmbeddingTokenizer,
+    NativeInferenceRunner, PreparedEmbeddingBatch, PreparedNativeInput, TextEmbeddingTokenizer,
 };
 use atlas_index::{
     BuildFrameStream, PreparedPublication, SemanticOccurrence, SourceSearchProfileIdentity,
     TraitChunkOccurrence, TraitSeedOccurrence,
 };
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 fn index(error: atlas_index::IndexError) -> IngestError {
@@ -26,161 +24,13 @@ fn invalid(message: &str) -> IngestError {
 fn window() -> usize {
     atlas_index::NATIVE_VALUE_BATCH_LIMIT.min(atlas_embedding::NATIVE_INFERENCE_BATCH_LIMIT)
 }
-
-#[derive(Serialize, Deserialize)]
-struct NativeFrame {
-    ordinal: usize,
-    input: NativeInputDescriptor,
+fn counted_progress(model: atlas_embedding::SearchProfileSpec, current: usize, total: usize) {
+    tracing::info!(target:"atlas_progress",phase=%format!("{}:reuse_selection",model.id),
+        current=current as u64,total=total as u64,unit="passages",profile=model.id,
+        "Checking saved {} embeddings",model.label);
 }
-pub(crate) struct NativeProfilePlan {
-    model: SourceSearchProfileIdentity,
-    descriptors: BuildFrameStream<NativeFrame>,
-}
-impl NativeProfilePlan {
-    pub(crate) fn file_usage(
-        &self,
-    ) -> Result<atlas_index::BuildFileUsage, atlas_index::IndexError> {
-        self.descriptors.file_usage()
-    }
-}
-
-fn counted_progress(
-    model: atlas_embedding::SearchProfileSpec,
-    stage: &str,
-    current: usize,
-    total: usize,
-) {
-    let label = model.label;
-    let action = match stage {
-        "native_validation" => format!("Validating {label} inputs"),
-        _ => format!("Checking saved {label} embeddings"),
-    };
-    tracing::info!(target:"atlas_progress",phase=%format!("{}:{stage}",model.id),
-        current=current as u64,total=total as u64,unit="passages",profile=model.id,"{action}");
-}
-
-/// Validate every requested native profile before numerical selection starts.
-/// Raw text remains in its single existing spool; the new stream contains no text.
-pub(crate) fn prepare_profiles(
-    prepared: &mut PreparedSourceBuild,
-    options: &BuildArtifactOptions,
-    scratch: &std::path::Path,
-) -> Result<Vec<NativeProfilePlan>, IngestError> {
-    let mut plans = Vec::new();
-    for config in &options.search_profiles {
-        let started = std::time::Instant::now();
-        let spec = atlas_embedding::profile_for_model(config.model);
-        let profile = spec.profile_id();
-        let model = prepared
-            .spool
-            .context
-            .search_profile(&profile)
-            .map_err(index)?
-            .clone();
-        let tokenizer = TextEmbeddingTokenizer::load(config).map_err(embedding)?;
-        let mut raw = prepared.native_inputs.cursor().map_err(index)?;
-        let mut occurrences = prepared.occurrences.cursor().map_err(index)?;
-        let mut descriptors = BuildFrameStream::new_in(scratch).map_err(index)?;
-        let mut ordinal = 0;
-        let mut seed = None;
-        let mut max_validated_batch = 0;
-        counted_progress(spec, "native_validation", 0, prepared.native_inputs.len());
-        loop {
-            let mut inputs = Vec::new();
-            while inputs.len() < window() {
-                match raw.next_frame().map_err(index)? {
-                    Some(input) => inputs.push(input),
-                    None => break,
-                }
-            }
-            if inputs.is_empty() {
-                break;
-            }
-            max_validated_batch = max_validated_batch.max(inputs.len());
-            let batch = PreparedEmbeddingBatch::prepare(&tokenizer, inputs).map_err(embedding)?;
-            for input in batch.inputs() {
-                let occurrence = occurrences
-                    .next_frame()
-                    .map_err(index)?
-                    .ok_or_else(|| invalid("native occurrence is absent"))?;
-                let (RawOccurrence::Document {
-                    input: position, ..
-                }
-                | RawOccurrence::Trait {
-                    input: position, ..
-                }) = &occurrence;
-                if *position != ordinal {
-                    return Err(invalid("native occurrence ordinal differs"));
-                }
-                descriptors
-                    .push(&NativeFrame {
-                        ordinal,
-                        input: input.descriptor(),
-                    })
-                    .map_err(index)?;
-                match occurrence {
-                    RawOccurrence::Document { attribution, .. } => {
-                        flush_seed(&mut prepared.spool, &mut seed).map_err(index)?;
-                        prepared
-                            .spool
-                            .semantic
-                            .push(&SemanticOccurrence {
-                                profile_id: profile.clone(),
-                                record: attribution.record,
-                                owners: attribution.owners,
-                                field: attribution.field,
-                                address: attribution.address,
-                                chunk_ordinal: attribution.chunk_ordinal,
-                                input: input.descriptor(),
-                            })
-                            .map_err(index)?;
-                    }
-                    RawOccurrence::Trait { key, address, .. } => {
-                        if seed
-                            .as_ref()
-                            .is_some_and(|old: &TraitSeedOccurrence| old.key != key)
-                        {
-                            flush_seed(&mut prepared.spool, &mut seed).map_err(index)?;
-                        }
-                        let seed = seed.get_or_insert_with(|| TraitSeedOccurrence {
-                            key,
-                            profile_id: profile.clone(),
-                            input_hash: String::new(),
-                            chunks: Vec::new(),
-                        });
-                        seed.chunks.push(TraitChunkOccurrence {
-                            input: input.input.clone(),
-                            descriptor: input.descriptor(),
-                            address,
-                        });
-                    }
-                }
-                ordinal += 1;
-            }
-            counted_progress(
-                spec,
-                "native_validation",
-                ordinal,
-                prepared.native_inputs.len(),
-            );
-        }
-        if occurrences.next_frame().map_err(index)?.is_some()
-            || ordinal != prepared.native_inputs.len()
-        {
-            return Err(invalid("native stream coverage differs"));
-        }
-        flush_seed(&mut prepared.spool, &mut seed).map_err(index)?;
-        tracing::info!(target:"atlas_build_diagnostic",profile=%profile,elapsed_ms=started.elapsed().as_secs_f64()*1000.,max_native_prevalidation_batch=max_validated_batch,native_prevalidation_inputs=ordinal,"Validated native descriptor stream");
-        plans.push(NativeProfilePlan {
-            model: model.clone(),
-            descriptors,
-        });
-    }
-    Ok(plans)
-}
-
 fn flush_seed(
-    spool: &mut atlas_index::PublicationSpool,
+    publication: &mut PreparedPublication<'_>,
     seed: &mut Option<TraitSeedOccurrence>,
 ) -> Result<(), atlas_index::IndexError> {
     if let Some(mut value) = seed.take() {
@@ -198,230 +48,229 @@ fn flush_seed(
                 hashes.join(":")
             ))
         );
-        spool.trait_seeds.push(&value)?;
+        publication.append_trait_seed(value)?;
     }
     Ok(())
 }
+fn append_occurrence(
+    publication: &mut PreparedPublication<'_>,
+    model: &SourceSearchProfileIdentity,
+    input: &PreparedNativeInput,
+    occurrence: RawOccurrence,
+    seed: &mut Option<TraitSeedOccurrence>,
+) -> Result<(), atlas_index::IndexError> {
+    match occurrence {
+        RawOccurrence::Document { attribution } => {
+            flush_seed(publication, seed)?;
+            publication.append_semantic(SemanticOccurrence {
+                profile_id: model.profile_id.clone(),
+                record: attribution.record,
+                owners: attribution.owners,
+                field: attribution.field,
+                address: attribution.address,
+                chunk_ordinal: attribution.chunk_ordinal,
+                input: input.descriptor(),
+            })?;
+        }
+        RawOccurrence::Trait { key, address } => {
+            if seed.as_ref().is_some_and(|old| old.key != key) {
+                flush_seed(publication, seed)?;
+            }
+            let seed = seed.get_or_insert_with(|| TraitSeedOccurrence {
+                key,
+                profile_id: model.profile_id.clone(),
+                input_hash: String::new(),
+                chunks: Vec::new(),
+            });
+            seed.chunks.push(TraitChunkOccurrence {
+                input: input.input.clone(),
+                descriptor: input.descriptor(),
+                address,
+            });
+        }
+    }
+    Ok(())
+}
+fn stage_values(
+    publication: &mut PreparedPublication<'_>,
+    model: &SourceSearchProfileIdentity,
+    values: &[(&PreparedNativeInput, &[f32])],
+) -> Result<(), atlas_embedding::EmbeddingError> {
+    let descriptors = values
+        .iter()
+        .map(|(input, _)| input.descriptor())
+        .collect::<Vec<_>>();
+    let values = descriptors
+        .iter()
+        .zip(values)
+        .map(|(descriptor, (_, value))| (descriptor, *value))
+        .collect::<Vec<_>>();
+    publication.stage_inferred(model, &values).map_err(|error| {
+        atlas_embedding::EmbeddingError::ModelRunFailed(format!(
+            "could not checkpoint inferred batch: {error}"
+        ))
+    })
+}
 
-/// Selection commits before model loading; checkpoints commit before releasing outputs.
 pub(crate) struct NativeExecution<'a, 'owner> {
     pub publication: &'a mut PreparedPublication<'owner>,
-    pub raw_inputs: &'a BuildFrameStream<PreparedNativeInput>,
+    pub raw_inputs: &'a BuildFrameStream<AttributedNativeInput>,
     pub options: &'a BuildArtifactOptions,
     pub semantic_units: usize,
 }
 impl NativeExecution<'_, '_> {
     pub(crate) fn execute_profile(
         self,
-        plan: &NativeProfilePlan,
         config: &atlas_embedding::EmbeddingRuntimeConfig,
     ) -> Result<crate::ProfileBuildReport, IngestError> {
-        let execution_started = std::time::Instant::now();
-        let mut selection_elapsed = std::time::Duration::ZERO;
-        let mut revalidation_elapsed = std::time::Duration::ZERO;
-        let mut inference_checkpoint_elapsed = std::time::Duration::ZERO;
-        let mut checkpoint_elapsed = std::time::Duration::ZERO;
+        let mut runner = NativeInferenceRunner::new(config, self.options.embedding_batch_size)
+            .map_err(embedding)?;
+        self.execute(config, |publication, model, batch| {
+            let count = runner
+                .infer(batch, |values| stage_values(publication, model, values))
+                .map_err(embedding)?;
+            Ok((count, runner.peak_output_vectors()))
+        })
+    }
+    fn execute(
+        self,
+        config: &atlas_embedding::EmbeddingRuntimeConfig,
+        mut infer: impl FnMut(
+            &mut PreparedPublication<'_>,
+            &SourceSearchProfileIdentity,
+            &PreparedEmbeddingBatch,
+        ) -> Result<(usize, usize), IngestError>,
+    ) -> Result<crate::ProfileBuildReport, IngestError> {
+        let started = std::time::Instant::now();
         let Self {
             publication,
             raw_inputs,
             options,
             semantic_units,
         } = self;
-        if publication
-            .context()
-            .search_profile(&plan.model.profile_id)
-            .map_err(index)?
-            != &plan.model
-        {
-            return Err(invalid("native profile differs from owned publication"));
-        }
-        let mut raw = raw_inputs.cursor().map_err(index)?;
-        let mut descriptors = plan.descriptors.cursor().map_err(index)?;
-        let mut runner =
-            NativeInferenceRunner::new(config, options.embedding_batch_size).map_err(embedding)?;
-        let mut tokenizer = None;
-        let mut ordinal = 0;
-        let mut reused = 0;
-        let mut max_batch = 0;
-        let mut max_raw_batch = 0;
-        let mut max_missing_batch = 0;
         let profile = atlas_embedding::profile_for_model(config.model);
-        counted_progress(profile, "reuse_selection", 0, raw_inputs.len());
+        let model = publication
+            .context()
+            .search_profile(&profile.profile_id())
+            .map_err(index)?
+            .clone();
+        let tokenizer = TextEmbeddingTokenizer::load(config).map_err(embedding)?;
+        let mut raw = raw_inputs.cursor().map_err(index)?;
+        let mut consumed = 0;
+        let mut reused = 0;
+        let mut inferred = 0;
+        let mut seed = None;
+        let mut preparation_elapsed = std::time::Duration::ZERO;
+        let mut selection_elapsed = std::time::Duration::ZERO;
+        let mut inference_elapsed = std::time::Duration::ZERO;
+        let mut max_raw_batch = 0;
+        let mut max_unique_batch = 0;
+        let mut max_missing_batch = 0;
+        let mut max_outputs = 0;
+        counted_progress(profile, 0, raw_inputs.len());
         loop {
-            // Deduplicate inside this bounded window before selection. Across windows,
-            // the owned publication retains selected membership, including forced execution.
-            let mut unique =
-                BTreeMap::<(String, usize), (NativeInputDescriptor, PreparedNativeInput)>::new();
-            let mut consumed = 0;
-            while consumed < window() {
-                match (
-                    raw.next_frame().map_err(index)?,
-                    descriptors.next_frame().map_err(index)?,
-                ) {
-                    (None, None) => break,
-                    (Some(input), Some(frame))
-                        if frame.ordinal == ordinal
-                            && input.input_sha256 == frame.input.input_sha256 =>
-                    {
-                        let key = (frame.input.input_sha256.clone(), frame.input.token_count);
-                        if let Some((_, previous)) = unique.get(&key) {
-                            if previous.input != input.input {
-                                return Err(invalid("duplicate raw native inputs disagree"));
-                            }
-                        } else {
-                            unique.insert(key, (frame.input, input));
-                        }
-                    }
-                    _ => return Err(invalid("raw/native descriptor coverage differs")),
-                }
-                ordinal += 1;
-                consumed += 1;
+            let mut inputs = Vec::with_capacity(window());
+            let mut occurrences = Vec::with_capacity(window());
+            while inputs.len() < window() {
+                let Some(frame) = raw.next_frame().map_err(index)? else {
+                    break;
+                };
+                inputs.push(frame.input);
+                occurrences.push(frame.occurrence);
             }
-            if consumed == 0 {
+            if inputs.is_empty() {
                 break;
             }
-            max_batch = max_batch.max(unique.len());
-            max_raw_batch = max_raw_batch.max(consumed);
-            let entries = unique.into_values().collect::<Vec<_>>();
-            let requested = entries
+            max_raw_batch = max_raw_batch.max(inputs.len());
+            consumed += inputs.len();
+            let preparation_started = std::time::Instant::now();
+            let batch = PreparedEmbeddingBatch::prepare(&tokenizer, inputs).map_err(embedding)?;
+            preparation_elapsed += preparation_started.elapsed();
+            let mut unique = BTreeMap::<(String, usize), usize>::new();
+            for (position, (input, occurrence)) in
+                batch.inputs().iter().zip(occurrences).enumerate()
+            {
+                append_occurrence(publication, &model, input, occurrence, &mut seed)
+                    .map_err(index)?;
+                let key = (input.input_sha256.clone(), input.token_count);
+                if let Some(previous) = unique.get(&key) {
+                    if batch.inputs()[*previous].input != input.input {
+                        return Err(invalid("duplicate raw native inputs disagree"));
+                    }
+                } else {
+                    unique.insert(key, position);
+                }
+            }
+            max_unique_batch = max_unique_batch.max(unique.len());
+            let positions = unique.into_values().collect::<Vec<_>>();
+            let requested = positions
                 .iter()
-                .map(|(descriptor, _)| descriptor.clone())
+                .map(|position| batch.inputs()[*position].descriptor())
                 .collect::<Vec<_>>();
             let selection_started = std::time::Instant::now();
             let selected = publication
-                .select_native(&plan.model, &requested, options.reuse_embeddings)
+                .select_native(&model, &requested, options.reuse_embeddings)
                 .map_err(index)?;
             selection_elapsed += selection_started.elapsed();
-            counted_progress(profile, "reuse_selection", ordinal, raw_inputs.len());
-            if selected.len() != entries.len() {
+            if selected.len() != positions.len() {
                 return Err(invalid("native selection coverage differs"));
             }
             let mut missing = Vec::new();
-            let mut expected = Vec::new();
-            for ((descriptor, input), status) in entries.into_iter().zip(selected) {
+            for (position, status) in positions.into_iter().zip(selected) {
                 match status {
-                    atlas_index::NativeValueSelection::Missing => {
-                        missing.push(input);
-                        expected.push(descriptor);
-                    }
+                    atlas_index::NativeValueSelection::Missing => missing.push(position),
                     atlas_index::NativeValueSelection::Reused => reused += 1,
                     atlas_index::NativeValueSelection::AlreadySelected => {}
                 }
             }
+            counted_progress(profile, consumed, raw_inputs.len());
             max_missing_batch = max_missing_batch.max(missing.len());
-            if missing.is_empty() {
-                continue;
+            if !missing.is_empty() {
+                missing.sort_unstable();
+                let batch = batch.into_subset(&missing).map_err(embedding)?;
+                let inference_started = std::time::Instant::now();
+                let (count, outputs) = infer(publication, &model, &batch)?;
+                inferred += count;
+                max_outputs = max_outputs.max(outputs);
+                inference_elapsed += inference_started.elapsed();
             }
-            let revalidation_started = std::time::Instant::now();
-            if tokenizer.is_none() {
-                tokenizer = Some(TextEmbeddingTokenizer::load(config).map_err(embedding)?);
-            }
-            // Re-run the normal bounded native guard, rather than restoring trusted
-            // prepared batches from serialized counts. Cache hits require no runner.
-            let batch = PreparedEmbeddingBatch::prepare(
-                tokenizer
-                    .as_ref()
-                    .ok_or_else(|| invalid("native tokenizer absent"))?,
-                missing,
-            )
-            .map_err(embedding)?;
-            if batch
-                .inputs()
-                .iter()
-                .map(PreparedNativeInput::descriptor)
-                .ne(expected)
-            {
-                return Err(invalid("revalidated native descriptors differ"));
-            }
-            revalidation_elapsed += revalidation_started.elapsed();
-            let inference_started = std::time::Instant::now();
-            runner
-                .infer(&batch, |values| {
-                    let checkpoint_started = std::time::Instant::now();
-                    let checkpoint = (|| -> Result<(), IngestError> {
-                        let descriptors = values
-                            .iter()
-                            .map(|(input, _)| input.descriptor())
-                            .collect::<Vec<_>>();
-                        let values = descriptors
-                            .iter()
-                            .zip(values)
-                            .map(|(descriptor, (_, value))| (descriptor, *value))
-                            .collect::<Vec<_>>();
-                        publication
-                            .stage_inferred(&plan.model, &values)
-                            .map_err(index)?;
-                        Ok(())
-                    })();
-                    checkpoint_elapsed += checkpoint_started.elapsed();
-                    checkpoint.map_err(|e| {
-                        atlas_embedding::EmbeddingError::ModelRunFailed(format!(
-                            "could not checkpoint inferred batch: {e}"
-                        ))
-                    })
-                })
-                .map_err(embedding)?;
-            inference_checkpoint_elapsed += inference_started.elapsed();
         }
-        if ordinal != raw_inputs.len() {
-            return Err(invalid("native descriptor count differs"));
-        }
-        tracing::info!(target:"atlas_build_diagnostic",profile=%plan.model.profile_id,elapsed_ms=execution_started.elapsed().as_secs_f64()*1000.,selection_ms=selection_elapsed.as_secs_f64()*1000.,revalidation_ms=revalidation_elapsed.as_secs_f64()*1000.,inference_with_checkpoint_ms=inference_checkpoint_elapsed.as_secs_f64()*1000.,checkpoint_ms=checkpoint_elapsed.as_secs_f64()*1000.,max_distinct_native_batch=max_batch,max_raw_native_batch=max_raw_batch,
-        max_missing_native_batch=max_missing_batch,max_native_output_vectors=runner.peak_output_vectors(),
-        native_prevalidation_inputs=ordinal,native_inference_revalidation_inputs=runner.inferred_inputs(),"Completed bounded native execution");
+        flush_seed(publication, &mut seed).map_err(index)?;
+        tracing::info!(target:"atlas_build_diagnostic",profile=%model.profile_id,elapsed_ms=started.elapsed().as_secs_f64()*1000.,native_preparation_ms=preparation_elapsed.as_secs_f64()*1000.,selection_ms=selection_elapsed.as_secs_f64()*1000.,inference_with_checkpoint_ms=inference_elapsed.as_secs_f64()*1000.,max_distinct_native_batch=max_unique_batch,max_raw_native_batch=max_raw_batch,max_missing_native_batch=max_missing_batch,max_native_output_vectors=max_outputs,native_preparation_inputs=consumed,"Completed bounded native execution");
         Ok(crate::ProfileBuildReport {
-            profile_id: plan.model.profile_id.clone(),
+            profile_id: model.profile_id,
             semantic_units,
-            inferred_inputs: runner.inferred_inputs(),
+            inferred_inputs: inferred,
             reused_inputs: reused,
         })
     }
 }
 
-/// Exercise the real selection/cache/publication route without loading inference.
 #[cfg(test)]
 pub(crate) fn stage_fixture_values(
     publication: &mut PreparedPublication<'_>,
-    plans: &[NativeProfilePlan],
-    reuse_published: bool,
+    raw_inputs: &BuildFrameStream<AttributedNativeInput>,
+    options: &BuildArtifactOptions,
+    semantic_units: usize,
 ) -> Result<(), IngestError> {
-    for plan in plans {
-        let mut frames = plan.descriptors.cursor().map_err(index)?;
-        loop {
-            let mut requested = Vec::new();
-            while requested.len() < window() {
-                match frames.next_frame().map_err(index)? {
-                    Some(frame) => requested.push(frame.input),
-                    None => break,
-                }
-            }
-            if requested.is_empty() {
-                break;
-            }
-            let mut seen = std::collections::BTreeSet::new();
-            requested.retain(|input| seen.insert((input.input_sha256.clone(), input.token_count)));
-            let selected = publication
-                .select_native(&plan.model, &requested, reuse_published)
-                .map_err(index)?;
-            if selected.len() != requested.len() {
-                return Err(invalid("fixture selection coverage differs"));
-            }
-            let mut vector = vec![0.; plan.model.dimensions];
-            vector[0] = 1.;
-            let missing = requested
-                .iter()
-                .zip(selected)
-                .filter_map(|(input, status)| {
-                    matches!(status, atlas_index::NativeValueSelection::Missing)
-                        .then_some((input, vector.as_slice()))
-                })
-                .collect::<Vec<_>>();
-            if !missing.is_empty() {
-                publication
-                    .stage_inferred(&plan.model, &missing)
-                    .map_err(index)?;
-            }
+    for config in &options.search_profiles {
+        NativeExecution {
+            publication,
+            raw_inputs,
+            options,
+            semantic_units,
         }
+        .execute(config, |publication, model, batch| {
+            let mut vector = vec![0.; model.dimensions];
+            vector[0] = 1.;
+            let values = batch
+                .inputs()
+                .iter()
+                .map(|input| (input, vector.as_slice()))
+                .collect::<Vec<_>>();
+            stage_values(publication, model, &values).map_err(embedding)?;
+            Ok((values.len(), 1))
+        })?;
     }
     Ok(())
 }

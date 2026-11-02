@@ -32,7 +32,7 @@ peak RSS and took longer than the matched baseline.
 
 ## Acceptance and boundaries
 
-Keep one SQLite workspace, checked source authority, explicit unavailable states, stable record identities, exact native-input identity, coherent saved/reference transactions and complete validation of the publishing transaction. Existing source/model assets and the installed workspace remain protected. Published migrations are immutable; compatible metadata upgrades preserve saved rows, vector bytes and receipt identities, or fail atomically with actionable diagnostics on invalid historical data. Retired source/preparation contracts follow the existing explicit replacement path while saved-state upgrades remain available.
+Keep one SQLite workspace, checked source authority, explicit unavailable states, stable record identities, exact native-input identity, coherent saved/reference transactions and checks at the owning construction, consumption and SQL-write boundaries. Whole-reference health checking remains an explicit deep audit; ordinary publication trusts untouched committed data. Existing source/model assets and the installed workspace remain protected. Published migrations are immutable; compatible metadata upgrades preserve saved rows, vector bytes and receipt identities, or fail atomically with actionable diagnostics on invalid historical data. Retired source/preparation contracts follow the existing explicit replacement path while saved-state upgrades remain available.
 
 Validate the incomplete-pack failure path, populated migrations/rollback, source/relationship changes, lexical-only and single/two-profile sections, forced pending-vs-published values, retry/reset lifetimes and nested filter uncertainty. Measure current release builds for preparation, memory, logical writes, maintenance downtime and selective query plans before claiming performance improvements. Each completed refactor removes its replaced production path.
 
@@ -81,9 +81,10 @@ The revised implementation follows these accepted decisions:
 - Group staging under one owned attempt directory, clean normal completion/error
   and safely remove abandoned attempts using update ownership. No staging quota
   manager or per-record reservation ledger has been agreed.
-- Setup/upgrades may be maintenance windows. Preserve atomic publication, saved
-  state and complete validation of every real publication. No unchanged-update,
-  forced-build or deep-audit semantics change is implicitly accepted.
+- Setup/upgrades may be maintenance windows. Preserve atomic publication and saved
+  state. The subsequent validation refinement below supersedes the earlier
+  complete-final-audit requirement for ordinary source publication; forced-build
+  and explicit deep-audit meanings remain unchanged.
 
 The [numerical ownership study](../../research/embedding-value-ownership.md)
 measured 0.629% duplicate document excess and completed 192 paired SQL cases.
@@ -129,6 +130,37 @@ Continue review in PR184; its published head and hosted checks identify the
 candidate under review. Local checks, hosted CI and human acceptance of the
 performance tradeoff are separate outcomes. Merge and release require explicit
 authorization.
+
+## Subsequent ingest and validation simplification
+
+The follow-up removes the corpus-wide native prevalidation/descriptor protocol,
+repeated private-frame authentication and ordinary whole-reference final audit.
+Bounded native batches prepare once, preserve all occurrences and trait repeats,
+and keep one model runner per profile. Compact record sealing and one derived
+bundle feed publication; unchanged sections, traits and Core skip reconciliation
+with their dependency and pruning rules preserved. Setup carries one owned source
+capture into the selected source-build route instead of capturing again.
+
+Ordinary source publication uses one transaction under exclusive admission without
+a separate durable quarantine stamp. Failure restores the previous committed
+state, including any unrelated pre-existing defect. Existing upgrade, reclamation
+and legacy maintenance paths remain. Inference checks its basic numerical contract
+once; private staging keeps structural bounds; durable cache/repack bytes retain
+checksum checks. Complete reference audit remains `atlas index validate`. Tests
+of deliberately malformed internal fixture outputs exercise that explicit audit,
+while producer tests protect the normal generation loops.
+
+Implementation and focused tests are recorded in the current local plan; final
+measurements, full validation and published-head CI remain separate delivery gates.
+The mechanical-only checkpoint has not demonstrated an elapsed-time improvement;
+source work-count reductions alone do not establish a speedup.
+
+### Deferred reference rebuild
+
+The user deferred an explicit clear-and-rebuild reference operation from this PR.
+Future work may rebuild generated reference data while preserving app data and
+stable identities, using the existing publisher. This task adds no repair/rebuild
+command, option, mode or prerequisite.
 
 ## Related owners
 

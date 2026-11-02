@@ -629,33 +629,6 @@ fn reference_validation_rejects_missing_reference_sidecar() {
     assert!(crate::validate_artifact(&path).is_err());
 }
 #[test]
-fn failed_build_preserves_published_artifact() {
-    let input = fixture(false);
-    let (_directory, path) = build(&input);
-    let before = validate_artifact(&path).unwrap();
-    let mut broken = fixture(true);
-    broken.semantic_units.pop();
-    assert!(crate::test_support::publish_input(&path, &broken).is_err());
-    assert_eq!(validate_artifact(&path).unwrap(), before);
-    assert!(crate::test_support::open_reader(&path).is_err());
-    crate::test_support::publish_input(&path, &input).unwrap();
-    assert_eq!(validate_artifact(&path).unwrap(), before);
-    let generation = crate::test_support::open_reader(&path)
-        .unwrap()
-        .artifact_instance()
-        .clone();
-    let mut bad = fixture(false);
-    bad.records[1].preparation_context_hash = "0".repeat(64);
-    assert!(crate::test_support::publish_input(&path, &bad).is_err());
-    assert_eq!(validate_artifact(&path).unwrap(), before);
-    assert_eq!(
-        crate::test_support::open_reader(&path)
-            .unwrap()
-            .artifact_instance(),
-        &generation
-    );
-}
-#[test]
 fn stale_contract_and_projection_corruption_require_rebuild() {
     let input = fixture(false);
     let (_directory, path) = build(&input);
@@ -798,7 +771,7 @@ fn prepared_cache_declared_policy_and_complete_coverage_are_checked() {
     assert!(validate_artifact(path).is_err());
 }
 #[test]
-fn fts_posting_and_semantic_tail_corruption_are_rejected() {
+fn explicit_audit_rejects_fts_posting_and_semantic_tail_corruption() {
     let input = fixture(false);
     let (_directory, path) = build(&input);
     let c = Connection::open(&path).unwrap();
@@ -807,10 +780,9 @@ fn fts_posting_and_semantic_tail_corruption_are_rejected() {
     let mut input = fixture(true);
     input.semantic_units.retain(|u| u.field.is_none());
     let directory = tempfile::tempdir().unwrap();
-    assert!(
-        crate::test_support::publish_input(directory.path().join("missing.sqlite"), &input)
-            .is_err()
-    );
+    let path = directory.path().join("missing.sqlite");
+    crate::test_support::publish_input(&path, &input).unwrap();
+    assert!(validate_artifact(&path).is_err());
     let mut input = fixture(true);
     let unit = input
         .semantic_units
@@ -820,9 +792,9 @@ fn fts_posting_and_semantic_tail_corruption_are_rejected() {
     if let SourcePassageAddress::HtmlSection { chunk_bytes, .. } = &mut unit.address {
         chunk_bytes.end -= 1;
     }
-    assert!(
-        crate::test_support::publish_input(directory.path().join("tail.sqlite"), &input).is_err()
-    );
+    let path = directory.path().join("tail.sqlite");
+    crate::test_support::publish_input(&path, &input).unwrap();
+    assert!(validate_artifact(&path).is_err());
 }
 
 #[test]
@@ -1758,16 +1730,10 @@ fn remaster_suppression_reads_only_matching_identities_for_complete_sets() {
 }
 
 #[test]
-fn invalid_typed_remaster_source_rolls_back_publication() {
-    let input = fixture(false);
-    let (_directory, path) = build(&input);
-    let before = validate_artifact(&path).unwrap();
-    let generation = crate::test_support::open_reader(&path)
-        .unwrap()
-        .artifact_instance()
-        .clone();
+fn explicit_audit_rejects_invalid_typed_remaster_source() {
     for defect in ["record", "owner", "field"] {
         let mut next = fixture(false);
+        let (_directory, path) = build(&next);
         let mut provenance = atlas_record::source_content::SourceContentLocator {
             record: next.records[1].record.key().clone(),
             owners: vec![],
@@ -1786,22 +1752,7 @@ fn invalid_typed_remaster_source_rolls_back_publication() {
             remaster: next.records[2].record.key().clone(),
             provenance,
         });
-        assert!(
-            crate::test_support::publish_input(&path, &next).is_err(),
-            "{defect}"
-        );
-        assert_eq!(validate_artifact(&path).unwrap(), before);
-        let workspace = atlas_storage::Workspace::at(&path).unwrap();
-        crate::recover_reference_publication(
-            &workspace.update_owner().unwrap(),
-            crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
-        )
-        .unwrap();
-        assert_eq!(
-            crate::test_support::open_reader(&path)
-                .unwrap()
-                .artifact_instance(),
-            &generation
-        );
+        crate::test_support::publish_input(&path, &next).unwrap();
+        assert!(validate_artifact(&path).is_err(), "{defect}");
     }
 }

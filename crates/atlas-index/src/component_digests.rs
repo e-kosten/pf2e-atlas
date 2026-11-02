@@ -37,7 +37,15 @@ fn scalar(value: &Value) -> Scalar<'_> {
         Value::Blob(b) => Scalar::Blob(b),
     }
 }
-impl ComponentDigests {
+pub(crate) struct DerivedComponents {
+    pub(crate) digests: ComponentDigests,
+    pub(crate) allocation_footprint: i64,
+    pub(crate) sections: Vec<crate::selected_sections::SelectedSection>,
+    pub(crate) traits: crate::traits::TraitEvidence,
+    pub(crate) core: atlas_record::source_record::CoreSearchSelection,
+}
+
+impl DerivedComponents {
     pub(crate) fn project(
         record: PreparedRecordRef<'_>,
         label: &str,
@@ -69,7 +77,7 @@ impl ComponentDigests {
             &source.content_hash,
             &source.preparation_context_hash,
         )?;
-        let sections = sections
+        let section_identity = sections
             .iter()
             .map(|s| (&s.part, &s.address))
             .collect::<Vec<_>>();
@@ -84,16 +92,32 @@ impl ComponentDigests {
             atlas_record::source_record::core_search_selection(&source.record, record.selection)
                 .map_err(|e| IndexError::Invalid(e.to_string()))?;
         let retained = RetainedPayloadDigests::project(source, record.snapshot)?;
-        Ok(Self {
+        let digests = ComponentDigests {
             snapshot: retained.snapshot,
             query: hash(&(crate::SOURCE_PROJECTION_VERSION, query))?,
             content: retained.content,
             relationships: retained.relationships,
-            sections: hash(&sections)?,
+            sections: hash(&section_identity)?,
             lexical: hash(&lexical)?,
             trait_associations: hash(&evidence)?,
-            core: hash(&(atlas_domain::CORE_SECTIONS_RECIPE, core))?,
+            core: hash(&(atlas_domain::CORE_SECTIONS_RECIPE, &core))?,
+        };
+        Ok(Self {
+            digests,
+            allocation_footprint: ids.end(),
+            sections,
+            traits: evidence,
+            core,
         })
+    }
+}
+impl ComponentDigests {
+    pub(crate) fn project(
+        record: PreparedRecordRef<'_>,
+        label: &str,
+        audience: atlas_record::source_content::ContentAudience,
+    ) -> Result<Self, IndexError> {
+        Ok(DerivedComponents::project(record, label, audience)?.digests)
     }
     pub(crate) fn read(c: &Connection, id: i64) -> Result<Option<Self>, IndexError> {
         let row: Option<(String, String)> = c
@@ -374,6 +398,25 @@ mod tests {
             "unchanged publication rewrote an owned component"
         );
         crate::validate_artifact(&path).unwrap();
+        let id: i64 = c
+            .query_row("SELECT record_id FROM core_roots LIMIT 1", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        c.execute("DELETE FROM core_roots WHERE record_id=?", [id])
+            .unwrap();
+        let report = crate::test_support::publish_input(&path, &input).unwrap();
+        assert_eq!(report.checked_snapshots, 0);
+        assert_eq!(
+            c.query_row(
+                "SELECT count(*) FROM core_roots WHERE record_id=?",
+                [id],
+                |row| row.get::<_, usize>(0)
+            )
+            .unwrap(),
+            0
+        );
+        assert!(crate::validate_artifact(&path).is_err());
     }
     #[test]
     fn one_body_change_preserves_unrelated_roots_and_query_rows() {
@@ -453,7 +496,7 @@ mod tests {
         crate::validate_artifact(&path).unwrap();
     }
     #[test]
-    fn absent_digest_never_attests_corrupt_retained_preparation() {
+    fn missing_component_digests_regenerate_from_supplied_inputs_without_a_prior_audit() {
         let input = crate::foundation_tests::fixture(false);
         let (_dir, path) = crate::foundation_tests::build(&input);
         let c = Connection::open(&path).unwrap();
@@ -464,21 +507,21 @@ mod tests {
             ["0".repeat(64)],
         )
         .unwrap();
-        assert!(crate::test_support::publish_input(&path, &input).is_err());
+        assert!(crate::validate_artifact(&path).is_err());
+        let report = crate::test_support::publish_input(&path, &input).unwrap();
+        assert_eq!(report.checked_snapshots, 0);
         let count: usize = c
             .query_row(
                 "SELECT count(*) FROM reference_component_digests",
                 [],
-                |r| r.get(0),
+                |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(
-            count, 0,
-            "failed publication stamped desired digests over corrupt retained state"
-        );
+        assert_eq!(count, input.records.len());
+        crate::validate_artifact(&path).unwrap();
     }
     #[test]
-    fn populated_schema27_upgrade_compares_actual_prior_rows_without_rewriting_them() {
+    fn populated_schema27_upgrade_regenerates_unknown_components_once() {
         use crate::test_support::*;
         let input = crate::foundation_tests::fixture(false);
         atlas_sqlite_vec::register_sqlite_vec_auto_extension().unwrap();
@@ -523,14 +566,27 @@ mod tests {
             .unwrap(),
             0
         );
+        let before = crate::test_support::reference_preservation_rows(&c).unwrap();
         audit(&c);
         crate::test_support::publish_input(&path, &input).unwrap();
         let writes:usize=c.query_row("SELECT count(*) FROM component_write_audit WHERE component<>'reference_component_digests'",[],|r|r.get(0)).unwrap();
-        assert_eq!(
-            writes, 0,
-            "first post28 publication rewrote unchanged actual components"
+        assert!(
+            writes > 0,
+            "unknown components must be regenerated from supplied inputs"
         );
+        let mut after = crate::test_support::reference_preservation_rows(&c).unwrap();
+        after.remove("component_write_audit");
+        after.insert("reference_component_digests".into(), vec![]);
+        assert_eq!(after, before);
         crate::validate_reference(&c).unwrap();
+        c.execute("DELETE FROM component_write_audit", []).unwrap();
+        crate::test_support::publish_input(&path, &input).unwrap();
+        let writes: usize = c
+            .query_row("SELECT count(*) FROM component_write_audit", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(writes, 0, "known unchanged components must be skipped");
     }
     #[test]
     fn admission_diagnostic_only_change_updates_published_evidence() {

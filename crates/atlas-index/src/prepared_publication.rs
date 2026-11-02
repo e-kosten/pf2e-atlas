@@ -98,6 +98,21 @@ impl<'owner> PreparedPublication<'owner> {
     pub fn temporary_native_bytes(&self) -> Result<u64, IndexError> {
         Ok(BuildFileUsage::of(self.selected_file.as_file())?.file_bytes)
     }
+    pub fn append_semantic(
+        &mut self,
+        occurrence: crate::SemanticOccurrence,
+    ) -> Result<(), IndexError> {
+        self.metadata.semantic.push(&occurrence)
+    }
+    pub fn append_trait_seed(
+        &mut self,
+        seed: crate::TraitSeedOccurrence,
+    ) -> Result<(), IndexError> {
+        self.metadata.trait_seeds.push(&seed)
+    }
+    pub fn semantic_unit_count(&self) -> usize {
+        self.metadata.semantic.len()
+    }
     pub fn select_native(
         &mut self,
         model: &SourceSearchProfileIdentity,
@@ -156,7 +171,9 @@ impl<'owner> PreparedPublication<'owner> {
         let mut batch_hashes = std::collections::BTreeMap::new();
         for (input, vector) in batch {
             let input = NativeInput::new(model, input)?;
-            crate::validation::check_vector(vector, model.dimensions)?;
+            if vector.len() != model.dimensions {
+                return Err(invalid("inferred vector dimension mismatch"));
+            }
             let bytes = crate::read_units::vector_bytes(vector);
             let checksum = crate::embedding_values::hash_bytes(&bytes);
             if batch_hashes
@@ -210,39 +227,28 @@ impl<'owner> PreparedPublication<'owner> {
         self.evict_cache()
     }
     pub fn publish(self) -> Result<ArtifactValidationReport, IndexError> {
-        let maintenance = self
-            .owner
-            .maintenance(self.schema, "publishing reference update")?;
-        maintenance
-            .connection()
-            .execute_batch("PRAGMA temp_store=FILE;")?;
-        let prior = crate::ReferencePublicationExpectation::read(maintenance.connection())?;
-        // This synchronous observation point follows durable maintenance admission
-        // and precedes all publication mutations; guarded recovery authenticates it.
-        tracing::info!(target:"atlas_progress",phase="validate_build_input",workspace_key=prior.instance().workspace_key(),reference_revision=prior.instance().reference_revision(),context_sha256=prior.context_sha256().unwrap_or(""),"Saving reference update");
-        maintenance.publish(|connection| {
+        self.owner.publish(self.schema, |connection| {
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
+            let prior = crate::ReferencePublicationExpectation::read(connection)?;
+            tracing::info!(target:"atlas_progress",phase="validate_build_input",workspace_key=prior.instance().workspace_key(),reference_revision=prior.instance().reference_revision(),context_sha256=prior.context_sha256().unwrap_or(""),"Saving reference update");
             crate::writer::check_expected(connection, &self.metadata)?;
             let reusable = crate::writer::prior_compatible(connection)?;
             let native_started = std::time::Instant::now();
-            let delta_started = {
+            let delta_started;
+            let report = {
                 let mut bindings = crate::native_values::NativeBindings::new(connection, &self.models, true)?;
                 bindings.ensure_tables()?;
                 self.install_staged(&mut bindings)?;
                 tracing::info!(target:"atlas_build_diagnostic",stage="native_installation",elapsed_ms=native_started.elapsed().as_secs_f64()*1000.,"Installed selected unpublished values");
                 let values = PublicationValues { selected: &self.selected, bindings: &bindings };
                 let scratch = self.selected_file.path().parent().ok_or_else(|| invalid("publication scratch parent absent"))?;
-                let delta_started = std::time::Instant::now();
-                crate::stream_publication::write(connection, &self.metadata, &self.identities, &values, reusable, scratch)?;
-                delta_started
+                delta_started = std::time::Instant::now();
+                crate::stream_publication::write(connection, &self.metadata, &self.identities, &values, reusable, scratch)?
             };
             connection.execute("DELETE FROM pending_embedding_values", [])?;
             crate::native_values::prune(connection)?;
             crate::native_allocation::compact_profiles(connection, &self.metadata.context)?;
             tracing::info!(target:"atlas_build_diagnostic",stage="publication_delta_and_prune",elapsed_ms=delta_started.elapsed().as_secs_f64()*1000.,"Completed reference reconciliation");
-            let validation_started = std::time::Instant::now();
-            let report = crate::validation::validate_reference(connection)?;
-            tracing::info!(target:"atlas_build_diagnostic",stage="publication_exact_validation",elapsed_ms=validation_started.elapsed().as_secs_f64()*1000.,"Completed publication validation");
             Ok(report)
         })
     }
