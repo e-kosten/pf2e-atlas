@@ -169,12 +169,11 @@ pub(crate) fn write(
     crate::publication_delta::remove_absent_roots(c, &live)?;
     crate::traits::write_traits_stream(c, input, values, &kept_traits)?;
     next_roots.visit(&mut |root| {
-        if let Some(core) = root.core {
-            if root.refresh_core || changed_search.contains(&root.id) {
-                let membership =
-                    crate::core_projection::membership_from_selection(c, root.id, &core)?;
-                crate::core_projection::write_membership(c, root.id, &membership)?;
-            }
+        if let Some(core) = root.core
+            && (root.refresh_core || changed_search.contains(&root.id))
+        {
+            let membership = crate::core_projection::membership_from_selection(c, root.id, &core)?;
+            crate::core_projection::write_membership(c, root.id, &membership)?;
         }
         if let Some(digests) = root.digests {
             digests.write(c, root.id)?;

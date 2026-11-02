@@ -382,7 +382,7 @@ impl PublicationSpool {
         let snapshot = String::from_utf8(atlas_foundry_model::encode_snapshot(
             source.record.source(),
         )?)
-        .map_err(|error| io(error))?;
+        .map_err(io)?;
         self.records.push(&PreparedRecordFrame {
             pack: source.record.key().pack().as_str().into(),
             snapshot,
