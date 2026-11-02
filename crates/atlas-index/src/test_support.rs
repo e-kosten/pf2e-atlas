@@ -5,11 +5,11 @@ pub use section_preservation::native_preservation_rows;
 pub use section_preservation::reference_preservation_rows;
 
 use crate::{
-    ArtifactValidationReport, IndexArtifactWriter, IndexBuildInput, IndexError, SqliteIndexReader,
-    SqliteIndexWriter,
+    ArtifactValidationReport, IndexBuildInput, IndexError, SourceSearchProfileIdentity,
+    SqliteIndexReader,
 };
 use atlas_storage::{Migration, Workspace};
-use std::path::Path;
+use std::{collections::BTreeMap, path::Path};
 
 /// Explicit caller-supplied task-copy diagnostic. All projection writes roll back.
 pub fn core_projection_pilot(path: &Path) -> Result<serde_json::Value, IndexError> {
@@ -234,9 +234,38 @@ pub fn publish_input(
     input: &IndexBuildInput,
 ) -> Result<ArtifactValidationReport, IndexError> {
     let workspace = initialize_workspace(path)?;
+    publish_input_in(&workspace, TEST_WORKSPACE_SCHEMA_VERSION, input)
+}
+
+pub fn publish_input_in(
+    workspace: &Workspace,
+    schema: u32,
+    input: &IndexBuildInput,
+) -> Result<ArtifactValidationReport, IndexError> {
+    let native = fixture_native_values(input)?;
     let owner = workspace.update_owner()?;
-    let maintenance = owner.maintenance(TEST_WORKSPACE_SCHEMA_VERSION, "test publication")?;
-    SqliteIndexWriter::new(&maintenance).write(input)
+    let scratch = crate::BuildScratch::new(&owner)?;
+    crate::recover_reference_publication(&owner, schema)?;
+    let read = workspace.read(schema)?;
+    let expected = crate::ArtifactInstance::new(read.workspace_key()?, read.reference_revision()?);
+    drop(read);
+    let metadata = spool_input_in(scratch.path(), input, expected)?;
+    let mut publication =
+        crate::PreparedPublication::new_in(&owner, schema, scratch.path(), metadata)?;
+    for model in &input.context.search_profiles {
+        let values = native
+            .iter()
+            .filter(|value| value.model == model)
+            .collect::<Vec<_>>();
+        for window in values.chunks(crate::NATIVE_VALUE_BATCH_LIMIT) {
+            let batch = window
+                .iter()
+                .map(|value| (&value.input, value.vector))
+                .collect::<Vec<_>>();
+            publication.stage_inferred(model, &batch)?;
+        }
+    }
+    publication.publish()
 }
 
 /// Own concrete metadata for a real PreparedPublication fixture.
@@ -245,15 +274,22 @@ pub fn publication_spool_in(
     input: &IndexBuildInput,
     expected: crate::ArtifactInstance,
 ) -> Result<crate::PublicationSpool, IndexError> {
-    use crate::PublicationSource;
-    crate::writer::fixture_native_values(input)?;
+    fixture_native_values(input)?;
+    spool_input_in(scratch, input, expected)
+}
+
+fn spool_input_in(
+    scratch: &Path,
+    input: &IndexBuildInput,
+    expected: crate::ArtifactInstance,
+) -> Result<crate::PublicationSpool, IndexError> {
     input
         .inventory
         .validate_parts(&input.context.source_fingerprint, &input.packs)?;
     let inventory = crate::CompleteSourceInventory::checked(
         &input.context.source_fingerprint,
-        input.packs.iter().map(|p| p.pack_id.clone()),
-        input.packs.iter().map(|p| p.pack_id.clone()),
+        input.packs.iter().map(|pack| pack.pack_id.clone()),
+        input.packs.iter().map(|pack| pack.pack_id.clone()),
     )?;
     let mut spool = crate::PublicationSpool::new_in(
         scratch,
@@ -262,29 +298,86 @@ pub fn publication_spool_in(
         inventory,
         expected,
     )?;
-    input.records(&mut |frame| {
+    for source in &input.records {
+        let pack = input
+            .packs
+            .iter()
+            .find(|pack| pack.pack_id == source.record.key().pack().as_str())
+            .ok_or_else(|| IndexError::Invalid("record pack is absent".into()))?;
+        let selection = atlas_record::source_record::select_record_search(
+            &source.record,
+            &source.content,
+            input.context.audience,
+            &pack.label,
+            &input.context.used_trait_labels,
+        )
+        .map_err(|error| IndexError::Invalid(error.to_string()))?;
         spool.records.push(&crate::PreparedRecordFrame {
-            pack: frame.source.record.key().pack().as_str().into(),
-            snapshot: String::from_utf8(frame.snapshot.to_vec())
-                .map_err(|e| IndexError::Invalid(e.to_string()))?,
-            source_path: frame.source.source_path.clone(),
-            content_hash: frame.source.content_hash.clone(),
-            preparation_context_hash: frame.source.preparation_context_hash.clone(),
-            content: serde_json::from_slice(&serde_json::to_vec(&frame.source.content)?)?,
-            relationships: serde_json::from_slice(&serde_json::to_vec(
-                &frame.source.relationships,
-            )?)?,
-            diagnostics: frame.source.diagnostics.clone(),
-            selection: frame.selection.clone(),
-            lexical: frame.lexical.to_vec(),
-        })
-    })?;
-    input.lexical(&mut |row| spool.lexical.push(row))?;
-    input.semantic(&mut |row| spool.semantic.push(row))?;
-    input.aliases(&mut |row| spool.aliases.push(row))?;
-    input.remaster_pairs(&mut |row| spool.remaster_pairs.push(row))?;
-    input.traits(&mut |row| spool.traits.push(row))?;
-    input.trait_seeds(&mut |row| spool.trait_seeds.push(row))?;
+            pack: source.record.key().pack().as_str().into(),
+            snapshot: String::from_utf8(atlas_foundry_model::encode_snapshot(
+                source.record.source(),
+            )?)
+            .map_err(|error| IndexError::Invalid(error.to_string()))?,
+            source_path: source.source_path.clone(),
+            content_hash: source.content_hash.clone(),
+            preparation_context_hash: source.preparation_context_hash.clone(),
+            content: serde_json::from_slice(&serde_json::to_vec(&source.content)?)?,
+            relationships: serde_json::from_slice(&serde_json::to_vec(&source.relationships)?)?,
+            diagnostics: source.diagnostics.clone(),
+            selection,
+            lexical: input
+                .lexical_units
+                .iter()
+                .filter(|row| row.record == *source.record.key())
+                .cloned()
+                .collect(),
+        })?;
+    }
+    for row in &input.lexical_units {
+        spool.lexical.push(row)?;
+    }
+    for unit in &input.semantic_units {
+        spool.semantic.push(&crate::SemanticOccurrence {
+            profile_id: unit.profile_id.clone(),
+            record: unit.record.clone(),
+            owners: unit.owners.clone(),
+            field: unit.field.clone(),
+            address: unit.address.clone(),
+            chunk_ordinal: unit.chunk_ordinal,
+            input: atlas_embedding::NativeInputDescriptor {
+                input_sha256: unit.input_hash.clone(),
+                token_count: unit.input_token_count,
+            },
+        })?;
+    }
+    for row in &input.aliases {
+        spool.aliases.push(row)?;
+    }
+    for row in &input.remaster_pairs {
+        spool.remaster_pairs.push(row)?;
+    }
+    for row in &input.traits {
+        spool.traits.push(row)?;
+    }
+    for seed in &input.trait_vectors {
+        spool.trait_seeds.push(&crate::TraitSeedOccurrence {
+            key: seed.key.clone(),
+            profile_id: seed.profile_id.clone(),
+            input_hash: seed.input_hash.clone(),
+            chunks: seed
+                .chunks
+                .iter()
+                .map(|chunk| crate::TraitChunkOccurrence {
+                    input: chunk.input.clone(),
+                    descriptor: atlas_embedding::NativeInputDescriptor {
+                        input_sha256: chunk.input_hash.clone(),
+                        token_count: chunk.token_count,
+                    },
+                    address: chunk.address.clone(),
+                })
+                .collect(),
+        })?;
+    }
     Ok(spool)
 }
 
@@ -296,12 +389,12 @@ pub fn prepare_publication_in<'owner>(
     input: &IndexBuildInput,
     reuse_published: bool,
 ) -> Result<crate::PreparedPublication<'owner>, IndexError> {
-    let native = crate::writer::fixture_native_values(input)?;
+    let native = fixture_native_values(input)?;
     let workspace = Workspace::at(owner.path())?;
     let read = workspace.read(schema)?;
     let expected = crate::ArtifactInstance::new(read.workspace_key()?, read.reference_revision()?);
     drop(read);
-    let metadata = publication_spool_in(scratch, input, expected)?;
+    let metadata = spool_input_in(scratch, input, expected)?;
     let mut publication = crate::PreparedPublication::new_in(owner, schema, scratch, metadata)?;
     for value in native {
         let selected = publication.select_native(
@@ -330,7 +423,7 @@ pub fn publish_pre_core_fixture(
             ));
         }
         connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
-        let (ids, _) = crate::writer::write_record_base(connection, input)?;
+        let ids = crate::historical_publication::records(connection, input)?;
         crate::historical_publication::search_units(connection, input, &ids)?;
         crate::traits::write_historical_traits(connection, input)?;
         if version == 20 {
@@ -366,7 +459,7 @@ pub fn publish_pre_section_fixture(
             ));
         }
         connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
-        let (ids, _) = crate::writer::write_record_base(connection, input)?;
+        let ids = crate::historical_publication::records(connection, input)?;
         crate::historical_publication::search_units(connection, input, &ids)?;
         crate::traits::write_historical_traits(connection, input)?;
         crate::similarity_projection::write_similarity_parts(connection, input)?;
@@ -388,7 +481,7 @@ pub fn publish_pre_section_fixture(
 
 /// Seed only the record component of a deliberately historical schema fixture.
 /// This does not produce a current readable artifact: ordinary publication must
-/// use `SqliteIndexWriter` after the complete migration ledger is applied.
+/// use `publish_input` after the complete migration ledger is applied.
 pub fn publish_historical_record_fixture(
     maintenance: &atlas_storage::MaintenanceSession<'_>,
     input: &IndexBuildInput,
@@ -412,7 +505,7 @@ pub fn publish_historical_record_fixture(
         let historical_columns = tables.iter().map(|table| columns(table)).collect::<Result<Vec<_>, _>>()?;
         connection.execute_batch(crate::REFERENCE_NUMERIC_FILTER_SCHEMA_SQL)?;
         connection.execute_batch(crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL)?;
-        let (ids,_)=crate::writer::write_record_base(connection,input)?;
+        let ids=crate::historical_publication::records(connection,input)?;
         crate::historical_publication::search_units(connection,input,&ids)?;
         // Modern projection columns are fixture scaffolding, not part of the
         // historical schema exercised by the embedding conversion/rollback.
@@ -438,8 +531,6 @@ DROP TABLE embedding_inputs; DROP TABLE embedding_models; DROP TABLE semantic_lo
     })
 }
 
-/// Model an older preparation contract coherently, including the allocation
-/// digests used to decide whether publication can retain a record's rows.
 pub fn set_content_interpretation_version(
     path: impl AsRef<Path>,
     workspace_schema_version: u32,
@@ -450,8 +541,6 @@ pub fn set_content_interpretation_version(
     })
 }
 
-/// Model the one known predecessor contract in an isolated fixture, including
-/// preparation/allocation dependencies. Production never decodes this contract.
 pub fn set_predecessor_source_contract(
     path: impl AsRef<Path>,
     workspace_schema_version: u32,
@@ -493,22 +582,8 @@ fn set_preparation_policy(
     let c = write.connection();
     let mut context = crate::read_stored_reference_context(c)?
         .ok_or_else(|| IndexError::Invalid("fixture has no reference context".into()))?;
-    let previous = context.clone();
     update(&mut context);
     let preparation = context.preparation_sha256()?;
-    crate::visit_persisted_inputs(c, &previous, &mut |mut source| {
-        source.preparation_context_hash = preparation.clone();
-        let (id, label): (i64, String) = c.query_row(
-            "SELECT r.record_id,p.label FROM records r JOIN packs p USING(pack_id) WHERE r.key=?",
-            [source.record.key().to_string()],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )?;
-        c.execute(
-            "UPDATE projection_allocations SET input_hash=? WHERE record_id=?",
-            rusqlite::params![crate::publication_delta::root_digest(&source, &label)?, id],
-        )?;
-        Ok(())
-    })?;
     let json = serde_json::to_string(&context)?;
     c.execute(
         "UPDATE artifact_context SET context_hash=?1,context_json=?2",
@@ -610,4 +685,93 @@ pub fn native_fixture_value(
         id,
         model,
     )?))
+}
+
+#[derive(Debug)]
+pub(crate) struct FixtureNativeValue<'a> {
+    pub model: &'a SourceSearchProfileIdentity,
+    pub input: atlas_embedding::NativeInputDescriptor,
+    pub vector: &'a [f32],
+}
+
+pub(crate) fn fixture_native_values<'a>(
+    input: &'a IndexBuildInput,
+) -> Result<Vec<FixtureNativeValue<'a>>, IndexError> {
+    use atlas_embedding::NativeInputDescriptor;
+    let mut selected = BTreeMap::<(String, String), FixtureNativeValue<'a>>::new();
+    let mut accept = |profile: &atlas_domain::SearchProfileId,
+                      hash: &str,
+                      tokens: usize,
+                      vector: &'a [f32]|
+     -> Result<(), IndexError> {
+        let model = input.context.search_profile(profile)?;
+        crate::embedding_values::digest(hash)?;
+        crate::validation::check_vector(vector, model.dimensions)?;
+        if tokens == 0 || tokens > model.token_limit {
+            return Err(IndexError::Invalid(
+                "invalid fixture native token count".into(),
+            ));
+        }
+        let key = (profile.to_string(), hash.to_owned());
+        if let Some(old) = selected.get(&key) {
+            if old.input.token_count != tokens
+                || old.vector.len() != vector.len()
+                || old
+                    .vector
+                    .iter()
+                    .zip(vector)
+                    .any(|(a, b)| a.to_bits() != b.to_bits())
+            {
+                return Err(IndexError::Invalid(
+                    "duplicate native input values disagree".into(),
+                ));
+            }
+        } else {
+            selected.insert(
+                key,
+                FixtureNativeValue {
+                    model,
+                    input: NativeInputDescriptor {
+                        input_sha256: hash.into(),
+                        token_count: tokens,
+                    },
+                    vector,
+                },
+            );
+        }
+        Ok(())
+    };
+    for unit in &input.semantic_units {
+        accept(
+            &unit.profile_id,
+            &unit.input_hash,
+            unit.input_token_count,
+            &unit.vector,
+        )?;
+    }
+    for seed in &input.trait_vectors {
+        for chunk in &seed.chunks {
+            accept(
+                &seed.profile_id,
+                &chunk.input_hash,
+                chunk.token_count,
+                &chunk.vector,
+            )?;
+        }
+    }
+    for seed in &input.trait_vectors {
+        let definition = input
+            .traits
+            .iter()
+            .find(|definition| definition.key == seed.key)
+            .ok_or_else(|| IndexError::Invalid("trait seed has no definition".into()))?;
+        crate::traits::validate_seed(
+            definition,
+            input.context.search_profile(&seed.profile_id)?,
+            &seed.input_hash,
+            &seed.vector,
+            &seed.chunks,
+        )?;
+    }
+    Ok(selected.into_values().collect())
 }

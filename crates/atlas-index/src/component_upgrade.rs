@@ -271,9 +271,8 @@ pub fn ensure_reference_projections(
                 ] {
                     c.execute(&format!("DELETE FROM {table} WHERE root_record_id=?"), [id])?;
                 }
-                let digest = crate::publication_delta::root_digest(&source, &label)?;
                 let mut projection_ids =
-                    crate::publication_delta::allocate(c, &source, &label, id, &digest)?;
+                    crate::publication_delta::allocate(c, &source, &label, id)?;
                 for row in crate::projections::root_rows(&source, &label, id, &mut projection_ids)? {
                     if row.table == "records" {
                         crate::publication_delta::upsert(c, &row, "record_id")?;

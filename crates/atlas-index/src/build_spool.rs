@@ -1,9 +1,9 @@
 //! Disposable typed build streams. No stream supplies SQL or persistent identity.
 use crate::{
     ArtifactInstance, CompleteSourceInventory, IndexBuildPack, IndexError, PreparedRecordRef,
-    PublicationSource, SemanticOccurrence, SourceAliasInput, SourceArtifactBuildContext,
-    SourceArtifactDiagnostic, SourceArtifactRecordInput, SourceLexicalUnitInput,
-    SourceRemasterPairInput, TraitDefinition, TraitSeedOccurrence,
+    SemanticOccurrence, SourceAliasInput, SourceArtifactBuildContext, SourceArtifactDiagnostic,
+    SourceArtifactRecordInput, SourceLexicalUnitInput, SourceRemasterPairInput, TraitDefinition,
+    TraitSeedOccurrence,
 };
 use atlas_record::source_record::{
     SourceBackedRecord, SourceContentOutcome, SourceRelationshipOccurrence, SourceSearchSelection,
@@ -69,8 +69,7 @@ impl BuildFileUsage {
 pub struct BuildFrameStream<T> {
     file: tempfile::NamedTempFile,
     count: usize,
-    max_encoded: u64,
-    max_decoded: u64,
+    max_frame: u64,
     written: u64,
     kind: PhantomData<T>,
 }
@@ -84,8 +83,7 @@ impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
         Ok(Self {
             file: tempfile::NamedTempFile::new().map_err(io)?,
             count: 0,
-            max_encoded: 0,
-            max_decoded: 0,
+            max_frame: 0,
             written: 0,
             kind: PhantomData,
         })
@@ -94,8 +92,7 @@ impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
         Ok(Self {
             file: tempfile::NamedTempFile::new_in(path).map_err(io)?,
             count: 0,
-            max_encoded: 0,
-            max_decoded: 0,
+            max_frame: 0,
             written: 0,
             kind: PhantomData,
         })
@@ -109,12 +106,8 @@ impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
     pub fn is_empty(&self) -> bool {
         self.count == 0
     }
-    /// Largest serialized frame actually observed while writing this stream.
-    pub fn max_decoded_frame_bytes(&self) -> u64 {
-        self.max_decoded
-    }
-    pub fn max_encoded_frame_bytes(&self) -> u64 {
-        self.max_encoded
+    pub fn max_frame_bytes(&self) -> u64 {
+        self.max_frame
     }
 
     pub fn push(&mut self, value: &T) -> Result<(), IndexError> {
@@ -136,8 +129,7 @@ impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
         file.write_all(&size.to_le_bytes()).map_err(io)?;
         file.write_all(&Sha256::digest(&payload)).map_err(io)?;
         file.write_all(&payload).map_err(io)?;
-        self.max_encoded = self.max_encoded.max(size);
-        self.max_decoded = self.max_decoded.max(size);
+        self.max_frame = self.max_frame.max(size);
         self.written = end;
         self.count = self
             .count
@@ -149,22 +141,8 @@ impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
         &self,
         visitor: &mut dyn FnMut(T) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
-        self.visit_if(&mut |_| true, visitor)
-    }
-    pub fn visit_selected(
-        &self,
-        ordinals: &std::collections::BTreeSet<usize>,
-        visitor: &mut dyn FnMut(T) -> Result<(), IndexError>,
-    ) -> Result<(), IndexError> {
-        self.visit_if(&mut |ordinal| ordinals.contains(&ordinal), visitor)
-    }
-    fn visit_if(
-        &self,
-        selected: &mut dyn FnMut(usize) -> bool,
-        visitor: &mut dyn FnMut(T) -> Result<(), IndexError>,
-    ) -> Result<(), IndexError> {
         let mut cursor = self.cursor()?;
-        while let Some(value) = cursor.next_selected(selected)? {
+        while let Some(value) = cursor.next_frame()? {
             visitor(value)?;
         }
         Ok(())
@@ -180,8 +158,7 @@ impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
             length,
             count: self.count,
             ordinal: 0,
-            max_encoded: self.max_encoded,
-            max_decoded: self.max_decoded,
+            max_frame: self.max_frame,
             kind: PhantomData,
         })
     }
@@ -194,8 +171,7 @@ pub struct BuildFrameCursor<T> {
     length: u64,
     count: usize,
     ordinal: usize,
-    max_encoded: u64,
-    max_decoded: u64,
+    max_frame: u64,
     kind: PhantomData<T>,
 }
 impl<T: DeserializeOwned> BuildFrameCursor<T> {
@@ -215,7 +191,7 @@ impl<T: DeserializeOwned> BuildFrameCursor<T> {
         let mut size = [0; 8];
         self.file.read_exact(&mut size).map_err(io)?;
         let size = u64::from_le_bytes(size);
-        if size > self.max_encoded || size > self.max_decoded {
+        if size > self.max_frame {
             return Err(io("frame exceeds observed record bounds"));
         }
         let remaining = self
@@ -240,31 +216,12 @@ impl<T: DeserializeOwned> BuildFrameCursor<T> {
     }
 
     pub fn next_frame(&mut self) -> Result<Option<T>, IndexError> {
-        self.next_selected(&mut |_| true)
-    }
-    fn next_selected(
-        &mut self,
-        selected: &mut dyn FnMut(usize) -> bool,
-    ) -> Result<Option<T>, IndexError> {
-        while self.file.stream_position().map_err(io)? < self.length {
+        if self.file.stream_position().map_err(io)? < self.length {
             if self.ordinal >= self.count {
                 return Err(io("frame count differs"));
             }
             let size = self.frame_size()?;
-            let include = selected(self.ordinal);
             self.ordinal += 1;
-            if !include {
-                self.file
-                    .seek(SeekFrom::Current(
-                        i64::try_from(
-                            size.checked_add(32)
-                                .ok_or_else(|| io("frame offset overflow"))?,
-                        )
-                        .map_err(io)?,
-                    ))
-                    .map_err(io)?;
-                continue;
-            }
             return self.payload(size).map(Some);
         }
         if self.ordinal != self.count || self.file.metadata().map_err(io)?.len() != self.length {
@@ -395,26 +352,8 @@ impl PublicationSpool {
         Ok(usage)
     }
 }
-impl PublicationSource for PublicationSpool {
-    fn context(&self) -> &SourceArtifactBuildContext {
-        &self.context
-    }
-    fn packs(&self) -> &[IndexBuildPack] {
-        &self.packs
-    }
-    fn inventory(&self) -> &CompleteSourceInventory {
-        &self.inventory
-    }
-    fn record_count(&self) -> usize {
-        self.records.len()
-    }
-    fn semantic_count(&self) -> usize {
-        self.semantic.len()
-    }
-    fn expected_instance(&self) -> Option<&ArtifactInstance> {
-        Some(&self.expected)
-    }
-    fn records(
+impl PublicationSpool {
+    pub(crate) fn records(
         &self,
         visitor: &mut dyn FnMut(PreparedRecordRef<'_>) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
@@ -428,37 +367,37 @@ impl PublicationSource for PublicationSpool {
             })
         })
     }
-    fn lexical(
+    pub(crate) fn lexical(
         &self,
         v: &mut dyn FnMut(&SourceLexicalUnitInput) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
         self.lexical.visit(&mut |row| v(&row))
     }
-    fn semantic(
+    pub(crate) fn semantic(
         &self,
         v: &mut dyn FnMut(&SemanticOccurrence) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
         self.semantic.visit(&mut |row| v(&row))
     }
-    fn aliases(
+    pub(crate) fn aliases(
         &self,
         v: &mut dyn FnMut(&SourceAliasInput) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
         self.aliases.visit(&mut |row| v(&row))
     }
-    fn remaster_pairs(
+    pub(crate) fn remaster_pairs(
         &self,
         v: &mut dyn FnMut(&SourceRemasterPairInput) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
         self.remaster_pairs.visit(&mut |row| v(&row))
     }
-    fn traits(
+    pub(crate) fn traits(
         &self,
         v: &mut dyn FnMut(&TraitDefinition) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
         self.traits.visit(&mut |row| v(&row))
     }
-    fn trait_seeds(
+    pub(crate) fn trait_seeds(
         &self,
         v: &mut dyn FnMut(&TraitSeedOccurrence) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {

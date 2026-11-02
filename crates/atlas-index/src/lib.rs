@@ -24,8 +24,7 @@ pub use passage_layouts::SourcePassageLayout;
 #[cfg(any(test, feature = "test-support"))]
 pub use passage_layouts::read_reusable_passage_layouts;
 pub use reuse_reader::{
-    ReferenceReuseReader, ReusableSourceIdentity, ReusedSourceRecord, SOURCE_REUSE_BATCH_LIMIT,
-    SourceReuseRequest, visit_persisted_inputs,
+    ReferenceReuseReader, ReusableSourceIdentity, SOURCE_REUSE_BATCH_LIMIT, visit_persisted_inputs,
 };
 #[cfg(any(test, feature = "test-support"))]
 mod historical_core_projection;
@@ -74,7 +73,7 @@ pub use build_spool::{
     BuildFileUsage, BuildFrameCursor, BuildFrameOffset, BuildFrameStream, PreparedRecordFrame,
     PublicationSpool,
 };
-pub(crate) use publication_source::{NativeValueSource, PreparedRecordRef, PublicationSource};
+pub(crate) use publication_source::PreparedRecordRef;
 pub use publication_source::{SemanticOccurrence, TraitChunkOccurrence, TraitSeedOccurrence};
 mod numeric;
 mod persistence;
@@ -151,10 +150,6 @@ pub use schema::{
 #[cfg(any(test, feature = "test-support"))]
 pub use validation::validate_artifact;
 pub use validation::{ArtifactValidationReport, validate_reference};
-#[cfg(any(test, feature = "test-support"))]
-pub use writer::IndexArtifactWriter;
-#[cfg(any(test, feature = "test-support"))]
-pub use writer::SqliteIndexWriter;
 
 mod lexical_projection;
 pub use lexical_projection::project_lexical_units;

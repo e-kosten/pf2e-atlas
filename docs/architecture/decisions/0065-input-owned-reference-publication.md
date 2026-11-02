@@ -63,6 +63,11 @@ not repeatedly authenticate unrelated complete private files. Stable published
 values remain handles until consumed through the publication transaction; only
 unpublished selected bytes require numerical staging.
 
+Current-schema fixtures publish through this same owner. Their explicit numerical
+values are staged directly, so unrelated pending values cannot override fixture
+intent. Historical fixtures seed their released representation separately and
+exercise real upgrade callbacks; they do not retain another incremental publisher.
+
 Inference runs outside database transactions in bounded batches. Reuse precedence
 is same-attempt selection, matching unpublished recovery value, compatible
 published value when reuse is enabled, then inference. Forced execution deduplicates

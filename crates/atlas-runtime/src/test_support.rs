@@ -1,7 +1,5 @@
 //! Fixture publication through the runtime-owned workspace composition.
-use atlas_index::{
-    ArtifactValidationReport, IndexArtifactWriter, IndexBuildInput, SqliteIndexWriter,
-};
+use atlas_index::{ArtifactValidationReport, IndexBuildInput};
 
 pub fn publish_input(
     path: impl AsRef<std::path::Path>,
@@ -9,12 +7,11 @@ pub fn publish_input(
 ) -> Result<ArtifactValidationReport, Box<dyn std::error::Error>> {
     crate::initialize_workspace(path.as_ref())?;
     let workspace = atlas_storage::Workspace::at(path)?;
-    let owner = workspace.update_owner()?;
-    let maintenance = owner.maintenance(
+    Ok(atlas_index::test_support::publish_input_in(
+        &workspace,
         crate::WORKSPACE_SCHEMA_VERSION,
-        "runtime fixture publication",
-    )?;
-    Ok(SqliteIndexWriter::new(&maintenance).write(input)?)
+        input,
+    )?)
 }
 
 /// Read a composed runtime fixture using the current admission contract.

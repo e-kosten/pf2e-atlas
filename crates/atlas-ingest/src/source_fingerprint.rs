@@ -40,9 +40,6 @@ pub(crate) struct SourceCapture {
     english_catalog_paths: Vec<PathBuf>,
     files: BTreeMap<PathBuf, Vec<u8>>,
     packs: BTreeMap<String, (PathBuf, bool)>,
-    // The ordinary loader quarantines unreadable files. Capture failures instead
-    // invalidate the entire build, even if a later read sees restored bytes.
-    failed: std::sync::atomic::AtomicBool,
 }
 impl SourceCapture {
     pub(crate) fn capture(
@@ -138,7 +135,6 @@ impl SourceCapture {
             english_catalog_paths,
             files: hashes,
             packs,
-            failed: false.into(),
         })
     }
     pub(crate) fn manifest(&self) -> &crate::source::ParsedManifest {
@@ -162,7 +158,7 @@ impl SourceCapture {
         if path == self.manifest_path {
             return Ok(self.manifest_bytes.clone());
         }
-        let result = fs::read(path)
+        fs::read(path)
             .map_err(|e| IngestError::SourceUnavailable(format!("{}: {e}", path.display())))
             .and_then(|bytes| {
                 if self
@@ -177,21 +173,7 @@ impl SourceCapture {
                         path.display()
                     )))
                 }
-            });
-        if result.is_err() {
-            self.failed
-                .store(true, std::sync::atomic::Ordering::Relaxed);
-        }
-        result
-    }
-    pub(crate) fn verify_reads(&self) -> Result<(), IngestError> {
-        if self.failed.load(std::sync::atomic::Ordering::Relaxed) {
-            Err(IngestError::SourceUnavailable(
-                "captured source read failed; retry build".into(),
-            ))
-        } else {
-            Ok(())
-        }
+            })
     }
     pub(crate) fn paths(&self, directory: &Path) -> Vec<PathBuf> {
         self.files

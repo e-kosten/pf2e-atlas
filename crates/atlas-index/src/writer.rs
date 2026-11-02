@@ -18,17 +18,6 @@ use atlas_record::{
 use rusqlite::Connection;
 use rusqlite::types::Value;
 use std::{collections::BTreeMap, path::Path};
-#[cfg(any(test, feature = "test-support"))]
-use {
-    crate::{persistence::execute, projections::root_rows},
-    atlas_foundry_model::encode_snapshot,
-    rusqlite::OptionalExtension,
-};
-
-#[cfg(any(test, feature = "test-support"))]
-pub struct SqliteIndexWriter<'a, 'owner> {
-    maintenance: &'a atlas_storage::MaintenanceSession<'owner>,
-}
 
 /// Compact facts observed by the full input check, retained only for this
 /// publication in its original record order. Rich source state stays in the stream.
@@ -37,72 +26,6 @@ pub(crate) struct CheckedRootIdentity {
     pub(crate) name: Option<String>,
     pub(crate) is_product: bool,
 }
-#[cfg(any(test, feature = "test-support"))]
-use crate::IndexBuildInput;
-#[cfg(any(test, feature = "test-support"))]
-pub trait IndexArtifactWriter {
-    fn output_path(&self) -> &Path;
-    fn write(&self, input: &IndexBuildInput)
-    -> Result<crate::ArtifactValidationReport, IndexError>;
-}
-#[cfg(any(test, feature = "test-support"))]
-impl<'a, 'owner> SqliteIndexWriter<'a, 'owner> {
-    pub fn new(maintenance: &'a atlas_storage::MaintenanceSession<'owner>) -> Self {
-        Self { maintenance }
-    }
-}
-#[cfg(any(test, feature = "test-support"))]
-impl IndexArtifactWriter for SqliteIndexWriter<'_, '_> {
-    fn output_path(&self) -> &Path {
-        self.maintenance.path()
-    }
-    fn write(
-        &self,
-        input: &IndexBuildInput,
-    ) -> Result<crate::ArtifactValidationReport, IndexError> {
-        let identities = validate_input(input)?;
-        let native = fixture_native_values(input)?;
-        let scratch = tempfile::tempdir()?;
-        let keys = crate::native_values::NativeModelKey::all(&input.context.search_profiles)?;
-        self.maintenance
-            .connection()
-            .execute_batch("PRAGMA temp_store=FILE;")?;
-        self.maintenance.publish(|connection| {
-            connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
-            let reusable = prior_compatible(connection)?;
-            let mut bindings = crate::native_values::NativeBindings::new(connection, &keys, true)?;
-            bindings.ensure_tables()?;
-            for value in &native {
-                let bytes = crate::read_units::vector_bytes(value.vector);
-                let ordinal = input
-                    .context
-                    .search_profiles
-                    .iter()
-                    .position(|p| p == value.model)
-                    .ok_or_else(|| IndexError::Invalid("fixture native model absent".into()))?;
-                bindings.ordinal_mut(ordinal)?.install(
-                    &value.input,
-                    &bytes,
-                    &crate::embedding_values::hash_bytes(&bytes),
-                )?;
-            }
-            crate::stream_publication::write(
-                connection,
-                input,
-                &identities,
-                input,
-                &bindings,
-                reusable,
-                scratch.path(),
-            )?;
-            drop(bindings);
-            connection.execute("DELETE FROM pending_embedding_values", [])?;
-            crate::native_values::prune(connection)?;
-            crate::native_allocation::compact_profiles(connection, &input.context)?;
-            crate::validation::validate_reference(connection)
-        })
-    }
-}
 pub(crate) fn prior_compatible(c: &Connection) -> Result<bool, IndexError> {
     Ok(!matches!(
         crate::classify_reference_upgrade(c)?,
@@ -110,82 +33,6 @@ pub(crate) fn prior_compatible(c: &Connection) -> Result<bool, IndexError> {
     ))
 }
 
-#[cfg(any(test, feature = "test-support"))]
-pub(crate) struct FixtureNativeValue<'a> {
-    pub model: &'a SourceSearchProfileIdentity,
-    pub input: atlas_embedding::NativeInputDescriptor,
-    pub vector: &'a [f32],
-}
-
-#[cfg(any(test, feature = "test-support"))]
-pub(crate) fn fixture_native_values<'a>(
-    input: &'a IndexBuildInput,
-) -> Result<Vec<FixtureNativeValue<'a>>, IndexError> {
-    use atlas_embedding::NativeInputDescriptor;
-    let mut selected = BTreeMap::<(String, String), FixtureNativeValue<'a>>::new();
-    let mut accept = |profile: &atlas_domain::SearchProfileId,
-                      hash: &str,
-                      tokens: usize,
-                      vector: &'a [f32]|
-     -> Result<(), IndexError> {
-        let model = input.context.search_profile(profile)?;
-        crate::embedding_values::digest(hash)?;
-        crate::validation::check_vector(vector, model.dimensions)?;
-        if tokens == 0 || tokens > model.token_limit {
-            return Err(IndexError::Invalid(
-                "invalid fixture native token count".into(),
-            ));
-        }
-        let key = (profile.to_string(), hash.to_owned());
-        if let Some(old) = selected.get(&key) {
-            if old.input.token_count != tokens
-                || old.vector.len() != vector.len()
-                || old
-                    .vector
-                    .iter()
-                    .zip(vector)
-                    .any(|(a, b)| a.to_bits() != b.to_bits())
-            {
-                return Err(IndexError::Invalid(
-                    "duplicate native input values disagree".into(),
-                ));
-            }
-        } else {
-            selected.insert(
-                key,
-                FixtureNativeValue {
-                    model,
-                    input: NativeInputDescriptor {
-                        input_sha256: hash.into(),
-                        token_count: tokens,
-                    },
-                    vector,
-                },
-            );
-        }
-        Ok(())
-    };
-    for unit in &input.semantic_units {
-        accept(
-            &unit.profile_id,
-            &unit.input_hash,
-            unit.input_token_count,
-            &unit.vector,
-        )?;
-    }
-    for seed in &input.trait_vectors {
-        for chunk in &seed.chunks {
-            accept(
-                &seed.profile_id,
-                &chunk.input_hash,
-                chunk.token_count,
-                &chunk.vector,
-            )?;
-        }
-    }
-    crate::PublicationSource::trait_seeds(input, &mut |_| Ok(()))?;
-    Ok(selected.into_values().collect())
-}
 impl SourceSearchProfileIdentity {
     pub fn from_spec(profile: atlas_embedding::SearchProfileSpec) -> Self {
         let s = profile.model_spec();
@@ -341,14 +188,14 @@ pub(crate) fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), Ind
     Ok(())
 }
 pub(crate) fn validate_input(
-    input: &dyn crate::PublicationSource,
+    input: &crate::PublicationSpool,
 ) -> Result<Vec<CheckedRootIdentity>, IndexError> {
     input
-        .inventory()
-        .validate_parts(&input.context().source_fingerprint, input.packs())?;
-    crate::source_admission::validate_root_count(input.context(), input.record_count())?;
-    validate_context(input.context())?;
-    for profile in &input.context().search_profiles {
+        .inventory
+        .validate_parts(&input.context.source_fingerprint, &input.packs)?;
+    crate::source_admission::validate_root_count(&input.context, input.records.len())?;
+    validate_context(&input.context)?;
+    for profile in &input.context.search_profiles {
         let spec = atlas_embedding::search_profile(&profile.profile_id)
             .map_err(|e| IndexError::Unsupported(e.to_string()))?;
         if profile != &SourceSearchProfileIdentity::from_spec(spec) {
@@ -357,20 +204,20 @@ pub(crate) fn validate_input(
             ));
         }
     }
-    if input.context().search_profiles.is_empty() && input.semantic_count() != 0 {
+    if input.context.search_profiles.is_empty() && !input.semantic.is_empty() {
         return Err(IndexError::Invalid(
             "semantic units supplied without a model".into(),
         ));
     }
     let mut packs = BTreeMap::new();
-    for p in input.packs() {
+    for p in &input.packs {
         if p.pack_id.is_empty() || packs.insert(p.pack_id.as_str(), p).is_some() {
             return Err(IndexError::Invalid(
                 "duplicate or empty pack identity".into(),
             ));
         }
     }
-    let context_hash = input.context().preparation_sha256()?;
+    let context_hash = input.context.preparation_sha256()?;
     let mut keys = std::collections::BTreeSet::new();
     let mut identities = Vec::new();
     input.records(&mut |frame| {
@@ -413,7 +260,7 @@ pub(crate) fn validate_input(
         });
         Ok(())
     })?;
-    if keys.len() != input.record_count() {
+    if keys.len() != input.records.len() {
         return Err(IndexError::Invalid(
             "record stream count differs from publication".into(),
         ));
@@ -422,192 +269,20 @@ pub(crate) fn validate_input(
 }
 pub(crate) fn check_expected(
     c: &Connection,
-    input: &dyn crate::PublicationSource,
+    input: &crate::PublicationSpool,
 ) -> Result<(), IndexError> {
-    if let Some(expected) = input.expected_instance() {
-        let (key, revision): (String, u64) = c.query_row(
-            "SELECT workspace_key,reference_revision FROM workspace WHERE id=1",
-            [],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )?;
-        if key != expected.workspace_key() || revision != expected.reference_revision() {
-            return Err(IndexError::Invalid(
-                "sealed publication belongs to a stale workspace revision".into(),
-            ));
-        }
+    let expected = &input.expected;
+    let (key, revision): (String, u64) = c.query_row(
+        "SELECT workspace_key,reference_revision FROM workspace WHERE id=1",
+        [],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    )?;
+    if key != expected.workspace_key() || revision != expected.reference_revision() {
+        return Err(IndexError::Invalid(
+            "sealed publication belongs to a stale workspace revision".into(),
+        ));
     }
     Ok(())
-}
-/// Record-component composition is shared with deliberately historical fixtures;
-/// ordinary publication always includes the vocabulary component above.
-#[cfg(any(test, feature = "test-support"))]
-pub(crate) fn write_record_base(
-    c: &Connection,
-    input: &IndexBuildInput,
-) -> Result<(BTreeMap<RecordKey, i64>, std::collections::BTreeSet<i64>), IndexError> {
-    tracing::info!(target:"atlas_progress",phase="artifact_identity","Updating record identities");
-    let mut canonical = input.context.clone();
-    canonical.search_profiles = input.context.canonical_profiles()?;
-    let json = serde_json::to_string(&canonical)?;
-    execute(
-        c,
-        "INSERT INTO artifact_context(singleton,format_version,context_hash,context_json) VALUES(1,?,?,?) ON CONFLICT(singleton) DO UPDATE SET format_version=excluded.format_version,context_hash=excluded.context_hash,context_json=excluded.context_json WHERE context_hash<>excluded.context_hash",
-        &[
-            Value::Integer(i64::from(ARTIFACT_FORMAT_VERSION)),
-            Value::Text(sha256(json.as_bytes())),
-            Value::Text(json),
-        ],
-    )?;
-    for pack in &input.packs {
-        let mut r = ProjectionRow::new("packs");
-        r.text("pack_id", &pack.pack_id);
-        r.text("label", &pack.label);
-        crate::publication_delta::upsert(c, &r, "pack_id")?;
-    }
-    let root_ids = input
-        .records
-        .iter()
-        .map(|r| {
-            let name = match atlas_record::source_record::SourceNodeView::from(r.record.source())
-                .name()
-            {
-                atlas_record::source_record::SourceFieldView::Value(name) => Some(name.as_str()),
-                _ => None,
-            };
-            Ok((
-                r.record.key().clone(),
-                crate::identity::retain_source(c, r.record.key(), name)?,
-            ))
-        })
-        .collect::<Result<BTreeMap<_, _>, IndexError>>()?;
-    let product_ids = input
-        .records
-        .iter()
-        .filter(|source| {
-            !matches!(
-                source.record.source(),
-                atlas_foundry_model::FoundryDocumentSource::Macro(_)
-            )
-        })
-        .map(|source| (source.record.key().clone(), root_ids[source.record.key()]))
-        .collect::<BTreeMap<_, _>>();
-    let pack_labels = input
-        .packs
-        .iter()
-        .map(|p| (p.pack_id.as_str(), p.label.as_str()))
-        .collect::<BTreeMap<_, _>>();
-    tracing::info!(target:"atlas_progress",phase="artifact_snapshots","Updating records and filters");
-    let mut changed = std::collections::BTreeSet::new();
-    let mut live = std::collections::BTreeSet::new();
-    for (ordinal, source) in input.records.iter().enumerate() {
-        let id = id_for(&root_ids, source.record.key())?;
-        let label = pack_labels
-            .get(source.record.key().pack().as_str())
-            .ok_or_else(|| IndexError::Invalid("missing pack label".into()))?;
-        live.insert(id);
-        let digest = crate::publication_delta::root_digest(source, label)?;
-        let previous: Option<String> = c
-            .query_row(
-                "SELECT input_hash FROM projection_allocations WHERE record_id=?",
-                [id],
-                |r| r.get(0),
-            )
-            .optional()?;
-        let exists: bool = c.query_row(
-            "SELECT EXISTS(SELECT 1 FROM records WHERE record_id=?)",
-            [id],
-            |r| r.get(0),
-        )?;
-        if exists && previous.as_deref() == Some(&digest) {
-            continue;
-        }
-        changed.insert(id);
-        crate::publication_delta::clear_root_derived(c, id)?;
-        let mut ids = crate::publication_delta::allocate(c, source, label, id, &digest)?;
-        for row in root_rows(source, label, id, &mut ids)? {
-            if row.table == "records" {
-                crate::publication_delta::upsert(c, &row, "record_id")?;
-            } else {
-                row.insert(c)?;
-            }
-        }
-        let bytes = gzip(&encode_snapshot(source.record.source())?)?;
-        c.execute(
-            "INSERT INTO record_bodies(record_id,codec_version,encoding,snapshot) VALUES(?,?,?,?)",
-            rusqlite::params![id, i64::from(SNAPSHOT_VERSION), "gzip6", bytes],
-        )?;
-        if (ordinal + 1).is_multiple_of(500) || ordinal + 1 == input.records.len() {
-            tracing::info!(target:"atlas_progress",phase="artifact_snapshots",current=(ordinal+1) as u64,total=input.records.len() as u64,unit="records","Saving records");
-        }
-    }
-    tracing::info!(target:"atlas_progress",phase="artifact_content","Updating content and links");
-    for (record_ordinal, source) in input.records.iter().enumerate() {
-        let id = id_for(&root_ids, source.record.key())?;
-        if !changed.contains(&id) {
-            continue;
-        }
-        write_content(c, source, id, &root_ids, input.context.audience, true, true)?;
-        for (ordinal, relationship) in source.relationships.iter().enumerate() {
-            if relationship.locator.record != *source.record.key()
-                || source
-                    .record
-                    .node_at(&relationship.locator.owners)
-                    .is_none()
-            {
-                return Err(IndexError::Invalid(
-                    "structured relationship locator disagrees with source".into(),
-                ));
-            }
-            let kind = serde_json::from_str::<String>(&serde_json::to_string(&relationship.kind)?)?;
-            write_relationship(
-                c,
-                id,
-                &SourceStoredRelationship {
-                    locator: relationship.locator.clone(),
-                    ordinal,
-                    origin: "structured".into(),
-                    kind,
-                    authored_target: relationship.authored_target.clone(),
-                    occurrence_path: None,
-                    resolution: relationship.resolution.clone(),
-                    details: SourceRelationshipDetails {
-                        availability: Some(relationship.availability.clone()),
-                        reference_kind: None,
-                        label: None,
-                        audiences: Vec::new(),
-                    },
-                },
-                &root_ids,
-            )?;
-        }
-        for diagnostic in &source.diagnostics {
-            write_diagnostic(c, id, diagnostic)?;
-        }
-        for diagnostic in crate::projections::projection_diagnostics(&source.record) {
-            write_diagnostic(c, id, &diagnostic)?;
-        }
-        if (record_ordinal + 1).is_multiple_of(500) || record_ordinal + 1 == input.records.len() {
-            tracing::info!(target:"atlas_progress",phase="artifact_content",current=(record_ordinal+1) as u64,total=input.records.len() as u64,unit="records","Saving content and links");
-        }
-    }
-    crate::publication_delta::aliases(c, input, &product_ids)?;
-    let definitions = crate::query::query_capabilities()?.fields;
-    let existing = c
-        .prepare("SELECT field FROM query_field_catalog")?
-        .query_map([], |row| row.get::<_, String>(0))?
-        .collect::<Result<Vec<_>, _>>()?;
-    for field in existing {
-        if !definitions.iter().any(|definition| definition.id == field) {
-            c.execute("DELETE FROM query_field_catalog WHERE field=?", [field])?;
-        }
-    }
-    for definition in definitions {
-        let mut r = ProjectionRow::new("query_field_catalog");
-        r.text("field", &definition.id);
-        r.text("definition_json", serde_json::to_string(&definition)?);
-        crate::publication_delta::upsert(c, &r, "field")?;
-    }
-    Ok((product_ids, live))
 }
 
 fn id_for(ids: &BTreeMap<RecordKey, i64>, key: &RecordKey) -> Result<i64, IndexError> {

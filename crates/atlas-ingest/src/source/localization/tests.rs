@@ -248,5 +248,4 @@ fn captured_manifest_and_catalog_binding_survive_remapping_and_consumed_catalog_
     assert_eq!(catalog.localized_value("Bound"), Some("Captured fallback"));
     fs::remove_file(&captured_path).unwrap();
     assert_eq!(catalog.localized_value("Bound"), Some("Captured fallback"));
-    capture.verify_reads().unwrap();
 }

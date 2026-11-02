@@ -1886,11 +1886,7 @@ fn captured_document_change_is_fatal_even_when_original_bytes_return() {
         r#"{"_id":"aaaaaaaaaaaaaaaa","name":"Transient","type":"effect"}"#,
     )
     .unwrap();
-    let result = crate::source_loading::load_captured_source(
-        &fixture.0,
-        Some(&capture.manifest_path),
-        Some(&capture),
-    );
+    let result = capture.read(&path);
     fs::write(&path, original).unwrap();
     assert_eq!(
         capture.fingerprint,
@@ -1900,22 +1896,18 @@ fn captured_document_change_is_fatal_even_when_original_bytes_return() {
         result
             .unwrap_err()
             .to_string()
-            .contains("captured source read failed")
+            .contains("source changed after capture")
     );
 }
 
 #[test]
-fn captured_discovery_cannot_silently_omit_temporarily_missing_document() {
+fn captured_document_read_rejects_temporarily_missing_document() {
     let fixture = Fixture::new();
     let capture = crate::source_fingerprint::SourceCapture::capture(&fixture.0, None).unwrap();
     let path = fixture.0.join("packs/items/useful.json");
     let original = fs::read(&path).unwrap();
     fs::remove_file(&path).unwrap();
-    let result = crate::source_loading::load_captured_source(
-        &fixture.0,
-        Some(&capture.manifest_path),
-        Some(&capture),
-    );
+    let result = capture.read(&path);
     fs::write(&path, original).unwrap();
     assert_eq!(
         capture.fingerprint,

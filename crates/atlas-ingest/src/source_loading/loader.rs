@@ -22,14 +22,7 @@ pub fn load_foundry_documents(
     source_root: impl AsRef<Path>,
     manifest_path: Option<&Path>,
 ) -> Result<LoadedFoundrySource, IngestError> {
-    load_captured_source(source_root.as_ref(), manifest_path, None)
-}
-
-pub(crate) fn load_captured_source(
-    source_root: &Path,
-    manifest_path: Option<&Path>,
-    capture: Option<&crate::source_fingerprint::SourceCapture>,
-) -> Result<LoadedFoundrySource, IngestError> {
+    let source_root = source_root.as_ref();
     if !source_root.is_dir() {
         return Err(IngestError::SourceUnavailable(format!(
             "{} is not a readable directory",
@@ -39,29 +32,11 @@ pub(crate) fn load_captured_source(
     let manifest_path = manifest_path
         .map(Path::to_path_buf)
         .unwrap_or_else(|| default_manifest_path(source_root));
-    let parsed_manifest = match capture {
-        Some(c) => c.manifest().clone(),
-        None => parse_manifest(&manifest_path)?,
-    };
+    let parsed_manifest = parse_manifest(&manifest_path)?;
     let mut packs = Vec::new();
     for declared in parsed_manifest.manifest.packs {
-        let resolved_path = capture
-            .map(|c| c.pack(&declared.path).0.clone())
-            .unwrap_or_else(|| resolve_pack_path(source_root, &declared));
-        let discovery = match capture {
-            Some(c) if c.pack(&declared.path).1 => Ok(c
-                .paths(&resolved_path)
-                .into_iter()
-                .filter(|p| {
-                    p.extension().is_some_and(|x| x == "json")
-                        && p.file_name().is_none_or(|x| x != "_folders.json")
-                })
-                .collect()),
-            Some(_) => Err(IngestError::SourceUnavailable(
-                "pack absent from captured source".into(),
-            )),
-            None => json_files(&resolved_path),
-        };
+        let resolved_path = resolve_pack_path(source_root, &declared);
+        let discovery = json_files(&resolved_path);
         let discovery_failure = discovery.as_ref().err().map(|error| SourceLoadFailure {
             provenance: SourceFileProvenance {
                 pack_name: declared.name.clone(),
@@ -86,7 +61,7 @@ pub(crate) fn load_captured_source(
             .collect::<Vec<_>>();
         let outcomes: Vec<_> = inputs
             .into_par_iter()
-            .map(|(path, provenance)| load_document(&path, provenance, capture))
+            .map(|(path, provenance)| load_document(&path, provenance))
             .collect();
         let mut documents = Vec::new();
         let mut quarantined_files = Vec::new();
@@ -110,9 +85,6 @@ pub(crate) fn load_captured_source(
             discovery_failure,
         });
     }
-    if let Some(c) = capture {
-        c.verify_reads()?;
-    }
     Ok(LoadedFoundrySource {
         metadata: SourceMetadata {
             source_root: source_root.to_path_buf(),
@@ -126,23 +98,20 @@ pub(crate) fn load_captured_source(
 fn load_document(
     path: &Path,
     provenance: SourceFileProvenance,
-    capture: Option<&crate::source_fingerprint::SourceCapture>,
 ) -> Result<LoadedFoundryDocument, Box<QuarantinedSourceFile>> {
-    let bytes = match capture {
-        Some(c) => c.read(path),
-        None => fs::read(path).map_err(|e| IngestError::SourceUnavailable(e.to_string())),
-    }
-    .map_err(|error| {
-        Box::new(QuarantinedSourceFile {
-            failure: SourceLoadFailure {
-                provenance: provenance.clone(),
-                stage: SourceLoadFailureStage::Read,
-                message: error.to_string(),
-            },
-            bytes: None,
-            content_hash: None,
-        })
-    })?;
+    let bytes = fs::read(path)
+        .map_err(|error| IngestError::SourceUnavailable(error.to_string()))
+        .map_err(|error| {
+            Box::new(QuarantinedSourceFile {
+                failure: SourceLoadFailure {
+                    provenance: provenance.clone(),
+                    stage: SourceLoadFailureStage::Read,
+                    message: error.to_string(),
+                },
+                bytes: None,
+                content_hash: None,
+            })
+        })?;
     let content_hash = format!("{:x}", Sha256::digest(&bytes));
     // A path-based locator works even when _id is missing, invalid or duplicated.
     // It is diagnostic context, not an invented canonical Atlas RecordKey.

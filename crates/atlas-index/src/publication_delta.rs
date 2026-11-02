@@ -7,7 +7,6 @@ use crate::{
     projections::{ProjectionIds, root_rows},
 };
 use atlas_domain::RecordKey;
-use atlas_foundry_model::encode_snapshot;
 use rusqlite::{Connection, OptionalExtension, types::Value};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -35,36 +34,11 @@ pub(crate) fn upsert(c: &Connection, row: &ProjectionRow, key: &str) -> Result<(
     Ok(())
 }
 
-pub(crate) fn root_digest(
-    source: &SourceArtifactRecordInput,
-    label: &str,
-) -> Result<String, IndexError> {
-    root_digest_encoded(source, label, &encode_snapshot(source.record.source())?)
-}
-pub(crate) fn root_digest_encoded(
-    source: &SourceArtifactRecordInput,
-    label: &str,
-    snapshot: &[u8],
-) -> Result<String, IndexError> {
-    Ok(sha256(&serde_json::to_vec(&(
-        snapshot,
-        &source.source_path,
-        &source.content_hash,
-        &source.preparation_context_hash,
-        &source.content,
-        &source.relationships,
-        &source.diagnostics,
-        label,
-        crate::input::SOURCE_PROJECTION_VERSION,
-    ))?))
-}
-
 pub(crate) fn allocate(
     c: &Connection,
     source: &SourceArtifactRecordInput,
     label: &str,
     id: i64,
-    digest: &str,
 ) -> Result<ProjectionIds, IndexError> {
     let mut counter = ProjectionIds::default();
     root_rows(source, label, id, &mut counter)?;
@@ -91,7 +65,7 @@ pub(crate) fn allocate(
             )
         }
     };
-    c.execute("INSERT INTO projection_allocations(record_id,seed,end_id,input_hash) VALUES(?,?,?,?) ON CONFLICT(record_id) DO UPDATE SET seed=excluded.seed,end_id=excluded.end_id,input_hash=excluded.input_hash",rusqlite::params![id,seed,end,digest])?;
+    c.execute("INSERT INTO projection_allocations(record_id,seed,end_id) VALUES(?,?,?) ON CONFLICT(record_id) DO UPDATE SET seed=excluded.seed,end_id=excluded.end_id",rusqlite::params![id,seed,end])?;
     Ok(ProjectionIds::seeded(seed))
 }
 
@@ -99,34 +73,6 @@ pub(crate) fn clear_query(c: &Connection, id: i64) -> Result<(), IndexError> {
     // Family leaves cascade from their declared owner; incoming edges and semantic
     // occurrences are reconciled separately and never cascade with a replacement.
     for table in ["record_traits", "actor_projection"] {
-        c.execute(&format!("DELETE FROM {table} WHERE record_id=?"), [id])?;
-    }
-    for table in [
-        "spell_projection",
-        "physical_projection",
-        "ability_projection",
-        "heritage_projection",
-        "effect_projection",
-        "condition_projection",
-        "deity_projection",
-    ] {
-        c.execute(&format!("DELETE FROM {table} WHERE root_record_id=?"), [id])?;
-    }
-    Ok(())
-}
-
-#[cfg(any(test, feature = "test-support"))]
-pub(crate) fn clear_root_derived(c: &Connection, id: i64) -> Result<(), IndexError> {
-    // Family leaves cascade from their declared owner; incoming edges and semantic
-    // occurrences are reconciled separately and never cascade with a replacement.
-    for table in [
-        "record_traits",
-        "actor_projection",
-        "record_bodies",
-        "prepared_content",
-        "developer_diagnostics",
-        "relationship_occurrences",
-    ] {
         c.execute(&format!("DELETE FROM {table} WHERE record_id=?"), [id])?;
     }
     for table in [
@@ -167,7 +113,7 @@ pub(crate) fn remove_absent_roots(c: &Connection, live: &BTreeSet<i64>) -> Resul
 
 pub(crate) fn aliases(
     c: &Connection,
-    input: &dyn crate::PublicationSource,
+    input: &crate::PublicationSpool,
     ids: &BTreeMap<RecordKey, i64>,
 ) -> Result<(), IndexError> {
     let mut kept = BTreeSet::new();
@@ -276,10 +222,9 @@ fn previous_semantic_slot(
 
 pub(crate) fn search_units(
     c: &Connection,
-    input: &dyn crate::PublicationSource,
+    input: &crate::PublicationSpool,
     ids: &BTreeMap<RecordKey, i64>,
-    values: &dyn crate::NativeValueSource,
-    native: &crate::native_values::NativeBindings<'_>,
+    values: &crate::prepared_publication::PublicationValues<'_, '_>,
 ) -> Result<(), IndexError> {
     lexical_stream(c, ids, &mut |visitor| input.lexical(visitor))?;
     let old_profiles = c
@@ -287,7 +232,7 @@ pub(crate) fn search_units(
         .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
         .collect::<Result<BTreeMap<_, _>, _>>()?;
     let mut current_profiles = BTreeMap::new();
-    for model in input.context().canonical_profiles()? {
+    for model in input.context.canonical_profiles()? {
         let json = serde_json::to_string(&model)?;
         current_profiles.insert(model.profile_id.to_string(), json.clone());
         let mut row = ProjectionRow::new("search_profiles");
@@ -310,9 +255,7 @@ pub(crate) fn search_units(
     input.semantic(&mut |unit| {
         // Values were installed once before reconciliation. Occurrences own only
         // attribution and a stable input handle, so this path never fetches BLOBs.
-        let native = native
-            .profile(&unit.profile_id)?
-            .selected_input(values, &unit.input)?;
+        let native = values.input_id(&unit.profile_id, &unit.input)?;
         let id = crate::writer::product_id(ids, &unit.record)?;
         let location = crate::semantic_locations::location_id(c, id, unit)?;
         let previous = if old_profiles.get(unit.profile_id.as_str())

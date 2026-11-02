@@ -9,7 +9,7 @@ use atlas_embedding::{PreparedNativeInput, TextEmbeddingTokenizer};
 use atlas_foundry_model::{SourceAdmission, SourceContext, SourceValue, admit_document_source};
 use atlas_index::{
     BuildFrameOffset, BuildFrameStream, IndexBuildPack, PreparedRecordFrame, PublicationSpool,
-    ReferenceReuseReader, SourceArtifactDiagnostic, SourceReuseRequest,
+    ReferenceReuseReader, SourceArtifactDiagnostic,
 };
 use atlas_record::source_record::{
     SourceBackedRecord, SourceContentOutcome, SourceContentStatus, SourceNodeView,
@@ -115,7 +115,6 @@ pub(crate) struct PreparationWork {
     pub largest_source_bytes: usize,
     pub largest_admitted_frame_bytes: u64,
     pub largest_prepared_frame_bytes: u64,
-    pub largest_encoded_prepared_frame_bytes: u64,
 }
 pub(crate) struct PreparedSourceBuild {
     pub spool: PublicationSpool,
@@ -260,18 +259,13 @@ pub(crate) fn prepare(
             let requests = captured
                 .iter()
                 .filter_map(|(_, _, _, key)| key.as_ref())
-                .map(|key| SourceReuseRequest {
-                    key,
-                    record: true,
-                    layouts: false,
-                })
                 .collect::<Vec<_>>();
             work.reusable_record_read_calls += requests.len();
             work.reusable_record_read_batches += usize::from(!requests.is_empty());
-            let previous = reuse.read_batch(&requests).map_err(index)?;
+            let previous = reuse.read_records(&requests).map_err(index)?;
             let overlap = PreparationBatchOverlap {
                 raw_sources: owned.len(),
-                retained_records: previous.iter().filter(|p| p.record.is_some()).count(),
+                retained_records: previous.iter().filter(|p| p.is_some()).count(),
                 ..Default::default()
             };
             if overlap.total() > work.largest_admission_overlap.total() {
@@ -279,18 +273,8 @@ pub(crate) fn prepare(
             }
             let mut previous = previous.into_iter();
             for (path_relative, bytes, hash, previous_key) in captured {
-                let previous = if let Some(key) = previous_key {
-                    let previous = previous.next().ok_or_else(|| {
-                        index(atlas_index::IndexError::Invalid(
-                            "reuse batch result missing".into(),
-                        ))
-                    })?;
-                    if previous.key != key {
-                        return Err(index(atlas_index::IndexError::Invalid(
-                            "reuse batch key differs".into(),
-                        )));
-                    }
-                    previous.record
+                let previous = if previous_key.is_some() {
+                    previous.next().flatten()
                 } else {
                     None
                 };
@@ -423,7 +407,6 @@ pub(crate) fn prepare(
             }
         }
     }
-    capture.verify_reads()?;
     let mut resolver = SourceReferenceIndex::default();
     let mut active = BTreeSet::new();
     let mut names = BTreeMap::new();
@@ -622,28 +605,27 @@ pub(crate) fn prepare(
             let requests = if tokenizer.is_some() && options.reuse_passage_layouts {
                 prepared
                     .iter()
-                    .map(|frame| SourceReuseRequest {
-                        key: &frame.selection.root,
-                        record: false,
-                        layouts: true,
-                    })
+                    .map(|frame| &frame.selection.root)
                     .collect::<Vec<_>>()
             } else {
                 Vec::new()
             };
             work.reusable_layout_read_calls += requests.len();
             work.reusable_layout_read_batches += usize::from(!requests.is_empty());
-            let layouts = reuse.read_batch(&requests)?;
+            let layouts = if requests.is_empty() {
+                prepared.iter().map(|_| Vec::new()).collect()
+            } else {
+                reuse.read_layouts(&requests)?
+            };
             let overlap = PreparationBatchOverlap {
                 prepared_records: prepared.len(),
-                layout_roots: layouts.iter().filter(|r| !r.layouts.is_empty()).count(),
+                layout_roots: layouts.iter().filter(|r| !r.is_empty()).count(),
                 ..Default::default()
             };
             if overlap.total() > work.largest_semantic_overlap.total() {
                 work.largest_semantic_overlap = overlap;
             }
-            let mut layouts = layouts.into_iter();
-            for mut frame in prepared {
+            for (mut frame, layouts) in prepared.into_iter().zip(layouts) {
                 let aliases = by_record
                     .get(&frame.selection.root)
                     .map(Vec::as_slice)
@@ -657,19 +639,6 @@ pub(crate) fn prepare(
                     .identity_optional
                     .extend(aliases.iter().cloned());
                 if let Some(tokenizer) = &tokenizer {
-                    let layouts = if options.reuse_passage_layouts {
-                        let result = layouts.next().ok_or_else(|| {
-                            atlas_index::IndexError::Invalid("layout batch result missing".into())
-                        })?;
-                        if result.key != frame.selection.root {
-                            return Err(atlas_index::IndexError::Invalid(
-                                "layout batch key differs".into(),
-                            ));
-                        }
-                        result.layouts
-                    } else {
-                        Vec::new()
-                    };
                     reused_sections += crate::index_build_input::semantic_units(
                         &frame.selection,
                         tokenizer,
@@ -718,7 +687,7 @@ pub(crate) fn prepare(
     }
     consume_batch(&mut batch).map_err(index)?;
     work.admitted_record_reads = admitted_reads;
-    work.largest_admitted_frame_bytes = admitted.max_decoded_frame_bytes();
+    work.largest_admitted_frame_bytes = admitted.max_frame_bytes();
     let usage = admitted
         .file_usage()
         .map_err(index)?
@@ -756,10 +725,8 @@ pub(crate) fn prepare(
             Ok(())
         },
     )?;
-    capture.verify_reads()?;
-    work.largest_prepared_frame_bytes = spool.records.max_decoded_frame_bytes();
-    work.largest_encoded_prepared_frame_bytes = spool.records.max_encoded_frame_bytes();
-    tracing::info!(target:"atlas_build_diagnostic",phase="source_preparation",captured_document_reads=work.captured_document_reads,admitted_record_reads=work.admitted_record_reads,alias_journal_reads=work.alias_journal_reads,alias_journal_fresh_preparations=work.alias_journal_fresh_preparations,alias_journal_reused_preparations=work.alias_journal_reused_preparations,main_fresh_preparations=work.main_fresh_preparations,largest_admitted_batch=work.largest_admitted_batch,content_overlap_admitted_records=work.largest_content_overlap.admitted_records,content_overlap_prepared_records=work.largest_content_overlap.prepared_records,structural_reuse_record_batch=PREPARATION_REUSE_BATCH,reusable_record_read_batches=work.reusable_record_read_batches,reusable_layout_read_calls=work.reusable_layout_read_calls,reusable_layout_read_batches=work.reusable_layout_read_batches,largest_admission_batch_source_bytes=work.largest_admission_batch_source_bytes,admission_overlap_raw_sources=work.largest_admission_overlap.raw_sources,admission_overlap_retained_records=work.largest_admission_overlap.retained_records,semantic_overlap_prepared_records=work.largest_semantic_overlap.prepared_records,semantic_overlap_layout_roots=work.largest_semantic_overlap.layout_roots,selection_calls=work.selection_calls,reusable_record_read_calls=work.reusable_record_read_calls,largest_source_bytes=work.largest_source_bytes,largest_admitted_frame_bytes=work.largest_admitted_frame_bytes,largest_prepared_frame_bytes=work.largest_prepared_frame_bytes,largest_encoded_prepared_frame_bytes=work.largest_encoded_prepared_frame_bytes,record_frames=spool.records.len(),native_input_frames=native_inputs.len(),occurrence_frames=occurrences.len(),"Observed source preparation work and frame sizes");
+    work.largest_prepared_frame_bytes = spool.records.max_frame_bytes();
+    tracing::info!(target:"atlas_build_diagnostic",phase="source_preparation",captured_document_reads=work.captured_document_reads,admitted_record_reads=work.admitted_record_reads,alias_journal_reads=work.alias_journal_reads,alias_journal_fresh_preparations=work.alias_journal_fresh_preparations,alias_journal_reused_preparations=work.alias_journal_reused_preparations,main_fresh_preparations=work.main_fresh_preparations,largest_admitted_batch=work.largest_admitted_batch,content_overlap_admitted_records=work.largest_content_overlap.admitted_records,content_overlap_prepared_records=work.largest_content_overlap.prepared_records,structural_reuse_record_batch=PREPARATION_REUSE_BATCH,reusable_record_read_batches=work.reusable_record_read_batches,reusable_layout_read_calls=work.reusable_layout_read_calls,reusable_layout_read_batches=work.reusable_layout_read_batches,largest_admission_batch_source_bytes=work.largest_admission_batch_source_bytes,admission_overlap_raw_sources=work.largest_admission_overlap.raw_sources,admission_overlap_retained_records=work.largest_admission_overlap.retained_records,semantic_overlap_prepared_records=work.largest_semantic_overlap.prepared_records,semantic_overlap_layout_roots=work.largest_semantic_overlap.layout_roots,selection_calls=work.selection_calls,reusable_record_read_calls=work.reusable_record_read_calls,largest_source_bytes=work.largest_source_bytes,largest_admitted_frame_bytes=work.largest_admitted_frame_bytes,largest_prepared_frame_bytes=work.largest_prepared_frame_bytes,record_frames=spool.records.len(),native_input_frames=native_inputs.len(),occurrence_frames=occurrences.len(),"Observed source preparation work and frame sizes");
     Ok(PreparedSourceBuild {
         spool,
         native_inputs,

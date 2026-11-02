@@ -66,51 +66,105 @@ pub struct TraitMembership {
     pub owners: Vec<OwnedContentLocator>,
 }
 
+fn write_trait_definition(
+    c: &Connection,
+    definition: &TraitDefinition,
+    kept: &mut BTreeSet<String>,
+) -> Result<(), IndexError> {
+    if definition.label.trim().is_empty() {
+        return Err(IndexError::Invalid("empty trait label".into()));
+    }
+    validate_definition(definition)?;
+    let key = definition.key.to_string();
+    if !kept.insert(key.clone()) {
+        return Err(IndexError::Invalid("duplicate trait definition".into()));
+    }
+    let json = serde_json::to_string(definition)?;
+    let hash = crate::codec::sha256(json.as_bytes());
+    c.execute("INSERT INTO trait_definitions VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET definition_json=excluded.definition_json,definition_hash=excluded.definition_hash WHERE definition_hash IS NOT excluded.definition_hash",params![key,json,hash])?;
+    let evidence = TraitEvidence::from_definitions(std::slice::from_ref(definition))?;
+    let mut old=c.prepare("SELECT record_key,evidence FROM trait_references WHERE trait_key=? AND json_extract(evidence,'$.direction')='outgoing'")?.query_map([&key],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?)))?.collect::<Result<std::collections::BTreeSet<_>,_>>()?;
+    for (trait_key, record, reference) in evidence.references {
+        if !old.remove(&(record.clone(), reference.clone())) {
+            c.execute(
+                "INSERT INTO trait_references VALUES(?,?,?)",
+                params![trait_key, record, reference],
+            )?;
+        }
+    }
+    for (record, reference) in old {
+        c.execute(
+            "DELETE FROM trait_references WHERE trait_key=? AND record_key=? AND evidence=?",
+            params![key, record, reference],
+        )?;
+    }
+    Ok(())
+}
+fn write_record_trait_relations(
+    c: &Connection,
+    record: &atlas_record::source_record::SourceBackedRecord,
+    audience: atlas_record::source_content::ContentAudience,
+) -> Result<(), IndexError> {
+    let key = record.key().to_string();
+    let mut evidence = TraitEvidence::default();
+    evidence.add_record(record, audience)?;
+    let mut memberships=c.prepare("SELECT trait_key,record_key,owners_json,source_label FROM trait_memberships WHERE record_key=?")?.query_map([&key],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,r.get::<_,Option<String>>(3)?)))?.collect::<Result<std::collections::BTreeSet<_>,_>>()?;
+    for row in evidence.memberships {
+        let prior = memberships
+            .iter()
+            .find(|old| old.0 == row.0 && old.1 == row.1 && old.2 == row.2)
+            .cloned();
+        if let Some(old) = &prior {
+            memberships.remove(old);
+        }
+        if prior.as_ref() != Some(&row) {
+            c.execute("INSERT INTO trait_memberships VALUES(?,?,?,?) ON CONFLICT(trait_key,record_key,owners_json) DO UPDATE SET source_label=excluded.source_label WHERE source_label IS NOT excluded.source_label",params![row.0,row.1,row.2,row.3])?;
+        }
+    }
+    for row in memberships {
+        c.execute(
+            "DELETE FROM trait_memberships WHERE trait_key=? AND record_key=? AND owners_json=?",
+            params![row.0, row.1, row.2],
+        )?;
+    }
+    let mut references=c.prepare("SELECT trait_key,record_key,evidence FROM trait_references WHERE record_key=? AND json_extract(evidence,'$.direction')='incoming'")?.query_map([&key],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?)))?.collect::<Result<std::collections::BTreeSet<_>,_>>()?;
+    for row in evidence.references {
+        if !references.remove(&row) {
+            c.execute(
+                "INSERT INTO trait_references VALUES(?,?,?)",
+                params![row.0, row.1, row.2],
+            )?;
+        }
+    }
+    for row in references {
+        c.execute(
+            "DELETE FROM trait_references WHERE trait_key=? AND record_key=? AND evidence=?",
+            params![row.0, row.1, row.2],
+        )?;
+    }
+    Ok(())
+}
 fn write_trait_relations(
     c: &Connection,
-    input: &dyn crate::PublicationSource,
-) -> Result<std::collections::BTreeSet<String>, IndexError> {
-    let mut kept = std::collections::BTreeSet::new();
-    input.traits(&mut |definition|{
-        if definition.label.trim().is_empty(){return Err(IndexError::Invalid("empty trait label".into()));}
-        validate_definition(definition)?;
-        let key=definition.key.to_string();if !kept.insert(key.clone()){return Err(IndexError::Invalid("duplicate trait definition".into()));}
-        let json=serde_json::to_string(definition)?;let hash=crate::codec::sha256(json.as_bytes());
-        c.execute("INSERT INTO trait_definitions VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET definition_json=excluded.definition_json,definition_hash=excluded.definition_hash WHERE definition_hash IS NOT excluded.definition_hash",params![key,json,hash])?;
-        let evidence=TraitEvidence::from_definitions(std::slice::from_ref(definition))?;
-        let mut old=c.prepare("SELECT record_key,evidence FROM trait_references WHERE trait_key=? AND json_extract(evidence,'$.direction')='outgoing'")?.query_map([&key],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?)))?.collect::<Result<std::collections::BTreeSet<_>,_>>()?;
-        for (trait_key,record,reference) in evidence.references {if !old.remove(&(record.clone(),reference.clone())){c.execute("INSERT INTO trait_references VALUES(?,?,?)",params![trait_key,record,reference])?;}}
-        for (record,reference) in old{c.execute("DELETE FROM trait_references WHERE trait_key=? AND record_key=? AND evidence=?",params![key,record,reference])?;}
-        Ok(())
-    })?;
-    input.records(&mut |frame|{
-        let key=frame.source.record.key().to_string();
-        let mut evidence=TraitEvidence::default();evidence.add_record(&frame.source.record,input.context().audience)?;
-        let mut memberships=c.prepare("SELECT trait_key,record_key,owners_json,source_label FROM trait_memberships WHERE record_key=?")?.query_map([&key],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,r.get::<_,Option<String>>(3)?)))?.collect::<Result<std::collections::BTreeSet<_>,_>>()?;
-        for row in evidence.memberships{
-            let prior=memberships.iter().find(|old|old.0==row.0 && old.1==row.1 && old.2==row.2).cloned();
-            if let Some(old)=&prior{memberships.remove(old);}
-            if prior.as_ref()!=Some(&row){c.execute("INSERT INTO trait_memberships VALUES(?,?,?,?) ON CONFLICT(trait_key,record_key,owners_json) DO UPDATE SET source_label=excluded.source_label WHERE source_label IS NOT excluded.source_label",params![row.0,row.1,row.2,row.3])?;}
-        }
-        for row in memberships{c.execute("DELETE FROM trait_memberships WHERE trait_key=? AND record_key=? AND owners_json=?",params![row.0,row.1,row.2])?;}
-        let mut references=c.prepare("SELECT trait_key,record_key,evidence FROM trait_references WHERE record_key=? AND json_extract(evidence,'$.direction')='incoming'")?.query_map([&key],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?)))?.collect::<Result<std::collections::BTreeSet<_>,_>>()?;
-        for row in evidence.references{if !references.remove(&row){c.execute("INSERT INTO trait_references VALUES(?,?,?)",params![row.0,row.1,row.2])?;}}
-        for row in references{c.execute("DELETE FROM trait_references WHERE trait_key=? AND record_key=? AND evidence=?",params![row.0,row.1,row.2])?;}
-        Ok(())
+    input: &crate::PublicationSpool,
+) -> Result<BTreeSet<String>, IndexError> {
+    let mut kept = BTreeSet::new();
+    input.traits(&mut |definition| write_trait_definition(c, definition, &mut kept))?;
+    input.records(&mut |frame| {
+        write_record_trait_relations(c, &frame.source.record, input.context.audience)
     })?;
     Ok(kept)
 }
 
 pub(crate) fn write_traits_stream(
     c: &Connection,
-    input: &dyn crate::PublicationSource,
-    values: &dyn crate::NativeValueSource,
-    native: &crate::native_values::NativeBindings<'_>,
+    input: &crate::PublicationSpool,
+    values: &crate::prepared_publication::PublicationValues<'_, '_>,
 ) -> Result<(), IndexError> {
     let kept = write_trait_relations(c, input)?;
     let mut seeds = std::collections::BTreeSet::new();
     input.trait_seeds(&mut |seed| {
-        let model = input.context().search_profile(&seed.profile_id)?;
+        let model = input.context.search_profile(&seed.profile_id)?;
         if !seeds.insert((seed.key.to_string(), seed.profile_id.to_string())) {
             return Err(IndexError::Invalid("duplicate trait seed".into()));
         }
@@ -127,7 +181,7 @@ pub(crate) fn write_traits_stream(
         let vector = centroid
             .finish()
             .map_err(|e| IndexError::Invalid(e.to_string()))?;
-        write_seed_occurrence(c, seed, model, &vector, values, native)
+        write_seed_occurrence(c, seed, model, &vector, values)
     })?;
     let old = c
         .prepare("SELECT trait_key,profile_id FROM trait_vectors")?
@@ -159,8 +213,14 @@ pub(crate) fn write_historical_traits(
     c: &Connection,
     input: &crate::IndexBuildInput,
 ) -> Result<(), IndexError> {
-    crate::writer::fixture_native_values(input)?;
-    let kept = write_trait_relations(c, input)?;
+    crate::test_support::fixture_native_values(input)?;
+    let mut kept = BTreeSet::new();
+    for definition in &input.traits {
+        write_trait_definition(c, definition, &mut kept)?;
+    }
+    for source in &input.records {
+        write_record_trait_relations(c, &source.record, input.context.audience)?;
+    }
     c.execute_batch("DELETE FROM trait_seed_chunks; DELETE FROM trait_vectors; DELETE FROM trait_native_values;")?;
     for seed in &input.trait_vectors {
         let model = input.context.search_profile(&seed.profile_id)?;
@@ -374,8 +434,7 @@ fn write_seed_occurrence(
     seed: &crate::TraitSeedOccurrence,
     model: &crate::SourceSearchProfileIdentity,
     vector: &[f32],
-    values: &dyn crate::NativeValueSource,
-    native: &crate::native_values::NativeBindings<'_>,
+    values: &crate::prepared_publication::PublicationValues<'_, '_>,
 ) -> Result<(), IndexError> {
     crate::validation::check_vector(vector, model.dimensions)?;
     if !crate::codec::checked_hash(&seed.input_hash) {
@@ -384,9 +443,7 @@ fn write_seed_occurrence(
     let bytes = crate::read_units::vector_bytes(vector);
     c.execute("INSERT INTO trait_vectors VALUES(?,?,?,?,?) ON CONFLICT(trait_key,profile_id) DO UPDATE SET input_hash=excluded.input_hash,vector=excluded.vector,vector_hash=excluded.vector_hash WHERE input_hash IS NOT excluded.input_hash OR vector_hash IS NOT excluded.vector_hash",params![seed.key.to_string(),seed.profile_id.as_str(),seed.input_hash,bytes,crate::embedding_values::hash_bytes(&bytes)])?;
     for (ordinal, chunk) in seed.chunks.iter().enumerate() {
-        let id = native
-            .profile(&seed.profile_id)?
-            .selected_input(values, &chunk.descriptor)?;
+        let id = values.input_id(&seed.profile_id, &chunk.descriptor)?;
         c.execute("INSERT INTO trait_seed_chunks VALUES(?,?,?,?,?,?) ON CONFLICT(trait_key,profile_id,ordinal) DO UPDATE SET input_id=excluded.input_id,input=excluded.input,address_json=excluded.address_json WHERE input_id IS NOT excluded.input_id OR input IS NOT excluded.input OR address_json IS NOT excluded.address_json",params![seed.key.to_string(),seed.profile_id.as_str(),ordinal,id,chunk.input,serde_json::to_string(&chunk.address)?])?;
     }
     c.execute(

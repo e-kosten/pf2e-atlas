@@ -18,21 +18,6 @@ pub struct ReusableSourceIdentity {
 /// Maximum owned reuse results returned by one authenticated read snapshot.
 pub const SOURCE_REUSE_BATCH_LIMIT: usize = 128;
 
-/// Each request is independent; repeated keys retain their original ordinal and flags.
-#[derive(Clone, Copy, Debug)]
-pub struct SourceReuseRequest<'a> {
-    pub key: &'a RecordKey,
-    pub record: bool,
-    pub layouts: bool,
-}
-
-#[derive(Debug)]
-pub struct ReusedSourceRecord {
-    pub key: RecordKey,
-    pub record: Option<SourceArtifactRecordInput>,
-    pub layouts: Vec<SourcePassageLayout>,
-}
-
 pub struct ReferenceReuseReader {
     path: PathBuf,
     schema: u32,
@@ -140,55 +125,55 @@ impl ReferenceReuseReader {
         }
         Ok(output)
     }
-    /// Read only requested retained payloads in one current snapshot. All returned
-    /// values are owned; the session closes before the caller processes the batch.
-    pub fn read_batch(
+    pub fn read_records(
         &self,
-        requests: &[SourceReuseRequest<'_>],
-    ) -> Result<Vec<ReusedSourceRecord>, IndexError> {
-        if requests.len() > SOURCE_REUSE_BATCH_LIMIT {
+        keys: &[&RecordKey],
+    ) -> Result<Vec<Option<SourceArtifactRecordInput>>, IndexError> {
+        let Some((session, context)) = self.batch_session(keys.len())? else {
+            return Ok(keys.iter().map(|_| None).collect());
+        };
+        keys.iter()
+            .map(|key| {
+                crate::persisted_inputs::read_attested_persisted_input(
+                    session.connection(),
+                    context,
+                    key,
+                )
+            })
+            .collect()
+    }
+
+    pub fn read_layouts(
+        &self,
+        keys: &[&RecordKey],
+    ) -> Result<Vec<Vec<SourcePassageLayout>>, IndexError> {
+        let Some((session, context)) = self.batch_session(keys.len())? else {
+            return Ok(keys.iter().map(|_| Vec::new()).collect());
+        };
+        let Some(layouts) =
+            crate::passage_layouts::PassageLayoutReader::new(session.connection(), context)?
+        else {
+            return Ok(keys.iter().map(|_| Vec::new()).collect());
+        };
+        keys.iter().map(|key| layouts.read(key)).collect()
+    }
+
+    fn batch_session(
+        &self,
+        count: usize,
+    ) -> Result<Option<(ReadSession, &SourceArtifactBuildContext)>, IndexError> {
+        if count > SOURCE_REUSE_BATCH_LIMIT {
             return Err(IndexError::Invalid(
                 "source reuse batch exceeds 128 records".into(),
             ));
         }
-        let mut output = requests
-            .iter()
-            .map(|request| ReusedSourceRecord {
-                key: request.key.clone(),
-                record: None,
-                layouts: Vec::new(),
-            })
-            .collect::<Vec<_>>();
         let Some(context) = &self.context else {
-            return Ok(output);
+            return Ok(None);
         };
-        if !requests
-            .iter()
-            .any(|request| request.record || request.layouts)
-        {
-            return Ok(output);
+        if count == 0 {
+            return Ok(None);
         }
-        let session = self.read()?;
-        let layouts = if requests.iter().any(|request| request.layouts) {
-            crate::passage_layouts::PassageLayoutReader::new(session.connection(), context)?
-        } else {
-            None
-        };
-        for (request, result) in requests.iter().zip(&mut output) {
-            if request.record {
-                result.record = crate::persisted_inputs::read_attested_persisted_input(
-                    session.connection(),
-                    context,
-                    request.key,
-                )?;
-            }
-            if request.layouts
-                && let Some(layouts) = &layouts
-            {
-                result.layouts = layouts.read(request.key)?;
-            }
-        }
-        Ok(output)
+        Ok(Some((self.read()?, context)))
     }
 }
 
@@ -236,26 +221,8 @@ mod tests {
         let workspace = initialize_workspace(&path).unwrap();
         let reader = ReferenceReuseReader::new(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
         let key = input.records[0].record.key();
-        assert!(
-            reader
-                .read_batch(&[SourceReuseRequest {
-                    key,
-                    record: true,
-                    layouts: false
-                }])
-                .unwrap()[0]
-                .record
-                .is_some()
-        );
-        assert!(
-            reader
-                .read_batch(&[SourceReuseRequest {
-                    key,
-                    record: false,
-                    layouts: true
-                }])
-                .is_ok()
-        );
+        assert!(reader.read_records(&[key]).unwrap()[0].is_some());
+        assert!(reader.read_layouts(&[key]).is_ok());
         let mut changed = input.context.clone();
         changed.indexing_locale.push_str("-changed");
         {
@@ -274,22 +241,14 @@ mod tests {
         }
         assert!(
             reader
-                .read_batch(&[SourceReuseRequest {
-                    key,
-                    record: true,
-                    layouts: false
-                }])
+                .read_records(&[key])
                 .unwrap_err()
                 .to_string()
                 .contains("reference context changed")
         );
         assert!(
             reader
-                .read_batch(&[SourceReuseRequest {
-                    key,
-                    record: false,
-                    layouts: true
-                }])
+                .read_layouts(&[key])
                 .unwrap_err()
                 .to_string()
                 .contains("reference context changed")
@@ -308,17 +267,7 @@ mod tests {
                 .unwrap();
             write.commit().unwrap();
         }
-        assert!(
-            reader
-                .read_batch(&[SourceReuseRequest {
-                    key,
-                    record: true,
-                    layouts: false
-                }])
-                .unwrap()[0]
-                .record
-                .is_some()
-        );
+        assert!(reader.read_records(&[key]).unwrap()[0].is_some());
         {
             let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
             write
@@ -332,29 +281,21 @@ mod tests {
         }
         assert!(
             reader
-                .read_batch(&[SourceReuseRequest {
-                    key,
-                    record: true,
-                    layouts: false
-                }])
+                .read_records(&[key])
                 .unwrap_err()
                 .to_string()
                 .contains("reference revision changed")
         );
         assert!(
             reader
-                .read_batch(&[SourceReuseRequest {
-                    key,
-                    record: false,
-                    layouts: true
-                }])
+                .read_layouts(&[key])
                 .unwrap_err()
                 .to_string()
                 .contains("reference revision changed")
         );
     }
     #[test]
-    fn owned_batches_preserve_repeated_keys_flags_subsets_and_strict_io_bounds() {
+    fn owned_batches_preserve_order_repeated_keys_missing_records_and_io_bounds() {
         use atlas_storage::diagnostics::capture_sql_work;
         let input = crate::foundation_tests::fixture(true);
         let (_directory, path) = crate::foundation_tests::build(&input);
@@ -362,69 +303,67 @@ mod tests {
         let mut reader =
             ReferenceReuseReader::new(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
         let key = input.records[1].record.key();
+        let first = input.records[0].record.key();
         let absent: RecordKey = "items:0000000000000000".parse().unwrap();
-        let requests = [
-            SourceReuseRequest {
-                key,
-                record: true,
-                layouts: false,
-            },
-            SourceReuseRequest {
-                key,
-                record: false,
-                layouts: true,
-            },
-            SourceReuseRequest {
-                key: &absent,
-                record: true,
-                layouts: true,
-            },
-            SourceReuseRequest {
-                key,
-                record: true,
-                layouts: true,
-            },
-            SourceReuseRequest {
-                key,
-                record: false,
-                layouts: false,
-            },
-        ];
-        let (result, metrics) = capture_sql_work(|| reader.read_batch(&requests)).unwrap();
-        let result = result.unwrap();
+        let keys = [key, &absent, key, first];
+        let (records, metrics) = capture_sql_work(|| reader.read_records(&keys)).unwrap();
+        let records = records.unwrap();
         assert_eq!(metrics.workspace_connections, 1);
+        assert_eq!(records.len(), keys.len());
+        for (record, expected) in records.iter().zip(keys) {
+            if expected == &absent {
+                assert!(record.is_none());
+            } else {
+                assert_eq!(record.as_ref().unwrap().record.key(), expected);
+            }
+        }
         assert_eq!(
-            result.iter().map(|r| &r.key).collect::<Vec<_>>(),
-            requests.iter().map(|r| r.key).collect::<Vec<_>>()
+            records[0].as_ref().unwrap().content,
+            records[2].as_ref().unwrap().content
         );
-        assert!(result[0].record.is_some() && result[0].layouts.is_empty());
-        assert!(result[1].record.is_none() && !result[1].layouts.is_empty());
-        assert!(result[2].record.is_none() && result[2].layouts.is_empty());
-        assert!(result[3].record.is_some() && !result[3].layouts.is_empty());
-        assert!(result[4].record.is_none() && result[4].layouts.is_empty());
-        assert_eq!(
-            result[0].record.as_ref().unwrap().content,
-            result[3].record.as_ref().unwrap().content
-        );
+        let (layouts, metrics) = capture_sql_work(|| reader.read_layouts(&keys)).unwrap();
+        let layouts = layouts.unwrap();
+        assert_eq!(metrics.workspace_connections, 1);
+        assert_eq!(layouts.len(), keys.len());
+        assert!(!layouts[0].is_empty());
+        assert!(layouts[1].is_empty());
+        assert!(layouts[3].is_empty());
+        assert_eq!(layouts[0].len(), layouts[2].len());
+        assert!(layouts[0].iter().zip(&layouts[2]).all(|(left, right)| {
+            left.owners == right.owners
+                && left.field == right.field
+                && left.chunk_ordinal == right.chunk_ordinal
+                && left.passage.address == right.passage.address
+                && left.passage.input_sha256 == right.passage.input_sha256
+        }));
         for count in [1, 32, 128] {
-            let requests = vec![requests[3]; count];
-            let (result, metrics) = capture_sql_work(|| reader.read_batch(&requests)).unwrap();
-            assert_eq!(result.unwrap().len(), count);
+            let keys = vec![key; count];
+            let (records, metrics) = capture_sql_work(|| reader.read_records(&keys)).unwrap();
+            assert_eq!(records.unwrap().len(), count);
+            assert_eq!(metrics.workspace_connections, 1);
+            let (layouts, metrics) = capture_sql_work(|| reader.read_layouts(&keys)).unwrap();
+            assert_eq!(layouts.unwrap().len(), count);
             assert_eq!(metrics.workspace_connections, 1);
         }
-        for requests in [vec![], vec![requests[4]; 128]] {
-            let (result, metrics) = capture_sql_work(|| reader.read_batch(&requests)).unwrap();
-            assert_eq!(result.unwrap().len(), requests.len());
-            assert_eq!(metrics.workspace_connections, 0);
-        }
-        // Guard before compatibility as well as before I/O, including no-flag requests.
+        let (records, metrics) = capture_sql_work(|| reader.read_records(&[])).unwrap();
+        assert!(records.unwrap().is_empty());
+        assert_eq!(metrics.workspace_connections, 0);
+        let (layouts, metrics) = capture_sql_work(|| reader.read_layouts(&[])).unwrap();
+        assert!(layouts.unwrap().is_empty());
+        assert_eq!(metrics.workspace_connections, 0);
         reader.context = None;
-        for request in requests {
-            let (result, metrics) =
-                capture_sql_work(|| reader.read_batch(&[request; 129])).unwrap();
-            assert!(result.unwrap_err().to_string().contains("exceeds 128"));
-            assert_eq!(metrics.workspace_connections, 0);
-        }
+        let (records, metrics) = capture_sql_work(|| reader.read_records(&[key; 128])).unwrap();
+        assert!(records.unwrap().iter().all(Option::is_none));
+        assert_eq!(metrics.workspace_connections, 0);
+        let (layouts, metrics) = capture_sql_work(|| reader.read_layouts(&[key; 128])).unwrap();
+        assert!(layouts.unwrap().iter().all(Vec::is_empty));
+        assert_eq!(metrics.workspace_connections, 0);
+        let (records, metrics) = capture_sql_work(|| reader.read_records(&[key; 129])).unwrap();
+        assert!(records.unwrap_err().to_string().contains("exceeds 128"));
+        assert_eq!(metrics.workspace_connections, 0);
+        let (layouts, metrics) = capture_sql_work(|| reader.read_layouts(&[key; 129])).unwrap();
+        assert!(layouts.unwrap_err().to_string().contains("exceeds 128"));
+        assert_eq!(metrics.workspace_connections, 0);
     }
 
     #[test]
@@ -452,49 +391,13 @@ mod tests {
         let c = rusqlite::Connection::open(&path).unwrap();
         c.execute("UPDATE record_bodies SET snapshot=X'00' WHERE record_id=(SELECT record_id FROM records WHERE key=?)", [body_bad.to_string()]).unwrap();
         assert_eq!(c.execute("UPDATE semantic_locations SET section_id=NULL,chunk_ordinal=NULL,chunk_start=NULL,chunk_end=NULL WHERE location_id=(SELECT min(su.location_id) FROM semantic_units su JOIN records r USING(record_id) WHERE r.key=? AND su.unit_kind='passage')", [layout_bad.to_string()]).unwrap(), 1);
-        let result = reader
-            .read_batch(&[
-                SourceReuseRequest {
-                    key: body_bad,
-                    record: false,
-                    layouts: true,
-                },
-                SourceReuseRequest {
-                    key: layout_bad,
-                    record: true,
-                    layouts: false,
-                },
-            ])
-            .unwrap();
-        assert!(!result[0].layouts.is_empty() && result[0].record.is_none());
-        assert!(result[1].record.is_some() && result[1].layouts.is_empty());
-        assert!(
-            reader
-                .read_batch(&[SourceReuseRequest {
-                    key: body_bad,
-                    record: true,
-                    layouts: false
-                }])
-                .is_err()
-        );
-        assert!(
-            reader
-                .read_batch(&[SourceReuseRequest {
-                    key: layout_bad,
-                    record: false,
-                    layouts: true
-                }])
-                .is_err()
-        );
+        assert!(!reader.read_layouts(&[body_bad]).unwrap()[0].is_empty());
+        assert!(reader.read_records(&[layout_bad]).unwrap()[0].is_some());
+        assert!(reader.read_records(&[body_bad]).is_err());
+        assert!(reader.read_layouts(&[layout_bad]).is_err());
         assert_eq!(c.execute("DELETE FROM record_bodies WHERE record_id=(SELECT record_id FROM records WHERE key=?)",[body_bad.to_string()]).unwrap(),1);
-        let unavailable = reader
-            .read_batch(&[SourceReuseRequest {
-                key: body_bad,
-                record: true,
-                layouts: false,
-            }])
-            .unwrap();
-        assert!(unavailable[0].record.is_none());
+        let unavailable = reader.read_records(&[body_bad]).unwrap();
+        assert!(unavailable[0].is_none());
         let mut retired = input.context;
         retired.source_contract = "retired-source".into();
         c.execute(
@@ -506,15 +409,10 @@ mod tests {
         )
         .unwrap();
         let reader = ReferenceReuseReader::new(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-        let (result, metrics) = atlas_storage::diagnostics::capture_sql_work(|| {
-            reader.read_batch(&[SourceReuseRequest {
-                key: body_bad,
-                record: true,
-                layouts: true,
-            }])
-        })
-        .unwrap();
-        assert!(result.unwrap()[0].record.is_none());
+        let (result, metrics) =
+            atlas_storage::diagnostics::capture_sql_work(|| reader.read_records(&[body_bad]))
+                .unwrap();
+        assert!(result.unwrap()[0].is_none());
         assert_eq!(metrics.workspace_connections, 0);
     }
     #[test]
@@ -524,12 +422,8 @@ mod tests {
         let workspace = initialize_workspace(&path).unwrap();
         let reader = ReferenceReuseReader::new(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
         let key = input.records[1].record.key();
-        let request = SourceReuseRequest {
-            key,
-            record: false,
-            layouts: true,
-        };
-        assert!(!reader.read_batch(&[request]).unwrap()[0].layouts.is_empty());
+        let keys = [key];
+        assert!(!reader.read_layouts(&keys).unwrap()[0].is_empty());
         let c = rusqlite::Connection::open(&path).unwrap();
         let original: String = c
             .query_row(
@@ -553,18 +447,8 @@ mod tests {
             .unwrap(),
             1
         );
-        assert!(
-            reader
-                .read_batch(&[SourceReuseRequest {
-                    key,
-                    record: true,
-                    layouts: false
-                }])
-                .unwrap()[0]
-                .record
-                .is_some()
-        );
-        let error = reader.read_batch(&[request]).unwrap_err();
+        assert!(reader.read_records(&[key]).unwrap()[0].is_some());
+        let error = reader.read_layouts(&keys).unwrap_err();
         assert!(
             error.to_string().contains("stored search profiles differ"),
             "{error}"
@@ -574,7 +458,7 @@ mod tests {
             rusqlite::params![original, changed.profile_id.as_str()],
         )
         .unwrap();
-        assert!(!reader.read_batch(&[request]).unwrap()[0].layouts.is_empty());
+        assert!(!reader.read_layouts(&keys).unwrap()[0].is_empty());
     }
     #[test]
     fn layout_batches_admit_compatible_metadata_upgrades_before_open_validation() {
@@ -609,15 +493,7 @@ mod tests {
             let reader =
                 ReferenceReuseReader::new(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
             assert!(
-                !reader
-                    .read_batch(&[SourceReuseRequest {
-                        key,
-                        record: false,
-                        layouts: true
-                    }])
-                    .unwrap()[0]
-                    .layouts
-                    .is_empty(),
+                !reader.read_layouts(&[key]).unwrap()[0].is_empty(),
                 "{expected:?}"
             );
         }

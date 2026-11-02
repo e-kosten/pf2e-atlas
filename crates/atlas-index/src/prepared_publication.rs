@@ -1,12 +1,12 @@
 //! One owned publication: stable published handles and only unpublished staged bytes.
 use crate::{
-    ArtifactInstance, ArtifactValidationReport, BuildFileUsage, IndexError, NativeValueSource,
-    PublicationSpool, SourceArtifactBuildContext, SourceSearchProfileIdentity,
+    ArtifactInstance, ArtifactValidationReport, BuildFileUsage, IndexError, PublicationSpool,
+    SourceArtifactBuildContext, SourceSearchProfileIdentity,
 };
 use atlas_embedding::NativeInputDescriptor;
 use atlas_storage::{UpdateOwner, Workspace};
 use rusqlite::{Connection, OptionalExtension, params};
-use std::{borrow::Cow, path::Path};
+use std::path::Path;
 
 pub const NATIVE_VALUE_BATCH_LIMIT: usize = 128;
 const CACHE_PAYLOAD_LIMIT: u64 = 1024 * 1024 * 1024;
@@ -72,6 +72,12 @@ impl<'owner> PreparedPublication<'owner> {
     }
     pub fn context(&self) -> &SourceArtifactBuildContext {
         &self.metadata.context
+    }
+    pub fn product_record_count(&self) -> usize {
+        self.identities
+            .iter()
+            .filter(|identity| identity.is_product)
+            .count()
     }
     pub fn expected(&self) -> &ArtifactInstance {
         &self.metadata.expected
@@ -145,29 +151,34 @@ impl<'owner> PreparedPublication<'owner> {
         if batch.is_empty() {
             return Ok(());
         }
+        let mut encoded = Vec::with_capacity(batch.len());
         let mut batch_hashes = std::collections::BTreeMap::new();
         for (input, vector) in batch {
-            let checksum =
-                crate::embedding_values::hash_bytes(&crate::read_units::vector_bytes(vector));
+            check_input(model, input)?;
+            crate::validation::check_vector(vector, model.dimensions)?;
+            let bytes = crate::read_units::vector_bytes(vector);
+            let checksum = crate::embedding_values::hash_bytes(&bytes);
             if batch_hashes
                 .insert(
                     input.input_sha256.as_str(),
                     (input.token_count, checksum.clone()),
                 )
-                .is_some_and(|old| old != (input.token_count, checksum))
+                .is_some_and(|old| old != (input.token_count, checksum.clone()))
             {
                 return Err(invalid("conflicting inferred values within batch"));
             }
-            check_input(model, input)?;
-            crate::validation::check_vector(vector, model.dimensions)?;
             if let Some(expected) = self.selection(ordinal, input)?
-                && expected
-                    != crate::embedding_values::hash_bytes(&crate::read_units::vector_bytes(vector))
+                && expected != checksum
             {
                 return Err(invalid(
                     "attempted to replace an already selected native value",
                 ));
             }
+            encoded.push(EncodedNativeValue {
+                input,
+                bytes,
+                checksum,
+            });
         }
         let write = self.workspace.write(self.schema)?;
         crate::writer::check_expected(write.connection(), &self.metadata)?;
@@ -178,15 +189,13 @@ impl<'owner> PreparedPublication<'owner> {
                 &self.models[ordinal],
                 true,
             )?;
-            for (input, vector) in batch {
-                let id = binding.ensure_input(input)?;
-                let bytes = crate::read_units::vector_bytes(vector);
-                let checksum = crate::embedding_values::hash_bytes(&bytes);
+            for value in &encoded {
+                let id = binding.ensure_input(value.input)?;
                 let old: u64 = write.connection().query_row("SELECT coalesce((SELECT length(vector) FROM pending_embedding_values WHERE input_id=?),0)", [id], |r| r.get(0))?;
-                write.connection().execute("INSERT INTO pending_embedding_values(input_id,vector,vector_hash,cached_at) VALUES(?,?,?,unixepoch()) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,cached_at=excluded.cached_at", params![id,bytes,checksum])?;
+                write.connection().execute("INSERT INTO pending_embedding_values(input_id,vector,vector_hash,cached_at) VALUES(?,?,?,unixepoch()) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,cached_at=excluded.cached_at", params![id,value.bytes,value.checksum])?;
                 next_cache_bytes = next_cache_bytes
                     .checked_sub(old)
-                    .and_then(|n| n.checked_add(bytes.len() as u64))
+                    .and_then(|n| n.checked_add(value.bytes.len() as u64))
                     .ok_or_else(|| invalid("cache payload accounting mismatch"))?;
             }
         }
@@ -196,14 +205,8 @@ impl<'owner> PreparedPublication<'owner> {
             &self.selected,
             rusqlite::TransactionBehavior::Immediate,
         )?;
-        for (input, vector) in batch {
-            let bytes = crate::read_units::vector_bytes(vector);
-            self.remember(
-                ordinal,
-                input,
-                &crate::embedding_values::hash_bytes(&bytes),
-                Some(&bytes),
-            )?;
+        for value in &encoded {
+            self.remember(ordinal, value.input, &value.checksum, Some(&value.bytes))?;
         }
         selected_tx.commit()?;
         self.evict_cache()
@@ -232,7 +235,7 @@ impl<'owner> PreparedPublication<'owner> {
                 let values = PublicationValues { selected: &self.selected, bindings: &bindings };
                 let scratch = self.selected_file.path().parent().ok_or_else(|| invalid("publication scratch parent absent"))?;
                 let delta_started = std::time::Instant::now();
-                crate::stream_publication::write(connection, &self.metadata, &self.identities, &values, &bindings, reusable, scratch)?;
+                crate::stream_publication::write(connection, &self.metadata, &self.identities, &values, reusable, scratch)?;
                 delta_started
             };
             connection.execute("DELETE FROM pending_embedding_values", [])?;
@@ -355,7 +358,6 @@ impl<'owner> PreparedPublication<'owner> {
                     return Err(invalid("staged vector length mismatch"));
                 }
                 let bytes: Vec<u8> = self.selected.query_row("SELECT vector FROM selected WHERE model=? AND input_hash=? AND length(vector)=?", params![model_key,hash,length], |r| r.get(0))?;
-                crate::native_values::check_bytes(&bytes, &expected, model)?;
                 binding.install(&input, &bytes, &expected)?;
             } else {
                 let actual = binding.published_checksum(&input)?;
@@ -367,11 +369,16 @@ impl<'owner> PreparedPublication<'owner> {
         Ok(())
     }
 }
-struct PublicationValues<'a, 'session> {
+struct EncodedNativeValue<'a> {
+    input: &'a NativeInputDescriptor,
+    bytes: Vec<u8>,
+    checksum: Vec<u8>,
+}
+pub(crate) struct PublicationValues<'a, 'session> {
     selected: &'a Connection,
     bindings: &'a crate::native_values::NativeBindings<'session>,
 }
-impl NativeValueSource for PublicationValues<'_, '_> {
+impl PublicationValues<'_, '_> {
     fn selected_checksum(
         &self,
         ordinal: usize,
@@ -384,18 +391,27 @@ impl NativeValueSource for PublicationValues<'_, '_> {
         }
         Ok(hash)
     }
-    fn value<'a>(
-        &'a self,
+    pub(crate) fn input_id(
+        &self,
+        profile: &atlas_domain::SearchProfileId,
+        input: &NativeInputDescriptor,
+    ) -> Result<i64, IndexError> {
+        let binding = self.bindings.profile(profile)?;
+        let checksum = self.selected_checksum(binding.key.ordinal(), input)?;
+        binding.selected_input(input, &checksum)
+    }
+    pub(crate) fn value(
+        &self,
         model: &SourceSearchProfileIdentity,
         input: &NativeInputDescriptor,
-    ) -> Result<Cow<'a, [f32]>, IndexError> {
+    ) -> Result<Vec<f32>, IndexError> {
         check_input(model, input)?;
         let binding = self.bindings.profile(&model.profile_id)?;
         if binding.key.model() != model {
             return Err(invalid("native model differs from publication"));
         }
-        let id = binding.selected_input(self, input)?;
-        Ok(Cow::Owned(binding.read(id)?))
+        let id = self.input_id(&model.profile_id, input)?;
+        binding.read(id)
     }
 }
 fn bounded(length: usize) -> Result<(), IndexError> {

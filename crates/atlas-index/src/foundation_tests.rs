@@ -637,13 +637,23 @@ fn failed_build_preserves_published_artifact() {
     broken.semantic_units.pop();
     assert!(crate::test_support::publish_input(&path, &broken).is_err());
     assert_eq!(validate_artifact(&path).unwrap(), before);
+    assert!(crate::test_support::open_reader(&path).is_err());
+    crate::test_support::publish_input(&path, &input).unwrap();
+    assert_eq!(validate_artifact(&path).unwrap(), before);
+    let generation = crate::test_support::open_reader(&path)
+        .unwrap()
+        .artifact_instance()
+        .clone();
     let mut bad = fixture(false);
     bad.records[1].preparation_context_hash = "0".repeat(64);
     assert!(crate::test_support::publish_input(&path, &bad).is_err());
     assert_eq!(validate_artifact(&path).unwrap(), before);
-    assert!(crate::test_support::open_reader(&path).is_err());
-    crate::test_support::publish_input(&path, &input).unwrap();
-    assert!(crate::test_support::open_reader(&path).is_ok());
+    assert_eq!(
+        crate::test_support::open_reader(&path)
+            .unwrap()
+            .artifact_instance(),
+        &generation
+    );
 }
 #[test]
 fn stale_contract_and_projection_corruption_require_rebuild() {

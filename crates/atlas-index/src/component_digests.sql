@@ -16,3 +16,5 @@ CREATE TABLE reference_component_digests (
 -- paths; trait-oriented lookup continues to use each existing primary key.
 CREATE INDEX trait_memberships_record_key ON trait_memberships(record_key,trait_key,owners_json);
 CREATE INDEX trait_references_record_key ON trait_references(record_key,trait_key,evidence);
+
+ALTER TABLE projection_allocations DROP COLUMN input_hash;

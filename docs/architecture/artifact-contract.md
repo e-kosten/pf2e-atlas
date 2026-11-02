@@ -121,7 +121,9 @@ indexes for trait membership/reference reconciliation. Existing trait-key primar
 keys remain the trait lookup owner. Removed-root associations are pruned by their
 exact old key before parent deletion, preserving live-root rows and saved identities. Schema
 upgrade leaves entries absent until actual publication; absence attests nothing.
-The fixed recipe binds eight named component hashes, with strict typed decoding.
+Migration 29 also retires the obsolete whole-root hash from
+`projection_allocations`; allocation identity retains `record_id`, `seed` and
+`end_id`. The fixed recipe binds eight named component hashes, with strict typed decoding.
 Publication writes them only with coherent projections and independently checks
 all present hashes inside the exact final transaction. Metadata-only upgrades
 refresh existing hashes after their dependent projections change. Saved state,

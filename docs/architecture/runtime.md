@@ -113,12 +113,13 @@ and expected generation authorize publication/removals. Index owns the codec and
 streaming writer; frames carry neutral metadata rather than SQL or internal IDs.
 Developer source inspection keeps its separate rich diagnostic loading lifetime.
 Developer diagnostics report observed selection/reuse calls, frame counts and
-maximum encoded/decoded frame byte sizes. Production admission reads retained
+maximum raw frame byte sizes. Production admission reads retained
 records in batches of at most 32 source files; semantic preparation reads layouts
 in batches of at most 32 active prepared records after collision and alias
 filtering. The public owned reuse API caps requests at 128 and rejects oversized
-batches before compatibility checks or I/O; empty and no-output requests open no
-session. Repeated keys retain request order and independent output flags.
+batches before compatibility checks or I/O. Separate record and layout operations
+return results in request order, including repeated keys. Empty requests and
+incompatible preparation contexts open no reuse session.
 Each batch authenticates the actual workspace, reference revision and complete
 context in one snapshot, returns checked owned values, then closes the session
 before source processing, tokenization or inference. Record-only reads do not

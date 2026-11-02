@@ -345,7 +345,7 @@ fn real_scratch_sqlite_full_keeps_committed_cache_and_old_publication() {
         .selected
         .pragma_update(None, "max_page_count", pages)
         .unwrap();
-    let native = crate::writer::fixture_native_values(&input).unwrap();
+    let native = crate::test_support::fixture_native_values(&input).unwrap();
     let model = native[0].model;
     let batch = native
         .iter()
@@ -1040,7 +1040,7 @@ fn inferred_batches_rebind_after_every_cache_entry_and_model_are_evicted() {
     )
     .unwrap();
     publication.cache_limit = 0;
-    let native = crate::writer::fixture_native_values(&input).unwrap();
+    let native = crate::test_support::fixture_native_values(&input).unwrap();
     for value in native {
         publication
             .stage_inferred(value.model, &[(&value.input, value.vector)])
@@ -1057,4 +1057,53 @@ fn inferred_batches_rebind_after_every_cache_entry_and_model_are_evicted() {
     }
     publication.publish().unwrap();
     crate::validate_artifact(workspace.path()).unwrap();
+}
+
+#[test]
+fn current_fixture_publication_installs_explicit_values_over_pending_cache() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("explicit-fixture-values.sqlite");
+    let input = crate::foundation_tests::fixture(true);
+    publish_input(&path, &input).unwrap();
+    let workspace = initialize_workspace(&path).unwrap();
+    let model = &input.context.search_profiles[0];
+    let unit = &input.semantic_units[0];
+    let desc = descriptor(unit);
+    let mut pending = vec![0.; model.dimensions];
+    pending[23] = 1.;
+    assert_ne!(pending, unit.vector);
+    {
+        let owner = workspace.update_owner().unwrap();
+        let scratch = BuildScratch::new(&owner).unwrap();
+        let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        let expected = ArtifactInstance::new(
+            read.workspace_key().unwrap(),
+            read.reference_revision().unwrap(),
+        );
+        drop(read);
+        let metadata = publication_spool_in(scratch.path(), &input, expected).unwrap();
+        let mut publication = PreparedPublication::new_in(
+            &owner,
+            TEST_WORKSPACE_SCHEMA_VERSION,
+            scratch.path(),
+            metadata,
+        )
+        .unwrap();
+        publication
+            .stage_inferred(model, &[(&desc, &pending)])
+            .unwrap();
+    }
+    assert_eq!(count(&workspace, "pending_embedding_values"), 1);
+    assert_eq!(raw_value(&workspace, model, &desc), unit.vector);
+    publish_input(&path, &input).unwrap();
+    assert_eq!(raw_value(&workspace, model, &desc), unit.vector);
+    assert_eq!(count(&workspace, "pending_embedding_values"), 0);
+    assert_eq!(
+        workspace
+            .read(TEST_WORKSPACE_SCHEMA_VERSION)
+            .unwrap()
+            .reference_revision()
+            .unwrap(),
+        2
+    );
 }

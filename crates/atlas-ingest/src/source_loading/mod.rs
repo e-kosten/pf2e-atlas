@@ -1,7 +1,5 @@
 //! Typed authored-source loading, before Atlas normalization or storage.
 mod loader;
-#[cfg(test)]
-pub(crate) use loader::load_captured_source;
 mod metadata;
 mod model;
 mod report;

@@ -120,23 +120,6 @@ pub(crate) fn build_artifact(
     tracing::info!(target:"atlas_build_diagnostic",stage="all_profile_prevalidation",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,"Completed ingest phase");
     let record_count = prepared.spool.records.len();
     let pack_count = prepared.spool.packs.len();
-    let mut product_record_count = 0usize;
-    prepared
-        .spool
-        .records
-        .visit(&mut |frame| {
-            if prepared
-                .spool
-                .packs
-                .iter()
-                .find(|p| p.pack_id == frame.pack)
-                .is_some_and(|p| p.document_kind != "Macro")
-            {
-                product_record_count += 1;
-            }
-            Ok(())
-        })
-        .map_err(index_error)?;
     let semantic_unit_count = prepared.spool.semantic.len();
     let admission = prepared.spool.context.admission.clone().ok_or_else(|| {
         IngestError::ArtifactWriteFailed("publication admission summary is absent".into())
@@ -148,6 +131,7 @@ pub(crate) fn build_artifact(
         prepared.spool,
     )
     .map_err(index_error)?;
+    let product_record_count = publication.product_record_count();
     let mut profiles = Vec::new();
     for (plan, config) in plans.iter().zip(&options.search_profiles) {
         profiles.push(

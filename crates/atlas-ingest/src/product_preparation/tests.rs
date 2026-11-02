@@ -191,11 +191,11 @@ fn observed_preparation_counts_and_frame_sizes_are_separate_from_structural_wind
     assert_eq!(small.work.alias_journal_reads, 0);
     assert_eq!(small.work.reusable_record_read_calls, 0);
     assert!(small.work.largest_source_bytes > 0);
+    assert!(small.work.largest_prepared_frame_bytes > 0);
     assert_eq!(
         small.work.largest_prepared_frame_bytes,
-        small.spool.records.max_decoded_frame_bytes()
+        small.spool.records.max_frame_bytes()
     );
-    assert!(small.work.largest_encoded_prepared_frame_bytes > 0);
     for ordinal in 0..32 {
         fixture.document(
             &format!("extra{ordinal}"),
@@ -209,7 +209,7 @@ fn observed_preparation_counts_and_frame_sizes_are_separate_from_structural_wind
     assert_eq!(large.spool.records.len(), 34);
     assert_eq!(
         large.work.largest_prepared_frame_bytes,
-        large.spool.records.max_decoded_frame_bytes()
+        large.spool.records.max_frame_bytes()
     );
     assert!(
         large.work.largest_prepared_frame_bytes < small.work.largest_prepared_frame_bytes * 2,

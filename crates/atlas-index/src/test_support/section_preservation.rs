@@ -18,6 +18,15 @@ fn normalized_section_table(
 ) -> Result<Option<(String, TableRows)>, crate::IndexError> {
     use rusqlite::types::Value as V;
     let text = |value: Option<String>| value.map(V::Text).unwrap_or(V::Null);
+    if table == "projection_allocations" {
+        let mut statement = c.prepare(
+            "SELECT record_id,seed,end_id FROM projection_allocations ORDER BY record_id",
+        )?;
+        let rows = statement
+            .query_map([], |row| Ok(vec![row.get(0)?, row.get(1)?, row.get(2)?]))?
+            .collect::<Result<Vec<_>, _>>()?;
+        return Ok(Some((table.into(), rows)));
+    }
     if table == "selected_sections" {
         let mut statement = c.prepare(&format!(
             "SELECT {} FROM selected_sections ss ORDER BY ss.selector",
@@ -265,6 +274,32 @@ pub fn reference_preservation_rows(
 mod tests {
     use super::reference_preservation_rows;
     use rusqlite::types::Value;
+
+    #[test]
+    fn allocation_retirement_oracle_keeps_record_identity_and_exact_bounds() {
+        let c = rusqlite::Connection::open_in_memory().unwrap();
+        c.execute_batch("CREATE TABLE embedding_models(model_id INTEGER PRIMARY KEY,identity_json TEXT NOT NULL);
+            CREATE TABLE projection_allocations(record_id INTEGER PRIMARY KEY,seed INTEGER,end_id INTEGER,input_hash TEXT);
+            INSERT INTO projection_allocations VALUES(77,10,20,'old-digest');").unwrap();
+        let before = reference_preservation_rows(&c).unwrap();
+        c.execute_batch("ALTER TABLE projection_allocations DROP COLUMN input_hash")
+            .unwrap();
+        assert_eq!(reference_preservation_rows(&c).unwrap(), before);
+        for mutation in [
+            "UPDATE projection_allocations SET record_id=78",
+            "UPDATE projection_allocations SET seed=11",
+            "UPDATE projection_allocations SET end_id=21",
+        ] {
+            c.execute_batch("BEGIN").unwrap();
+            c.execute_batch(mutation).unwrap();
+            assert_ne!(
+                reference_preservation_rows(&c).unwrap(),
+                before,
+                "{mutation}"
+            );
+            c.execute_batch("ROLLBACK").unwrap();
+        }
+    }
 
     #[test]
     fn logical_oracle_excludes_only_discovered_vec0_counters_and_keeps_saved_high_water() {

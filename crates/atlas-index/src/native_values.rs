@@ -44,6 +44,9 @@ pub(crate) struct NativeModelKey {
     table: String,
 }
 impl NativeModelKey {
+    pub fn ordinal(&self) -> usize {
+        self.ordinal
+    }
     pub fn model(&self) -> &SourceSearchProfileIdentity {
         &self.model
     }
@@ -295,14 +298,13 @@ impl<'session> NativeModel<'session> {
     }
     pub fn selected_input(
         &self,
-        values: &dyn crate::NativeValueSource,
         input: &NativeInputDescriptor,
+        expected: &[u8],
     ) -> Result<i64, IndexError> {
-        let expected = values.selected_checksum(self.key.ordinal, input)?;
         let row = self
             .find(input)?
             .ok_or_else(|| invalid("selected native input missing"))?;
-        if expected.len() != 32 || self.checksum(&row)?.as_ref() != Some(&expected) {
+        if expected.len() != 32 || self.checksum(&row)?.as_deref() != Some(expected) {
             return Err(invalid(
                 "selected native checksum differs from installed input",
             ));

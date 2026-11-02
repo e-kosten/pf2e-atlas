@@ -1,6 +1,6 @@
 //! One streaming reference writer for prepared files and genuine fixture sources.
 use crate::{
-    IndexError, NativeValueSource, PreparedRecordRef, PublicationSource, SourceRelationshipDetails,
+    IndexError, PreparedRecordRef, PublicationSpool, SourceRelationshipDetails,
     SourceStoredRelationship, component_digests::ComponentDigests, persistence::ProjectionRow,
     projections::root_rows,
 };
@@ -92,10 +92,9 @@ fn previous(
 
 pub(crate) fn write(
     c: &Connection,
-    input: &dyn PublicationSource,
+    input: &PublicationSpool,
     identities: &[crate::writer::CheckedRootIdentity],
-    values: &dyn NativeValueSource,
-    native: &crate::native_values::NativeBindings<'_>,
+    values: &crate::prepared_publication::PublicationValues<'_, '_>,
     reusable_context: bool,
     scratch: &std::path::Path,
 ) -> Result<(), IndexError> {
@@ -125,18 +124,18 @@ pub(crate) fn write(
         };
         prior.insert(key.clone(), value);
     }
-    let mut canonical = input.context().clone();
+    let mut canonical = input.context.clone();
     canonical.search_profiles = canonical.canonical_profiles()?;
     let json = serde_json::to_string(&canonical)?;
     c.execute("INSERT INTO artifact_context VALUES(1,?,?,?) ON CONFLICT(singleton) DO UPDATE SET format_version=excluded.format_version,context_hash=excluded.context_hash,context_json=excluded.context_json WHERE context_hash IS NOT excluded.context_hash",params![crate::ARTIFACT_FORMAT_VERSION,crate::codec::sha256(json.as_bytes()),json])?;
-    for pack in input.packs() {
+    for pack in &input.packs {
         let mut row = ProjectionRow::new("packs");
         row.text("pack_id", &pack.pack_id);
         row.text("label", &pack.label);
         crate::publication_delta::upsert(c, &row, "pack_id")?;
     }
     let labels = input
-        .packs()
+        .packs
         .iter()
         .map(|p| (p.pack_id.as_str(), p.label.as_str()))
         .collect::<BTreeMap<_, _>>();
@@ -157,20 +156,18 @@ pub(crate) fn write(
         let source=frame.source;let id=ids[source.record.key()];
         let label=labels[source.record.key().pack().as_str()];
         let old=prior.remove(source.record.key()).flatten();
-        let desired=ComponentDigests::project(PreparedRecordRef{source,snapshot:frame.snapshot,selection:frame.selection,lexical:frame.lexical},label,input.context().audience)?;
-        let query_changed=old.as_ref().is_none_or(|old|old.query!=desired.query) || old_context.as_ref().is_some_and(|old|old.query_projection_version!=input.context().query_projection_version || old.query_catalog_version!=input.context().query_catalog_version);
+        let desired=ComponentDigests::project(PreparedRecordRef{source,snapshot:frame.snapshot,selection:frame.selection,lexical:frame.lexical},label,input.context.audience)?;
+        let query_changed=old.as_ref().is_none_or(|old|old.query!=desired.query) || old_context.as_ref().is_some_and(|old|old.query_projection_version!=input.context.query_projection_version || old.query_catalog_version!=input.context.query_catalog_version);
         let snapshot_changed=old.as_ref().is_none_or(|old|old.snapshot!=desired.snapshot);
         let content_changed=old.as_ref().is_none_or(|old|old.content!=desired.content);
         let relationships_changed=old.as_ref().is_none_or(|old|old.relationships!=desired.relationships);
-        let digest=crate::publication_delta::root_digest_encoded(source,label,frame.snapshot)?;
         if query_changed {
             query_root_replacements+=1;
             crate::publication_delta::clear_query(c,id)?;
-            let mut allocation=crate::publication_delta::allocate(c,source,label,id,&digest)?;
+            let mut allocation=crate::publication_delta::allocate(c,source,label,id)?;
             for row in root_rows(source,label,id,&mut allocation)?{if row.table=="records"{crate::publication_delta::upsert(c,&row,"record_id")?;}else{row.insert(c)?;}}
         }else{
             c.execute("UPDATE records SET source_path=?,content_hash=? WHERE record_id=? AND (source_path IS NOT ?1 OR content_hash IS NOT ?2)",params![source.source_path,source.content_hash,id])?;
-            c.execute("UPDATE projection_allocations SET input_hash=? WHERE record_id=? AND input_hash IS NOT ?1",params![digest,id])?;
         }
         if snapshot_changed {
             snapshot_root_replacements+=1;
@@ -182,7 +179,7 @@ pub(crate) fn write(
         if snapshot_changed || query_changed{for diagnostic in crate::projections::projection_diagnostics(&source.record){crate::writer::write_diagnostic(c,id,&diagnostic)?;}}
         if content_changed {content_root_replacements+=1;c.execute("DELETE FROM prepared_content WHERE record_id=?",[id])?;c.execute("DELETE FROM developer_diagnostics WHERE record_id=? AND stage='preparation'",[id])?;}
         if relationships_changed {relationship_root_replacements+=1;c.execute("DELETE FROM relationship_occurrences WHERE record_id=?",[id])?;}
-        if content_changed || relationships_changed{crate::writer::write_content(c,source,id,&ids,input.context().audience,content_changed,relationships_changed)?;}
+        if content_changed || relationships_changed{crate::writer::write_content(c,source,id,&ids,input.context.audience,content_changed,relationships_changed)?;}
         if relationships_changed {for (ordinal,relationship) in source.relationships.iter().enumerate(){
             if relationship.locator.record!=*source.record.key() || source.record.node_at(&relationship.locator.owners).is_none(){return Err(IndexError::Invalid("structured relationship owner differs".into()));}
             crate::writer::write_relationship(c,id,&SourceStoredRelationship{locator:relationship.locator.clone(),ordinal,origin:"structured".into(),kind:serde_json::from_str(&serde_json::to_string(&relationship.kind)?)?,authored_target:relationship.authored_target.clone(),occurrence_path:None,resolution:relationship.resolution.clone(),details:SourceRelationshipDetails{availability:Some(relationship.availability.clone()),reference_kind:None,label:None,audiences:Vec::new()}},&ids)?;
@@ -208,7 +205,7 @@ pub(crate) fn write(
         row.text("definition_json", serde_json::to_string(&definition)?);
         crate::publication_delta::upsert(c, &row, "field")?;
     }
-    crate::publication_delta::search_units(c, input, &products, values, native)?;
+    crate::publication_delta::search_units(c, input, &products, values)?;
     c.execute("DELETE FROM semantic_locations WHERE NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.location_id=semantic_locations.location_id)",[])?;
     let old_sections = c
         .prepare("SELECT section_id FROM selected_sections")?
@@ -220,7 +217,7 @@ pub(crate) fn write(
         }
     }
     crate::publication_delta::remove_absent_roots(c, &live)?;
-    crate::traits::write_traits_stream(c, input, values, native)?;
+    crate::traits::write_traits_stream(c, input, values)?;
     input.records(&mut |frame| {
         let id = ids[frame.source.record.key()];
         if products.contains_key(frame.source.record.key()) {

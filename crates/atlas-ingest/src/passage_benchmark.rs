@@ -216,19 +216,11 @@ fn published_layout_reuse_full_corpus_benchmark() {
     let layout_count: usize = keys
         .chunks(32)
         .map(|keys| {
-            let requests = keys
-                .iter()
-                .map(|key| atlas_index::SourceReuseRequest {
-                    key,
-                    record: false,
-                    layouts: true,
-                })
-                .collect::<Vec<_>>();
             reuse
-                .read_batch(&requests)
+                .read_layouts(keys)
                 .unwrap()
                 .iter()
-                .map(|r| r.layouts.len())
+                .map(Vec::len)
                 .sum::<usize>()
         })
         .sum();

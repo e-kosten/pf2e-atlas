@@ -212,6 +212,10 @@ fn snapshot(c: &Connection) -> BTreeMap<String, Rows> {
     for table in [
         "workspace",
         "schema_migrations",
+        "projection_allocations",
+        "artifact_context",
+        "record_identity",
+        "records",
         "saved_lists",
         "embedding_models",
         "embedding_inputs",
@@ -293,6 +297,69 @@ fn published_values(
     out
 }
 #[test]
+fn historical_seeding_keeps_reserved_identities_and_saved_state_and_rejects_republication() {
+    register_extensions().unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let workspace = Workspace::at(directory.path().join("reserved-main24.sqlite")).unwrap();
+    workspace.migrate(&MIGRATIONS[..24], |_| Ok(())).unwrap();
+    let input = input(2);
+    let write = workspace.write(24).unwrap();
+    write.connection().execute("INSERT INTO record_identity(id,key,last_known_name,availability) VALUES(77,?,'Reserved source','unavailable'),(88,'native-probe:cccccccccccccccc','Retained unavailable key','unavailable')",[input.records[0].record.key().to_string()]).unwrap();
+    write.connection().execute_batch("INSERT INTO saved_lists(id,list_key,slug,name,created_at,updated_at) VALUES(5,'saved','saved','Saved before source','before','after');").unwrap();
+    let saved = rows(write.connection(), "SELECT * FROM saved_lists ORDER BY id");
+    write.commit().unwrap();
+    {
+        let owner = workspace.update_owner().unwrap();
+        let maintenance = owner
+            .maintenance(24, "initial historical reference")
+            .unwrap();
+        atlas_index::test_support::publish_pre_section_fixture(&maintenance, &input).unwrap();
+    }
+    let read = workspace.read(24).unwrap();
+    assert_eq!(
+        rows(read.connection(), "SELECT * FROM saved_lists ORDER BY id"),
+        saved
+    );
+    assert_eq!(
+        read.connection()
+            .query_row(
+                "SELECT record_id FROM records WHERE key=?",
+                [input.records[0].record.key().to_string()],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+        77
+    );
+    assert_eq!(
+        rows(
+            read.connection(),
+            "SELECT id,key,last_known_name,availability FROM record_identity WHERE id=88"
+        ),
+        vec![vec![
+            Value::Integer(88),
+            Value::Text("native-probe:cccccccccccccccc".into()),
+            Value::Text("Retained unavailable key".into()),
+            Value::Text("unavailable".into())
+        ]]
+    );
+    drop(read);
+    let owner = workspace.update_owner().unwrap();
+    let maintenance = owner
+        .maintenance(24, "reject historical replacement")
+        .unwrap();
+    let before = snapshot(maintenance.connection());
+    let error =
+        atlas_index::test_support::publish_pre_section_fixture(&maintenance, &input).unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("requires unpublished reference tables"),
+        "{error}"
+    );
+    assert_eq!(snapshot(maintenance.connection()), before);
+}
+
+#[test]
 fn main24_native_upgrade_preserves_shared_inputs_traits_pending_models_and_saved_rows() {
     for selected in [
         vec![],
@@ -318,6 +385,40 @@ fn main24_native_upgrade_preserves_shared_inputs_traits_pending_models_and_saved
         let key = read.workspace_key().unwrap();
         let revision = read.reference_revision().unwrap();
         let values = published_values(read.connection(), &input, false);
+        let allocations = rows(
+            read.connection(),
+            "SELECT record_id,seed,end_id FROM projection_allocations ORDER BY record_id",
+        );
+        let old_hashes = read.connection().prepare("SELECT r.key,a.input_hash FROM projection_allocations a JOIN records r USING(record_id) ORDER BY r.key").unwrap()
+            .query_map([],|row|Ok((row.get::<_,String>(0)?,row.get::<_,String>(1)?))).unwrap().collect::<Result<BTreeMap<_,_>,_>>().unwrap();
+        let expected_hashes = input
+            .records
+            .iter()
+            .map(|source| {
+                let label = &input
+                    .packs
+                    .iter()
+                    .find(|pack| pack.pack_id == source.record.key().pack().as_str())
+                    .unwrap()
+                    .label;
+                let hash = atlas_search::test_support::hash(
+                    &serde_json::to_vec(&(
+                        atlas_foundry_model::encode_snapshot(source.record.source()).unwrap(),
+                        &source.source_path,
+                        &source.content_hash,
+                        &source.preparation_context_hash,
+                        &source.content,
+                        &source.relationships,
+                        &source.diagnostics,
+                        label,
+                        "authored-query/v5",
+                    ))
+                    .unwrap(),
+                );
+                (source.record.key().to_string(), hash)
+            })
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(old_hashes, expected_hashes);
         let associations = rows(
             read.connection(),
             "SELECT * FROM semantic_units ORDER BY unit_id",
@@ -345,6 +446,22 @@ fn main24_native_upgrade_preserves_shared_inputs_traits_pending_models_and_saved
         assert_eq!(read.workspace_key().unwrap(), key);
         assert_eq!(read.reference_revision().unwrap(), revision);
         assert_eq!(published_values(read.connection(), &input, true), values);
+        assert_eq!(
+            rows(
+                read.connection(),
+                "SELECT record_id,seed,end_id FROM projection_allocations ORDER BY record_id"
+            ),
+            allocations
+        );
+        let allocation_columns = read
+            .connection()
+            .prepare("PRAGMA table_info(projection_allocations)")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(allocation_columns, ["record_id", "seed", "end_id"]);
         assert_eq!(
             rows(
                 read.connection(),

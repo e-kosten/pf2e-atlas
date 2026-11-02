@@ -1,79 +1,245 @@
-//! Authentic pre-schema27 occurrence writer, used only by historical fixtures.
-use crate::publication_delta::upsert;
+//! Authentic pre-schema27 reference rows for initially unpublished fixtures.
 use crate::{
     IndexBuildInput, IndexError,
-    codec::sha256,
-    persistence::{ProjectionRow, execute},
+    codec::{gzip, sha256},
+    input::{SourceRelationshipDetails, SourceStoredRelationship},
+    persistence::ProjectionRow,
+    projections::{ProjectionIds, root_rows},
 };
 use atlas_domain::RecordKey;
-use rusqlite::{Connection, OptionalExtension, types::Value};
+use atlas_foundry_model::encode_snapshot;
+use rusqlite::{Connection, params, types::Value};
 use std::collections::{BTreeMap, BTreeSet};
+
 fn nullable(value: Option<String>) -> Value {
     value.map(Value::Text).unwrap_or(Value::Null)
 }
-fn remove_unkept(
-    c: &Connection,
-    table: &str,
-    key: &str,
-    kept: &BTreeSet<i64>,
-) -> Result<(), IndexError> {
-    let ids = c
-        .prepare(&format!("SELECT {key} FROM {table}"))?
-        .query_map([], |r| r.get::<_, i64>(0))?
-        .collect::<Result<Vec<_>, _>>()?;
-    for id in ids {
-        if !kept.contains(&id) {
-            c.execute(&format!("DELETE FROM {table} WHERE {key}=?"), [id])?;
+
+fn require_unpublished_reference(c: &Connection) -> Result<(), IndexError> {
+    for table in [
+        "artifact_context",
+        "packs",
+        "records",
+        "projection_allocations",
+        "record_bodies",
+        "prepared_content",
+        "relationship_occurrences",
+        "developer_diagnostics",
+        "verified_aliases",
+        "remaster_pairs",
+        "query_field_catalog",
+        "semantic_units",
+        "lexical_units",
+        "search_profiles",
+        "embedding_models",
+        "embedding_inputs",
+        "trait_definitions",
+    ] {
+        if c.prepare(&format!("SELECT 1 FROM {table} LIMIT 1"))?
+            .exists([])?
+        {
+            return Err(IndexError::Invalid(format!(
+                "historical fixture requires unpublished reference tables: {table} is populated"
+            )));
         }
     }
     Ok(())
 }
+
+pub(crate) fn root_digest(
+    source: &crate::SourceArtifactRecordInput,
+    label: &str,
+) -> Result<String, IndexError> {
+    Ok(sha256(&serde_json::to_vec(&(
+        encode_snapshot(source.record.source())?,
+        &source.source_path,
+        &source.content_hash,
+        &source.preparation_context_hash,
+        &source.content,
+        &source.relationships,
+        &source.diagnostics,
+        label,
+        "authored-query/v5",
+    ))?))
+}
+
+pub(crate) fn records(
+    c: &Connection,
+    input: &IndexBuildInput,
+) -> Result<BTreeMap<RecordKey, i64>, IndexError> {
+    require_unpublished_reference(c)?;
+    let mut context = input.context.clone();
+    context.search_profiles = input.context.canonical_profiles()?;
+    let json = serde_json::to_string(&context)?;
+    c.execute("INSERT INTO artifact_context(singleton,format_version,context_hash,context_json) VALUES(1,?,?,?)",
+        params![crate::ARTIFACT_FORMAT_VERSION, sha256(json.as_bytes()), json])?;
+    for pack in &input.packs {
+        let mut row = ProjectionRow::new("packs");
+        row.text("pack_id", &pack.pack_id);
+        row.text("label", &pack.label);
+        row.insert(c)?;
+    }
+    let root_ids = input
+        .records
+        .iter()
+        .map(|source| {
+            let name =
+                match atlas_record::source_record::SourceNodeView::from(source.record.source())
+                    .name()
+                {
+                    atlas_record::source_record::SourceFieldView::Value(name) => {
+                        Some(name.as_str())
+                    }
+                    _ => None,
+                };
+            Ok((
+                source.record.key().clone(),
+                crate::identity::retain_source(c, source.record.key(), name)?,
+            ))
+        })
+        .collect::<Result<BTreeMap<_, _>, IndexError>>()?;
+    let products = input
+        .records
+        .iter()
+        .filter(|source| {
+            !matches!(
+                source.record.source(),
+                atlas_foundry_model::FoundryDocumentSource::Macro(_)
+            )
+        })
+        .map(|source| (source.record.key().clone(), root_ids[source.record.key()]))
+        .collect::<BTreeMap<_, _>>();
+    let labels = input
+        .packs
+        .iter()
+        .map(|pack| (pack.pack_id.as_str(), pack.label.as_str()))
+        .collect::<BTreeMap<_, _>>();
+    let mut next = 0;
+    for source in &input.records {
+        let id = root_ids[source.record.key()];
+        let label = labels
+            .get(source.record.key().pack().as_str())
+            .ok_or_else(|| IndexError::Invalid("missing pack label".into()))?;
+        let seed = next;
+        let mut ids = ProjectionIds::seeded(seed);
+        let rows = root_rows(source, label, id, &mut ids)?;
+        next = ids.end();
+        c.execute(
+            "INSERT INTO projection_allocations(record_id,seed,end_id,input_hash) VALUES(?,?,?,?)",
+            params![id, seed, next, root_digest(source, label)?],
+        )?;
+        for row in rows {
+            row.insert(c)?;
+        }
+        c.execute(
+            "INSERT INTO record_bodies(record_id,codec_version,encoding,snapshot) VALUES(?,?,?,?)",
+            params![
+                id,
+                atlas_foundry_model::SNAPSHOT_VERSION,
+                "gzip6",
+                gzip(&encode_snapshot(source.record.source())?)?
+            ],
+        )?;
+    }
+    for source in &input.records {
+        let id = root_ids[source.record.key()];
+        crate::writer::write_content(c, source, id, &root_ids, input.context.audience, true, true)?;
+        for (ordinal, relationship) in source.relationships.iter().enumerate() {
+            if relationship.locator.record != *source.record.key()
+                || source
+                    .record
+                    .node_at(&relationship.locator.owners)
+                    .is_none()
+            {
+                return Err(IndexError::Invalid(
+                    "structured relationship locator disagrees with source".into(),
+                ));
+            }
+            crate::writer::write_relationship(
+                c,
+                id,
+                &SourceStoredRelationship {
+                    locator: relationship.locator.clone(),
+                    ordinal,
+                    origin: "structured".into(),
+                    kind: serde_json::from_str(&serde_json::to_string(&relationship.kind)?)?,
+                    authored_target: relationship.authored_target.clone(),
+                    occurrence_path: None,
+                    resolution: relationship.resolution.clone(),
+                    details: SourceRelationshipDetails {
+                        availability: Some(relationship.availability.clone()),
+                        reference_kind: None,
+                        label: None,
+                        audiences: Vec::new(),
+                    },
+                },
+                &root_ids,
+            )?;
+        }
+        for diagnostic in &source.diagnostics {
+            crate::writer::write_diagnostic(c, id, diagnostic)?;
+        }
+        for diagnostic in crate::projections::projection_diagnostics(&source.record) {
+            crate::writer::write_diagnostic(c, id, &diagnostic)?;
+        }
+    }
+    for alias in &input.aliases {
+        if alias.alias.trim().is_empty() || alias.evidence.trim().is_empty() {
+            return Err(IndexError::Invalid("alias needs text and evidence".into()));
+        }
+        let mut row = ProjectionRow::new("verified_aliases");
+        row.id(
+            "record_id",
+            crate::writer::product_id(&products, &alias.record)?,
+        );
+        row.text("alias", &alias.alias);
+        row.text(
+            "alias_lookup_key",
+            atlas_domain::normalize_record_name(&alias.alias),
+        );
+        row.text("evidence_json", serde_json::to_string(&alias.evidence)?);
+        row.insert(c)?;
+    }
+    for pair in &input.remaster_pairs {
+        let mut row = ProjectionRow::new("remaster_pairs");
+        row.id(
+            "legacy_record_id",
+            crate::writer::product_id(&products, &pair.legacy)?,
+        );
+        row.id(
+            "remaster_record_id",
+            crate::writer::product_id(&products, &pair.remaster)?,
+        );
+        row.text("evidence_json", serde_json::to_string(&pair.provenance)?);
+        row.insert(c)?;
+    }
+    for definition in crate::query::query_capabilities()?.fields {
+        let mut row = ProjectionRow::new("query_field_catalog");
+        row.text("field", &definition.id);
+        row.text("definition_json", serde_json::to_string(&definition)?);
+        row.insert(c)?;
+    }
+    Ok(products)
+}
+
 pub(crate) fn search_units(
     c: &Connection,
     input: &IndexBuildInput,
     ids: &BTreeMap<RecordKey, i64>,
 ) -> Result<(), IndexError> {
     lexical_units(c, &input.lexical_units, ids)?;
-
-    let old_profiles = c
-        .prepare("SELECT profile_id,identity_json FROM search_profiles")?
-        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
-        .collect::<Result<BTreeMap<_, _>, _>>()?;
-    let mut current_profiles = BTreeMap::new();
     for model in input.context.canonical_profiles()? {
-        let json = serde_json::to_string(&model)?;
-        current_profiles.insert(model.profile_id.to_string(), json.clone());
-        let mut row = ProjectionRow::new("search_profiles");
-        row.text("profile_id", model.profile_id.as_str());
-        row.text("identity_json", json);
-        row.id("dimensions", model.dimensions as i64);
-        upsert(c, &row, "profile_id")?;
-    }
-    let mut old_tables = BTreeMap::new();
-    for (profile, json) in &old_profiles {
-        let model = serde_json::from_str::<crate::SourceSearchProfileIdentity>(json)?;
-        old_tables.insert(profile.clone(), crate::schema::vector_table(&model)?);
-    }
-    let mut current_tables = BTreeSet::new();
-    for model in &input.context.search_profiles {
-        let table = crate::schema::vector_table(model)?;
-        let exists: bool = c.query_row(
-            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name=?)",
-            [&table],
-            |row| row.get(0),
+        c.execute(
+            "INSERT INTO search_profiles(profile_id,identity_json,dimensions) VALUES(?,?,?)",
+            params![
+                model.profile_id.as_str(),
+                serde_json::to_string(&model)?,
+                model.dimensions
+            ],
         )?;
-        if !exists {
-            c.execute_batch(&crate::schema::vector_ddl(model)?)?;
-        }
-        current_tables.insert(table);
+        c.execute_batch(&crate::schema::vector_ddl(&model)?)?;
     }
-    let mut kept = BTreeSet::new();
-    let mut next: i64 = c.query_row(
-        "SELECT coalesce(max(unit_id),0) FROM semantic_units",
-        [],
-        |r| r.get(0),
-    )?;
-    let mut pending = Vec::new();
+    let mut next = 0i64;
     for unit in &input.semantic_units {
         let model = input.context.search_profile(&unit.profile_id)?;
         crate::validation::check_vector(&unit.vector, model.dimensions)?;
@@ -94,54 +260,11 @@ pub(crate) fn search_units(
             unit.input_token_count,
             &unit.vector,
         )?;
-        let previous: Option<(i64, Vec<u8>)> = if old_profiles.get(unit.profile_id.as_str())
-            == current_profiles.get(unit.profile_id.as_str())
-        {
-            let section = match &unit.address {
-                atlas_domain::SourcePassageAddress::Identity {} => None,
-                atlas_domain::SourcePassageAddress::HtmlSection {
-                    section_ordinal, ..
-                }
-                | atlas_domain::SourcePassageAddress::PlainSection {
-                    section_ordinal, ..
-                } => Some(*section_ordinal as i64),
-            };
-            let mut statement=c.prepare_cached(&format!("SELECT u.unit_id,v.embedding FROM semantic_locations l JOIN semantic_units u USING(location_id) JOIN {table} v USING(unit_id) WHERE l.record_id=? AND u.profile_id=? AND l.owners_json=? AND l.field_path IS ? AND l.chunk_ordinal=? AND json_extract(l.section_json,'$.section_ordinal') IS ? ORDER BY (l.location_id=?) DESC,u.unit_id"))?;
-            let mut rows = statement.query(rusqlite::params![
-                id,
-                unit.profile_id.as_str(),
-                serde_json::to_string(&unit.owners)?,
-                unit.field,
-                unit.chunk_ordinal,
-                section,
-                location
-            ])?;
-            let mut available = None;
-            while let Some(row) = rows.next()? {
-                let candidate: i64 = row.get(0)?;
-                if !kept.contains(&candidate) {
-                    available = Some((candidate, row.get(1)?));
-                    break;
-                }
-            }
-            available
-        } else {
-            None
-        };
-        let reused = previous.as_ref().map(|(id, _)| *id);
-        let bytes = crate::read_units::vector_bytes(&unit.vector);
-        let changed = previous.as_ref().is_none_or(|(_, old)| *old != bytes);
-        let unit_id = if let Some(id) = reused {
-            id
-        } else {
-            next = next
-                .checked_add(1)
-                .ok_or_else(|| IndexError::Invalid("semantic ID overflow".into()))?;
-            next
-        };
-        kept.insert(unit_id);
+        next = next
+            .checked_add(1)
+            .ok_or_else(|| IndexError::Invalid("semantic ID overflow".into()))?;
         let mut row = ProjectionRow::new("semantic_units");
-        row.id("unit_id", unit_id);
+        row.id("unit_id", next);
         row.id("record_id", id);
         row.text("profile_id", unit.profile_id.as_str());
         row.id("location_id", location);
@@ -157,86 +280,29 @@ pub(crate) fn search_units(
                 "passage"
             },
         );
-        // Keep the input vector borrowed while obsolete rows are removed.
-        // Materialize only the current insert's blob, not a full second corpus.
-        pending.push((
-            row,
-            table,
-            changed.then_some((unit.vector.as_slice(), reused.is_some())),
-        ));
-    }
-    let old_ids = c
-        .prepare("SELECT unit_id,profile_id FROM semantic_units")?
-        .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?
-        .collect::<Result<Vec<_>, _>>()?;
-    for (id, profile) in old_ids {
-        if !kept.contains(&id) {
-            let table = old_tables.get(&profile).ok_or_else(|| {
-                IndexError::Invalid("semantic profile has no vector table".into())
-            })?;
-            c.execute(&format!("DELETE FROM {table} WHERE unit_id=?"), [id])?;
-            c.execute("DELETE FROM semantic_units WHERE unit_id=?", [id])?;
-        }
-    }
-    for (row, table, vector) in pending {
-        let unit_id = row.values[0].clone();
-        upsert(c, &row, "unit_id")?;
-        if let Some((vector, update)) = vector {
-            execute(
-                c,
-                &if update {
-                    format!("UPDATE {table} SET embedding=?2 WHERE unit_id=?1")
-                } else {
-                    format!("INSERT INTO {table}(unit_id,embedding) VALUES(?1,?2)")
-                },
-                &[
-                    unit_id,
-                    Value::Blob(crate::read_units::vector_bytes(vector)),
-                ],
-            )?;
-        }
-    }
-    for profile in old_profiles.keys() {
-        if !current_profiles.contains_key(profile) {
-            c.execute("DELETE FROM search_profiles WHERE profile_id=?", [profile])?;
-        }
-    }
-    for table in old_tables.values() {
-        if !current_tables.contains(table) {
-            c.execute_batch(&format!("DROP TABLE {table}"))?;
-        }
-    }
-    for model in &input.context.search_profiles {
-        crate::vector_allocation::compact(c, model)?;
+        row.insert(c)?;
+        c.execute(
+            &format!("INSERT INTO {table}(unit_id,embedding) VALUES(?,?)"),
+            params![next, crate::read_units::vector_bytes(&unit.vector)],
+        )?;
     }
     Ok(())
 }
 
-pub(crate) fn lexical_units(
+fn lexical_units(
     c: &Connection,
     units: &[crate::SourceLexicalUnitInput],
     ids: &BTreeMap<RecordKey, i64>,
 ) -> Result<(), IndexError> {
-    let mut lexical = BTreeSet::new();
+    let mut hashes = BTreeSet::new();
     for unit in units {
-        let id = crate::writer::product_id(ids, &unit.record)?;
         let hash = sha256(&serde_json::to_vec(unit)?);
-        let existing: Option<i64> = c
-            .query_row(
-                "SELECT unit_id FROM lexical_units WHERE input_hash=?",
-                [&hash],
-                |r| r.get(0),
-            )
-            .optional()?;
-        if let Some(unit_id) = existing {
-            if !lexical.insert(unit_id) {
-                return Err(IndexError::Invalid("duplicate lexical unit".into()));
-            }
-            continue;
+        if !hashes.insert(hash.clone()) {
+            return Err(IndexError::Invalid("duplicate lexical unit".into()));
         }
         let mut row = ProjectionRow::new("lexical_units");
         row.text("input_hash", hash);
-        row.id("record_id", id);
+        row.id("record_id", crate::writer::product_id(ids, &unit.record)?);
         row.text("owners_json", serde_json::to_string(&unit.owners)?);
         row.push("field_path", nullable(unit.field.clone()));
         row.push(
@@ -254,9 +320,6 @@ pub(crate) fn lexical_units(
         row.text("structured_terms", &unit.structured_terms);
         row.text("definition_terms", &unit.definition_terms);
         row.insert(c)?;
-        lexical.insert(c.last_insert_rowid());
     }
-    remove_unkept(c, "lexical_units", "unit_id", &lexical)?;
-
     Ok(())
 }
