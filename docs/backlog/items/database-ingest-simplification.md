@@ -54,8 +54,8 @@ release evidence is collected separately.
 The local execution plan retains the ordered blocks, evidence matrix and candidate
 lineage. Independent review covers the local candidate; hosted CI covers the
 published candidate.
-This item stays in progress during architecture research and revision; merge and
-release remain separately authorized. Earlier validation applies to its recorded
+This item stays in progress through revised implementation validation and delivery;
+merge and release remain separately authorized. Earlier validation applies to its recorded
 candidate and must not be presented as validation of the revised design.
 
 ## Architecture revision
@@ -94,33 +94,41 @@ occurrence cap for lifetime simplification. One active value with atomic forced
 replacement requires no permanent version history; see
 [ADR0065](../../architecture/decisions/0065-input-owned-reference-publication.md).
 
-The first revised ownership/capture/migration block is implemented and passed its
-owning index, ingest and runtime suites, plus independent source/evidence review.
-This is a local integration checkpoint, not final performance or release evidence.
-The migration suffix directly transforms main schema24 into the final design;
-released migrations/callback behavior remain immutable, and no intermediate target
-schema is added and later reversed.
+The revised implementation is complete locally. Preparation uses one indexed raw
+admission stream, bounded combined slices and a narrow alias-journal pass. Full
+model keys bind registry IDs only within admitted sessions. Native validation
+streams input-ordered lookups, avoiding a sort carrying vector BLOBs; sparse
+maintenance uses public vec0 operations. Replaced target-history, reused-vector
+freezing and final source-rescan paths have been removed.
 
-Preparation now uses one indexed raw admission stream and bounded combined slices,
-with a narrow journal pass for aliases. Current input-owned indexes have sparse
-maintenance, and full model keys bind registry IDs only within each admitted
-session. The revised owning suites pass locally; full release evidence is pending.
+The controlled main24 upgrade preserved saved state, native bytes, consumers and
+the released migration prefix. Eight focused historical-admission tests, including four 19→20-only
+tests, also preserve the main-era migration20 admission contract. The current full Rust gate passes, as do
+unchanged-input frontend, developer, source-generation and release checks, five
+explicit real-model fixtures and affected browser/interaction review.
 
-The controlled main24 upgrade and first/steady ownership checkpoint passed
-preservation checks. The steady cached rebuild took 424.62 seconds and 0.89 GiB
-peak RSS, compared with 319.59 seconds and 4.53 GiB for the fresh main control.
-These checkpoint results do not establish the final preparation/validation cost.
+The measured original-source cached rebuild took 292.92 seconds and 0.83 GiB
+peak RSS, with zero inference and 323,022 reused inputs; exact metadata and
+independent native comparison passed. The later revised executable's cached
+retry after the Heal edit and checked recovery completed in 355.95 seconds and
+0.86 GiB, again with zero inference and the same reuse count. Both observations
+are below the earlier PR's 518.44 seconds; the later retry is above the fresh
+main control's 319.59 seconds and historical main's 241.94 seconds. These are
+single-host observations with different recorded build/source states and
+uncontrolled caches. They establish no consistent speedup over main. Ownership,
+API/cache/capture, preparation and validation changes are combined at their
+recorded checkpoints, so individual causal savings are not established.
 
-Next: measure the final preparation and validation changes, complete explicit
-asset-dependent fixtures, affected browsers, controlled source-change/recovery
-operations and product-query evidence. Retain one PR184 and verify hosted CI on
-the actual published candidate. The full local Rust/frontend/developer gates pass
-for the current implementation; later source changes require applicable checks.
+The exact changed-record, real interruption/checked recovery, cached retry and
+44 product reads passed. The product reads preserved database bytes, saved state
+and shared model assets. See the [revision findings](../../research/database-ingest-revision.md)
+for the implemented architecture, measured observations, proof dependencies and
+limits. The local plan retains exact artifact identities and validation lineage.
 
-The local plan owns implementation ordering and validation obligations. Cache
-thresholds and slice sizes can follow measured resource use. Asset-dependent tests,
-full-workspace/platform gates, controlled performance evidence and final-head CI
-remain pending.
+Continue review in PR184; its published head and hosted checks identify the
+candidate under review. Local checks, hosted CI and human acceptance of the
+performance tradeoff are separate outcomes. Merge and release require explicit
+authorization.
 
 ## Related owners
 

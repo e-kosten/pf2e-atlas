@@ -17,9 +17,11 @@ including source snapshots and cleanup boundaries.
 For the database and ingest changes, see [database and ingest findings](database-ingest-simplification.md).
 It records preserved data, release measurements, recovery/query observations and
 the measured lower cached-build RSS versus longer elapsed time.
-For the subsequent architecture revision, see [embedding ownership and occurrence
-retrieval](embedding-value-ownership.md): corpus sharing, the 192-case SQL
-comparison, lifetime alternatives and remaining migration/product evidence.
+For the subsequent architecture revision, see [stable values and bounded
+preparation](database-ingest-revision.md): the implemented ownership/cache design,
+main-relative migrations, release observations and preservation evidence. The
+[embedding ownership study](embedding-value-ownership.md) records corpus sharing,
+the 192-case SQL comparison and the alternatives behind that decision.
 
 Research notes should capture:
 
