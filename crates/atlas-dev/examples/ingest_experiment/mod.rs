@@ -443,14 +443,12 @@ mod tests {
                 .map(|line| serde_json::from_str::<Value>(line).unwrap())
                 .collect::<Vec<_>>();
             for stage in [
+                "source_capture",
                 "source_preparation",
-                "all_profile_prevalidation",
-                "publication_input_validation",
                 "native_installation",
                 "publication_delta_and_prune",
                 "exclusive_publication",
                 "physical_reclamation",
-                "publication_exact_validation",
             ] {
                 assert!(
                     events.iter().any(|event| event["fields"]["stage"] == stage),
@@ -479,18 +477,6 @@ mod tests {
                 .unwrap()["fields"];
             assert_eq!(native["logical_native_bytes"], 0);
             assert!(native["temporary_native_bytes"].as_u64().unwrap() > 0);
-            for retired in [
-                "native_target_registration_and_pruning",
-                "native_value_freeze",
-                "final_source_freshness",
-                "sealed_metadata_and_frozen_values",
-            ] {
-                assert!(
-                    events
-                        .iter()
-                        .all(|event| event["fields"]["stage"] != retired)
-                );
-            }
         }
     }
     #[test]

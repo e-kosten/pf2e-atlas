@@ -228,6 +228,9 @@ jobs:
       - name: Verify artifact coherence and publication
         if: needs.changes.outputs.rust == 'true'
         run: cargo test -p atlas-index --lib --locked foundation_tests
+      - name: Verify atomic publication and vector repacking after process crashes
+        if: needs.changes.outputs.rust == 'true'
+        run: cargo test -p atlas-index --lib --locked publication_crash_tests
 
       - uses: actions/setup-node@v6
         if: needs.changes.outputs.tooling == 'true'
