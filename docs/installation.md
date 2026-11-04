@@ -24,9 +24,13 @@ curl --proto '=https' --tlsv1.2 -LsSf \
 On Windows:
 
 ```powershell
-Invoke-WebRequest https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.ps1 -OutFile atlas-installer.ps1
-./atlas-installer.ps1 -WithoutWeb
+$installer = Join-Path $env:TEMP 'atlas-installer.ps1'
+Invoke-WebRequest https://github.com/e-kosten/pf2e-atlas/releases/latest/download/atlas-installer.ps1 -OutFile $installer
+& $installer -WithoutWeb
 ```
+
+Saving the script under `$env:TEMP` works even when PowerShell starts in a
+protected directory such as `C:\Windows\System32`.
 
 Continue with `atlas setup` and, for your agent, `atlas agent skills install`.
 CLI-only Atlas supports the existing CLI commands and semantic search. Its help
@@ -99,8 +103,9 @@ curl --proto '=https' --tlsv1.2 -LsSf \
 On Windows, download the installer and select the nightly version:
 
 ```powershell
-Invoke-WebRequest https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/atlas-installer.ps1 -OutFile atlas-installer.ps1
-./atlas-installer.ps1 -Version nightly
+$installer = Join-Path $env:TEMP 'atlas-installer.ps1'
+Invoke-WebRequest https://github.com/e-kosten/pf2e-atlas/releases/download/nightly/atlas-installer.ps1 -OutFile $installer
+& $installer -Version nightly
 ```
 
 The installer prints the dated nightly version it installs. Run `atlas --version`

@@ -355,6 +355,7 @@ fi
 rm -f "$backup"
 
 printf 'Installed atlas to %s\n' "$install_path"
+printf "After a fresh install or Atlas upgrade, run 'atlas setup' to prepare or update reference data and search models.\n"
 if [ "$path_status" != "on-path" ]; then
   printf '\n%s is not on PATH. Add this to your shell profile:\n' "$INSTALL_DIR"
   printf '  export PATH="%s:$PATH"\n' "$INSTALL_DIR"

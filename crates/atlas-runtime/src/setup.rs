@@ -72,6 +72,9 @@ pub(crate) fn ensure_setup(
     paths: &ResolvedAtlasPaths,
     mut options: RuntimeSetupOptions,
 ) -> RuntimeSetupReport {
+    // Emit progress before configuration and workspace checks, which can take
+    // noticeable time on a fresh install or a large existing workspace.
+    progress("check_setup", "Checking setup");
     let configuration =
         match crate::source_configuration::resolve_configuration(paths, &options, None) {
             Ok(configuration) => configuration,
@@ -108,7 +111,6 @@ pub(crate) fn ensure_setup(
             reason,
         ));
     }
-    progress("check_setup", "Checking setup");
     let profile_assets = crate::profile_assets::ProfileAssets::default();
     let mut model_ready = prepare_embeddings
         && profile_error.is_none()
