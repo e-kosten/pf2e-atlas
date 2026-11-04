@@ -165,6 +165,10 @@ EOF_CURL
     echo "installer did not print PATH guidance" >&2
     exit 1
   }
+  printf '%s\n' "$first_output" | grep -Fq "After a fresh install or Atlas upgrade, run 'atlas setup'" || {
+    echo "installer did not print setup guidance" >&2
+    exit 1
+  }
   installed_version=$("$install_dir/atlas" --version)
   [ "$installed_version" = "atlas 9.9.9" ] || {
     echo "unexpected installed version: $installed_version" >&2

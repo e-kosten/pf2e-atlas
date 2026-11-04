@@ -164,6 +164,9 @@ if ($env:ATLAS_TEST_VARIANT -eq "full") { $variantArgs.WithWeb = $true }
   if (($secondOutput -join "`n") -notmatch [regex]::Escape("not on PATH")) {
     throw "PowerShell installer did not print PATH guidance"
   }
+  if (($secondOutput -join "`n") -notmatch [regex]::Escape("After a fresh install or Atlas upgrade, run 'atlas setup'")) {
+    throw "PowerShell installer did not print setup guidance"
+  }
 
   foreach ($choice in @("cli-only", "preserve-cli", "full", "preserve-full")) {
     $env:ATLAS_TEST_VARIANT = if ($choice.StartsWith("preserve")) { "" } else { $choice }
