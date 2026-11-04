@@ -1,7 +1,7 @@
 //! Opt-in fixture-feature census/projection pilot over an explicitly supplied copy.
 use crate::{
     IndexError,
-    core_projection::{CORE_SECTIONS_SCHEMA_SQL, membership, write_membership},
+    core_projection::{membership, write_membership},
 };
 use atlas_record::source_record::select_record_search;
 use rusqlite::Connection;
@@ -83,7 +83,12 @@ pub(crate) fn run(path: &Path) -> Result<Value, IndexError> {
         ));
         let before_wal = file_bytes(&wal);
         let before_temp = temporary_bytes();
-        c.execute_batch(CORE_SECTIONS_SCHEMA_SQL)?;
+        if context.selected_sections_recipe != crate::SELECTED_SECTIONS_RECIPE {
+            return Err(IndexError::Unsupported(
+                "pilot requires the current canonical section projection".into(),
+            ));
+        }
+        c.execute_batch("DELETE FROM core_parts; DELETE FROM core_lexical_units; DELETE FROM core_semantic_locations; DELETE FROM core_roots;")?;
         let mut families = BTreeMap::<String, FamilyCensus>::new();
         for family in [
             "npc",
@@ -122,8 +127,9 @@ pub(crate) fn run(path: &Path) -> Result<Value, IndexError> {
                     .parse()
                     .map_err(|error| IndexError::Invalid(format!("invalid pilot key:{error}")))?;
                 let clock = Instant::now();
-                let source = crate::persisted_inputs::read_persisted_input(&c, &context, &key)?
-                    .ok_or_else(|| IndexError::Invalid("pilot lost a checked record".into()))?;
+                let source =
+                    crate::persisted_inputs::read_attested_persisted_input(&c, &context, &key)?
+                        .ok_or_else(|| IndexError::Invalid("pilot lost a checked record".into()))?;
                 read_ms += clock.elapsed().as_secs_f64() * 1000.;
                 let clock = Instant::now();
                 let selection = select_record_search(
@@ -248,7 +254,7 @@ pub(crate) fn run(path: &Path) -> Result<Value, IndexError> {
         for profile in &context.search_profiles {
             let identities:u64=c.query_row("SELECT count(*) FROM semantic_units su JOIN records r USING(record_id) WHERE su.profile_id=? AND su.unit_kind='identity' AND r.document_kind<>'Macro'",[profile.profile_id.as_str()],|row|row.get(0))?;
             let core_units:u64=c.query_row("SELECT count(*) FROM semantic_units su JOIN core_semantic_locations cl USING(location_id) WHERE su.profile_id=?",[profile.profile_id.as_str()],|row|row.get(0))?;
-            let missing_core_parts:u64=c.query_row(&format!("SELECT count(*) FROM core_parts cp JOIN similarity_parts sp USING(selector) WHERE NOT EXISTS(SELECT 1 FROM semantic_units su JOIN semantic_locations sl USING(location_id) WHERE {} AND su.profile_id=?)",crate::read_similarity::PART_JOIN),[profile.profile_id.as_str()],|row|row.get(0))?;
+            let missing_core_parts:u64=c.query_row("SELECT count(*) FROM core_parts cp JOIN selected_sections sp USING(section_id) WHERE NOT EXISTS(SELECT 1 FROM semantic_units su JOIN semantic_locations sl USING(location_id) WHERE sl.section_id=sp.section_id AND su.profile_id=?)",[profile.profile_id.as_str()],|row|row.get(0))?;
             let traits: u64 = c.query_row(
                 "SELECT count(*) FROM trait_vectors WHERE profile_id=?",
                 [profile.profile_id.as_str()],

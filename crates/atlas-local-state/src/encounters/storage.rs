@@ -392,6 +392,10 @@ pub(crate) fn remove_participant(
     else {
         return Ok(false);
     };
+    connection.execute(
+        "UPDATE encounters SET current_turn_participant_key=NULL WHERE id=?1 AND current_turn_participant_key=?2",
+        params![encounter_id, participant_key],
+    )?;
     let removed = connection.execute(
         "DELETE FROM encounter_participants WHERE participant_key = ?1",
         params![participant_key],
@@ -399,12 +403,6 @@ pub(crate) fn remove_participant(
     if removed > 0 {
         compact_positions(connection, encounter_id)?;
         compact_initiative_order(connection, encounter_id, initiative)?;
-        connection.execute(
-            "UPDATE encounters
-             SET current_turn_participant_key = NULL
-             WHERE id = ?1 AND current_turn_participant_key = ?2",
-            params![encounter_id, participant_key],
-        )?;
         touch_encounter(connection, encounter_id)?;
     }
     Ok(removed > 0)
@@ -624,20 +622,31 @@ fn participants(
     )?;
     let rows = statement.query_map(params![encounter_key], participant_from_row)?;
     let mut participants = rows.collect::<Result<Vec<_>, _>>()?;
+    if participants.is_empty() {
+        return Ok(participants);
+    }
+    let mut abilities = super::ability_state::read_for_encounter(connection, encounter_key)?;
+    let mut conditions = conditions_for_encounter(connection, encounter_key)?;
+    let mut precedence =
+        super::persistent_precedence::read_for_encounter(connection, encounter_key)?;
+    let mut expended =
+        super::spell_resources::read_expended_for_encounter(connection, encounter_key)?;
+    let mut resources = super::spell_resources::read_for_encounter(connection, encounter_key)?;
+    let mut trackers = super::manual_trackers::read_for_encounter(connection, encounter_key)?;
     for participant in &mut participants {
-        participant.manual_trackers =
-            super::manual_trackers::read(connection, &participant.participant_key)?;
-        participant.ability_states =
-            super::ability_state::read(connection, &participant.participant_key)?;
-        participant.conditions = participant_conditions(connection, &participant.participant_key)?;
-        participant.persistent_precedence =
-            super::persistent_precedence::read(connection, &participant.participant_key)?;
-        participant.expended_spells =
-            super::spell_resources::read_expended(connection, &participant.participant_key)?;
-        participant.spell_resources =
-            super::spell_resources::read(connection, &participant.participant_key)?;
+        let key = &participant.participant_key;
+        participant.manual_trackers = trackers.remove(key).unwrap_or_default();
+        participant.ability_states = abilities.remove(key).unwrap_or_default();
+        participant.conditions = conditions.remove(key).unwrap_or_default();
+        participant.persistent_precedence = precedence.remove(key).unwrap_or_default();
+        participant.expended_spells = expended.remove(key).unwrap_or_default();
+        participant.spell_resources = resources.remove(key).unwrap_or_default();
     }
     Ok(participants)
+}
+
+fn stored_enum_error(index: usize, error: LocalStateError) -> rusqlite::Error {
+    rusqlite::Error::FromSqlConversionFailure(index, rusqlite::types::Type::Text, Box::new(error))
 }
 
 fn encounter_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Encounter> {
@@ -654,7 +663,7 @@ fn encounter_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Encounter> {
         name: row.get(2)?,
         description: row.get(3)?,
         note: row.get(4)?,
-        status: EncounterStatus::from_str(&status),
+        status: EncounterStatus::from_str(&status).map_err(|error| stored_enum_error(5, error))?,
         round_number: row.get(6)?,
         current_turn_participant_key: row.get(7)?,
         created_at: row.get(8)?,
@@ -680,6 +689,7 @@ fn participant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPa
         .transpose()?;
     Ok(EncounterParticipant {
         turn_resources,
+        manual_trackers: Vec::new(),
         persistent_precedence: Vec::new(),
         track_dying: row.get(23)?,
         level_override: row.get(25)?,
@@ -694,13 +704,15 @@ fn participant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPa
         revision: row.get(21)?,
         participant_key: row.get(0)?,
         record_key: row.get(1)?,
-        participant_kind: ParticipantKind::from_str(&participant_kind),
-        participant_variant: ParticipantVariant::from_str(&participant_variant),
+        participant_kind: ParticipantKind::from_str(&participant_kind)
+            .map_err(|error| stored_enum_error(2, error))?,
+        participant_variant: ParticipantVariant::from_str(&participant_variant)
+            .map_err(|error| stored_enum_error(3, error))?,
         position: row.get(4)?,
         display_name: row.get(5)?,
         record_title_snapshot: row.get(6)?,
         record_kind_snapshot: row.get(7)?,
-        side: ParticipantSide::from_str(&side),
+        side: ParticipantSide::from_str(&side).map_err(|error| stored_enum_error(8, error))?,
         initiative: row.get(9)?,
         initiative_order: row.get(10)?,
         max_hp: row.get(11)?,
@@ -712,9 +724,10 @@ fn participant_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<EncounterPa
         note: row.get(16)?,
         created_at: row.get(17)?,
         updated_at: row.get(18)?,
-        hp_origin: crate::ParticipantHpOrigin::from_str(&row.get::<_, String>(19)?),
-        variant_origin: crate::ParticipantVariantOrigin::from_str(&row.get::<_, String>(20)?),
-        manual_trackers: vec![],
+        hp_origin: crate::ParticipantHpOrigin::from_str(&row.get::<_, String>(19)?)
+            .map_err(|error| stored_enum_error(19, error))?,
+        variant_origin: crate::ParticipantVariantOrigin::from_str(&row.get::<_, String>(20)?)
+            .map_err(|error| stored_enum_error(20, error))?,
         ability_states: vec![],
         conditions: Vec::new(),
     })
@@ -766,6 +779,23 @@ fn participant_conditions(
     )?;
     let rows = statement.query_map(params![participant_key], condition_from_row)?;
     rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+}
+
+fn conditions_for_encounter(
+    connection: &Connection,
+    encounter: &str,
+) -> LocalStateResult<std::collections::BTreeMap<String, Vec<EncounterParticipantCondition>>> {
+    let mut statement = connection.prepare("SELECT c.id,c.condition_key,c.name,c.value,c.source_participant_key,c.duration_amount,c.duration_unit,c.duration_anchor_key,c.duration_event,c.note,c.scope_json,c.extra_action_json,c.immunity_override,c.created_at,c.updated_at,c.parameters_json,c.origin_json,c.duration_remaining_seconds,p.participant_key FROM encounter_participants p JOIN encounter_participant_conditions c ON c.participant_id=p.id WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) ORDER BY p.participant_key,c.created_at,c.id")?;
+    let rows = statement.query_map([encounter], |row| {
+        Ok((row.get::<_, String>(18)?, condition_from_row(row)?))
+    })?;
+    let mut grouped =
+        std::collections::BTreeMap::<String, Vec<EncounterParticipantCondition>>::new();
+    for row in rows {
+        let (key, condition) = row?;
+        grouped.entry(key).or_default().push(condition);
+    }
+    Ok(grouped)
 }
 
 fn decode_context<T: serde::de::DeserializeOwned>(

@@ -839,7 +839,10 @@ fn rebuilt_snapshot_rejects_navigation_to_a_reordered_unstable_child() {
                 )],
                 false,
             );
-            data.context.source_fingerprint = fingerprint.to_string().repeat(64);
+            atlas_search::test_support::set_input_source_fingerprint(
+                &mut data,
+                fingerprint.to_string().repeat(64),
+            )?;
             let hash = data.context.preparation_sha256()?;
             for record in &mut data.records {
                 record.preparation_context_hash = hash.clone();

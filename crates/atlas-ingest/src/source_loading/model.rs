@@ -20,7 +20,6 @@ pub struct LoadedFoundryDocument {
     /// Exact file contents, including whitespace, duplicate names and numbers.
     pub bytes: Vec<u8>,
     pub admission: SourceAdmission<FoundryDocumentSource>,
-    pub(crate) reused_preparation: Option<ReusedPreparation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -61,11 +60,4 @@ pub struct LoadedFoundrySource {
     pub metadata: SourceMetadata,
     /// Manifest order; document outcomes within each pack use sorted paths.
     pub packs: Vec<LoadedFoundryPack>,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) struct ReusedPreparation {
-    pub context_hash: String,
-    pub content: Vec<atlas_record::source_record::SourceContentOutcome>,
-    pub relationships: Vec<atlas_record::source_record::SourceRelationshipOccurrence>,
 }

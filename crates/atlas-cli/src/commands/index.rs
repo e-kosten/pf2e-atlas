@@ -64,7 +64,7 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
     tracing::info!(target:"atlas_progress",complete=true,"Index build finished");
     if options.json {
         write_json_data(
-            serde_json::json!({"output_path":report.output_path,"record_count":report.record_count,"product_record_count":report.product_record_count,"pack_count":report.pack_count,"semantic_unit_count":report.semantic_unit_count,"search_profiles":report.profiles,"inferred_inputs":report.inferred_inputs,"reused_inputs":report.reused_inputs,"context_shortened_sections":report.context_shortened_sections,"source_fingerprint":report.source_fingerprint,"build_duration_ms":report.build_duration_ms}),
+            serde_json::json!({"admission":report.admission,"output_path":report.output_path,"record_count":report.record_count,"product_record_count":report.product_record_count,"pack_count":report.pack_count,"semantic_unit_count":report.semantic_unit_count,"search_profiles":report.profiles,"inferred_inputs":report.inferred_inputs,"reused_inputs":report.reused_inputs,"context_shortened_sections":report.context_shortened_sections,"source_fingerprint":report.source_fingerprint,"build_duration_ms":report.build_duration_ms}),
         )?;
     } else {
         println!(
@@ -93,6 +93,14 @@ pub(crate) fn run_index_build(options: BuildIndexOptions) -> Result<ExitCode, St
                 profile.reused_inputs
             );
         }
+        println!(
+            "source files: {} discovered, {} admitted, {} partial, {} quarantined, {} excluded",
+            report.admission.discovered_files,
+            report.admission.admitted_records,
+            report.admission.partial_records,
+            report.admission.quarantined_files,
+            report.admission.excluded_documents
+        );
         println!("source fingerprint: {}", report.source_fingerprint);
         println!(
             "duration: {}",

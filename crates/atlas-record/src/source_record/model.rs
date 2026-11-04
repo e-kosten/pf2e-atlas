@@ -60,6 +60,9 @@ impl SourceBackedRecord {
     pub fn source(&self) -> &FoundryDocumentSource {
         &self.source
     }
+    pub fn into_source(self) -> FoundryDocumentSource {
+        self.source
+    }
 
     /// Resolve a checked chain in this snapshot. Snapshot-local selectors must
     /// only be used with the artifact that supplied them, never to reconcile

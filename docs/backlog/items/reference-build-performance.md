@@ -5,6 +5,9 @@ Priority: later
 Owner: unassigned
 Last reviewed: 2026-10-30
 
+The [database ingest benchmark](../../research/database-ingest-revision.md)
+records the later release comparisons and their limits.
+
 ## Remaining work
 
 No additional optimization is assigned. The

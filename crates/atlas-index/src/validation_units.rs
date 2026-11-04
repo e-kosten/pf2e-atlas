@@ -1,10 +1,7 @@
 //! Reconstruct selected search fields and verify evidence kinds and whole section coverage.
 use crate::{IndexError, SourceArtifactBuildContext};
 use atlas_domain::{SourceByteRange, SourcePassageAddress};
-use atlas_record::source_record::{
-    SOURCE_CONTENT_SELECTION_VERSION, SourceBackedRecord, SourceContentOutcome,
-    select_record_search,
-};
+use atlas_record::source_record::{SourceBackedRecord, SourceContentOutcome, select_record_search};
 use rusqlite::Connection;
 use std::collections::BTreeMap;
 fn invalid(s: &str) -> IndexError {
@@ -29,7 +26,7 @@ pub(crate) fn validate_selection(
         &context.used_trait_labels,
     )
     .map_err(|e| IndexError::Invalid(e.to_string()))?;
-    crate::similarity_projection::validate_record_parts(c, id, record, context, &selection)?;
+    crate::selected_sections::validate_record(c, id, record, context, &selection)?;
     if atlas_record::source_record::SourceNodeView::from(record.source()).document_kind() != "Macro"
     {
         crate::core_projection::validate_record_core(c, id, record, &selection)?;
@@ -46,28 +43,7 @@ pub(crate) fn validate_selection(
     let mut sections = BTreeMap::<SectionKey, (SourcePassageAddress, &str)>::new();
     for field in &selection.fields {
         for section in &field.sections {
-            let range = SourceByteRange {
-                start: 0,
-                end: section.text.len(),
-            };
-            let address = if let Some(html_hash) = &field.prepared_html_sha256 {
-                SourcePassageAddress::HtmlSection {
-                    prepared_html_sha256: html_hash.clone(),
-                    canonical_text_sha256: crate::codec::sha256(section.text.as_bytes()),
-                    selection_version: SOURCE_CONTENT_SELECTION_VERSION.into(),
-                    section_ordinal: section.section_ordinal,
-                    label: section.label.clone(),
-                    chunk_bytes: range,
-                }
-            } else {
-                SourcePassageAddress::PlainSection {
-                    source_text_sha256: crate::codec::sha256(section.text.as_bytes()),
-                    selection_version: SOURCE_CONTENT_SELECTION_VERSION.into(),
-                    section_ordinal: section.section_ordinal,
-                    label: section.label.clone(),
-                    chunk_bytes: range,
-                }
-            };
+            let address = field.section_address(section);
             let owners = serde_json::to_string(&field.locator.owners)?;
             sections.insert(
                 (owners, field.locator.field.clone(), section.section_ordinal),
@@ -75,22 +51,20 @@ pub(crate) fn validate_selection(
             );
         }
     }
-    let mut s=c.prepare("SELECT owners_json,field_path,section_json,unit_kind,identity_terms,definition_terms,structured_terms,alias_terms FROM lexical_units WHERE record_id=?")?;
-    let mut rows = s.query([id])?;
+    let mut statement=c.prepare(&format!("SELECT {},lu.identity_terms,lu.definition_terms,lu.structured_terms,lu.alias_terms FROM lexical_units lu JOIN records r USING(record_id) LEFT JOIN selected_sections ss ON ss.section_id=lu.section_id AND ss.record_id=lu.record_id WHERE lu.record_id=?",crate::read_units::LEXICAL_LOCATION_COLUMNS))?;
+    let mut rows = statement.query([id])?;
     while let Some(row) = rows.next()? {
-        let address: Option<String> = row.get(2)?;
+        let location = crate::read_units::location(row)?;
         let unit = crate::SourceLexicalUnitInput {
-            record: record.key().clone(),
-            owners: serde_json::from_str(&row.get::<_, String>(0)?)?,
-            field: row.get(1)?,
-            address: address
-                .map(|value| serde_json::from_str(&value))
-                .transpose()?,
-            kind: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(3)?))?,
-            identity_terms: row.get(4)?,
-            definition_terms: row.get(5)?,
-            structured_terms: row.get(6)?,
-            alias_terms: row.get(7)?,
+            record: location.record,
+            owners: location.owners,
+            field: location.field,
+            address: location.address,
+            kind: serde_json::from_value(serde_json::Value::String(row.get(13)?))?,
+            identity_terms: row.get("identity_terms")?,
+            definition_terms: row.get("definition_terms")?,
+            structured_terms: row.get("structured_terms")?,
+            alias_terms: row.get("alias_terms")?,
         };
         if !lexical.remove(&serde_json::to_string(&unit)?) {
             return Err(invalid(
@@ -102,32 +76,27 @@ pub(crate) fn validate_selection(
         return Err(invalid("lexical evidence coverage is incomplete"));
     }
     for profile in &context.search_profiles {
-        let mut identity=c.prepare("SELECT owners_json,field_path,section_json,chunk_ordinal FROM semantic_units u JOIN semantic_locations l USING(location_id) WHERE u.record_id=? AND profile_id=? AND unit_kind='identity'")?;
-        for row in identity.query_map(rusqlite::params![id, profile.profile_id.as_str()], |r| {
-            Ok((
-                r.get::<_, String>(0)?,
-                r.get::<_, Option<String>>(1)?,
-                r.get::<_, String>(2)?,
-                r.get::<_, usize>(3)?,
-            ))
-        })? {
-            let (owners, field, address, ordinal) = row?;
+        let mut identity=c.prepare(&format!("SELECT {} FROM semantic_units su JOIN semantic_locations sl USING(location_id) JOIN records r ON r.record_id=su.record_id LEFT JOIN selected_sections ss ON ss.section_id=sl.section_id AND ss.record_id=su.record_id WHERE su.record_id=? AND su.profile_id=? AND su.unit_kind='identity'",crate::read_units::SEMANTIC_LOCATION_COLUMNS))?;
+        let mut rows = identity.query(rusqlite::params![id, profile.profile_id.as_str()])?;
+        while let Some(row) = rows.next()? {
+            let location = crate::read_units::location(row)?;
             if selection.identity_required.is_empty()
-                || owners != "[]"
-                || field.is_some()
-                || ordinal != 0
-                || serde_json::from_str::<SourcePassageAddress>(&address)?
-                    != (SourcePassageAddress::Identity {})
+                || !location.owners.is_empty()
+                || location.field.is_some()
+                || row.get::<_, usize>("location_chunk_ordinal")? != 0
+                || location.address != Some(SourcePassageAddress::Identity {})
             {
                 return Err(invalid("invalid semantic identity attribution"));
             }
         }
         let mut covered = BTreeMap::<SectionKey, Vec<(usize, SourceByteRange)>>::new();
-        let mut s=c.prepare("SELECT owners_json,field_path,section_json,chunk_ordinal FROM semantic_units u JOIN semantic_locations l USING(location_id) WHERE u.record_id=? AND profile_id=? AND unit_kind='passage'")?;
-        let mut rows = s.query(rusqlite::params![id, profile.profile_id.as_str()])?;
+        let mut statement=c.prepare(&format!("SELECT {} FROM semantic_units su JOIN semantic_locations sl USING(location_id) JOIN records r ON r.record_id=su.record_id LEFT JOIN selected_sections ss ON ss.section_id=sl.section_id AND ss.record_id=su.record_id WHERE su.record_id=? AND su.profile_id=? AND su.unit_kind='passage'",crate::read_units::SEMANTIC_LOCATION_COLUMNS))?;
+        let mut rows = statement.query(rusqlite::params![id, profile.profile_id.as_str()])?;
         while let Some(row) = rows.next()? {
-            let mut address: SourcePassageAddress =
-                serde_json::from_str(&row.get::<_, String>(2)?)?;
+            let location = crate::read_units::location(row)?;
+            let mut address = location
+                .address
+                .ok_or_else(|| invalid("semantic passage address unavailable"))?;
             let (ordinal, range) = match &address {
                 SourcePassageAddress::HtmlSection {
                     section_ordinal,
@@ -143,7 +112,13 @@ pub(crate) fn validate_selection(
                     return Err(invalid("identity stored as passage"));
                 }
             };
-            let key = (row.get::<_, String>(0)?, row.get::<_, String>(1)?, ordinal);
+            let key = (
+                serde_json::to_string(&location.owners)?,
+                location
+                    .field
+                    .ok_or_else(|| invalid("semantic field unavailable"))?,
+                ordinal,
+            );
             let (expected, text) = sections
                 .get(&key)
                 .ok_or_else(|| invalid("unselected semantic section"))?;
@@ -165,7 +140,10 @@ pub(crate) fn validate_selection(
             range
                 .extract(text)
                 .map_err(|e| IndexError::Invalid(e.to_string()))?;
-            covered.entry(key).or_default().push((row.get(3)?, range));
+            covered
+                .entry(key)
+                .or_default()
+                .push((row.get("location_chunk_ordinal")?, range));
         }
         for (key, (_, text)) in sections.clone() {
             let mut chunks = covered

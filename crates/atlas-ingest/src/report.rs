@@ -25,7 +25,6 @@ pub fn analyze_foundry_source(
     let source = enrich_loaded_source(
         load_foundry_documents(root, manifest)?,
         SourceEnrichmentContext {
-            preparation_context_hash: None,
             audience: default_audience(),
             localization: Some(&catalog),
         },

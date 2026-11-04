@@ -30,8 +30,6 @@ pub(crate) fn resolve_configuration(
     } else {
         let workspace =
             crate::initialize_workspace(&paths.index_path).map_err(|e| e.to_string())?;
-        atlas_index::ensure_reference_projections(&workspace, WORKSPACE_SCHEMA_VERSION)
-            .map_err(|e| e.to_string())?;
         Some(workspace)
     };
     let owner = if !options.check {

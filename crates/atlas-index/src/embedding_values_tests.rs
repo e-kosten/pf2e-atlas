@@ -1,18 +1,59 @@
 use crate::{test_support::*, *};
-use atlas_embedding::PreparedEmbeddingInput;
+use atlas_embedding::PreparedNativeInput;
 
-fn prepared(unit: &SourceSemanticUnitInput) -> PreparedEmbeddingInput {
-    PreparedEmbeddingInput {
-        address: unit.address.clone(),
+fn prepared(unit: &SourceSemanticUnitInput) -> PreparedNativeInput {
+    PreparedNativeInput {
         input: String::new(),
         input_sha256: unit.input_hash.clone(),
-        reuse_key: format!("{}:{}", unit.profile_id, unit.input_hash),
         token_count: unit.input_token_count,
-        body_token_count: unit.input_token_count,
-        overlap_token_count: 0,
-        context_shortened: false,
     }
 }
+fn reused_fixture_values(
+    session: &atlas_storage::ReadSession,
+    model: &SourceSearchProfileIdentity,
+    inputs: &[PreparedNativeInput],
+) -> Result<std::collections::BTreeMap<String, Vec<f32>>, IndexError> {
+    let keys = crate::native_values::NativeModelKey::all(std::slice::from_ref(model))?;
+    let binding = crate::native_values::NativeModel::bind(session.connection(), &keys[0], false)?;
+    let mut output = std::collections::BTreeMap::new();
+    for input in inputs {
+        let descriptor = crate::native_values::NativeInput::new(model, &input.descriptor())?;
+        let Some(selected) = binding.select(&descriptor, true)? else {
+            continue;
+        };
+        let vector = match selected.staged {
+            Some(bytes) => crate::read_units::decode_vector(&bytes)?,
+            None => binding.read(binding.selected_input(&descriptor, &selected.checksum)?)?,
+        };
+        output.insert(input.input_sha256.clone(), vector);
+    }
+    Ok(output)
+}
+fn stage_fixture_values(
+    session: &atlas_storage::WriteSession,
+    model: &SourceSearchProfileIdentity,
+    batch: &[(&PreparedNativeInput, &[f32])],
+) -> Result<(), IndexError> {
+    for (input, vector) in batch {
+        crate::validation::check_vector(vector, model.dimensions)?;
+        let id = crate::embedding_values::input_id(
+            session.connection(),
+            model,
+            &input.input_sha256,
+            input.token_count,
+        )?;
+        let bytes = crate::read_units::vector_bytes(vector);
+        session.connection().execute("INSERT INTO pending_embedding_values(input_id,vector,vector_hash,cached_at) VALUES(?,?,?,unixepoch()) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,cached_at=excluded.cached_at",rusqlite::params![id,bytes,crate::embedding_values::hash_bytes(&bytes)])?;
+    }
+    Ok(())
+}
+fn legacy_job(session: &atlas_storage::WriteSession, target: &str) -> String {
+    let revision = session.reference_revision().unwrap();
+    let job = crate::codec::sha256(format!("{revision}:{target}").as_bytes());
+    session.connection().execute("INSERT INTO reference_update_jobs(job_key,expected_revision,target_hash,state) VALUES(?,?,?,'preparing')",rusqlite::params![job,revision,target]).unwrap();
+    job
+}
+
 fn count(c: &rusqlite::Connection, table: &str) -> usize {
     c.query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get(0))
         .unwrap()
@@ -32,29 +73,32 @@ fn published_values_supply_exact_reuse_without_a_checkpoint_corpus() {
             .filter(|u| u.profile_id == model.profile_id)
             .collect::<Vec<_>>();
         let mut inputs = units.iter().map(|u| prepared(u)).collect::<Vec<_>>();
-        let reused = read_reusable_embeddings(&read, model, &inputs).unwrap();
+        let reused = reused_fixture_values(&read, model, &inputs).unwrap();
         for (unit, prepared) in units.iter().zip(&inputs) {
-            assert_eq!(reused[&prepared.reuse_key], unit.vector);
+            assert_eq!(reused[&prepared.input_sha256], unit.vector);
         }
         let mut missing = inputs[0].clone();
         missing.input_sha256 = crate::codec::sha256(b"changed input");
-        missing.reuse_key = "new".into();
         inputs.push(missing);
         assert!(
-            !read_reusable_embeddings(&read, model, &inputs)
+            !reused_fixture_values(&read, model, &inputs)
                 .unwrap()
-                .contains_key("new")
+                .contains_key(&crate::codec::sha256(b"changed input"))
         );
         let mut changed = model.clone();
         changed.input_recipe.push_str("/different");
         assert!(
-            read_reusable_embeddings(&read, &changed, &inputs)
+            reused_fixture_values(&read, &changed, &inputs)
                 .unwrap()
                 .is_empty()
         );
     }
     assert_eq!(count(read.connection(), "pending_embedding_values"), 0);
-    assert_eq!(count(read.connection(), "trait_native_values"), 0);
+    assert!(
+        read.connection()
+            .prepare("SELECT * FROM trait_native_values")
+            .is_err()
+    );
     assert_eq!(count(read.connection(), "embedding_models"), 2);
     assert_eq!(
         count(read.connection(), "semantic_locations") * 2,
@@ -69,22 +113,72 @@ fn forced_computation_survives_reopen_without_mutating_published_values() {
     publish_input(&path, &input).unwrap();
     let model = input.context.search_profiles[0].clone();
     let unit = input.semantic_units[0].clone();
-    let prepared = prepared(&unit);
+    let descriptor = prepared(&unit);
     let mut replacement = vec![0.; model.dimensions];
     replacement[17] = 1.;
-    let workspace = initialize_workspace(&path).unwrap();
-    let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    let target = input.context.sha256().unwrap();
-    let job = start_reference_job(&write, &target).unwrap();
-    stage_embedding_values(&write, &job, &model, &[(&prepared, &replacement)]).unwrap();
-    write.commit().unwrap();
-    drop(workspace);
+    {
+        let workspace = initialize_workspace(&path).unwrap();
+        let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        stage_fixture_values(&write, &model, &[(&descriptor, &replacement)]).unwrap();
+        write.commit().unwrap();
+    }
     let workspace = initialize_workspace(&path).unwrap();
     let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
     assert_eq!(
-        read_reusable_embeddings(&read, &model, std::slice::from_ref(&prepared)).unwrap()
-            [&prepared.reuse_key],
+        reused_fixture_values(&read, &model, std::slice::from_ref(&descriptor)).unwrap()
+            [&descriptor.input_sha256],
         replacement
+    );
+    assert_eq!(count(read.connection(), "pending_embedding_values"), 1);
+    let reader = SqliteIndexReader::from_session(read).unwrap();
+    assert_eq!(
+        reader
+            .seed_identity_vector(&unit.profile_id, &unit.record)
+            .unwrap()
+            .unwrap()
+            .vector,
+        unit.vector
+    );
+    drop(reader);
+    input.semantic_units[0].vector = replacement.clone();
+    let owner = workspace.update_owner().unwrap();
+    let scratch = BuildScratch::new(&owner).unwrap();
+    let mut publication = prepare_publication_in(
+        &owner,
+        TEST_WORKSPACE_SCHEMA_VERSION,
+        scratch.path(),
+        &input,
+        false,
+    )
+    .unwrap();
+    assert!(
+        publication
+            .stage_inferred(
+                &model,
+                &[(&descriptor.descriptor(), unit.vector.as_slice())]
+            )
+            .is_err(),
+        "selected forced bytes cannot change within an attempt"
+    );
+    {
+        let maintenance = owner
+            .maintenance(
+                TEST_WORKSPACE_SCHEMA_VERSION,
+                "advance generation for stale input fixture",
+            )
+            .unwrap();
+        maintenance.publish(|_| Ok::<_, IndexError>(())).unwrap();
+    }
+    assert!(
+        publication.publish().is_err(),
+        "a prepared publication cannot activate over a different generation"
+    );
+    assert!(!recover_reference_publication(&owner, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert!(
+        !reused_fixture_values(&read, &model, std::slice::from_ref(&descriptor))
+            .unwrap()
+            .is_empty()
     );
     let reader = SqliteIndexReader::from_session(read).unwrap();
     assert_eq!(
@@ -96,36 +190,23 @@ fn forced_computation_survives_reopen_without_mutating_published_values() {
         unit.vector
     );
     drop(reader);
-    let owner = workspace.update_owner().unwrap();
-    let maintenance = owner
-        .maintenance(TEST_WORKSPACE_SCHEMA_VERSION, "forced publication")
-        .unwrap();
-    input.semantic_units[0].vector = replacement.clone();
-    assert!(
-        SqliteIndexWriter::new(&maintenance)
-            .write_job(&input, "wrong-job", &target)
-            .is_err()
-    );
-    assert_eq!(
-        count(maintenance.connection(), "pending_embedding_values"),
-        1
-    );
-    let table = crate::schema::vector_table(&model).unwrap();
-    let bytes:Vec<u8>=maintenance.connection().query_row(&format!("SELECT embedding FROM {table} WHERE unit_id=(SELECT unit_id FROM semantic_units WHERE unit_kind='identity' AND record_id=(SELECT record_id FROM records WHERE key=?))"),[unit.record.to_string()],|r|r.get(0)).unwrap();
-    assert_eq!(
-        crate::read_units::decode_vector(&bytes).unwrap(),
-        unit.vector
-    );
-    SqliteIndexWriter::new(&maintenance)
-        .write_job(&input, &job, &target)
-        .unwrap();
-    drop(maintenance);
+    prepare_publication_in(
+        &owner,
+        TEST_WORKSPACE_SCHEMA_VERSION,
+        scratch.path(),
+        &input,
+        false,
+    )
+    .unwrap()
+    .publish()
+    .unwrap();
+    drop(scratch);
     drop(owner);
     let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
     assert_eq!(count(read.connection(), "pending_embedding_values"), 0);
     assert_eq!(
-        read_reusable_embeddings(&read, &model, std::slice::from_ref(&prepared)).unwrap()
-            [&prepared.reuse_key],
+        reused_fixture_values(&read, &model, std::slice::from_ref(&descriptor)).unwrap()
+            [&descriptor.input_sha256],
         replacement
     );
 }
@@ -142,7 +223,7 @@ fn reuse_rejects_corrupt_values_and_native_count_mismatches() {
     let mut wrong = prepared.clone();
     wrong.token_count += 1;
     assert!(
-        read_reusable_embeddings(
+        reused_fixture_values(
             &workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap(),
             model,
             &[wrong]
@@ -150,7 +231,7 @@ fn reuse_rejects_corrupt_values_and_native_count_mismatches() {
         .is_err()
     );
     let write = workspace.write(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    stage_embedding_values(&write, "job", model, &[(&prepared, &unit.vector)]).unwrap();
+    stage_fixture_values(&write, model, &[(&prepared, &unit.vector)]).unwrap();
     write
         .connection()
         .execute(
@@ -160,7 +241,7 @@ fn reuse_rejects_corrupt_values_and_native_count_mismatches() {
         .unwrap();
     write.commit().unwrap();
     assert!(
-        read_reusable_embeddings(
+        reused_fixture_values(
             &workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap(),
             model,
             &[prepared]
@@ -197,14 +278,14 @@ fn new_record_reuses_native_inputs_and_keeps_distinct_filtered_witnesses() {
     let model = &input.context.search_profiles[0];
     let workspace = initialize_workspace(&path).unwrap();
     let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    let reuse = read_reusable_embeddings(
+    let reuse = reused_fixture_values(
         &read,
         model,
         &new_units.iter().map(prepared).collect::<Vec<_>>(),
     )
     .unwrap();
     for unit in &new_units {
-        assert_eq!(reuse[&prepared(unit).reuse_key], unit.vector);
+        assert_eq!(reuse[&unit.input_hash], unit.vector);
     }
     drop(read);
     let lexical = input
@@ -251,7 +332,7 @@ fn new_record_reuses_native_inputs_and_keeps_distinct_filtered_witnesses() {
 }
 
 #[test]
-fn publication_updates_slots_in_place_and_retains_attribution_per_occurrence() {
+fn publication_updates_native_values_and_retains_attribution_per_occurrence() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("atlas.sqlite");
     let mut input = crate::foundation_tests::fixture(true);
@@ -289,7 +370,7 @@ fn publication_updates_slots_in_place_and_retains_attribution_per_occurrence() {
         .collect::<Result<Vec<_>, _>>()
         .unwrap();
     let model = &input.context.search_profiles[0];
-    let table = crate::schema::vector_table(model).unwrap();
+    let table = crate::schema::native_vector_table(model).unwrap();
     let blocks: usize = c
         .query_row(&format!("SELECT count(*) FROM {table}_chunks"), [], |r| {
             r.get(0)
@@ -370,7 +451,8 @@ fn migration_preserves_published_values_and_interrupted_forced_progress() {
     workspace
         .migrate(&TEST_MIGRATIONS[..4], |_| Ok(()))
         .unwrap();
-    let input = crate::foundation_tests::fixture(true);
+    let mut input = crate::foundation_tests::fixture(true);
+    input.context.query_projection_version = "authored-query/v4".into();
     let owner = workspace.update_owner().unwrap();
     let maintenance = owner.maintenance(4, "legacy fixture").unwrap();
     publish_historical_record_fixture(&maintenance, &input).unwrap();
@@ -387,13 +469,47 @@ fn migration_preserves_published_values_and_interrupted_forced_progress() {
             "CREATE TABLE saved_probe(value TEXT); INSERT INTO saved_probe VALUES('retain me');",
         )
         .unwrap();
+    // This fixture manually publishes the schema-8 trait component below. Its
+    // current policy also requires the authored memberships; schema creation
+    // alone cannot certify an empty derived membership table.
+    for source in &input.records {
+        for membership in atlas_record::source_record::trait_record_memberships(
+            &source.record,
+            input.context.audience,
+        ) {
+            write
+                .connection()
+                .execute(
+                    "INSERT INTO trait_memberships VALUES(?,?,?,?)",
+                    rusqlite::params![
+                        membership.trait_key.to_string(),
+                        source.record.key().to_string(),
+                        serde_json::to_string(&membership.owners).unwrap(),
+                        if membership.owners.is_empty() {
+                            None
+                        } else {
+                            membership.source_label
+                        }
+                    ],
+                )
+                .unwrap();
+        }
+    }
     let model = &input.context.search_profiles[0];
     let unit = &input.semantic_units[0];
     let prepared = prepared(unit);
     let mut replacement = vec![0.; model.dimensions];
     replacement[27] = 1.;
-    let job = start_reference_job(&write, "forced target").unwrap();
-    stage_historical_embedding_fixture(&write, &job, model, &prepared, &replacement).unwrap();
+    let job = legacy_job(&write, "forced target");
+    stage_historical_embedding_fixture(
+        &write,
+        &job,
+        &format!("{}:{}", unit.profile_id, unit.input_hash),
+        model,
+        &prepared,
+        &replacement,
+    )
+    .unwrap();
     let mut traits = crate::foundation_tests::fixture(true);
     add_label_only_trait(&mut traits);
     let definition = &traits.traits[0];
@@ -438,11 +554,33 @@ fn migration_preserves_published_values_and_interrupted_forced_progress() {
     );
     assert_eq!(count(read.connection(), "pending_embedding_values"), 1);
     assert_eq!(
-        read_reusable_embeddings(&read, model, std::slice::from_ref(&prepared)).unwrap()
-            [&prepared.reuse_key],
+        reused_fixture_values(&read, model, std::slice::from_ref(&prepared)).unwrap()
+            [&prepared.input_sha256],
         replacement
     );
-    assert_eq!(count(read.connection(), "trait_native_values"), 1);
+    let chunk = &seed.chunks[0];
+    assert!(
+        crate::native_values::lookup_input(
+            read.connection(),
+            model,
+            &atlas_embedding::NativeInputDescriptor {
+                input_sha256: chunk.input_hash.clone(),
+                token_count: chunk.token_count
+            }
+        )
+        .unwrap()
+        .is_some()
+    );
+    assert!(
+        read.connection()
+            .prepare("SELECT * FROM trait_native_values")
+            .is_err()
+    );
+    drop(read);
+    assert!(ensure_reference_projections(&upgraded, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());
+    let read = upgraded.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(read.reference_revision().unwrap(), 2);
+    assert_eq!(count(read.connection(), "pending_embedding_values"), 1);
     let reader = SqliteIndexReader::from_session(read).unwrap();
     assert_eq!(
         reader
@@ -486,8 +624,16 @@ fn migration_corruption_rolls_back_new_schema_and_preserves_retryable_progress()
     let write = workspace.write(4).unwrap();
     let model = &input.context.search_profiles[0];
     let unit = &input.semantic_units[0];
-    let job = start_reference_job(&write, "target").unwrap();
-    stage_historical_embedding_fixture(&write, &job, model, &prepared(unit), &unit.vector).unwrap();
+    let job = legacy_job(&write, "target");
+    stage_historical_embedding_fixture(
+        &write,
+        &job,
+        &format!("{}:{}", unit.profile_id, unit.input_hash),
+        model,
+        &prepared(unit),
+        &unit.vector,
+    )
+    .unwrap();
     write
         .connection()
         .execute("UPDATE embedding_checkpoints SET vector_hash='corrupt'", [])
@@ -514,7 +660,7 @@ fn migration_corruption_rolls_back_new_schema_and_preserves_retryable_progress()
     );
 }
 
-fn add_label_only_trait(input: &mut IndexBuildInput) {
+pub(super) fn add_label_only_trait(input: &mut IndexBuildInput) {
     let text = "agile\n";
     let hash = crate::codec::sha256(text.as_bytes());
     let vector = input.semantic_units[0].vector.clone();
@@ -555,51 +701,76 @@ fn add_label_only_trait(input: &mut IndexBuildInput) {
     });
 }
 #[test]
-fn trait_native_values_move_between_document_and_trait_only_storage() {
+fn shared_native_values_survive_last_document_and_last_trait_transitions() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("atlas.sqlite");
     let mut input = crate::foundation_tests::fixture(true);
     add_label_only_trait(&mut input);
+    let model = input.context.search_profiles[0].clone();
     let chunk = input.trait_vectors[0].chunks[0].clone();
+    let descriptor = atlas_embedding::NativeInputDescriptor {
+        input_sha256: chunk.input_hash.clone(),
+        token_count: chunk.token_count,
+    };
     let original = input.semantic_units[0].input_hash.clone();
     let tokens = input.semantic_units[0].input_token_count;
     input.semantic_units[0].input_hash = chunk.input_hash.clone();
     input.semantic_units[0].input_token_count = chunk.token_count;
     publish_input(&path, &input).unwrap();
     let workspace = initialize_workspace(&path).unwrap();
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    let id = crate::native_values::lookup_input(read.connection(), &model, &descriptor)
+        .unwrap()
+        .unwrap();
     assert_eq!(
-        count(
-            workspace
-                .read(TEST_WORKSPACE_SCHEMA_VERSION)
-                .unwrap()
-                .connection(),
-            "trait_native_values"
-        ),
-        0
+        crate::native_values::read(read.connection(), id, &model).unwrap(),
+        chunk.vector
     );
-    // The last document moves to a new input, but the retained trait still needs
-    // the old native value to verify its centroid and support future reuse.
-    input.semantic_units[0].input_hash = original;
+    assert!(
+        read.connection()
+            .prepare("SELECT * FROM trait_native_values")
+            .is_err()
+    );
+    drop(read);
+    input.semantic_units[0].input_hash = original.clone();
     input.semantic_units[0].input_token_count = tokens;
     publish_input(&path, &input).unwrap();
     let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-    assert_eq!(count(read.connection(), "trait_native_values"), 1);
+    assert_eq!(
+        crate::native_values::lookup_input(read.connection(), &model, &descriptor).unwrap(),
+        Some(id)
+    );
+    assert_eq!(
+        crate::native_values::read(read.connection(), id, &model).unwrap(),
+        chunk.vector
+    );
     drop(read);
     input.semantic_units[0].input_hash = chunk.input_hash;
     input.semantic_units[0].input_token_count = chunk.token_count;
     publish_input(&path, &input).unwrap();
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
     assert_eq!(
-        count(
-            workspace
-                .read(TEST_WORKSPACE_SCHEMA_VERSION)
-                .unwrap()
-                .connection(),
-            "trait_native_values"
-        ),
-        0
+        crate::native_values::lookup_input(read.connection(), &model, &descriptor).unwrap(),
+        Some(id)
     );
+    drop(read);
     input.traits.clear();
     input.trait_vectors.clear();
     publish_input(&path, &input).unwrap();
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(
+        crate::native_values::read(read.connection(), id, &model).unwrap(),
+        chunk.vector
+    );
+    drop(read);
+    input.semantic_units[0].input_hash = original;
+    input.semantic_units[0].input_token_count = tokens;
+    publish_input(&path, &input).unwrap();
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    assert_eq!(
+        crate::native_values::lookup_input(read.connection(), &model, &descriptor).unwrap(),
+        None
+    );
+    drop(read);
     validate_artifact(&path).unwrap();
 }

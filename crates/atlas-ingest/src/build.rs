@@ -1,17 +1,13 @@
 //! Build orchestration: source admission, preparation, inference, atomic publication.
+use crate::source::localization::LocalizationCatalog;
 use crate::{
-    BuildArtifactOptions, BuildArtifactReport, IngestError, SourceEnrichmentContext,
-    compute_source_fingerprint, enrich_loaded_source, source_git_commit_if_clean,
-};
-use crate::{index_build_input::index_build_input, source::localization::LocalizationCatalog};
-use atlas_embedding::{
-    PreparedEmbeddingBatch, TextEmbeddingTokenizer, generate_prepared_embeddings,
+    BuildArtifactOptions, BuildArtifactReport, IngestError, SourceFingerprint,
+    source_fingerprint::SourceCapture, source_git_commit_if_clean,
 };
 use atlas_index::{
     ARTIFACT_FORMAT_VERSION, ASSET_POLICY_VERSION, LEXICAL_SELECTION_VERSION,
     LOCALIZATION_POLICY_VERSION, RELATIONSHIP_POLICY_VERSION, SOURCE_LOOKUP_VERSION,
     SOURCE_PROJECTION_VERSION, SourceArtifactBuildContext, SourceSearchProfileIdentity,
-    SqliteIndexWriter,
 };
 use atlas_record::{
     source_content::{CONTENT_INTERPRETATION_VERSION, ContentAudience, ContentVisibilityRule},
@@ -29,35 +25,11 @@ pub(crate) fn default_audience() -> ContentAudience {
 fn progress(phase: &str, message: &str) {
     tracing::info!(target:"atlas_progress",phase,"{message}");
 }
-pub(crate) struct PreparedSourceBuild {
-    pub(crate) prepared: crate::index_build_input::PreparedBuildInput,
-    pub(crate) source_report: crate::SourceEnrichmentReport,
-    pub(crate) fingerprint: crate::SourceFingerprint,
-    pub(crate) catalog: LocalizationCatalog,
-}
-pub(crate) fn prepare_build(
+pub(crate) fn build_context(
     options: &BuildArtifactOptions,
-    reusable: Vec<atlas_index::SourceArtifactRecordInput>,
-    layouts: BTreeMap<atlas_domain::RecordKey, Vec<atlas_index::SourcePassageLayout>>,
-) -> Result<PreparedSourceBuild, IngestError> {
-    crate::validate_source_compatibility(&options.source_root, options.manifest_path.as_deref())?;
-    progress("load_source", "Reading Foundry source");
-    let capture = crate::source_fingerprint::SourceCapture::capture(
-        &options.source_root,
-        options.manifest_path.as_deref(),
-    )?;
-    crate::source_compatibility::validate_manifest(
-        &capture.manifest_path,
-        &capture.read(&capture.manifest_path)?,
-    )?;
-    let fingerprint = capture.fingerprint.clone();
-    progress("load_catalog", "Loading translations");
-    let catalog = LocalizationCatalog::load_captured(
-        &options.source_root,
-        &options.locale,
-        options.manifest_path.as_deref(),
-        Some(&capture),
-    )?;
+    catalog: &LocalizationCatalog,
+    fingerprint: &crate::SourceFingerprint,
+) -> Result<SourceArtifactBuildContext, IngestError> {
     let mut search_profiles = options
         .search_profiles
         .iter()
@@ -74,7 +46,9 @@ pub(crate) fn prepare_build(
             "duplicate search profile".into(),
         ));
     }
-    let mut context = SourceArtifactBuildContext {
+    let context = SourceArtifactBuildContext {
+        selected_sections_recipe: atlas_index::SELECTED_SECTIONS_RECIPE.into(),
+        admission: None,
         core_sections_recipe: atlas_domain::CORE_SECTIONS_RECIPE.into(),
         trait_policy: "trait-definition-centroid/v1".into(),
         used_trait_labels: BTreeMap::new(),
@@ -100,73 +74,67 @@ pub(crate) fn prepare_build(
         fts_tokenizer: "unicode61 remove_diacritics 2".into(),
         search_profiles,
     };
-    let preparation_hash = context
-        .preparation_sha256()
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-    progress("admit_source", "Parsing source records");
-    let loaded = crate::source_loading::load_captured_source(
-        &options.source_root,
-        Some(&capture.manifest_path),
-        reusable,
-        Some(&capture),
-    )?;
-    progress("enrich_source", "Preparing changed records and references");
-    let source = enrich_loaded_source(
-        loaded,
-        SourceEnrichmentContext {
-            audience: default_audience(),
-            localization: Some(&catalog),
-            preparation_context_hash: Some(&preparation_hash),
-        },
-    );
-    let source_report = source.report();
-    if source_report.addressed_documents == 0 {
-        return Err(IngestError::NoRecordsLoaded);
-    }
-    progress("trait_labels", "Resolving trait names");
-    context.used_trait_labels = crate::source::localization::used_trait_labels(&source, &catalog)?;
-    let tokenizer = options
-        .search_profiles
-        .first()
-        .map(|config| {
-            progress("load_tokenizer", "Loading search tokenizer");
-            TextEmbeddingTokenizer::load_baseline(&config.cache_root)
-        })
-        .transpose()
-        .map_err(embedding_error)?;
-    let mut prepared = index_build_input(source, context, tokenizer.as_ref(), &capture, layouts)?;
-    let (traits, trait_pending) = crate::traits::prepare_traits(
-        &catalog,
-        &prepared.index.context,
-        tokenizer.as_ref(),
-        &prepared.index.records,
-    )?;
-    prepared.index.traits = traits;
-    prepared.trait_pending = trait_pending;
-    tracing::info!(
-        records = prepared.index.records.len(),
-        semantic_units = prepared.pending.len(),
-        "Search preparation complete"
-    );
-    Ok(PreparedSourceBuild {
-        prepared,
-        source_report,
-        fingerprint,
-        catalog,
-    })
+    Ok(context)
 }
+pub struct CapturedBuildInputs {
+    options: BuildArtifactOptions,
+    capture: SourceCapture,
+}
+impl CapturedBuildInputs {
+    pub fn capture(options: BuildArtifactOptions) -> Result<Self, IngestError> {
+        let started = Instant::now();
+        let capture =
+            SourceCapture::capture(&options.source_root, options.manifest_path.as_deref())?;
+        crate::source_compatibility::validate_parsed_manifest(
+            &capture.manifest_path,
+            &capture.manifest().manifest,
+        )?;
+        tracing::info!(target:"atlas_build_diagnostic",stage="source_capture",captured_files=capture.fingerprint.file_count,elapsed_ms=started.elapsed().as_secs_f64()*1000.,"Captured source inventory and manifest");
+        Ok(Self { options, capture })
+    }
+    pub fn fingerprint(&self) -> &SourceFingerprint {
+        &self.capture.fingerprint
+    }
+    pub fn build(
+        self,
+        workspace: &atlas_storage::Workspace,
+        schema: u32,
+    ) -> Result<BuildArtifactReport, IngestError> {
+        let started = Instant::now();
+        let (owner, scratch) = begin_build(workspace, schema, &self.options)?;
+        finish_build(workspace, schema, owner, scratch, self, started)
+    }
+    pub(crate) fn options(&self) -> &BuildArtifactOptions {
+        &self.options
+    }
+    pub(crate) fn source(&self) -> &SourceCapture {
+        &self.capture
+    }
+}
+
 pub(crate) fn build_artifact(
     workspace: &atlas_storage::Workspace,
     schema: u32,
     options: BuildArtifactOptions,
 ) -> Result<BuildArtifactReport, IngestError> {
     let started = Instant::now();
+    let (owner, scratch) = begin_build(workspace, schema, &options)?;
+    let inputs = CapturedBuildInputs::capture(options)?;
+    finish_build(workspace, schema, owner, scratch, inputs, started)
+}
+
+fn begin_build(
+    workspace: &atlas_storage::Workspace,
+    schema: u32,
+    options: &BuildArtifactOptions,
+) -> Result<(atlas_storage::UpdateOwner, atlas_index::BuildScratch), IngestError> {
     if atlas_storage::Workspace::at(&options.output_path)?.path() != workspace.path() {
         return Err(IngestError::ArtifactWriteFailed(
             "build destination differs from the admitted workspace".into(),
         ));
     }
     let update_owner = workspace.update_owner()?;
+    let scratch = atlas_index::BuildScratch::new(&update_owner).map_err(index_error)?;
     atlas_index::recover_reference_publication(&update_owner, schema)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     let requested = atlas_index::RequestedReferenceConfig {
@@ -191,254 +159,114 @@ pub(crate) fn build_artifact(
     atlas_index::write_requested_reference_config(&write, &requested)
         .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
     write.commit()?;
-    let (reusable, layouts) = {
-        let read = workspace.read(schema)?;
-        match atlas_index::read_stored_reference_context(read.connection())
-            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
-        {
-            Some(context)
-                if context.snapshot_version == atlas_foundry_model::SNAPSHOT_VERSION
-                    && context.source_contract == atlas_foundry_model::SOURCE_CONTRACT_ID =>
-            {
-                progress(
-                    "read_previous",
-                    "Reading indexed reference records for reuse",
-                );
-                let records = atlas_index::read_persisted_inputs(read.connection(), &context)
-                    .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-                let layouts =
-                    if options.reuse_passage_layouts && !options.search_profiles.is_empty() {
-                        atlas_index::read_reusable_passage_layouts(&read)
-                            .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?
-                    } else {
-                        BTreeMap::new()
-                    };
-                (records, layouts)
-            }
-            _ => (Vec::new(), BTreeMap::new()),
-        }
-    };
-    let PreparedSourceBuild {
-        mut prepared,
-        source_report,
-        fingerprint,
-        catalog,
-    } = prepare_build(&options, reusable, layouts)?;
-    let job = {
-        let write = workspace.write(schema)?;
-        let target = prepared
-            .index
-            .context
-            .sha256()
-            .map_err(|e| IngestError::ArtifactWriteFailed(e.to_string()))?;
-        let job = atlas_index::start_reference_job(&write, &target)
-            .map_err(|e| IngestError::ArtifactWriteFailed(e.to_string()))?;
-        write.commit()?;
-        job
-    };
-    let mut inferred_inputs = 0;
-    let mut reused_inputs = 0;
+    Ok((update_owner, scratch))
+}
+
+fn finish_build(
+    workspace: &atlas_storage::Workspace,
+    schema: u32,
+    update_owner: atlas_storage::UpdateOwner,
+    scratch: atlas_index::BuildScratch,
+    inputs: CapturedBuildInputs,
+    started: Instant,
+) -> Result<BuildArtifactReport, IngestError> {
+    let reuse = atlas_index::ReferenceReuseReader::new(workspace, schema).map_err(index_error)?;
+    let phase_started = Instant::now();
+    let prepared = crate::product_preparation::prepare(&inputs, &reuse, scratch.path())?;
+    let CapturedBuildInputs { options, capture } = inputs;
+    drop(capture);
+    tracing::info!(target:"atlas_build_diagnostic",stage="source_preparation",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,"Completed ingest phase");
+    tracing::info!(target:"atlas_build_diagnostic",reused_sections=prepared.reused_sections,selection_calls=prepared.work.selection_calls,"Prepared shared passage layouts");
+    let record_count = prepared.spool.record_count();
+    let pack_count = prepared.spool.pack_count();
+    let admission = prepared.spool.context().admission.clone().ok_or_else(|| {
+        IngestError::ArtifactWriteFailed("publication admission summary is absent".into())
+    })?;
+    let mut publication = atlas_index::PreparedPublication::new_in(
+        &update_owner,
+        schema,
+        scratch.path(),
+        prepared.spool,
+    )
+    .map_err(index_error)?;
+    let product_record_count = publication.product_record_count();
     let mut profiles = Vec::new();
     for config in &options.search_profiles {
-        let profile = atlas_embedding::profile_for_model(config.model);
-        progress(
-            &format!("{}:load_tokenizer", profile.id),
-            &format!("Loading {} tokenizer", profile.label),
+        profiles.push(
+            crate::native_execution::NativeExecution {
+                publication: &mut publication,
+                raw_inputs: &prepared.native_inputs,
+                options: &options,
+                semantic_units: prepared.document_units,
+            }
+            .execute_profile(config)?,
         );
-        let native = TextEmbeddingTokenizer::load(config).map_err(embedding_error)?;
-        let batch = PreparedEmbeddingBatch::prepare(
-            &native,
-            prepared
-                .pending
-                .iter()
-                .map(|pending| pending.input.clone())
-                .chain(
-                    prepared
-                        .trait_pending
-                        .iter()
-                        .map(|pending| pending.input.clone()),
-                )
-                .collect(),
-        )
-        .map_err(embedding_error)?;
-        let inputs = batch.inputs();
-        let mut reusable = BTreeMap::new();
-        let model = prepared
-            .index
-            .context
-            .search_profile(&profile.profile_id())
-            .map_err(|e| IngestError::DocumentEmbeddingFailed(e.to_string()))?;
-        if options.reuse_embeddings {
-            tracing::info!(profile = profile.id, "Reading saved embeddings");
-            reusable =
-                atlas_index::read_reusable_embeddings(&workspace.read(schema)?, model, inputs)
-                    .map_err(|e| IngestError::DocumentEmbeddingFailed(e.to_string()))?;
-        }
-        let by_key = inputs
-            .iter()
-            .map(|input| (input.reuse_key.as_str(), input))
-            .collect::<BTreeMap<_, _>>();
-        let generated = generate_prepared_embeddings(
-            config,
-            &batch,
-            &reusable,
-            options.embedding_batch_size,
-            |batch| {
-                let persist = || -> Result<(), IngestError> {
-                    let write = workspace.write(schema)?;
-                    let values = batch
-                        .iter()
-                        .map(|(key, vector)| {
-                            by_key
-                                .get(key.as_str())
-                                .map(|input| (*input, vector.as_slice()))
-                                .ok_or_else(|| {
-                                    IngestError::DocumentEmbeddingFailed(
-                                        "checkpoint input missing".into(),
-                                    )
-                                })
-                        })
-                        .collect::<Result<Vec<_>, _>>()?;
-                    atlas_index::stage_embedding_values(&write, &job, model, &values)
-                        .map_err(|e| IngestError::ArtifactWriteFailed(e.to_string()))?;
-                    write.commit()?;
-                    Ok(())
-                };
-                persist().map_err(|e| {
-                    atlas_embedding::EmbeddingError::ModelRunFailed(format!(
-                        "could not checkpoint inferred batch: {e}"
-                    ))
-                })
-            },
-        )
-        .map_err(embedding_error)?;
-        inferred_inputs += generated.inferred_inputs;
-        reused_inputs += generated.reused_inputs;
-        profiles.push(crate::ProfileBuildReport {
-            profile_id: atlas_embedding::profile_for_model(config.model).profile_id(),
-            semantic_units: prepared.pending.len(),
-            inferred_inputs: generated.inferred_inputs,
-            reused_inputs: generated.reused_inputs,
-        });
-        let mut trait_chunks: BTreeMap<atlas_domain::TraitKey, Vec<atlas_index::TraitSeedChunk>> =
-            BTreeMap::new();
-        for ((pending, input), vector) in prepared
-            .trait_pending
-            .iter()
-            .zip(inputs.iter().skip(prepared.pending.len()))
-            .zip(generated.vectors.iter().skip(prepared.pending.len()))
-        {
-            trait_chunks.entry(pending.key.clone()).or_default().push(
-                atlas_index::TraitSeedChunk {
-                    input: input.input.clone(),
-                    input_hash: input.input_sha256.clone(),
-                    token_count: input.token_count,
-                    address: input.address.clone(),
-                    vector: vector.clone(),
-                },
-            );
-        }
-        for (key, chunks) in trait_chunks {
-            use sha2::{Digest, Sha256};
-            let hashes = chunks
-                .iter()
-                .map(|c| c.input_hash.as_str())
-                .collect::<Vec<_>>();
-            let input_hash = format!(
-                "{:x}",
-                Sha256::digest(format!(
-                    "{}:{}",
-                    crate::traits::TRAIT_SEED_RECIPE,
-                    hashes.join(":")
-                ))
-            );
-            let vector = atlas_embedding::normalized_centroid(
-                &chunks
-                    .iter()
-                    .map(|c| c.vector.as_slice())
-                    .collect::<Vec<_>>(),
-            )
-            .map_err(embedding_error)?;
-            prepared
-                .index
-                .trait_vectors
-                .push(atlas_index::TraitVectorInput {
-                    key,
-                    profile_id: profile.profile_id(),
-                    input_hash,
-                    vector,
-                    chunks,
-                });
-        }
-        for ((pending, input), vector) in prepared.pending.iter().zip(inputs).zip(generated.vectors)
-        {
-            let mut unit = pending.unit.clone();
-            unit.profile_id = profile.profile_id();
-            unit.input_token_count = input.token_count;
-            unit.vector = vector;
-            prepared.index.semantic_units.push(unit);
-        }
     }
-    // Fail before touching the output if source changes while preparation runs.
-    progress("recheck_source", "Checking source for changes");
-    let final_fingerprint =
-        compute_source_fingerprint(&options.source_root, options.manifest_path.as_deref())?;
-    let final_catalog = LocalizationCatalog::load(
-        &options.source_root,
-        &options.locale,
-        options.manifest_path.as_deref(),
-    )?;
-    if fingerprint != final_fingerprint
-        || catalog.locale_sha256 != final_catalog.locale_sha256
-        || catalog.english_sha256 != final_catalog.english_sha256
-    {
-        return Err(IngestError::SourceUnavailable(
-            "source changed during artifact preparation; retry build".into(),
-        ));
-    }
+    let inferred_inputs = profiles.iter().map(|p| p.inferred_inputs).sum();
+    let reused_inputs = profiles.iter().map(|p| p.reused_inputs).sum();
+    let semantic_unit_count = publication.semantic_unit_count();
+    let usage = publication
+        .file_usage()
+        .map_err(index_error)?
+        .combine(prepared.native_inputs.file_usage().map_err(index_error)?)
+        .map_err(index_error)?;
+    tracing::info!(target:"atlas_build_diagnostic",stage="owned_metadata_and_staged_values",file_bytes=usage.file_bytes,allocated_bytes=usage.allocated_bytes.unwrap_or(0),allocated_bytes_known=usage.allocated_bytes.is_some(),"Observed live metadata and numerical spool files");
+    tracing::info!(target:"atlas_build_diagnostic",logical_native_bytes=publication.logical_native_bytes().map_err(index_error)?,
+        temporary_native_bytes=publication.temporary_native_bytes().map_err(index_error)?,"Observed staged native values");
+    drop(prepared.native_inputs);
+    let phase_started = Instant::now();
     progress("write_artifact", "Saving and checking search index");
-    let maintenance = update_owner.maintenance(schema, "publishing reference update")?;
-    let target_hash = prepared
-        .index
-        .context
-        .sha256()
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-    SqliteIndexWriter::new(&maintenance)
-        .write_job(&prepared.index, &job, &target_hash)
-        .map_err(|error| IngestError::ArtifactWriteFailed(error.to_string()))?;
-    drop(maintenance);
-    // Publication has committed and validated; physical reclamation can be
-    // retried without inference and does not advance reference revision.
-    update_owner
+    publication.publish().map_err(index_error)?;
+    tracing::info!(target:"atlas_build_diagnostic",stage="exclusive_publication",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,"Completed ingest phase");
+    let phase_started = Instant::now();
+    let reclaimed = update_owner
         .reclaim_space(schema)
-        .map_err(|error| IngestError::SpaceReclamationFailed(error.to_string()))?;
-    let report = BuildArtifactReport {
+        .map_err(|e| IngestError::SpaceReclamationFailed(e.to_string()))?;
+    tracing::info!(target:"atlas_build_diagnostic",stage="physical_reclamation",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,reclaimed,"Completed ingest phase");
+    Ok(BuildArtifactReport {
+        admission,
         profiles,
         output_path: options.output_path,
-        pack_count: prepared.index.packs.len(),
-        record_count: prepared.index.records.len(),
-        product_record_count: prepared
-            .index
-            .records
-            .iter()
-            .filter(|record| {
-                !matches!(
-                    record.record.source(),
-                    atlas_foundry_model::FoundryDocumentSource::Macro(_)
-                )
-            })
-            .count(),
-        semantic_unit_count: prepared.index.semantic_units.len(),
+        pack_count,
+        record_count,
+        product_record_count,
+        semantic_unit_count,
         inferred_inputs,
         reused_inputs,
         context_shortened_sections: prepared.context_shortened,
-        source_fingerprint: fingerprint.value,
+        source_fingerprint: prepared.fingerprint.value,
         build_duration_ms: started.elapsed().as_millis(),
-        source_report,
-    };
-    tracing::info!("Artifact build complete");
-    Ok(report)
+        source_report: prepared.source_report,
+    })
 }
-fn embedding_error(error: atlas_embedding::EmbeddingError) -> IngestError {
-    IngestError::DocumentEmbeddingFailed(error.to_string())
+
+fn index_error(error: atlas_index::IndexError) -> IngestError {
+    IngestError::ArtifactWriteFailed(error.to_string())
+}
+
+/// Tokenizer-only fixtures publish the real metadata stream and deterministic
+/// normalized numerical values. No occurrence aggregate or model inference.
+#[cfg(test)]
+pub(crate) fn publish_fixture_without_inference(
+    options: &BuildArtifactOptions,
+) -> Result<(), IngestError> {
+    let workspace = atlas_index::test_support::initialize_workspace(&options.output_path)
+        .map_err(index_error)?;
+    let schema = atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
+    let owner = workspace.update_owner()?;
+    let reuse = atlas_index::ReferenceReuseReader::new(&workspace, schema).map_err(index_error)?;
+    let scratch = atlas_index::BuildScratch::new(&owner).map_err(index_error)?;
+    let inputs = CapturedBuildInputs::capture(options.clone())?;
+    let prepared = crate::product_preparation::prepare(&inputs, &reuse, scratch.path())?;
+    let mut publication =
+        atlas_index::PreparedPublication::new_in(&owner, schema, scratch.path(), prepared.spool)
+            .map_err(index_error)?;
+    crate::native_execution::stage_fixture_values(
+        &mut publication,
+        &prepared.native_inputs,
+        options,
+        prepared.document_units,
+    )?;
+    publication.publish().map_err(index_error)?;
+    Ok(())
 }

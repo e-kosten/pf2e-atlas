@@ -283,31 +283,36 @@ fn malformed_location_metadata_fails_on_hits_and_cold_reads_then_recovers() {
     let (service, artifact) = crate::test_support::open_input_fixture(fixture()).unwrap();
     drop(service);
     let store = Arc::new(NativeNeighborReuse::default());
-    let request = || TextSearchRequest::new("Ember", SearchPage::first(2).unwrap());
-    open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
+    let request = || {
+        let mut request = TextSearchRequest::new("Ember", SearchPage::first(2).unwrap());
+        request.mode = RetrievalMode::Vector;
+        request
+    };
+    let expected = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
         .search_text(request())
         .unwrap();
     // Deliberate unversioned fixture corruption probes existing read validation;
     // arbitrary external writes are not a supported invalidation protocol.
     mutate(
         &artifact.path(),
-        "UPDATE semantic_locations SET owners_json='{}' WHERE owners_json='[]'",
+        "UPDATE selected_sections SET owners_json='{}' WHERE owners_json='[]'",
     );
-    let hit = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
-        .search_text(request())
-        .unwrap_err();
-    let cold = open(&artifact.path(), None, "bge-base", "Ember", 0)
-        .search_text(request())
-        .unwrap_err();
+    let mut cached = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0);
+    let hit = cached.search_text(request()).unwrap_err();
+    assert_eq!(cached.read_metrics().knn_queries, 0);
+    let mut uncached = open(&artifact.path(), None, "bge-base", "Ember", 0);
+    let cold = uncached.search_text(request()).unwrap_err();
+    assert!(uncached.read_metrics().knn_queries > 0);
     assert_eq!(hit.kind(), cold.kind());
     assert_eq!(hit.to_string(), cold.to_string());
     mutate(
         &artifact.path(),
-        "UPDATE semantic_locations SET owners_json='[]'",
+        "UPDATE selected_sections SET owners_json='[]'",
     );
-    open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
+    let recovered = open(&artifact.path(), Some(&store), "bge-base", "Ember", 0)
         .search_text(request())
         .unwrap();
+    assert_eq!(signature(&recovered), signature(&expected));
 }
 
 #[test]

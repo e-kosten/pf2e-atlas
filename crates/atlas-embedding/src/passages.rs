@@ -80,7 +80,6 @@ pub struct PreparedEmbeddingInput {
     pub address: SourcePassageAddress,
     pub input: String,
     pub input_sha256: String,
-    pub reuse_key: String,
     pub token_count: usize,
     pub body_token_count: usize,
     pub overlap_token_count: usize,
@@ -200,7 +199,6 @@ pub(crate) fn prepared(
     Ok(PreparedEmbeddingInput {
         address,
         input_sha256: hash_document_embedding_input(&input),
-        reuse_key: tokenizer.spec().document_reuse_key(&input),
         input,
         token_count,
         body_token_count,

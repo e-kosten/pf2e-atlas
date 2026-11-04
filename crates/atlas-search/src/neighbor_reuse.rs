@@ -16,7 +16,7 @@ const MAX_ENTRY_BYTES: usize = 256 * 1024;
 const MAX_KEY_BYTES: usize = 64 * 1024;
 // Conservative allowance for allocator/Arc headers beyond typed payload sizes.
 const ALLOCATION_OVERHEAD: usize = 64;
-const RECIPE: &str = "exact-native-candidate-neighbors/v1";
+const RECIPE: &str = "input-native-occurrence-capped-neighbors/v2";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Epoch {

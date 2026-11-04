@@ -26,6 +26,19 @@ must not reconcile saved state across rebuilds.
 Product navigation using snapshot-local positions carries the source fingerprint;
 detail rejects missing or stale generation context for those explicit addresses.
 
+Workspace migration 25 adds closed SQL constraints and strict decoding for saved
+encounter enums. Current-turn participants and participant-owned consequences,
+boundary claims and application markers must belong to the same encounter through
+composite foreign keys.
+Current-turn checking is deferred; participant removal clears its pointer before
+deletion. Consumed application markers retain nullable or historical condition
+IDs independently of a live condition row. Saved-state reconstruction fails
+atomically on invalid history or nonempty retired adjustment data. It retains
+configured round length, timed condition progress, manual trackers and saved
+baseline/outgoing payloads. The
+[workspace decision](decisions/0051-persistent-workspace.md#saved-domain-integrity)
+owns its preflight and preservation contract.
+
 The reference format, checked snapshot codec, preparation policies and query
 catalog have separate version identities. `artifact_context` contains the typed,
 hashed active build context. SQLite `user_version` instead tracks the shared
@@ -89,6 +102,42 @@ captures final creation HP after source-condition initialization and persists
 reset/rest replacements under one encounter revision guard and savepoint. Names,
 notes, assigned levels, sides, roster dimming and roster positions are retained.
 
+Workspace migration 28 reconstructs section-backed lexical and semantic metadata
+with canonical section references, retaining compatible unit/location IDs, FTS
+postings and native bytes. Whole extents come from checked source/prepared
+selection, including prose without headings or vectors. The independent
+`selected_sections_recipe` marker is omitted when absent and does not affect
+prepared-content, model-input or public-selector identity. Its activation uses
+normal exact-transaction validation and one reference-generation advance.
+Retired preparation and the known predecessor snapshot contract defer section
+projection before decoding. Their saved rows, native registry, published vectors
+and pending computations remain intact. Missing passage section metadata remains
+unavailable under the blocked context; current publication and bounded decoders
+reject it. Explicit setup prepares current sections and reuses exact native values
+before removing obsolete occurrences. Empty fields have no invented section row.
+
+Workspace migration 29 adds closed index-owned record component digests and root-key
+indexes for trait membership/reference reconciliation. Existing trait-key primary
+keys remain the trait lookup owner. Removed-root associations are pruned by their
+exact old key before parent deletion, preserving live-root rows and saved identities. Schema
+upgrade leaves entries absent until actual publication; absence attests nothing.
+Migration 29 also retires the obsolete whole-root hash from
+`projection_allocations`; allocation identity retains `record_id`, `seed` and
+`end_id`. The fixed recipe binds eight named component hashes, with strict typed decoding.
+Publication derives them with their dependent outputs and writes changed entries
+in the same transaction. Ordinary ingest trusts unchanged components; explicit
+deep audit independently reconstructs and checks present hashes. Metadata-only
+upgrades refresh existing hashes after their dependent projections change. Saved state,
+source/native recipes and historical migration callbacks retain their owners.
+
+One owned prepared publication binds workspace/revision, context, complete source
+inventory, metadata and selected values. Its private files are disposable attempt
+state. Disposable frames contain uncompressed typed JSON with observed allocation
+bounds, counts and bounded decoding; they cannot supply SQL or persistent identity.
+They carry no per-frame checksum. Typed record append seals compact identities
+before serialization, and the owner/expected generation establish deletion
+authority. Truncated or structurally invalid consumed data fails publication.
+
 Pre-release separate-file formats have no compatibility reader or conversion
 shim. Future workspace upgrades use ordered migrations with recorded checksums,
 a consistent backup before structural changes, and transaction-scoped validation.
@@ -106,10 +155,12 @@ never supplies executable SQL.
 
 The shared header contains `workspace` and `schema_migrations`. Durable intent
 lives in `requested_reference_config`; resumable inference uses
-`reference_update_jobs` and `pending_embedding_values`, joined to exact
+`pending_embedding_values`, joined to exact
 `embedding_models`/`embedding_inputs` metadata. Pending vector checksums are
 independent of published checksums, so forced-rebuild progress cannot invalidate
-current readers. Successful publication removes pending numerical values. Saved-domain tables include a seeded local principal
+current readers. Successful complete source-ingest publication removes pending
+numerical values; schema and metadata-only upgrades preserve them. Saved-domain
+tables include a seeded local principal
 and non-null ownership, with owner-scoped slug uniqueness.
 
 | Family | Tables and purpose |
@@ -122,8 +173,9 @@ and non-null ownership, with owner-scoped slug uniqueness.
 | Developer reports | `developer_diagnostics`: attributed admission/preparation/resolution/projection evidence. Product record responses do not expose these reports. |
 | Relationships | `relationship_occurrences`: attributed structured and visible content occurrences, preserving repeated links and resolved/unverified/unresolved/blocked status. |
 | Verified identity evidence | `verified_aliases`, `remaster_pairs`: explicit evidence-backed lookup names and edition relationships. |
+| Selected sections | `selected_sections`: one canonical record/owner/field/ordinal, whole typed address and extent, body hash, role, labels, recipe and public selector. Address components are stored once in named columns. |
 | Precision lexical search | `lexical_units`, `lexical_fts`: root names, verified aliases, typed vocabulary, owned names, headings and structural definition labels. |
-| Semantic search | `search_profiles`, `semantic_units`, profile-specific `semantic_vectors_<identity hash>` tables: complete profile identity, profile-scoped attributed section/chunk addresses, raw input hashes and vectors. |
+| Semantic search | `search_profiles`, `semantic_units`, profile-specific `native_vectors_<identity hash>` tables keyed by input ID: complete profile identity and one active vector per native input. `semantic_locations` references a canonical section plus chunk ordinal/range; `semantic_units` binds occurrences to profile/native inputs. |
 
 There is no generic metric EAV store, persisted RichDocument, synthetic canonical
 affliction table, copied embedded Item authority or complete plain-text/model-input
@@ -350,10 +402,11 @@ does not expand passages. No silent truncation or token-estimator fallback is al
 Passage metadata addresses a selected section and UTF-8 byte range, with source or
 prepared HTML/canonical-text hashes and selection version. Identity units have no
 fabricated prose range. Readers recover text from checked source/prepared content.
-Vector reuse requires exact model/input identity, token count, dimensions and
-verified vector bytes. Durable checkpoints survive interrupted builds and content
-policy changes; changed prepared text obtains a different input identity. Input
-reuse does not merge source attributions. Offline validation checks addresses,
+Vector reuse binds exact model/input identity, token count and the selected
+published checksum. Identity-only published reuse retains a handle without reading
+the vector payload. Durable recovery bytes are shape/checksum-verified when
+consumed; changed prepared text obtains a different input identity. Input reuse
+does not merge source attributions. Offline validation checks addresses,
 coverage and vector integrity without requiring model assets.
 Each stored profile has complete semantic coverage. An empty profile manifest is
 lexical-only. Each exact profile identity owns a dimensioned vec0 table; KNN
@@ -361,16 +414,18 @@ eligibility remains constrained to eligible roots within the selected profile.
 `semantic_locations` holds complete source addresses once across profiles;
 `semantic_units` retains each attributable occurrence and references its location
 and native-input metadata. Compact digests index full checked addresses; validation
-recomputes them and key conflicts compare the complete metadata. Each document
-vector is stored only in its model-owned vec0 table. Rebuild reuse verifies those
-bytes against the native input's published checksum. `trait_seed_chunks` retains
-selected input/coverage evidence and references native inputs; `trait_native_values`
-holds only values not supplied by document occurrences. Trait centroids use binary
-f32 bytes with separate checksums. No permanent checkpoint vector corpus remains.
-Final publication reconciles and validates active units and clears pending values
-and unused metadata in the same transaction, never before a complete replacement
-is available. Pending values have priority for resuming unfinished builds while
-published readers retain the old generation.
+recomputes them and key conflicts compare the complete metadata. Each published input
+owns one vector in its model-owned vec0 table, shared by document occurrences and
+trait chunks. Reuse verifies the selected checksum's binding, not the untouched
+payload. `trait_seed_chunks` retains ordered input/coverage evidence, including
+repetitions. Trait-only inputs
+stay outside document KNN unless an eligible document occurrence uses them. Trait
+centroids use separate binary f32 values/checksums; there is no second permanent
+native-value corpus.
+Final publication reconciles active units and clears pending values and unused
+metadata in the same transaction, after their consumers are installed. Pending
+values have priority for resuming unfinished builds while published readers retain
+the old generation.
 Lexical/reference reads and stored-vector Similar do not require query weights.
 
 Lexical rows keep each root name and verified alias separate with root vocabulary;
@@ -509,9 +564,9 @@ schema or published migration checksum. Setup preserves saved lists/encounters,
 record identities and compatible vector reuse. Without compatible source, old
 reference preparation remains unavailable with the normal rebuild guidance.
 
-Checked publication and explicit full validation decode every remaster citation
-and verify its source field against checked content. Ordinary suppression reads
-only relevant legacy identities through complete SQL candidate membership at both
+Preparation retains remaster citations from checked source fields. Explicit full
+validation decodes every citation and verifies its source field against checked
+content. Ordinary suppression reads only relevant legacy identities through complete SQL candidate membership at both
 endpoints, with one JSON-bound candidate relation and no provenance decoding.
 Unrelated malformed provenance therefore cannot fail a valid search; detail
 consumers still decode their selected citations and never fabricate navigation.
@@ -550,18 +605,43 @@ by selected vocabulary. Exact lexical terms can therefore be reconstructed
 offline; there is no duplicate full localization catalog. Root alias terms must
 match the verified alias relation, with no arbitrary additional FTS vocabulary.
 
-The writer reconciles changed reference rows inside a maintenance transaction in
-the existing workspace. Unchanged rows retain their identity; removed sources lose
-current projections and become unavailable identities without deleting saved
-references. Reference publication and profile activation advance the workspace's
-reference revision; user-state writes do not. Failed publication rolls back the
-whole delta. Durable maintenance remains set until committed data is validated
-and admission can safely resume.
+A new publication carries checked complete-discovery evidence bound to its source
+fingerprint and declared pack set. Missing or unreadable declared packs cannot
+publish removals. Complete discovery can publish a readable empty pack or an
+intentional file/declaration removal. A zero-root publication requires zero
+discovered input files; a nonempty wholly quarantined or unaddressable source
+fails without replacing the active reference. The authenticated active context retains
+admitted/partial/quarantined/excluded counts and excluded input paths/reasons,
+without retaining rejected raw source or another complete file manifest.
+Historical contexts without this optional summary have unknown admission counts;
+metadata-only upgrades preserve that absence. Failed attempts preserve the active
+summary and reference revision. Product setup and direct build reports expose the
+new publication's counts.
+
+The writer reconciles changed reference rows in one storage-owned immediate
+transaction under exclusive access in the existing workspace. Unchanged rows keep
+their identity; removed sources become unavailable without deleting saved references.
+Typed construction, consumed-input/binding checks and SQL constraints establish
+normal publication's write contract. It trusts untouched committed data rather
+than reconstructing outputs for a second audit. Normal reports contain persisted
+counts with `checked_snapshots=0`; they do not certify whole-reference health.
+
+Reference publication/profile activation advance the reference revision; user-state
+writes do not. Normal source publication adds no durable maintenance marker. Failure
+rolls back the whole delta and readers can reopen the old committed state, even if
+it already contained defects. Pre-existing markers block this operation; an explicit
+update may first recover them through the existing validated recovery path. Schema
+and metadata upgrades, physical reclamation and their validated recovery retain their
+separate durable maintenance contract. Postcommit reclamation failure is distinct
+from publication failure: the new reference may already be committed.
 
 Readers own bounded deferred transactions. One composed operation shares its
 snapshot across reference and saved-domain readers; idle CLI/web owners retain no
-SQLite session. Writes use immediate transactions and recheck preparation revisions
-before applying source-derived changes. Local-state actions use savepoints inside
+SQLite session. Saved roster detail reads ability state, conditions, persistent
+precedence, expended spells, spell resources and manual trackers through
+encounter-scoped batches, preserving owner-specific ordering and unknown values.
+Query count is independent of participant count. Writes use immediate transactions
+and recheck preparation revisions before applying source-derived changes. Local-state actions use savepoints inside
 the outer transaction, so caught action errors cannot leak partial writes into a
 later commit. Durable receipt recovery precedes stale-source checks. Receipt JSON
 uses explicit storage versions and domain facts rather than application DTOs.
@@ -578,15 +658,16 @@ hashes, cache/section coverage, sanitized markers, attributed relationships,
 identity evidence, FTS postings and vector coverage/dimensions/finiteness/normalization.
 Within a validation pass, each root's checked prepared content feeds search
 selection directly. Its bytes and sidecars are validated once in the caller's
-transaction and discarded after that root; no cross-transaction validation cache
-or weaker publication check is introduced.
+transaction and discarded after that root. This full diagnostic pass is separate
+from ordinary publication; there is no cross-transaction validation cache.
 Trait membership and reference evidence is accumulated with the compact checked
 record identity traversal. Deep validation does not reconstruct whole-corpus
 build inputs for those comparisons. Cached-row metadata, including unpublished
 rows, and admission diagnostics remain validated per record; full build-input
 reconstruction stays available to projection upgrades that need its output.
-Complete vector validation scans unit IDs in storage order rather than following
-the input-hash reuse index. Workspace sessions use an 8 MiB demand-filled SQLite
+Complete vector validation scans published input IDs in storage order rather than
+following the input-hash reuse index. Occurrence and trait associations are checked
+separately against that shared numerical authority. Workspace sessions use an 8 MiB demand-filled SQLite
 page-cache target so sequential vec0 chunks fit without repeated eviction; this
 does not change the stored vector format or request-level retrieval policy.
 On 64-bit platforms, ordinary storage read sessions may also use SQLite's
@@ -617,10 +698,9 @@ change. SQLite's documented mapped-I/O error and filesystem constraints still ap
 see [SQLite memory-mapped I/O](https://www.sqlite.org/mmap.html) and
 [effective mapping limits](https://www.sqlite.org/pragma.html#pragma_mmap_size).
 
-After reconciliation, the writer flushes dirty SQLite pages before validation so
-freshly written vector chunks do not compete with dirty pages for the cache.
-This is a mid-transaction cache flush, not a commit or early activation; any
-flush or validation failure still rolls back the complete publication.
+After reconciliation, the writer flushes dirty SQLite pages within the publication
+transaction. This is not a commit or early activation; a flush failure rolls back
+the complete publication.
 Pending vector inserts borrow prepared vectors and encode one blob at a time;
 reconciliation does not retain another full corpus of encoded vectors.
 Query summaries and selected cache reads do not decode bodies. Explicit detail
@@ -718,9 +798,14 @@ so a retry cannot grant the same consequence again. Unconscious-created Prone
 remains after waking. Persistent-damage comparisons retain exact episode/source
 membership; boundary claims prevent replaying completed turn processing.
 
-Outgoing turn receipts store request identities and typed pre-advance saved-state
-snapshots. Advancement commits the boundary and next turn together. Only the latest
-completed boundary is actionable; closing the notification changes no saved state.
+`encounter_turn_receipts` retains compact Next-turn request/intent/boundary identities
+for the encounter lifetime. `encounter_outgoing_turns` holds at most one typed
+pre-advance snapshot per encounter and references its receipt. Advancement commits
+the receipt, context replacement and next turn together. Migration 26 preserves
+every historical receipt and only the maximum-ID snapshot per encounter, including
+boundaries without review. Reset/rest clears current context and retains receipts;
+retries recover before revision/source guards. Only the current completed boundary
+is actionable; closing the notification changes no saved state.
 There is no acknowledgment queue or persisted action-attempt/relationship workflow.
 Spell reminders and optional strike context are read-only projections. Spell
 resource writes and retained dice use their existing guarded mutation owners.
@@ -751,9 +836,42 @@ jobs. Published and pending values may legitimately differ for a forced rebuild.
 The conversion validates retained numerical evidence without decoding source DTOs
 that might require a separate source upgrade. Existing migrations remain immutable.
 
-Vector maintenance reuses compatible slots and packs indexes only when at least
+Migration 27 converts occurrence-addressed document vectors and trait-only native
+values into input-owned `native_vectors_<model hash>` tables. It validates every
+old occurrence, full model/input/token identity, published checksum and f32 bytes
+before deduplicating. Pending-only models and independently checksummed forced
+results survive in the simple cache. Exact occurrences, trait chunks/centroids,
+input IDs and saved state remain. Only after old/new coverage and bytes agree does
+the transaction retire old vector tables, trait-only storage and job history.
+No inference, source access or intermediate target schema is required.
+
+One concrete publication owns build-local selection. Same-attempt selections win,
+then unpublished cache, then compatible published values when reuse is enabled.
+New/forced/cache-hit bytes become owned staging independent of eviction; reused
+published vectors remain stable handles. Per-batch sessions close before inference.
+Atomic activation installs selected changes and reconciles document/trait consumers
+using that same transaction connection. The embedding owner checks inference output
+count, dimensions, finiteness and normalization once. Private staging/install reads
+retain structural bounds; they do not repeat checksum or numerical scans. Durable
+cache/repack reads verify shape and checksum. Numerical calculations and explicit
+deep audit decode and check the values they consume. Centroids preserve f64 order
+and repeated weights; numerical changes invalidate them even with unchanged text.
+
+The cache retains one value per model/input key, with a 1 GiB logical-payload cap
+and coarse oldest-first eviction. Eviction affects future reuse, not already-owned
+publication data. This is not a staging quota or physical-space reservation.
+Successful complete publication clears recovery data atomically; failure retains
+useful committed recovery work. Ordinary publication does not run a complete
+post-cleanup audit; `atlas index validate` owns that explicit operation. Ordinary
+startup/reads never prune. Temporary selected numerical bytes and durable pending
+bytes are reported separately. See
+[ADR0065](decisions/0065-input-owned-reference-publication.md).
+
+Vector maintenance reuses stable input rows and packs indexes only when at least
 two blocks and 10% of allocation can be reclaimed. It uses supported vec0 public
 DDL/inserts and file-backed temporary staging, not extension shadow-table writes.
+The existing copy pass verifies durable bytes against their checksums before
+replacing the table; untouched profiles are not scanned for this purpose.
 Free SQLite pages are reclaimed separately through explicit setup/build maintenance;
 this changes neither logical reference revision nor workspace identity.
 

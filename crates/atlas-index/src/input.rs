@@ -56,6 +56,10 @@ pub struct SourceSearchProfileIdentity {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceArtifactBuildContext {
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub selected_sections_recipe: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub admission: Option<crate::SourceAdmissionSummary>,
     #[serde(default)]
     pub core_sections_recipe: String,
     #[serde(default)]
@@ -151,6 +155,7 @@ pub struct SourceLexicalUnitInput {
     pub structured_terms: String,
     pub definition_terms: String,
 }
+#[cfg(any(test, feature = "test-support"))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceSemanticUnitInput {
@@ -164,8 +169,10 @@ pub struct SourceSemanticUnitInput {
     pub input_hash: String,
     pub vector: Vec<f32>,
 }
+#[cfg(any(test, feature = "test-support"))]
 #[derive(Debug)]
 pub struct IndexBuildInput {
+    pub inventory: crate::CompleteSourceInventory,
     pub traits: Vec<crate::TraitDefinition>,
     pub trait_vectors: Vec<crate::TraitVectorInput>,
     pub records: Vec<SourceArtifactRecordInput>,
@@ -176,6 +183,7 @@ pub struct IndexBuildInput {
     pub lexical_units: Vec<SourceLexicalUnitInput>,
     pub semantic_units: Vec<SourceSemanticUnitInput>,
 }
+#[cfg(any(test, feature = "test-support"))]
 impl IndexBuildInput {
     pub fn artifact_record_count(&self) -> usize {
         self.records.len()

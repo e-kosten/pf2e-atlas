@@ -1,11 +1,11 @@
 //! Explicit setup is the sole runtime path allowed to inspect/fetch the source clone.
-use crate::setup_freshness::source_is_fresh;
+use crate::setup_freshness::{capture_build_inputs, source_is_fresh};
 use crate::workspace::open_workspace_index;
 use crate::{ResolvedAtlasPaths, setup_model::*};
 use atlas_embedding::{
     EmbeddingRuntimeConfig, prepare_embedding_model_cache, required_embedding_model_cache_files,
 };
-use atlas_ingest::{BuildArtifactOptions, BuildArtifactReport, build_artifact};
+use atlas_ingest::{BuildArtifactOptions, BuildArtifactReport};
 fn progress(phase: &str, message: &str) {
     tracing::info!(target:"atlas_progress",phase,"{message}");
 }
@@ -49,6 +49,25 @@ fn configuration_failure(
         build: None,
     }
 }
+fn stored_reference(
+    path: &std::path::Path,
+) -> Result<
+    (
+        atlas_index::SourceArtifactBuildContext,
+        atlas_index::ReferenceUpgrade,
+    ),
+    atlas_index::IndexError,
+> {
+    let workspace = atlas_storage::Workspace::at(path)?;
+    let read = workspace.read(crate::WORKSPACE_SCHEMA_VERSION)?;
+    let context =
+        atlas_index::read_stored_reference_context(read.connection())?.ok_or_else(|| {
+            atlas_index::IndexError::Unavailable("reference context is absent".into())
+        })?;
+    let upgrade = atlas_index::classify_reference_upgrade(read.connection())?;
+    Ok((context, upgrade))
+}
+
 pub(crate) fn ensure_setup(
     paths: &ResolvedAtlasPaths,
     mut options: RuntimeSetupOptions,
@@ -64,7 +83,6 @@ pub(crate) fn ensure_setup(
     let paths = &effective_paths;
     options.search_profiles = configuration.search_profiles.clone();
     let prepare_embeddings = !options.search_profiles.is_empty();
-    let old = open_workspace_index(&paths.index_path).map(|reader| reader.context().clone());
     let mut checks = Vec::new();
     let mut actions = Vec::new();
     let mut source_ready = paths.source_root.is_dir();
@@ -100,6 +118,7 @@ pub(crate) fn ensure_setup(
         && atlas_embedding::TextEmbeddingTokenizer::load_baseline(&paths.embedding_cache_root)
             .is_ok();
     let mut source_issue = None;
+    let mut captured = None;
     if !source_ready && managed_source && profile_error.is_none() {
         if options.check || options.offline {
             actions.push(SetupAction::with_reason(
@@ -143,27 +162,36 @@ pub(crate) fn ensure_setup(
             Ok(())
         }
         .and_then(|()| {
-            atlas_ingest::validate_source_compatibility(
-                &paths.source_root,
-                configuration.manifest_path.as_deref(),
-            )
+            capture_build_inputs(BuildArtifactOptions {
+                source_root: paths.source_root.clone(),
+                output_path: paths.index_path.clone(),
+                manifest_path: configuration.manifest_path.clone(),
+                locale: configuration.indexing_locale.clone(),
+                search_profiles: configurations.clone(),
+                reuse_embeddings: true,
+                reuse_passage_layouts: !options.force_rebuild,
+                embedding_batch_size: options.embedding_batch_size,
+            })
             .map_err(|error| {
                 let failed = !matches!(error, atlas_ingest::IngestError::SourceIncompatible(_));
                 (error.to_string(), failed)
             })
         });
-        if let Err((error, failed)) = validation {
-            source_ready = false;
-            source_issue = Some(error.clone());
-            checks.push(SetupAction::with_reason(
-                SetupActionKind::AnalyzeSource,
-                if failed {
-                    SetupActionStatus::Failed
-                } else {
-                    SetupActionStatus::Blocked
-                },
-                error,
-            ));
+        match validation {
+            Ok(inputs) => captured = Some(inputs),
+            Err((error, failed)) => {
+                source_ready = false;
+                source_issue = Some(error.clone());
+                checks.push(SetupAction::with_reason(
+                    SetupActionKind::AnalyzeSource,
+                    if failed {
+                        SetupActionStatus::Failed
+                    } else {
+                        SetupActionStatus::Blocked
+                    },
+                    error,
+                ));
+            }
         }
     }
     if source_ready && prepare_embeddings && !model_ready && profile_error.is_none() {
@@ -202,11 +230,13 @@ pub(crate) fn ensure_setup(
         }
     }
     let locale = configuration.indexing_locale.clone();
-    let freshness = if source_ready {
-        match old.as_ref() {
-            Ok(i) => source_is_fresh(paths, configuration.manifest_path.as_deref(), i),
-            Err(_) => Ok(false),
-        }
+    let prior = stored_reference(&paths.index_path);
+    let freshness: Result<bool, String> = if options.force_rebuild {
+        Ok(false)
+    } else if let Some(inputs) = &captured {
+        Ok(prior
+            .as_ref()
+            .is_ok_and(|(context, _)| source_is_fresh(inputs, context)))
     } else {
         Err("source checkout is unavailable for explicit freshness checking".into())
     };
@@ -218,7 +248,11 @@ pub(crate) fn ensure_setup(
         Ok(false) => checks.push(SetupAction::with_reason(
             SetupActionKind::AnalyzeSource,
             SetupActionStatus::Done,
-            "source content differs from the indexed fingerprint",
+            if options.force_rebuild {
+                "source rebuild explicitly requested"
+            } else {
+                "source content differs from the indexed fingerprint"
+            },
         )),
         Err(e) => checks.push(SetupAction::with_reason(
             SetupActionKind::AnalyzeSource,
@@ -226,6 +260,49 @@ pub(crate) fn ensure_setup(
             e,
         )),
     }
+    let profiles_match = prior.as_ref().is_ok_and(|(context, _)| {
+        context.search_profiles.len() == options.search_profiles.len()
+            && options.search_profiles.iter().all(|id| {
+                atlas_embedding::search_profile(id).is_ok_and(|spec| {
+                    context.search_profile(id).is_ok_and(|stored| {
+                        stored == &atlas_index::SourceSearchProfileIdentity::from_spec(spec)
+                    })
+                })
+            })
+    });
+    let source_build_required = source_issue.is_some()
+        || options.force_rebuild
+        || profile_error.is_some()
+        || prior.is_err()
+        || !profiles_match
+        || freshness.as_ref().is_ok_and(|fresh| !*fresh)
+        || (source_ready && freshness.is_err())
+        || prior.as_ref().is_ok_and(|(context, upgrade)| {
+            context.indexing_locale != locale
+                || matches!(
+                    upgrade,
+                    atlas_index::ReferenceUpgrade::SourcePreparation
+                        | atlas_index::ReferenceUpgrade::SourceReplacement
+                )
+        });
+    if !source_build_required
+        && !options.check
+        && prior
+            .as_ref()
+            .is_ok_and(|(_, upgrade)| *upgrade != atlas_index::ReferenceUpgrade::Current)
+    {
+        let upgraded = (|| -> Result<(), String> {
+            let workspace =
+                crate::initialize_workspace(&paths.index_path).map_err(|e| e.to_string())?;
+            atlas_index::ensure_reference_projections(&workspace, crate::WORKSPACE_SCHEMA_VERSION)
+                .map_err(|e| e.to_string())?;
+            Ok(())
+        })();
+        if let Err(error) = upgraded {
+            return configuration_failure(paths, &options, error);
+        }
+    }
+    let old = open_workspace_index(&paths.index_path).map(|reader| reader.context().clone());
     let old_semantic = if prepare_embeddings {
         open_workspace_index(&paths.index_path)
             .and_then(|index| {
@@ -245,14 +322,7 @@ pub(crate) fn ensure_setup(
     } else {
         true
     };
-    let needs_build = source_issue.is_some()
-        || options.force_rebuild
-        || profile_error.is_some()
-        || old.is_err()
-        || !old_semantic
-        || freshness.as_ref().is_ok_and(|f| !*f)
-        || (source_ready && freshness.is_err())
-        || old.as_ref().is_ok_and(|i| i.indexing_locale != locale);
+    let needs_build = source_build_required || old.is_err() || !old_semantic;
     let mut build = None;
     let mut build_failed = false;
     if needs_build {
@@ -273,21 +343,11 @@ pub(crate) fn ensure_setup(
             let result = (|| -> Result<BuildArtifactReport, String> {
                 let workspace =
                     crate::initialize_workspace(&paths.index_path).map_err(|e| e.to_string())?;
-                build_artifact(
-                    &workspace,
-                    crate::WORKSPACE_SCHEMA_VERSION,
-                    BuildArtifactOptions {
-                        source_root: paths.source_root.clone(),
-                        output_path: paths.index_path.clone(),
-                        manifest_path: configuration.manifest_path.clone(),
-                        locale,
-                        search_profiles: configurations.clone(),
-                        reuse_embeddings: true,
-                        reuse_passage_layouts: !options.force_rebuild,
-                        embedding_batch_size: options.embedding_batch_size,
-                    },
-                )
-                .map_err(|e| e.to_string())
+                captured
+                    .take()
+                    .ok_or("source inputs were not captured")?
+                    .build(&workspace, crate::WORKSPACE_SCHEMA_VERSION)
+                    .map_err(|e| e.to_string())
             })();
             match result {
                 Ok(r) => {
@@ -431,6 +491,7 @@ pub(crate) fn ensure_setup(
 impl From<BuildArtifactReport> for SetupBuildReport {
     fn from(r: BuildArtifactReport) -> Self {
         Self {
+            admission: r.admission,
             profiles: r.profiles,
             pack_count: r.pack_count,
             record_count: r.record_count,

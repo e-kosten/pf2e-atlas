@@ -7,7 +7,7 @@ use atlas_foundry_model::{ActorSourcePF2e, generated::*};
 
 /// An ephemeral membership projection, not another source or content inventory.
 /// Fields select every existing structural section/chunk under the exact address.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CoreSearchSelection {
     pub family: CoreSectionFamily,
     /// Admitted identity names for exact eligible owners, including empty prose.

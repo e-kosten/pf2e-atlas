@@ -78,14 +78,14 @@ mod tests {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ts_rs::TS)]
 #[ts(rename = "EmbeddedContentLocator")]
 pub struct OwnedContentLocator {
     pub collection: String,
     pub identity: OwnedContentIdentity,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, ts_rs::TS)]
 #[ts(rename = "EmbeddedContentIdentity")]
 pub enum OwnedContentIdentity {
     /// A source ID whose validity and uniqueness were checked by the caller.

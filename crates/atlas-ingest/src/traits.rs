@@ -7,27 +7,18 @@ use atlas_embedding::{
 use atlas_index::{TraitDefinition, TraitSourceLocation};
 use atlas_record::source_content::LocalizationResolver;
 pub(crate) const TRAIT_SEED_RECIPE: &str = "trait-definition-centroid/v1";
-#[derive(Clone)]
-pub(crate) struct PendingTraitInput {
-    pub key: TraitKey,
-    pub input: PreparedEmbeddingInput,
-}
-pub(crate) fn prepare_traits(
+pub(crate) fn prepare_traits_stream(
     catalog: &LocalizationCatalog,
     context: &atlas_index::SourceArtifactBuildContext,
     tokenizer: Option<&TextEmbeddingTokenizer>,
-    records: &[atlas_index::SourceArtifactRecordInput],
-) -> Result<(Vec<TraitDefinition>, Vec<PendingTraitInput>), IngestError> {
-    let mut definitions = Vec::new();
-    let mut pending = Vec::new();
-    let mut reference_index = atlas_record::source_record::SourceReferenceIndex::default();
-    for record in records {
-        reference_index.insert_source(record.record.key(), record.record.source());
-    }
+    reference_index: &atlas_record::source_record::SourceReferenceIndex,
+    emit: &mut dyn FnMut(TraitDefinition, Vec<PreparedEmbeddingInput>) -> Result<(), IngestError>,
+) -> Result<(), IngestError> {
     let resolve = |kind: &atlas_record::source_content::ContentReferenceKind, target: &str| {
         reference_index.resolve_global_content_reference(kind, target)
     };
     for authored in atlas_foundry_model::generated::trait_definitions() {
+        let mut pending = Vec::new();
         let key = TraitKey::new(authored.identifier)
             .map_err(|e| IngestError::SourceSelectionFailed(e.to_string()))?;
         let label = authored
@@ -70,33 +61,33 @@ pub(crate) fn prepare_traits(
             )
             .map_err(|e| IngestError::DocumentEmbeddingFailed(e.to_string()))?;
             for input in sections {
-                pending.push(PendingTraitInput {
-                    key: key.clone(),
-                    input,
-                });
+                pending.push(input);
             }
         }
-        definitions.push(TraitDefinition {
-            key,
-            label,
-            label_key: authored.label_key.map(str::to_owned),
-            description_key: authored.description_key.map(str::to_owned),
-            description_html: prepared.as_ref().map(|p| p.html.clone()),
-            authored_markup: markup.map(str::to_owned),
-            prepared,
-            catalogs: authored.catalogs.iter().map(|s| (*s).to_owned()).collect(),
-            source_locations: authored
-                .source_locations
-                .iter()
-                .map(|s| TraitSourceLocation {
-                    file: s.file.into(),
-                    line: s.line,
-                    column: s.column,
-                })
-                .collect(),
-            source_revision: context.source_revision.clone(),
-            indexing_locale: context.indexing_locale.clone(),
-        });
+        emit(
+            TraitDefinition {
+                key,
+                label,
+                label_key: authored.label_key.map(str::to_owned),
+                description_key: authored.description_key.map(str::to_owned),
+                description_html: prepared.as_ref().map(|p| p.html.clone()),
+                authored_markup: markup.map(str::to_owned),
+                prepared,
+                catalogs: authored.catalogs.iter().map(|s| (*s).to_owned()).collect(),
+                source_locations: authored
+                    .source_locations
+                    .iter()
+                    .map(|s| TraitSourceLocation {
+                        file: s.file.into(),
+                        line: s.line,
+                        column: s.column,
+                    })
+                    .collect(),
+                source_revision: context.source_revision.clone(),
+                indexing_locale: context.indexing_locale.clone(),
+            },
+            pending,
+        )?;
     }
-    Ok((definitions, pending))
+    Ok(())
 }

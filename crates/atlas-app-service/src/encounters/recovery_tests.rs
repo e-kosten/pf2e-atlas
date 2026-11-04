@@ -343,3 +343,119 @@ fn resting_other_participants_releases_ended_turn_claims_before_resuming() {
         Some(2)
     );
 }
+
+#[test]
+fn next_turn_retry_after_reset_or_rest_recovers_before_source_and_revision_guards() {
+    for reset in [false, true] {
+        let executor = RetrievalExecutor::from_fixture_workers(1, 16);
+        let path = executor
+            .runtime
+            .as_ref()
+            .unwrap()
+            .index_path()
+            .to_path_buf();
+        let fixture = fixture_worker_with_executor(executor.clone());
+        let worker = &fixture.worker;
+        let key = worker
+            .create_encounter(CreateEncounterRequest {
+                name: "Turn receipt lifetime".into(),
+                description: None,
+                note: None,
+            })
+            .unwrap()
+            .encounter
+            .encounter_key;
+        worker
+            .add_encounter_record_participant(AddEncounterRecordParticipantRequest {
+                participant_variant: None,
+                encounter_ref: key.clone(),
+                record_ref: "Test Creature 1".into(),
+                quantity: 1,
+                initiative: Some(10),
+            })
+            .unwrap();
+        let first = AdvanceEncounterTurnRequest {
+            request_id: "first-lifetime-turn".into(),
+            expected_revision: worker.encounter(&key).unwrap().revision,
+        };
+        worker.advance_encounter_turn(&key, first.clone()).unwrap();
+        worker
+            .advance_encounter_turn(
+                &key,
+                AdvanceEncounterTurnRequest {
+                    request_id: "second-lifetime-turn".into(),
+                    expected_revision: worker.encounter(&key).unwrap().revision,
+                },
+            )
+            .unwrap();
+        let current = worker.encounter(&key).unwrap();
+        let action = if reset {
+            EncounterRecoveryAction::ResetEncounter
+        } else {
+            rest_request(
+                &current.participants[0].participant_key,
+                OvernightHealingMode::Full,
+            )
+        };
+        worker
+            .apply_encounter_recovery(
+                &key,
+                ApplyEncounterRecoveryRequest {
+                    request_id: "lifetime-reset-or-rest".into(),
+                    expected_encounter_revision: current.revision,
+                    action,
+                },
+            )
+            .unwrap();
+        let saved = worker
+            .with_state(|session| {
+                Ok(session
+                    .local_state()
+                    .encounters()
+                    .get_with_participants(&key)?
+                    .unwrap())
+            })
+            .unwrap();
+        let workspace = atlas_runtime::initialize_workspace(path).unwrap();
+        let write = workspace
+            .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+            .unwrap();
+        write
+            .connection()
+            .execute(
+                "UPDATE workspace SET reference_revision=reference_revision+1 WHERE id=1",
+                [],
+            )
+            .unwrap();
+        write.commit().unwrap();
+        executor.fail_after_submissions(0);
+        assert_eq!(
+            worker
+                .advance_encounter_turn(&key, first.clone())
+                .unwrap()
+                .encounter_key,
+            key
+        );
+        let after = worker
+            .with_state(|session| {
+                Ok(session
+                    .local_state()
+                    .encounters()
+                    .get_with_participants(&key)?
+                    .unwrap())
+            })
+            .unwrap();
+        assert_eq!(after, saved);
+        assert!(
+            worker
+                .advance_encounter_turn(
+                    &key,
+                    AdvanceEncounterTurnRequest {
+                        expected_revision: saved.encounter.revision,
+                        ..first
+                    }
+                )
+                .is_err()
+        );
+    }
+}

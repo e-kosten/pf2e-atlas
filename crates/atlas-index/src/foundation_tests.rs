@@ -84,6 +84,9 @@ fn audience() -> ContentAudience {
 }
 fn context(n: usize, semantic: bool) -> SourceArtifactBuildContext {
     SourceArtifactBuildContext {
+        selected_sections_recipe: crate::SELECTED_SECTIONS_RECIPE.into(),
+
+        admission: None,
         core_sections_recipe: atlas_domain::CORE_SECTIONS_RECIPE.into(),
         trait_policy: "trait-definition-centroid/v1".into(),
         format_version: ARTIFACT_FORMAT_VERSION,
@@ -168,6 +171,12 @@ pub(super) fn fixture_with_description(semantic: bool, description: &str) -> Ind
         ),
     ];
     let mut input = IndexBuildInput {
+        inventory: crate::CompleteSourceInventory::checked(
+            &"a".repeat(64),
+            ["actors", "items", "macros"].map(str::to_owned),
+            ["actors", "items", "macros"].map(str::to_owned),
+        )
+        .unwrap(),
         traits: vec![],
         trait_vectors: vec![],
         context: context(records.len(), semantic),
@@ -602,7 +611,7 @@ fn reference_validation_rejects_missing_reference_sidecar() {
     synchronize_fixture_terms(&mut input);
     let (_directory, path) = build(&input);
     let db = Connection::open(&path).unwrap();
-    let records = crate::read_persisted_inputs(&db, &input.context).unwrap();
+    let records = crate::collect_persisted_inputs_for_fixture(&db, &input.context).unwrap();
     assert!(records.iter().any(|r| r.record.key() == &key));
     db.execute_batch("SAVEPOINT reference_metadata").unwrap();
     assert_eq!(db.execute(
@@ -618,23 +627,6 @@ fn reference_validation_rejects_missing_reference_sidecar() {
     ).unwrap();
     assert!(deleted > 0);
     assert!(crate::validate_artifact(&path).is_err());
-}
-#[test]
-fn failed_build_preserves_published_artifact() {
-    let input = fixture(false);
-    let (_directory, path) = build(&input);
-    let before = validate_artifact(&path).unwrap();
-    let mut broken = fixture(true);
-    broken.semantic_units.pop();
-    assert!(crate::test_support::publish_input(&path, &broken).is_err());
-    assert_eq!(validate_artifact(&path).unwrap(), before);
-    let mut bad = fixture(false);
-    bad.records[1].preparation_context_hash = "0".repeat(64);
-    assert!(crate::test_support::publish_input(&path, &bad).is_err());
-    assert_eq!(validate_artifact(&path).unwrap(), before);
-    assert!(crate::test_support::open_reader(&path).is_err());
-    crate::test_support::publish_input(&path, &input).unwrap();
-    assert!(crate::test_support::open_reader(&path).is_ok());
 }
 #[test]
 fn stale_contract_and_projection_corruption_require_rebuild() {
@@ -779,7 +771,7 @@ fn prepared_cache_declared_policy_and_complete_coverage_are_checked() {
     assert!(validate_artifact(path).is_err());
 }
 #[test]
-fn fts_posting_and_semantic_tail_corruption_are_rejected() {
+fn explicit_audit_rejects_fts_posting_and_semantic_tail_corruption() {
     let input = fixture(false);
     let (_directory, path) = build(&input);
     let c = Connection::open(&path).unwrap();
@@ -788,10 +780,9 @@ fn fts_posting_and_semantic_tail_corruption_are_rejected() {
     let mut input = fixture(true);
     input.semantic_units.retain(|u| u.field.is_none());
     let directory = tempfile::tempdir().unwrap();
-    assert!(
-        crate::test_support::publish_input(directory.path().join("missing.sqlite"), &input)
-            .is_err()
-    );
+    let path = directory.path().join("missing.sqlite");
+    crate::test_support::publish_input(&path, &input).unwrap();
+    assert!(validate_artifact(&path).is_err());
     let mut input = fixture(true);
     let unit = input
         .semantic_units
@@ -801,9 +792,9 @@ fn fts_posting_and_semantic_tail_corruption_are_rejected() {
     if let SourcePassageAddress::HtmlSection { chunk_bytes, .. } = &mut unit.address {
         chunk_bytes.end -= 1;
     }
-    assert!(
-        crate::test_support::publish_input(directory.path().join("tail.sqlite"), &input).is_err()
-    );
+    let path = directory.path().join("tail.sqlite");
+    crate::test_support::publish_input(&path, &input).unwrap();
+    assert!(validate_artifact(&path).is_err());
 }
 
 #[test]
@@ -972,6 +963,12 @@ fn world_table_result_cannot_resolve_into_the_compendium_namespace() {
         document_kind: "RollTable".into(),
         declared_path: "packs/tables".into(),
     });
+    input.inventory = crate::CompleteSourceInventory::checked(
+        &input.context.source_fingerprint,
+        input.packs.iter().map(|p| p.pack_id.clone()),
+        input.packs.iter().map(|p| p.pack_id.clone()),
+    )
+    .unwrap();
     input.context.source_file_count = input.records.len();
     let hash = input.context.preparation_sha256().unwrap();
     let mut resolver = SourceReferenceIndex::default();
@@ -1069,14 +1066,25 @@ fn missing_vectors_and_wrong_model_identity_cannot_be_published() {
     let input = fixture(true);
     let (_directory, path) = build(&input);
     let c = Connection::open(&path).unwrap();
-    c.execute(
-        &format!(
-            "DELETE FROM {} WHERE unit_id=1",
-            crate::schema::vector_table(&input.context.search_profiles[0]).unwrap()
-        ),
-        [],
-    )
-    .unwrap();
+    let first = &input.semantic_units[0];
+    let input_id: i64 = c
+        .query_row(
+            "SELECT su.input_id FROM semantic_units su JOIN records r USING(record_id) WHERE r.key=?1 AND su.profile_id=?2 AND su.unit_kind='identity'",
+            rusqlite::params![first.record.to_string(), first.profile_id.as_str()],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        c.execute(
+            &format!(
+                "DELETE FROM {} WHERE input_id=?1",
+                crate::schema::native_vector_table(&input.context.search_profiles[0]).unwrap()
+            ),
+            [input_id],
+        )
+        .unwrap(),
+        1
+    );
     assert!(validate_artifact(path).is_err());
 }
 #[test]
@@ -1585,7 +1593,8 @@ fn persisted_preparation_reconstructs_exact_publication_inputs_without_query_cat
     connection
         .execute("DELETE FROM query_field_catalog", [])
         .unwrap();
-    let restored = crate::read_persisted_inputs(&connection, &input.context).unwrap();
+    let restored =
+        crate::collect_persisted_inputs_for_fixture(&connection, &input.context).unwrap();
     assert_eq!(restored.len(), input.records.len());
     for original in &input.records {
         let restored = restored
@@ -1721,16 +1730,10 @@ fn remaster_suppression_reads_only_matching_identities_for_complete_sets() {
 }
 
 #[test]
-fn invalid_typed_remaster_source_rolls_back_publication() {
-    let input = fixture(false);
-    let (_directory, path) = build(&input);
-    let before = validate_artifact(&path).unwrap();
-    let generation = crate::test_support::open_reader(&path)
-        .unwrap()
-        .artifact_instance()
-        .clone();
+fn explicit_audit_rejects_invalid_typed_remaster_source() {
     for defect in ["record", "owner", "field"] {
         let mut next = fixture(false);
+        let (_directory, path) = build(&next);
         let mut provenance = atlas_record::source_content::SourceContentLocator {
             record: next.records[1].record.key().clone(),
             owners: vec![],
@@ -1749,22 +1752,39 @@ fn invalid_typed_remaster_source_rolls_back_publication() {
             remaster: next.records[2].record.key().clone(),
             provenance,
         });
-        assert!(
-            crate::test_support::publish_input(&path, &next).is_err(),
-            "{defect}"
-        );
-        assert_eq!(validate_artifact(&path).unwrap(), before);
-        let workspace = atlas_storage::Workspace::at(&path).unwrap();
-        crate::recover_reference_publication(
-            &workspace.update_owner().unwrap(),
-            crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
+        crate::test_support::publish_input(&path, &next).unwrap();
+        assert!(validate_artifact(&path).is_err(), "{defect}");
+    }
+}
+
+#[test]
+fn reader_reports_the_digest_of_exact_stored_context_bytes() {
+    let input = fixture(false);
+    let (_directory, path) = build(&input);
+    let workspace = atlas_storage::Workspace::at(&path).unwrap();
+    let schema = crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
+    let write = workspace.write(schema).unwrap();
+    let original: String = write
+        .connection()
+        .query_row(
+            "SELECT context_json FROM artifact_context WHERE singleton=1",
+            [],
+            |row| row.get(0),
         )
         .unwrap();
-        assert_eq!(
-            crate::test_support::open_reader(&path)
-                .unwrap()
-                .artifact_instance(),
-            &generation
-        );
-    }
+    let stored_json = format!("\n{original}\n");
+    let stored_digest = crate::codec::sha256(stored_json.as_bytes());
+    write
+        .connection()
+        .execute(
+            "UPDATE artifact_context SET context_json=?,context_hash=? WHERE singleton=1",
+            rusqlite::params![stored_json, stored_digest],
+        )
+        .unwrap();
+    write.commit().unwrap();
+    // Ordinary admission authenticates the original JSON bytes, including whitespace.
+    let reader = crate::SqliteIndexReader::from_session(workspace.read(schema).unwrap()).unwrap();
+    let reported_digest = reader.context_sha256();
+    assert_eq!(reported_digest, stored_digest);
+    assert_ne!(reported_digest, reader.context().sha256().unwrap());
 }

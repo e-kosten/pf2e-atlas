@@ -1317,10 +1317,25 @@ fn similarity_section_labels_preserve_authored_headings_and_navigate_checked_sou
             })
             .unwrap();
         assert_eq!(introduction.label, "Description");
-        assert_eq!(
-            introduction.navigation.as_ref().unwrap().passage.is_some(),
-            semantic
-        );
+        let passage = introduction
+            .navigation
+            .as_ref()
+            .unwrap()
+            .passage
+            .as_ref()
+            .unwrap();
+        match passage {
+            atlas_domain::SourcePassageAddress::HtmlSection {
+                section_ordinal,
+                chunk_bytes,
+                ..
+            } => {
+                assert_eq!(*section_ordinal, 0);
+                assert_eq!(chunk_bytes.start, 0);
+                assert!(chunk_bytes.end > 0);
+            }
+            other => panic!("expected complete canonical introduction address: {other:?}"),
+        }
         let heading = sections
             .iter()
             .copied()
@@ -1346,14 +1361,8 @@ fn similarity_section_labels_preserve_authored_headings_and_navigate_checked_sou
             .copied()
             .find(|part| part.owner_label == "Local unheaded ability")
             .unwrap();
-        assert_eq!(
-            unheaded_owned
-                .navigation
-                .as_ref()
-                .unwrap()
-                .passage
-                .is_some(),
-            semantic
+        assert!(
+            matches!(unheaded_owned.navigation.as_ref().unwrap().passage.as_ref().unwrap(), atlas_domain::SourcePassageAddress::HtmlSection{chunk_bytes,..} if chunk_bytes.start==0 && chunk_bytes.end>0)
         );
         assert!(
             unheaded_owned
@@ -1368,9 +1377,8 @@ fn similarity_section_labels_preserve_authored_headings_and_navigate_checked_sou
             .copied()
             .find(|part| part.field == "/system/details/blurb")
             .unwrap();
-        assert_eq!(
-            plain.navigation.as_ref().unwrap().passage.is_some(),
-            semantic
+        assert!(
+            matches!(plain.navigation.as_ref().unwrap().passage.as_ref().unwrap(), atlas_domain::SourcePassageAddress::PlainSection{chunk_bytes,..} if chunk_bytes.start==0 && chunk_bytes.end>0)
         );
         for part in [introduction, heading, owned, unheaded_owned, plain] {
             let navigation = part.navigation.as_ref().unwrap();

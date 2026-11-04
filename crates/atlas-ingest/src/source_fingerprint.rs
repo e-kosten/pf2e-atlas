@@ -30,17 +30,20 @@ pub fn compute_source_fingerprint(
     Ok(SourceCapture::capture(source_root, manifest_path)?.fingerprint)
 }
 
-/// Exact inventory for one preparation pass. Only hashes and path bindings are retained.
-/// Discovery uses this inventory and every consumed byte is checked before parsing;
-/// a final inventory comparison alone cannot detect transient (ABA) source edits.
+/// Captured inventory and owned manifest for one preparation pass. Documents stay
+/// hash-only until consumed; parsed records then belong to the attempt streams.
 pub(crate) struct SourceCapture {
     pub(crate) fingerprint: SourceFingerprint,
     pub(crate) manifest_path: PathBuf,
+    manifest: crate::source::ParsedManifest,
+    manifest_bytes: Vec<u8>,
+    english_catalog_paths: Vec<PathBuf>,
     files: BTreeMap<PathBuf, Vec<u8>>,
     packs: BTreeMap<String, (PathBuf, bool)>,
-    // The ordinary loader quarantines unreadable files. Capture failures instead
-    // invalidate the entire build, even if a later read sees restored bytes.
-    failed: std::sync::atomic::AtomicBool,
+}
+pub(crate) struct VerifiedSourceBytes {
+    pub(crate) bytes: Vec<u8>,
+    pub(crate) sha256: String,
 }
 impl SourceCapture {
     pub(crate) fn capture(
@@ -60,7 +63,13 @@ impl SourceCapture {
             let present = path.is_dir();
             packs.insert(pack.path.clone(), (path.clone(), present));
             if present {
-                collect_files(&path, &mut files)?;
+                collect_files(&path, &mut files).map_err(|error| {
+                    IngestError::SourceUnavailable(format!(
+                        "declared pack {} at {} could not be read: {error}",
+                        pack.name,
+                        path.display()
+                    ))
+                })?;
             }
         }
         for directory in ["static/lang", "src/module/migration/migrations"] {
@@ -69,12 +78,19 @@ impl SourceCapture {
                 collect_files(&path, &mut files)?;
             }
         }
+        let mut english_catalog_paths = Vec::new();
         for language in &parsed.manifest.languages {
             let path =
                 crate::source::localization::resolve_catalog_path(source_root, &language.path)?;
+            if language.lang == "en" {
+                english_catalog_paths.push(path.clone());
+            }
             if path.is_file() {
                 files.insert(path);
             }
+        }
+        if english_catalog_paths.is_empty() {
+            english_catalog_paths.push(source_root.join("static/lang/en.json"));
         }
         let mut hasher = Sha256::new();
         frame(&mut hasher, SOURCE_FINGERPRINT_VERSION.as_bytes());
@@ -118,41 +134,60 @@ impl SourceCapture {
         Ok(Self {
             fingerprint,
             manifest_path,
+            manifest: parsed,
+            manifest_bytes,
+            english_catalog_paths,
             files: hashes,
             packs,
-            failed: false.into(),
         })
     }
-    pub(crate) fn read(&self, path: &Path) -> Result<Vec<u8>, IngestError> {
-        let result = fs::read(path)
-            .map_err(|e| IngestError::SourceUnavailable(format!("{}: {e}", path.display())))
-            .and_then(|bytes| {
-                if self
-                    .files
-                    .get(path)
-                    .is_some_and(|hash| *hash == Sha256::digest(&bytes).as_slice())
-                {
-                    Ok(bytes)
-                } else {
-                    Err(IngestError::SourceUnavailable(format!(
-                        "source changed after capture: {}",
-                        path.display()
-                    )))
-                }
-            });
-        if result.is_err() {
-            self.failed
-                .store(true, std::sync::atomic::Ordering::Relaxed);
-        }
-        result
+    pub(crate) fn manifest(&self) -> &crate::source::ParsedManifest {
+        &self.manifest
     }
-    pub(crate) fn verify_reads(&self) -> Result<(), IngestError> {
-        if self.failed.load(std::sync::atomic::Ordering::Relaxed) {
-            Err(IngestError::SourceUnavailable(
-                "captured source read failed; retry build".into(),
-            ))
+    pub(crate) fn english_catalog_paths(&self) -> &[PathBuf] {
+        &self.english_catalog_paths
+    }
+    pub(crate) fn require_complete_packs(&self) -> Result<(), IngestError> {
+        for (declared, (path, present)) in &self.packs {
+            if !present {
+                return Err(IngestError::SourceUnavailable(format!(
+                    "declared pack {declared} is missing or unreadable at {}; restore the pack or remove its declaration before rebuilding",
+                    path.display()
+                )));
+            }
+        }
+        Ok(())
+    }
+    pub(crate) fn read(&self, path: &Path) -> Result<Vec<u8>, IngestError> {
+        self.read_verified(path).map(|source| source.bytes)
+    }
+    pub(crate) fn read_verified(&self, path: &Path) -> Result<VerifiedSourceBytes, IngestError> {
+        if path == self.manifest_path {
+            let digest = self.files.get(path).ok_or_else(|| {
+                IngestError::SourceUnavailable("captured manifest digest is absent".into())
+            })?;
+            return Ok(VerifiedSourceBytes {
+                bytes: self.manifest_bytes.clone(),
+                sha256: digest.iter().map(|byte| format!("{byte:02x}")).collect(),
+            });
+        }
+        let bytes = fs::read(path)
+            .map_err(|e| IngestError::SourceUnavailable(format!("{}: {e}", path.display())))?;
+        let digest = Sha256::digest(&bytes);
+        if self
+            .files
+            .get(path)
+            .is_some_and(|hash| *hash == digest.as_slice())
+        {
+            Ok(VerifiedSourceBytes {
+                bytes,
+                sha256: format!("{digest:x}"),
+            })
         } else {
-            Ok(())
+            Err(IngestError::SourceUnavailable(format!(
+                "source changed after capture: {}",
+                path.display()
+            )))
         }
     }
     pub(crate) fn paths(&self, directory: &Path) -> Vec<PathBuf> {

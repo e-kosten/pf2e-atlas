@@ -46,12 +46,13 @@ pub use query::{SourceQueryView, source_family_record_kind};
 pub use relationships::{
     SourceRelationshipKind, SourceRelationshipOccurrence, resolve_source_relationships,
 };
-pub use resolver::SourceReferenceIndex;
+pub use resolver::{SourceReferenceContribution, SourceReferenceIndex};
 pub use search_selection::{
     SOURCE_CONTENT_SELECTION_VERSION, SourceSearchSelection, SourceSelectedField,
     SourceSelectedIdentity, SourceSelectedSection, SourceSelectedSectionKind, SourceSelectionError,
-    mark_source_html_passage, recover_source_passage, section_annotated_prepared_html,
-    select_prepared_html_sections, select_record_search, single_section_annotated_prepared_html,
+    mark_source_html_passage, recover_source_passage, searchable_identity_traits,
+    section_annotated_prepared_html, select_prepared_html_sections, select_record_search,
+    single_section_annotated_prepared_html,
 };
 pub use text::{SourceTextKind, SourceTextSource};
 

@@ -216,3 +216,36 @@ fn pinned_english_localize_references_have_resolvable_content() {
         );
     }
 }
+
+#[test]
+fn captured_manifest_and_catalog_binding_survive_remapping_and_consumed_catalog_removal() {
+    let root = tempfile::tempdir().unwrap();
+    fs::create_dir_all(root.path().join("static/translations")).unwrap();
+    let manifest = root.path().join("module.json");
+    fs::write(
+        &manifest,
+        json!({"languages":[{"lang":"en","path":"translations/english.json"}]}).to_string(),
+    )
+    .unwrap();
+    let captured_path = root.path().join("static/translations/english.json");
+    fs::write(
+        &captured_path,
+        json!({"Bound":"Captured fallback"}).to_string(),
+    )
+    .unwrap();
+    let capture = crate::source_fingerprint::SourceCapture::capture(root.path(), None).unwrap();
+    // A newly preferred direct path and a changed/deleted manifest must not
+    // redirect this captured declaration to different bytes.
+    fs::create_dir_all(root.path().join("translations")).unwrap();
+    fs::write(
+        root.path().join("translations/english.json"),
+        json!({"Bound":"New direct path"}).to_string(),
+    )
+    .unwrap();
+    fs::remove_file(&manifest).unwrap();
+    let catalog =
+        LocalizationCatalog::load_captured(root.path(), "en", None, Some(&capture)).unwrap();
+    assert_eq!(catalog.localized_value("Bound"), Some("Captured fallback"));
+    fs::remove_file(&captured_path).unwrap();
+    assert_eq!(catalog.localized_value("Bound"), Some("Captured fallback"));
+}

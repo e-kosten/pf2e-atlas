@@ -188,45 +188,48 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
     let saved_participants = participant_rows(write.connection());
     let model = &input.context.search_profiles[0];
     let unit = &input.semantic_units[0];
-    let checkpoint = atlas_embedding::PreparedEmbeddingInput {
-        address: unit.address.clone(),
+    let checkpoint = atlas_embedding::PreparedNativeInput {
         input: String::new(),
         input_sha256: unit.input_hash.clone(),
-        reuse_key: "backfill-preservation".into(),
         token_count: unit.input_token_count,
-        body_token_count: unit.input_token_count,
-        overlap_token_count: 0,
-        context_shortened: false,
     };
-    let job = atlas_index::start_reference_job(&write, "next-preparation").unwrap();
+    let job = "next-preparation";
     if initial_schema == 2 {
+        write.connection().execute(
+            "INSERT INTO reference_update_jobs(job_key,expected_revision,target_hash,state) VALUES(?,?,'fixture-target','preparing')",
+            (job,write.reference_revision().unwrap()),
+        ).unwrap();
         atlas_index::test_support::stage_historical_embedding_fixture(
             &write,
-            &job,
+            job,
+            "backfill-preservation",
             model,
             &checkpoint,
             &unit.vector,
         )
         .unwrap();
     } else {
-        atlas_index::stage_embedding_values(&write, &job, model, &[(&checkpoint, &unit.vector)])
-            .unwrap();
+        let id: i64 = write.connection().query_row(
+            "SELECT input_id FROM embedding_inputs i JOIN embedding_models m USING(model_id) WHERE m.identity_json=? AND lower(hex(i.input_hash))=?",
+            (serde_json::to_string(model).unwrap(),&unit.input_hash), |row| row.get(0),
+        ).unwrap();
+        let bytes = unit
+            .vector
+            .iter()
+            .flat_map(|value| value.to_le_bytes())
+            .collect::<Vec<_>>();
+        let hash = atlas_search::test_support::hash(&bytes);
+        let hash = (0..hash.len())
+            .step_by(2)
+            .map(|offset| u8::from_str_radix(&hash[offset..offset + 2], 16).unwrap())
+            .collect::<Vec<_>>();
+        write.connection().execute(
+            "INSERT INTO pending_embedding_values(input_id,vector,vector_hash,cached_at) VALUES(?,?,?,0)",
+            rusqlite::params![id,bytes,hash],
+        ).unwrap();
     }
-    // Inspect stored vector bytes, not a retrieval score that could hide replacement.
-    let vector_table: String = write.connection().query_row(
-        "SELECT name FROM sqlite_schema WHERE type='table' AND sql LIKE 'CREATE VIRTUAL TABLE%USING vec0%'", [], |r| r.get(0),
-    ).unwrap();
-    let stored_vectors = |connection: &rusqlite::Connection| {
-        connection
-            .prepare(&format!(
-                "SELECT unit_id,embedding FROM {vector_table} ORDER BY unit_id"
-            ))
-            .unwrap()
-            .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Vec<u8>>(1)?)))
-            .unwrap()
-            .collect::<Result<Vec<_>, _>>()
-            .unwrap()
-    };
+    // Inspect each retained occurrence's bytes across the actual old/new layouts.
+    let stored_vectors = crate::test_support::occurrence_vector_bits;
     let vectors_before = stored_vectors(write.connection());
     assert!(!vectors_before.is_empty());
     let before = write.reference_revision().unwrap();
@@ -407,10 +410,17 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
                 assert_eq!(aliases, 1);
             }
         }
-        let checkpoints =
-            atlas_index::read_reusable_embeddings(&read, model, std::slice::from_ref(&checkpoint))
-                .unwrap();
-        assert_eq!(checkpoints[&checkpoint.reuse_key], unit.vector);
+        let cached: Vec<u8> = read.connection().query_row(
+            "SELECT p.vector FROM pending_embedding_values p JOIN embedding_inputs i USING(input_id) JOIN embedding_models m USING(model_id) WHERE m.identity_json=? AND lower(hex(i.input_hash))=?",
+            (serde_json::to_string(model).unwrap(),&checkpoint.input_sha256),|row|row.get(0),
+        ).unwrap();
+        assert_eq!(
+            cached,
+            unit.vector
+                .iter()
+                .flat_map(|value| value.to_le_bytes())
+                .collect::<Vec<_>>()
+        );
     }
     assert!(!paths.source_root.exists());
     {
@@ -500,7 +510,7 @@ fn forced_setup_resplits_passages_without_disabling_vector_reuse() {
         .statistics()
         .unwrap();
     let c = rusqlite::Connection::open(&paths.index_path).unwrap();
-    c.execute("UPDATE semantic_locations SET location_hash=zeroblob(32) WHERE location_id=(SELECT min(location_id) FROM semantic_units WHERE unit_kind='passage')", []).unwrap();
+    c.execute("UPDATE semantic_locations SET section_id=NULL,chunk_ordinal=NULL,chunk_start=NULL,chunk_end=NULL WHERE location_id=(SELECT min(location_id) FROM semantic_units WHERE unit_kind='passage')", []).unwrap();
     let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
     let read = workspace.read(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
     assert!(atlas_index::read_reusable_passage_layouts(&read).is_err());
@@ -636,6 +646,161 @@ fn stale_build_configuration_is_rejected_before_reading_source() {
     assert!(!paths.source_root.exists());
     assert!(!paths.embedding_cache_root.exists());
 }
+#[test]
+fn setup_chooses_metadata_refresh_or_one_source_publication() {
+    for action in ["metadata", "force", "source edit", "manual"] {
+        let directory = tempfile::tempdir().unwrap();
+        let paths = paths(directory.path());
+        source(&paths);
+        assert!(crate::setup::ensure_setup(&paths, options(false)).ready);
+        let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
+        let mut context = open_reader(&paths.index_path).unwrap().context().clone();
+        context.core_sections_recipe.clear();
+        let before = {
+            let write = workspace.write(crate::WORKSPACE_SCHEMA_VERSION).unwrap();
+            write
+                .connection()
+                .execute(
+                    "UPDATE artifact_context SET context_json=?,context_hash=?",
+                    rusqlite::params![
+                        serde_json::to_string(&context).unwrap(),
+                        context.sha256().unwrap()
+                    ],
+                )
+                .unwrap();
+            let revision = write.reference_revision().unwrap();
+            write.commit().unwrap();
+            revision
+        };
+        assert!(!crate::setup::ensure_setup(&paths, options(true)).ready);
+        assert_eq!(
+            workspace
+                .read(crate::WORKSPACE_SCHEMA_VERSION)
+                .unwrap()
+                .reference_revision()
+                .unwrap(),
+            before
+        );
+        if action == "source edit" {
+            fs::write(
+                paths.source_root.join("packs/items/one.json"),
+                r#"{"_id":"aaaaaaaaaaaaaaaa","name":"Changed","type":"effect"}"#,
+            )
+            .unwrap();
+        }
+        if action == "manual" {
+            let config =
+                crate::source_configuration::resolve_configuration(&paths, &options(false), None)
+                    .unwrap();
+            assert_eq!(
+                workspace
+                    .read(crate::WORKSPACE_SCHEMA_VERSION)
+                    .unwrap()
+                    .reference_revision()
+                    .unwrap(),
+                before
+            );
+            atlas_ingest::build_artifact(
+                &workspace,
+                crate::WORKSPACE_SCHEMA_VERSION,
+                atlas_ingest::BuildArtifactOptions {
+                    source_root: config.source_root,
+                    output_path: paths.index_path.clone(),
+                    manifest_path: config.manifest_path,
+                    locale: config.indexing_locale,
+                    search_profiles: vec![],
+                    reuse_embeddings: true,
+                    reuse_passage_layouts: true,
+                    embedding_batch_size: 32,
+                },
+            )
+            .unwrap();
+        } else {
+            let report = crate::setup::ensure_setup(
+                &paths,
+                RuntimeSetupOptions {
+                    force_rebuild: action == "force",
+                    ..options(false)
+                },
+            );
+            assert!(report.ready, "{action}: {:?}", report.actions);
+            assert_eq!(report.build.is_some(), action != "metadata", "{action}");
+        }
+        assert_eq!(
+            workspace
+                .read(crate::WORKSPACE_SCHEMA_VERSION)
+                .unwrap()
+                .reference_revision()
+                .unwrap(),
+            before + 1,
+            "{action}"
+        );
+        assert!(open_reader(&paths.index_path).is_ok());
+    }
+}
+
+#[test]
+fn owned_build_inputs_keep_captured_manifest_and_reject_unconsumed_source_changes() {
+    let directory = tempfile::tempdir().unwrap();
+    let paths = paths(directory.path());
+    source(&paths);
+    crate::source_configuration::resolve_configuration(&paths, &options(false), None).unwrap();
+    let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
+    let build_options = atlas_ingest::BuildArtifactOptions {
+        source_root: paths.source_root.clone(),
+        output_path: paths.index_path.clone(),
+        manifest_path: None,
+        locale: "en".into(),
+        search_profiles: vec![],
+        reuse_embeddings: true,
+        reuse_passage_layouts: true,
+        embedding_batch_size: 32,
+    };
+    let manifest_path = paths.source_root.join("module.json");
+    let manifest = fs::read(&manifest_path).unwrap();
+    let captured = atlas_ingest::CapturedBuildInputs::capture(build_options.clone()).unwrap();
+    let fingerprint = captured.fingerprint().clone();
+    fs::write(&manifest_path, "invalid after capture").unwrap();
+    let report = captured
+        .build(&workspace, crate::WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    assert_eq!(report.source_fingerprint, fingerprint.value);
+    let before = workspace
+        .read(crate::WORKSPACE_SCHEMA_VERSION)
+        .unwrap()
+        .reference_revision()
+        .unwrap();
+    fs::write(&manifest_path, manifest).unwrap();
+    let captured = atlas_ingest::CapturedBuildInputs::capture(build_options).unwrap();
+    fs::write(
+        paths.source_root.join("packs/items/one.json"),
+        r#"{"_id":"aaaaaaaaaaaaaaaa","name":"Changed","type":"effect"}"#,
+    )
+    .unwrap();
+    let error = captured
+        .build(&workspace, crate::WORKSPACE_SCHEMA_VERSION)
+        .unwrap_err();
+    assert!(
+        error.to_string().contains("source changed after capture"),
+        "{error}"
+    );
+    assert_eq!(
+        workspace
+            .read(crate::WORKSPACE_SCHEMA_VERSION)
+            .unwrap()
+            .reference_revision()
+            .unwrap(),
+        before
+    );
+    assert_eq!(
+        open_reader(&paths.index_path)
+            .unwrap()
+            .context()
+            .source_fingerprint,
+        fingerprint.value
+    );
+}
+
 #[test]
 fn explicit_setup_freshness_tracks_actual_bytes_and_preserves_locale() {
     let dir = tempfile::tempdir().unwrap();

@@ -6,6 +6,8 @@
 #![deny(unsafe_code)]
 
 mod backup;
+#[cfg(feature = "diagnostics")]
+pub mod diagnostics;
 mod error;
 mod locking;
 mod migration;

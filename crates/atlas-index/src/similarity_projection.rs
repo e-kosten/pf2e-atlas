@@ -27,28 +27,9 @@ pub fn backfill_similarity_parts(c: &Connection) -> atlas_storage::StorageResult
 }
 
 fn backfill(c: &Connection) -> Result<(), IndexError> {
-    let Some(context) = crate::read_stored_reference_context(c)? else {
+    let Some(context) = crate::historical_similarity_admission::for_backfill(c)? else {
         return Ok(());
     };
-    if context.snapshot_version != atlas_foundry_model::SNAPSHOT_VERSION
-        || context.source_contract != atlas_foundry_model::SOURCE_CONTRACT_ID
-        || context.content_selection_version
-            != atlas_record::source_record::SOURCE_CONTENT_SELECTION_VERSION
-        || context.content_interpretation_version
-            != atlas_record::source_content::CONTENT_INTERPRETATION_VERSION
-    {
-        // Existing setup admission owns replacement of retired checked codecs.
-        return Ok(());
-    }
-    if matches!(
-        crate::classify_reference_upgrade(c)?,
-        crate::ReferenceUpgrade::SourcePreparation | crate::ReferenceUpgrade::SourceReplacement
-    ) {
-        // Setup owns replacing retired preparation outputs (localization, assets,
-        // authored relationships, lookup, content selection and trait policy).
-        // Reuse its classifier before reading any record rows or checked bodies.
-        return Ok(());
-    }
     let mut after = 0i64;
     loop {
         let roots = c.prepare("SELECT record_id,key FROM records WHERE record_id>? AND document_kind<>'Macro' ORDER BY record_id LIMIT 128")?
@@ -72,6 +53,7 @@ fn backfill(c: &Connection) -> Result<(), IndexError> {
     Ok(())
 }
 
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn write_similarity_parts(
     c: &Connection,
     input: &crate::IndexBuildInput,
@@ -181,67 +163,4 @@ fn project_parts(
         }
     }
     Ok(projected)
-}
-
-pub(crate) fn validate_record_parts(
-    c: &Connection,
-    id: i64,
-    record: &SourceBackedRecord,
-    context: &SourceArtifactBuildContext,
-    selection: &SourceSearchSelection,
-) -> Result<(), IndexError> {
-    let content_hash: String = c.query_row(
-        "SELECT content_hash FROM records WHERE record_id=?",
-        [id],
-        |row| row.get(0),
-    )?;
-    let mut expected = project_parts(
-        record,
-        selection,
-        &content_hash,
-        &context.preparation_sha256()?,
-    )?
-    .into_iter()
-    .map(|(part, body_hash)| {
-        Ok((
-            part.selector.0.clone(),
-            serde_json::to_string(&part.owners)?,
-            part.field.clone(),
-            part.section_ordinal,
-            body_hash,
-            serde_json::to_value(part.role)?
-                .as_str()
-                .unwrap_or("")
-                .to_owned(),
-            serde_json::to_string(&part)?,
-            SIMILARITY_ROLE_RECIPE.to_owned(),
-        ))
-    })
-    .collect::<Result<std::collections::BTreeSet<_>, IndexError>>()?;
-    let mut statement=c.prepare("SELECT selector,owners_json,field_path,section_ordinal,body_hash,role,metadata_json,recipe FROM similarity_parts WHERE record_id=?")?;
-    let rows = statement.query_map([id], |row| {
-        Ok((
-            row.get::<_, String>(0)?,
-            row.get::<_, String>(1)?,
-            row.get::<_, String>(2)?,
-            row.get::<_, usize>(3)?,
-            row.get::<_, String>(4)?,
-            row.get::<_, String>(5)?,
-            row.get::<_, String>(6)?,
-            row.get::<_, String>(7)?,
-        ))
-    })?;
-    for row in rows {
-        if !expected.remove(&row?) {
-            return Err(IndexError::Invalid(
-                "similarity part metadata differs from its checked source or role policy".into(),
-            ));
-        }
-    }
-    if !expected.is_empty() {
-        return Err(IndexError::Invalid(
-            "similarity part projection is incomplete".into(),
-        ));
-    }
-    Ok(())
 }

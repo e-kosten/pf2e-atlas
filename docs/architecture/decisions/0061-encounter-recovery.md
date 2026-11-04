@@ -21,7 +21,8 @@ encounter revision guards the complete snapshot; source-derived rest plans also
 guard the reference revision. One local-state savepoint writes all replacements,
 invalidates superseded decisions and saves a request identity. Identical retries
 recover before guards, preventing repeated healing/reduction; intent reuse fails.
-Historical roll/event receipts survive reset so old retries cannot reapply events.
+Historical roll/event and Next-turn receipts survive reset/rest so old retries
+cannot reapply events or advance a restarted encounter.
 
 Whole reset returns to Draft/round 1 and releases all boundary claims. Participant
 reset preserves the encounter's round and ends its active turn only when that

@@ -1,5 +1,7 @@
 import { expect, test } from "./fixtures";
-import { activate, noPageOverflow } from "./reading";
+import { activate, noPageOverflow, sentinel } from "./reading";
+import { readUrl } from "../readingUrl";
+import type { SimilarityPartsView } from "../../src/generated/atlas";
 
 test("a version change keeps one reachable recovery inside an open editor and preserves its draft", async ({
   page,
@@ -231,3 +233,170 @@ test("a Similarity inventory outage preserves settings and recovers as a read", 
     contentType: "image/png",
   });
 });
+
+for (const section of [
+  {
+    kind: "root",
+    seed: "browser-rules:rule000000000001",
+    owner: "Signal Protocol",
+    text: "The lantern flashes twice before the patrol advances.",
+  },
+  {
+    kind: "owned",
+    seed: sentinel,
+    owner: "Signal Pulse",
+    text: "Technique 68 directs the watchtower's lantern toward the narrow passage.",
+  },
+] as const) {
+  test(`canonical ${section.kind} sections keep exact source reading and applied Custom/Core after reload`, async ({
+    page,
+  }, info) => {
+    await page.goto(`/search?similar=${section.seed}`);
+    await expect(
+      page
+        .getByRole("region", { name: "Search results", exact: true })
+        .locator(".reference-result")
+        .first(),
+    ).toBeVisible();
+    const settings = page.getByRole("button", { name: "Search settings", exact: true });
+    const openSettings = async () => {
+      await expect(
+        page
+          .getByRole("region", { name: "Search results", exact: true })
+          .locator(".reference-result")
+          .first(),
+      ).toBeVisible();
+      await activate(settings, info);
+      const dialog = page.getByRole("dialog", { name: "Search settings", exact: true });
+      await expect(dialog).toBeVisible();
+      await expect(dialog).not.toHaveClass(/ant-zoom-(?:appear|enter)(?:[-\s]|$)/);
+      return dialog;
+    };
+    const inventoryRead = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/api/search/similarity/parts") &&
+        response.request().method() === "POST",
+    );
+    let dialog = await openSettings();
+    const inventoryResponse = await inventoryRead;
+    expect(inventoryResponse.ok()).toBeTruthy();
+    const inventory: SimilarityPartsView = await inventoryResponse.json();
+    const part = inventory.parts.find(
+      (part) => part.kind === "section" && part.owner_label === section.owner,
+    );
+    if (!part || part.kind !== "section" || !part.navigation)
+      throw new Error(`Missing canonical ${section.owner} section in real inventory`);
+    expect(part.has_vectors).toBe(true);
+    expect(part.owners).toHaveLength(section.kind === "root" ? 0 : 1);
+    if (section.kind === "owned")
+      expect(part.owners).toEqual([
+        { collection: "/items", identity: { Stable: "signalpulse00001" } },
+      ]);
+    expect(part.navigation.passage).not.toBeNull();
+    await activate(
+      dialog.getByRole("button", { name: "Choose sections", exact: true }),
+      info,
+    );
+    dialog = page.getByRole("dialog", { name: "Choose sections", exact: true });
+    const all = dialog.getByRole("checkbox", { name: "Select all", exact: true });
+    await expect(all).toBeChecked();
+    await activate(all, info);
+    const selected = dialog.getByRole("checkbox", {
+      name: `${section.owner}: ${part.label}`,
+      exact: true,
+    });
+    await activate(selected, info);
+    await expect(selected).toBeChecked();
+    const row = dialog.locator(".search-settings__part-choice").filter({
+      has: page.getByRole("checkbox", {
+        name: `${section.owner}: ${part.label}`,
+        exact: true,
+      }),
+    });
+    const link = row.getByRole("link");
+    expect(readUrl(new URL((await link.getAttribute("href"))!, page.url()))).toEqual(
+      part.navigation,
+    );
+    const sourceRead = page.waitForResponse((response) => {
+      if (
+        !response.url().endsWith("/api/records/detail") ||
+        response.request().method() !== "POST"
+      )
+        return false;
+      const request = response.request().postDataJSON();
+      return (
+        request.record_key === section.seed &&
+        JSON.stringify(request.embedded_path) === JSON.stringify(part.owners) &&
+        JSON.stringify(request.passage) === JSON.stringify(part.navigation!.passage)
+      );
+    });
+    await activate(link, info);
+    const sourceResponse = await sourceRead;
+    expect(sourceResponse.ok()).toBeTruthy();
+    expect((await sourceResponse.json()).selected).toEqual(part.navigation);
+    const source = dialog.getByRole("region", { name: "Record preview", exact: true });
+    await expect(source).toBeVisible();
+    const owner = source.getByRole("heading", {
+      name: new RegExp(`^${section.owner}\\b`),
+    });
+    await expect(owner).toBeVisible();
+    await expect(owner).toBeFocused();
+    const emphasized = source
+      .locator(`[data-atlas-source-section="${part.section_ordinal}"]`)
+      .filter({ hasText: section.text })
+      .first();
+    await expect(emphasized).toBeVisible();
+    await expect(emphasized).toHaveClass(/source-section-selected/);
+    await expect(emphasized).not.toHaveClass(/source-section-excluded/);
+    await expect(
+      dialog.getByText("Only highlighted sections are used for comparison.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await activate(dialog.getByRole("button", { name: "Apply", exact: true }), info);
+    await expect(dialog).toBeHidden();
+    await page.reload();
+    dialog = await openSettings();
+    const preset = dialog.getByRole("combobox", {
+      name: "Source sections",
+      exact: true,
+    });
+    await expect(preset.locator("..")).toHaveText("Custom");
+    await activate(
+      dialog.getByRole("button", { name: "Choose sections", exact: true }),
+      info,
+    );
+    dialog = page.getByRole("dialog", { name: "Choose sections", exact: true });
+    await expect(selected).toBeChecked();
+    const identity = dialog.getByRole("checkbox", { name: /: Name and identity$/ });
+    await expect(identity).not.toBeChecked();
+    await expect(all).not.toBeChecked();
+    await activate(
+      dialog.getByRole("button", { name: "Back to search settings", exact: true }),
+      info,
+    );
+    dialog = page.getByRole("dialog", { name: "Search settings", exact: true });
+    await activate(preset, info);
+    const dropdown = page.locator(".ant-select-dropdown:visible");
+    await expect(dropdown).not.toHaveClass(/ant-slide-up-(?:appear|enter)(?:[-\s]|$)/);
+    await activate(dropdown.getByText("Core sections", { exact: true }), info);
+    await activate(dialog.getByRole("button", { name: "Apply", exact: true }), info);
+    await expect(dialog).toBeHidden();
+    await page.reload();
+    dialog = await openSettings();
+    await expect(preset.locator("..")).toHaveText("Core sections");
+    await activate(
+      dialog.getByRole("button", { name: "Choose sections", exact: true }),
+      info,
+    );
+    dialog = page.getByRole("dialog", { name: "Choose sections", exact: true });
+    await expect(selected).toBeChecked({
+      checked: inventory.core.selectors.includes(part.selector),
+    });
+    const identityPart = inventory.parts.find((part) => part.kind === "identity")!;
+    await expect(identity).toBeChecked({
+      checked: inventory.core.selectors.includes(identityPart.selector),
+    });
+    await noPageOverflow(page);
+  });
+}

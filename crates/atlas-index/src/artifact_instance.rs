@@ -1,5 +1,6 @@
 /// Durable workspace identity and the reference revision visible in one snapshot.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ArtifactInstance {
     workspace_key: String,
     reference_revision: u64,

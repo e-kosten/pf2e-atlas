@@ -14,6 +14,9 @@ history](derived-tags/README.md). It consolidates the Node implementation, local
 concept mappings, Rust seed experiments and ontology/assessment discussion,
 including source snapshots and cleanup boundaries.
 
+The [database ingest benchmark](database-ingest-revision.md) records release
+build time, peak memory, audit costs and the input ownership retrieval tradeoff.
+
 Research notes should capture:
 
 - the question the spike tried to answer;

@@ -44,6 +44,11 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Soon
 
+- [Database and ingest simplification](items/database-ingest-simplification.md)
+  Bounded reference publication, input-owned vectors, canonical sections,
+  saved-state integrity and indexed eligibility. Implementation under review in
+  PR184. Explicit reference rebuild is deferred. Status: in_progress.
+
 - [Broader exact neighbor reuse](items/search-neighbor-reuse-expansion.md)
   Evaluate scoped trait-reference text search and configured Similar with complete
   native selection identity and matched measurements. Unscoped baseline Similar

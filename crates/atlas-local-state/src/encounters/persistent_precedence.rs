@@ -20,12 +20,39 @@ pub(super) fn read(
     })?;
     rows.map(|row| {
         let (episode_id, order) = row?;
-        Ok(PersistentSourcePrecedence {
-            episode_id,
-            source_order: serde_json::from_str(&order)?,
-        })
+        decode(episode_id, &order)
     })
     .collect()
+}
+
+pub(super) fn read_for_encounter(
+    connection: &Connection,
+    encounter: &str,
+) -> LocalStateResult<std::collections::BTreeMap<String, Vec<PersistentSourcePrecedence>>> {
+    let mut statement = connection.prepare("SELECT p.participant_key,r.episode_id,r.source_order_json FROM encounter_participants p JOIN encounter_persistent_precedence r ON r.participant_id=p.id WHERE p.encounter_id=(SELECT id FROM encounters WHERE encounter_key=?1) ORDER BY p.participant_key,r.episode_id")?;
+    let rows = statement.query_map([encounter], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+        ))
+    })?;
+    let mut grouped = std::collections::BTreeMap::<String, Vec<PersistentSourcePrecedence>>::new();
+    for row in rows {
+        let (key, episode_id, order) = row?;
+        grouped
+            .entry(key)
+            .or_default()
+            .push(decode(episode_id, &order)?);
+    }
+    Ok(grouped)
+}
+
+fn decode(episode_id: String, order: &str) -> LocalStateResult<PersistentSourcePrecedence> {
+    Ok(PersistentSourcePrecedence {
+        episode_id,
+        source_order: serde_json::from_str(order)?,
+    })
 }
 
 pub(super) fn write(

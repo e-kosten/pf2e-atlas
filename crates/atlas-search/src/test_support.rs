@@ -85,6 +85,9 @@ pub fn audience() -> ContentAudience {
 }
 pub fn context(semantic: bool) -> SourceArtifactBuildContext {
     SourceArtifactBuildContext {
+        selected_sections_recipe: atlas_index::SELECTED_SECTIONS_RECIPE.into(),
+
+        admission: None,
         trait_policy: "trait-definition-centroid/v1".into(),
         format_version: ARTIFACT_FORMAT_VERSION,
         snapshot_version: SNAPSHOT_VERSION,
@@ -152,7 +155,7 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
     let mut context = context(semantic);
     context.source_file_count = records.len();
     let ctxhash = context.preparation_sha256().unwrap();
-    let packs = records
+    let packs: Vec<IndexBuildPack> = records
         .iter()
         .map(|r| {
             (
@@ -245,7 +248,14 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
             }
         }
     }
+    let inventory = atlas_index::CompleteSourceInventory::checked(
+        &context.source_fingerprint,
+        packs.iter().map(|p| p.pack_id.clone()),
+        packs.iter().map(|p| p.pack_id.clone()),
+    )
+    .unwrap();
     IndexBuildInput {
+        inventory,
         traits: vec![],
         trait_vectors: vec![],
         records,
@@ -256,6 +266,21 @@ pub fn input(mut records: Vec<SourceArtifactRecordInput>, semantic: bool) -> Ind
         aliases: vec![],
         remaster_pairs: vec![],
     }
+}
+
+/// Change a fixture's captured identity together with its checked pack inventory.
+pub fn set_input_source_fingerprint(
+    input: &mut IndexBuildInput,
+    fingerprint: String,
+) -> Result<(), crate::SearchError> {
+    let inventory = atlas_index::CompleteSourceInventory::checked(
+        &fingerprint,
+        input.packs.iter().map(|pack| pack.pack_id.clone()),
+        input.packs.iter().map(|pack| pack.pack_id.clone()),
+    )?;
+    input.context.source_fingerprint = fingerprint;
+    input.inventory = inventory;
+    Ok(())
 }
 
 /// Structural same-dimension fixtures for profile isolation and model-free app tests.

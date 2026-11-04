@@ -1,6 +1,7 @@
 # ADR 0046: Source-backed reference artifact and query projections
 
-Status: Accepted.
+Status: Accepted. [ADR0051](0051-persistent-workspace.md) amends the physical
+artifact and saved-database lifetimes; source authority and query policy remain.
 
 ## Decision
 
@@ -37,6 +38,18 @@ The maintained CEL parser owns grammar. Atlas compiles the supported AST subset
 to SQL rather than interpreting expressions over source bodies. Unsupported
 syntax, fields, types, nesting and excessive complexity fail before execution.
 Availability uses an explicitly declared literal-key metadata map.
+
+Accepted-root eligibility has a relational lowering for positive scalar and set
+leaves, composed through conjunctions. It uses the same executable descriptors,
+literal conversion and family applicability as nullable truth compilation;
+direct columns and uncorrelated owner relations expose existing partial/range
+indexes. Other Boolean shapes, negative membership, collection witnesses and
+relationship leaves use the general three-valued compiler. A root is accepted
+only when the complete predicate is true. Relationship proof generation retains
+that general truth tree, so query planning does not change attributed evidence.
+Unit-price comparisons retain exact SQLite copper-to-gold division rather than
+inverting a floating-point threshold. Key scope, edition preference and lexical/
+vector eligibility consume the same accepted-root relation.
 
 The root common Level / rank field selects authored spell rank/state for spells
 and record level/state for other applicable families, without unavailable-value
@@ -118,6 +131,30 @@ is recovered from source/prepared content; vector metadata does not retain a
 second prose corpus. A typed passage address binds section ordinal and UTF-8 byte
 range to source/preparation hashes, with no fabricated identity range.
 
+Selected source sections have one canonical relational row, including their whole
+neutral address, byte extent, role, labels and existing public selector. Lexical
+section evidence and semantic chunks reference that row; chunks retain only their
+ordinal and byte range. Locations share a row only when the section, chunk ordinal
+and exact range agree; profile and native input identities stay on the unit.
+Root/alias names, owned names and root semantic identity
+remain explicit non-section cases. Trait definitions keep their separate typed
+identity and seed addresses. Reading a whole section therefore does not depend
+on a lexical heading or active vector coverage. Core and Similar use section
+foreign keys instead of matching duplicated JSON addresses.
+
+The canonical-section projection has an independent context marker. It is absent
+from historical context serialization and excluded from prepared-content,
+native-input and public-selector hashes. A compatible metadata upgrade derives
+whole sections from retained checked snapshots and prepared content, preserves
+unit IDs and vector bytes, and activates the marker through one validated
+reference publication. Retired preparation or the known predecessor source
+contract is classified before source decoding. Its numerical registry, published
+vectors and forced pending values remain intact; passage section references may
+remain explicitly unavailable while product reference reads stay blocked.
+Explicit source-backed setup resolves those unavailable locations before final
+validation and pruning. It cannot reinterpret them as identity or infer trusted
+whole-section extents from old chunk coverage.
+
 The two pinned baseline profiles and their shared artifact/input/session contract
 are specified in [ADR0050](./0050-selectable-search-profiles.md). FastEmbed owns
 inference, pooling, normalization and generic batching; text-splitter owns generic
@@ -149,11 +186,11 @@ evidence relation rather than trusted as arbitrary FTS input.
 Generated artifacts are rebuilt with the new writer, readers, search and consumers
 together. There is no legacy artifact compatibility reader or second authority
 path. Temporary writes publish only after coherence validation; failure preserves
-the prior artifact. A live reader keeps its SQLite connections on one verified
-artifact generation; publication cannot mix an older body with newer caches or
-query units through a newly opened path. Saved lists and encounters stay in their separate local-state
-database. Unresolved saved keys retain snapshots. New encounter HP uses known
-effective typed maxima and one supported source/participant adjustment; saved HP,
+the prior artifact. Under [ADR0051](0051-persistent-workspace.md), each composed read
+uses one bounded, verified workspace snapshot; publication cannot mix an older
+body with newer caches or query units. Saved lists and encounters share that workspace, with
+domain ownership retained by `atlas-local-state`. Unresolved saved keys retain
+snapshots. New encounter HP uses known effective typed maxima and one supported source/participant adjustment; saved HP,
 explicit overrides and edit intent are preserved.
 
 Missing adjustment within a known typed NPC attributes object uses an unadjusted

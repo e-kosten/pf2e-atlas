@@ -38,29 +38,34 @@ impl LocalizationCatalog {
                 "locale must be an explicit catalog identifier".into(),
             ));
         }
-        let manifest_path = capture
-            .map(|capture| capture.manifest_path.clone())
-            .or_else(|| manifest.map(Path::to_owned))
-            .unwrap_or_else(|| super::discovery::default_manifest_path(source_root));
-        let manifest_bytes = match capture {
-            Some(capture) => capture.read(&manifest_path)?,
-            None => fs::read(&manifest_path)
-                .map_err(|e| IngestError::LocalizationFailed(e.to_string()))?,
+        let english_paths = if let Some(capture) = capture {
+            capture.english_catalog_paths().to_vec()
+        } else {
+            let manifest_path = manifest
+                .map(Path::to_owned)
+                .unwrap_or_else(|| super::discovery::default_manifest_path(source_root));
+            let manifest_bytes = fs::read(&manifest_path)
+                .map_err(|e| IngestError::LocalizationFailed(e.to_string()))?;
+            let parsed = super::discovery::parse_manifest_bytes(&manifest_bytes)?;
+            let mut paths = parsed
+                .manifest
+                .languages
+                .iter()
+                .filter(|language| language.lang == "en")
+                .map(|language| resolve_catalog_path(source_root, &language.path))
+                .collect::<Result<Vec<_>, _>>()?;
+            if paths.is_empty() {
+                paths.push(source_root.join("static/lang/en.json"));
+            }
+            paths
         };
-        let parsed = super::discovery::parse_manifest_bytes(&manifest_bytes)?;
-        let mut english_paths = parsed
-            .manifest
-            .languages
-            .iter()
-            .filter(|language| language.lang == "en")
-            .map(|language| resolve_catalog_path(source_root, &language.path))
-            .collect::<Result<Vec<_>, _>>()?;
-        // Minimal source exports without language declarations retain their
-        // explicit static/lang/en.json catalog convention.
-        if english_paths.is_empty() {
-            english_paths.push(source_root.join("static/lang/en.json"));
-        }
-        let (mut entries, english_sha256) = load_catalogs(source_root, &english_paths, capture)?;
+        let mut owned_catalog_bytes = BTreeMap::new();
+        let (mut entries, english_sha256) = load_catalogs(
+            source_root,
+            &english_paths,
+            capture,
+            &mut owned_catalog_bytes,
+        )?;
         let locale_sha256 = if locale == "en" {
             english_sha256.clone()
         } else {
@@ -68,6 +73,7 @@ impl LocalizationCatalog {
                 source_root,
                 &[source_root.join(format!("static/lang/{locale}.json"))],
                 capture,
+                &mut owned_catalog_bytes,
             )?;
             entries.extend(selected);
             hash
@@ -84,57 +90,6 @@ impl LocalizationResolver for LocalizationCatalog {
     fn localized_value(&self, key: &str) -> Option<&str> {
         self.entries.get(key).map(String::as_str)
     }
-}
-/// Persist only labels reached by an admitted product identity, using pinned key
-/// evidence and the same selected-locale/English resolver as content preparation.
-pub(crate) fn used_trait_labels(
-    source: &crate::EnrichedFoundrySource,
-    catalog: &LocalizationCatalog,
-) -> Result<BTreeMap<String, String>, IngestError> {
-    use atlas_record::source_record::{SourceQueryView, select_record_search};
-    let mut labels = BTreeMap::new();
-    for pack in &source.packs {
-        for document in &pack.documents {
-            let crate::EnrichedDocumentOutcome::Addressed { record, .. } = &document.outcome else {
-                continue;
-            };
-            // Identities use typed selection alone; empty prepared content avoids
-            // rebuilding or parsing any rich prose for this vocabulary pass.
-            let identities = select_record_search(
-                record,
-                &[],
-                crate::build::default_audience(),
-                &pack.metadata.label,
-                &BTreeMap::new(),
-            )
-            .map_err(|e| IngestError::SourceSelectionFailed(e.to_string()))?
-            .identities;
-            for identity in identities {
-                let Some(node) = record.node_at(&identity.owners) else {
-                    continue;
-                };
-                let query = SourceQueryView {
-                    source: node,
-                    pack_id: record.key().pack().as_str(),
-                    pack_label: &pack.metadata.label,
-                };
-                if let Some(traits) = query.traits().value() {
-                    for identifier in traits {
-                        if let Some(key) =
-                            atlas_foundry_model::generated::trait_definition(identifier)
-                                .and_then(|definition| definition.label_key)
-                            && let Some(label) = catalog
-                                .localized_value(key)
-                                .filter(|s| !s.trim().is_empty())
-                        {
-                            labels.insert(identifier.clone(), label.to_owned());
-                        }
-                    }
-                }
-            }
-        }
-    }
-    Ok(labels)
 }
 pub(crate) fn resolve_catalog_path(
     source_root: &Path,
@@ -162,16 +117,24 @@ fn load_catalogs(
     source_root: &Path,
     paths: &[PathBuf],
     capture: Option<&crate::source_fingerprint::SourceCapture>,
+    owned: &mut BTreeMap<PathBuf, Vec<u8>>,
 ) -> Result<(BTreeMap<String, String>, String), IngestError> {
     let mut hasher = Sha256::new();
     let mut entries = BTreeMap::new();
     for path in paths {
-        let bytes = match capture {
-            Some(c) => c.read(path)?,
-            None => fs::read(path)
-                .map_err(|e| IngestError::LocalizationFailed(format!("{}: {e}", path.display())))?,
-        };
-        let value: Value = serde_json::from_slice(&bytes)
+        if !owned.contains_key(path) {
+            let bytes = match capture {
+                Some(c) => c.read(path)?,
+                None => fs::read(path).map_err(|e| {
+                    IngestError::LocalizationFailed(format!("{}: {e}", path.display()))
+                })?,
+            };
+            owned.insert(path.clone(), bytes);
+        }
+        let bytes = owned.get(path).ok_or_else(|| {
+            IngestError::LocalizationFailed("owned catalog bytes are absent".into())
+        })?;
+        let value: Value = serde_json::from_slice(bytes)
             .map_err(|e| IngestError::LocalizationFailed(format!("{}: {e}", path.display())))?;
         if !value.is_object() {
             return Err(IngestError::LocalizationFailed(format!(
@@ -209,3 +172,22 @@ fn flatten_entries(prefix: Option<&str>, value: &Value, entries: &mut BTreeMap<S
 
 #[cfg(test)]
 mod tests;
+
+pub(crate) fn record_trait_labels(
+    record: &atlas_record::source_record::SourceBackedRecord,
+    catalog: &LocalizationCatalog,
+) -> BTreeMap<String, String> {
+    atlas_record::source_record::searchable_identity_traits(
+        record,
+        crate::build::default_audience(),
+    )
+    .into_iter()
+    .filter_map(|id| {
+        let label = atlas_foundry_model::generated::trait_definition(&id)
+            .and_then(|d| d.label_key)
+            .and_then(|key| catalog.localized_value(key))
+            .filter(|s| !s.trim().is_empty())?;
+        Some((id, label.to_owned()))
+    })
+    .collect()
+}

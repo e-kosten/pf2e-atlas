@@ -83,6 +83,14 @@ developer original-file inspection remains a separate hash-verified operation.
 
 ## Build and preparation
 
+Product preparation requires complete discovery of every declared pack before
+loading tokenizers or running inference. Missing or unreadable declared packs
+reject the update; readable empty packs remain valid. Developer source diagnosis
+continues to report unavailable packs without requiring publication admission.
+Typed partial records and quarantined roots keep their existing admission policy.
+A nonempty discovered inventory with no addressable records rejects publication;
+zero roots are publishable only when complete discovery found no input files.
+
 Ingest first establishes source/reference identity, then supplies explicit locale,
 audience and resolver context to record-owned preparation and relationship policies.
 The record itself remains a key and DTO. Content outcomes and resolved relationship
@@ -90,12 +98,80 @@ occurrences are separate derived outputs. Original bytes/provenance, admission
 failures and detailed reports remain ingest/developer concerns.
 
 `BuildArtifactOptions` composes source paths, locale, selected profile configurations,
-batching/reuse and output paths. An empty profile collection builds lexical content.
-The build prepares shared source content once, then checks native inputs and runs
-inference/reuse sequentially per selected profile. It produces index-owned inputs: checked
-records, named typed projections, selected content, verified identity evidence and
-attributed lexical/semantic units. The index writer owns physical encoding and
-publication. A failed publication rolls back reference changes and preserves saved state.
+batching/reuse and output paths. `CapturedBuildInputs` owns those options and their
+source capture. Setup compares its fingerprint for freshness, then consumes that
+same owner if a source build is needed. Direct builds capture once after destination
+and requested-configuration admission. An empty profile collection builds lexical
+content. Bounded preparation retains compact global resolver/collision evidence,
+including excluded roots; unreadable JSON supplies no guessed identity. Traits
+use the same complete resolver.
+
+Shared selection runs once per prepared root. Disposable typed files stage checked
+snapshot bytes, prepared content, relationships, lexical evidence and semantic
+occurrence attribution under one owned attempt. The publication binds workspace/
+revision, source, full context and inventory once. Record append seals compact
+identity facts while the typed record is in hand; construction does not replay
+all rich frames. Private framing checks observed bounds, counts and decoding,
+without per-frame checksums. Ownership and expected generation authorize
+publication/removals. Index owns the codec and the single
+streaming writer; frames carry neutral metadata rather than SQL or internal IDs.
+Developer source inspection keeps its separate rich diagnostic loading lifetime.
+Developer diagnostics report observed selection/reuse calls, frame counts and
+maximum raw frame byte sizes. Production admission reads retained
+admission or full prepared records in batches of at most 32 source files. When
+target preparation is incompatible, admission-only reads avoid obsolete HTML and
+relationship hydration. Compact identities stream through one authenticated
+snapshot. Semantic preparation reads layouts
+in batches of at most 32 active prepared records after collision and alias
+filtering. The public owned reuse API caps requests at 128 and rejects oversized
+batches before compatibility checks or I/O. Separate record and layout operations
+return results in request order, including repeated keys. Empty requests and
+incompatible preparation contexts open no reuse session.
+Each batch authenticates the actual workspace, reference revision and complete
+context in one snapshot, returns checked owned values, then closes the session
+before source processing, tokenization or inference. Record-only reads do not
+inspect layouts; layout-only reads do not decode retained source bodies.
+Diagnostics count source and layout requests/batches, aggregate live source-buffer
+bytes and simultaneously owned raw/retained or prepared/layout payloads at each
+phase's batch boundary. These separate phase observations exclude compact sets
+and one record's processing temporaries; individual maximum frame sizes are not
+added into a claimed live-byte total. The structural batch bounds are not an
+observed process peak. Native execution and final process RSS are measured separately.
+
+Compact collections still grow with corpus size: captured path/hash manifests,
+resolver destinations/names and collision facts, stable identity/live sets, prior
+component digests, retained section/unit IDs, checked publication keys/names/product
+facts, and validation trait evidence/offset maps. Rich DTO/HTML/selection and
+occurrence payloads reside in disposable streams.
+One attempt-local stream pairs native text with occurrence attribution. Each
+profile prepares a bounded window once, selects reusable inputs and infers only
+its missing subset. Numerical selection deduplicates inputs while every document
+occurrence and ordered trait repetition is retained. There is no separate corpus
+prevalidation or profile-descriptor stream. A later input error can leave useful
+completed recovery results without publishing a partial build.
+
+Only misses load an inference session. Each profile's runner is dropped before the
+next profile, and recovery/staging finish before releasing the output batch. No
+workspace SQL snapshot or writer is retained during inference. Compact sets and
+model memory are measured separately from bounded preparation/numerical buffers.
+Normal publication uses the owned facts and SQL constraints rather than a second
+source decode/selection audit. Its counts report `checked_snapshots=0`; deep audit
+remains the explicit `atlas index validate` operation.
+
+Record-owned selection also supplies canonical whole-section addresses. Index
+stores each selected section once, with lexical evidence and shared semantic
+chunk locations referencing it. Similar, Core, source navigation and neighbor
+hydration read those relations without reconstructing section identity from JSON
+or combining active vector ranges. Trait seeds and non-section identity units
+retain their explicit representations.
+
+A compatible section-storage upgrade uses retained checked snapshots and prepared
+content without source acquisition, tokenizers or inference. The independent
+projection marker activates through validated metadata publication. Retired
+preparation or the known predecessor source contract is classified before source
+or normalized-location decoding: product reads remain blocked, while saved-state
+upgrades and exact numerical reuse remain possible. Explicit source-backed setup
+replaces unavailable passage metadata through normal atomic publication.
 
 The aggregate source fingerprint hashes the ordered actual relevant inputs,
 including manifest/pack definitions and excluded records. A Git revision alone
@@ -108,10 +184,11 @@ preparation-context digest binds shared preparation plus the complete profile
 manifest. Public generation instead binds workspace key and reference revision.
 Index stores each exact model execution contract once in a native-input registry.
 Native input metadata binds raw input hash, token count and a published vector
-checksum; dimensions derive from the model. Published document vectors remain in
-the profile's vec0 index and also supply incremental rebuild reuse. Trait chunks
-reference the same registry and retain a binary native value only when no document
-occurrence supplies it. Derived trait centroids remain separate binary values.
+checksum; dimensions derive from the model. Each published input owns one row in
+the profile's input-addressed vec0 index. Document occurrences and ordered trait
+chunks reference it; removing an occurrence does not move or destroy its numerical
+bytes. Trait-only inputs share that native authority and remain excluded from
+document KNN without an eligible occurrence. Derived centroids remain separate.
 
 Ingest composes the English catalog from every `lang: en` entry in the chosen
 source manifest, in declaration order; later entries override earlier keys.
@@ -123,27 +200,64 @@ passages. Undeclared files, such as SF2e overrides in a PF2e checkout, are not
 merged. The existing selected-locale file override remains separate; this does
 not add translation-module ingestion or multilingual product support.
 
-Ingest prepares current literal inputs with the pinned tokenizers. Lookup first
-resolves compatible unfinished computations, then published native values, in
-batched SQL scans. Profile-native preparation produces one immutable checked batch
-in `atlas-embedding`; reuse and generation consume its exact counts and execution
-identities without repeating full-batch token validation. An inference session
-loads only for actual misses; disabling reuse still forces fresh computation.
+Admission writes one indexed temporary stream. Compact per-pack frame addresses
+preserve declaration order, including packs sharing a physical directory, without
+holding a file open for each pack. Global collision/reference knowledge remains
+compact. After that inventory is complete, only the remaster-alias journals need
+early content preparation. With aliases resolved, bounded record slices combine
+content, search selection, lexical projection and passage preparation directly
+into the owned publication. They do not replay a second full rich-record stream.
 
-Each inferred batch commits a pending value and its own checksum after computation,
-with no SQL writer held during inference. A forced recomputation may differ from
-the current published value for the same input; pending writes never change the
-published checksum. Final atomic publication activates complete coverage, validates
-all physical occurrences and trait centroids, then clears pending values and
-unreferenced metadata. A failed attempt preserves both the old publication and
-completed computations for retry. Successful builds retain no second native corpus.
+Ingest prepares current literal inputs with pinned tokenizers. One concrete
+`PreparedPublication` binds context/inventory, expected workspace generation,
+metadata streams and compact build-local selection. Selection first reuses its own
+chosen checksum, then unpublished recovery results, then compatible published
+values when reuse is enabled. Missing inputs undergo the normal bounded native
+guard before inference; disabling reuse forces one computation per unique input
+unless matching unfinished work already exists. Passage-layout reuse is separate.
 
-Passage addresses are shared across profiles without merging occurrence identity
-or model-specific native token counts. Publication updates compatible vector slots
-in place and packs substantially sparse vec0 indexes through supported public DDL
-and inserts, within the existing maintenance transaction. Exact-distance boundary
-ties may select different occurrences after packing; strict-distance ordering,
-pre-KNN eligibility, candidate windows and fusion policy are unchanged.
+A published hit retains a stable input/checksum handle. A cache hit or new/forced
+result becomes an owned staged value before eviction can affect it. Per-batch SQL
+sessions close before inference. Full model keys are immutable; registry IDs are
+resolved within each admitted session and released before cache collection. The
+recovery cache keeps one value per exact
+model/input key and evicts oldest entries under a coarse 1 GiB raw-payload cap.
+This cap limits optional reuse, not required staging or physical disk allocation.
+There is no durable target-membership lifecycle or history of failed build targets.
+
+One atomic activation resolves reused handles through its own connection, installs
+selected new/forced bytes and reconciles occurrence/trait consumers. Occurrence
+metadata references already selected numerical inputs without materializing a
+vector per occurrence. Centroids preserve authored chunk order/repetition and f64
+accumulation; forced numerical changes invalidate them even with unchanged text.
+Reclaim obsolete rows after all consumers, then clear the recovery cache in the
+same transaction. Normal publication trusts unchanged committed values and does
+not scan their payloads. Failure rolls back the delta and leaves the prior state
+readable, including pre-existing defects; saved state and useful committed recovery
+results survive. Explicit deep audit checks complete reference health. Startup and
+ordinary reads perform no cache or scratch cleanup.
+
+One update-owned attempt directory contains all staging files. Normal completion
+and error close children before cleanup; a later explicit update can safely remove
+recognized abandoned attempts for that same workspace. Consumed private frames
+retain observed decoding/allocation bounds. These disposable frames use
+uncompressed JSON; persistent checked snapshots and prepared HTML retain their
+stored compression contracts. Private relationships are
+maintained by ownership, without repeated whole-build file authentication.
+
+Publication uses the captured input set. External bytes are checked against their
+capture when consumed, then retained as owned data without consulting the original
+again. Manifest/catalog path bindings and aliased packs use that same rule; later
+changes belong to the next build. No final source/catalog rescan gates publication.
+Numerical diagnostics distinguish durable pending bytes, owned selected staged
+bytes, file allocation and bounded execution buffers from model/process memory.
+
+Native KNN selects only inputs having eligible occurrences, expands only those
+eligible occurrences and caps to the occurrence budget. Profile masks, Core,
+exclusions and configured Similar correspondence remain explicit. Exact-distance
+cutoff ties may choose different witnesses. Stable rows and supported public vec0
+maintenance preserve numerical ownership; no shadow-table writes are permitted.
+See [ADR0065](decisions/0065-input-owned-reference-publication.md).
 
 Schema migration performs typed backfills inside the checksum-verified migration
 transaction, preserving native values and unfinished forced work without requiring
@@ -156,10 +270,30 @@ does not reserve space. Startup never vacuums. A failed physical reclamation ret
 complete reference data and uses validated maintenance recovery, without requiring
 inference again.
 
-Unchanged admitted sources reuse checked DTOs and prepared content when the source
-and preparation identities agree. References are resolved again against the current
-identity catalog, including previously unresolved targets, so dependency changes
-can invalidate a dependent record without changing its own source bytes.
+Unchanged admitted sources reuse checked DTOs and prepared content through bounded
+revision-bound reads when source and complete preparation identities agree.
+References are checked against the current compact resolver, including previously
+unresolved targets, so dependent projections can change without their own source
+bytes changing. Retired preparation/source contracts are classified before any
+cached DTO decoding. Present snapshot/provenance, cache and stored-reference
+attestations are checked before retained payloads enter reuse or metadata
+maintenance. These stable checks use stored preparation identity and remain
+independent of current query, lexical and Core policy upgrades. Codec-valid
+altered payloads cannot be accepted as new input and restamped. Private readers for
+migrations 20 and 28 preserve their versioned callback owners. The pre-component reader
+rejects schema 28 onward and any present attestation storage; current readers never
+fall back when that storage is missing.
+
+Closed per-root component digests distinguish snapshot/provenance, query rows,
+content caches, relationships, canonical sections, lexical evidence, trait
+associations and logical Core selection. A per-root bundle derives these identities
+and their section/trait/Core inputs once. Missing digests or incompatible policies
+mark components changed. Unchanged components skip reconciliation; ordinary ingest
+does not incidentally repair their old defects. Core also depends on actual
+lexical/location changes, and section pruning is restricted to affected roots.
+Trait vocabulary and global source revision provenance remain dependencies even
+when root bytes are unchanged. Explicit deep audit reconstructs and checks stored
+component identities independently.
 
 Passage preparation can reuse already-published source byte ranges from one
 profile with matching passage policy, shared segmentation tokenizer and input
@@ -219,15 +353,21 @@ query-catalog changes rebuild typed projections from retained DTOs without sourc
 admission or inference. Other component changes require their corresponding
 preparation work; physical schema version alone is not an inference invalidation.
 
-One update owner serializes configuration/source publication. Maintenance drains
-cooperating sessions and records durable admission closure. Publication validates
-inside its final transaction before advancing the reference revision. Interrupted
-maintenance is recovered only after validating committed data; failed validation
-keeps admission closed. The workspace file and saved tables are never replaced by
-normal setup. Existing pre-release formats are rejected explicitly; the new
-baseline establishes the migration path for subsequent upgrades.
+One update owner serializes configuration/source publication. Normal source
+publication drains cooperating sessions and uses one immediate transaction,
+including reference-revision advancement. It adds no durable maintenance marker:
+rollback or process termination leaves SQLite's old-or-new committed state.
+Pre-existing markers are rejected by this operation. Schema/metadata upgrades and
+physical reclamation retain durable maintenance and validated recovery; a failed
+recovery keeps admission closed. Normal setup preserves the workspace file and
+saved tables. Existing pre-release formats are rejected explicitly.
 
 Setup owns source-fetch/offline policy, pinned model preparation and readiness.
+After assets are prepared, it reads the admitted reference context and chooses a
+source build or compatible metadata-only upgrade. It does not backfill projections
+just before replacing them through source ingest. Force bypasses the freshness
+comparison, retains compatible vector reuse and still consumes one captured set.
+Check mode stays read-only; source-free startup keeps its metadata-upgrade path.
 Records-only operation needs no query embeddings. English is the fresh indexing
 default. The embedding crate owns checksum/cache readiness without loading models.
 Fresh semantic setup selects BGE Base. Cache packages use model-ID/revision
@@ -243,7 +383,7 @@ persisting checksum trust across processes.
 Explicit setup freshness may compare the source fingerprint. Ordinary lookup,
 search, lists and encounters do not scan the source checkout. Cheap index checks
 validate the executable contract/capability; deep coherence validation is an
-explicit diagnostic/build-publication operation. Model-free lexical and stored
+explicit diagnostic operation. Model-free lexical and stored
 vector workflows remain deliberate modes rather than implicit web fallbacks.
 
 ## Retrieval and application workflows
@@ -894,6 +1034,6 @@ Relationship policy v7 replaces opaque remaster evidence with directly captured
 source-content locators. Existing workspaces use source-backed setup preparation,
 atomic checked publication and saved-state preservation; old strings are never
 converted. Suppression consumes only matching pair identities in index-owned SQL.
-Publication and explicit full validation check all citations; ordinary search does
-not scan unrelated provenance. App-service supplies shared readable attribution
+Preparation establishes source-backed citations; explicit full validation checks
+all citations. Ordinary search does not scan unrelated provenance. App-service supplies shared readable attribution
 and exact source-field navigation for Other editions and CLI/API consumers.

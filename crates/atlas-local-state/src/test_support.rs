@@ -21,12 +21,20 @@ impl TestStore {
             conn.execute_batch(ABILITY_STATE_SCHEMA_SQL)?;
             conn.execute_batch(HAZARD_PARTICIPATION_SCHEMA_SQL)?;
             conn.execute_batch(CONDITION_SYSTEM_SCHEMA_SQL)?;
+            conn.execute_batch(PERSISTENT_PREPARATION_SCHEMA_SQL)?;
             conn.execute_batch(TURN_RESOURCES_SCHEMA_SQL)?;
             conn.execute_batch(CONSUMED_CONDITION_APPLICATIONS_SCHEMA_SQL)?;
             conn.execute_batch(ENCOUNTER_RECOVERY_SCHEMA_SQL)?;
             conn.execute_batch(MANUAL_TRACKERS_SCHEMA_SQL)?;
             conn.execute_batch(ENCOUNTER_CLOCK_SCHEMA_SQL)?;
             backfill_encounter_clock(&conn).expect("fresh workspace clock backfill");
+            conn.pragma_update(None, "foreign_keys", false)?;
+            let transaction = conn.unchecked_transaction()?;
+            backfill_saved_state_integrity(&transaction)
+                .map_err(|error| LocalStateError::IncompatibleSchema(error.to_string()))?;
+            transaction.commit()?;
+            conn.pragma_update(None, "foreign_keys", true)?;
+            conn.execute_batch(TURN_RECEIPTS_SCHEMA_SQL)?;
         }
         Ok(store)
     }

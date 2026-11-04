@@ -36,7 +36,7 @@ fn backfill(c: &Connection) -> Result<(), IndexError> {
             let kind: String = row.get(8)?;
             let bytes: Vec<u8> = row.get(9)?;
             let vector = crate::read_units::decode_vector(&bytes)?;
-            let location = crate::semantic_locations::location_id(
+            let location = crate::historical_locations::location_id(
                 c,
                 record,
                 &owners,
@@ -186,6 +186,6 @@ fn backfill(c: &Connection) -> Result<(), IndexError> {
     c.execute_batch("DROP TABLE legacy_semantic_units; DROP TABLE legacy_trait_vectors; DROP TABLE embedding_checkpoints;
 DELETE FROM embedding_inputs WHERE published_hash IS NULL AND NOT EXISTS(SELECT 1 FROM pending_embedding_values p WHERE p.input_id=embedding_inputs.input_id);
 DELETE FROM embedding_models WHERE NOT EXISTS(SELECT 1 FROM embedding_inputs i WHERE i.model_id=embedding_models.model_id);")?;
-    crate::semantic_locations::validate(c)?;
+    crate::historical_locations::validate(c)?;
     Ok(())
 }

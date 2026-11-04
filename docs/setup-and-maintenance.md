@@ -27,6 +27,14 @@ Follow the reported action. If setup was interrupted, rerun `atlas setup` to
 resume it. You may need to wait until an update finishes before using Atlas again.
 Do not delete your workspace to resolve a setup error: it contains your saved work.
 
+If setup names a missing or unreadable source pack, restore that folder and rerun
+setup. For a custom source, remove its manifest declaration only when you intend
+to remove that pack's reference content. Atlas keeps the previous reference
+content available after a discovery failure. A readable empty pack is valid.
+Successful rebuilds report admitted, partial, quarantined and excluded source
+counts; JSON output includes excluded file paths and reasons under
+`build.admission.exclusions`.
+
 Older pre-release versions used separate reference and saved-state files. Those
 formats are not converted automatically; check the reported error before creating
 a new workspace.

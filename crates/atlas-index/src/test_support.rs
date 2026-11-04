@@ -1,11 +1,15 @@
 //! Reference-layer fixtures and artifact mutations. Runtime fixtures use the
 //! runtime-owned workspace composition and supply its version to mutation helpers.
+mod section_preservation;
+pub use section_preservation::native_preservation_rows;
+pub use section_preservation::reference_preservation_rows;
+
 use crate::{
-    ArtifactValidationReport, IndexArtifactWriter, IndexBuildInput, IndexError, SqliteIndexReader,
-    SqliteIndexWriter,
+    ArtifactValidationReport, IndexBuildInput, IndexError, SourceSearchProfileIdentity,
+    SqliteIndexReader,
 };
 use atlas_storage::{Migration, Workspace};
-use std::path::Path;
+use std::{collections::BTreeMap, path::Path};
 
 /// Explicit caller-supplied task-copy diagnostic. All projection writes roll back.
 pub fn core_projection_pilot(path: &Path) -> Result<serde_json::Value, IndexError> {
@@ -73,6 +77,7 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         name: "embedding-storage",
         sql: crate::EMBEDDING_STORAGE_SCHEMA_SQL,
         backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
             id: "native-embedding-storage/v1",
             apply: crate::backfill_embedding_storage,
         }),
@@ -136,6 +141,7 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         name: "similarity-parts",
         sql: crate::SIMILARITY_SCHEMA_SQL,
         backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
             id: "typed-content-correspondence/v1",
             apply: crate::backfill_similarity_parts,
         }),
@@ -144,6 +150,70 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         version: 21,
         name: "core-section-eligibility",
         sql: crate::CORE_SECTIONS_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 22,
+        name: "encounter-recovery",
+        sql: atlas_local_state::ENCOUNTER_RECOVERY_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 23,
+        name: "manual-encounter-trackers",
+        sql: atlas_local_state::MANUAL_TRACKERS_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 24,
+        name: "encounter-round-duration",
+        sql: atlas_local_state::ENCOUNTER_CLOCK_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
+            id: "encounter-clock-seconds/v1",
+            apply: atlas_local_state::backfill_encounter_clock,
+        }),
+    },
+    Migration {
+        version: 25,
+        name: "saved-state-integrity",
+        sql: "",
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: true,
+            id: "saved-state-integrity/v1",
+            apply: atlas_local_state::backfill_saved_state_integrity,
+        }),
+    },
+    Migration {
+        version: 26,
+        name: "turn-receipts",
+        sql: atlas_local_state::TURN_RECEIPTS_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 27,
+        name: "input-owned-native-storage",
+        sql: crate::INPUT_OWNED_STORAGE_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: false,
+            id: "input-owned-native-storage/v1",
+            apply: crate::backfill_input_owned_storage,
+        }),
+    },
+    Migration {
+        version: 28,
+        name: "canonical-selected-sections",
+        sql: crate::SELECTED_SECTIONS_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: true,
+            id: "canonical-selected-sections/v1",
+            apply: crate::backfill_selected_sections,
+        }),
+    },
+    Migration {
+        version: 29,
+        name: "reference-component-reconciliation",
+        sql: crate::COMPONENT_DIGEST_SCHEMA_SQL,
         backfill: None,
     },
 ];
@@ -164,14 +234,258 @@ pub fn publish_input(
     input: &IndexBuildInput,
 ) -> Result<ArtifactValidationReport, IndexError> {
     let workspace = initialize_workspace(path)?;
+    publish_input_in(&workspace, TEST_WORKSPACE_SCHEMA_VERSION, input)
+}
+
+pub fn publish_input_in(
+    workspace: &Workspace,
+    schema: u32,
+    input: &IndexBuildInput,
+) -> Result<ArtifactValidationReport, IndexError> {
+    let native = fixture_native_values(input)?;
     let owner = workspace.update_owner()?;
-    let maintenance = owner.maintenance(TEST_WORKSPACE_SCHEMA_VERSION, "test publication")?;
-    SqliteIndexWriter::new(&maintenance).write(input)
+    let scratch = crate::BuildScratch::new(&owner)?;
+    crate::recover_reference_publication(&owner, schema)?;
+    let read = workspace.read(schema)?;
+    let expected = crate::ArtifactInstance::new(read.workspace_key()?, read.reference_revision()?);
+    drop(read);
+    let metadata = spool_input_in(scratch.path(), input, expected)?;
+    let mut publication =
+        crate::PreparedPublication::new_in(&owner, schema, scratch.path(), metadata)?;
+    for model in &input.context.search_profiles {
+        let values = native
+            .iter()
+            .filter(|value| value.model == model)
+            .collect::<Vec<_>>();
+        for window in values.chunks(crate::NATIVE_VALUE_BATCH_LIMIT) {
+            let batch = window
+                .iter()
+                .map(|value| (&value.input, value.vector))
+                .collect::<Vec<_>>();
+            publication.stage_inferred(model, &batch)?;
+        }
+    }
+    publication.publish()
+}
+
+/// Own concrete metadata for a real PreparedPublication fixture.
+pub fn publication_spool_in(
+    scratch: &Path,
+    input: &IndexBuildInput,
+    expected: crate::ArtifactInstance,
+) -> Result<crate::PublicationSpool, IndexError> {
+    fixture_native_values(input)?;
+    spool_input_in(scratch, input, expected)
+}
+
+fn spool_input_in(
+    scratch: &Path,
+    input: &IndexBuildInput,
+    expected: crate::ArtifactInstance,
+) -> Result<crate::PublicationSpool, IndexError> {
+    input
+        .inventory
+        .validate_parts(&input.context.source_fingerprint, &input.packs)?;
+    let inventory = crate::CompleteSourceInventory::checked(
+        &input.context.source_fingerprint,
+        input.packs.iter().map(|pack| pack.pack_id.clone()),
+        input.packs.iter().map(|pack| pack.pack_id.clone()),
+    )?;
+    let mut spool = crate::PublicationSpool::new_in(
+        scratch,
+        input.context.clone(),
+        input.packs.clone(),
+        inventory,
+        expected,
+    )?;
+    for source in &input.records {
+        let pack = input
+            .packs
+            .iter()
+            .find(|pack| pack.pack_id == source.record.key().pack().as_str())
+            .ok_or_else(|| IndexError::Invalid("record pack is absent".into()))?;
+        let selection = atlas_record::source_record::select_record_search(
+            &source.record,
+            &source.content,
+            input.context.audience,
+            &pack.label,
+            &input.context.used_trait_labels,
+        )
+        .map_err(|error| IndexError::Invalid(error.to_string()))?;
+        spool.push_record(crate::PreparedRecordInput {
+            source: crate::SourceArtifactRecordInput {
+                record: atlas_record::source_record::SourceBackedRecord::new(
+                    source.record.key().pack().as_str(),
+                    atlas_foundry_model::decode_snapshot(&atlas_foundry_model::encode_snapshot(
+                        source.record.source(),
+                    )?)?,
+                )
+                .map_err(|_| IndexError::Invalid("fixture source identity differs".into()))?,
+                source_path: source.source_path.clone(),
+                content_hash: source.content_hash.clone(),
+                preparation_context_hash: source.preparation_context_hash.clone(),
+                content: serde_json::from_slice(&serde_json::to_vec(&source.content)?)?,
+                relationships: serde_json::from_slice(&serde_json::to_vec(&source.relationships)?)?,
+                diagnostics: source.diagnostics.clone(),
+            },
+            selection,
+            lexical: input
+                .lexical_units
+                .iter()
+                .filter(|row| row.record == *source.record.key())
+                .cloned()
+                .collect(),
+        })?;
+    }
+    for row in &input.lexical_units {
+        spool.lexical.push(row)?;
+    }
+    for unit in &input.semantic_units {
+        spool.semantic.push(&crate::SemanticOccurrence {
+            profile_id: unit.profile_id.clone(),
+            record: unit.record.clone(),
+            owners: unit.owners.clone(),
+            field: unit.field.clone(),
+            address: unit.address.clone(),
+            chunk_ordinal: unit.chunk_ordinal,
+            input: atlas_embedding::NativeInputDescriptor {
+                input_sha256: unit.input_hash.clone(),
+                token_count: unit.input_token_count,
+            },
+        })?;
+    }
+    for row in &input.aliases {
+        spool.aliases.push(row)?;
+    }
+    for row in &input.remaster_pairs {
+        spool.remaster_pairs.push(row)?;
+    }
+    for row in &input.traits {
+        spool.traits.push(row)?;
+    }
+    for seed in &input.trait_vectors {
+        spool.trait_seeds.push(&crate::TraitSeedOccurrence {
+            key: seed.key.clone(),
+            profile_id: seed.profile_id.clone(),
+            input_hash: seed.input_hash.clone(),
+            chunks: seed
+                .chunks
+                .iter()
+                .map(|chunk| crate::TraitChunkOccurrence {
+                    input: chunk.input.clone(),
+                    descriptor: atlas_embedding::NativeInputDescriptor {
+                        input_sha256: chunk.input_hash.clone(),
+                        token_count: chunk.token_count,
+                    },
+                    address: chunk.address.clone(),
+                })
+                .collect(),
+        })?;
+    }
+    Ok(spool)
+}
+
+/// Select/stage genuine fixture values through the real owned publisher.
+pub fn prepare_publication_in<'owner>(
+    owner: &'owner atlas_storage::UpdateOwner,
+    schema: u32,
+    scratch: &Path,
+    input: &IndexBuildInput,
+    reuse_published: bool,
+) -> Result<crate::PreparedPublication<'owner>, IndexError> {
+    let native = fixture_native_values(input)?;
+    let workspace = Workspace::at(owner.path())?;
+    let read = workspace.read(schema)?;
+    let expected = crate::ArtifactInstance::new(read.workspace_key()?, read.reference_revision()?);
+    drop(read);
+    let metadata = spool_input_in(scratch, input, expected)?;
+    let mut publication = crate::PreparedPublication::new_in(owner, schema, scratch, metadata)?;
+    for value in native {
+        let selected = publication.select_native(
+            value.model,
+            std::slice::from_ref(&value.input),
+            reuse_published,
+        )?;
+        if selected == [crate::NativeValueSelection::Missing] {
+            publication.stage_inferred(value.model, &[(&value.input, value.vector)])?;
+        }
+    }
+    Ok(publication)
+}
+
+/// Populate the actual schema-19/20 reference shape for section-upgrade tests.
+/// Runtime owns its migration prefix; this fixture never rewinds a ledger or saved schema.
+pub fn publish_pre_core_fixture(
+    maintenance: &atlas_storage::MaintenanceSession<'_>,
+    input: &IndexBuildInput,
+) -> Result<(), IndexError> {
+    maintenance.publish(|connection| {
+        let version: u32 = connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+        if !matches!(version, 19 | 20) {
+            return Err(IndexError::Invalid(
+                "pre-Core fixtures require an actual schema-19 or schema-20 workspace".into(),
+            ));
+        }
+        connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
+        let ids = crate::historical_publication::records(connection, input)?;
+        crate::historical_publication::search_units(connection, input, &ids)?;
+        crate::traits::write_historical_traits(connection, input)?;
+        if version == 20 {
+            crate::similarity_projection::write_similarity_parts(connection, input)?;
+        }
+        let mut context = input.context.clone();
+        context.core_sections_recipe.clear();
+        context.selected_sections_recipe.clear();
+        connection.execute(
+            "UPDATE artifact_context SET context_hash=?,context_json=?",
+            rusqlite::params![context.sha256()?, serde_json::to_string(&context)?],
+        )?;
+        if connection.prepare("PRAGMA foreign_key_check")?.exists([])? {
+            return Err(IndexError::Invalid(
+                "invalid pre-Core fixture references".into(),
+            ));
+        }
+        Ok(())
+    })
+}
+
+/// Publish the real schema-21 through schema-26 reference shape before sections.
+pub fn publish_pre_section_fixture(
+    maintenance: &atlas_storage::MaintenanceSession<'_>,
+    input: &IndexBuildInput,
+) -> Result<(), IndexError> {
+    maintenance.publish(|connection| {
+        let version: u32 = connection.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+        if !(21..=26).contains(&version) {
+            return Err(IndexError::Invalid(
+                "pre-section fixtures require an actual schema-21 through schema-26 workspace"
+                    .into(),
+            ));
+        }
+        connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
+        let ids = crate::historical_publication::records(connection, input)?;
+        crate::historical_publication::search_units(connection, input, &ids)?;
+        crate::traits::write_historical_traits(connection, input)?;
+        crate::similarity_projection::write_similarity_parts(connection, input)?;
+        crate::historical_core_projection::write_core_sections(connection, input)?;
+        let mut context = input.context.clone();
+        context.selected_sections_recipe.clear();
+        connection.execute(
+            "UPDATE artifact_context SET context_hash=?,context_json=?",
+            rusqlite::params![context.sha256()?, serde_json::to_string(&context)?],
+        )?;
+        if connection.prepare("PRAGMA foreign_key_check")?.exists([])? {
+            return Err(IndexError::Invalid(
+                "invalid historical section fixture references".into(),
+            ));
+        }
+        Ok(())
+    })
 }
 
 /// Seed only the record component of a deliberately historical schema fixture.
 /// This does not produce a current readable artifact: ordinary publication must
-/// use `SqliteIndexWriter` after the complete migration ledger is applied.
+/// use `publish_input` after the complete migration ledger is applied.
 pub fn publish_historical_record_fixture(
     maintenance: &atlas_storage::MaintenanceSession<'_>,
     input: &IndexBuildInput,
@@ -195,7 +509,8 @@ pub fn publish_historical_record_fixture(
         let historical_columns = tables.iter().map(|table| columns(table)).collect::<Result<Vec<_>, _>>()?;
         connection.execute_batch(crate::REFERENCE_NUMERIC_FILTER_SCHEMA_SQL)?;
         connection.execute_batch(crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL)?;
-        crate::writer::write_record_rows(connection, input)?;
+        let ids=crate::historical_publication::records(connection,input)?;
+        crate::historical_publication::search_units(connection,input,&ids)?;
         // Modern projection columns are fixture scaffolding, not part of the
         // historical schema exercised by the embedding conversion/rollback.
         for (table, historical) in tables.iter().zip(historical_columns) {
@@ -203,6 +518,8 @@ pub fn publish_historical_record_fixture(
                 connection.execute_batch(&format!("ALTER TABLE {table} DROP COLUMN {column}"))?;
             }
         }
+        let mut context=input.context.clone();context.selected_sections_recipe.clear();context.core_sections_recipe.clear();
+        connection.execute("UPDATE artifact_context SET context_hash=?,context_json=?",rusqlite::params![context.sha256()?,serde_json::to_string(&context)?])?;
         connection.execute_batch("INSERT INTO legacy_semantic_units SELECT u.unit_id,u.record_id,u.profile_id,l.owners_json,u.unit_kind,l.field_path,l.section_json,l.chunk_ordinal,i.token_count,lower(hex(i.input_hash)) FROM semantic_units u JOIN semantic_locations l USING(location_id) JOIN embedding_inputs i USING(input_id);
 DROP TABLE semantic_units;
 ALTER TABLE legacy_semantic_units RENAME TO semantic_units;
@@ -218,8 +535,6 @@ DROP TABLE embedding_inputs; DROP TABLE embedding_models; DROP TABLE semantic_lo
     })
 }
 
-/// Model an older preparation contract coherently, including the allocation
-/// digests used to decide whether publication can retain a record's rows.
 pub fn set_content_interpretation_version(
     path: impl AsRef<Path>,
     workspace_schema_version: u32,
@@ -227,6 +542,17 @@ pub fn set_content_interpretation_version(
 ) -> Result<(), IndexError> {
     set_preparation_policy(path, workspace_schema_version, |context| {
         context.content_interpretation_version = version.into()
+    })
+}
+
+pub fn set_predecessor_source_contract(
+    path: impl AsRef<Path>,
+    workspace_schema_version: u32,
+) -> Result<(), IndexError> {
+    set_preparation_policy(path, workspace_schema_version, |context| {
+        context.snapshot_version = 1;
+        context.source_contract =
+            "6bf64da835272af22c53db729cb28d18a87e8dee999c11b154fb3e772befdeb8".into();
     })
 }
 
@@ -261,6 +587,7 @@ fn set_preparation_policy(
     let mut context = crate::read_stored_reference_context(c)?
         .ok_or_else(|| IndexError::Invalid("fixture has no reference context".into()))?;
     update(&mut context);
+    let preparation = context.preparation_sha256()?;
     let json = serde_json::to_string(&context)?;
     c.execute(
         "UPDATE artifact_context SET context_hash=?1,context_json=?2",
@@ -268,19 +595,8 @@ fn set_preparation_policy(
     )?;
     c.execute(
         "UPDATE prepared_content SET preparation_context_hash=?",
-        [context.preparation_sha256()?],
+        [preparation],
     )?;
-    for source in crate::read_persisted_inputs(c, &context)? {
-        let (id, label): (i64, String) = c.query_row(
-            "SELECT r.record_id,p.label FROM records r JOIN packs p USING(pack_id) WHERE r.key=?",
-            [source.record.key().to_string()],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )?;
-        c.execute(
-            "UPDATE projection_allocations SET input_hash=? WHERE record_id=?",
-            rusqlite::params![crate::publication_delta::root_digest(&source, &label)?, id],
-        )?;
-    }
     write.commit()?;
     Ok(())
 }
@@ -289,11 +605,157 @@ fn set_preparation_policy(
 pub fn stage_historical_embedding_fixture(
     session: &atlas_storage::WriteSession,
     job: &str,
+    reuse_key: &str,
     model: &crate::SourceSearchProfileIdentity,
-    input: &atlas_embedding::PreparedEmbeddingInput,
+    input: &atlas_embedding::PreparedNativeInput,
     vector: &[f32],
 ) -> Result<(), IndexError> {
     let bytes = crate::read_units::vector_bytes(vector);
-    session.connection().execute("INSERT INTO embedding_checkpoints VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(reuse_key) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,touched_job=excluded.touched_job",rusqlite::params![input.reuse_key,serde_json::to_string(model)?,input.input_sha256,input.token_count,model.dimensions,bytes,crate::codec::sha256(&bytes),job])?;
+    session.connection().execute("INSERT INTO embedding_checkpoints VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(reuse_key) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,touched_job=excluded.touched_job",rusqlite::params![reuse_key,serde_json::to_string(model)?,input.input_sha256,input.token_count,model.dimensions,bytes,crate::codec::sha256(&bytes),job])?;
     Ok(())
+}
+
+/// Deliberately encode a codec-valid altered retained snapshot for corruption
+/// fixtures. Callers leave the source bytes and prior component proof unchanged.
+pub fn altered_snapshot_for_fixture(
+    source: &atlas_foundry_model::FoundryDocumentSource,
+) -> Result<Vec<u8>, IndexError> {
+    crate::codec::gzip(&atlas_foundry_model::encode_snapshot(source)?)
+}
+
+/// Change visible prose while retaining valid gzip, reference markers and all
+/// existing cache sidecars. This deliberately leaves its prior proof stale.
+pub fn alter_retained_html_for_fixture(
+    connection: &rusqlite::Connection,
+    key: &atlas_domain::RecordKey,
+    field: &str,
+    from: &str,
+    to: &str,
+) -> Result<(), IndexError> {
+    let (id, bytes): (i64, Vec<u8>) = connection.query_row(
+        "SELECT content_id,html_gzip FROM prepared_content WHERE record_id=(SELECT record_id FROM records WHERE key=?) AND field_path=?",
+        rusqlite::params![key.to_string(), field],
+        |row| Ok((row.get(0)?,row.get(1)?)),
+    )?;
+    let html = String::from_utf8(crate::codec::gunzip(&bytes)?)
+        .map_err(|e| IndexError::Invalid(e.to_string()))?;
+    if !html.contains(from) {
+        return Err(IndexError::Invalid(
+            "fixture replacement prose is absent".into(),
+        ));
+    }
+    connection.execute(
+        "UPDATE prepared_content SET html_gzip=? WHERE content_id=?",
+        rusqlite::params![crate::codec::gzip(html.replace(from, to).as_bytes())?, id],
+    )?;
+    Ok(())
+}
+
+/// Deliberately populate a historical/unknown-membership checkpoint. This fixture
+/// path is absent from product builds; current execution must register and stage.
+pub fn stage_historical_pending_native_fixture(
+    session: &atlas_storage::WriteSession,
+    job: &str,
+    model: &crate::SourceSearchProfileIdentity,
+    input: &atlas_embedding::NativeInputDescriptor,
+    vector: &[f32],
+) -> Result<(), IndexError> {
+    crate::validation::check_vector(vector, model.dimensions)?;
+    let id = crate::embedding_values::input_id(
+        session.connection(),
+        model,
+        &input.input_sha256,
+        input.token_count,
+    )?;
+    let bytes = crate::read_units::vector_bytes(vector);
+    session.connection().execute("INSERT INTO pending_embedding_values VALUES(?,?,?,?) ON CONFLICT(input_id) DO UPDATE SET vector=excluded.vector,vector_hash=excluded.vector_hash,touched_job=excluded.touched_job",rusqlite::params![id,bytes,crate::embedding_values::hash_bytes(&bytes),job])?;
+    Ok(())
+}
+#[derive(Debug)]
+pub(crate) struct FixtureNativeValue<'a> {
+    pub model: &'a SourceSearchProfileIdentity,
+    pub input: atlas_embedding::NativeInputDescriptor,
+    pub vector: &'a [f32],
+}
+
+pub(crate) fn fixture_native_values<'a>(
+    input: &'a IndexBuildInput,
+) -> Result<Vec<FixtureNativeValue<'a>>, IndexError> {
+    use atlas_embedding::NativeInputDescriptor;
+    let mut selected = BTreeMap::<(String, String), FixtureNativeValue<'a>>::new();
+    let mut accept = |profile: &atlas_domain::SearchProfileId,
+                      hash: &str,
+                      tokens: usize,
+                      vector: &'a [f32]|
+     -> Result<(), IndexError> {
+        let model = input.context.search_profile(profile)?;
+        crate::embedding_values::digest(hash)?;
+        crate::validation::check_vector(vector, model.dimensions)?;
+        if tokens == 0 || tokens > model.token_limit {
+            return Err(IndexError::Invalid(
+                "invalid fixture native token count".into(),
+            ));
+        }
+        let key = (profile.to_string(), hash.to_owned());
+        if let Some(old) = selected.get(&key) {
+            if old.input.token_count != tokens
+                || old.vector.len() != vector.len()
+                || old
+                    .vector
+                    .iter()
+                    .zip(vector)
+                    .any(|(a, b)| a.to_bits() != b.to_bits())
+            {
+                return Err(IndexError::Invalid(
+                    "duplicate native input values disagree".into(),
+                ));
+            }
+        } else {
+            selected.insert(
+                key,
+                FixtureNativeValue {
+                    model,
+                    input: NativeInputDescriptor {
+                        input_sha256: hash.into(),
+                        token_count: tokens,
+                    },
+                    vector,
+                },
+            );
+        }
+        Ok(())
+    };
+    for unit in &input.semantic_units {
+        accept(
+            &unit.profile_id,
+            &unit.input_hash,
+            unit.input_token_count,
+            &unit.vector,
+        )?;
+    }
+    for seed in &input.trait_vectors {
+        for chunk in &seed.chunks {
+            accept(
+                &seed.profile_id,
+                &chunk.input_hash,
+                chunk.token_count,
+                &chunk.vector,
+            )?;
+        }
+    }
+    for seed in &input.trait_vectors {
+        let definition = input
+            .traits
+            .iter()
+            .find(|definition| definition.key == seed.key)
+            .ok_or_else(|| IndexError::Invalid("trait seed has no definition".into()))?;
+        crate::traits::validate_seed(
+            definition,
+            input.context.search_profile(&seed.profile_id)?,
+            &seed.input_hash,
+            &seed.vector,
+            &seed.chunks,
+        )?;
+    }
+    Ok(selected.into_values().collect())
 }

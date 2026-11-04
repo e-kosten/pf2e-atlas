@@ -1,158 +1,23 @@
-//! Consuming projection from admitted records into explicit artifact inputs.
-use crate::{EnrichedDocumentOutcome, EnrichedFoundrySource, IngestError};
+//! Record-sized passage preparation shared by the bounded product pipeline.
+use crate::IngestError;
 use atlas_embedding::{
     IDENTITY_TOKEN_BUDGET, PassageSection, PreparedEmbeddingInput, TextEmbeddingTokenizer,
     prepare_embedding_section, reuse_embedding_section,
 };
-use atlas_index::{
-    IndexBuildInput, IndexBuildPack, SourceArtifactBuildContext, SourceArtifactDiagnostic,
-    SourceArtifactRecordInput, SourceSemanticUnitInput,
-};
-use atlas_record::source_record::{
-    SOURCE_CONTENT_SELECTION_VERSION, SourceSearchSelection, select_record_search,
-};
+use atlas_record::source_record::{SOURCE_CONTENT_SELECTION_VERSION, SourceSearchSelection};
 use std::collections::BTreeMap;
-use std::time::{Duration, Instant};
-
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct PendingSemanticUnit {
-    pub(crate) input: PreparedEmbeddingInput,
-    pub(crate) unit: SourceSemanticUnitInput,
-}
-pub(crate) struct PreparedBuildInput {
-    pub(crate) index: IndexBuildInput,
-    pub(crate) pending: Vec<PendingSemanticUnit>,
-    pub(crate) trait_pending: Vec<crate::traits::PendingTraitInput>,
-    pub(crate) context_shortened: usize,
-    pub(crate) reused_sections: usize,
-}
-pub(crate) fn index_build_input(
-    source: EnrichedFoundrySource,
-    context: SourceArtifactBuildContext,
-    tokenizer: Option<&TextEmbeddingTokenizer>,
-    capture: &crate::source_fingerprint::SourceCapture,
-    mut layouts: BTreeMap<atlas_domain::RecordKey, Vec<atlas_index::SourcePassageLayout>>,
-) -> Result<PreparedBuildInput, IngestError> {
-    tracing::info!(target:"atlas_progress",phase="select_search","Selecting searchable text");
-    let source_root = source.metadata.source_root.clone();
-    let mut selections = Vec::new();
-    let context_hash = context
-        .preparation_sha256()
-        .map_err(|e| IngestError::ArtifactWriteFailed(e.to_string()))?;
-    let mut output = PreparedBuildInput {
-        index: IndexBuildInput {
-            traits: vec![],
-            trait_vectors: vec![],
-            records: vec![],
-            packs: vec![],
-            context,
-            aliases: vec![],
-            remaster_pairs: vec![],
-            lexical_units: vec![],
-            semantic_units: vec![],
-        },
-        pending: vec![],
-        trait_pending: vec![],
-        context_shortened: 0,
-        reused_sections: 0,
-    };
-    for pack in source.packs {
-        output.index.packs.push(IndexBuildPack {
-            pack_id: pack.metadata.name.clone(),
-            label: pack.metadata.label.clone(),
-            document_kind: pack.metadata.document_type,
-            declared_path: pack.metadata.declared_path,
-        });
-        for document in pack.documents {
-            let EnrichedDocumentOutcome::Addressed {
-                record,
-                content,
-                relationships,
-            } = document.outcome
-            else {
-                continue;
-            };
-            let selection = select_record_search(
-                &record,
-                &content,
-                output.index.context.audience,
-                &pack.metadata.label,
-                &output.index.context.used_trait_labels,
-            )
-            .map_err(|e| IngestError::SourceSelectionFailed(e.to_string()))?;
-            selections.push(selection);
-            let diagnostics = document
-                .admission_diagnostics
-                .into_iter()
-                .map(|diagnostic| SourceArtifactDiagnostic {
-                    owners: None,
-                    field: Some(diagnostic.json_path.clone()),
-                    stage: "admission".into(),
-                    code: "unparseable_source_field".into(),
-                    message: diagnostic.to_string(),
-                    source_diagnostic: Some(diagnostic),
-                })
-                .collect();
-            output.index.records.push(SourceArtifactRecordInput {
-                record: *record,
-                source_path: document.provenance.source_path,
-                content_hash: document.content_hash,
-                preparation_context_hash: context_hash.clone(),
-                content,
-                relationships,
-                diagnostics,
-            });
-        }
-    }
-    tracing::info!(target:"atlas_progress",phase="read_aliases","Reading alternate record names");
-    crate::source_aliases::extract_source_aliases(&mut output.index, &source_root, capture)?;
-    tracing::info!(target:"atlas_progress",phase="prepare_keyword_search","Preparing keyword search entries");
-    for selection in &selections {
-        let aliases = output
-            .index
-            .aliases
-            .iter()
-            .filter(|alias| alias.record == selection.root)
-            .map(|alias| alias.alias.clone())
-            .collect::<Vec<_>>();
-        output
-            .index
-            .lexical_units
-            .extend(atlas_index::project_lexical_units(selection, &aliases));
-    }
-    if let Some(tokenizer) = tokenizer {
-        let total = selections.len();
-        let mut last_progress = Instant::now();
-        tracing::info!(target:"atlas_progress",phase="prepare_passages",current=0_u64,total=total as u64,unit="records","Splitting text into search passages");
-        for (ordinal, mut selection) in selections.into_iter().enumerate() {
-            selection.identity_optional.extend(
-                output
-                    .index
-                    .aliases
-                    .iter()
-                    .filter(|alias| alias.record == selection.root)
-                    .map(|alias| alias.alias.clone()),
-            );
-            let previous = layouts.remove(&selection.root).unwrap_or_default();
-            output.reused_sections += semantic_units(
-                &selection,
-                tokenizer,
-                &mut output.pending,
-                &mut output.context_shortened,
-                &previous,
-            )?;
-            if last_progress.elapsed() >= Duration::from_secs(1) || ordinal + 1 == total {
-                tracing::info!(target:"atlas_progress",phase="prepare_passages",current=(ordinal+1) as u64,total=total as u64,unit="records",semantic_units=output.pending.len(),reused_sections=output.reused_sections,record=%selection.root,"Splitting text into search passages");
-                last_progress = Instant::now();
-            }
-        }
-    }
-    Ok(output)
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub(crate) struct DocumentAttribution {
+    pub record: atlas_domain::RecordKey,
+    pub owners: Vec<atlas_domain::OwnedContentLocator>,
+    pub field: Option<String>,
+    pub address: atlas_domain::SourcePassageAddress,
+    pub chunk_ordinal: usize,
 }
 pub(crate) fn semantic_units(
     selection: &SourceSearchSelection,
     tokenizer: &TextEmbeddingTokenizer,
-    output: &mut Vec<PendingSemanticUnit>,
+    output: &mut dyn FnMut(DocumentAttribution, PreparedEmbeddingInput) -> Result<(), IngestError>,
     shortened: &mut usize,
     layouts: &[atlas_index::SourcePassageLayout],
 ) -> Result<usize, IngestError> {
@@ -185,8 +50,47 @@ pub(crate) fn semantic_units(
     for input in prepare_embedding_section(tokenizer, PassageSection::Identity { text: &identity })
         .map_err(embedding_error)?
     {
-        push_pending(output, selection, vec![], None, 0, input);
+        push_pending(output, selection, vec![], None, 0, input)?;
     }
+    let mut layouts_by_section = BTreeMap::new();
+    for layout in layouts {
+        let section_ordinal = match &layout.passage.address {
+            atlas_domain::SourcePassageAddress::HtmlSection {
+                section_ordinal, ..
+            }
+            | atlas_domain::SourcePassageAddress::PlainSection {
+                section_ordinal, ..
+            } => *section_ordinal,
+            atlas_domain::SourcePassageAddress::Identity {} => continue,
+        };
+        layouts_by_section
+            .entry((
+                layout.owners.as_slice(),
+                layout.field.as_str(),
+                section_ordinal,
+            ))
+            .or_insert_with(Vec::new)
+            .push(layout);
+    }
+    let layouts_by_section = layouts_by_section
+        .into_iter()
+        .filter_map(|(key, mut candidates)| {
+            candidates.sort_by_key(|layout| layout.chunk_ordinal);
+            candidates
+                .iter()
+                .enumerate()
+                .all(|(ordinal, layout)| ordinal == layout.chunk_ordinal)
+                .then(|| {
+                    (
+                        key,
+                        candidates
+                            .into_iter()
+                            .map(|layout| layout.passage.clone())
+                            .collect::<Vec<_>>(),
+                    )
+                })
+        })
+        .collect::<BTreeMap<_, _>>();
     let mut reused = 0;
     for field in &selection.fields {
         for section in &field.sections {
@@ -230,41 +134,14 @@ pub(crate) fn semantic_units(
                     label: section.label.as_deref(),
                 }
             };
-            let mut candidates = layouts
-                .iter()
-                .filter(|layout| {
-                    layout.owners == field.locator.owners
-                        && layout.field == field.locator.field
-                        && match &layout.passage.address {
-                            atlas_domain::SourcePassageAddress::HtmlSection {
-                                section_ordinal,
-                                ..
-                            }
-                            | atlas_domain::SourcePassageAddress::PlainSection {
-                                section_ordinal,
-                                ..
-                            } => *section_ordinal == section.section_ordinal,
-                            atlas_domain::SourcePassageAddress::Identity {} => false,
-                        }
-                })
-                .collect::<Vec<_>>();
-            candidates.sort_by_key(|layout| layout.chunk_ordinal);
-            let cached = if candidates
-                .iter()
-                .enumerate()
-                .all(|(ordinal, layout)| ordinal == layout.chunk_ordinal)
-            {
-                reuse_embedding_section(
-                    tokenizer,
-                    passage,
-                    &candidates
-                        .iter()
-                        .map(|layout| layout.passage.clone())
-                        .collect::<Vec<_>>(),
-                )
-                .map_err(embedding_error)?
-            } else {
-                None
+            let cached = match layouts_by_section.get(&(
+                field.locator.owners.as_slice(),
+                field.locator.field.as_str(),
+                section.section_ordinal,
+            )) {
+                Some(candidates) => reuse_embedding_section(tokenizer, passage, candidates)
+                    .map_err(embedding_error)?,
+                None => None,
             };
             let inputs = match cached {
                 Some(inputs) => {
@@ -282,32 +159,28 @@ pub(crate) fn semantic_units(
                     Some(field.locator.field.clone()),
                     ordinal,
                     input,
-                );
+                )?;
             }
         }
     }
     Ok(reused)
 }
 fn push_pending(
-    output: &mut Vec<PendingSemanticUnit>,
+    output: &mut dyn FnMut(DocumentAttribution, PreparedEmbeddingInput) -> Result<(), IngestError>,
     selection: &SourceSearchSelection,
     owners: Vec<atlas_domain::OwnedContentLocator>,
     field: Option<String>,
     chunk_ordinal: usize,
     input: PreparedEmbeddingInput,
-) {
-    let unit = SourceSemanticUnitInput {
-        profile_id: atlas_domain::SearchProfileId::new("bge-base"),
+) -> Result<(), IngestError> {
+    let unit = DocumentAttribution {
         record: selection.root.clone(),
         owners,
         field,
         address: input.address.clone(),
         chunk_ordinal,
-        input_token_count: input.token_count,
-        input_hash: input.input_sha256.clone(),
-        vector: vec![],
     };
-    output.push(PendingSemanticUnit { input, unit });
+    output(unit, input)
 }
 fn embedding_error(error: atlas_embedding::EmbeddingError) -> IngestError {
     IngestError::DocumentEmbeddingFailed(error.to_string())

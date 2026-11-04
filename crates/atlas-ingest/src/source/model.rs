@@ -1,17 +1,21 @@
 use serde::Deserialize;
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub(crate) struct Manifest {
+    // Compatibility previously read these as ordinary JSON fields: unknown
+    // shapes stay permissive and duplicate unknown keys retain the last value.
+    #[serde(flatten)]
+    pub(crate) metadata: std::collections::BTreeMap<String, serde_json::Value>,
     #[serde(default)]
     pub(crate) packs: Vec<ManifestPack>,
     #[serde(default)]
     pub(crate) languages: Vec<ManifestLanguage>,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub(crate) struct ManifestLanguage {
     pub(crate) lang: String,
     pub(crate) path: String,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub(crate) struct ManifestPack {
     pub(crate) name: String,
     pub(crate) label: String,
@@ -19,7 +23,7 @@ pub(crate) struct ManifestPack {
     pub(crate) document_type: String,
     pub(crate) path: String,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct ParsedManifest {
     pub(crate) manifest: Manifest,
     pub(crate) content_hash: String,
