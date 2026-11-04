@@ -197,8 +197,8 @@ during cleanup and fail-closed handling of inconsistent schemas. Recorded Rust,
 frontend and real-browser gates establish local implementation evidence for their
 tested inputs. Native-model inference, full-corpus performance and hosted-CI
 acceptance require separate evidence for the candidate under review. The
-[database and ingest findings](../../research/database-ingest-simplification.md)
-record the dated candidates, corpus observations and their limits.
+[database ingest benchmark](../../research/database-ingest-revision.md)
+records the dated candidates, corpus observations and their limits.
 
 Physical free-page reclamation runs only during explicit maintenance, outside a
 SQL transaction under exclusive admission and a durable recovery marker. It keeps

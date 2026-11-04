@@ -34,8 +34,6 @@ mod historical_locations;
 mod historical_publication;
 mod historical_similarity_admission;
 mod maintenance_recovery;
-mod reference_recovery;
-pub use reference_recovery::ReferencePublicationExpectation;
 mod selected_sections;
 mod semantic_locations;
 pub use selected_sections::{
@@ -127,9 +125,7 @@ pub use input::{
 };
 #[cfg(any(test, feature = "test-support"))]
 pub use input::{IndexBuildInput, SourceSemanticUnitInput};
-pub use maintenance_recovery::{
-    recover_reference_publication, recover_reference_publication_checked,
-};
+pub use maintenance_recovery::recover_reference_publication;
 pub use query::{ValidatedQuery, parse_where, query_capabilities, validate_query};
 pub use read_content::{
     SourceAttributedContentBundle, SourceContentBundle, SourceRelationshipBundle,

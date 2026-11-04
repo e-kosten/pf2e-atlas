@@ -12,7 +12,7 @@ bounded publication depend on copying selected values before those slots change.
 Holding every reused vector in RAM or maintaining a full staging copy resolves
 that hazard, at memory or temporary-storage cost.
 
-The [ownership study](../../research/embedding-value-ownership.md) found only 0.629%
+The [ownership study](../../research/database-ingest-revision.md#retrieval-tradeoff) found only 0.629%
 duplicate document excess. Its shared-input query prototype was slower than the
 occurrence index, with approximately 44 ms extra broad warm SQL time at K=1,024.
 Input normalization therefore has an explicit retrieval tradeoff. The accepted

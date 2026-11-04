@@ -229,8 +229,7 @@ impl<'owner> PreparedPublication<'owner> {
     pub fn publish(self) -> Result<ArtifactValidationReport, IndexError> {
         self.owner.publish(self.schema, |connection| {
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
-            let prior = crate::ReferencePublicationExpectation::read(connection)?;
-            tracing::info!(target:"atlas_progress",phase="validate_build_input",workspace_key=prior.instance().workspace_key(),reference_revision=prior.instance().reference_revision(),context_sha256=prior.context_sha256().unwrap_or(""),"Saving reference update");
+            tracing::info!(target:"atlas_progress",phase="validate_build_input","Saving reference update");
             crate::writer::check_expected(connection, &self.metadata)?;
             let reusable = crate::writer::prior_compatible(connection)?;
             let native_started = std::time::Instant::now();

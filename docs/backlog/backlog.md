@@ -45,10 +45,9 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 ## Soon
 
 - [Database and ingest simplification](items/database-ingest-simplification.md)
-  Complete-source publication, bounded preparation and vectors, canonical sections,
-  saved-state integrity/lifetimes and indexed eligibility. PR184 requires architecture
-  revision; next research shared numerical ownership and query behavior after a
-  cached-build runtime regression. Status: in_progress.
+  Bounded reference publication, input-owned vectors, canonical sections,
+  saved-state integrity and indexed eligibility. Implementation under review in
+  PR184. Explicit reference rebuild is deferred. Status: in_progress.
 
 - [Broader exact neighbor reuse](items/search-neighbor-reuse-expansion.md)
   Evaluate scoped trait-reference text search and configured Similar with complete

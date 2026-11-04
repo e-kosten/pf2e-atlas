@@ -5,9 +5,8 @@ Priority: later
 Owner: unassigned
 Last reviewed: 2026-10-30
 
-The later [database and ingest findings](../../research/database-ingest-simplification.md)
-record a separate matched release comparison and its cached-build RSS/elapsed-time
-tradeoff. The historical observations below retain their original candidates.
+The [database ingest benchmark](../../research/database-ingest-revision.md)
+records the later release comparisons and their limits.
 
 ## Remaining work
 

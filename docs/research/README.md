@@ -14,14 +14,8 @@ history](derived-tags/README.md). It consolidates the Node implementation, local
 concept mappings, Rust seed experiments and ontology/assessment discussion,
 including source snapshots and cleanup boundaries.
 
-For the database and ingest changes, see [database and ingest findings](database-ingest-simplification.md).
-It records preserved data, release measurements, recovery/query observations and
-the measured lower cached-build RSS versus longer elapsed time.
-For the subsequent architecture revision, see [stable values and bounded
-preparation](database-ingest-revision.md): the implemented ownership/cache design,
-main-relative migrations, release observations and preservation evidence. The
-[embedding ownership study](embedding-value-ownership.md) records corpus sharing,
-the 192-case SQL comparison and the alternatives behind that decision.
+The [database ingest benchmark](database-ingest-revision.md) records release
+build time, peak memory, audit costs and the input ownership retrieval tradeoff.
 
 Research notes should capture:
 

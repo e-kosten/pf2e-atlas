@@ -267,6 +267,32 @@ fn failed_publication_reopens_exact_prior_state_without_repairing_old_damage() {
 }
 
 #[test]
+fn publication_rejects_context_presence_inconsistent_with_the_reference_revision() {
+    let input = crate::foundation_tests::fixture(false);
+    for (corruption, revision) in [
+        ("DELETE FROM artifact_context", 1),
+        ("UPDATE workspace SET reference_revision=0 WHERE id=1", 0),
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("workspace.sqlite");
+        publish_input(&path, &input).unwrap();
+        let connection = Connection::open(&path).unwrap();
+        connection.execute(corruption, []).unwrap();
+        drop(connection);
+
+        let error = publish_input(&path, &input).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("invalid workspace/revision/context identity")
+        );
+        let workspace = Workspace::at(&path).unwrap();
+        let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        assert_eq!(read.reference_revision().unwrap(), revision);
+    }
+}
+
+#[test]
 fn conflicting_batch_tokens_or_values_fail_before_any_cache_write() {
     let directory = tempfile::tempdir().unwrap();
     let workspace = initialize_workspace(directory.path().join("duplicate.sqlite")).unwrap();
