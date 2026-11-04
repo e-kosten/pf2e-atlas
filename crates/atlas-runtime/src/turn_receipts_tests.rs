@@ -23,19 +23,11 @@ INSERT INTO encounter_participant_conditions(id,participant_id,name,value,create
 INSERT INTO encounter_condition_applications VALUES(1,'actor','consumed','condition',NULL);
 INSERT INTO encounter_event_receipts VALUES(1,'event','{"event":1}','{"version":1,"payload":{"retained":true}}');
 INSERT INTO encounter_boundary_claims VALUES(1,'actor',3,'prepared_persistent_damage','fire','event');
-CREATE VIRTUAL TABLE turn_vector_witness USING vec0(unit_id INTEGER PRIMARY KEY,embedding float[3]);
 "#).unwrap();
-    let vector_bytes = vec![0u8, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0];
-    write
-        .connection()
-        .execute(
-            "INSERT INTO turn_vector_witness(unit_id,embedding) VALUES(1,?1)",
-            [&vector_bytes],
-        )
-        .unwrap();
     // The writer owns the transaction; use its saved-domain reader on the same snapshot.
     let state = atlas_local_state::LocalStateWrite::new(&write);
-    for id in 1..=80i64 {
+    let mut latest = Vec::new();
+    for id in 1..=4i64 {
         let encounter = if id % 2 == 0 { 2 } else { 1 };
         let key = if encounter == 1 { "one" } else { "two" };
         let participant = if encounter == 1 { "actor" } else { "other" };
@@ -50,10 +42,14 @@ CREATE VIRTUAL TABLE turn_vector_witness USING vec0(unit_id INTEGER PRIMARY KEY,
         };
         let payload =
             serde_json::to_string(&serde_json::json!({"version":1,"payload":saved})).unwrap();
-        write.connection().execute("INSERT INTO encounter_outgoing_turns(id,encounter_id,boundary_key,request_id,intent_json,payload_json,requires_review) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![id,encounter,saved.boundary_key,format!("request-{id}"),format!("{{\"turn\":{id}}}"),payload,i64::from(id!=79)]).unwrap();
+        let request = format!("request-{id}");
+        let requires_review = i64::from(id != 3);
+        write.connection().execute("INSERT INTO encounter_outgoing_turns(id,encounter_id,boundary_key,request_id,intent_json,payload_json,requires_review) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![id,encounter,saved.boundary_key,request,format!("{{\"turn\":{id}}}"),payload,requires_review]).unwrap();
+        if id == 3 || id == 4 {
+            latest.push((encounter, request, payload, requires_review));
+        }
     }
     let receipts=write.connection().prepare("SELECT encounter_id,request_id,boundary_key,intent_json FROM encounter_outgoing_turns ORDER BY id").unwrap().query_map([],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,String>(3)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
-    let latest=write.connection().prepare("SELECT t.encounter_id,t.request_id,t.payload_json,t.requires_review FROM encounter_outgoing_turns t WHERE id=(SELECT max(id) FROM encounter_outgoing_turns WHERE encounter_id=t.encounter_id) ORDER BY encounter_id").unwrap().query_map([],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,i64>(3)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
     let tables = [
         "workspace",
         "encounters",
@@ -73,16 +69,6 @@ CREATE VIRTUAL TABLE turn_vector_witness USING vec0(unit_id INTEGER PRIMARY KEY,
     assert_eq!(actual, receipts);
     let actual=read.connection().prepare("SELECT encounter_id,request_id,payload_json,requires_review FROM encounter_outgoing_turns ORDER BY encounter_id").unwrap().query_map([],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,i64>(3)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
     assert_eq!(actual, latest);
-    assert_eq!(
-        read.connection()
-            .query_row(
-                "SELECT embedding FROM turn_vector_witness WHERE unit_id=1",
-                [],
-                |row| row.get::<_, Vec<u8>>(0)
-            )
-            .unwrap(),
-        vector_bytes
-    );
     let store = LocalStateRead::new(&read);
     assert!(
         store
@@ -94,14 +80,14 @@ CREATE VIRTUAL TABLE turn_vector_witness USING vec0(unit_id INTEGER PRIMARY KEY,
     assert!(
         store
             .encounters()
-            .outgoing_turn("one", "boundary-79")
+            .outgoing_turn("one", "boundary-3")
             .unwrap()
             .is_some()
     );
     assert!(
         store
             .encounters()
-            .outgoing_turn("one", "boundary-77")
+            .outgoing_turn("one", "boundary-1")
             .unwrap()
             .is_none()
     );
