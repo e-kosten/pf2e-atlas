@@ -26,11 +26,12 @@ fn progress(phase: &str, message: &str) {
     tracing::info!(target:"atlas_progress",phase,"{message}");
 }
 pub(crate) fn build_context(
-    options: &BuildArtifactOptions,
+    inputs: &CapturedBuildInputs,
     catalog: &LocalizationCatalog,
-    fingerprint: &crate::SourceFingerprint,
 ) -> Result<SourceArtifactBuildContext, IngestError> {
-    let mut search_profiles = options
+    let fingerprint = inputs.fingerprint();
+    let mut search_profiles = inputs
+        .options
         .search_profiles
         .iter()
         .map(|config| {
@@ -55,7 +56,7 @@ pub(crate) fn build_context(
         format_version: ARTIFACT_FORMAT_VERSION,
         snapshot_version: atlas_foundry_model::SNAPSHOT_VERSION,
         source_contract: atlas_foundry_model::SOURCE_CONTRACT_ID.into(),
-        source_revision: source_git_commit_if_clean(&options.source_root).ok(),
+        source_revision: inputs.source_revision.clone(),
         source_fingerprint: fingerprint.value.clone(),
         source_file_count: fingerprint.file_count,
         indexing_locale: catalog.locale.clone(),
@@ -79,18 +80,27 @@ pub(crate) fn build_context(
 pub struct CapturedBuildInputs {
     options: BuildArtifactOptions,
     capture: SourceCapture,
+    source_revision: Option<String>,
 }
 impl CapturedBuildInputs {
     pub fn capture(options: BuildArtifactOptions) -> Result<Self, IngestError> {
         let started = Instant::now();
+        let source_revision = source_git_commit_if_clean(&options.source_root).ok();
         let capture =
             SourceCapture::capture(&options.source_root, options.manifest_path.as_deref())?;
+        let source_revision = source_revision.filter(|revision| {
+            source_git_commit_if_clean(&options.source_root).is_ok_and(|after| after == *revision)
+        });
         crate::source_compatibility::validate_parsed_manifest(
             &capture.manifest_path,
             &capture.manifest().manifest,
         )?;
         tracing::info!(target:"atlas_build_diagnostic",stage="source_capture",captured_files=capture.fingerprint.file_count,elapsed_ms=started.elapsed().as_secs_f64()*1000.,"Captured source inventory and manifest");
-        Ok(Self { options, capture })
+        Ok(Self {
+            options,
+            capture,
+            source_revision,
+        })
     }
     pub fn fingerprint(&self) -> &SourceFingerprint {
         &self.capture.fingerprint
@@ -173,7 +183,9 @@ fn finish_build(
     let reuse = atlas_index::ReferenceReuseReader::new(workspace, schema).map_err(index_error)?;
     let phase_started = Instant::now();
     let prepared = crate::product_preparation::prepare(&inputs, &reuse, scratch.path())?;
-    let CapturedBuildInputs { options, capture } = inputs;
+    let CapturedBuildInputs {
+        options, capture, ..
+    } = inputs;
     drop(capture);
     tracing::info!(target:"atlas_build_diagnostic",stage="source_preparation",elapsed_ms=phase_started.elapsed().as_secs_f64()*1000.,"Completed ingest phase");
     tracing::info!(target:"atlas_build_diagnostic",reused_sections=prepared.reused_sections,selection_calls=prepared.work.selection_calls,"Prepared shared passage layouts");

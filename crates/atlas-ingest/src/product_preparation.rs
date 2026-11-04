@@ -174,7 +174,7 @@ pub(crate) fn prepare(
         Some(capture),
     )?;
     let fingerprint = capture.fingerprint.clone();
-    let mut context = crate::build::build_context(options, &catalog, &fingerprint)?;
+    let mut context = crate::build::build_context(inputs, &catalog)?;
     let preparation_hash = context.preparation_sha256().map_err(index)?;
     let reuse_preparation = reuse
         .preparation_matches(&preparation_hash)

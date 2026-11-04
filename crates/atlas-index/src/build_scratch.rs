@@ -1,6 +1,6 @@
 //! Attempt-local files, protected by the workspace's exclusive update owner.
 use crate::IndexError;
-use std::path::{Path, PathBuf};
+use std::{fs, path::Path};
 
 /// Declare this guard before all child streams so their handles close first.
 pub struct BuildScratch {
@@ -9,80 +9,22 @@ pub struct BuildScratch {
 
 impl BuildScratch {
     pub fn new(owner: &atlas_storage::UpdateOwner) -> Result<Self, IndexError> {
-        Self::with_parent_marker(owner, |marker| {
-            std::fs::write(marker, b"atlas-build-scratch/v1\n")
-        })
+        Self::new_in(owner, &std::env::temp_dir())
     }
 
-    fn with_parent_marker(
-        owner: &atlas_storage::UpdateOwner,
-        write_marker: impl FnOnce(&Path) -> std::io::Result<()>,
-    ) -> Result<Self, IndexError> {
-        let mut name = owner.path().as_os_str().to_owned();
-        name.push(".atlas-build-scratch");
-        let parent = PathBuf::from(name);
-        let mut builder = std::fs::DirBuilder::new();
+    fn new_in(owner: &atlas_storage::UpdateOwner, temp_root: &Path) -> Result<Self, IndexError> {
+        let prefix = attempt_prefix(owner);
+        let marker = format!(".{prefix}owned");
+        reclaim_abandoned(temp_root, &prefix, &marker);
+        let mut builder = tempfile::Builder::new();
+        builder.prefix(&prefix);
         #[cfg(unix)]
         {
-            use std::os::unix::fs::DirBuilderExt;
-            builder.mode(0o700);
+            use std::os::unix::fs::PermissionsExt;
+            builder.permissions(fs::Permissions::from_mode(0o700));
         }
-        match builder.create(&parent) {
-            Ok(()) => {
-                // Until the marker is complete, only this call owns the new
-                // directory. A partial marker must not strand a foreign-looking
-                // parent that all future attempts would correctly reject.
-                let mut initializing = InitializingParent {
-                    path: &parent,
-                    complete: false,
-                };
-                write_marker(&parent.join(".atlas-owned-scratch")).map_err(operation)?;
-                initializing.complete = true;
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-                if !parent
-                    .symlink_metadata()
-                    .map_err(operation)?
-                    .file_type()
-                    .is_dir()
-                    || !owned_marker(
-                        &parent.join(".atlas-owned-scratch"),
-                        b"atlas-build-scratch/v1\n",
-                    )
-                {
-                    return Err(IndexError::Invalid(
-                        "build scratch parent is not Atlas-owned".into(),
-                    ));
-                }
-            }
-            Err(error) => return Err(operation(error)),
-        }
-        // Update ownership excludes another live Atlas attempt for this workspace.
-        // Only direct, marked directories are ours; leave all other entries alone.
-        for entry in std::fs::read_dir(&parent).map_err(operation)? {
-            let entry = entry.map_err(operation)?;
-            if entry
-                .file_name()
-                .to_str()
-                .is_some_and(|name| name.starts_with("attempt-"))
-                && entry.file_type().map_err(operation)?.is_dir()
-                && owned_marker(
-                    &entry.path().join(".atlas-owned-attempt"),
-                    b"atlas-build-attempt/v1\n",
-                )
-            {
-                std::fs::remove_dir_all(entry.path()).map_err(operation)?;
-            }
-        }
-        let directory = tempfile::Builder::new()
-            .prefix("attempt-")
-            .tempdir_in(parent)
-            .map_err(operation)?;
-        std::fs::write(
-            directory.path().join(".atlas-owned-attempt"),
-            b"atlas-build-attempt/v1\n",
-        )
-        .map_err(operation)?;
+        let directory = builder.tempdir_in(temp_root).map_err(operation)?;
+        fs::File::create(directory.path().join(marker)).map_err(operation)?;
         Ok(Self { directory })
     }
 
@@ -91,26 +33,55 @@ impl BuildScratch {
     }
 }
 
-struct InitializingParent<'a> {
-    path: &'a Path,
-    complete: bool,
+fn attempt_prefix(owner: &atlas_storage::UpdateOwner) -> String {
+    let path = owner.path().as_os_str();
+    #[cfg(unix)]
+    let workspace = {
+        use std::os::unix::ffi::OsStrExt;
+        crate::codec::sha256(path.as_bytes())
+    };
+    #[cfg(windows)]
+    let workspace = {
+        use std::os::windows::ffi::OsStrExt;
+        let bytes: Vec<_> = path.encode_wide().flat_map(u16::to_le_bytes).collect();
+        crate::codec::sha256(&bytes)
+    };
+    #[cfg(not(any(unix, windows)))]
+    let workspace = crate::codec::sha256(path.as_encoded_bytes());
+    format!("pf2e-atlas-build-v1-{workspace}-")
 }
 
-impl Drop for InitializingParent<'_> {
-    fn drop(&mut self) {
-        if !self.complete {
-            // These are the only two entries this initializer can have created.
-            // Never recursively delete or clean a pre-existing directory.
-            let _ = std::fs::remove_file(self.path.join(".atlas-owned-scratch"));
-            let _ = std::fs::remove_dir(self.path);
+fn reclaim_abandoned(temp_root: &Path, prefix: &str, marker: &str) {
+    let entries = match fs::read_dir(temp_root) {
+        Ok(entries) => entries,
+        Err(error) => {
+            tracing::debug!(?temp_root, %error, "Could not scan for abandoned build scratch");
+            return;
+        }
+    };
+    // The caller holds the update lock, which excludes other live attempts for this workspace.
+    for entry in entries.flatten() {
+        let matches_workspace = entry
+            .file_name()
+            .to_str()
+            .is_some_and(|name| name.starts_with(prefix));
+        if !matches_workspace || !entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+            continue;
+        }
+        let path = entry.path();
+        if !path
+            .join(marker)
+            .symlink_metadata()
+            .is_ok_and(|m| m.file_type().is_file() && m.len() == 0)
+        {
+            continue;
+        }
+        if let Err(error) = fs::remove_dir_all(&path)
+            && error.kind() != std::io::ErrorKind::NotFound
+        {
+            tracing::warn!(?path, %error, "Could not remove abandoned build scratch");
         }
     }
-}
-
-fn owned_marker(path: &Path, expected: &[u8]) -> bool {
-    path.symlink_metadata()
-        .is_ok_and(|m| m.file_type().is_file() && m.len() == expected.len() as u64)
-        && std::fs::read(path).is_ok_and(|bytes| bytes == expected)
 }
 
 fn operation(error: std::io::Error) -> IndexError {
@@ -122,118 +93,89 @@ mod tests {
     use super::*;
 
     #[test]
-    fn failed_parent_marker_initialization_cleans_partial_write_and_allows_retry() {
-        let directory = tempfile::tempdir().unwrap();
-        let workspace =
-            atlas_storage::Workspace::at(directory.path().join("workspace.sqlite")).unwrap();
-        let owner = workspace.update_owner().unwrap();
-        let mut name = owner.path().as_os_str().to_owned();
-        name.push(".atlas-build-scratch");
-        let parent = PathBuf::from(name);
-        let error = BuildScratch::with_parent_marker(&owner, |marker| {
-            std::fs::write(marker, b"partial")?;
-            Err(std::io::Error::new(
-                std::io::ErrorKind::WriteZero,
-                "injected marker failure",
-            ))
-        });
-        assert!(
-            error
-                .err()
-                .unwrap()
-                .to_string()
-                .contains("injected marker failure")
-        );
-        assert!(!parent.exists());
-        let retry = BuildScratch::new(&owner).unwrap();
-        assert!(retry.path().exists());
-        assert!(owned_marker(
-            &parent.join(".atlas-owned-scratch"),
-            b"atlas-build-scratch/v1\n"
-        ));
-    }
-
-    #[test]
     fn distinct_workspace_extensions_cannot_clean_each_others_attempts() {
         let directory = tempfile::tempdir().unwrap();
         let a = atlas_storage::Workspace::at(directory.path().join("same.db")).unwrap();
         let b = atlas_storage::Workspace::at(directory.path().join("same.sqlite")).unwrap();
         let a_owner = a.update_owner().unwrap();
         let b_owner = b.update_owner().unwrap();
-        let a_scratch = BuildScratch::new(&a_owner).unwrap();
+        let a_scratch = BuildScratch::new_in(&a_owner, directory.path()).unwrap();
         let sentinel = a_scratch.path().join("keep");
-        std::fs::write(&sentinel, b"owned by a").unwrap();
-        let b_scratch = BuildScratch::new(&b_owner).unwrap();
-        assert_ne!(a_scratch.path().parent(), b_scratch.path().parent());
-        assert_eq!(std::fs::read(sentinel).unwrap(), b"owned by a");
+        fs::write(&sentinel, b"owned by a").unwrap();
+        let b_scratch = BuildScratch::new_in(&b_owner, directory.path()).unwrap();
+        assert_ne!(a_scratch.path(), b_scratch.path());
+        assert_eq!(fs::read(sentinel).unwrap(), b"owned by a");
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             assert_eq!(
-                a_scratch
-                    .path()
-                    .parent()
-                    .unwrap()
-                    .metadata()
-                    .unwrap()
-                    .permissions()
-                    .mode()
-                    & 0o077,
+                a_scratch.path().metadata().unwrap().permissions().mode() & 0o077,
                 0
             );
         }
     }
 
     #[test]
-    fn abandoned_cleanup_removes_only_marked_directories() {
+    fn next_attempt_removes_only_marked_directories_for_its_workspace() {
         let directory = tempfile::tempdir().unwrap();
         let workspace =
             atlas_storage::Workspace::at(directory.path().join("workspace.sqlite")).unwrap();
         let owner = workspace.update_owner().unwrap();
-        let first = BuildScratch::new(&owner).unwrap();
-        let parent = first.path().parent().unwrap().to_owned();
-        drop(first);
-        let abandoned = parent.join("attempt-abandoned");
-        std::fs::create_dir(&abandoned).unwrap();
-        std::fs::write(
-            abandoned.join(".atlas-owned-attempt"),
-            b"atlas-build-attempt/v1\n",
-        )
-        .unwrap();
-        let foreign = parent.join("attempt-unmarked");
-        std::fs::create_dir(&foreign).unwrap();
+        let first = BuildScratch::new_in(&owner, directory.path()).unwrap();
+        let abandoned = first.directory.keep();
+        drop(owner);
+
+        let owner = workspace.update_owner().unwrap();
+        let prefix = attempt_prefix(&owner);
+        let unmarked = directory.path().join(format!("{prefix}unmarked"));
+        fs::create_dir(&unmarked).unwrap();
+        let wrong_marker = directory.path().join(format!("{prefix}wrong-marker"));
+        fs::create_dir(&wrong_marker).unwrap();
+        fs::File::create(wrong_marker.join(".another-workspace-owned")).unwrap();
         #[cfg(unix)]
-        std::os::unix::fs::symlink(&foreign, parent.join("attempt-symlink")).unwrap();
-        let next = BuildScratch::new(&owner).unwrap();
+        {
+            let target = directory.path().join("symlink-target");
+            fs::create_dir(&target).unwrap();
+            fs::File::create(target.join(format!(".{prefix}owned"))).unwrap();
+            std::os::unix::fs::symlink(&target, directory.path().join(format!("{prefix}symlink")))
+                .unwrap();
+        }
+
+        let next = BuildScratch::new_in(&owner, directory.path()).unwrap();
         assert!(!abandoned.exists());
-        assert!(foreign.exists());
+        assert!(unmarked.exists());
+        assert!(wrong_marker.exists());
         #[cfg(unix)]
         assert!(
-            parent
-                .join("attempt-symlink")
+            directory
+                .path()
+                .join(format!("{prefix}symlink"))
                 .symlink_metadata()
                 .unwrap()
                 .file_type()
                 .is_symlink()
         );
-        assert!(next.path().exists());
+        let path = next.path().to_owned();
+        assert!(path.is_dir());
+        drop(next);
+        assert!(!path.exists());
     }
 
-    #[cfg(unix)]
     #[test]
-    fn symlink_parent_is_rejected_without_touching_its_target() {
+    fn obsolete_scratch_parent_does_not_block_os_temp_attempt() {
         let directory = tempfile::tempdir().unwrap();
         let workspace =
             atlas_storage::Workspace::at(directory.path().join("workspace.sqlite")).unwrap();
         let owner = workspace.update_owner().unwrap();
-        let foreign = directory.path().join("foreign");
-        std::fs::create_dir(&foreign).unwrap();
-        let sentinel = foreign.join("keep");
-        std::fs::write(&sentinel, b"unchanged").unwrap();
-        let mut name = workspace.path().as_os_str().to_owned();
-        name.push(".atlas-build-scratch");
-        std::os::unix::fs::symlink(&foreign, std::path::PathBuf::from(name)).unwrap();
-        assert!(BuildScratch::new(&owner).is_err());
-        assert_eq!(std::fs::read(sentinel).unwrap(), b"unchanged");
+        let stranded = directory
+            .path()
+            .join("workspace.sqlite.atlas-build-scratch");
+        fs::create_dir(&stranded).unwrap();
+        let scratch = BuildScratch::new(&owner).unwrap();
+        assert_eq!(
+            scratch.path().parent(),
+            Some(std::env::temp_dir().as_path())
+        );
+        assert!(stranded.is_dir());
     }
 }

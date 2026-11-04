@@ -237,9 +237,10 @@ readable, including pre-existing defects; saved state and useful committed recov
 results survive. Explicit deep audit checks complete reference health. Startup and
 ordinary reads perform no cache or scratch cleanup.
 
-One update-owned attempt directory contains all staging files. Normal completion
-and error close children before cleanup; a later explicit update can safely remove
-recognized abandoned attempts for that same workspace. Consumed private frames
+One update-owned attempt directory under the OS temporary location contains all
+staging files. Normal completion and error close children before cleanup. A later
+explicit update can remove marked abandoned attempts for that same workspace in
+the current temporary location. Consumed private frames
 retain observed decoding/allocation bounds. These disposable frames use
 uncompressed JSON; persistent checked snapshots and prepared HTML retain their
 stored compression contracts. Private relationships are
