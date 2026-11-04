@@ -225,10 +225,10 @@ try {
 }
 
 Write-Host "Installed atlas to $installPath"
-Write-Host "After a fresh install or Atlas upgrade, run 'atlas setup' to prepare or update reference data and search models."
 if ($pathStatus -ne "on-path") {
   Write-Host ""
   Write-Host "$InstallDir is not on PATH. Add it to your user PATH, then open a new terminal."
   Write-Host "PowerShell hint:"
   Write-Host "  [Environment]::SetEnvironmentVariable('Path', `$env:Path + ';$InstallDir', 'User')"
 }
+Write-Host "After a fresh install or Atlas upgrade, run 'atlas setup' to prepare or update reference data and search models."
