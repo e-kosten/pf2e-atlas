@@ -332,7 +332,8 @@ function AddToRecordModal({
         if (!inFlight.current) onClose();
       }}
       onOk={() => {
-        form.submit();
+        if (creating || kind === "encounter") form.submit();
+        else if (selected) run();
       }}
       footer={(_, { OkBtn, CancelBtn }) => (
         <div className="record-destination-picker__footer">
