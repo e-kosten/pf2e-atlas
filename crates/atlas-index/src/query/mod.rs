@@ -16,8 +16,6 @@ mod corpus_tests;
 #[cfg(test)]
 mod membership_tests;
 #[cfg(test)]
-mod membership_work_probe;
-#[cfg(test)]
 mod tests;
 
 mod cel_relationship;

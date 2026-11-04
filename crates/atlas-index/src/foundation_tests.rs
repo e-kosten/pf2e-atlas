@@ -1756,3 +1756,35 @@ fn explicit_audit_rejects_invalid_typed_remaster_source() {
         assert!(validate_artifact(&path).is_err(), "{defect}");
     }
 }
+
+#[test]
+fn reader_reports_the_digest_of_exact_stored_context_bytes() {
+    let input = fixture(false);
+    let (_directory, path) = build(&input);
+    let workspace = atlas_storage::Workspace::at(&path).unwrap();
+    let schema = crate::test_support::TEST_WORKSPACE_SCHEMA_VERSION;
+    let write = workspace.write(schema).unwrap();
+    let original: String = write
+        .connection()
+        .query_row(
+            "SELECT context_json FROM artifact_context WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let stored_json = format!("\n{original}\n");
+    let stored_digest = crate::codec::sha256(stored_json.as_bytes());
+    write
+        .connection()
+        .execute(
+            "UPDATE artifact_context SET context_json=?,context_hash=? WHERE singleton=1",
+            rusqlite::params![stored_json, stored_digest],
+        )
+        .unwrap();
+    write.commit().unwrap();
+    // Ordinary admission authenticates the original JSON bytes, including whitespace.
+    let reader = crate::SqliteIndexReader::from_session(workspace.read(schema).unwrap()).unwrap();
+    let reported_digest = reader.context_sha256();
+    assert_eq!(reported_digest, stored_digest);
+    assert_ne!(reported_digest, reader.context().sha256().unwrap());
+}

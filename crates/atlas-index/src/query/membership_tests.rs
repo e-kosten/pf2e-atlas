@@ -103,12 +103,14 @@ fn states() -> Connection {
 fn positive_membership_retains_unknown_zero_family_and_macro_semantics() {
     let db = states();
     for (expression, expected) in [
+        ("true", vec![1, 2, 3, 4, 5, 6, 7, 8]),
         ("defenses.ac >= 25", vec![1, 7]),
         ("source.type in ['weapon']", vec![8]),
         ("defenses.ac == 0", vec![2]),
         ("!(defenses.ac >= 25)", vec![2]),
         ("!(!(defenses.ac >= 25))", vec![1, 7]),
         ("defenses.ac >= 25 && level >= 3", vec![1, 7]),
+        ("defenses.ac >= 25 && 'fire' in traits", vec![1, 7]),
         (
             "defenses.ac >= 25 || availability['defenses.ac']=='missing'",
             vec![1, 3, 7],
@@ -128,10 +130,25 @@ fn positive_membership_retains_unknown_zero_family_and_macro_semantics() {
             "general {expression}"
         );
     }
-    let query = parse_where("defenses.ac>=25 && 'fire' in traits").unwrap();
-    let keys = ["test:0000000000000007".parse().unwrap()];
-    assert_eq!(eligible_result(&db, &query, Some(&keys)), vec![7]);
-    assert!(eligible_result(&db, &query, Some(&[])).is_empty());
+    let query = parse_where("defenses.ac>=25").unwrap();
+    let general = general_result(&db, &query);
+    for (scope, expected) in [
+        (&[2, 7, 9][..], &[7][..]),
+        (&[2, 9][..], &[][..]),
+        (&[][..], &[][..]),
+    ] {
+        let keys = scope
+            .iter()
+            .map(|id| format!("test:{id:016}").parse().unwrap())
+            .collect::<Vec<_>>();
+        let scoped_general = general
+            .iter()
+            .copied()
+            .filter(|id| scope.contains(id))
+            .collect::<Vec<_>>();
+        assert_eq!(scoped_general, expected);
+        assert_eq!(eligible_result(&db, &query, Some(&keys)), expected);
+    }
 }
 
 #[test]

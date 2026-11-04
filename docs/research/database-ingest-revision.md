@@ -47,6 +47,10 @@ about 260 ms with occurrence-owned vectors and 304 ms with input-owned vectors.
 This measured isolated SQL, without inference or product latency. The design
 chooses stable numerical ownership to avoid reused-vector copies during ingest.
 
+A separate root eligibility probe found exact accepted-key parity with the
+existing compiler across 15 corpus cases, with six repetitions per lowering.
+The original report and SQL work counters are in the archive.
+
 ## Repeat the ingest comparison
 
 Set `atlas` to the pinned normal release binary and use disposable copies of the
