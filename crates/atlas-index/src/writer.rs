@@ -20,7 +20,6 @@ use rusqlite::types::Value;
 use std::{collections::BTreeMap, path::Path};
 
 /// Compact root facts retained in publication order while rich state is staged.
-#[derive(Clone)]
 pub(crate) struct CheckedRootIdentity {
     pub(crate) key: RecordKey,
     pub(crate) name: Option<String>,
@@ -187,9 +186,7 @@ pub(crate) fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), Ind
     }
     Ok(())
 }
-pub(crate) fn validate_input(
-    input: &crate::PublicationSpool,
-) -> Result<Vec<CheckedRootIdentity>, IndexError> {
+pub(crate) fn validate_input(input: &crate::PublicationSpool) -> Result<(), IndexError> {
     input
         .inventory
         .validate_parts(&input.context.source_fingerprint, &input.packs)?;
@@ -222,7 +219,7 @@ pub(crate) fn validate_input(
             "record stream count differs from publication".into(),
         ));
     }
-    Ok(input.identities().to_vec())
+    Ok(())
 }
 
 pub(crate) fn checked_root_identity(

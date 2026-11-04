@@ -1,10 +1,10 @@
 //! Fixture publication through the runtime-owned workspace composition.
-use atlas_index::{ArtifactValidationReport, IndexBuildInput};
+use atlas_index::IndexBuildInput;
 
 pub fn publish_input(
     path: impl AsRef<std::path::Path>,
     input: &IndexBuildInput,
-) -> Result<ArtifactValidationReport, Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error>> {
     crate::initialize_workspace(path.as_ref())?;
     let workspace = atlas_storage::Workspace::at(path)?;
     Ok(atlas_index::test_support::publish_input_in(

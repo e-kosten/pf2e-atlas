@@ -623,8 +623,7 @@ transaction under exclusive access in the existing workspace. Unchanged rows kee
 their identity; removed sources become unavailable without deleting saved references.
 Typed construction, consumed-input/binding checks and SQL constraints establish
 normal publication's write contract. It trusts untouched committed data rather
-than reconstructing outputs for a second audit. Normal reports contain persisted
-counts with `checked_snapshots=0`; they do not certify whole-reference health.
+than reconstructing outputs for a second audit.
 
 Reference publication/profile activation advance the reference revision; user-state
 writes do not. Normal source publication adds no durable maintenance marker. Failure

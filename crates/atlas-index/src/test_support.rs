@@ -4,10 +4,7 @@ mod section_preservation;
 pub use section_preservation::native_preservation_rows;
 pub use section_preservation::reference_preservation_rows;
 
-use crate::{
-    ArtifactValidationReport, IndexBuildInput, IndexError, SourceSearchProfileIdentity,
-    SqliteIndexReader,
-};
+use crate::{IndexBuildInput, IndexError, SourceSearchProfileIdentity, SqliteIndexReader};
 use atlas_storage::{Migration, Workspace};
 use std::{collections::BTreeMap, path::Path};
 
@@ -229,10 +226,7 @@ pub fn open_reader(path: impl AsRef<Path>) -> Result<SqliteIndexReader, IndexErr
         .map_err(|e| IndexError::Operation(e.to_string()))?;
     SqliteIndexReader::from_session(Workspace::at(path)?.read(TEST_WORKSPACE_SCHEMA_VERSION)?)
 }
-pub fn publish_input(
-    path: impl AsRef<Path>,
-    input: &IndexBuildInput,
-) -> Result<ArtifactValidationReport, IndexError> {
+pub fn publish_input(path: impl AsRef<Path>, input: &IndexBuildInput) -> Result<(), IndexError> {
     let workspace = initialize_workspace(path)?;
     publish_input_in(&workspace, TEST_WORKSPACE_SCHEMA_VERSION, input)
 }
@@ -241,7 +235,7 @@ pub fn publish_input_in(
     workspace: &Workspace,
     schema: u32,
     input: &IndexBuildInput,
-) -> Result<ArtifactValidationReport, IndexError> {
+) -> Result<(), IndexError> {
     let native = fixture_native_values(input)?;
     let owner = workspace.update_owner()?;
     let scratch = crate::BuildScratch::new(&owner)?;

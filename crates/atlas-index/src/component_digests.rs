@@ -405,8 +405,7 @@ mod tests {
             .unwrap();
         c.execute("DELETE FROM core_roots WHERE record_id=?", [id])
             .unwrap();
-        let report = crate::test_support::publish_input(&path, &input).unwrap();
-        assert_eq!(report.checked_snapshots, 0);
+        crate::test_support::publish_input(&path, &input).unwrap();
         assert_eq!(
             c.query_row(
                 "SELECT count(*) FROM core_roots WHERE record_id=?",
@@ -508,8 +507,7 @@ mod tests {
         )
         .unwrap();
         assert!(crate::validate_artifact(&path).is_err());
-        let report = crate::test_support::publish_input(&path, &input).unwrap();
-        assert_eq!(report.checked_snapshots, 0);
+        crate::test_support::publish_input(&path, &input).unwrap();
         let count: usize = c
             .query_row(
                 "SELECT count(*) FROM reference_component_digests",

@@ -77,8 +77,8 @@ pub struct BuildFrameStream<T> {
 #[derive(Clone, Copy, Debug)]
 pub struct BuildFrameOffset(u64);
 impl<T: Serialize + DeserializeOwned> BuildFrameStream<T> {
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn new() -> Result<Self, IndexError> {
+    #[cfg(test)]
+    fn new() -> Result<Self, IndexError> {
         Ok(Self {
             file: tempfile::NamedTempFile::new().map_err(io)?,
             count: 0,
@@ -322,31 +322,6 @@ impl PublicationSpool {
             trait_seeds: BuildFrameStream::new_in(scratch)?,
         })
     }
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn new(
-        context: SourceArtifactBuildContext,
-        packs: Vec<IndexBuildPack>,
-        inventory: CompleteSourceInventory,
-        expected: ArtifactInstance,
-    ) -> Result<Self, IndexError> {
-        let preparation_hash = context.preparation_sha256()?;
-        Ok(Self {
-            context,
-            packs,
-            inventory,
-            expected,
-            preparation_hash,
-            root_keys: std::collections::BTreeSet::new(),
-            identities: Vec::new(),
-            records: BuildFrameStream::new()?,
-            lexical: BuildFrameStream::new()?,
-            semantic: BuildFrameStream::new()?,
-            aliases: BuildFrameStream::new()?,
-            remaster_pairs: BuildFrameStream::new()?,
-            traits: BuildFrameStream::new()?,
-            trait_seeds: BuildFrameStream::new()?,
-        })
-    }
     pub fn context(&self) -> &SourceArtifactBuildContext {
         &self.context
     }
@@ -358,9 +333,6 @@ impl PublicationSpool {
     }
     pub fn pack_count(&self) -> usize {
         self.packs.len()
-    }
-    pub fn semantic_count(&self) -> usize {
-        self.semantic.len()
     }
     pub fn max_record_frame_bytes(&self) -> u64 {
         self.records.max_frame_bytes()

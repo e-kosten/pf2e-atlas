@@ -1,8 +1,8 @@
 //! One owned publication: stable published handles and only unpublished staged bytes.
 use crate::native_values::NativeInput;
 use crate::{
-    ArtifactInstance, ArtifactValidationReport, BuildFileUsage, IndexError, PublicationSpool,
-    SourceArtifactBuildContext, SourceSearchProfileIdentity,
+    BuildFileUsage, IndexError, PublicationSpool, SourceArtifactBuildContext,
+    SourceSearchProfileIdentity,
 };
 use atlas_embedding::NativeInputDescriptor;
 use atlas_storage::{UpdateOwner, Workspace};
@@ -24,7 +24,6 @@ pub struct PreparedPublication<'owner> {
     workspace: Workspace,
     schema: u32,
     metadata: PublicationSpool,
-    identities: Vec<crate::writer::CheckedRootIdentity>,
     models: Vec<crate::native_values::NativeModelKey>,
     cache_bytes: u64,
     cache_limit: u64,
@@ -37,7 +36,7 @@ impl<'owner> PreparedPublication<'owner> {
         metadata: PublicationSpool,
     ) -> Result<Self, IndexError> {
         let validation_started = std::time::Instant::now();
-        let identities = crate::writer::validate_input(&metadata)?;
+        crate::writer::validate_input(&metadata)?;
         tracing::info!(target:"atlas_build_diagnostic",stage="publication_input_validation",elapsed_ms=validation_started.elapsed().as_secs_f64()*1000.,"Completed publication input validation");
         let workspace = Workspace::at(owner.path())?;
         let read = workspace.read(schema)?;
@@ -63,7 +62,6 @@ impl<'owner> PreparedPublication<'owner> {
             workspace,
             schema,
             metadata,
-            identities,
             models,
             cache_bytes,
             cache_limit: CACHE_PAYLOAD_LIMIT,
@@ -75,13 +73,11 @@ impl<'owner> PreparedPublication<'owner> {
         &self.metadata.context
     }
     pub fn product_record_count(&self) -> usize {
-        self.identities
+        self.metadata
+            .identities()
             .iter()
             .filter(|identity| identity.is_product)
             .count()
-    }
-    pub fn expected(&self) -> &ArtifactInstance {
-        &self.metadata.expected
     }
     pub fn file_usage(&self) -> Result<BuildFileUsage, IndexError> {
         self.metadata
@@ -138,7 +134,7 @@ impl<'owner> PreparedPublication<'owner> {
         let mut output = Vec::with_capacity(inputs.len());
         for input in inputs {
             let input = NativeInput::new(model, input)?;
-            if self.selection(ordinal, &input)?.is_some() {
+            if selected_checksum(&self.selected, ordinal, &input)?.is_some() {
                 output.push(NativeValueSelection::AlreadySelected);
                 continue;
             }
@@ -182,7 +178,7 @@ impl<'owner> PreparedPublication<'owner> {
             {
                 return Err(invalid("conflicting inferred values within batch"));
             }
-            if let Some(expected) = self.selection(ordinal, &input)?
+            if let Some(expected) = selected_checksum(&self.selected, ordinal, &input)?
                 && expected != checksum
             {
                 return Err(invalid(
@@ -226,7 +222,7 @@ impl<'owner> PreparedPublication<'owner> {
         selected_tx.commit()?;
         self.evict_cache()
     }
-    pub fn publish(self) -> Result<ArtifactValidationReport, IndexError> {
+    pub fn publish(self) -> Result<(), IndexError> {
         self.owner.publish(self.schema, |connection| {
             connection.execute_batch("PRAGMA defer_foreign_keys=ON")?;
             tracing::info!(target:"atlas_progress",phase="validate_build_input","Saving reference update");
@@ -234,7 +230,7 @@ impl<'owner> PreparedPublication<'owner> {
             let reusable = crate::writer::prior_compatible(connection)?;
             let native_started = std::time::Instant::now();
             let delta_started;
-            let report = {
+            {
                 let mut bindings = crate::native_values::NativeBindings::new(connection, &self.models, true)?;
                 bindings.ensure_tables()?;
                 self.install_staged(&mut bindings)?;
@@ -242,13 +238,13 @@ impl<'owner> PreparedPublication<'owner> {
                 let values = PublicationValues { selected: &self.selected, bindings: &bindings };
                 let scratch = self.selected_file.path().parent().ok_or_else(|| invalid("publication scratch parent absent"))?;
                 delta_started = std::time::Instant::now();
-                crate::stream_publication::write(connection, &self.metadata, &self.identities, &values, reusable, scratch)?
-            };
+                crate::stream_publication::write(connection, &self.metadata, &values, reusable, scratch)?;
+            }
             connection.execute("DELETE FROM pending_embedding_values", [])?;
             crate::native_values::prune(connection)?;
             crate::native_allocation::compact_profiles(connection, &self.metadata.context)?;
             tracing::info!(target:"atlas_build_diagnostic",stage="publication_delta_and_prune",elapsed_ms=delta_started.elapsed().as_secs_f64()*1000.,"Completed reference reconciliation");
-            Ok(report)
+            Ok(())
         })
     }
     fn model_key(&self, model: &SourceSearchProfileIdentity) -> Result<usize, IndexError> {
@@ -263,20 +259,6 @@ impl<'owner> PreparedPublication<'owner> {
         }
         Ok(key)
     }
-    fn selection(
-        &self,
-        ordinal: usize,
-        input: &NativeInput,
-    ) -> Result<Option<Vec<u8>>, IndexError> {
-        let row: Option<(usize, Vec<u8>)> = self.selected.prepare_cached("SELECT token_count,CASE WHEN length(selected_hash)=32 THEN selected_hash ELSE zeroblob(0) END FROM selected WHERE model=? AND input_hash=?")?.query_row(params![ordinal,input.hash()], |r| Ok((r.get(0)?,r.get(1)?))).optional()?;
-        match row {
-            Some((tokens, checksum)) if tokens == input.token_count() && checksum.len() == 32 => {
-                Ok(Some(checksum))
-            }
-            Some(_) => Err(invalid("selected native identity mismatch")),
-            None => Ok(None),
-        }
-    }
     fn remember(
         &self,
         ordinal: usize,
@@ -284,14 +266,10 @@ impl<'owner> PreparedPublication<'owner> {
         checksum: &[u8],
         bytes: Option<&[u8]>,
     ) -> Result<(), IndexError> {
-        if let Some(old) = self.selection(ordinal, input)? {
-            if old != checksum {
-                return Err(invalid("selected native checksum changed"));
-            }
-            return Ok(());
-        }
         self.selected
-            .prepare_cached("INSERT INTO selected VALUES(?,?,?,?,?)")?
+            .prepare_cached(
+                "INSERT INTO selected VALUES(?,?,?,?,?) ON CONFLICT(model,input_hash) DO NOTHING",
+            )?
             .execute(params![
                 ordinal,
                 input.hash(),
@@ -384,18 +362,6 @@ pub(crate) struct PublicationValues<'a, 'session> {
     bindings: &'a crate::native_values::NativeBindings<'session>,
 }
 impl PublicationValues<'_, '_> {
-    fn selected_checksum(
-        &self,
-        ordinal: usize,
-        input: &NativeInput,
-    ) -> Result<Vec<u8>, IndexError> {
-        let (tokens,hash): (usize,Vec<u8>) = self.selected.prepare_cached("SELECT token_count,CASE WHEN length(selected_hash)=32 THEN selected_hash ELSE zeroblob(0) END FROM selected WHERE model=? AND input_hash=?")?
-            .query_row(params![ordinal,input.hash()],|r|Ok((r.get(0)?,r.get(1)?)))?;
-        if tokens != input.token_count() || hash.len() != 32 {
-            return Err(invalid("selected native identity mismatch"));
-        }
-        Ok(hash)
-    }
     pub(crate) fn input_id(
         &self,
         profile: &atlas_domain::SearchProfileId,
@@ -403,7 +369,8 @@ impl PublicationValues<'_, '_> {
     ) -> Result<i64, IndexError> {
         let binding = self.bindings.profile(profile)?;
         let input = NativeInput::new(binding.key.model(), input)?;
-        let checksum = self.selected_checksum(binding.key.ordinal(), &input)?;
+        let checksum = selected_checksum(self.selected, binding.key.ordinal(), &input)?
+            .ok_or(rusqlite::Error::QueryReturnedNoRows)?;
         binding.selected_input(&input, &checksum)
     }
     pub(crate) fn value(
@@ -417,6 +384,20 @@ impl PublicationValues<'_, '_> {
         }
         let id = self.input_id(&model.profile_id, input)?;
         binding.read(id)
+    }
+}
+fn selected_checksum(
+    selected: &Connection,
+    ordinal: usize,
+    input: &NativeInput,
+) -> Result<Option<Vec<u8>>, IndexError> {
+    let row: Option<(usize, Vec<u8>)> = selected.prepare_cached("SELECT token_count,CASE WHEN length(selected_hash)=32 THEN selected_hash ELSE zeroblob(0) END FROM selected WHERE model=? AND input_hash=?")?.query_row(params![ordinal,input.hash()], |r| Ok((r.get(0)?,r.get(1)?))).optional()?;
+    match row {
+        Some((tokens, checksum)) if tokens == input.token_count() && checksum.len() == 32 => {
+            Ok(Some(checksum))
+        }
+        Some(_) => Err(invalid("selected native identity mismatch")),
+        None => Ok(None),
     }
 }
 fn bounded(length: usize) -> Result<(), IndexError> {
