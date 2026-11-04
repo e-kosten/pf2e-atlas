@@ -152,7 +152,7 @@ impl Workspace {
         }
         let connection = Connection::open_with_flags(&self.path, flags)?;
         #[cfg(feature = "diagnostics")]
-        crate::diagnostics::attach(&connection);
+        crate::diagnostics::record_workspace_connection();
         connection.busy_timeout(Duration::from_secs(5))?;
         // A default 768-dimensional vec0 chunk exceeds SQLite's usual 2 MiB
         // cache. Keep a chunk and nearby metadata resident during sequential

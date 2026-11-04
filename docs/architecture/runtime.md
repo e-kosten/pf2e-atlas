@@ -155,8 +155,8 @@ next profile, and recovery/staging finish before releasing the output batch. No
 workspace SQL snapshot or writer is retained during inference. Compact sets and
 model memory are measured separately from bounded preparation/numerical buffers.
 Normal publication uses the owned facts and SQL constraints rather than a second
-source decode/selection audit. Its counts report `checked_snapshots=0`; deep audit
-remains the explicit `atlas index validate` operation.
+source decode/selection audit. Deep audit remains the explicit
+`atlas index validate` operation.
 
 Record-owned selection also supplies canonical whole-section addresses. Index
 stores each selected section once, with lexical evidence and shared semantic
@@ -237,9 +237,10 @@ readable, including pre-existing defects; saved state and useful committed recov
 results survive. Explicit deep audit checks complete reference health. Startup and
 ordinary reads perform no cache or scratch cleanup.
 
-One update-owned attempt directory contains all staging files. Normal completion
-and error close children before cleanup; a later explicit update can safely remove
-recognized abandoned attempts for that same workspace. Consumed private frames
+One update-owned attempt directory under the OS temporary location contains all
+staging files. Normal completion and error close children before cleanup. A later
+explicit update can remove marked abandoned attempts for that same workspace in
+the current temporary location. Consumed private frames
 retain observed decoding/allocation bounds. These disposable frames use
 uncompressed JSON; persistent checked snapshots and prepared HTML retain their
 stored compression contracts. Private relationships are

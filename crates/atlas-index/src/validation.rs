@@ -259,24 +259,6 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
         source_fingerprint: context.source_fingerprint,
     })
 }
-pub(crate) fn publication_report(
-    c: &Connection,
-    context: &SourceArtifactBuildContext,
-) -> Result<ArtifactValidationReport, IndexError> {
-    Ok(ArtifactValidationReport {
-        roots: count(c, "records")?,
-        checked_snapshots: 0,
-        projection_rows: PROJECTION_TABLES.iter().try_fold(0, |total, table| {
-            Ok::<_, IndexError>(total + count(c, table)?)
-        })?,
-        prepared_fields: count(c, "prepared_content")?,
-        relationships: count(c, "relationship_occurrences")?,
-        lexical_units: count(c, "lexical_units")?,
-        semantic_units: count(c, "semantic_units")?,
-        source_fingerprint: context.source_fingerprint.clone(),
-    })
-}
-
 fn checked_record_row(row: &rusqlite::Row<'_>) -> Result<SourceBackedRecord, IndexError> {
     let key: String = row.get(1)?;
     let pack: String = row.get(2)?;
@@ -637,7 +619,6 @@ fn validate_vectors(
     context: &SourceArtifactBuildContext,
     product_count: usize,
 ) -> Result<(), IndexError> {
-    validate_profile_storage(c, context)?;
     crate::semantic_locations::validate(c)?;
     let invalid: bool = c.query_row("SELECT EXISTS(SELECT 1 FROM semantic_units u JOIN embedding_inputs i USING(input_id) WHERE i.published_hash IS NULL) OR EXISTS(SELECT 1 FROM trait_seed_chunks t JOIN embedding_inputs i USING(input_id) WHERE i.published_hash IS NULL) OR EXISTS(SELECT 1 FROM embedding_inputs i WHERE published_hash IS NOT NULL AND NOT EXISTS(SELECT 1 FROM semantic_units u WHERE u.input_id=i.input_id) AND NOT EXISTS(SELECT 1 FROM trait_seed_chunks t WHERE t.input_id=i.input_id))",[],|r|r.get(0))?;
     if invalid {

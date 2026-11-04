@@ -80,6 +80,71 @@ impl tracing::field::Visit for TraceFields {
 }
 
 #[test]
+fn captured_git_revision_matches_the_published_manifest_after_checkout_advances() {
+    let fixture = Fixture::new();
+    let git = |args: &[&str]| {
+        let output = std::process::Command::new("git")
+            .current_dir(&fixture.0)
+            .args([
+                "-c",
+                "user.name=Atlas test",
+                "-c",
+                "user.email=atlas-test@example.invalid",
+                "-c",
+                "commit.gpgsign=false",
+                "-c",
+                "core.hooksPath=.git/no-hooks",
+            ])
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "git {args:?}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).unwrap().trim().to_owned()
+    };
+    git(&["init"]);
+    git(&["add", "."]);
+    git(&["commit", "-m", "Original source"]);
+    let original_revision = git(&["rev-parse", "HEAD"]);
+
+    let destination = tempfile::tempdir().unwrap();
+    let mut options = fixture.options();
+    options.output_path = destination.path().join("artifact.sqlite");
+    let captured = CapturedBuildInputs::capture(options.clone()).unwrap();
+    let manifest = fixture.0.join("module.json");
+    let changed = fs::read_to_string(&manifest)
+        .unwrap()
+        .replace(r#""label":"Items""#, r#""label":"Renamed Items""#);
+    fs::write(&manifest, changed).unwrap();
+    git(&["add", "module.json"]);
+    git(&["commit", "-m", "Rename pack"]);
+    assert_ne!(git(&["rev-parse", "HEAD"]), original_revision);
+
+    let workspace = atlas_index::test_support::initialize_workspace(&options.output_path).unwrap();
+    captured
+        .build(
+            &workspace,
+            atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION,
+        )
+        .unwrap();
+    let reader = atlas_index::test_support::open_reader(&options.output_path).unwrap();
+    assert_eq!(
+        reader.context().source_revision.as_deref(),
+        Some(original_revision.as_str())
+    );
+    let db = rusqlite::Connection::open(&options.output_path).unwrap();
+    let label: String = db
+        .query_row("SELECT label FROM packs WHERE pack_id='items'", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!(label, "Items");
+}
+
+#[test]
 fn captured_inputs_are_consumed_once_and_later_changes_belong_to_the_next_build() {
     const CHILD: &str = "ATLAS_TEST_CAPTURED_ONCE_CHILD";
     const COMPLETE: &str = "captured-once: owned and unconsumed mutation cases verified";

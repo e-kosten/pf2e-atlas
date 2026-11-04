@@ -99,16 +99,20 @@ projection refreshes preserve the cache because they do not publish pending
 numerical results. Do not maintain candidate/active/retired build
 membership merely to make early eviction safe.
 
-Group disposable files in one attempt directory under existing update ownership.
+Group disposable files in one fresh attempt directory under the OS temporary
+location while holding the workspace update lock.
 Close every child handle before deleting the directory, including Windows error
 paths. Normal completion/error removes owned scratch; a subsequent explicit update
-may clean recognizable abandoned attempts for that same workspace. Ordinary reads
-and startup perform neither inference nor scratch/cache cleanup.
+may clean marked abandoned attempts for that same workspace in the current
+temporary location. A crash before the attempt marker can leave an empty directory.
+Ordinary reads and startup perform neither inference nor scratch/cache cleanup.
 
 Publish the captured input set. Check external bytes against capture when consumed,
 then use the owned data without consulting that file again. Manifests, catalogs,
 pack bindings and alias preparation follow the same contract. Later source edits,
 additions and removals belong to the next build; remove the final freshness rescan.
+Retain optional Git provenance only when the clean checkout revision agrees
+before and after capture. The captured content fingerprint remains authoritative.
 Missing or unreadable declared packs still fail capture, while existing empty packs
 and deliberate declaration removals remain valid.
 

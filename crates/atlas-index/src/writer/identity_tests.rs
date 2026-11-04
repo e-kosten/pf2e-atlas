@@ -139,10 +139,13 @@ fn owned_publication_preserves_stream_order_optional_names_macro_exclusion_and_s
             source,
         )
         .unwrap();
-        let report = publication.publish().unwrap();
-        assert_eq!(report.roots, 6);
+        publication.publish().unwrap();
         let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
         let c = read.connection();
+        let roots: usize = c
+            .query_row("SELECT count(*) FROM records", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(roots, 6);
         let identities = c
             .prepare("SELECT key,last_known_name FROM record_identity ORDER BY id")
             .unwrap()

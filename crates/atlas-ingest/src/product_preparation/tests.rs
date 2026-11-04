@@ -399,21 +399,22 @@ fn production_admission_batches_count_real_sessions_and_bound_simultaneous_paylo
                     );
                 }
             }
-            let (prepared, metrics) = atlas_storage::diagnostics::capture_sql_work(|| {
-                prepare(
-                    &CapturedBuildInputs::capture(options.clone())?,
-                    &reuse,
-                    scratch.path(),
-                )
-            })
-            .unwrap();
+            let (prepared, connections) =
+                atlas_storage::diagnostics::count_workspace_connections(|| {
+                    prepare(
+                        &CapturedBuildInputs::capture(options.clone())?,
+                        &reuse,
+                        scratch.path(),
+                    )
+                })
+                .unwrap();
             let prepared = prepared.unwrap();
             let expected_records = if subset { count.div_ceil(2) } else { count };
             let batches = count.div_ceil(PREPARATION_REUSE_BATCH);
             assert_eq!(prepared.work.reusable_record_read_calls, expected_records);
             assert_eq!(prepared.work.reusable_record_read_batches, batches);
             assert_eq!(prepared.work.reusable_layout_read_calls, 0);
-            assert_eq!(metrics.workspace_connections as usize, 1 + batches);
+            assert_eq!(connections as usize, 1 + batches);
             assert_eq!(prepared.source_report.reused_admissions, expected_records);
             assert_eq!(prepared.spool.record_count(), count);
             assert_eq!(prepared.work.selection_calls, count);
@@ -431,7 +432,7 @@ fn production_admission_batches_count_real_sessions_and_bound_simultaneous_paylo
             );
             eprintln!(
                 "admission_batches records={count} subset={subset} reads={expected_records} batches={batches} workspace_connections={} overlap={overlap:?}",
-                metrics.workspace_connections
+                connections
             );
         }
     }
@@ -505,14 +506,15 @@ fn production_layout_batches_follow_active_phase_preserve_flags_and_bound_sessio
             for layouts in [true, false] {
                 options.reuse_embeddings = numerical;
                 options.reuse_passage_layouts = layouts;
-                let (prepared, metrics) = atlas_storage::diagnostics::capture_sql_work(|| {
-                    prepare(
-                        &CapturedBuildInputs::capture(options.clone())?,
-                        &reuse,
-                        scratch.path(),
-                    )
-                })
-                .unwrap();
+                let (prepared, connections) =
+                    atlas_storage::diagnostics::count_workspace_connections(|| {
+                        prepare(
+                            &CapturedBuildInputs::capture(options.clone())?,
+                            &reuse,
+                            scratch.path(),
+                        )
+                    })
+                    .unwrap();
                 let prepared = prepared.unwrap();
                 let batches = count.div_ceil(PREPARATION_REUSE_BATCH);
                 assert_eq!(prepared.work.admitted_record_reads, count);
@@ -530,7 +532,7 @@ fn production_layout_batches_follow_active_phase_preserve_flags_and_bound_sessio
                     if layouts { batches } else { 0 }
                 );
                 assert_eq!(
-                    metrics.workspace_connections as usize,
+                    connections as usize,
                     1 + batches + if layouts { batches } else { 0 }
                 );
                 assert_eq!(prepared.source_report.reused_admissions, count);
@@ -568,7 +570,7 @@ fn production_layout_batches_follow_active_phase_preserve_flags_and_bound_sessio
                 }
                 eprintln!(
                     "layout_batches records={count} numerical={numerical} layouts={layouts} batches={batches} workspace_connections={} overlap={:?}",
-                    metrics.workspace_connections, prepared.work.largest_semantic_overlap
+                    connections, prepared.work.largest_semantic_overlap
                 );
             }
         }

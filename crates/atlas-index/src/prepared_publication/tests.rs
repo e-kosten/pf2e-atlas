@@ -815,14 +815,14 @@ fn oversized_selected_hash_or_key_is_rejected_on_consumption_without_losing_rows
             .unwrap();
         if field == "selected_hash" {
             assert!(
-                publication
-                    .selection(
-                        publication.model_key(model).unwrap(),
-                        &crate::native_values::NativeInput::new(model, &desc).unwrap()
-                    )
-                    .unwrap_err()
-                    .to_string()
-                    .contains("selected native identity mismatch")
+                selected_checksum(
+                    &publication.selected,
+                    publication.model_key(model).unwrap(),
+                    &crate::native_values::NativeInput::new(model, &desc).unwrap(),
+                )
+                .unwrap_err()
+                .to_string()
+                .contains("selected native identity mismatch")
             );
             let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
             let bindings = crate::native_values::NativeBindings::new(

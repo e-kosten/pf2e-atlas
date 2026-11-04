@@ -18,11 +18,10 @@ struct RootUpdate {
 pub(crate) fn write(
     c: &Connection,
     input: &PublicationSpool,
-    identities: &[crate::writer::CheckedRootIdentity],
     values: &crate::prepared_publication::PublicationValues<'_, '_>,
     reusable_context: bool,
     scratch: &std::path::Path,
-) -> Result<crate::ArtifactValidationReport, IndexError> {
+) -> Result<(), IndexError> {
     let started = std::time::Instant::now();
     let affected_before = c.total_changes();
     let mut query_root_replacements = 0u64;
@@ -30,6 +29,7 @@ pub(crate) fn write(
     let mut content_root_replacements = 0u64;
     let mut relationship_root_replacements = 0u64;
     let old_context = crate::read_stored_reference_context(c)?;
+    let identities = input.identities();
     let mut prior = BTreeMap::new();
     for identity in identities {
         let key = &identity.key;
@@ -187,5 +187,5 @@ pub(crate) fn write(
     c.cache_flush()?;
     let usage = next_roots.file_usage()?;
     tracing::info!(target:"atlas_build_diagnostic",stage="reference_delta",elapsed_ms=started.elapsed().as_secs_f64()*1000.,sqlite_affected_rows=c.total_changes()-affected_before,query_root_replacements,snapshot_root_replacements,content_root_replacements,relationship_root_replacements,digest_spool_file_bytes=usage.file_bytes,digest_spool_allocated_bytes=usage.allocated_bytes.unwrap_or(0),allocated_bytes_known=usage.allocated_bytes.is_some(),"Observed reference reconciliation work");
-    crate::validation::publication_report(c, &input.context)
+    Ok(())
 }
