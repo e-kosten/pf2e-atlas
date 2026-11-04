@@ -10,8 +10,10 @@ import {
   Pagination,
   Space,
   theme,
+  Tooltip,
   Typography,
 } from "antd";
+import { X } from "lucide-react";
 import type { FormInstance, ModalProps } from "antd";
 import { useId, useLayoutEffect, useState } from "react";
 import { searchPage } from "../../../api/atlasApi";
@@ -59,6 +61,7 @@ import {
 
 export type PickerSelection = {
   record: RecordSummaryView;
+  detail: RecordDetailView;
   artifact_generation: string;
 };
 
@@ -80,6 +83,7 @@ export function SearchPickerModal<FormValues>({
   confirmLabel = "Add",
   status,
   summary,
+  allowClearSelection = false,
 }: {
   buildRequest: (query: string) => SearchResultsRequest;
   disabled?: boolean;
@@ -99,6 +103,7 @@ export function SearchPickerModal<FormValues>({
   confirmLabel?: string;
   status?: React.ReactNode;
   summary?: React.ReactNode;
+  allowClearSelection?: boolean;
 }) {
   useDismissOnReadingNavigation(open && !disabled, onCancel);
   const formId = useId();
@@ -300,7 +305,7 @@ export function SearchPickerModal<FormValues>({
                 <div className="reference-picker__status">{status}</div>
               )}
             </div>
-            <Space className="reference-picker__actions">
+            <Space wrap className="reference-picker__actions">
               <Button disabled={disabled} onClick={onCancel}>
                 {dismissLabel}
               </Button>
@@ -421,6 +426,29 @@ export function SearchPickerModal<FormValues>({
           disabled={disabled}
           selectedRecordKey={selectedRecordKey}
           onReaderClose={selection.cancel}
+          recordActions={(record) =>
+            allowClearSelection && record.record_key === selectedRecordKey ? (
+              <Tooltip title="Clear selection" trigger={["hover", "focus"]}>
+                <Button
+                  type="text"
+                  icon={<X size={16} aria-hidden="true" />}
+                  aria-label="Clear selection"
+                  disabled={disabled}
+                  onClick={(event) => {
+                    const search = event.currentTarget
+                      .closest('[role="dialog"]')
+                      ?.querySelector<HTMLInputElement>(
+                        'input[aria-label="Search records"]',
+                      );
+                    selection.cancel();
+                    reading.inspect(null);
+                    onSelectionChange(null);
+                    search?.focus({ preventScroll: true });
+                  }}
+                />
+              </Tooltip>
+            ) : undefined
+          }
           onSelect={(row, request) => {
             const page = recordResults.data;
             if (!disabled && page)
@@ -428,8 +456,9 @@ export function SearchPickerModal<FormValues>({
                 request,
                 name: row.record.title,
                 generation: page.artifact_generation,
-                commit: () =>
+                commit: (detail) =>
                   onSelectionChange({
+                    detail,
                     record: row.record,
                     artifact_generation: page.artifact_generation,
                   }),

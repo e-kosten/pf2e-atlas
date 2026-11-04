@@ -1,6 +1,7 @@
 pub(crate) mod agent_skills;
 pub(crate) mod build_info;
 pub(crate) mod completions;
+pub(crate) mod encounters;
 pub(crate) mod filter_discovery;
 pub(crate) mod filters;
 pub(crate) mod graph;

@@ -14,6 +14,8 @@ import { AddToRecordButton } from "./AddToRecordButton";
 const api = vi.hoisted(() => ({
   getSavedLists: vi.fn(),
   getEncounters: vi.fn(),
+  getEncounter: vi.fn(),
+  getRecordDetail: vi.fn(),
   createSavedList: vi.fn(),
   createEncounter: vi.fn(),
   addSavedListItem: vi.fn(),
@@ -65,6 +67,8 @@ beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
   api.getSavedLists.mockResolvedValue({ lists: [] });
   api.getEncounters.mockResolvedValue({ encounters: [] });
+  api.getEncounter.mockResolvedValue(null);
+  api.getRecordDetail.mockResolvedValue(null);
 });
 it("creates and adds to a list in one submission, preserving the browsing location and returning focus", async () => {
   api.createSavedList.mockResolvedValue({ list });

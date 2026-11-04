@@ -1220,13 +1220,11 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
       picker.getByRole("button", { name: "Add", exact: true }),
     ).toBeEnabled();
     await picker.getByLabel("Quantity", { exact: true }).fill("2");
-    await picker.getByLabel("Initiative", { exact: true }).fill("7");
     await activate(picker.getByRole("button", { name: "Add", exact: true }), info);
     await expect(
       picker.getByRole("status").filter({ hasText: "Added 2 × Atlas Sentinel" }),
     ).toBeVisible();
     await expect(picker.getByLabel("Quantity", { exact: true })).toHaveValue("1");
-    await expect(picker.getByLabel("Initiative", { exact: true })).toHaveValue("");
     await expect(
       picker.getByRole("button", { name: "Add", exact: true }),
     ).toBeEnabled();
@@ -1728,6 +1726,13 @@ test("create-and-add keeps the footer aligned and keyboard actions reachable", a
           const note = dialog.getByRole("textbox", { name: "Note" });
           await expect(note).toBeFocused();
           await note.press("Tab");
+        } else {
+          const adjustment = dialog.getByRole("combobox", { name: "Adjustment" });
+          const quantity = dialog.getByRole("spinbutton", { name: "Quantity" });
+          await expect(adjustment).toBeFocused();
+          await adjustment.press("Tab");
+          await expect(quantity).toBeFocused();
+          await quantity.press("Tab");
         }
         await expect(existing).toBeFocused();
         await existing.press("Tab");
@@ -1745,7 +1750,12 @@ test("create-and-add keeps the footer aligned and keyboard actions reachable", a
       if (page.viewportSize()!.width >= 700) expect(backBox.y).toBe(cancelBox.y);
       await noPageOverflow(page);
       await activate(existing, info);
-      await expect(dialog.getByRole("combobox")).toBeFocused();
+      await expect(
+        dialog.getByRole("combobox", {
+          name: kind === "list" ? "Saved list" : "Encounter",
+          exact: true,
+        }),
+      ).toBeFocused();
       await activate(
         dialog.getByRole("button", { name: `New ${kind}`, exact: true }),
         info,

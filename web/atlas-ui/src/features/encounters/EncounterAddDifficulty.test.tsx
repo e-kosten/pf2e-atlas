@@ -125,7 +125,7 @@ it("shows current difficulty, then previews quantity and adjustment without an e
     expect(within(bar).getByText("After adding 2 × Ogre")).toBeVisible(),
   );
   expect(within(bar).queryByRole("spinbutton")).toBeNull();
-  expect(within(bar).queryByRole("button")).toBeNull();
+  expect(within(bar).queryByRole("button", { name: "Retry" })).toBeNull();
 });
 it("retains a named previous scenario across selections and failures, but not revisions", async () => {
   const onPreview = vi
@@ -148,12 +148,19 @@ it("retains a named previous scenario across selections and failures, but not re
     expect(within(bar).getByText("After adding 2 × Ogre")).toBeVisible(),
   );
   expect(within(bar).getByText("Extreme · 160 XP")).toBeVisible();
+  const track = within(bar).getByRole("progressbar");
+  expect(track.querySelector(".encounter-difficulty-meter__solid")).toHaveStyle({
+    width: "50%",
+  });
+  expect(track.querySelector(".encounter-difficulty-meter__additional")).toHaveStyle({
+    width: "50%",
+  });
   onPreview.mockImplementation(() => new Promise(() => {}));
   fireEvent.click(screen.getByRole("button", { name: "Choose trap" }));
   expect(within(bar).getByText("After adding 2 × Ogre")).toBeVisible();
   await within(bar).findByText("Updating…");
   expect(within(bar).getByText("Extreme · 160 XP")).toBeVisible();
-  expect(within(bar).queryByText("Moderate · 80 XP")).toBeNull();
+  expect(within(bar).getByText("Moderate · 80 XP")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Refresh encounter" }));
   expect(within(bar).getByText("Moderate · 80 XP")).toBeVisible();
 });
@@ -170,7 +177,7 @@ it("replaces fast quantity and selection results without intermediate captions o
   fireEvent.click(screen.getByRole("button", { name: "Choose ogre" }));
   await act(async () => finish({ ...current, total_xp: 120, rating: "Severe" }));
   await within(bar).findByText("After adding 1 × Ogre");
-  const heading = within(bar).getByRole("status");
+  const heading = within(bar).getByText("After adding 1 × Ogre").parentElement!;
   const frames: string[] = [heading.textContent!];
   const observer = new MutationObserver(() => frames.push(heading.textContent!));
   observer.observe(heading, { childList: true, characterData: true, subtree: true });
@@ -178,13 +185,13 @@ it("replaces fast quantity and selection results without intermediate captions o
     fireEvent.change(screen.getByRole("spinbutton", { name: "Quantity" }), {
       target: { value: "2" },
     });
-    expect(heading).toHaveTextContent("After adding 1 × OgreSevere · 120 XP");
+    expect(heading).toHaveTextContent("After adding 1 × Ogre · Severe · 120 XP");
     await waitFor(() => expect(onPreview).toHaveBeenCalledTimes(2));
-    expect(heading).toHaveTextContent("After adding 1 × OgreSevere · 120 XP");
+    expect(heading).toHaveTextContent("After adding 1 × Ogre · Severe · 120 XP");
     await act(async () => finish({ ...current, total_xp: 160, rating: "Extreme" }));
     await within(bar).findByText("After adding 2 × Ogre");
     fireEvent.click(screen.getByRole("button", { name: "Choose trap" }));
-    expect(heading).toHaveTextContent("After adding 2 × OgreExtreme · 160 XP");
+    expect(heading).toHaveTextContent("After adding 2 × Ogre · Extreme · 160 XP");
     await act(async () =>
       finish({ ...current, total_xp: 200, rating: "Above Extreme" }),
     );
@@ -192,9 +199,9 @@ it("replaces fast quantity and selection results without intermediate captions o
     expect(frames.length).toBeGreaterThan(1);
     for (const frame of frames) {
       expect([
-        "After adding 1 × OgreSevere · 120 XP",
-        "After adding 2 × OgreExtreme · 160 XP",
-        "After adding 2 × TrapAbove Extreme · 200 XP",
+        "After adding 1 × Ogre · Severe · 120 XP",
+        "After adding 2 × Ogre · Extreme · 160 XP",
+        "After adding 2 × Trap · Above Extreme · 200 XP",
       ]).toContain(frame);
     }
   } finally {
@@ -260,5 +267,8 @@ it("shows a completed unavailable result instead of masking it with a retained t
   await within(bar).findByText("After adding 1 × Trap");
   expect(within(bar).getByText("Difficulty incomplete")).toBeVisible();
   expect(within(bar).queryByText("Severe · 120 XP")).toBeNull();
-  expect(within(bar).queryByRole("progressbar")).toBeNull();
+  expect(within(bar).getByRole("progressbar")).toHaveAttribute(
+    "aria-valuetext",
+    expect.stringContaining("80 XP"),
+  );
 });

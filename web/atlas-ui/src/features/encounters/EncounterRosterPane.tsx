@@ -1,17 +1,8 @@
+import { EncounterRecordAdjustment } from "./EncounterRecordAdjustment";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { encounterStatusLabels } from "./encounterStatus";
 import { EncounterModal } from "./EncounterModal";
-import {
-  Button,
-  Dropdown,
-  Form,
-  Input,
-  InputNumber,
-  Select,
-  Tooltip,
-  Typography,
-} from "antd";
-import type { FormInstance } from "antd";
+import { Button, Dropdown, Form, Input, InputNumber, Tooltip, Typography } from "antd";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { SortableRow, useSortableList } from "../../shared/ui/sortable/SortableList";
@@ -22,7 +13,6 @@ import type {
   AddEncounterRecordParticipantRequest,
   EncounterParticipantView,
   SearchResultsRequest,
-  RecordDetailView,
   UpdateEncounterParticipantRequest,
 } from "../../generated/atlas";
 import { EncounterAddMenu } from "./EncounterAddMenu";
@@ -30,11 +20,15 @@ import { PrimaryToolbar } from "../../shared/ui/PrimaryToolbar";
 import { InitiativeValueField } from "./InitiativeValueField";
 import { participantUpdate } from "./participantEdits";
 import { InitiativePopover } from "./InitiativeRollModal";
-import { SearchPickerModal } from "../../shared/ui/pickers/SearchPickerModal";
+import {
+  SearchPickerModal,
+  type PickerSelection,
+} from "../../shared/ui/pickers/SearchPickerModal";
 
 import type { EncounterDifficultyProps } from "./EncounterDifficulty";
 import {
   EncounterAddDifficulty,
+  encounterRecordAddition,
   type EncounterRecordAddForm as AddRecordForm,
 } from "./EncounterAddDifficulty";
 
@@ -59,6 +53,7 @@ export function EncounterRosterPane({
   onAdvanceTurn,
   advanceDisabled = false,
   advanceLoading = false,
+  needsInitiative = false,
   onRollInitiative,
   onRemove,
   onReorder,
@@ -86,6 +81,7 @@ export function EncounterRosterPane({
   onAdvanceTurn: () => void;
   advanceDisabled?: boolean;
   advanceLoading?: boolean;
+  needsInitiative?: boolean;
   onRollInitiative?: (participantKey?: string) => void;
   onRemove: (participant: EncounterParticipantView) => void;
   onReorder: (
@@ -114,49 +110,59 @@ export function EncounterRosterPane({
     onReorder,
   });
   const [added, setAdded] = useState("");
-  const [candidateName, setCandidateName] = useState("");
   const [committedAdd, setCommittedAdd] = useState<string | null>(null);
   const [committedPc, setCommittedPc] = useState(false);
   const pendingFormReset = useRef({ record: false, pc: false });
   const [recordOpen, setRecordOpen] = useState(false);
   const [pcOpen, setPcOpen] = useState(false);
-  const [selectedRecordKey, setSelectedRecordKey] = useState<string | null>(null);
-  const [selectedIsCreature, setSelectedIsCreature] = useState(false);
+  const [candidate, setCandidate] = useState<PickerSelection | null>(null);
+  const selectedRecordKey = candidate?.record.record_key ?? null;
+  const selectedIsCreature = candidate?.record.kind === "creature";
+  const defaultAdjustment = selectedIsCreature
+    ? (candidate?.detail.encounter_adjustment ?? "normal")
+    : undefined;
   const [recordForm] = Form.useForm<AddRecordForm>();
   const [pcForm] = Form.useForm<AddPcForm>();
   useEffect(() => {
     if (disabled) return;
     if (pendingFormReset.current.record) {
-      recordForm.resetFields();
+      recordForm.setFields([
+        { name: "quantity", value: 1, touched: false, errors: [] },
+        { name: "adjustment", value: defaultAdjustment, touched: false, errors: [] },
+      ]);
       pendingFormReset.current.record = false;
     }
     if (pendingFormReset.current.pc) {
       pcForm.resetFields();
       pendingFormReset.current.pc = false;
     }
-  }, [disabled, committedAdd, committedPc, recordForm, pcForm]);
-  const addRecord = async (values: AddRecordForm) => {
-    if (disabled) return;
+  }, [disabled, committedAdd, committedPc, recordForm, pcForm, defaultAdjustment]);
+  const addRecord = async () => {
+    if (disabled || !candidate) return;
+    const { record_ref, quantity, participant_variant } = encounterRecordAddition(
+      candidate.record.record_key,
+      selectedIsCreature,
+      recordForm,
+    );
+    const receipt = `Added ${quantity} × ${candidate.record.title}.`;
     setCommittedAdd(null);
     setAdded("");
     try {
       const saved = await onAddRecord({
         encounter_ref: slug,
-        record_ref: selectedRecordKey ?? "",
-        quantity: values.quantity ?? 1,
-        ...(selectedIsCreature &&
-        values.adjustment &&
-        recordForm.isFieldTouched("adjustment")
-          ? { participant_variant: values.adjustment }
-          : {}),
-        ...(values.initiative == null ? {} : { initiative: BigInt(values.initiative) }),
+        record_ref,
+        quantity,
+        ...(participant_variant === null ? {} : { participant_variant }),
       });
       if (saved) {
-        setAdded(`Added ${values.quantity ?? 1} × ${candidateName}.`);
-        recordForm.resetFields();
+        setAdded(receipt);
+        recordForm.setFields([
+          { name: "quantity", value: 1, touched: false, errors: [] },
+          { name: "adjustment", value: defaultAdjustment, touched: false, errors: [] },
+        ]);
       } else {
         pendingFormReset.current.record = true;
-        setCommittedAdd(`Added ${values.quantity ?? 1} × ${candidateName}.`);
+        setCommittedAdd(receipt);
       }
     } catch {
       /* The owner displays the failure; retain the form and selection. */
@@ -317,7 +323,11 @@ export function EncounterRosterPane({
             </span>
             <strong>
               {currentParticipant?.display_name ??
-                (loading ? "Loading…" : "Not started")}
+                (loading
+                  ? "Loading…"
+                  : needsInitiative && participants.length > 0
+                    ? "Initiative not set"
+                    : "Not started")}
             </strong>
           </div>
           <Button
@@ -425,15 +435,29 @@ export function EncounterRosterPane({
         disabled={disabled}
         okButtonProps={{ disabled: disabled || !selectedRecordKey, loading: disabled }}
         onCancel={() => setRecordOpen(false)}
-        onFinish={(values) => void addRecord(values)}
+        onFinish={() => void addRecord()}
         onSelectionChange={(selection) => {
-          setSelectedRecordKey(selection?.record.record_key ?? null);
-          setSelectedIsCreature(selection?.record.kind === "creature");
-          if (selection) setCandidateName(selection.record.title);
+          if (selection) {
+            const quantity = recordForm.getFieldValue("quantity");
+            recordForm.setFields([
+              { name: "quantity", value: quantity === undefined ? 1 : quantity },
+              {
+                name: "adjustment",
+                value:
+                  selection.record.kind === "creature"
+                    ? (selection.detail.encounter_adjustment ?? "normal")
+                    : undefined,
+                touched: false,
+                errors: [],
+              },
+            ]);
+          }
+          setCandidate(selection);
         }}
         open={recordOpen}
         selectedRecordKey={selectedRecordKey}
         title="Add creature or hazard"
+        allowClearSelection
         dismissLabel="Done"
         summary={
           difficulty && recordOpen ? (
@@ -442,7 +466,7 @@ export function EncounterRosterPane({
               form={recordForm}
               selectedRecordKey={selectedRecordKey}
               creature={selectedIsCreature}
-              recordName={candidateName}
+              recordName={candidate?.record.title ?? ""}
               disabled={disabled}
             />
           ) : undefined
@@ -455,23 +479,22 @@ export function EncounterRosterPane({
           ) : undefined
         }
       >
-        {(detail) => (
-          <>
-            {recovery}
-            {error && (
-              <ErrorNotice
-                error={error}
-                title="Participant could not be added"
-                description={error}
-              />
-            )}
-            {selectedIsCreature && selectedRecordKey && (
-              <EncounterRecordAdjustment
-                key={selectedRecordKey}
-                recordKey={selectedRecordKey}
-                detail={detail}
-                form={recordForm}
-              />
+        <>
+          {recovery}
+          {error && (
+            <ErrorNotice
+              error={error}
+              title="Participant could not be added"
+              description={error}
+            />
+          )}
+          <div
+            className="encounter-add-fields"
+            inert={!selectedRecordKey}
+            style={selectedRecordKey ? undefined : { visibility: "hidden", opacity: 0 }}
+          >
+            {(!selectedRecordKey || selectedIsCreature) && (
+              <EncounterRecordAdjustment />
             )}
             <Form.Item
               name="quantity"
@@ -489,11 +512,8 @@ export function EncounterRosterPane({
             >
               <InputNumber aria-label="Quantity" min={1} max={50} />
             </Form.Item>
-            <Form.Item name="initiative" label="Initiative" rules={[initiativeRule]}>
-              <InputNumber aria-label="Initiative" />
-            </Form.Item>
-          </>
-        )}
+          </div>
+        </>
       </SearchPickerModal>
       <EncounterModal
         title="Add PC"
@@ -695,41 +715,4 @@ function rosterHpTone(participant: EncounterParticipantView): string {
     : ratio <= 0.5
       ? "encounter-roster__hp--bloodied"
       : "encounter-roster__hp--healthy";
-}
-
-function EncounterRecordAdjustment({
-  recordKey,
-  detail,
-  form,
-}: {
-  recordKey: string;
-  detail?: RecordDetailView;
-  form: FormInstance<AddRecordForm>;
-}) {
-  const matches =
-    detail?.record.record_key === recordKey &&
-    detail.selected.embedded_path.length === 0;
-  const resolved = matches ? detail.encounter_adjustment : undefined;
-  useEffect(() => {
-    if (matches && !form.isFieldTouched("adjustment"))
-      form.setFields([{ name: "adjustment", value: resolved, touched: false }]);
-  }, [form, matches, resolved]);
-  return (
-    <Form.Item
-      className="encounter-add-adjustment"
-      name="adjustment"
-      label="Adjustment"
-      preserve={false}
-    >
-      <Select
-        aria-label="Adjustment"
-        placeholder="Unknown"
-        options={[
-          { value: "normal", label: "Normal" },
-          { value: "elite", label: "Elite" },
-          { value: "weak", label: "Weak" },
-        ]}
-      />
-    </Form.Item>
-  );
 }

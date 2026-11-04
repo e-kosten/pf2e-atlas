@@ -16,9 +16,24 @@ import { EncounterDifficultyMeter } from "./EncounterDifficultyMeter";
 
 export type EncounterRecordAddForm = {
   quantity?: number | null;
-  initiative?: number | null;
   adjustment?: EncounterParticipantVariantView;
 };
+
+export function encounterRecordAddition(
+  recordKey: string,
+  creature: boolean,
+  form: FormInstance<EncounterRecordAddForm>,
+): EncounterDifficultyAddition {
+  const quantity = form.getFieldValue("quantity");
+  return {
+    record_ref: recordKey,
+    quantity: quantity === undefined ? 1 : (quantity ?? Number.NaN),
+    participant_variant:
+      creature && form.isFieldTouched("adjustment")
+        ? (form.getFieldValue("adjustment") ?? null)
+        : null,
+  };
+}
 
 /** Footer-only projection: no reference editor and no speculative saved participants. */
 export function EncounterAddDifficulty({
@@ -47,19 +62,25 @@ export function EncounterAddDifficulty({
   recordName: string;
 }) {
   const { token } = theme.useToken();
-  const quantity = Form.useWatch("quantity", form);
-  const adjustment = Form.useWatch("adjustment", form);
-  const touched = form.isFieldTouched("adjustment");
+  // Subscribe to field edits, then read the same form snapshot as submission.
+  Form.useWatch("quantity", form);
+  Form.useWatch("adjustment", form);
+  const fields = selectedRecordKey
+    ? encounterRecordAddition(selectedRecordKey, creature, form)
+    : null;
+  const recordRef = fields?.record_ref;
+  const quantity = fields?.quantity;
+  const variant = fields?.participant_variant;
   const addition = useMemo<EncounterDifficultyAddition | null>(
     () =>
-      selectedRecordKey
+      recordRef && quantity !== undefined
         ? {
-            record_ref: selectedRecordKey,
-            quantity: quantity === undefined ? 1 : (quantity ?? Number.NaN),
-            participant_variant: creature && touched ? (adjustment ?? null) : null,
+            record_ref: recordRef,
+            quantity,
+            participant_variant: variant ?? null,
           }
         : null,
-    [selectedRecordKey, quantity, creature, touched, adjustment],
+    [recordRef, quantity, variant],
   );
   const valid =
     addition !== null &&
@@ -165,15 +186,33 @@ export function EncounterAddDifficulty({
         role="status"
         style={{ minHeight: token.controlHeightSM }}
       >
-        <span className="encounter-add-difficulty__context">{context}</span>
-        <strong>{difficultySummary(display)}</strong>
+        <span>
+          <span>Current encounter</span> · <strong>{difficultySummary(value)}</strong>
+        </span>
+        {(!selectedRecordKey || shown || pending || error || (addition && !valid)) && (
+          <span className="encounter-add-difficulty__context">
+            <span title={context}>
+              {selectedRecordKey ? context : "No creature or hazard selected"}
+            </span>
+            {shown && (
+              <>
+                {" "}
+                · <strong>{difficultySummary(display)}</strong>
+              </>
+            )}
+          </span>
+        )}
         {error && !isSharedFailure(error) && (
           <Button size="small" onClick={() => void preview.refetch()}>
             Retry
           </Button>
         )}
       </div>
-      <EncounterDifficultyMeter value={display} compact />
+      <EncounterDifficultyMeter
+        value={display.total_xp == null ? value : display}
+        current={value}
+        compact
+      />
     </section>
   );
 }

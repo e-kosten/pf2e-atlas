@@ -1,3 +1,10 @@
+import {
+  EncounterAddDifficulty,
+  encounterRecordAddition,
+  type EncounterRecordAddForm,
+} from "../encounters/EncounterAddDifficulty";
+import { EncounterRecordAdjustment } from "../encounters/EncounterRecordAdjustment";
+import { recordDetailQueryOptions } from "../../shared/records/recordDetailQuery";
 import { AtlasModal as Modal } from "../../shared/ui/overlays/AtlasModal";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -6,6 +13,7 @@ import {
   Button,
   Form,
   Input,
+  InputNumber,
   Select,
   Tabs,
   Tooltip,
@@ -14,13 +22,15 @@ import {
   type RefSelectProps,
 } from "antd";
 import { ListPlus, Plus } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   addEncounterRecordParticipant,
   addSavedListItem,
   createEncounter,
   createSavedList,
+  getEncounter,
   getEncounters,
+  previewEncounterDifficulty,
 } from "../../api/atlasApi";
 import { encounterDestination, listDestination } from "../../app/destinations";
 import {
@@ -39,15 +49,21 @@ type Destination = { key: string; name: string; slug: string };
 export function AddToRecordButton({
   recordKey,
   record,
+  encounterOnly = false,
 }: {
   recordKey: string;
   record?: RecordSummaryView;
+  encounterOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [hoverHint, setHoverHint] = useState(false);
   const [focusHint, setFocusHint] = useState(false);
   const canAddEncounter = record?.kind === "creature" || record?.kind === "hazard";
-  const label = canAddEncounter ? "Add to list or encounter" : "Add to list";
+  const label = encounterOnly
+    ? "Add to encounter"
+    : canAddEncounter
+      ? "Add to list or encounter"
+      : "Add to list";
   return (
     <>
       <Tooltip
@@ -75,6 +91,7 @@ export function AddToRecordButton({
         recordKey={recordKey}
         record={record}
         canAddEncounter={canAddEncounter}
+        encounterOnly={encounterOnly}
         onClose={() => setOpen(false)}
       />
     </>
@@ -87,19 +104,23 @@ function AddToRecordModal({
   onClose,
   open,
   canAddEncounter,
+  encounterOnly,
 }: {
   open: boolean;
   canAddEncounter: boolean;
+  encounterOnly: boolean;
   recordKey: string;
   record?: RecordSummaryView;
   onClose: () => void;
 }) {
   const [destinationKind, setKind] = useState<DestinationKind>("list");
-  const kind = canAddEncounter ? destinationKind : "list";
+  const kind = encounterOnly ? "encounter" : canAddEncounter ? destinationKind : "list";
   const [selected, setSelected] = useState<Destination | null>(null);
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState(false);
-  const [form] = Form.useForm<{ name: string; note?: string }>();
+  const [form] = Form.useForm<
+    EncounterRecordAddForm & { name?: string; note?: string }
+  >();
   const choiceInput = useRef<RefSelectProps>(null);
   const nameInput = useRef<InputRef>(null);
   const newButton = useRef<HTMLAnchorElement | HTMLButtonElement>(null);
@@ -127,6 +148,35 @@ function AddToRecordModal({
     queryFn: getEncounters,
     enabled: open && kind === "encounter",
   });
+  const encounterKey =
+    open && kind === "encounter" && !creating ? selected?.key : undefined;
+  const encounter = useQuery({
+    queryKey: ["encounter", encounterKey],
+    queryFn: () => getEncounter(encounterKey!),
+    enabled: Boolean(encounterKey),
+  });
+  const creature = record?.kind === "creature";
+  const detail = useQuery(
+    recordDetailQueryOptions(
+      open && kind === "encounter" && creature ? recordKey : null,
+    ),
+  );
+  const resolvedAdjustment =
+    detail.data?.record.record_key === recordKey
+      ? (detail.data.encounter_adjustment ?? "normal")
+      : undefined;
+  useLayoutEffect(() => {
+    if (
+      open &&
+      kind === "encounter" &&
+      creature &&
+      !form.isFieldTouched("adjustment")
+    ) {
+      form.setFields([
+        { name: "adjustment", value: resolvedAdjustment, touched: false },
+      ]);
+    }
+  }, [open, kind, creature, form, resolvedAdjustment]);
   const catalog = kind === "list" ? lists : encounters;
   const destinations: Destination[] =
     kind === "list"
@@ -183,10 +233,15 @@ function AddToRecordModal({
         ]);
         return { destination, alreadyPresent: receipt.outcome === "already_present" };
       }
+      const { participant_variant, ...addition } = encounterRecordAddition(
+        recordKey,
+        creature,
+        form,
+      );
       const receipt = await addEncounterRecordParticipant({
         encounter_ref: destination.key,
-        record_ref: recordKey,
-        quantity: 1,
+        ...addition,
+        ...(participant_variant === null ? {} : { participant_variant }),
       });
       void queryClient.invalidateQueries({ queryKey: ["encounters"] });
       for (const ref of new Set([
@@ -261,7 +316,9 @@ function AddToRecordModal({
         form.resetFields();
         submit.reset();
       }}
-      title={canAddEncounter ? "Add to…" : "Add to list"}
+      title={
+        encounterOnly ? "Add to encounter" : canAddEncounter ? "Add to…" : "Add to list"
+      }
       transitionName=""
       maskTransitionName=""
       confirmLoading={submit.isPending}
@@ -275,8 +332,7 @@ function AddToRecordModal({
         if (!inFlight.current) onClose();
       }}
       onOk={() => {
-        if (creating) form.submit();
-        else if (selected) run();
+        form.submit();
       }}
       footer={(_, { OkBtn, CancelBtn }) => (
         <div className="record-destination-picker__footer">
@@ -292,8 +348,12 @@ function AddToRecordModal({
         </div>
       )}
     >
-      {record && <Typography.Paragraph>{record.title}</Typography.Paragraph>}
-      {canAddEncounter && (
+      {record && (
+        <Typography.Text className="record-destination-picker__record">
+          {record.title}
+        </Typography.Text>
+      )}
+      {canAddEncounter && !encounterOnly && (
         <Tabs
           activeKey={kind}
           animated={false}
@@ -320,7 +380,8 @@ function AddToRecordModal({
           layout="vertical"
           disabled={submit.isPending}
           onFinish={({ name }) => {
-            if (creating) run(name.trim());
+            if (creating && name) run(name.trim());
+            else if (selected) run();
           }}
         >
           {creating ? (
@@ -388,6 +449,28 @@ function AddToRecordModal({
                 )}
             </>
           )}
+          {kind === "encounter" && (
+            <div className="record-destination-picker__encounter-fields">
+              {creature && <EncounterRecordAdjustment loading={detail.isPending} />}
+              <Form.Item
+                name="quantity"
+                label="Quantity"
+                initialValue={1}
+                preserve={false}
+                rules={[
+                  {
+                    required: true,
+                    type: "integer",
+                    min: 1,
+                    max: 50,
+                    message: "Enter a whole number from 1 to 50.",
+                  },
+                ]}
+              >
+                <InputNumber min={1} max={50} />
+              </Form.Item>
+            </div>
+          )}
           {kind === "list" && (
             <Form.Item name="note" label="Note" style={{ marginBottom: 0 }}>
               <Input.TextArea
@@ -402,6 +485,26 @@ function AddToRecordModal({
             </Form.Item>
           )}
         </Form>
+        {encounter.data && encounterKey && (
+          <EncounterAddDifficulty
+            encounterKey={encounterKey}
+            revision={encounter.data.revision}
+            artifactGeneration={encounter.data.artifact_generation}
+            value={encounter.data.difficulty}
+            onPreview={(request) => previewEncounterDifficulty(encounterKey, request)}
+            form={form}
+            selectedRecordKey={recordKey}
+            creature={creature}
+            recordName={record?.title ?? recordKey}
+            disabled={submit.isPending}
+          />
+        )}
+        {encounter.error && (
+          <ErrorNotice
+            error={encounter.error}
+            title="Encounter difficulty could not load"
+          />
+        )}
         {catalog.error && !creating && (
           <ErrorNotice
             error={catalog.error}
