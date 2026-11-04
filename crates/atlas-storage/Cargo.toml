@@ -7,7 +7,7 @@ publish.workspace = true
 rust-version.workspace = true
 
 [features]
-diagnostics = ["rusqlite/trace"]
+diagnostics = []
 
 [dependencies]
 fs2 = "0.4.3"

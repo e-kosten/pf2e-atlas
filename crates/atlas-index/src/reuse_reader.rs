@@ -313,22 +313,24 @@ mod tests {
     }
     #[test]
     fn owned_batches_preserve_order_repeated_keys_missing_records_and_io_bounds() {
-        use atlas_storage::diagnostics::capture_sql_work;
+        use atlas_storage::diagnostics::count_workspace_connections;
         let input = crate::foundation_tests::fixture(true);
         let (_directory, path) = crate::foundation_tests::build(&input);
         let workspace = initialize_workspace(&path).unwrap();
         let mut reader =
             ReferenceReuseReader::new(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-        let (identities, metrics) = capture_sql_work(|| reader.identities()).unwrap();
+        let (identities, connections) =
+            count_workspace_connections(|| reader.identities()).unwrap();
         assert_eq!(identities.unwrap().len(), input.records.len());
-        assert_eq!(metrics.workspace_connections, 1);
+        assert_eq!(connections, 1);
         let key = input.records[1].record.key();
         let first = input.records[0].record.key();
         let absent: RecordKey = "items:0000000000000000".parse().unwrap();
         let keys = [key, &absent, key, first];
-        let (records, metrics) = capture_sql_work(|| reader.read_records(&keys)).unwrap();
+        let (records, connections) =
+            count_workspace_connections(|| reader.read_records(&keys)).unwrap();
         let records = records.unwrap();
-        assert_eq!(metrics.workspace_connections, 1);
+        assert_eq!(connections, 1);
         assert_eq!(records.len(), keys.len());
         for (record, expected) in records.iter().zip(keys) {
             if expected == &absent {
@@ -341,9 +343,10 @@ mod tests {
             records[0].as_ref().unwrap().content,
             records[2].as_ref().unwrap().content
         );
-        let (admissions, metrics) = capture_sql_work(|| reader.read_admissions(&keys)).unwrap();
+        let (admissions, connections) =
+            count_workspace_connections(|| reader.read_admissions(&keys)).unwrap();
         let admissions = admissions.unwrap();
-        assert_eq!(metrics.workspace_connections, 1);
+        assert_eq!(connections, 1);
         for (admission, record) in admissions.iter().zip(&records) {
             assert_eq!(
                 admission.as_ref().map(|a| (
@@ -360,9 +363,10 @@ mod tests {
                 )),
             );
         }
-        let (layouts, metrics) = capture_sql_work(|| reader.read_layouts(&keys)).unwrap();
+        let (layouts, connections) =
+            count_workspace_connections(|| reader.read_layouts(&keys)).unwrap();
         let layouts = layouts.unwrap();
-        assert_eq!(metrics.workspace_connections, 1);
+        assert_eq!(connections, 1);
         assert_eq!(layouts.len(), keys.len());
         assert!(!layouts[0].is_empty());
         assert!(layouts[1].is_empty());
@@ -377,32 +381,40 @@ mod tests {
         }));
         for count in [1, 32, 128] {
             let keys = vec![key; count];
-            let (records, metrics) = capture_sql_work(|| reader.read_records(&keys)).unwrap();
+            let (records, connections) =
+                count_workspace_connections(|| reader.read_records(&keys)).unwrap();
             assert_eq!(records.unwrap().len(), count);
-            assert_eq!(metrics.workspace_connections, 1);
-            let (layouts, metrics) = capture_sql_work(|| reader.read_layouts(&keys)).unwrap();
+            assert_eq!(connections, 1);
+            let (layouts, connections) =
+                count_workspace_connections(|| reader.read_layouts(&keys)).unwrap();
             assert_eq!(layouts.unwrap().len(), count);
-            assert_eq!(metrics.workspace_connections, 1);
+            assert_eq!(connections, 1);
         }
-        let (records, metrics) = capture_sql_work(|| reader.read_records(&[])).unwrap();
+        let (records, connections) =
+            count_workspace_connections(|| reader.read_records(&[])).unwrap();
         assert!(records.unwrap().is_empty());
-        assert_eq!(metrics.workspace_connections, 0);
-        let (layouts, metrics) = capture_sql_work(|| reader.read_layouts(&[])).unwrap();
+        assert_eq!(connections, 0);
+        let (layouts, connections) =
+            count_workspace_connections(|| reader.read_layouts(&[])).unwrap();
         assert!(layouts.unwrap().is_empty());
-        assert_eq!(metrics.workspace_connections, 0);
+        assert_eq!(connections, 0);
         reader.context = None;
-        let (records, metrics) = capture_sql_work(|| reader.read_records(&[key; 128])).unwrap();
+        let (records, connections) =
+            count_workspace_connections(|| reader.read_records(&[key; 128])).unwrap();
         assert!(records.unwrap().iter().all(Option::is_none));
-        assert_eq!(metrics.workspace_connections, 0);
-        let (layouts, metrics) = capture_sql_work(|| reader.read_layouts(&[key; 128])).unwrap();
+        assert_eq!(connections, 0);
+        let (layouts, connections) =
+            count_workspace_connections(|| reader.read_layouts(&[key; 128])).unwrap();
         assert!(layouts.unwrap().iter().all(Vec::is_empty));
-        assert_eq!(metrics.workspace_connections, 0);
-        let (records, metrics) = capture_sql_work(|| reader.read_records(&[key; 129])).unwrap();
+        assert_eq!(connections, 0);
+        let (records, connections) =
+            count_workspace_connections(|| reader.read_records(&[key; 129])).unwrap();
         assert!(records.unwrap_err().to_string().contains("exceeds 128"));
-        assert_eq!(metrics.workspace_connections, 0);
-        let (layouts, metrics) = capture_sql_work(|| reader.read_layouts(&[key; 129])).unwrap();
+        assert_eq!(connections, 0);
+        let (layouts, connections) =
+            count_workspace_connections(|| reader.read_layouts(&[key; 129])).unwrap();
         assert!(layouts.unwrap_err().to_string().contains("exceeds 128"));
-        assert_eq!(metrics.workspace_connections, 0);
+        assert_eq!(connections, 0);
     }
 
     #[test]
@@ -459,11 +471,12 @@ mod tests {
         )
         .unwrap();
         let reader = ReferenceReuseReader::new(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
-        let (result, metrics) =
-            atlas_storage::diagnostics::capture_sql_work(|| reader.read_records(&[body_bad]))
-                .unwrap();
+        let (result, connections) = atlas_storage::diagnostics::count_workspace_connections(|| {
+            reader.read_records(&[body_bad])
+        })
+        .unwrap();
         assert!(result.unwrap()[0].is_none());
-        assert_eq!(metrics.workspace_connections, 0);
+        assert_eq!(connections, 0);
     }
     #[test]
     fn layout_batches_recheck_mutable_profile_storage_without_widening_record_reads() {
