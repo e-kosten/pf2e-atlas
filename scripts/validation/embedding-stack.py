@@ -53,7 +53,7 @@ def selected_runners(base, manual):
     paths = set(git("diff", "--name-only", base).splitlines())
     before, after = snapshot(base), snapshot()
     native = PACKAGES - {"text-splitter"}
-    if ("rust-toolchain.toml" in paths or "crates/atlas-embedding/Cargo.toml" in paths
+    if (paths & {".gitattributes", "rust-toolchain.toml", "crates/atlas-embedding/Cargo.toml"}
             or any(path.startswith((".cargo/", "crates/atlas-sqlite-vec/")) for path in paths)
             or (BASELINE_PIN in paths and not git("ls-tree", "--name-only", base, BASELINE_PIN).strip())
             or [row for row in before["packages"] if row["name"] in native]
