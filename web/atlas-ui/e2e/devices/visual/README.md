@@ -5,6 +5,20 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Inline encounter editing
+
+Source `593d1d4889e8314a3428240ac027d7b7311f6790`, Playwright 1.62.1.
+The pending and settled Drained previews and Quickened editor show the blank
+initiative dash and quieter name and HP values in the updated encounter layout.
+Three desktop Chromium references changed per OS.
+
+- macOS 27.2 (26B123), arm64, used the checkout's browser fixture. All 12
+  condition-refinement scenarios passed with ordinary comparisons.
+- Linux x64, Ubuntu 24.04, used [capture 41953006156](https://github.com/e-kosten/pf2e-atlas/actions/runs/41953006156)
+  and the authenticated fixture from CI run 41952315483, merge commit
+  `db2594ca3afe4d67c808acbde69f0c12b81f4319`, which has the same source tree.
+  Fixture SHA-256 `0221de0a1945bc763ba09522516dfe2620dfccb4ea6843f93053776ac1056804`.
+
 ## Quieter initiative drafting
 
 The pending and settled condition previews and Quickened restriction editor
