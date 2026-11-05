@@ -1,4 +1,4 @@
-import { Button } from "antd";
+import { Button, Tooltip } from "antd";
 import type { ComponentPropsWithRef, ReactNode } from "react";
 
 type PaneActionProps = Omit<
@@ -7,6 +7,8 @@ type PaneActionProps = Omit<
 > & {
   icon: ReactNode;
   label: string;
+  tooltip?: boolean;
+  outlined?: boolean;
 };
 
 export function PaneIconButton({
@@ -14,19 +16,28 @@ export function PaneIconButton({
   icon,
   label,
   title = label,
+  tooltip = true,
+  outlined = false,
   ...buttonProps
 }: Omit<PaneActionProps, "href"> & {
   onClick: NonNullable<PaneActionProps["onClick"]>;
 }) {
-  return (
+  const action = (
     <Button
       {...buttonProps}
       aria-label={label}
       className={["pane-toggle", className].filter(Boolean).join(" ")}
       icon={icon}
-      title={title}
-      type="text"
+      title={tooltip ? undefined : title}
+      type={outlined ? "default" : "text"}
     />
+  );
+  return tooltip ? (
+    <Tooltip title={title} trigger={["hover", "focus"]}>
+      {action}
+    </Tooltip>
+  ) : (
+    action
   );
 }
 
@@ -35,18 +46,27 @@ export function PaneIconLink({
   icon,
   label,
   title = label,
+  tooltip = true,
+  outlined = false,
   ...buttonProps
 }: PaneActionProps & {
   href: string;
 }) {
-  return (
+  const action = (
     <Button
       {...buttonProps}
       aria-label={label}
       className={["pane-toggle", className].filter(Boolean).join(" ")}
       icon={icon}
-      title={title}
-      type="text"
+      title={tooltip ? undefined : title}
+      type={outlined ? "default" : "text"}
     />
+  );
+  return tooltip ? (
+    <Tooltip title={title} trigger={["hover", "focus"]}>
+      {action}
+    </Tooltip>
+  ) : (
+    action
   );
 }

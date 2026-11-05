@@ -20,6 +20,7 @@ pub(super) fn field_label(path: &str, scope: Option<&str>) -> Result<&'static st
         (_, "source.document_kind") => "Source Document Category",
         (_, "source.type") => "Source Family",
         (_, "kind") => "Kind",
+        (_, "has_description") => "Has a description",
         (_, "traits") => "Traits",
         (_, "rarity") => "Rarity",
         (_, "publication.title") => "Publication",

@@ -6,14 +6,16 @@ import { TraitBadge } from "./TraitBadge";
 export function CheckDetails({
   label,
   details,
+  iconOnly,
 }: {
   label: string;
   details: CheckDetailsView;
+  iconOnly: boolean;
 }) {
   return (
     <ValueExplanation
-      iconOnly
-      label={`Details for ${label}`}
+      iconOnly={iconOnly}
+      label={iconOnly ? `Details for ${label}` : "Check details"}
       title={label}
       content={
         <div className="check-details__traits">
@@ -23,7 +25,7 @@ export function CheckDetails({
         </div>
       }
     >
-      <Info size={14} aria-hidden="true" />
+      {iconOnly ? <Info size={14} aria-hidden="true" /> : label}
     </ValueExplanation>
   );
 }

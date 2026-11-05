@@ -84,8 +84,10 @@ export function EditableValue({
       ref={trigger}
       size="small"
       color="default"
-      variant={addLabel ? "outlined" : "filled"}
-      className={buttonClassName}
+      variant={addLabel ? "outlined" : "text"}
+      className={
+        addLabel ? buttonClassName : `inline-editable ${buttonClassName ?? ""}`
+      }
       aria-label={addLabel ?? `Edit ${label}`}
       disabled={disabled}
       onClick={() => setEditing(true)}

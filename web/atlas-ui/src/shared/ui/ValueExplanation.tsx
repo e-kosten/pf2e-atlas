@@ -1,4 +1,4 @@
-import { Button, Popover, theme } from "antd";
+import { Button, Popover, theme, Tooltip } from "antd";
 import { X } from "lucide-react";
 import { useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { restoreOverlayFocus } from "./overlays/restoreOverlayFocus";
@@ -66,13 +66,15 @@ export function ValueExplanation({
             {title && <strong className="value-explanation__title">{title}</strong>}
             {content}
           </div>
-          <Button
-            type="text"
-            size="small"
-            aria-label="Close explanation"
-            icon={<X size={14} aria-hidden="true" />}
-            onClick={close}
-          />
+          <Tooltip title="Close explanation" trigger={["hover", "focus"]}>
+            <Button
+              type="text"
+              size="small"
+              aria-label="Close explanation"
+              icon={<X size={14} aria-hidden="true" />}
+              onClick={close}
+            />
+          </Tooltip>
         </div>
       }
     >

@@ -446,6 +446,27 @@ async fn search_page_rejects_malformed_criteria_and_retired_window_routes() {
 }
 
 #[tokio::test]
+async fn description_filter_keeps_own_prose_through_the_search_route() {
+    let fixture = Fixture::new();
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            "/api/search/page",
+            Some(json!({
+                "criteria": {
+                    "kind": "list_records",
+                    "filter": {"kind":"compare","field":"has_description","op":"eq","value":true}
+                },
+                "page": {"number":1,"size":25}
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["page"]["total"], 2);
+    assert_eq!(body["rows"].as_array().unwrap().len(), 2);
+}
+
+#[tokio::test]
 async fn record_and_filter_routes_use_real_router_wiring() {
     let fixture = Fixture::new();
     let (status, body) = fixture

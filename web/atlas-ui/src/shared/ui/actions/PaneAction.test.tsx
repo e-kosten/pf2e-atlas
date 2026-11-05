@@ -21,6 +21,7 @@ it("connects native Ant Tooltip hover and focus to the same pane button and ref"
             ref={ref}
             icon={<span aria-hidden>+</span>}
             label="Add to saved list"
+            tooltip={false}
             onClick={click}
             onFocus={focus}
           />
@@ -72,6 +73,7 @@ it("preserves disabled actions and native link attributes, events and refs", () 
       onKeyDown={keyDown}
       target="_blank"
       title="Read this record"
+      tooltip={false}
     />,
   );
   const link = screen.getByRole("link", { name: "Open full page" });

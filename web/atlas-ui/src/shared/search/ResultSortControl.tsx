@@ -203,41 +203,58 @@ export function ResultSortControl({
                       }
                     />
                     <div className="result-sort__rule-actions">
-                      <Button
-                        aria-label={`Move sort rule ${index + 1} up`}
-                        icon={<ArrowUpOutlined />}
-                        disabled={index === 0}
-                        onClick={() => {
-                          const rules = [...sort.rules];
-                          [rules[index - 1], rules[index]] = [
-                            rules[index],
-                            rules[index - 1],
-                          ];
-                          updateRules(rules);
-                        }}
-                      />
-                      <Button
-                        aria-label={`Move sort rule ${index + 1} down`}
-                        icon={<ArrowDownOutlined />}
-                        disabled={index === sort.rules.length - 1}
-                        onClick={() => {
-                          const rules = [...sort.rules];
-                          [rules[index + 1], rules[index]] = [
-                            rules[index],
-                            rules[index + 1],
-                          ];
-                          updateRules(rules);
-                        }}
-                      />
-                      <Button
-                        aria-label={`Remove sort rule ${index + 1}`}
-                        icon={<CloseOutlined />}
-                        onClick={() =>
-                          updateRules(
-                            sort.rules.filter((_, otherIndex) => otherIndex !== index),
-                          )
-                        }
-                      />
+                      <Tooltip
+                        title={`Move sort rule ${index + 1} up`}
+                        trigger={["hover", "focus"]}
+                      >
+                        <Button
+                          aria-label={`Move sort rule ${index + 1} up`}
+                          icon={<ArrowUpOutlined />}
+                          disabled={index === 0}
+                          onClick={() => {
+                            const rules = [...sort.rules];
+                            [rules[index - 1], rules[index]] = [
+                              rules[index],
+                              rules[index - 1],
+                            ];
+                            updateRules(rules);
+                          }}
+                        />
+                      </Tooltip>
+                      <Tooltip
+                        title={`Move sort rule ${index + 1} down`}
+                        trigger={["hover", "focus"]}
+                      >
+                        <Button
+                          aria-label={`Move sort rule ${index + 1} down`}
+                          icon={<ArrowDownOutlined />}
+                          disabled={index === sort.rules.length - 1}
+                          onClick={() => {
+                            const rules = [...sort.rules];
+                            [rules[index + 1], rules[index]] = [
+                              rules[index],
+                              rules[index + 1],
+                            ];
+                            updateRules(rules);
+                          }}
+                        />
+                      </Tooltip>
+                      <Tooltip
+                        title={`Remove sort rule ${index + 1}`}
+                        trigger={["hover", "focus"]}
+                      >
+                        <Button
+                          aria-label={`Remove sort rule ${index + 1}`}
+                          icon={<CloseOutlined />}
+                          onClick={() =>
+                            updateRules(
+                              sort.rules.filter(
+                                (_, otherIndex) => otherIndex !== index,
+                              ),
+                            )
+                          }
+                        />
+                      </Tooltip>
                     </div>
                   </div>
                 ))}

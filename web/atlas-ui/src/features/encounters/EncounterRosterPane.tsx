@@ -202,18 +202,22 @@ export function EncounterRosterPane({
       >
         {({ attributes, listeners, setActivatorNodeRef }) => (
           <>
-            <Button
-              {...attributes}
-              {...listeners}
-              ref={setActivatorNodeRef}
-              type="text"
-              size="small"
-              disabled={disabled}
-              className="encounter-roster__drag-handle"
-              aria-label={`Reorder ${participant.display_name}`}
+            <Tooltip
               title="Drag to reorder. With a keyboard, press Space then use the arrow keys."
-              icon={<GripVertical size={16} aria-hidden="true" />}
-            />
+              trigger={["hover", "focus"]}
+            >
+              <Button
+                {...attributes}
+                {...listeners}
+                ref={setActivatorNodeRef}
+                type="text"
+                size="small"
+                disabled={disabled}
+                className="encounter-roster__drag-handle"
+                aria-label={`Reorder ${participant.display_name}`}
+                icon={<GripVertical size={16} aria-hidden="true" />}
+              />
+            </Tooltip>
             {participant.participant_kind === "pc" ? (
               <InitiativeValueField
                 name={participant.display_name}
@@ -675,16 +679,21 @@ function ParticipantActions({
           ],
         }}
       >
-        <Button
-          ref={trigger}
-          type="text"
-          size="small"
-          disabled={disabled}
-          className="encounter-roster__more"
-          aria-label={`Actions for ${participant.display_name}`}
-          aria-haspopup="menu"
-          icon={<Ellipsis size={16} aria-hidden="true" />}
-        />
+        <Tooltip
+          title={`Actions for ${participant.display_name}`}
+          trigger={["hover", "focus"]}
+        >
+          <Button
+            ref={trigger}
+            type="text"
+            size="small"
+            disabled={disabled}
+            className="encounter-roster__more"
+            aria-label={`Actions for ${participant.display_name}`}
+            aria-haspopup="menu"
+            icon={<Ellipsis size={16} aria-hidden="true" />}
+          />
+        </Tooltip>
       </Dropdown>
       <Tooltip
         title={`Remove ${participant.display_name}`}

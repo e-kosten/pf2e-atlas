@@ -125,6 +125,84 @@ fn sample() -> IndexBuildInput {
     )
 }
 #[test]
+fn description_filter_matches_own_readable_text_and_journal_pages() {
+    use serde_json::json;
+
+    let input = crate::core_tests::fixture(
+        vec![
+            (
+                "actors",
+                "Actor",
+                json!({"_id":"aaaaaaaaaaaaaaaa","name":"Described creature","type":"npc","system":{"details":{"publicNotes":"<p>Dwells in forests.</p>"}}}),
+            ),
+            (
+                "actors",
+                "Actor",
+                json!({"_id":"bbbbbbbbbbbbbbbb","name":"Mechanics only","type":"npc","system":{"details":{"privateNotes":"<p>GM only.</p>"}},"items":[{"_id":"xxxxxxxxxxxxxxxx","name":"Carried","type":"equipment","system":{"description":{"value":"<p>Owned prose.</p>"}}}]}),
+            ),
+            (
+                "actors",
+                "Actor",
+                json!({"_id":"cccccccccccccccc","name":"Routine only","type":"hazard","system":{"details":{"routine":"<p>Trigger twice.</p>"}}}),
+            ),
+            (
+                "items",
+                "Item",
+                json!({"_id":"dddddddddddddddd","name":"Described feat","type":"feat","system":{"description":{"value":"<p>Gain a benefit.</p>"}}}),
+            ),
+            (
+                "items",
+                "Item",
+                json!({"_id":"eeeeeeeeeeeeeeee","name":"Empty effect","type":"effect","system":{"description":{"value":"<p><br></p>"}}}),
+            ),
+            (
+                "items",
+                "Item",
+                json!({"_id":"hhhhhhhhhhhhhhhh","name":"GM notes only","type":"feat","system":{"description":{"value":"","gm":"<p>Only the GM sees this.</p>"}}}),
+            ),
+            (
+                "journals",
+                "JournalEntry",
+                json!({"_id":"ffffffffffffffff","name":"Readable journal","pages":[{"_id":"yyyyyyyyyyyyyyyy","name":"Page","type":"text","text":{"format":1,"content":"<p>Local customs.</p>"}}]}),
+            ),
+            (
+                "journals",
+                "JournalEntry",
+                json!({"_id":"gggggggggggggggg","name":"Empty journal","pages":[]}),
+            ),
+        ],
+        false,
+    );
+    let (_directory, path) = crate::foundation_tests::build(&input);
+    let connection = Connection::open(&path).unwrap();
+    let matches = |expression: &str| {
+        let query = crate::query::parse_where(expression).unwrap();
+        let (sql, parameters) = crate::read_units::eligible_sql(&query, None).unwrap();
+        connection
+            .prepare(&format!("WITH eligible AS ({sql}) SELECT r.name FROM eligible e JOIN records r USING(record_id) ORDER BY r.name"))
+            .unwrap()
+            .query_map(rusqlite::params_from_iter(parameters), |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap()
+    };
+    assert_eq!(
+        matches("has_description == true"),
+        ["Described creature", "Described feat", "Readable journal"]
+    );
+    assert_eq!(
+        matches("has_description == false"),
+        [
+            "Empty effect",
+            "Empty journal",
+            "GM notes only",
+            "Mechanics only",
+            "Routine only"
+        ]
+    );
+}
+
+#[test]
 fn missing_marker_roundtrips_old_context_and_does_not_change_preparation_or_selector() {
     let input = sample();
     let mut old = input.context.clone();
