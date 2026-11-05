@@ -7,19 +7,19 @@
       "version": "0.1.10"
     },
     {
-      "checksum": "c65faeb787d66e812248f992693268eee8a43a95e3e43e0c33547f1c8391ecce",
+      "checksum": "b65a7054d36362ab4c234d7b4b58f3f453e9ec73643283223f0b170554481906",
       "dependencies": [
-        "anyhow",
         "ndarray",
         "ort",
         "safetensors",
         "serde",
         "serde_json",
-        "tokenizers"
+        "thiserror",
+        "tokenizers 0.23.2"
       ],
       "name": "fastembed",
       "source": "registry+https://github.com/rust-lang/crates.io-index",
-      "version": "5.15.0"
+      "version": "7.5.0"
     },
     {
       "checksum": "a06de3016e9fae57a36fd14dba131fccf49f74b40b7fbdb472f96e361ec71a08",
@@ -69,7 +69,7 @@
       "version": "69.9.3"
     },
     {
-      "checksum": "d7de3af33d24a745ffb8fab904b13478438d1cd52868e6f17735ef6e1f8bf133",
+      "checksum": "37c87aa7a90b7ff3e0fe36cccd475df8d67f15f07f4d6c370c4b38464232813c",
       "dependencies": [
         "ndarray",
         "ort-sys",
@@ -79,10 +79,10 @@
       ],
       "name": "ort",
       "source": "registry+https://github.com/rust-lang/crates.io-index",
-      "version": "2.0.0-rc.12"
+      "version": "2.0.0-rc.15"
     },
     {
-      "checksum": "d7b497d21a8b6fbb4b5a544f8fadb77e801a09ae0add9e411d31c6f89e3c1e90",
+      "checksum": "8d22b0417f1838db5a3ac0b3f98dfe39f6fb73624aa0a27c6bbb5040b9c7db2b",
       "dependencies": [
         "hmac-sha256",
         "lzma-rust2",
@@ -90,7 +90,7 @@
       ],
       "name": "ort-sys",
       "source": "registry+https://github.com/rust-lang/crates.io-index",
-      "version": "2.0.0-rc.12"
+      "version": "2.0.0-rc.15"
     },
     {
       "checksum": "e10754a14b9137dd7b1e3e5b0493cc9171fdd105e0ab477f51b72e7f3ac0e276",
@@ -134,7 +134,7 @@
         "memchr",
         "strum",
         "thiserror",
-        "tokenizers"
+        "tokenizers 0.22.2"
       ],
       "name": "text-splitter",
       "source": "registry+https://github.com/rust-lang/crates.io-index",
@@ -174,6 +174,39 @@
       "version": "0.22.2"
     },
     {
+      "checksum": "7afbf6e88718afcc138bad01d6ccc3051dbbc3b2ce9793d8b8a3aeb610969cfc",
+      "dependencies": [
+        "ahash",
+        "compact_str",
+        "daachorse",
+        "dary_heap",
+        "derive_builder",
+        "esaxx-rs",
+        "getrandom 0.3.4",
+        "itertools",
+        "log",
+        "macro_rules_attribute",
+        "monostate",
+        "onig",
+        "paste",
+        "rand 0.9.4",
+        "rayon",
+        "rayon-cond",
+        "regex",
+        "regex-syntax",
+        "serde",
+        "serde_json",
+        "spm_precompiled",
+        "thiserror",
+        "unicode-normalization-alignments",
+        "unicode-segmentation",
+        "unicode_categories"
+      ],
+      "name": "tokenizers",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "0.23.2"
+    },
+    {
       "checksum": "43f613e4fa046e69818dd287fdc4bc78175ff20331479dab6e1b0f98d57062de",
       "dependencies": [
         "smallvec"
@@ -195,7 +228,7 @@
       "features": [
         "ort-download-binaries-rustls-tls"
       ],
-      "version": "=5.15.0"
+      "version": "=7.5.0"
     },
     "text-splitter": {
       "default-features": false,

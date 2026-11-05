@@ -440,16 +440,104 @@ mod compatibility_tests {
         ] {
             let embedder = TextEmbedder::load(&EmbeddingRuntimeConfig::new(model, &cache)).unwrap();
             let spec = embedder.spec();
-            for (name, tokenizer) in [
-                ("budget", embedder.tokenizer().tokenizer()),
-                ("inference", &embedder.library.tokenizer),
-            ] {
-                let ids: Vec<_> = text
-                    .iter()
-                    .flat_map(|raw| [spec.document_input(raw), spec.query_input(raw)])
-                    .map(|input| tokenizer.encode(input, true).unwrap().get_ids().to_vec())
-                    .collect();
+            let (budget_ids, inference_ids): (Vec<_>, Vec<_>) = text
+                .iter()
+                .flat_map(|raw| [spec.document_input(raw), spec.query_input(raw)])
+                .map(|input| {
+                    (
+                        embedder
+                            .tokenizer()
+                            .tokenizer()
+                            .encode(input.as_str(), true)
+                            .unwrap()
+                            .get_ids()
+                            .to_vec(),
+                        embedder
+                            .library
+                            .tokenizer
+                            .encode(input.as_str(), true)
+                            .unwrap()
+                            .get_ids()
+                            .to_vec(),
+                    )
+                })
+                .unzip();
+            for (name, ids) in [("budget", budget_ids), ("inference", inference_ids)] {
                 assert_eq!(ids, expected[key], "{key} {name}");
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "requires verified model assets for both profiles"]
+    fn mixed_length_unicode_batches_match_single_input_inference() {
+        let cache = std::env::var_os("ATLAS_TEST_MODEL_CACHE").expect("set ATLAS_TEST_MODEL_CACHE");
+        for model in [
+            crate::EmbeddingModelId::BgeBaseEnV15,
+            crate::EmbeddingModelId::EmbeddingGemma300M,
+        ] {
+            let mut embedder =
+                TextEmbedder::load(&EmbeddingRuntimeConfig::new(model, &cache)).unwrap();
+            let limit = embedder.spec().max_input_tokens.unwrap();
+            // Find the longest repeated Unicode input that fits both prefixes.
+            // Binary search avoids depending on either tokenizer's word length.
+            let fits = |text: &str| {
+                let counts = [
+                    embedder.tokenizer().validate_document_input(text),
+                    embedder.tokenizer().validate_query_input(text),
+                ];
+                for count in &counts {
+                    if let Err(error) = count {
+                        assert!(
+                            matches!(error, EmbeddingError::TokenBudgetExceeded { .. }),
+                            "{error}"
+                        );
+                        return None;
+                    }
+                }
+                Some(counts.map(Result::unwrap))
+            };
+            let phrase = "Café 火星 ≥ ½ ";
+            let (mut low, mut high) = (1, limit);
+            assert!(fits(&phrase.repeat(high)).is_none());
+            while low + 1 < high {
+                let middle = (low + high) / 2;
+                if fits(&phrase.repeat(middle)).is_some() {
+                    low = middle;
+                } else {
+                    high = middle;
+                }
+            }
+            let near_limit = phrase.repeat(low);
+            let counts = fits(&near_limit).unwrap();
+            assert!(counts.into_iter().max().unwrap() >= limit - 16);
+            let texts = [
+                "Undead",
+                "Résumé @item.level: 2d8 HP\n\n𐐀 cafe\u{301}.",
+                near_limit.as_str(),
+            ];
+            for queries in [false, true] {
+                let batch = if queries {
+                    embedder.embed_queries(&texts)
+                } else {
+                    embedder.embed_documents(&texts)
+                }
+                .unwrap();
+                for (text, batched) in texts.iter().zip(batch) {
+                    let single = if queries {
+                        embedder.embed_query(text)
+                    } else {
+                        embedder.embed_document(text)
+                    }
+                    .unwrap();
+                    assert_eq!(single.len(), batched.len());
+                    for (left, right) in single.iter().zip(batched) {
+                        assert!(
+                            (left - right).abs() <= 0.00002,
+                            "{model:?} query={queries}: batch padding changed an embedding component"
+                        );
+                    }
+                }
             }
         }
     }
