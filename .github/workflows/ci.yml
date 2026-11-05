@@ -129,12 +129,12 @@ jobs:
             --base-ref "$BASE_SHA" --repository "$GITHUB_REPOSITORY" \
             --workspace-migrator "$migrator" \
             --candidate "$candidate" --model-cache target/embedding-models \
-            --output target/embedding-compatibility
+            --output "$RUNNER_TEMP/embedding-compatibility"
       - name: Summarize results
         if: ${{ always() }}
         shell: bash
         run: |
-          for report in target/embedding-compatibility/bundle-*/result.json; do
+          for report in "$RUNNER_TEMP"/embedding-compatibility/bundle-*/result.json; do
             if [[ -f "$report" ]]; then
               { echo '~~~json'; cat "$report"; echo '~~~'; } >> "$GITHUB_STEP_SUMMARY"
             fi
@@ -143,7 +143,7 @@ jobs:
         if: ${{ always() }}
         with:
           name: embedding-compatibility-${{ matrix.os }}
-          path: target/embedding-compatibility/bundle-*/*.json
+          path: ${{ runner.temp }}/embedding-compatibility/bundle-*/*.json
 
   skill:
     name: bundled skill
