@@ -801,6 +801,9 @@
   },
   "record_detail": {
     "artifact_generation": "fixture-generation",
+    "counterparts": {
+      "kind": "empty"
+    },
     "encounter_adjustment": "normal",
     "presentation": {
       "body": {
@@ -1436,6 +1439,7 @@
           "source_fingerprint": null
         },
         "record": {
+          "edition": "legacy",
           "kind": "rule",
           "kind_label": "Rule",
           "level_basis": null,
