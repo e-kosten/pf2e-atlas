@@ -31,6 +31,14 @@ pub(crate) fn authored_actor(
         pack_label: "",
     }
     .actor();
+    let save_fact = |save| {
+        number(match node {
+            SourceNodeView::Actor(ActorSourcePF2e::HazardSource(source)) => {
+                hazard_save(source, save)
+            }
+            _ => a.save(save),
+        })
+    };
     let mut abilities = vec![];
     a.visit_abilities(|key, v| {
         abilities.push(ActorModifierView {
@@ -113,9 +121,9 @@ pub(crate) fn authored_actor(
         maximum_hp: number(a.hp_maximum()),
         perception: number(a.perception()),
         saves: ActorSavesView {
-            fortitude: number(a.save(ActorSave::Fortitude)),
-            reflex: number(a.save(ActorSave::Reflex)),
-            will: number(a.save(ActorSave::Will)),
+            fortitude: save_fact(ActorSave::Fortitude),
+            reflex: save_fact(ActorSave::Reflex),
+            will: save_fact(ActorSave::Will),
         },
         abilities: fact(a.npc_abilities().map(|_| abilities)),
         skills: fact(a.npc_skills().map(|_| skills)),
@@ -829,9 +837,10 @@ pub(crate) fn compose_participant(
         ]
         .into_iter()
         .any(|save| {
-            save.state != QueryFieldState::Value
-                || save.value.as_ref().and_then(serde_json::Number::as_f64) != Some(0.0)
-                || save.adjustment.is_some()
+            save.state != QueryFieldState::NotApplicable
+                && (save.state != QueryFieldState::Value
+                    || save.value.as_ref().and_then(serde_json::Number::as_f64) != Some(0.0)
+                    || save.adjustment.is_some())
         });
     }
     super::hazard_readouts::refresh(&mut presentation.body);
@@ -915,9 +924,9 @@ fn activity_frequency(item: ItemSourceView<'_>) -> FactView<ActivityFrequencyVie
         SourceFieldView::Null => SourceFieldView::NotApplicable,
         value => value,
     };
-    fact(source.map(|frequency| ActivityFrequencyView {
-        maximum: number((&frequency.max).into()),
-        interval: fact(SourceFieldView::from(&frequency.per).map(|per| {
+    fact(source.map(|frequency| {
+        let maximum = number((&frequency.max).into());
+        let interval = fact(SourceFieldView::from(&frequency.per).map(|per| {
             match per {
                 AbilitySystemSourceFrequencyPer::P1M => "month",
                 AbilitySystemSourceFrequencyPer::P1W => "week",
@@ -931,8 +940,62 @@ fn activity_frequency(item: ItemSourceView<'_>) -> FactView<ActivityFrequencyVie
                 AbilitySystemSourceFrequencyPer::Turn => "turn",
             }
             .to_owned()
-        })),
+        }));
+        let repeats_description = maximum
+            .value
+            .as_ref()
+            .and_then(serde_json::Number::as_u64)
+            .zip(interval.value.as_deref())
+            .is_some_and(|(maximum, interval)| {
+                description_repeats_frequency(item, maximum, interval)
+            })
+            .then_some(true);
+        ActivityFrequencyView {
+            maximum,
+            interval,
+            repeats_description,
+        }
     }))
+}
+
+fn description_repeats_frequency(item: ItemSourceView<'_>, maximum: u64, interval: &str) -> bool {
+    let fields = SourceNodeView::Item(item).content_selections();
+    let Some(description) = fields
+        .iter()
+        .find(|field| field.field == "/system/description/value")
+        .and_then(|field| field.text.value())
+    else {
+        return false;
+    };
+    let Some(value) =
+        atlas_record::source_content::standalone_labeled_paragraph(description, "Frequency")
+    else {
+        return false;
+    };
+    let value = value.strip_suffix(['.', ';']).unwrap_or(&value);
+    let normalized = value.to_ascii_lowercase();
+    let numeric = maximum.to_string();
+    if let Some((count, unit)) = normalized.split_once('/') {
+        return count == numeric && unit == interval;
+    }
+
+    let mut words = normalized.split_whitespace().peekable();
+    let count = words.next();
+    let times = words.next_if_eq(&"times").is_some();
+    let count = match (count, times) {
+        (Some("once"), false) | (Some("one"), _) => 1,
+        (Some("twice"), false) | (Some("two"), _) => 2,
+        (Some("three"), true) => 3,
+        (Some("four"), true) => 4,
+        (Some("five"), true) => 5,
+        (Some("six"), true) => 6,
+        (Some("seven"), true) => 7,
+        (Some(count), _) if count == numeric => maximum,
+        _ => return false,
+    };
+    count == maximum
+        && matches!(words.next(), Some("per" | "every" | "a"))
+        && words.eq(interval.split_whitespace())
 }
 
 pub(crate) fn number_with_modifiers(

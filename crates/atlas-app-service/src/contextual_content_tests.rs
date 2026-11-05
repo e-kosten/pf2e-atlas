@@ -58,8 +58,8 @@ fn selected_rank_resolves_both_spell_aliases_without_borrowing_an_actor() {
     let mut request = selection("spells:contextSpell0001");
     request.spell_rank = Some(5);
     let view = f.worker.record_detail_at(request.clone()).unwrap();
-    assert!(html(&view).contains(">10d6</span> mental damage"));
-    assert!(html(&view).contains("5 fire damage"));
+    assert!(html(&view).contains(">10d6</span> mental"));
+    assert!(html(&view).contains("5 fire"));
     assert!(html(&view).contains("(half the creature’s level) (rounded up)"));
     let canonical = f
         .worker
@@ -96,7 +96,7 @@ fn selected_rank_resolves_both_spell_aliases_without_borrowing_an_actor() {
     });
     let addressed_view = f.worker.record_detail_at(addressed.clone()).unwrap();
     assert!(html(&addressed_view).contains("data-atlas-passage-target"));
-    assert!(html(&addressed_view).contains(">10d6</span> mental damage"));
+    assert!(html(&addressed_view).contains(">10d6</span> mental"));
     if let Some(atlas_domain::SourcePassageAddress::HtmlSection {
         prepared_html_sha256,
         ..
@@ -111,7 +111,7 @@ fn selected_rank_resolves_both_spell_aliases_without_borrowing_an_actor() {
     assert!((10..=60).contains(&outcome.components[0].outcome.total));
     request.spell_rank = Some(6);
     let higher = f.worker.record_detail_at(request).unwrap();
-    assert!(html(&higher).contains(">12d6</span> mental damage"));
+    assert!(html(&higher).contains(">12d6</span> mental"));
     let mut invalid = offered;
     invalid.spell_rank = Some(0);
     assert!(f.worker.roll_content(invalid).is_err());
@@ -146,7 +146,7 @@ fn actor_parent_values_do_not_turn_standalone_feats_or_effect_defaults_into_cont
         },
     ));
     let actor = f.worker.record_detail("actors:contextActor0001").unwrap();
-    assert!(html(&actor).contains(">4d6</span> damage"));
+    assert!(html(&actor).contains(">4d6</span>"));
     assert!(
         html(&actor).contains("(half the creature’s level) (rounded up)"),
         "foreign inclusion retains its own symbolic context"
@@ -157,7 +157,7 @@ fn actor_parent_values_do_not_turn_standalone_feats_or_effect_defaults_into_cont
         identity: atlas_domain::OwnedContentIdentity::Stable("contextAction001".into()),
     }];
     let owned = f.worker.record_detail_at(request).unwrap();
-    assert!(html(&owned).contains(">4d6</span> damage"));
+    assert!(html(&owned).contains(">4d6</span>"));
     let feat = f.worker.record_detail("feats:contextFeat00001").unwrap();
     assert!(html(&feat).contains("the creature’s level"));
     let effect = f.worker.record_detail("effects:contextEffect001").unwrap();

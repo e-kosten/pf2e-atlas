@@ -24,12 +24,15 @@ pub(super) fn details(item: ItemSourceView<'_>) -> Option<PhysicalDetailsView> {
                         }
                     })),
                 })),
-                range_increment: number(item.weapon_range_increment()),
-                maximum_range: number(s.and_then(|s| (&s.max_range).into())),
-                reload: identifier(item.weapon_reload()),
+                range_increment: number(s.and_then(|s| omit_null_leaf((&s.range).into()))),
+                maximum_range: number(s.and_then(|s| omit_null_leaf((&s.max_range).into()))),
+                reload: identifier(
+                    s.and_then(|s| (&s.reload).into())
+                        .and_then(|r| omit_null_leaf((&r.value).into())),
+                ),
                 splash_damage: fact(
                     s.and_then(|s| (&s.splash_damage).into())
-                        .and_then(|v| (&v.value).into())
+                        .and_then(|v| omit_null_leaf((&v.value).into()))
                         .map(|v| match v {
                             WeaponSystemSourceSplashDamageValue::Number(v) => v.to_string(),
                             WeaponSystemSourceSplashDamageValue::Alternative2(_) => String::new(),
@@ -77,7 +80,7 @@ pub(super) fn details(item: ItemSourceView<'_>) -> Option<PhysicalDetailsView> {
                 dex_cap: number(item.armor_dex_cap()),
                 check_penalty: number(s.and_then(|s| (&s.check_penalty).into())),
                 speed_penalty: number(s.and_then(|s| (&s.speed_penalty).into())),
-                strength: number(s.and_then(|s| (&s.strength).into())),
+                strength: number(s.and_then(|s| omit_null_leaf((&s.strength).into()))),
                 potency: number(runes.and_then(|r| (&r.potency).into())),
                 resilient: rune_name(
                     runes.and_then(|r| (&r.resilient).into()),

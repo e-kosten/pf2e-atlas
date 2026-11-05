@@ -106,6 +106,9 @@ pub(super) fn render(
             &actor.defense_notes.hit_points,
             false,
         );
+    } else {
+        optional_text(out, "AC details", &actor.defense_notes.armor_class);
+        optional_text(out, "HP details", &actor.defense_notes.hit_points);
     }
     if saves {
         defense(
@@ -129,8 +132,12 @@ pub(super) fn render(
             &actor.defense_notes.will,
             true,
         );
-        optional_text(out, "All saves", &actor.defense_notes.all_saves);
+    } else {
+        optional_text(out, "Fortitude details", &actor.defense_notes.fortitude);
+        optional_text(out, "Reflex details", &actor.defense_notes.reflex);
+        optional_text(out, "Will details", &actor.defense_notes.will);
     }
+    optional_text(out, "All saves", &actor.defense_notes.all_saves);
     iwr(out, "Immunities", &actor.immunities);
     iwr(out, "Weaknesses", &actor.weaknesses);
     iwr(out, "Resistances", &actor.resistances);
@@ -459,6 +466,7 @@ fn defense(
     signed: bool,
 ) {
     if value.state == QueryFieldState::NotApplicable {
+        optional_text(out, &format!("{label} details"), qualifier);
         return;
     }
     let detail = match qualifier.state {

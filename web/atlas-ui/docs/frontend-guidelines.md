@@ -1272,8 +1272,9 @@ current reading task, or requiring new modeling/source support. For example,
 Longsword's supplied damage dice/type belong in its reference presentation; source
 migration metadata and a character's equipped state do not automatically belong
 on its reference page. Preserve missing/null/invalid separately from known zero,
-false and empty values. Preserve documented source-default policies; do not invent
-a fallback just because the generated schema declares a member.
+false and empty values. Follow the shared [source absence policy](../../../docs/architecture/overview.md#source-absence-in-record-presentation)
+for when a baseline field can be omitted and when a clear or unavailable value
+needs to remain visible.
 
 Add needed typed presentation fields under their Rust owner when existing source
 facts are in scope. Identify substantial modeling or derived-rule work separately;

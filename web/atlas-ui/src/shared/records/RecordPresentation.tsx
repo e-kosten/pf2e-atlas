@@ -440,6 +440,18 @@ export function RecordPresentation({
       onReference={onReference}
     />
   );
+  const renderContent = (include: (field: PreparedContentFieldView) => boolean) => {
+    const fields = presentation.content.filter(
+      (field) => include(field) && contentFieldVisible(field),
+    );
+    return fields.length ? (
+      <ContentFields
+        fields={fields}
+        relationships={relationships}
+        onReference={onReference}
+      />
+    ) : null;
+  };
   const usedOwned =
     actor?.activities.value?.map((activity) => JSON.stringify(activity.navigation)) ??
     [];
@@ -551,42 +563,14 @@ export function RecordPresentation({
                   onReference={onReference}
                 />
               )),
-            disable: (
-              <ContentFields
-                fields={presentation.content.filter(
-                  (field) => field.role === "disable",
-                )}
-                relationships={relationships}
-                onReference={onReference}
-              />
-            ),
-            routine: (
-              <ContentFields
-                fields={presentation.content.filter(
-                  (field) => field.role === "routine",
-                )}
-                relationships={relationships}
-                onReference={onReference}
-              />
-            ),
-            reset: (
-              <ContentFields
-                fields={presentation.content.filter((field) => field.role === "reset")}
-                relationships={relationships}
-                onReference={onReference}
-              />
-            ),
-            other: (
-              <ContentFields
-                fields={presentation.content.filter(
-                  (field) =>
-                    !["description", "stealth", "disable", "routine", "reset"].includes(
-                      field.role,
-                    ),
-                )}
-                relationships={relationships}
-                onReference={onReference}
-              />
+            disable: renderContent((field) => field.role === "disable"),
+            routine: renderContent((field) => field.role === "routine"),
+            reset: renderContent((field) => field.role === "reset"),
+            other: renderContent(
+              (field) =>
+                !["description", "stealth", "disable", "routine", "reset"].includes(
+                  field.role,
+                ),
             ),
           }}
         />
@@ -598,6 +582,11 @@ export function RecordPresentation({
             activity={body.value}
             onReference={onReference}
             selected
+            hideFrequency={
+              !encounter &&
+              Boolean(body.value.frequency.value?.repeats_description) &&
+              descriptions.some((field) => field.body.kind === "html")
+            }
             hideCost={
               (!hideIdentity || identityInHost) &&
               body.value.action_cost.state === "value" &&

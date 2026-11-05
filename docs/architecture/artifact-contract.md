@@ -289,16 +289,18 @@ remain visible with their source diagnostic.
 Prepared unresolved references preserve an explicit authored label or a qualified
 authored root name; opaque UUIDs display as unavailable. Their exact authored
 targets and unresolved status remain in relationship evidence and diagnostics.
-The content interpretation identity is `foundry-content/v22`; older prepared
+The content interpretation identity is `foundry-content/v23`; older prepared
 content requires re-preparation even when the physical schema is unchanged.
 Exact compatible embedding checkpoints remain reusable.
 
 Static PF2e damage-instance annotations are interpreted in atlas-record, using
 atlas-dice's pure preparation to validate bounded arithmetic without rolling.
 Preparation marks a formula boundary for inline dice placement.
-Readable text retains each known type/category and authored labels; an adjacent
-authored damage noun is preserved without duplication. Raw formulas/options remain
-in the existing interaction sidecar. Unsupported expressions retain their source.
+Inline labels follow the pinned Foundry formula display. They include the
+damage type and persistent status, with an empty type label for untyped rolls.
+Authored labels and `shortLabel` override that display. Damage/healing kind,
+precision, splash, and material annotations remain in the interaction sidecar
+and roll details. Adjacent authored prose retains its own wording. Unsupported expressions retain their source.
 Dice preview trees are transient app projections, never persisted content ASTs.
 Literal `/r`, `/gmr` and `/br` arithmetic uses the same bounded engine. Captions
 and authored command modes remain source data; modes do not change audience in
