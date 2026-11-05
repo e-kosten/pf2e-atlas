@@ -273,7 +273,7 @@ fn preserves_html_unicode_and_mechanics_without_a_persisted_tree() {
     assert!(content.html.contains("<h2>Élan — 力</h2>"));
     assert!(content.text.contains("DC 21 basic Reflex save"));
     assert!(content.text.contains("30-foot cone (5 feet wide)"));
-    assert!(content.text.contains("2d6 fire damage"));
+    assert!(content.text.contains("2d6 fire"));
     assert!(content.text.contains("1d20+4"));
     assert_eq!(content.interactions.len(), 4);
     assert_eq!(content.locator, locator());
@@ -647,7 +647,7 @@ fn meaningful_captions_and_list_words_survive_undecorated_projection() {
         "First",
         "Next",
         "Last",
-        "Targets 1d6 fire damage",
+        "Targets 1d6 fire",
         "Creature",
         "Two",
         "Three",
@@ -673,7 +673,7 @@ fn meaningful_captions_and_list_words_survive_undecorated_projection() {
 #[test]
 fn typed_damage_suffixes_do_not_consume_the_inline_roll_terminator() {
     let content = prepare("[[/r 2d6[fire]]]{Flames} @Damage[formula:3d6[cold]|name:Frost]");
-    assert_eq!(content.text, "Flames 3d6 cold damage");
+    assert_eq!(content.text, "Flames 3d6 cold");
     assert!(
         matches!(&content.interactions[0].kind, ContentInteractionKind::Command { arguments, .. } if arguments == "2d6[fire]")
     );
@@ -687,7 +687,7 @@ fn unusual_glyph_contents_do_not_drop_nested_reference_or_interaction_markers() 
     let content = prepare(
         "<span class='action-glyph'>@UUID[target]{Label} @Damage[1d6[fire]] <a href='https://example.com'>Source</a></span>",
     );
-    assert_eq!(content.text, "Label 1d6 fire damage Source");
+    assert_eq!(content.text, "Label 1d6 fire Source");
     assert!(content.html.contains("data-atlas-reference=\"0\""));
     assert!(content.html.contains("data-atlas-reference=\"1\""));
     assert!(content.html.contains("data-atlas-interaction=\"0\""));
@@ -852,13 +852,9 @@ fn literal_damage_reading_keeps_authored_evidence_and_custom_labels() {
     let content = prepare(
         "<p>@Damage[1[fire]]; @Damage[(4d8+10)[bludgeoning]]; @Damage[2d6[cold],1d6[persistent,fire]]; @Damage[3d6[fire]]{Flames}</p>",
     );
-    assert!(content.text.contains("1 fire damage"));
-    assert!(content.text.contains("4d8+10 bludgeoning damage"));
-    assert!(
-        content
-            .text
-            .contains("2d6 cold damage + 1d6 persistent fire damage")
-    );
+    assert!(content.text.contains("1 fire"));
+    assert!(content.text.contains("4d8+10 bludgeoning"));
+    assert!(content.text.contains("2d6 cold + 1d6 persistent fire"));
     assert!(content.text.ends_with("Flames"));
     assert!(
         matches!(&content.interactions[1].kind, ContentInteractionKind::Damage { formula, .. } if formula == "(4d8+10)[bludgeoning]")
@@ -890,7 +886,7 @@ fn literal_damage_respects_an_authored_noun_and_short_label() {
     assert!(!content.text.contains("damage damage"));
     assert_eq!(
         prepare("@Damage[1[fire]] damageable").text,
-        "1 fire damage damageable"
+        "1 fire damageable"
     );
 }
 
@@ -1112,4 +1108,57 @@ fn area_text_preserves_shapes_widths_labels_and_runtime_fallbacks() {
         assert_eq!(content.text, expected, "{markup}");
         assert_eq!(content.interactions.len(), 1);
     }
+}
+
+#[test]
+fn inline_damage_labels_follow_foundry_while_retaining_roll_annotations() {
+    for (formula, expected) in [
+        ("2d4[healing]", "2d4"),
+        ("2d4[untyped]", "2d4"),
+        ("2d4[fire]", "2d4 fire"),
+        ("2d4[vitality,healing]", "2d4 vitality"),
+        ("2d4[void,damage,healing]", "2d4 void"),
+        ("2d4[fire,persistent]", "2d4 persistent fire"),
+        ("2d4[bleed]", "2d4 bleed"),
+        ("2d4[bleed,persistent]", "2d4 bleed"),
+        ("2d4[piercing,precision]", "2d4 piercing"),
+        ("2d4[slashing,silver]", "2d4 slashing"),
+        ("2d4[fire,splash]", "2d4 fire"),
+        ("2d4[healing],1d6[fire]", "2d4 + 1d6 fire"),
+    ] {
+        let content = prepare(&format!("@Damage[{formula}]"));
+        assert_eq!(content.text, expected, "{formula}");
+        let ContentInteractionKind::Damage {
+            formula: retained, ..
+        } = &content.interactions[0].kind
+        else {
+            panic!("damage interaction")
+        };
+        assert_eq!(retained, formula);
+        let updated = render_contextual_interactions(
+            &content.html,
+            &content.interactions,
+            &FormulaContext::default(),
+        );
+        assert_eq!(prepared_plain_text(&updated).unwrap(), expected);
+    }
+    assert_eq!(prepare("area @Damage[2d4[healing]] HP").text, "area 2d4 HP");
+    assert_eq!(prepare("@Damage[2d4[fire]|shortLabel]").text, "2d4");
+    let short = prepare("@Damage[2d4[fire]|shortLabel]{Flames}");
+    assert_eq!(short.text, "2d4");
+    assert_eq!(
+        prepared_plain_text(&render_contextual_interactions(
+            &short.html,
+            &short.interactions,
+            &FormulaContext::default(),
+        ))
+        .unwrap(),
+        "2d4",
+    );
+    assert_eq!(prepare("@Damage[2d4[healing]]{Mending}").text, "Mending");
+    assert_eq!(
+        literal_damage("2d4[healing]").unwrap()[0].kind,
+        LiteralDamageKind::Healing
+    );
+    assert_eq!(literal_damage("2d4[healing]").unwrap()[0].label, "healing");
 }

@@ -577,7 +577,7 @@ mod section_rendering_tests {
         )
         .unwrap()
         .unwrap();
-        assert!(rendering.html.contains("7 fire damage"));
+        assert!(rendering.html.contains("7 fire"));
         assert!(rendering.html.contains("data-atlas-source-section=\"0\""));
         assert!(
             rendering

@@ -248,7 +248,14 @@ function OwnedAbilityBatch({
               onReference={onReference}
               inline
               activationControls={controls?.activation}
-              hideFrequency={Boolean(controls?.usage)}
+              hideFrequency={
+                Boolean(controls?.usage) ||
+                (Boolean(activity.frequency.value?.repeats_description) &&
+                  entry.content.some(
+                    (field) =>
+                      field.role === "description" && field.body.kind === "html",
+                  ))
+              }
             />
             <ContentFields
               inlineAbility

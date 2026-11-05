@@ -3,6 +3,21 @@ import { ReferenceFact } from "./ReferenceProfiles";
 import { Iwr } from "./ActorReference";
 import { hasReadingFact } from "./presentationFacts";
 
+export function hasHazardDefenses(
+  hazard: Extract<RecordBodyView, { kind: "hazard" }>["value"],
+) {
+  return (
+    hazard.defense_block.value !== false ||
+    hazard.show_saves ||
+    [
+      hazard.actor.immunities,
+      hazard.actor.weaknesses,
+      hazard.actor.resistances,
+      ...Object.values(hazard.actor.defense_notes),
+    ].some((fact) => fact.state !== "missing" && hasReadingFact<unknown>(fact))
+  );
+}
+
 export function HazardDefenses({
   hazard,
   hideHitPoints = false,
@@ -12,16 +27,7 @@ export function HazardDefenses({
 }) {
   return (
     <>
-      {(hazard.defense_block.value !== false ||
-        hazard.show_saves ||
-        [
-          hazard.actor.immunities,
-          hazard.actor.weaknesses,
-          hazard.actor.resistances,
-          ...Object.values(hazard.actor.defense_notes),
-        ].some(
-          (fact) => fact.state !== "missing" && hasReadingFact<unknown>(fact),
-        )) && (
+      {hasHazardDefenses(hazard) && (
         <section className="reference-profile__section">
           <h3>Defenses</h3>
           <div className="reference-profile__groups">

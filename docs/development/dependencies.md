@@ -42,7 +42,12 @@ describes when Atlas can compare new queries with stored document vectors. The
 [reviewed dependency set](../../scripts/validation/embedding-stack.json) records
 the relevant locked packages and manifest selections. CI detects changes to
 that set. Review the upstream change and test both profiles before updating
-the receipt.
+the receipt. Once the first fixture is published and pinned, PR validation
+runs the probe on Linux x86_64 for Cargo lockfile changes and changes to code
+that prepares inputs, stores vectors, or executes retrieval. The first pin,
+watched native and tokenizer dependencies, Cargo native build settings, and
+Rust toolchain changes select the release platform matrix. Run the `ci`
+workflow manually to exercise all targets.
 
 Build the pre-upgrade and candidate Atlas binaries with the same pinned toolchain
 and features. Use disposable checkouts or save a copy of the baseline executable
@@ -60,15 +65,28 @@ python3 scripts/validation/probe-embedding-upgrade.py \
   --output /absolute/path/to/new/evidence-directory
 ```
 
-The probe uses five fixture records and a fresh private database. It compares
-repeated baseline queries, candidate queries against the original database, and
-candidate queries against freshly inferred data. It checks ranked records,
-matching passages and absolute score drift within 0.00002 on the same host.
-It also checks zero document inference on compatible maintenance, retained saved
-lists, and mixed reuse and inference after a source edit. Retain the binary
-digests and result report with the PR. For a native runtime change, also run the
-release build matrix. The bounded sample provides compatibility evidence for
-review, with additional cases needed for changes that touch untested behavior.
+To reproduce a CI run with the published fixture, use `--pins --repository
+e-kosten/pf2e-atlas` in place of `--baseline`. Pass `--base-ref` with the PR
+base commit when reviewing a change to the pin. To use a local archive instead,
+pass `--bundle PATH --sha256 DIGEST`. Use Python 3.12 for the archive modes.
+Prepare or verify the cache with
+`cargo run --locked -p atlas-embedding --example prepare-model-cache -- "$ATLAS_TEST_MODEL_CACHE"`.
+If the candidate uses a newer workspace schema, build
+`cargo build --locked -p atlas-runtime --example migrate-fixture-workspace`
+and pass `--workspace-migrator target/debug/examples/migrate-fixture-workspace`.
+The helper runs the candidate's storage migrations on the private copy before
+the probe searches the original vectors.
+
+The probe checks ranked records, matching passages and absolute score drift
+within 0.00002. It verifies zero document inference on compatible maintenance,
+saved list preservation, and retrieval from a mixed index against a fresh
+index built from the same edited source. For an intentional passage layout
+change, it reports reuse and compares the updated index with a fresh build.
+Review the report for both profiles. For a material inference or tokenizer
+upgrade, also compare sampled old and fresh vectors for matching inputs on
+affected release targets. Include input shapes changed by the upgrade, such as
+trait-only inputs, Unicode near the token budget, or varied batch sizes. Use
+packaged predecessor binaries on those targets when native execution changes.
 
 When the evidence supports compatibility, keep the execution ID and update the
 reviewed dependency set in the same PR.
@@ -77,8 +95,11 @@ reviewed dependency set in the same PR.
 python3 scripts/validation/embedding-stack.py --print > scripts/validation/embedding-stack.json
 ```
 
-When execution is incompatible, bump the affected model’s execution compatibility ID and validate
-the supported rebuild path and saved-state preservation. Explain the affected
-profiles and setup action in the release notes. Changes that only alter passage
-layout can reuse verified vectors for identical inputs under the same execution
-contract.
+When execution is incompatible, bump the affected profile’s compatibility ID
+and set its `transition_to` to the new ID in the existing pin. Keep the old
+archive digest. CI checks that the candidate rejects the old query contract and
+rebuilds that profile, while the other profile retains its compatibility checks.
+Validate `atlas setup` and saved-state preservation for the migration and explain
+the affected profiles in the release notes. After publishing and verifying the
+[new fixture](releases.md#publish-an-embedding-compatibility-fixture), advance only
+the affected profile’s pin and remove its `transition_to`.

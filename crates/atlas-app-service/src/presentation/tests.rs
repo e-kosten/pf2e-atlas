@@ -69,7 +69,7 @@ fn equipment_reference_facts_preserve_source_dice_zero_and_table_meaning() {
     };
     let weapon = project(
         "weapon",
-        json!({"damage":{"dice":1,"die":"d8","damageType":"slashing"},"range":null,"runes":{"potency":0,"striking":0,"property":[]}}),
+        json!({"damage":{"dice":1,"die":"d8","damageType":"slashing"},"range":null,"maxRange":60,"reload":{"value":null},"splashDamage":{"value":null},"runes":{"potency":0,"striking":0,"property":[]}}),
     );
     let Some(PhysicalDetailsView::Weapon(w)) = weapon.details else {
         panic!("weapon")
@@ -79,7 +79,10 @@ fn equipment_reference_facts_preserve_source_dice_zero_and_table_meaning() {
     assert_eq!(d.die.value.as_deref(), Some("d8"));
     assert_eq!(d.damage_type.value.as_deref(), Some("slashing"));
     assert_eq!(d.modifier.state, QueryFieldState::Missing);
-    assert_eq!(w.range_increment.state, QueryFieldState::Null);
+    assert_eq!(w.range_increment.state, QueryFieldState::NotApplicable);
+    assert_eq!(w.maximum_range.value, Some(60.into()));
+    assert_eq!(w.reload.state, QueryFieldState::NotApplicable);
+    assert_eq!(w.splash_damage.state, QueryFieldState::NotApplicable);
     let armor = project(
         "armor",
         json!({"acBonus":6,"dexCap":0,"checkPenalty":-3,"speedPenalty":-10,"strength":null}),
@@ -89,7 +92,13 @@ fn equipment_reference_facts_preserve_source_dice_zero_and_table_meaning() {
     };
     assert_eq!(a.dex_cap.value.unwrap().as_i64(), Some(0));
     assert_eq!(a.check_penalty.value.unwrap().as_i64(), Some(-3));
-    assert_eq!(a.strength.state, QueryFieldState::Null);
+    assert_eq!(a.strength.state, QueryFieldState::NotApplicable);
+    let weapon = project("weapon", json!({"reload":null}));
+    let Some(PhysicalDetailsView::Weapon(w)) = weapon.details else {
+        panic!("weapon")
+    };
+    assert_eq!(w.reload.state, QueryFieldState::Null);
+    assert_eq!(w.range_increment.state, QueryFieldState::Missing);
     for (table_hardness, expected) in [(5, true), (9, false)] {
         let html = format!(
             "<p>Keep the complete rule.</p><table><tr><th>Hardness</th><th>HP</th><th>BT</th></tr><tr><td>{table_hardness}</td><td>20</td><td>13</td></tr></table>"
@@ -846,6 +855,16 @@ fn hazard_primary_defense_presence_requires_known_hp_and_ac_and_preserves_zero_s
             Some(false),
         ),
         (
+            json!({"attributes":{"hp":{"max":0},"ac":{"value":null}},"saves":{"will":{"value":0}}}),
+            QueryFieldState::Value,
+            Some(false),
+        ),
+        (
+            json!({"attributes":{"hp":{"max":null},"ac":{"value":0}}}),
+            QueryFieldState::Null,
+            None,
+        ),
+        (
             json!({"attributes":{"hp":{"max":1},"ac":{"value":0}}}),
             QueryFieldState::Value,
             Some(true),
@@ -883,7 +902,10 @@ fn hazard_primary_defense_presence_requires_known_hp_and_ac_and_preserves_zero_s
         assert_eq!(defense.value, presence);
         if presence == Some(false) {
             let authored = actor::authored_actor(&input.record, node, "fixture");
-            assert_eq!(authored.armor_class.value, Some(0.into()));
+            assert_eq!(
+                authored.armor_class.value,
+                system["attributes"]["ac"]["value"].as_number().cloned(),
+            );
             assert_eq!(authored.maximum_hp.value, Some(0.into()));
             assert_eq!(authored.saves.will.value, Some(0.into()));
         }
@@ -915,6 +937,11 @@ fn hazard_save_omission_requires_the_complete_known_zero_blank_detail_shape() {
         system["attributes"]["hp"]["max"] = value;
         cases.push((system, true));
     }
+    let mut no_saves = baseline.clone();
+    for save in ["fortitude", "reflex", "will"] {
+        no_saves["saves"][save]["value"] = json!(null);
+    }
+    cases.push((no_saves, false));
     for (system, expected) in cases {
         let input = record(
             "hazards",
@@ -924,8 +951,17 @@ fn hazard_save_omission_requires_the_complete_known_zero_blank_detail_shape() {
         let node = SourceQueryView::new(input.record.source(), "hazards", "").source;
         assert_eq!(hazard_show_saves(node), expected);
         let actor = actor::authored_actor(&input.record, node, "fixture");
-        assert_eq!(actor.saves.fortitude.value, Some(0.into()));
-        assert_eq!(actor.saves.reflex.value, Some(0.into()));
+        for (name, fact) in [
+            ("fortitude", actor.saves.fortitude),
+            ("reflex", actor.saves.reflex),
+            ("will", actor.saves.will),
+        ] {
+            if system["saves"][name]["value"].is_null() {
+                assert_eq!(fact.state, QueryFieldState::NotApplicable, "{name}");
+            } else if let Some(value) = system["saves"][name]["value"].as_number() {
+                assert_eq!(fact.value.as_ref(), Some(value), "{name}");
+            }
+        }
     }
 }
 
@@ -1003,15 +1039,46 @@ fn hazard_readouts_follow_effective_and_unresolved_participant_statistics() {
     use crate::encounters::mechanics::{StatBlockView, StatValueView, StatisticTarget};
     let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, || {
         Ok(open_source_fixture(
-            vec![record(
-                "hazards",
-                "Actor",
-                json!({"_id":"aaaaaaaaaaaaaaaa","name":"Trap","type":"hazard","system":{"attributes":{"hp":{"max":25},"stealth":{"value":8}}}}),
-            )],
+            vec![
+                record(
+                    "hazards",
+                    "Actor",
+                    json!({"_id":"aaaaaaaaaaaaaaaa","name":"Trap","type":"hazard","system":{"attributes":{"hp":{"max":25},"stealth":{"value":8}}}}),
+                ),
+                record(
+                    "hazards",
+                    "Actor",
+                    json!({
+                        "_id":"bbbbbbbbbbbbbbbb","name":"Haunt","type":"hazard",
+                        "system":{
+                            "attributes":{"hp":{"max":0},"ac":{"value":null},"stealth":{"value":null}},
+                            "saves":{"fortitude":{"value":null},"reflex":{"value":0},"will":{"value":9}},
+                            "details":{"isComplex":true}
+                        }
+                    }),
+                ),
+            ],
             false,
         ).unwrap())
     });
     let fixture = fixture_worker_with_executor(executor);
+    let absent = fixture
+        .worker
+        .record_detail("hazards:bbbbbbbbbbbbbbbb")
+        .unwrap();
+    let RecordBodyView::Hazard(absent) = absent.presentation.body else {
+        panic!("hazard")
+    };
+    assert_eq!(absent.defense_block.value, Some(false));
+    assert_eq!(absent.actor.armor_class.state, QueryFieldState::Null);
+    assert_eq!(absent.stealth.state, QueryFieldState::NotApplicable);
+    assert_eq!(absent.detection_dc.state, QueryFieldState::NotApplicable);
+    assert!(absent.show_saves);
+    assert_eq!(
+        absent.actor.saves.fortitude.state,
+        QueryFieldState::NotApplicable
+    );
+    assert_eq!(absent.actor.saves.reflex.value, Some(0.into()));
     let detail = fixture
         .worker
         .record_detail("hazards:aaaaaaaaaaaaaaaa")
@@ -1381,6 +1448,141 @@ fn reference_frequency_uses_capacity_not_remaining_uses_and_preserves_invalid_in
         if expected == QueryFieldState::Value {
             assert_eq!(frequency.interval.value.as_deref(), Some("minute"));
         }
+    }
+}
+
+#[test]
+fn reference_frequency_marks_only_matching_standalone_prose_as_duplicate() {
+    for (maximum, interval, description, expected) in [
+        (
+            1,
+            "day",
+            "<p><strong>Frequency</strong> once per day</p>",
+            Some(true),
+        ),
+        (
+            1,
+            "day",
+            "<p><strong>Trigger</strong> You fail a save.</p><p><strong>Frequency</strong> Once per day.</p>",
+            Some(true),
+        ),
+        (
+            1,
+            "round",
+            "<p><strong>Frequency</strong> once per round;</p>",
+            Some(true),
+        ),
+        (
+            1,
+            "PT10M",
+            "<p><strong>Frequency</strong> once every 10 minutes</p>",
+            Some(true),
+        ),
+        (
+            1,
+            "day",
+            "<p><strong>Frequency</strong> 1/day.</p>",
+            Some(true),
+        ),
+        (
+            1,
+            "PT1H",
+            "<p><strong>Frequency</strong> one per hour</p>",
+            Some(true),
+        ),
+        (
+            3,
+            "day",
+            "<p><strong>Frequency</strong> three times a day</p>",
+            Some(true),
+        ),
+        (
+            3,
+            "P1Y",
+            "<p><strong>Frequency</strong> 3 times per year</p>",
+            Some(true),
+        ),
+        (
+            1,
+            "day",
+            "<p><strong>Frequency</strong> once per hour</p>",
+            None,
+        ),
+        (
+            1,
+            "day",
+            "<p><strong>Frequency</strong> twice per day</p>",
+            None,
+        ),
+        (
+            1,
+            "day",
+            "<p><strong>Frequency</strong> once per day per gem</p>",
+            None,
+        ),
+        (
+            1,
+            "day",
+            "<p><strong>Frequency</strong> once per day; see text</p>",
+            None,
+        ),
+        (1, "day", "<p>Once per day, you can whistle.</p>", None),
+        (
+            1,
+            "day",
+            "<p><strong>Effect</strong> You can act <strong>Frequency</strong> once per day.</p>",
+            None,
+        ),
+        (
+            1,
+            "day",
+            "<p data-visibility='none'><strong>Frequency</strong> once per day</p><p>Effect</p>",
+            None,
+        ),
+        (
+            1,
+            "day",
+            "<div data-visibility='owner'><p><strong>Frequency</strong> once per day</p></div><p>Effect</p>",
+            None,
+        ),
+        (
+            1,
+            "day",
+            "<object><p><strong>Frequency</strong> once per day</p></object><p>Effect</p>",
+            None,
+        ),
+        (
+            1,
+            "day",
+            "<!-- <p><strong>Frequency</strong> once per day</p> -->",
+            None,
+        ),
+        (
+            1,
+            "day",
+            "<p><strong>Frequency</strong> once per day</p><p><strong>Frequency</strong> twice per day</p>",
+            None,
+        ),
+    ] {
+        let input = record(
+            "actors",
+            "Actor",
+            json!({
+                "_id":"aaaaaaaaaaaaaaaa","type":"npc","items":[{
+                    "_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Soul Scream",
+                    "system":{
+                        "frequency":{"max":maximum,"value":0,"per":interval},
+                        "description":{"value":description}
+                    }
+                }]
+            }),
+        );
+        let body =
+            actor::authored_actor(&input.record, input.record.node_at(&[]).unwrap(), "fixture");
+        let activities = body.activities.value.unwrap();
+        let frequency = activities[0].frequency.value.as_ref().unwrap();
+        assert_eq!(frequency.repeats_description, expected, "{description}");
+        assert_eq!(frequency.maximum.value, Some(maximum.into()));
     }
 }
 

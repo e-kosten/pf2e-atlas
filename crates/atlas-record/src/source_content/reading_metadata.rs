@@ -70,6 +70,47 @@ pub fn routine_header(html: &str) -> Option<RoutineHeader> {
     })
 }
 
+/// Read a single explicitly labeled paragraph with a plain text value.
+pub fn standalone_labeled_paragraph(html: &str, label: &str) -> Option<String> {
+    if !html.contains(label) {
+        return None;
+    }
+    let fragment = Html::parse_fragment(html);
+    let mut paragraphs = fragment
+        .root_element()
+        .descendants()
+        .filter_map(ElementRef::wrap)
+        .filter(|element| element.value().name() == "p")
+        .filter(|paragraph| {
+            !paragraph
+                .ancestors()
+                .chain(paragraph.descendants())
+                .filter_map(ElementRef::wrap)
+                .any(|element| {
+                    element.value().attr("data-visibility").is_some()
+                        || matches!(
+                            element.value().name(),
+                            "script" | "style" | "iframe" | "object"
+                        )
+                })
+        })
+        .filter_map(|paragraph| {
+            let mut children = paragraph
+                .children()
+                .filter(|node| !matches!(node.value(), Node::Text(text) if text.trim().is_empty()));
+            let heading = ElementRef::wrap(children.next()?)?;
+            (heading.value().name() == "strong" && heading.text().eq([label])).then_some(children)
+        });
+    let mut children = paragraphs.next()?;
+    if paragraphs.next().is_some() {
+        return None;
+    }
+    match (children.next()?.value(), children.next()) {
+        (Node::Text(value), None) => Some(value.trim().to_owned()),
+        _ => None,
+    }
+}
+
 fn node_html(node: NodeRef<'_, Node>) -> String {
     match node.value() {
         Node::Text(text) => escape_content_text(text),

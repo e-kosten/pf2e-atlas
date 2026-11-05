@@ -1080,3 +1080,26 @@ fn prerequisites_render_prepared_content_once_before_description() {
     assert!(!output.contains("<strong>"));
     assert!(output.find("Prerequisites:").unwrap() < output.find("Description body").unwrap());
 }
+
+#[test]
+fn omitted_hazard_statistics_retain_meaningful_defense_notes() {
+    for show_saves in [false, true] {
+        let mut actor = actor();
+        actor.saves.will = absent_number();
+        actor.defense_notes.will = known("+2 against magic".into());
+        actor.defense_notes.hit_points = known("Disperse the haunting presence".into());
+        let record = detail(RecordBodyView::Hazard(Box::new(HazardPresentationView {
+            detection_dc: numeric(20),
+            broken_threshold: absent_number(),
+            defense_block: known(false),
+            show_saves,
+            actor,
+            complex: known(false),
+            stealth: numeric(10),
+            hardness: numeric(0),
+        })));
+        let text = render_record(&record, TerminalDetail::Standard, 100).unwrap();
+        assert!(text.contains("+2 against magic"), "{text}");
+        assert!(text.contains("Disperse the haunting presence"), "{text}");
+    }
+}

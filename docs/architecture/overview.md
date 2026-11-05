@@ -134,6 +134,10 @@ is separate from saved encounter timing: encounter/unlimited units ignore numeri
 sentinels and inapplicable turn-expiry metadata, matching the pinned system policy.
 These facts are projected once in app-service for CLI and shared browser readers.
 
+For hazard primary defenses, zero maximum HP with explicit null or zero AC
+omits the block. Individual null save values omit their rows. Atlas retains
+the separate legacy all-zero, blank-detail save block rule.
+
 Hazard Detection DC and Broken Threshold are bounded readouts derived from the
 same displayed Stealth and maximum HP used by the reader. Encounter composition
 refreshes them after participant overlays; current HP does not determine BT.
@@ -371,3 +375,21 @@ navigation; see ADR0047. Product content addresses are `ContentLocationView`; pr
 source locators retain their persisted ownership vocabulary. There are no legacy
 public aliases. Usage labels preserve exact source tokens for filtering and do
 not infer a normalized hand-count requirement.
+
+### Source absence in record presentation
+
+Ingest and query facts preserve the source states defined by the
+[artifact contract](artifact-contract.md#query-facts-and-eligibility). Decide
+visibility in the app-service projection for the specific field and context.
+Check the pinned Foundry schema and the consumer of the field. When explicit
+null at a leaf of a known parent means the baseline fact is absent, project
+`not_applicable` or omit the optional presentation field. Readers can then
+omit its row and any section left without content.
+
+Keep the field's unavailable state when a parent is unavailable or a required
+fact is missing, null, or invalid. Preserve meaningful zero, false, and empty
+values. Apply a default only where the owning policy establishes the default
+for that context. In a form or heightening patch, preserve an explicit null
+that clears an inherited value. Reading and runtime can use different rules
+for the same source field. A hazard with null Stealth has no authored Stealth
+or Detection DC to display, while Foundry uses a separate initiative default.
