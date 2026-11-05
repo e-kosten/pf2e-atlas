@@ -476,7 +476,9 @@
   pointer-events: none;
 }
 
-.record-reference__classification > .record-reference__kind {
+.record-reference__classification > .record-reference__kind,
+.encounter-reference__title:has(> .encounter-reference__actions > a)
+  > .record-reference__kind {
   line-height: 24px;
 }
 
