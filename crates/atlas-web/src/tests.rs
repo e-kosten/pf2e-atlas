@@ -446,6 +446,27 @@ async fn search_page_rejects_malformed_criteria_and_retired_window_routes() {
 }
 
 #[tokio::test]
+async fn description_filter_keeps_own_prose_through_the_search_route() {
+    let fixture = Fixture::new();
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            "/api/search/page",
+            Some(json!({
+                "criteria": {
+                    "kind": "list_records",
+                    "filter": {"kind":"compare","field":"has_description","op":"eq","value":true}
+                },
+                "page": {"number":1,"size":25}
+            })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["page"]["total"], 2);
+    assert_eq!(body["rows"].as_array().unwrap().len(), 2);
+}
+
+#[tokio::test]
 async fn record_and_filter_routes_use_real_router_wiring() {
     let fixture = Fixture::new();
     let (status, body) = fixture
@@ -1205,7 +1226,7 @@ async fn similarity_inventory_route_rejects_unknown_seed_fields() {
 #[tokio::test]
 async fn content_roll_reference_roll_transport_checks_the_request_shape() {
     let fixture = Fixture::new();
-    let(status,body)=fixture.json(Method::POST,"/api/rolls/content",Some(json!({"source":{"record":ACTION,"embedded_path":[],"field":"/system/description/value"},"source_fingerprint":fixture.source_fingerprint,"content_interpretation_version":"foundry-content/v22","ordinal":0,"authored_formula":"1d6[fire]"}))).await;
+    let(status,body)=fixture.json(Method::POST,"/api/rolls/content",Some(json!({"source":{"record":ACTION,"embedded_path":[],"field":"/system/description/value"},"source_fingerprint":fixture.source_fingerprint,"content_interpretation_version":"foundry-content/v23","ordinal":0,"authored_formula":"1d6[fire]"}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert!(body["components"].is_array());
     let (status, body) = fixture

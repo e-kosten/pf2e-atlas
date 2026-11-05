@@ -5,7 +5,7 @@ import {
 } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { QuestionCircleOutlined } from "@ant-design/icons";
-import { Button, Form, Popover, Radio, Select, Typography, theme } from "antd";
+import { Tooltip, Button, Form, Popover, Radio, Select, Typography, theme } from "antd";
 import { useRef, useState, type KeyboardEvent } from "react";
 import type {
   QueryRelationship,
@@ -158,16 +158,18 @@ export function LinkConditionPicker({
                 </Typography.Paragraph>
               }
             >
-              <Button
-                ref={scopeHelpTrigger}
-                type="text"
-                size="small"
-                icon={<QuestionCircleOutlined />}
-                aria-label="About link scope"
-                aria-expanded={scopeHelpOpen}
-                onKeyDown={scopeHelpKeyDown}
-                styles={{ root: { flexShrink: 0 } }}
-              />
+              <Tooltip title="About link scope" trigger={["hover", "focus"]}>
+                <Button
+                  ref={scopeHelpTrigger}
+                  type="text"
+                  size="small"
+                  icon={<QuestionCircleOutlined />}
+                  aria-label="About link scope"
+                  aria-expanded={scopeHelpOpen}
+                  onKeyDown={scopeHelpKeyDown}
+                  styles={{ root: { flexShrink: 0 } }}
+                />
+              </Tooltip>
             </Popover>
           </span>
         }

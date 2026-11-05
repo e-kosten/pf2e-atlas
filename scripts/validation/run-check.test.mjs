@@ -737,9 +737,12 @@ case "$*" in
 esac
 `,
   );
+  const pinned = /channel\s*=\s*"([^"]+)"/.exec(
+    readFileSync(join(f.cwd, "rust-toolchain.toml"), "utf8"),
+  )[1];
   writeFileSync(
     join(bin, "rustc"),
-    "#!/bin/sh\nprintf 'rustc 1.95.0 (fixture)\\n'\n",
+    `#!/bin/sh\nprintf 'rustc ${pinned} (fixture)\\n'\n`,
   );
   chmodSync(join(bin, "rustc"), 0o755);
   chmodSync(join(bin, "npm"), 0o755);

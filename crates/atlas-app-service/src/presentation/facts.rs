@@ -29,6 +29,14 @@ pub(super) fn optional_text(
         Some(text(value))
     }
 }
+/// Use inside a known parent for a baseline field whose explicit null means absent.
+pub(super) fn omit_null_leaf<T>(value: SourceFieldView<'_, T>) -> SourceFieldView<'_, T> {
+    match value {
+        SourceFieldView::Null => SourceFieldView::NotApplicable,
+        other => other,
+    }
+}
+
 pub(super) fn number(v: SourceFieldView<'_, &serde_json::Number>) -> NumberFactView {
     let f = fact(v.map(Clone::clone));
     NumberFactView {

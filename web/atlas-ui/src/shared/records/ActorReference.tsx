@@ -4,7 +4,7 @@ import { ValueExplanation } from "../ui/ValueExplanation";
 import { RuntimeCountCalculation } from "./RuntimeCountCalculation";
 import { statusReasonLabel } from "./statusReasonLabel";
 import { TraitBadge } from "./TraitBadge";
-import { Alert, Button, Collapse, Popover, Typography } from "antd";
+import { Tooltip, Alert, Button, Collapse, Popover, Typography } from "antd";
 import { InfoCircleOutlined } from "@ant-design/icons";
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import type {
@@ -141,7 +141,7 @@ export function DamageComponents({
     </div>
   );
 }
-export function Iwr({
+export function renderIwr({
   label,
   fact,
 }: {
@@ -186,6 +186,8 @@ export function Iwr({
     </FactRow>
   );
 }
+export const Iwr = renderIwr;
+
 function DefenseNote({ label, fact }: { label: string; fact: FactView<string> }) {
   if (fact.state === "missing" || fact.state === "not_applicable") return null;
   return <FactLine label={label} fact={fact} />;
@@ -194,6 +196,32 @@ function DefenseQualifier({ fact }: { fact: FactView<string> }) {
   if (fact.state === "missing" || !hasReadingFact(fact)) return null;
   return <> {factText(fact)}</>;
 }
+function hasActorSaves(actor: ActorPresentationView) {
+  return (
+    Object.values(actor.saves).some((fact) => hasReadingFact(fact)) ||
+    (actor.defense_notes.all_saves.state !== "missing" &&
+      hasReadingFact(actor.defense_notes.all_saves))
+  );
+}
+
+export function hasActorDefenses(
+  actor: ActorPresentationView,
+  { hideHitPoints = false, hidePrimaryDefenses = false, hideSaves = false } = {},
+) {
+  return (
+    (!hidePrimaryDefenses && hasReadingFact(actor.armor_class)) ||
+    (!hidePrimaryDefenses && !hideHitPoints && hasReadingFact(actor.maximum_hp)) ||
+    ((hideHitPoints || hidePrimaryDefenses) &&
+      actor.defense_notes.hit_points.state !== "missing" &&
+      hasReadingFact(actor.defense_notes.hit_points)) ||
+    (!hideSaves && hasActorSaves(actor)) ||
+    (actor.hardness.state !== "missing" && hasReadingFact(actor.hardness)) ||
+    [actor.immunities, actor.weaknesses, actor.resistances].some((fact) =>
+      hasReadingFact(fact),
+    )
+  );
+}
+
 export function ActorDefenses({
   actor,
   hideHitPoints = false,
@@ -205,19 +233,9 @@ export function ActorDefenses({
   hidePrimaryDefenses?: boolean;
   hideSaves?: boolean;
 }) {
-  const defenseFacts: FactView<unknown>[] = [
-    ...(!hidePrimaryDefenses ? [actor.armor_class] : []),
-    ...(!hidePrimaryDefenses && !hideHitPoints ? [actor.maximum_hp] : []),
-    ...(!hideSaves ? Object.values(actor.saves) : []),
-    actor.hardness,
-    ...Object.values(actor.defense_notes),
-    actor.immunities,
-    actor.weaknesses,
-    actor.resistances,
-  ];
   return (
     <>
-      {defenseFacts.some((fact) => hasReadingFact(fact)) && (
+      {hasActorDefenses(actor, { hideHitPoints, hidePrimaryDefenses, hideSaves }) && (
         <section className="actor-reference__defenses">
           <h3>Defenses</h3>
           <div className="record-fact-list">
@@ -242,7 +260,7 @@ export function ActorDefenses({
                 </FactRow>
               )}
           </div>
-          {!hideSaves && (
+          {!hideSaves && hasActorSaves(actor) && (
             <div>
               <div className="record-fact-list">
                 {Object.entries(actor.saves).map(([save, fact]) =>
@@ -514,12 +532,17 @@ export function ActorSkills({
                             content={factText(conditional.qualification)}
                             trigger="click"
                           >
-                            <Button
-                              type="text"
-                              size="small"
-                              icon={<InfoCircleOutlined />}
-                              aria-label={`${sentenceCase(skill.label)}: condition details`}
-                            />
+                            <Tooltip
+                              title={`${sentenceCase(skill.label)}: condition details`}
+                              trigger={["hover", "focus"]}
+                            >
+                              <Button
+                                type="text"
+                                size="small"
+                                icon={<InfoCircleOutlined />}
+                                aria-label={`${sentenceCase(skill.label)}: condition details`}
+                              />
+                            </Tooltip>
                           </Popover>
                         )}
                     </span>
@@ -549,7 +572,10 @@ function castingHint(actor: ActorPresentationView) {
     (effect) => effect.source === "condition:stupefied",
   );
 }
-function hasRuntimeDetails(actor: ActorPresentationView, omitBudgetNotes = false) {
+export function hasRuntimeDetails(
+  actor: ActorPresentationView,
+  omitBudgetNotes = false,
+) {
   return (
     (!omitBudgetNotes && (actor.runtime?.action_budget?.notes.length ?? 0) > 0) ||
     (actor.runtime?.unapplied_effects.some(
@@ -1088,6 +1114,33 @@ export function ActorActivity({
     </div>
   );
 }
+export function hasCastingActivities(actor: ActorPresentationView) {
+  return (
+    actor.activities.value?.some(
+      (activity) => activity.kind === "spell" || activity.kind === "casting_entry",
+    ) || !["missing", "not_applicable"].includes(actor.ritual_difficulty_class.state)
+  );
+}
+
+export function hasActorActivities(actor: ActorPresentationView, hazard = false) {
+  return (
+    (actor.activities.state !== "value" &&
+      actor.activities.state !== "not_applicable") ||
+    hasCastingActivities(actor) ||
+    actor.activities.value?.some(
+      ({ kind, ability_group }) =>
+        kind === "strike" ||
+        kind === "gear" ||
+        kind === "other" ||
+        (kind === "ability" &&
+          (ability_group === "primary" ||
+            ability_group === "supporting" ||
+            ability_group === "unclassified" ||
+            ability_group === (hazard ? "activation" : "reaction"))),
+    )
+  );
+}
+
 export function ActorActivities({
   actor,
   onReference,
@@ -1231,12 +1284,17 @@ export function ActorActivities({
     );
   };
   const hasPrimary = actor.activities.value?.some(
-    (activity) => activity.ability_group === "primary",
+    (activity) => activity.kind === "ability" && activity.ability_group === "primary",
   );
-  const hasCasting =
-    actor.activities.value?.some(
-      (activity) => activity.kind === "spell" || activity.kind === "casting_entry",
-    ) || !["missing", "not_applicable"].includes(actor.ritual_difficulty_class.state);
+  const hasCasting = hasCastingActivities(actor);
+  if (
+    !hasActorActivities(actor, Boolean(hazardContent)) &&
+    !target &&
+    !hazardContent?.routine &&
+    !hazardContent?.reset
+  ) {
+    return null;
+  }
   return (
     <div ref={container} className="actor-reference__mechanics">
       {target && !targetActivity && (

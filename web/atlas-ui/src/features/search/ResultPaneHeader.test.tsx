@@ -321,6 +321,7 @@ function workspace(
       saveReaderFocus: vi.fn(),
     },
     filterEditor: undefined,
+    filterApplicabilityCurrent: false,
     filterDiscoveryContext: {
       kind: "filtered",
       filter: null,

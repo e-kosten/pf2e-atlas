@@ -30,13 +30,15 @@ export function ChoicePicker({
   emptyMessage = "No matching values",
   labelForValue = (value) => value,
   counts,
+  valueEditing,
+  pageKey,
 }: {
   label: string;
   id: string;
   choices: ChoiceOption[];
   selected: string[];
   stateOf: (value: string) => ChoiceState;
-  onChange: (value: string, state: ChoiceState) => void;
+  onChange: (value: string, state: ChoiceState) => void | "close";
   open: boolean;
   onOpenChange: (open: boolean) => void;
   text: string;
@@ -47,6 +49,8 @@ export function ChoicePicker({
   emptyMessage?: ReactNode;
   labelForValue?: (value: string) => string;
   counts?: ReadonlyMap<string, bigint>;
+  valueEditing?: { triggerText: string; enterValue?: string; manualValue?: string };
+  pageKey?: string;
 }) {
   const { token } = theme.useToken();
   const [sessionValues, setSessionValues] = useState<string[]>([]);
@@ -86,7 +90,10 @@ export function ChoicePicker({
       setSessionValues((current) =>
         current.includes(value) ? current : [...current, value],
       );
-    onChange(value, state);
+    if (onChange(value, state) === "close" && open) {
+      setMenuOpen(false);
+      if (!narrow) trigger.current?.focus();
+    }
   }
   function closeOnEscape(event: KeyboardEvent<HTMLElement>) {
     if (event.key === "Escape" && !narrow) {
@@ -108,14 +115,22 @@ export function ChoicePicker({
         onChange={(event) => {
           onTextChange(event.target.value);
         }}
+        onPressEnter={(event) => {
+          if (!valueEditing?.enterValue || event.nativeEvent.isComposing) return;
+          event.preventDefault();
+          change(valueEditing.enterValue, "include");
+        }}
         onKeyDown={closeOnEscape}
       />
-      <div className="common-choice-options" aria-busy={loading}>
+      <div key={pageKey} className="common-choice-options" aria-busy={loading}>
         {rows.map((option) => {
           const state = stateOf(option.value);
           const unavailable = counts?.get(option.value) === 0n;
-          const next: ChoiceState =
-            state === "neutral"
+          const next: ChoiceState = valueEditing
+            ? state === "include"
+              ? "neutral"
+              : "include"
+            : state === "neutral"
               ? unavailable
                 ? "exclude"
                 : "include"
@@ -153,17 +168,19 @@ export function ChoicePicker({
                         : undefined,
                 },
               }}
-              aria-label={`${label}: ${option.label}, ${state === "include" ? "included" : state === "exclude" ? "excluded" : "neutral"}; activate to ${next === "neutral" ? "clear" : next}`}
+              aria-label={
+                valueEditing
+                  ? label +
+                    ": " +
+                    option.label +
+                    (state === "include"
+                      ? ", selected; activate to remove"
+                      : ", activate to select")
+                  : `${label}: ${option.label}, ${state === "include" ? "included" : state === "exclude" ? "excluded" : "neutral"}; activate to ${next === "neutral" ? "clear" : next}`
+              }
               onClick={() => change(option.value, next)}
               onKeyDown={closeOnEscape}
             >
-              <span className="common-choice-marker" aria-hidden="true">
-                {state === "include" ? (
-                  <PlusOutlined />
-                ) : state === "exclude" ? (
-                  <MinusOutlined />
-                ) : null}
-              </span>
               <span className="common-choice-label">{option.label}</span>
               {counts?.has(option.value) && (
                 <Typography.Text
@@ -172,6 +189,11 @@ export function ChoicePicker({
                 >
                   {new Intl.NumberFormat().format(counts.get(option.value)!)}
                 </Typography.Text>
+              )}
+              {state !== "neutral" && (
+                <span className="common-choice-marker" aria-hidden="true">
+                  {state === "include" ? <PlusOutlined /> : <MinusOutlined />}
+                </span>
               )}
             </Button>
           );
@@ -182,6 +204,14 @@ export function ChoicePicker({
           </Typography.Text>
         )}
       </div>
+      {valueEditing?.manualValue && (
+        <Button
+          size="small"
+          onClick={() => change(valueEditing.manualValue!, "include")}
+        >
+          Use exact value: {valueEditing.manualValue}
+        </Button>
+      )}
       {children}
     </>
   );
@@ -208,7 +238,7 @@ export function ChoicePicker({
       ref={trigger}
       className="common-choice-trigger"
       block
-      aria-label={"Edit " + label + " filter"}
+      aria-label={"Edit " + label + (valueEditing ? " values" : " filter")}
       aria-haspopup="dialog"
       aria-expanded={open}
       aria-controls={open ? menuId : undefined}
@@ -217,7 +247,8 @@ export function ChoicePicker({
       onClick={narrow ? () => setMenuOpen(true) : undefined}
       onKeyDown={closeOnEscape}
     >
-      {selected.length ? label : "Any " + label.toLowerCase()}
+      {valueEditing?.triggerText ??
+        (selected.length ? label : "Any " + label.toLowerCase())}
     </Button>
   );
   return (
@@ -289,7 +320,18 @@ export function ChoicePicker({
                         : "var(--filter-include-border)",
                   },
                 }}
-                aria-label={`Remove ${state === "exclude" ? "excluded" : "included"} ${valueLabel} from ${label}`}
+                aria-label={
+                  "Remove " +
+                  (valueEditing
+                    ? "selected"
+                    : state === "exclude"
+                      ? "excluded"
+                      : "included") +
+                  " " +
+                  valueLabel +
+                  " from " +
+                  label
+                }
                 onClick={() => change(value, "neutral")}
               >
                 <span aria-hidden="true">

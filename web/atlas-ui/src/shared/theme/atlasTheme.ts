@@ -80,6 +80,8 @@ export function atlasCssVariables(scheme: ResolvedColorScheme): CSSProperties {
     "--line": token.colorBorderSecondary,
     "--split": token.colorSplit,
     "--primary": token.colorPrimary,
+    "--primary-hover": token.colorPrimaryHover,
+    "--on-primary": palette.onPrimary,
     "--primary-active": token.colorPrimaryActive,
     "--link": token.colorLink,
     "--selection-bg": token.colorPrimaryBg,

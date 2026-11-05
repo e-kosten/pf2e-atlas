@@ -47,7 +47,16 @@
   gap: 8px;
   font-weight: normal;
 }
+.record-preview-toolbar:not(:has(> :nth-child(2))) {
+  display: block;
+}
+
 .record-preview-toolbar__navigation {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 4px;
   grid-column: 2;
   grid-row: 1;
   justify-self: end;

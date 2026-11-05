@@ -1,3 +1,4 @@
+import { PaneIconLink } from "../ui/actions/PaneAction";
 import { ReaderMatchNavigation } from "./ReaderMatchNavigation";
 import type { RecordNavigationView, RecordSummaryView } from "../../generated/atlas";
 import {
@@ -359,6 +360,24 @@ export function ReferenceReader({
         tab,
       })
     : null;
+  const documentActions = (
+    <Space wrap size={4}>
+      {detail && recordActions?.(detail.record)}
+      {fullRoute && (
+        <PaneIconLink
+          outlined
+          label="Open full page"
+          icon={<ExternalLink size={16} aria-hidden="true" />}
+          href={destinationHref(fullRoute)}
+          onClick={(event) => {
+            if (!isPrimaryActivation(event)) return;
+            event.preventDefault();
+            navigateDestination(fullRoute);
+          }}
+        />
+      )}
+    </Space>
+  );
   return (
     <section
       className={`reference-reader reference-reader--${recordLayout(detail?.presentation)}`}
@@ -404,22 +423,8 @@ export function ReferenceReader({
                 {returnToSelectionLabel}
               </Button>
             )}
-          {detail && recordActions?.(detail.record)}
+          {(!showRelated || !detail) && documentActions}
           {detail && readerHeaderActions}
-          {fullRoute && (
-            <Button
-              type="text"
-              aria-label="Open full page"
-              title="Open full page"
-              icon={<ExternalLink size={16} />}
-              href={destinationHref(fullRoute)}
-              onClick={(event) => {
-                if (!isPrimaryActivation(event)) return;
-                event.preventDefault();
-                navigateDestination(fullRoute);
-              }}
-            />
-          )}
         </Space>
       </BrowsePaneHeader>
       <section
@@ -430,6 +435,7 @@ export function ReferenceReader({
         <ReaderMatchNavigation.Provider value={navigateToMatch}>
           <RecordDetailPane
             showRelated={showRelated}
+            identityActions={showRelated && detail ? documentActions : undefined}
             detail={detail}
             readingContext={detail && readerContext}
             loading={reading.loading}

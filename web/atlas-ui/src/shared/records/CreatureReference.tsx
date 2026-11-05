@@ -11,6 +11,10 @@ import {
   ActorActivities,
   ActorCombatBudget,
   ActorDefenses,
+  hasActorDefenses,
+  hasActorActivities,
+  hasCastingActivities,
+  hasRuntimeDetails,
   ActorSkills,
   ActorSecondaryFacts,
   ActorAwareness,
@@ -82,29 +86,34 @@ export function CreatureReference({
     ].some((fact) => hasReadingFact(fact as FactView<unknown>)) ||
     activities.some((activity) => activity.kind === "lore");
   const hasRules =
-    hasStatistics ||
-    hasReadingFact(actor.activities) ||
-    hasReadingFact(actor.ritual_difficulty_class);
+    hasStatistics || hasActorActivities(actor) || Boolean(reading?.landing);
+  const hasDefenses =
+    hasReadingFact(actor.size) ||
+    Boolean(encounterContent?.durability) ||
+    hasActorDefenses(actor, { hideHitPoints: encounter });
+  const hasRuntimeDetailsInEssentials = hasRuntimeDetails(actor, true);
+  const conditions = encounter && encounterContent?.conditions;
+  const showCombatBudget =
+    encounter && !encounterContent && Boolean(actor.runtime?.action_budget);
   const sections = [
     ...(!encounter && prose ? [["description", "Description"]] : []),
-    ["defenses", "Defenses"],
-    ...(encounterContent ? [["conditions", "Actions & conditions"]] : []),
+    ...(hasDefenses ? [["defenses", "Defenses"]] : []),
+    ...(conditions ? [["conditions", "Actions & conditions"]] : []),
     ...(hasStatistics ? [["facts", "Statistics"]] : []),
     ...(activities.some((a) => a.kind === "strike") ? [["strike", "Strikes"]] : []),
-    ...(activities.some((a) => a.ability_group === "primary")
+    ...(activities.some((a) => a.kind === "ability" && a.ability_group === "primary")
       ? [["ability", "Special abilities"]]
       : []),
-    ...(activities.some((a) => ["casting_entry", "spell"].includes(a.kind)) ||
-    !["missing", "not_applicable"].includes(actor.ritual_difficulty_class.state)
-      ? [["casting", "Spellcasting"]]
-      : []),
-    ...(activities.some((a) => a.ability_group === "reaction")
+    ...(hasCastingActivities(actor) ? [["casting", "Spellcasting"]] : []),
+    ...(activities.some((a) => a.kind === "ability" && a.ability_group === "reaction")
       ? [["reaction", "Reactions"]]
       : []),
-    ...(activities.some((a) => a.ability_group === "supporting")
+    ...(activities.some((a) => a.kind === "ability" && a.ability_group === "supporting")
       ? [["passive", "Passive abilities"]]
       : []),
-    ...(activities.some((a) => a.ability_group === "unclassified")
+    ...(activities.some(
+      (a) => a.kind === "ability" && a.ability_group === "unclassified",
+    )
       ? [["unclassified", "Other abilities"]]
       : []),
     ...(activities.some((a) => a.kind === "gear") ? [["gear", "Equipment"]] : []),
@@ -127,7 +136,7 @@ export function CreatureReference({
       className={`creature-reference${activities.some((a) => ["casting_entry", "spell"].includes(a.kind)) ? " creature-reference--caster" : ""}${encounter ? " creature-reference--encounter" : ""}${encounter && !hasRules && !prose ? " creature-reference--runtime-only" : ""}`}
     >
       <div className="creature-reference__layout">
-        {(!encounter || sections.length > 1) && (
+        {(encounter ? sections.length > 1 : sections.length > 0) && (
           <nav
             className={`document-outline creature-reference__outline`}
             aria-label="Creature sections"
@@ -167,37 +176,43 @@ export function CreatureReference({
           )}
           <ActorEncounterLayout
             durability={
-              <div className="creature-reference__essentials">
-                <section
-                  className={
-                    !encounter ? "creature-reference__source-defenses" : undefined
-                  }
-                  id={id("defenses")}
-                  tabIndex={-1}
-                >
-                  <FactLine label="Size" fact={actor.size} />
-                  {encounterContent?.durability ?? (
-                    <ActorDefenses actor={actor} hideHitPoints={encounter} />
+              hasDefenses || hasRuntimeDetailsInEssentials ? (
+                <div className="creature-reference__essentials">
+                  {hasDefenses && (
+                    <section
+                      className={
+                        !encounter ? "creature-reference__source-defenses" : undefined
+                      }
+                      id={id("defenses")}
+                      tabIndex={-1}
+                    >
+                      <FactLine label="Size" fact={actor.size} />
+                      {encounterContent?.durability ?? (
+                        <ActorDefenses actor={actor} hideHitPoints={encounter} />
+                      )}
+                    </section>
                   )}
-                </section>
-                <ActorSecondaryFacts actor={actor} runtimeOnly />
-              </div>
+                  {hasRuntimeDetailsInEssentials && (
+                    <ActorSecondaryFacts actor={actor} runtimeOnly />
+                  )}
+                </div>
+              ) : null
             }
             runtime={
-              encounter && (actor.runtime?.action_budget || encounterContent) ? (
+              showCombatBudget || conditions ? (
                 <>
-                  {!encounterContent && <ActorCombatBudget actor={actor} />}
+                  {showCombatBudget && <ActorCombatBudget actor={actor} />}
                   {!hasStatistics && <ActorSecondaryFacts actor={actor} />}
-                  {encounterContent && (
+                  {conditions && (
                     <section id={id("conditions")} tabIndex={-1}>
-                      {encounterContent.conditions}
+                      {conditions}
                     </section>
                   )}
                 </>
               ) : null
             }
           >
-            {(!encounter || hasRules || prose) && (
+            {(hasRules || (encounter && prose)) && (
               <div className="creature-reference__rules">
                 {hasStatistics && (
                   <section

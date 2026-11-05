@@ -28,7 +28,8 @@ EOF_CARGO
 chmod +x "$fake_bin/cargo"
 cat > "$fake_bin/rustc" <<'EOF_RUSTC'
 #!/bin/sh
-printf 'rustc 1.95.0 (fixture)\n'
+pinned=$(sed -n 's/^[[:space:]]*channel[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' rust-toolchain.toml)
+printf 'rustc %s (fixture)\n' "$pinned"
 EOF_RUSTC
 chmod +x "$fake_bin/rustc"
 

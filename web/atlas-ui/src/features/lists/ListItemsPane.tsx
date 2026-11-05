@@ -1,6 +1,6 @@
 import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
-import { Button, Empty, Spin, theme } from "antd";
+import { Tooltip, Button, Empty, Spin, theme } from "antd";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { GripVertical, Trash2 } from "lucide-react";
@@ -72,18 +72,22 @@ export function ListItemsPane({
         }}
       >
         {reorderEnabled && (
-          <Button
-            {...bindings?.attributes}
-            {...bindings?.listeners}
-            ref={bindings?.setActivatorNodeRef}
-            type="text"
-            size="small"
-            disabled={disabled || overlay}
-            className="list-member__drag-handle"
-            aria-label={`Reorder ${title}`}
+          <Tooltip
             title="Drag to reorder. With a keyboard, press Space then use the arrow keys."
-            icon={<GripVertical size={16} aria-hidden="true" />}
-          />
+            trigger={["hover", "focus"]}
+          >
+            <Button
+              {...bindings?.attributes}
+              {...bindings?.listeners}
+              ref={bindings?.setActivatorNodeRef}
+              type="text"
+              size="small"
+              disabled={disabled || overlay}
+              className="list-member__drag-handle"
+              aria-label={`Reorder ${title}`}
+              icon={<GripVertical size={16} aria-hidden="true" />}
+            />
+          </Tooltip>
         )}
         {item.status !== "unresolved" && item.record ? (
           <RecordBrowseSummary
@@ -109,19 +113,20 @@ export function ListItemsPane({
                 encounterOnly
               />
             )}
-          <DangerActionButton
-            className="list-member__remove"
-            type="text"
-            confirmation="popover"
-            aria-label={`Remove ${title}`}
-            title="Remove"
-            icon={<Trash2 size={15} />}
-            disabled={disabled || overlay}
-            loading={removingKey === item.record_key}
-            confirmTitle="Remove from list?"
-            confirmOkText="Remove"
-            onConfirm={() => onRemove(item.record_key)}
-          />
+          <Tooltip title="Remove" trigger={["hover", "focus"]}>
+            <DangerActionButton
+              className="list-member__remove"
+              type="text"
+              confirmation="popover"
+              aria-label={`Remove ${title}`}
+              icon={<Trash2 size={15} />}
+              disabled={disabled || overlay}
+              loading={removingKey === item.record_key}
+              confirmTitle="Remove from list?"
+              confirmOkText="Remove"
+              onConfirm={() => onRemove(item.record_key)}
+            />
+          </Tooltip>
         </div>
       </div>
     );

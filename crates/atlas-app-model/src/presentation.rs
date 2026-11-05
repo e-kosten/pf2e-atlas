@@ -136,6 +136,9 @@ pub struct ActorDefenseNotesView {
 pub struct ActivityFrequencyView {
     pub maximum: NumberFactView,
     pub interval: FactView<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub repeats_description: Option<bool>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ActorSavesView {

@@ -160,15 +160,6 @@ struct InlineContext<'a> {
     following: Option<&'a ParsedNode>,
 }
 
-fn short_damage_label(
-    formula: &str,
-    options: &std::collections::BTreeMap<String, String>,
-    following: Option<&ParsedNode>,
-) -> bool {
-    options.contains_key("shortLabel")
-        || matches!(following,Some(ParsedNode::Text{text}) if super::read_only_text::authored_healing_points(formula,text))
-}
-
 enum PreparationOrigin<'a> {
     Record(&'a SourceContentLocator),
     Trait(&'a atlas_domain::TraitKey),
@@ -213,23 +204,6 @@ impl Projection<'_> {
                 let normalized;
                 let previous = index.checked_sub(1).and_then(|index| nodes.get(index));
                 let tail = match (node, previous) {
-                    (
-                        ParsedNode::Text { text },
-                        Some(ParsedNode::Foundry {
-                            node:
-                                ParsedMacro::Damage {
-                                    label: None,
-                                    formula,
-                                    options,
-                                    ..
-                                },
-                        }),
-                    ) if !options.contains_key("shortLabel")
-                        && super::contextual_damage_text(formula, self.formula_context, false)
-                            .is_some() =>
-                    {
-                        super::read_only_text::damage_noun(text)
-                    }
                     (
                         ParsedNode::Text { text },
                         Some(ParsedNode::Foundry {
@@ -661,16 +635,20 @@ impl Projection<'_> {
             | ParsedMacro::UnknownFoundry { label, .. } => label.as_deref(),
             _ => None,
         };
+        let short_damage = matches!(node, ParsedMacro::Damage { options, .. } if options.contains_key("shortLabel"));
         let unknown = matches!(node, ParsedMacro::UnknownFoundry { .. });
         let mut label_html = label.map(|nodes| {
             self.nodes(
                 nodes,
                 &format!("{path}/label"),
                 audiences,
-                visible && !unknown,
+                visible && !unknown && !short_damage,
                 in_link,
             )
         });
+        if short_damage {
+            label_html = None;
+        }
         let mut interaction = None;
         let mut derived_html = None;
         let mut action_cost = String::new();
@@ -721,7 +699,7 @@ impl Projection<'_> {
                 super::contextual_damage_text(
                     formula,
                     self.formula_context,
-                    short_damage_label(formula, options, context.following),
+                    options.contains_key("shortLabel"),
                 )
                 .map_or_else(
                     || formula.clone(),
@@ -847,11 +825,10 @@ impl Projection<'_> {
             self.interactions.push(ContentInteraction {
                 ordinal,
                 path: path.to_string(),
-                label: if label.is_some() {
+                label: if label.is_some() && !short_damage {
                     super::ContentInteractionLabel::Authored
                 } else {
                     match &kind {
-                        ContentInteractionKind::Damage { formula,options } if !options.contains_key("shortLabel") && short_damage_label(formula,options,context.following) => super::ContentInteractionLabel::HealingPoints,
                         ContentInteractionKind::Damage { .. } => super::ContentInteractionLabel::Damage,
                         ContentInteractionKind::Check { .. } => {
                             let noun = match context.following {

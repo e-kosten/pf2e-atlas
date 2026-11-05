@@ -176,6 +176,11 @@ test.describe(() => {
     expect((await (await page.request.get(path)).json()).revision).toBe(
       detail.revision,
     );
+    const reorderHint = page.getByRole("tooltip", { name: /^Reorder 1d12 fire/ });
+    await expect(reorderHint).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(reorderHint).toBeHidden();
+    await expect(reorder).toBeFocused();
     await checkpoint(page, info, "precedence-editor.png");
     await activate(editor.getByRole("button", { name: "Apply", exact: true }), info);
     await expect(editor).toHaveCount(0);

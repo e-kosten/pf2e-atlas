@@ -22,7 +22,7 @@ import { FactRow, factText } from "../../shared/records/presentationFacts";
 import { EncounterStrikeControl } from "./EncounterStrikeControl";
 import { Button, Space } from "antd";
 import { ActorEncounterLayout } from "../../shared/records/ActorEncounterLayout";
-import { HazardDefenses } from "../../shared/records/HazardDefenses";
+import { HazardDefenses, hasHazardDefenses } from "../../shared/records/HazardDefenses";
 import { ActorDefenses } from "../../shared/records/ActorReference";
 import { RecordRarity } from "../../shared/records/RecordRarity";
 import { TraitBadge } from "../../shared/records/TraitBadge";
@@ -553,22 +553,23 @@ function EncounterParticipantSurface({
       />
     </div>
   );
-  const contextualDefenses = (
-    <>
-      {actor?.runtime && actor.runtime.contextual_armor_class.length > 0 && (
-        <div className="record-fact-list">
-          {actor.runtime.contextual_armor_class.map((defense) => (
-            <FactRow
-              key={defense.opponent_key}
-              label={`AC against ${participants.find((p) => p.participant_key === defense.opponent_key)?.display_name ?? defense.opponent_key}`}
-            >
-              {factText(defense.value)}
-            </FactRow>
-          ))}
-        </div>
-      )}
-    </>
+  const contextualArmorClass = actor?.runtime?.contextual_armor_class ?? [];
+  const contextualDefenses = contextualArmorClass.length > 0 && (
+    <div className="record-fact-list">
+      {contextualArmorClass.map((defense) => (
+        <FactRow
+          key={defense.opponent_key}
+          label={`AC against ${participants.find((p) => p.participant_key === defense.opponent_key)?.display_name ?? defense.opponent_key}`}
+        >
+          {factText(defense.value)}
+        </FactRow>
+      ))}
+    </div>
   );
+  const showDurability =
+    hasHp ||
+    contextualArmorClass.length > 0 ||
+    (body?.kind === "hazard" && hasHazardDefenses(body.value));
   return (
     <section className="encounter-reference">
       <div className="encounter-reference__header">
@@ -646,7 +647,7 @@ function EncounterParticipantSurface({
             body?.kind === "creature" || body?.kind === "hazard"
               ? {
                   participantKey: participant.participant_key,
-                  durability: (
+                  durability: showDurability ? (
                     <section
                       className="encounter-reference__durability"
                       aria-label="HP and defenses"
@@ -659,7 +660,7 @@ function EncounterParticipantSurface({
                       )}
                       {contextualDefenses}
                     </section>
-                  ),
+                  ) : undefined,
                   conditions: conditionControls,
                 }
               : undefined

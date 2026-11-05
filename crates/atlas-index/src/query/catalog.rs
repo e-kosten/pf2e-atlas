@@ -4,7 +4,7 @@ use atlas_foundry_model::generated::*;
 use serde::de::{self, DeserializeOwned};
 use std::{fmt, sync::OnceLock};
 
-pub const QUERY_CAPABILITY_VERSION: u32 = 8;
+pub const QUERY_CAPABILITY_VERSION: u32 = 9;
 const ACTORS: &[&str] = &[
     "npc",
     "hazard",
@@ -263,6 +263,7 @@ pub(crate) enum Binding {
     },
     Cantrip,
     LevelOrRank,
+    HasDescription,
     Duration {
         unit: &'static str,
     },
@@ -301,6 +302,7 @@ fn field(
             family_types: families.iter().map(|f| (*f).to_owned()).collect(),
             units: unit.map(str::to_owned),
             basis: match path {
+                "has_description" => "nonempty prepared description on the record itself, or readable journal page text; uses the artifact content audience",
                 "level_or_rank" => "authored spell rank and rank state for spells; authored record level and level state for other applicable families; no fallback from unavailable rank",
                 "physical.unit_price_gp" => "authored coin value divided by authored per; denomination omissions=0, per omission=1; converted from copper to gp",
                 "physical.bulk" => "authored normal Bulk; 0 negligible, 0.1 Light; no encumbrance or per-individual adjustment",
@@ -414,6 +416,14 @@ fn build() -> Result<Vec<Descriptor>, String> {
             .into_iter()
             .filter(|s| s != "tooling")
             .collect(),
+        None,
+    ));
+    fields.push(field(
+        "has_description",
+        Boolean,
+        &[],
+        Binding::HasDescription,
+        Vec::new(),
         None,
     ));
     let mut traits = ITEM_TRAITS.to_vec();

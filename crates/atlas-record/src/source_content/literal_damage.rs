@@ -6,6 +6,7 @@
 pub struct LiteralDamageComponent {
     pub formula: String,
     pub label: String,
+    pub inline_label: String,
     pub has_dice: bool,
     pub expression: atlas_dice::RollPreviewExpression,
     pub kind: LiteralDamageKind,
@@ -184,6 +185,13 @@ fn component(value: &str) -> Option<LiteralDamageComponent> {
     Some(LiteralDamageComponent {
         formula: formula.to_owned(),
         label: label.join(" "),
+        inline_label: if tags.contains(&"persistent") && damage_type != "bleed" {
+            format!("persistent {damage_type}")
+        } else if damage_type == "untyped" {
+            String::new()
+        } else {
+            damage_type.to_owned()
+        },
         has_dice,
         expression,
         kind: if healing && tags.contains(&"damage") {

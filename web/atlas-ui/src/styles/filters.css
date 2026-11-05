@@ -97,8 +97,8 @@
   contain-intrinsic-size: auto 36px;
 }
 .common-choice-marker {
-  flex: 0 0 14px;
-  width: 14px;
+  flex-shrink: 0;
+  margin-inline-start: auto;
 }
 .common-choice-label {
   white-space: normal;
@@ -110,6 +110,12 @@
   gap: 8px;
   padding-top: 8px;
   border-top: 1px solid var(--line);
+}
+.common-choice-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-block-size: 1lh;
 }
 .filter-range {
   display: grid;
@@ -123,17 +129,11 @@
   gap: 4px;
   min-width: 0;
 }
-.filter-value-input,
 .filter-value-control,
 .filter-rule-value,
 .filter-collection-condition {
   min-width: 0;
   width: 100%;
-}
-.filter-value-input {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 .filter-collection-compact {
   display: flex;
@@ -146,13 +146,6 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 8px;
   align-items: start;
-}
-.filter-vocabulary-footer {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 8px;
-  border-top: 1px solid var(--line);
 }
 .advanced-filters .ruleGroup {
   background: transparent;

@@ -142,6 +142,8 @@ Pre-release separate-file formats have no compatibility reader or conversion
 shim. Future workspace upgrades use ordered migrations with recorded checksums,
 a consistent backup before structural changes, and transaction-scoped validation.
 Saved-domain and reference migrations share the same ledger and transaction.
+Atlas executes and hashes migration SQL with LF line endings and authenticates
+the ledger against that single checksum.
 
 Reference DDL lives in
 [the index baseline SQL](../../crates/atlas-index/migrations/00000000000001_create_artifact/up.sql);
@@ -250,6 +252,13 @@ rather than receiving an implicit translation. Supported query-catalog/projectio
 upgrades regenerate rows from stored DTOs in one maintenance transaction; they
 neither require source admission nor invalidate unchanged embedding inputs.
 
+The root Boolean field `has_description` reuses nonempty, audience-admitted
+selected sections. It admits the root's own description or ability text, including
+actor prose classified as description by the source role policy, and the text
+of journal pages. Embedded mechanics, table results, hazard routines and identity
+rows do not qualify on their own. This filter constrains record eligibility;
+Core scope independently constrains the parts searched within eligible records.
+
 Filters, explicit key scopes and product-family eligibility constrain lexical and
 vector units before ranking. Macros remain available for developer inspection and
 are excluded from every product path, including exact lookup, facets, graph
@@ -280,16 +289,18 @@ remain visible with their source diagnostic.
 Prepared unresolved references preserve an explicit authored label or a qualified
 authored root name; opaque UUIDs display as unavailable. Their exact authored
 targets and unresolved status remain in relationship evidence and diagnostics.
-The content interpretation identity is `foundry-content/v22`; older prepared
+The content interpretation identity is `foundry-content/v23`; older prepared
 content requires re-preparation even when the physical schema is unchanged.
 Exact compatible embedding checkpoints remain reusable.
 
 Static PF2e damage-instance annotations are interpreted in atlas-record, using
 atlas-dice's pure preparation to validate bounded arithmetic without rolling.
 Preparation marks a formula boundary for inline dice placement.
-Readable text retains each known type/category and authored labels; an adjacent
-authored damage noun is preserved without duplication. Raw formulas/options remain
-in the existing interaction sidecar. Unsupported expressions retain their source.
+Inline labels follow the pinned Foundry formula display. They include the
+damage type and persistent status, with an empty type label for untyped rolls.
+Authored labels and `shortLabel` override that display. Damage/healing kind,
+precision, splash, and material annotations remain in the interaction sidecar
+and roll details. Adjacent authored prose retains its own wording. Unsupported expressions retain their source.
 Dice preview trees are transient app projections, never persisted content ASTs.
 Literal `/r`, `/gmr` and `/br` arithmetic uses the same bounded engine. Captions
 and authored command modes remain source data; modes do not change audience in
@@ -819,7 +830,7 @@ The current source contract includes ammunition as an equipment family. NPC skil
 are keyed authored entries; character movement is runtime-derived and has no
 source-backed movement projection. Table result content uses `/description` and
 structured references use `/documentUuid`, resolving only explicit compendium UUIDs.
-The query catalog is version 8, query projections use `authored-query/v5`, content
+The query catalog is version 9, query projections use `authored-query/v5`, content
 selection uses `structural-source-sections/v4` and relationships use
 `typed-authored-occurrences/v5`. Preparation identities govern derived refresh;
 workspace migrations 18 and 19 provide the additional query columns. The exact
