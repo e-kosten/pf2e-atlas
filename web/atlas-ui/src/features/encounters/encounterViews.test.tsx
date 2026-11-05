@@ -3089,8 +3089,8 @@ async function disposeEncounterTest() {
   cleanup();
   for (const client of testQueryClients) client.clear();
   testQueryClients.clear();
-  // Execute pending native Form feedback while jsdom/React still exist. The
-  // suite owns this fake clock; QueryClient disposal removes its GC work first.
+  // Drain remaining test-owned timers while jsdom/React still exist. Ant Form
+  // cancels its feedback on unmount; QueryClient disposal removes GC work first.
   await act(async () => vi.runOnlyPendingTimersAsync());
   expect(vi.getTimerCount()).toBe(0);
 }
