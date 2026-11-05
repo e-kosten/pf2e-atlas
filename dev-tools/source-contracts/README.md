@@ -103,8 +103,16 @@ For a compiler dependency upgrade, run `verify`, `generate -- --check` and
 complete diff. Preserve executable declarations and persisted tags for unchanged
 source shapes. The initial policy was recorded using the accepted TypeScript 5.9.3
 compiler and locked declarations, with all 98 Rust files byte-identical before
-and after applying it. Predecessor snapshot fixtures separately protect decoding
-stored values rather than only candidate round trips.
+and after applying it.
+
+`crates/atlas-foundry-model/tests/fixtures/compiler-upgrade-snapshots-v1.json`
+contains actual snapshot bytes encoded by the predecessor SDK at
+`e1271817c89b399c14636c9f1732f9f906a3e3b9`, with TypeScript 5.9.3's generated
+models. Its four minimal Deity sources exercise every DivineFonts alternative.
+The Rust snapshot test decodes those bytes, compares their meaning with current
+admission and requires identical re-encoding. Compiler-only updates preserve this
+fixture. A deliberate source-contract change must review it with snapshot admission
+and migration policy; candidate round trips cannot replace predecessor evidence.
 
 Do not replace this policy with ordering recorded from an upgraded compiler to
 make freshness pass. Investigate semantic-key or printer drift first. Intentional
