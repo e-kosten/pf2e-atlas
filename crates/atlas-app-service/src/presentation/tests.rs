@@ -1386,12 +1386,98 @@ fn reference_frequency_uses_capacity_not_remaining_uses_and_preserves_invalid_in
 
 #[test]
 fn reference_frequency_marks_only_matching_standalone_prose_as_duplicate() {
-    for (line, expected) in [
-        ("once per day", Some(true)),
-        ("1 per day", Some(true)),
-        ("once per hour", None),
-        ("twice per day", None),
-        ("once per day in sunlight", None),
+    for (maximum, interval, description, expected) in [
+        (
+            1,
+            "day",
+            "<p><strong>Frequency</strong> once per day</p>",
+            Some(true),
+        ),
+        (
+            1,
+            "day",
+            "<p><strong>Trigger</strong> You fail a save.</p><p><strong>Frequency</strong> Once per day.</p>",
+            Some(true),
+        ),
+        (
+            1,
+            "round",
+            "<p><strong>Frequency</strong> once per round;</p>",
+            Some(true),
+        ),
+        (
+            1,
+            "PT10M",
+            "<p><strong>Frequency</strong> once every 10 minutes</p>",
+            Some(true),
+        ),
+        (
+            1,
+            "day",
+            "<p><strong>Frequency</strong> 1/day.</p>",
+            Some(true),
+        ),
+        (
+            1,
+            "PT1H",
+            "<p><strong>Frequency</strong> one per hour</p>",
+            Some(true),
+        ),
+        (
+            3,
+            "day",
+            "<p><strong>Frequency</strong> three times a day</p>",
+            Some(true),
+        ),
+        (
+            3,
+            "P1Y",
+            "<p><strong>Frequency</strong> 3 times per year</p>",
+            Some(true),
+        ),
+        (
+            1,
+            "day",
+            "<p><strong>Frequency</strong> once per hour</p>",
+            None,
+        ),
+        (
+            1,
+            "day",
+            "<p><strong>Frequency</strong> twice per day</p>",
+            None,
+        ),
+        (
+            1,
+            "day",
+            "<p><strong>Frequency</strong> once per day per gem</p>",
+            None,
+        ),
+        (
+            1,
+            "day",
+            "<p><strong>Frequency</strong> once per day; see text</p>",
+            None,
+        ),
+        (1, "day", "<p>Once per day, you can whistle.</p>", None),
+        (
+            1,
+            "day",
+            "<p><strong>Effect</strong> You can act <strong>Frequency</strong> once per day.</p>",
+            None,
+        ),
+        (
+            1,
+            "day",
+            "<!-- <p><strong>Frequency</strong> once per day</p> -->",
+            None,
+        ),
+        (
+            1,
+            "day",
+            "<p><strong>Frequency</strong> once per day</p><p><strong>Frequency</strong> twice per day</p>",
+            None,
+        ),
     ] {
         let input = record(
             "actors",
@@ -1400,8 +1486,8 @@ fn reference_frequency_marks_only_matching_standalone_prose_as_duplicate() {
                 "_id":"aaaaaaaaaaaaaaaa","type":"npc","items":[{
                     "_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Soul Scream",
                     "system":{
-                        "frequency":{"max":1,"value":0,"per":"day"},
-                        "description":{"value":format!("<p><strong>Frequency</strong> {line}</p><hr /><p>Effect</p>")}
+                        "frequency":{"max":maximum,"value":0,"per":interval},
+                        "description":{"value":description}
                     }
                 }]
             }),
@@ -1410,8 +1496,8 @@ fn reference_frequency_marks_only_matching_standalone_prose_as_duplicate() {
             actor::authored_actor(&input.record, input.record.node_at(&[]).unwrap(), "fixture");
         let activities = body.activities.value.unwrap();
         let frequency = activities[0].frequency.value.as_ref().unwrap();
-        assert_eq!(frequency.repeats_description, expected, "{line}");
-        assert_eq!(frequency.maximum.value, Some(1.into()));
+        assert_eq!(frequency.repeats_description, expected, "{description}");
+        assert_eq!(frequency.maximum.value, Some(maximum.into()));
     }
 }
 

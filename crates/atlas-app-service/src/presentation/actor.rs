@@ -950,7 +950,6 @@ fn activity_frequency(item: ItemSourceView<'_>) -> FactView<ActivityFrequencyVie
 }
 
 fn description_repeats_frequency(item: ItemSourceView<'_>, maximum: u64, interval: &str) -> bool {
-    // A complete lead paragraph lets qualifiers and conflicting limits stay visible.
     let fields = SourceNodeView::Item(item).content_selections();
     let Some(description) = fields
         .iter()
@@ -959,22 +958,35 @@ fn description_repeats_frequency(item: ItemSourceView<'_>, maximum: u64, interva
     else {
         return false;
     };
-    let Some((line, _)) = description
-        .trim_start()
-        .strip_prefix("<p><strong>Frequency</strong>")
-        .and_then(|description| description.split_once("</p>"))
+    let Some(value) =
+        atlas_record::source_content::standalone_labeled_paragraph(description, "Frequency")
     else {
         return false;
     };
-    let mut words = line.split_whitespace();
+    let value = value.strip_suffix(['.', ';']).unwrap_or(&value);
+    let normalized = value.to_ascii_lowercase();
     let numeric = maximum.to_string();
-    let count_matches = match words.next() {
-        Some("once") => maximum == 1,
-        Some("twice") => maximum == 2,
-        Some(count) => count == numeric,
-        None => false,
+    if let Some((count, unit)) = normalized.split_once('/') {
+        return count == numeric && unit == interval;
+    }
+
+    let mut words = normalized.split_whitespace().peekable();
+    let count = words.next();
+    let times = words.next_if_eq(&"times").is_some();
+    let count = match (count, times) {
+        (Some("once"), false) | (Some("one"), _) => 1,
+        (Some("twice"), false) | (Some("two"), _) => 2,
+        (Some("three"), true) => 3,
+        (Some("four"), true) => 4,
+        (Some("five"), true) => 5,
+        (Some("six"), true) => 6,
+        (Some("seven"), true) => 7,
+        (Some(count), _) if count == numeric => maximum,
+        _ => return false,
     };
-    count_matches && words.next() == Some("per") && words.eq(interval.split_whitespace())
+    count == maximum
+        && matches!(words.next(), Some("per" | "every" | "a"))
+        && words.eq(interval.split_whitespace())
 }
 
 pub(crate) fn number_with_modifiers(
