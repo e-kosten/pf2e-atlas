@@ -10,6 +10,7 @@ import {
   actorFixture,
   detailFixture,
   knownFact,
+  numberFact,
 } from "../../test/fixtures";
 import type {
   EmbeddedReadingBatchView,
@@ -92,7 +93,7 @@ function batch(request: EmbeddedReadingRequest): EmbeddedReadingBatchView {
     })),
   };
 }
-function mount(readingContext = context) {
+function mount(readingContext = context, readingAbilities = abilities) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -101,7 +102,7 @@ function mount(readingContext = context) {
       <ConfigProvider theme={{ token: { motion: false } }}>
         <div data-testid="reading-host">
           <EmbeddedAbilityReading
-            abilities={abilities}
+            abilities={readingAbilities}
             context={value}
             onReference={vi.fn()}
           />
@@ -125,6 +126,32 @@ beforeEach(() => {
   api.getEmbeddedReading.mockImplementation((request) =>
     Promise.resolve(batch(request)),
   );
+});
+
+it("reads an embedded ability's matching frequency once", async () => {
+  const activity = {
+    ...abilities[0],
+    frequency: knownFact({
+      maximum: numberFact(1),
+      interval: knownFact("day"),
+      repeats_description: true,
+    }),
+  };
+  api.getEmbeddedReading.mockImplementation(async (request) => {
+    const response = batch(request);
+    response.entries[0].content[0].body = {
+      kind: "html",
+      html: "<p><strong>Frequency</strong> once per day</p>",
+      controls: [],
+      inclusions: [],
+    };
+    return response;
+  });
+
+  mount(context, [activity, ...abilities.slice(1)]);
+  const frequency = await screen.findByText("Frequency");
+  expect(frequency.parentElement).toHaveTextContent("once per day");
+  expect(screen.queryByText("1 per day")).toBeNull();
 });
 
 it("keeps ability state beside activation and usage after the complete authored text", async () => {

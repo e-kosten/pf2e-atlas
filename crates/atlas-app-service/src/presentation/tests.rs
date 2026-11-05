@@ -1385,6 +1385,37 @@ fn reference_frequency_uses_capacity_not_remaining_uses_and_preserves_invalid_in
 }
 
 #[test]
+fn reference_frequency_marks_only_matching_standalone_prose_as_duplicate() {
+    for (line, expected) in [
+        ("once per day", Some(true)),
+        ("1 per day", Some(true)),
+        ("once per hour", None),
+        ("twice per day", None),
+        ("once per day in sunlight", None),
+    ] {
+        let input = record(
+            "actors",
+            "Actor",
+            json!({
+                "_id":"aaaaaaaaaaaaaaaa","type":"npc","items":[{
+                    "_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Soul Scream",
+                    "system":{
+                        "frequency":{"max":1,"value":0,"per":"day"},
+                        "description":{"value":format!("<p><strong>Frequency</strong> {line}</p><hr /><p>Effect</p>")}
+                    }
+                }]
+            }),
+        );
+        let body =
+            actor::authored_actor(&input.record, input.record.node_at(&[]).unwrap(), "fixture");
+        let activities = body.activities.value.unwrap();
+        let frequency = activities[0].frequency.value.as_ref().unwrap();
+        assert_eq!(frequency.repeats_description, expected, "{line}");
+        assert_eq!(frequency.maximum.value, Some(1.into()));
+    }
+}
+
+#[test]
 fn reference_casting_capacity_requires_focus_context_and_ritual_dc_stays_separate() {
     let input = record(
         "actors",

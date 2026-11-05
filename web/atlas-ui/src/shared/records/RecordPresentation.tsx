@@ -598,6 +598,11 @@ export function RecordPresentation({
             activity={body.value}
             onReference={onReference}
             selected
+            hideFrequency={
+              !encounter &&
+              Boolean(body.value.frequency.value?.repeats_description) &&
+              descriptions.some((field) => field.body.kind === "html")
+            }
             hideCost={
               (!hideIdentity || identityInHost) &&
               body.value.action_cost.state === "value" &&

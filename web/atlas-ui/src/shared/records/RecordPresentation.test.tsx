@@ -1208,6 +1208,51 @@ describe("optional authored reference facts", () => {
   });
 });
 
+it("shows structured frequency only when the matching description is unavailable", () => {
+  const activity = activityFixture("Soul Scream");
+  activity.frequency = knownFact({
+    maximum: numberFact(1),
+    interval: knownFact("day"),
+    repeats_description: true,
+  });
+  const presentation: RecordPresentationView = {
+    ...actorPresentation(),
+    body: { kind: "activity", value: activity },
+    content: [
+      {
+        locator: {
+          record: activity.navigation.record_key,
+          embedded_path: [],
+          field: "/system/description/value",
+        },
+        role: "description",
+        source_fingerprint: null,
+        body: {
+          kind: "html",
+          html: "<p><strong>Frequency</strong> once per day</p><hr /><p>Effect</p>",
+          controls: [],
+          inclusions: [],
+        },
+      },
+    ],
+  };
+  const onReference = vi.fn();
+  const { rerender } = render(
+    <RecordPresentation presentation={presentation} onReference={onReference} />,
+  );
+  expect(screen.getAllByText("Frequency")).toHaveLength(1);
+  expect(screen.getByText("Frequency").parentElement).toHaveTextContent("once per day");
+  expect(screen.getByText("Effect")).toBeVisible();
+
+  rerender(
+    <RecordPresentation
+      presentation={{ ...presentation, content: [] }}
+      onReference={onReference}
+    />,
+  );
+  expect(screen.getByText("1 per day")).toBeVisible();
+});
+
 it("keeps authored qualifiers beside their numbers and general save notes scoped to the group", () => {
   const presentation = actorPresentation();
   if (presentation.body.kind !== "creature") throw new Error("creature");

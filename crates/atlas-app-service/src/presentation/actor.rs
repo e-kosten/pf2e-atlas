@@ -915,9 +915,9 @@ fn activity_frequency(item: ItemSourceView<'_>) -> FactView<ActivityFrequencyVie
         SourceFieldView::Null => SourceFieldView::NotApplicable,
         value => value,
     };
-    fact(source.map(|frequency| ActivityFrequencyView {
-        maximum: number((&frequency.max).into()),
-        interval: fact(SourceFieldView::from(&frequency.per).map(|per| {
+    fact(source.map(|frequency| {
+        let maximum = number((&frequency.max).into());
+        let interval = fact(SourceFieldView::from(&frequency.per).map(|per| {
             match per {
                 AbilitySystemSourceFrequencyPer::P1M => "month",
                 AbilitySystemSourceFrequencyPer::P1W => "week",
@@ -931,8 +931,50 @@ fn activity_frequency(item: ItemSourceView<'_>) -> FactView<ActivityFrequencyVie
                 AbilitySystemSourceFrequencyPer::Turn => "turn",
             }
             .to_owned()
-        })),
+        }));
+        let repeats_description = maximum
+            .value
+            .as_ref()
+            .and_then(serde_json::Number::as_u64)
+            .zip(interval.value.as_deref())
+            .is_some_and(|(maximum, interval)| {
+                description_repeats_frequency(item, maximum, interval)
+            })
+            .then_some(true);
+        ActivityFrequencyView {
+            maximum,
+            interval,
+            repeats_description,
+        }
     }))
+}
+
+fn description_repeats_frequency(item: ItemSourceView<'_>, maximum: u64, interval: &str) -> bool {
+    // A complete lead paragraph lets qualifiers and conflicting limits stay visible.
+    let fields = SourceNodeView::Item(item).content_selections();
+    let Some(description) = fields
+        .iter()
+        .find(|field| field.field == "/system/description/value")
+        .and_then(|field| field.text.value())
+    else {
+        return false;
+    };
+    let Some((line, _)) = description
+        .trim_start()
+        .strip_prefix("<p><strong>Frequency</strong>")
+        .and_then(|description| description.split_once("</p>"))
+    else {
+        return false;
+    };
+    let mut words = line.split_whitespace();
+    let numeric = maximum.to_string();
+    let count_matches = match words.next() {
+        Some("once") => maximum == 1,
+        Some("twice") => maximum == 2,
+        Some(count) => count == numeric,
+        None => false,
+    };
+    count_matches && words.next() == Some("per") && words.eq(interval.split_whitespace())
 }
 
 pub(crate) fn number_with_modifiers(
