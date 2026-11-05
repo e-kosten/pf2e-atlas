@@ -5,7 +5,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FilterControls } from "./FilterPanel";
 import { DEFAULT_SEARCH_STATE, type SearchFormState } from "./searchState";
 import { editorFixture, fieldFixture } from "../../test/fixtures";
-import type { FilterEditorView, QueryPredicate } from "../../generated/atlas";
+import type {
+  FilterDiscoveryContext,
+  FilterEditorView,
+  QueryPredicate,
+} from "../../generated/atlas";
+import * as atlasApi from "../../api/atlasApi";
 
 const actorMetricCatalog = () =>
   editorFixture([
@@ -213,6 +218,7 @@ function renderControls(
     ComponentProps<typeof FilterControls>,
     "layout" | "includeSearch"
   > = {},
+  discoveryContext?: FilterDiscoveryContext,
 ) {
   const onChange = vi.fn();
   function Harness() {
@@ -233,6 +239,10 @@ function renderControls(
           },
           filterEditor: editor,
           filterApplicabilityCurrent: true,
+          filterDiscoveryContext: discoveryContext && {
+            ...discoveryContext,
+            filter: search.filter,
+          },
         }}
       />
     );
@@ -1016,6 +1026,63 @@ describe("per-value states and the complete query", () => {
 });
 
 describe("field applicability while editing Boolean groups", () => {
+  it("loads Base Type vocabulary without applying the committed Creature filter to an incomplete draft", async () => {
+    const editor = editorFixture([
+      { ...fieldFixture("kind", "string", "Kind"), choices: ["creature"] },
+      fieldFixture("physical.base_type", "string", "Base Type"),
+    ]);
+    editor.groups[0].fields[1].applicable = false;
+    const committed: QueryPredicate = {
+      kind: "in",
+      field: "kind",
+      values: ["creature"],
+    };
+    const values = vi.spyOn(atlasApi, "discoverFilterValues").mockResolvedValue({
+      kind: "vocabulary",
+      scope: { kind: "artifact" },
+      values: {
+        field: "physical.base_type",
+        selected_values: [],
+        options: [{ value: "chain-mail" }],
+        total_values: 1n,
+        basis: "product_artifact_before_edition_preference",
+      },
+    });
+    try {
+      renderControls(
+        editor,
+        committed,
+        null,
+        {},
+        {
+          kind: "filtered",
+          filter: null,
+          text: null,
+          mode: "hybrid",
+        },
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+      fireEvent.mouseDown(screen.getByRole("combobox", { name: "Filter field" }));
+      fireEvent.click(screen.getAllByText("Base Type", { exact: true }).slice(-1)[0]);
+      expect(screen.getByText("Changes pending")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Edit Base Type values" }));
+      expect(
+        await screen.findByRole("button", {
+          name: "Base Type: Chain Mail, activate to select",
+        }),
+      ).toBeEnabled();
+      expect(values).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ kind: "vocabulary", field_id: "physical.base_type" }),
+        expect.any(AbortSignal),
+      );
+      expect(
+        screen.queryByRole("checkbox", { name: "Show unavailable" }),
+      ).not.toBeInTheDocument();
+    } finally {
+      values.mockRestore();
+    }
+  });
+
   it("narrows a new AND condition but allows an existing Kind condition to be replaced", async () => {
     const editor = editorFixture([
       { ...fieldFixture("kind", "string", "Kind"), choices: ["creature"] },
@@ -1035,10 +1102,14 @@ describe("field applicability while editing Boolean groups", () => {
     fireEvent.click(screen.getAllByText("Base Type", { exact: true }).slice(-1)[0]);
     expect(screen.getByRole("button", { name: "Edit Base Type values" })).toBeEnabled();
     expect(screen.getByText("Changes pending")).toBeInTheDocument();
-    const blank = screen.getAllByRole("combobox", { name: "Filter field" }).at(-1)!;
+    const blank = screen
+      .getAllByRole("combobox", { name: "Filter field" })
+      .slice(-1)[0];
     fireEvent.mouseDown(blank);
     fireEvent.change(blank, { target: { value: "Hardness" } });
-    fireEvent.click((await screen.findAllByText("Hardness", { exact: true })).at(-1)!);
+    fireEvent.click(
+      (await screen.findAllByText("Hardness", { exact: true })).slice(-1)[0],
+    );
     expect(screen.getByRole("textbox", { name: "Hardness" })).toBeEnabled();
   });
 

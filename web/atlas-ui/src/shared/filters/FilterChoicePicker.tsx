@@ -99,6 +99,7 @@ function FilterChoicePicker({
   const [showUnavailable, setShowUnavailable] = useState(false);
   const closedChoices = field.short_choices;
   const allowNarrowing = edit.kind === "condition" || edit.allowNarrowing;
+  const narrowingContext = countsEnabled && allowNarrowing ? countContext : undefined;
   const clauseId =
     edit.kind === "operand"
       ? edit.clauseId
@@ -114,8 +115,8 @@ function FilterChoicePicker({
     offset,
     selected,
     open && !closedChoices,
-    countContext && countsEnabled && allowNarrowing && !showUnavailable
-      ? { context: countContext, clauseId }
+    narrowingContext && !showUnavailable
+      ? { context: narrowingContext, clauseId }
       : undefined,
   );
   useEffect(() => {
@@ -246,7 +247,7 @@ function FilterChoicePicker({
     >
       {!closedChoices && (
         <div className="common-choice-footer">
-          {allowNarrowing && (
+          {narrowingContext && (
             <Checkbox
               checked={showUnavailable}
               onChange={(event) => {

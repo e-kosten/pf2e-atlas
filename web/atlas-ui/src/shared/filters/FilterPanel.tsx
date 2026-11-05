@@ -280,7 +280,10 @@ export function FilterControls({
           workspace.filterApplicabilityCurrent === true && !prepared.error
         }
         onChange={prepared.change}
-        workspace={countWorkspace}
+        workspace={{
+          ...countWorkspace,
+          filterCountsEnabled: countWorkspace.filterCountsEnabled && !prepared.error,
+        }}
       />
     ) : null;
   const commonLayout = layout === "panel" ? "panel" : "toolbar";
