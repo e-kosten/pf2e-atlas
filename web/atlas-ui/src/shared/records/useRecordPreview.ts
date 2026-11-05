@@ -8,6 +8,7 @@ import type {
   RecordNavigationView,
   RecordPresentationView,
 } from "../../generated/atlas";
+import { useTraitDetail } from "./useTraitDetail";
 import { useRecordDetail } from "./useRecordDetail";
 import { useQuery } from "@tanstack/react-query";
 import { getEncounterReference } from "../../api/atlasApi";
@@ -25,12 +26,15 @@ type EncounterPreviewContext = {
 };
 
 export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
+  const [traitKey, setTraitKey] = useState<string | null>(null);
+  const traitQuery = useTraitDetail(traitKey);
   const [recordKey, setRecordKey] = useState<string | null>(null);
   const [anchor, setAnchor] = useState<RecordPreviewAnchor | null>(null);
   const [selection, setSelection] = useState<RecordNavigationView>();
   const [landing, setLanding] = useState<RecordNavigationView>();
   type PriorDocument = {
-    recordKey: string;
+    recordKey: string | null;
+    traitKey?: string | null;
     selection?: RecordNavigationView;
     landing?: RecordNavigationView;
     context?: { identity: string; generation: string | null; conditionId?: bigint };
@@ -48,14 +52,14 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   // their expanded state with the preview owner, including nested navigation.
   useLayoutEffect(() => {
     const element = opener.current;
-    if (!recordKey || !element) return;
+    if ((!recordKey && !traitKey) || !element) return;
     const previous = element.getAttribute("aria-expanded");
     element.setAttribute("aria-expanded", "true");
     return () => {
       if (previous === null) element.removeAttribute("aria-expanded");
       else element.setAttribute("aria-expanded", previous);
     };
-  }, [recordKey]);
+  }, [recordKey, traitKey]);
   const session = useRef(0);
   const [reloadState, setReloadState] = useState<
     { kind: "loading" } | { kind: "finished" } | { kind: "failed"; error: Error } | null
@@ -168,6 +172,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     session.current += 1;
     setReloadState(null);
     setRecordKey(null);
+    setTraitKey(null);
     setAnchor(null);
     setSelection(undefined);
     setRequestedContext(undefined);
@@ -176,7 +181,30 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     setRestoringHistory(false);
   }, []);
 
-  useDismissOnReadingNavigation(recordKey !== null, close);
+  useDismissOnReadingNavigation(recordKey !== null || traitKey !== null, close);
+
+  const rememberDocument = useCallback(
+    (anchor?: HTMLElement) => {
+      const scrollHost = anchor
+        ?.closest(".record-preview-drawer-root")
+        ?.querySelector<HTMLElement>(".record-preview-drawer__body");
+      setHistory((prior) =>
+        [
+          ...prior,
+          {
+            recordKey,
+            traitKey,
+            selection,
+            landing,
+            context: requestedContext,
+            scroll: scrollHost?.scrollTop ?? 0,
+            focusHref: anchor?.closest("a")?.getAttribute("href") ?? undefined,
+          },
+        ].slice(-24),
+      );
+    },
+    [recordKey, traitKey, selection, landing, requestedContext],
+  );
 
   const open = useCallback(
     (
@@ -186,25 +214,12 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
       nextLanding?: RecordNavigationView,
     ) => {
       if (
-        recordKey &&
+        (recordKey || traitKey) &&
         (recordKey !== nextRecordKey ||
           JSON.stringify(selection) !== JSON.stringify(navigation) ||
           JSON.stringify(landing) !== JSON.stringify(nextLanding))
       ) {
-        const scrollHost = anchor?.closest<HTMLElement>(".record-preview-drawer__body");
-        setHistory((prior) =>
-          [
-            ...prior,
-            {
-              recordKey,
-              selection,
-              landing,
-              context: requestedContext,
-              scroll: scrollHost?.scrollTop ?? 0,
-              focusHref: anchor?.closest("a")?.getAttribute("href") ?? undefined,
-            },
-          ].slice(-24),
-        );
+        rememberDocument(anchor);
       }
       opener.current ??=
         anchor ??
@@ -212,6 +227,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
       session.current += 1;
       setReloadState(null);
       setRecordKey(nextRecordKey);
+      setTraitKey(null);
       setAnchor((current) => current ?? anchor ?? null);
       const condition = encounterContext?.conditions?.find(
         (condition) =>
@@ -246,10 +262,42 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
           : undefined,
       );
     },
-    [encounterContext, recordKey, selection, landing, requestedContext],
+    [encounterContext, recordKey, traitKey, selection, landing, rememberDocument],
   );
 
+  const openTrait = (nextTraitKey: string, anchor?: HTMLElement) => {
+    if ((recordKey || traitKey) && traitKey !== nextTraitKey) {
+      rememberDocument(anchor);
+    }
+    opener.current ??=
+      anchor ??
+      (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    session.current += 1;
+    setReloadState(null);
+    setRecordKey(null);
+    setTraitKey(nextTraitKey);
+    setAnchor((current) => current ?? anchor ?? null);
+    setSelection(undefined);
+    setLanding(undefined);
+    setRequestedContext(undefined);
+    setRestore({ scroll: 0, focusHref: undefined });
+    setRestoringHistory(false);
+  };
+
   return {
+    active: recordKey !== null || traitKey !== null,
+    openTrait,
+    trait: traitKey
+      ? {
+          key: traitKey,
+          detail: traitQuery.data,
+          loading: traitQuery.isFetching,
+          error: traitQuery.error,
+          retry: () => {
+            void traitQuery.refetch();
+          },
+        }
+      : undefined,
     anchor,
     close,
     detail: requestedContext
@@ -312,7 +360,10 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     selection,
     landing,
     readingHistory: {
-      address: JSON.stringify([recordReadingIdentity(recordKey, selection), landing]),
+      address: JSON.stringify([
+        traitKey ?? recordReadingIdentity(recordKey, selection),
+        landing,
+      ]),
       restoringHistory,
       restore,
       canGoBack: history.length > 0,
@@ -323,6 +374,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         setReloadState(null);
         setHistory(history.slice(0, -1));
         setRecordKey(prior.recordKey);
+        setTraitKey(prior.traitKey ?? null);
         setSelection(prior.selection);
         setLanding(prior.landing);
         setRequestedContext(prior.context);

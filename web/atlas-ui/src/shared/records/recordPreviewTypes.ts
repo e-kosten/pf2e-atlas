@@ -4,6 +4,14 @@ import type { RecordReferenceHandler } from "./PreparedContent";
 export type RecordPreviewAnchor = HTMLElement;
 
 export type RecordPreviewContentProps = {
+  trait?: {
+    key: string;
+    detail: import("../../generated/atlas").TraitDetailView | undefined;
+    loading: boolean;
+    error: Error | null;
+    retry: () => void;
+  };
+  onTraitReference?: (traitKey: string, anchor?: HTMLElement) => void;
   actions?: import("react").ReactNode;
   context?: "reference" | "encounter";
   visibleOwnerRecordKey?: string;

@@ -462,8 +462,10 @@ export function ReferenceReader({
         </ReaderMatchNavigation.Provider>
       </section>
       {readerFooter}
-      {preview.recordKey && (
+      {preview.active && (
         <RecordReferenceDrawer
+          trait={preview.trait}
+          onTraitReference={preview.openTrait}
           actions={preview.detail && recordActions?.(preview.detail.record)}
           anchor={preview.anchor}
           visibleOwnerRecordKey={

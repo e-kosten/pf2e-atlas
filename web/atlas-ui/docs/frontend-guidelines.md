@@ -1172,9 +1172,14 @@ Reader mode, companion layout or reader route. Search results, saved-list member
 and Add candidates keep their primary selected-record detail pane; following a
 reference does not replace that selection or commit a mutation.
 
-Use `RecordReferenceDrawer` for linked records and Original record links on every
-viewport. Trait badges retain native typed trait-page destinations; never coerce
-their identities to record keys. It overlays the host
+Use `RecordReferenceDrawer` for linked records, trait definitions and Original
+record links on every viewport. Trait badges and trait Similar seeds open a
+contextual definition on primary activation while retaining native typed
+trait-page destinations; never coerce trait identities to record keys. Shared
+preview sessions retain mixed record/trait Back history. `ReferencePreviewProvider`
+owns contextual links outside an existing reader; a mounted Drawer supplies its
+own session through `ReferencePreviewContext` so nested references reuse it.
+It overlays the host
 without reserving an empty column or compressing the underlying layout. It is
 full width on narrow screens and has a generous bounded reading width otherwise.
 Nested references replace the document in the same Drawer and keep a bounded

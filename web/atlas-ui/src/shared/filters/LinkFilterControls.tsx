@@ -1,3 +1,4 @@
+import { useReferencePreview } from "../records/ReferencePreviewContext";
 import {
   destinationHref,
   isPrimaryActivation,
@@ -136,6 +137,7 @@ function LinkChip({
   onEdit: (leaf: LinkLeaf, relationship?: QueryRelationship) => string | null;
   onRemove: (leaf: LinkLeaf) => void;
 }) {
+  const reference = useReferencePreview();
   const { token } = theme.useToken();
   const [open, setOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -205,6 +207,14 @@ function LinkChip({
               onClick={(event) => {
                 if (!isPrimaryActivation(event)) return;
                 event.preventDefault();
+                if (reference) {
+                  reference.open(
+                    relationship.selection.record_key,
+                    event.currentTarget,
+                    relationship.selection,
+                  );
+                  return;
+                }
                 navigateDestination(
                   recordDestination({
                     recordKey: relationship.selection.record_key,

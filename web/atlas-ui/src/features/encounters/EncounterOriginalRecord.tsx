@@ -54,8 +54,10 @@ export function EncounterOriginalRecord({
           }}
         />
       )}
-      {preview.recordKey && (
+      {preview.active && (
         <RecordReferenceDrawer
+          trait={preview.trait}
+          onTraitReference={preview.openTrait}
           anchor={preview.anchor}
           detail={preview.detail}
           loading={preview.loading}

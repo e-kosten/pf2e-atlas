@@ -185,7 +185,10 @@ it("bounds preview history and restores exact selected copy, landing, source lin
   const source = document.createElement("a");
   source.href = "/records/rules:next";
   host.append(source);
-  document.body.append(host);
+  const drawer = document.createElement("div");
+  drawer.className = "record-preview-drawer-root";
+  drawer.append(host);
+  document.body.append(drawer);
   act(() => result.current.open(first.record_key, opener, first, first));
   host.scrollTop = 314;
   act(() => result.current.open("rules:next", source));
@@ -205,7 +208,7 @@ it("bounds preview history and restores exact selected copy, landing, source lin
   act(() => result.current.close());
   expect(opener).toHaveFocus();
   expect(result.current.readingHistory.canGoBack).toBe(false);
-  host.remove();
+  drawer.remove();
   opener.remove();
 });
 
@@ -273,4 +276,36 @@ it("closes a retained linked preview on an explicit reading departure to the cur
   );
   expect(result.current.recordKey).toBeNull();
   expect(result.current.selection).toBeUndefined();
+});
+
+it("keeps mixed trait/record history with exact record addresses and opener restoration", () => {
+  const { result } = renderHook(() => useRecordPreview(), { wrapper: queryWrapper });
+  const opener = document.createElement("button");
+  document.body.append(opener);
+  const selection = {
+    ...detailFixture("actors:ghoul").selected,
+    spell_rank: 5,
+    embedded_path: [{ collection: "items", identity: { SnapshotLocal: { index: 2 } } }],
+    source_fingerprint: "verified-source",
+  };
+  try {
+    act(() => result.current.open("actors:ghoul", opener, selection, selection));
+    act(() => result.current.openTrait("trait:agile", opener));
+    expect(result.current.recordKey).toBeNull();
+    expect(result.current.trait?.key).toBe("trait:agile");
+    act(() => result.current.open("rules:condition", opener));
+    expect(result.current.trait).toBeUndefined();
+    act(() => result.current.readingHistory.onBack());
+    expect(result.current.trait?.key).toBe("trait:agile");
+    act(() => result.current.readingHistory.onBack());
+    expect(result.current.recordKey).toBe("actors:ghoul");
+    expect(result.current.selection).toEqual(selection);
+    expect(result.current.landing).toEqual(selection);
+    expect(result.current.readingHistory.canGoBack).toBe(false);
+    act(() => result.current.close());
+    expect(result.current.active).toBe(false);
+    expect(opener).toHaveFocus();
+  } finally {
+    opener.remove();
+  }
 });

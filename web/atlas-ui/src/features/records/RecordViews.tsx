@@ -56,13 +56,17 @@ export function RecordView({ route }: RecordViewProps) {
           />
         </DocumentPagePane>
       </main>
-      {preview.recordKey && (
+      {preview.active && (
         <RecordReferenceDrawer
+          trait={preview.trait}
+          onTraitReference={preview.openTrait}
           actions={
-            <AddToRecordButton
-              recordKey={preview.recordKey}
-              record={preview.detail?.record}
-            />
+            preview.recordKey && (
+              <AddToRecordButton
+                recordKey={preview.recordKey}
+                record={preview.detail?.record}
+              />
+            )
           }
           visibleOwnerRecordKey={
             detail.data?.selected.embedded_path.length === 0

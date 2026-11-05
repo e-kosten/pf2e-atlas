@@ -1,3 +1,4 @@
+import { useReferencePreview } from "../records/ReferencePreviewContext";
 import {
   isPrimaryActivation,
   navigateDestination,
@@ -27,6 +28,7 @@ export function LinkConditionPicker({
   onCancel,
   onConfirm,
 }: LinkPickerProps) {
+  const reference = useReferencePreview();
   const [candidate, setCandidate] = useState<PickerSelection | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [scopeHelpOpen, setScopeHelpOpen] = useState(false);
@@ -89,6 +91,16 @@ export function LinkConditionPicker({
             onClick={(event) => {
               if (!isPrimaryActivation(event)) return;
               event.preventDefault();
+              if (reference) {
+                reference.open(
+                  candidate?.record.record_key ?? initial!.selection.record_key,
+                  event.currentTarget,
+                  candidate
+                    ? rootNavigation(candidate.record.record_key)
+                    : initial!.selection,
+                );
+                return;
+              }
               navigateDestination(
                 recordDestination({
                   recordKey:
