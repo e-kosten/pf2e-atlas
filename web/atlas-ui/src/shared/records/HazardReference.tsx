@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import type { HazardPresentationView } from "../../generated/atlas";
 import {
   ActorActivities,
+  hasActorActivities,
+  hasRuntimeDetails,
   ActorSecondaryFacts,
   type CastingAnnotations,
 } from "./ActorReference";
@@ -42,6 +44,13 @@ export function HazardReference({
   activityRolls?: (activity: ActorActivityView) => ReactNode;
   castingAnnotations?: CastingAnnotations;
 }) {
+  const hasRules =
+    hasActorActivities(hazard.actor, true) ||
+    content.routine ||
+    content.reset ||
+    content.other ||
+    reading?.landing;
+  const hasRuntime = hasRuntimeDetails(hazard.actor, true);
   return (
     <div className="hazard-reference__rules">
       {content.description}
@@ -79,7 +88,7 @@ export function HazardReference({
           </div>
         }
         runtime={
-          encounter && (hazard.actor.runtime || encounterContent) ? (
+          encounter && (hasRuntime || encounterContent?.conditions) ? (
             <>
               <ActorSecondaryFacts actor={hazard.actor} runtimeOnly />
               {encounterContent?.conditions}
@@ -87,17 +96,21 @@ export function HazardReference({
           ) : null
         }
       >
-        <ActorActivities
-          actor={hazard.actor}
-          hazardContent={{ routine: content.routine, reset: content.reset }}
-          castingAnnotations={castingAnnotations}
-          essential
-          activityRolls={activityRolls}
-          onReference={onReference}
-          encounter={encounter}
-          reading={reading}
-        />
-        {content.other}
+        {hasRules ? (
+          <>
+            <ActorActivities
+              actor={hazard.actor}
+              hazardContent={{ routine: content.routine, reset: content.reset }}
+              castingAnnotations={castingAnnotations}
+              essential
+              activityRolls={activityRolls}
+              onReference={onReference}
+              encounter={encounter}
+              reading={reading}
+            />
+            {content.other}
+          </>
+        ) : null}
       </ActorEncounterLayout>
     </div>
   );

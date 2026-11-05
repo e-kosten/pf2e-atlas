@@ -18,17 +18,15 @@ export function ActorEncounterLayout({
   children?: ReactNode;
 }) {
   if (!runtime)
-    return (
+    return durability || children ? (
       <div className="actor-reference-flow">
         {durability}
         {children}
       </div>
-    );
+    ) : null;
   return (
     <div className="actor-encounter-host">
-      <div
-        className={`actor-encounter-layout${children ? " actor-encounter-layout--with-rules" : ""}`}
-      >
+      <div className="actor-encounter-layout">
         {durability && (
           <div className="actor-encounter-layout__durability">{durability}</div>
         )}

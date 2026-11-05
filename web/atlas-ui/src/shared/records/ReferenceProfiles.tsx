@@ -1,7 +1,7 @@
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { Table, Typography } from "antd";
-import type { ReactNode } from "react";
+import { Children, type ReactNode } from "react";
 import type {
   RecordBodyView,
   ClassReferenceView,
@@ -12,9 +12,9 @@ import type {
 } from "../../generated/atlas";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { FactRow, NumberFact } from "./presentationFacts";
-import { Iwr } from "./ActorReference";
+import { renderIwr } from "./ActorReference";
 import "../../styles/ui/reference-profiles.css";
-export function ReferenceFact<T>({
+function renderReferenceFact<T>({
   label,
   fact,
   format = String,
@@ -59,6 +59,8 @@ export function ReferenceFact<T>({
     </FactRow>
   );
 }
+export const ReferenceFact = renderReferenceFact;
+
 const list = (values: string[]) => values.join(", ");
 const alternatives = (values: string[]) => values.join(" or ");
 const choices = (slots: AttributeChoiceView[]) =>
@@ -71,25 +73,31 @@ const choices = (slots: AttributeChoiceView[]) =>
           : alternatives(slot.choices.value),
     )
     .join(", ");
+function renderFactGroup(rows: ReactNode[], stacked = false) {
+  const visibleRows = Children.toArray(rows);
+  return visibleRows.length ? (
+    <div className={stacked ? "reference-profile__groups" : "reference-profile__facts"}>
+      {visibleRows}
+    </div>
+  ) : null;
+}
+
 function Group({
   title,
-  children,
-  stacked = false,
+  rows,
+  stacked,
 }: {
   title?: string;
-  children: ReactNode;
+  rows: ReactNode[];
   stacked?: boolean;
 }) {
-  return (
+  const content = renderFactGroup(rows, stacked);
+  return content ? (
     <section className="reference-profile__section">
       {title && <h3>{title}</h3>}
-      <div
-        className={stacked ? "reference-profile__groups" : "reference-profile__facts"}
-      >
-        {children}
-      </div>
+      {content}
     </section>
-  );
+  ) : null;
 }
 function Grants({
   fact,
@@ -229,55 +237,84 @@ export function ReferenceProfiles({
   onReference: RecordReferenceHandler;
   children: ReactNode;
 }) {
-  if (body.kind === "heritage")
-    return (
+  if (body.kind === "heritage") {
+    const ancestry = renderReferenceFact({
+      label: "Ancestry",
+      fact: body.value.ancestry,
+      optional: true,
+    });
+    return ancestry || children ? (
       <div className="reference-profile">
-        <ReferenceFact label="Ancestry" fact={body.value.ancestry} optional />
+        {ancestry}
         {children}
       </div>
-    );
+    ) : null;
+  }
   if (body.kind === "ancestry") {
     const v = body.value;
     return (
       <div className="reference-profile">
-        <Group>
-          <ReferenceFact label="HP" fact={v.hit_points} />
-          <ReferenceFact label="Speed" fact={v.speed} unit=" feet" />
-          <ReferenceFact label="Size" fact={v.size} />
-          <ReferenceFact label="Vision" fact={v.vision} />
-          <ReferenceFact label="Hands" fact={v.hands} optional />
-          <ReferenceFact label="Reach" fact={v.reach} unit=" feet" optional />
-        </Group>
-        <Group>
-          <ReferenceFact label="Attribute boosts" fact={v.boosts} format={choices} />
-          <ReferenceFact label="Attribute flaws" fact={v.flaws} format={choices} />
-        </Group>
-        <Group>
-          <ReferenceFact
-            label="Languages"
-            fact={v.languages}
-            format={list}
-            emptyLabel="None listed"
-          />
-          <ReferenceFact label="Languages" fact={v.language_details} optional />
-          <ReferenceFact
-            label="Additional language choices"
-            fact={v.additional_languages}
-            format={list}
-          />
-          <ReferenceFact
-            label="Additional languages"
-            fact={v.additional_language_details}
-            optional
-          />
-          {v.additional_language_count.value !== 0 && (
-            <ReferenceFact
-              label="Additional language slots"
-              fact={v.additional_language_count}
-              optional
-            />
-          )}
-        </Group>
+        <Group
+          rows={[
+            renderReferenceFact({ label: "HP", fact: v.hit_points }),
+            renderReferenceFact({ label: "Speed", fact: v.speed, unit: " feet" }),
+            renderReferenceFact({ label: "Size", fact: v.size }),
+            renderReferenceFact({ label: "Vision", fact: v.vision }),
+            renderReferenceFact({ label: "Hands", fact: v.hands, optional: true }),
+            renderReferenceFact({
+              label: "Reach",
+              fact: v.reach,
+              unit: " feet",
+              optional: true,
+            }),
+          ]}
+        />
+        <Group
+          rows={[
+            renderReferenceFact({
+              label: "Attribute boosts",
+              fact: v.boosts,
+              format: choices,
+            }),
+            renderReferenceFact({
+              label: "Attribute flaws",
+              fact: v.flaws,
+              format: choices,
+            }),
+          ]}
+        />
+        <Group
+          rows={[
+            renderReferenceFact({
+              label: "Languages",
+              fact: v.languages,
+              format: list,
+              emptyLabel: "None listed",
+            }),
+            renderReferenceFact({
+              label: "Languages",
+              fact: v.language_details,
+              optional: true,
+            }),
+            renderReferenceFact({
+              label: "Additional language choices",
+              fact: v.additional_languages,
+              format: list,
+            }),
+            renderReferenceFact({
+              label: "Additional languages",
+              fact: v.additional_language_details,
+              optional: true,
+            }),
+            v.additional_language_count.value !== 0
+              ? renderReferenceFact({
+                  label: "Additional language slots",
+                  fact: v.additional_language_count,
+                  optional: true,
+                })
+              : null,
+          ]}
+        />
         {children}
         <Grants fact={v.grants} onReference={onReference} showLevels={false} />
       </div>
@@ -287,19 +324,22 @@ export function ReferenceProfiles({
     const v = body.value;
     return (
       <div className="reference-profile">
-        <Group>
-          <ReferenceFact label="Class HP" fact={v.hit_points} />
-          <ReferenceFact
-            label="Key attribute"
-            fact={v.key_attributes}
-            format={alternatives}
-          />
-        </Group>
+        <Group
+          rows={[
+            renderReferenceFact({ label: "Class HP", fact: v.hit_points }),
+            renderReferenceFact({
+              label: "Key attribute",
+              fact: v.key_attributes,
+              format: alternatives,
+            }),
+          ]}
+        />
         {children}
-        <section className="reference-profile__section">
-          <h3>Initial proficiencies</h3>
-          <div className="reference-profile__groups">
-            {(
+        <Group
+          title="Initial proficiencies"
+          stacked
+          rows={[
+            ...(
               [
                 [
                   ["Perception", v.perception],
@@ -320,31 +360,32 @@ export function ReferenceProfiles({
                   ["Heavy armor", v.heavy_armor],
                 ],
               ] as const
-            ).map((group, index) => (
-              <div className="reference-profile__facts" key={index}>
-                {group.map(([label, fact]) => (
-                  <ReferenceFact key={label} label={label} fact={fact} />
-                ))}
-              </div>
-            ))}
-            {v.other_weapons.value && (
-              <ReferenceFact label={v.other_weapons.value} fact={v.other_weapon_rank} />
-            )}
-            <div className="reference-profile__facts">
-              <ReferenceFact label="Spellcasting" fact={v.spellcasting} />
-              <ReferenceFact
-                label="Listed trained skills"
-                fact={v.trained_skills}
-                format={list}
-              />
-              <ReferenceFact
-                label="Additional skills"
-                fact={v.additional_skills}
-                unit=" + Intelligence modifier"
-              />
-            </div>
-          </div>
-        </section>
+            ).map((group) =>
+              renderFactGroup(
+                group.map(([label, fact]) => renderReferenceFact({ label, fact })),
+              ),
+            ),
+            v.other_weapons.value
+              ? renderReferenceFact({
+                  label: v.other_weapons.value,
+                  fact: v.other_weapon_rank,
+                })
+              : null,
+            renderFactGroup([
+              renderReferenceFact({ label: "Spellcasting", fact: v.spellcasting }),
+              renderReferenceFact({
+                label: "Listed trained skills",
+                fact: v.trained_skills,
+                format: list,
+              }),
+              renderReferenceFact({
+                label: "Additional skills",
+                fact: v.additional_skills,
+                unit: " + Intelligence modifier",
+              }),
+            ]),
+          ]}
+        />
         <Grants fact={v.grants} onReference={onReference} />
         <ClassAdvancement value={v} />
       </div>
@@ -354,39 +395,49 @@ export function ReferenceProfiles({
     const v = body.value;
     return (
       <div className="reference-profile">
-        <Group title="Devotee benefits">
-          <ReferenceFact
-            label="Divine attributes"
-            fact={v.attributes}
-            format={alternatives}
-          />
-          <ReferenceFact
-            label="Divine font"
-            fact={v.fonts}
-            format={alternatives}
-            emptyLabel="None listed"
-          />
-          <ReferenceFact label="Divine skill" fact={v.skills} format={list} />
-          <ReferenceFact
-            label="Favored weapon"
-            fact={v.favored_weapons}
-            format={alternatives}
-          />
-          <ReferenceFact label="Domains" fact={v.primary_domains} format={list} />
-          <ReferenceFact
-            label="Alternate domains"
-            fact={v.alternate_domains}
-            format={list}
-          />
-          <ReferenceFact
-            label="Sanctification"
-            fact={v.sanctification}
-            optional
-            format={(s) =>
-              `${s.requirement.value === "must" ? "Must choose" : s.requirement.value === "can" ? "Can choose" : "Requirement unavailable"} ${s.choices.value?.join(" or ") ?? "Unavailable"}`
-            }
-          />
-        </Group>
+        <Group
+          title="Devotee benefits"
+          rows={[
+            renderReferenceFact({
+              label: "Divine attributes",
+              fact: v.attributes,
+              format: alternatives,
+            }),
+            renderReferenceFact({
+              label: "Divine font",
+              fact: v.fonts,
+              format: alternatives,
+              emptyLabel: "None listed",
+            }),
+            renderReferenceFact({
+              label: "Divine skill",
+              fact: v.skills,
+              format: list,
+            }),
+            renderReferenceFact({
+              label: "Favored weapon",
+              fact: v.favored_weapons,
+              format: alternatives,
+            }),
+            renderReferenceFact({
+              label: "Domains",
+              fact: v.primary_domains,
+              format: list,
+            }),
+            renderReferenceFact({
+              label: "Alternate domains",
+              fact: v.alternate_domains,
+              format: list,
+            }),
+            renderReferenceFact({
+              label: "Sanctification",
+              fact: v.sanctification,
+              optional: true,
+              format: (s) =>
+                `${s.requirement.value === "must" ? "Must choose" : s.requirement.value === "can" ? "Can choose" : "Requirement unavailable"} ${s.choices.value?.join(" or ") ?? "Unavailable"}`,
+            }),
+          ]}
+        />
         <Grants fact={v.spells} onReference={onReference} spells />
         {children}
       </div>
@@ -396,40 +447,51 @@ export function ReferenceProfiles({
     const v = body.value;
     return (
       <div className="reference-profile">
-        <Group title="Operation">
-          <ReferenceFact label="Crew" fact={v.crew} />
-          <ReferenceFact label="Passengers" fact={v.passengers} />
-          <ReferenceFact label="Speed" fact={v.speed} />
-          <ReferenceFact label="Piloting" fact={v.piloting} />
-        </Group>
+        <Group
+          title="Operation"
+          rows={[
+            renderReferenceFact({ label: "Crew", fact: v.crew }),
+            renderReferenceFact({ label: "Passengers", fact: v.passengers }),
+            renderReferenceFact({ label: "Speed", fact: v.speed }),
+            renderReferenceFact({ label: "Piloting", fact: v.piloting }),
+          ]}
+        />
         {children}
-        <Group title="Defenses" stacked>
-          <div className="reference-profile__facts">
-            <ReferenceFact label="AC" fact={v.defenses.armor_class} />
-
-            <ReferenceFact label="HP" fact={v.defenses.hit_points} />
-            <ReferenceFact label="Hardness" fact={v.defenses.hardness} />
-          </div>
-          <ReferenceFact
-            label="Fortitude"
-            fact={v.fortitude}
-            format={(n) => `${Number(n) >= 0 ? "+" : ""}${n}`}
-          />
-          <Iwr label="Immunities" fact={v.defenses.immunities} />
-          <Iwr label="Weaknesses" fact={v.defenses.weaknesses} />
-          <Iwr label="Resistances" fact={v.defenses.resistances} />
-        </Group>
-        <Group title="Collision">
-          <ReferenceFact label="Damage" fact={v.collision_damage} />
-          <ReferenceFact label="DC" fact={v.collision_dc} />
-        </Group>
-        <Group>
-          <ReferenceFact label="Price" fact={v.price_gp} unit=" gp" />
-          <ReferenceFact label="Size" fact={v.size} />
-          <ReferenceFact label="Length" fact={v.length} unit=" feet" />
-          <ReferenceFact label="Width" fact={v.width} unit=" feet" />
-          <ReferenceFact label="Height" fact={v.height} unit=" feet" />
-        </Group>
+        <Group
+          title="Defenses"
+          stacked
+          rows={[
+            renderFactGroup([
+              renderReferenceFact({ label: "AC", fact: v.defenses.armor_class }),
+              renderReferenceFact({ label: "HP", fact: v.defenses.hit_points }),
+              renderReferenceFact({ label: "Hardness", fact: v.defenses.hardness }),
+            ]),
+            renderReferenceFact({
+              label: "Fortitude",
+              fact: v.fortitude,
+              format: (n) => `${Number(n) >= 0 ? "+" : ""}${n}`,
+            }),
+            renderIwr({ label: "Immunities", fact: v.defenses.immunities }),
+            renderIwr({ label: "Weaknesses", fact: v.defenses.weaknesses }),
+            renderIwr({ label: "Resistances", fact: v.defenses.resistances }),
+          ]}
+        />
+        <Group
+          title="Collision"
+          rows={[
+            renderReferenceFact({ label: "Damage", fact: v.collision_damage }),
+            renderReferenceFact({ label: "DC", fact: v.collision_dc }),
+          ]}
+        />
+        <Group
+          rows={[
+            renderReferenceFact({ label: "Price", fact: v.price_gp, unit: " gp" }),
+            renderReferenceFact({ label: "Size", fact: v.size }),
+            renderReferenceFact({ label: "Length", fact: v.length, unit: " feet" }),
+            renderReferenceFact({ label: "Width", fact: v.width, unit: " feet" }),
+            renderReferenceFact({ label: "Height", fact: v.height, unit: " feet" }),
+          ]}
+        />
       </div>
     );
   }
@@ -437,41 +499,51 @@ export function ReferenceProfiles({
     const v = body.value;
     return (
       <div className="reference-profile">
-        <Group>
-          <ReferenceFact label="Army type" fact={v.army_type} />
-        </Group>
+        <Group
+          rows={[renderReferenceFact({ label: "Army type", fact: v.army_type })]}
+        />
         {children}
-        <Group title="Defenses">
-          {(
-            [
-              ["AC", v.armor_class],
-              ["HP", v.hit_points],
-              ["Rout threshold", v.rout_threshold],
-              ["Maneuver", v.maneuver],
-              ["Morale", v.morale],
-            ] as const
-          ).map(([label, fact]) => (
-            <ReferenceFact key={label} label={label} fact={fact} />
-          ))}
-          <Iwr label="Immunities" fact={v.immunities} />
-          <Iwr label="Weaknesses" fact={v.weaknesses} />
-          <Iwr label="Resistances" fact={v.resistances} />
-        </Group>
-        <Group title="Scouting and logistics">
-          {(
-            [
-              ["Scouting", v.scouting],
-              ["Consumption", v.consumption],
-              ["Recruitment DC", v.recruitment_dc],
-              ["Starting ammunition", v.ammunition],
-              ["Starting potions", v.potions],
-            ] as const
-          ).map(([label, fact]) => (
-            <ReferenceFact key={label} label={label} fact={fact} />
-          ))}
-          <ReferenceFact label="Melee weapon" fact={v.melee_weapon} optional />
-          <ReferenceFact label="Ranged weapon" fact={v.ranged_weapon} optional />
-        </Group>
+        <Group
+          title="Defenses"
+          rows={[
+            ...(
+              [
+                ["AC", v.armor_class],
+                ["HP", v.hit_points],
+                ["Rout threshold", v.rout_threshold],
+                ["Maneuver", v.maneuver],
+                ["Morale", v.morale],
+              ] as const
+            ).map(([label, fact]) => renderReferenceFact({ label, fact })),
+            renderIwr({ label: "Immunities", fact: v.immunities }),
+            renderIwr({ label: "Weaknesses", fact: v.weaknesses }),
+            renderIwr({ label: "Resistances", fact: v.resistances }),
+          ]}
+        />
+        <Group
+          title="Scouting and logistics"
+          rows={[
+            ...(
+              [
+                ["Scouting", v.scouting],
+                ["Consumption", v.consumption],
+                ["Recruitment DC", v.recruitment_dc],
+                ["Starting ammunition", v.ammunition],
+                ["Starting potions", v.potions],
+              ] as const
+            ).map(([label, fact]) => renderReferenceFact({ label, fact })),
+            renderReferenceFact({
+              label: "Melee weapon",
+              fact: v.melee_weapon,
+              optional: true,
+            }),
+            renderReferenceFact({
+              label: "Ranged weapon",
+              fact: v.ranged_weapon,
+              optional: true,
+            }),
+          ]}
+        />
       </div>
     );
   }

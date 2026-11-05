@@ -176,3 +176,47 @@ it.each([false, true, null])(
       ).toBeVisible();
   },
 );
+
+it("omits the rules slot for a hazard with no visible activities or rules", () => {
+  const hazard = {
+    actor: actorFixture(),
+    complex: knownFact(false),
+    stealth: numberFact(20),
+    hardness: numberFact(0),
+    detection_dc: numberFact(30),
+    broken_threshold: numberFact(0),
+    defense_block: knownFact(false),
+    show_saves: false,
+  };
+  const content = {
+    description: null,
+    detection: null,
+    disable: <p>Disable instructions</p>,
+    routine: null,
+    reset: null,
+    other: null,
+  };
+  const props = {
+    hazard,
+    encounter: true,
+    encounterContent: {
+      participantKey: "hazard",
+      durability: null,
+      conditions: <p>Current conditions</p>,
+    },
+    onReference: vi.fn(),
+  };
+  const { container, rerender } = render(
+    <HazardReference {...props} content={content} />,
+  );
+  expect(screen.getByText("Disable instructions")).toBeVisible();
+  expect(container.querySelector(".actor-encounter-layout__rules")).toBeNull();
+
+  rerender(
+    <HazardReference
+      {...props}
+      content={{ ...content, reset: <p>Reset after 24 hours</p> }}
+    />,
+  );
+  expect(screen.getByText("Reset after 24 hours")).toBeVisible();
+});
