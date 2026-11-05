@@ -18,6 +18,8 @@
   --line: #d6c6ad;
   --split: #d6c6ad;
   --primary: #8c333a;
+  --primary-hover: #9d4349;
+  --on-primary: #ffffff;
   --primary-active: #74272e;
   --link: #346c63;
   --selection-bg: #eaddcb;
@@ -93,4 +95,22 @@
   --space-section: 24px;
   --panel-gap: 16px;
   --panel-padding: 16px;
+}
+
+/* Keep the brand action palette on solid confirmations and the status palette on error ink. */
+.atlas-destructive-confirm.atlas-destructive-confirm:enabled:not(
+    [aria-disabled="true"]
+  ) {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.atlas-destructive-confirm.atlas-destructive-confirm:enabled:not(
+    [aria-disabled="true"]
+  ):hover {
+  background: var(--primary-hover);
+}
+.atlas-destructive-confirm.atlas-destructive-confirm:enabled:not(
+    [aria-disabled="true"]
+  ):active {
+  background: var(--primary-active);
 }

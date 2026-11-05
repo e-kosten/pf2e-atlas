@@ -407,6 +407,24 @@ pub fn prepare_publication_in<'owner>(
     Ok(publication)
 }
 
+fn publish_schema20_catalog(
+    connection: &rusqlite::Connection,
+    context: &mut crate::SourceArtifactBuildContext,
+) -> Result<(), IndexError> {
+    use crate::historical_similarity_admission::{
+        SCHEMA20_QUERY_CATALOG_VERSION, schema20_catalog,
+    };
+    context.query_catalog_version = SCHEMA20_QUERY_CATALOG_VERSION;
+    connection.execute("DELETE FROM query_field_catalog", [])?;
+    for (field, definition) in schema20_catalog()? {
+        connection.execute(
+            "INSERT INTO query_field_catalog(field,definition_json) VALUES(?,?)",
+            rusqlite::params![field, definition],
+        )?;
+    }
+    Ok(())
+}
+
 /// Populate the actual schema-19/20 reference shape for section-upgrade tests.
 /// Runtime owns its migration prefix; this fixture never rewinds a ledger or saved schema.
 pub fn publish_pre_core_fixture(
@@ -428,6 +446,9 @@ pub fn publish_pre_core_fixture(
             crate::similarity_projection::write_similarity_parts(connection, input)?;
         }
         let mut context = input.context.clone();
+        if version == 19 {
+            publish_schema20_catalog(connection, &mut context)?;
+        }
         context.core_sections_recipe.clear();
         context.selected_sections_recipe.clear();
         connection.execute(
@@ -513,6 +534,7 @@ pub fn publish_historical_record_fixture(
             }
         }
         let mut context=input.context.clone();context.selected_sections_recipe.clear();context.core_sections_recipe.clear();
+        publish_schema20_catalog(connection, &mut context)?;
         connection.execute("UPDATE artifact_context SET context_hash=?,context_json=?",rusqlite::params![context.sha256()?,serde_json::to_string(&context)?])?;
         connection.execute_batch("INSERT INTO legacy_semantic_units SELECT u.unit_id,u.record_id,u.profile_id,l.owners_json,u.unit_kind,l.field_path,l.section_json,l.chunk_ordinal,i.token_count,lower(hex(i.input_hash)) FROM semantic_units u JOIN semantic_locations l USING(location_id) JOIN embedding_inputs i USING(input_id);
 DROP TABLE semantic_units;

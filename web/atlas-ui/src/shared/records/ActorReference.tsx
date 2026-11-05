@@ -4,7 +4,7 @@ import { ValueExplanation } from "../ui/ValueExplanation";
 import { RuntimeCountCalculation } from "./RuntimeCountCalculation";
 import { statusReasonLabel } from "./statusReasonLabel";
 import { TraitBadge } from "./TraitBadge";
-import { Alert, Button, Collapse, Popover, Typography } from "antd";
+import { Tooltip, Alert, Button, Collapse, Popover, Typography } from "antd";
 import { InfoCircleOutlined } from "@ant-design/icons";
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import type {
@@ -514,12 +514,17 @@ export function ActorSkills({
                             content={factText(conditional.qualification)}
                             trigger="click"
                           >
-                            <Button
-                              type="text"
-                              size="small"
-                              icon={<InfoCircleOutlined />}
-                              aria-label={`${sentenceCase(skill.label)}: condition details`}
-                            />
+                            <Tooltip
+                              title={`${sentenceCase(skill.label)}: condition details`}
+                              trigger={["hover", "focus"]}
+                            >
+                              <Button
+                                type="text"
+                                size="small"
+                                icon={<InfoCircleOutlined />}
+                                aria-label={`${sentenceCase(skill.label)}: condition details`}
+                              />
+                            </Tooltip>
                           </Popover>
                         )}
                     </span>

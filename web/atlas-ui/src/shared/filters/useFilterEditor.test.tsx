@@ -9,7 +9,8 @@ import { decodeFilterUrl, encodeFilterUrl } from "./filterUrl";
 import { LINK_CONDITION } from "./queryBuilder";
 
 const hp = fieldFixture("defenses.hp.maximum", "number", "Maximum HP");
-const fields = editorFixture([hp]).groups[0].fields;
+const kind = fieldFixture("kind", "string", "Kind");
+const fields = editorFixture([hp, kind]).groups[0].fields;
 const initial = {
   ...DEFAULT_SEARCH_STATE,
   filter: { kind: "compare", clause_id: "hp", field: hp.path, op: "gte", value: 80 },
@@ -22,6 +23,32 @@ function harness(start: SearchFormState = initial) {
 }
 
 describe("persistent filter editing lifecycle", () => {
+  it("commits a Kind change or removal while retaining an unused condition row", () => {
+    const { result } = harness({
+      ...DEFAULT_SEARCH_STATE,
+      filter: { kind: "compare", field: kind.id, op: "eq", value: "creature" },
+    });
+    const placeholder = { id: "empty", field: "~", operator: "~", value: "" };
+    act(() =>
+      result.current.editor.change({
+        combinator: "and",
+        rules: [
+          { id: "kind", field: kind.id, operator: "eq", value: "equipment" },
+          placeholder,
+        ],
+      }),
+    );
+    expect(result.current.search.filter).toMatchObject({
+      kind: "all_of",
+      children: [{ kind: "compare", field: "kind", value: "equipment" }],
+    });
+    act(() =>
+      result.current.editor.change({ combinator: "and", rules: [placeholder] }),
+    );
+    expect(result.current.search.filter).toBeNull();
+    expect(result.current.editor.query?.rules).toEqual([placeholder]);
+  });
+
   it("preserves an empty authored group after a valid commit", () => {
     const { result } = harness();
     const query: RuleGroupType = {

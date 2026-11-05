@@ -1,4 +1,4 @@
-import { Button, InputNumber, Space } from "antd";
+import { Button, InputNumber, Space, Tooltip } from "antd";
 import { Minus, Plus, X } from "lucide-react";
 export function ConditionValueInput({
   value,
@@ -25,24 +25,25 @@ export function ConditionValueInput({
   onBlur?: () => void;
   onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
 }) {
+  const decreaseLabel =
+    value === 1 && onRemove ? (removeLabel ?? `Remove ${name}`) : `Decrease ${name}`;
+  const increaseLabel = `Increase ${name}`;
   return (
     <Space.Compact size={size}>
-      <Button
-        disabled={disabled || readOnly || (value === 1 && !onRemove) || value == null}
-        icon={value === 1 && onRemove ? <X size={14} /> : <Minus size={14} />}
-        aria-label={
-          value === 1 && onRemove
-            ? (removeLabel ?? `Remove ${name}`)
-            : `Decrease ${name}`
-        }
-        onClick={() => {
-          if (value === 1 && onRemove) onRemove();
-          else if (value != null) {
-            onChange?.(Math.max(1, value - 1));
-            onStep?.(Math.max(1, value - 1));
-          }
-        }}
-      />
+      <Tooltip title={decreaseLabel} trigger={["hover", "focus"]}>
+        <Button
+          disabled={disabled || readOnly || (value === 1 && !onRemove) || value == null}
+          icon={value === 1 && onRemove ? <X size={14} /> : <Minus size={14} />}
+          aria-label={decreaseLabel}
+          onClick={() => {
+            if (value === 1 && onRemove) onRemove();
+            else if (value != null) {
+              onChange?.(Math.max(1, value - 1));
+              onStep?.(Math.max(1, value - 1));
+            }
+          }}
+        />
+      </Tooltip>
       <InputNumber
         aria-label={name}
         min={1}
@@ -56,15 +57,17 @@ export function ConditionValueInput({
         style={{ width: size === "small" ? 44 : 64 }}
         styles={{ input: { textAlign: "center" } }}
       />
-      <Button
-        disabled={disabled || readOnly}
-        icon={<Plus size={14} />}
-        aria-label={`Increase ${name}`}
-        onClick={() => {
-          onChange?.((value ?? 0) + 1);
-          onStep?.((value ?? 0) + 1);
-        }}
-      />
+      <Tooltip title={increaseLabel} trigger={["hover", "focus"]}>
+        <Button
+          disabled={disabled || readOnly}
+          icon={<Plus size={14} />}
+          aria-label={increaseLabel}
+          onClick={() => {
+            onChange?.((value ?? 0) + 1);
+            onStep?.((value ?? 0) + 1);
+          }}
+        />
+      </Tooltip>
     </Space.Compact>
   );
 }

@@ -1,6 +1,6 @@
 import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Button, Form } from "antd";
+import { Tooltip, Button, Form } from "antd";
 import { GripVertical } from "lucide-react";
 import type {
   PersistentDamagePrecedenceEntryView,
@@ -56,17 +56,22 @@ export function EncounterPersistentPrecedence({
     bindings?: DragHandleBindings,
   ) => (
     <div className="encounter-persistent-precedence-entry">
-      <Button
-        {...bindings?.attributes}
-        {...bindings?.listeners}
-        ref={bindings?.setActivatorNodeRef}
-        type="text"
-        size="small"
-        disabled={sortable.disabled}
-        className="encounter-persistent-precedence-handle"
-        aria-label={`Reorder ${entry.formula} ${precedence.damage_type}${entry.source.kind === "edited" ? " (this source)" : ""}`}
-        icon={<GripVertical size={16} aria-hidden="true" />}
-      />
+      <Tooltip
+        title={`Reorder ${entry.formula} ${precedence.damage_type}${entry.source.kind === "edited" ? " (this source)" : ""}`}
+        trigger={["hover", "focus"]}
+      >
+        <Button
+          {...bindings?.attributes}
+          {...bindings?.listeners}
+          ref={bindings?.setActivatorNodeRef}
+          type="text"
+          size="small"
+          disabled={sortable.disabled}
+          className="encounter-persistent-precedence-handle"
+          aria-label={`Reorder ${entry.formula} ${precedence.damage_type}${entry.source.kind === "edited" ? " (this source)" : ""}`}
+          icon={<GripVertical size={16} aria-hidden="true" />}
+        />
+      </Tooltip>
       <span className="encounter-persistent-precedence-label">
         {entry.formula}
         {entry.multiplier === "normal"

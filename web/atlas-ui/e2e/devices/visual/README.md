@@ -5,6 +5,56 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Integrated inline editing and classification badges
+
+Source `230f8dd1bb1016898fbc957ad11b674073cd888f` combines the shared 32px
+badge height with the inline edit cues from main. Independent Astra review covered
+all 40 before/after pairs per OS and the live desktop, phone and tablet preview.
+All 12 macOS capture scenarios and all 12 ordinary comparisons passed.
+
+- macOS 27.2 (26B123), arm64, Playwright 1.62.1, checkout-local fixture.
+- Ubuntu 24.04 x64, Playwright 1.62.1,
+  [capture 41971467160](https://github.com/e-kosten/pf2e-atlas/actions/runs/41971467160).
+  All 12 capture scenarios passed using CI run 41971041547's authenticated
+  fixture, source merge `1ebf9460c38db462fed5bf9a9ae4225b2c65dda2`.
+  Fixture binary SHA-256:
+  `df1fbc0ad0197faf2da9a5849eec2164528c976491f290d70a48c3d1896da3d7`.
+  Frontend index SHA-256:
+  `4adb389a296431055039686c9dbdb8c9be8f656f7f7170fa99613d64413dbf2e`.
+
+## Uniform encounter classification badges
+
+Manual participants use the same 32px classification badge height as creatures
+with a reference button. Review covered all 40 before/after pairs per platform,
+including the resulting shifts in the participant pane and dialog backdrop.
+The interaction and exact comparison assertions are unchanged.
+
+- macOS 27.2 (26B123), arm64, Playwright 1.62.1, source
+  `c9c03297eb842d132a60171af15381d0ad3c01ca`. All 12 capture scenarios and
+  all 12 ordinary comparison scenarios passed.
+- Ubuntu 24.04 x64, Playwright 1.62.1,
+  [capture 41967751714](https://github.com/e-kosten/pf2e-atlas/actions/runs/41967751714).
+  All 12 capture scenarios passed against CI run 41966825893's authenticated
+  fixture, synthetic merge `e7c2ef3721f0ce8a5c342c506c45f58bf5ebdff0`.
+  Fixture binary SHA-256:
+  `eb9bd4cbe0c8d5505b8e8fd9d39ab059b45135c435f1935044505628b5770c29`.
+  Frontend index SHA-256:
+  `a7223eeeca0fc5ea53d21595590a526cea08347f8afafe3ccc21c11d1bb5d4a8`.
+
+## Inline encounter editing
+
+Source `593d1d4889e8314a3428240ac027d7b7311f6790`, Playwright 1.62.1.
+The pending and settled Drained previews and Quickened editor show the blank
+initiative dash and quieter name and HP values in the updated encounter layout.
+Three desktop Chromium references changed per OS.
+
+- macOS 27.2 (26B123), arm64, used the checkout's browser fixture. All 12
+  condition-refinement scenarios passed with ordinary comparisons.
+- Linux x64, Ubuntu 24.04, used [capture 41953006156](https://github.com/e-kosten/pf2e-atlas/actions/runs/41953006156)
+  and the authenticated fixture from CI run 41952315483, merge commit
+  `db2594ca3afe4d67c808acbde69f0c12b81f4319`, which has the same source tree.
+  Fixture SHA-256 `0221de0a1945bc763ba09522516dfe2620dfccb4ea6843f93053776ac1056804`.
+
 ## Quieter initiative drafting
 
 The pending and settled condition previews and Quickened restriction editor

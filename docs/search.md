@@ -29,6 +29,16 @@ Add level, rarity or trait filters for requirements that matter to your game.
 For example, combine a creature idea with a level range suited to your party.
 Filters keep those requirements explicit while you experiment with the wording.
 
+In **Advanced filters**, choose **Has a description** and set it to **Yes** to
+keep entries with a readable main description. For a creature, its public notes
+or background can qualify. For a journal, readable page text qualifies. Owned
+abilities, carried equipment, hazard routines and roll table results do not by
+themselves qualify. This checks for the presence of text, so a spell's description
+can still explain its rules.
+
+For **Base Type**, search with a readable name such as “Chain Mail,” or use
+**Next** to see the next page.
+
 ## Find similar options
 
 Open **Similar** from an entry you like to find alternatives. In **Search settings**,

@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button, Select } from "antd";
+import { Tooltip, Button, Select } from "antd";
 import { useMemo, useState } from "react";
 import { totalPages } from "./pageMetrics";
 import type { SearchWorkspaceState } from "./useSearchWorkspace";
@@ -55,19 +55,21 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
               }
             />
             <div className="pager__navigation" role="group" aria-label="Result pages">
-              <Button
-                aria-label="Previous page"
-                size="small"
-                disabled={
-                  workspace.pageNumber <= 1 ||
-                  workspace.resultsRefreshing ||
-                  workspace.resultsPaused ||
-                  workspace.resultsRecovering
-                }
-                icon={<ChevronLeft size={15} />}
-                onClick={() => workspace.setPageNumber(workspace.pageNumber - 1)}
-                type="text"
-              />
+              <Tooltip title="Previous page" trigger={["hover", "focus"]}>
+                <Button
+                  aria-label="Previous page"
+                  size="small"
+                  disabled={
+                    workspace.pageNumber <= 1 ||
+                    workspace.resultsRefreshing ||
+                    workspace.resultsPaused ||
+                    workspace.resultsRecovering
+                  }
+                  icon={<ChevronLeft size={15} />}
+                  onClick={() => workspace.setPageNumber(workspace.pageNumber - 1)}
+                  type="text"
+                />
+              </Tooltip>
               <PageJump
                 key={displayedPageNumber}
                 disabled={
@@ -82,21 +84,23 @@ export function ResultPaneHeader({ workspace }: { workspace: SearchWorkspaceStat
                 pageCountNumber={pageCountNumber}
                 requestedPageNumber={workspace.pageNumber}
               />
-              <Button
-                aria-label="Next page"
-                size="small"
-                disabled={
-                  !page?.has_more ||
-                  workspace.resultsRefreshing ||
-                  workspace.resultsPaused ||
-                  workspace.resultsRecovering
-                }
-                icon={<ChevronRight size={15} />}
-                onClick={() =>
-                  workspace.setPageNumber(page?.next_page ?? workspace.pageNumber + 1)
-                }
-                type="text"
-              />
+              <Tooltip title="Next page" trigger={["hover", "focus"]}>
+                <Button
+                  aria-label="Next page"
+                  size="small"
+                  disabled={
+                    !page?.has_more ||
+                    workspace.resultsRefreshing ||
+                    workspace.resultsPaused ||
+                    workspace.resultsRecovering
+                  }
+                  icon={<ChevronRight size={15} />}
+                  onClick={() =>
+                    workspace.setPageNumber(page?.next_page ?? workspace.pageNumber + 1)
+                  }
+                  type="text"
+                />
+              </Tooltip>
             </div>
           </>
         )}
@@ -146,6 +150,7 @@ function PageJump({
       <span className="sr-only">Current page</span>
       <input
         aria-label="Current page"
+        className="inline-editable"
         disabled={disabled}
         inputMode="numeric"
         max={pageCountNumber > 0 ? pageCountNumber : undefined}

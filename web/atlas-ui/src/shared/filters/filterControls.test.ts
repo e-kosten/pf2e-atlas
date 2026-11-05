@@ -156,7 +156,7 @@ describe("typed builder translation", () => {
       [field],
     );
     expect(empty.rules[0]).toMatchObject({ value: [] });
-    expect(() => builderPredicate(empty, [field])).toThrow("Choose at least one value");
+    expect(builderPredicate(empty, [field])).toBeNull();
   });
   it("rejects malformed collection operands with a controlled validation error", () => {
     const field = fieldFixture("embedded.equipment", "collection");
@@ -465,7 +465,23 @@ describe("common filter editing without predicate simplification", () => {
     });
     const corrected = replaceCommonRangeDraft(invalid, level, ["3", "5"]);
     expect(commonDraftRange(corrected, level)).toEqual(["3", "5"]);
-    expect(() => builderPredicate(corrected, [level, kind])).toThrow("Enter a value");
+    expect(builderPredicate(corrected, [level, kind])).toMatchObject({
+      kind: "all_of",
+      children: [
+        {
+          kind: "all_of",
+          children: [
+            {
+              kind: "all_of",
+              children: [
+                { field: level.path, op: "gte", value: 3 },
+                { field: level.path, op: "lte", value: 5 },
+              ],
+            },
+          ],
+        },
+      ],
+    });
     expect(replaceCommonRangeDraft(corrected, level, ["", ""]).rules).toEqual([
       { ...query.rules[0], rules: [] },
       query.rules[1],

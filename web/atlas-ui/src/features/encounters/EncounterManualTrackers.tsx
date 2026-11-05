@@ -125,19 +125,20 @@ export function EncounterManualTrackers({
     >
       <div className="encounter-conditions__header">
         <h3 id={heading}>Trackers</h3>
-        <Button
-          ref={addTrigger}
-          size="small"
-          type="text"
-          aria-label="Add tracker"
-          title="Add tracker"
-          icon={<Plus size={16} aria-hidden="true" />}
-          disabled={disabled || !onChange}
-          onClick={(event) => {
-            event.currentTarget.focus({ preventScroll: true });
-            open();
-          }}
-        />
+        <Tooltip title="Add tracker" trigger={["hover", "focus"]}>
+          <Button
+            ref={addTrigger}
+            size="small"
+            type="text"
+            aria-label="Add tracker"
+            icon={<Plus size={16} aria-hidden="true" />}
+            disabled={disabled || !onChange}
+            onClick={(event) => {
+              event.currentTarget.focus({ preventScroll: true });
+              open();
+            }}
+          />
+        </Tooltip>
       </div>
       {error && !editor && (
         <ErrorNotice
