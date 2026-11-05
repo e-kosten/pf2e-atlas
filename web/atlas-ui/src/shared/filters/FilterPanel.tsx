@@ -11,6 +11,7 @@ import {
   Tooltip,
   Typography,
   theme,
+  type InputRef,
 } from "antd";
 import {
   ClearOutlined,
@@ -23,6 +24,7 @@ import {
   useContext,
   useId,
   type ReactNode,
+  type RefObject,
   useMemo,
   useLayoutEffect,
   useRef,
@@ -110,6 +112,7 @@ export function FilterControls({
   includeSearch = true,
   layout = "panel",
   searchRowEnd,
+  searchInputRef,
   similarSearch,
   additionalFilters,
   children,
@@ -118,6 +121,7 @@ export function FilterControls({
   includeSearch?: boolean;
   layout?: "panel" | "toolbar" | "inline-toolbar";
   searchRowEnd?: ReactNode;
+  searchInputRef?: RefObject<InputRef | null>;
   similarSearch?: SimilarSearchCriterion;
   additionalFilters?: ReactNode;
   children?: ReactNode;
@@ -286,6 +290,7 @@ export function FilterControls({
     ) : null;
   const searchEntry = includeSearch && (
     <SearchEntry
+      inputRef={searchInputRef}
       query={search.query}
       similar={similarSearch}
       onSearch={(query) =>

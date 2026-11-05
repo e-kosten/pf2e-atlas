@@ -194,7 +194,22 @@ atlas lists note undead-research PACK:ID --clear
 
 Reference updates keep lists and encounters. If an entry disappears from the
 reference content, the list keeps its saved name and details and marks it
-unavailable. Use the web app to manage encounters.
+unavailable.
+
+### Encounters
+
+Create an encounter, add opponents, and inspect the roster and suggested award:
+
+```bash
+atlas encounters create "Garden Sentries"
+atlas encounters add garden-sentries --record PACK:ID --quantity 2 --adjustment weak
+atlas encounters list
+atlas encounters show garden-sentries --party-level 7 --party-size 4
+```
+
+The party options preview difficulty and suggested XP per PC for the supplied
+party without saving those options to the encounter. Omit them to use the
+encounter's saved difficulty reference. Pass `--json` for structured output.
 
 General dice rolls need no setup and do not change encounter state:
 

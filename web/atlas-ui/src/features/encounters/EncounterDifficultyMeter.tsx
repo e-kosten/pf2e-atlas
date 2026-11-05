@@ -1,4 +1,4 @@
-import { Progress, theme } from "antd";
+import { Tooltip, theme } from "antd";
 import { useLayoutEffect, useRef } from "react";
 import type { EncounterDifficultyView } from "../../generated/atlas";
 
@@ -6,9 +6,11 @@ import type { EncounterDifficultyView } from "../../generated/atlas";
 export function EncounterDifficultyMeter({
   value,
   compact = false,
+  current,
 }: {
   value: EncounterDifficultyView;
   compact?: boolean;
+  current?: EncounterDifficultyView;
 }) {
   const { token } = theme.useToken();
   const maximum = Math.max(0, ...value.budgets.map((budget) => budget.xp));
@@ -29,7 +31,7 @@ export function EncounterDifficultyMeter({
         const visible =
           label === last ||
           (bounds.left >= previousRight + 4 && bounds.right + 4 <= finalBounds.left);
-        label.style.visibility = visible ? "visible" : "hidden";
+        label.toggleAttribute("data-colliding", !visible);
         if (visible) previousRight = bounds.right;
       }
     };
@@ -43,12 +45,18 @@ export function EncounterDifficultyMeter({
   const thresholds = [...new Set([0, ...value.budgets.map((budget) => budget.xp)])]
     .filter((xp) => xp >= 0)
     .sort((left, right) => left - right);
-  const color =
-    value.rating === "Trivial" || value.rating === "Low"
+  const ratingColor = (rating: string | null) =>
+    rating === "Trivial" || rating === "Low"
       ? token.colorSuccess
-      : value.rating === "Moderate"
+      : rating === "Moderate"
         ? token.colorWarning
         : "var(--hp-critical)";
+  const color = ratingColor(value.rating);
+  const end = value.total_xp;
+  const percent = (xp: number) => Math.min(100, (xp / maximum) * 100);
+  const total = end === null ? 0 : percent(end);
+  const solid = Math.min(total, percent(current?.total_xp ?? end ?? 0));
+  const additional = total - solid;
   const text =
     value.total_xp === null
       ? "Difficulty incomplete"
@@ -57,27 +65,27 @@ export function EncounterDifficultyMeter({
     <div
       className={`encounter-difficulty-meter${compact ? " encounter-difficulty-meter--compact" : ""}`}
     >
-      <div className="encounter-difficulty-meter__track">
-        {value.total_xp === null ? (
-          <div
-            className="encounter-difficulty-meter__unavailable"
-            role="img"
-            aria-label={text}
-            style={{ background: token.colorFillSecondary }}
-          />
-        ) : (
-          <Progress
-            className="encounter-difficulty-meter__progress"
-            percent={Math.min(100, (value.total_xp / maximum) * 100)}
-            status="normal"
-            showInfo={false}
-            strokeColor={color}
-            railColor={token.colorFillSecondary}
-            size={{ height: 10 }}
-            aria-label="Encounter XP"
-            aria-valuetext={text}
-          />
-        )}
+      <div
+        className="encounter-difficulty-meter__track"
+        role={end === null ? "img" : "progressbar"}
+        aria-label={end === null ? text : "Encounter XP"}
+        aria-valuemin={end === null ? undefined : 0}
+        aria-valuemax={end === null ? undefined : maximum}
+        aria-valuenow={end === null ? undefined : Math.min(end, maximum)}
+        aria-valuetext={end === null ? undefined : text}
+        style={{ backgroundColor: token.colorFillSecondary }}
+      >
+        <span
+          className="encounter-difficulty-meter__solid"
+          style={{
+            width: `${solid}%`,
+            backgroundColor: ratingColor(current?.rating ?? value.rating),
+          }}
+        />
+        <span
+          className="encounter-difficulty-meter__additional"
+          style={{ width: `${additional}%`, color }}
+        />
         <div className="encounter-difficulty-meter__ticks" aria-hidden="true">
           {value.budgets
             .filter((budget) => budget.xp > 0)
@@ -89,12 +97,35 @@ export function EncounterDifficultyMeter({
             ))}
         </div>
       </div>
-      <div ref={axis} className="encounter-difficulty-meter__axis" aria-hidden="true">
-        {thresholds.map((xp) => (
-          <span key={xp} style={{ left: `${(xp / maximum) * 100}%` }}>
-            {xp}
-          </span>
-        ))}
+      <div ref={axis} className="encounter-difficulty-meter__axis">
+        {thresholds.map((xp) => {
+          const label = value.budgets
+            .filter((budget) => budget.xp === xp)
+            .map((budget) => `${budget.label} ${xp} XP`)
+            .join(" / ");
+          const number = (
+            <span aria-hidden="true" className="encounter-difficulty-meter__number">
+              {xp}
+            </span>
+          );
+          return (
+            <span key={xp} style={{ left: `${(xp / maximum) * 100}%` }}>
+              {label ? (
+                <Tooltip title={label} trigger={["hover", "focus"]}>
+                  <button
+                    type="button"
+                    aria-label={label}
+                    className="encounter-difficulty-meter__threshold"
+                  >
+                    {number}
+                  </button>
+                </Tooltip>
+              ) : (
+                number
+              )}
+            </span>
+          );
+        })}
       </div>
     </div>
   );

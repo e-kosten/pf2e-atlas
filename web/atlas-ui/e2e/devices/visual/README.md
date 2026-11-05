@@ -5,19 +5,23 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
-## Inline encounter editing
+## Quieter initiative drafting
 
-Source `df24202a4986985bde9fb7be8d1b8d3997057404`, Playwright 1.62.1.
-Three desktop Chromium frames per OS show the blank initiative dash and the
-subtler name and HP controls behind the condition dialog. The same checkpoints
-on phone and tablet pass with their existing references.
+The pending and settled condition previews and Quickened restriction editor
+show the quieter encounter behind their dialogs. The old initiative banner is
+gone; the dialogs keep their controls and move with the encounter layout where
+applicable. The 12 before/after pairs per platform were reviewed across all four
+projects. Exact comparisons and interaction assertions are unchanged.
 
-- macOS 27.2 (26B123), arm64, captured the pending and settled Drained previews
-  and the Quickened editor with the checkout's browser fixture.
-- Linux x64, Ubuntu 24.04, used [capture 41947960763](https://github.com/e-kosten/pf2e-atlas/actions/runs/41947960763)
-  and the authenticated fixture from CI run 41942875168, merge commit
-  `89cbfb11dedf4eb37f0d32262451dbde66e8194f`. Fixture SHA-256
-  `f04d81cc78ffd345ed009172e3aa174600cf93e67bdb87e1bff841c6bd090df3`.
+- macOS 27.2 (26B123), arm64, Playwright 1.62.1: capture based on PR head
+  `ef336b8c01716e08d47b8813286eb3773a2c242f`. All eight focused capture
+  scenarios passed.
+- Ubuntu 24.04 x64, Playwright 1.62.1:
+  [capture 41948042147](https://github.com/e-kosten/pf2e-atlas/actions/runs/41948042147)
+  passed all eight focused scenarios using the authenticated fixture from CI run
+  41943048401, merge commit `72fac4dd10eb2e419426838701400df1d0fa4f18`.
+  Fixture binary SHA-256:
+  `a9ff1fed78746d9a403ec2543d709a4b48f10176fb4b5cf80ee6ce67dab94757`.
 
 ## Consistent encounter empty notes
 

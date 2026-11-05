@@ -216,8 +216,24 @@
   color: var(--hp-critical-text, var(--text));
 }
 
+.encounter-add-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-width: 0;
+}
+
 .encounter-add-adjustment {
-  width: 6.5rem;
+  inline-size: 6.5em;
+}
+
+@media (max-height: 480px) {
+  .encounter-add-fields {
+    gap: var(--space-control);
+  }
+  .encounter-add-fields .encounter-add-quantity {
+    inline-size: 4rem;
+  }
 }
 
 .encounter-roster__remove-error {

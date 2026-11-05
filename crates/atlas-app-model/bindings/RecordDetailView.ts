@@ -7,6 +7,6 @@ import type { RecordSummaryView } from "./RecordSummaryView";
 
 export type RecordDetailView = {
 /**
- * Resolved source default for adding this NPC to an encounter; absent if unknown/inapplicable.
+ * Default adjustment for adding this root creature to an encounter.
  */
 encounter_adjustment?: EncounterParticipantVariantView, artifact_generation: string, record: RecordSummaryView, presentation: RecordPresentationView, selected: RecordNavigationView, relationships: Array<RecordRelationshipView>, relationships_truncated: boolean, };

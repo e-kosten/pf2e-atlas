@@ -82,6 +82,48 @@ async fn apply_condition(fixture: &Fixture, participant_key: &str, name: &str) {
 }
 
 #[tokio::test]
+async fn unknown_source_adjustment_uses_normal_for_detail_preview_and_add() {
+    let fixture = Fixture::with_actor_adjustment(false, Some("unsupported"));
+    let detail = response(
+        &fixture,
+        Method::GET,
+        &format!("/api/records/{ACTOR}"),
+        None,
+    )
+    .await;
+    assert_eq!(detail["encounter_adjustment"], "normal");
+    let encounter = response(&fixture, Method::GET, "/api/encounters/ambush", None).await;
+    let preview = response(
+        &fixture,
+        Method::POST,
+        "/api/encounters/ambush/difficulty/preview",
+        Some(json!({
+            "expected_revision": encounter["revision"],
+            "reference": {"party_level":1,"party_size":4},
+            "addition": {"record_ref":ACTOR,"quantity":1}
+        })),
+    )
+    .await;
+    assert_eq!(preview["total_xp"], 40);
+    response(
+        &fixture,
+        Method::POST,
+        "/api/encounters/ambush/participants/record",
+        Some(json!({"encounter_ref":"ambush","record_ref":ACTOR,"quantity":1})),
+    )
+    .await;
+    let encounter = response(&fixture, Method::GET, "/api/encounters/ambush", None).await;
+    let added = encounter["participants"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|participant| participant["record_key"] == ACTOR)
+        .unwrap();
+    assert_eq!(added["participant_variant"], "normal");
+    assert_eq!(added["variant_origin"], "default_unadjusted");
+}
+
+#[tokio::test]
 async fn browser_wire_fixture_matches_real_router_and_serialized_controls() {
     let fixture = Fixture::new();
     let generation = fixture.service.readiness().artifact_generation.unwrap();

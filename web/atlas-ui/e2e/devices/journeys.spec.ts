@@ -1219,14 +1219,22 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
     await expect(
       picker.getByRole("button", { name: "Add", exact: true }),
     ).toBeEnabled();
+    const originalViewport = page.viewportSize()!;
+    await page.setViewportSize({ width: 390, height: 480 });
+    await expect(
+      picker.getByRole("button", { name: "Done", exact: true }),
+    ).toBeInViewport();
+    await expect(
+      picker.getByRole("button", { name: "Add", exact: true }),
+    ).toBeInViewport();
+    await noPageOverflow(page);
+    await page.setViewportSize(originalViewport);
     await picker.getByLabel("Quantity", { exact: true }).fill("2");
-    await picker.getByLabel("Initiative", { exact: true }).fill("7");
     await activate(picker.getByRole("button", { name: "Add", exact: true }), info);
     await expect(
       picker.getByRole("status").filter({ hasText: "Added 2 × Atlas Sentinel" }),
     ).toBeVisible();
     await expect(picker.getByLabel("Quantity", { exact: true })).toHaveValue("1");
-    await expect(picker.getByLabel("Initiative", { exact: true })).toHaveValue("");
     await expect(
       picker.getByRole("button", { name: "Add", exact: true }),
     ).toBeEnabled();
@@ -1234,6 +1242,16 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
     await expect(
       picker.getByRole("status").filter({ hasText: "Added 1 × Atlas Sentinel" }),
     ).toBeVisible();
+    await activate(
+      picker.getByRole("button", { name: "Clear selection", exact: true }),
+      info,
+    );
+    await expect(
+      picker.getByRole("searchbox", { name: "Search records" }),
+    ).toBeFocused();
+    await expect(
+      picker.getByRole("button", { name: "Add", exact: true }),
+    ).toBeDisabled();
     await activate(picker.getByRole("button", { name: "Done", exact: true }), info);
     await activate(page.getByRole("button", { name: "Start turn", exact: true }), info);
     await expect
@@ -1728,6 +1746,13 @@ test("create-and-add keeps the footer aligned and keyboard actions reachable", a
           const note = dialog.getByRole("textbox", { name: "Note" });
           await expect(note).toBeFocused();
           await note.press("Tab");
+        } else {
+          const adjustment = dialog.getByRole("combobox", { name: "Adjustment" });
+          const quantity = dialog.getByRole("spinbutton", { name: "Quantity" });
+          await expect(adjustment).toBeFocused();
+          await adjustment.press("Tab");
+          await expect(quantity).toBeFocused();
+          await quantity.press("Tab");
         }
         await expect(existing).toBeFocused();
         await existing.press("Tab");
@@ -1745,7 +1770,12 @@ test("create-and-add keeps the footer aligned and keyboard actions reachable", a
       if (page.viewportSize()!.width >= 700) expect(backBox.y).toBe(cancelBox.y);
       await noPageOverflow(page);
       await activate(existing, info);
-      await expect(dialog.getByRole("combobox")).toBeFocused();
+      await expect(
+        dialog.getByRole("combobox", {
+          name: kind === "list" ? "Saved list" : "Encounter",
+          exact: true,
+        }),
+      ).toBeFocused();
       await activate(
         dialog.getByRole("button", { name: `New ${kind}`, exact: true }),
         info,

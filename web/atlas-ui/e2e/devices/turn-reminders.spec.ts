@@ -399,7 +399,7 @@ for (const outcome of [
   });
 }
 
-test("missing initiative gives a visible reason and direct assignment action", async ({
+test("missing initiative explains how to start a turn from the roster", async ({
   page,
 }, info) => {
   const created = await page.request.post("/api/encounters", {
@@ -421,16 +421,20 @@ test("missing initiative gives a visible reason and direct assignment action", a
       ).ok(),
     ).toBeTruthy();
     await page.goto(`/encounters/${encounter.slug}`);
-    await expect(
-      page.getByText("Assign initiative to start turn progression.", { exact: true }),
-    ).toBeVisible();
+    await expect(page.getByText("Initiative not set", { exact: true })).toBeVisible();
+    const start = page.getByRole("button", { name: "Start turn", exact: true });
+    await expect(start).toBeDisabled();
     await page.screenshot({
       path: info.outputPath("initiative-required.png"),
       fullPage: true,
       animations: "disabled",
     });
-    await page.getByRole("button", { name: "Assign initiative", exact: true }).click();
-    await expect(page.getByRole("dialog")).toBeVisible();
+    const initiative = page.getByRole("textbox", {
+      name: "Unassigned hero initiative total",
+    });
+    await initiative.fill("17");
+    await initiative.press("Enter");
+    await expect(start).toBeEnabled();
   } finally {
     await page.request.delete(path, { timeout: 5000 }).catch(() => undefined);
   }

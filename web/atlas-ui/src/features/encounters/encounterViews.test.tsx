@@ -1910,16 +1910,13 @@ describe("encounter views", () => {
       "Elite",
     );
     fireEvent.change(within(dialog).getByLabelText("Quantity"), {
-      target: { value: "2" },
-    });
-    fireEvent.change(within(dialog).getByLabelText("Initiative"), {
       target: { value: "1.5" },
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
     await within(dialog).findByText(/whole number/);
     expect(apiMocks.addEncounterRecordParticipant).not.toHaveBeenCalled();
-    fireEvent.change(within(dialog).getByLabelText("Initiative"), {
-      target: { value: "18" },
+    fireEvent.change(within(dialog).getByLabelText("Quantity"), {
+      target: { value: "2" },
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
 
@@ -1928,25 +1925,17 @@ describe("encounter views", () => {
         encounter_ref: "encounter_ambush",
         record_ref: "actors:goblin",
         quantity: 2,
-        initiative: 18n,
         participant_variant: "elite",
       }),
     );
     await waitFor(() =>
       expect(within(dialog).getByLabelText("Quantity")).toHaveValue("1"),
     );
-    expect(within(dialog).getByLabelText("Initiative")).toHaveValue("");
     expect(search).toHaveValue("goblin");
     expect(within(dialog).getByText("Added 2 × Goblin Warrior.")).toBeVisible();
     expect(within(dialog).getByRole("button", { name: "Add" })).toBeEnabled();
     fireEvent.change(within(dialog).getByLabelText("Quantity"), {
       target: { value: "3" },
-    });
-    fireEvent.change(within(dialog).getByLabelText("Initiative"), {
-      target: { value: "12" },
-    });
-    fireEvent.change(within(dialog).getByLabelText("Initiative"), {
-      target: { value: "" },
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
     await waitFor(() =>
@@ -1993,13 +1982,9 @@ describe("encounter views", () => {
     fireEvent.change(within(dialog).getByLabelText("Quantity"), {
       target: { value: "2" },
     });
-    fireEvent.change(within(dialog).getByLabelText("Initiative"), {
-      target: { value: "18" },
-    });
     fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
     await within(dialog).findByText("Saved, but the encounter could not refresh");
     expect(within(dialog).getByLabelText("Quantity")).toHaveValue("2");
-    expect(within(dialog).getByLabelText("Initiative")).toHaveValue("18");
     expect(within(dialog).getByRole("button", { name: /Add$/ })).toBeDisabled();
     fireEvent.click(
       within(dialog).getByRole("button", { name: "Retry encounter refresh" }),
@@ -2007,14 +1992,10 @@ describe("encounter views", () => {
     await waitFor(() =>
       expect(within(dialog).getByLabelText("Quantity")).toHaveValue("1"),
     );
-    expect(within(dialog).getByLabelText("Initiative")).toHaveValue("");
     expect(within(dialog).getByText("Added 2 × Goblin Warrior.")).toBeVisible();
     expect(apiMocks.addEncounterRecordParticipant).toHaveBeenCalledOnce();
     fireEvent.change(within(dialog).getByLabelText("Quantity"), {
       target: { value: "4" },
-    });
-    fireEvent.change(within(dialog).getByLabelText("Initiative"), {
-      target: { value: "9" },
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "Done" }));
     await waitFor(() => expect(dialog).not.toBeVisible());
@@ -2034,8 +2015,13 @@ describe("encounter views", () => {
       }),
     );
     await waitFor(() => expect(dialog).toBeVisible());
-    expect(within(dialog).getByLabelText("Quantity")).toHaveValue("4");
-    expect(within(dialog).getByLabelText("Initiative")).toHaveValue("9");
+    expect(within(dialog).getByLabelText("Quantity")).not.toBeVisible();
+    expect(within(dialog).getByLabelText("Adjustment")).not.toBeVisible();
+    const reopenedGoblin = await within(dialog).findByText("Goblin Warrior");
+    fireEvent.click(reopenedGoblin.closest("a")!);
+    await waitFor(() =>
+      expect(within(dialog).getByLabelText("Quantity")).toHaveValue("4"),
+    );
     expect(apiMocks.getEncounter).toHaveBeenCalledTimes(4);
     expect(apiMocks.addEncounterRecordParticipant).toHaveBeenCalledOnce();
   }, 10_000);

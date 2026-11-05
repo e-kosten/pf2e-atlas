@@ -7,7 +7,7 @@ import { recordDestination, encountersDestination } from "../../app/destinations
 import { EncounterModalProvider } from "./EncounterModal";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Dropdown, Grid, Spin } from "antd";
+import { Button, Dropdown, Grid, Spin } from "antd";
 import { Settings } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { getEncounter, getEncounterConditionDefinitions } from "../../api/atlasApi";
@@ -379,19 +379,6 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 description={mutations.errorMessage}
               />
             )}
-          {encounter.data &&
-            turnReview.data?.next_turn_unavailable_reason ===
-              "no_initiative_participants" && (
-              <Alert
-                type="info"
-                title="Assign initiative to start turn progression."
-                action={
-                  <Button onClick={() => setInitiativeOpen({})}>
-                    Assign initiative
-                  </Button>
-                }
-              />
-            )}
         </div>
         {narrow && participantOpen && (
           <div className="encounter-mobile-navigation">
@@ -462,6 +449,10 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                   return result.active && result.refreshed;
                 }}
                 advanceDisabled={!!turnReview.data?.next_turn_unavailable_reason}
+                needsInitiative={
+                  turnReview.data?.next_turn_unavailable_reason ===
+                  "no_initiative_participants"
+                }
                 advanceLoading={turnReview.preparing}
                 onAdvanceTurn={() => void turnReview.begin()}
                 onRemove={(participant) => {
