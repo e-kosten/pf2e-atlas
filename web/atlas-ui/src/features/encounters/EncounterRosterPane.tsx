@@ -510,7 +510,12 @@ export function EncounterRosterPane({
                 },
               ]}
             >
-              <InputNumber aria-label="Quantity" min={1} max={50} />
+              <InputNumber
+                className="encounter-add-quantity"
+                aria-label="Quantity"
+                min={1}
+                max={50}
+              />
             </Form.Item>
           </div>
         </>

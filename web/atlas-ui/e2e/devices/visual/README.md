@@ -5,6 +5,24 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Quieter initiative drafting
+
+The pending and settled condition previews and Quickened restriction editor
+show the quieter encounter behind their dialogs. The old initiative banner is
+gone; the dialogs keep their controls and move with the encounter layout where
+applicable. The 12 before/after pairs per platform were reviewed across all four
+projects. Exact comparisons and interaction assertions are unchanged.
+
+- macOS 27.2 (26B123), arm64, Playwright 1.62.1: capture based on PR head
+  `ef336b8c01716e08d47b8813286eb3773a2c242f`. All eight focused capture
+  scenarios passed.
+- Ubuntu 24.04 x64, Playwright 1.62.1:
+  [capture 41948042147](https://github.com/e-kosten/pf2e-atlas/actions/runs/41948042147)
+  passed all eight focused scenarios using the authenticated fixture from CI run
+  41943048401, merge commit `72fac4dd10eb2e419426838701400df1d0fa4f18`.
+  Fixture binary SHA-256:
+  `a9ff1fed78746d9a403ec2543d709a4b48f10176fb4b5cf80ee6ce67dab94757`.
+
 ## Consistent encounter empty notes
 
 Source `c68a3d4dcb0b273ac7673e12db79f3d2ffcdd66a`, macOS 27.2 (26B123),

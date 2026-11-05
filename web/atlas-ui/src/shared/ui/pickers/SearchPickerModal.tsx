@@ -275,7 +275,10 @@ export function SearchPickerModal<FormValues>({
       <Modal
         layout="browse"
         className="reference-picker"
-        classNames={{ body: "reference-picker__body" }}
+        classNames={{
+          container: "reference-picker__container",
+          body: "reference-picker__body",
+        }}
         width="min(1400px, calc(100vw - 32px))"
         styles={{
           body: { display: "flex", flexDirection: "column", overflow: "hidden" },

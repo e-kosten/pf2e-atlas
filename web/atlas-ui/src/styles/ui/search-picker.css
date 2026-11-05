@@ -87,6 +87,33 @@
   }
 }
 
+@media (max-height: 480px) {
+  .reference-picker .reference-picker__container {
+    padding: var(--space-control) var(--space-group);
+  }
+
+  .reference-picker .filter-toolbar {
+    padding-block: 0;
+    max-height: calc(var(--control-height) + var(--space-control));
+  }
+
+  @container picker-footer (min-width: 18.5rem) {
+    .reference-picker__footer--summary {
+      grid-template-columns: minmax(0, 1fr) auto;
+      column-gap: var(--space-control);
+    }
+  }
+
+  @container picker-footer (min-width: 36rem) {
+    .reference-picker__footer--summary {
+      grid-template-columns: minmax(0, 1fr) auto auto;
+    }
+    .reference-picker__summary {
+      grid-column: auto;
+    }
+  }
+}
+
 .reference-picker__feedback {
   flex-shrink: 0;
   max-height: min(120px, calc(var(--atlas-modal-height) * 0.12));
