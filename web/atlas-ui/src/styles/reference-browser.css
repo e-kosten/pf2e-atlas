@@ -213,7 +213,16 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
   background: var(--context-bar-bg);
 }
 .filter-toolbar .filter-controls__search-row {
-  max-width: 1024px;
+  /* Keep the entry actions close while leaving room for multiword queries. */
+  max-inline-size: 36rem;
+}
+.search-workspace > .filter-toolbar {
+  container: search-toolbar / inline-size;
+}
+@container search-toolbar (min-width: 72rem) {
+  .filter-toolbar .filter-controls__search-row {
+    max-inline-size: 46rem;
+  }
 }
 .filter-toolbar .common-filters {
   display: contents;
@@ -283,7 +292,7 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
   flex: 1 1 200px;
   width: auto;
   min-width: min(200px, 100%);
-  max-width: none;
+  max-inline-size: 36rem;
 }
 @media (max-width: 575px) {
   .filter-toolbar--inline .reference-search-entry {

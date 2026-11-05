@@ -127,6 +127,35 @@ it("loads catalog without page-load count fanout", async () => {
   expect(api.discoverFilterCounts).not.toHaveBeenCalled();
   expect(result.current.errorMessage).toBeNull();
 });
+it("retains field definitions without trusting applicability from a previous filter", async () => {
+  const previous = editorFixture([fieldFixture("physical.base_type", "string")]);
+  previous.groups[0].fields[0].applicable = false;
+  api.discoverFilterEditor.mockResolvedValue(previous);
+  const { result, rerender } = renderHook(
+    (filter: QueryPredicate | null) =>
+      useFilterDiscovery({
+        context: { ...context, filter },
+        queryKeyPrefix: ["catalog"],
+      }),
+    { wrapper: wrapper(), initialProps: null as QueryPredicate | null },
+  );
+  await waitFor(() => expect(result.current.filterApplicabilityCurrent).toBe(true));
+  let finish!: (editor: typeof previous) => void;
+  api.discoverFilterEditor.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  rerender({ kind: "in", field: "kind", values: ["equipment"] });
+  expect(result.current.filterEditor?.groups).toEqual(previous.groups);
+  expect(result.current.filterApplicabilityCurrent).toBe(false);
+  await waitFor(() => expect(finish).toBeDefined());
+  finish(editorFixture([fieldFixture("physical.base_type", "string")]));
+  await waitFor(() => expect(result.current.filterApplicabilityCurrent).toBe(true));
+  expect(result.current.filterEditor?.groups[0].fields[0].applicable).toBe(true);
+});
+
 it("requests only active bounded page literals and preserves known zero versus missing", async () => {
   const { result, rerender } = renderHook(
     ({ open, values }) =>

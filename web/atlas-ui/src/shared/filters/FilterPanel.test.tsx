@@ -4,8 +4,13 @@ import { useState, type ComponentProps } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FilterControls } from "./FilterPanel";
 import { DEFAULT_SEARCH_STATE, type SearchFormState } from "./searchState";
-import { editorFixture, fieldFixture } from "../../test/fixtures";
-import type { FilterEditorView, QueryPredicate } from "../../generated/atlas";
+import { editorFixture, fieldFixture, valuesFixture } from "../../test/fixtures";
+import type {
+  FilterDiscoveryContext,
+  FilterEditorView,
+  QueryPredicate,
+} from "../../generated/atlas";
+import * as atlasApi from "../../api/atlasApi";
 
 const actorMetricCatalog = () =>
   editorFixture([
@@ -90,7 +95,7 @@ describe("combined ability and skill conditions", () => {
     );
     change.mockClear();
     chooseActorMetricOption("Skill statistic", "Proficiency rank");
-    expect(change).not.toHaveBeenCalled();
+    expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ filter: null }));
     chooseActorMetricOption("Athletics Rank", "Expert");
     await waitFor(() =>
       expect(change).toHaveBeenLastCalledWith(
@@ -213,6 +218,7 @@ function renderControls(
     ComponentProps<typeof FilterControls>,
     "layout" | "includeSearch"
   > = {},
+  discoveryContext?: FilterDiscoveryContext,
 ) {
   const onChange = vi.fn();
   function Harness() {
@@ -232,6 +238,11 @@ function renderControls(
             onChange(next);
           },
           filterEditor: editor,
+          filterApplicabilityCurrent: true,
+          filterDiscoveryContext: discoveryContext && {
+            ...discoveryContext,
+            filter: search.filter,
+          },
         }}
       />
     );
@@ -1015,6 +1026,166 @@ describe("per-value states and the complete query", () => {
 });
 
 describe("field applicability while editing Boolean groups", () => {
+  it("refreshes Base Type choices and counts as Kind selections are removed", async () => {
+    const editor = editorFixture([
+      {
+        ...fieldFixture("kind", "string", "Kind"),
+        choices: ["Creature", "Equipment", "Spell"],
+      },
+      fieldFixture("rarity", "string", "Rarity"),
+      fieldFixture("physical.base_type", "string", "Base Type"),
+    ]);
+    const rarity: QueryPredicate = {
+      kind: "compare",
+      field: "rarity",
+      op: "eq",
+      value: "uncommon",
+    };
+    const values = vi
+      .spyOn(atlasApi, "discoverFilterValues")
+      .mockResolvedValue(valuesFixture("physical.base_type", ["chain-mail"]));
+    try {
+      const change = renderControls(
+        editor,
+        {
+          kind: "all_of",
+          children: [
+            { kind: "in", field: "kind", values: ["Creature", "Equipment", "Spell"] },
+            rarity,
+          ],
+        },
+        null,
+        {},
+        { kind: "filtered", filter: null, text: null, mode: "hybrid" },
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+      fireEvent.click(screen.getByRole("button", { name: "Add condition" }));
+      const field = screen.getAllByRole("combobox", { name: "Filter field" })[2];
+      fireEvent.mouseDown(field);
+      fireEvent.click(screen.getAllByText("Base Type", { exact: true }).slice(-1)[0]);
+
+      const kind = screen.getByRole("combobox", { name: "Kind" });
+      const toggleKind = (label: string) => {
+        fireEvent.mouseDown(kind);
+        fireEvent.click(screen.getAllByText(label, { exact: true }).slice(-1)[0]);
+        fireEvent.keyDown(kind, { key: "Escape", code: "Escape", keyCode: 27 });
+      };
+      const checkBaseTypes = async (kinds: string[]) => {
+        const filter = expect.objectContaining({
+          kind: "all_of",
+          children: kinds.length
+            ? [expect.objectContaining({ field: "kind", values: kinds }), rarity]
+            : [rarity],
+        });
+        expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ filter }));
+        fireEvent.click(screen.getByRole("button", { name: "Edit Base Type values" }));
+        expect(
+          await screen.findByRole("button", {
+            name: "Base Type: Chain Mail, activate to select",
+          }),
+        ).toBeEnabled();
+        await waitFor(() =>
+          expect(values).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+              kind: "contextual",
+              field_id: "physical.base_type",
+              context: expect.objectContaining({ filter }),
+            }),
+            expect.any(AbortSignal),
+          ),
+        );
+        fireEvent.keyDown(
+          screen.getByRole("textbox", { name: "Search base type choices" }),
+          {
+            key: "Escape",
+          },
+        );
+      };
+      toggleKind("Creature");
+      await checkBaseTypes(["Equipment", "Spell"]);
+      fireEvent.click(
+        within(screen.getByRole("region", { name: "Advanced filters" })).getByRole(
+          "button",
+          { name: "Clear" },
+        ),
+      );
+      await checkBaseTypes([]);
+      expect(screen.queryByText("Changes pending")).not.toBeInTheDocument();
+    } finally {
+      values.mockRestore();
+    }
+  });
+
+  it("narrows a new AND condition but allows an existing Kind condition to be replaced", () => {
+    const editor = editorFixture([
+      { ...fieldFixture("kind", "string", "Kind"), choices: ["creature"] },
+      fieldFixture("physical.base_type", "string", "Base Type"),
+      fieldFixture("hazard.hardness", "number", "Hardness"),
+    ]);
+    editor.groups[0].fields[1].applicable = false;
+    editor.groups[0].fields[2].applicable = false;
+    const change = renderControls(editor, {
+      kind: "in",
+      field: "kind",
+      values: ["creature"],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add condition" }));
+    const [existing, added] = screen.getAllByRole("combobox", { name: "Filter field" });
+    fireEvent.mouseDown(added);
+    expect(screen.queryByRole("option", { name: "Base Type" })).not.toBeInTheDocument();
+    fireEvent.keyDown(added, { key: "Escape", code: "Escape", keyCode: 27 });
+    fireEvent.mouseDown(existing);
+    fireEvent.click(screen.getAllByText("Base Type", { exact: true }).slice(-1)[0]);
+    expect(screen.getByRole("button", { name: "Edit Base Type values" })).toBeEnabled();
+    expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ filter: null }));
+    expect(screen.queryByText("Changes pending")).not.toBeInTheDocument();
+  });
+
+  it("lets an empty Kind condition in Match any broaden the active filter", () => {
+    const editor = editorFixture([
+      {
+        ...fieldFixture("kind", "string", "Kind"),
+        choices: ["Creature", "Equipment"],
+      },
+    ]);
+    const counts = vi.spyOn(atlasApi, "discoverFilterCounts");
+    try {
+      const change = renderControls(
+        editor,
+        {
+          kind: "any_of",
+          children: [{ kind: "in", field: "kind", values: ["Creature"] }],
+        },
+        null,
+        {},
+        { kind: "filtered", filter: null, text: null, mode: "hybrid" },
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+      fireEvent.click(screen.getByRole("button", { name: "Add condition" }));
+      const field = screen.getAllByRole("combobox", { name: "Filter field" })[1];
+      fireEvent.mouseDown(field);
+      fireEvent.click(screen.getAllByText("Kind", { exact: true }).slice(-1)[0]);
+      const kind = screen.getAllByRole("combobox", { name: "Kind" })[1];
+      fireEvent.mouseDown(kind);
+      expect(counts).not.toHaveBeenCalled();
+      fireEvent.click(screen.getAllByText("Equipment", { exact: true }).slice(-1)[0]);
+      expect(change).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          filter: expect.objectContaining({
+            kind: "any_of",
+            children: [
+              expect.objectContaining({ field: "kind", values: ["Creature"] }),
+              expect.objectContaining({ field: "kind", value: "Equipment" }),
+            ],
+          }),
+        }),
+      );
+    } finally {
+      counts.mockRestore();
+    }
+  });
+
   it.each(["Match any", "Match none", "Not all match"])(
     "keeps fields available when %s can broaden the current result",
     (match) => {

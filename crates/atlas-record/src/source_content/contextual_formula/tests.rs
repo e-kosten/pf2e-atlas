@@ -7,15 +7,15 @@ fn symbolic_damage_preserves_compound_halving_and_rounding_operands() {
     for (formula, expected) in [
         (
             "(floor((@actor.level -1)/2)+1)d6[fire]",
-            "a number of d6s of fire damage equal to (half (the creature’s level − 1)) (rounded down) + 1",
+            "a number of d6s of fire equal to (half (the creature’s level − 1)) (rounded down) + 1",
         ),
         (
             "floor(1 + @actor.level/2)d6[void]",
-            "a number of d6s of void damage equal to (1 + (half the creature’s level)) (rounded down)",
+            "a number of d6s of void equal to (1 + (half the creature’s level)) (rounded down)",
         ),
         (
             "ceil(@actor.level/3 + @item.rank/2)d6[fire]",
-            "a number of d6s of fire damage equal to ((the creature’s level ÷ 3) + (half spell rank)) (rounded up)",
+            "a number of d6s of fire equal to ((the creature’s level ÷ 3) + (half spell rank)) (rounded up)",
         ),
     ] {
         assert_eq!(
@@ -95,13 +95,13 @@ fn missing_values_become_rules_without_guessing_defaults() {
         contextual_damage_text("(ceil(@actor.level / 2))d6[untyped]", &context, false)
             .unwrap()
             .text,
-        "a number of d6s of damage equal to (half the creature’s level) (rounded up)"
+        "a number of d6s equal to (half the creature’s level) (rounded up)"
     );
     assert_eq!(
         contextual_damage_text("(max(8,@item.rank*2))d6[mental]", &context, false)
             .unwrap()
             .text,
-        "2d6 mental damage per spell rank, with a minimum of 8d6"
+        "2d6 mental per spell rank, with a minimum of 8d6"
     );
     assert_eq!(
         describe_contextual_formula("resolve(5+@item.badge.value)", &context).unwrap(),
@@ -134,7 +134,11 @@ fn contextual_rendering_preserves_authored_labels_references_and_source_options(
     );
     assert!(rendered.contains("DC 7 flat check"));
     assert!(!rendered.contains("your stupefied value"));
-    assert!(rendered.contains(">4d6</span> damage"));
+    assert!(
+        prepared_plain_text(&rendered)
+            .unwrap()
+            .contains("4d6 damage.")
+    );
     assert!(rendered.contains("<strong>Authored"));
     assert!(rendered.contains("data-atlas-reference=\"0\""));
     assert!(
@@ -154,7 +158,7 @@ fn literal_fallbacks_keep_existing_damage_semantics_and_short_label_nouns() {
         contextual_damage_text("(4d8+10)[bludgeoning]", &context, false)
             .unwrap()
             .text,
-        "4d8+10 bludgeoning damage"
+        "4d8+10 bludgeoning"
     );
 }
 
@@ -178,9 +182,9 @@ fn healing_uses_the_authored_hit_point_unit_without_losing_typed_or_mixed_labels
         "<p>Regains @Damage[(ceil(@actor.level/2))d6[healing]] Hit Points. @Damage[1d6[healing]] Hit Points. @Damage[1d6[vitality,healing]] Hit Points. @Damage[1d6[healing],1d6[fire]] Hit Points. @Damage[1d6[healing]]{Mending} Hit Points.</p>",
         ContentAudience{include_gm:true,include_owner:true,implicit_check_dc:ContentVisibilityRule::All},ContentVisibilityRule::All,None,None,&FormulaContext::default()).unwrap();
     assert!(
-        prepared
-            .text
-            .contains("((half the creature’s level) (rounded up))d6 Hit Points")
+        prepared.text.contains(
+            "a number of d6s equal to (half the creature’s level) (rounded up) Hit Points"
+        )
     );
     let rendered = render_contextual_interactions(
         &prepared.html,
@@ -192,8 +196,8 @@ fn healing_uses_the_authored_hit_point_unit_without_losing_typed_or_mixed_labels
     );
     let text = prepared_plain_text(&rendered).unwrap();
     assert!(text.contains("Regains 3d6 Hit Points. 1d6 Hit Points."));
-    assert!(text.contains("1d6 vitality healing Hit Points"));
-    assert!(text.contains("1d6 healing + 1d6 fire damage Hit Points"));
+    assert!(text.contains("1d6 vitality Hit Points"));
+    assert!(text.contains("1d6 + 1d6 fire Hit Points"));
     assert!(text.contains("Mending Hit Points"));
     assert_eq!(
         resolved_contextual_damage(

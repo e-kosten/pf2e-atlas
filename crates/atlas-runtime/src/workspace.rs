@@ -613,6 +613,7 @@ mod tests {
             let mut context = atlas_search::test_support::context(false);
             context.selected_sections_recipe.clear();
             let mut stored = serde_json::to_value(context).unwrap();
+            stored["query_catalog_version"] = serde_json::json!(8);
             stored[field] = serde_json::json!(retired);
             let json = serde_json::to_string(&stored).unwrap();
             c.execute(

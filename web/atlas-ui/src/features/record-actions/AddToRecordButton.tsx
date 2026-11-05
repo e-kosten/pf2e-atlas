@@ -75,6 +75,9 @@ export function AddToRecordButton({
         <PaneIconButton
           icon={<ListPlus size={16} />}
           label={label}
+          outlined={!encounterOnly}
+          tooltip={false}
+          title=""
           // Modal returns focus during its close lifecycle. Keep that focus hint
           // controlled instead of invoking Tooltip's synchronous focus handler.
           onFocus={() => setFocusHint(true)}
@@ -305,6 +308,9 @@ function AddToRecordModal({
     setCreated(false);
     submit.reset();
   };
+  const cancel = () => {
+    if (!inFlight.current) onClose();
+  };
   return (
     <Modal
       open={open}
@@ -329,9 +335,15 @@ function AddToRecordModal({
       keyboard={!submit.isPending}
       mask={{ closable: !submit.isPending }}
       okText={creating ? "Create & add" : "Add"}
-      onCancel={() => {
-        if (!inFlight.current) onClose();
+      confirmDiscard={{
+        when: () =>
+          Boolean(
+            form.getFieldValue("note")?.trim() ||
+            (kind === "list" && creating && form.getFieldValue("name")?.trim()),
+          ),
+        onDiscard: cancel,
       }}
+      onCancel={cancel}
       onOk={() => {
         if (creating || kind === "encounter") form.submit();
         else if (selected) run();
@@ -366,7 +378,9 @@ function AddToRecordModal({
             setSelected(null);
             setCreating(false);
             setCreated(false);
+            const note = form.getFieldValue("note");
             form.resetFields();
+            form.setFieldValue("note", note);
             submit.reset();
           }}
           items={[
@@ -481,15 +495,7 @@ function AddToRecordModal({
           )}
           {kind === "list" && (
             <Form.Item name="note" label="Note" style={{ marginBottom: 0 }}>
-              <Input.TextArea
-                autoSize={{ minRows: 3, maxRows: 6 }}
-                styles={{
-                  textarea: {
-                    transitionProperty:
-                      "background-color, border-color, box-shadow, color",
-                  },
-                }}
-              />
+              <Input.TextArea autoSize={{ minRows: 3, maxRows: 6 }} />
             </Form.Item>
           )}
         </Form>

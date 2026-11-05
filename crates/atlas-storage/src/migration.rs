@@ -6,6 +6,7 @@ use crate::{
 };
 use rusqlite::{Connection, Transaction, TransactionBehavior};
 use sha2::{Digest, Sha256};
+use std::borrow::Cow;
 use std::path::PathBuf;
 
 /// Typed domain backfill, executed within the migration transaction.
@@ -32,9 +33,17 @@ pub struct Migration {
     pub backfill: Option<DataBackfill>,
 }
 impl Migration {
+    fn canonical_sql(&self) -> Cow<'_, str> {
+        if self.sql.contains("\r\n") {
+            Cow::Owned(self.sql.replace("\r\n", "\n"))
+        } else {
+            Cow::Borrowed(self.sql)
+        }
+    }
+
     fn checksum(&self) -> String {
         let mut hash = Sha256::new();
-        hash.update(self.sql.as_bytes());
+        hash.update(self.canonical_sql().as_bytes());
         if let Some(backfill) = self.backfill {
             hash.update(b"\0atlas-data-backfill/v1\0");
             hash.update(backfill.id.as_bytes());
@@ -140,7 +149,8 @@ impl Workspace {
                 transaction.pragma_update(None, "application_id", APPLICATION_ID)?;
             }
             for migration in migrations.iter().skip(current as usize) {
-                transaction.execute_batch(migration.sql)?;
+                let sql = migration.canonical_sql();
+                transaction.execute_batch(&sql)?;
                 if let Some(backfill) = migration.backfill {
                     (backfill.apply)(&transaction)?;
                 }

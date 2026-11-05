@@ -305,34 +305,22 @@ describe("semantic family presentation", () => {
     );
     const { rerender } = render(view());
     expect(screen.getByRole("heading", { name: "Customized staff" })).toBeVisible();
-    expect(screen.queryByRole("link", { name: "General entry: Staff" })).toBeNull();
-    const info = screen.getByRole("button", { name: "Record information" });
-    fireEvent.click(info);
-    const original = await screen.findByRole("link", { name: "General entry: Staff" });
+    const original = screen.getByRole("link", { name: "Open general entry: Staff" });
     const destination = new URL(original.getAttribute("href")!, window.location.origin);
     expect(destination.pathname).toBe("/records/equipment:catalog-staff");
     expect(destination.search).toBe("");
-    fireEvent.click(original);
-    expect(onReference).toHaveBeenCalledWith(
-      "equipment:catalog-staff",
-      info,
-      relationship.target,
-    );
-    onReference.mockClear();
-    fireEvent.click(info);
-    await screen.findByRole("link", { name: "General entry: Staff" });
     fireEvent.click(original, { ctrlKey: true });
     expect(onReference).not.toHaveBeenCalled();
-    fireEvent.click(info);
-    const item = await screen.findByRole("menuitem", { name: "General entry: Staff" });
-    fireEvent.keyDown(item, { key: "Enter", keyCode: 13, which: 13 });
+    fireEvent.click(original);
     expect(onReference).toHaveBeenCalledExactlyOnceWith(
       "equipment:catalog-staff",
-      info,
+      original,
       relationship.target,
     );
     rerender(view(false));
-    expect(screen.queryByRole("button", { name: "Record information" })).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: "Open general entry: Staff" }),
+    ).toBeNull();
   });
 
   it("shows selected activity traits once in its identity and retains traits on embedded activities", () => {
@@ -1206,6 +1194,51 @@ describe("optional authored reference facts", () => {
     );
     expect(screen.queryByText("Damage 0")).toBeNull();
   });
+});
+
+it("shows structured frequency only when the matching description is unavailable", () => {
+  const activity = activityFixture("Soul Scream");
+  activity.frequency = knownFact({
+    maximum: numberFact(1),
+    interval: knownFact("day"),
+    repeats_description: true,
+  });
+  const presentation: RecordPresentationView = {
+    ...actorPresentation(),
+    body: { kind: "activity", value: activity },
+    content: [
+      {
+        locator: {
+          record: activity.navigation.record_key,
+          embedded_path: [],
+          field: "/system/description/value",
+        },
+        role: "description",
+        source_fingerprint: null,
+        body: {
+          kind: "html",
+          html: "<p><strong>Frequency</strong> once per day</p><hr /><p>Effect</p>",
+          controls: [],
+          inclusions: [],
+        },
+      },
+    ],
+  };
+  const onReference = vi.fn();
+  const { rerender } = render(
+    <RecordPresentation presentation={presentation} onReference={onReference} />,
+  );
+  expect(screen.getAllByText("Frequency")).toHaveLength(1);
+  expect(screen.getByText("Frequency").parentElement).toHaveTextContent("once per day");
+  expect(screen.getByText("Effect")).toBeVisible();
+
+  rerender(
+    <RecordPresentation
+      presentation={{ ...presentation, content: [] }}
+      onReference={onReference}
+    />,
+  );
+  expect(screen.getByText("1 per day")).toBeVisible();
 });
 
 it("keeps authored qualifiers beside their numbers and general save notes scoped to the group", () => {

@@ -1,5 +1,5 @@
-import { Modal, type ModalProps } from "antd";
-import { useRef } from "react";
+import { Button, Flex, Modal, Space, type ModalProps } from "antd";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import {
   FeedbackModalFrame,
   FeedbackOverlayActive,
@@ -9,11 +9,16 @@ import { useModalLayout, type ModalLayout, type ModalWorkArea } from "./useModal
 export type AtlasModalProps = Omit<ModalProps, "centered"> & {
   layout?: ModalLayout;
   workArea?: ModalWorkArea;
+  confirmDiscard?: { when: () => boolean; onDiscard: () => void };
 };
 
 export function AtlasModal({
   open,
   modalRender,
+  children,
+  footer,
+  onCancel,
+  confirmDiscard,
   afterClose,
   styles,
   style,
@@ -21,6 +26,41 @@ export function AtlasModal({
   workArea,
   ...props
 }: AtlasModalProps) {
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const draft = useRef<HTMLDivElement>(null);
+  const keepEditing = useRef<HTMLButtonElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
+  const discardQuestion = useId();
+  useLayoutEffect(() => {
+    if (confirmingDiscard) {
+      keepEditing.current?.focus({ preventScroll: true });
+    } else if (previousFocus.current) {
+      const target = previousFocus.current.isConnected
+        ? previousFocus.current
+        : draft.current;
+      previousFocus.current = null;
+      // An Ant Select can open its popup synchronously when its input is focused.
+      const frameId = requestAnimationFrame(() =>
+        target?.focus({ preventScroll: true }),
+      );
+      return () => cancelAnimationFrame(frameId);
+    }
+  }, [confirmingDiscard]);
+  const requestCancel: ModalProps["onCancel"] = (event) => {
+    if (props.confirmLoading) return;
+    if (confirmingDiscard) {
+      setConfirmingDiscard(false);
+    } else if (confirmDiscard?.when()) {
+      const active = draft.current?.ownerDocument.activeElement;
+      previousFocus.current =
+        active instanceof HTMLElement && frame.current?.contains(active)
+          ? active
+          : draft.current;
+      setConfirmingDiscard(true);
+    } else {
+      onCancel?.(event);
+    }
+  };
   const frame = useRef<HTMLDivElement>(null);
   const placement = useModalLayout({ open: !!open, layout, workArea, frame });
   return (
@@ -30,7 +70,31 @@ export function AtlasModal({
         maskTransitionName=""
         {...props}
         open={open}
+        onCancel={confirmDiscard ? requestCancel : onCancel}
+        footer={
+          confirmingDiscard ? (
+            <Flex align="end" gap="small" vertical>
+              <span id={discardQuestion}>Discard this draft?</span>
+              <Space wrap>
+                <Button
+                  ref={keepEditing}
+                  aria-describedby={discardQuestion}
+                  onClick={() => setConfirmingDiscard(false)}
+                >
+                  Keep editing
+                </Button>
+                <Button danger type="primary" onClick={confirmDiscard?.onDiscard}>
+                  Discard
+                </Button>
+              </Space>
+            </Flex>
+          ) : (
+            footer
+          )
+        }
         afterClose={() => {
+          previousFocus.current = null;
+          setConfirmingDiscard(false);
           placement.reset();
           afterClose?.();
         }}
@@ -70,7 +134,15 @@ export function AtlasModal({
             {modalRender ? modalRender(node) : node}
           </FeedbackModalFrame>
         )}
-      />
+      >
+        {confirmDiscard ? (
+          <div ref={draft} inert={confirmingDiscard} tabIndex={-1}>
+            {children}
+          </div>
+        ) : (
+          children
+        )}
+      </Modal>
     </FeedbackOverlayActive>
   );
 }

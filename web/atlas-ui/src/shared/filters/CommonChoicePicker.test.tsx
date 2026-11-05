@@ -9,7 +9,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider, Grid } from "antd";
 import { useState, type ComponentProps, type ReactElement } from "react";
-import { CommonChoicePicker } from "./CommonChoicePicker";
+import { CommonChoicePicker } from "./FilterChoicePicker";
 import { editorFixture, fieldFixture } from "../../test/fixtures";
 import type { FilterVocabularyScope, QueryPredicate } from "../../generated/atlas";
 
@@ -381,6 +381,15 @@ describe("compact common choice picker", () => {
     ).not.toBeInTheDocument();
   });
   it("uses bounded server search/page requests in the saved-list scope while retaining absent selections", async () => {
+    let releasePage!: () => void;
+    const pagePending = new Promise<void>((resolve) => {
+      releasePage = resolve;
+    });
+    const respond = api.discoverFilterValues.getMockImplementation()!;
+    api.discoverFilterValues.mockImplementation(async (request) => {
+      if (request.offset === 40) await pagePending;
+      return respond(request);
+    });
     picker({
       closed: false,
       scope: { kind: "saved_list", list_ref: "research" },
@@ -398,11 +407,25 @@ describe("compact common choice picker", () => {
     await within(menu).findByRole("button", {
       name: "Traits: Fire, neutral; activate to include",
     });
-    expect(screen.getByText("90 values in this list")).toBeInTheDocument();
+    expect(
+      screen.getByText("90 values in this list · Page 1 of 3"),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "More values" }));
+    expect(screen.getByRole("button", { name: "More values" })).toBeDisabled();
+    expect(
+      screen.getByText("90 values in this list · Page 1 of 3"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Loading values")).toHaveAttribute(
+      "aria-busy",
+      "false",
+    );
+    releasePage();
     await within(menu).findByRole("button", {
       name: "Traits: Second-page, neutral; activate to include",
     });
+    expect(
+      screen.getByText("90 values in this list · Page 2 of 3"),
+    ).toBeInTheDocument();
     expect(api.discoverFilterValues).toHaveBeenLastCalledWith(
       expect.objectContaining({
         scope: { kind: "saved_list", list_ref: "research" },

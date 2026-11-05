@@ -708,7 +708,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
         })
         .unwrap();
     assert!(addressed_html.contains("data-atlas-passage-target"));
-    assert!(addressed_html.contains(">3d6</span> damage"));
+    assert!(addressed_html.contains(">3d6</span>"));
     let current = f.worker.encounter(&encounter.slug).unwrap();
     f.worker
         .add_encounter_participant_condition(

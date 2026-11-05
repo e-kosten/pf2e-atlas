@@ -327,6 +327,8 @@ fn catalog_is_complete_unique_and_uses_generated_absent_choices() {
 #[test]
 fn every_catalog_binding_executes_against_actual_schema() {
     let db = database();
+    db.execute_batch(crate::SELECTED_SECTIONS_SCHEMA_SQL)
+        .unwrap();
     root(&db, 1, "npc", "common");
     row(
         &db,
@@ -1078,7 +1080,7 @@ fn common_level_or_rank_preserves_spell_rank_and_all_unavailable_states() {
     }
     assert_eq!(result(&db, "level == 3"), vec![1, 2]);
     assert_eq!(result(&db, "spell.rank == 7"), vec![3]);
-    assert_eq!(query_capabilities().unwrap().version, 8);
+    assert_eq!(query_capabilities().unwrap().version, 9);
     let catalog = query_capabilities().unwrap();
     assert_eq!(
         catalog
@@ -1667,6 +1669,46 @@ fn reference_numeric_filters_use_authored_root_and_embedded_values() {
         vec![10, 11]
     );
     assert_eq!(result(&db, "physical.base_type == 'chain-mail'"), vec![3]);
+    let field = "physical.base_type";
+    let literal = QueryLiteral::String("chain-mail".into());
+    for query_text in ["Chain Mail", "chain-mail"] {
+        let vocabulary = crate::discovery::field_vocabulary(
+            &db,
+            &crate::discovery::QueryVocabularyRequest {
+                field: field.into(),
+                eligible_keys: None,
+                text: Some(query_text.into()),
+                offset: 0,
+                limit: 40,
+                selected_values: vec![],
+            },
+        )
+        .unwrap();
+        assert_eq!(vocabulary.total_values, 1);
+        assert_eq!(vocabulary.options[0].value, literal);
+
+        let contextual = available(
+            crate::discovery::field_values(
+                &db,
+                &crate::discovery::QueryValuesRequest {
+                    field: field.into(),
+                    clause_id: None,
+                    query: parse_where("true").unwrap(),
+                    context: crate::discovery::QueryFacetContext {
+                        eligible_keys: None,
+                        prefer_remaster: false,
+                    },
+                    text: Some(query_text.into()),
+                    offset: 0,
+                    limit: 40,
+                    only_matching: true,
+                },
+            )
+            .unwrap(),
+        );
+        assert_eq!(contextual.total_values, 1);
+        assert_eq!(contextual.options[0].value, literal);
+    }
     assert_eq!(
         result(
             &db,

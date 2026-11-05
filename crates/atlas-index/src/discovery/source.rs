@@ -636,6 +636,19 @@ fn count_options(
     }
     Ok(options)
 }
+// Search both the stored identifier and the words shown in the Base Type picker.
+fn matches_value_text(path: &str, value: &QueryLiteral, text: &str) -> bool {
+    match value {
+        QueryLiteral::String(value) => {
+            let value = value.to_lowercase();
+            value.contains(text)
+                || (path == "physical.base_type" && value.replace(['-', '_'], " ").contains(text))
+        }
+        QueryLiteral::Boolean(value) => value.to_string().contains(text),
+        QueryLiteral::Number(_) => false,
+    }
+}
+
 pub(crate) fn field_values(
     connection: &Connection,
     request: &QueryValuesRequest,
@@ -685,7 +698,12 @@ pub(crate) fn field_values(
     super::value_order::sort_values(&d.definition.path, &mut values);
     let selected = selected(target.as_ref());
     if let Some(text) = &request.text {
-        values.retain(|value|selected.contains(value) || matches!(value,QueryLiteral::String(s) if s.to_lowercase().contains(&text.to_lowercase())));
+        let text = text.to_lowercase();
+        values.retain(|value| {
+            selected.contains(value)
+                || (matches!(value, QueryLiteral::String(_))
+                    && matches_value_text(&d.definition.path, value, &text))
+        });
     }
     let total_values = values.len() as u64;
     let mut page = values
@@ -824,11 +842,7 @@ pub(crate) fn field_vocabulary(
     let mut values = enumerate_values(connection, d, &base, &context, None)?;
     if let Some(text) = &request.text {
         let text = text.to_lowercase();
-        values.retain(|value| match value {
-            QueryLiteral::String(s) => s.to_lowercase().contains(&text),
-            QueryLiteral::Boolean(b) => b.to_string().contains(&text),
-            QueryLiteral::Number(_) => false,
-        });
+        values.retain(|value| matches_value_text(&d.definition.path, value, &text));
     }
     super::value_order::sort_values(&d.definition.path, &mut values);
     let total_values = values.len() as u64;

@@ -224,13 +224,11 @@ export function PhysicalDetails({ details }: { details: PhysicalDetailsView }) {
               fact={a.speed_penalty}
               format={(v) => `${v} feet`}
             />
-            <FactRow label="Strength">
-              {a.strength.state === "null" ? (
-                "Not specified"
-              ) : (
+            {a.strength.state !== "not_applicable" && (
+              <FactRow label="Strength">
                 <NumberFact fact={a.strength} signed />
-              )}
-            </FactRow>
+              </FactRow>
+            )}
           </div>
           <div className="record-fact-list">
             <FactLine label="Category" fact={a.category} format={words} />

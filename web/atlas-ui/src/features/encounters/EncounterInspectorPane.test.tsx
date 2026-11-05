@@ -2,7 +2,13 @@ import { fireEvent, screen, within } from "@testing-library/react";
 import type { ComponentProps, ReactNode } from "react";
 import { EncounterInspectorPane } from "./EncounterInspectorPane";
 import { encounterParticipant, renderEncounter } from "./encounterTestFixtures";
-import { actorFixture, detailFixture, spellFixture } from "../../test/fixtures";
+import {
+  actorFixture,
+  detailFixture,
+  knownFact,
+  numberFact,
+  spellFixture,
+} from "../../test/fixtures";
 import type { EmbeddedReadingContext } from "../../shared/records/EmbeddedAbilityReading";
 import type { EncounterAbilityStateView } from "../../generated/atlas";
 
@@ -12,7 +18,7 @@ vi.mock("./EncounterActorReading", () => ({
     actorEncounter,
   }: {
     reading?: EmbeddedReadingContext;
-    actorEncounter?: { conditions: ReactNode };
+    actorEncounter?: { conditions: ReactNode; durability: ReactNode };
   }) => {
     const controls = reading?.renderAbilityControls?.({
       record_key: reading.parent.record_key,
@@ -25,6 +31,7 @@ vi.mock("./EncounterActorReading", () => ({
     });
     return (
       <>
+        {actorEncounter?.durability}
         {actorEncounter?.conditions}
         <section aria-label="Inline ability">{controls?.activation}</section>
       </>
@@ -164,4 +171,48 @@ it("labels multiple inline options and keeps a single option beside its existing
   );
   expect(inline.queryByText("Mounted")).toBeNull();
   expect(inline.getByRole("switch", { name: "Mounted active" })).toBeVisible();
+});
+
+it("omits the encounter durability section when a hazard has no HP controls or defenses", () => {
+  const presentation = detailFixture("hazards:natron").presentation;
+  const hazard = {
+    actor: actorFixture(),
+    complex: knownFact(false),
+    stealth: numberFact(20),
+    detection_dc: numberFact(30),
+    hardness: numberFact(0),
+    broken_threshold: numberFact(0),
+    defense_block: knownFact(false),
+    show_saves: false,
+  };
+  const participant = encounterParticipant({
+    participant_kind: "hazard",
+    presentation: { ...presentation, body: { kind: "hazard", value: hazard } },
+  });
+  const props = {
+    disabled: false,
+    previewLoading: false,
+    encounterKey: "encounter",
+    encounterRevision: 1n,
+    participants: [participant],
+    participant,
+    onReference: vi.fn(),
+  } as unknown as ComponentProps<typeof EncounterInspectorPane>;
+  const { rerender } = renderEncounter(<EncounterInspectorPane {...props} />);
+  expect(screen.queryByRole("region", { name: "HP and defenses" })).toBeNull();
+
+  rerender(
+    <EncounterInspectorPane
+      {...props}
+      participant={{
+        ...participant,
+        presentation: {
+          ...presentation,
+          body: { kind: "hazard", value: { ...hazard, show_saves: true } },
+        },
+      }}
+    />,
+  );
+  const durability = screen.getByRole("region", { name: "HP and defenses" });
+  expect(within(durability).getByText("Fortitude")).toBeVisible();
 });

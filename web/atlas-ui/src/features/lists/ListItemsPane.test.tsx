@@ -93,7 +93,9 @@ it("allows cancellation and awaits failed member removal in one retryable confir
   trigger.focus();
   fireEvent.click(trigger);
   fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
-  await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument(),
+  );
   expect(onRemove).not.toHaveBeenCalled();
   expect(trigger).toHaveFocus();
   fireEvent.click(trigger);
@@ -105,8 +107,9 @@ it("allows cancellation and awaits failed member removal in one retryable confir
   await waitFor(() =>
     expect(screen.getByText("Unable to remove. Try again.")).toBeVisible(),
   );
-  expect(screen.getByRole("tooltip")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Remove" }));
-  await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument(),
+  );
   expect(onRemove).toHaveBeenCalledTimes(2);
 });

@@ -2,4 +2,4 @@
 import type { FactView } from "./FactView";
 import type { NumberFactView } from "./NumberFactView";
 
-export type ActivityFrequencyView = { maximum: NumberFactView, interval: FactView<string>, };
+export type ActivityFrequencyView = { maximum: NumberFactView, interval: FactView<string>, repeats_description?: boolean, };

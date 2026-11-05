@@ -182,7 +182,7 @@ positive example. Linked sections define detailed behavior and shared owners.
 | Fact groups and tables   | Group facts by what the user reads together; use tables for a repeated comparison axis.                                                                                        | Hidden Pit separates durability, saves and IWR; Fighter uses Level → Advancement rows. See [Grouping reference facts](#grouping-reference-facts).                                                                                 | One wrapping run of unrelated facts, a card for every number, or a table for a short price/bulk/usage group.                                                                                    |
 | Reading width            | Bound the complete single-column document; keep workspace chrome attached to its pane.                                                                                         | Allfood title, traits, facts and prose share a readable column within the full search pane. See [Styling](#styling).                                                                                                              | Capping prose alone under a wider identity block, stretching prose across the screen, or adding filler to occupy space.                                                                         |
 | Entity hierarchy         | Lead a single-entity page with its identity; group related metadata below it.                                                                                                  | Allfood's name, classification/rank, aligned traits and attribution.                                                                                                                                                              | A generic Reference bar above the name or detached trait pills floating beside unrelated controls.                                                                                              |
-| Reading and editing      | In reading/scanning views, keep values readable with a persistent cue for editing; reveal the editor on activation. Keep fields visible when entry is the primary task.        | Current/temp HP use subtle neutral filled buttons; spell rank uses its classification chip with a visible dropdown arrow. See [Reading and editing values](#reading-and-editing-values).                                          | Permanent number fields throughout a read-oriented panel, or editable values indistinguishable from static text until hover.                                                                    |
+| Reading and editing      | Keep compact editable values readable. Use an outline on hover, keyboard focus and touch. Keep fields visible when entry is the primary task.                                  | Current page, roster initiative, participant name and current/temp HP share the inline edit cue. Spell rank has a visible dropdown arrow. See [Reading and editing values](#reading-and-editing-values).                          | Filled controls throughout a reading view, or touch targets that depend on hover.                                                                                                               |
 | Actions and copy         | Keep frequent actions near their context. Use named icons for familiar compact actions and text for unfamiliar choices; each note must add a fact, consequence or next action. | An accessible icon with a concise tooltip; base rank shown inside the picker. See [Choosing an interaction surface](#choosing-an-interaction-surface).                                                                            | Cryptic unfamiliar icons, tooltips repeating clear labels, duplicate Base rank captions or a checkmark repeating selected-row fill.                                                             |
 | Disclosures              | Keep essential rules inline; disclose secondary material only for a selective-reading task, with a clear title and enclosing boundary.                                         | Bordered Ant Heightening details around related extra facts, with authored heightening prose still inline. See [Record presentation](#record-presentation).                                                                       | Bare expanding text, nested accordions, hiding essential rules, or adding a disclosure merely because another section uses one.                                                                 |
 | Rules and current values | Distinguish selected results from their rules; preserve qualifiers, clears and unavailable facts.                                                                              | Fireball's current damage changes with rank; its per-rank increase stays constant.                                                                                                                                                | Presenting a constant increase as current damage, or inferring that Animal Form's replacement statistics stack like Sound Body's benefits.                                                      |
@@ -311,30 +311,32 @@ on failed refresh and provide local Retry.
 
 ### Reading and editing values
 
-On surfaces primarily used for reading or scanning, present editable values as
-readable content with a persistent visual cue for editing. Reveal the editor on
-activation. Hover and keyboard focus reinforce the cue rather than introduce it;
-the interaction must be recognizable without a mouse. Keep fields visible when
-entering or adjusting values is the primary task, such as the HP change amount
-or encounter setup forms.
+Use the shared `inline-editable` style for compact values in reading and
+scanning views. Keep the surrounding typography and reserve border space so
+hover and focus do not move adjacent content. For pointer users the idle value
+reads as text, with a neutral border on hover. Give keyboard focus a distinct
+ring. On devices without hover, show the neutral border at rest. Apply this
+treatment only to enabled edit targets.
 
-For compact single-value edits, make the value itself a quiet button. Current and
-temporary encounter HP use Ant's neutral filled Button with the surrounding
-value typography; maximum HP remains plain text because it has no inline edit.
-Keep the cue subtle but visible in both appearances, with an adequate target and
-clear keyboard focus. Do not make read-only values look editable. The two failure
-cases are a row of permanent number fields that dominates scanning, and plain
-numbers whose editability appears only on hover. Extra pencil icons and helper
-copy are unnecessary when the button treatment already supplies the cue.
+Choose the control based on how the value is used:
 
-`EncounterHpValue` and `EncounterParticipantName` compose the shared
-`EditableValue` and `EditableCommitField` for this interaction.
-Keep keyboard activation, an accessible Edit label, Enter/blur commit and Escape
-cancellation. Preserve drafts during pending reads and show validation or mutation
-failures locally. Do not put an extra Change HP action or modal in front of this
-existing quick edit. A substantial edit involving several related decisions can
-use a dedicated form or overlay; presentation does not bypass confirmation,
-validation or backend mutation policy.
+- Use a directly editable input for compact values that users enter in place,
+  such as the current page and PC initiative. Give the field an accessible
+  name and show a visible placeholder when an empty field would otherwise
+  disappear into the layout.
+- Use `EditableValue` for values primarily read at a glance, such as the
+  participant name and current and temporary HP. The value is the button and
+  opens `EditableCommitField` on activation. Use an explicit action for adding
+  an absent value when appropriate, as with Add temp HP.
+- Use standard form controls when entry is the primary task, such as an HP
+  change amount or an encounter setup form. Group related edits in a form or
+  overlay.
+
+Preserve keyboard activation, an accessible Edit label for value buttons,
+Enter or blur to commit, and Escape to cancel. Keep validation and mutation
+feedback local and preserve drafts during pending reads. When reviewing a
+change, check rest, hover, keyboard focus and touch with both appearances.
+Keep adjacent static values visually distinct.
 
 For a discrete choice that describes the record being read, the readable value
 can itself open an anchored menu. Spell rank uses its classification chip, such
@@ -666,6 +668,11 @@ wrapper adds no gap unless it represents one of those reading boundaries.
 | Distinct fact groups or repeated entries   | 16px                       | Ability modifiers and Skills; consecutive strikes          |
 | Major reading sections                     | 24px                       | Defenses and Statistics; mechanics and narrative           |
 
+Keep 8px between activity traits and adjacent facts when they stack. When
+the trait row directly precedes an embedded ability's authored description,
+use the 16px interval for distinct groups. Side-by-side strike facts keep their
+existing alignment.
+
 **One boundary has one spacing budget.** Prefer parent grid/flex gaps for sibling
 spacing and reset child margins at that boundary. Prose may use block-flow margins
 inside its own owner; trim its first and last edges where an enclosing owner
@@ -866,16 +873,20 @@ match controls combine combinator and exclusion while retaining group identities
 complex expressions
 remain editable through the full builder. Structural true/false conditions have
 explicit editor controls and lower to boolean constants, never synthetic backend
-catalog fields. Preserve clause/scope identities and unrelated clauses. Invalid
-input remains a local draft with local guidance, retaining committed results.
+catalog fields. Preserve clause/scope identities and unrelated clauses. An
+unconfigured condition or a cleared scalar or selection contributes no predicate.
+The row stays editable, and search, compatibility and counts use the remaining
+conditions. Invalid input remains a local draft with local guidance, retaining
+committed results.
 Successful edits retain the builder tree rather than reconstructing it from the
 executable predicate. External changed criteria reset drafts; preview navigation
 and local URL updates preserve them. Operator input shapes come from app-service
 metadata; apply value transitions atomically before rendering a different input.
-Editor metadata remains available for invalid criteria. Valid committed filters
-can narrow addable fields using backend applicability for positive conjunctions;
-OR and negated draft groups retain the complete catalog so users can broaden the
-query. Existing conditions remain editable. Keep displayed options/counts during refresh within the same artifact,
+Editor metadata remains available for invalid criteria. Narrow new conditions
+only when the draft is a valid positive conjunction and the backend applicability
+hints match the current committed filter. Field replacements, OR and negated groups,
+invalid drafts, and pending applicability use the complete catalog for their scope.
+Keep displayed options/counts during refresh within the same artifact,
 profile and membership scope, replacing them in place when responses arrive.
 Do not retain counts after an actual unavailable/error response. The drawer is the
 root expression surface; reserve group framing for nested expressions and put
@@ -1019,10 +1030,11 @@ picker's displayed page and retained selections, bounded by catalog limits.
 They count distinct eligible parent records for each replacement value, preserving
 other conditions, same-child witnesses and edition preference. A multi-selection's
 count is for one replacement literal, rather than the union with current selections.
-Count requests retain profile/generation identity and cancellation; an incomplete
-draft, text search or Similar mode keeps count-free choices. Unsupported target
-contexts and count errors leave annotations absent without warnings or disabled
-choices. Missing counts never become zero. Catalog loading does not request counts.
+Count requests retain profile/generation identity and cancellation and use the
+committed filter. Text search, Similar mode and unfilled rows under OR or group
+negation keep count-free choices. Unsupported target contexts and count errors
+leave annotations absent without warnings or disabled choices. Missing counts
+never become zero. Catalog loading does not request counts.
 Long choice sets use paged contextual vocabulary when supported, with a Show
 unavailable option for the full vocabulary. Unsupported contexts use count-free
 vocabulary; transport and artifact-identity failures remain errors. Short choice
@@ -1079,9 +1091,13 @@ error beside the operation with its retry action. For example, Add to List retai
 the chosen list on failure; a destructive confirmation retains its original
 consequence alongside the local error instead of also showing a page banner.
 
-Draft retention is task-specific: New List preserves its unfinished name/tags
-when dismissed; Add to List clears its selection on explicit cancellation.
-Do not impose a shared draft-reset policy. A nested Select or source dialog owns
+For ordinary cancellation, close the form directly. For forms that would lose
+substantive input, pass a draft check to `AtlasModal`. Cancel, Close, Escape and
+the backdrop run the same check. A draft switches the current footer to Keep
+editing and Discard. Keep editing receives focus, and dismissing the prompt
+returns to the form. Add to List uses this pattern for a typed note or new list
+name. New List retains its unfinished name and tags when dismissed and can close
+directly. A nested Select or source dialog owns
 the first Escape; the containing surface stays open. Closing an anchored popup
 returns lost focus to its trigger without overriding focus deliberately moved to
 another control. Pass the outgoing popup root to
@@ -1199,6 +1215,10 @@ The Drawer uses the same RecordDetailPane and family renderer as full pages.
 Its header shows the document title once and its consistent action group remains
 reachable while the body scrolls. Use the shared identity composition: title and
 glyph, trailing classification, document actions, traits, then source attribution.
+Keep Explore, Add, and Open full page together when available. Use the same
+outlined icon controls with accessible names and hover/focus tooltips. A verified
+general entry uses a direct link. Keep encounter casting controls in their own
+area beside the drawer navigation.
 Classification is a scan anchor within the title row, not a detached pane control;
 the classification and document icon actions share one aligned row. For spells,
 the classification chip also opens the rank menu: Spell 2 with a dropdown arrow,
@@ -1252,8 +1272,9 @@ current reading task, or requiring new modeling/source support. For example,
 Longsword's supplied damage dice/type belong in its reference presentation; source
 migration metadata and a character's equipped state do not automatically belong
 on its reference page. Preserve missing/null/invalid separately from known zero,
-false and empty values. Preserve documented source-default policies; do not invent
-a fallback just because the generated schema declares a member.
+false and empty values. Follow the shared [source absence policy](../../../docs/architecture/overview.md#source-absence-in-record-presentation)
+for when a baseline field can be omitted and when a clear or unavailable value
+needs to remain visible.
 
 Add needed typed presentation fields under their Rust owner when existing source
 facts are in scope. Identify substantial modeling or derived-rule work separately;
@@ -1797,9 +1818,11 @@ roll tables need more cell spacing. Keep source-authored tables as tables.
 ### Inline checks and areas
 
 Prepared `@Check` and `@Template` content reads as ordinary rules text. Render the
-backend's labels and qualifiers without a clickable appearance, keyboard stop or
-parameter dialog. For example, show “DC 28 basic Reflex save” or “30-foot cone.”
-Custom labels may contain independently usable document links; retain those links.
+backend's labels and qualifiers as text. When a check has trait details, style its
+plain label as a link and use it to open the explanation. Keep a separate
+details icon for formatted labels and labels inside a reference so authored
+formatting and links remain usable. Checks without trait details and area labels
+read as text.
 Literal damage/inline-roll dice controls keep their explicit rolling behavior.
 Context-dependent formulas stay authored rather than acquiring guessed values.
 
