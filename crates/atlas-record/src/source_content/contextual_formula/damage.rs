@@ -37,7 +37,7 @@ pub fn contextual_damage_text(
         let (amount, flavor) = split(instance)?;
         // Type/category interpretation is shared with ordinary literal damage.
         let labels = literal_damage(&format!("1[{flavor}]"))?;
-        let label = &labels.first()?.label;
+        let label = &labels.first()?.inline_label;
         let expr = Expr::parse(amount).and_then(|expr| expr.substitute(context));
         let normalized = literal_damage(instance).or_else(|| {
             let literal = expr.as_ref()?.literal()?;
@@ -52,7 +52,7 @@ pub fn contextual_damage_text(
             if short {
                 amount.clone()
             } else {
-                format!("{amount} {label}")
+                format!("{amount} {label}").trim_end().to_owned()
             }
         } else {
             let expr = expr?;
@@ -93,12 +93,17 @@ fn rank_multiplier(expr: &Expr, context: &FormulaContext) -> Option<f64> {
     }
 }
 fn describe_amount(expr: &Expr, label: &str, context: &FormulaContext) -> String {
+    let suffix = if label.is_empty() {
+        String::new()
+    } else {
+        format!(" {label}")
+    };
     if let Expr::Binary(Op::Dice, count, sides) = expr
         && let Expr::Number(sides) = **sides
     {
         if let Some(multiplier) = rank_multiplier(count, context) {
             return format!(
-                "{}d{} {label} per spell rank",
+                "{}d{}{suffix} per spell rank",
                 number(multiplier),
                 number(sides)
             );
@@ -108,18 +113,27 @@ fn describe_amount(expr: &Expr, label: &str, context: &FormulaContext) -> String
             && let Some(multiplier) = rank_multiplier(amount, context)
         {
             return format!(
-                "{}d{} {label} per spell rank, with a minimum of {}d{}",
+                "{}d{}{suffix} per spell rank, with a minimum of {}d{}",
                 number(multiplier),
                 number(sides),
                 number(*minimum),
                 number(sides)
             );
         }
+        let qualifier = if label.is_empty() {
+            String::new()
+        } else {
+            format!(" of {label}")
+        };
         return format!(
-            "a number of d{}s of {label} equal to {}",
+            "a number of d{}s{qualifier} equal to {}",
             number(sides),
             count.description(context)
         );
     }
-    format!("{label} equal to {}", expr.description(context))
+    if label.is_empty() {
+        expr.description(context)
+    } else {
+        format!("{label} equal to {}", expr.description(context))
+    }
 }

@@ -26,15 +26,6 @@ pub(super) fn check_noun(text: &str) -> Option<(&str, &str)> {
     None
 }
 
-pub(super) fn damage_noun(text: &str) -> Option<&str> {
-    let trimmed = text.trim_start();
-    let tail = trimmed.get(6..)?;
-    (trimmed.len() != text.len()
-        && trimmed[..6].eq_ignore_ascii_case("damage")
-        && !tail.starts_with(char::is_alphanumeric))
-    .then_some(tail)
-}
-
 /// Absorb only a source clause that exactly repeats the generated symbolic DC.
 pub(super) fn redundant_dc_clause<'a>(
     text: &'a str,
@@ -48,35 +39,6 @@ pub(super) fn redundant_dc_clause<'a>(
     };
     let tail = text.strip_prefix(&format!(" {rule}"))?;
     (!tail.starts_with(char::is_alphanumeric)).then_some(tail)
-}
-
-/// The surrounding authored unit already names untyped healing. Mixed or
-/// typed pools keep their labels so this never discards mechanical information.
-pub(super) fn authored_healing_points(formula: &str, text: &str) -> bool {
-    let text = text.trim_start();
-    if !text
-        .get(..10)
-        .is_some_and(|word| word.eq_ignore_ascii_case("hit points"))
-        || text
-            .get(10..)
-            .is_some_and(|tail| tail.starts_with(char::is_alphanumeric))
-    {
-        return false;
-    }
-    let Some(parts) = super::literal_damage::damage_instances(formula) else {
-        return false;
-    };
-    let [part] = parts.as_slice() else {
-        return false;
-    };
-    let Some((_, flavor)) = part
-        .strip_suffix(']')
-        .and_then(|part| part.rsplit_once('['))
-    else {
-        return false;
-    };
-    super::literal_damage(&format!("1[{flavor}]"))
-        .is_some_and(|parts| parts.len() == 1 && parts[0].label == "healing")
 }
 
 pub(super) fn check_text(

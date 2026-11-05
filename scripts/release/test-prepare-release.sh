@@ -182,7 +182,10 @@ for command in cargo dist npm rustc; do
   cat > "$fake_bin/$command" <<'EOF_CMD'
 #!/bin/sh
 printf '%s %s\n' "$(basename "$0")" "$*" >> "$ATLAS_TEST_COMMAND_LOG"
-if [ "$(basename "$0")" = rustc ]; then printf 'rustc 1.95.0 (fixture)\n'; fi
+if [ "$(basename "$0")" = rustc ]; then
+  pinned=$(sed -n 's/^[[:space:]]*channel[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' rust-toolchain.toml)
+  printf 'rustc %s (fixture)\n' "$pinned"
+fi
 if [ "${1:-}" = metadata ]; then printf '{"target_directory":"%s/target","packages":[]}\n' "$PWD"; fi
 exit 0
 EOF_CMD

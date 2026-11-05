@@ -1,6 +1,12 @@
 {
   "packages": [
     {
+      "checksum": "d817e038c30374a4bcb22f94d0a8a0e216958d4c3dcde369b1439fec4bdda6e6",
+      "name": "esaxx-rs",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "0.1.10"
+    },
+    {
       "checksum": "c65faeb787d66e812248f992693268eee8a43a95e3e43e0c33547f1c8391ecce",
       "dependencies": [
         "anyhow",
@@ -87,6 +93,36 @@
       "version": "2.0.0-rc.12"
     },
     {
+      "checksum": "e10754a14b9137dd7b1e3e5b0493cc9171fdd105e0ab477f51b72e7f3ac0e276",
+      "dependencies": [
+        "aho-corasick",
+        "memchr",
+        "regex-automata",
+        "regex-syntax"
+      ],
+      "name": "regex",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "1.12.3"
+    },
+    {
+      "checksum": "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a",
+      "name": "regex-syntax",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "0.8.10"
+    },
+    {
+      "checksum": "5851699c4033c63636f7ea4cf7b7c1f1bf06d0cc03cfb42e711de5a5c46cf326",
+      "dependencies": [
+        "base64 0.13.1",
+        "nom",
+        "serde",
+        "unicode-segmentation"
+      ],
+      "name": "spm_precompiled",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "0.1.4"
+    },
+    {
       "checksum": "2979ebb41243f6c8adc1c1adb76f35fe4e59ba2bc07f7863bb56bcc838798bf4",
       "dependencies": [
         "ahash",
@@ -136,6 +172,21 @@
       "name": "tokenizers",
       "source": "registry+https://github.com/rust-lang/crates.io-index",
       "version": "0.22.2"
+    },
+    {
+      "checksum": "43f613e4fa046e69818dd287fdc4bc78175ff20331479dab6e1b0f98d57062de",
+      "dependencies": [
+        "smallvec"
+      ],
+      "name": "unicode-normalization-alignments",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "0.1.12"
+    },
+    {
+      "checksum": "9629274872b2bfaf8d66f5f15725007f635594914870f65218920345aa11aa8c",
+      "name": "unicode-segmentation",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "1.13.2"
     }
   ],
   "workspace_dependencies": {

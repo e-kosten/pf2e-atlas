@@ -30,7 +30,7 @@
     "@dnd-kit/sortable": "10.0.0",
     "@dnd-kit/utilities": "3.2.2",
     "@fontsource-variable/lora": "^5.3.0",
-    "@react-querybuilder/antd": "8.24.1",
+    "@react-querybuilder/antd": "8.26.0",
     "@tanstack/react-query": "^5.0.0",
     "@tanstack/react-router": "^1.170.46",
     "antd": "^6.6.5",
@@ -39,7 +39,7 @@
     "lz-string": "1.5.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-querybuilder": "8.24.1",
+    "react-querybuilder": "8.26.0",
     "scroll-into-view-if-needed": "3.1.0"
   },
   "devDependencies": {

@@ -31,4 +31,6 @@ Retain the existing policy IDs as opaque compatibility labels for the current
 execution. Keep the resolved library set in the separate review receipt.
 Changes to that set require reviewed evidence using both supported models,
 including candidate queries against a predecessor artifact. Bump the execution
-ID when behavior is incompatible. See [dependency maintenance](../../development/dependencies.md).
+ID when behavior is incompatible. Explicit `atlas setup` is the migration
+window for rebuilding an affected profile and may interrupt use of the app.
+See [dependency maintenance](../../development/dependencies.md).

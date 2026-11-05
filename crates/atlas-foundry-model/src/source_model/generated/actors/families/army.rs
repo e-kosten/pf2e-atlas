@@ -486,7 +486,7 @@ pub(in crate::source_model::generated) fn read_army_source_flags(
     keyed(v, c, p, read_army_source_flags_entry)
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@97ed452fa2493a55f8e57f3b#authored-document#authored-document-patch
+// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@a3a0f3db12197f625ac60208#authored-document#authored-document-patch
 pub type ArmySourceItems = Vec<ItemSourcePF2e>;
 pub(in crate::source_model::generated) fn read_army_source_items(
     v: &SourceValue,

@@ -16,6 +16,7 @@ const names = [
   "release-tools",
   "research",
   "skill",
+  "embedding",
 ];
 const flags = [
   "rust",
@@ -27,6 +28,7 @@ const flags = [
   "browser",
   "dev",
   "tooling",
+  "embedding",
 ];
 const selected = () =>
   Object.fromEntries([
@@ -69,6 +71,7 @@ test("UI and browser-only changes keep real-app browser gates without full Rust"
       "release-tools",
       "research",
       "skill",
+      "embedding",
     ])
       jobs[name].result = "skipped";
     if (!surfaces.includes("web")) jobs["web-ui"].result = "skipped";
@@ -117,6 +120,7 @@ test("core Rust changes require browser prerequisites, but CLI-only Rust does no
       "release-tools",
       "research",
       "skill",
+      "embedding",
     ])
       jobs[name].result = "skipped";
     if (!browser)

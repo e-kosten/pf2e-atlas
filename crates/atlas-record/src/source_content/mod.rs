@@ -57,4 +57,6 @@ pub use inclusion::{
 };
 
 mod reading_metadata;
-pub use reading_metadata::{RoutineHeader, check_traits, routine_header};
+pub use reading_metadata::{
+    RoutineHeader, check_traits, routine_header, standalone_labeled_paragraph,
+};

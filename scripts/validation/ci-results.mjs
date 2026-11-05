@@ -19,6 +19,7 @@ export function requireSelectedJobs(jobs) {
     "browser",
     "dev",
     "tooling",
+    "embedding",
   ]) {
     assert(["true", "false"].includes(flags[key]), key);
   }
@@ -35,6 +36,7 @@ export function requireSelectedJobs(jobs) {
     "release-tools": flags.release === "true",
     research: flags.research === "true",
     skill: flags.skill === "true",
+    embedding: flags.embedding === "true",
   };
   for (const [job, required] of Object.entries(expected)) {
     assert.equal(jobs[job].result, required ? "success" : "skipped", job);

@@ -59,7 +59,7 @@ impl Budget {
     fn reserve(self: &Arc<Self>, bytes: usize) -> Option<Charge> {
         let previous = self
             .live
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |live| {
+            .try_update(Ordering::Relaxed, Ordering::Relaxed, |live| {
                 live.checked_add(bytes).filter(|next| *next <= self.limit)
             })
             .ok()?;
