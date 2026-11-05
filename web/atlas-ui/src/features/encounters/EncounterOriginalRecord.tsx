@@ -41,6 +41,7 @@ export function EncounterOriginalRecord({
         </Button>
       ) : (
         <PaneIconLink
+          outlined
           label={label}
           icon={<BookOpen size={16} aria-hidden="true" />}
           href={destinationHref(
