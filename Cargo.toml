@@ -79,7 +79,7 @@ tracing-subscriber = "0.3.20"
 # serde-compat for names/tags/optionality without warnings for those attributes.
 ts-rs = { version = "11.1.0", features = ["serde-json-impl", "no-serde-warnings"] }
 tokenizers = { version = "=0.22.2", default-features = false, features = ["onig"] }
-fastembed = { version = "=5.15.0", default-features = false, features = ["ort-download-binaries-rustls-tls"] }
+fastembed = { version = "=7.5.0", default-features = false, features = ["ort-download-binaries-rustls-tls"] }
 text-splitter = { version = "=0.29.3", default-features = false, features = ["tokenizers"] }
 unicode-normalization = "0.1.24"
 cel = { version = "=0.14.5", default-features = false }
