@@ -53,7 +53,7 @@ formatting, as ordinary phases in the same Node validation session.
 
 Focused `cargo test -p CRATE FILTER` commands still work without nextest. The full
 gate uses nextest for unit, integration and enabled example tests, then runs
-`cargo test --workspace --doc` for documentation examples. Nextest schedules cases
+`cargo test --workspace --doc --locked` for documentation examples. Nextest schedules cases
 across binaries in separate processes; tests retain their real isolated databases.
 `.config/nextest.toml` keeps retries disabled and runs the complete selected suite
 after a failure. Do not replace process-external resource coordination with an

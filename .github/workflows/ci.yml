@@ -262,8 +262,8 @@ jobs:
         if: needs.changes.outputs.rust != 'true'
         run: |
           cargo fmt --check
-          cargo clippy -p atlas-dev -p atlas-cli-support --all-targets -- -D warnings -D clippy::dbg_macro
-          cargo clippy -p atlas-dev -p atlas-cli-support --lib --bins -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unimplemented -D clippy::todo -D clippy::unreachable
+          cargo clippy -p atlas-dev -p atlas-cli-support --all-targets --locked -- -D warnings -D clippy::dbg_macro
+          cargo clippy -p atlas-dev -p atlas-cli-support --lib --bins --locked -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unimplemented -D clippy::todo -D clippy::unreachable
 
   web-ui:
     needs: changes
