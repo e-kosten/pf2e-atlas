@@ -39,6 +39,7 @@ import {
   navigateDestination,
 } from "../../app/navigation";
 import type { RecordSummaryView } from "../../generated/atlas";
+import { useConfirmDangerAction } from "../../shared/ui/actions/useConfirmDangerAction";
 import { PaneIconButton } from "../../shared/ui/actions/PaneAction";
 import { slugify } from "../lists/listUtils";
 import { invalidateSavedListQueries, useSavedLists } from "../lists/savedListQueries";
@@ -121,6 +122,7 @@ function AddToRecordModal({
   const [form] = Form.useForm<
     EncounterRecordAddForm & { name?: string; note?: string }
   >();
+  const discard = useConfirmDangerAction();
   const choiceInput = useRef<RefSelectProps>(null);
   const nameInput = useRef<InputRef>(null);
   const newButton = useRef<HTMLAnchorElement | HTMLButtonElement>(null);
@@ -305,7 +307,7 @@ function AddToRecordModal({
     setCreated(false);
     submit.reset();
   };
-  return (
+  const modal = (
     <Modal
       open={open}
       afterClose={() => {
@@ -326,11 +328,22 @@ function AddToRecordModal({
       cancelButtonProps={{ disabled: submit.isPending }}
       okButtonProps={{ disabled: adjustmentBlocked || (!creating && !selected) }}
       closable={{ disabled: submit.isPending }}
-      keyboard={!submit.isPending}
-      mask={{ closable: !submit.isPending }}
+      keyboard={encounterOnly && !submit.isPending}
+      mask={{ closable: encounterOnly && !submit.isPending }}
       okText={creating ? "Create & add" : "Add"}
       onCancel={() => {
-        if (!inFlight.current) onClose();
+        if (inFlight.current) return;
+        const note = form.getFieldValue("note");
+        const name = form.getFieldValue("name");
+        if (note?.trim() || (kind === "list" && creating && name?.trim())) {
+          discard.confirm({
+            title: "Discard this draft?",
+            okText: "Discard",
+            onConfirm: onClose,
+          });
+        } else {
+          onClose();
+        }
       }}
       onOk={() => {
         if (creating || kind === "encounter") form.submit();
@@ -366,7 +379,9 @@ function AddToRecordModal({
             setSelected(null);
             setCreating(false);
             setCreated(false);
+            const note = form.getFieldValue("note");
             form.resetFields();
+            form.setFieldValue("note", note);
             submit.reset();
           }}
           items={[
@@ -481,15 +496,7 @@ function AddToRecordModal({
           )}
           {kind === "list" && (
             <Form.Item name="note" label="Note" style={{ marginBottom: 0 }}>
-              <Input.TextArea
-                autoSize={{ minRows: 3, maxRows: 6 }}
-                styles={{
-                  textarea: {
-                    transitionProperty:
-                      "background-color, border-color, box-shadow, color",
-                  },
-                }}
-              />
+              <Input.TextArea autoSize={{ minRows: 3, maxRows: 6 }} />
             </Form.Item>
           )}
         </Form>
@@ -562,5 +569,11 @@ function AddToRecordModal({
         )}
       </div>
     </Modal>
+  );
+  return (
+    <>
+      {modal}
+      {discard.dialog}
+    </>
   );
 }

@@ -208,3 +208,33 @@ it("blocks adding a creature while its adjustment lookup is unavailable and lets
   );
   expect(screen.getByText("Normal", { exact: true })).toBeVisible();
 });
+
+it("preserves a list note through Escape, a tab change, and a canceled discard", async () => {
+  const opener = setup();
+  const dialog = screen.getByRole("dialog", { name: "Add to…" });
+  const note = "A note with enough detail to keep.\nSecond line.";
+  fireEvent.change(within(dialog).getByRole("textbox", { name: "Note" }), {
+    target: { value: note },
+  });
+  fireEvent.keyDown(dialog, { key: "Escape" });
+  expect(dialog).toBeVisible();
+  fireEvent.click(within(dialog).getByRole("tab", { name: "Encounters" }));
+  fireEvent.click(within(dialog).getByRole("tab", { name: "Lists" }));
+  expect(within(dialog).getByRole("textbox", { name: "Note" })).toHaveValue(note);
+
+  fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+  const confirm = await screen.findByRole("dialog", { name: "Discard this draft?" });
+  fireEvent.click(within(confirm).getByRole("button", { name: "Cancel" }));
+  await waitFor(() => expect(confirm).not.toBeInTheDocument());
+  expect(within(dialog).getByRole("textbox", { name: "Note" })).toHaveValue(note);
+
+  fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+  fireEvent.click(
+    within(
+      await screen.findByRole("dialog", { name: "Discard this draft?" }),
+    ).getByRole("button", { name: "Discard" }),
+  );
+  await waitFor(() => expect(dialog).not.toBeVisible());
+  fireEvent.click(opener);
+  expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue("");
+});

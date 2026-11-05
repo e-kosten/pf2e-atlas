@@ -61,6 +61,26 @@ export function AtlasLayout({ routeError }: { routeError?: ReactNode } = {}) {
   return (
     <ConfigProvider
       theme={antDesignTheme(resolvedColorScheme)}
+      textArea={{
+        styles: {
+          textarea: {
+            // Autosizing sets the measured height while the browser tracks the caret.
+            transitionProperty: "background-color, border-color, box-shadow, color",
+          },
+        },
+      }}
+      button={{
+        classNames: ({ props }) => ({
+          root:
+            props.color && props.variant
+              ? props.color === "danger" && props.variant === "solid"
+                ? "atlas-destructive-confirm"
+                : undefined
+              : props.type === "primary" && props.danger
+                ? "atlas-destructive-confirm"
+                : undefined,
+        }),
+      }}
       popover={{
         styles: atlasPopoverStyles(resolvedColorScheme),
       }}
