@@ -905,7 +905,14 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
             .iter()
             .map(|f| f.label.as_str())
             .collect::<Vec<_>>(),
-        ["Kind", "Level / Rank", "Rarity", "Traits", "Level"]
+        [
+            "Kind",
+            "Level / Rank",
+            "Rarity",
+            "Traits",
+            "Has a description",
+            "Level"
+        ]
     );
     let fields = editor
         .groups
