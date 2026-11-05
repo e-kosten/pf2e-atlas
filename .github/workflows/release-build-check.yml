@@ -226,7 +226,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "packaged web smoke test failed" }
           }
       - name: Upload cargo-dist artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: package-${{ matrix.target }}-${{ matrix.variant }}
           path: |
@@ -290,7 +290,7 @@ jobs:
         shell: bash
         run: node dev-tools/release/dist/src/cli/validate-release-assets.js "$TAG" target/distrib
       - name: Upload assembled release assets
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-build-check-${{ needs.prepare.outputs.tag }}
           path: target/distrib/*
