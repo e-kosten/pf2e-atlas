@@ -5,6 +5,25 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Full Chromium headless mode
+
+Chromium projects use the lockfile-pinned full browser in its new headless mode
+instead of the legacy headless shell, avoiding Playwright 1.62's native-tab
+regression ([upstream issue](https://github.com/microsoft/playwright/issues/42142)).
+Input, interaction and screenshot assertions are unchanged.
+
+- macOS 27.2 (26B123), arm64, Playwright 1.62.1, source
+  `7edf04407fa822b4e5f1168d351c245d5d1eee4a`. All six Chromium capture
+  scenarios passed against the authenticated checkout-local fixture. Independent
+  Astra review of all 20 before/after pairs found only text/icon antialiasing and
+  shadow rasterization differences; layout, focus and state remained intact.
+  Eight references exceeded the existing comparator and changed; the other
+  twelve Chromium and all WebKit references retain their accepted bytes.
+  Fixture SHA-256:
+  `da72e04b4a7f4919bae4741a1d6923a9af7945d06512195583c2291108dc457a`.
+  Frontend index SHA-256:
+  `11ee89d445cf0d481a6e8344d1ce5668f72b52537c82fb7821d8d9e918f37dd3`.
+
 ## Integrated inline editing and classification badges
 
 Source `230f8dd1bb1016898fbc957ad11b674073cd888f` combines the shared 32px
