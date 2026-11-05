@@ -18,7 +18,6 @@ export function EditableCommitField({
   stopPropagation = false,
   suffix,
   value,
-  variant,
 }: {
   autoSize?: boolean;
   focusOnMount?: boolean;
@@ -35,7 +34,6 @@ export function EditableCommitField({
   stopPropagation?: boolean;
   suffix?: InputProps["suffix"];
   value: string;
-  variant?: InputProps["variant"];
 }) {
   const inputRef = useRef<InputRef>(null);
   useEffect(() => {
@@ -115,7 +113,6 @@ export function EditableCommitField({
       placeholder={placeholder}
       size={size}
       value={draft}
-      variant={variant}
     />
   );
 }
