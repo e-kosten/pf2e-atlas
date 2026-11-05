@@ -150,6 +150,7 @@ function PageJump({
       <span className="sr-only">Current page</span>
       <input
         aria-label="Current page"
+        className="inline-editable"
         disabled={disabled}
         inputMode="numeric"
         max={pageCountNumber > 0 ? pageCountNumber : undefined}
