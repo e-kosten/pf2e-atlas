@@ -507,7 +507,7 @@ fn startup_fast_path_authenticates_history_and_rejects_newer_schema() {
 }
 
 #[test]
-fn migrations_keep_canonical_checksums_and_accept_existing_crlf_history() {
+fn migrations_use_one_canonical_checksum_across_source_line_endings() {
     use sha2::{Digest, Sha256};
 
     const LF: &str = "CREATE TABLE saved(id INTEGER PRIMARY KEY,title TEXT NOT NULL) STRICT;\nINSERT INTO saved VALUES(1,'retained');";
@@ -528,10 +528,6 @@ fn migrations_keep_canonical_checksums_and_accept_existing_crlf_history() {
             .unwrap()
     };
     assert_eq!(checksum(&connection), format!("{:x}", Sha256::digest(LF)));
-    let legacy = format!("{:x}", Sha256::digest(CRLF));
-    connection
-        .execute("UPDATE schema_migrations SET checksum=?1", [&legacy])
-        .unwrap();
     drop(connection);
     let second = Migration {
         backfill: None,
@@ -541,7 +537,10 @@ fn migrations_keep_canonical_checksums_and_accept_existing_crlf_history() {
     };
     workspace.migrate(&[lf, second], |_| Ok(())).unwrap();
     let read = workspace.read(2).unwrap();
-    assert_eq!(checksum(read.connection()), legacy);
+    assert_eq!(
+        checksum(read.connection()),
+        format!("{:x}", Sha256::digest(LF))
+    );
     assert_eq!(
         read.connection()
             .query_row("SELECT title FROM saved", [], |row| row.get::<_, String>(0))

@@ -41,9 +41,9 @@ impl Migration {
         }
     }
 
-    fn checksum_for(&self, sql: &str) -> String {
+    fn checksum(&self) -> String {
         let mut hash = Sha256::new();
-        hash.update(sql.as_bytes());
+        hash.update(self.canonical_sql().as_bytes());
         if let Some(backfill) = self.backfill {
             hash.update(b"\0atlas-data-backfill/v1\0");
             hash.update(backfill.id.as_bytes());
@@ -52,14 +52,6 @@ impl Migration {
             }
         }
         format!("{hash:x}", hash = hash.finalize())
-    }
-
-    fn matches_checksum(&self, checksum: &str) -> bool {
-        let sql = self.canonical_sql();
-        // Earlier builds hashed SQL as checked out. Accept that exact CRLF
-        // variant while keeping the SQL and backfill identity authenticated.
-        checksum == self.checksum_for(&sql)
-            || checksum == self.checksum_for(&sql.replace('\n', "\r\n"))
     }
 }
 
@@ -164,11 +156,7 @@ impl Workspace {
                 }
                 transaction.execute(
                     "INSERT INTO schema_migrations(version,name,checksum) VALUES(?,?,?)",
-                    rusqlite::params![
-                        migration.version,
-                        migration.name,
-                        migration.checksum_for(&sql)
-                    ],
+                    rusqlite::params![migration.version, migration.name, migration.checksum()],
                 )?;
             }
             transaction.pragma_update(None, "user_version", target)?;
@@ -235,7 +223,7 @@ fn inspect_history(
             let migration = &migrations[index];
             if *version != migration.version
                 || name != migration.name
-                || !migration.matches_checksum(checksum)
+                || *checksum != migration.checksum()
             {
                 return Err(StorageError::Migration(format!(
                     "applied migration {} differs from executable",
