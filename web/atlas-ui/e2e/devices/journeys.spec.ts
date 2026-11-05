@@ -2412,22 +2412,17 @@ test("routine budgets and check trait disclosures retain keyboard and touch read
     ),
   ).toEqual(["illusion", "mental"]);
   const trigger = page.getByRole("button", {
-    name: "Details for DC 26 Will save",
+    name: "Check details: DC 26 Will save",
     exact: true,
   });
   await trigger.scrollIntoViewIfNeeded();
-  // The icon stays on the same line as its check, including narrow viewports.
-  const geometry = await trigger.evaluate((button) => {
-    const reading = button.closest(".prepared-check")!;
-    return {
-      button: button.getBoundingClientRect().bottom,
-      reading: reading.getBoundingClientRect().bottom,
-    };
-  });
-  expect(Math.abs(geometry.button - geometry.reading)).toBeLessThan(10);
+  await expect(trigger.getByText("DC 26 Will save", { exact: true })).toHaveCSS(
+    "text-decoration-line",
+    "underline",
+  );
   await activate(trigger, info);
   const popup = page.getByRole("dialog", {
-    name: "Details for DC 26 Will save",
+    name: "Check details",
     exact: true,
   });
   await expect(popup).toBeVisible();
@@ -2446,16 +2441,16 @@ test("routine budgets and check trait disclosures retain keyboard and touch read
   await activate(popup.getByRole("button", { name: "Close explanation" }), info);
   await expect(popup).toBeHidden();
   await expect(trigger).toBeFocused();
-  await expect(
-    page.getByRole("button", { name: "Details for DC 31 Thievery check" }),
-  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /DC 31 Thievery check/ })).toHaveCount(
+    0,
+  );
   const inherited = page.getByRole("button", {
-    name: "Details for DC 25 basic Reflex save",
+    name: "Check details: DC 25 basic Reflex save",
     exact: true,
   });
   await activate(inherited, info);
   const inheritedPopup = page.getByRole("dialog", {
-    name: "Details for DC 25 basic Reflex save",
+    name: "Check details",
     exact: true,
   });
   await expect(inheritedPopup.getByText("Visual", { exact: true })).toBeVisible();

@@ -666,6 +666,11 @@ wrapper adds no gap unless it represents one of those reading boundaries.
 | Distinct fact groups or repeated entries   | 16px                       | Ability modifiers and Skills; consecutive strikes          |
 | Major reading sections                     | 24px                       | Defenses and Statistics; mechanics and narrative           |
 
+Keep 8px between activity traits and adjacent facts when they stack. When
+the trait row directly precedes an embedded ability's authored description,
+use the 16px interval for distinct groups. Side-by-side strike facts keep their
+existing alignment.
+
 **One boundary has one spacing budget.** Prefer parent grid/flex gaps for sibling
 spacing and reset child margins at that boundary. Prose may use block-flow margins
 inside its own owner; trim its first and last edges where an enclosing owner
@@ -1805,9 +1810,11 @@ roll tables need more cell spacing. Keep source-authored tables as tables.
 ### Inline checks and areas
 
 Prepared `@Check` and `@Template` content reads as ordinary rules text. Render the
-backend's labels and qualifiers without a clickable appearance, keyboard stop or
-parameter dialog. For example, show “DC 28 basic Reflex save” or “30-foot cone.”
-Custom labels may contain independently usable document links; retain those links.
+backend's labels and qualifiers as text. When a check has trait details, style its
+plain label as a link and use it to open the explanation. Keep a separate
+details icon for formatted labels and labels inside a reference so authored
+formatting and links remain usable. Checks without trait details and area labels
+read as text.
 Literal damage/inline-roll dice controls keep their explicit rolling behavior.
 Context-dependent formulas stay authored rather than acquiring guessed values.
 

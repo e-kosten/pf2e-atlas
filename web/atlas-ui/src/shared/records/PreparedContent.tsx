@@ -246,19 +246,39 @@ export function PreparedContentBody({
             host = document.createElement("span");
             rollHosts.current.set(identity, host);
           }
-          const label = marker.textContent?.trim() || "Check";
-          const target = marker.closest("a[href]") ?? marker;
-          let reading = target.parentElement;
-          if (!reading?.classList.contains("prepared-check")) {
-            reading = document.createElement("span");
-            reading.className = "prepared-check";
-            target.before(reading);
-            reading.append(target);
+          const text = marker.textContent?.trim();
+          const useText = Boolean(
+            text &&
+            !marker.childElementCount &&
+            !marker.closest("a, [data-atlas-reference], button"),
+          );
+          const label = text || "Check";
+          if (useText) {
+            const original = [...marker.childNodes];
+            host.className = "prepared-check-label";
+            marker.replaceChildren(host);
+            listeners.push(() => {
+              if (host.parentElement === marker) marker.replaceChildren(...original);
+            });
+          } else {
+            host.className = "";
+            const target = marker.closest("a[href], button") ?? marker;
+            let reading = target.parentElement;
+            if (!reading?.classList.contains("prepared-check")) {
+              reading = document.createElement("span");
+              reading.className = "prepared-check";
+              target.before(reading);
+              reading.append(target);
+            }
+            reading.append(host);
           }
-          reading.append(host);
           effects.push(
             createPortal(
-              <CheckDetails label={label} details={control.details} />,
+              <CheckDetails
+                label={label}
+                details={control.details}
+                iconOnly={!useText}
+              />,
               host,
               identity,
             ),

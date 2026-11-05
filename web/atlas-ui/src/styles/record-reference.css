@@ -115,7 +115,7 @@
   line-height: 1.2;
   text-wrap: pretty;
 }
-.record-reference__header p {
+.record-reference__header p:not(.record-reference__source) {
   margin: 6px 0 0;
 }
 .record-reference__kind {
@@ -552,6 +552,7 @@
 }
 .actor-reference__activities--strike > .actor-activity,
 .actor-reference__activities--gear > .actor-activity {
+  --activity-trait-gap: 0px;
   display: grid;
   gap: var(--space-control) var(--space-group);
   padding-block: var(--space-control);
@@ -568,6 +569,12 @@
   padding-block: var(--space-control);
   border-block-end: 1px solid var(--line);
   min-width: 0;
+}
+/* Give an authored description its own space when the badges end the header. */
+.embedded-ability-reading__entry:has(> .actor-activity .badge-row:not(:empty)):not(
+    :has(> .actor-activity .actor-activity__facts:not(:empty))
+  ) {
+  row-gap: var(--space-group);
 }
 .embedded-ability-reading__entry:first-of-type {
   padding-block-start: 0;
@@ -589,6 +596,10 @@
 }
 .actor-activity__identity > .badge-row {
   margin-block: var(--space-control) 0;
+}
+.actor-activity__identity:has(> .badge-row:not(:empty))
+  + .actor-activity__facts:not(:empty) {
+  margin-block-start: var(--activity-trait-gap, var(--space-control));
 }
 .actor-activity__identity > .badge-row:empty,
 .actor-activity__facts:empty {
