@@ -75,7 +75,7 @@ jobs:
         run: |
           npm --prefix dev-tools/release ci --ignore-scripts
           npm --prefix dev-tools/release run build
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: release-build-check-${{ needs.plan.outputs.tag }}
           path: target/nightly

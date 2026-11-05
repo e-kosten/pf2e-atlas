@@ -197,7 +197,7 @@ jobs:
         with:
           shared-key: linux-verification
           cache-workspace-crates: false
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: web-bundle
           path: web/atlas-ui/dist
@@ -234,7 +234,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: web-bundle
           path: web/atlas-ui/dist
@@ -269,7 +269,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/atlas-ui/package-lock.json
       - run: npm --prefix web/atlas-ui ci
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: browser-fixture
           path: scratch/browser-artifact
