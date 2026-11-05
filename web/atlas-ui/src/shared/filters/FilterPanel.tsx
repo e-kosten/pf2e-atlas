@@ -61,6 +61,7 @@ import {
   BOOLEAN_CONDITION,
   LINK_CONDITION,
   emptyGroup,
+  isClearedOperand,
   numericLiteral,
   replaceCommonDraft,
   replaceCommonRangeDraft,
@@ -76,6 +77,7 @@ import { SearchEntry, type SimilarSearchCriterion } from "./SearchEntry";
 import { CommonChoicePicker } from "./FilterChoicePicker";
 import { PrimaryToolbar } from "../ui/PrimaryToolbar";
 import { useFilterEditor } from "./useFilterEditor";
+import { existingClauseId } from "./useFilterDiscovery";
 import { isBuilderGroup, normalizeBuilderEdit } from "./builderEdits";
 import {
   LinkPicker,
@@ -280,10 +282,7 @@ export function FilterControls({
           workspace.filterApplicabilityCurrent === true && !prepared.error
         }
         onChange={prepared.change}
-        workspace={{
-          ...countWorkspace,
-          filterCountsEnabled: countWorkspace.filterCountsEnabled && !prepared.error,
-        }}
+        workspace={countWorkspace}
       />
     ) : null;
   const commonLayout = layout === "panel" ? "panel" : "toolbar";
@@ -683,6 +682,7 @@ function CommonRange({
 
 type BuilderContext = {
   editor: FilterEditorView;
+  query: RuleGroupType;
   scope: string | null;
   narrowFields: boolean;
   workspace: FilterPanelState;
@@ -772,8 +772,9 @@ function StructuredBuilder({
         context={
           {
             editor,
+            query,
             scope,
-            narrowFields: useApplicability && isPositiveConjunction(query),
+            narrowFields: useApplicability && isPositiveConjunction(query, visible),
             workspace,
             replaceGroup: (path, group) =>
               onChange(
@@ -847,16 +848,27 @@ function FilterRule(props: RuleProps) {
 }
 // Current-result applicability is safe for additive conditions. Boolean groups
 // that can broaden the result need the complete catalog while being edited.
-function isPositiveConjunction(group: RuleGroupType): boolean {
+function isPositiveConjunction(
+  group: RuleGroupType,
+  fields: FilterEditorFieldView[],
+): boolean {
   return (
     group.combinator === "and" &&
     !group.not &&
-    group.rules.every((rule) =>
-      "rules" in rule
-        ? isPositiveConjunction(rule)
-        : !(rule as PredicateRule).meta?.atlasExcluded,
-    )
+    group.rules.every((rule) => {
+      if ("rules" in rule) return isPositiveConjunction(rule, fields);
+      if (!(rule as PredicateRule).meta?.atlasExcluded) return true;
+      const field = fields.find((field) => field.definition.id === rule.field);
+      return !!field && isClearedOperand(rule, field.definition);
+    })
   );
+}
+function isAdditivePath(group: RuleGroupType, path: number[]): boolean {
+  if (group.combinator !== "and" || group.not) return false;
+  if (path.length <= 1) return true;
+  const [index, ...rest] = path;
+  const child = group.rules[index];
+  return !!child && "rules" in child && isAdditivePath(child, rest);
 }
 function BuilderFieldSelector(props: FieldSelectorProps) {
   const { editor, scope, narrowFields } = props.context as BuilderContext;
@@ -1148,7 +1160,7 @@ function BuilderOperatorSelector(props: OperatorSelectorProps) {
 function BuilderValueEditor(props: ValueEditorProps) {
   const { token } = theme.useToken();
   const editing = useContext(RuleEditContext);
-  const { editor, scope, workspace } = props.context as BuilderContext;
+  const { editor, query, scope, workspace } = props.context as BuilderContext;
   const links = useContext(LinkEditingContext);
   if (props.field === LINK_CONDITION) {
     const rule = props.rule as PredicateRule;
@@ -1257,6 +1269,13 @@ function BuilderValueEditor(props: ValueEditorProps) {
     props.value == null ||
     props.value === "" ||
     (Array.isArray(props.value) && !props.value.length);
+  const clauseId = props.rule.id ?? null;
+  // An unaddressed facet evaluates an added conjunction. That cannot describe
+  // inserting a condition beneath OR or group negation.
+  const countsEnabled =
+    workspace.filterCountsEnabled !== false &&
+    (isAdditivePath(query, props.path) ||
+      !!existingClauseId(workspace.filterDiscoveryContext, clauseId));
   return (
     <div className="filter-rule-value">
       <Form.Item
@@ -1273,10 +1292,10 @@ function BuilderValueEditor(props: ValueEditorProps) {
             onChange={props.handleOnChange}
             scope={workspace.vocabularyScope ?? { kind: "artifact" }}
             countContext={workspace.filterDiscoveryContext}
-            countsEnabled={workspace.filterCountsEnabled !== false}
+            countsEnabled={countsEnabled}
             countQueryKey={workspace.filterCountQueryKey}
             countLimit={workspace.filterEditor?.limits.literal_list ?? 0}
-            clauseId={String(props.rule.id)}
+            clauseId={clauseId}
           />
           {field.unit_fields.length > 0 && (
             <Select

@@ -76,6 +76,15 @@ export function commonDraftCondition(
   const matching = commonDraftNodes(query, field);
   if (!matching) return { status: "advanced", clause: null };
   if (!matching.length) return { status: "empty", clause: null };
+  const leaves = matching.flatMap(function collect(
+    node: RuleType | RuleGroupType,
+  ): RuleType[] {
+    return "rules" in node ? node.rules.flatMap(collect) : [node];
+  });
+  // A quick control must not replace multiple authored rows just because one
+  // of them currently contributes no predicate.
+  if (leaves.length > 1 && leaves.some((rule) => isClearedOperand(rule, field)))
+    return { status: "advanced", clause: null };
   try {
     return commonCondition(
       builderPredicate({ combinator: "and", rules: matching }, [field]),
@@ -258,6 +267,17 @@ function values(value: unknown): unknown[] {
         : []
       : [];
 }
+export function isClearedOperand(rule: RuleType, field: QueryFieldDefinition): boolean {
+  const { operator, value } = rule;
+  if (operator === "state" || operator === "exists" || operator === "between")
+    return false;
+  if (operator === "in" || (field.field_type === "set" && operator !== "includes"))
+    return Array.isArray(value) && !value.length;
+  return (
+    (typeof value === "string" && !value.trim()) ||
+    (field.field_type === "set" && Array.isArray(value) && !value.length)
+  );
+}
 export function builderPredicate(
   group: RuleGroupType,
   fields: QueryFieldDefinition[],
@@ -316,6 +336,9 @@ export function builderPredicate(
     if (!field) throw new Error("Choose an available filter field");
     if (!field.operators.includes(node.operator))
       throw new Error("Choose an allowed operator");
+    // A cleared operand leaves an editable row without constraining the query.
+    // Omit it before applying the row's polarity or its parent group's match mode.
+    if (isClearedOperand(node, field)) continue;
     const clause_id = node.id;
     if (node.operator === "state") {
       if (!states.includes(node.value)) throw new Error("Choose a field state");

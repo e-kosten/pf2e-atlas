@@ -868,8 +868,11 @@ match controls combine combinator and exclusion while retaining group identities
 complex expressions
 remain editable through the full builder. Structural true/false conditions have
 explicit editor controls and lower to boolean constants, never synthetic backend
-catalog fields. Preserve clause/scope identities and unrelated clauses. Invalid
-input remains a local draft with local guidance, retaining committed results.
+catalog fields. Preserve clause/scope identities and unrelated clauses. An
+unconfigured condition or a cleared scalar or selection contributes no predicate.
+The row stays editable, and search, compatibility and counts use the remaining
+conditions. Invalid input remains a local draft with local guidance, retaining
+committed results.
 Successful edits retain the builder tree rather than reconstructing it from the
 executable predicate. External changed criteria reset drafts; preview navigation
 and local URL updates preserve them. Operator input shapes come from app-service
@@ -1022,10 +1025,11 @@ picker's displayed page and retained selections, bounded by catalog limits.
 They count distinct eligible parent records for each replacement value, preserving
 other conditions, same-child witnesses and edition preference. A multi-selection's
 count is for one replacement literal, rather than the union with current selections.
-Count requests retain profile/generation identity and cancellation; an incomplete
-draft, text search or Similar mode keeps count-free choices. Unsupported target
-contexts and count errors leave annotations absent without warnings or disabled
-choices. Missing counts never become zero. Catalog loading does not request counts.
+Count requests retain profile/generation identity and cancellation and use the
+committed filter. Text search, Similar mode and unfilled rows under OR or group
+negation keep count-free choices. Unsupported target contexts and count errors
+leave annotations absent without warnings or disabled choices. Missing counts
+never become zero. Catalog loading does not request counts.
 Long choice sets use paged contextual vocabulary when supported, with a Show
 unavailable option for the full vocabulary. Unsupported contexts use count-free
 vocabulary; transport and artifact-identity failures remain errors. Short choice
