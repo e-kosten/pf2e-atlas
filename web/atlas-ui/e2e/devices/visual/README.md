@@ -5,6 +5,25 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Uniform encounter classification badges
+
+Manual participants use the same 32px classification badge height as creatures
+with a reference button. Review covered all 40 before/after pairs per platform,
+including the resulting shifts in the participant pane and dialog backdrop.
+The interaction and exact comparison assertions are unchanged.
+
+- macOS 27.2 (26B123), arm64, Playwright 1.62.1, source
+  `c9c03297eb842d132a60171af15381d0ad3c01ca`. All 12 capture scenarios and
+  all 12 ordinary comparison scenarios passed.
+- Ubuntu 24.04 x64, Playwright 1.62.1,
+  [capture 41967751714](https://github.com/e-kosten/pf2e-atlas/actions/runs/41967751714).
+  All 12 capture scenarios passed against CI run 41966825893's authenticated
+  fixture, synthetic merge `e7c2ef3721f0ce8a5c342c506c45f58bf5ebdff0`.
+  Fixture binary SHA-256:
+  `eb9bd4cbe0c8d5505b8e8fd9d39ab059b45135c435f1935044505628b5770c29`.
+  Frontend index SHA-256:
+  `a7223eeeca0fc5ea53d21595590a526cea08347f8afafe3ccc21c11d1bb5d4a8`.
+
 ## Quieter initiative drafting
 
 The pending and settled condition previews and Quickened restriction editor
