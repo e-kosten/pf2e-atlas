@@ -169,6 +169,7 @@ function LinkChip({
       aria-label="Relationship filter"
     >
       <Popover
+        destroyOnHidden
         trigger="click"
         placement="bottom"
         arrow={false}
@@ -208,9 +209,10 @@ function LinkChip({
                 if (!isPrimaryActivation(event)) return;
                 event.preventDefault();
                 if (reference) {
+                  close();
                   reference.open(
                     relationship.selection.record_key,
-                    event.currentTarget,
+                    trigger.current ?? event.currentTarget,
                     relationship.selection,
                   );
                   return;

@@ -1,5 +1,7 @@
+import { ConfigProvider } from "antd";
 import { parseSearchParams, selectedNavigation } from "../../app/urlState";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { ReferencePreviewContext } from "../../shared/records/ReferencePreviewContext";
 import { LinkFilterControls } from "../../shared/filters/LinkFilterControls";
 import { linkLeaf } from "../../shared/filters/linkPredicates";
 import { rootNavigation } from "../../shared/records/useReferenceReading";
@@ -17,20 +19,27 @@ const leaf = linkLeaf(
   },
   "one",
 );
-function setup(filter = leaf as import("../../generated/atlas").QueryPredicate) {
+function setup(
+  filter = leaf as import("../../generated/atlas").QueryPredicate,
+  openReference = vi.fn(),
+) {
   const edit = vi.fn().mockReturnValue(null),
     remove = vi.fn(),
     advanced = vi.fn();
   const view = render(
-    <LinkFilterControls
-      filter={filter}
-      fields={[]}
-      title={() => "Leather Armor"}
-      onAdd={vi.fn()}
-      onEdit={edit}
-      onRemove={remove}
-      onAdvanced={advanced}
-    />,
+    <ConfigProvider theme={{ token: { motion: false } }}>
+      <ReferencePreviewContext value={{ open: openReference, openTrait: vi.fn() }}>
+        <LinkFilterControls
+          filter={filter}
+          fields={[]}
+          title={() => "Leather Armor"}
+          onAdd={vi.fn()}
+          onEdit={edit}
+          onRemove={remove}
+          onAdvanced={advanced}
+        />
+      </ReferencePreviewContext>
+    </ConfigProvider>,
   );
   return { edit, remove, advanced, view };
 }
@@ -119,4 +128,30 @@ it("preserves OR and NOT grouping in a single truthful summary rather than flat 
     screen.getByRole("button", { name: /Grouped filters: 2 link conditions/ }),
   );
   expect(advanced).toHaveBeenCalled();
+});
+
+it("closes the filter popover before opening its reference and returns to the persistent chip", async () => {
+  const openReference = vi.fn();
+  setup(leaf, openReference);
+  const chip = screen.getByRole("button", { name: /Links to Leather Armor/ });
+  fireEvent.click(chip);
+  const link = await screen.findByRole("link", { name: "Open Leather Armor" });
+  fireEvent.click(link);
+  expect(chip).toHaveAttribute("aria-expanded", "false");
+  expect(openReference).toHaveBeenCalledWith(
+    leaf.relationship.selection.record_key,
+    chip,
+    leaf.relationship.selection,
+  );
+  await waitFor(() => expect(link).not.toBeVisible());
+});
+it("preserves modified reference links without closing the filter popover", async () => {
+  const openReference = vi.fn();
+  setup(leaf, openReference);
+  const chip = screen.getByRole("button", { name: /Links to Leather Armor/ });
+  fireEvent.click(chip);
+  const link = await screen.findByRole("link", { name: "Open Leather Armor" });
+  fireEvent.click(link, { ctrlKey: true });
+  expect(openReference).not.toHaveBeenCalled();
+  expect(chip).toHaveAttribute("aria-expanded", "true");
 });
