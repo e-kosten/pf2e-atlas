@@ -1232,6 +1232,16 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
     await expect(
       picker.getByRole("status").filter({ hasText: "Added 1 × Atlas Sentinel" }),
     ).toBeVisible();
+    await activate(
+      picker.getByRole("button", { name: "Clear selection", exact: true }),
+      info,
+    );
+    await expect(
+      picker.getByRole("searchbox", { name: "Search records" }),
+    ).toBeFocused();
+    await expect(
+      picker.getByRole("button", { name: "Add", exact: true }),
+    ).toBeDisabled();
     await activate(picker.getByRole("button", { name: "Done", exact: true }), info);
     await activate(page.getByRole("button", { name: "Start turn", exact: true }), info);
     await expect

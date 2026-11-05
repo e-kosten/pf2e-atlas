@@ -435,15 +435,17 @@ export function SearchPickerModal<FormValues>({
                   aria-label="Clear selection"
                   disabled={disabled}
                   onClick={(event) => {
-                    const search = event.currentTarget
-                      .closest('[role="dialog"]')
-                      ?.querySelector<HTMLInputElement>(
-                        'input[aria-label="Search records"]',
-                      );
+                    const dialog = event.currentTarget.closest('[role="dialog"]');
                     selection.cancel();
                     reading.inspect(null);
                     onSelectionChange(null);
-                    search?.focus({ preventScroll: true });
+                    requestAnimationFrame(() => {
+                      dialog
+                        ?.querySelector<HTMLInputElement>(
+                          'input[aria-label="Search records"]',
+                        )
+                        ?.focus({ preventScroll: true });
+                    });
                   }}
                 />
               </Tooltip>
