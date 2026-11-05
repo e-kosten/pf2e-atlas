@@ -118,7 +118,7 @@ jobs:
         run: |
           ATLAS_TEST_MODEL_CACHE="$(python -c 'from pathlib import Path; print(Path("target/embedding-models").resolve().as_posix())')"
           export ATLAS_TEST_MODEL_CACHE
-          cargo test --locked -p atlas-embedding pinned_query_and_document_token_ids_match_the_compatibility_baseline -- --ignored
+          cargo test --locked -p atlas-embedding compatibility_tests -- --ignored
           candidate=target/debug/atlas
           migrator=target/debug/examples/migrate-fixture-workspace
           if [[ "$RUNNER_OS" == Windows ]]; then
