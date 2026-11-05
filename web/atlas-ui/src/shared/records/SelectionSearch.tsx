@@ -221,8 +221,7 @@ export function SelectionSearch() {
             icon={<Search size={16} aria-hidden="true" />}
             href={destinationHref(destination)}
             onMouseDown={(event) => {
-              // Preserve the selection while a mouse activates the native link.
-              if (event.button === 0) event.preventDefault();
+              if (isPrimaryActivation(event)) event.preventDefault();
             }}
             onClick={(event) => {
               if (selected.scope.closest(DISABLED)) {

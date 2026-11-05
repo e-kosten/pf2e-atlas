@@ -17,7 +17,7 @@ struct MappingBudget(AtomicUsize);
 impl MappingBudget {
     fn acquire(&self) -> Option<MappingLease<'_>> {
         self.0
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |active| {
+            .try_update(Ordering::Relaxed, Ordering::Relaxed, |active| {
                 (active < MAX_MAPPED_READERS).then_some(active + 1)
             })
             .ok()
