@@ -100,7 +100,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_martial_profic
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@856ca5a36233edf1f0799d53
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@29a4797487a25dc9cadbca3b
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaMartialProficiencySchema {
@@ -187,7 +187,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_martial_profic
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@856ca5a36233edf1f0799d53; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@29a4797487a25dc9cadbca3b; deferred fields:
 pub type MartialProficiencyRule = SourceFromSchemaMartialProficiencySchema;
 pub fn parse_martial_proficiency_rule(
     v: &SourceValue,

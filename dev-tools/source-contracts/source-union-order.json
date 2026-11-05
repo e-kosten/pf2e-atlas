@@ -1,0 +1,3246 @@
+{
+  "format": "atlas-source-union-order/v1",
+  "unions": {
+    "0626f730bdef98e94f9a1652a78a7a6004cea05aa594176afe0206f9f47d77e6": {
+      "name": "ItemSourcePF2e",
+      "members": [
+        {
+          "key": "4e9814a6b34b434e462d369ce7ff382ee7d3819c68c1d3adf5f782fc3c6918de",
+          "ordinal": 1,
+          "serdeVariant": "AbilitySource"
+        },
+        {
+          "key": "e5ad5337124056dad0671b7639a344e9f061b83e204ee29f38746e7f9dca4617",
+          "ordinal": 2,
+          "serdeVariant": "AfflictionSource"
+        },
+        {
+          "key": "754cde1c32b8321b76500d246da94abb8c8d023496c3c30bb0d468cbd90e6755",
+          "ordinal": 3,
+          "serdeVariant": "AmmoSource"
+        },
+        {
+          "key": "9708a92f085b90cb2fc48bfa8f1b954a8d23d1f60a6b53b5a5237b60c57ea4dd",
+          "ordinal": 4,
+          "serdeVariant": "AncestrySource"
+        },
+        {
+          "key": "f2b465f95a0cacfc84ef33d89b2ce0f4a58f593c1a740b598e0efde8760e617c",
+          "ordinal": 5,
+          "serdeVariant": "ArmorSource"
+        },
+        {
+          "key": "9f09df7ed26b4e749c8ce112fc32b57fb6c3d110fc4cbdcd9ff8c906f3a4514d",
+          "ordinal": 6,
+          "serdeVariant": "BackgroundSource"
+        },
+        {
+          "key": "8b7b53032f6fd1773fb5bcd955ed81f2ce2970252659d9511aeb3516d0dd204f",
+          "ordinal": 7,
+          "serdeVariant": "BookSource"
+        },
+        {
+          "key": "df3b5c1cd41bcb4e9c075c2746346cb07d3854a0641da55e34ff66f5ba21c60b",
+          "ordinal": 8,
+          "serdeVariant": "CampaignFeatureSource"
+        },
+        {
+          "key": "a66f4fa96d92f1333a0bf25328d7db20bf7144c982955765d635421cfbe1a939",
+          "ordinal": 9,
+          "serdeVariant": "ClassSource"
+        },
+        {
+          "key": "46f03e603d82d3a9d96a0267fdd5097253c00e0e2dbc962c845aa4d3a6d5d3cf",
+          "ordinal": 10,
+          "serdeVariant": "ConditionSource"
+        },
+        {
+          "key": "cc237fb2e7396e8d8bb14da14b59cdc1b47632870544278705f119d211e33847",
+          "ordinal": 11,
+          "serdeVariant": "ConsumableSource"
+        },
+        {
+          "key": "111d4247bf9080119576dd347c540cf7af326b77c34971046d9a84856e966d53",
+          "ordinal": 12,
+          "serdeVariant": "ContainerSource"
+        },
+        {
+          "key": "02185bb33b98aa517ea8f9f6e655775ea53b15927043245ada2b56a5d467f8b0",
+          "ordinal": 13,
+          "serdeVariant": "DeitySource"
+        },
+        {
+          "key": "5c2e3ca38da454f27d033543112990ef4b609477bb2dfd3533940ffe1b5100fc",
+          "ordinal": 14,
+          "serdeVariant": "EffectSource"
+        },
+        {
+          "key": "0b4ad314c9ef484bf3233ef94b1c3bffbea4f5030f7009a806d89e7e17c15e6d",
+          "ordinal": 15,
+          "serdeVariant": "EquipmentSource"
+        },
+        {
+          "key": "f363c359cbe211666b0b8a0de0e1383355fa25a3bcb31cad7e52fe0653319592",
+          "ordinal": 16,
+          "serdeVariant": "FeatSource"
+        },
+        {
+          "key": "aeeddb74bfdfa92c77eb30f7cced0834673238c305a6fb04e3a3254c0794a023",
+          "ordinal": 17,
+          "serdeVariant": "HeritageSource"
+        },
+        {
+          "key": "e8759b36b58983ac5c30e7df54a042e93d21eada2855505026ca6d3bd6af1f0f",
+          "ordinal": 18,
+          "serdeVariant": "KitSource"
+        },
+        {
+          "key": "34c48f70a03c7b44b9e548c0330cf6e4023b17f2e3c070de59a89edb7fcaf8e0",
+          "ordinal": 19,
+          "serdeVariant": "LoreSource"
+        },
+        {
+          "key": "a137736c0be678a5b75580a3668d36c8ec5408867aec9e0d5597d49997bc05f5",
+          "ordinal": 20,
+          "serdeVariant": "MeleeSource"
+        },
+        {
+          "key": "cc678a274eec4771d480fb80f5f4225f08d28b8753dba0aadbac8516e563fa19",
+          "ordinal": 21,
+          "serdeVariant": "ShieldSource"
+        },
+        {
+          "key": "18d3b551477607798f061bfaa3c726ca3bbdd5352d827b9ce2802e269fbb95d2",
+          "ordinal": 22,
+          "serdeVariant": "SpellSource"
+        },
+        {
+          "key": "ebadf9675e31a2a1ae468a20205708355673097ba04ce4c73a2ae54cb009edd1",
+          "ordinal": 23,
+          "serdeVariant": "SpellcastingEntrySource"
+        },
+        {
+          "key": "4b8f31faf735fc49661adc784a011fe6c9822dcb186de39374cb77d0ef742877",
+          "ordinal": 24,
+          "serdeVariant": "TreasureSource"
+        },
+        {
+          "key": "5b6700298997189b4cb3fef8b1500db182aef56c1bb0ea0d13c79fed81a92fce",
+          "ordinal": 25,
+          "serdeVariant": "WeaponSource"
+        }
+      ]
+    },
+    "0a0249575b7c8524f5bd396e605476053b1e69a2b77300a10b9973b3efb62152": {
+      "members": [
+        {
+          "key": "79c76e31e7ddb334c65cae7892155b20d1a26b1e0593be8468b615b1f219bb60",
+          "ordinal": 1,
+          "serdeVariant": "Alternative1"
+        },
+        {
+          "key": "08caf626e5e0d90663761ec0a876ece5bc2ee806cbc4b93511d955dc002125b1",
+          "ordinal": 2,
+          "serdeVariant": "RawPredicate"
+        },
+        {
+          "key": "3bfc6c2d94cefe55a10cb3a3addcf49fc0831c83275a2c3a2a109702f69109a3",
+          "ordinal": 3,
+          "serdeVariant": "Boolean"
+        }
+      ]
+    },
+    "10ca7061207ab22577f710066e30aff0eae314e6111a99b930c4f645769a9f75": {
+      "name": "ActorSourcePF2e",
+      "members": [
+        {
+          "key": "8aed7387e69af87095b43fc5432e8778b119e01bc552c17413ba2b1c388cb2d0",
+          "ordinal": 1,
+          "serdeVariant": "ArmySource"
+        },
+        {
+          "key": "7d7a4bf26f81cd2344592d06d6200dbdf86c2930fa3f48a6ea865c7a014b02c0",
+          "ordinal": 2,
+          "serdeVariant": "CharacterSource"
+        },
+        {
+          "key": "e357393dd2ebe0dcf5f1c678e75eb71878d6e3bc346b0c1a51f20c87e84d7945",
+          "ordinal": 3,
+          "serdeVariant": "FamiliarSource"
+        },
+        {
+          "key": "7265e049cf8bb864a343c643554f12ab45f3a9f403d60993a69b8387861dd62e",
+          "ordinal": 4,
+          "serdeVariant": "HazardSource"
+        },
+        {
+          "key": "c68db5e2b4f2f29365e3d315424dad59d1a3c2edb0876da5e062256014e6afa4",
+          "ordinal": 5,
+          "serdeVariant": "LootSource"
+        },
+        {
+          "key": "4c93d6c3f2c5b799cb92d3acc473628451885c5a29379e0902d71243206eeaf0",
+          "ordinal": 6,
+          "serdeVariant": "NPCSource"
+        },
+        {
+          "key": "8d8436c114b51f20871936d2147103c928a23501cb74cbc12fce85c493edc664",
+          "ordinal": 7,
+          "serdeVariant": "PartySource"
+        },
+        {
+          "key": "a0f1aafa906bd796297380435ccbbb522b77ffe7ac0b74c499375c48074c0dac",
+          "ordinal": 8,
+          "serdeVariant": "VehicleSource"
+        }
+      ]
+    },
+    "114e698a061ee4668b41b768bb98dceef8334cfd4e77c00a4b84e33dbb51a2cd": {
+      "members": [
+        {
+          "key": "25f84959aa806e9f9b9177e0b9745ef99ac22f1ebc0e80986e34279315633402",
+          "ordinal": 1
+        },
+        {
+          "key": "ec88c7c7d68abb9f6d011e3a0a8df3da9a7a2693d8dea2bdf81cf68b978e7a16",
+          "ordinal": 2
+        },
+        {
+          "key": "4aacf198dccfc9e8a73bf91278d6dc91d4b54cfb2e1524c38c8847b3b5d5184e",
+          "ordinal": 3
+        },
+        {
+          "key": "dc99ff5b121a8b93668e998a8ae3e4c44ba4ac37379c1f93ac8c0c22016a4ea8",
+          "ordinal": 4
+        },
+        {
+          "key": "fa5f6e2ff9b5e530b56a599b5c3e471c9ace781f16afeeddc50b5ef64851c033",
+          "ordinal": 5
+        },
+        {
+          "key": "59d3139ef33aaaf76affac88db04bab50cb2d6a2192cd56834e903bcf596d6fa",
+          "ordinal": 6
+        },
+        {
+          "key": "ae3f914db7efecdc200d066cf06dd87932c14a4bab014916976ea8f143a680e4",
+          "ordinal": 7
+        },
+        {
+          "key": "37c6adc0052d03b5bb9013522c0e78a072745848b45388153f9c983984648bcf",
+          "ordinal": 8
+        },
+        {
+          "key": "0090848e194abccf87d283c4b4fa74b468298faf5e066a794e37f31db44a7c9d",
+          "ordinal": 9
+        },
+        {
+          "key": "ef142d46d2a2cf5ee55e551a8b8b2a06c8f5b13de7407c3787dad75bdf331384",
+          "ordinal": 10
+        },
+        {
+          "key": "6069357000cf0ba6bbf71fda1545039c17abda5265d3b5832790f4e4e9c13b9b",
+          "ordinal": 11
+        },
+        {
+          "key": "912cc78bfebce83a0f778d2934d84405719a0ba3bd51636801b5c967a108ec27",
+          "ordinal": 12
+        },
+        {
+          "key": "79336144c5484c27cb5271b640fdf3809585807aa24b192ea77788748a329786",
+          "ordinal": 13
+        },
+        {
+          "key": "2a7d09824b7d77f5f359c91c09c472e14714aed2ce438b36c028112d87d99d64",
+          "ordinal": 14
+        },
+        {
+          "key": "94a65a242ad251915193da09acb06a535a9d63db1d27756b66eed98931adef58",
+          "ordinal": 15
+        },
+        {
+          "key": "a5b20e4458f29012a9db86fb18c720da4c33d1e0befed67e30a046909b66d0b6",
+          "ordinal": 16
+        },
+        {
+          "key": "c017d147baae99cc8950bbc630146e9d9b6c6ce1ba5c4ee5f4e0680707e1f1c2",
+          "ordinal": 17
+        },
+        {
+          "key": "1afd80288f87632f1020825fbb3b13b1879b099f9f55da1e0e26d0cc4cd802a5",
+          "ordinal": 18
+        },
+        {
+          "key": "3c0f46d3660863031514b53c6976af51456b864219b35bee94b3de216023bb6b",
+          "ordinal": 19
+        },
+        {
+          "key": "b5a4de78c85c520da58f8b3eff59281a275016d3ced66e6eac48c3dcec25a935",
+          "ordinal": 20
+        },
+        {
+          "key": "e6b902c76a0707bba58efdcfc68430fd26f87fbf345f681b26b046bd9e193dea",
+          "ordinal": 21
+        },
+        {
+          "key": "f95eb2f665be167f81666f786720d7134baaf6faaa49cc90316266ffdf772ed4",
+          "ordinal": 22
+        },
+        {
+          "key": "93d717d10b643ae47daef75ba1f5774149e4a0f257ab2a37c650cdd38838b6e9",
+          "ordinal": 23
+        },
+        {
+          "key": "50a0ebe1ae08848b404c26fb62bba7f1819873cabe22916fed7d23fbb6379322",
+          "ordinal": 24
+        }
+      ]
+    },
+    "135df0f809925491ec96d4861551f66f2580c392683fa749f0e4b407e4c01975": {
+      "members": [
+        {
+          "key": "5e08ec5b9da37aa6c74bbd7d5daaab8b576a8132b7dabff97d99e90c452d8e28",
+          "ordinal": 1,
+          "serdeVariant": "Array"
+        },
+        {
+          "key": "f0c95a3523a2e99dfd161008d67a3921b3e7cbacc54b5948fe3c733999e04e94",
+          "ordinal": 2,
+          "serdeVariant": "PredicateStatement"
+        }
+      ]
+    },
+    "152d9ce608531f0395b45c31717cb06f70f1bbd674904ce72909820d2c309137": {
+      "members": [
+        {
+          "key": "0090848e194abccf87d283c4b4fa74b468298faf5e066a794e37f31db44a7c9d",
+          "ordinal": 1
+        },
+        {
+          "key": "2a7d09824b7d77f5f359c91c09c472e14714aed2ce438b36c028112d87d99d64",
+          "ordinal": 2
+        },
+        {
+          "key": "8582d65cbf810e7d95968d307e2bdd7596d2763e15776fda830328b2e16698ce",
+          "ordinal": 3
+        },
+        {
+          "key": "a5b20e4458f29012a9db86fb18c720da4c33d1e0befed67e30a046909b66d0b6",
+          "ordinal": 4
+        },
+        {
+          "key": "f95eb2f665be167f81666f786720d7134baaf6faaa49cc90316266ffdf772ed4",
+          "ordinal": 5
+        }
+      ]
+    },
+    "1f9bc030f00cde650b2e1e15b868fb2b29783d2f59ac0ab24f5b540e87eb4920": {
+      "members": [
+        {
+          "key": "78316729954ac7e7aad386b85fbb70f85736ce9f3e5e1bbeb0d7bc0a5c9b4837",
+          "ordinal": 1
+        },
+        {
+          "key": "b449f104517e1fdceef4826c651868dbf8edaac90492986bd27a30aa0ca9971d",
+          "ordinal": 2
+        },
+        {
+          "key": "b87692ae28bc8b933623b6c3f2c65894a07f9b1edf0b999886784b683a72ee11",
+          "ordinal": 3
+        },
+        {
+          "key": "20c38b961db5bfe6b70f07da2d53e2e206747220326e89b87dd99309d38719da",
+          "ordinal": 4
+        },
+        {
+          "key": "b432ac9088f7cbbe2dce6530c78b8d806000b718e5083cb2b95d2af0699fc7dc",
+          "ordinal": 5
+        },
+        {
+          "key": "3d1345ff6e5e1c0390e4e484b62e1b5d4d6f8f0ca8b73e4a95e2da834dc1ab21",
+          "ordinal": 6
+        }
+      ]
+    },
+    "21117c127193a19deef357c024a3ffdbb9175707f7b6e28145751478809ebee0": {
+      "name": "MigrationRecord",
+      "members": [
+        {
+          "key": "568a6348056f160645ec336bedd6163e32b06a3a7cf99f13a268b452673c8636",
+          "ordinal": 1,
+          "serdeVariant": "NewDocumentMigrationRecord"
+        },
+        {
+          "key": "f6b4faf1a732635f491545439e655474cff3060341dfc746c2e20eb69ead0eeb",
+          "ordinal": 2,
+          "serdeVariant": "MigrationRecordAlternative2SourceFromSchema"
+        }
+      ]
+    },
+    "27abb5df2648956358996314246d1c95ebf10987f5003e599f6518a37039e4e1": {
+      "name": "IWRException",
+      "members": [
+        {
+          "key": "b5dbdf7ed9d10985d5970d32d0bb5e290668d3ced31a3f30e8f337f4c9185766",
+          "ordinal": 1,
+          "serdeVariant": "Alternative1"
+        },
+        {
+          "key": "b3477347b6c69f36d5540fe6fddb56813d0c34f1a57df5ee466ea39f6d7c57de",
+          "ordinal": 2,
+          "serdeVariant": "Alternative2"
+        },
+        {
+          "key": "d272b1089b8eb213e66efe05fe6469f83eab95853087cd6e9770b7ea640be28f",
+          "ordinal": 3,
+          "serdeVariant": "Alternative3"
+        },
+        {
+          "key": "832b27b68e6df5d8ab08ca139a36173f8cbfeee0c40a881de3339601acc49b8a",
+          "ordinal": 4,
+          "serdeVariant": "Alternative4"
+        },
+        {
+          "key": "ffdea035ac5f639143c58f4fe23a90c310ef85908447bea8c4e641be591a4c7f",
+          "ordinal": 5,
+          "serdeVariant": "Alternative5"
+        },
+        {
+          "key": "c25eb3a26e8bf849d4f941af59d1ab0508a6545ba82f67f15c9400f8a768f3dc",
+          "ordinal": 6,
+          "serdeVariant": "Alternative6"
+        },
+        {
+          "key": "d1bf0b5d2271ad20be83df2b49cdc50739100176dae95391bd7d3ecffe6bf263",
+          "ordinal": 7,
+          "serdeVariant": "Alternative7"
+        },
+        {
+          "key": "4a4ddcca106e08813edb77bbd5ff788d4956e7ca5a15d6908eba05e424ea8855",
+          "ordinal": 8,
+          "serdeVariant": "Alternative8"
+        },
+        {
+          "key": "5d1846bee52bd1e6071cf5890397783971df06d259324a50ae98930c2b32ab92",
+          "ordinal": 9,
+          "serdeVariant": "Alternative9"
+        },
+        {
+          "key": "c52abd01138e4afc448f4786abc665e93df9f9d0d089b690f03a0eb991b6e77e",
+          "ordinal": 10,
+          "serdeVariant": "Alternative10"
+        },
+        {
+          "key": "a4fbbfdf04014f39395edf5991544ce385eff063857f7a864cc1a24474a7d8f4",
+          "ordinal": 11,
+          "serdeVariant": "Alternative11"
+        },
+        {
+          "key": "948b6f3851956041942cc6dd6a191362d69df16a172b006d0d72efc46962e353",
+          "ordinal": 12,
+          "serdeVariant": "Alternative12"
+        },
+        {
+          "key": "e0f526603f8ec6fe71e74392e7718a99bb449a43f07a496d757cee1f27ee3425",
+          "ordinal": 13,
+          "serdeVariant": "Alternative13"
+        },
+        {
+          "key": "2d8b6aace24748ec2cbcb7ea1c7484c6455e9b96436990f171a530074b7ca8bf",
+          "ordinal": 14,
+          "serdeVariant": "Alternative14"
+        },
+        {
+          "key": "4b52aad08482a56f52c43a8a56a1c2460c1b78140c88faa9e243b58f343d7bfa",
+          "ordinal": 15,
+          "serdeVariant": "Alternative15"
+        },
+        {
+          "key": "5945f3fd43f5235a50241f81f509eae79c0f24266f69ef7b0f178bd1e63dd66a",
+          "ordinal": 16,
+          "serdeVariant": "Alternative16"
+        },
+        {
+          "key": "0fb48269bfc7f32d40b36379f8b98aeffd4f8b2b3c712a09f37a0c996406a99f",
+          "ordinal": 17,
+          "serdeVariant": "Alternative17"
+        },
+        {
+          "key": "8c894c08132358e5a3562eefc868c04f56ae2dbc790b56dfe5fd7cc77c02c88f",
+          "ordinal": 18,
+          "serdeVariant": "Alternative18"
+        },
+        {
+          "key": "7146fe7f4857d8be501c0ea02ff67a3aa693f69282e16a73bd74ddb0e17934c6",
+          "ordinal": 19,
+          "serdeVariant": "Alternative19"
+        },
+        {
+          "key": "e34539cdc8ceff9bae70641f27a446bc89c2193eeff14d54f4aa446c12586369",
+          "ordinal": 20,
+          "serdeVariant": "Alternative20"
+        },
+        {
+          "key": "39ccf50370bf03e83c723fac47c189cd249c39cc1b187d697f45a61df11076eb",
+          "ordinal": 21,
+          "serdeVariant": "Alternative21"
+        },
+        {
+          "key": "5797903b6c91726f7987ed49b286f5912c9c555031f50da0f8d0caa920c412b2",
+          "ordinal": 22,
+          "serdeVariant": "Alternative22"
+        },
+        {
+          "key": "aae2bf2cceee368b196200c2964a3206dfabc04027c6b96001de6364f70558a1",
+          "ordinal": 23,
+          "serdeVariant": "Alternative23"
+        },
+        {
+          "key": "9714a38dcfd8f79816982b86ba78bb5ce75337ee31d34eb8eb8af1055b9d4792",
+          "ordinal": 24,
+          "serdeVariant": "Alternative24"
+        },
+        {
+          "key": "ce5d85c540d5b86b17fdd2bff809ef9b2ff8208e7ff3ec08c87c349b690deb63",
+          "ordinal": 25,
+          "serdeVariant": "Alternative25"
+        },
+        {
+          "key": "95cbdbdd6b6eac3bb20ab9aad181d631a1bcf7438e0260d88efb3eb897fbf0f4",
+          "ordinal": 26,
+          "serdeVariant": "Alternative26"
+        },
+        {
+          "key": "b3989cc35b45bda68e5aa6119c9bbdf086d2243e814ffbe0436790a569d1c7ef",
+          "ordinal": 27,
+          "serdeVariant": "Alternative27"
+        },
+        {
+          "key": "74a9fb3d27185af2f96518370d77a210771ba69a3d5e0e6774aee0bb63356a36",
+          "ordinal": 28,
+          "serdeVariant": "Alternative28"
+        },
+        {
+          "key": "6635df059c986b81c9c63a1389b4111a9b73b42abd6800a91b876e983bddcb81",
+          "ordinal": 29,
+          "serdeVariant": "Alternative29"
+        },
+        {
+          "key": "964de17e5ede85567cf2d6ecb4d4ab186be46c5341023bfbfdfa3dc4f1ea9fe1",
+          "ordinal": 30,
+          "serdeVariant": "Alternative30"
+        },
+        {
+          "key": "2effb91130286c51b379e744f9ebd1609a84152d4a4c3f3c1ff73ac5b0649535",
+          "ordinal": 31,
+          "serdeVariant": "Alternative31"
+        },
+        {
+          "key": "71d2fe4505c8f45a52c2901fc7d1008d26bce0f66c58ef2d2a2b7dc3370f4fec",
+          "ordinal": 32,
+          "serdeVariant": "Alternative32"
+        },
+        {
+          "key": "01e66bc0e437907f909fd61cff6f8c0d1227d1853a0ccf536e1e59e3ce7ddeb5",
+          "ordinal": 33,
+          "serdeVariant": "Alternative33"
+        },
+        {
+          "key": "407bbb7e963f9a1f4944728afdebf70a29bf3ad39b278ea37c4fdf97fa3afff9",
+          "ordinal": 34,
+          "serdeVariant": "Alternative34"
+        },
+        {
+          "key": "e1ada0422e7eb91f3bfdc08da1cf16bc94ac9a2a18947cea4268dfb8ba9dd3a5",
+          "ordinal": 35,
+          "serdeVariant": "Alternative35"
+        },
+        {
+          "key": "0b45f8dc27ad96718f4e2548ded84e31564db902e40a4a2ecfc1a25625c25b4f",
+          "ordinal": 36,
+          "serdeVariant": "Alternative36"
+        },
+        {
+          "key": "7d92b456442da2c0d5c7ae8bb2657aaa2c3815a12ab02a7a64830a676734d203",
+          "ordinal": 37,
+          "serdeVariant": "Alternative37"
+        },
+        {
+          "key": "d1c2e92bad598a3e5df1e70e92cd1d82a2e2b8c33110e3243098c6ea7e1fd6b8",
+          "ordinal": 38,
+          "serdeVariant": "Alternative38"
+        },
+        {
+          "key": "2f8865107cf76208039140fc773c949635db6ebc80ebb2e820ac034d40420c87",
+          "ordinal": 39,
+          "serdeVariant": "Alternative39"
+        },
+        {
+          "key": "8908524b7f5323eb311e40efd5599e67258ecf8ecee963ee4883631fa866ff36",
+          "ordinal": 40,
+          "serdeVariant": "Alternative40"
+        },
+        {
+          "key": "d2734a7449836f32ec8b4c54229d5c82d2ebf1913f92fcbbbd68edf01e7f0644",
+          "ordinal": 41,
+          "serdeVariant": "Alternative41"
+        },
+        {
+          "key": "5fd839d087b3994bc1c2ba3dcd7fd64c711ffb73014a3075f89c6ff64e94ab2b",
+          "ordinal": 42,
+          "serdeVariant": "Alternative42"
+        },
+        {
+          "key": "3e81ee1f62a81dc6bca824426f30c95d75df541f5ec6b4168d42d28e6784ab95",
+          "ordinal": 43,
+          "serdeVariant": "Alternative43"
+        },
+        {
+          "key": "fbb99bd7efbdc953776f4309ea7e025ef4efc276127dd4aa89aba999d25a248d",
+          "ordinal": 44,
+          "serdeVariant": "Alternative44"
+        },
+        {
+          "key": "7125ae1f3090f8d09b4df93105d015f7c2dea23e0a7df3d5081bce974c6979aa",
+          "ordinal": 45,
+          "serdeVariant": "Alternative45"
+        },
+        {
+          "key": "4f7c5cd4f51f73b2db607883cb270319e4e699bc1374b7e8ab2ee52227ad038f",
+          "ordinal": 46,
+          "serdeVariant": "Alternative46"
+        },
+        {
+          "key": "322b66bb35e5e705753207afbc1c2496076eb308a3263863b34810b5f1b10a55",
+          "ordinal": 47,
+          "serdeVariant": "Alternative47"
+        },
+        {
+          "key": "a53d4082c02a49931844e2904ddac6e33551146dda0b10797c1300bf6310b773",
+          "ordinal": 48,
+          "serdeVariant": "Alternative48"
+        },
+        {
+          "key": "303182c31b7646c0f580e657674befc7cd81c5450f3f10ac31575046d54b07fe",
+          "ordinal": 49,
+          "serdeVariant": "Alternative49"
+        },
+        {
+          "key": "3404fd80923f78f1e0c9d5962a0cb9dedf4c648e05f8fbffb46403f261c9b1f8",
+          "ordinal": 50,
+          "serdeVariant": "Alternative50"
+        },
+        {
+          "key": "349561be3fda2030f1f5390bd7812908f0d1ce29ea06e696e69208a546770641",
+          "ordinal": 51,
+          "serdeVariant": "Alternative51"
+        },
+        {
+          "key": "dfd2dbdc0f018a210f3646c70184890330422718060e3d98b4dad41b0c85bc5d",
+          "ordinal": 52,
+          "serdeVariant": "Alternative52"
+        },
+        {
+          "key": "bfb0a9a6c19eb587417296f7115b52939564258075713409e91fe32351f236ba",
+          "ordinal": 53,
+          "serdeVariant": "Alternative53"
+        },
+        {
+          "key": "32df098b319ac5f04374524772adeb2f1c24829fec41283c49b4ba6511adc487",
+          "ordinal": 54,
+          "serdeVariant": "Alternative54"
+        },
+        {
+          "key": "2e2d132e550047ae9bc2c82645b88a49e9bbbec05d5cd0e3c4b4bf6d13b1bb3c",
+          "ordinal": 55,
+          "serdeVariant": "Alternative55"
+        },
+        {
+          "key": "67f34b8b68550f3c7e6e4cef768d20bf719c1e1fdcf3a68a64f80e48bb69ed8b",
+          "ordinal": 56,
+          "serdeVariant": "Alternative56"
+        },
+        {
+          "key": "8bf4dfee41c8109bd27d1965571cb1096b9c3c0c78ba3379d93f22e5440410ae",
+          "ordinal": 57,
+          "serdeVariant": "Alternative57"
+        },
+        {
+          "key": "bd049af0aa8157415a5af5064ebb0b6f79e88ae12482145f247d25109462c34d",
+          "ordinal": 58,
+          "serdeVariant": "Alternative58"
+        },
+        {
+          "key": "96261be1b8df99ae928248f96379d4d82922e527ad9b8010b5612cf3e70e2d4f",
+          "ordinal": 59,
+          "serdeVariant": "Alternative59"
+        },
+        {
+          "key": "33eef5aacb7d77baefef31db4038d62996e33a6d81c2b788c51098664a48cf6d",
+          "ordinal": 60,
+          "serdeVariant": "Alternative60"
+        },
+        {
+          "key": "67574a232ee2d9793a15d9fb5bc266ecdb21df016c6f556e5ebd93662197950c",
+          "ordinal": 61,
+          "serdeVariant": "Alternative61"
+        },
+        {
+          "key": "d20db4ec5353a2b5b511486ad300d4d12e5e9649c7ee504ba1908fa603416d11",
+          "ordinal": 62,
+          "serdeVariant": "Alternative62"
+        },
+        {
+          "key": "78120d3ff970b662132b7e5a7085957006b9eb39cf7565a9187c07e07897e1ca",
+          "ordinal": 63,
+          "serdeVariant": "Alternative63"
+        },
+        {
+          "key": "ef7b8f4515bd5f5d9597612211d920dad002e7cd480bb0df21cd02af8e1d68f3",
+          "ordinal": 64,
+          "serdeVariant": "Alternative64"
+        },
+        {
+          "key": "65894886f421b897dc762ce972b5d632caac28d000edbd47d3140cdfc06cb500",
+          "ordinal": 65,
+          "serdeVariant": "Alternative65"
+        },
+        {
+          "key": "e04de6865e3b5870079f2d8e01224d8b32a13143647ea8c1d575ebae919e6fdc",
+          "ordinal": 66,
+          "serdeVariant": "Alternative66"
+        },
+        {
+          "key": "c1d7a180bf26886aef4670bbe172a865eb439679fd21d62f6076690f2f83aad1",
+          "ordinal": 67,
+          "serdeVariant": "Alternative67"
+        },
+        {
+          "key": "36ff7b860abafae6ce4885fa050e2973bee768a722aacdb5a63abe77cc509193",
+          "ordinal": 68,
+          "serdeVariant": "Alternative68"
+        },
+        {
+          "key": "106afdba198a3e5e8a89d61d2f8640de89e6a0b2252400ff1267ab263c7bdea1",
+          "ordinal": 69,
+          "serdeVariant": "Alternative69"
+        },
+        {
+          "key": "453b0169665709e97cd14e7ae6e7fd966f797de3230bc4b2bc2c0e2a6466b682",
+          "ordinal": 70,
+          "serdeVariant": "Alternative70"
+        },
+        {
+          "key": "cabce6be9d6e7d65f97f45f229fdfe940acd894d883ce9e27065a368cbb8a74a",
+          "ordinal": 71,
+          "serdeVariant": "Alternative71"
+        },
+        {
+          "key": "f9f0116e1e73ca5069fb98944a274ba055e6811b849211e1a0d18ba670b94732",
+          "ordinal": 72,
+          "serdeVariant": "Alternative72"
+        }
+      ]
+    },
+    "2f6d65b2c98193e82c76079efaa7e4e9399d10932aed73ebb1575d8d2c6e9960": {
+      "members": [
+        {
+          "key": "a2e781449edd1da648f4bbb6a3872c4e05c4c1d7810db69b81c80db2c4777595",
+          "ordinal": 1
+        },
+        {
+          "key": "0090848e194abccf87d283c4b4fa74b468298faf5e066a794e37f31db44a7c9d",
+          "ordinal": 2
+        },
+        {
+          "key": "262b93f844fe97e46b5b23063cfdba7947e836dfd33188a629aed9db73ed76e8",
+          "ordinal": 3
+        },
+        {
+          "key": "377bed8adeb6355c9242e1c77e0ccf856f0494367fb0e5b444d5969d19a54655",
+          "ordinal": 4
+        },
+        {
+          "key": "f95eb2f665be167f81666f786720d7134baaf6faaa49cc90316266ffdf772ed4",
+          "ordinal": 5
+        }
+      ]
+    },
+    "36cf22e35b0bac344945a57b77e58918d73380686d0350c67a1ff0b9e4d24624": {
+      "members": [
+        {
+          "key": "d01c082403dc5eba8e79862bd15cfef2b11420b68d60bc1633d6f7b20b7ddb82",
+          "ordinal": 1,
+          "serdeVariant": "SourceFromSchemaEffectBadgeValueSchema"
+        },
+        {
+          "key": "7b3d126e2cfd776b319ff2b30ef598b0166f8a2b6ecdf6e1ee103251492dbf77",
+          "ordinal": 2,
+          "serdeVariant": "SourceFromSchemaEffectBadgeFormulaSchema"
+        },
+        {
+          "key": "bda59c4dedcfaee35bcea871ccee6406f0218d58300bbcdfc12bb1c6df51af57",
+          "ordinal": 3,
+          "serdeVariant": "SourceFromSchemaEffectBadgeCounterSchema"
+        }
+      ]
+    },
+    "376eabe53289db35de1e240a71326cb8e546fe7c9171503d2a829db904a4a2f7": {
+      "members": [
+        {
+          "key": "89b53e014ee2da80445cbe454709a8aa5ffb97ae3d45e5e423ae73ba22404023",
+          "ordinal": 1,
+          "serdeVariant": "SpellHeighteningFixed"
+        },
+        {
+          "key": "4792fcee53fea0b7734de0adac1f2b092be47ba3df30657d59579c3886dba64c",
+          "ordinal": 2,
+          "serdeVariant": "SpellHeighteningInterval"
+        }
+      ]
+    },
+    "3d413d0c9f9a00cb012e1da9b975cebeb8a350502f6f18b9b75c4807937a1956": {
+      "members": [
+        {
+          "key": "5e90a0a0b82e4783e095d239d5f5a35dc0f84d87a18f68ff4a8affbbb9b13379",
+          "ordinal": 1
+        },
+        {
+          "key": "9d0e60f4cbd48b65eb7fd97e58266a028a6186d5d6b694f3cfd595aa4a45abac",
+          "ordinal": 2
+        },
+        {
+          "key": "b08d6fc75478140614ebcff32900c1edc1b7f8113f0e1a4a474dddd9c2ca9c47",
+          "ordinal": 3
+        },
+        {
+          "key": "ef2cba0a876f2009a4d5a1d09bf18ed8bda89de847ca352c5be163f51d8de57a",
+          "ordinal": 4
+        },
+        {
+          "key": "a56aad009cbca840c06b7203087e5bcb37540ec97f0b5d12f9793c7a44b7ec06",
+          "ordinal": 5
+        },
+        {
+          "key": "5a18ef531680b8f93aa202a75543f7123fa68cdfb4f2272510daec5c3eaf1019",
+          "ordinal": 6
+        },
+        {
+          "key": "21d85f2dd8515832fa5ccf313e129de0e5df4252c4eed7abbf096af6037428dc",
+          "ordinal": 7
+        },
+        {
+          "key": "a43a825889b053965f98c995dd7ae3c0109603d10f9b86771c33fd7badd6c628",
+          "ordinal": 8
+        },
+        {
+          "key": "9de42482b96515424cdfa02b9cbcf34eb66b3a5c90678844e3a334f788c710e4",
+          "ordinal": 9
+        },
+        {
+          "key": "209043101d6a02678df328fcdae4975e98d7538e17bb6adf54fbe36ac4db981c",
+          "ordinal": 10
+        },
+        {
+          "key": "e119cb40a72aa290e035359282a2bc5a93513ab35c2d00d7bc3ad4e49862fc57",
+          "ordinal": 11
+        },
+        {
+          "key": "3e1e3e1c3da598145974556f1a89354fc08a6f23b3708c268bbcd255d1c25953",
+          "ordinal": 12
+        },
+        {
+          "key": "52b8485027776132c66abb897a88225f5696fb5b09a91c8e6289c153e9129436",
+          "ordinal": 13
+        },
+        {
+          "key": "a51bf7729f7b0977c30e62c700bee2c90d40090427cc046420ff7ddce134f7bc",
+          "ordinal": 14
+        }
+      ]
+    },
+    "3fd75b08bf57cd9230398a62cb29d8a8ab3c23df5d6a7a3e505863cd98d1d4c6": {
+      "members": [
+        {
+          "key": "78316729954ac7e7aad386b85fbb70f85736ce9f3e5e1bbeb0d7bc0a5c9b4837",
+          "ordinal": 1,
+          "serdeVariant": "Array"
+        },
+        {
+          "key": "b449f104517e1fdceef4826c651868dbf8edaac90492986bd27a30aa0ca9971d",
+          "ordinal": 2,
+          "serdeVariant": "String"
+        },
+        {
+          "key": "d9f61c112d9728cc9f068a2e30cea5228390bc9777fa313786e006a8291cc7ff",
+          "ordinal": 3,
+          "serdeVariant": "ChoiceSetAttacks"
+        },
+        {
+          "key": "bc2d540b06243ddc2d1d7c647d4478339992460ed998cfd6673327ec634da3ee",
+          "ordinal": 4,
+          "serdeVariant": "ChoiceSetConfig"
+        },
+        {
+          "key": "2f5f33322174a498eaa166a76547e4b3b017a7959792f7e76a8b1ffffe788336",
+          "ordinal": 5,
+          "serdeVariant": "ChoiceSetOwnedItems"
+        },
+        {
+          "key": "3d1345ff6e5e1c0390e4e484b62e1b5d4d6f8f0ca8b73e4a95e2da834dc1ab21",
+          "ordinal": 6,
+          "serdeVariant": "ChoiceSetPackQuery"
+        }
+      ]
+    },
+    "4121022162d619c10e0d9ca6ff26314b48b886dec203c003bd1b682471bc332d": {
+      "members": [
+        {
+          "key": "daa4633ee45ebd18083e4a0b9d26dbfb63ff7167104b500277c31e5ae85b55ee",
+          "ordinal": 1
+        },
+        {
+          "key": "b59d22679fca3d75f28417ab71c2167e99fb812de0a928b0c2d7936bdc593c0f",
+          "ordinal": 2
+        },
+        {
+          "key": "c7cfd2655ebb120d6e77c70ac0200935fe74295bffeac24d528e9654bac70dfb",
+          "ordinal": 3
+        },
+        {
+          "key": "87eee29e289aa0f923d3d79c82bb965720b26317cbdbca5dc301045d7ea425fc",
+          "ordinal": 4
+        },
+        {
+          "key": "670157f25c711ffcde1938e0ebf7386089be5ce84deb731bf355527955939a78",
+          "ordinal": 5
+        }
+      ]
+    },
+    "44d2fa164df9e9eb193794a6e99a0ada4fef30a5ea6c5c0d073db6770270757a": {
+      "members": [
+        {
+          "key": "63fc49f5fb8bb514cbbaad3a63e0c3aad7d8729253f24bd7f00a64a787cc6dc5",
+          "ordinal": 1
+        },
+        {
+          "key": "322b66bb35e5e705753207afbc1c2496076eb308a3263863b34810b5f1b10a55",
+          "ordinal": 2
+        },
+        {
+          "key": "fed51db3546849fb3fc88aa8f4ae8f98512db16645ce81baf9a5d6b140d20be2",
+          "ordinal": 3
+        },
+        {
+          "key": "670157f25c711ffcde1938e0ebf7386089be5ce84deb731bf355527955939a78",
+          "ordinal": 4
+        }
+      ]
+    },
+    "46532130f94dfe44196f8acccc194dbd3e946dad97b0be772ce3ef591c8c0b8b": {
+      "members": [
+        {
+          "key": "a1054c124964666b8822c97368d29048b483b0ed67e1ea6547c8764e92312cb2",
+          "ordinal": 1
+        },
+        {
+          "key": "fe973a1d66e9e8b3784e8e0467cd86ae284c93f6ff5b704866f63c391810074d",
+          "ordinal": 2
+        },
+        {
+          "key": "cfe37c7426530b1559e95b2b8eea498db27cf00dba6ecbca665bec518d8fa2ad",
+          "ordinal": 3
+        },
+        {
+          "key": "3098367b765f1f1322774e8036ecc340047194373666f90067969e8e647f9f8f",
+          "ordinal": 4
+        },
+        {
+          "key": "f9ae5e1c7558c4256420b0ca2505c40d373fd2d5fd6ac2c8928fa7b0d46ada81",
+          "ordinal": 5
+        },
+        {
+          "key": "670157f25c711ffcde1938e0ebf7386089be5ce84deb731bf355527955939a78",
+          "ordinal": 6
+        }
+      ]
+    },
+    "4f4cfefa43875d75d44adc46337566e56807c5948b5040fac89edf61f45ccbab": {
+      "members": [
+        {
+          "key": "8d9e3b7ee4d0ce458d62a97b51d4b180977375ad7880e787ac35ce8c9bfd1584",
+          "ordinal": 1,
+          "serdeVariant": "Array"
+        },
+        {
+          "key": "86856e030fffe1303413bf9669ccd742e6827e28183f7aa1b2d05dfc8e210f72",
+          "ordinal": 2,
+          "serdeVariant": "SourceFromSchemaSuboptionConfigSchema"
+        }
+      ]
+    },
+    "52c5e66e284222bc0c34af4c2b6b12cfc987ae60268f38d2d22a346464f483cf": {
+      "members": [
+        {
+          "key": "cfc6fb2b8f1846f4dc40f0f85efc5fc7d5e8fdbfea700452c5f9f99da1496b5e",
+          "ordinal": 1,
+          "serdeVariant": "Number"
+        },
+        {
+          "key": "670157f25c711ffcde1938e0ebf7386089be5ce84deb731bf355527955939a78",
+          "ordinal": 2,
+          "serdeVariant": "Alternative2"
+        }
+      ]
+    },
+    "71227f4c180ececba4b4e38a8c4beec35e0237ee54ef64124cd5247f99949040": {
+      "name": "IWRException",
+      "members": [
+        {
+          "key": "b5dbdf7ed9d10985d5970d32d0bb5e290668d3ced31a3f30e8f337f4c9185766",
+          "ordinal": 1,
+          "serdeVariant": "Alternative1"
+        },
+        {
+          "key": "b3477347b6c69f36d5540fe6fddb56813d0c34f1a57df5ee466ea39f6d7c57de",
+          "ordinal": 2,
+          "serdeVariant": "Alternative2"
+        },
+        {
+          "key": "d272b1089b8eb213e66efe05fe6469f83eab95853087cd6e9770b7ea640be28f",
+          "ordinal": 3,
+          "serdeVariant": "Alternative3"
+        },
+        {
+          "key": "832b27b68e6df5d8ab08ca139a36173f8cbfeee0c40a881de3339601acc49b8a",
+          "ordinal": 4,
+          "serdeVariant": "Alternative4"
+        },
+        {
+          "key": "ffdea035ac5f639143c58f4fe23a90c310ef85908447bea8c4e641be591a4c7f",
+          "ordinal": 5,
+          "serdeVariant": "Alternative5"
+        },
+        {
+          "key": "c25eb3a26e8bf849d4f941af59d1ab0508a6545ba82f67f15c9400f8a768f3dc",
+          "ordinal": 6,
+          "serdeVariant": "Alternative6"
+        },
+        {
+          "key": "d1bf0b5d2271ad20be83df2b49cdc50739100176dae95391bd7d3ecffe6bf263",
+          "ordinal": 7,
+          "serdeVariant": "Alternative7"
+        },
+        {
+          "key": "4a4ddcca106e08813edb77bbd5ff788d4956e7ca5a15d6908eba05e424ea8855",
+          "ordinal": 8,
+          "serdeVariant": "Alternative8"
+        },
+        {
+          "key": "45f2f91a627a49f72e6d7c321a7d5d129d49ea6b298c1b8a5681c7d3a55259ec",
+          "ordinal": 9,
+          "serdeVariant": "Alternative9"
+        },
+        {
+          "key": "a4fbbfdf04014f39395edf5991544ce385eff063857f7a864cc1a24474a7d8f4",
+          "ordinal": 10,
+          "serdeVariant": "Alternative10"
+        },
+        {
+          "key": "948b6f3851956041942cc6dd6a191362d69df16a172b006d0d72efc46962e353",
+          "ordinal": 11,
+          "serdeVariant": "Alternative11"
+        },
+        {
+          "key": "e0f526603f8ec6fe71e74392e7718a99bb449a43f07a496d757cee1f27ee3425",
+          "ordinal": 12,
+          "serdeVariant": "Alternative12"
+        },
+        {
+          "key": "2d8b6aace24748ec2cbcb7ea1c7484c6455e9b96436990f171a530074b7ca8bf",
+          "ordinal": 13,
+          "serdeVariant": "Alternative13"
+        },
+        {
+          "key": "4b52aad08482a56f52c43a8a56a1c2460c1b78140c88faa9e243b58f343d7bfa",
+          "ordinal": 14,
+          "serdeVariant": "Alternative14"
+        },
+        {
+          "key": "5945f3fd43f5235a50241f81f509eae79c0f24266f69ef7b0f178bd1e63dd66a",
+          "ordinal": 15,
+          "serdeVariant": "Alternative15"
+        },
+        {
+          "key": "cb02305b9e50a8551974790df58de7e3d931eecf1250635495f685b43b2cf19b",
+          "ordinal": 16,
+          "serdeVariant": "Alternative16"
+        },
+        {
+          "key": "0fb48269bfc7f32d40b36379f8b98aeffd4f8b2b3c712a09f37a0c996406a99f",
+          "ordinal": 17,
+          "serdeVariant": "Alternative17"
+        },
+        {
+          "key": "8c894c08132358e5a3562eefc868c04f56ae2dbc790b56dfe5fd7cc77c02c88f",
+          "ordinal": 18,
+          "serdeVariant": "Alternative18"
+        },
+        {
+          "key": "7146fe7f4857d8be501c0ea02ff67a3aa693f69282e16a73bd74ddb0e17934c6",
+          "ordinal": 19,
+          "serdeVariant": "Alternative19"
+        },
+        {
+          "key": "e34539cdc8ceff9bae70641f27a446bc89c2193eeff14d54f4aa446c12586369",
+          "ordinal": 20,
+          "serdeVariant": "Alternative20"
+        },
+        {
+          "key": "39ccf50370bf03e83c723fac47c189cd249c39cc1b187d697f45a61df11076eb",
+          "ordinal": 21,
+          "serdeVariant": "Alternative21"
+        },
+        {
+          "key": "5797903b6c91726f7987ed49b286f5912c9c555031f50da0f8d0caa920c412b2",
+          "ordinal": 22,
+          "serdeVariant": "Alternative22"
+        },
+        {
+          "key": "9714a38dcfd8f79816982b86ba78bb5ce75337ee31d34eb8eb8af1055b9d4792",
+          "ordinal": 23,
+          "serdeVariant": "Alternative23"
+        },
+        {
+          "key": "ce5d85c540d5b86b17fdd2bff809ef9b2ff8208e7ff3ec08c87c349b690deb63",
+          "ordinal": 24,
+          "serdeVariant": "Alternative24"
+        },
+        {
+          "key": "95cbdbdd6b6eac3bb20ab9aad181d631a1bcf7438e0260d88efb3eb897fbf0f4",
+          "ordinal": 25,
+          "serdeVariant": "Alternative25"
+        },
+        {
+          "key": "b3989cc35b45bda68e5aa6119c9bbdf086d2243e814ffbe0436790a569d1c7ef",
+          "ordinal": 26,
+          "serdeVariant": "Alternative26"
+        },
+        {
+          "key": "6635df059c986b81c9c63a1389b4111a9b73b42abd6800a91b876e983bddcb81",
+          "ordinal": 27,
+          "serdeVariant": "Alternative27"
+        },
+        {
+          "key": "964de17e5ede85567cf2d6ecb4d4ab186be46c5341023bfbfdfa3dc4f1ea9fe1",
+          "ordinal": 28,
+          "serdeVariant": "Alternative28"
+        },
+        {
+          "key": "2effb91130286c51b379e744f9ebd1609a84152d4a4c3f3c1ff73ac5b0649535",
+          "ordinal": 29,
+          "serdeVariant": "Alternative29"
+        },
+        {
+          "key": "71d2fe4505c8f45a52c2901fc7d1008d26bce0f66c58ef2d2a2b7dc3370f4fec",
+          "ordinal": 30,
+          "serdeVariant": "Alternative30"
+        },
+        {
+          "key": "01e66bc0e437907f909fd61cff6f8c0d1227d1853a0ccf536e1e59e3ce7ddeb5",
+          "ordinal": 31,
+          "serdeVariant": "Alternative31"
+        },
+        {
+          "key": "407bbb7e963f9a1f4944728afdebf70a29bf3ad39b278ea37c4fdf97fa3afff9",
+          "ordinal": 32,
+          "serdeVariant": "Alternative32"
+        },
+        {
+          "key": "e1ada0422e7eb91f3bfdc08da1cf16bc94ac9a2a18947cea4268dfb8ba9dd3a5",
+          "ordinal": 33,
+          "serdeVariant": "Alternative33"
+        },
+        {
+          "key": "0b45f8dc27ad96718f4e2548ded84e31564db902e40a4a2ecfc1a25625c25b4f",
+          "ordinal": 34,
+          "serdeVariant": "Alternative34"
+        },
+        {
+          "key": "a454b7fb92262d2fe732c7ca15419627266d882f5d78a605bd8fabd6d1b35d7d",
+          "ordinal": 35,
+          "serdeVariant": "Alternative35"
+        },
+        {
+          "key": "7d92b456442da2c0d5c7ae8bb2657aaa2c3815a12ab02a7a64830a676734d203",
+          "ordinal": 36,
+          "serdeVariant": "Alternative36"
+        },
+        {
+          "key": "d1c2e92bad598a3e5df1e70e92cd1d82a2e2b8c33110e3243098c6ea7e1fd6b8",
+          "ordinal": 37,
+          "serdeVariant": "Alternative37"
+        },
+        {
+          "key": "2f8865107cf76208039140fc773c949635db6ebc80ebb2e820ac034d40420c87",
+          "ordinal": 38,
+          "serdeVariant": "Alternative38"
+        },
+        {
+          "key": "8908524b7f5323eb311e40efd5599e67258ecf8ecee963ee4883631fa866ff36",
+          "ordinal": 39,
+          "serdeVariant": "Alternative39"
+        },
+        {
+          "key": "d2734a7449836f32ec8b4c54229d5c82d2ebf1913f92fcbbbd68edf01e7f0644",
+          "ordinal": 40,
+          "serdeVariant": "Alternative40"
+        },
+        {
+          "key": "5fd839d087b3994bc1c2ba3dcd7fd64c711ffb73014a3075f89c6ff64e94ab2b",
+          "ordinal": 41,
+          "serdeVariant": "Alternative41"
+        },
+        {
+          "key": "3e81ee1f62a81dc6bca824426f30c95d75df541f5ec6b4168d42d28e6784ab95",
+          "ordinal": 42,
+          "serdeVariant": "Alternative42"
+        },
+        {
+          "key": "fbb99bd7efbdc953776f4309ea7e025ef4efc276127dd4aa89aba999d25a248d",
+          "ordinal": 43,
+          "serdeVariant": "Alternative43"
+        },
+        {
+          "key": "7125ae1f3090f8d09b4df93105d015f7c2dea23e0a7df3d5081bce974c6979aa",
+          "ordinal": 44,
+          "serdeVariant": "Alternative44"
+        },
+        {
+          "key": "4f7c5cd4f51f73b2db607883cb270319e4e699bc1374b7e8ab2ee52227ad038f",
+          "ordinal": 45,
+          "serdeVariant": "Alternative45"
+        },
+        {
+          "key": "322b66bb35e5e705753207afbc1c2496076eb308a3263863b34810b5f1b10a55",
+          "ordinal": 46,
+          "serdeVariant": "Alternative46"
+        },
+        {
+          "key": "a53d4082c02a49931844e2904ddac6e33551146dda0b10797c1300bf6310b773",
+          "ordinal": 47,
+          "serdeVariant": "Alternative47"
+        },
+        {
+          "key": "87fceb464106f664ce1b95dfae37f958740da77429c21d4ef08c3d94b3947d5b",
+          "ordinal": 48,
+          "serdeVariant": "Alternative48"
+        },
+        {
+          "key": "303182c31b7646c0f580e657674befc7cd81c5450f3f10ac31575046d54b07fe",
+          "ordinal": 49,
+          "serdeVariant": "Alternative49"
+        },
+        {
+          "key": "3404fd80923f78f1e0c9d5962a0cb9dedf4c648e05f8fbffb46403f261c9b1f8",
+          "ordinal": 50,
+          "serdeVariant": "Alternative50"
+        },
+        {
+          "key": "349561be3fda2030f1f5390bd7812908f0d1ce29ea06e696e69208a546770641",
+          "ordinal": 51,
+          "serdeVariant": "Alternative51"
+        },
+        {
+          "key": "dfd2dbdc0f018a210f3646c70184890330422718060e3d98b4dad41b0c85bc5d",
+          "ordinal": 52,
+          "serdeVariant": "Alternative52"
+        },
+        {
+          "key": "bfb0a9a6c19eb587417296f7115b52939564258075713409e91fe32351f236ba",
+          "ordinal": 53,
+          "serdeVariant": "Alternative53"
+        },
+        {
+          "key": "32df098b319ac5f04374524772adeb2f1c24829fec41283c49b4ba6511adc487",
+          "ordinal": 54,
+          "serdeVariant": "Alternative54"
+        },
+        {
+          "key": "2e2d132e550047ae9bc2c82645b88a49e9bbbec05d5cd0e3c4b4bf6d13b1bb3c",
+          "ordinal": 55,
+          "serdeVariant": "Alternative55"
+        },
+        {
+          "key": "67f34b8b68550f3c7e6e4cef768d20bf719c1e1fdcf3a68a64f80e48bb69ed8b",
+          "ordinal": 56,
+          "serdeVariant": "Alternative56"
+        },
+        {
+          "key": "8bf4dfee41c8109bd27d1965571cb1096b9c3c0c78ba3379d93f22e5440410ae",
+          "ordinal": 57,
+          "serdeVariant": "Alternative57"
+        },
+        {
+          "key": "96261be1b8df99ae928248f96379d4d82922e527ad9b8010b5612cf3e70e2d4f",
+          "ordinal": 58,
+          "serdeVariant": "Alternative58"
+        },
+        {
+          "key": "33eef5aacb7d77baefef31db4038d62996e33a6d81c2b788c51098664a48cf6d",
+          "ordinal": 59,
+          "serdeVariant": "Alternative59"
+        },
+        {
+          "key": "67574a232ee2d9793a15d9fb5bc266ecdb21df016c6f556e5ebd93662197950c",
+          "ordinal": 60,
+          "serdeVariant": "Alternative60"
+        },
+        {
+          "key": "78120d3ff970b662132b7e5a7085957006b9eb39cf7565a9187c07e07897e1ca",
+          "ordinal": 61,
+          "serdeVariant": "Alternative61"
+        },
+        {
+          "key": "ef7b8f4515bd5f5d9597612211d920dad002e7cd480bb0df21cd02af8e1d68f3",
+          "ordinal": 62,
+          "serdeVariant": "Alternative62"
+        },
+        {
+          "key": "65894886f421b897dc762ce972b5d632caac28d000edbd47d3140cdfc06cb500",
+          "ordinal": 63,
+          "serdeVariant": "Alternative63"
+        },
+        {
+          "key": "0ed12d92d3126b8924c14eb423f04138c081739b3c74d2bbb904222116c1bca0",
+          "ordinal": 64,
+          "serdeVariant": "Alternative64"
+        },
+        {
+          "key": "36ff7b860abafae6ce4885fa050e2973bee768a722aacdb5a63abe77cc509193",
+          "ordinal": 65,
+          "serdeVariant": "Alternative65"
+        },
+        {
+          "key": "106afdba198a3e5e8a89d61d2f8640de89e6a0b2252400ff1267ab263c7bdea1",
+          "ordinal": 66,
+          "serdeVariant": "Alternative66"
+        },
+        {
+          "key": "453b0169665709e97cd14e7ae6e7fd966f797de3230bc4b2bc2c0e2a6466b682",
+          "ordinal": 67,
+          "serdeVariant": "Alternative67"
+        },
+        {
+          "key": "cabce6be9d6e7d65f97f45f229fdfe940acd894d883ce9e27065a368cbb8a74a",
+          "ordinal": 68,
+          "serdeVariant": "Alternative68"
+        },
+        {
+          "key": "f9f0116e1e73ca5069fb98944a274ba055e6811b849211e1a0d18ba670b94732",
+          "ordinal": 69,
+          "serdeVariant": "Alternative69"
+        }
+      ]
+    },
+    "7574756b72056e52354296224a4bc0e90785c6b4067d8c332929116406beb6c8": {
+      "name": "DivineFonts",
+      "members": [
+        {
+          "key": "2f6e6c15223cc3911adab93773f6af1619e2aeedcd98440c6c54488312da9b08",
+          "ordinal": 1,
+          "serdeVariant": "Array"
+        },
+        {
+          "key": "845b9f235576398a2b0a4227ed5c21520d067cf6a9623c69246fe6a4c8a94af5",
+          "ordinal": 2,
+          "serdeVariant": "Alternative2"
+        },
+        {
+          "key": "1129227119126f1145b4523209c434d31fb7b91efeb06e996f8aa92a93aea18b",
+          "ordinal": 3,
+          "serdeVariant": "Alternative3"
+        },
+        {
+          "key": "be3add9067359ff4bd37b8f1c603cce70f31500860d64f1d04961151f0d0c0cb",
+          "ordinal": 4,
+          "serdeVariant": "Alternative4"
+        }
+      ]
+    },
+    "7b7d78026431b5aeb965977dcca5d1583c4218cdd3d4e40cef433142138cce7a": {
+      "members": [
+        {
+          "key": "7dcbaa3d8fb289578c93cf6b22a42047a507eff8dab4133b4110b3bdecc83205",
+          "ordinal": 1,
+          "serdeVariant": "Array"
+        },
+        {
+          "key": "b449f104517e1fdceef4826c651868dbf8edaac90492986bd27a30aa0ca9971d",
+          "ordinal": 2,
+          "serdeVariant": "String"
+        }
+      ]
+    },
+    "8d44972c72878f5e3688efdae00941b4da75bf95b6517640f6d181a22e5c798d": {
+      "members": [
+        {
+          "key": "568a6348056f160645ec336bedd6163e32b06a3a7cf99f13a268b452673c8636",
+          "ordinal": 1
+        },
+        {
+          "key": "f6b4faf1a732635f491545439e655474cff3060341dfc746c2e20eb69ead0eeb",
+          "ordinal": 2
+        }
+      ]
+    },
+    "8f24060559228673297d4c276b9f2509b71d1bb605a67f270cc42751e9c5cac8": {
+      "name": "ActorUUID",
+      "members": [
+        {
+          "key": "2a7d09824b7d77f5f359c91c09c472e14714aed2ce438b36c028112d87d99d64",
+          "ordinal": 1
+        },
+        {
+          "key": "8582d65cbf810e7d95968d307e2bdd7596d2763e15776fda830328b2e16698ce",
+          "ordinal": 2
+        },
+        {
+          "key": "a5b20e4458f29012a9db86fb18c720da4c33d1e0befed67e30a046909b66d0b6",
+          "ordinal": 3
+        }
+      ]
+    },
+    "90abc62501893ec3f06a38b57c23909586bd5f6a21557914b774c0fce8a1137b": {
+      "members": [
+        {
+          "key": "b449f104517e1fdceef4826c651868dbf8edaac90492986bd27a30aa0ca9971d",
+          "ordinal": 1,
+          "serdeVariant": "String"
+        },
+        {
+          "key": "41ecc76d8716d201d54ce7c12684f2bddfdab3ced5d02984c203a1ab808e4b76",
+          "ordinal": 2,
+          "serdeVariant": "SourceFromSchemaBattleFormRuleOverrideSchemaWeaknessesEntryOmitExceptionsEntryAlternative2SourceFromSchema"
+        }
+      ]
+    },
+    "96375cacaf09cdafb72827f55fe92b709770c4947cc8b2cd794932bdb2126969": {
+      "members": [
+        {
+          "key": "70701ff34fd45830820fc8dd2daf6778f2dacb0917bdfaddebc96fcf46f9bc07",
+          "ordinal": 1,
+          "serdeVariant": "ItemTraitsItemTrait"
+        },
+        {
+          "key": "ff058ab000255837f2f00e1c6ab4b151e99dee45fedbcb97e794ffa95e8db52c",
+          "ordinal": 2,
+          "serdeVariant": "ItemTraitsNoRarityItemTrait"
+        },
+        {
+          "key": "c059d22e2c97892b41a10c696494d628dddbce331fd49e525300c2ab6a5d769e",
+          "ordinal": 3,
+          "serdeVariant": "OtherTagsOnly"
+        },
+        {
+          "key": "fb4847ee5b259ad707ef1ec5bed17f65fa74ec38e4ce676d09735e1b826d831b",
+          "ordinal": 4,
+          "serdeVariant": "RarityTraitAndOtherTags"
+        }
+      ]
+    },
+    "964b0ebaf68ade503c3e6a5318d8c03f583161d5b0d014ae547a391af9f7befb": {
+      "members": [
+        {
+          "key": "2a7d09824b7d77f5f359c91c09c472e14714aed2ce438b36c028112d87d99d64",
+          "ordinal": 1
+        },
+        {
+          "key": "8582d65cbf810e7d95968d307e2bdd7596d2763e15776fda830328b2e16698ce",
+          "ordinal": 2
+        },
+        {
+          "key": "a5b20e4458f29012a9db86fb18c720da4c33d1e0befed67e30a046909b66d0b6",
+          "ordinal": 3
+        }
+      ]
+    },
+    "a6290ee26ecbe3b0d193c4b7ea7134595bf007355b0c779620fb0b7e103fd223": {
+      "members": [
+        {
+          "key": "5e90a0a0b82e4783e095d239d5f5a35dc0f84d87a18f68ff4a8affbbb9b13379",
+          "ordinal": 1
+        },
+        {
+          "key": "9d0e60f4cbd48b65eb7fd97e58266a028a6186d5d6b694f3cfd595aa4a45abac",
+          "ordinal": 2
+        },
+        {
+          "key": "b08d6fc75478140614ebcff32900c1edc1b7f8113f0e1a4a474dddd9c2ca9c47",
+          "ordinal": 3
+        },
+        {
+          "key": "ef2cba0a876f2009a4d5a1d09bf18ed8bda89de847ca352c5be163f51d8de57a",
+          "ordinal": 4
+        },
+        {
+          "key": "a56aad009cbca840c06b7203087e5bcb37540ec97f0b5d12f9793c7a44b7ec06",
+          "ordinal": 5
+        },
+        {
+          "key": "5a18ef531680b8f93aa202a75543f7123fa68cdfb4f2272510daec5c3eaf1019",
+          "ordinal": 6
+        },
+        {
+          "key": "21d85f2dd8515832fa5ccf313e129de0e5df4252c4eed7abbf096af6037428dc",
+          "ordinal": 7
+        },
+        {
+          "key": "a43a825889b053965f98c995dd7ae3c0109603d10f9b86771c33fd7badd6c628",
+          "ordinal": 8
+        },
+        {
+          "key": "9de42482b96515424cdfa02b9cbcf34eb66b3a5c90678844e3a334f788c710e4",
+          "ordinal": 9
+        },
+        {
+          "key": "e119cb40a72aa290e035359282a2bc5a93513ab35c2d00d7bc3ad4e49862fc57",
+          "ordinal": 10
+        }
+      ]
+    },
+    "b89ad286cb5303150ec5a868e0b72b87b192c0a8971088e0b630f8199c54e0aa": {
+      "members": [
+        {
+          "key": "b5dbdf7ed9d10985d5970d32d0bb5e290668d3ced31a3f30e8f337f4c9185766",
+          "ordinal": 1
+        },
+        {
+          "key": "b3477347b6c69f36d5540fe6fddb56813d0c34f1a57df5ee466ea39f6d7c57de",
+          "ordinal": 2
+        },
+        {
+          "key": "d272b1089b8eb213e66efe05fe6469f83eab95853087cd6e9770b7ea640be28f",
+          "ordinal": 3
+        },
+        {
+          "key": "832b27b68e6df5d8ab08ca139a36173f8cbfeee0c40a881de3339601acc49b8a",
+          "ordinal": 4
+        },
+        {
+          "key": "ffdea035ac5f639143c58f4fe23a90c310ef85908447bea8c4e641be591a4c7f",
+          "ordinal": 5
+        },
+        {
+          "key": "c25eb3a26e8bf849d4f941af59d1ab0508a6545ba82f67f15c9400f8a768f3dc",
+          "ordinal": 6
+        },
+        {
+          "key": "d1bf0b5d2271ad20be83df2b49cdc50739100176dae95391bd7d3ecffe6bf263",
+          "ordinal": 7
+        },
+        {
+          "key": "4a4ddcca106e08813edb77bbd5ff788d4956e7ca5a15d6908eba05e424ea8855",
+          "ordinal": 8
+        },
+        {
+          "key": "45f2f91a627a49f72e6d7c321a7d5d129d49ea6b298c1b8a5681c7d3a55259ec",
+          "ordinal": 9
+        },
+        {
+          "key": "a4fbbfdf04014f39395edf5991544ce385eff063857f7a864cc1a24474a7d8f4",
+          "ordinal": 10
+        },
+        {
+          "key": "948b6f3851956041942cc6dd6a191362d69df16a172b006d0d72efc46962e353",
+          "ordinal": 11
+        },
+        {
+          "key": "e0f526603f8ec6fe71e74392e7718a99bb449a43f07a496d757cee1f27ee3425",
+          "ordinal": 12
+        },
+        {
+          "key": "2d8b6aace24748ec2cbcb7ea1c7484c6455e9b96436990f171a530074b7ca8bf",
+          "ordinal": 13
+        },
+        {
+          "key": "4b52aad08482a56f52c43a8a56a1c2460c1b78140c88faa9e243b58f343d7bfa",
+          "ordinal": 14
+        },
+        {
+          "key": "5945f3fd43f5235a50241f81f509eae79c0f24266f69ef7b0f178bd1e63dd66a",
+          "ordinal": 15
+        },
+        {
+          "key": "cb02305b9e50a8551974790df58de7e3d931eecf1250635495f685b43b2cf19b",
+          "ordinal": 16
+        },
+        {
+          "key": "0fb48269bfc7f32d40b36379f8b98aeffd4f8b2b3c712a09f37a0c996406a99f",
+          "ordinal": 17
+        },
+        {
+          "key": "8c894c08132358e5a3562eefc868c04f56ae2dbc790b56dfe5fd7cc77c02c88f",
+          "ordinal": 18
+        },
+        {
+          "key": "7146fe7f4857d8be501c0ea02ff67a3aa693f69282e16a73bd74ddb0e17934c6",
+          "ordinal": 19
+        },
+        {
+          "key": "e34539cdc8ceff9bae70641f27a446bc89c2193eeff14d54f4aa446c12586369",
+          "ordinal": 20
+        },
+        {
+          "key": "39ccf50370bf03e83c723fac47c189cd249c39cc1b187d697f45a61df11076eb",
+          "ordinal": 21
+        },
+        {
+          "key": "5797903b6c91726f7987ed49b286f5912c9c555031f50da0f8d0caa920c412b2",
+          "ordinal": 22
+        },
+        {
+          "key": "9714a38dcfd8f79816982b86ba78bb5ce75337ee31d34eb8eb8af1055b9d4792",
+          "ordinal": 23
+        },
+        {
+          "key": "ce5d85c540d5b86b17fdd2bff809ef9b2ff8208e7ff3ec08c87c349b690deb63",
+          "ordinal": 24
+        },
+        {
+          "key": "95cbdbdd6b6eac3bb20ab9aad181d631a1bcf7438e0260d88efb3eb897fbf0f4",
+          "ordinal": 25
+        },
+        {
+          "key": "b3989cc35b45bda68e5aa6119c9bbdf086d2243e814ffbe0436790a569d1c7ef",
+          "ordinal": 26
+        },
+        {
+          "key": "6635df059c986b81c9c63a1389b4111a9b73b42abd6800a91b876e983bddcb81",
+          "ordinal": 27
+        },
+        {
+          "key": "964de17e5ede85567cf2d6ecb4d4ab186be46c5341023bfbfdfa3dc4f1ea9fe1",
+          "ordinal": 28
+        },
+        {
+          "key": "2effb91130286c51b379e744f9ebd1609a84152d4a4c3f3c1ff73ac5b0649535",
+          "ordinal": 29
+        },
+        {
+          "key": "71d2fe4505c8f45a52c2901fc7d1008d26bce0f66c58ef2d2a2b7dc3370f4fec",
+          "ordinal": 30
+        },
+        {
+          "key": "01e66bc0e437907f909fd61cff6f8c0d1227d1853a0ccf536e1e59e3ce7ddeb5",
+          "ordinal": 31
+        },
+        {
+          "key": "407bbb7e963f9a1f4944728afdebf70a29bf3ad39b278ea37c4fdf97fa3afff9",
+          "ordinal": 32
+        },
+        {
+          "key": "e1ada0422e7eb91f3bfdc08da1cf16bc94ac9a2a18947cea4268dfb8ba9dd3a5",
+          "ordinal": 33
+        },
+        {
+          "key": "0b45f8dc27ad96718f4e2548ded84e31564db902e40a4a2ecfc1a25625c25b4f",
+          "ordinal": 34
+        },
+        {
+          "key": "a454b7fb92262d2fe732c7ca15419627266d882f5d78a605bd8fabd6d1b35d7d",
+          "ordinal": 35
+        },
+        {
+          "key": "7d92b456442da2c0d5c7ae8bb2657aaa2c3815a12ab02a7a64830a676734d203",
+          "ordinal": 36
+        },
+        {
+          "key": "d1c2e92bad598a3e5df1e70e92cd1d82a2e2b8c33110e3243098c6ea7e1fd6b8",
+          "ordinal": 37
+        },
+        {
+          "key": "2f8865107cf76208039140fc773c949635db6ebc80ebb2e820ac034d40420c87",
+          "ordinal": 38
+        },
+        {
+          "key": "8908524b7f5323eb311e40efd5599e67258ecf8ecee963ee4883631fa866ff36",
+          "ordinal": 39
+        },
+        {
+          "key": "d2734a7449836f32ec8b4c54229d5c82d2ebf1913f92fcbbbd68edf01e7f0644",
+          "ordinal": 40
+        },
+        {
+          "key": "5fd839d087b3994bc1c2ba3dcd7fd64c711ffb73014a3075f89c6ff64e94ab2b",
+          "ordinal": 41
+        },
+        {
+          "key": "3e81ee1f62a81dc6bca824426f30c95d75df541f5ec6b4168d42d28e6784ab95",
+          "ordinal": 42
+        },
+        {
+          "key": "fbb99bd7efbdc953776f4309ea7e025ef4efc276127dd4aa89aba999d25a248d",
+          "ordinal": 43
+        },
+        {
+          "key": "7125ae1f3090f8d09b4df93105d015f7c2dea23e0a7df3d5081bce974c6979aa",
+          "ordinal": 44
+        },
+        {
+          "key": "4f7c5cd4f51f73b2db607883cb270319e4e699bc1374b7e8ab2ee52227ad038f",
+          "ordinal": 45
+        },
+        {
+          "key": "322b66bb35e5e705753207afbc1c2496076eb308a3263863b34810b5f1b10a55",
+          "ordinal": 46
+        },
+        {
+          "key": "a53d4082c02a49931844e2904ddac6e33551146dda0b10797c1300bf6310b773",
+          "ordinal": 47
+        },
+        {
+          "key": "87fceb464106f664ce1b95dfae37f958740da77429c21d4ef08c3d94b3947d5b",
+          "ordinal": 48
+        },
+        {
+          "key": "303182c31b7646c0f580e657674befc7cd81c5450f3f10ac31575046d54b07fe",
+          "ordinal": 49
+        },
+        {
+          "key": "3404fd80923f78f1e0c9d5962a0cb9dedf4c648e05f8fbffb46403f261c9b1f8",
+          "ordinal": 50
+        },
+        {
+          "key": "349561be3fda2030f1f5390bd7812908f0d1ce29ea06e696e69208a546770641",
+          "ordinal": 51
+        },
+        {
+          "key": "dfd2dbdc0f018a210f3646c70184890330422718060e3d98b4dad41b0c85bc5d",
+          "ordinal": 52
+        },
+        {
+          "key": "bfb0a9a6c19eb587417296f7115b52939564258075713409e91fe32351f236ba",
+          "ordinal": 53
+        },
+        {
+          "key": "32df098b319ac5f04374524772adeb2f1c24829fec41283c49b4ba6511adc487",
+          "ordinal": 54
+        },
+        {
+          "key": "2e2d132e550047ae9bc2c82645b88a49e9bbbec05d5cd0e3c4b4bf6d13b1bb3c",
+          "ordinal": 55
+        },
+        {
+          "key": "67f34b8b68550f3c7e6e4cef768d20bf719c1e1fdcf3a68a64f80e48bb69ed8b",
+          "ordinal": 56
+        },
+        {
+          "key": "8bf4dfee41c8109bd27d1965571cb1096b9c3c0c78ba3379d93f22e5440410ae",
+          "ordinal": 57
+        },
+        {
+          "key": "96261be1b8df99ae928248f96379d4d82922e527ad9b8010b5612cf3e70e2d4f",
+          "ordinal": 58
+        },
+        {
+          "key": "33eef5aacb7d77baefef31db4038d62996e33a6d81c2b788c51098664a48cf6d",
+          "ordinal": 59
+        },
+        {
+          "key": "67574a232ee2d9793a15d9fb5bc266ecdb21df016c6f556e5ebd93662197950c",
+          "ordinal": 60
+        },
+        {
+          "key": "78120d3ff970b662132b7e5a7085957006b9eb39cf7565a9187c07e07897e1ca",
+          "ordinal": 61
+        },
+        {
+          "key": "ef7b8f4515bd5f5d9597612211d920dad002e7cd480bb0df21cd02af8e1d68f3",
+          "ordinal": 62
+        },
+        {
+          "key": "65894886f421b897dc762ce972b5d632caac28d000edbd47d3140cdfc06cb500",
+          "ordinal": 63
+        },
+        {
+          "key": "0ed12d92d3126b8924c14eb423f04138c081739b3c74d2bbb904222116c1bca0",
+          "ordinal": 64
+        },
+        {
+          "key": "36ff7b860abafae6ce4885fa050e2973bee768a722aacdb5a63abe77cc509193",
+          "ordinal": 65
+        },
+        {
+          "key": "106afdba198a3e5e8a89d61d2f8640de89e6a0b2252400ff1267ab263c7bdea1",
+          "ordinal": 66
+        },
+        {
+          "key": "453b0169665709e97cd14e7ae6e7fd966f797de3230bc4b2bc2c0e2a6466b682",
+          "ordinal": 67
+        },
+        {
+          "key": "cabce6be9d6e7d65f97f45f229fdfe940acd894d883ce9e27065a368cbb8a74a",
+          "ordinal": 68
+        },
+        {
+          "key": "41ecc76d8716d201d54ce7c12684f2bddfdab3ced5d02984c203a1ab808e4b76",
+          "ordinal": 69
+        }
+      ]
+    },
+    "b8b19b2625ee21a39f7196b94db74bd0acecf9e28ff549881b004ffe5bbe5400": {
+      "name": "ItemUUID",
+      "members": [
+        {
+          "key": "a2e781449edd1da648f4bbb6a3872c4e05c4c1d7810db69b81c80db2c4777595",
+          "ordinal": 1
+        },
+        {
+          "key": "0090848e194abccf87d283c4b4fa74b468298faf5e066a794e37f31db44a7c9d",
+          "ordinal": 2
+        },
+        {
+          "key": "262b93f844fe97e46b5b23063cfdba7947e836dfd33188a629aed9db73ed76e8",
+          "ordinal": 3
+        },
+        {
+          "key": "377bed8adeb6355c9242e1c77e0ccf856f0494367fb0e5b444d5969d19a54655",
+          "ordinal": 4
+        },
+        {
+          "key": "f95eb2f665be167f81666f786720d7134baaf6faaa49cc90316266ffdf772ed4",
+          "ordinal": 5
+        }
+      ]
+    },
+    "bacd3fb8de88fb87c4e9ede9db1d2ea0fec32c864ece5c857325d6125e9ac3c4": {
+      "members": [
+        {
+          "key": "117485ee403a8a24d94829f810cf1106ae81ca17fe581ed46c7d3691441f1ff4",
+          "ordinal": 1
+        },
+        {
+          "key": "b042dc03ebec257ca6265c6580f27f4890e09928120f0aaace71b8514b3b1ca8",
+          "ordinal": 2
+        },
+        {
+          "key": "65c9b388a9889297b9c7e965abc8ae15faa3803c011eab8a8189952d01acc782",
+          "ordinal": 3
+        },
+        {
+          "key": "670157f25c711ffcde1938e0ebf7386089be5ce84deb731bf355527955939a78",
+          "ordinal": 4
+        }
+      ]
+    },
+    "bbed28a667b89b0b5c7055df8fa3dce273c609bd8349f4ef0515f5b5d602b870": {
+      "name": "IWRException",
+      "members": [
+        {
+          "key": "b5dbdf7ed9d10985d5970d32d0bb5e290668d3ced31a3f30e8f337f4c9185766",
+          "ordinal": 1,
+          "serdeVariant": "Alternative1"
+        },
+        {
+          "key": "b3477347b6c69f36d5540fe6fddb56813d0c34f1a57df5ee466ea39f6d7c57de",
+          "ordinal": 2,
+          "serdeVariant": "Alternative2"
+        },
+        {
+          "key": "d272b1089b8eb213e66efe05fe6469f83eab95853087cd6e9770b7ea640be28f",
+          "ordinal": 3,
+          "serdeVariant": "Alternative3"
+        },
+        {
+          "key": "fcc5a647ded2cdae15e843cce757fd791e37204c76b7871613e4836fac208d65",
+          "ordinal": 4,
+          "serdeVariant": "Alternative4"
+        },
+        {
+          "key": "832b27b68e6df5d8ab08ca139a36173f8cbfeee0c40a881de3339601acc49b8a",
+          "ordinal": 5,
+          "serdeVariant": "Alternative5"
+        },
+        {
+          "key": "ffdea035ac5f639143c58f4fe23a90c310ef85908447bea8c4e641be591a4c7f",
+          "ordinal": 6,
+          "serdeVariant": "Alternative6"
+        },
+        {
+          "key": "d1bf0b5d2271ad20be83df2b49cdc50739100176dae95391bd7d3ecffe6bf263",
+          "ordinal": 7,
+          "serdeVariant": "Alternative7"
+        },
+        {
+          "key": "4a4ddcca106e08813edb77bbd5ff788d4956e7ca5a15d6908eba05e424ea8855",
+          "ordinal": 8,
+          "serdeVariant": "Alternative8"
+        },
+        {
+          "key": "a2c3d1e8c6a980c24f9d786d19d948909ae2bcd86269d9b146b78df28a6d920a",
+          "ordinal": 9,
+          "serdeVariant": "Alternative9"
+        },
+        {
+          "key": "a4fbbfdf04014f39395edf5991544ce385eff063857f7a864cc1a24474a7d8f4",
+          "ordinal": 10,
+          "serdeVariant": "Alternative10"
+        },
+        {
+          "key": "c62ea5c8a7741b19f2e38acf6e91caeb826c88b16e747f7e80055ba5f2a10b86",
+          "ordinal": 11,
+          "serdeVariant": "Alternative11"
+        },
+        {
+          "key": "948b6f3851956041942cc6dd6a191362d69df16a172b006d0d72efc46962e353",
+          "ordinal": 12,
+          "serdeVariant": "Alternative12"
+        },
+        {
+          "key": "a51728dd4382c138db4eeba3be841d8e441c23fce575001a3d5f3e771e7cf065",
+          "ordinal": 13,
+          "serdeVariant": "Alternative13"
+        },
+        {
+          "key": "e0f526603f8ec6fe71e74392e7718a99bb449a43f07a496d757cee1f27ee3425",
+          "ordinal": 14,
+          "serdeVariant": "Alternative14"
+        },
+        {
+          "key": "2d8b6aace24748ec2cbcb7ea1c7484c6455e9b96436990f171a530074b7ca8bf",
+          "ordinal": 15,
+          "serdeVariant": "Alternative15"
+        },
+        {
+          "key": "2a2a344041115e5de3b54da90bfbd2eb3c8900df8e4152c86236d0a9e5efa1bb",
+          "ordinal": 16,
+          "serdeVariant": "Alternative16"
+        },
+        {
+          "key": "cf572ab08264148c908b2da65964669346efc9cdf77f32a906db1c6c821e44b0",
+          "ordinal": 17,
+          "serdeVariant": "Alternative17"
+        },
+        {
+          "key": "4b52aad08482a56f52c43a8a56a1c2460c1b78140c88faa9e243b58f343d7bfa",
+          "ordinal": 18,
+          "serdeVariant": "Alternative18"
+        },
+        {
+          "key": "2c3b12e5bf9cb2d6c44a74e1cb09fa429b42d4f3cdd8eba5e88944689a3432b9",
+          "ordinal": 19,
+          "serdeVariant": "Alternative19"
+        },
+        {
+          "key": "5945f3fd43f5235a50241f81f509eae79c0f24266f69ef7b0f178bd1e63dd66a",
+          "ordinal": 20,
+          "serdeVariant": "Alternative20"
+        },
+        {
+          "key": "0fb48269bfc7f32d40b36379f8b98aeffd4f8b2b3c712a09f37a0c996406a99f",
+          "ordinal": 21,
+          "serdeVariant": "Alternative21"
+        },
+        {
+          "key": "80c4a9396208ec2f1fbfb3704f1063b0a520ea3c98a85f8c68d18d52d7176d79",
+          "ordinal": 22,
+          "serdeVariant": "Alternative22"
+        },
+        {
+          "key": "714431690bda82e390a415fac5ad47632be4bee24fb088e9d35b1d0feea08972",
+          "ordinal": 23,
+          "serdeVariant": "Alternative23"
+        },
+        {
+          "key": "f09c1446aa13bbd5f39c304e8f6de652d33ebbe811c8f2831511693fa0375bc8",
+          "ordinal": 24,
+          "serdeVariant": "Alternative24"
+        },
+        {
+          "key": "01a3e85a615efb7d99591125736de6a56045fd38106561a6dd13b52cb1a96324",
+          "ordinal": 25,
+          "serdeVariant": "Alternative25"
+        },
+        {
+          "key": "9529fea83e735edf7b422acf056156d88551785350607f19e836c0936266da72",
+          "ordinal": 26,
+          "serdeVariant": "Alternative26"
+        },
+        {
+          "key": "8c894c08132358e5a3562eefc868c04f56ae2dbc790b56dfe5fd7cc77c02c88f",
+          "ordinal": 27,
+          "serdeVariant": "Alternative27"
+        },
+        {
+          "key": "7146fe7f4857d8be501c0ea02ff67a3aa693f69282e16a73bd74ddb0e17934c6",
+          "ordinal": 28,
+          "serdeVariant": "Alternative28"
+        },
+        {
+          "key": "e865725411330e91e2178123caddfc6edc2136a42b51651fe0a6b6693e86bfe3",
+          "ordinal": 29,
+          "serdeVariant": "Alternative29"
+        },
+        {
+          "key": "4fb168a79b7ef747d3943d0899a4b6caa4c7d4ca0a48ba760228005571a8be9a",
+          "ordinal": 30,
+          "serdeVariant": "Alternative30"
+        },
+        {
+          "key": "e34539cdc8ceff9bae70641f27a446bc89c2193eeff14d54f4aa446c12586369",
+          "ordinal": 31,
+          "serdeVariant": "Alternative31"
+        },
+        {
+          "key": "39ccf50370bf03e83c723fac47c189cd249c39cc1b187d697f45a61df11076eb",
+          "ordinal": 32,
+          "serdeVariant": "Alternative32"
+        },
+        {
+          "key": "5797903b6c91726f7987ed49b286f5912c9c555031f50da0f8d0caa920c412b2",
+          "ordinal": 33,
+          "serdeVariant": "Alternative33"
+        },
+        {
+          "key": "aae2bf2cceee368b196200c2964a3206dfabc04027c6b96001de6364f70558a1",
+          "ordinal": 34,
+          "serdeVariant": "Alternative34"
+        },
+        {
+          "key": "9714a38dcfd8f79816982b86ba78bb5ce75337ee31d34eb8eb8af1055b9d4792",
+          "ordinal": 35,
+          "serdeVariant": "Alternative35"
+        },
+        {
+          "key": "a51d2b10d2d7729c3d0cc94d1c41ad83c91495b58a307d396e38ca45ec86fa34",
+          "ordinal": 36,
+          "serdeVariant": "Alternative36"
+        },
+        {
+          "key": "1bf6cac6bc4413214ee22e0df8fa7e46acc4f6529a15478df40d72795d3b0314",
+          "ordinal": 37,
+          "serdeVariant": "Alternative37"
+        },
+        {
+          "key": "93bf1787d1a7c5fcf62cb04db27d841b40d9d148aebbdd8a7a7b9bcf9d3b6518",
+          "ordinal": 38,
+          "serdeVariant": "Alternative38"
+        },
+        {
+          "key": "2cf6326c37a137bdd183c21a9aee7b5e06d72fd1db69b4ed3e0ea89d3017df02",
+          "ordinal": 39,
+          "serdeVariant": "Alternative39"
+        },
+        {
+          "key": "ce5d85c540d5b86b17fdd2bff809ef9b2ff8208e7ff3ec08c87c349b690deb63",
+          "ordinal": 40,
+          "serdeVariant": "Alternative40"
+        },
+        {
+          "key": "84d040b03e26681ec9829198a554e180316cb054d6076f84d23b510af427b97f",
+          "ordinal": 41,
+          "serdeVariant": "Alternative41"
+        },
+        {
+          "key": "95cbdbdd6b6eac3bb20ab9aad181d631a1bcf7438e0260d88efb3eb897fbf0f4",
+          "ordinal": 42,
+          "serdeVariant": "Alternative42"
+        },
+        {
+          "key": "3a3a39cf32f4f99a6be690c138bc618662cb2711f070ba27de5609a166682f06",
+          "ordinal": 43,
+          "serdeVariant": "Alternative43"
+        },
+        {
+          "key": "4d71c59ac6babd29a26572ec986fd6189a85fa58764b94a5ca32fe6079d6967f",
+          "ordinal": 44,
+          "serdeVariant": "Alternative44"
+        },
+        {
+          "key": "7a5b7b529de8dd00ada61339d23a18077370662c53a37ba0292e543663ab54c9",
+          "ordinal": 45,
+          "serdeVariant": "Alternative45"
+        },
+        {
+          "key": "314ebb7633a99af02a4a610c7994d8d7562387aff28bf002642c782c04157557",
+          "ordinal": 46,
+          "serdeVariant": "Alternative46"
+        },
+        {
+          "key": "6635df059c986b81c9c63a1389b4111a9b73b42abd6800a91b876e983bddcb81",
+          "ordinal": 47,
+          "serdeVariant": "Alternative47"
+        },
+        {
+          "key": "bd79e76776039747ffcf8f1ace2fa1f7dab458c3f994448ad1ae3c14a6b07498",
+          "ordinal": 48,
+          "serdeVariant": "Alternative48"
+        },
+        {
+          "key": "b8f3b8c6f8ebbd234aaaa11205eead5ceb324e6bb2ba2f9672a234ab331c36bd",
+          "ordinal": 49,
+          "serdeVariant": "Alternative49"
+        },
+        {
+          "key": "57225df99da41d6b2a93663aaa84ff493240dd86f02289c86e58e97ec344d485",
+          "ordinal": 50,
+          "serdeVariant": "Alternative50"
+        },
+        {
+          "key": "964de17e5ede85567cf2d6ecb4d4ab186be46c5341023bfbfdfa3dc4f1ea9fe1",
+          "ordinal": 51,
+          "serdeVariant": "Alternative51"
+        },
+        {
+          "key": "2effb91130286c51b379e744f9ebd1609a84152d4a4c3f3c1ff73ac5b0649535",
+          "ordinal": 52,
+          "serdeVariant": "Alternative52"
+        },
+        {
+          "key": "bc9a015fe1452f05871f790c1c8889cffdc49e869e87ec7c39f061949d8a6860",
+          "ordinal": 53,
+          "serdeVariant": "Alternative53"
+        },
+        {
+          "key": "01e66bc0e437907f909fd61cff6f8c0d1227d1853a0ccf536e1e59e3ce7ddeb5",
+          "ordinal": 54,
+          "serdeVariant": "Alternative54"
+        },
+        {
+          "key": "407bbb7e963f9a1f4944728afdebf70a29bf3ad39b278ea37c4fdf97fa3afff9",
+          "ordinal": 55,
+          "serdeVariant": "Alternative55"
+        },
+        {
+          "key": "61dfe661d2aed6dd09a95614ccba4d0972e82f5e864a1dc422dd5adfcfeaa2c0",
+          "ordinal": 56,
+          "serdeVariant": "Alternative56"
+        },
+        {
+          "key": "0b45f8dc27ad96718f4e2548ded84e31564db902e40a4a2ecfc1a25625c25b4f",
+          "ordinal": 57,
+          "serdeVariant": "Alternative57"
+        },
+        {
+          "key": "7d92b456442da2c0d5c7ae8bb2657aaa2c3815a12ab02a7a64830a676734d203",
+          "ordinal": 58,
+          "serdeVariant": "Alternative58"
+        },
+        {
+          "key": "d1c2e92bad598a3e5df1e70e92cd1d82a2e2b8c33110e3243098c6ea7e1fd6b8",
+          "ordinal": 59,
+          "serdeVariant": "Alternative59"
+        },
+        {
+          "key": "afc56ae5cf05a5c58be918a5342199dec0157764254a6d94645255a7d7f283d7",
+          "ordinal": 60,
+          "serdeVariant": "Alternative60"
+        },
+        {
+          "key": "2f8865107cf76208039140fc773c949635db6ebc80ebb2e820ac034d40420c87",
+          "ordinal": 61,
+          "serdeVariant": "Alternative61"
+        },
+        {
+          "key": "30db3c0b7a8ca342d996a6e36ac83328afab5c354898dc46bb1e80a2da1c40df",
+          "ordinal": 62,
+          "serdeVariant": "Alternative62"
+        },
+        {
+          "key": "8bacd049f993750fc9fa46e163c7e5aa6c24d94aeb8d90eeefadc789c2d85427",
+          "ordinal": 63,
+          "serdeVariant": "Alternative63"
+        },
+        {
+          "key": "8908524b7f5323eb311e40efd5599e67258ecf8ecee963ee4883631fa866ff36",
+          "ordinal": 64,
+          "serdeVariant": "Alternative64"
+        },
+        {
+          "key": "12f3f224ec7f1676f857f4ba72d08695f69ba1b06140e89df50db51f76e260ac",
+          "ordinal": 65,
+          "serdeVariant": "Alternative65"
+        },
+        {
+          "key": "d2734a7449836f32ec8b4c54229d5c82d2ebf1913f92fcbbbd68edf01e7f0644",
+          "ordinal": 66,
+          "serdeVariant": "Alternative66"
+        },
+        {
+          "key": "5fd839d087b3994bc1c2ba3dcd7fd64c711ffb73014a3075f89c6ff64e94ab2b",
+          "ordinal": 67,
+          "serdeVariant": "Alternative67"
+        },
+        {
+          "key": "ca1ecd60378fbb3faaddfa8baec805cd10f128eb7a3a35c7e31e0d36fc26e01a",
+          "ordinal": 68,
+          "serdeVariant": "Alternative68"
+        },
+        {
+          "key": "3e81ee1f62a81dc6bca824426f30c95d75df541f5ec6b4168d42d28e6784ab95",
+          "ordinal": 69,
+          "serdeVariant": "Alternative69"
+        },
+        {
+          "key": "fbb99bd7efbdc953776f4309ea7e025ef4efc276127dd4aa89aba999d25a248d",
+          "ordinal": 70,
+          "serdeVariant": "Alternative70"
+        },
+        {
+          "key": "7125ae1f3090f8d09b4df93105d015f7c2dea23e0a7df3d5081bce974c6979aa",
+          "ordinal": 71,
+          "serdeVariant": "Alternative71"
+        },
+        {
+          "key": "4f7c5cd4f51f73b2db607883cb270319e4e699bc1374b7e8ab2ee52227ad038f",
+          "ordinal": 72,
+          "serdeVariant": "Alternative72"
+        },
+        {
+          "key": "699de57bed7f76901c65f4c92707963641639c9f1684783608e08128d4ef5da9",
+          "ordinal": 73,
+          "serdeVariant": "Alternative73"
+        },
+        {
+          "key": "2c3a90bc875d97830510f2ff67709133b9d10b8be023d650016ec02192d8b188",
+          "ordinal": 74,
+          "serdeVariant": "Alternative74"
+        },
+        {
+          "key": "322b66bb35e5e705753207afbc1c2496076eb308a3263863b34810b5f1b10a55",
+          "ordinal": 75,
+          "serdeVariant": "Alternative75"
+        },
+        {
+          "key": "8a6632a369bdb23946950f4d90533e4c0527ad8b4c2ababccb994192a7073d17",
+          "ordinal": 76,
+          "serdeVariant": "Alternative76"
+        },
+        {
+          "key": "a53d4082c02a49931844e2904ddac6e33551146dda0b10797c1300bf6310b773",
+          "ordinal": 77,
+          "serdeVariant": "Alternative77"
+        },
+        {
+          "key": "9b03ce1d743356a826bbde9fb5de4a3ad9456d89b8c982ba6e2900195db80b64",
+          "ordinal": 78,
+          "serdeVariant": "Alternative78"
+        },
+        {
+          "key": "303182c31b7646c0f580e657674befc7cd81c5450f3f10ac31575046d54b07fe",
+          "ordinal": 79,
+          "serdeVariant": "Alternative79"
+        },
+        {
+          "key": "742f4aaf857eb9f673949bd5623e663608f596db2954711c6d4423fd4ce72068",
+          "ordinal": 80,
+          "serdeVariant": "Alternative80"
+        },
+        {
+          "key": "349561be3fda2030f1f5390bd7812908f0d1ce29ea06e696e69208a546770641",
+          "ordinal": 81,
+          "serdeVariant": "Alternative81"
+        },
+        {
+          "key": "dff3c93e006dce69501baed26d0856f7ee3e3318b3179a359c1de9d559966a74",
+          "ordinal": 82,
+          "serdeVariant": "Alternative82"
+        },
+        {
+          "key": "dfd2dbdc0f018a210f3646c70184890330422718060e3d98b4dad41b0c85bc5d",
+          "ordinal": 83,
+          "serdeVariant": "Alternative83"
+        },
+        {
+          "key": "6e26f4788ca748a4917f7071cea18811ddc57939459542e19f324ecc6261810b",
+          "ordinal": 84,
+          "serdeVariant": "Alternative84"
+        },
+        {
+          "key": "bfb0a9a6c19eb587417296f7115b52939564258075713409e91fe32351f236ba",
+          "ordinal": 85,
+          "serdeVariant": "Alternative85"
+        },
+        {
+          "key": "32df098b319ac5f04374524772adeb2f1c24829fec41283c49b4ba6511adc487",
+          "ordinal": 86,
+          "serdeVariant": "Alternative86"
+        },
+        {
+          "key": "9556d7339885f593b4e4f767add520d32dc22b1b7aa6143d3fce970d8b166809",
+          "ordinal": 87,
+          "serdeVariant": "Alternative87"
+        },
+        {
+          "key": "4f474ec21a0bc5cabad8511052980e6d25cff494e172fa58da4e7bb764298a0c",
+          "ordinal": 88,
+          "serdeVariant": "Alternative88"
+        },
+        {
+          "key": "2e2d132e550047ae9bc2c82645b88a49e9bbbec05d5cd0e3c4b4bf6d13b1bb3c",
+          "ordinal": 89,
+          "serdeVariant": "Alternative89"
+        },
+        {
+          "key": "fabb5d4a77fdf67687f81b97f73638cbfefd92d8e7d963df1cb4b667a81d8eb8",
+          "ordinal": 90,
+          "serdeVariant": "Alternative90"
+        },
+        {
+          "key": "8bf4dfee41c8109bd27d1965571cb1096b9c3c0c78ba3379d93f22e5440410ae",
+          "ordinal": 91,
+          "serdeVariant": "Alternative91"
+        },
+        {
+          "key": "97380f91caa2d3704cd9e35e0baf7df249b7926549158d472e5fce5733c5f0a1",
+          "ordinal": 92,
+          "serdeVariant": "Alternative92"
+        },
+        {
+          "key": "111305a4a4ad18525c5a128b064a14c98a509529c9f515c7ba563319d1a41e84",
+          "ordinal": 93,
+          "serdeVariant": "Alternative93"
+        },
+        {
+          "key": "6ae6d2efa2514495a4d6fcc9154f232f6023e82fbe395f390f0a786e8b793031",
+          "ordinal": 94,
+          "serdeVariant": "Alternative94"
+        },
+        {
+          "key": "909d05792d9b68df0d435bd546070ed619dddce8484f0be21660baf38bec7bb4",
+          "ordinal": 95,
+          "serdeVariant": "Alternative95"
+        },
+        {
+          "key": "96261be1b8df99ae928248f96379d4d82922e527ad9b8010b5612cf3e70e2d4f",
+          "ordinal": 96,
+          "serdeVariant": "Alternative96"
+        },
+        {
+          "key": "ac9c15a606e704971e4f55b86fe25ffa8efa20c1ab5f3c03b153f4f7ad83d74d",
+          "ordinal": 97,
+          "serdeVariant": "Alternative97"
+        },
+        {
+          "key": "33eef5aacb7d77baefef31db4038d62996e33a6d81c2b788c51098664a48cf6d",
+          "ordinal": 98,
+          "serdeVariant": "Alternative98"
+        },
+        {
+          "key": "d75259c22bc4467dec679329ed5088212caf8bd157b120300be64c241c2967e5",
+          "ordinal": 99,
+          "serdeVariant": "Alternative99"
+        },
+        {
+          "key": "67574a232ee2d9793a15d9fb5bc266ecdb21df016c6f556e5ebd93662197950c",
+          "ordinal": 100,
+          "serdeVariant": "Alternative100"
+        },
+        {
+          "key": "1e5a9223f234719034ca1a74e040672f2227b023339bb6affd9904a8f6fec250",
+          "ordinal": 101,
+          "serdeVariant": "Alternative101"
+        },
+        {
+          "key": "78120d3ff970b662132b7e5a7085957006b9eb39cf7565a9187c07e07897e1ca",
+          "ordinal": 102,
+          "serdeVariant": "Alternative102"
+        },
+        {
+          "key": "ef7b8f4515bd5f5d9597612211d920dad002e7cd480bb0df21cd02af8e1d68f3",
+          "ordinal": 103,
+          "serdeVariant": "Alternative103"
+        },
+        {
+          "key": "36ff7b860abafae6ce4885fa050e2973bee768a722aacdb5a63abe77cc509193",
+          "ordinal": 104,
+          "serdeVariant": "Alternative104"
+        },
+        {
+          "key": "cabce6be9d6e7d65f97f45f229fdfe940acd894d883ce9e27065a368cbb8a74a",
+          "ordinal": 105,
+          "serdeVariant": "Alternative105"
+        },
+        {
+          "key": "1e55fa632e4dc319be6375dde09332e625f383ffbecdf8b04a4e904549c3f1b5",
+          "ordinal": 106,
+          "serdeVariant": "Alternative106"
+        },
+        {
+          "key": "f9f0116e1e73ca5069fb98944a274ba055e6811b849211e1a0d18ba670b94732",
+          "ordinal": 107,
+          "serdeVariant": "Alternative107"
+        }
+      ]
+    },
+    "be8cf63489600dc414e8df82dae0199a7f1c63c03a7849b2e1323086fa886b92": {
+      "members": [
+        {
+          "key": "f72243d3ce3c77a89442a8ef517aa2d826c58781fc1304da245254fdbc35a78a",
+          "ordinal": 1
+        },
+        {
+          "key": "ee43987eba6e097fc31858618b775985087e62afa791ae2ce44edc573af465e5",
+          "ordinal": 2
+        },
+        {
+          "key": "dcabfb3e74f8861bdf3b6d281365d20e7816a1b63cd3c15d3409eda16aaa2c22",
+          "ordinal": 3
+        },
+        {
+          "key": "8f01ecf10e12253d585e171f109a8b1ce51d72eeccd7e545ce040072760c4483",
+          "ordinal": 4
+        },
+        {
+          "key": "185c26286fecec3712611d8e158e22d994e2bda2687ab1dd70c1694aa55ab416",
+          "ordinal": 5
+        },
+        {
+          "key": "544c8ccf2575b6834b7538a39f7640875a8cf1f4c295d10defa7098a35924fe2",
+          "ordinal": 6
+        },
+        {
+          "key": "173f9cb47b488a4f4e0d9b3f05bc546a8585806b3de9ce44f3513ddddd0125ff",
+          "ordinal": 7
+        },
+        {
+          "key": "47d57241f199faf98b4e1890989b7ad9e436f689b3ca675f06804fd5b7d8817a",
+          "ordinal": 8
+        },
+        {
+          "key": "670157f25c711ffcde1938e0ebf7386089be5ce84deb731bf355527955939a78",
+          "ordinal": 9
+        }
+      ]
+    },
+    "c43f4bfbe567cd805eaf1ee33b56d0b19583e31646a156f117195f2dc20ee56a": {
+      "name": "PhysicalItemSource",
+      "members": [
+        {
+          "key": "754cde1c32b8321b76500d246da94abb8c8d023496c3c30bb0d468cbd90e6755",
+          "ordinal": 1,
+          "serdeVariant": "AmmoSource"
+        },
+        {
+          "key": "f2b465f95a0cacfc84ef33d89b2ce0f4a58f593c1a740b598e0efde8760e617c",
+          "ordinal": 2,
+          "serdeVariant": "ArmorSource"
+        },
+        {
+          "key": "8b7b53032f6fd1773fb5bcd955ed81f2ce2970252659d9511aeb3516d0dd204f",
+          "ordinal": 3,
+          "serdeVariant": "BookSource"
+        },
+        {
+          "key": "cc237fb2e7396e8d8bb14da14b59cdc1b47632870544278705f119d211e33847",
+          "ordinal": 4,
+          "serdeVariant": "ConsumableSource"
+        },
+        {
+          "key": "111d4247bf9080119576dd347c540cf7af326b77c34971046d9a84856e966d53",
+          "ordinal": 5,
+          "serdeVariant": "ContainerSource"
+        },
+        {
+          "key": "0b4ad314c9ef484bf3233ef94b1c3bffbea4f5030f7009a806d89e7e17c15e6d",
+          "ordinal": 6,
+          "serdeVariant": "EquipmentSource"
+        },
+        {
+          "key": "cc678a274eec4771d480fb80f5f4225f08d28b8753dba0aadbac8516e563fa19",
+          "ordinal": 7,
+          "serdeVariant": "ShieldSource"
+        },
+        {
+          "key": "4b8f31faf735fc49661adc784a011fe6c9822dcb186de39374cb77d0ef742877",
+          "ordinal": 8,
+          "serdeVariant": "TreasureSource"
+        },
+        {
+          "key": "5b6700298997189b4cb3fef8b1500db182aef56c1bb0ea0d13c79fed81a92fce",
+          "ordinal": 9,
+          "serdeVariant": "WeaponSource"
+        }
+      ]
+    },
+    "c49206813a8564ffc3b94e5737979937bb5802e9b37202de25322bfe9cdffc9a": {
+      "members": [
+        {
+          "key": "1837268664cfb864d11b1de9aca852418170bd5f2c79d863ad9d7daa820b743b",
+          "ordinal": 1
+        },
+        {
+          "key": "4792fcee53fea0b7734de0adac1f2b092be47ba3df30657d59579c3886dba64c",
+          "ordinal": 2
+        }
+      ]
+    },
+    "c91b624c1f3f0a8c605d3ef4af1a1cdc2e3cee357b5f1cfba7319c3abc29f731": {
+      "members": [
+        {
+          "key": "e327e7d9bac65bc50e1faf0d1e5aa45e81f30a6ab5cc5f42734d2dac6ed140dd",
+          "ordinal": 1
+        },
+        {
+          "key": "e66a560c4faccddbb5ec251c8a51a1968a9b19728b2e201cb0ab993a2fce9c7d",
+          "ordinal": 2
+        }
+      ]
+    },
+    "d700d58e9474f4f42a53b2e201f20abda2df669fd6fd7a27e34a5dfdea33ec11": {
+      "members": [
+        {
+          "key": "b3222cb4a9008b754523dc530f3c74107ca2aac10f6fa973d8ce7319f232bca6",
+          "ordinal": 1
+        },
+        {
+          "key": "c414fdb960e28a183790ea29a27c9ddbb2dd2b3068aff70583bc46bb48c1f698",
+          "ordinal": 2
+        },
+        {
+          "key": "a3b4ceeaccdfef62712d41511ccf0f6a65ef908d514ba6c309aec74e286d9bf5",
+          "ordinal": 3
+        },
+        {
+          "key": "8206b9c414c0bbaf278419a6986327c65b72355a20fba56525ad72a4528a34d6",
+          "ordinal": 4
+        },
+        {
+          "key": "057aeec4d0eb7ce9022a55b55f8b1b565d2ebadf9d9b6521768c9b2fb12212ff",
+          "ordinal": 5
+        },
+        {
+          "key": "b61658026c8781c0bf0ac0f56a462a0a31dde232fe84ced3da127efd2db1c54e",
+          "ordinal": 6
+        },
+        {
+          "key": "670157f25c711ffcde1938e0ebf7386089be5ce84deb731bf355527955939a78",
+          "ordinal": 7
+        }
+      ]
+    },
+    "dae0383c0b5c79f46e43215651e4b0c7949a4e019d3e7f0ecefa5170776a236c": {
+      "members": [
+        {
+          "key": "a2e781449edd1da648f4bbb6a3872c4e05c4c1d7810db69b81c80db2c4777595",
+          "ordinal": 1
+        },
+        {
+          "key": "0090848e194abccf87d283c4b4fa74b468298faf5e066a794e37f31db44a7c9d",
+          "ordinal": 2
+        },
+        {
+          "key": "377bed8adeb6355c9242e1c77e0ccf856f0494367fb0e5b444d5969d19a54655",
+          "ordinal": 3
+        },
+        {
+          "key": "f95eb2f665be167f81666f786720d7134baaf6faaa49cc90316266ffdf772ed4",
+          "ordinal": 4
+        }
+      ]
+    },
+    "dd5755a886010fcc336bfbcc263dae57624ed384e27f6de83c6bfa9efeeb47bb": {
+      "name": "PhysicalItemSource",
+      "members": [
+        {
+          "key": "754cde1c32b8321b76500d246da94abb8c8d023496c3c30bb0d468cbd90e6755",
+          "ordinal": 1
+        },
+        {
+          "key": "18b77e5757df1e399c16d65c7e960d519c2e118886ff5062c72ed2b0090f27df",
+          "ordinal": 2
+        },
+        {
+          "key": "8b7b53032f6fd1773fb5bcd955ed81f2ce2970252659d9511aeb3516d0dd204f",
+          "ordinal": 3
+        },
+        {
+          "key": "21542495189815c894756bda2132da1e4c490c6ae6542d314045b68dd215a8d7",
+          "ordinal": 4
+        },
+        {
+          "key": "111d4247bf9080119576dd347c540cf7af326b77c34971046d9a84856e966d53",
+          "ordinal": 5
+        },
+        {
+          "key": "75a5d0ab0e13cba175b27e432570ede30e4469f865baf3f49a44b37e10febc62",
+          "ordinal": 6
+        },
+        {
+          "key": "7e4a9f56c1a60658cb37a6e41102e2500c8d888bbfb21ef94df635dd6a358378",
+          "ordinal": 7
+        },
+        {
+          "key": "4b8f31faf735fc49661adc784a011fe6c9822dcb186de39374cb77d0ef742877",
+          "ordinal": 8
+        },
+        {
+          "key": "0fba00faf23c652f7dcf8c269924ee61e2f9f86607ea07770bd1c4f2ce3c258a",
+          "ordinal": 9
+        }
+      ]
+    },
+    "ddc18814d3c9622033ca569144c8bcedbc4883c8a055da5fd0b288039643e3bd": {
+      "name": "SenseData",
+      "members": [
+        {
+          "key": "e599f37dc505ba96f77ac096fac3f13b7ad8549dc1e7025276957197a11da4d0",
+          "ordinal": 1
+        },
+        {
+          "key": "62629401d00bab42841f50725acc59c39c34f44e8045d7891e934707813ec23f",
+          "ordinal": 2
+        }
+      ]
+    },
+    "f0c95a3523a2e99dfd161008d67a3921b3e7cbacc54b5948fe3c733999e04e94": {
+      "name": "PredicateStatement",
+      "members": [
+        {
+          "key": "b449f104517e1fdceef4826c651868dbf8edaac90492986bd27a30aa0ca9971d",
+          "ordinal": 1,
+          "serdeVariant": "String"
+        },
+        {
+          "key": "3258b6c9b04502e1d4ba37a2af251ec8c20f2ff4435d8f108e92f74d046b721a",
+          "ordinal": 2,
+          "serdeVariant": "AlternativeDenial"
+        },
+        {
+          "key": "b9a510071c6eb7c02cb95ebbc531aa740c68c92be7e089788889e520aee60e6c",
+          "ordinal": 3,
+          "serdeVariant": "Biconditional"
+        },
+        {
+          "key": "332a5dc15e2e3e45f6c53bcf0383ebe2d117734ddfe12647bbc721cf273e041f",
+          "ordinal": 4,
+          "serdeVariant": "Conditional"
+        },
+        {
+          "key": "2eaf73f473f9937ecfcfdcfebf9377e59649c2a04c3d8218a024d2fda72b9045",
+          "ordinal": 5,
+          "serdeVariant": "Conjunction"
+        },
+        {
+          "key": "7d0ee7f2d83644f2767f22d04bac13c425529e6e0fba7adeab58f19f5224e2fd",
+          "ordinal": 6,
+          "serdeVariant": "Disjunction"
+        },
+        {
+          "key": "145bc7d36dd4d60c2a55cfeb9d5e61f308ceb7f2b646a687861e869251aa0466",
+          "ordinal": 7,
+          "serdeVariant": "EqualTo"
+        },
+        {
+          "key": "689a7a341df35bd3060a742489fa8119bcc09e47a298fdda7a36b466f77c413c",
+          "ordinal": 8,
+          "serdeVariant": "ExclusiveDisjunction"
+        },
+        {
+          "key": "164e69157f258d3c472742e28228cfdf936a2d40a35639e6bcbccf545b80dcfe",
+          "ordinal": 9,
+          "serdeVariant": "GreaterThan"
+        },
+        {
+          "key": "43ab1448cf36f7ddc7b89c7e3343086c2a249de7b45b3878f050a48b448ef9b0",
+          "ordinal": 10,
+          "serdeVariant": "GreaterThanEqualTo"
+        },
+        {
+          "key": "564db01a1537b663e18d5e8b6358cf18e4981757934dabf5e57f3074164693bf",
+          "ordinal": 11,
+          "serdeVariant": "JointDenial"
+        },
+        {
+          "key": "974d70f1a2b64d2735bca2afc4ce30e8d2a733bd2ce2c345ecd31bf26bea9979",
+          "ordinal": 12,
+          "serdeVariant": "LessThan"
+        },
+        {
+          "key": "1e560e9a021dbf5f167225f3761676bdd742b27e2164489ab26fe7d1056d5785",
+          "ordinal": 13,
+          "serdeVariant": "LessThanEqualTo"
+        },
+        {
+          "key": "4d850569c04418d6b78f36be9aba48177421dc4c3cdac5365c1601bc8dc2ee29",
+          "ordinal": 14,
+          "serdeVariant": "Negation"
+        }
+      ]
+    },
+    "fe0d42c7ac10a5f8fd7f39526ca4e71b768e0ce2ae380ff6ed2620eb97ecc07e": {
+      "members": [
+        {
+          "key": "b5dbdf7ed9d10985d5970d32d0bb5e290668d3ced31a3f30e8f337f4c9185766",
+          "ordinal": 1
+        },
+        {
+          "key": "b3477347b6c69f36d5540fe6fddb56813d0c34f1a57df5ee466ea39f6d7c57de",
+          "ordinal": 2
+        },
+        {
+          "key": "d272b1089b8eb213e66efe05fe6469f83eab95853087cd6e9770b7ea640be28f",
+          "ordinal": 3
+        },
+        {
+          "key": "fcc5a647ded2cdae15e843cce757fd791e37204c76b7871613e4836fac208d65",
+          "ordinal": 4
+        },
+        {
+          "key": "832b27b68e6df5d8ab08ca139a36173f8cbfeee0c40a881de3339601acc49b8a",
+          "ordinal": 5
+        },
+        {
+          "key": "ffdea035ac5f639143c58f4fe23a90c310ef85908447bea8c4e641be591a4c7f",
+          "ordinal": 6
+        },
+        {
+          "key": "d1bf0b5d2271ad20be83df2b49cdc50739100176dae95391bd7d3ecffe6bf263",
+          "ordinal": 7
+        },
+        {
+          "key": "4a4ddcca106e08813edb77bbd5ff788d4956e7ca5a15d6908eba05e424ea8855",
+          "ordinal": 8
+        },
+        {
+          "key": "a2c3d1e8c6a980c24f9d786d19d948909ae2bcd86269d9b146b78df28a6d920a",
+          "ordinal": 9
+        },
+        {
+          "key": "a4fbbfdf04014f39395edf5991544ce385eff063857f7a864cc1a24474a7d8f4",
+          "ordinal": 10
+        },
+        {
+          "key": "c62ea5c8a7741b19f2e38acf6e91caeb826c88b16e747f7e80055ba5f2a10b86",
+          "ordinal": 11
+        },
+        {
+          "key": "948b6f3851956041942cc6dd6a191362d69df16a172b006d0d72efc46962e353",
+          "ordinal": 12
+        },
+        {
+          "key": "a51728dd4382c138db4eeba3be841d8e441c23fce575001a3d5f3e771e7cf065",
+          "ordinal": 13
+        },
+        {
+          "key": "e0f526603f8ec6fe71e74392e7718a99bb449a43f07a496d757cee1f27ee3425",
+          "ordinal": 14
+        },
+        {
+          "key": "2d8b6aace24748ec2cbcb7ea1c7484c6455e9b96436990f171a530074b7ca8bf",
+          "ordinal": 15
+        },
+        {
+          "key": "2a2a344041115e5de3b54da90bfbd2eb3c8900df8e4152c86236d0a9e5efa1bb",
+          "ordinal": 16
+        },
+        {
+          "key": "cf572ab08264148c908b2da65964669346efc9cdf77f32a906db1c6c821e44b0",
+          "ordinal": 17
+        },
+        {
+          "key": "4b52aad08482a56f52c43a8a56a1c2460c1b78140c88faa9e243b58f343d7bfa",
+          "ordinal": 18
+        },
+        {
+          "key": "2c3b12e5bf9cb2d6c44a74e1cb09fa429b42d4f3cdd8eba5e88944689a3432b9",
+          "ordinal": 19
+        },
+        {
+          "key": "5945f3fd43f5235a50241f81f509eae79c0f24266f69ef7b0f178bd1e63dd66a",
+          "ordinal": 20
+        },
+        {
+          "key": "0fb48269bfc7f32d40b36379f8b98aeffd4f8b2b3c712a09f37a0c996406a99f",
+          "ordinal": 21
+        },
+        {
+          "key": "80c4a9396208ec2f1fbfb3704f1063b0a520ea3c98a85f8c68d18d52d7176d79",
+          "ordinal": 22
+        },
+        {
+          "key": "714431690bda82e390a415fac5ad47632be4bee24fb088e9d35b1d0feea08972",
+          "ordinal": 23
+        },
+        {
+          "key": "f09c1446aa13bbd5f39c304e8f6de652d33ebbe811c8f2831511693fa0375bc8",
+          "ordinal": 24
+        },
+        {
+          "key": "01a3e85a615efb7d99591125736de6a56045fd38106561a6dd13b52cb1a96324",
+          "ordinal": 25
+        },
+        {
+          "key": "9529fea83e735edf7b422acf056156d88551785350607f19e836c0936266da72",
+          "ordinal": 26
+        },
+        {
+          "key": "8c894c08132358e5a3562eefc868c04f56ae2dbc790b56dfe5fd7cc77c02c88f",
+          "ordinal": 27
+        },
+        {
+          "key": "7146fe7f4857d8be501c0ea02ff67a3aa693f69282e16a73bd74ddb0e17934c6",
+          "ordinal": 28
+        },
+        {
+          "key": "e865725411330e91e2178123caddfc6edc2136a42b51651fe0a6b6693e86bfe3",
+          "ordinal": 29
+        },
+        {
+          "key": "4fb168a79b7ef747d3943d0899a4b6caa4c7d4ca0a48ba760228005571a8be9a",
+          "ordinal": 30
+        },
+        {
+          "key": "e34539cdc8ceff9bae70641f27a446bc89c2193eeff14d54f4aa446c12586369",
+          "ordinal": 31
+        },
+        {
+          "key": "39ccf50370bf03e83c723fac47c189cd249c39cc1b187d697f45a61df11076eb",
+          "ordinal": 32
+        },
+        {
+          "key": "5797903b6c91726f7987ed49b286f5912c9c555031f50da0f8d0caa920c412b2",
+          "ordinal": 33
+        },
+        {
+          "key": "aae2bf2cceee368b196200c2964a3206dfabc04027c6b96001de6364f70558a1",
+          "ordinal": 34
+        },
+        {
+          "key": "9714a38dcfd8f79816982b86ba78bb5ce75337ee31d34eb8eb8af1055b9d4792",
+          "ordinal": 35
+        },
+        {
+          "key": "a51d2b10d2d7729c3d0cc94d1c41ad83c91495b58a307d396e38ca45ec86fa34",
+          "ordinal": 36
+        },
+        {
+          "key": "1bf6cac6bc4413214ee22e0df8fa7e46acc4f6529a15478df40d72795d3b0314",
+          "ordinal": 37
+        },
+        {
+          "key": "93bf1787d1a7c5fcf62cb04db27d841b40d9d148aebbdd8a7a7b9bcf9d3b6518",
+          "ordinal": 38
+        },
+        {
+          "key": "2cf6326c37a137bdd183c21a9aee7b5e06d72fd1db69b4ed3e0ea89d3017df02",
+          "ordinal": 39
+        },
+        {
+          "key": "ce5d85c540d5b86b17fdd2bff809ef9b2ff8208e7ff3ec08c87c349b690deb63",
+          "ordinal": 40
+        },
+        {
+          "key": "84d040b03e26681ec9829198a554e180316cb054d6076f84d23b510af427b97f",
+          "ordinal": 41
+        },
+        {
+          "key": "95cbdbdd6b6eac3bb20ab9aad181d631a1bcf7438e0260d88efb3eb897fbf0f4",
+          "ordinal": 42
+        },
+        {
+          "key": "3a3a39cf32f4f99a6be690c138bc618662cb2711f070ba27de5609a166682f06",
+          "ordinal": 43
+        },
+        {
+          "key": "4d71c59ac6babd29a26572ec986fd6189a85fa58764b94a5ca32fe6079d6967f",
+          "ordinal": 44
+        },
+        {
+          "key": "7a5b7b529de8dd00ada61339d23a18077370662c53a37ba0292e543663ab54c9",
+          "ordinal": 45
+        },
+        {
+          "key": "314ebb7633a99af02a4a610c7994d8d7562387aff28bf002642c782c04157557",
+          "ordinal": 46
+        },
+        {
+          "key": "6635df059c986b81c9c63a1389b4111a9b73b42abd6800a91b876e983bddcb81",
+          "ordinal": 47
+        },
+        {
+          "key": "bd79e76776039747ffcf8f1ace2fa1f7dab458c3f994448ad1ae3c14a6b07498",
+          "ordinal": 48
+        },
+        {
+          "key": "b8f3b8c6f8ebbd234aaaa11205eead5ceb324e6bb2ba2f9672a234ab331c36bd",
+          "ordinal": 49
+        },
+        {
+          "key": "57225df99da41d6b2a93663aaa84ff493240dd86f02289c86e58e97ec344d485",
+          "ordinal": 50
+        },
+        {
+          "key": "964de17e5ede85567cf2d6ecb4d4ab186be46c5341023bfbfdfa3dc4f1ea9fe1",
+          "ordinal": 51
+        },
+        {
+          "key": "2effb91130286c51b379e744f9ebd1609a84152d4a4c3f3c1ff73ac5b0649535",
+          "ordinal": 52
+        },
+        {
+          "key": "bc9a015fe1452f05871f790c1c8889cffdc49e869e87ec7c39f061949d8a6860",
+          "ordinal": 53
+        },
+        {
+          "key": "01e66bc0e437907f909fd61cff6f8c0d1227d1853a0ccf536e1e59e3ce7ddeb5",
+          "ordinal": 54
+        },
+        {
+          "key": "407bbb7e963f9a1f4944728afdebf70a29bf3ad39b278ea37c4fdf97fa3afff9",
+          "ordinal": 55
+        },
+        {
+          "key": "61dfe661d2aed6dd09a95614ccba4d0972e82f5e864a1dc422dd5adfcfeaa2c0",
+          "ordinal": 56
+        },
+        {
+          "key": "0b45f8dc27ad96718f4e2548ded84e31564db902e40a4a2ecfc1a25625c25b4f",
+          "ordinal": 57
+        },
+        {
+          "key": "7d92b456442da2c0d5c7ae8bb2657aaa2c3815a12ab02a7a64830a676734d203",
+          "ordinal": 58
+        },
+        {
+          "key": "d1c2e92bad598a3e5df1e70e92cd1d82a2e2b8c33110e3243098c6ea7e1fd6b8",
+          "ordinal": 59
+        },
+        {
+          "key": "afc56ae5cf05a5c58be918a5342199dec0157764254a6d94645255a7d7f283d7",
+          "ordinal": 60
+        },
+        {
+          "key": "2f8865107cf76208039140fc773c949635db6ebc80ebb2e820ac034d40420c87",
+          "ordinal": 61
+        },
+        {
+          "key": "30db3c0b7a8ca342d996a6e36ac83328afab5c354898dc46bb1e80a2da1c40df",
+          "ordinal": 62
+        },
+        {
+          "key": "8bacd049f993750fc9fa46e163c7e5aa6c24d94aeb8d90eeefadc789c2d85427",
+          "ordinal": 63
+        },
+        {
+          "key": "8908524b7f5323eb311e40efd5599e67258ecf8ecee963ee4883631fa866ff36",
+          "ordinal": 64
+        },
+        {
+          "key": "12f3f224ec7f1676f857f4ba72d08695f69ba1b06140e89df50db51f76e260ac",
+          "ordinal": 65
+        },
+        {
+          "key": "d2734a7449836f32ec8b4c54229d5c82d2ebf1913f92fcbbbd68edf01e7f0644",
+          "ordinal": 66
+        },
+        {
+          "key": "5fd839d087b3994bc1c2ba3dcd7fd64c711ffb73014a3075f89c6ff64e94ab2b",
+          "ordinal": 67
+        },
+        {
+          "key": "ca1ecd60378fbb3faaddfa8baec805cd10f128eb7a3a35c7e31e0d36fc26e01a",
+          "ordinal": 68
+        },
+        {
+          "key": "3e81ee1f62a81dc6bca824426f30c95d75df541f5ec6b4168d42d28e6784ab95",
+          "ordinal": 69
+        },
+        {
+          "key": "fbb99bd7efbdc953776f4309ea7e025ef4efc276127dd4aa89aba999d25a248d",
+          "ordinal": 70
+        },
+        {
+          "key": "7125ae1f3090f8d09b4df93105d015f7c2dea23e0a7df3d5081bce974c6979aa",
+          "ordinal": 71
+        },
+        {
+          "key": "4f7c5cd4f51f73b2db607883cb270319e4e699bc1374b7e8ab2ee52227ad038f",
+          "ordinal": 72
+        },
+        {
+          "key": "699de57bed7f76901c65f4c92707963641639c9f1684783608e08128d4ef5da9",
+          "ordinal": 73
+        },
+        {
+          "key": "2c3a90bc875d97830510f2ff67709133b9d10b8be023d650016ec02192d8b188",
+          "ordinal": 74
+        },
+        {
+          "key": "322b66bb35e5e705753207afbc1c2496076eb308a3263863b34810b5f1b10a55",
+          "ordinal": 75
+        },
+        {
+          "key": "8a6632a369bdb23946950f4d90533e4c0527ad8b4c2ababccb994192a7073d17",
+          "ordinal": 76
+        },
+        {
+          "key": "a53d4082c02a49931844e2904ddac6e33551146dda0b10797c1300bf6310b773",
+          "ordinal": 77
+        },
+        {
+          "key": "9b03ce1d743356a826bbde9fb5de4a3ad9456d89b8c982ba6e2900195db80b64",
+          "ordinal": 78
+        },
+        {
+          "key": "303182c31b7646c0f580e657674befc7cd81c5450f3f10ac31575046d54b07fe",
+          "ordinal": 79
+        },
+        {
+          "key": "742f4aaf857eb9f673949bd5623e663608f596db2954711c6d4423fd4ce72068",
+          "ordinal": 80
+        },
+        {
+          "key": "349561be3fda2030f1f5390bd7812908f0d1ce29ea06e696e69208a546770641",
+          "ordinal": 81
+        },
+        {
+          "key": "dff3c93e006dce69501baed26d0856f7ee3e3318b3179a359c1de9d559966a74",
+          "ordinal": 82
+        },
+        {
+          "key": "dfd2dbdc0f018a210f3646c70184890330422718060e3d98b4dad41b0c85bc5d",
+          "ordinal": 83
+        },
+        {
+          "key": "6e26f4788ca748a4917f7071cea18811ddc57939459542e19f324ecc6261810b",
+          "ordinal": 84
+        },
+        {
+          "key": "bfb0a9a6c19eb587417296f7115b52939564258075713409e91fe32351f236ba",
+          "ordinal": 85
+        },
+        {
+          "key": "32df098b319ac5f04374524772adeb2f1c24829fec41283c49b4ba6511adc487",
+          "ordinal": 86
+        },
+        {
+          "key": "9556d7339885f593b4e4f767add520d32dc22b1b7aa6143d3fce970d8b166809",
+          "ordinal": 87
+        },
+        {
+          "key": "4f474ec21a0bc5cabad8511052980e6d25cff494e172fa58da4e7bb764298a0c",
+          "ordinal": 88
+        },
+        {
+          "key": "2e2d132e550047ae9bc2c82645b88a49e9bbbec05d5cd0e3c4b4bf6d13b1bb3c",
+          "ordinal": 89
+        },
+        {
+          "key": "fabb5d4a77fdf67687f81b97f73638cbfefd92d8e7d963df1cb4b667a81d8eb8",
+          "ordinal": 90
+        },
+        {
+          "key": "8bf4dfee41c8109bd27d1965571cb1096b9c3c0c78ba3379d93f22e5440410ae",
+          "ordinal": 91
+        },
+        {
+          "key": "97380f91caa2d3704cd9e35e0baf7df249b7926549158d472e5fce5733c5f0a1",
+          "ordinal": 92
+        },
+        {
+          "key": "111305a4a4ad18525c5a128b064a14c98a509529c9f515c7ba563319d1a41e84",
+          "ordinal": 93
+        },
+        {
+          "key": "6ae6d2efa2514495a4d6fcc9154f232f6023e82fbe395f390f0a786e8b793031",
+          "ordinal": 94
+        },
+        {
+          "key": "909d05792d9b68df0d435bd546070ed619dddce8484f0be21660baf38bec7bb4",
+          "ordinal": 95
+        },
+        {
+          "key": "96261be1b8df99ae928248f96379d4d82922e527ad9b8010b5612cf3e70e2d4f",
+          "ordinal": 96
+        },
+        {
+          "key": "ac9c15a606e704971e4f55b86fe25ffa8efa20c1ab5f3c03b153f4f7ad83d74d",
+          "ordinal": 97
+        },
+        {
+          "key": "33eef5aacb7d77baefef31db4038d62996e33a6d81c2b788c51098664a48cf6d",
+          "ordinal": 98
+        },
+        {
+          "key": "d75259c22bc4467dec679329ed5088212caf8bd157b120300be64c241c2967e5",
+          "ordinal": 99
+        },
+        {
+          "key": "67574a232ee2d9793a15d9fb5bc266ecdb21df016c6f556e5ebd93662197950c",
+          "ordinal": 100
+        },
+        {
+          "key": "1e5a9223f234719034ca1a74e040672f2227b023339bb6affd9904a8f6fec250",
+          "ordinal": 101
+        },
+        {
+          "key": "78120d3ff970b662132b7e5a7085957006b9eb39cf7565a9187c07e07897e1ca",
+          "ordinal": 102
+        },
+        {
+          "key": "ef7b8f4515bd5f5d9597612211d920dad002e7cd480bb0df21cd02af8e1d68f3",
+          "ordinal": 103
+        },
+        {
+          "key": "36ff7b860abafae6ce4885fa050e2973bee768a722aacdb5a63abe77cc509193",
+          "ordinal": 104
+        },
+        {
+          "key": "cabce6be9d6e7d65f97f45f229fdfe940acd894d883ce9e27065a368cbb8a74a",
+          "ordinal": 105
+        },
+        {
+          "key": "1e55fa632e4dc319be6375dde09332e625f383ffbecdf8b04a4e904549c3f1b5",
+          "ordinal": 106
+        },
+        {
+          "key": "41ecc76d8716d201d54ce7c12684f2bddfdab3ced5d02984c203a1ab808e4b76",
+          "ordinal": 107
+        }
+      ]
+    },
+    "fed79cb57fb56dbca21f06473fe7b08cf9f68892e1c1deeb7c6488b3ac635ac6": {
+      "name": "ActorSourcePF2e",
+      "members": [
+        {
+          "key": "24e32f9ffd39b11efde4feea657115db1b91820b11830a24e08cf3e0ac2f9e0f",
+          "ordinal": 1
+        },
+        {
+          "key": "63687673c9530e0b5da612ee557121077ac83097e48b258db0e744256f1f1b52",
+          "ordinal": 2
+        },
+        {
+          "key": "17d8bd28e5928e20c64b1a57b0e54501d51038c096be5c1d887c2cbe9100eb15",
+          "ordinal": 3
+        },
+        {
+          "key": "9d8eac49bd24af3f01b51238a63764169b0e871b3b852efddd844b2de22e0ce4",
+          "ordinal": 4
+        },
+        {
+          "key": "d86005bb56be3858a608e4404c8a71bdb303acb5fee66ad98bf722cbf243a6a9",
+          "ordinal": 5
+        },
+        {
+          "key": "93da5a9bd8f79c4dc664eeffe51cdc2837a2a05cfdaff0697c7d4a77fde17ad7",
+          "ordinal": 6
+        },
+        {
+          "key": "ae9e003384902b9be61cb2fa7d5e603edf16df83ea3fda0a2bcbdfaf9b5a8d8b",
+          "ordinal": 7
+        },
+        {
+          "key": "b3cc5ac538d8c014fe6af099bce94c0881a28b898b8d8fb2ee3003d46529714c",
+          "ordinal": 8
+        }
+      ]
+    },
+    "ff0b7cee869cb63986494b1542310f203c3e2642151c207e58b87c892c5c2e2c": {
+      "name": "ItemSourcePF2e",
+      "members": [
+        {
+          "key": "4e9814a6b34b434e462d369ce7ff382ee7d3819c68c1d3adf5f782fc3c6918de",
+          "ordinal": 1
+        },
+        {
+          "key": "e5ad5337124056dad0671b7639a344e9f061b83e204ee29f38746e7f9dca4617",
+          "ordinal": 2
+        },
+        {
+          "key": "754cde1c32b8321b76500d246da94abb8c8d023496c3c30bb0d468cbd90e6755",
+          "ordinal": 3
+        },
+        {
+          "key": "9708a92f085b90cb2fc48bfa8f1b954a8d23d1f60a6b53b5a5237b60c57ea4dd",
+          "ordinal": 4
+        },
+        {
+          "key": "18b77e5757df1e399c16d65c7e960d519c2e118886ff5062c72ed2b0090f27df",
+          "ordinal": 5
+        },
+        {
+          "key": "9f09df7ed26b4e749c8ce112fc32b57fb6c3d110fc4cbdcd9ff8c906f3a4514d",
+          "ordinal": 6
+        },
+        {
+          "key": "8b7b53032f6fd1773fb5bcd955ed81f2ce2970252659d9511aeb3516d0dd204f",
+          "ordinal": 7
+        },
+        {
+          "key": "df3b5c1cd41bcb4e9c075c2746346cb07d3854a0641da55e34ff66f5ba21c60b",
+          "ordinal": 8
+        },
+        {
+          "key": "a66f4fa96d92f1333a0bf25328d7db20bf7144c982955765d635421cfbe1a939",
+          "ordinal": 9
+        },
+        {
+          "key": "46f03e603d82d3a9d96a0267fdd5097253c00e0e2dbc962c845aa4d3a6d5d3cf",
+          "ordinal": 10
+        },
+        {
+          "key": "21542495189815c894756bda2132da1e4c490c6ae6542d314045b68dd215a8d7",
+          "ordinal": 11
+        },
+        {
+          "key": "111d4247bf9080119576dd347c540cf7af326b77c34971046d9a84856e966d53",
+          "ordinal": 12
+        },
+        {
+          "key": "02185bb33b98aa517ea8f9f6e655775ea53b15927043245ada2b56a5d467f8b0",
+          "ordinal": 13
+        },
+        {
+          "key": "5c2e3ca38da454f27d033543112990ef4b609477bb2dfd3533940ffe1b5100fc",
+          "ordinal": 14
+        },
+        {
+          "key": "75a5d0ab0e13cba175b27e432570ede30e4469f865baf3f49a44b37e10febc62",
+          "ordinal": 15
+        },
+        {
+          "key": "f363c359cbe211666b0b8a0de0e1383355fa25a3bcb31cad7e52fe0653319592",
+          "ordinal": 16
+        },
+        {
+          "key": "aeeddb74bfdfa92c77eb30f7cced0834673238c305a6fb04e3a3254c0794a023",
+          "ordinal": 17
+        },
+        {
+          "key": "e8759b36b58983ac5c30e7df54a042e93d21eada2855505026ca6d3bd6af1f0f",
+          "ordinal": 18
+        },
+        {
+          "key": "34c48f70a03c7b44b9e548c0330cf6e4023b17f2e3c070de59a89edb7fcaf8e0",
+          "ordinal": 19
+        },
+        {
+          "key": "a137736c0be678a5b75580a3668d36c8ec5408867aec9e0d5597d49997bc05f5",
+          "ordinal": 20
+        },
+        {
+          "key": "7e4a9f56c1a60658cb37a6e41102e2500c8d888bbfb21ef94df635dd6a358378",
+          "ordinal": 21
+        },
+        {
+          "key": "017443cbfd339796330b13258527cbb4e46850742c165049167f14eb630b5481",
+          "ordinal": 22
+        },
+        {
+          "key": "ebadf9675e31a2a1ae468a20205708355673097ba04ce4c73a2ae54cb009edd1",
+          "ordinal": 23
+        },
+        {
+          "key": "4b8f31faf735fc49661adc784a011fe6c9822dcb186de39374cb77d0ef742877",
+          "ordinal": 24
+        },
+        {
+          "key": "0fba00faf23c652f7dcf8c269924ee61e2f9f86607ea07770bd1c4f2ce3c258a",
+          "ordinal": 25
+        }
+      ]
+    }
+  }
+}

@@ -438,7 +438,7 @@ pub(in crate::source_model::generated) fn read_specific_shield_data_integrated_r
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@55e40c21e28d796022078623
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@0d73542742098f0d38eb7227
 pub type SpecificShieldDataIntegratedRunesOmitProperty =
     Vec<SpecificShieldDataIntegratedRunesOmitPropertyEntry>;
 pub(in crate::source_model::generated) fn read_specific_shield_data_integrated_runes_omit_property(
@@ -454,7 +454,7 @@ pub(in crate::source_model::generated) fn read_specific_shield_data_integrated_r
     )
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Omit@07d5926a84e50a249b8cab62
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Omit@5e540b7851f22b33cc47f140
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SpecificShieldDataIntegratedRunesOmit {
@@ -483,7 +483,7 @@ pub(in crate::source_model::generated) fn read_specific_shield_data_integrated_r
     })
 }
 
-// Source declaration: src/module/item/shield/data.ts#SpecificShieldData.integrated.$object@73a3050e2254ede399dee1ba
+// Source declaration: src/module/item/shield/data.ts#SpecificShieldData.integrated.$object@f6ceced98863c020f9d3f074
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SpecificShieldDataIntegrated {
@@ -529,7 +529,7 @@ pub(in crate::source_model::generated) fn read_specific_shield_data(
     })
 }
 
-// Source declaration: src/module/item/shield/data.ts#IntegratedWeaponSource.versatile.$object@98cc2aaa39c01e23d47de560
+// Source declaration: src/module/item/shield/data.ts#IntegratedWeaponSource.versatile.$object@d5e57e059b3fdb9edf994fd7
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct IntegratedWeaponSourceVersatile {

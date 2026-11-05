@@ -36,7 +36,7 @@ pub(in crate::source_model::generated) fn read_action_traits_fields(
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@23ad3c74803f645ebeea2dbf; deferred fields: toggles
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@e8f7913a96aa26b859876136; deferred fields: toggles
 pub fn parse_action_traits_fields(
     v: &SourceValue,
     c: &SourceContext,
@@ -45,7 +45,7 @@ pub fn parse_action_traits_fields(
     read_action_traits_fields(v, c, p)
 }
 
-// structural:dfb3ea71367b8ad242f0a1ee; deferred fields: config
+// structural:c32ab903b043166a6ddaf32e; deferred fields: config
 pub type AfflictionTraitsFields = ActionTraitsFields;
 pub fn parse_affliction_traits_fields(
     v: &SourceValue,
@@ -90,7 +90,7 @@ pub fn parse_ammo_traits_fields(
     read_ammo_traits_fields(v, c, p)
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@04d93dbbc12cea5e2fcf79ea; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@2ce5c80a54186b0449e09d20; deferred fields:
 pub type AncestryTraitsFields = AmmoTraitsFields;
 pub fn parse_ancestry_traits_fields(
     v: &SourceValue,
@@ -116,7 +116,7 @@ pub(in crate::source_model::generated) fn read_armor_traits_fields_other_tags_en
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@deb8a728eea7d5290e2d61b8
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@3b665c2acf0b507b295280c3
 pub type ArmorTraitsFieldsOtherTags = Vec<ArmorTraitsFieldsOtherTagsEntry>;
 pub(in crate::source_model::generated) fn read_armor_traits_fields_other_tags(
     v: &SourceValue,
@@ -161,7 +161,7 @@ pub fn parse_armor_traits_fields(
     read_armor_traits_fields(v, c, p)
 }
 
-// src/module/item/background/data.ts#BackgroundTraits@3cd1dd18d1a3e7013241e1b1; deferred fields: config
+// src/module/item/background/data.ts#BackgroundTraits@a6515eb78fccde405cd19176; deferred fields: config
 pub type BackgroundTraitsFields = AmmoTraitsFields;
 pub fn parse_background_traits_fields(
     v: &SourceValue,
@@ -171,7 +171,7 @@ pub fn parse_background_traits_fields(
     read_ammo_traits_fields(v, c, p)
 }
 
-// src/module/item/book/data.ts#BookTraits@d987a386140b825885ee2627; deferred fields: config
+// src/module/item/book/data.ts#BookTraits@3d90e8f9bcd8b7f1fca5e633; deferred fields: config
 pub type BookTraitsFields = AmmoTraitsFields;
 pub fn parse_book_traits_fields(
     v: &SourceValue,
@@ -181,7 +181,7 @@ pub fn parse_book_traits_fields(
     read_ammo_traits_fields(v, c, p)
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@7268b90be744d44a933f107c; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@8ff4e7006eb4ff16a604bac7; deferred fields:
 pub type CampaignFeatureTraitsFields = ActionTraitsFields;
 pub fn parse_campaign_feature_traits_fields(
     v: &SourceValue,
@@ -191,7 +191,7 @@ pub fn parse_campaign_feature_traits_fields(
     read_action_traits_fields(v, c, p)
 }
 
-// structural:a96ba30ba9fe9f6e19677406; deferred fields: config
+// structural:eaf29fbe47bb22b1a8df4b71; deferred fields: config
 pub type ClassTraitsFields = RarityTraitAndOtherTags;
 pub fn parse_class_traits_fields(
     v: &SourceValue,
@@ -201,7 +201,7 @@ pub fn parse_class_traits_fields(
     read_rarity_trait_and_other_tags(v, c, p)
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@3090c94102c63fb2b9a9cd3a; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@c3141a7667bf25182ac9dec3; deferred fields:
 pub type ConditionTraitsFields = ActionTraitsFields;
 pub fn parse_condition_traits_fields(
     v: &SourceValue,
@@ -233,7 +233,7 @@ pub(in crate::source_model::generated) fn read_other_consumable_tag(
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@4c8605689711efc1edcf199b
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@a9052db476d123e2b55f91b7
 pub type ConsumableTraitsFieldsOtherTags = Vec<OtherConsumableTag>;
 pub(in crate::source_model::generated) fn read_consumable_traits_fields_other_tags(
     v: &SourceValue,
@@ -278,7 +278,7 @@ pub fn parse_consumable_traits_fields(
     read_consumable_traits_fields(v, c, p)
 }
 
-// src/module/item/container/data.ts#ContainerTraits@d987a386140b825885ee2627; deferred fields: config
+// src/module/item/container/data.ts#ContainerTraits@3d90e8f9bcd8b7f1fca5e633; deferred fields: config
 pub type BackpackTraitsFields = AmmoTraitsFields;
 pub fn parse_backpack_traits_fields(
     v: &SourceValue,
@@ -298,7 +298,7 @@ pub fn parse_deity_traits_fields(
     read_other_tags_only(v, c, p)
 }
 
-// structural:dfb3ea71367b8ad242f0a1ee; deferred fields: config
+// structural:c32ab903b043166a6ddaf32e; deferred fields: config
 pub type EffectTraitsFields = ActionTraitsFields;
 pub fn parse_effect_traits_fields(
     v: &SourceValue,
@@ -318,7 +318,7 @@ pub fn parse_equipment_traits_fields(
     read_ammo_traits_fields(v, c, p)
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@e34a6ece40edff4f60af364e; deferred fields: toggles
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@025e4363e5cd93cc5fac0485; deferred fields: toggles
 pub type FeatTraitsFields = AmmoTraitsFields;
 pub fn parse_feat_traits_fields(
     v: &SourceValue,
@@ -328,7 +328,7 @@ pub fn parse_feat_traits_fields(
     read_ammo_traits_fields(v, c, p)
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@f61f2172e480ff89c597461b; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@a9bad030707380bfc1019fb5; deferred fields:
 pub type HeritageTraitsFields = AmmoTraitsFields;
 pub fn parse_heritage_traits_fields(
     v: &SourceValue,
@@ -338,7 +338,7 @@ pub fn parse_heritage_traits_fields(
     read_ammo_traits_fields(v, c, p)
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@58ed114e0c4e2e3c0106453a; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@1e414206112864144c9a3e9b; deferred fields:
 pub type KitTraitsFields = ActionTraitsFields;
 pub fn parse_kit_traits_fields(
     v: &SourceValue,
@@ -358,7 +358,7 @@ pub fn parse_lore_traits_fields(
     read_other_tags_only(v, c, p)
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@469a1f78fe9a12b9467ee289; deferred fields: config
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@3314105a5d4fbaa01735c3f1; deferred fields: config
 pub type MeleeTraitsFields = ActionTraitsFields;
 pub fn parse_melee_traits_fields(
     v: &SourceValue,
@@ -398,7 +398,7 @@ pub fn parse_spellcasting_entry_traits_fields(
     read_other_tags_only(v, c, p)
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@0dc17dc2bc9b200613608499; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@8c340b0b26d4544c9805d71f; deferred fields:
 pub type TreasureTraitsFields = AmmoTraitsFields;
 pub fn parse_treasure_traits_fields(
     v: &SourceValue,
@@ -430,7 +430,7 @@ pub(in crate::source_model::generated) fn read_other_weapon_tag(
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@8c36cea909794c132863a20d
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@392a0cd332ddc7fe284cb83e
 pub type WeaponTraitsFieldsOtherTags = Vec<OtherWeaponTag>;
 pub(in crate::source_model::generated) fn read_weapon_traits_fields_other_tags(
     v: &SourceValue,

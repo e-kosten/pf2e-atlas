@@ -48,7 +48,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_hazard_attribu
     }
 }
 
-// Source declaration: structural:5e2a5806bc6bbf7faf4a881e
+// Source declaration: structural:f1a0c4697dd753acffe37b07
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum SourceFromSchemaHazardAttributesSchemaEmitsSound {
@@ -104,7 +104,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_actor_hit_poin
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@f78400f4b61c2a7d78006496
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@1efeab33f9f5488b2935c33a
 pub type SourceFromSchemaHazardAttributesSchemaImmunitiesEntrySourceFromSchemaExceptions =
     Vec<ActorAttributesSourceImmunitiesEntryImmunitySourceType>;
 pub(in crate::source_model::generated) fn read_source_from_schema_hazard_attributes_schema_immunities_entry_source_from_schema_exceptions(
@@ -120,7 +120,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_hazard_attribu
     )
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@0a4aea59c22c9f85fb703c0b
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@b149b5f373b065e1f0c36ccf
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaHazardAttributesSchemaImmunitiesEntrySourceFromSchema {
@@ -145,7 +145,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_hazard_attribu
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@ccf81cd2d9054b0b462b7668
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@3b941e139f742b3deb7098d1
 pub type SourceFromSchemaHazardAttributesSchemaImmunities =
     Vec<SourceFromSchemaHazardAttributesSchemaImmunitiesEntrySourceFromSchema>;
 pub(in crate::source_model::generated) fn read_source_from_schema_hazard_attributes_schema_immunities(
@@ -161,7 +161,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_hazard_attribu
     )
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@4b7f557f0b1fea489730f748
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@c7f3afbecdb37f9b4670d209
 pub type SourceFromSchemaHazardAttributesSchemaResistancesEntrySourceFromSchemaDoubleVs =
     Vec<ResistanceSourceType>;
 pub(in crate::source_model::generated) fn read_source_from_schema_hazard_attributes_schema_resistances_entry_source_from_schema_double_vs(
@@ -172,7 +172,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_hazard_attribu
     array(v, c, p, read_resistance_source_type)
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@f1d1cfe4c9af11a54b71762c
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@6ba1081ee6e2d60b68897cd7
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaHazardAttributesSchemaResistancesEntrySourceFromSchema {
@@ -205,7 +205,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_hazard_attribu
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@5c0cf4ea89b81218ae89a151
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@739410b6ae0061dd04211923
 pub type SourceFromSchemaHazardAttributesSchemaResistances =
     Vec<SourceFromSchemaHazardAttributesSchemaResistancesEntrySourceFromSchema>;
 pub(in crate::source_model::generated) fn read_source_from_schema_hazard_attributes_schema_resistances(
@@ -221,7 +221,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_hazard_attribu
     )
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@68ebd5aa3f9f60c8299d1528
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@132fa49bad15d154827917b5
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaHazardAttributesSchemaStealthSourceFromSchema {
@@ -246,7 +246,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_hazard_attribu
     )
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@71529fa283e9652651b2164c
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@1d651e4623c3151a70b35803
 pub type SourceFromSchemaHazardAttributesSchemaWeaknessesEntrySourceFromSchemaExceptions =
     Vec<WeaknessSourceType>;
 pub(in crate::source_model::generated) fn read_source_from_schema_hazard_attributes_schema_weaknesses_entry_source_from_schema_exceptions(
@@ -257,7 +257,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_hazard_attribu
     array(v, c, p, read_weakness_source_type)
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@17b0a34b1963e117a830ec59
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@fe3bf3e962d64d48ca2c76de
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaHazardAttributesSchemaWeaknessesEntrySourceFromSchema {
@@ -285,7 +285,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_hazard_attribu
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@7a33c68a507168d853d50ef9
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@32f39f7f4ebd6322de724b89
 pub type SourceFromSchemaHazardAttributesSchemaWeaknesses =
     Vec<SourceFromSchemaHazardAttributesSchemaWeaknessesEntrySourceFromSchema>;
 pub(in crate::source_model::generated) fn read_source_from_schema_hazard_attributes_schema_weaknesses(
@@ -412,7 +412,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_hazard_details
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@f369b87880b0d1d8ca81cb63
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@57a044d53d6698fb8b0dcacc
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HazardSystemSourceSavesSourceFromSchema {

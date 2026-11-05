@@ -51,7 +51,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@fab181809b9e57504ea134e7
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@89c33ce454692c0fd0dd14f9
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaBattleFormRuleSchemaBracketsEntrySourceFromSchema {
@@ -76,7 +76,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_battle_form_ru
     )
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@323769979a00ed335983b99f
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@c0b3deea09a6093dae18aab9
 pub type SourceFromSchemaBattleFormRuleSchemaBrackets =
     Vec<SourceFromSchemaBattleFormRuleSchemaBracketsEntrySourceFromSchema>;
 pub(in crate::source_model::generated) fn read_source_from_schema_battle_form_rule_schema_brackets(
@@ -145,7 +145,7 @@ pub(in crate::source_model::generated) fn read_iwrchange_mode(
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Omit@2e40c0a57c1d7cea9c5bb58b#authored-input:type
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Omit@eabe670b20f4ffbb6b038c62#authored-input:type
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaBattleFormRuleOverrideSchemaImmunitiesEntryOmit {
@@ -223,7 +223,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_battle_form_ru
     )
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@f122eea4da6c17948effa6ce#authored-input
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@8e71db5058e3bb8b5458a7d6#authored-input
 pub type SourceFromSchemaBattleFormRuleOverrideSchemaImmunities =
     Vec<SourceFromSchemaBattleFormRuleOverrideSchemaImmunitiesEntryOmit>;
 pub(in crate::source_model::generated) fn read_source_from_schema_battle_form_rule_override_schema_immunities(
@@ -239,7 +239,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_battle_form_ru
     )
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Omit@e8176000c09f7de113bd5bea#authored-input:type
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Omit@c1e590fd77b728e5e3d3d208#authored-input:type
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaBattleFormRuleOverrideSchemaResistancesEntryOmit {
@@ -322,7 +322,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_battle_form_ru
     )
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@10b264355bd91995205b50a2#authored-input
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@f6aabade13dffdba9de00d46#authored-input
 pub type SourceFromSchemaBattleFormRuleOverrideSchemaResistances =
     Vec<SourceFromSchemaBattleFormRuleOverrideSchemaResistancesEntryOmit>;
 pub(in crate::source_model::generated) fn read_source_from_schema_battle_form_rule_override_schema_resistances(
@@ -363,7 +363,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_override_sense
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Partial@c786da5c3c40dcb96708110c
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Partial@11f186701bb5501db26a8ec7
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaBattleFormRuleOverrideSchemaSensesPartial {
@@ -683,7 +683,7 @@ pub(in crate::source_model::generated) fn read_battle_form_strike(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@99b6ef1935758ce37ddef06d#authored-input#authored-document
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@7e14eb1f55935d664584fe80#authored-input#authored-document
 pub type SourceFromSchemaBattleFormRuleOverrideSchemaStrikes =
     crate::source_model::SourceMap<BattleFormStrike>;
 pub(in crate::source_model::generated) fn read_source_from_schema_battle_form_rule_override_schema_strikes(
@@ -694,7 +694,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_battle_form_ru
     keyed(v, c, p, read_battle_form_strike)
 }
 
-// Source declaration: structural:70adae5b36cd7f4dd34a3dfc
+// Source declaration: structural:b4669c4f94b08bd96d2f17f1
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum SourceFromSchemaBattleFormRuleOverrideSchemaWeaknessesEntryOmitExceptionsEntry {
@@ -718,7 +718,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_battle_form_ru
     candidates.finish(v, c, p)
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@70adae5b36cd7f4dd34a3dfc
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@b4669c4f94b08bd96d2f17f1
 pub type SourceFromSchemaBattleFormRuleOverrideSchemaWeaknessesEntryOmitExceptions =
     Vec<SourceFromSchemaBattleFormRuleOverrideSchemaWeaknessesEntryOmitExceptionsEntry>;
 pub(in crate::source_model::generated) fn read_source_from_schema_battle_form_rule_override_schema_weaknesses_entry_omit_exceptions(
@@ -729,7 +729,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_battle_form_ru
     array(v, c, p, read_source_from_schema_battle_form_rule_override_schema_weaknesses_entry_omit_exceptions_entry)
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Omit@7b7929defd481b0c974dbfe9#authored-input:type
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Omit@5bc0a84a089fe9ae03d79c3b#authored-input:type
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaBattleFormRuleOverrideSchemaWeaknessesEntryOmit {
@@ -792,7 +792,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_battle_form_ru
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@6441ff19ec9d31a70455b704#authored-input
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@6c85f009115bed1b03f6762b#authored-input
 pub type SourceFromSchemaBattleFormRuleOverrideSchemaWeaknesses =
     Vec<SourceFromSchemaBattleFormRuleOverrideSchemaWeaknessesEntryOmit>;
 pub(in crate::source_model::generated) fn read_source_from_schema_battle_form_rule_override_schema_weaknesses(
@@ -885,7 +885,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_battle_form_ru
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@ef79f4d551eb4da6bd6264dd#authored-input#authored-document
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@cd549c6e4733ec4c002c26c7#authored-input#authored-document
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaBattleFormRuleSchema {
@@ -969,7 +969,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_battle_form_ru
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@ef79f4d551eb4da6bd6264dd; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@cd549c6e4733ec4c002c26c7; deferred fields:
 pub type BattleFormRule = SourceFromSchemaBattleFormRuleSchema;
 pub fn parse_battle_form_rule(
     v: &SourceValue,

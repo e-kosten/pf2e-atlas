@@ -44,7 +44,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_special_resour
     }
 }
 
-// Source declaration: structural:744cd8e627b82872693c7e83
+// Source declaration: structural:c0273217788608d1cf2a033d
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum SourceFromSchemaSpecialResourceSchemaRenew {
@@ -72,7 +72,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_special_resour
     candidates.finish(v, c, p)
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@c96276f58d5ec2e8f0874114
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@66ac5e4b36874b7415e2e800
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaSpecialResourceSchema {
@@ -149,7 +149,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_special_resour
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@c96276f58d5ec2e8f0874114; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@66ac5e4b36874b7415e2e800; deferred fields:
 pub type SpecialResourceRule = SourceFromSchemaSpecialResourceSchema;
 pub fn parse_special_resource_rule(
     v: &SourceValue,

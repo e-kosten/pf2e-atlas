@@ -244,3 +244,65 @@ fn nesting_guard_rejects_excessive_payloads_but_ignores_escaped_text() {
         Err(SnapshotError::InvalidSnapshot(_))
     ));
 }
+
+#[test]
+fn predecessor_compiler_snapshots_preserve_every_divine_font_alternative() {
+    #[derive(serde::Deserialize)]
+    struct Producer {
+        snapshot_version: u32,
+        source_contract: String,
+    }
+    #[derive(serde::Deserialize)]
+    struct Case {
+        name: String,
+        source: Box<serde_json::value::RawValue>,
+        snapshot: Box<serde_json::value::RawValue>,
+    }
+    #[derive(serde::Deserialize)]
+    struct Fixtures {
+        producer: Producer,
+        cases: Vec<Case>,
+    }
+    let fixtures: Fixtures = serde_json::from_slice(include_bytes!(
+        "fixtures/compiler-upgrade-snapshots-v1.json"
+    ))
+    .unwrap();
+    assert_eq!(
+        fixtures.producer.snapshot_version,
+        atlas_foundry_model::SNAPSHOT_VERSION
+    );
+    assert_eq!(
+        fixtures.producer.source_contract,
+        atlas_foundry_model::SOURCE_CONTRACT_ID
+    );
+    assert_eq!(fixtures.cases.len(), 4);
+    for case in fixtures.cases {
+        let stored = case.snapshot.get().as_bytes();
+        let restored = decode_snapshot(stored)
+            .unwrap_or_else(|error| panic!("{} predecessor snapshot: {error}", case.name));
+        let current = admit_document_source(
+            "Item",
+            SourceContext::new("fixture", "fixture.json", "$"),
+            case.source.get().as_bytes(),
+        )
+        .unwrap();
+        assert!(
+            current.diagnostics.is_empty(),
+            "{}: {:?}",
+            case.name,
+            current.diagnostics
+        );
+        assert_eq!(
+            Some(&restored),
+            current.model.as_ref(),
+            "{} changed meaning",
+            case.name
+        );
+        assert_eq!(
+            encode_snapshot(&restored).unwrap().as_slice(),
+            stored,
+            "{} was retagged",
+            case.name
+        );
+    }
+}

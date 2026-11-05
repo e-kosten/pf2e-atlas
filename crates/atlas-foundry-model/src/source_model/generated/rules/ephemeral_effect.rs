@@ -39,7 +39,7 @@ pub(in crate::source_model::generated) fn read_roll_role(
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@0d58ecd3c554c16832d85faa#authored-input:selectors
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@5077d3c2348e71368c02f282#authored-input:selectors
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaEphemeralEffectSchema {
@@ -119,7 +119,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_ephemeral_effe
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@0d58ecd3c554c16832d85faa; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@5077d3c2348e71368c02f282; deferred fields:
 pub type EphemeralEffectRule = SourceFromSchemaEphemeralEffectSchema;
 pub fn parse_ephemeral_effect_rule(
     v: &SourceValue,

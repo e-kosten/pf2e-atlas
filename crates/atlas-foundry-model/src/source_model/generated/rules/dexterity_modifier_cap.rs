@@ -13,7 +13,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@f05ba55c361088c045be804c
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@7c5ccda9faaa71b8d8248df7
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaDexterityModifierCapRuleSchema {
@@ -71,7 +71,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_dexterity_modi
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@f05ba55c361088c045be804c; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@7c5ccda9faaa71b8d8248df7; deferred fields:
 pub type DexterityModifierCapRule = SourceFromSchemaDexterityModifierCapRuleSchema;
 pub fn parse_dexterity_modifier_cap_rule(
     v: &SourceValue,

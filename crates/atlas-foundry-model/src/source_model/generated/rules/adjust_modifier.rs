@@ -20,7 +20,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@df02d5fe4d25d897ccb1a8d3#authored-string-array
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@6d4d2d7ce2a1d11407aeae40#authored-string-array
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum SourceFromSchemaAdjustModifierSchemaSelectors {
@@ -48,7 +48,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_adjust_modifie
     candidates.finish(v, c, p)
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@2b1d9802a37f8e774a203500#authored-input:selectors
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@53d3a2711d1452a4667029a5#authored-input:selectors
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaAdjustModifierSchema {
@@ -137,7 +137,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_adjust_modifie
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@2b1d9802a37f8e774a203500; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@53d3a2711d1452a4667029a5; deferred fields:
 pub type AdjustModifierRule = SourceFromSchemaAdjustModifierSchema;
 pub fn parse_adjust_modifier_rule(
     v: &SourceValue,

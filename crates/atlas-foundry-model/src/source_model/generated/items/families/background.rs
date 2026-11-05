@@ -28,7 +28,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@cc7881f22ffde9215213b592
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@9bc81d8f39fecc1d1e220493
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct BackgroundSystemSourceBoostsRecord {
@@ -80,7 +80,7 @@ pub(in crate::source_model::generated) fn read_abcfeature_entry_data(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@ca913923cc84fd4d4a730780
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@6d7c253d3cc43b3a99514799
 pub type BackgroundSystemSourceItems = crate::source_model::SourceMap<ABCFeatureEntryData>;
 pub(in crate::source_model::generated) fn read_background_system_source_items(
     v: &SourceValue,
@@ -157,7 +157,7 @@ pub(in crate::source_model::generated) fn read_skill_slug(
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@428e96b18fb922d22f144bf0
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@6269a55c58815400e2859f71
 pub type BackgroundSystemSourceTrainedSkillsValue = Vec<SkillSlug>;
 pub(in crate::source_model::generated) fn read_background_system_source_trained_skills_value(
     v: &SourceValue,
@@ -167,7 +167,7 @@ pub(in crate::source_model::generated) fn read_background_system_source_trained_
     array(v, c, p, read_skill_slug)
 }
 
-// Source declaration: src/module/item/background/data.ts#BackgroundSystemSource.trainedSkills.$object@dab09cee17f008476871d577
+// Source declaration: src/module/item/background/data.ts#BackgroundSystemSource.trainedSkills.$object@92e6fca981a68480292776d7
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct BackgroundSystemSourceTrainedSkills {

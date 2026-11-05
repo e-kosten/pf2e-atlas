@@ -58,7 +58,7 @@ pub(in crate::source_model::generated) fn read_treasure_system_source_category(
     }
 }
 
-// Source declaration: src/module/item/treasure/data.ts#TreasureSystemSource.equipped.$object@8f98b423051dae35c61a3e81
+// Source declaration: src/module/item/treasure/data.ts#TreasureSystemSource.equipped.$object@05a6eaeaf2f98cb040255e83
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TreasureSystemSourceEquipped {

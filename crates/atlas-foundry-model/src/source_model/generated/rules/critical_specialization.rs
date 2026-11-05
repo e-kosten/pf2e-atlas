@@ -21,7 +21,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: src/module/rules/rule-element/crit-spec.ts#CritSpecRuleSchema.$object.damageDice.$object@ec7398d10416a9bc1f5027da
+// Source declaration: src/module/rules/rule-element/crit-spec.ts#CritSpecRuleSchema.$object.damageDice.$object@b956e411b7ece1d83f7eba05
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaCritSpecRuleSchemaDamageDice {
@@ -50,7 +50,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_crit_spec_rule
     })
 }
 
-// Source declaration: src/module/rules/rule-element/crit-spec.ts#CritSpecRuleSchema.$object.modifier.$object@d6332618a85281e0977c31c6
+// Source declaration: src/module/rules/rule-element/crit-spec.ts#CritSpecRuleSchema.$object.modifier.$object@722f63e77edde7c40e8c436f
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaCritSpecRuleSchemaModifier {
@@ -79,7 +79,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_crit_spec_rule
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@5fb0c6253771ab8860b53cf0
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@58fdc050d2337d1ad7120790
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaCritSpecRuleSchema {
@@ -155,7 +155,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_crit_spec_rule
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@5fb0c6253771ab8860b53cf0; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@58fdc050d2337d1ad7120790; deferred fields:
 pub type CriticalSpecializationRule = SourceFromSchemaCritSpecRuleSchema;
 pub fn parse_critical_specialization_rule(
     v: &SourceValue,

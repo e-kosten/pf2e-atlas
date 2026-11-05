@@ -66,7 +66,7 @@ pub(in crate::source_model::generated) fn read_modifier_adjustment(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@82340f10badc7be85e236e70
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@82340f10badc7be85e236e70
 pub type RawModifierAdjustments = Vec<ModifierAdjustment>;
 pub(in crate::source_model::generated) fn read_raw_modifier_adjustments(
     v: &SourceValue,
@@ -226,7 +226,7 @@ pub(in crate::source_model::generated) fn read_raw_modifier(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@aba189dab2f22a3d30b89e97
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@aba189dab2f22a3d30b89e97
 pub type CreatureSystemSourceCustomModifiersEntry = Vec<RawModifier>;
 pub(in crate::source_model::generated) fn read_creature_system_source_custom_modifiers_entry(
     v: &SourceValue,
@@ -236,7 +236,7 @@ pub(in crate::source_model::generated) fn read_creature_system_source_custom_mod
     array(v, c, p, read_raw_modifier)
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@5338aa03184c50cf2f6c330e
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@d9a54894f1cea6763344b4c6
 pub type CreatureSystemSourceCustomModifiers =
     crate::source_model::SourceMap<CreatureSystemSourceCustomModifiersEntry>;
 pub(in crate::source_model::generated) fn read_creature_system_source_custom_modifiers(
@@ -791,7 +791,7 @@ pub(in crate::source_model::generated) fn read_language(
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@7fd06bb1fe484fa26193617f
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@1077eb0f29dffeef89823f40
 pub type CreatureLanguagesDataValue = Vec<Language>;
 pub(in crate::source_model::generated) fn read_creature_languages_data_value(
     v: &SourceValue,
@@ -870,7 +870,7 @@ pub(in crate::source_model::generated) fn read_creature_resources_source(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@b3d55cf132c636c7b0d0dd8a
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@6381a68ba9b572d9dc8ceb54
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CreatureSystemSourceSavesRecord {

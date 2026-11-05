@@ -12,7 +12,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@7606bbcbbd6143e94ff49ad5
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@3f0357dac20979b74a29f093
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaTokenEffectIconSchema {
@@ -70,7 +70,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_token_effect_i
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@7606bbcbbd6143e94ff49ad5; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@3f0357dac20979b74a29f093; deferred fields:
 pub type TokenEffectIconRule = SourceFromSchemaTokenEffectIconSchema;
 pub fn parse_token_effect_icon_rule(
     v: &SourceValue,

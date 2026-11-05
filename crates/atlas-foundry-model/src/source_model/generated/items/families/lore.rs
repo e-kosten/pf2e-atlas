@@ -27,7 +27,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: src/module/item/lore.ts#LoreSystemSource.proficient.$object@6f36750a00907b230257c263
+// Source declaration: src/module/item/lore.ts#LoreSystemSource.proficient.$object@e8f1c96ba2ff0cd581c29565
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LoreSystemSourceProficient {
@@ -47,7 +47,7 @@ pub(in crate::source_model::generated) fn read_lore_system_source_proficient(
     })
 }
 
-// Source declaration: src/module/item/lore.ts#LoreSystemSource.variants.$object@30d15ea02b46f4e0689306ef
+// Source declaration: src/module/item/lore.ts#LoreSystemSource.variants.$object@2d3883f9f56e28cd3e992c1d
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LoreSystemSourceVariantsEntry {
@@ -70,7 +70,7 @@ pub(in crate::source_model::generated) fn read_lore_system_source_variants_entry
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@0dbdf47441001075a0a6b6c6
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@901026df1338f5cc1299cc27
 pub type LoreSystemSourceVariants = crate::source_model::SourceMap<LoreSystemSourceVariantsEntry>;
 pub(in crate::source_model::generated) fn read_lore_system_source_variants(
     v: &SourceValue,

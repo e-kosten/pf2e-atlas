@@ -54,7 +54,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: src/module/actor/character/data.ts#CharacterSystemSource.abilities.$object@ba5459b5cbe818acd66bb393
+// Source declaration: src/module/actor/character/data.ts#CharacterSystemSource.abilities.$object@974e6500b1efcce9033b155a
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CharacterSystemSourceAbilitiesRecordCha {
@@ -74,7 +74,7 @@ pub(in crate::source_model::generated) fn read_character_system_source_abilities
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@572ebe2e07962d814a2433ce
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@4d1dfc1e41422dc365d528bb
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CharacterSystemSourceAbilitiesRecord {
@@ -109,7 +109,7 @@ pub(in crate::source_model::generated) fn read_character_system_source_abilities
     })
 }
 
-// Source declaration: src/module/actor/character/data.ts#CharacterAttributesSource.hp.$object@9c85534c8e8c68f2ec7a5d90
+// Source declaration: src/module/actor/character/data.ts#CharacterAttributesSource.hp.$object@f106e9eddac9947556f98acb
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CharacterAttributesSourceHp {
@@ -167,7 +167,7 @@ pub(in crate::source_model::generated) fn read_character_attributes_source(
     })
 }
 
-// Source declaration: src/module/actor/character/data.ts#AttributeBoostsSource.boosts.$object@8be4eca9ef9c9527d606adc4
+// Source declaration: src/module/actor/character/data.ts#AttributeBoostsSource.boosts.$object@45874f3d99bb53782a227c2b
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AttributeBoostsSourceBoosts {
@@ -250,7 +250,7 @@ pub(in crate::source_model::generated) fn read_character_build_source(
     })
 }
 
-// Source declaration: src/module/actor/character/data.ts#CharacterSystemSource.crafting.$object@6b5cd51a9fd939c1e1e0aaf4
+// Source declaration: src/module/actor/character/data.ts#CharacterSystemSource.crafting.$object@f2b60973f805d07151995ea3
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CharacterSystemSourceCrafting {
@@ -273,7 +273,7 @@ pub(in crate::source_model::generated) fn read_character_system_source_crafting(
     })
 }
 
-// Source declaration: src/module/actor/character/data.ts#CharacterBiography.visibility.$object@34f0646915ae20bb51c82938
+// Source declaration: src/module/actor/character/data.ts#CharacterBiography.visibility.$object@135f225c8ca1f79d8959f9bc
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CharacterBiographyVisibility {
@@ -380,7 +380,7 @@ pub(in crate::source_model::generated) fn read_character_biography(
     })
 }
 
-// Source declaration: src/module/actor/character/data.ts#CharacterDetailsSource.keyability.$object@60be18826c7531251688f35f
+// Source declaration: src/module/actor/character/data.ts#CharacterDetailsSource.keyability.$object@5ffce8ffa64b1a8e0ec822e3
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CharacterDetailsSourceKeyability {
@@ -400,7 +400,7 @@ pub(in crate::source_model::generated) fn read_character_details_source_keyabili
     })
 }
 
-// Source declaration: src/module/actor/character/data.ts#CharacterDetailsSource.xp.$object@46c4e695139b974c794b41b5
+// Source declaration: src/module/actor/character/data.ts#CharacterDetailsSource.xp.$object@fc7ad51efb2ee13981513d1c
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CharacterDetailsSourceXp {
@@ -668,7 +668,7 @@ pub(in crate::source_model::generated) fn read_martial_proficiency_source(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@a4eb66d512b629e500aa4134
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@d1343f0f8a30176937d74633
 pub type CharacterSystemSourceProficienciesAttacks =
     crate::source_model::SourceMap<MartialProficiencySource>;
 pub(in crate::source_model::generated) fn read_character_system_source_proficiencies_attacks(
@@ -679,7 +679,7 @@ pub(in crate::source_model::generated) fn read_character_system_source_proficien
     keyed(v, c, p, read_martial_proficiency_source)
 }
 
-// Source declaration: src/module/actor/character/data.ts#CharacterSystemSource.proficiencies.$object@103e3f28c7821378815273d2
+// Source declaration: src/module/actor/character/data.ts#CharacterSystemSource.proficiencies.$object@164a441adde45063d6b31cb0
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CharacterSystemSourceProficiencies {
@@ -702,7 +702,7 @@ pub(in crate::source_model::generated) fn read_character_system_source_proficien
     })
 }
 
-// Source declaration: src/module/actor/character/data.ts#CharacterResourcesSource.crafting.$object@fef45439736ee74dea0e2f47
+// Source declaration: src/module/actor/character/data.ts#CharacterResourcesSource.crafting.$object@cfcb1af2f1a6b399fbbde94b
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CharacterResourcesSourceCrafting {
@@ -751,7 +751,7 @@ pub(in crate::source_model::generated) fn read_character_resources_source(
     })
 }
 
-// Source declaration: src/module/actor/character/data.ts#CharacterSystemSource.skills.$object@c09c4f11b07f958c427e894b
+// Source declaration: src/module/actor/character/data.ts#CharacterSystemSource.skills.$object@dc24d125fd17627755ce745b
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CharacterSystemSourceSkillsPartialAcrobatics {
@@ -771,7 +771,7 @@ pub(in crate::source_model::generated) fn read_character_system_source_skills_pa
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Partial@89113e5d8f3f29177ded31e5
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Partial@5b30d9333a7a01f3be18125a
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CharacterSystemSourceSkillsPartial {
@@ -997,7 +997,7 @@ pub fn parse_character_system_source(
     read_character_system_source(v, c, p)
 }
 
-// Source declaration: types/foundry/util.d.mts#global.DeepPartial.$mapped@dea41f03a57901fb1ad82f3e
+// Source declaration: types/foundry/util.d.mts#global.DeepPartial.$mapped@15219bd90353d809fa8f4e84
 pub type CharacterSourceFlagsEntryFeatLimits = crate::source_model::SourceMap<Number>;
 pub(in crate::source_model::generated) fn read_character_source_flags_entry_feat_limits(
     v: &SourceValue,
@@ -1007,7 +1007,7 @@ pub(in crate::source_model::generated) fn read_character_source_flags_entry_feat
     keyed(v, c, p, number)
 }
 
-// Source declaration: types/foundry/util.d.mts#global.DeepPartial.$mapped@a277e68571ee2e03c2e67ac3
+// Source declaration: types/foundry/util.d.mts#global.DeepPartial.$mapped@ef842c53b3a1a4604a2f1d20
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CharacterSourceFlagsEntrySheetTabs {
@@ -1065,7 +1065,7 @@ pub(in crate::source_model::generated) fn read_character_source_flags_entry_shee
     })
 }
 
-// Source declaration: structural:3742d8bbc4a8c4fe9ec6b36a
+// Source declaration: structural:520b560e36bbaf55f3d3000a
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CharacterSourceFlagsEntry {
@@ -1155,7 +1155,7 @@ pub(in crate::source_model::generated) fn read_character_source_flags_entry(
     })
 }
 
-// Source declaration: structural:c6e6ae137b2dcff67604e7e3
+// Source declaration: structural:ec3b6506768afa49577ccc2b
 pub type CharacterSourceFlags = crate::source_model::SourceMap<CharacterSourceFlagsEntry>;
 pub(in crate::source_model::generated) fn read_character_source_flags(
     v: &SourceValue,

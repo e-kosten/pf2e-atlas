@@ -81,7 +81,7 @@ pub(in crate::source_model::generated) fn read_condition_system_source_reference
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@abdd8446ced9c7bdd8fa7c04
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@28f4f809f091a2a0093962a9
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConditionSystemSourceReferencesSourceFromSchemaChildrenEntrySourceFromSchema {
@@ -106,7 +106,7 @@ pub(in crate::source_model::generated) fn read_condition_system_source_reference
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@5718b90346e20e100cfb5267
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@1966c1de3d4719cb865798d3
 pub type ConditionSystemSourceReferencesSourceFromSchemaChildren =
     Vec<ConditionSystemSourceReferencesSourceFromSchemaChildrenEntrySourceFromSchema>;
 pub(in crate::source_model::generated) fn read_condition_system_source_references_source_from_schema_children(
@@ -137,7 +137,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_condition_pare
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@0881b58fe20f747402a2ed23
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@3b4195b6b8dac1bd5fc3fa68
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConditionSystemSourceReferencesSourceFromSchema {

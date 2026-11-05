@@ -46,7 +46,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_suboption_sche
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@99838349b7052d58b7268460
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@99838349b7052d58b7268460
 pub type SourceFromSchemaRollOptionSchemaSuboptionsAlternative1 =
     Vec<SourceFromSchemaSuboptionSchema>;
 pub(in crate::source_model::generated) fn read_source_from_schema_roll_option_schema_suboptions_alternative1(
@@ -57,7 +57,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_roll_option_sc
     array(v, c, p, read_source_from_schema_suboption_schema)
 }
 
-// Source declaration: structural:3f7498c825aecaa1380bae84
+// Source declaration: structural:c56c2e37722db612411b68c4
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum SourceFromSchemaRollOptionSchemaSuboptions {
@@ -98,7 +98,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_roll_option_sc
     }
 }
 
-// Source declaration: structural:082207a1e3b5e29faa75059f
+// Source declaration: structural:a012391e9ed05909253fe2d8
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum SourceFromSchemaRollOptionSchemaToggleable {
@@ -125,7 +125,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_roll_option_sc
     candidates.finish(v, c, p)
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@15959c2979fefeaffeb7543e
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@cf14f9ca09f3a4fe70c56c63
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaRollOptionSchema {
@@ -241,7 +241,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_roll_option_sc
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@15959c2979fefeaffeb7543e; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@cf14f9ca09f3a4fe70c56c63; deferred fields:
 pub type RollOptionRule = SourceFromSchemaRollOptionSchema;
 pub fn parse_roll_option_rule(
     v: &SourceValue,

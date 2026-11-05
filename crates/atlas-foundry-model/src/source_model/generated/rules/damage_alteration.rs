@@ -45,7 +45,7 @@ pub(in crate::source_model::generated) fn read_damage_alteration_property(
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@f078031fd598b543143058e1#authored-input:selectors
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@b749e82158b832e8aed3770f#authored-input:selectors
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaDamageAlterationSchema {
@@ -122,7 +122,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_damage_alterat
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@f078031fd598b543143058e1; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@b749e82158b832e8aed3770f; deferred fields:
 pub type DamageAlterationRule = SourceFromSchemaDamageAlterationSchema;
 pub fn parse_damage_alteration_rule(
     v: &SourceValue,
