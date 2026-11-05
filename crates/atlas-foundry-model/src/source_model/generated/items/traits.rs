@@ -90,7 +90,7 @@ pub fn parse_ammo_traits_fields(
     read_ammo_traits_fields(v, c, p)
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@31dcee0d5958175053063728; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@04d93dbbc12cea5e2fcf79ea; deferred fields:
 pub type AncestryTraitsFields = AmmoTraitsFields;
 pub fn parse_ancestry_traits_fields(
     v: &SourceValue,
@@ -328,7 +328,7 @@ pub fn parse_feat_traits_fields(
     read_ammo_traits_fields(v, c, p)
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@d9e63c0519ce68f94fb5840c; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@f61f2172e480ff89c597461b; deferred fields:
 pub type HeritageTraitsFields = AmmoTraitsFields;
 pub fn parse_heritage_traits_fields(
     v: &SourceValue,

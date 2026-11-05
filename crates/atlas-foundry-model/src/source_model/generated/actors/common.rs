@@ -5005,7 +5005,7 @@ pub(in crate::source_model::generated) fn read_actor_details_source(
     })
 }
 
-// Source declaration: src/module/actor/data/base.ts#ActorTraitsSource.size.$object@a0af1969840ef0f483a26ea5
+// Source declaration: src/module/actor/data/base.ts#ActorTraitsSource.size.$object@ccce06632107deff74254873
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ActorTraitsSourceStringSize {
