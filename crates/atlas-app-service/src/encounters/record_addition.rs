@@ -1,5 +1,5 @@
 //! Source/default preparation shared by addition and its read-only difficulty preview.
-use super::mechanics::{effective_max, initial_variant};
+use super::mechanics::{effective_max, record_add_variant};
 use super::projection::participant_variant;
 use crate::{AppServiceError, AppServiceResult};
 use atlas_app_model::EncounterParticipantVariantView;
@@ -39,19 +39,13 @@ pub(super) fn prepare(
         ));
     }
     use atlas_local_state::{ParticipantVariant, ParticipantVariantOrigin};
-    let inherited = initial_variant(&record.source);
+    let inherited = record_add_variant(&record.source);
     let (variant, variant_origin) = match variant {
         Some(variant) => (
             participant_variant(variant),
             ParticipantVariantOrigin::Explicit,
         ),
-        None => match inherited {
-            (Some(variant), origin) => (variant, origin),
-            (None, _) => (
-                ParticipantVariant::Normal,
-                ParticipantVariantOrigin::DefaultUnadjusted,
-            ),
-        },
+        None => inherited,
     };
     let max_hp = effective_max(&record.source, Some(variant));
     let title = record
@@ -66,7 +60,7 @@ pub(super) fn prepare(
         ParticipantVariant::Weak => Some("Weak"),
     };
     let name = match (inherited.0, title.split_once(char::is_whitespace)) {
-        (Some(source), Some((first, rest)))
+        (source, Some((first, rest)))
             if source != variant
                 && prefix(source).is_some_and(|marker| first.eq_ignore_ascii_case(marker))
                 && !rest.trim_start().is_empty() =>

@@ -1219,6 +1219,16 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
     await expect(
       picker.getByRole("button", { name: "Add", exact: true }),
     ).toBeEnabled();
+    const originalViewport = page.viewportSize()!;
+    await page.setViewportSize({ width: 390, height: 480 });
+    await expect(
+      picker.getByRole("button", { name: "Done", exact: true }),
+    ).toBeInViewport();
+    await expect(
+      picker.getByRole("button", { name: "Add", exact: true }),
+    ).toBeInViewport();
+    await noPageOverflow(page);
+    await page.setViewportSize(originalViewport);
     await picker.getByLabel("Quantity", { exact: true }).fill("2");
     await activate(picker.getByRole("button", { name: "Add", exact: true }), info);
     await expect(

@@ -182,3 +182,7 @@
   font: inherit;
   padding: 0;
 }
+
+.encounter-difficulty-meter__axis [data-colliding] .encounter-difficulty-meter__number {
+  visibility: hidden;
+}

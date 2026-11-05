@@ -14,8 +14,8 @@ import {
   Typography,
 } from "antd";
 import { X } from "lucide-react";
-import type { FormInstance, ModalProps } from "antd";
-import { useId, useLayoutEffect, useState } from "react";
+import type { FormInstance, InputRef, ModalProps } from "antd";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { searchPage } from "../../../api/atlasApi";
 import { useSearchProfile } from "../../search/SearchProfileContext";
 import {
@@ -107,6 +107,7 @@ export function SearchPickerModal<FormValues>({
 }) {
   useDismissOnReadingNavigation(open && !disabled, onCancel);
   const formId = useId();
+  const searchInput = useRef<InputRef>(null);
   const { token } = theme.useToken();
   const narrow = !Grid.useBreakpoint().lg;
   const profile = useSearchProfile();
@@ -278,6 +279,7 @@ export function SearchPickerModal<FormValues>({
         width="min(1400px, calc(100vw - 32px))"
         styles={{
           body: { display: "flex", flexDirection: "column", overflow: "hidden" },
+          footer: { containerType: "inline-size", containerName: "picker-footer" },
         }}
         afterOpenChange={(isOpen) => {
           if (!isOpen) reset();
@@ -293,13 +295,13 @@ export function SearchPickerModal<FormValues>({
               if (!disabled && !preparing) onFinish(values);
             }}
           >
+            {summary && <div className="reference-picker__summary">{summary}</div>}
             <div className="reference-picker__footer-content">
               <div className="reference-picker__fields">
                 {typeof children === "function"
                   ? children(reading.parentDetail)
                   : children}
               </div>
-              {summary && <div className="reference-picker__summary">{summary}</div>}
               {!summary && status}
               {summary && status && (
                 <div className="reference-picker__status">{status}</div>
@@ -333,6 +335,7 @@ export function SearchPickerModal<FormValues>({
         title={title}
       >
         <FilterControls
+          searchInputRef={searchInput}
           layout="toolbar"
           searchRowEnd={
             <SearchSettings
@@ -426,26 +429,21 @@ export function SearchPickerModal<FormValues>({
           disabled={disabled}
           selectedRecordKey={selectedRecordKey}
           onReaderClose={selection.cancel}
-          recordActions={(record) =>
-            allowClearSelection && record.record_key === selectedRecordKey ? (
+          readerHeaderActions={
+            allowClearSelection && selectedRecordKey ? (
               <Tooltip title="Clear selection" trigger={["hover", "focus"]}>
                 <Button
                   type="text"
                   icon={<X size={16} aria-hidden="true" />}
                   aria-label="Clear selection"
                   disabled={disabled}
-                  onClick={(event) => {
-                    const dialog = event.currentTarget.closest('[role="dialog"]');
+                  onClick={() => {
                     selection.cancel();
                     reading.inspect(null);
                     onSelectionChange(null);
-                    requestAnimationFrame(() => {
-                      dialog
-                        ?.querySelector<HTMLInputElement>(
-                          'input[aria-label="Search records"]',
-                        )
-                        ?.focus({ preventScroll: true });
-                    });
+                    requestAnimationFrame(() =>
+                      searchInput.current?.focus({ preventScroll: true }),
+                    );
                   }}
                 />
               </Tooltip>

@@ -2825,7 +2825,10 @@ fn add_adjustment_replaces_inherited_variant_and_initializes_each_copy_once() {
             "actors:elite00000000000",
             Some(EncounterParticipantVariantView::Elite),
         ),
-        ("actors:unknown000000000", None),
+        (
+            "actors:unknown000000000",
+            Some(EncounterParticipantVariantView::Normal),
+        ),
         (
             "actors:unknownhp0000000",
             Some(EncounterParticipantVariantView::Normal),

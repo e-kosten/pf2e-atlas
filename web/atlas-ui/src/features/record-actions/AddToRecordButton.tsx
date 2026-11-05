@@ -163,8 +163,9 @@ function AddToRecordModal({
   );
   const resolvedAdjustment =
     detail.data?.record.record_key === recordKey
-      ? (detail.data.encounter_adjustment ?? "normal")
+      ? detail.data.encounter_adjustment
       : undefined;
+  const adjustmentBlocked = kind === "encounter" && creature && !resolvedAdjustment;
   useLayoutEffect(() => {
     if (
       open &&
@@ -323,7 +324,7 @@ function AddToRecordModal({
       maskTransitionName=""
       confirmLoading={submit.isPending}
       cancelButtonProps={{ disabled: submit.isPending }}
-      okButtonProps={{ disabled: !creating && !selected }}
+      okButtonProps={{ disabled: adjustmentBlocked || (!creating && !selected) }}
       closable={{ disabled: submit.isPending }}
       keyboard={!submit.isPending}
       mask={{ closable: !submit.isPending }}
@@ -381,6 +382,7 @@ function AddToRecordModal({
           layout="vertical"
           disabled={submit.isPending}
           onFinish={({ name }) => {
+            if (adjustmentBlocked) return;
             if (creating && name) run(name.trim());
             else if (selected) run();
           }}
@@ -452,7 +454,12 @@ function AddToRecordModal({
           )}
           {kind === "encounter" && (
             <div className="record-destination-picker__encounter-fields">
-              {creature && <EncounterRecordAdjustment loading={detail.isPending} />}
+              {creature && (
+                <EncounterRecordAdjustment
+                  loading={detail.isPending}
+                  disabled={adjustmentBlocked}
+                />
+              )}
               <Form.Item
                 name="quantity"
                 label="Quantity"
@@ -497,7 +504,14 @@ function AddToRecordModal({
             selectedRecordKey={recordKey}
             creature={creature}
             recordName={record?.title ?? recordKey}
-            disabled={submit.isPending}
+            disabled={submit.isPending || adjustmentBlocked}
+          />
+        )}
+        {adjustmentBlocked && detail.error && (
+          <ErrorNotice
+            error={detail.error}
+            title="Creature adjustment could not load"
+            action={<Button onClick={() => void detail.refetch()}>Retry</Button>}
           />
         )}
         {encounter.error && (

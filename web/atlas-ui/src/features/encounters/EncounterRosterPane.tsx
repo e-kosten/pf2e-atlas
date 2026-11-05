@@ -119,7 +119,7 @@ export function EncounterRosterPane({
   const selectedRecordKey = candidate?.record.record_key ?? null;
   const selectedIsCreature = candidate?.record.kind === "creature";
   const defaultAdjustment = selectedIsCreature
-    ? (candidate?.detail.encounter_adjustment ?? "normal")
+    ? candidate?.detail.encounter_adjustment
     : undefined;
   const [recordForm] = Form.useForm<AddRecordForm>();
   const [pcForm] = Form.useForm<AddPcForm>();
@@ -445,7 +445,7 @@ export function EncounterRosterPane({
                 name: "adjustment",
                 value:
                   selection.record.kind === "creature"
-                    ? (selection.detail.encounter_adjustment ?? "normal")
+                    ? selection.detail.encounter_adjustment
                     : undefined,
                 touched: false,
                 errors: [],

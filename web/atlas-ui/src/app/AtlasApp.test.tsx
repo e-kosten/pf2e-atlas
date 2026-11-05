@@ -858,7 +858,10 @@ describe("AtlasApp routing", () => {
           key === linkedKey ? `Linked ${kind}` : "heal",
           key === linkedKey ? undefined : linkedKey,
         );
-        if (key === linkedKey) detail.record.kind = kind;
+        if (key === linkedKey) {
+          detail.record.kind = kind;
+          if (kind === "creature") detail.encounter_adjustment = "normal";
+        }
         return detail;
       });
       apiMocks.getEncounters.mockResolvedValue({

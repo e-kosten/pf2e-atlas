@@ -3,7 +3,7 @@ import { SearchOutlined } from "@ant-design/icons";
 import type { SimilaritySeed } from "../../generated/atlas";
 import { SimilaritySeedLink } from "../search/SimilaritySeedLink";
 import { CloseCircleFilled } from "@ant-design/icons";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 
 export type SimilarSearchCriterion = {
   title: string;
@@ -18,16 +18,19 @@ export function SearchEntry({
   disabled,
   label = "Search records",
   similar,
+  inputRef,
 }: {
   query: string;
   onSearch: (query: string) => void;
   disabled?: boolean;
   label?: string;
   similar?: SimilarSearchCriterion;
+  inputRef?: RefObject<InputRef | null>;
 }) {
   const { token } = theme.useToken();
   const [entry, setEntry] = useState<{ baseline: string; value: string } | null>(null);
-  const input = useRef<InputRef>(null);
+  const localInput = useRef<InputRef>(null);
+  const input = inputRef ?? localInput;
   const focusAfterClear = useRef(false);
   const draft = entry?.baseline === query ? entry.value : query;
   const value = draft;
@@ -36,7 +39,7 @@ export function SearchEntry({
       focusAfterClear.current = false;
       input.current?.focus({ preventScroll: true });
     }
-  }, [similar]);
+  }, [input, similar]);
   function clear() {
     setEntry({ baseline: query, value: "" });
     if (similar) {

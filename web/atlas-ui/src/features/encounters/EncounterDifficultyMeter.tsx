@@ -31,7 +31,7 @@ export function EncounterDifficultyMeter({
         const visible =
           label === last ||
           (bounds.left >= previousRight + 4 && bounds.right + 4 <= finalBounds.left);
-        label.style.visibility = visible ? "visible" : "hidden";
+        label.toggleAttribute("data-colliding", !visible);
         if (visible) previousRight = bounds.right;
       }
     };
@@ -98,25 +98,34 @@ export function EncounterDifficultyMeter({
         </div>
       </div>
       <div ref={axis} className="encounter-difficulty-meter__axis">
-        {thresholds.map((xp) => (
-          <span key={xp} style={{ left: `${(xp / maximum) * 100}%` }}>
-            {xp === 0 && !value.budgets.some((budget) => budget.xp === xp) ? (
-              <span aria-hidden="true">{xp}</span>
-            ) : (
-              <Tooltip
-                title={value.budgets
-                  .filter((budget) => budget.xp === xp)
-                  .map((budget) => `${budget.label} ${xp} XP`)
-                  .join(" / ")}
-                trigger={["hover", "focus"]}
-              >
-                <button type="button" className="encounter-difficulty-meter__threshold">
-                  {xp}
-                </button>
-              </Tooltip>
-            )}
-          </span>
-        ))}
+        {thresholds.map((xp) => {
+          const label = value.budgets
+            .filter((budget) => budget.xp === xp)
+            .map((budget) => `${budget.label} ${xp} XP`)
+            .join(" / ");
+          const number = (
+            <span aria-hidden="true" className="encounter-difficulty-meter__number">
+              {xp}
+            </span>
+          );
+          return (
+            <span key={xp} style={{ left: `${(xp / maximum) * 100}%` }}>
+              {label ? (
+                <Tooltip title={label} trigger={["hover", "focus"]}>
+                  <button
+                    type="button"
+                    aria-label={label}
+                    className="encounter-difficulty-meter__threshold"
+                  >
+                    {number}
+                  </button>
+                </Tooltip>
+              ) : (
+                number
+              )}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
