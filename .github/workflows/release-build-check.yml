@@ -180,6 +180,13 @@ jobs:
         run: |
           pwsh -NoProfile -File scripts/install/atlas-installer.ps1 -DryRun
           pwsh -NoProfile -File scripts/release/test-installer.ps1
+      - name: Link Apple availability runtime
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          runtime="$(xcrun --sdk macosx clang -print-libgcc-file-name)"
+          test -f "$runtime"
+          echo "RUSTFLAGS=${RUSTFLAGS:-} -C link-arg=$runtime" >> "$GITHUB_ENV"
       - name: Build archives with cargo-dist
         if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
         shell: bash

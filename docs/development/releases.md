@@ -14,6 +14,12 @@ and validate it with `npm --prefix dev-tools/release run verify`. See
 [release tooling](../../dev-tools/release/README.md) for notices, manifest, checksum and
 platform smoke-test commands. These dependencies stay out of product bundles.
 
+The shared macOS packaging job links the static Apple compiler runtime resolved
+by `xcrun --sdk macosx clang -print-libgcc-file-name`. ONNX Runtime's CoreML
+availability checks require this helper when Rust links for the release deployment
+target with its default libraries disabled. This adds the standard Apple runtime
+helper without changing the deployment target or embedding policy.
+
 Each supported target ships a full archive (`atlas-cli-<target>.*`) and a CLI-only
 archive (`atlas-cli-only-<target>.*`). Both contain `atlas`; full is the default.
 Cargo-dist uses `precise-builds = true` to build the shipped CLI package rather
