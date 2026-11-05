@@ -2587,7 +2587,7 @@ test("reference feedback: link picker drafts survive reading and filter popovers
   await expect(scopeHelp).toBeHidden();
   const scope = picker
     .locator(".ant-select")
-    .filter({ has: picker.getByRole("combobox", { name: "Link filter scope" }) });
+    .filter({ has: page.getByRole("combobox", { name: "Link filter scope" }) });
   await activate(scope, info);
   await activate(
     page
