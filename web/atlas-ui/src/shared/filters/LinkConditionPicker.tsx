@@ -83,13 +83,23 @@ export function LinkConditionPicker({
           <Typography.Text role="status">{feedback}</Typography.Text>
         ) : undefined
       }
-    >
-      {(candidate || initial) && (
-        <Typography.Link
-          onClick={(event) => {
-            if (!isPrimaryActivation(event)) return;
-            event.preventDefault();
-            navigateDestination(
+      summary={
+        (candidate || initial) && (
+          <Typography.Link
+            onClick={(event) => {
+              if (!isPrimaryActivation(event)) return;
+              event.preventDefault();
+              navigateDestination(
+                recordDestination({
+                  recordKey:
+                    candidate?.record.record_key ?? initial!.selection.record_key,
+                  selection: candidate
+                    ? rootNavigation(candidate.record.record_key)
+                    : initial!.selection,
+                }),
+              );
+            }}
+            href={destinationHref(
               recordDestination({
                 recordKey:
                   candidate?.record.record_key ?? initial!.selection.record_key,
@@ -97,20 +107,13 @@ export function LinkConditionPicker({
                   ? rootNavigation(candidate.record.record_key)
                   : initial!.selection,
               }),
-            );
-          }}
-          href={destinationHref(
-            recordDestination({
-              recordKey: candidate?.record.record_key ?? initial!.selection.record_key,
-              selection: candidate
-                ? rootNavigation(candidate.record.record_key)
-                : initial!.selection,
-            }),
-          )}
-        >
-          {candidate?.record.title ?? initialTitle ?? "Record unavailable"}
-        </Typography.Link>
-      )}
+            )}
+          >
+            {candidate?.record.title ?? initialTitle ?? "Record unavailable"}
+          </Typography.Link>
+        )
+      }
+    >
       <Form.Item
         name="direction"
         label="Direction"
