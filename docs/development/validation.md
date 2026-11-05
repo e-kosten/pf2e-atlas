@@ -165,6 +165,12 @@ relax assertions or remove cases.
 
 ## Local browser checks and the CI matrix
 
+Chromium projects use Playwright's `chromium` channel to run the full browser in
+new headless mode. This avoids the legacy headless shell's
+[native-tab regression](https://github.com/microsoft/playwright/issues/42142)
+while retaining real modified and middle-click acceptance checks. Install
+Chromium normally; `--only-shell` omits the required browser binary.
+
 Local browser validation targets the changed behavior and affected engine/device
 combinations. Broaden coverage for shared layout, navigation, overlays, touch/focus
 behavior or browser-harness changes. CI owns the full applicable device/browser

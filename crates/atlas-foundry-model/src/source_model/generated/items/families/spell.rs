@@ -959,7 +959,7 @@ pub(in crate::source_model::generated) fn read_patch_spell_system_source_heighte
     })
 }
 
-// Source declaration: src/module/item/spell/data.ts#SpellHeighteningFixed.levels.$mapped@5187ef676a851eb7be6ab107#authored-document#object-patch
+// Source declaration: src/module/item/spell/data.ts#SpellHeighteningFixed.levels.$mapped@7a4b31e3c7f84084227dd081#authored-document#object-patch
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PatchSpellSystemSourceHeighteningLevels {
@@ -1207,7 +1207,7 @@ pub(in crate::source_model::generated) fn read_patch_spell_system_source(
     })
 }
 
-// Source declaration: src/module/item/spell/data.ts#SpellHeighteningFixed.levels.$mapped@5187ef676a851eb7be6ab107#authored-spell-levels
+// Source declaration: src/module/item/spell/data.ts#SpellHeighteningFixed.levels.$mapped@7a4b31e3c7f84084227dd081#authored-spell-levels
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SpellHeighteningFixedLevels {
