@@ -23,7 +23,7 @@ validation_surface_for_path() {
   case "$1" in
     # Package fixtures and executable research precede the prose exemption.
     dev-tools/source-contracts/*) printf 'source\n' ;;
-    dev-tools/release/* | scripts/release/* | scripts/prepare-release.sh | scripts/install/* | THIRD-PARTY-NOTICES.md) printf 'release\n' ;;
+    dev-tools/release/* | scripts/release/* | scripts/prepare-release.sh | scripts/install/*) printf 'release\n' ;;
     skills/pf2e-atlas-cli/*) printf 'skill\n' ;;
     docs/research/evaluations/*) printf 'research\n' ;;
     scripts/validation/skill*) printf 'skill tooling\n' ;;

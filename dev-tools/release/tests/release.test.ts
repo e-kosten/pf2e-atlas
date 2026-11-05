@@ -129,13 +129,14 @@ test('notice CLI fails without writing output when upstream notices are missing 
   writeFileSync(path.join(root, 'dev-tools/source-contracts/source-pin.json'), JSON.stringify(noticeFixturePin));
   const notice = path.join(root, 'web/atlas-ui/public/third-party-notices.txt');
   mkdirSync(path.dirname(notice), { recursive: true });
+  const output = path.join(root, 'target/notices/THIRD-PARTY-NOTICES.md');
   for (const empty of [false, true]) {
     if (empty) writeFileSync(notice, ' \n\t');
-    const result = spawnSync(process.execPath, [path.join(modules, 'cli/generate-notices.js')],
+    const result = spawnSync(process.execPath, [path.join(modules, 'cli/generate-notices.js'), '--output', output],
       { cwd: root, encoding: 'utf8', env: { ...process.env, CARGO_NET_OFFLINE: 'true' } });
     assert.equal(result.status, 1, result.stderr);
     assert.match(result.stderr, empty ? /PF2e notices are empty/ : /ENOENT.*third-party-notices.txt/);
-    assert.equal(existsSync(path.join(root, 'THIRD-PARTY-NOTICES.md')), false);
+    assert.equal(existsSync(output), false);
   }
 });
 
@@ -166,9 +167,10 @@ test('ZIP names are inspected without extraction; malformed ZIP fails', async (t
 test('asset checks reject missing metadata, bad hashes, runtime data in archives and loose files', async (t) => {
   const root = temporary(t), dist = path.join(root, 'dist'); mkdirSync(dist);
   const archiveRoot = path.join(root, 'atlas'); mkdirSync(archiveRoot); writeFileSync(path.join(archiveRoot, 'atlas'), 'stub');
+  writeFileSync(path.join(archiveRoot, 'THIRD-PARTY-NOTICES.md'), 'fixture\n');
   for (const [target, variant] of Object.keys(targets).flatMap((target) => variants.map((variant) => [target, variant] as const))) {
     const file = path.join(dist, archiveName(target, variant));
-    if (target.includes('windows')) await writeZip(file, { 'atlas/atlas.exe': 'stub' });
+    if (target.includes('windows')) await writeZip(file, { 'atlas/atlas.exe': 'stub', 'atlas/THIRD-PARTY-NOTICES.md': 'fixture\n' });
     else await fixture(['unix-archive', file, archiveRoot]);
   }
   for (const name of ['atlas-installer.sh', 'atlas-installer.ps1', 'THIRD-PARTY-NOTICES.md']) writeFileSync(path.join(dist, name), 'fixture\n');
@@ -192,6 +194,12 @@ test('asset checks reject missing metadata, bad hashes, runtime data in archives
   await assert.rejects(validateAssets(bad), /release archive contains runtime data.*model.onnx/);
   await reset(); writeFileSync(path.join(bad, 'pf2e-index.sqlite'), 'forbidden');
   await assert.rejects(validateAssets(bad), /release assets contain runtime data/);
+  await reset(); writeFileSync(path.join(bad, 'THIRD-PARTY-NOTICES.md'), 'stale');
+  await assert.rejects(validateAssets(bad), /checksum metadata mismatch for THIRD-PARTY-NOTICES/);
+  await reset();
+  await writeZip(path.join(bad, 'atlas-cli-x86_64-pc-windows-msvc.zip'), { 'atlas/atlas.exe': 'stub' });
+  await generateManifest('v9.9.9', bad);
+  await assert.rejects(validateAssets(bad), /release archive is missing THIRD-PARTY-NOTICES/);
 });
 
 

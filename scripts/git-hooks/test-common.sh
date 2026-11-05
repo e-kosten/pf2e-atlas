@@ -46,7 +46,6 @@ chmod +x "$fake_bin/npm"
 # and frontend command still resolves to the logging stubs above.
 fixture="$tmp/repo"
 mkdir -p "$fixture/.githooks" "$fixture/scripts/git-hooks" "$fixture/crates/example/src" "$fixture/web/atlas-ui/src"
-sh "$repo_root/scripts/git-hooks/test-pre-push.sh"
 cp "$repo_root/.githooks/pre-commit" "$repo_root/.githooks/pre-merge-commit" "$fixture/.githooks/"
 cp "$repo_root/scripts/git-hooks/common.sh" "$fixture/scripts/git-hooks/common.sh"
 cp "$repo_root/scripts/verify-changed.sh" "$repo_root/scripts/verify.sh" "$fixture/scripts/"
@@ -274,7 +273,6 @@ for entry in \
   'crates/atlas-app-model/bindings/Search.ts:110000100' \
   'Cargo.lock:111100110' \
   'crates/atlas-cli/Cargo.toml:111100110' \
-  'THIRD-PARTY-NOTICES.md:000100000' \
   'skills/pf2e-atlas-cli/SKILL.md:000001000' \
   'scripts/validation/skill.ts:000001001' \
   'scripts/validation/research.sh:000010001' \

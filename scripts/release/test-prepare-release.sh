@@ -349,7 +349,7 @@ grep -q '^cargo test --workspace --doc$' "$log" || {
   echo "prepare-release --open-pr did not run doctests" >&2
   exit 1
 }
-grep -q 'git add Cargo.lock THIRD-PARTY-NOTICES.md crates/atlas-cli/Cargo.toml docs/releases/v0.1.0.md' "$log" || {
+grep -q 'git add Cargo.lock crates/atlas-cli/Cargo.toml docs/releases/v0.1.0.md' "$log" || {
   echo "prepare-release --open-pr did not stage release-prep files" >&2
   exit 1
 }
@@ -427,10 +427,6 @@ grep -q 'version = "0.1.0-rc.1"' "$work/crates/atlas-cli/Cargo.toml" || {
 }
 grep -q 'cargo check -p atlas-cli' "$log" || {
   echo "prepare-release --prepare-pr did not refresh the lockfile through cargo" >&2
-  exit 1
-}
-grep -q 'npm --prefix dev-tools/release run notices' "$log" || {
-  echo "prepare-release --prepare-pr did not regenerate third-party notices" >&2
   exit 1
 }
 [ -f "$work/docs/releases/v0.1.0-rc.1.md" ] || {

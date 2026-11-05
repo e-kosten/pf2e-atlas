@@ -31,15 +31,15 @@ commands build before execution and resolve path arguments from the caller's
 working directory:
 
 ```sh
-npm --prefix dev-tools/release run notices -- --check
-npm --prefix dev-tools/release run notices
+npm --prefix dev-tools/release run notices -- --output "$PWD/target/atlas-release/THIRD-PARTY-NOTICES.md"
 npm --prefix dev-tools/release run manifest -- v0.1.0 target/distrib
 npm --prefix dev-tools/release run prune -- dist-manifest.json target/distrib
 npm --prefix dev-tools/release run validate -- v0.1.0 target/distrib
 ```
 
 Release jobs install and build the private package once, then call its emitted
-entry points directly. `prepare-release.sh` regenerates notices through npm.
+entry points directly. They generate notices from locked Cargo metadata before
+archiving binaries and again when assembling release assets.
 Invalid arguments exit 2; malformed inputs and failed validation exit 1.
 
 Manifest asset entries include `variant` (`full` or `cli-only`), with full entries

@@ -420,10 +420,6 @@ update_lockfile() {
   cargo check -p atlas-cli
 }
 
-update_third_party_notices() {
-  npm --prefix dev-tools/release run notices
-}
-
 release_branch_from_current_branch() {
   current_branch=$(git branch --show-current)
   case "$current_branch" in
@@ -451,7 +447,7 @@ ensure_release_prep_scope() {
   printf '%s\n' "$status_output" | while IFS= read -r status_line; do
     path=${status_line#???}
     case "$path" in
-      Cargo.lock|THIRD-PARTY-NOTICES.md|crates/atlas-cli/Cargo.toml|"$notes_file") ;;
+      Cargo.lock|crates/atlas-cli/Cargo.toml|"$notes_file") ;;
       *) die "unexpected release-prep change: $path" ;;
     esac
   done
@@ -516,7 +512,7 @@ if [ "$open_pr" -eq 1 ]; then
   fi
 
   run_release_pr_checks
-  git add Cargo.lock THIRD-PARTY-NOTICES.md crates/atlas-cli/Cargo.toml "$notes_file"
+  git add Cargo.lock crates/atlas-cli/Cargo.toml "$notes_file"
   git commit --no-verify -m "chore(release): prepare $tag"
   git push --no-verify -u origin "$release_branch"
   gh pr create \
@@ -574,7 +570,6 @@ if [ "$prepare_pr" -eq 1 ]; then
   git switch -c "$release_branch"
   update_crate_version
   update_lockfile
-  update_third_party_notices
   if [ ! -f "$notes_file" ]; then
     write_release_notes_template
   fi

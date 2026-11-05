@@ -165,7 +165,7 @@ jobs:
         run: printf '\ndefault-features = false\n' >> dist-workspace.toml
       - name: Generate notices
         shell: bash
-        run: node dev-tools/release/dist/src/cli/generate-notices.js
+        run: node dev-tools/release/dist/src/cli/generate-notices.js --output target/atlas-release/THIRD-PARTY-NOTICES.md
       - name: Validate PowerShell installer
         if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
         # Git Bash supplies XZ-capable tar for the installer archive fixtures.
@@ -274,10 +274,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node dev-tools/release/dist/src/cli/generate-notices.js
+          node dev-tools/release/dist/src/cli/generate-notices.js --output target/distrib/THIRD-PARTY-NOTICES.md
           cp scripts/install/atlas-installer.sh target/distrib/atlas-installer.sh
           cp scripts/install/atlas-installer.ps1 target/distrib/atlas-installer.ps1
-          cp THIRD-PARTY-NOTICES.md target/distrib/THIRD-PARTY-NOTICES.md
       - name: Generate cargo-dist manifest
         shell: bash
         run: |
