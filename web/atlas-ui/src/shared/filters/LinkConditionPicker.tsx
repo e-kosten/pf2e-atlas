@@ -5,7 +5,7 @@ import {
 } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { QuestionCircleOutlined } from "@ant-design/icons";
-import { Tooltip, Button, Form, Popover, Radio, Select, Typography, theme } from "antd";
+import { Button, Form, Popover, Radio, Select, Typography, theme } from "antd";
 import { useRef, useState, type KeyboardEvent } from "react";
 import type {
   QueryRelationship,
@@ -129,7 +129,7 @@ export function LinkConditionPicker({
       </Form.Item>
       <Form.Item
         name="includeContents"
-        style={{ minWidth: 0, width: 280, maxWidth: "100%" }}
+        style={{ minWidth: 0, width: 200, maxWidth: "100%" }}
         getValueProps={(value: boolean) => ({ value: value ? "whole" : "main" })}
         getValueFromEvent={(value: string) => value === "whole"}
         label={
@@ -141,38 +141,47 @@ export function LinkConditionPicker({
               maxWidth: "100%",
             }}
           >
-            <span style={{ whiteSpace: "normal" }}>
-              {direction === "incoming"
-                ? "Look for links in matching records"
-                : "Look for links in this entry"}
-            </span>
+            <span>Link scope</span>
             <Popover
               trigger="click"
-              placement="bottom"
+              placement="topLeft"
               arrow={false}
               open={scopeHelpOpen}
               onOpenChange={setScopeHelpOpen}
-              styles={{ root: { maxWidth: "calc(100vw - 32px)" } }}
+              title="Where Atlas checks for links"
+              styles={{ root: { width: 320, maxWidth: "calc(100vw - 32px)" } }}
               content={
-                <Typography.Paragraph style={{ margin: 0 }}>
-                  {direction === "incoming"
-                    ? "Whole entry also checks each matching record’s abilities, spells, equipment, and other nested documents."
-                    : "Whole entry also checks this entry’s abilities, spells, equipment, and other nested documents."}
-                </Typography.Paragraph>
+                <div>
+                  <Typography.Paragraph>
+                    {direction === "incoming"
+                      ? "Links to finds records that contain a link to your selection."
+                      : "Linked from finds records that your selection links to."}
+                  </Typography.Paragraph>
+                  <Typography.Paragraph>
+                    <strong>Main entry only:</strong>{" "}
+                    {direction === "incoming"
+                      ? "Check links in each result’s main entry."
+                      : "Check links in the selected entry itself."}
+                  </Typography.Paragraph>
+                  <Typography.Paragraph style={{ marginBottom: 0 }}>
+                    <strong>Whole entry:</strong>{" "}
+                    {direction === "incoming"
+                      ? "Also check links in each result’s contents, such as its abilities, spells, and equipment."
+                      : "Also check links in the selected entry’s contents, such as its abilities, spells, and equipment."}
+                  </Typography.Paragraph>
+                </div>
               }
             >
-              <Tooltip title="About link scope" trigger={["hover", "focus"]}>
-                <Button
-                  ref={scopeHelpTrigger}
-                  type="text"
-                  size="small"
-                  icon={<QuestionCircleOutlined />}
-                  aria-label="About link scope"
-                  aria-expanded={scopeHelpOpen}
-                  onKeyDown={scopeHelpKeyDown}
-                  styles={{ root: { flexShrink: 0 } }}
-                />
-              </Tooltip>
+              <Button
+                ref={scopeHelpTrigger}
+                type="text"
+                size="small"
+                icon={<QuestionCircleOutlined />}
+                aria-label="About link scope"
+                aria-expanded={scopeHelpOpen}
+                onKeyDown={scopeHelpKeyDown}
+                styles={{ root: { flexShrink: 0 } }}
+              />
             </Popover>
           </span>
         }

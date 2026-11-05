@@ -276,11 +276,20 @@ it("keeps scope explanation optional and Escape closes inner help only", async (
   setup();
   const dialog = await openAndSelect();
   const explanation =
-    "Whole entry also checks each matching record’s abilities, spells, equipment, and other nested documents.";
+    "Also check links in each result’s contents, such as its abilities, spells, and equipment.";
   expect(screen.queryByText(explanation)).toBeNull();
   const help = within(dialog).getByRole("button", { name: "About link scope" });
   fireEvent.click(help);
   expect(await screen.findByText(explanation)).toBeInTheDocument();
+  fireEvent.click(within(dialog).getByRole("radio", { name: "Linked from" }));
+  expect(
+    await screen.findByText("Linked from finds records that your selection links to."),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      "Also check links in the selected entry’s contents, such as its abilities, spells, and equipment.",
+    ),
+  ).toBeInTheDocument();
   fireEvent.keyDown(help, { key: "Escape", keyCode: 27 });
   expect(help).toHaveAttribute("aria-expanded", "false");
   expect(help).toHaveFocus();
