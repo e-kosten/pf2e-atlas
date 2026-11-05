@@ -31,7 +31,7 @@ commands build before execution and resolve path arguments from the caller's
 working directory:
 
 ```sh
-npm --prefix dev-tools/release run notices -- --output "$PWD/target/atlas-release/THIRD-PARTY-NOTICES.md"
+npm --prefix dev-tools/release run notices -- --output target/atlas-release/THIRD-PARTY-NOTICES.md
 npm --prefix dev-tools/release run manifest -- v0.1.0 target/distrib
 npm --prefix dev-tools/release run prune -- dist-manifest.json target/distrib
 npm --prefix dev-tools/release run validate -- v0.1.0 target/distrib
