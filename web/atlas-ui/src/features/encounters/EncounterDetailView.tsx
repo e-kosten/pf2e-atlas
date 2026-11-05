@@ -7,7 +7,7 @@ import { recordDestination, encountersDestination } from "../../app/destinations
 import { EncounterModalProvider } from "./EncounterModal";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Dropdown, Grid, Spin } from "antd";
+import { Tooltip, Button, Dropdown, Grid, Spin } from "antd";
 import { Settings } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { getEncounter, getEncounterConditionDefinitions } from "../../api/atlasApi";
@@ -314,14 +314,15 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 },
               }}
             >
-              <Button
-                type="text"
-                ref={settingsTrigger}
-                aria-label="Encounter settings"
-                title="Encounter settings"
-                disabled={disabled}
-                icon={<Settings size={18} />}
-              />
+              <Tooltip title="Encounter settings" trigger={["hover", "focus"]}>
+                <Button
+                  type="text"
+                  ref={settingsTrigger}
+                  aria-label="Encounter settings"
+                  disabled={disabled}
+                  icon={<Settings size={18} />}
+                />
+              </Tooltip>
             </Dropdown>
           </section>
           {encounter.error && !mutations.refreshError && (

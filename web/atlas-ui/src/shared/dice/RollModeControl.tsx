@@ -1,4 +1,4 @@
-import { Button, Dropdown } from "antd";
+import { Tooltip, Button, Dropdown } from "antd";
 import { ArrowDown, ArrowUp, SlidersHorizontal } from "lucide-react";
 import type { RollMode } from "../../generated/atlas";
 
@@ -28,11 +28,7 @@ export function RollModeControl({
         onClick: ({ key }) => onChange(key as RollMode),
       }}
     >
-      <Button
-        size="small"
-        disabled={disabled}
-        type={value === "normal" ? "text" : "primary"}
-        aria-label={`${label} roll options: ${value}`}
+      <Tooltip
         title={
           value === "normal"
             ? "Roll options"
@@ -40,16 +36,24 @@ export function RollModeControl({
               ? "Fortune"
               : "Misfortune"
         }
-        icon={
-          value === "normal" ? (
-            <SlidersHorizontal size={14} />
-          ) : value === "fortune" ? (
-            <ArrowUp size={14} />
-          ) : (
-            <ArrowDown size={14} />
-          )
-        }
-      />
+        trigger={["hover", "focus"]}
+      >
+        <Button
+          size="small"
+          disabled={disabled}
+          type={value === "normal" ? "text" : "primary"}
+          aria-label={`${label} roll options: ${value}`}
+          icon={
+            value === "normal" ? (
+              <SlidersHorizontal size={14} />
+            ) : value === "fortune" ? (
+              <ArrowUp size={14} />
+            ) : (
+              <ArrowDown size={14} />
+            )
+          }
+        />
+      </Tooltip>
     </Dropdown>
   );
 }

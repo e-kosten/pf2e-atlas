@@ -1007,14 +1007,16 @@ function BuilderFieldSelector(props: FieldSelectorProps) {
 }
 function RemoveCondition(props: ActionProps) {
   return (
-    <Button
-      className={props.className}
-      type="text"
-      icon={<CloseOutlined />}
-      aria-label={props.title || "Remove condition"}
-      disabled={props.disabled}
-      onClick={props.handleOnClick}
-    />
+    <Tooltip title={props.title || "Remove condition"} trigger={["hover", "focus"]}>
+      <Button
+        className={props.className}
+        type="text"
+        icon={<CloseOutlined />}
+        aria-label={props.title || "Remove condition"}
+        disabled={props.disabled}
+        onClick={props.handleOnClick}
+      />
+    </Tooltip>
   );
 }
 function GroupMatchSelector(props: CombinatorSelectorProps) {

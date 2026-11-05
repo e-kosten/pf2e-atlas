@@ -268,15 +268,17 @@ function LinkChip({
           </span>
         </Button>
       </Popover>
-      <Button
-        type="text"
-        icon={<CloseOutlined />}
-        aria-label="Remove relationship filter"
-        onClick={() => {
-          close();
-          onRemove(leaf);
-        }}
-      />
+      <Tooltip title="Remove relationship filter" trigger={["hover", "focus"]}>
+        <Button
+          type="text"
+          icon={<CloseOutlined />}
+          aria-label="Remove relationship filter"
+          onClick={() => {
+            close();
+            onRemove(leaf);
+          }}
+        />
+      </Tooltip>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import type { RecordPreviewContentProps } from "./recordPreviewTypes";
 export function RecordPreviewActions({
   actions,
   secondaryActions,
+  contextActions,
   onClose,
   onOpenFullPage,
   fullPageHref,
@@ -12,6 +13,7 @@ export function RecordPreviewActions({
 }: {
   actions?: React.ReactNode;
   secondaryActions?: React.ReactNode;
+  contextActions?: React.ReactNode;
   onClose: () => void;
   onOpenFullPage: () => void;
   fullPageHref?: string;
@@ -19,8 +21,8 @@ export function RecordPreviewActions({
 }) {
   return (
     <div className="record-preview-toolbar">
-      {actions}
-      <div className="encounter-actions record-preview-toolbar__navigation">
+      {contextActions}
+      <div className="record-preview-toolbar__navigation">
         {readingHistory?.canGoBack && (
           <Button
             size="middle"
@@ -30,11 +32,12 @@ export function RecordPreviewActions({
             Back
           </Button>
         )}
+        {actions}
         {secondaryActions}
         <Tooltip title="Open full page" trigger={["hover", "focus"]}>
           <Button
             aria-label="Open reference full page"
-            icon={<ExternalLink size={14} />}
+            icon={<ExternalLink size={16} aria-hidden="true" />}
             href={fullPageHref}
             onClick={(event) => {
               if (fullPageHref && !isPrimaryActivation(event)) return;
@@ -47,7 +50,7 @@ export function RecordPreviewActions({
         <Tooltip title="Close reference" trigger={["hover", "focus"]}>
           <Button
             aria-label="Close reference preview"
-            icon={<X size={14} />}
+            icon={<X size={16} aria-hidden="true" />}
             onClick={onClose}
             size="middle"
           />

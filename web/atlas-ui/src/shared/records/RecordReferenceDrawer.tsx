@@ -135,7 +135,8 @@ export function RecordReferenceDrawer({
             showOwnerReturn={context !== "encounter"}
             actions={(secondaryActions) => (
               <RecordPreviewActions
-                actions={recordActions}
+                actions={context === "encounter" ? undefined : recordActions}
+                contextActions={context === "encounter" ? recordActions : undefined}
                 secondaryActions={secondaryActions}
                 readingHistory={readingHistory}
                 onClose={close}
