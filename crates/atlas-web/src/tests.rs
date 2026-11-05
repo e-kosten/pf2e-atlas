@@ -1347,3 +1347,39 @@ async fn remaster_provenance_crosses_real_http_with_exact_field_navigation() {
     let (status, source) = fixture.json(Method::POST, "/api/records/detail", Some(json!({"record_key":navigation.record_key,"embedded_path":navigation.owners,"fields":[navigation.field],"source_fingerprint":navigation.source_fingerprint}))).await;
     assert_eq!(status, StatusCode::OK, "{source}");
 }
+
+#[tokio::test]
+async fn publication_edition_crosses_real_http_for_known_and_unknown_sources() {
+    let fixture = Fixture::new();
+    for (key, expected) in [
+        (ACTION, Some("legacy")),
+        (SECOND_ACTION, Some("remaster")),
+        (ACTOR, None),
+    ] {
+        let (status, body) = fixture
+            .json(Method::GET, &format!("/api/records/{key}"), None)
+            .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        for identity in [&body["record"], &body["presentation"]["identity"]] {
+            assert_eq!(identity.get("edition").and_then(Value::as_str), expected);
+            if expected.is_none() {
+                assert!(identity.get("edition").is_none());
+            }
+        }
+        let _: atlas_app_model::RecordDetailView = serde_json::from_value(body).unwrap();
+    }
+    let paired = Fixture::with_remaster(true);
+    let (status, body) = paired
+        .json(Method::GET, &format!("/api/records/{ACTION}"), None)
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["counterparts"]["kind"], "content");
+    assert_eq!(
+        body["counterparts"]["content"]["links"][0]["remaster_record"]["record_key"],
+        SECOND_ACTION
+    );
+    assert_eq!(
+        body["counterparts"]["content"]["links"][0]["provenance"]["navigation"]["record_key"],
+        "journals:editionjournal01"
+    );
+}

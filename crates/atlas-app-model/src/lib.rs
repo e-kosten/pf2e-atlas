@@ -208,8 +208,9 @@ pub use presentation::{
 pub use readiness::{AppReadinessStatus, AppReadinessView, SearchProfileReadinessView};
 pub use record::{
     ContentLocationView, EffectReferenceLabelView, RecordBadgeView, RecordDetailRequest,
-    RecordDetailView, RecordNavigationView, RecordRefResolutionView, RecordRelationshipView,
-    RecordResolutionAmbiguousView, RecordResolutionCandidateView, RecordSummaryView,
+    RecordDetailView, RecordEditionView, RecordNavigationView, RecordRefResolutionView,
+    RecordRelationshipView, RecordResolutionAmbiguousView, RecordResolutionCandidateView,
+    RecordSummaryView,
 };
 pub use search::{
     RelationshipClausePresentationView, RelationshipClauseSummaryView, RelationshipEvidenceView,

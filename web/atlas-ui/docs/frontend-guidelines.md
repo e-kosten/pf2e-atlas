@@ -1265,6 +1265,16 @@ No reader-mode URL adapter or alternate rendering path is retained.
 
 ### Record presentation
 
+Show Rust-projected publication edition beside the record identity and in result
+metadata. Explicit pre-remaster content is labelled Legacy; unavailable source
+metadata receives no inferred era. An edition label does not claim that content
+is unusable or has a replacement. Verified counterpart links belong above the
+rules text in readers and reference drawers, rather than only under Explore →
+Versions. Open them in the shared reference drawer while retaining native links.
+Embedded documents use their own publication metadata and do not inherit their
+parent's counterpart mappings. Missing indexed mappings do not establish that no
+remaster counterpart exists.
+
 Before redesigning a record family, audit its generated Foundry DTO fields through
 the borrowed source views, app-service presentation and rendered UI. The current
 presentation DTO is not a completeness specification. Check nested facts,

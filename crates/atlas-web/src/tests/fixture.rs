@@ -64,12 +64,12 @@ impl Fixture {
             record(
                 "actions",
                 "Item",
-                json!({"_id":"aaaaaaaaaaaaaaaa","type":"action","name":"Test Action 1","system":{"actionType":{"value":"action"},"actions":{"value":1},"traits":{"value":["fire"]},"description":{"value":"<p>Flame @Damage[1d6[fire]] burns.</p>"}}}),
+                json!({"_id":"aaaaaaaaaaaaaaaa","type":"action","name":"Test Action 1","system":{"publication":{"remaster":false},"actionType":{"value":"action"},"actions":{"value":1},"traits":{"value":["fire"]},"description":{"value":"<p>Flame @Damage[1d6[fire]] burns.</p>"}}}),
             ),
             record(
                 "actions",
                 "Item",
-                json!({"_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Test Action 2","system":{"description":{"value":"<p>A second flame.</p>"}}}),
+                json!({"_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Test Action 2","system":{"publication":{"remaster":true},"description":{"value":"<p>A second flame.</p>"}}}),
             ),
             record("actors", "Actor", actor),
             record(

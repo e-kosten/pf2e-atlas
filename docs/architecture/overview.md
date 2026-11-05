@@ -38,6 +38,11 @@ and [ADR index](./decisions/README.md) for the relevant owner.
 `atlas-record` uses atlas-dice's pure preparation for bounded literal damage and inline-roll
 arithmetic. App-service owns random reference rolls from these prepared controls.
 
+App-service projects explicit publication metadata into an optional legacy/remaster
+edition on record summaries, including selected embedded identities. This era is
+separate from verified record-to-record remaster mappings; missing metadata stays
+absent and missing mappings do not prove that no counterpart exists.
+
 `web/atlas-ui` renders generated app contracts with React and Ant Design. Its shared
 `AtlasModal` frame owns form, browsing and confirmation geometry, viewport gutters,
 feedback budgeting and scroll boundaries. Encounter presentation supplies a visible

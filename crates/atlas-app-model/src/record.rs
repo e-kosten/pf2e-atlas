@@ -9,6 +9,10 @@ pub struct RecordSummaryView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub unit_price_label: Option<String>,
+    /// The selected document's explicit publication era; absent when unavailable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub edition: Option<RecordEditionView>,
     pub record_key: String,
     pub title: String,
     pub kind: String,
@@ -20,6 +24,13 @@ pub struct RecordSummaryView {
     pub traits: Vec<RecordBadgeView>,
     pub publication: Option<String>,
     pub pack: Option<String>,
+}
+/// Publication era does not imply that a record has a replacement or is unusable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum RecordEditionView {
+    Legacy,
+    Remaster,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordBadgeView {
@@ -62,6 +73,10 @@ pub struct RecordDetailRequest {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordDetailView {
+    /// Verified editions of this root document, isolated from unrelated graph/variant reads.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub counterparts: Option<crate::RelatedCategoryView<crate::RemasterLinksView>>,
     /// Default adjustment for adding this root creature to an encounter.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

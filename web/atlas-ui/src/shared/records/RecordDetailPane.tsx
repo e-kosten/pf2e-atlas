@@ -1,3 +1,4 @@
+import { RecordEditionNotice } from "./RecordEditionNotice";
 import { RecordContextError } from "./recordContextError";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import {
@@ -121,6 +122,13 @@ export function RecordDetailPane({
         }
         status={
           <>
+            {detail && (
+              <RecordEditionNotice
+                detail={detail}
+                onReference={onReference}
+                onReload={onReload}
+              />
+            )}
             {detail && loading && (
               <div className="detail-refresh" aria-label="Updating record">
                 <Spin size="small" delay={500} />
