@@ -283,7 +283,7 @@ it("keeps scope explanation optional and Escape closes inner help only", async (
   expect(await screen.findByText(explanation)).toBeInTheDocument();
   fireEvent.click(within(dialog).getByRole("radio", { name: "Linked from" }));
   expect(
-    await screen.findByText("Linked from finds records that your selection links to."),
+    await screen.findByText("finds records that your selection links to."),
   ).toBeInTheDocument();
   expect(
     screen.getByText(

@@ -153,9 +153,12 @@ export function LinkConditionPicker({
               content={
                 <div>
                   <Typography.Paragraph>
+                    <strong>
+                      {direction === "incoming" ? "Links to" : "Linked from"}
+                    </strong>{" "}
                     {direction === "incoming"
-                      ? "Links to finds records that contain a link to your selection."
-                      : "Linked from finds records that your selection links to."}
+                      ? "finds records that contain a link to your selection."
+                      : "finds records that your selection links to."}
                   </Typography.Paragraph>
                   <Typography.Paragraph>
                     <strong>Main entry only:</strong>{" "}
