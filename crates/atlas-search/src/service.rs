@@ -156,7 +156,7 @@ impl PreparedQueryEmbedding {
 
     pub fn prepare(
         inference: &SharedQueryInference,
-        profile: &SearchProfileId,
+        profile: atlas_index::SourceSearchProfileIdentity,
         text: &str,
     ) -> Result<Self, SearchError> {
         if text.trim().is_empty() {
@@ -164,13 +164,20 @@ impl PreparedQueryEmbedding {
                 "query must not be empty",
             ));
         }
-        let spec =
-            atlas_embedding::search_profile(profile).map_err(SearchError::query_embedding)?;
+        let id = &profile.profile_id;
+        let spec = atlas_embedding::search_profile(id).map_err(SearchError::query_embedding)?;
+        if !profile
+            .vector_compatible_with(&atlas_index::SourceSearchProfileIdentity::from_spec(spec))
+        {
+            return Err(SearchError::vector_readiness_required(
+                "stored query model differs from the executable contract",
+            ));
+        }
         let vector = inference
-            .embed_query(profile, text)
+            .embed_query(id, text)
             .map_err(SearchError::query_embedding)?;
         Ok(Self {
-            profile: atlas_index::SourceSearchProfileIdentity::from_spec(spec),
+            profile,
             text: text.into(),
             vector,
         })

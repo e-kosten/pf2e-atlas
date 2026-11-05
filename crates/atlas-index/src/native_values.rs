@@ -63,15 +63,16 @@ impl NativeModelKey {
         models
             .iter()
             .enumerate()
-            .map(|(ordinal, model)| {
-                Ok(Self {
-                    model: model.clone(),
-                    ordinal,
-                    json: serde_json::to_string(model)?,
-                    table: crate::schema::native_vector_table(model)?,
-                })
-            })
+            .map(|(ordinal, model)| Self::new(ordinal, model))
             .collect()
+    }
+    pub fn new(ordinal: usize, model: &SourceSearchProfileIdentity) -> Result<Self, IndexError> {
+        Ok(Self {
+            model: model.clone(),
+            ordinal,
+            json: serde_json::to_string(model)?,
+            table: crate::schema::native_vector_table(model)?,
+        })
     }
 }
 
@@ -249,6 +250,23 @@ impl<'session> NativeModel<'session> {
         Ok(Some(SelectedNative {
             checksum: hash,
             staged: None,
+        }))
+    }
+    /// Copy an authenticated value into a publication with a different layout.
+    pub fn copy_published(
+        &self,
+        input: &NativeInput,
+    ) -> Result<Option<SelectedNative>, IndexError> {
+        let Some(row) = self.find(input)? else {
+            return Ok(None);
+        };
+        let Some(checksum) = self.checksum(&row)? else {
+            return Ok(None);
+        };
+        let vector = self.read(row.id)?;
+        Ok(Some(SelectedNative {
+            checksum,
+            staged: Some(crate::read_units::vector_bytes(&vector)),
         }))
     }
     /// Shape is checked before any numerical or checksum BLOB allocation.

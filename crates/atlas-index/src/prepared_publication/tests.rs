@@ -93,6 +93,76 @@ fn published_reuse_has_no_staged_vector_copy_and_semantic_swaps_keep_exact_value
 }
 
 #[test]
+fn a_layout_upgrade_reuses_exact_published_inputs_under_the_same_execution_contract() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("layout.sqlite");
+    let mut input = crate::foundation_tests::fixture(true);
+    publish_input(&path, &input).unwrap();
+    let workspace = initialize_workspace(&path).unwrap();
+    let owner = workspace.update_owner().unwrap();
+    let scratch = BuildScratch::new(&owner).unwrap();
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    let expected = ArtifactInstance::new(
+        read.workspace_key().unwrap(),
+        read.reference_revision().unwrap(),
+    );
+    drop(read);
+
+    input.context.search_profiles[0].unit_policy_version = "updated-layout".into();
+    let model = input.context.search_profiles[0].clone();
+    let unit = &input.semantic_units[0];
+    let desc = descriptor(unit);
+    let metadata = publication_spool_in(scratch.path(), &input, expected).unwrap();
+    // Simulate the next executable's accepted layout through the owned staging path.
+    let mut publication = PreparedPublication::stage(
+        &owner,
+        TEST_WORKSPACE_SCHEMA_VERSION,
+        scratch.path(),
+        metadata,
+    )
+    .unwrap();
+    assert_eq!(
+        publication
+            .select_native(&model, std::slice::from_ref(&desc), false)
+            .unwrap(),
+        [NativeValueSelection::Missing]
+    );
+    for unit in &input.semantic_units {
+        assert_eq!(
+            publication
+                .select_native(&model, &[descriptor(unit)], true)
+                .unwrap(),
+            [NativeValueSelection::Reused]
+        );
+    }
+    publication.publish().unwrap();
+    assert_eq!(raw_value(&workspace, &model, &desc), unit.vector);
+    assert_eq!(count(&workspace, "pending_embedding_values"), 0);
+
+    input.context.search_profiles[0].execution_policy = "incompatible-execution".into();
+    let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+    let expected = ArtifactInstance::new(
+        read.workspace_key().unwrap(),
+        read.reference_revision().unwrap(),
+    );
+    drop(read);
+    let metadata = publication_spool_in(scratch.path(), &input, expected).unwrap();
+    let mut incompatible = PreparedPublication::stage(
+        &owner,
+        TEST_WORKSPACE_SCHEMA_VERSION,
+        scratch.path(),
+        metadata,
+    )
+    .unwrap();
+    assert_eq!(
+        incompatible
+            .select_native(&input.context.search_profiles[0], &[desc], true)
+            .unwrap(),
+        [NativeValueSelection::Missing]
+    );
+}
+
+#[test]
 fn forced_cache_precedes_published_and_cross_batch_selection_survives_eviction() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("forced.sqlite");
