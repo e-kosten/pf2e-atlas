@@ -230,7 +230,7 @@ jobs:
           npm --prefix dev-tools/release ci --ignore-scripts
           npm --prefix dev-tools/release run build
       - name: Download packaged artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: package-*
           path: target/distrib
