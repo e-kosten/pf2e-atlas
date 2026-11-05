@@ -6,7 +6,7 @@ import {
   encountersDestination,
 } from "./destinations";
 import { Monitor, Moon, Sun } from "lucide-react";
-import { useRef, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import {
   getCompatibilityFailure,
   subscribeCompatibilityFailures,
@@ -65,6 +65,7 @@ export function AppShell({
 }: AppShellProps) {
   const router = useRouter();
   const contentRef = useRef<HTMLDivElement>(null);
+  const [themeOpen, setThemeOpen] = useState(false);
   const themeTrigger = useRef<HTMLButtonElement>(null);
   const themeContent = useRef<HTMLDivElement>(null);
   const selectedView = activeView;
@@ -171,7 +172,9 @@ export function AppShell({
         <Space className="topbar__actions" size="small">
           <Popover
             trigger="click"
+            open={themeOpen}
             onOpenChange={(open) => {
+              setThemeOpen(open);
               if (!open)
                 restoreOverlayFocus(themeTrigger.current, themeContent.current);
             }}
@@ -194,7 +197,11 @@ export function AppShell({
               </div>
             }
           >
-            <Tooltip title="Theme" trigger={["hover", "focus"]}>
+            <Tooltip
+              title="Theme"
+              trigger={["hover", "focus"]}
+              open={themeOpen ? false : undefined}
+            >
               <Button
                 ref={themeTrigger}
                 type="text"

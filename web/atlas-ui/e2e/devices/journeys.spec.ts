@@ -1782,6 +1782,12 @@ test("create-and-add keeps the footer aligned and keyboard actions reachable", a
       );
       await expect(name).toHaveValue("Retained destination idea");
       await activate(cancel, info);
+      if (kind === "list") {
+        await expect(
+          dialog.getByRole("button", { name: "Keep editing" }),
+        ).toBeFocused();
+        await activate(dialog.getByRole("button", { name: "Discard" }), info);
+      }
       await expect(dialog).toBeHidden();
       await expect(trigger).toBeFocused();
     }
@@ -1952,6 +1958,8 @@ test("record picker keeps its top edge stable across tabs and growing forms", as
   await expect(retry).toBeEnabled();
   await noPageOverflow(page);
   await activate(dialog.getByRole("button", { name: "Cancel", exact: true }), info);
+  await expectStableTop();
+  await activate(dialog.getByRole("button", { name: "Discard", exact: true }), info);
   await expect(dialog).toBeHidden();
   await page.setViewportSize({ ...page.viewportSize()!, height: 360 });
   await activate(
