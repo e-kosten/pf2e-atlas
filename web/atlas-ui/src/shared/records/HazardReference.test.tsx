@@ -228,3 +228,41 @@ it("omits the rules slot for a hazard with no visible activities or rules", () =
   );
   expect(screen.getByText("Reset after 24 hours")).toBeVisible();
 });
+
+it("omits Detection and durability entirely when only runtime content is visible", () => {
+  const actor = actorFixture();
+  const absent = { ...numberFact(0), state: "not_applicable" as const, value: null };
+  actor.size = { state: "not_applicable", value: null };
+  const { container } = render(
+    <HazardReference
+      hazard={{
+        actor,
+        complex: knownFact(false),
+        stealth: absent,
+        hardness: absent,
+        detection_dc: absent,
+        broken_threshold: absent,
+        defense_block: knownFact(false),
+        show_saves: false,
+      }}
+      encounter
+      encounterContent={{
+        participantKey: "hazard",
+        durability: null,
+        conditions: <p>Conditions</p>,
+      }}
+      content={{
+        description: null,
+        detection: null,
+        disable: null,
+        routine: null,
+        reset: null,
+        other: null,
+      }}
+      onReference={vi.fn()}
+    />,
+  );
+  expect(screen.getByText("Conditions")).toBeVisible();
+  expect(screen.queryByRole("heading", { name: "Detection" })).toBeNull();
+  expect(container.querySelector(".actor-encounter-layout__durability")).toBeNull();
+});

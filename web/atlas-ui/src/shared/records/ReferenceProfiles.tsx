@@ -1,7 +1,7 @@
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { Table, Typography } from "antd";
-import { Children, type ReactNode } from "react";
+import { Children, cloneElement, isValidElement, type ReactNode } from "react";
 import type {
   RecordBodyView,
   ClassReferenceView,
@@ -14,7 +14,7 @@ import type { RecordReferenceHandler } from "./PreparedContent";
 import { FactRow, NumberFact } from "./presentationFacts";
 import { renderIwr } from "./ActorReference";
 import "../../styles/ui/reference-profiles.css";
-function renderReferenceFact<T>({
+export function renderReferenceFact<T>({
   label,
   fact,
   format = String,
@@ -73,8 +73,14 @@ const choices = (slots: AttributeChoiceView[]) =>
           : alternatives(slot.choices.value),
     )
     .join(", ");
+export function referenceRows(rows: ReactNode[]) {
+  return Children.toArray(rows).map((row) =>
+    isValidElement(row) ? cloneElement(row, { key: row.key }) : row,
+  );
+}
+
 function renderFactGroup(rows: ReactNode[], stacked = false) {
-  const visibleRows = Children.toArray(rows);
+  const visibleRows = referenceRows(rows);
   return visibleRows.length ? (
     <div className={stacked ? "reference-profile__groups" : "reference-profile__facts"}>
       {visibleRows}
