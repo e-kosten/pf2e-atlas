@@ -114,7 +114,7 @@ actual bytes. Loaded sessions remain usable after disk changes. Metadata checks
 require no native mutex merely to observe loaded membership: the inference owner
 publishes a finite retained-profile snapshot only after successful session insertion.
 A text-vector request
-requires the exact selected executable profile and its assets. Missing assets do
+requires a compatible selected execution contract and verified assets. Missing assets do
 not prevent safe stored-vector Similar within the artifact.
 
 Search pages, direct search/Similar and contextual discovery carry request-local

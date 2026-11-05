@@ -696,37 +696,3 @@ fn lazy_runner_needs_no_assets_until_actual_missing_inference() {
         Err(EmbeddingError::PreparedInputMismatch)
     ));
 }
-
-#[test]
-#[ignore = "requires the verified pinned tokenizer assets for both profiles"]
-fn pinned_query_and_document_token_ids_match_the_compatibility_baseline() {
-    let cache = std::env::var_os("ATLAS_TEST_MODEL_CACHE").expect("set ATLAS_TEST_MODEL_CACHE");
-    let expected: std::collections::BTreeMap<String, Vec<Vec<u32>>> =
-        serde_json::from_str(include_str!("fixtures/embedding-token-ids.json")).unwrap();
-    let text = [
-        "A frightened creature takes a –1 status penalty.",
-        "What heals 2d8 HP? Café, cafe\u{301}, and 𐐀.",
-        "First line\n\nSecond line with AC +2.",
-    ];
-    for (key, model) in [
-        ("bge", EmbeddingModelId::BgeBaseEnV15),
-        ("gemma", EmbeddingModelId::EmbeddingGemma300M),
-    ] {
-        let tokenizer =
-            TextEmbeddingTokenizer::load(&EmbeddingRuntimeConfig::new(model, &cache)).unwrap();
-        let spec = tokenizer.spec();
-        let ids: Vec<_> = text
-            .iter()
-            .flat_map(|raw| [spec.document_input(raw), spec.query_input(raw)])
-            .map(|input| {
-                tokenizer
-                    .tokenizer()
-                    .encode(input, true)
-                    .unwrap()
-                    .get_ids()
-                    .to_vec()
-            })
-            .collect();
-        assert_eq!(ids, expected[key], "{key}");
-    }
-}

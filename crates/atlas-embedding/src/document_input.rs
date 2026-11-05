@@ -34,7 +34,7 @@ impl crate::EmbeddingModelSpec {
             spec.document_prefix,
             spec.query_prefix,
             crate::EMBEDDING_UNIT_POLICY_VERSION,
-            crate::EMBEDDING_INFERENCE_POLICY_VERSION,
+            spec.execution_compatibility,
             crate::BASELINE_INPUT_RECIPE,
         );
         envelope.push_str("\0segmentation-tokenizer-sha256\0");

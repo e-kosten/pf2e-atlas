@@ -418,3 +418,39 @@ mod bounded_runner_tests {
             && event["message"] == "Generating BGE Base embeddings"));
     }
 }
+
+#[cfg(test)]
+mod compatibility_tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "requires verified model assets for both profiles"]
+    fn pinned_query_and_document_token_ids_match_the_compatibility_baseline() {
+        let cache = std::env::var_os("ATLAS_TEST_MODEL_CACHE").expect("set ATLAS_TEST_MODEL_CACHE");
+        let expected: std::collections::BTreeMap<String, Vec<Vec<u32>>> =
+            serde_json::from_str(include_str!("fixtures/embedding-token-ids.json")).unwrap();
+        let text = [
+            "A frightened creature takes a –1 status penalty.",
+            "What heals 2d8 HP? Café, cafe\u{301}, and 𐐀.",
+            "First line\n\nSecond line with AC +2.",
+        ];
+        for (key, model) in [
+            ("bge", crate::EmbeddingModelId::BgeBaseEnV15),
+            ("gemma", crate::EmbeddingModelId::EmbeddingGemma300M),
+        ] {
+            let embedder = TextEmbedder::load(&EmbeddingRuntimeConfig::new(model, &cache)).unwrap();
+            let spec = embedder.spec();
+            for (name, tokenizer) in [
+                ("budget", embedder.tokenizer().tokenizer()),
+                ("inference", &embedder.library.tokenizer),
+            ] {
+                let ids: Vec<_> = text
+                    .iter()
+                    .flat_map(|raw| [spec.document_input(raw), spec.query_input(raw)])
+                    .map(|input| tokenizer.encode(input, true).unwrap().get_ids().to_vec())
+                    .collect();
+                assert_eq!(ids, expected[key], "{key} {name}");
+            }
+        }
+    }
+}

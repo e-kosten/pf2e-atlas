@@ -21,7 +21,7 @@ pub const EMBEDDING_UNIT_POLICY_VERSION: &str = "source-passages/v2/text-splitte
 /// Persisted numerical compatibility ID. Preserve it across implementations
 /// verified to produce compatible query and document embeddings. The original
 /// library labels are part of the existing ID. Record current versions separately.
-pub const EMBEDDING_INFERENCE_POLICY_VERSION: &str =
+const BASE_EXECUTION_COMPATIBILITY: &str =
     "fastembed5.15.0/tokenizers0.22.2/f32/native-specials/no-truncation/right-padding/threads4";
 pub const BODY_TOKEN_BUDGET: usize = 256;
 pub const CONTEXT_TOKEN_BUDGET: usize = 64;
