@@ -3,10 +3,11 @@ import path from 'node:path';
 import { archiveEntries } from './archives.js';
 import { archiveName, compare, isFile, object, readJson, sha256, targets, variants } from './release-data.js';
 
+const noticesName = 'THIRD-PARTY-NOTICES.md';
 const required = [
   ...variants.flatMap((variant) => Object.keys(targets).map((target) => archiveName(target, variant))),
   'SHA256SUMS', 'dist-manifest.json', 'atlas-installer.sh', 'atlas-installer.ps1',
-  'atlas-release-manifest.json', 'THIRD-PARTY-NOTICES.md',
+  'atlas-release-manifest.json', noticesName,
 ];
 export const containsRuntimeData = (entry: string) => ['pf2e-index.sqlite', 'model.onnx', 'tokenizer.json', 'vendor/pf2e/', 'hf-models/']
   .some((part) => entry.replaceAll('\\', '/').includes(part));
@@ -51,11 +52,20 @@ export async function validateAssets(dist: string): Promise<void> {
       if (entry.isDirectory()) inspectDirectory(file);
     }
   }
+  const noticeHashes = checksums.filter((line) => line.trim().split(/\s+/)[1] === noticesName)
+    .map((line) => line.trim().split(/\s+/)[0]);
+  if (noticeHashes.length !== 1 || noticeHashes[0] !== await sha256(path.join(dist, noticesName))) {
+    throw new Error(`checksum metadata mismatch for ${noticesName}`);
+  }
   inspectDirectory(dist);
   for (const name of readdirSync(dist).sort(compare)) {
     if (!(name.endsWith('.tar.xz') || name.endsWith('.zip'))) continue;
-    for (const entry of await archiveEntries(path.join(dist, name))) {
+    const entries = await archiveEntries(path.join(dist, name));
+    for (const entry of entries) {
       if (containsRuntimeData(entry)) throw new Error(`release archive contains runtime data that must not be bundled: ${name}:${entry}`);
+    }
+    if (!entries.some((entry) => entry === noticesName || entry.endsWith(`/${noticesName}`))) {
+      throw new Error(`release archive is missing ${noticesName}: ${name}`);
     }
   }
 }

@@ -86,8 +86,11 @@ fn actual_bge_prepared_queries_support_filtered_pages_and_stored_similarity() {
         let mut previous_key = None;
         for number in [1, 2] {
             let profile = atlas_domain::SearchProfileId::new("bge-base");
+            let stored = atlas_index::SourceSearchProfileIdentity::from_spec(
+                atlas_embedding::search_profile(&profile).unwrap(),
+            );
             let prepared =
-                crate::PreparedQueryEmbedding::prepare(&inference, &profile, "Ghoul").unwrap();
+                crate::PreparedQueryEmbedding::prepare(&inference, stored, "Ghoul").unwrap();
             let mut service = crate::AtlasRetrievalService::from_index(
                 atlas_index::test_support::open_reader(artifact.path()).unwrap(),
                 profile,

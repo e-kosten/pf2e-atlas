@@ -16,9 +16,12 @@ pub use profiles::{
 pub use query_sessions::SharedQueryInference;
 mod tokenization;
 
+/// Persisted passage recipe ID. The original version label is part of this opaque ID.
 pub const EMBEDDING_UNIT_POLICY_VERSION: &str = "source-passages/v2/text-splitter0.29.3/body256-context64-overlap32/identity480/baseline-bge512/native-final-by-profile";
-/// Pinned inference libraries and dense execution behavior used for vector reuse.
-pub const EMBEDDING_INFERENCE_POLICY_VERSION: &str =
+/// Persisted numerical compatibility ID. Preserve it across implementations
+/// verified to produce compatible query and document embeddings. The original
+/// library labels are part of the existing ID. Record current versions separately.
+const BASE_EXECUTION_COMPATIBILITY: &str =
     "fastembed5.15.0/tokenizers0.22.2/f32/native-specials/no-truncation/right-padding/threads4";
 pub const BODY_TOKEN_BUDGET: usize = 256;
 pub const CONTEXT_TOKEN_BUDGET: usize = 64;

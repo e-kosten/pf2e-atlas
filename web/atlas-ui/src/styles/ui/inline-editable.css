@@ -1,0 +1,26 @@
+/* Match inline value buttons and fields while keeping their resting footprint. */
+.inline-editable {
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+}
+
+/* Match the specificity of Ant’s button hover and active rules. */
+button.ant-btn.inline-editable:enabled:is(:hover, :active),
+.inline-editable:enabled:focus-visible,
+input.inline-editable:enabled:is(:hover, :focus) {
+  border-color: var(--line);
+  background: var(--panel);
+  box-shadow: none;
+}
+
+.inline-editable:not(:disabled):focus-visible {
+  outline: 2px solid var(--selection-border);
+  outline-offset: 2px;
+}
+
+@media (hover: none) {
+  .inline-editable:not(:disabled) {
+    border-color: var(--line);
+  }
+}

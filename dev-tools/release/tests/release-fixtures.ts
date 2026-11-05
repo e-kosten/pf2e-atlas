@@ -14,14 +14,15 @@ export async function writeZip(file: string, entries: Record<string, string | Bu
   await done;
 }
 export async function fixture(args: string[]): Promise<void> {
-  const [action, file, extra] = args;
+  const [action, file, extra, notices] = args;
   if (!action || !file) throw new Error('Fixture action and path are required');
   switch (action) {
     case 'windows-archive': {
-      if (!extra) throw new Error('Repository root is required');
+      if (!extra || !notices) throw new Error('Repository root and generated notices are required');
       const root = path.basename(file, '.zip');
       const entries: Record<string, string | Buffer> = { [`${root}/atlas.exe`]: 'atlas 9.9.9\r\n' };
-      for (const name of ['LICENSE', 'README.md', 'THIRD-PARTY-NOTICES.md']) entries[`${root}/${name}`] = readFileSync(path.join(extra, name));
+      for (const name of ['LICENSE', 'README.md']) entries[`${root}/${name}`] = readFileSync(path.join(extra, name));
+      entries[`${root}/THIRD-PARTY-NOTICES.md`] = readFileSync(notices);
       await writeZip(file, entries); break;
     }
     case 'unix-archive': {

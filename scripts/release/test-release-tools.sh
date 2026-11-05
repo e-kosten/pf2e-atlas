@@ -10,6 +10,8 @@ trap cleanup EXIT INT TERM
 
 dist="$tmp/dist"
 mkdir -p "$dist"
+node "$repo_root/dev-tools/release/dist/src/cli/generate-notices.js" \
+  --output "$dist/THIRD-PARTY-NOTICES.md" >/dev/null
 
 make_unix_archive_in() {
   dest="$1"
@@ -24,7 +26,7 @@ make_unix_archive_in() {
   chmod +x "$work/$target/atlas"
   cp "$repo_root/LICENSE" "$work/$target/LICENSE"
   cp "$repo_root/README.md" "$work/$target/README.md"
-  cp "$repo_root/THIRD-PARTY-NOTICES.md" "$work/$target/THIRD-PARTY-NOTICES.md"
+  cp "$dist/THIRD-PARTY-NOTICES.md" "$work/$target/THIRD-PARTY-NOTICES.md"
   tar -cJf "$dest/$prefix-$target.tar.xz" -C "$work" "$target"
 }
 
@@ -45,7 +47,7 @@ make_windows_archive() {
   prefix="atlas-cli"
   [ "$variant" != "cli-only" ] || prefix="atlas-cli-only"
   archive="$dist/$prefix-$target.zip"
-  node "$repo_root/dev-tools/release/dist/tests/release-fixtures.js" windows-archive "$archive" "$repo_root"
+  node "$repo_root/dev-tools/release/dist/tests/release-fixtures.js" windows-archive "$archive" "$repo_root" "$dist/THIRD-PARTY-NOTICES.md"
 }
 
 for target in \
@@ -66,14 +68,12 @@ done
 
 cp "$repo_root/scripts/install/atlas-installer.sh" "$dist/atlas-installer.sh"
 cp "$repo_root/scripts/install/atlas-installer.ps1" "$dist/atlas-installer.ps1"
-cp "$repo_root/THIRD-PARTY-NOTICES.md" "$dist/THIRD-PARTY-NOTICES.md"
 printf '{}\n' > "$dist/dist-manifest.json"
 
 node "$repo_root/dev-tools/release/dist/src/cli/generate-release-manifest.js" v9.9.9 "$dist"
 node "$repo_root/dev-tools/release/dist/tests/release-fixtures.js" dist-manifest "$dist/dist-manifest.json"
 node "$repo_root/dev-tools/release/dist/src/cli/validate-release-assets.js" v9.9.9 "$dist"
-node "$repo_root/dev-tools/release/dist/src/cli/generate-notices.js" --check >/dev/null
-grep -q 'ONNX Runtime: MIT' "$repo_root/THIRD-PARTY-NOTICES.md" || {
+grep -q 'ONNX Runtime: MIT' "$dist/THIRD-PARTY-NOTICES.md" || {
   echo "generated notices are missing ONNX Runtime coverage" >&2
   exit 1
 }

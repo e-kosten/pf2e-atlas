@@ -1,0 +1,164 @@
+{
+  "packages": [
+    {
+      "checksum": "c65faeb787d66e812248f992693268eee8a43a95e3e43e0c33547f1c8391ecce",
+      "dependencies": [
+        "anyhow",
+        "ndarray",
+        "ort",
+        "safetensors",
+        "serde",
+        "serde_json",
+        "tokenizers"
+      ],
+      "name": "fastembed",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "5.15.0"
+    },
+    {
+      "checksum": "a06de3016e9fae57a36fd14dba131fccf49f74b40b7fbdb472f96e361ec71a08",
+      "dependencies": [
+        "autocfg",
+        "rawpointer"
+      ],
+      "name": "matrixmultiply",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "0.3.10"
+    },
+    {
+      "checksum": "520080814a7a6b4a6e9070823bb24b4531daac8c4627e08ba5de8c5ef2f2752d",
+      "dependencies": [
+        "matrixmultiply",
+        "num-complex",
+        "num-integer",
+        "num-traits",
+        "portable-atomic",
+        "portable-atomic-util",
+        "rawpointer"
+      ],
+      "name": "ndarray",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "0.17.2"
+    },
+    {
+      "checksum": "0cc3cbf698f9438986c11a880c90a6d04b9de27575afd28bbf45b154b6c709e2",
+      "dependencies": [
+        "bitflags",
+        "libc",
+        "once_cell",
+        "onig_sys"
+      ],
+      "name": "onig",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "6.5.3"
+    },
+    {
+      "checksum": "1e68317604e77e53b85896388e1a803c1d21b74c899ec9e5e1112db90735edd7",
+      "dependencies": [
+        "cc",
+        "pkg-config"
+      ],
+      "name": "onig_sys",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "69.9.3"
+    },
+    {
+      "checksum": "d7de3af33d24a745ffb8fab904b13478438d1cd52868e6f17735ef6e1f8bf133",
+      "dependencies": [
+        "ndarray",
+        "ort-sys",
+        "smallvec",
+        "tracing",
+        "ureq"
+      ],
+      "name": "ort",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "2.0.0-rc.12"
+    },
+    {
+      "checksum": "d7b497d21a8b6fbb4b5a544f8fadb77e801a09ae0add9e411d31c6f89e3c1e90",
+      "dependencies": [
+        "hmac-sha256",
+        "lzma-rust2",
+        "ureq"
+      ],
+      "name": "ort-sys",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "2.0.0-rc.12"
+    },
+    {
+      "checksum": "2979ebb41243f6c8adc1c1adb76f35fe4e59ba2bc07f7863bb56bcc838798bf4",
+      "dependencies": [
+        "ahash",
+        "auto_enums",
+        "either",
+        "icu_provider",
+        "icu_segmenter",
+        "itertools",
+        "memchr",
+        "strum",
+        "thiserror",
+        "tokenizers"
+      ],
+      "name": "text-splitter",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "0.29.3"
+    },
+    {
+      "checksum": "b238e22d44a15349529690fb07bd645cf58149a1b1e44d6cb5bd1641ff1a6223",
+      "dependencies": [
+        "ahash",
+        "aho-corasick",
+        "compact_str",
+        "dary_heap",
+        "derive_builder",
+        "esaxx-rs",
+        "getrandom 0.3.4",
+        "itertools",
+        "log",
+        "macro_rules_attribute",
+        "monostate",
+        "onig",
+        "paste",
+        "rand 0.9.4",
+        "rayon",
+        "rayon-cond",
+        "regex",
+        "regex-syntax",
+        "serde",
+        "serde_json",
+        "spm_precompiled",
+        "thiserror",
+        "unicode-normalization-alignments",
+        "unicode-segmentation",
+        "unicode_categories"
+      ],
+      "name": "tokenizers",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "0.22.2"
+    }
+  ],
+  "workspace_dependencies": {
+    "fastembed": {
+      "default-features": false,
+      "features": [
+        "ort-download-binaries-rustls-tls"
+      ],
+      "version": "=5.15.0"
+    },
+    "text-splitter": {
+      "default-features": false,
+      "features": [
+        "tokenizers"
+      ],
+      "version": "=0.29.3"
+    },
+    "tokenizers": {
+      "default-features": false,
+      "features": [
+        "onig"
+      ],
+      "version": "=0.22.2"
+    }
+  }
+}

@@ -534,10 +534,11 @@ availability is `workspace_key:reference_revision`. The complete serialized
 locale, shared preparation policies and the complete sorted profile manifest as
 well as source identity. Shared HTML/content preparation hashes exclude the
 profile manifest, including its model and passage recipe. Raw input hashes identify
-unprefixed selected strings; profile execution/reuse keys bind final prefixed inputs,
-native tokenizer assets and the full shared BGE segmentation-tokenizer SHA-256.
-Each profile persists that segmentation digest separately from its native tokenizer
-digest, including Gemma-only manifests.
+unprefixed selected strings. Exact numerical reuse also binds the native token count
+and the execution contract, including prefixes and native tokenizer assets. Passage
+layout separately binds the full shared BGE segmentation-tokenizer SHA-256, including
+for Gemma-only manifests. A layout change can reuse verified vectors for exact inputs
+under the same numerical contract. See [ADR0066](./decisions/0066-embedding-compatibility.md).
 Snapshot-local navigation continues to use the source fingerprint; these identities
 serve different purposes and are not interchangeable.
 

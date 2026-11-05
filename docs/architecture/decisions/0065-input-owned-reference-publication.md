@@ -71,7 +71,9 @@ The embedding owner checks each inference output contract once. Durable recovery
 and repack bytes receive shape/checksum checks when consumed; actual numerical
 calculations and explicit audit retain their numerical checks. Stable published
 values remain identity/checksum handles without payload reads merely for reuse.
-Only unpublished selected bytes require numerical staging.
+Only values absent from the target profile require numerical staging. After a
+layout change, that includes compatible prior values selected under
+[ADR0066](0066-embedding-compatibility.md).
 
 Current-schema fixtures publish through this same owner. Their explicit numerical
 values are staged directly, so unrelated pending values cannot override fixture

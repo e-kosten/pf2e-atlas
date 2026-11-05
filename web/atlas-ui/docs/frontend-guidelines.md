@@ -182,7 +182,7 @@ positive example. Linked sections define detailed behavior and shared owners.
 | Fact groups and tables   | Group facts by what the user reads together; use tables for a repeated comparison axis.                                                                                        | Hidden Pit separates durability, saves and IWR; Fighter uses Level → Advancement rows. See [Grouping reference facts](#grouping-reference-facts).                                                                                 | One wrapping run of unrelated facts, a card for every number, or a table for a short price/bulk/usage group.                                                                                    |
 | Reading width            | Bound the complete single-column document; keep workspace chrome attached to its pane.                                                                                         | Allfood title, traits, facts and prose share a readable column within the full search pane. See [Styling](#styling).                                                                                                              | Capping prose alone under a wider identity block, stretching prose across the screen, or adding filler to occupy space.                                                                         |
 | Entity hierarchy         | Lead a single-entity page with its identity; group related metadata below it.                                                                                                  | Allfood's name, classification/rank, aligned traits and attribution.                                                                                                                                                              | A generic Reference bar above the name or detached trait pills floating beside unrelated controls.                                                                                              |
-| Reading and editing      | In reading/scanning views, keep values readable with a persistent cue for editing; reveal the editor on activation. Keep fields visible when entry is the primary task.        | Current/temp HP use subtle neutral filled buttons; spell rank uses its classification chip with a visible dropdown arrow. See [Reading and editing values](#reading-and-editing-values).                                          | Permanent number fields throughout a read-oriented panel, or editable values indistinguishable from static text until hover.                                                                    |
+| Reading and editing      | Keep compact editable values readable. Use an outline on hover, keyboard focus and touch. Keep fields visible when entry is the primary task.                                  | Current page, roster initiative, participant name and current/temp HP share the inline edit cue. Spell rank has a visible dropdown arrow. See [Reading and editing values](#reading-and-editing-values).                          | Filled controls throughout a reading view, or touch targets that depend on hover.                                                                                                               |
 | Actions and copy         | Keep frequent actions near their context. Use named icons for familiar compact actions and text for unfamiliar choices; each note must add a fact, consequence or next action. | An accessible icon with a concise tooltip; base rank shown inside the picker. See [Choosing an interaction surface](#choosing-an-interaction-surface).                                                                            | Cryptic unfamiliar icons, tooltips repeating clear labels, duplicate Base rank captions or a checkmark repeating selected-row fill.                                                             |
 | Disclosures              | Keep essential rules inline; disclose secondary material only for a selective-reading task, with a clear title and enclosing boundary.                                         | Bordered Ant Heightening details around related extra facts, with authored heightening prose still inline. See [Record presentation](#record-presentation).                                                                       | Bare expanding text, nested accordions, hiding essential rules, or adding a disclosure merely because another section uses one.                                                                 |
 | Rules and current values | Distinguish selected results from their rules; preserve qualifiers, clears and unavailable facts.                                                                              | Fireball's current damage changes with rank; its per-rank increase stays constant.                                                                                                                                                | Presenting a constant increase as current damage, or inferring that Animal Form's replacement statistics stack like Sound Body's benefits.                                                      |
@@ -311,30 +311,32 @@ on failed refresh and provide local Retry.
 
 ### Reading and editing values
 
-On surfaces primarily used for reading or scanning, present editable values as
-readable content with a persistent visual cue for editing. Reveal the editor on
-activation. Hover and keyboard focus reinforce the cue rather than introduce it;
-the interaction must be recognizable without a mouse. Keep fields visible when
-entering or adjusting values is the primary task, such as the HP change amount
-or encounter setup forms.
+Use the shared `inline-editable` style for compact values in reading and
+scanning views. Keep the surrounding typography and reserve border space so
+hover and focus do not move adjacent content. For pointer users the idle value
+reads as text, with a neutral border on hover. Give keyboard focus a distinct
+ring. On devices without hover, show the neutral border at rest. Apply this
+treatment only to enabled edit targets.
 
-For compact single-value edits, make the value itself a quiet button. Current and
-temporary encounter HP use Ant's neutral filled Button with the surrounding
-value typography; maximum HP remains plain text because it has no inline edit.
-Keep the cue subtle but visible in both appearances, with an adequate target and
-clear keyboard focus. Do not make read-only values look editable. The two failure
-cases are a row of permanent number fields that dominates scanning, and plain
-numbers whose editability appears only on hover. Extra pencil icons and helper
-copy are unnecessary when the button treatment already supplies the cue.
+Choose the control based on how the value is used:
 
-`EncounterHpValue` and `EncounterParticipantName` compose the shared
-`EditableValue` and `EditableCommitField` for this interaction.
-Keep keyboard activation, an accessible Edit label, Enter/blur commit and Escape
-cancellation. Preserve drafts during pending reads and show validation or mutation
-failures locally. Do not put an extra Change HP action or modal in front of this
-existing quick edit. A substantial edit involving several related decisions can
-use a dedicated form or overlay; presentation does not bypass confirmation,
-validation or backend mutation policy.
+- Use a directly editable input for compact values that users enter in place,
+  such as the current page and PC initiative. Give the field an accessible
+  name and show a visible placeholder when an empty field would otherwise
+  disappear into the layout.
+- Use `EditableValue` for values primarily read at a glance, such as the
+  participant name and current and temporary HP. The value is the button and
+  opens `EditableCommitField` on activation. Use an explicit action for adding
+  an absent value when appropriate, as with Add temp HP.
+- Use standard form controls when entry is the primary task, such as an HP
+  change amount or an encounter setup form. Group related edits in a form or
+  overlay.
+
+Preserve keyboard activation, an accessible Edit label for value buttons,
+Enter or blur to commit, and Escape to cancel. Keep validation and mutation
+feedback local and preserve drafts during pending reads. When reviewing a
+change, check rest, hover, keyboard focus and touch with both appearances.
+Keep adjacent static values visually distinct.
 
 For a discrete choice that describes the record being read, the readable value
 can itself open an anchored menu. Spell rank uses its classification chip, such

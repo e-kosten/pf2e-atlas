@@ -116,6 +116,7 @@ Read the applicable guide when the task reaches its scope:
 | --- | --- |
 | Prepare a checkout, select a backend, publish or refresh a preview | [Setup and previews](docs/development/setup-and-preview.md) |
 | Select checks, validate a candidate, diagnose CI/browser failures | [Validation](docs/development/validation.md) |
+| Update dependencies, triage advisories or review embedding compatibility | [Maintaining dependencies](docs/development/dependencies.md) |
 | Create/retire a worktree, inspect disk growth, clean development data | [Worktrees and cleanup](docs/development/worktrees-and-cleanup.md) |
 | Run source/artifact developer diagnostics or measure processing | [Developer commands](docs/development/developer-commands.md) |
 | Change source pins/generated models or run corpus/embedding probes | [Source research](docs/development/source-research.md) |
