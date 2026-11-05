@@ -711,7 +711,9 @@ it("selects duration Stunned when switching from another timed condition", async
   fireEvent.mouseDown(screen.getByRole("combobox", { name: "Add condition" }));
   fireEvent.click(await screen.findByText("Stunned"));
   expect(await screen.findByText("For a duration")).toBeVisible();
-  expect(screen.queryByRole("spinbutton", { name: "Condition value" })).toBeNull();
+  await waitFor(() =>
+    expect(screen.queryByRole("spinbutton", { name: "Condition value" })).toBeNull(),
+  );
   await apply({
     value: undefined,
     duration: {
