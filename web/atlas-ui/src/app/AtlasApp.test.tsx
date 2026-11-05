@@ -916,7 +916,6 @@ describe("AtlasApp routing", () => {
       else expect(within(picker).queryByRole("tab", { name: "Encounters" })).toBeNull();
       const selector = within(picker).getByRole("combobox", {
         name: compatible ? "Encounter" : "Saved list",
-        exact: true,
       });
       await waitFor(() => expect(selector).toBeEnabled());
       fireEvent.mouseDown(selector);
