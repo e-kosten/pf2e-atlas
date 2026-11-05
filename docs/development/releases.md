@@ -155,3 +155,36 @@ Repository settings checklist:
 Published release assets are treated as immutable. Fix bad published releases with a new patch release and document known issues in the affected release notes. Draft releases may be corrected before publication.
 
 Local validation covers Rust checks, `dist plan`, release-helper dry runs, installer dry runs, release-tool smoke tests, and static script checks. GitHub-hosted CI owns platform matrix validation for Linux x64, Linux ARM64, macOS Apple Silicon, and Windows x64 release targets. macOS Intel and Windows ARM64 release binaries are deferred until the native ONNX Runtime packaging strategy supports them cleanly.
+
+### Publish an embedding compatibility fixture
+
+Publish the first baseline for both profiles. After that, publish a new bundle
+when an approved upgrade increments a profile's compatibility ID. Generate the
+fixture using the packaged Linux x86_64 CLI from a pinned release build check on
+main or a verified product release. Record the actual target and build used if
+generating on another platform.
+
+```sh
+python3 scripts/validation/probe-embedding-upgrade.py \
+  --baseline /absolute/path/to/packaged/atlas \
+  --producer-commit <commit> --producer-target x86_64-unknown-linux-gnu \
+  --producer-build <packaging-run-url-or-product-tag> \
+  --model-cache "$ATLAS_TEST_MODEL_CACHE" --output scratch/baseline-capture \
+  --produce scratch/embedding-compatibility-baseline.tar.gz
+```
+
+Pass `--profile bge-base` or `--profile embeddinggemma` when replacing a single
+profile's fixture. Inspect the archive contents and run the probe with
+`--bundle`, its reported `--sha256`, and a fresh output directory before
+publication. After publication is authorized, create a fixture-only draft under
+a new `embedding-baseline-v<N>` tag at the producer commit. Mark it as a
+prerelease with latest disabled. Attach the verified archive to the draft and
+then publish. Download the published bytes and rerun the probe before pinning.
+
+In the CI activation PR, create `scripts/validation/embedding-baseline.json`
+with one entry each for `bge-base` and `embeddinggemma`. Each entry records
+`tag`, `asset`, `sha256` and `execution_policy` from the published bundle.
+Both profiles can initially point to the same archive. Preserve earlier assets
+and update the pin for just the affected profile after a compatibility change.
+See [dependency maintenance](dependencies.md#review-an-embedding-dependency-update)
+for the review procedure.
