@@ -209,32 +209,51 @@ it("blocks adding a creature while its adjustment lookup is unavailable and lets
   expect(screen.getByText("Normal", { exact: true })).toBeVisible();
 });
 
-it("preserves a list note through Escape, a tab change, and a canceled discard", async () => {
+type Dismissal = "Escape" | "backdrop" | "Cancel" | "Close";
+
+function dismiss(dialog: HTMLElement, via: Dismissal) {
+  if (via === "Escape") {
+    fireEvent.keyDown(dialog, { key: "Escape" });
+  } else if (via === "backdrop") {
+    const backdrop = dialog.closest(".ant-modal-wrap")!;
+    fireEvent.mouseDown(backdrop);
+    fireEvent.click(backdrop);
+  } else {
+    fireEvent.click(within(dialog).getByRole("button", { name: via }));
+  }
+}
+
+const dismissals = ["Escape", "backdrop", "Cancel", "Close"] as const;
+
+it.each(dismissals)("closes an empty add form via %s", async (via) => {
+  setup();
+  dismiss(screen.getByRole("dialog", { name: "Add to…" }), via);
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(screen.queryByText("Discard this draft?")).not.toBeInTheDocument();
+});
+
+it.each(dismissals)("asks before discarding a list note via %s", async (via) => {
   const opener = setup();
   const dialog = screen.getByRole("dialog", { name: "Add to…" });
   const note = "A note with enough detail to keep.\nSecond line.";
-  fireEvent.change(within(dialog).getByRole("textbox", { name: "Note" }), {
-    target: { value: note },
-  });
-  fireEvent.keyDown(dialog, { key: "Escape" });
-  expect(dialog).toBeVisible();
+  const field = within(dialog).getByRole("textbox", { name: "Note" });
+  act(() => field.focus());
+  fireEvent.change(field, { target: { value: note } });
   fireEvent.click(within(dialog).getByRole("tab", { name: "Encounters" }));
   fireEvent.click(within(dialog).getByRole("tab", { name: "Lists" }));
   expect(within(dialog).getByRole("textbox", { name: "Note" })).toHaveValue(note);
 
-  fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
-  const confirm = await screen.findByRole("dialog", { name: "Discard this draft?" });
-  fireEvent.click(within(confirm).getByRole("button", { name: "Cancel" }));
-  await waitFor(() => expect(confirm).not.toBeInTheDocument());
+  dismiss(dialog, via);
+  expect(screen.getAllByRole("dialog")).toEqual([dialog]);
+  const keep = within(dialog).getByRole("button", { name: "Keep editing" });
+  expect(keep).toHaveFocus();
+  if (via === "Escape") dismiss(dialog, "Escape");
+  else fireEvent.click(keep);
   expect(within(dialog).getByRole("textbox", { name: "Note" })).toHaveValue(note);
 
-  fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
-  fireEvent.click(
-    within(
-      await screen.findByRole("dialog", { name: "Discard this draft?" }),
-    ).getByRole("button", { name: "Discard" }),
-  );
-  await waitFor(() => expect(dialog).not.toBeVisible());
+  dismiss(dialog, via);
+  fireEvent.click(within(dialog).getByRole("button", { name: "Discard" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   fireEvent.click(opener);
   expect(screen.getByRole("textbox", { name: "Note" })).toHaveValue("");
 });

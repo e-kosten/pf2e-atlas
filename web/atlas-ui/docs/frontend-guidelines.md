@@ -1079,9 +1079,13 @@ error beside the operation with its retry action. For example, Add to List retai
 the chosen list on failure; a destructive confirmation retains its original
 consequence alongside the local error instead of also showing a page banner.
 
-Draft retention is task-specific: New List preserves its unfinished name/tags
-when dismissed; Add to List clears its selection on explicit cancellation.
-Do not impose a shared draft-reset policy. A nested Select or source dialog owns
+For ordinary cancellation, close the form directly. For forms that would lose
+substantive input, pass a draft check to `AtlasModal`. Cancel, Close, Escape and
+the backdrop run the same check. A draft switches the current footer to Keep
+editing and Discard. Keep editing receives focus, and dismissing the prompt
+returns to the form. Add to List uses this pattern for a typed note or new list
+name. New List retains its unfinished name and tags when dismissed and can close
+directly. A nested Select or source dialog owns
 the first Escape; the containing surface stays open. Closing an anchored popup
 returns lost focus to its trigger without overriding focus deliberately moved to
 another control. Pass the outgoing popup root to
