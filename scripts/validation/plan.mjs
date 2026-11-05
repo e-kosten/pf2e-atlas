@@ -29,6 +29,7 @@ const clippy = (scope) => [
     "clippy",
     ...scope,
     "--all-targets",
+    "--locked",
     "--",
     "-D",
     "warnings",
@@ -41,6 +42,7 @@ const clippy = (scope) => [
     ...scope,
     "--lib",
     "--bins",
+    "--locked",
     "--",
     ...strictClippy,
   ),
@@ -55,6 +57,7 @@ const rustPrerequisites = [
     "atlas-cli",
     "--no-default-features",
     "--all-targets",
+    "--locked",
     "--",
     "-D",
     "warnings",
@@ -68,14 +71,15 @@ const rustPrerequisites = [
     "-p",
     "atlas-cli",
     "--no-default-features",
+    "--locked",
   ),
 ];
 const rust = [
   fmt,
   ...clippy(["--workspace"]),
-  cargo("workspace tests", "nextest", "run", "--workspace"),
-  cargo("workspace doctests", "test", "--workspace", "--doc"),
-  cargo("workspace build", "build", "--workspace"),
+  cargo("workspace tests", "nextest", "run", "--workspace", "--locked"),
+  cargo("workspace doctests", "test", "--workspace", "--doc", "--locked"),
+  cargo("workspace build", "build", "--workspace", "--locked"),
 ];
 const developer = [
   fmt,

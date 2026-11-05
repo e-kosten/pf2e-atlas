@@ -60,6 +60,8 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
+      - name: Check reviewed embedding dependencies
+        run: python3 scripts/validation/embedding-stack.py
       - name: Validation routing regression tests
         run: |
           node scripts/validation/tooling.mjs

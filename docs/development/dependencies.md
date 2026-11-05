@@ -6,6 +6,35 @@ Rust toolchain and `npm ci` for candidate validation. Follow the
 delivery. Release jobs generate notices from locked Cargo metadata and verify
 them in packaged assets. See [release tooling](../../dev-tools/release/README.md).
 
+## Routine updates and advisories
+
+Dependabot checks Cargo, the three maintained npm packages, GitHub Actions and
+the Rust toolchain weekly. Each entry starts with two open routine PRs and a
+seven-day cooldown. Related React and Query Builder packages update together.
+Review breaking releases separately. An embedding-stack update needs the
+compatibility evidence below before landing.
+
+GitHub's advisory alerts and security update PRs are separate repository settings.
+The dependency audit workflow scans the committed Rust and npm lockfiles on
+dependency PRs and daily, including the locked dice prototypes. Run the same
+scanner locally with Python 3.11 or newer and a supported Node/npm installation.
+
+```sh
+python3 scripts/validation/dependency-audit.py
+```
+
+A scan error needs investigation before interpreting the result. Address a confirmed
+advisory with the smallest supported update and re-scan the candidate. Track
+unmaintained-package warnings separately as replacement opportunities.
+
+The frontend currently has a scoped exception for
+[GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249)
+in minimatch 10.2.5 under TypeScript ESLint's development-only dependency tree.
+The current parent package requires minimatch 10, and lint patterns come from
+repository configuration. Revisit when upstream supports a fixed release, if
+lint begins to accept untrusted patterns, or by December 4, 2026. The audit fails
+when the exception expires or the affected resolution moves outside its scope.
+
 ## Review an embedding dependency update
 
 The [embedding compatibility contract](../architecture/decisions/0066-embedding-compatibility.md)
@@ -48,7 +77,7 @@ reviewed dependency set in the same PR.
 python3 scripts/validation/embedding-stack.py --print > scripts/validation/embedding-stack.json
 ```
 
-When execution is incompatible, bump the affected execution contract and validate
+When execution is incompatible, bump the affected model’s execution compatibility ID and validate
 the supported rebuild path and saved-state preservation. Explain the affected
 profiles and setup action in the release notes. Changes that only alter passage
 layout can reuse verified vectors for identical inputs under the same execution

@@ -1,0 +1,29 @@
+name: dependency audit
+
+on:
+  pull_request:
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+      - '**/package.json'
+      - '**/package-lock.json'
+      - 'scripts/validation/dependency-audit.py'
+      - '.github/workflows/dependency-audit.yml'
+  schedule:
+    - cron: '37 10 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  advisories:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Scan Cargo and npm lockfiles
+        run: python3 scripts/validation/dependency-audit.py
