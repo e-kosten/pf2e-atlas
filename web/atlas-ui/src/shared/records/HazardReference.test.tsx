@@ -178,15 +178,18 @@ it.each([false, true, null])(
 );
 
 it("omits the rules slot for a hazard with no visible activities or rules", () => {
+  const actor = actorFixture();
+  const absent = { ...numberFact(0), state: "not_applicable" as const, value: null };
+  actor.saves.fortitude = absent;
   const hazard = {
-    actor: actorFixture(),
+    actor,
     complex: knownFact(false),
-    stealth: numberFact(20),
+    stealth: absent,
     hardness: numberFact(0),
-    detection_dc: numberFact(30),
+    detection_dc: absent,
     broken_threshold: numberFact(0),
     defense_block: knownFact(false),
-    show_saves: false,
+    show_saves: true,
   };
   const content = {
     description: null,
@@ -210,6 +213,11 @@ it("omits the rules slot for a hazard with no visible activities or rules", () =
     <HazardReference {...props} content={content} />,
   );
   expect(screen.getByText("Disable instructions")).toBeVisible();
+  expect(screen.queryByText("AC")).toBeNull();
+  expect(screen.queryByText("Stealth")).toBeNull();
+  expect(screen.queryByText("Detection DC")).toBeNull();
+  expect(screen.queryByText("Fortitude")).toBeNull();
+  expect(screen.getByText("Will").parentElement).toHaveTextContent("+0");
   expect(container.querySelector(".actor-encounter-layout__rules")).toBeNull();
 
   rerender(

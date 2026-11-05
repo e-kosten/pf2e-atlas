@@ -31,6 +31,14 @@ pub(crate) fn authored_actor(
         pack_label: "",
     }
     .actor();
+    let save_fact = |save| {
+        number(match node {
+            SourceNodeView::Actor(ActorSourcePF2e::HazardSource(source)) => {
+                hazard_save(source, save)
+            }
+            _ => a.save(save),
+        })
+    };
     let mut abilities = vec![];
     a.visit_abilities(|key, v| {
         abilities.push(ActorModifierView {
@@ -113,9 +121,9 @@ pub(crate) fn authored_actor(
         maximum_hp: number(a.hp_maximum()),
         perception: number(a.perception()),
         saves: ActorSavesView {
-            fortitude: number(a.save(ActorSave::Fortitude)),
-            reflex: number(a.save(ActorSave::Reflex)),
-            will: number(a.save(ActorSave::Will)),
+            fortitude: save_fact(ActorSave::Fortitude),
+            reflex: save_fact(ActorSave::Reflex),
+            will: save_fact(ActorSave::Will),
         },
         abilities: fact(a.npc_abilities().map(|_| abilities)),
         skills: fact(a.npc_skills().map(|_| skills)),
@@ -829,9 +837,10 @@ pub(crate) fn compose_participant(
         ]
         .into_iter()
         .any(|save| {
-            save.state != QueryFieldState::Value
-                || save.value.as_ref().and_then(serde_json::Number::as_f64) != Some(0.0)
-                || save.adjustment.is_some()
+            save.state != QueryFieldState::NotApplicable
+                && (save.state != QueryFieldState::Value
+                    || save.value.as_ref().and_then(serde_json::Number::as_f64) != Some(0.0)
+                    || save.adjustment.is_some())
         });
     }
     super::hazard_readouts::refresh(&mut presentation.body);

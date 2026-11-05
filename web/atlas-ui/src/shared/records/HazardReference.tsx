@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Children, type ReactNode } from "react";
 import type { HazardPresentationView } from "../../generated/atlas";
 import {
   ActorActivities,
@@ -73,14 +73,17 @@ export function HazardReference({
                   fact={hazard.detection_dc}
                   optional
                 />
-                <div className="hazard-reference__stealth">
-                  <ReferenceFact
-                    label="Stealth"
-                    fact={hazard.stealth}
-                    format={(value) => `${Number(value) >= 0 ? "+" : ""}${value}`}
-                  />{" "}
-                  {content.detection}
-                </div>
+                {(hazard.stealth.state !== "not_applicable" ||
+                  Children.toArray(content.detection).length > 0) && (
+                  <div className="hazard-reference__stealth">
+                    <ReferenceFact
+                      label="Stealth"
+                      fact={hazard.stealth}
+                      format={(value) => `${Number(value) >= 0 ? "+" : ""}${value}`}
+                    />{" "}
+                    {content.detection}
+                  </div>
+                )}
               </div>
             </section>
             {encounterContent?.durability ?? <HazardDefenses hazard={hazard} />}

@@ -22,7 +22,7 @@ use atlas_app_model::*;
 use atlas_domain::OwnedContentLocator;
 use atlas_domain::QueryFieldState;
 use atlas_record::source_record::{
-    ItemSourceView, SourceBackedRecord, SourceFieldView, SourceNodeView, SourceQueryView,
+    ActorSave, ItemSourceView, SourceBackedRecord, SourceFieldView, SourceNodeView, SourceQueryView,
 };
 use facts::*;
 
@@ -174,13 +174,10 @@ pub(crate) fn record_presentation(
                         .map(|b| *b),
                 ),
                 stealth: number(
-                    SourceQueryView {
-                        source: node,
-                        pack_id: "",
-                        pack_label: "",
-                    }
-                    .actor()
-                    .hazard_stealth(),
+                    SourceFieldView::from(&source.system)
+                        .and_then(|s| (&s.attributes).into())
+                        .and_then(|s| (&s.stealth).into())
+                        .and_then(|s| omit_null_leaf((&s.value).into())),
                 ),
                 hardness: number(
                     SourceQueryView {
@@ -434,39 +431,63 @@ fn classification(node: SourceNodeView<'_>, identity: &RecordSummaryView) -> Str
         ),
     }
 }
-/// Upstream's authored hazard defense block uses HP maximum or AC, not saves.
-/// Only known numeric zero for both suppresses the primary block.
+/// Foundry omits primary defenses for zero HP with zero or explicitly absent AC.
 fn hazard_defense_block(node: SourceNodeView<'_>) -> FactView<bool> {
-    let actor = SourceQueryView {
-        source: node,
-        pack_id: "",
-        pack_label: "",
-    }
-    .actor();
-    let hp = actor.hp_maximum();
-    let ac = actor.armor_class();
-    fact(hp.and_then(|hp| ac.map(|ac| hp.as_f64() != Some(0.0) || ac.as_f64() != Some(0.0))))
+    let SourceNodeView::Actor(atlas_foundry_model::ActorSourcePF2e::HazardSource(source)) = node
+    else {
+        return unavailable();
+    };
+    let attributes = SourceFieldView::from(&source.system).and_then(|s| (&s.attributes).into());
+    let has_ac =
+        attributes.and_then(|a| (&a.ac).into()).and_then(|ac| {
+            match SourceFieldView::from(&ac.value) {
+                SourceFieldView::Null => SourceFieldView::Value(false),
+                other => other.map(|value| value.as_f64() != Some(0.0)),
+            }
+        });
+    let hp = attributes
+        .and_then(|a| (&a.hp).into())
+        .and_then(|hp| SourceFieldView::from(&hp.max));
+    fact(hp.and_then(|hp| has_ac.map(|has_ac| has_ac || hp.as_f64() != Some(0.0))))
 }
 
-/// Atlas reading policy, not a declaration that known zero saves are missing.
+fn hazard_save(
+    source: &atlas_foundry_model::generated::HazardSource,
+    save: ActorSave,
+) -> SourceFieldView<'_, &serde_json::Number> {
+    SourceFieldView::from(&source.system)
+        .and_then(|s| (&s.saves).into())
+        .and_then(|s| match save {
+            ActorSave::Fortitude => (&s.fortitude).into(),
+            ActorSave::Reflex => (&s.reflex).into(),
+            ActorSave::Will => (&s.will).into(),
+        })
+        .and_then(|s| omit_null_leaf((&s.value).into()))
+}
+
+/// Atlas reading policy for the legacy all-zero, blank-detail saves block.
 fn hazard_show_saves(node: SourceNodeView<'_>) -> bool {
-    use atlas_record::source_record::ActorSave;
-    if hazard_defense_block(node).value != Some(false) {
-        return true;
-    }
+    let SourceNodeView::Actor(atlas_foundry_model::ActorSourcePF2e::HazardSource(source)) = node
+    else {
+        return false;
+    };
     let actor = SourceQueryView {
         source: node,
         pack_id: "",
         pack_label: "",
     }
     .actor();
-    ![ActorSave::Fortitude, ActorSave::Reflex, ActorSave::Will]
-        .into_iter()
-        .all(|save| {
-            actor
-                .save(save)
-                .value()
-                .is_some_and(|v| v.as_f64() == Some(0.0))
+    let saves = [ActorSave::Fortitude, ActorSave::Reflex, ActorSave::Will];
+    let values = saves.map(|save| hazard_save(source, save));
+    if values
+        .iter()
+        .all(|value| matches!(value, SourceFieldView::NotApplicable))
+    {
+        return false;
+    }
+    hazard_defense_block(node).value != Some(false)
+        || !saves.into_iter().zip(values).all(|(save, value)| {
+            value.value().is_some_and(|v| v.as_f64() == Some(0.0))
                 && actor
                     .hazard_save_detail(save)
                     .value()
