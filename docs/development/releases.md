@@ -186,5 +186,8 @@ with one entry each for `bge-base` and `embeddinggemma`. Each entry records
 `tag`, `asset`, `sha256` and `execution_policy` from the published bundle.
 Both profiles can initially point to the same archive. Preserve earlier assets
 and update the pin for just the affected profile after a compatibility change.
+If an asset becomes unavailable, restore the exact archive at a new fixture tag
+and update the pin with the same SHA-256 and execution policy. If the exact bytes
+are unavailable, review fixture recovery separately before changing the pin.
 See [dependency maintenance](dependencies.md#review-an-embedding-dependency-update)
 for the review procedure.

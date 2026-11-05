@@ -11,6 +11,8 @@ RECEIPT = ROOT / "scripts/validation/embedding-stack.json"
 PACKAGES = {
     "fastembed", "tokenizers", "text-splitter", "ort", "ort-sys",
     "onig", "onig_sys", "ndarray", "matrixmultiply",
+    "esaxx-rs", "regex", "regex-syntax", "spm_precompiled",
+    "unicode-normalization-alignments", "unicode-segmentation",
 }
 
 
@@ -52,6 +54,8 @@ def selected_runners(base, manual):
     before, after = snapshot(base), snapshot()
     native = PACKAGES - {"text-splitter"}
     if ("rust-toolchain.toml" in paths or "crates/atlas-embedding/Cargo.toml" in paths
+            or any(path.startswith((".cargo/", "crates/atlas-sqlite-vec/")) for path in paths)
+            or (BASELINE_PIN in paths and not git("ls-tree", "--name-only", base, BASELINE_PIN).strip())
             or [row for row in before["packages"] if row["name"] in native]
             != [row for row in after["packages"] if row["name"] in native]
             or any(before["workspace_dependencies"].get(name) != after["workspace_dependencies"].get(name)
@@ -59,12 +63,13 @@ def selected_runners(base, manual):
         return FULL_MATRIX
     watched = {
         BASELINE_PIN, ".github/workflows/ci.yml", "scripts/validation/embedding-stack.py",
-        "scripts/validation/probe-embedding-upgrade.py", "crates/atlas-search/src/service.rs",
+        "scripts/validation/probe-embedding-upgrade.py", "Cargo.lock",
         "scripts/validation/test-embedding-baseline.py",
-        "crates/atlas-runtime/src/retrieval.rs",
     }
     if before != after or paths & watched or any(path.startswith((
-        "crates/atlas-embedding/", "crates/atlas-index/",
+        "crates/atlas-embedding/", "crates/atlas-index/", "crates/atlas-ingest/",
+        "crates/atlas-record/", "crates/atlas-runtime/", "crates/atlas-search/",
+        "crates/atlas-storage/",
     )) for path in paths):
         return FULL_MATRIX[:1]
     return []

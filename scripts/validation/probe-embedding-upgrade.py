@@ -86,6 +86,39 @@ def profile_contracts(index):
     return {contract["profile_id"]: contract for contract in contracts}
 
 
+def workspace_schema(index):
+    with closing(sqlite3.connect(index.as_uri() + "?mode=ro", uri=True)) as db:
+        return db.execute("PRAGMA user_version").fetchone()[0]
+
+
+def migrate_predecessor(old, fresh, migrator, manifest, root):
+    before, expected = workspace_schema(old), workspace_schema(fresh)
+    if before == expected:
+        return {"from": before, "to": expected}
+    if before > expected or migrator is None:
+        raise RuntimeError(f"Cannot check frozen vectors across workspace schema {before} → {expected}. "
+                           "For an upgrade, provide the candidate's --workspace-migrator.")
+    subprocess.run([str(migrator), str(old)], check=True, timeout=240)
+    if workspace_schema(old) != expected or profile_contracts(old) != manifest["profiles"]:
+        raise RuntimeError("Workspace migration did not preserve the frozen embedding contracts")
+    schema = {"from": before, "to": expected}
+    write_json(root / "workspace-migration.json", schema)
+    return schema
+
+
+def saved_list_state(view):
+    summary = view["list"]
+    required = ("list_key", "slug", "name", "tags", "created_at", "updated_at")
+    return {
+        "list": {**{key: summary[key] for key in required}, "description": summary.get("description")},
+        "items": [
+            {"record_key": row["record_key"], "position": row["position"],
+             "note": row.get("note"), "snapshot": row["snapshot"]}
+            for row in view["items"]
+        ],
+    }
+
+
 def counts(report):
     return {row["profile_id"]: row for row in report["search_profiles"]}
 
@@ -169,11 +202,15 @@ def archive_bundle(root, output):
                 archive.add(root / name, arcname=name, filter=normalize)
 
 
-def check(candidate, cache, root, profiles, manifest, transitions):
+def check(candidate, cache, root, profiles, manifest, transitions, migrator=None):
+    missing = set(profiles) - manifest["profiles"].keys()
+    if missing:
+        raise RuntimeError(f"Profiles missing from baseline: {', '.join(sorted(missing))}")
     source = root / "source"
     old = root / "predecessor.sqlite"
     fresh = root / "fresh.sqlite"
     build(candidate, source, fresh, cache, root / "candidate-fresh.json", profiles)
+    schema = migrate_predecessor(old, fresh, migrator, manifest, root)
     current = profile_contracts(fresh)
     layout_fields = {"segmentation_tokenizer_sha256", "unit_policy_version", "input_recipe"}
     changed_layout = set()
@@ -208,7 +245,7 @@ def check(candidate, cache, root, profiles, manifest, transitions):
         raise RuntimeError("Declared embedding ID transition did not change the execution contract")
     updated = counts(build(candidate, source, old, cache, root / "candidate-reuse.json", profiles))
     saved = invoke(candidate, ["lists", "show", "compatibility", "--index", old], root / "list-after.json")
-    if saved != manifest["saved_list"]:
+    if saved_list_state(saved) != saved_list_state(manifest["saved_list"]):
         raise RuntimeError("Saved list changed across maintenance")
     for profile in profiles:
         row = updated[profile]
@@ -237,6 +274,7 @@ def check(candidate, cache, root, profiles, manifest, transitions):
     result = {
         "baseline_sha256": manifest["producer"]["binary_sha256"],
         "candidate_sha256": sha256(candidate),
+        "workspace_schema": schema,
         "score_tolerance": SCORE_TOLERANCE,
         "profiles": {
             profile: {
@@ -278,8 +316,8 @@ def pinned_checks(current, previous):
 
     for profile, pin in current.items():
         old = previous.get(profile, pin)
-        keys = ("tag", "asset", "sha256", "execution_policy")
-        if any(old[key] != pin[key] for key in keys):
+        same_fixture = all(old[key] == pin[key] for key in ("sha256", "execution_policy"))
+        if not same_fixture:
             if old.get("transition_to") != pin["execution_policy"] or pin.get("transition_to"):
                 raise RuntimeError(f"{profile} baseline pin can advance only after an approved ID transition")
             add(profile, old, pin["execution_policy"])
@@ -287,7 +325,7 @@ def pinned_checks(current, previous):
     return checks
 
 
-def check_pins(candidate, cache, root, base, repository):
+def check_pins(candidate, cache, root, base, repository, migrator=None):
     if not re.fullmatch(r"[\w.-]+/[\w.-]+", repository):
         raise RuntimeError("Expected a GitHub repository in owner/name format")
     for ordinal, ((tag, asset, digest), profiles) in enumerate(pinned_checks(*read_pins(base)).items()):
@@ -305,7 +343,7 @@ def check_pins(candidate, cache, root, base, repository):
             if transition:
                 transitions[profile] = transition
         write_json(evidence / "pin.json", {"tag": tag, "asset": asset, "sha256": digest})
-        check(candidate, cache, evidence, tuple(profiles), manifest, transitions)
+        check(candidate, cache, evidence, tuple(profiles), manifest, transitions, migrator)
 
 
 def main():
@@ -318,6 +356,7 @@ def main():
     parser.add_argument("--repository")
     parser.add_argument("--sha256")
     parser.add_argument("--candidate", type=Path)
+    parser.add_argument("--workspace-migrator", type=Path, help="Candidate helper for schema-only workspace upgrades")
     parser.add_argument("--produce", type=Path, help="Write a new baseline archive")
     parser.add_argument("--producer-commit")
     parser.add_argument("--producer-target")
@@ -338,12 +377,14 @@ def main():
     root = args.output.resolve()
     root.mkdir(parents=True)
     profiles = tuple(args.profile or PROFILES)
+    migrator = args.workspace_migrator.resolve() if args.workspace_migrator else None
     cache = args.model_cache.resolve()
     if args.pins:
-        check_pins(args.candidate.resolve(), cache, root, args.base_ref, args.repository)
+        check_pins(args.candidate.resolve(), cache, root, args.base_ref, args.repository, migrator)
         return
     if args.bundle:
         manifest = extract_bundle(args.bundle, args.sha256, root)
+        profiles = tuple(args.profile or manifest["profiles"])
     else:
         provenance = {"commit": args.producer_commit, "target": args.producer_target, "build": args.producer_build}
         manifest = capture(args.baseline.resolve(), cache, root, profiles, provenance)
@@ -351,7 +392,7 @@ def main():
         archive_bundle(root, args.produce)
         print(f"{sha256(args.produce)}  {args.produce}")
     else:
-        check(args.candidate.resolve(), cache, root, profiles, manifest, {})
+        check(args.candidate.resolve(), cache, root, profiles, manifest, {}, migrator)
 
 
 if __name__ == "__main__":

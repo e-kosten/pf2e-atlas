@@ -43,9 +43,11 @@ describes when Atlas can compare new queries with stored document vectors. The
 the relevant locked packages and manifest selections. CI detects changes to
 that set. Review the upstream change and test both profiles before updating
 the receipt. Once the first fixture is published and pinned, PR validation
-runs the probe on Linux x86_64 for changes to the watched dependency snapshot
-or embedding code. Native dependency and Rust toolchain updates select the
-release platform matrix. Run the `ci` workflow manually to exercise all targets.
+runs the probe on Linux x86_64 for Cargo lockfile changes and changes to code
+that prepares inputs, stores vectors, or executes retrieval. The first pin,
+watched native and tokenizer dependencies, Cargo native build settings, and
+Rust toolchain changes select the release platform matrix. Run the `ci`
+workflow manually to exercise all targets.
 
 Build the pre-upgrade and candidate Atlas binaries with the same pinned toolchain
 and features. Use disposable checkouts or save a copy of the baseline executable
@@ -69,14 +71,22 @@ base commit when reviewing a change to the pin. To use a local archive instead,
 pass `--bundle PATH --sha256 DIGEST`. Use Python 3.12 for the archive modes.
 Prepare or verify the cache with
 `cargo run --locked -p atlas-embedding --example prepare-model-cache -- "$ATLAS_TEST_MODEL_CACHE"`.
+If the candidate uses a newer workspace schema, build
+`cargo build --locked -p atlas-runtime --example migrate-fixture-workspace`
+and pass `--workspace-migrator target/debug/examples/migrate-fixture-workspace`.
+The helper runs the candidate's storage migrations on the private copy before
+the probe searches the original vectors.
 
 The probe checks ranked records, matching passages and absolute score drift
 within 0.00002. It verifies zero document inference on compatible maintenance,
 saved list preservation, and retrieval from a mixed index against a fresh
 index built from the same edited source. For an intentional passage layout
 change, it reports reuse and compares the updated index with a fresh build.
-Review the report for both profiles and add cases when the change affects
-behavior outside the five-record fixture.
+Review the report for both profiles. For a material inference or tokenizer
+upgrade, also compare sampled old and fresh vectors for matching inputs on
+affected release targets. Include input shapes changed by the upgrade, such as
+trait-only inputs, Unicode near the token budget, or varied batch sizes. Use
+packaged predecessor binaries on those targets when native execution changes.
 
 When the evidence supports compatibility, keep the execution ID and update the
 reviewed dependency set in the same PR.
