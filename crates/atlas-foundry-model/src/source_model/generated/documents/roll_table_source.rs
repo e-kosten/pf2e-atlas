@@ -20,7 +20,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: structural:b0c11a9339885249729e2315
+// Source declaration: structural:061bd1b62e43023db8645818
 pub(in crate::source_model::generated) fn read_source_from_schema_table_result_schema_range(
     v: &SourceValue,
     c: &SourceContext,
@@ -121,7 +121,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_table_result_s
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@bb4b54821e2cc5b363ec46ff
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@bb4b54821e2cc5b363ec46ff
 pub type SourceFromSchemaRollTableSchemaResults = Vec<SourceFromSchemaTableResultSchema>;
 pub(in crate::source_model::generated) fn read_source_from_schema_roll_table_schema_results(
     v: &SourceValue,

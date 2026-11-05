@@ -29,7 +29,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: structural:4af8e08f2873e1191ad52427
+// Source declaration: structural:da5f9f6187a33cdb7cd492bf
 pub type SourceFromSchemaAuraAppearanceSchemaBorderColor = String;
 pub(in crate::source_model::generated) fn read_source_from_schema_aura_appearance_schema_border_color(
     v: &SourceValue,
@@ -49,7 +49,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_aura_appearanc
     }
 }
 
-// Source declaration: src/module/rules/rule-element/aura.ts#AuraAppearanceSchema.$object.border.$object@b67a3ecdebd2fa08e5d6d832
+// Source declaration: src/module/rules/rule-element/aura.ts#AuraAppearanceSchema.$object.border.$object@69055fa8fdb9eb874631a0bc
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaAuraAppearanceSchemaBorder {
@@ -344,7 +344,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_item_alteratio
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@b043edc73e0c01c8ec29a4a7
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@b043edc73e0c01c8ec29a4a7
 pub type SourceFromSchemaAuraEffectSchemaAlterations = Vec<SourceFromSchemaItemAlterationSchema>;
 pub(in crate::source_model::generated) fn read_source_from_schema_aura_effect_schema_alterations(
     v: &SourceValue,
@@ -376,7 +376,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_aura_effect_sc
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@4eb399113cace1b78c311ba3
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@878e1c8c25eb0c22d74c1c2a
 pub type SourceFromSchemaAuraEffectSchemaEvents = Vec<SourceFromSchemaAuraEffectSchemaEventsEntry>;
 pub(in crate::source_model::generated) fn read_source_from_schema_aura_effect_schema_events(
     v: &SourceValue,
@@ -391,7 +391,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_aura_effect_sc
     )
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Partial@9c8d998a7270ebbbd66795ae
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Partial@6c283fe44c01c1eceeb92e0d
 pub type SourceFromSchemaAuraEffectSchemaPreselectChoices =
     crate::source_model::SourceMap<StringOrNumber>;
 pub(in crate::source_model::generated) fn read_source_from_schema_aura_effect_schema_preselect_choices(
@@ -402,7 +402,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_aura_effect_sc
     keyed(v, c, p, read_string_or_number)
 }
 
-// Source declaration: src/module/rules/rule-element/aura.ts#AuraEffectSchema.$object.save.$object@fd1aa3cca743d865a21cb12d
+// Source declaration: src/module/rules/rule-element/aura.ts#AuraEffectSchema.$object.save.$object@35fdba0a130cd89b56033425
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaAuraEffectSchemaSave {
@@ -491,7 +491,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_aura_effect_sc
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@c5886fd64eb6f7d135c830e8
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@c5886fd64eb6f7d135c830e8
 pub type SourceFromSchemaAuraSchemaEffects = Vec<SourceFromSchemaAuraEffectSchema>;
 pub(in crate::source_model::generated) fn read_source_from_schema_aura_schema_effects(
     v: &SourceValue,
@@ -501,7 +501,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_aura_schema_ef
     array(v, c, p, read_source_from_schema_aura_effect_schema)
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@e624aba22b3bd1dd25fcfc77
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@5e0da3fc3076f2f354760502
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaAuraSchema {
@@ -579,7 +579,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_aura_schema(
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@e624aba22b3bd1dd25fcfc77; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@5e0da3fc3076f2f354760502; deferred fields:
 pub type AuraRule = SourceFromSchemaAuraSchema;
 pub fn parse_aura_rule(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<AuraRule> {
     read_source_from_schema_aura_schema(v, c, p)

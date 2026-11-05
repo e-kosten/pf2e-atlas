@@ -46,7 +46,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_flat_modifier_
     }
 }
 
-// Source declaration: structural:31fd4e3c00ced135098d9eef
+// Source declaration: structural:146c3b441984dcf2913ba26d
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum SourceFromSchemaFlatModifierSchemaRemoveAfterRoll {
@@ -80,7 +80,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_flat_modifier_
     candidates.finish(v, c, p)
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@df233d96d73c51f302829f3e#authored-input:selector
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@283db505318ef0daca9cf08c#authored-input:selector
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaFlatModifierSchema {
@@ -200,7 +200,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_flat_modifier_
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@df233d96d73c51f302829f3e; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@283db505318ef0daca9cf08c; deferred fields:
 pub type FlatModifierRule = SourceFromSchemaFlatModifierSchema;
 pub fn parse_flat_modifier_rule(
     v: &SourceValue,

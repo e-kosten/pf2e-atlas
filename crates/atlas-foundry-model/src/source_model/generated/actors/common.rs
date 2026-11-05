@@ -2064,7 +2064,7 @@ pub(in crate::source_model::generated) fn read_actor_attributes_source_immunitie
     }
 }
 
-// Source declaration: src/module/rules/rule-element/iwr/base.ts#IWRException.$object@65285bdd745803272abb42b4
+// Source declaration: src/module/rules/rule-element/iwr/base.ts#IWRException.$object@42247a847beafc543e1adf43
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ActorAttributesSourceImmunitiesEntryImmunitySourceExceptionsEntryIWRExceptionAlternative107
@@ -2090,7 +2090,7 @@ pub(in crate::source_model::generated) fn read_actor_attributes_source_immunitie
     })
 }
 
-// Source declaration: src/module/rules/rule-element/iwr/base.ts#IWRException@f78400f4b61c2a7d78006496
+// Source declaration: src/module/rules/rule-element/iwr/base.ts#IWRException@1efeab33f9f5488b2935c33a
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum ActorAttributesSourceImmunitiesEntryImmunitySourceExceptionsEntryIWRException {
@@ -2746,7 +2746,7 @@ pub(in crate::source_model::generated) fn read_actor_attributes_source_immunitie
     candidates.finish(v, c, p)
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@59b8c8812eb015895afaa4cd
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@138f79dd3a73903137225010
 pub type ActorAttributesSourceImmunitiesEntryImmunitySourceExceptions =
     Vec<ActorAttributesSourceImmunitiesEntryImmunitySourceExceptionsEntryIWRException>;
 pub(in crate::source_model::generated) fn read_actor_attributes_source_immunities_entry_immunity_source_exceptions(
@@ -3093,7 +3093,7 @@ pub(in crate::source_model::generated) fn read_actor_attributes_source_immunitie
     }
 }
 
-// Source declaration: src/module/actor/data/iwr.ts#ImmunitySource@f78400f4b61c2a7d78006496
+// Source declaration: src/module/actor/data/iwr.ts#ImmunitySource@1efeab33f9f5488b2935c33a
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ActorAttributesSourceImmunitiesEntryImmunitySource {
@@ -3122,7 +3122,7 @@ pub(in crate::source_model::generated) fn read_actor_attributes_source_immunitie
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@68f18530544bbbccbc5b1212
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@474ba72af12727b983781b5e
 pub type ActorAttributesSourceImmunities = Vec<ActorAttributesSourceImmunitiesEntryImmunitySource>;
 pub(in crate::source_model::generated) fn read_actor_attributes_source_immunities(
     v: &SourceValue,
@@ -3369,7 +3369,7 @@ pub(in crate::source_model::generated) fn read_resistance_source_double_vs_entry
     }
 }
 
-// Source declaration: src/module/rules/rule-element/iwr/base.ts#IWRException@4b7f557f0b1fea489730f748
+// Source declaration: src/module/rules/rule-element/iwr/base.ts#IWRException@c7f3afbecdb37f9b4670d209
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum ResistanceSourceDoubleVsEntryIWRException {
@@ -3811,7 +3811,7 @@ pub(in crate::source_model::generated) fn read_resistance_source_double_vs_entry
     candidates.finish(v, c, p)
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@57ee650995356ed328aee788
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@83d90f7649dd294726476a84
 pub type ResistanceSourceDoubleVs = Vec<ResistanceSourceDoubleVsEntryIWRException>;
 pub(in crate::source_model::generated) fn read_resistance_source_double_vs(
     v: &SourceValue,
@@ -4067,7 +4067,7 @@ pub(in crate::source_model::generated) fn read_resistance_source(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@1a24e5bfab2d992a591df334
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@1a24e5bfab2d992a591df334
 pub type ActorAttributesSourceResistances = Vec<ResistanceSource>;
 pub(in crate::source_model::generated) fn read_actor_attributes_source_resistances(
     v: &SourceValue,
@@ -4197,7 +4197,7 @@ pub(in crate::source_model::generated) fn read_weakness_source_exceptions_entry_
     }
 }
 
-// Source declaration: src/module/rules/rule-element/iwr/base.ts#IWRException@71529fa283e9652651b2164c
+// Source declaration: src/module/rules/rule-element/iwr/base.ts#IWRException@1d651e4623c3151a70b35803
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum WeaknessSourceExceptionsEntryIWRException {
@@ -4659,7 +4659,7 @@ pub(in crate::source_model::generated) fn read_weakness_source_exceptions_entry_
     candidates.finish(v, c, p)
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@932c3b9a24230d2fadf64b61
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@31b6858d1292726f44af20e7
 pub type WeaknessSourceExceptions = Vec<WeaknessSourceExceptionsEntryIWRException>;
 pub(in crate::source_model::generated) fn read_weakness_source_exceptions(
     v: &SourceValue,
@@ -4924,7 +4924,7 @@ pub(in crate::source_model::generated) fn read_weakness_source(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@165eccf6fdc2311ab228d87b
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@165eccf6fdc2311ab228d87b
 pub type ActorAttributesSourceWeaknesses = Vec<WeaknessSource>;
 pub(in crate::source_model::generated) fn read_actor_attributes_source_weaknesses(
     v: &SourceValue,
@@ -5005,7 +5005,7 @@ pub(in crate::source_model::generated) fn read_actor_details_source(
     })
 }
 
-// Source declaration: src/module/actor/data/base.ts#ActorTraitsSource.size.$object@ccce06632107deff74254873
+// Source declaration: src/module/actor/data/base.ts#ActorTraitsSource.size.$object@0b3d4b8ffb90eef9328884a9
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ActorTraitsSourceStringSize {
@@ -5025,7 +5025,7 @@ pub(in crate::source_model::generated) fn read_actor_traits_source_string_size(
     })
 }
 
-// Source declaration: src/module/actor/data/base.ts#ActorTraitsSource@df02d5fe4d25d897ccb1a8d3
+// Source declaration: src/module/actor/data/base.ts#ActorTraitsSource@6d4d2d7ce2a1d11407aeae40
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ActorTraitsSourceString {
@@ -5114,7 +5114,7 @@ pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_movem
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@bd2e0a9247779cb05438ff51
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@31d2b4e7fc039a880e0a6bd5
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrototypeTokenSourcePF2eMovementHistoryEntrySourceFromSchema {
@@ -5204,7 +5204,7 @@ pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_movem
     )
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@9965b4544888a5c9dbd2db99
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@91d4400d3b103b9292c1c49c
 pub type PrototypeTokenSourcePF2eMovementHistory =
     Vec<PrototypeTokenSourcePF2eMovementHistoryEntrySourceFromSchema>;
 pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_movement_history(
@@ -5220,7 +5220,7 @@ pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_movem
     )
 }
 
-// Persisted nullable collection entry: structural:3fa47ef745527486f0fcedd1
+// Persisted nullable collection entry: structural:f21c49319c089498cdf0f044
 pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_regions_entry_nullable(
     v: &SourceValue,
     c: &SourceContext,
@@ -5229,7 +5229,7 @@ pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_regio
     nullable(v, c, p, string)
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@3fa47ef745527486f0fcedd1
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@f21c49319c089498cdf0f044
 pub type PrototypeTokenSourcePF2eRegions = Vec<Option<String>>;
 pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_regions(
     v: &SourceValue,
@@ -5244,7 +5244,7 @@ pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_regio
     )
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@1150325efb58a2b347f0537f
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@f8b5fe63c0b5755ecbf5f748
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrototypeTokenSourcePF2eBar1SourceFromSchema {
@@ -5264,7 +5264,7 @@ pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_bar1_
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@0207714556f529a5105ec922
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@a2a212992f11459b52c4f65e
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrototypeTokenSourcePF2eDetectionModesEntrySourceFromSchema {
@@ -5289,7 +5289,7 @@ pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_detec
     )
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@157ef63a95db2aa26781c910
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@03a3ce503d90f70653979a88
 pub type PrototypeTokenSourcePF2eDetectionModes =
     crate::source_model::SourceMap<PrototypeTokenSourcePF2eDetectionModesEntrySourceFromSchema>;
 pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_detection_modes(
@@ -5337,7 +5337,7 @@ pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_dispo
     }
 }
 
-// Source declaration: structural:50654401c7ea9ba21796236e
+// Source declaration: structural:c44aeb55db413cfe9e03b57e
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrototypeTokenSourcePF2eFlagsEntry {
@@ -5362,7 +5362,7 @@ pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_flags
     })
 }
 
-// Source declaration: structural:f83a9764fcd654be94ff31ed
+// Source declaration: structural:ff3b0266d5e9299ca416161b
 pub type PrototypeTokenSourcePF2eFlags =
     crate::source_model::SourceMap<PrototypeTokenSourcePF2eFlagsEntry>;
 pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_flags(
@@ -5373,7 +5373,7 @@ pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_flags
     keyed(v, c, p, read_prototype_token_source_pf2e_flags_entry)
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@214bffeaf2dce7445704e7d5
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@801da283cea864688b00d7cb
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaLightDataSchemaAnimationSourceFromSchema {
@@ -5402,7 +5402,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_light_data_sch
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@fd5364fabe20c55498c7a990
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@7be2518a7b9377c630075c81
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaLightDataSchemaDarknessSourceFromSchema {
@@ -5504,7 +5504,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_light_data_sch
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@c1daa3a047f896f42f3433d7
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@bd9f3304b20f67628587750d
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrototypeTokenSourcePF2eOccludableSourceFromSchema {
@@ -5524,7 +5524,7 @@ pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_occlu
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@41afb37ff542beb2157382b1
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@38dce523aba37ca3556062ce
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrototypeTokenSourcePF2eRingSourceFromSchemaColorsSourceFromSchema {
@@ -5552,7 +5552,7 @@ pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_ring_
     )
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@8c4ec6afa2fc540a794d670a
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@0d06eac1e1db69f46504702b
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrototypeTokenSourcePF2eRingSourceFromSchemaSubjectSourceFromSchema {
@@ -5577,7 +5577,7 @@ pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_ring_
     )
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@e1ef233a0359916774831a55
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@5e40019eac2daff1d2e2da95
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrototypeTokenSourcePF2eRingSourceFromSchema {
@@ -5613,7 +5613,7 @@ pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_ring_
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@87cc83b19ee736dfa571aea4
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@cd80f3f27a86758e55e4d7cc
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrototypeTokenSourcePF2eSightSourceFromSchema {
@@ -5667,7 +5667,7 @@ pub(in crate::source_model::generated) fn read_prototype_token_source_pf2e_sight
     })
 }
 
-// Source declaration: structural:4ead5c005c33fab81af083fb
+// Source declaration: structural:03c1e08dd30f66cfa5c8832a
 pub type SourceFromSchemaTextureDataSchemaSrc = String;
 pub(in crate::source_model::generated) fn read_source_from_schema_texture_data_schema_src(
     v: &SourceValue,
@@ -5753,7 +5753,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_texture_data_s
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@b20766cd7cae4edd78bf0940
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@6e70f7e6368434d59fda7d6e
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrototypeTokenSourcePF2eTurnMarkerSourceFromSchema {

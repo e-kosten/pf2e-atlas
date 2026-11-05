@@ -83,7 +83,7 @@ pub(in crate::source_model::generated) fn read_item_granter_source(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@fb71618094a0b05b6c421b69
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@48571672edfed0230e92a754
 pub type ItemSourceFlagsPF2eEntryItemGrants = crate::source_model::SourceMap<ItemGranterSource>;
 pub(in crate::source_model::generated) fn read_item_source_flags_pf2e_entry_item_grants(
     v: &SourceValue,
@@ -93,7 +93,7 @@ pub(in crate::source_model::generated) fn read_item_source_flags_pf2e_entry_item
     keyed(v, c, p, read_item_granter_source)
 }
 
-// Source declaration: structural:c7b069aeecdb71fec02355c2
+// Source declaration: structural:352939964dc85e300ff1dee0
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum StringOrNumberOrObject {
@@ -125,7 +125,7 @@ pub(in crate::source_model::generated) fn read_string_or_number_or_object(
     candidates.finish(v, c, p)
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@d78df2c5021c2c3436eb0f68
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@4f6c4aa690622eb00453ecb1
 pub type ItemSourceFlagsPF2eEntryRulesSelections =
     crate::source_model::SourceMap<StringOrNumberOrObject>;
 pub(in crate::source_model::generated) fn read_item_source_flags_pf2e_entry_rules_selections(
@@ -136,7 +136,7 @@ pub(in crate::source_model::generated) fn read_item_source_flags_pf2e_entry_rule
     keyed(v, c, p, read_string_or_number_or_object)
 }
 
-// Source declaration: structural:0aa9d97d2ac1a40beb0b4325
+// Source declaration: structural:5ad0a61ba986546506737e24
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ItemSourceFlagsPF2eEntry {

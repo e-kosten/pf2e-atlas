@@ -64,7 +64,7 @@ pub(in crate::source_model::generated) fn read_spellcasting_entry_system_source_
     }
 }
 
-// Source declaration: src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.ability.$object@0dd17a661a76b9a3f6ccb6d5
+// Source declaration: src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.ability.$object@a73ac3c60061ebd52f007f3c
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SpellcastingEntrySystemSourceAbility {
@@ -164,7 +164,7 @@ pub(in crate::source_model::generated) fn read_spell_collection_type_source(
     })
 }
 
-// Source declaration: src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.proficiency.$object@d7fb31390c73278522d30f0a
+// Source declaration: src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.proficiency.$object@10aafff163f1c2f8c52d12c7
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SpellcastingEntrySystemSourceProficiency {
@@ -187,7 +187,7 @@ pub(in crate::source_model::generated) fn read_spellcasting_entry_system_source_
     })
 }
 
-// Source declaration: src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.showSlotlessLevels.$object@359ea28dbb08f680ed3bb848
+// Source declaration: src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.showSlotlessLevels.$object@572f1e67977f56da929efc25
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SpellcastingEntrySystemSourceShowSlotlessLevels {
@@ -230,7 +230,7 @@ pub(in crate::source_model::generated) fn read_spell_prep_data(
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@24f158b5d3d83d7f3983a0ed
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@24f158b5d3d83d7f3983a0ed
 pub type SpellSlotDataPrepared = Vec<SpellPrepData>;
 pub(in crate::source_model::generated) fn read_spell_slot_data_prepared(
     v: &SourceValue,
@@ -319,7 +319,7 @@ pub(in crate::source_model::generated) fn read_spellcasting_entry_slots(
     })
 }
 
-// Source declaration: src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.spelldc.$object@3acb604e0f0c0df24a930344
+// Source declaration: src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.spelldc.$object@046048282d2da868aafb095b
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SpellcastingEntrySystemSourceSpelldc {
@@ -370,7 +370,7 @@ pub(in crate::source_model::generated) fn read_spellcasting_entry_system_source_
     }
 }
 
-// Source declaration: src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.tradition.$object@35f704159240ed23d7cae1d1
+// Source declaration: src/module/item/spellcasting-entry/data.ts#SpellcastingEntrySystemSource.tradition.$object@f1eac34581482f1ae39c2d41
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SpellcastingEntrySystemSourceTradition {

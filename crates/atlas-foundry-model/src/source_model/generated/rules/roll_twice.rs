@@ -35,7 +35,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_roll_twice_rul
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@7088f323893bcf80339c3b8d#authored-input:selector
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@280c17d17ad41dbe418a0b9b#authored-input:selector
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaRollTwiceRuleSchema {
@@ -104,7 +104,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_roll_twice_rul
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@7088f323893bcf80339c3b8d; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@280c17d17ad41dbe418a0b9b; deferred fields:
 pub type RollTwiceRule = SourceFromSchemaRollTwiceRuleSchema;
 pub fn parse_roll_twice_rule(
     v: &SourceValue,

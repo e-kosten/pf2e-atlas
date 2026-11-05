@@ -15,6 +15,7 @@ const { input } = await preparePortfolio();
 const rustFiles = (input: GenerationInput) => Object.fromEntries(Object.entries(generateRustModules(input)).map(([file, text]) => [file, formatRust(text)]));
 
 test('pinned modular output is fresh and equipment imports the single physical owner', async () => {
+  assert.ok(input.unionOrder, 'pinned generation requires reviewed persisted naming policy');
   const files = rustFiles(input);
   assert.deepEqual(Object.keys(files).sort(), await artifactFiles(outputPath));
   for (const [file, text] of Object.entries(files)) assert.equal(text, await readFile(path.join(outputPath, file), 'utf8'));
@@ -78,6 +79,10 @@ test('field and literal drift change generated types and preserve shared ownersh
   const hp = changed.nodes.find(node => node.name === 'PhysicalItemHPSource');
   assert.ok(hp && hp.kind === 'object');
   hp.fields.push({ ...hp.fields[0], name: 'repairable', ref: 'primitive:string' });
+  assert.throws(() => generateRustModules(changed), /Unreviewed union/);
+  // Exercise the emitter independently on an intentionally unreviewed synthetic
+  // schema; normal pinned generation never removes its required policy.
+  delete changed.unionOrder;
   const files = generateRustModules(changed);
   assert.match(files['physical.rs'], /pub repairable: SourcePresence<String>/);
   assert.match(files['physical.rs'], /repairable: f.presence\("repairable", string\)/);
@@ -148,6 +153,8 @@ test('unsupported shapes, unsupported indices, dangling refs and naming collisio
   const indexSignatures = [{ key: 'primitive:boolean', value: 'primitive:number', readonly: false }];
   indexed.nodes.push({ id: 'indexed', kind: 'object', fields: [], indexSignatures });
   indexed.nodes[indexed.nodes.indexOf(hp)] = { ...hp, kind: 'intersection', members: ['indexed'], fields: hp.fields, indexSignatures };
+  assert.throws(() => generateRustModules(indexed), /Unreviewed union/);
+  delete indexed.unionOrder; // Keep the independent unsupported-index regression.
   assert.throws(() => generateRustModules(indexed), /index signature/);
   const collision = structuredClone(input);
   collision.selection.find(root => root.name === 'EquipmentFields')!.name = 'RawCoins';

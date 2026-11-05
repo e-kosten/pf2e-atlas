@@ -60,7 +60,7 @@ pub(in crate::source_model::generated) fn read_actor_uuid(
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@afe57fedfa13798faa7c8f1b
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@571e5ed0facc5a4849a8618d
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaEffectContextSpellcastingSchemaAttributeSourceFromSchema {
@@ -115,7 +115,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_effect_context
     })
 }
 
-// Source declaration: structural:7c77063c0969763207e0e544
+// Source declaration: structural:aa71c2765068cf885ab56725
 pub type SourceFromSchemaEffectContextDataSchemaOriginSourceFromSchemaToken = String;
 pub(in crate::source_model::generated) fn read_source_from_schema_effect_context_data_schema_origin_source_from_schema_token(
     v: &SourceValue,
@@ -134,7 +134,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_effect_context
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@ebcd7f508df8df9176b9b6ae
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@ea495324a9a8e167844b6104
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaEffectContextDataSchemaOriginSourceFromSchema {
@@ -439,7 +439,7 @@ pub(in crate::source_model::generated) fn read_affliction_system_source_save_sou
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@6aa1e366f41d62f22ae57593
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@543783dfcbc409e14b0fceac
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AfflictionSystemSourceSaveSourceFromSchema {
@@ -639,7 +639,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_affliction_con
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@ecebbe119a400f7040a9dde7
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@ecebbe119a400f7040a9dde7
 pub type SourceFromSchemaAfflictionStageSchemaConditions =
     Vec<SourceFromSchemaAfflictionConditionSchema>;
 pub(in crate::source_model::generated) fn read_source_from_schema_affliction_stage_schema_conditions(
@@ -676,7 +676,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_affliction_dam
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@9a827d23617cdbc2da780ad8
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@9a827d23617cdbc2da780ad8
 pub type SourceFromSchemaAfflictionStageSchemaDamage = Vec<SourceFromSchemaAfflictionDamageSchema>;
 pub(in crate::source_model::generated) fn read_source_from_schema_affliction_stage_schema_damage(
     v: &SourceValue,
@@ -686,7 +686,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_affliction_sta
     array(v, c, p, read_source_from_schema_affliction_damage_schema)
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@80ce0c2cdaeb1a4d790e4113
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@b1b892641f7122cdbcc7cc5d
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaAfflictionStageSchemaDurationSourceFromSchema {
@@ -711,7 +711,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_affliction_sta
     )
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@2b4fb1ff199bb1fcfe15aa93
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@eb298459a3b48b6543b71b1b
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaAfflictionStageSchemaEffectsEntrySourceFromSchema {
@@ -733,7 +733,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_affliction_sta
     )
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@16bd976e849919c8ea33ffcc
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@b6a17a0458a7c2a7c81dd242
 pub type SourceFromSchemaAfflictionStageSchemaEffects =
     Vec<SourceFromSchemaAfflictionStageSchemaEffectsEntrySourceFromSchema>;
 pub(in crate::source_model::generated) fn read_source_from_schema_affliction_stage_schema_effects(
@@ -790,7 +790,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_affliction_sta
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@0ab176711793fcba31c8e2d5
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@0ab176711793fcba31c8e2d5
 pub type AfflictionSystemSourceStages = Vec<SourceFromSchemaAfflictionStageSchema>;
 pub(in crate::source_model::generated) fn read_affliction_system_source_stages(
     v: &SourceValue,
@@ -800,7 +800,7 @@ pub(in crate::source_model::generated) fn read_affliction_system_source_stages(
     array(v, c, p, read_source_from_schema_affliction_stage_schema)
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@c1d8d04ce7ef318dfe321a2f
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@9e3e66276a4705572916b1dd
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AfflictionSystemSourceStartSourceFromSchema {
@@ -823,7 +823,7 @@ pub(in crate::source_model::generated) fn read_affliction_system_source_start_so
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@4af8be36aa29933aaff59f0a
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@052826be1d25ebf3e3f8727c
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AfflictionSystemSourceStatusSourceFromSchema {
@@ -849,7 +849,7 @@ pub(in crate::source_model::generated) fn read_affliction_system_source_status_s
     })
 }
 
-// Source declaration: structural:dfb3ea71367b8ad242f0a1ee
+// Source declaration: structural:c32ab903b043166a6ddaf32e
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AfflictionSystemSourceTraits {
@@ -1007,7 +1007,7 @@ pub(in crate::source_model::generated) fn read_effect_aura_data(
     })
 }
 
-// Source declaration: structural:4da4d876a1622c2be752a652
+// Source declaration: structural:4c754b78ff74cd49ba0d2a68
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AfflictionSourceFlagsEntry {
@@ -1045,7 +1045,7 @@ pub(in crate::source_model::generated) fn read_affliction_source_flags_entry(
     })
 }
 
-// Source declaration: structural:c09a4f59d5870c2651ac5768
+// Source declaration: structural:45c546d8cb421f6124f6fc8a
 pub type AfflictionSourceFlags = crate::source_model::SourceMap<AfflictionSourceFlagsEntry>;
 pub(in crate::source_model::generated) fn read_affliction_source_flags(
     v: &SourceValue,

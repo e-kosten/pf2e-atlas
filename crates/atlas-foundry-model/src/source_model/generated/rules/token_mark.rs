@@ -12,7 +12,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@dd1028401c5b65faf3a2b9b0
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@a165ce966a6fa7793c0cee48
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaTokenMarkSchema {
@@ -70,7 +70,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_token_mark_sch
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@dd1028401c5b65faf3a2b9b0; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@a165ce966a6fa7793c0cee48; deferred fields:
 pub type TokenMarkRule = SourceFromSchemaTokenMarkSchema;
 pub fn parse_token_mark_rule(
     v: &SourceValue,

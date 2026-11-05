@@ -15,7 +15,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@3ae8e02fbc7e15987d18ddd3
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@36d567d1cf7c192861ea0a1b
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaActorTraitsRuleSchema {
@@ -77,7 +77,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_actor_traits_r
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@3ae8e02fbc7e15987d18ddd3; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@36d567d1cf7c192861ea0a1b; deferred fields:
 pub type ActorTraitsRule = SourceFromSchemaActorTraitsRuleSchema;
 pub fn parse_actor_traits_rule(
     v: &SourceValue,

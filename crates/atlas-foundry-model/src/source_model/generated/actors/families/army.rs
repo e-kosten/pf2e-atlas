@@ -32,7 +32,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@fa7b97a060fb66bf71025af9
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@82c0d02a3cf08eb80986c2c5
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ArmySystemSourceAcSourceFromSchema {
@@ -55,7 +55,7 @@ pub(in crate::source_model::generated) fn read_army_system_source_ac_source_from
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@810b5f8e9d002e890eefc966
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@f6d97fd0c3840a042056129a
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ArmyAttributesSourceHpSourceFromSchema {
@@ -136,7 +136,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_army_details_s
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@6986d0523b715deed70a1f15
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@de9c62c4ca73fee3ac2f5c10
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ArmySystemSourceResourcesSourceFromSchema {
@@ -159,7 +159,7 @@ pub(in crate::source_model::generated) fn read_army_system_source_resources_sour
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@b0ef475655fc99feec712543
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@82d45cd72bc5b1152d95ea10
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ArmySystemSourceSavesSourceFromSchema {
@@ -256,7 +256,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_army_weapon_sc
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@2e7498d21365d7a2d74392cf
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@ba907f9f7014e35943ad1349
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ArmySystemSourceWeaponsSourceFromSchema {
@@ -363,7 +363,7 @@ pub fn parse_army_system_source(
     read_army_system_source(v, c, p)
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@a805a3874b9a5c957f4df166
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@ff2f651efd041b92b3917a7d
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ArmySourceStatsSourceFromSchema {
@@ -413,7 +413,7 @@ pub(in crate::source_model::generated) fn read_army_source_stats_source_from_sch
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@1cf826be0853eac92f8b2996
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@031ab007bb48d6daec1df4c2
 pub type RollOptionFlagsAll = crate::source_model::SourceMap<bool>;
 pub(in crate::source_model::generated) fn read_roll_option_flags_all(
     v: &SourceValue,
@@ -445,7 +445,7 @@ pub(in crate::source_model::generated) fn read_roll_option_flags(
     })
 }
 
-// Source declaration: structural:3aac3576d98e3626dbe59135
+// Source declaration: structural:fa6cd0a9952ececaf28fe359
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ArmySourceFlagsEntry {
@@ -476,7 +476,7 @@ pub(in crate::source_model::generated) fn read_army_source_flags_entry(
     })
 }
 
-// Source declaration: structural:5dce8dd1cd7ef16ef3dc20a5
+// Source declaration: structural:f4be2fd70c24935932894435
 pub type ArmySourceFlags = crate::source_model::SourceMap<ArmySourceFlagsEntry>;
 pub(in crate::source_model::generated) fn read_army_source_flags(
     v: &SourceValue,
@@ -486,7 +486,7 @@ pub(in crate::source_model::generated) fn read_army_source_flags(
     keyed(v, c, p, read_army_source_flags_entry)
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@a3a0f3db12197f625ac60208#authored-document#authored-document-patch
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@0808960e6adf587727cf0a13#authored-document#authored-document-patch
 pub type ArmySourceItems = Vec<ItemSourcePF2e>;
 pub(in crate::source_model::generated) fn read_army_source_items(
     v: &SourceValue,

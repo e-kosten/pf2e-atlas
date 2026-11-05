@@ -35,7 +35,7 @@ pub(in crate::source_model::generated) fn read_fast_healing_type(
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@9fc668788d4ac468bd1138f4
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@affcdc8ade06411cb31a9bfa
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaFastHealingRuleSchema {
@@ -105,7 +105,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_fast_healing_r
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@9fc668788d4ac468bd1138f4; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@affcdc8ade06411cb31a9bfa; deferred fields:
 pub type FastHealingRule = SourceFromSchemaFastHealingRuleSchema;
 pub fn parse_fast_healing_rule(
     v: &SourceValue,

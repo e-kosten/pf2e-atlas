@@ -1,6 +1,6 @@
 # Source contract discovery
 
-Offline developer tooling for investigating upstream PF2e declarations and authored trait metadata, and generating the complete pinned Rust source portfolio. It does not adopt generated parsing into the ingest pipeline, artifact, API or UI.
+Private contributor tooling for investigating upstream PF2e declarations and authored trait metadata, and generating the pinned Rust source portfolio. The Rust models supply production admission and checked snapshots; Node discovery and generation stay outside application execution.
 
 ## Run
 
@@ -20,6 +20,13 @@ the fixture tests; `verify` runs both checks, including synthetic Rust fixture f
 the compiled entry point. Fixtures stay in the source package. Public discovery
 contracts live in `src/contracts.ts`; compiler-internal access is bounded in
 `src/discovery/compiler-types.ts`. Neither this package nor its dependencies ship with Atlas.
+
+The generator consumes the stable Compiler API from Microsoft's
+[`@typescript/typescript6` package](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6-0),
+installed through the `typescript` npm alias. Package scripts use its `tsc6` binary.
+TypeScript 7's CLI package does not provide this API. `source-pin.json` records the
+compiler's reported `ts.version`, which is distinct from the compatibility package's
+version. Qualify extraction and generated output before changing that compiler pin.
 
 Command argument parsing and exit behavior live in `src/cli/`. Compiler extraction
 and catalog discovery live in `src/discovery/`; graph selection and Rust emission
@@ -75,6 +82,37 @@ fixtures cover output preflight. Missing/obsolete generated files fail freshness
 only obsolete tool-owned files and refuses unmanaged files or symlinks. Formatting
 and preflight finish before writes. A normal Rust build needs neither Node nor
 upstream source. See [ADR 0034](../../docs/architecture/decisions/0034-source-generation-layout.md).
+
+### Compiler upgrades and persisted union names
+
+`source-union-order.json` owns the ordinals and Serde variant names of unions
+whose members have compiler-dependent declaration identities. Semantic keys use
+resolved value shapes, collection nullability, trait widening and bounded recursive
+references. They exclude graph IDs, compiler flag numbers, declaration paths and
+printed generic arguments. Canonical primitive/literal vocabularies retain their
+existing semantic ordering without duplicating their contents in this policy.
+
+Ordinary generation loads this required policy and never rewrites it. Unknown,
+missing, duplicate or obsolete entries, and changed persisted variant names, stop
+generation before Rust output is written. Explicit ordinals preserve gaps; they
+are not reassigned from the current member position. Compiler printing remains
+provenance and cannot authorize renaming a stored variant.
+
+For a compiler dependency upgrade, run `verify`, `generate -- --check` and
+`verify-generated`. If provenance comments change, regenerate and review the
+complete diff. Preserve executable declarations and persisted tags for unchanged
+source shapes. The initial policy was recorded using the accepted TypeScript 5.9.3
+compiler and locked declarations, with all 98 Rust files byte-identical before
+and after applying it. Predecessor snapshot fixtures separately protect decoding
+stored values rather than only candidate round trips.
+
+Do not replace this policy with ordering recorded from an upgraded compiler to
+make freshness pass. Investigate semantic-key or printer drift first. Intentional
+source-shape changes require reviewing the affected entries with the source pin
+and Rust output: keep the ordinals and tags of surviving alternatives and retain
+gaps. Incompatible value/tag changes follow the checked snapshot codec's version
+and migration policy. Fresh extraction supplies shapes; this file supplies naming
+policy and is not a saved declaration graph.
 
 To update upstream, run `extract` against the proposed source, review the graph
 and corpus results, update the pin's commit/version/digest/count/compiler/rule keys

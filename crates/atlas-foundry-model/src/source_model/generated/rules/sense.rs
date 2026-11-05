@@ -20,7 +20,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@a981527808ae8aa9f26f0182
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@bbdd87268679682722cd3db0
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaSenseRuleSchema {
@@ -78,7 +78,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_sense_rule_sch
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@a981527808ae8aa9f26f0182; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@bbdd87268679682722cd3db0; deferred fields:
 pub type SenseRule = SourceFromSchemaSenseRuleSchema;
 pub fn parse_sense_rule(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<SenseRule> {
     read_source_from_schema_sense_rule_schema(v, c, p)

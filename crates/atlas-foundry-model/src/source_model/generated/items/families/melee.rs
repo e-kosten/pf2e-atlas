@@ -56,7 +56,7 @@ pub(in crate::source_model::generated) fn read_melee_system_source_action(
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@609d697aba95cbd8a171cf12
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@b53c2f65f9345eafe4bff89a
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MeleeSystemSourceAttackEffectsSourceFromSchema {
@@ -76,7 +76,7 @@ pub(in crate::source_model::generated) fn read_melee_system_source_attack_effect
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@c1f6751705bc5ffd51293979
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@4fa3fab3722765327efd0a97
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MeleeSystemSourceDamageRollsEntrySourceFromSchema {
@@ -102,7 +102,7 @@ pub(in crate::source_model::generated) fn read_melee_system_source_damage_rolls_
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@e7baaf4b7f533554d00ef222
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@21543749f54aa8b783a97c45
 pub type MeleeSystemSourceDamageRolls =
     crate::source_model::SourceMap<MeleeSystemSourceDamageRollsEntrySourceFromSchema>;
 pub(in crate::source_model::generated) fn read_melee_system_source_damage_rolls(
@@ -118,7 +118,7 @@ pub(in crate::source_model::generated) fn read_melee_system_source_damage_rolls(
     )
 }
 
-// Source declaration: src/module/item/melee/data.ts#NPCAttackSystemSchema.$object.range.$object@0caa1812f06a2451664eb7dd
+// Source declaration: src/module/item/melee/data.ts#NPCAttackSystemSchema.$object.range.$object@bce1c44e9c8f360d592cb26f
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MeleeSystemSourceRange {
@@ -161,7 +161,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_trait_config_s
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@469a1f78fe9a12b9467ee289
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@3314105a5d4fbaa01735c3f1
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MeleeSystemSourceTraitsSourceFromSchema {
@@ -276,7 +276,7 @@ pub fn parse_melee_system_source(
     read_melee_system_source(v, c, p)
 }
 
-// Source declaration: structural:b0e32ae075f3d7317e752574
+// Source declaration: structural:3c387ecefb17fcedf150951f
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MeleeSourceFlagsEntry {
@@ -314,7 +314,7 @@ pub(in crate::source_model::generated) fn read_melee_source_flags_entry(
     })
 }
 
-// Source declaration: structural:89f5ee7f818904d7412bebaa
+// Source declaration: structural:6b874aea6c45f6db2129caa1
 pub type MeleeSourceFlags = crate::source_model::SourceMap<MeleeSourceFlagsEntry>;
 pub(in crate::source_model::generated) fn read_melee_source_flags(
     v: &SourceValue,

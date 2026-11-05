@@ -16,7 +16,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@f3e83ef7e95059acb6804a7f
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@4c149d64c2a3f9d45fc14978
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaCraftingAbilityRuleSchemaBatchSizesSourceFromSchemaOtherEntrySourceFromSchema
@@ -42,7 +42,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_crafting_abili
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@bff18b58c855b1ecfcc1e414
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@ec902c6b796fd06e3385b75b
 pub type SourceFromSchemaCraftingAbilityRuleSchemaBatchSizesSourceFromSchemaOther = Vec<
     SourceFromSchemaCraftingAbilityRuleSchemaBatchSizesSourceFromSchemaOtherEntrySourceFromSchema,
 >;
@@ -54,7 +54,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_crafting_abili
     array(v, c, p, read_source_from_schema_crafting_ability_rule_schema_batch_sizes_source_from_schema_other_entry_source_from_schema)
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@4455da347059759684baa4da
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@feb6d4ba68bd5ef594cf44a1
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaCraftingAbilityRuleSchemaBatchSizesSourceFromSchema {
@@ -107,7 +107,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_prepared_formu
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@cfb00d0ea654c5c331faf114
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@cfb00d0ea654c5c331faf114
 pub type SourceFromSchemaCraftingAbilityRuleSchemaPrepared =
     Vec<SourceFromSchemaPreparedFormulaSchema>;
 pub(in crate::source_model::generated) fn read_source_from_schema_crafting_ability_rule_schema_prepared(
@@ -118,7 +118,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_crafting_abili
     array(v, c, p, read_source_from_schema_prepared_formula_schema)
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@0878dfa507841787817744b4
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@2b2ab0089b6e4f8b836a58e9
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaCraftingAbilityRuleSchema {
@@ -215,7 +215,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_crafting_abili
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@0878dfa507841787817744b4; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@2b2ab0089b6e4f8b836a58e9; deferred fields:
 pub type CraftingAbilityRule = SourceFromSchemaCraftingAbilityRuleSchema;
 pub fn parse_crafting_ability_rule(
     v: &SourceValue,

@@ -95,7 +95,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_token_image_ru
     }
 }
 
-// Source declaration: src/module/rules/rule-element/token-image.ts#TokenImageRuleSchema.$object.animation.$object@3db085b72d9985a0bf04f0e8
+// Source declaration: src/module/rules/rule-element/token-image.ts#TokenImageRuleSchema.$object.animation.$object@876fff0ed2832dfff435a162
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaTokenImageRuleSchemaAnimation {
@@ -130,7 +130,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_token_image_ru
     })
 }
 
-// Source declaration: src/module/rules/rule-element/token-image.ts#TokenImageRuleSchema.$object.ring.$object.subject.$object@6e1d2e08b044e0b6f9d818b0
+// Source declaration: src/module/rules/rule-element/token-image.ts#TokenImageRuleSchema.$object.ring.$object.subject.$object@83b73edb47b62f8e1ae743cd
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaTokenImageRuleSchemaRingSubject {
@@ -153,7 +153,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_token_image_ru
     })
 }
 
-// Source declaration: src/module/rules/rule-element/token-image.ts#TokenImageRuleSchema.$object.ring.$object@273412a1b23ec10f0f7fa0a7
+// Source declaration: src/module/rules/rule-element/token-image.ts#TokenImageRuleSchema.$object.ring.$object@240cf649e58e31c34e29309b
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaTokenImageRuleSchemaRing {
@@ -185,7 +185,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_token_image_ru
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@bc148779a295d218bee14073
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@23726cbc7d295b5fc02536e1
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaTokenImageRuleSchema {
@@ -266,7 +266,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_token_image_ru
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@bc148779a295d218bee14073; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@23726cbc7d295b5fc02536e1; deferred fields:
 pub type TokenImageRule = SourceFromSchemaTokenImageRuleSchema;
 pub fn parse_token_image_rule(
     v: &SourceValue,

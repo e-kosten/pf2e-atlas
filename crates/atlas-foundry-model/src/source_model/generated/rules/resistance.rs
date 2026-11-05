@@ -21,7 +21,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@7e8159495e6ae652e5e1ca9b#authored-input:type
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@d011204aae8a82fc8eb71467#authored-input:type
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaResistanceRuleSchema {
@@ -106,7 +106,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_resistance_rul
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@7e8159495e6ae652e5e1ca9b; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@d011204aae8a82fc8eb71467; deferred fields:
 pub type ResistanceRule = SourceFromSchemaResistanceRuleSchema;
 pub fn parse_resistance_rule(
     v: &SourceValue,

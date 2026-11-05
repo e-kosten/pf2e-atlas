@@ -64,7 +64,7 @@ pub(in crate::source_model::generated) fn read_damage_dice_override(
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@b21d4763295705dd8938a20a#authored-input:selector
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@5ae1a9fc240f2c45c198d60d#authored-input:selector
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaDamageDiceRuleSchema {
@@ -161,7 +161,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_damage_dice_ru
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@b21d4763295705dd8938a20a; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@5ae1a9fc240f2c45c198d60d; deferred fields:
 pub type DamageDiceRule = SourceFromSchemaDamageDiceRuleSchema;
 pub fn parse_damage_dice_rule(
     v: &SourceValue,

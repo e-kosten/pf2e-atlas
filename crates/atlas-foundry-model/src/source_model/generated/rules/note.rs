@@ -47,7 +47,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_roll_note_sche
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@5781b2f59e40f723e46dbdf3
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@cfc94e5c49d485624da71def
 pub type SourceFromSchemaRollNoteSchemaOutcome = Vec<SourceFromSchemaRollNoteSchemaOutcomeEntry>;
 pub(in crate::source_model::generated) fn read_source_from_schema_roll_note_schema_outcome(
     v: &SourceValue,
@@ -87,7 +87,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_roll_note_sche
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@29284f3b9b19f6026ae93f73#authored-input:selector
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@c8193ba71edae8a3b2607986#authored-input:selector
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaRollNoteSchema {
@@ -171,7 +171,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_roll_note_sche
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@29284f3b9b19f6026ae93f73; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@c8193ba71edae8a3b2607986; deferred fields:
 pub type NoteRule = SourceFromSchemaRollNoteSchema;
 pub fn parse_note_rule(v: &SourceValue, c: &SourceContext, p: &str) -> ParseResult<NoteRule> {
     read_source_from_schema_roll_note_schema(v, c, p)
