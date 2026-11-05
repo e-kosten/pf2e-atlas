@@ -3039,7 +3039,7 @@ describe("encounter views", () => {
     expect(screen.getByLabelText("Name")).toHaveValue("Other");
   });
 
-  it("finishes scheduled form feedback before disposing the encounter test environment", async () => {
+  it("disposes the encounter test environment without running cancelled form feedback", async () => {
     const clockSetTimeout = globalThis.setTimeout;
     const feedbackCallbacks: ReturnType<typeof vi.fn>[] = [];
     const timerSpy = vi
@@ -3066,8 +3066,8 @@ describe("encounter views", () => {
       for (const client of clients) client.setQueryData(["disposal-probe"], "retained");
       cleanup();
       for (const client of testQueryClients) client.clear();
-      // Ant Form's empty error/warning feedback schedules debounce work even
-      // without validation errors. Unmounting does not cancel those callbacks.
+      // Ant Form schedules feedback on mount and cancels it on unmount. Other
+      // pending work must still finish before the test environment is disposed.
       expect(vi.getTimerCount()).toBeGreaterThan(0);
       expect(feedbackCallbacks.length).toBeGreaterThan(0);
       expect(
@@ -3075,9 +3075,9 @@ describe("encounter views", () => {
       ).toBe(true);
       await disposeEncounterTest();
       expect(vi.getTimerCount()).toBe(0);
-      expect(feedbackCallbacks.some((callback) => callback.mock.calls.length > 0)).toBe(
-        true,
-      );
+      expect(
+        feedbackCallbacks.every((callback) => callback.mock.calls.length === 0),
+      ).toBe(true);
       for (const client of clients) expect(client.getQueryCache().getAll()).toEqual([]);
     } finally {
       timerSpy.mockRestore();

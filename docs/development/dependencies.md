@@ -29,7 +29,9 @@ unmaintained-package warnings separately as replacement opportunities.
 
 The frontend currently has a scoped exception for
 [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249)
-in minimatch 10.2.5 under TypeScript ESLint's development-only dependency tree.
+in minimatch 10.2.6 under TypeScript ESLint's development-only dependency tree.
+This exact resolution was re-reviewed on November 5, 2026; the original review
+deadline remains unchanged.
 The current parent package requires minimatch 10, and lint patterns come from
 repository configuration. Revisit when upstream supports a fixed release, if
 lint begins to accept untrusted patterns, or by December 4, 2026. The audit fails
