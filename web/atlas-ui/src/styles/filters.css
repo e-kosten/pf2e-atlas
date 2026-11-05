@@ -97,8 +97,8 @@
   contain-intrinsic-size: auto 36px;
 }
 .common-choice-marker {
-  flex: 0 0 14px;
-  width: 14px;
+  flex-shrink: 0;
+  margin-inline-start: auto;
 }
 .common-choice-label {
   white-space: normal;
@@ -110,6 +110,12 @@
   gap: 8px;
   padding-top: 8px;
   border-top: 1px solid var(--line);
+}
+.common-choice-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-block-size: 1lh;
 }
 .filter-range {
   display: grid;

@@ -1,5 +1,5 @@
 import { ErrorNotice } from "../feedback/ErrorNotice";
-import { Button, Checkbox, Space, Typography } from "antd";
+import { Button, Checkbox, Space, Spin, Typography } from "antd";
 import { useEffect, useState } from "react";
 import type {
   FilterEditorFieldView,
@@ -257,21 +257,26 @@ function FilterChoicePicker({
               Show unavailable
             </Checkbox>
           )}
-          {query.data && (
-            <Typography.Text type="secondary" role="status">
-              {query.isFetching ? (
-                "Loading values…"
-              ) : (
-                <>
-                  {new Intl.NumberFormat().format(total)} values
-                  {scope.kind === "saved_list" ? " in this list" : ""}
-                  {pages > 1n
-                    ? " · Page " + (offset / VOCABULARY_PAGE_SIZE + 1) + " of " + pages
-                    : ""}
-                </>
-              )}
-            </Typography.Text>
-          )}
+          <div className="common-choice-progress">
+            {query.data && (
+              <Typography.Text type="secondary" role="status">
+                {new Intl.NumberFormat().format(total)} values
+                {scope.kind === "saved_list" ? " in this list" : ""}
+                {pages > 1n
+                  ? " · Page " +
+                    (query.data.offset / VOCABULARY_PAGE_SIZE + 1) +
+                    " of " +
+                    pages
+                  : ""}
+              </Typography.Text>
+            )}
+            <Spin
+              size="small"
+              spinning={query.isFetching}
+              delay={500}
+              aria-label="Loading values"
+            />
+          </div>
           <Space size="small">
             <Button
               size="small"

@@ -181,13 +181,6 @@ export function ChoicePicker({
               onClick={() => change(option.value, next)}
               onKeyDown={closeOnEscape}
             >
-              <span className="common-choice-marker" aria-hidden="true">
-                {state === "include" ? (
-                  <PlusOutlined />
-                ) : state === "exclude" ? (
-                  <MinusOutlined />
-                ) : null}
-              </span>
               <span className="common-choice-label">{option.label}</span>
               {counts?.has(option.value) && (
                 <Typography.Text
@@ -196,6 +189,11 @@ export function ChoicePicker({
                 >
                   {new Intl.NumberFormat().format(counts.get(option.value)!)}
                 </Typography.Text>
+              )}
+              {state !== "neutral" && (
+                <span className="common-choice-marker" aria-hidden="true">
+                  {state === "include" ? <PlusOutlined /> : <MinusOutlined />}
+                </span>
               )}
             </Button>
           );

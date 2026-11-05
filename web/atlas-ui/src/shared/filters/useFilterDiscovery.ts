@@ -210,6 +210,7 @@ type OptionPage = {
   >;
   contextual: boolean;
   pageKey: string;
+  offset: number;
   counts?: ReadonlyMap<string, bigint>;
 };
 function searchPageKey(text: string, offset: number) {
@@ -281,6 +282,7 @@ export function useFilterVocabulary(
           return {
             contextual: true,
             pageKey: searchPageKey(text, offset),
+            offset,
             counts: new Map(
               result.outcome.value.options.map((option) => [
                 String(option.value),
@@ -308,6 +310,7 @@ export function useFilterVocabulary(
         values: result.values,
         contextual: false,
         pageKey: searchPageKey(text, offset),
+        offset,
       };
     },
   });
