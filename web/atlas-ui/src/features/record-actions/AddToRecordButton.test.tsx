@@ -9,11 +9,14 @@ import {
 } from "@testing-library/react";
 import { App, ConfigProvider } from "antd";
 import type { RecordSummaryView } from "../../generated/atlas";
+import { detailFixture } from "../../test/fixtures";
 import { AddToRecordButton } from "./AddToRecordButton";
 
 const api = vi.hoisted(() => ({
   getSavedLists: vi.fn(),
   getEncounters: vi.fn(),
+  getEncounter: vi.fn(),
+  getRecordDetail: vi.fn(),
   createSavedList: vi.fn(),
   createEncounter: vi.fn(),
   addSavedListItem: vi.fn(),
@@ -65,6 +68,11 @@ beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
   api.getSavedLists.mockResolvedValue({ lists: [] });
   api.getEncounters.mockResolvedValue({ encounters: [] });
+  api.getEncounter.mockResolvedValue(null);
+  api.getRecordDetail.mockResolvedValue({
+    ...detailFixture(creature.record_key),
+    encounter_adjustment: "normal",
+  });
 });
 it("creates and adds to a list in one submission, preserving the browsing location and returning focus", async () => {
   api.createSavedList.mockResolvedValue({ list });
@@ -112,7 +120,9 @@ it("retains a created destination after an add failure and retries only the add"
   fireEvent.change(screen.getByRole("textbox", { name: "New encounter name" }), {
     target: { value: "Ambush" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Create & add" }));
+  const submit = screen.getByRole("button", { name: "Create & add" });
+  await waitFor(() => expect(submit).toBeEnabled());
+  fireEvent.click(submit);
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "Ambush was created. Adding the record could not be confirmed.",
   );
@@ -182,4 +192,19 @@ it.each(["creature", "hazard"])("keeps both destinations for a %s", (kind) => {
   setup({ ...creature, kind });
   expect(screen.getByRole("tab", { name: "Lists" })).toBeVisible();
   expect(screen.getByRole("tab", { name: "Encounters" })).toBeVisible();
+});
+
+it("blocks adding a creature while its adjustment lookup is unavailable and lets the user retry", async () => {
+  api.getRecordDetail.mockRejectedValueOnce(new Error("Disconnected"));
+  setup();
+  fireEvent.click(screen.getByRole("tab", { name: "Encounters" }));
+  fireEvent.click(screen.getByRole("button", { name: "New encounter" }));
+  expect(await screen.findByText("Creature adjustment could not load")).toBeVisible();
+  expect(screen.getByText("Unavailable")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Create & add" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: /^Retry$/ }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Create & add" })).toBeEnabled(),
+  );
+  expect(screen.getByText("Normal", { exact: true })).toBeVisible();
 });

@@ -2,7 +2,7 @@
 .record-destination-picker__form {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
+  gap: var(--space-group);
 }
 
 .record-destination-picker__choices {
@@ -31,4 +31,19 @@
 
 .record-destination-picker__footer-actions {
   margin-inline-start: auto;
+}
+
+.record-destination-picker__record {
+  display: block;
+  margin-block-end: var(--space-control);
+}
+
+.record-destination-picker__encounter-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-control) var(--space-group);
+}
+
+.record-destination-picker__encounter-fields > div {
+  margin-block-end: 0;
 }

@@ -53,6 +53,21 @@ pub(crate) fn initial_variant(
         (None, ParticipantVariantOrigin::InheritedUnknown)
     }
 }
+pub(crate) fn record_add_variant(
+    record: &SourceBackedRecord,
+) -> (
+    ParticipantVariant,
+    atlas_local_state::ParticipantVariantOrigin,
+) {
+    match initial_variant(record) {
+        (Some(variant), origin) => (variant, origin),
+        (None, _) => (
+            ParticipantVariant::Normal,
+            atlas_local_state::ParticipantVariantOrigin::DefaultUnadjusted,
+        ),
+    }
+}
+
 pub(super) fn integer(value: &Number) -> Option<i64> {
     if let Some(i) = value.as_i64() {
         return Some(i);

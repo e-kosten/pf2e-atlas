@@ -119,9 +119,7 @@ export function useModalLayout({
           : bounds.height <= 600
             ? 16
             : Math.max(16, Math.min(80, bounds.height * 0.08));
-    const availableHeight = Math.max(0, bounds.height - inset - 16);
-    const height =
-      layout === "browse" ? Math.min(900, availableHeight) : availableHeight;
+    const height = Math.max(0, bounds.height - inset - 16);
     const style: CSSProperties & { "--atlas-modal-height": string } = {
       "--atlas-modal-height": `${height}px`,
       top: 0,

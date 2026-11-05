@@ -71,6 +71,8 @@ pub(crate) enum Command {
     Filters(FiltersArgs),
     #[command(about = "Create and edit durable local saved lists", alias = "list")]
     Lists(ListsArgs),
+    #[command(about = "Create, inspect, and populate saved encounters")]
+    Encounters(commands::encounters::EncountersArgs),
     #[command(about = "Validate authored tag data")]
     Tags(TagsArgs),
     #[command(about = "Install and inspect Atlas agent integrations")]
@@ -148,6 +150,7 @@ impl Command {
                 FiltersCommand::Fields(options) => options.json,
                 FiltersCommand::Values(options) => options.json,
             },
+            Self::Encounters(options) => options.json,
             Self::Lists(lists) => match &lists.command {
                 ListsCommand::Create(options) => options.json,
                 ListsCommand::Ls(options) => options.json,
@@ -210,6 +213,7 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
                 commands::filter_discovery::run_filters_values(*options)
             }
         },
+        Command::Encounters(options) => commands::encounters::run(options),
         Command::Lists(lists) => match lists.command {
             ListsCommand::Create(options) => commands::lists::run_lists_create(options),
             ListsCommand::Ls(options) => commands::lists::run_lists_ls(options),

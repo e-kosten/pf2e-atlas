@@ -27,6 +27,7 @@ export function ReferenceReader({
   reading,
   selectedRecordKey = null,
   recordActions,
+  readerHeaderActions,
   readerContext,
   status,
   readerFooter,
@@ -41,6 +42,7 @@ export function ReferenceReader({
   reading: ReferenceReading;
   selectedRecordKey?: string | null;
   readerContext?: ReactNode;
+  readerHeaderActions?: ReactNode;
   recordActions?: (record: RecordSummaryView) => ReactNode;
   status?: ReactNode;
   readerFooter?: ReactNode;
@@ -403,6 +405,7 @@ export function ReferenceReader({
               </Button>
             )}
           {detail && recordActions?.(detail.record)}
+          {detail && readerHeaderActions}
           {fullRoute && (
             <Button
               type="text"

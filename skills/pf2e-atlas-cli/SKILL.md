@@ -1,6 +1,6 @@
 ---
 name: pf2e-atlas-cli
-description: Answer Pathfinder 2e reference questions using the local Atlas CLI, with strict identity lookup, source-attributed search, typed filters, trait definitions, graph context, saved lists and dice rolls.
+description: Answer Pathfinder 2e reference questions using the local Atlas CLI, with strict identity lookup, source-attributed search, typed filters, trait definitions, graph context, saved lists, encounter prep and dice rolls.
 ---
 
 Use `atlas` for PF2e questions. It reads a local artifact built from the Foundry
@@ -8,8 +8,8 @@ PF2e source. Product reads work without the original source clone. Run
 `atlas --help` and subcommand help when the installed version's surface is unclear.
 Use the caller's workspace (`--index PATH`) consistently across related commands;
 otherwise Atlas uses its global workspace. In a checkout, use `--path-mode repo`
-only when the caller intends its local workspace. Saved encounters and reusable
-parties are managed through `atlas web`; they have no CLI commands.
+only when the caller intends its local workspace. Use `atlas web` to run
+encounters and manage reusable parties.
 
 ## Installing Atlas
 
@@ -417,6 +417,31 @@ Importing an existing id fails unless `--replace` is explicitly requested.
 Lists share the persistent workspace with reference data. A missing record keeps
 its saved snapshot and explicit unresolved status after a reference update. Use
 the list commands to change saved state; source updates preserve it.
+
+## Encounter prep
+
+Use `encounters list` to find an encounter slug and `encounters show` to read
+its roster and difficulty. Create an encounter or add opponents when the caller
+requests a saved-state change:
+
+```sh
+atlas encounters list --json
+atlas encounters create "Garden Sentries" --json
+atlas encounters add garden-sentries --record PACK:ID --quantity 2 --adjustment weak --json
+atlas encounters show garden-sentries --party-level 7 --party-size 4 --json
+```
+
+Use a resolved creature or hazard key for `--record`. Each copy gets its own
+participant entry. `--adjustment` accepts `normal`, `elite` or `weak` for
+creatures. Omission uses the creature's known adjustment, defaulting to Normal
+when unavailable. Eligible Elite and Weak additions get that prefix in the
+participant name.
+
+Read `data.difficulty.rating`, `total_xp`, `budgets`, `opposition` and
+`xp_per_pc`. Report opposition XP separately from the suggested award per PC.
+Check `basis`, `reference_note`, `award_note` and opponent availability before
+interpreting missing values. The party flags on `show` preview difficulty
+without saving a party override.
 
 ## Dice and source inspection
 

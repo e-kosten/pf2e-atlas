@@ -12,13 +12,13 @@ import {
 } from "./useReferenceReading";
 
 import { recordDetailQueryOptions } from "./recordDetailQuery";
-import type { RecordNavigationView } from "../../generated/atlas";
+import type { RecordDetailView, RecordNavigationView } from "../../generated/atlas";
 
 type Selection = {
   request: ReadingRequest;
   name: string;
   generation: string | null;
-  commit: () => void;
+  commit: (detail: RecordDetailView) => void;
 };
 type Attempt = Selection & {
   ticket: number;
@@ -115,7 +115,7 @@ export function usePreparedReferenceSelection(
       // React batches these updates: the candidate, reading address and already
       // cached exact document become visible together, with no loading shell.
       reading.select(selection.request);
-      selection.commit();
+      selection.commit(parent);
       setAttempt(null);
     } catch (error) {
       if (sequence.current === ticket)

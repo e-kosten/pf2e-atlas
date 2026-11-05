@@ -10,10 +10,12 @@ import {
   Pagination,
   Space,
   theme,
+  Tooltip,
   Typography,
 } from "antd";
-import type { FormInstance, ModalProps } from "antd";
-import { useId, useLayoutEffect, useState } from "react";
+import { X } from "lucide-react";
+import type { FormInstance, InputRef, ModalProps } from "antd";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { searchPage } from "../../../api/atlasApi";
 import { useSearchProfile } from "../../search/SearchProfileContext";
 import {
@@ -59,6 +61,7 @@ import {
 
 export type PickerSelection = {
   record: RecordSummaryView;
+  detail: RecordDetailView;
   artifact_generation: string;
 };
 
@@ -80,6 +83,7 @@ export function SearchPickerModal<FormValues>({
   confirmLabel = "Add",
   status,
   summary,
+  allowClearSelection = false,
 }: {
   buildRequest: (query: string) => SearchResultsRequest;
   disabled?: boolean;
@@ -99,9 +103,11 @@ export function SearchPickerModal<FormValues>({
   confirmLabel?: string;
   status?: React.ReactNode;
   summary?: React.ReactNode;
+  allowClearSelection?: boolean;
 }) {
   useDismissOnReadingNavigation(open && !disabled, onCancel);
   const formId = useId();
+  const searchInput = useRef<InputRef>(null);
   const { token } = theme.useToken();
   const narrow = !Grid.useBreakpoint().lg;
   const profile = useSearchProfile();
@@ -269,10 +275,14 @@ export function SearchPickerModal<FormValues>({
       <Modal
         layout="browse"
         className="reference-picker"
-        classNames={{ body: "reference-picker__body" }}
+        classNames={{
+          container: "reference-picker__container",
+          body: "reference-picker__body",
+        }}
         width="min(1400px, calc(100vw - 32px))"
         styles={{
           body: { display: "flex", flexDirection: "column", overflow: "hidden" },
+          footer: { containerType: "inline-size", containerName: "picker-footer" },
         }}
         afterOpenChange={(isOpen) => {
           if (!isOpen) reset();
@@ -288,19 +298,19 @@ export function SearchPickerModal<FormValues>({
               if (!disabled && !preparing) onFinish(values);
             }}
           >
+            {summary && <div className="reference-picker__summary">{summary}</div>}
             <div className="reference-picker__footer-content">
               <div className="reference-picker__fields">
                 {typeof children === "function"
                   ? children(reading.parentDetail)
                   : children}
               </div>
-              {summary && <div className="reference-picker__summary">{summary}</div>}
               {!summary && status}
               {summary && status && (
                 <div className="reference-picker__status">{status}</div>
               )}
             </div>
-            <Space className="reference-picker__actions">
+            <Space wrap className="reference-picker__actions">
               <Button disabled={disabled} onClick={onCancel}>
                 {dismissLabel}
               </Button>
@@ -328,6 +338,7 @@ export function SearchPickerModal<FormValues>({
         title={title}
       >
         <FilterControls
+          searchInputRef={searchInput}
           layout="toolbar"
           searchRowEnd={
             <SearchSettings
@@ -421,6 +432,26 @@ export function SearchPickerModal<FormValues>({
           disabled={disabled}
           selectedRecordKey={selectedRecordKey}
           onReaderClose={selection.cancel}
+          readerHeaderActions={
+            allowClearSelection && selectedRecordKey ? (
+              <Tooltip title="Clear selection" trigger={["hover", "focus"]}>
+                <Button
+                  type="text"
+                  icon={<X size={16} aria-hidden="true" />}
+                  aria-label="Clear selection"
+                  disabled={disabled}
+                  onClick={() => {
+                    selection.cancel();
+                    reading.inspect(null);
+                    onSelectionChange(null);
+                    requestAnimationFrame(() =>
+                      searchInput.current?.focus({ preventScroll: true }),
+                    );
+                  }}
+                />
+              </Tooltip>
+            ) : undefined
+          }
           onSelect={(row, request) => {
             const page = recordResults.data;
             if (!disabled && page)
@@ -428,8 +459,9 @@ export function SearchPickerModal<FormValues>({
                 request,
                 name: row.record.title,
                 generation: page.artifact_generation,
-                commit: () =>
+                commit: (detail) =>
                   onSelectionChange({
+                    detail,
                     record: row.record,
                     artifact_generation: page.artifact_generation,
                   }),

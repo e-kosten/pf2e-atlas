@@ -780,16 +780,16 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
         })
         .unwrap();
     let current = f.worker.encounter(&encounter.slug).unwrap();
-    let unknown = current
+    let fallback = current
         .participants
         .iter()
         .find(|p| p.record_key.as_deref() == Some("actors:contextUnknown01"))
         .unwrap();
-    let unknown = f
+    let fallback = f
         .worker
         .encounter_reference(
             &encounter.slug,
-            &unknown.participant_key,
+            &fallback.participant_key,
             EncounterReferenceRequest {
                 condition_id: None,
                 artifact_generation: current.artifact_generation.unwrap(),
@@ -804,10 +804,7 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
             },
         )
         .unwrap();
-    let unknown = serde_json::to_string(&unknown.presentation.content).unwrap();
-    assert!(
-        unknown.contains("the creature’s level"),
-        "unknown effective level never falls back to its unadjusted source"
-    );
-    assert!(!unknown.contains(">4d6"));
+    let content = serde_json::to_string(&fallback.presentation.content).unwrap();
+    assert!(content.contains(">4d6"));
+    assert!(f.worker.roll_content(get_roll(&fallback)).is_ok());
 }

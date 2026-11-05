@@ -54,6 +54,8 @@ const apiMocks = vi.hoisted(() => ({
   getRecordDetail: vi.fn(),
   getRelatedRecords: vi.fn(),
   getEncounters: vi.fn(),
+  getEncounter: vi.fn(),
+  previewEncounterDifficulty: vi.fn(),
   getSavedLists: vi.fn(),
   filterSavedList: vi.fn(),
   searchPage: vi.fn(),
@@ -70,6 +72,8 @@ vi.mock("../api/atlasApi", async (original) => ({
   getRecordDetail: apiMocks.getRecordDetail,
   getRelatedRecords: apiMocks.getRelatedRecords,
   getEncounters: apiMocks.getEncounters,
+  getEncounter: apiMocks.getEncounter,
+  previewEncounterDifficulty: apiMocks.previewEncounterDifficulty,
   getSavedLists: apiMocks.getSavedLists,
   filterSavedList: apiMocks.filterSavedList,
   searchPage: apiMocks.searchPage,
@@ -854,7 +858,10 @@ describe("AtlasApp routing", () => {
           key === linkedKey ? `Linked ${kind}` : "heal",
           key === linkedKey ? undefined : linkedKey,
         );
-        if (key === linkedKey) detail.record.kind = kind;
+        if (key === linkedKey) {
+          detail.record.kind = kind;
+          if (kind === "creature") detail.encounter_adjustment = "normal";
+        }
         return detail;
       });
       apiMocks.getEncounters.mockResolvedValue({
@@ -866,6 +873,24 @@ describe("AtlasApp routing", () => {
             status: "draft",
           },
         ],
+      });
+      const difficulty = {
+        reference: { party_level: 5, party_size: 4 },
+        party_level: 5,
+        party_size: 4,
+        rating: "Moderate",
+        total_xp: 80,
+        budgets: [{ label: "Extreme", xp: 160 }],
+      };
+      apiMocks.getEncounter.mockResolvedValue({
+        revision: 1n,
+        artifact_generation: "generation-a",
+        difficulty,
+      });
+      apiMocks.previewEncounterDifficulty.mockResolvedValue({
+        ...difficulty,
+        rating: "Severe",
+        total_xp: 120,
       });
       apiMocks.addEncounterRecordParticipant.mockResolvedValue({
         encounter_key: "enc_ambush",
@@ -892,10 +917,35 @@ describe("AtlasApp routing", () => {
       if (compatible)
         fireEvent.click(within(picker).getByRole("tab", { name: "Encounters" }));
       else expect(within(picker).queryByRole("tab", { name: "Encounters" })).toBeNull();
-      const selector = within(picker).getByRole("combobox");
+      const selector = within(picker).getByRole("combobox", {
+        name: compatible ? "Encounter" : "Saved list",
+      });
       await waitFor(() => expect(selector).toBeEnabled());
       fireEvent.mouseDown(selector);
       fireEvent.click(await screen.findByText(compatible ? "Ambush" : "Research"));
+      if (compatible) {
+        if (kind === "creature") {
+          fireEvent.mouseDown(
+            within(picker).getByRole("combobox", { name: "Adjustment" }),
+          );
+          fireEvent.click(await screen.findByText("Weak", { exact: true }));
+        }
+        fireEvent.change(within(picker).getByRole("spinbutton", { name: "Quantity" }), {
+          target: { value: "2" },
+        });
+        await waitFor(() =>
+          expect(apiMocks.previewEncounterDifficulty).toHaveBeenLastCalledWith(
+            "enc_ambush",
+            expect.objectContaining({
+              addition: {
+                record_ref: linkedKey,
+                quantity: 2,
+                participant_variant: kind === "creature" ? "weak" : null,
+              },
+            }),
+          ),
+        );
+      }
       fireEvent.click(within(picker).getByRole("button", { name: "Add" }));
       const mutation = compatible
         ? apiMocks.addEncounterRecordParticipant
@@ -903,7 +953,12 @@ describe("AtlasApp routing", () => {
       await waitFor(() => expect(mutation).toHaveBeenCalledTimes(1));
       expect(mutation).toHaveBeenCalledWith(
         compatible
-          ? { encounter_ref: "enc_ambush", record_ref: linkedKey, quantity: 1 }
+          ? {
+              encounter_ref: "enc_ambush",
+              record_ref: linkedKey,
+              quantity: 2,
+              ...(kind === "creature" ? { participant_variant: "weak" } : {}),
+            }
           : { list_ref: "list_research", record_ref: linkedKey },
       );
       await waitFor(() => expect(picker).not.toBeVisible());

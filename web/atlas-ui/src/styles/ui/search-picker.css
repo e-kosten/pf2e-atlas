@@ -45,8 +45,11 @@
 }
 
 .reference-picker__summary {
-  flex: 1;
-  min-width: min(100%, 20rem);
+  grid-column: 1 / -1;
+  min-width: 0;
+  max-height: calc(var(--atlas-modal-height) * 0.25);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 .reference-picker__actions {
   justify-self: end;
@@ -56,8 +59,15 @@
   color: var(--muted);
   font-size: 12px;
 }
+
 @media (max-width: 600px) {
-  .reference-picker__footer {
+  .reference-picker__footer:not(.reference-picker__footer--summary) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container picker-footer (max-width: 22rem) {
+  .reference-picker__footer--summary {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -74,6 +84,33 @@
   }
   .reference-picker .filter-toolbar {
     max-height: calc(var(--control-height) + 20px);
+  }
+}
+
+@media (max-height: 480px) {
+  .reference-picker .reference-picker__container {
+    padding: var(--space-control) var(--space-group);
+  }
+
+  .reference-picker .filter-toolbar {
+    padding-block: 0;
+    max-height: calc(var(--control-height) + var(--space-control));
+  }
+
+  @container picker-footer (min-width: 18.5rem) {
+    .reference-picker__footer--summary {
+      grid-template-columns: minmax(0, 1fr) auto;
+      column-gap: var(--space-control);
+    }
+  }
+
+  @container picker-footer (min-width: 36rem) {
+    .reference-picker__footer--summary {
+      grid-template-columns: minmax(0, 1fr) auto auto;
+    }
+    .reference-picker__summary {
+      grid-column: auto;
+    }
   }
 }
 
