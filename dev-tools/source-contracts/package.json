@@ -35,7 +35,7 @@
     "compare-traits": "node dist/src/cli/compare-traits.js"
   },
   "dependencies": {
-    "typescript": "5.9.3"
+    "typescript": "7.0.2"
   },
   "devDependencies": {
     "@types/jest": "29.5.14",
