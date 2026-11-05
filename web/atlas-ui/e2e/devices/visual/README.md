@@ -5,6 +5,20 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Inline encounter editing
+
+Source `df24202a4986985bde9fb7be8d1b8d3997057404`, Playwright 1.62.1.
+Three desktop Chromium frames per OS show the blank initiative dash and the
+subtler name and HP controls behind the condition dialog. The same checkpoints
+on phone and tablet pass with their existing references.
+
+- macOS 27.2 (26B123), arm64, captured the pending and settled Drained previews
+  and the Quickened editor with the checkout's browser fixture.
+- Linux x64, Ubuntu 24.04, used [capture 41947960763](https://github.com/e-kosten/pf2e-atlas/actions/runs/41947960763)
+  and the authenticated fixture from CI run 41942875168, merge commit
+  `89cbfb11dedf4eb37f0d32262451dbde66e8194f`. Fixture SHA-256
+  `f04d81cc78ffd345ed009172e3aa174600cf93e67bdb87e1bff841c6bd090df3`.
+
 ## Consistent encounter empty notes
 
 Source `c68a3d4dcb0b273ac7673e12db79f3d2ffcdd66a`, macOS 27.2 (26B123),
