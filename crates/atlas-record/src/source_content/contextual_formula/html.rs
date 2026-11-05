@@ -19,13 +19,8 @@ pub fn render_contextual_interactions(
                 (
                     ContentInteractionKind::Damage { formula, options },
                     ContentInteractionLabel::Damage | ContentInteractionLabel::HealingPoints,
-                ) => contextual_damage_text(
-                    formula,
-                    context,
-                    options.contains_key("shortLabel")
-                        || matches!(i.label, ContentInteractionLabel::HealingPoints),
-                )?
-                .html(),
+                ) => contextual_damage_text(formula, context, options.contains_key("shortLabel"))?
+                    .html(),
                 (
                     ContentInteractionKind::Check { statistic, options },
                     ContentInteractionLabel::Check {

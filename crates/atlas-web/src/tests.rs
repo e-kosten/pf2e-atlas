@@ -1205,7 +1205,7 @@ async fn similarity_inventory_route_rejects_unknown_seed_fields() {
 #[tokio::test]
 async fn content_roll_reference_roll_transport_checks_the_request_shape() {
     let fixture = Fixture::new();
-    let(status,body)=fixture.json(Method::POST,"/api/rolls/content",Some(json!({"source":{"record":ACTION,"embedded_path":[],"field":"/system/description/value"},"source_fingerprint":fixture.source_fingerprint,"content_interpretation_version":"foundry-content/v22","ordinal":0,"authored_formula":"1d6[fire]"}))).await;
+    let(status,body)=fixture.json(Method::POST,"/api/rolls/content",Some(json!({"source":{"record":ACTION,"embedded_path":[],"field":"/system/description/value"},"source_fingerprint":fixture.source_fingerprint,"content_interpretation_version":"foundry-content/v23","ordinal":0,"authored_formula":"1d6[fire]"}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert!(body["components"].is_array());
     let (status, body) = fixture
