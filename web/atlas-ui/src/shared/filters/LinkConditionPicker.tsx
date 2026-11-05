@@ -129,7 +129,7 @@ export function LinkConditionPicker({
       </Form.Item>
       <Form.Item
         name="includeContents"
-        style={{ minWidth: 0, width: 200, maxWidth: "100%" }}
+        style={{ minWidth: 0, width: 160, maxWidth: "100%" }}
         getValueProps={(value: boolean) => ({ value: value ? "whole" : "main" })}
         getValueFromEvent={(value: string) => value === "whole"}
         label={
