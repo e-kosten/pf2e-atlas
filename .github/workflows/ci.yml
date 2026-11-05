@@ -71,7 +71,7 @@ jobs:
           fi
           cat selected-checks >> "$GITHUB_OUTPUT"
           cat selected-checks >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Check reviewed embedding dependencies
@@ -154,7 +154,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.source-ref || github.sha }}
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: node --test scripts/validation/skill.test.ts
@@ -169,7 +169,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.source-ref || github.sha }}
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -231,7 +231,7 @@ jobs:
           shared-key: linux-verification
           cache-workspace-crates: false
           save-if: 'false'
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - uses: actions/download-artifact@v7
@@ -263,7 +263,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.source-ref || github.sha }}
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -313,7 +313,7 @@ jobs:
         if: needs.changes.outputs.rust == 'true'
         run: cargo test -p atlas-index --lib --locked publication_crash_tests
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         if: needs.changes.outputs.tooling == 'true'
         with:
           node-version: 22
@@ -355,7 +355,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.source-ref || github.sha }}
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -377,7 +377,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -407,7 +407,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.source-ref || github.sha }}
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -441,7 +441,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.source-ref || github.sha }}
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: sh scripts/validation/research.sh
