@@ -139,7 +139,7 @@ jobs:
               { echo '~~~json'; cat "$report"; echo '~~~'; } >> "$GITHUB_STEP_SUMMARY"
             fi
           done
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: ${{ always() }}
         with:
           name: embedding-compatibility-${{ matrix.os }}
@@ -176,7 +176,7 @@ jobs:
           cache-dependency-path: web/atlas-ui/package-lock.json
       - run: npm --prefix web/atlas-ui ci
       - run: npm --prefix web/atlas-ui run verify:bundle
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: web-bundle
           overwrite: true
@@ -209,7 +209,7 @@ jobs:
         run: scripts/verify.sh
       - name: Validation evidence
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rust-validation-attempt-${{ github.run_attempt }}
           path: .atlas/validation/
@@ -242,7 +242,7 @@ jobs:
         run: |
           node scripts/browser-fixture.mjs scratch/browser-artifact
           cat scratch/browser-artifact/manifest.json >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: browser-fixture
           overwrite: true
@@ -286,7 +286,7 @@ jobs:
         run: npm exec -- playwright test --config playwright.devices.config.ts --shard=${{ matrix.shard }}/2
       - name: Browser evidence
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: device-browsers-${{ matrix.shard }}-attempt-${{ github.run_attempt }}
           path: scratch/responsive-validation/browser/
