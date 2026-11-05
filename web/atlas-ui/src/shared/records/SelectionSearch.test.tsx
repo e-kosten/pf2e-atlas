@@ -84,7 +84,7 @@ it("offers a fresh native search link, preserving punctuation and the chosen mod
   });
   expect(navigateDestination).not.toHaveBeenCalled();
   const originalSelection = window.getSelection()?.toString();
-  fireEvent.mouseDown(action);
+  expect(fireEvent.mouseDown(action)).toBe(false);
   expect(window.getSelection()?.toString()).toBe(originalSelection);
   fireEvent.click(action);
   expect(navigateDestination).toHaveBeenCalledExactlyOnceWith(
@@ -97,17 +97,21 @@ it("offers a fresh native search link, preserving punctuation and the chosen mod
   expect(screen.queryByRole("link", { name: "Search Atlas" })).not.toBeInTheDocument();
 });
 
-it.each([{ metaKey: true }, { ctrlKey: true }, { shiftKey: true }, { button: 1 }])(
-  "leaves modified/native activation to the browser: %j",
-  async (modifiers) => {
-    preview();
-    select(screen.getByText("Fire & ice?"));
-    const action = await searchAction();
-    const allowed = fireEvent.click(action, modifiers);
-    expect(allowed).toBe(true);
-    expect(navigateDestination).not.toHaveBeenCalled();
-  },
-);
+it.each([
+  { metaKey: true },
+  { ctrlKey: true },
+  { shiftKey: true },
+  { altKey: true },
+  { button: 1 },
+])("leaves modified/native activation to the browser: %j", async (modifiers) => {
+  preview();
+  select(screen.getByText("Fire & ice?"));
+  const action = await searchAction();
+  expect(fireEvent.mouseDown(action, modifiers)).toBe(true);
+  const allowed = fireEvent.click(action, modifiers);
+  expect(allowed).toBe(true);
+  expect(navigateDestination).not.toHaveBeenCalled();
+});
 
 it("waits for the drag to finish and replaces the query on a later selection", async () => {
   preview();
