@@ -142,6 +142,8 @@ Pre-release separate-file formats have no compatibility reader or conversion
 shim. Future workspace upgrades use ordered migrations with recorded checksums,
 a consistent backup before structural changes, and transaction-scoped validation.
 Saved-domain and reference migrations share the same ledger and transaction.
+Atlas executes and hashes migration SQL with LF line endings and authenticates
+the ledger against that single checksum.
 
 Reference DDL lives in
 [the index baseline SQL](../../crates/atlas-index/migrations/00000000000001_create_artifact/up.sql);

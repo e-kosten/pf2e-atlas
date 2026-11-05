@@ -7,6 +7,7 @@ on:
         required: true
         type: string
   pull_request:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -37,6 +38,8 @@ jobs:
       browser: ${{ steps.select.outputs.browser }}
       dev: ${{ steps.select.outputs.dev }}
       tooling: ${{ steps.select.outputs.tooling }}
+      embedding: ${{ steps.select.outputs.embedding }}
+      embedding-runners: ${{ steps.select.outputs.embedding-runners }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -55,6 +58,17 @@ jobs:
           else
             scripts/verify-changed.sh --all --list > selected-checks
           fi
+          embedding_args=(--select --base "$BASE_SHA")
+          if [[ "$EVENT" == workflow_dispatch ]]; then
+            embedding_args+=(--manual)
+          fi
+          embedding_runners="$(python3 scripts/validation/embedding-stack.py "${embedding_args[@]}")"
+          echo "embedding-runners=$embedding_runners" >> "$GITHUB_OUTPUT"
+          if [[ "$embedding_runners" == '[]' ]]; then
+            echo "embedding=false" >> selected-checks
+          else
+            echo "embedding=true" >> selected-checks
+          fi
           cat selected-checks >> "$GITHUB_OUTPUT"
           cat selected-checks >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/setup-node@v6
@@ -64,7 +78,72 @@ jobs:
         run: python3 scripts/validation/embedding-stack.py
       - name: Validation routing regression tests
         run: |
+          python3 scripts/validation/test-embedding-baseline.py
           node scripts/validation/tooling.mjs
+
+  embedding:
+    name: embedding compatibility (${{ matrix.os }})
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.embedding == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(needs.changes.outputs.embedding-runners) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          cache-workspace-crates: false
+      - uses: actions/cache@v4
+        with:
+          path: target/embedding-models
+          key: embedding-models-v1-${{ hashFiles('crates/atlas-embedding/src/catalog.rs', 'crates/atlas-embedding/src/model_cache.rs') }}
+      - name: Build candidate and verify pinned models
+        run: |
+          cargo build --locked -p atlas-cli --no-default-features
+          cargo build --locked -p atlas-runtime --example migrate-fixture-workspace
+          cargo run --locked -p atlas-embedding --example prepare-model-cache -- target/embedding-models
+      - name: Check native token IDs and search against release fixtures
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          ATLAS_TEST_MODEL_CACHE="$(python -c 'from pathlib import Path; print(Path("target/embedding-models").resolve().as_posix())')"
+          export ATLAS_TEST_MODEL_CACHE
+          cargo test --locked -p atlas-embedding pinned_query_and_document_token_ids_match_the_compatibility_baseline -- --ignored
+          candidate=target/debug/atlas
+          migrator=target/debug/examples/migrate-fixture-workspace
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            candidate+=.exe
+            migrator+=.exe
+          fi
+          python scripts/validation/probe-embedding-upgrade.py --pins \
+            --base-ref "$BASE_SHA" --repository "$GITHUB_REPOSITORY" \
+            --workspace-migrator "$migrator" \
+            --candidate "$candidate" --model-cache target/embedding-models \
+            --output "$RUNNER_TEMP/embedding-compatibility"
+      - name: Summarize results
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          for report in "$RUNNER_TEMP"/embedding-compatibility/bundle-*/result.json; do
+            if [[ -f "$report" ]]; then
+              { echo '~~~json'; cat "$report"; echo '~~~'; } >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+      - uses: actions/upload-artifact@v6
+        if: ${{ always() }}
+        with:
+          name: embedding-compatibility-${{ matrix.os }}
+          path: ${{ runner.temp }}/embedding-compatibility/bundle-*/*.json
 
   skill:
     name: bundled skill
@@ -202,7 +281,7 @@ jobs:
         timeout-minutes: 3
         run: npm --prefix web/atlas-ui exec -- playwright install --with-deps chromium webkit
       - name: Responsive browser acceptance
-        timeout-minutes: 15
+        timeout-minutes: 25
         working-directory: web/atlas-ui
         run: npm exec -- playwright test --config playwright.devices.config.ts --shard=${{ matrix.shard }}/2
       - name: Browser evidence
@@ -370,7 +449,7 @@ jobs:
   validation:
     name: validation complete
     if: ${{ !cancelled() }}
-    needs: [changes, web-bundle, browser-fixture, browsers, rust, windows-artifact, atlas-dev, web-ui, source-contracts, release-tools, research, skill]
+    needs: [changes, web-bundle, browser-fixture, browsers, rust, windows-artifact, atlas-dev, web-ui, source-contracts, release-tools, research, skill, embedding]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5

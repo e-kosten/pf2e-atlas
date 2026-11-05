@@ -507,6 +507,49 @@ fn startup_fast_path_authenticates_history_and_rejects_newer_schema() {
 }
 
 #[test]
+fn migrations_use_one_canonical_checksum_across_source_line_endings() {
+    use sha2::{Digest, Sha256};
+
+    const LF: &str = "CREATE TABLE saved(id INTEGER PRIMARY KEY,title TEXT NOT NULL) STRICT;\nINSERT INTO saved VALUES(1,'retained');";
+    const CRLF: &str = "CREATE TABLE saved(id INTEGER PRIMARY KEY,title TEXT NOT NULL) STRICT;\r\nINSERT INTO saved VALUES(1,'retained');";
+    let lf = Migration { sql: LF, ..FIRST };
+    let crlf = Migration { sql: CRLF, ..FIRST };
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = Workspace::at(dir.path().join("atlas.sqlite")).unwrap();
+    workspace.migrate(&[crlf], |_| Ok(())).unwrap();
+    let connection = rusqlite::Connection::open(workspace.path()).unwrap();
+    let checksum = |connection: &rusqlite::Connection| -> String {
+        connection
+            .query_row(
+                "SELECT checksum FROM schema_migrations WHERE version=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap()
+    };
+    assert_eq!(checksum(&connection), format!("{:x}", Sha256::digest(LF)));
+    drop(connection);
+    let second = Migration {
+        backfill: None,
+        version: 2,
+        name: "extra",
+        sql: "ALTER TABLE saved ADD COLUMN extra INTEGER;",
+    };
+    workspace.migrate(&[lf, second], |_| Ok(())).unwrap();
+    let read = workspace.read(2).unwrap();
+    assert_eq!(
+        checksum(read.connection()),
+        format!("{:x}", Sha256::digest(LF))
+    );
+    assert_eq!(
+        read.connection()
+            .query_row("SELECT title FROM saved", [], |row| row.get::<_, String>(0))
+            .unwrap(),
+        "retained"
+    );
+}
+
+#[test]
 fn pending_migration_still_requires_publisher_ownership() {
     let (_dir, workspace) = fixture();
     let publisher = workspace.update_owner().unwrap();
