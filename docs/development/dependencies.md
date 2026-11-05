@@ -74,14 +74,19 @@ Prepare or verify the cache with
 If the candidate uses a newer workspace schema, build
 `cargo build --locked -p atlas-runtime --example migrate-fixture-workspace`
 and pass `--workspace-migrator target/debug/examples/migrate-fixture-workspace`.
-The helper runs the candidate's storage migrations on the private copy before
-the probe searches the original vectors.
+The helper runs the candidate's storage migrations on the private copy. For an
+unchanged profile, maintenance may refresh content and query projections before
+search becomes available. The probe requires zero inference, the same published input
+identities and vector checksums, and successful deep vector validation before
+comparing queries with the frozen expectations. This exercises the supported
+setup migration window without replacing the numerical baseline.
 
 The probe checks ranked records, matching passages and absolute score drift
 within 0.00002. It verifies zero document inference on compatible maintenance,
 saved list preservation, and retrieval from a mixed index against a fresh
 index built from the same edited source. For an intentional passage layout
-change, it reports reuse and compares the updated index with a fresh build.
+change, it first requires the candidate to match frozen queries before replacing
+the old passages, then reports reuse and compares the updated index with a fresh build.
 Review the report for both profiles. For a material inference or tokenizer
 upgrade, also compare sampled old and fresh vectors for matching inputs on
 affected release targets. Include input shapes changed by the upgrade, such as
