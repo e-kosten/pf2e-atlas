@@ -1,4 +1,4 @@
-import { Button, Popover } from "antd";
+import { Tooltip, Button, Popover } from "antd";
 import { Dices, X } from "lucide-react";
 import { useId, useState } from "react";
 import { rollContent } from "../../api/atlasApi";
@@ -56,12 +56,14 @@ export function ContentRoll({
         >
           <div className="content-roll__toolbar">
             <strong id={headingId}>{heading}</strong>
-            <Button
-              type="text"
-              icon={<X size={16} />}
-              aria-label="Close roll"
-              onClick={() => setOpen(false)}
-            />
+            <Tooltip title="Close roll" trigger={["hover", "focus"]}>
+              <Button
+                type="text"
+                icon={<X size={16} />}
+                aria-label="Close roll"
+                onClick={() => setOpen(false)}
+              />
+            </Tooltip>
           </div>
           {components.map((part, index) => (
             <div key={index} className="content-roll__component">
@@ -100,14 +102,18 @@ export function ContentRoll({
         </div>
       }
     >
-      <Button
-        ref={trigger}
-        type="text"
-        size="small"
-        icon={<Dices size={15} />}
-        aria-label={`${roll.result ? "View roll for" : "Roll"} ${label}`}
+      <Tooltip
         title={`${roll.result ? "View roll for" : "Roll"} ${label}`}
-      />
+        trigger={["hover", "focus"]}
+      >
+        <Button
+          ref={trigger}
+          type="text"
+          size="small"
+          icon={<Dices size={15} />}
+          aria-label={`${roll.result ? "View roll for" : "Roll"} ${label}`}
+        />
+      </Tooltip>
     </Popover>
   );
 }

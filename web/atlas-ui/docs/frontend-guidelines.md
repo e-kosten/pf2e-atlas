@@ -1203,6 +1203,10 @@ The Drawer uses the same RecordDetailPane and family renderer as full pages.
 Its header shows the document title once and its consistent action group remains
 reachable while the body scrolls. Use the shared identity composition: title and
 glyph, trailing classification, document actions, traits, then source attribution.
+Keep Explore, Add, and Open full page together when available. Use the same
+outlined icon controls with accessible names and hover/focus tooltips. A verified
+general entry uses a direct link. Keep encounter casting controls in their own
+area beside the drawer navigation.
 Classification is a scan anchor within the title row, not a detached pane control;
 the classification and document icon actions share one aligned row. For spells,
 the classification chip also opens the rank menu: Spell 2 with a dropdown arrow,

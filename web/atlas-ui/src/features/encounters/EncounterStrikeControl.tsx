@@ -2,7 +2,7 @@ import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { isSharedFailure } from "../../shared/feedback/errorMessages";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
-import { Alert, Button, Popover } from "antd";
+import { Tooltip, Alert, Button, Popover } from "antd";
 import {
   Fragment,
   useLayoutEffect,
@@ -263,13 +263,14 @@ function StrikeRollPopover({
         >
           <div className="strike-roll-control__toolbar">
             {contextOpen && (
-              <Button
-                type="text"
-                icon={<ArrowLeft size={16} />}
-                aria-label="Back to roll"
-                title="Back to roll"
-                onClick={() => setContextRequested(false)}
-              />
+              <Tooltip title="Back to roll" trigger={["hover", "focus"]}>
+                <Button
+                  type="text"
+                  icon={<ArrowLeft size={16} />}
+                  aria-label="Back to roll"
+                  onClick={() => setContextRequested(false)}
+                />
+              </Tooltip>
             )}
             <strong id={headingId}>
               {title} · {contextOpen ? "Target & checks" : attack ? "Attack" : "Damage"}

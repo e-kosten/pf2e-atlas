@@ -75,6 +75,9 @@ export function AddToRecordButton({
         <PaneIconButton
           icon={<ListPlus size={16} />}
           label={label}
+          outlined={!encounterOnly}
+          tooltip={false}
+          title=""
           // Modal returns focus during its close lifecycle. Keep that focus hint
           // controlled instead of invoking Tooltip's synchronous focus handler.
           onFocus={() => setFocusHint(true)}

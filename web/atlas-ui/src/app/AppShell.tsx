@@ -19,7 +19,16 @@ import {
 } from "../api/availability";
 import { errorExplanation } from "../shared/feedback/errorMessages";
 import { GlobalFeedback } from "../shared/feedback/GlobalFeedback";
-import { Alert, Button, Menu, Popover, Segmented, Space, Typography } from "antd";
+import {
+  Tooltip,
+  Alert,
+  Button,
+  Menu,
+  Popover,
+  Segmented,
+  Space,
+  Typography,
+} from "antd";
 import type { MenuProps } from "antd";
 import { restoreOverlayFocus } from "../shared/ui/overlays/restoreOverlayFocus";
 import type { AppReadinessView } from "../generated/atlas";
@@ -185,20 +194,22 @@ export function AppShell({
               </div>
             }
           >
-            <Button
-              ref={themeTrigger}
-              type="text"
-              aria-label="Theme"
-              icon={
-                colorScheme === "system" ? (
-                  <Monitor size={18} />
-                ) : colorScheme === "light" ? (
-                  <Sun size={18} />
-                ) : (
-                  <Moon size={18} />
-                )
-              }
-            />
+            <Tooltip title="Theme" trigger={["hover", "focus"]}>
+              <Button
+                ref={themeTrigger}
+                type="text"
+                aria-label="Theme"
+                icon={
+                  colorScheme === "system" ? (
+                    <Monitor size={18} />
+                  ) : colorScheme === "light" ? (
+                    <Sun size={18} />
+                  ) : (
+                    <Moon size={18} />
+                  )
+                }
+              />
+            </Tooltip>
           </Popover>
         </Space>
       </header>

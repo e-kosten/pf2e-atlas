@@ -458,13 +458,15 @@ export function EncounterConditionControls({
                   >
                     Apply
                   </Button>
-                  <Button
-                    size="small"
-                    type="text"
-                    icon={<X size={14} />}
-                    aria-label="Cancel condition change"
-                    onClick={cancelInlineEdit}
-                  />
+                  <Tooltip title="Cancel condition change" trigger={["hover", "focus"]}>
+                    <Button
+                      size="small"
+                      type="text"
+                      icon={<X size={14} />}
+                      aria-label="Cancel condition change"
+                      onClick={cancelInlineEdit}
+                    />
+                  </Tooltip>
                 </Space>
               </div>
             }
@@ -537,21 +539,22 @@ export function EncounterConditionControls({
       )}
       <div className="encounter-conditions__header">
         <h3>Conditions</h3>
-        <Button
-          size="small"
-          type="text"
-          aria-label="Add Condition"
-          title="Add Condition"
-          icon={<Plus size={16} aria-hidden="true" />}
-          disabled={disabled || addDisabled}
-          onClick={(event) => {
-            event.currentTarget.focus({ preventScroll: true });
-            cancelInlineEdit();
-            setCommitted(false);
-            setAddRevision(encounterRevision);
-            setEditor("add");
-          }}
-        />
+        <Tooltip title="Add Condition" trigger={["hover", "focus"]}>
+          <Button
+            size="small"
+            type="text"
+            aria-label="Add Condition"
+            icon={<Plus size={16} aria-hidden="true" />}
+            disabled={disabled || addDisabled}
+            onClick={(event) => {
+              event.currentTarget.focus({ preventScroll: true });
+              cancelInlineEdit();
+              setCommitted(false);
+              setAddRevision(encounterRevision);
+              setEditor("add");
+            }}
+          />
+        </Tooltip>
       </div>
       {recoveryControls.notice}
       {inherent?.unavailable_reason && (

@@ -305,34 +305,22 @@ describe("semantic family presentation", () => {
     );
     const { rerender } = render(view());
     expect(screen.getByRole("heading", { name: "Customized staff" })).toBeVisible();
-    expect(screen.queryByRole("link", { name: "General entry: Staff" })).toBeNull();
-    const info = screen.getByRole("button", { name: "Record information" });
-    fireEvent.click(info);
-    const original = await screen.findByRole("link", { name: "General entry: Staff" });
+    const original = screen.getByRole("link", { name: "Open general entry: Staff" });
     const destination = new URL(original.getAttribute("href")!, window.location.origin);
     expect(destination.pathname).toBe("/records/equipment:catalog-staff");
     expect(destination.search).toBe("");
-    fireEvent.click(original);
-    expect(onReference).toHaveBeenCalledWith(
-      "equipment:catalog-staff",
-      info,
-      relationship.target,
-    );
-    onReference.mockClear();
-    fireEvent.click(info);
-    await screen.findByRole("link", { name: "General entry: Staff" });
     fireEvent.click(original, { ctrlKey: true });
     expect(onReference).not.toHaveBeenCalled();
-    fireEvent.click(info);
-    const item = await screen.findByRole("menuitem", { name: "General entry: Staff" });
-    fireEvent.keyDown(item, { key: "Enter", keyCode: 13, which: 13 });
+    fireEvent.click(original);
     expect(onReference).toHaveBeenCalledExactlyOnceWith(
       "equipment:catalog-staff",
-      info,
+      original,
       relationship.target,
     );
     rerender(view(false));
-    expect(screen.queryByRole("button", { name: "Record information" })).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: "Open general entry: Staff" }),
+    ).toBeNull();
   });
 
   it("shows selected activity traits once in its identity and retains traits on embedded activities", () => {
