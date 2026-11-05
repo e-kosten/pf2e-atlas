@@ -24,6 +24,21 @@ Input, interaction and screenshot assertions are unchanged.
   Frontend index SHA-256:
   `11ee89d445cf0d481a6e8344d1ce5668f72b52537c82fb7821d8d9e918f37dd3`.
 
+- Ubuntu 24.04 x64, Playwright 1.62.1,
+  [capture 41988993727](https://github.com/e-kosten/pf2e-atlas/actions/runs/41988993727)
+  using CI 41988110353's authenticated fixture, source merge
+  `7f285c564bead9456c4e203875993471c0736360`. All 12 capture scenarios passed.
+  Independent Astra review of all 20 Chromium pairs found changed wordmark text
+  metrics and a one-pixel left shift of desktop navigation; content, focus,
+  controls and scroll geometry remained intact. All ten desktop and three phone
+  references exceeded the existing comparator and changed. The other seven phone
+  references and all WebKit references retain their accepted bytes.
+  Fixture SHA-256:
+  `329c3b6da2f930b04dc54903bd95b4b89a6ae5fa2a61947e74d1d721eecca987`.
+  Frontend index SHA-256:
+  `08f3798093adb1e2743fc157eeb367c73d0e44b7c09ab500574ba130ebdd31cc`.
+  Ordinary hosted comparisons remain required on the published candidate.
+
 ## Integrated inline editing and classification badges
 
 Source `230f8dd1bb1016898fbc957ad11b674073cd888f` combines the shared 32px
