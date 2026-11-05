@@ -59,10 +59,6 @@
   font-size: 14px;
   font-variant-numeric: tabular-nums;
 }
-.initiative-roster-input:focus {
-  outline: 2px solid var(--link);
-  outline-offset: 1px;
-}
 .initiative-total-editor {
   display: inline-flex;
   align-items: center;

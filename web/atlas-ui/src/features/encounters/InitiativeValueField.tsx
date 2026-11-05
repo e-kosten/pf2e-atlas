@@ -19,10 +19,12 @@ export function InitiativeValueField({
     <span className="initiative-total-editor">
       <EditableCommitField
         ariaLabel={`${name} initiative total`}
-        className={compact ? "initiative-roster-input" : "initiative-roll-total"}
+        className={
+          compact ? "initiative-roster-input inline-editable" : "initiative-roll-total"
+        }
         inputMode="numeric"
+        placeholder={compact ? "—" : undefined}
         size={compact ? "small" : undefined}
-        variant={compact ? "borderless" : undefined}
         stopPropagation
         disabled={disabled}
         value={value?.toString() ?? ""}

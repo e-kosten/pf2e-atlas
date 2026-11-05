@@ -124,6 +124,23 @@ beforeEach(() => {
   getDetail.mockImplementation((key) => Promise.resolve(detailFixture(key)));
 });
 
+it("groups full-page navigation with Explore and describes it on keyboard focus", async () => {
+  getDetail.mockResolvedValue(detailFixture("spells:heal", "Heal"));
+  renderBrowser();
+  fireEvent.click(screen.getByRole("link", { name: /^Heal/ }));
+  const heading = await screen.findByRole("heading", { name: "Heal" });
+  const identity = within(heading.closest("header")!);
+  expect(
+    identity.getByRole("button", { name: "Explore related records" }),
+  ).toBeVisible();
+  const fullPage = identity.getByRole("link", { name: "Open full page" });
+  expect(fullPage).toHaveAttribute("href", "/records/spells:heal");
+  act(() => fullPage.focus());
+  expect(
+    await screen.findByRole("tooltip", { name: "Open full page" }),
+  ).toHaveTextContent("Open full page");
+});
+
 it.each([
   "immediate strike",
   "mobile strike",

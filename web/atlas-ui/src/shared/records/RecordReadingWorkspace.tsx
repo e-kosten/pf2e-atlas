@@ -1,5 +1,4 @@
 import { Activity, useRef, useState, useLayoutEffect, type ReactNode } from "react";
-import { Tooltip } from "antd";
 import { PaneIconButton } from "../ui/actions/PaneAction";
 import { BookOpen, Compass } from "lucide-react";
 import { useRecordExploreLocation } from "./recordExploreLocation";
@@ -43,16 +42,12 @@ export function RecordReadingWorkspace({
   return (
     <div className="record-workspace" ref={root}>
       {identity?.(
-        <Tooltip
-          title={mode === "read" ? "Explore related records" : "Read document"}
-          trigger={["hover", "focus"]}
-        >
-          <PaneIconButton
-            label={mode === "read" ? "Explore related records" : "Read document"}
-            onClick={() => changeMode(mode === "read" ? "explore" : "read")}
-            icon={mode === "read" ? <Compass size={16} /> : <BookOpen size={16} />}
-          />
-        </Tooltip>,
+        <PaneIconButton
+          outlined
+          label={mode === "read" ? "Explore related records" : "Read document"}
+          onClick={() => changeMode(mode === "read" ? "explore" : "read")}
+          icon={mode === "read" ? <Compass size={16} /> : <BookOpen size={16} />}
+        />,
       )}
       {status}
       <Activity mode={mode === "read" ? "visible" : "hidden"}>

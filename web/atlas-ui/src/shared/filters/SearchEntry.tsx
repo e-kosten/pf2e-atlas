@@ -1,4 +1,4 @@
-import { Button, Input, Space, Tag, theme, type InputRef } from "antd";
+import { Tooltip, Button, Input, Space, Tag, theme, type InputRef } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import type { SimilaritySeed } from "../../generated/atlas";
 import { SimilaritySeedLink } from "../search/SimilaritySeedLink";
@@ -71,21 +71,25 @@ export function SearchEntry({
               disabled={disabled}
             />
           </span>
-          <Button
-            type="text"
-            disabled={disabled}
-            size="small"
-            aria-label="Clear similar criterion"
-            icon={<CloseCircleFilled aria-hidden="true" />}
-            onClick={clear}
-          />
+          <Tooltip title="Clear similar criterion" trigger={["hover", "focus"]}>
+            <Button
+              type="text"
+              disabled={disabled}
+              size="small"
+              aria-label="Clear similar criterion"
+              icon={<CloseCircleFilled aria-hidden="true" />}
+              onClick={clear}
+            />
+          </Tooltip>
         </div>
-        <Button
-          disabled={disabled}
-          aria-label="Run similar search"
-          icon={<SearchOutlined />}
-          onClick={similar.onSearch}
-        />
+        <Tooltip title="Run similar search" trigger={["hover", "focus"]}>
+          <Button
+            disabled={disabled}
+            aria-label="Run similar search"
+            icon={<SearchOutlined />}
+            onClick={similar.onSearch}
+          />
+        </Tooltip>
       </Space.Compact>
     );
   return (
@@ -98,28 +102,30 @@ export function SearchEntry({
       disabled={disabled}
       value={value}
       suffix={
-        <Button
-          type="text"
-          disabled={disabled}
-          aria-label="Clear search"
-          aria-hidden={!value}
-          tabIndex={value ? 0 : -1}
-          icon={<CloseCircleFilled aria-hidden="true" />}
-          styles={{
-            root: {
-              width: token.controlHeightSM,
-              minWidth: token.controlHeightSM,
-              height: token.controlHeightSM,
-              marginBlock: -2,
-              padding: 0,
-              fontSize: token.fontSizeSM,
-              color: token.colorTextQuaternary,
-              visibility: value ? "visible" : "hidden",
-            },
-          }}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={clear}
-        />
+        <Tooltip title="Clear search" trigger={["hover", "focus"]}>
+          <Button
+            type="text"
+            disabled={disabled}
+            aria-label="Clear search"
+            aria-hidden={!value}
+            tabIndex={value ? 0 : -1}
+            icon={<CloseCircleFilled aria-hidden="true" />}
+            styles={{
+              root: {
+                width: token.controlHeightSM,
+                minWidth: token.controlHeightSM,
+                height: token.controlHeightSM,
+                marginBlock: -2,
+                padding: 0,
+                fontSize: token.fontSizeSM,
+                color: token.colorTextQuaternary,
+                visibility: value ? "visible" : "hidden",
+              },
+            }}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={clear}
+          />
+        </Tooltip>
       }
       // Opening the narrow reader moves focus to Results; Enter must not activate it.
       onPressEnter={(event) => event.preventDefault()}

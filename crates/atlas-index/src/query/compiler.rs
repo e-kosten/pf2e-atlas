@@ -165,6 +165,19 @@ pub(crate) fn bound_field(d: &Descriptor, scope: Option<&str>) -> BoundField {
                 }
                 .to_owned(),
             },
+            // Reuse audience-admitted, nonempty prepared sections. An owned
+            // spell or ability does not stand in for its parent's description.
+            Binding::HasDescription => BoundField {
+                value: concat!(
+                    "EXISTS(SELECT 1 FROM selected_sections s WHERE s.record_id=r.record_id AND (",
+                    "(s.owners_json='[]' AND s.role IN ('description','ability') ",
+                    "AND (r.document_kind!='Item' OR s.field_path='/system/description/value')) ",
+                    "OR (r.document_kind='JournalEntry' AND s.role='journal_text')))"
+                )
+                .into(),
+                state: "'value'".into(),
+                owner_id: "r.record_id".into(),
+            },
             Binding::LevelOrRank => BoundField {
                 value: format!(
                     "CASE WHEN r.source_type='spell' THEN {} ELSE r.level END",

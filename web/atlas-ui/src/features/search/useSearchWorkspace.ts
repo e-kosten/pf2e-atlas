@@ -117,6 +117,7 @@ export type SearchWorkspaceState = {
   resultPage: SearchResultsPage | undefined;
   resultFilter: QueryPredicate | null;
   filterEditor: FilterEditorView | undefined;
+  filterApplicabilityCurrent: boolean;
   filterCountsEnabled?: boolean;
   filterCountQueryKey?: readonly unknown[];
   resultsLoading: boolean;
@@ -768,6 +769,7 @@ export function useSearchWorkspace({
     resultPage: canRunResultSearch ? resultsQuery.data?.page : undefined,
     resultFilter: canRunResultSearch ? (resultsQuery.data?.filter ?? null) : null,
     filterEditor: filterDiscovery.filterEditor,
+    filterApplicabilityCurrent: filterDiscovery.filterApplicabilityCurrent,
     filterCountsEnabled:
       filterDiscovery.filterCountsEnabled &&
       !search.traitReferenceSeed &&

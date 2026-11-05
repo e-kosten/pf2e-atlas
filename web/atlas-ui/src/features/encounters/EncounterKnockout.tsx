@@ -1,4 +1,4 @@
-import { Button, Select, Space } from "antd";
+import { Tooltip, Button, Select, Space } from "antd";
 import { Pencil } from "lucide-react";
 import { useState } from "react";
 import type {
@@ -85,14 +85,16 @@ export function EncounterKnockout({
                 ? `Before ${participants.find((p) => p.participant_key === target)?.display_name ?? "selected turn"}`
                 : "Keep current position"}
             </span>
-            <Button
-              size="small"
-              type="text"
-              icon={<Pencil size={14} />}
-              aria-label="Edit initiative placement"
-              disabled={disabled}
-              onClick={() => setEditing(true)}
-            />
+            <Tooltip title="Edit initiative placement" trigger={["hover", "focus"]}>
+              <Button
+                size="small"
+                type="text"
+                icon={<Pencil size={14} />}
+                aria-label="Edit initiative placement"
+                disabled={disabled}
+                onClick={() => setEditing(true)}
+              />
+            </Tooltip>
           </>
         )}
       </div>

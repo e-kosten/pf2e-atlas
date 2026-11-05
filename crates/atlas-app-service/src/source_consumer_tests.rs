@@ -905,7 +905,14 @@ fn editor_metadata_preserves_catalog_authority_and_orders_common_product_fields(
             .iter()
             .map(|f| f.label.as_str())
             .collect::<Vec<_>>(),
-        ["Kind", "Level / Rank", "Rarity", "Traits", "Level"]
+        [
+            "Kind",
+            "Level / Rank",
+            "Rarity",
+            "Traits",
+            "Has a description",
+            "Level"
+        ]
     );
     let fields = editor
         .groups
@@ -1204,7 +1211,7 @@ fn explicit_collections_share_grouping_and_movement_uses_feet() {
         vec![],
     )
     .unwrap();
-    assert_eq!(editor.catalog_version, 8);
+    assert_eq!(editor.catalog_version, 9);
     let embedded = editor.groups.iter().find(|g| g.id == "embedded").unwrap();
     assert_eq!(
         embedded

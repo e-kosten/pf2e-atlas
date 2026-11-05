@@ -250,6 +250,13 @@ rather than receiving an implicit translation. Supported query-catalog/projectio
 upgrades regenerate rows from stored DTOs in one maintenance transaction; they
 neither require source admission nor invalidate unchanged embedding inputs.
 
+The root Boolean field `has_description` reuses nonempty, audience-admitted
+selected sections. It admits the root's own description or ability text, including
+actor prose classified as description by the source role policy, and the text
+of journal pages. Embedded mechanics, table results, hazard routines and identity
+rows do not qualify on their own. This filter constrains record eligibility;
+Core scope independently constrains the parts searched within eligible records.
+
 Filters, explicit key scopes and product-family eligibility constrain lexical and
 vector units before ranking. Macros remain available for developer inspection and
 are excluded from every product path, including exact lookup, facets, graph
@@ -819,7 +826,7 @@ The current source contract includes ammunition as an equipment family. NPC skil
 are keyed authored entries; character movement is runtime-derived and has no
 source-backed movement projection. Table result content uses `/description` and
 structured references use `/documentUuid`, resolving only explicit compendium UUIDs.
-The query catalog is version 8, query projections use `authored-query/v5`, content
+The query catalog is version 9, query projections use `authored-query/v5`, content
 selection uses `structural-source-sections/v4` and relationships use
 `typed-authored-occurrences/v5`. Preparation identities govern derived refresh;
 workspace migrations 18 and 19 provide the additional query columns. The exact

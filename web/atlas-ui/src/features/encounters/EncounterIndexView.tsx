@@ -15,7 +15,7 @@ import { atlasRouter } from "../../app/router";
 import { encounterIndexSearch } from "../../app/routeSearch";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Tabs } from "antd";
+import { Tooltip, Button, Tabs } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Edit2, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -216,6 +216,7 @@ function encounterColumns(
               }),
             )}
             label={`Edit ${encounter.name}`}
+            size="small"
             icon={<Edit2 size={14} />}
             onClick={(event) => {
               stopIndexRowAction(event);
@@ -224,19 +225,22 @@ function encounterColumns(
               onEdit(encounter);
             }}
           />
-          <DangerActionButton
-            disabled={deleting}
-            aria-label={`Delete ${encounter.name}`}
-            confirmContent="This permanently deletes the encounter."
-            confirmOkText="Delete"
-            confirmTitle={`Delete ${encounter.name}?`}
-            icon={<Trash2 size={14} />}
-            onBeforeConfirm={(event) => {
-              stopIndexRowAction(event);
-            }}
-            onConfirm={() => onDelete(encounter)}
-            size="small"
-          />
+          <Tooltip title={`Delete ${encounter.name}`} trigger={["hover", "focus"]}>
+            <DangerActionButton
+              disabled={deleting}
+              aria-label={`Delete ${encounter.name}`}
+              confirmContent="This permanently deletes the encounter."
+              confirmOkText="Delete"
+              confirmTitle={`Delete ${encounter.name}?`}
+              icon={<Trash2 size={14} />}
+              onBeforeConfirm={(event) => {
+                stopIndexRowAction(event);
+              }}
+              onConfirm={() => onDelete(encounter)}
+              type="text"
+              size="small"
+            />
+          </Tooltip>
         </span>
       ),
     },
