@@ -59,6 +59,7 @@ for stub in validation/research.sh release/validate-release-tooling.sh release/t
   # shellcheck disable=SC2016 # The fixture expands its own environment.
   printf '#!/bin/sh\nprintf "extra check\\n" >> "$ATLAS_TEST_COMMAND_LOG"\n' >"$fixture/scripts/$stub"
 done
+printf 'import os\nwith open(os.environ["ATLAS_TEST_COMMAND_LOG"], "a") as log: log.write("audit check\\n")\n' >"$fixture/scripts/validation/dependency-audit.py"
 mkdir -p "$fixture/scripts/development"
 printf 'exit 0\n' >"$fixture/scripts/git-hooks/test-common.sh"
 printf 'import { appendFileSync } from "node:fs"; appendFileSync(process.env.ATLAS_TEST_COMMAND_LOG,"tooling check\\n");\n' >"$fixture/scripts/validation/fixture.test.mjs"
@@ -254,32 +255,35 @@ printf 'git-hook common smoke tests and %s fixture cases passed\n' "$case_count"
 
 # Explicit surfaces, dependency fan-out, and conservative unknown inputs.
 for entry in \
-  'README.md:000000000' \
-  'web/atlas-ui/src/app.tsx:010000100' \
-  'web/atlas-ui/e2e/devices/conditions.spec.ts:000000100' \
-  'web/atlas-ui/playwright.devices.config.ts:000000100' \
-  'scripts/browser-fixture.mjs:000000101' \
-  'crates/atlas-dev/src/main.rs:000000010' \
-  'scripts/development/build-preview.mjs:000000001' \
-  'scripts/development/build-preview.test.mjs:000000001' \
-  'crates/atlas-cli/src/main.rs:100000010' \
-  'crates/atlas-cli-support/src/lib.rs:100000010' \
-  'crates/atlas-runtime/src/lib.rs:100000100' \
-  'docs/research/evaluations/frozen/README.md:000010000' \
-  'docs/research/evaluations/frozen/judgments.jsonl:000010000' \
-  'docs/research/evaluations/frozen/verify.ts:000010000' \
-  'dev-tools/source-contracts/tests/fixture.md:001000000' \
-  'dev-tools/release/src/check.ts:000100000' \
-  'crates/atlas-foundry-model/src/lib.rs:101000100' \
-  'crates/atlas-app-model/bindings/Search.ts:110000100' \
-  'Cargo.lock:111100110' \
-  'crates/atlas-cli/Cargo.toml:111100110' \
-  'skills/pf2e-atlas-cli/SKILL.md:000001000' \
-  'scripts/validation/skill.ts:000001001' \
-  'scripts/validation/research.sh:000010001' \
-  '.cargo/config.toml:111111111' \
-  '.github/workflows/ci.yml:111111111' \
-  'unknown.config:111111111'; do
+  'README.md:00000000000' \
+  'web/atlas-ui/src/app.tsx:01000010000' \
+  'web/atlas-ui/e2e/devices/conditions.spec.ts:00000010001' \
+  'web/atlas-ui/playwright.devices.config.ts:00000010001' \
+  'scripts/browser-fixture.mjs:00000010100' \
+  'crates/atlas-dev/src/main.rs:00000001000' \
+  'scripts/development/build-preview.mjs:00000000100' \
+  'scripts/development/build-preview.test.mjs:00000000100' \
+  'crates/atlas-cli/src/main.rs:10000001000' \
+  'crates/atlas-cli-support/src/lib.rs:10000001000' \
+  'crates/atlas-runtime/src/lib.rs:10000010000' \
+  'docs/research/evaluations/frozen/README.md:00001000000' \
+  'docs/research/evaluations/frozen/judgments.jsonl:00001000000' \
+  'docs/research/evaluations/frozen/verify.ts:00001000000' \
+  'dev-tools/source-contracts/tests/fixture.md:00100000000' \
+  'dev-tools/release/src/check.ts:00010000000' \
+  'crates/atlas-foundry-model/src/lib.rs:10100010000' \
+  'crates/atlas-app-model/bindings/Search.ts:11000010000' \
+  'Cargo.lock:10000011010' \
+  'crates/atlas-cli/Cargo.toml:10000011010' \
+  'skills/pf2e-atlas-cli/SKILL.md:00000100000' \
+  'scripts/validation/skill.ts:00000100100' \
+  'scripts/validation/research.sh:00001000100' \
+  '.cargo/config.toml:11111111110' \
+  '.github/workflows/ci.yml:11111111110' \
+  'unknown.config:11111111110' \
+  'web/atlas-ui/package-lock.json:01000010010' \
+  'dev-tools/source-contracts/package-lock.json:00100000010' \
+  'scripts/validation/dependency-audit.py:00000000110'; do
   changed_path=${entry%:*}
   expected=${entry##*:}
   printf '%s\n' "$changed_path" >"$fixture/paths-input"
@@ -333,7 +337,7 @@ grep -q '^rust=true$' "$check_output"
 chmod +x "$fixture/README.md"
 git -C "$fixture" add README.md
 (cd "$fixture"; scripts/verify-changed.sh --staged --list) >"$check_output"
-[ "$(grep -c '=true$' "$check_output")" -eq 9 ]
+[ "$(grep -c '=true$' "$check_output")" -eq 10 ]
 
 # The real research runner rejects missing verifiers and propagates failures.
 cp "$repo_root/scripts/validation/research.sh" "$fixture/scripts/validation/research.sh"

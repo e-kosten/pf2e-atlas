@@ -15,8 +15,13 @@ Review breaking releases separately. An embedding-stack update needs the
 compatibility evidence below before landing.
 
 GitHub's advisory alerts and security update PRs are separate repository settings.
-The dependency audit workflow scans the committed Rust and npm lockfiles on
-dependency PRs and daily, including the locked dice prototypes. Run the same
+PR CI scans the committed Rust and npm lockfiles on dependency changes and
+requires the result through `validation complete`. The separate dependency audit
+workflow runs the same scanner daily and on manual dispatch, including the locked
+dice prototypes. Cargo changes retain Rust/browser/native and embedding checks;
+they do not automatically rerun unrelated source generation, frontend unit tests
+or the installer matrix. Those checks remain selected by their owning inputs
+and by full main verification. Run the same
 scanner locally with Python 3.11 or newer and a supported Node/npm installation.
 
 ```sh

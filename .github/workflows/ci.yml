@@ -30,7 +30,10 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       rust: ${{ steps.select.outputs.rust }}
+      windows: ${{ steps.select.outputs.windows }}
+      audit: ${{ steps.select.outputs.audit }}
       web: ${{ steps.select.outputs.web }}
+      web-format: ${{ steps.select.outputs.web-format }}
       source: ${{ steps.select.outputs.source }}
       release: ${{ steps.select.outputs.release }}
       research: ${{ steps.select.outputs.research }}
@@ -69,6 +72,11 @@ jobs:
           else
             echo "embedding=true" >> selected-checks
           fi
+          windows=false
+          if grep -q '^rust=true$' selected-checks; then
+            windows="$(python3 scripts/validation/windows-selection.py --base "$BASE_SHA")"
+          fi
+          echo "windows=$windows" >> selected-checks
           cat selected-checks >> "$GITHUB_OUTPUT"
           cat selected-checks >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/setup-node@v7
@@ -77,9 +85,7 @@ jobs:
       - name: Check reviewed embedding dependencies
         run: python3 scripts/validation/embedding-stack.py
       - name: Validation routing regression tests
-        run: |
-          python3 scripts/validation/test-embedding-baseline.py
-          node scripts/validation/tooling.mjs
+        run: node scripts/validation/tooling.mjs
 
   embedding:
     name: embedding compatibility (${{ matrix.os }})
@@ -94,6 +100,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ inputs.source-ref || github.sha }}
           fetch-depth: 0
       - uses: actions/setup-python@v6
         with:
@@ -146,6 +153,22 @@ jobs:
           name: embedding-compatibility-${{ matrix.os }}
           path: ${{ runner.temp }}/embedding-compatibility/bundle-*/*.json
 
+  advisories:
+    name: advisories
+    needs: changes
+    if: needs.changes.outputs.audit == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source-ref || github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Scan Cargo and npm lockfiles
+        run: python3 scripts/validation/dependency-audit.py
+
   skill:
     name: bundled skill
     needs: changes
@@ -176,7 +199,12 @@ jobs:
           cache: npm
           cache-dependency-path: web/atlas-ui/package-lock.json
       - run: npm --prefix web/atlas-ui ci
-      - run: npm --prefix web/atlas-ui run verify:bundle
+      - name: Frontend checks and bundle
+        if: needs.changes.outputs.web == 'true' || needs.changes.outputs.web-format == 'true'
+        run: npm --prefix web/atlas-ui run verify:bundle
+      - name: Bundle and typecheck for Rust-only changes
+        if: needs.changes.outputs.web != 'true' && needs.changes.outputs.web-format != 'true'
+        run: npm --prefix web/atlas-ui run build
       - uses: actions/upload-artifact@v7
         with:
           name: web-bundle
@@ -295,7 +323,7 @@ jobs:
 
   windows-artifact:
     needs: changes
-    if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.tooling == 'true'
+    if: needs.changes.outputs.windows == 'true' || needs.changes.outputs.tooling == 'true'
     name: Windows artifact publication
     runs-on: windows-2022
     steps:
@@ -303,15 +331,15 @@ jobs:
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
-        if: needs.changes.outputs.rust == 'true'
+        if: needs.changes.outputs.windows == 'true'
       - name: Verify bounded storage sessions and file release
-        if: needs.changes.outputs.rust == 'true'
+        if: needs.changes.outputs.windows == 'true'
         run: cargo test -p atlas-storage --locked
       - name: Verify artifact coherence and publication
-        if: needs.changes.outputs.rust == 'true'
+        if: needs.changes.outputs.windows == 'true'
         run: cargo test -p atlas-index --lib --locked foundation_tests
       - name: Verify atomic publication and vector repacking after process crashes
-        if: needs.changes.outputs.rust == 'true'
+        if: needs.changes.outputs.windows == 'true'
         run: cargo test -p atlas-index --lib --locked publication_crash_tests
 
       - uses: actions/setup-node@v7
@@ -450,7 +478,7 @@ jobs:
   validation:
     name: validation complete
     if: ${{ !cancelled() }}
-    needs: [changes, web-bundle, browser-fixture, browsers, rust, windows-artifact, atlas-dev, web-ui, source-contracts, release-tools, research, skill, embedding]
+    needs: [changes, web-bundle, browser-fixture, browsers, rust, windows-artifact, atlas-dev, web-ui, source-contracts, release-tools, research, skill, embedding, advisories]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7

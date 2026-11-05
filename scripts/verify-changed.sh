@@ -135,6 +135,7 @@ browser_touched=0
 web_format_touched=0
 dev_touched=0
 tooling_touched=0
+audit_touched=0
 docs_only=0
 
 if [ "$mode" = all ]; then
@@ -147,6 +148,7 @@ if [ "$mode" = all ]; then
   browser_touched=1
   dev_touched=1
   tooling_touched=1
+  audit_touched=1
 elif [ ! -s "$paths_file" ]; then
   docs_only=1
 else
@@ -154,7 +156,7 @@ else
 fi
 
 if [ "$list" -eq 1 ]; then
-  for entry in "rust:$rust_touched" "web:$web_touched" "source:$source_touched" "release:$release_touched" "research:$research_touched" "skill:$skill_touched" "browser:$browser_touched" "dev:$dev_touched" "tooling:$tooling_touched"; do
+  for entry in "rust:$rust_touched" "web:$web_touched" "source:$source_touched" "release:$release_touched" "research:$research_touched" "skill:$skill_touched" "browser:$browser_touched" "dev:$dev_touched" "tooling:$tooling_touched" "audit:$audit_touched" "web-format:$web_format_touched"; do
     value=false
     [ "${entry#*:}" -eq 0 ] || value=true
     printf '%s=%s\n' "${entry%%:*}" "$value"
@@ -168,7 +170,7 @@ if [ "$docs_only" -eq 1 ]; then
 fi
 
 selected=
-for entry in "rust:$rust_touched" "web:$web_touched" "source:$source_touched" "release:$release_touched" "research:$research_touched" "skill:$skill_touched" "browser:$browser_touched" "web-format:$web_format_touched" "dev:$dev_touched" "tooling:$tooling_touched"; do
+for entry in "rust:$rust_touched" "web:$web_touched" "source:$source_touched" "release:$release_touched" "research:$research_touched" "skill:$skill_touched" "browser:$browser_touched" "web-format:$web_format_touched" "dev:$dev_touched" "tooling:$tooling_touched" "audit:$audit_touched"; do
   [ "${entry#*:}" -eq 0 ] || selected="$selected ${entry%%:*}"
 done
 if [ -n "$inspect" ]; then

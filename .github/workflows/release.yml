@@ -15,7 +15,6 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  DIST_VERSION: "0.31.0"
 
 jobs:
   validate-tag:
@@ -27,22 +26,6 @@ jobs:
       prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: dev-tools/release/package-lock.json
-      - name: Build private release tools
-        shell: bash
-        run: |
-          npm --prefix dev-tools/release ci --ignore-scripts
-          npm --prefix dev-tools/release run build
-      - name: Release tool smoke tests
-        shell: bash
-        run: |
-          scripts/release/validate-release-tooling.sh
-          scripts/release/test-release-tools.sh
-          scripts/release/test-prepare-release.sh
       - id: version
         shell: bash
         run: |
@@ -71,145 +54,17 @@ jobs:
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
-  build:
-    name: cargo-dist ${{ matrix.target }} (${{ matrix.variant }})
+  package:
     needs: validate-tag
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-24.04
-            variant: full
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-24.04-arm
-            variant: full
-          - target: aarch64-apple-darwin
-            os: macos-26
-            variant: full
-          - target: x86_64-pc-windows-msvc
-            os: windows-2022
-            variant: full
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-24.04
-            variant: cli-only
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-24.04-arm
-            variant: cli-only
-          - target: aarch64-apple-darwin
-            os: macos-26
-            variant: cli-only
-          - target: x86_64-pc-windows-msvc
-            os: windows-2022
-            variant: cli-only
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: |
-            dev-tools/release/package-lock.json
-            web/atlas-ui/package-lock.json
-      - name: Build private release tools
-        shell: bash
-        run: |
-          npm --prefix dev-tools/release ci --ignore-scripts
-          npm --prefix dev-tools/release run build
-      - name: Install cargo-dist
-        if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
-        shell: bash
-        run: curl --proto '=https' --tlsv1.2 -LsSf "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/cargo-dist-installer.sh" | sh
-      - name: Install cargo-dist on Windows
-        if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
-        shell: pwsh
-        run: irm "https://github.com/axodotdev/cargo-dist/releases/download/v$env:DIST_VERSION/cargo-dist-installer.ps1" | iex
-      - name: Build web UI bundle
-        if: ${{ matrix.variant == 'full' }}
-        shell: bash
-        run: |
-          npm --prefix web/atlas-ui ci
-          npm --prefix web/atlas-ui run build
-      - name: Select CLI-only build
-        if: ${{ matrix.variant == 'cli-only' }}
-        shell: bash
-        run: printf '\ndefault-features = false\n' >> dist-workspace.toml
-      - name: Generate notices
-        shell: bash
-        run: node dev-tools/release/dist/src/cli/generate-notices.js --output target/atlas-release/THIRD-PARTY-NOTICES.md
-      - name: Validate PowerShell installer
-        if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
-        # Git Bash supplies XZ-capable tar for the installer archive fixtures.
-        shell: bash
-        run: |
-          pwsh -NoProfile -File scripts/install/atlas-installer.ps1 -DryRun
-          pwsh -NoProfile -File scripts/release/test-installer.ps1
-      - name: Build archives with cargo-dist
-        if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
-        shell: bash
-        run: |
-          mkdir -p target
-          dist build --allow-dirty --no-local-paths --output-format json --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.validate-tag.outputs.tag }}" > target/package-dist-manifest.json
-      - name: Build archives with cargo-dist on Windows
-        if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
-        shell: pwsh
-        env:
-          RUSTFLAGS: "-C target-feature=-crt-static -C link-arg=/NODEFAULTLIB:libcmt -C link-arg=msvcprt.lib -C link-arg=legacy_stdio_definitions.lib"
-        run: |
-          New-Item -ItemType Directory -Force target | Out-Null
-          dist build --allow-dirty --no-local-paths --output-format json --artifacts local --target "${{ matrix.target }}" --tag "${{ needs.validate-tag.outputs.tag }}" > target/package-dist-manifest.json
-      - name: Stage CLI-only artifacts
-        if: ${{ matrix.variant == 'cli-only' }}
-        shell: bash
-        run: node dev-tools/release/dist/src/cli/stage-cli-only.js "${{ matrix.target }}" target/distrib target/package-dist-manifest.json
-      - name: Check packaged binary on Unix
-        if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
-        shell: bash
-        env:
-          EXPECTED_VERSION: ${{ needs.validate-tag.outputs.version }}
-          VARIANT: ${{ matrix.variant }}
-        run: |
-          mkdir -p target/package-smoke
-          prefix=atlas-cli
-          if [[ "$VARIANT" == cli-only ]]; then prefix=atlas-cli-only; fi
-          tar -xJf "target/distrib/$prefix-${{ matrix.target }}.tar.xz" -C target/package-smoke
-          binary=$(find target/package-smoke -type f -name atlas -print -quit)
-          test -n "$binary"
-          node dev-tools/release/dist/src/cli/smoke-packaged-cli.js "$binary" "$EXPECTED_VERSION" "$VARIANT"
-          if [[ "$VARIANT" == full ]]; then
-            node dev-tools/release/dist/src/cli/smoke-packaged-web.js "$binary" web/atlas-ui/dist
-          fi
-      - name: Check packaged binary on Windows
-        if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
-        shell: pwsh
-        env:
-          EXPECTED_VERSION: ${{ needs.validate-tag.outputs.version }}
-          VARIANT: ${{ matrix.variant }}
-        run: |
-          $prefix = if ($env:VARIANT -eq "full") { "atlas-cli" } else { "atlas-cli-only" }
-          Expand-Archive "target/distrib/$prefix-${{ matrix.target }}.zip" target/package-smoke
-          $binary = Get-ChildItem target/package-smoke -Filter atlas.exe -Recurse | Select-Object -First 1
-          if (-not $binary) { throw "packaged atlas.exe is missing" }
-          node dev-tools/release/dist/src/cli/smoke-packaged-cli.js $binary.FullName $env:EXPECTED_VERSION $env:VARIANT
-          if ($LASTEXITCODE -ne 0) { throw "packaged CLI smoke test failed" }
-          if ($env:VARIANT -eq "full") {
-            node dev-tools/release/dist/src/cli/smoke-packaged-web.js $binary.FullName web/atlas-ui/dist
-            if ($LASTEXITCODE -ne 0) { throw "packaged web smoke test failed" }
-          }
-      - name: Upload cargo-dist artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: package-${{ matrix.target }}-${{ matrix.variant }}
-          path: |
-            target/distrib/atlas-cli*-${{ matrix.target }}.*
-            target/distrib/cli-only-${{ matrix.target }}.json
-          if-no-files-found: error
+    uses: ./.github/workflows/release-build-check.yml
+    with:
+      tag: ${{ needs.validate-tag.outputs.tag }}
+      source-ref: ${{ github.sha }}
 
   publish:
     name: upload and publish release
-    needs: [validate-tag, build]
-    if: ${{ always() && needs.validate-tag.result == 'success' && needs.build.result == 'success' }}
+    needs: [validate-tag, package]
+    if: ${{ always() && needs.validate-tag.result == 'success' && needs.package.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -229,32 +84,12 @@ jobs:
         run: |
           npm --prefix dev-tools/release ci --ignore-scripts
           npm --prefix dev-tools/release run build
-      - name: Download packaged artifacts
+      - name: Download assembled release assets
         uses: actions/download-artifact@v8
         with:
-          pattern: package-*
+          name: release-build-check-${{ needs.validate-tag.outputs.tag }}
           path: target/distrib
-          merge-multiple: true
-      - name: Install cargo-dist
-        shell: bash
-        run: curl --proto '=https' --tlsv1.2 -LsSf "https://github.com/axodotdev/cargo-dist/releases/download/v${DIST_VERSION}/cargo-dist-installer.sh" | sh
-      - name: Add installers and notices
-        shell: bash
-        run: |
-          set -euo pipefail
-          node dev-tools/release/dist/src/cli/generate-notices.js --output target/distrib/THIRD-PARTY-NOTICES.md
-          cp scripts/install/atlas-installer.sh target/distrib/atlas-installer.sh
-          cp scripts/install/atlas-installer.ps1 target/distrib/atlas-installer.ps1
-      - name: Generate cargo-dist manifest
-        shell: bash
-        run: |
-          dist manifest --artifacts local --tag "$TAG" --allow-dirty --no-local-paths --output-format json > dist-manifest.json
-          node dev-tools/release/dist/src/cli/prune-dist-manifest.js dist-manifest.json target/distrib
-          mv dist-manifest.json target/distrib/dist-manifest.json
-      - name: Generate manifest and checksums
-        shell: bash
-        run: node dev-tools/release/dist/src/cli/generate-release-manifest.js "$TAG" target/distrib
-      - name: Validate required assets
+      - name: Validate downloaded assets
         shell: bash
         run: node dev-tools/release/dist/src/cli/validate-release-assets.js "$TAG" target/distrib
       - name: Wait for draft release

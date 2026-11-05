@@ -17,6 +17,7 @@ const names = [
   "research",
   "skill",
   "embedding",
+  "advisories",
 ];
 const flags = [
   "rust",
@@ -29,6 +30,8 @@ const flags = [
   "dev",
   "tooling",
   "embedding",
+  "windows",
+  "audit",
 ];
 const selected = () =>
   Object.fromEntries([
@@ -72,6 +75,7 @@ test("UI and browser-only changes keep real-app browser gates without full Rust"
       "research",
       "skill",
       "embedding",
+      "advisories",
     ])
       jobs[name].result = "skipped";
     if (!surfaces.includes("web")) jobs["web-ui"].result = "skipped";
@@ -116,11 +120,13 @@ test("core Rust changes require browser prerequisites, but CLI-only Rust does no
     );
     for (const name of [
       "web-ui",
+      "windows-artifact",
       "source-contracts",
       "release-tools",
       "research",
       "skill",
       "embedding",
+      "advisories",
     ])
       jobs[name].result = "skipped";
     if (!browser)
@@ -160,4 +166,21 @@ test("the production CLI enforces the selected gate results", () => {
   const failed = run();
   assert.equal(failed.status, 1);
   assert.match(failed.stderr, /browsers/);
+});
+
+test("dependency and native selection are independently enforced", () => {
+  for (const surface of ["audit", "windows"]) {
+    const job = surface === "audit" ? "advisories" : "windows-artifact";
+    const jobs = selected();
+    jobs.changes.outputs = Object.fromEntries(
+      flags.map((key) => [key, String(key === surface)]),
+    );
+    for (const name of names)
+      jobs[name].result = name === job ? "success" : "skipped";
+    requireSelectedJobs(jobs);
+    for (const result of ["failure", "cancelled", "skipped"]) {
+      jobs[job].result = result;
+      assert.throws(() => requireSelectedJobs(jobs), new RegExp(job));
+    }
+  }
 });

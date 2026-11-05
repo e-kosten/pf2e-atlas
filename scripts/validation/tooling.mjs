@@ -18,6 +18,10 @@ export function toolingChecks(root = process.cwd()) {
   return [
     ["hook routing", "sh", "scripts/git-hooks/test-common.sh"],
     ["tooling regressions", "node", "--test", ...tests],
+    ...readdirSync(resolve(root, "scripts/validation"))
+      .filter((name) => /^test-.*\.py$/.test(name))
+      .sort()
+      .map((name) => [name, "python3", `scripts/validation/${name}`]),
   ];
 }
 if (
