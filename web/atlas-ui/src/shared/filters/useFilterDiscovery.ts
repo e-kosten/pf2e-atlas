@@ -209,7 +209,12 @@ type OptionPage = {
     "field" | "options" | "selected_values" | "total_values"
   >;
   contextual: boolean;
+  pageKey: string;
+  counts?: ReadonlyMap<string, bigint>;
 };
+function searchPageKey(text: string, offset: number) {
+  return JSON.stringify([text, offset]);
+}
 export function useFilterVocabulary(
   scope: FilterVocabularyScope,
   fieldId: string,
@@ -232,10 +237,11 @@ export function useFilterVocabulary(
     ],
     enabled,
     // A selection edit must not temporarily remove or reorder the menu's rows.
-    // Never carry suggestions across a different scope, field or page/search.
+    // Keep the list stable while a replacement page loads.
+    // Never carry suggestions across a different scope, field or search.
     placeholderData: (previous, previousQuery) =>
-      JSON.stringify(previousQuery?.queryKey.slice(0, 5)) ===
-        JSON.stringify(["filter-vocabulary", scope, fieldId, text, offset]) &&
+      JSON.stringify(previousQuery?.queryKey.slice(0, 4)) ===
+        JSON.stringify(["filter-vocabulary", scope, fieldId, text]) &&
       JSON.stringify(
         discoveryIdentity(previousQuery?.queryKey[6] as typeof applicable),
       ) === JSON.stringify(discoveryIdentity(applicable))
@@ -274,6 +280,13 @@ export function useFilterVocabulary(
         if (result.outcome.status === "available")
           return {
             contextual: true,
+            pageKey: searchPageKey(text, offset),
+            counts: new Map(
+              result.outcome.value.options.map((option) => [
+                String(option.value),
+                option.distinct_roots,
+              ]),
+            ),
             values: { ...result.outcome.value, selected_values: selectedValues },
           };
       }
@@ -291,7 +304,11 @@ export function useFilterVocabulary(
       );
       if (result.kind !== "vocabulary")
         throw new Error("Unexpected contextual response to vocabulary request");
-      return { values: result.values, contextual: false };
+      return {
+        values: result.values,
+        contextual: false,
+        pageKey: searchPageKey(text, offset),
+      };
     },
   });
 }

@@ -73,7 +73,7 @@ import {
 } from "./filterControls";
 import { FilterValueInput } from "./FilterValueInput";
 import { SearchEntry, type SimilarSearchCriterion } from "./SearchEntry";
-import { CommonChoicePicker } from "./CommonChoicePicker";
+import { CommonChoicePicker } from "./FilterChoicePicker";
 import { PrimaryToolbar } from "../ui/PrimaryToolbar";
 import { useFilterEditor } from "./useFilterEditor";
 import { isBuilderGroup, normalizeBuilderEdit } from "./builderEdits";

@@ -67,6 +67,9 @@ function renderInput(
     </ConfigProvider>,
   );
 }
+function openVocabulary() {
+  fireEvent.click(screen.getByRole("button", { name: "Edit Traits values" }));
+}
 describe("shared value control vocabulary", () => {
   it("allows excluding a known-zero choice", async () => {
     const change = vi.fn();
@@ -145,7 +148,7 @@ describe("shared value control vocabulary", () => {
     renderInput(false, vi.fn(), ["absent-selected"], true);
     expect(api.discoverFilterValues).not.toHaveBeenCalled();
     expect(api.discoverFilterCounts).not.toHaveBeenCalled();
-    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Traits" }));
+    openVocabulary();
     await waitFor(() =>
       expect(api.discoverFilterCounts).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -159,12 +162,12 @@ describe("shared value control vocabulary", () => {
         expect.any(AbortSignal),
       ),
     );
-    expect(await screen.findByText("fire (8)")).toBeInTheDocument();
+    expect(await screen.findByLabelText("8 matching records")).toBeInTheDocument();
   });
   it("keeps selected values while paging server suggestions in the saved-list scope", async () => {
     const onChange = vi.fn();
     renderInput(false, onChange);
-    fireEvent.mouseDown(screen.getByRole("combobox", { name: "Traits" }));
+    openVocabulary();
     await waitFor(() => expect(api.discoverFilterValues).toHaveBeenCalled());
     fireEvent.click(await screen.findByRole("button", { name: "More values" }));
     await waitFor(() =>
@@ -178,7 +181,11 @@ describe("shared value control vocabulary", () => {
         expect.any(AbortSignal),
       ),
     );
-    fireEvent.click(await screen.findByText("second-page", { selector: "span" }));
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Traits: Second-page, activate to select",
+      }),
+    );
     expect(onChange).toHaveBeenCalledExactlyOnceWith([
       "absent-selected",
       "second-page",
@@ -190,7 +197,8 @@ describe("shared value control vocabulary", () => {
   });
   it("sends search terms to the server and resets paging while preserving selections", async () => {
     renderInput();
-    const input = screen.getByRole("combobox", { name: "Traits" });
+    openVocabulary();
+    const input = screen.getByRole("textbox", { name: "Search traits choices" });
     fireEvent.change(input, { target: { value: "fi" } });
     await waitFor(() =>
       expect(api.discoverFilterValues).toHaveBeenLastCalledWith(
@@ -210,7 +218,7 @@ describe("shared value control vocabulary", () => {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1);
       });
-      fireEvent.mouseDown(screen.getByRole("combobox", { name: "Traits" }));
+      openVocabulary();
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1);
       });
@@ -226,7 +234,9 @@ describe("shared value control vocabulary", () => {
         await vi.advanceTimersByTimeAsync(250);
       });
       expect(screen.getByRole("button", { name: "Previous values" })).toBeEnabled();
-      expect(screen.getByRole("option", { name: "second-page" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Traits: Second-page, activate to select" }),
+      ).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }
@@ -234,13 +244,12 @@ describe("shared value control vocabulary", () => {
   it("clears the actual search input between consecutive keyboard trait selections", async () => {
     const onChange = vi.fn();
     renderInput(false, onChange, []);
-    const input = screen.getByRole("combobox", { name: "Traits" });
+    openVocabulary();
+    const input = screen.getByRole("textbox", { name: "Search traits choices" });
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: "wood" } });
     fireEvent.keyDown(input, { key: "Enter", code: "Enter", keyCode: 13 });
     fireEvent.keyUp(input, { key: "Enter", code: "Enter", keyCode: 13 });
-    fireEvent.keyDown(input, { key: "Escape", code: "Escape", keyCode: 27 });
-    fireEvent.keyUp(input, { key: "Escape", code: "Escape", keyCode: 27 });
     expect(onChange).toHaveBeenLastCalledWith(["wood"]);
     expect(input).toHaveValue("");
 
@@ -249,8 +258,6 @@ describe("shared value control vocabulary", () => {
     });
     fireEvent.keyDown(input, { key: "Enter", code: "Enter", keyCode: 13 });
     fireEvent.keyUp(input, { key: "Enter", code: "Enter", keyCode: 13 });
-    fireEvent.keyDown(input, { key: "Escape", code: "Escape", keyCode: 27 });
-    fireEvent.keyUp(input, { key: "Escape", code: "Escape", keyCode: 27 });
     expect(onChange).toHaveBeenLastCalledWith(["wood", "magical"]);
     expect(input).toHaveValue("");
     await waitFor(() =>

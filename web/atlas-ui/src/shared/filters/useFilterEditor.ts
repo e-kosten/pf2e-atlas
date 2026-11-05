@@ -119,6 +119,10 @@ export function useFilterEditor(
     try {
       const filter = builderPredicate(query, definitions);
       const next = { ...search, filter, filterError: null };
+      if (criteriaIdentity(next) === baseline) {
+        retain(query);
+        return;
+      }
       retain(query, next, true);
       commit(next);
     } catch {

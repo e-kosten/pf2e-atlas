@@ -276,6 +276,7 @@ export function builderPredicate(
       if (child) children.push(child);
       continue;
     }
+    if (node.field === "~") continue;
     const rule = node as PredicateRule;
     const append = (predicate: QueryPredicate) =>
       children.push(

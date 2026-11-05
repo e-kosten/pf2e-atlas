@@ -9,7 +9,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider, Grid } from "antd";
 import { useState, type ComponentProps, type ReactElement } from "react";
-import { CommonChoicePicker } from "./CommonChoicePicker";
+import { CommonChoicePicker } from "./FilterChoicePicker";
 import { editorFixture, fieldFixture } from "../../test/fixtures";
 import type { FilterVocabularyScope, QueryPredicate } from "../../generated/atlas";
 
@@ -398,7 +398,9 @@ describe("compact common choice picker", () => {
     await within(menu).findByRole("button", {
       name: "Traits: Fire, neutral; activate to include",
     });
-    expect(screen.getByText("90 values in this list")).toBeInTheDocument();
+    expect(
+      screen.getByText("90 values in this list · Page 1 of 3"),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "More values" }));
     await within(menu).findByRole("button", {
       name: "Traits: Second-page, neutral; activate to include",
