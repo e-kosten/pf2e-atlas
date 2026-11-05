@@ -1,6 +1,6 @@
-import { ErrorNotice } from "../feedback/ErrorNotice";
-import { AutoComplete, Button, Checkbox, Input, Select, Space } from "antd";
-import { useEffect, useState } from "react";
+import { Input, Select } from "antd";
+import { useState } from "react";
+import { AdvancedVocabularyPicker } from "./FilterChoicePicker";
 import { actorMetric } from "./actorMetricFields";
 import { ProficiencyRankInput } from "./ProficiencyRankInput";
 import type {
@@ -8,11 +8,7 @@ import type {
   FilterVocabularyScope,
   FilterDiscoveryContext,
 } from "../../generated/atlas";
-import {
-  useFilterOptionCounts,
-  useFilterVocabulary,
-  VOCABULARY_PAGE_SIZE,
-} from "./useFilterDiscovery";
+import { useFilterOptionCounts } from "./useFilterDiscovery";
 
 export function FilterValueInput({
   field,
@@ -151,9 +147,9 @@ export function FilterValueInput({
     );
   if (definition.field_type === "string" || definition.field_type === "set")
     return (
-      <OpenVocabularyInput
+      <AdvancedVocabularyPicker
         field={field}
-        multiple={multiple}
+        shape={multiple ? "list" : "scalar"}
         value={value}
         onChange={onChange}
         scope={scope}
@@ -176,194 +172,5 @@ export function FilterValueInput({
       value={String(value ?? "")}
       onChange={(event) => onChange(event.target.value)}
     />
-  );
-}
-
-function OpenVocabularyInput({
-  field,
-  multiple,
-  value,
-  onChange,
-  scope,
-  label,
-  countContext,
-  countsEnabled,
-  countQueryKey,
-  clauseId,
-  countLimit,
-  allowNarrowing,
-}: {
-  field: FilterEditorFieldView;
-  multiple: boolean;
-  value: unknown;
-  onChange: (value: unknown) => void;
-  scope: FilterVocabularyScope;
-  label: string;
-  countContext?: FilterDiscoveryContext;
-  countsEnabled: boolean;
-  countQueryKey?: readonly unknown[];
-  clauseId: string | null;
-  countLimit: number;
-  allowNarrowing: boolean;
-}) {
-  const selected = Array.isArray(value)
-    ? value.map(String)
-    : value
-      ? [String(value)]
-      : [];
-  const [text, setText] = useState("");
-  const [search, setSearch] = useState("");
-  const [offset, setOffset] = useState(0);
-  const [open, setOpen] = useState(false);
-  const [showUnavailable, setShowUnavailable] = useState(false);
-  useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      setSearch(text);
-    }, 250);
-    return () => window.clearTimeout(timeout);
-  }, [text]);
-  function searchValues(next: string) {
-    setText(next);
-    setOffset(0);
-  }
-  const query = useFilterVocabulary(
-    scope,
-    field.definition.id,
-    search,
-    offset,
-    selected,
-    open,
-    countContext && countsEnabled && allowNarrowing && !showUnavailable
-      ? { context: countContext, clauseId }
-      : undefined,
-  );
-  const values = query.data?.values;
-  const options = [
-    ...new Set([
-      ...selected,
-      ...(values?.selected_values.map(String) ?? []),
-      ...(values?.options.map((option) => String(option.value)) ?? []),
-    ]),
-  ].map((option) => ({
-    value: option,
-    label:
-      field.choices.find((choice) => String(choice.value) === option)?.label ?? option,
-  }));
-  const counts = useFilterOptionCounts(
-    countContext,
-    field.definition.id,
-    clauseId,
-    options.map((option) => option.value),
-    open && countsEnabled && !!values,
-    countLimit,
-    countQueryKey,
-  );
-  const total = values?.total_values ?? 0n;
-  const paging = (
-    <div className="filter-vocabulary-footer">
-      {allowNarrowing && (
-        <Checkbox
-          checked={showUnavailable}
-          onChange={(event) => {
-            setShowUnavailable(event.target.checked);
-            setOffset(0);
-          }}
-        >
-          Show unavailable
-        </Checkbox>
-      )}
-      <Space size="small">
-        <Button
-          size="small"
-          disabled={offset === 0 || query.isFetching}
-          onClick={() => setOffset(Math.max(0, offset - VOCABULARY_PAGE_SIZE))}
-        >
-          Previous values
-        </Button>
-        <Button
-          size="small"
-          disabled={BigInt(offset + VOCABULARY_PAGE_SIZE) >= total || query.isFetching}
-          onClick={() => setOffset(offset + VOCABULARY_PAGE_SIZE)}
-        >
-          More values
-        </Button>
-      </Space>
-    </div>
-  );
-  return (
-    <div className="filter-value-input">
-      {multiple || field.choices.length > 0 ? (
-        <Select
-          aria-label={label}
-          mode={multiple ? (field.choices.length ? "multiple" : "tags") : undefined}
-          allowClear
-          value={multiple ? selected : selected[0]}
-          options={options}
-          onOpenChange={setOpen}
-          optionRender={(option) => (
-            <span>
-              {option.label}
-              {counts.has(String(option.value))
-                ? ` (${new Intl.NumberFormat().format(counts.get(String(option.value))!)})`
-                : ""}
-            </span>
-          )}
-          placeholder={"Search " + field.label.toLowerCase() + "…"}
-          loading={query.isFetching}
-          showSearch={{
-            filterOption: false,
-            searchValue: text,
-            onSearch: searchValues,
-          }}
-          onSelect={() => searchValues("")}
-          onClear={() => searchValues("")}
-          onChange={onChange}
-          popupRender={(menu) => (
-            <>
-              {menu}
-              {paging}
-            </>
-          )}
-        />
-      ) : (
-        <AutoComplete
-          aria-label={label}
-          value={String(value ?? "")}
-          options={options.map((option) => ({
-            ...option,
-            label: (
-              <span>
-                {option.label}
-                {counts.has(option.value)
-                  ? ` (${new Intl.NumberFormat().format(counts.get(option.value)!)})`
-                  : ""}
-              </span>
-            ),
-          }))}
-          onOpenChange={setOpen}
-          placeholder="Search available values…"
-          showSearch={{ filterOption: false, onSearch: searchValues }}
-          onChange={onChange}
-          popupRender={(menu) => (
-            <>
-              {menu}
-              {paging}
-            </>
-          )}
-        />
-      )}
-      {query.error && (
-        <ErrorNotice
-          error={query.error}
-          compact
-          title="Values could not be loaded"
-          action={
-            <Button size="small" onClick={() => void query.refetch()}>
-              Retry values
-            </Button>
-          }
-        />
-      )}
-    </div>
   );
 }

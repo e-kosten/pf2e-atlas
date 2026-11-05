@@ -126,6 +126,7 @@ pub(crate) fn filter_editor_view(
             .map(|operator| operator_view(operator))
             .collect::<crate::AppServiceResult<Vec<_>>>()?;
         let help = match definition.id.as_str() {
+            "has_description" => Some("Includes a record’s own description, creature background, or journal text. Carried spells, equipment, and other embedded mechanics don’t count.".into()),
             "level_or_rank" => Some("Spell rank for spells; authored level for other applicable records. Unavailable values stay unknown.".into()),
             "level" => Some("Level for applicable creatures, physical items, feats, campaign features, effects and afflictions; use Level / rank to include spells.".into()),
             "source.document_kind" => Some("Source document classification; use Kind for reference categories.".into()),
@@ -248,7 +249,7 @@ fn product_group(d: &QueryFieldDefinition) -> ProductGroup {
     }
     match path.split('.').next().unwrap_or("") {
         "body" | "abilities" | "skills" => ProductGroup::Creatures,
-        "level" => ProductGroup::Common,
+        "level" | "has_description" => ProductGroup::Common,
         "hazard" => ProductGroup::Hazards,
         "physical" | "ammo" | "weapon" | "armor" | "shield" | "consumable" | "equipment"
         | "backpack" | "treasure" => ProductGroup::Equipment,

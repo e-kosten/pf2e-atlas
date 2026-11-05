@@ -115,6 +115,10 @@ fn older_policy(stored: &str, current: &str) -> Result<bool, IndexError> {
     }
 }
 
+pub(crate) const SCHEMA20_QUERY_CATALOG_VERSION: u32 = 8;
+const SCHEMA20_QUERY_CATALOG_SHA256: &str =
+    "ca89d908bb5f3dc846b4318c17c9b2ce86e13826878b311bc0f6ec85712473f6";
+
 /// Only the immutable schema20 callback consumes this admission result.
 pub(super) fn for_backfill(
     c: &Connection,
@@ -133,7 +137,7 @@ pub(super) fn for_backfill(
     }
     // Preserve main's classifier order, including accelerators deferring open
     // validation. Do not insert current section policy or numerical-layout checks.
-    let current_catalog = crate::query::QUERY_CAPABILITY_VERSION;
+    let current_catalog = SCHEMA20_QUERY_CATALOG_VERSION;
     if original.query_catalog_version == 0 || original.query_catalog_version > current_catalog {
         return Err(IndexError::Unsupported(
             "filter catalog version is not supported by this executable".into(),
@@ -221,7 +225,7 @@ fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), IndexError> {
         ));
     }
     if c.query_projection_version != SOURCE_PROJECTION_VERSION
-        || c.query_catalog_version != crate::query::query_capabilities()?.version
+        || c.query_catalog_version != SCHEMA20_QUERY_CATALOG_VERSION
         || c.lookup_version != SOURCE_LOOKUP_VERSION
         || c.lexical_selection_version != LEXICAL_SELECTION_VERSION
         || c.fts_tokenizer != "unicode61 remove_diacritics 2"
@@ -322,6 +326,18 @@ fn validate_context(c: &SourceArtifactBuildContext) -> Result<(), IndexError> {
     Ok(())
 }
 
+#[cfg(any(test, feature = "test-support"))]
+pub(crate) fn schema20_catalog() -> Result<BTreeMap<String, String>, IndexError> {
+    // Preserve the released v8 definitions when current catalog fields are added.
+    // The digest test below also catches edits to existing v8 definitions.
+    crate::query::query_capabilities()?
+        .fields
+        .into_iter()
+        .filter(|definition| definition.id != "has_description")
+        .map(|definition| Ok((definition.id.clone(), serde_json::to_string(&definition)?)))
+        .collect()
+}
+
 fn validate_open(c: &Connection, context: &SourceArtifactBuildContext) -> Result<(), IndexError> {
     if context.search_profiles != context.canonical_profiles()? {
         return Err(IndexError::Invalid(
@@ -335,14 +351,7 @@ fn validate_open(c: &Connection, context: &SourceArtifactBuildContext) -> Result
             Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
         })?
         .collect::<Result<BTreeMap<_, _>, _>>()?;
-    // Catalog definitions are byte-identical to f76232c8's version8 owner.
-    // Query compiler optimizations do not change these serialized definitions.
-    let wanted = crate::query::query_capabilities()?
-        .fields
-        .into_iter()
-        .map(|definition| Ok((definition.id.clone(), serde_json::to_string(&definition)?)))
-        .collect::<Result<BTreeMap<_, _>, IndexError>>()?;
-    if actual != wanted {
+    if sha256(&serde_json::to_vec(&actual)?) != SCHEMA20_QUERY_CATALOG_SHA256 {
         return Err(IndexError::Unsupported(
             "filter catalog differs from executable bindings".into(),
         ));
@@ -429,24 +438,8 @@ mod tests {
 
     #[test]
     fn released_catalog_output_remains_main_era() {
-        assert_eq!(crate::query::QUERY_CAPABILITY_VERSION, 8);
-        let fields = crate::query::query_capabilities()
-            .unwrap()
-            .fields
-            .into_iter()
-            .map(|definition| {
-                (
-                    definition.id.clone(),
-                    serde_json::to_string(&definition).unwrap(),
-                )
-            })
-            .collect::<std::collections::BTreeMap<_, _>>();
+        let fields = super::schema20_catalog().unwrap();
         let actual = crate::codec::sha256(&serde_json::to_vec(&fields).unwrap());
-        // Operator derives once from the verified main-identical catalog owner,
-        // records that derivation, then replaces this literal before acceptance.
-        assert_eq!(
-            actual,
-            "ca89d908bb5f3dc846b4318c17c9b2ce86e13826878b311bc0f6ec85712473f6"
-        );
+        assert_eq!(actual, super::SCHEMA20_QUERY_CATALOG_SHA256);
     }
 }
