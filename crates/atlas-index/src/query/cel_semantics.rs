@@ -68,14 +68,15 @@ fn cel_error_truth_table_accepts_only_true_like_sql_unknown() {
 }
 
 #[test]
-fn cel_interpreter_exists_error_is_order_dependent() {
+fn cel_interpreter_exists_true_witness_overrides_unavailable_children() {
     let expression = "embedded.spells.exists(i, i.spell.rank >= 3)";
     let true_first = json!({"embedded":{"spells":[{"spell":{"rank":3}},{"spell":{}}]}});
     let unavailable_first = json!({"embedded":{"spells":[{"spell":{}},{"spell":{"rank":3}}]}});
     assert_eq!(evaluate(expression, true_first), Ok(Value::Bool(true)));
-    // cel0.14.5 propagates the first loop-step error immediately. A conforming
-    // existential/Atlas SQL result must accept both orders because true exists.
-    assert!(evaluate(expression, unavailable_first).is_err());
+    assert_eq!(
+        evaluate(expression, unavailable_first),
+        Ok(Value::Bool(true))
+    );
     assert_eq!(
         evaluate(expression, json!({"embedded":{"spells":[]}})),
         Ok(Value::Bool(false))
@@ -85,6 +86,13 @@ fn cel_interpreter_exists_error_is_order_dependent() {
         evaluate(
             expression,
             json!({"embedded":{"spells":[{"spell":{}},{"spell":{"rank":1}}]}})
+        )
+        .is_err()
+    );
+    assert!(
+        evaluate(
+            expression,
+            json!({"embedded":{"spells":[{"spell":{"rank":1}},{"spell":{}}]}})
         )
         .is_err()
     );

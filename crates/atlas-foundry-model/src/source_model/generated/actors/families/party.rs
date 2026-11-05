@@ -834,7 +834,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_kingdom_schema
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@8354abaa72b519d34db92806
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@36ff4817870db86b9af16c1c
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaResourceSchemaCommoditiesSourceFromSchema {
@@ -920,7 +920,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_resource_schem
     )
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@2f8e14cff7f7a8cf23d60d4e
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@a13344ddaaf4dc8215383b97
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaResourceSchemaWorkSitesSourceFromSchema {
@@ -1026,7 +1026,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_settlement_sch
     )
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@e2c55bf3bbec66c8e501e3ed
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@2e03a11d683f43a870f85e0f
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaSettlementSchemaStorageSourceFromSchema {

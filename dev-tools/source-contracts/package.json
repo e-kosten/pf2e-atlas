@@ -39,9 +39,9 @@
   },
   "devDependencies": {
     "@types/jest": "29.5.14",
-    "@types/jquery": "3.5.32",
+    "@types/jquery": "4.0.1",
     "@types/node": "22.20.5",
     "@types/tooltipster": "0.0.35",
-    "remeda": "2.21.0"
+    "remeda": "2.56.0"
   }
 }
