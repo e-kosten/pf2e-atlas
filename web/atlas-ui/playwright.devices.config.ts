@@ -48,6 +48,7 @@ export default defineConfig({
       name: "desktop-chromium",
       use: {
         ...devices["Desktop Chrome"],
+        channel: "chromium",
         viewport: { width: 1440, height: 900 },
         colorScheme: "light",
       },
@@ -56,7 +57,7 @@ export default defineConfig({
       name: "phone-chromium",
       grepInvert: /@engine/,
       testMatch: touchSpecs,
-      use: { ...devices["Pixel 7"], colorScheme: "dark" },
+      use: { ...devices["Pixel 7"], channel: "chromium", colorScheme: "dark" },
     },
     {
       name: "phone-webkit",
