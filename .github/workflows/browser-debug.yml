@@ -42,10 +42,10 @@ jobs:
     steps:
       - name: Select artifact directory outside the checkout
         run: echo "ATLAS_BROWSER_ARTIFACT=$RUNNER_TEMP/browser-artifact" >> "$GITHUB_ENV"
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: browser-fixture
           path: ${{ env.ATLAS_BROWSER_ARTIFACT }}
@@ -60,10 +60,10 @@ jobs:
           if (!/^[a-f0-9]{40}$/.test(manifest.commit)) throw new Error('Invalid artifact commit');
           console.log(`commit=${manifest.commit}`);
           JS
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ steps.candidate.outputs.commit }}
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -94,7 +94,7 @@ jobs:
           npm exec -- playwright test --config playwright.devices.config.ts "${snapshot_args[@]}" "$SPEC" "${project_args[@]}" --grep="$GREP" --repeat-each="$REPEAT"
       - name: Focused browser evidence
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: focused-browser-evidence-attempt-${{ github.run_attempt }}
           path: |

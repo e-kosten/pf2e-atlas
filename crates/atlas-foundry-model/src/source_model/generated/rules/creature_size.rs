@@ -42,7 +42,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_creature_size_
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@560e4e67763e28f86ece9c87
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@a9a1cd5549b683cefe3fb480
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaCreatureSizeRuleSchema {
@@ -119,7 +119,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_creature_size_
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@560e4e67763e28f86ece9c87; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@a9a1cd5549b683cefe3fb480; deferred fields:
 pub type CreatureSizeRule = SourceFromSchemaCreatureSizeRuleSchema;
 pub fn parse_creature_size_rule(
     v: &SourceValue,
