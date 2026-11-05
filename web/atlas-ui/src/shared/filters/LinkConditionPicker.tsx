@@ -1,3 +1,4 @@
+import { linkScopeCopy } from "./linkScopeCopy";
 import { useReferencePreview } from "../records/ReferencePreviewContext";
 import {
   isPrimaryActivation,
@@ -156,7 +157,7 @@ export function LinkConditionPicker({
             <span>Link scope</span>
             <Popover
               trigger="click"
-              placement="topLeft"
+              placement="top"
               arrow={false}
               open={scopeHelpOpen}
               onOpenChange={setScopeHelpOpen}
@@ -173,16 +174,10 @@ export function LinkConditionPicker({
                       : "finds records that your selection links to."}
                   </Typography.Paragraph>
                   <Typography.Paragraph>
-                    <strong>Main entry only:</strong>{" "}
-                    {direction === "incoming"
-                      ? "Check links in each result’s main entry."
-                      : "Check links in the selected entry itself."}
+                    <strong>Main entry only:</strong> {linkScopeCopy[direction].main}
                   </Typography.Paragraph>
                   <Typography.Paragraph style={{ marginBottom: 0 }}>
-                    <strong>Whole entry:</strong>{" "}
-                    {direction === "incoming"
-                      ? "Also check links in each result’s contents, such as its abilities, spells, and equipment."
-                      : "Also check links in the selected entry’s contents, such as its abilities, spells, and equipment."}
+                    <strong>Whole entry:</strong> {linkScopeCopy[direction].whole}
                   </Typography.Paragraph>
                 </div>
               }

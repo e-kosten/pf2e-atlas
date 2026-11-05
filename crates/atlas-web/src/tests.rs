@@ -1383,3 +1383,17 @@ async fn publication_edition_crosses_real_http_for_known_and_unknown_sources() {
         "journals:editionjournal01"
     );
 }
+
+#[tokio::test]
+async fn unreadable_counterpart_evidence_does_not_prevent_reading_the_record() {
+    let fixture = Fixture::with_remaster(true);
+    fixture.corrupt_remaster_evidence();
+    let (status, body) = fixture
+        .json(Method::GET, &format!("/api/records/{ACTION}"), None)
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["record"]["title"], "Test Action 1");
+    assert_eq!(body["presentation"]["identity"]["edition"], "legacy");
+    assert_eq!(body["counterparts"]["kind"], "error");
+    let _: atlas_app_model::RecordDetailView = serde_json::from_value(body).unwrap();
+}

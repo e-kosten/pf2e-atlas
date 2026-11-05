@@ -27,6 +27,23 @@ pub(super) struct Fixture {
 }
 
 impl Fixture {
+    pub fn corrupt_remaster_evidence(&self) {
+        let workspace =
+            atlas_runtime::initialize_workspace(self._directory.path().join("workspace.sqlite"))
+                .unwrap();
+        let write = workspace
+            .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+            .unwrap();
+        assert_eq!(
+            write
+                .connection()
+                .execute("UPDATE remaster_pairs SET evidence_json='{}'", [])
+                .unwrap(),
+            1
+        );
+        write.commit().unwrap();
+    }
+
     pub fn without_reference() -> Self {
         let directory = tempfile::tempdir().unwrap();
         let service = AtlasAppService::start(AtlasAppServiceOptions {

@@ -1,3 +1,4 @@
+import { linkScopeCopy } from "./linkScopeCopy";
 import { useReferencePreview } from "../records/ReferencePreviewContext";
 import {
   destinationHref,
@@ -249,9 +250,8 @@ function LinkChip({
               </Space>
             </Radio.Group>
             <Typography.Paragraph type="secondary">
-              {relationship.direction === "incoming"
-                ? "Whole entry also checks each matching record’s abilities, spells, equipment, and other nested documents."
-                : "Whole entry also checks this entry’s abilities, spells, equipment, and other nested documents."}
+              <strong>Whole entry:</strong>{" "}
+              {linkScopeCopy[relationship.direction].whole}
             </Typography.Paragraph>
             <Button
               onClick={() => {
