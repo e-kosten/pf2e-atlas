@@ -86,6 +86,59 @@ def profile_contracts(index):
     return {contract["profile_id"]: contract for contract in contracts}
 
 
+def published_vectors(index):
+    """Compare numerical identities across maintenance without depending on row IDs."""
+    result = {}
+    with closing(sqlite3.connect(index.as_uri() + "?mode=ro", uri=True)) as db:
+        for identity, input_hash, tokens, vector_hash in db.execute(
+                "SELECT m.identity_json,i.input_hash,i.token_count,i.published_hash "
+                "FROM embedding_inputs i JOIN embedding_models m USING(model_id) "
+                "WHERE i.published_hash IS NOT NULL"):
+            contract = json.loads(identity)
+            key = (json.dumps(contract, sort_keys=True), input_hash.hex(), tokens)
+            registry = result.setdefault(contract["profile_id"], {})
+            if key in registry:
+                raise RuntimeError("Duplicate published embedding input identity")
+            registry[key] = vector_hash.hex()
+    return result
+
+
+def require_preserved_vectors(profile, before, after, report):
+    if report["inferred_inputs"] != 0 or report["reused_inputs"] <= 0:
+        raise RuntimeError(f"{profile} did not reuse the predecessor vectors")
+    if not before.get(profile) or before[profile] != after.get(profile):
+        raise RuntimeError(f"{profile} changed the frozen published vectors")
+
+
+def policy_refresh_required(old, fresh):
+    def context(index):
+        with closing(sqlite3.connect(index.as_uri() + "?mode=ro", uri=True)) as db:
+            digest, encoded = db.execute(
+                "SELECT context_hash,context_json FROM artifact_context WHERE singleton=1").fetchone()
+        if hashlib.sha256(encoded.encode()).hexdigest() != digest:
+            raise RuntimeError("Artifact context checksum mismatch")
+        return json.loads(encoded)
+
+    before, after = context(old), context(fresh)
+    # These are the fields behind the grouped policy-admission diagnostic. Normal
+    # maintenance must subsequently succeed; this does not bypass its classifier.
+    policies = ("query_projection_version", "query_catalog_version", "lookup_version",
+                "lexical_selection_version", "fts_tokenizer", "content_interpretation_version",
+                "content_selection_version", "localization_policy", "asset_policy",
+                "relationship_policy")
+    return (all(before[key] == after[key] for key in
+                ("format_version", "snapshot_version", "source_contract"))
+            and any(before[key] != after[key] for key in policies))
+
+
+def expected_transition_rejection(failure, old, fresh):
+    reason = failure.get("code"), failure.get("message")
+    if reason == ("vector_readiness_required", "stored query model differs from the executable contract"):
+        return True
+    return (reason == ("artifact_incompatible", "projection/lookup/content/FTS policy identity")
+            and policy_refresh_required(old, fresh))
+
+
 def workspace_schema(index):
     with closing(sqlite3.connect(index.as_uri() + "?mode=ro", uri=True)) as db:
         return db.execute("PRAGMA user_version").fetchone()[0]
@@ -210,15 +263,16 @@ def check(candidate, cache, root, profiles, manifest, transitions, migrator=None
     old = root / "predecessor.sqlite"
     fresh = root / "fresh.sqlite"
     build(candidate, source, fresh, cache, root / "candidate-fresh.json", profiles)
+    frozen = published_vectors(old)
     schema = migrate_predecessor(old, fresh, migrator, manifest, root)
     current = profile_contracts(fresh)
     layout_fields = {"segmentation_tokenizer_sha256", "unit_policy_version", "input_recipe"}
     changed_layout = set()
     migrating = set()
+    rejections = {}
     for profile in profiles:
         original = manifest["profiles"][profile]
         replacement = current[profile]
-        expected = manifest["expected_queries"][profile]
         changed = {key for key in original.keys() | replacement.keys()
                    if original.get(key) != replacement.get(key)}
         if changed - layout_fields:
@@ -230,20 +284,25 @@ def check(candidate, cache, root, profiles, manifest, transitions, migrator=None
                 queries(candidate, old, cache, root, profile, "rejected")
             except AtlasCommandError as error:
                 failure = json.loads(error.evidence.read_text())["error"]
-                if failure["message"] != "stored query model differs from the executable contract":
+                if not expected_transition_rejection(failure, old, fresh):
                     raise
+                rejections[profile] = failure
             else:
                 raise RuntimeError(f"{profile} unexpectedly accepted the old execution contract")
         else:
-            compare_queries(expected,
-                            queries(candidate, old, cache, root, profile, "existing", expected),
-                            profile, "new query against old vectors")
             if changed:
+                expected = manifest["expected_queries"][profile]
+                compare_queries(expected,
+                                queries(candidate, old, cache, root, profile, "existing", expected),
+                                profile, "new query against old vectors before passage replacement")
                 changed_layout.add(profile)
 
     if migrating != transitions.keys():
         raise RuntimeError("Declared embedding ID transition did not change the execution contract")
     updated = counts(build(candidate, source, old, cache, root / "candidate-reuse.json", profiles))
+    preserved = published_vectors(old)
+    invoke(candidate, ["index", "validate", "--no-embeddings", "--index", old],
+           root / "candidate-validated.json")
     saved = invoke(candidate, ["lists", "show", "compatibility", "--index", old], root / "list-after.json")
     if saved_list_state(saved) != saved_list_state(manifest["saved_list"]):
         raise RuntimeError("Saved list changed across maintenance")
@@ -252,8 +311,12 @@ def check(candidate, cache, root, profiles, manifest, transitions, migrator=None
         if profile in migrating:
             if row["inferred_inputs"] <= 0 or row["reused_inputs"] != 0:
                 raise RuntimeError(f"{profile} did not rebuild with the new execution contract")
-        elif profile not in changed_layout and (row["inferred_inputs"] != 0 or row["reused_inputs"] <= 0):
-            raise RuntimeError(f"{profile} did not reuse the predecessor vectors")
+        elif profile not in changed_layout:
+            require_preserved_vectors(profile, frozen, preserved, row)
+            expected = manifest["expected_queries"][profile]
+            compare_queries(expected,
+                            queries(candidate, old, cache, root, profile, "existing", expected),
+                            profile, "new query against frozen vectors after maintenance")
         compare_queries(queries(candidate, fresh, cache, root, profile, "fresh"),
                         queries(candidate, old, cache, root, profile, "reused"),
                         profile, "maintenance versus fresh")
@@ -275,6 +338,7 @@ def check(candidate, cache, root, profiles, manifest, transitions, migrator=None
         "baseline_sha256": manifest["producer"]["binary_sha256"],
         "candidate_sha256": sha256(candidate),
         "workspace_schema": schema,
+        "pre_maintenance_rejections": rejections,
         "score_tolerance": SCORE_TOLERANCE,
         "profiles": {
             profile: {
