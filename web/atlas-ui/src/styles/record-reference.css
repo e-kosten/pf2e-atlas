@@ -127,6 +127,7 @@
   border-radius: var(--radius-sm);
   padding: 3px 8px;
   font-size: 0.9rem;
+  line-height: 24px;
   font-weight: 600;
 }
 .record-reference__header .record-reference__kind {
@@ -474,12 +475,6 @@
   inset-block-start: 4px;
   inset-inline-end: 4px;
   pointer-events: none;
-}
-
-.record-reference__classification > .record-reference__kind,
-.encounter-reference__title:has(> .encounter-reference__actions > a)
-  > .record-reference__kind {
-  line-height: 24px;
 }
 
 .encounter-casting__heading {
