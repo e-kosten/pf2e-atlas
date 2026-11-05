@@ -123,6 +123,7 @@ export function PreparedContentBody({
   const container = useRef<HTMLDivElement>(null);
   const [effectLinks, setEffectLinks] = useState<ReactPortal[]>([]);
   const rollHosts = useRef(new Map<string, HTMLElement>());
+  const plainCheckText = useRef(new WeakMap<HTMLElement, string>());
   const referenceHandler = useRef(onReference);
   useLayoutEffect(() => {
     referenceHandler.current = onReference;
@@ -246,21 +247,27 @@ export function PreparedContentBody({
             host = document.createElement("span");
             rollHosts.current.set(identity, host);
           }
-          const text = marker.textContent?.trim();
+          const previousText =
+            host.parentElement === marker
+              ? plainCheckText.current.get(host)
+              : undefined;
+          const authoredText = previousText ?? marker.textContent ?? "";
+          const text = authoredText.trim();
           const useText = Boolean(
             text &&
-            !marker.childElementCount &&
+            (previousText !== undefined || !marker.childElementCount) &&
             !marker.closest("a, [data-atlas-reference], button"),
           );
           const label = text || "Check";
           if (useText) {
-            const original = [...marker.childNodes];
-            host.className = "prepared-check-label";
-            marker.replaceChildren(host);
-            listeners.push(() => {
-              if (host.parentElement === marker) marker.replaceChildren(...original);
-            });
+            if (previousText === undefined) {
+              plainCheckText.current.set(host, authoredText);
+              host.className = "prepared-check-label";
+              marker.replaceChildren(host);
+            }
           } else {
+            if (previousText !== undefined) host.replaceWith(previousText);
+            plainCheckText.current.delete(host);
             host.className = "";
             const target = marker.closest("a[href], button") ?? marker;
             let reading = target.parentElement;
@@ -435,7 +442,9 @@ export function PreparedContentBody({
     });
     for (const [identity, host] of rollHosts.current) {
       if (!activeRolls.has(identity)) {
-        host.remove();
+        const authoredText = plainCheckText.current.get(host);
+        if (authoredText === undefined) host.remove();
+        else host.replaceWith(authoredText);
         rollHosts.current.delete(identity);
       }
     }

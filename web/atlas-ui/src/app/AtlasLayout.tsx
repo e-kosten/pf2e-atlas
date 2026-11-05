@@ -81,6 +81,7 @@ export function AtlasLayout({ routeError }: { routeError?: ReactNode } = {}) {
                 : undefined,
         }),
       }}
+      tooltip={{ styles: { root: { pointerEvents: "none" } } }}
       popover={{
         styles: atlasPopoverStyles(resolvedColorScheme),
       }}

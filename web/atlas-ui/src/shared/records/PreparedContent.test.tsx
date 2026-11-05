@@ -971,15 +971,16 @@ it.each([
       ],
     };
     const onReference = vi.fn();
-    render(
+    const view = (relationships = detail.relationships) => (
       <ConfigProvider theme={{ token: { motion: false } }}>
         <PreparedContent
           content={content}
-          relationships={detail.relationships}
+          relationships={relationships}
           onReference={onReference}
         />
-      </ConfigProvider>,
+      </ConfigProvider>
     );
+    const { rerender } = render(view());
     const plain = kind === "plain";
     const button = screen.getByRole("button", {
       name: plain ? "Check details: DC 26 Will save" : "Details for DC 26 Will save",
@@ -989,6 +990,10 @@ it.each([
       expect(screen.getByRole("link")).toHaveAttribute("href", "/records/rules:outer");
     expect(button.closest("a")).toBeNull();
     button.focus();
+    if (plain) {
+      rerender(view([...detail.relationships]));
+      expect(button).toHaveFocus();
+    }
     fireEvent.click(button);
     const popup = await screen.findByRole("dialog", {
       name: plain ? "Check details" : "Details for DC 26 Will save",

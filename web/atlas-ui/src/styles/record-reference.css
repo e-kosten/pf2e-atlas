@@ -115,7 +115,7 @@
   line-height: 1.2;
   text-wrap: pretty;
 }
-.record-reference__header p:not(.record-reference__source) {
+.record-reference__header p:where(:not(.record-reference__source)) {
   margin: 6px 0 0;
 }
 .record-reference__kind {
