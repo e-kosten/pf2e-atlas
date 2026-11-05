@@ -68,11 +68,11 @@ key scope before edition preference. Selections are validated and retained
 separately from paged suggestions and totals. No surface drops a contextual
 predicate silently or substitutes dummy counts.
 
-CEL-spec truth semantics govern compilation. The cel 0.14.5 interpreter propagates
-an unavailable child's error before a later true Exists witness, contrary to the
-language specification; it is not the reference oracle for that case or the
-product execution path. Regression fixtures record this limitation alongside
-order-independent SQL witness tests. See the
+CEL-spec truth semantics govern compilation. Conformance fixtures execute the
+selected parser library's interpreter and require Exists to accept a true witness
+regardless of unavailable-child order. The cel 0.15 upgrade corrected the earlier
+interpreter's order-dependent error propagation. Independent SQL witness tests
+cover Atlas's compiled product execution path. See the
 [CEL language definition](https://github.com/cel-expr/cel-spec/blob/master/doc/langdef.md#macros).
 
 ## Content and retrieval
