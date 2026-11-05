@@ -232,6 +232,7 @@ function renderControls(
             onChange(next);
           },
           filterEditor: editor,
+          filterApplicabilityCurrent: true,
         }}
       />
     );
@@ -1015,6 +1016,32 @@ describe("per-value states and the complete query", () => {
 });
 
 describe("field applicability while editing Boolean groups", () => {
+  it("narrows a new AND condition but allows an existing Kind condition to be replaced", async () => {
+    const editor = editorFixture([
+      { ...fieldFixture("kind", "string", "Kind"), choices: ["creature"] },
+      fieldFixture("physical.base_type", "string", "Base Type"),
+      fieldFixture("hazard.hardness", "number", "Hardness"),
+    ]);
+    editor.groups[0].fields[1].applicable = false;
+    editor.groups[0].fields[2].applicable = false;
+    renderControls(editor, { kind: "in", field: "kind", values: ["creature"] });
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add condition" }));
+    const [existing, added] = screen.getAllByRole("combobox", { name: "Filter field" });
+    fireEvent.mouseDown(added);
+    expect(screen.queryByRole("option", { name: "Base Type" })).not.toBeInTheDocument();
+    fireEvent.keyDown(added, { key: "Escape", code: "Escape", keyCode: 27 });
+    fireEvent.mouseDown(existing);
+    fireEvent.click(screen.getAllByText("Base Type", { exact: true }).slice(-1)[0]);
+    expect(screen.getByRole("button", { name: "Edit Base Type values" })).toBeEnabled();
+    expect(screen.getByText("Changes pending")).toBeInTheDocument();
+    const blank = screen.getAllByRole("combobox", { name: "Filter field" }).at(-1)!;
+    fireEvent.mouseDown(blank);
+    fireEvent.change(blank, { target: { value: "Hardness" } });
+    fireEvent.click((await screen.findAllByText("Hardness", { exact: true })).at(-1)!);
+    expect(screen.getByRole("textbox", { name: "Hardness" })).toBeEnabled();
+  });
+
   it.each(["Match any", "Match none", "Not all match"])(
     "keeps fields available when %s can broaden the current result",
     (match) => {

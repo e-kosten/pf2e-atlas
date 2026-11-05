@@ -88,6 +88,8 @@ export function useFilterDiscovery({
   });
   return {
     filterEditor: editor.data,
+    filterApplicabilityCurrent:
+      enabled && editor.isSuccess && !editor.isPlaceholderData,
     filterCountsEnabled: enabled,
     filterCountQueryKey: queryKeyPrefix,
     filterDiscoveryContext: context,

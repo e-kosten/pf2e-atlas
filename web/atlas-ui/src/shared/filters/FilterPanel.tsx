@@ -276,6 +276,9 @@ export function FilterControls({
       <StructuredBuilder
         editor={editor}
         query={prepared.query}
+        useApplicability={
+          workspace.filterApplicabilityCurrent === true && !prepared.error
+        }
         onChange={prepared.change}
         workspace={countWorkspace}
       />
@@ -688,12 +691,14 @@ function StructuredBuilder({
   query,
   onChange,
   scope = null,
+  useApplicability = false,
   workspace,
 }: {
   editor: FilterEditorView;
   query: RuleGroupType;
   onChange: (query: RuleGroupType) => void;
   scope?: string | null;
+  useApplicability?: boolean;
   workspace: FilterPanelState;
 }) {
   const visible = editor.groups
@@ -765,7 +770,7 @@ function StructuredBuilder({
           {
             editor,
             scope,
-            narrowFields: isPositiveConjunction(query),
+            narrowFields: useApplicability && isPositiveConjunction(query),
             workspace,
             replaceGroup: (path, group) =>
               onChange(
@@ -854,6 +859,7 @@ function BuilderFieldSelector(props: FieldSelectorProps) {
   const { editor, scope, narrowFields } = props.context as BuilderContext;
   const editing = useContext(RuleEditContext);
   const selectedKind = scope === null ? actorMetricKind(props.value ?? "~") : null;
+  const addingCondition = !props.value || props.value === "~";
   const seenKinds = new Set<ActorMetricKind>();
   const groups = [
     ...editor.groups
@@ -864,10 +870,7 @@ function BuilderFieldSelector(props: FieldSelectorProps) {
             (field) =>
               field.definition.scope === scope &&
               (scope === null || field.definition.field_type !== "collection") &&
-              (!narrowFields ||
-                field.applicable ||
-                field.definition.id === props.value ||
-                field.unit_fields.some((unit) => unit.field_id === props.value)) &&
+              (!addingCondition || !narrowFields || field.applicable) &&
               (!field.unit_fields.length ||
                 field.unit_fields[0].field_id === field.definition.id),
           )

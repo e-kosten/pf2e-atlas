@@ -874,10 +874,11 @@ Successful edits retain the builder tree rather than reconstructing it from the
 executable predicate. External changed criteria reset drafts; preview navigation
 and local URL updates preserve them. Operator input shapes come from app-service
 metadata; apply value transitions atomically before rendering a different input.
-Editor metadata remains available for invalid criteria. Valid committed filters
-can narrow addable fields using backend applicability for positive conjunctions;
-OR and negated draft groups retain the complete catalog so users can broaden the
-query. Existing conditions remain editable. Keep displayed options/counts during refresh within the same artifact,
+Editor metadata remains available for invalid criteria. Narrow new conditions
+only when the draft is a valid positive conjunction and the backend applicability
+hints match the current committed filter. Field replacements, OR and negated groups,
+invalid drafts, and pending applicability use the complete catalog for their scope.
+Keep displayed options/counts during refresh within the same artifact,
 profile and membership scope, replacing them in place when responses arrive.
 Do not retain counts after an actual unavailable/error response. The drawer is the
 root expression surface; reserve group framing for nested expressions and put
