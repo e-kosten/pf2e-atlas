@@ -535,7 +535,7 @@ mod tests {
         CliProgressState, EventFields, ProgressMode, ProgressOptions, ProgressRenderMode,
         progress_render_mode_for_mode, progress_template, should_render_event, spinner_template,
     };
-    use indicatif::{ProgressBar, ProgressDrawTarget, TermLike};
+    use indicatif::{InMemoryTerm, ProgressBar, ProgressDrawTarget, TermLike};
     use std::io;
     use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
@@ -1065,10 +1065,7 @@ mod tests {
     #[test]
     fn narrow_terminals_keep_counts_bar_and_timing_visible() {
         for width in [60, 80] {
-            let term = RecordingTerm {
-                width,
-                ..Default::default()
-            };
+            let term = InMemoryTerm::new(4, width);
             let mut state = CliProgressState {
                 is_interactive: true,
                 started_at: Instant::now() - Duration::from_secs(215),
