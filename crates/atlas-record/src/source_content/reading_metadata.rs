@@ -81,6 +81,19 @@ pub fn standalone_labeled_paragraph(html: &str, label: &str) -> Option<String> {
         .descendants()
         .filter_map(ElementRef::wrap)
         .filter(|element| element.value().name() == "p")
+        .filter(|paragraph| {
+            !paragraph
+                .ancestors()
+                .chain(paragraph.descendants())
+                .filter_map(ElementRef::wrap)
+                .any(|element| {
+                    element.value().attr("data-visibility").is_some()
+                        || matches!(
+                            element.value().name(),
+                            "script" | "style" | "iframe" | "object"
+                        )
+                })
+        })
         .filter_map(|paragraph| {
             let mut children = paragraph
                 .children()

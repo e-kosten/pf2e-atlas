@@ -1536,6 +1536,24 @@ fn reference_frequency_marks_only_matching_standalone_prose_as_duplicate() {
         (
             1,
             "day",
+            "<p data-visibility='none'><strong>Frequency</strong> once per day</p><p>Effect</p>",
+            None,
+        ),
+        (
+            1,
+            "day",
+            "<div data-visibility='owner'><p><strong>Frequency</strong> once per day</p></div><p>Effect</p>",
+            None,
+        ),
+        (
+            1,
+            "day",
+            "<object><p><strong>Frequency</strong> once per day</p></object><p>Effect</p>",
+            None,
+        ),
+        (
+            1,
+            "day",
             "<!-- <p><strong>Frequency</strong> once per day</p> -->",
             None,
         ),
