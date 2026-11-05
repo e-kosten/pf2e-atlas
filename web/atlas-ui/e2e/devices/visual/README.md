@@ -5,6 +5,23 @@ per project, alongside interaction and transition assertions. References are
 separated by OS and project; keep the pinned Playwright version, viewport, theme
 and fixture state identical. See CONTRIBUTING.md for deliberate capture/review.
 
+## Integrated inline editing and classification badges
+
+Source `230f8dd1bb1016898fbc957ad11b674073cd888f` combines the shared 32px
+badge height with the inline edit cues from main. Independent Astra review covered
+all 40 before/after pairs per OS and the live desktop, phone and tablet preview.
+All 12 macOS capture scenarios and all 12 ordinary comparisons passed.
+
+- macOS 27.2 (26B123), arm64, Playwright 1.62.1, checkout-local fixture.
+- Ubuntu 24.04 x64, Playwright 1.62.1,
+  [capture 41971467160](https://github.com/e-kosten/pf2e-atlas/actions/runs/41971467160).
+  All 12 capture scenarios passed using CI run 41971041547's authenticated
+  fixture, source merge `1ebf9460c38db462fed5bf9a9ae4225b2c65dda2`.
+  Fixture binary SHA-256:
+  `df1fbc0ad0197faf2da9a5849eec2164528c976491f290d70a48c3d1896da3d7`.
+  Frontend index SHA-256:
+  `4adb389a296431055039686c9dbdb8c9be8f656f7f7170fa99613d64413dbf2e`.
+
 ## Uniform encounter classification badges
 
 Manual participants use the same 32px classification badge height as creatures
