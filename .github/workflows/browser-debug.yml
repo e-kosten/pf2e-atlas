@@ -45,7 +45,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: browser-fixture
           path: ${{ env.ATLAS_BROWSER_ARTIFACT }}
@@ -60,7 +60,7 @@ jobs:
           if (!/^[a-f0-9]{40}$/.test(manifest.commit)) throw new Error('Invalid artifact commit');
           console.log(`commit=${manifest.commit}`);
           JS
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ steps.candidate.outputs.commit }}
       - uses: actions/setup-node@v7

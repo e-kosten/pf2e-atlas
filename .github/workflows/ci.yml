@@ -41,7 +41,7 @@ jobs:
       embedding: ${{ steps.select.outputs.embedding }}
       embedding-runners: ${{ steps.select.outputs.embedding-runners }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
           fetch-depth: 0
@@ -92,7 +92,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v6
@@ -151,7 +151,7 @@ jobs:
     if: needs.changes.outputs.skill == 'true'
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v7
@@ -166,7 +166,7 @@ jobs:
     name: frontend checks and bundle
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v7
@@ -189,7 +189,7 @@ jobs:
     name: rust
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
@@ -197,7 +197,7 @@ jobs:
         with:
           shared-key: linux-verification
           cache-workspace-crates: false
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: web-bundle
           path: web/atlas-ui/dist
@@ -222,7 +222,7 @@ jobs:
     name: build browser candidate
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
@@ -234,7 +234,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: web-bundle
           path: web/atlas-ui/dist
@@ -260,7 +260,7 @@ jobs:
     env:
       ATLAS_BROWSER_ARTIFACT: ${{ github.workspace }}/scratch/browser-artifact
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v7
@@ -269,7 +269,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/atlas-ui/package-lock.json
       - run: npm --prefix web/atlas-ui ci
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: browser-fixture
           path: scratch/browser-artifact
@@ -298,7 +298,7 @@ jobs:
     name: Windows artifact publication
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
@@ -328,7 +328,7 @@ jobs:
     name: atlas dev (no web bundle)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
@@ -352,7 +352,7 @@ jobs:
     env:
       VITEST_MAX_WORKERS: '1'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v7
@@ -371,7 +371,7 @@ jobs:
     name: source contracts
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
@@ -404,7 +404,7 @@ jobs:
         os: [ubuntu-24.04, macos-26, windows-2022]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v7
@@ -438,7 +438,7 @@ jobs:
     if: needs.changes.outputs.research == 'true'
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v7
@@ -452,7 +452,7 @@ jobs:
     needs: [changes, web-bundle, browser-fixture, browsers, rust, windows-artifact, atlas-dev, web-ui, source-contracts, release-tools, research, skill, embedding]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.source-ref || github.sha }}
       - name: Require selected jobs to succeed
