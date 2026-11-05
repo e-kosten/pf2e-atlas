@@ -6,6 +6,7 @@ import {
   isPrimaryActivation,
   navigateDestination,
 } from "../../app/navigation";
+import { useReferencePreview } from "../records/ReferencePreviewContext";
 import { RecordReferenceDrawer } from "../records/RecordReferenceDrawer";
 import { useRecordPreview } from "../records/useRecordPreview";
 
@@ -19,6 +20,7 @@ export function SimilaritySeedLink({
   title: string;
   disabled?: boolean;
 }) {
+  const reference = useReferencePreview();
   const { componentDisabled } = ConfigProvider.useConfig();
   const unavailable = disabled ?? componentDisabled;
   if (seed.kind === "trait")
@@ -26,6 +28,11 @@ export function SimilaritySeedLink({
       <Typography.Link
         disabled={unavailable}
         href={destinationHref(traitDestination({ traitKey: seed.trait_key }))}
+        onClick={(event) => {
+          if (unavailable || !reference || !isPrimaryActivation(event)) return;
+          event.preventDefault();
+          reference.openTrait(seed.trait_key, event.currentTarget);
+        }}
       >
         {title}
       </Typography.Link>
@@ -63,8 +70,10 @@ function RecordSeedLink({
       >
         {title}
       </Typography.Link>
-      {preview.recordKey && (
+      {preview.active && (
         <RecordReferenceDrawer
+          trait={preview.trait}
+          onTraitReference={preview.openTrait}
           anchor={preview.anchor}
           requestedNavigation={preview.selection}
           readingHistory={preview.readingHistory}

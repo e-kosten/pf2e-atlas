@@ -4,8 +4,14 @@ import type { RecordNavigationView } from "./RecordNavigationView";
 import type { RecordPresentationView } from "./RecordPresentationView";
 import type { RecordRelationshipView } from "./RecordRelationshipView";
 import type { RecordSummaryView } from "./RecordSummaryView";
+import type { RelatedCategoryView } from "./RelatedCategoryView";
+import type { RemasterLinksView } from "./RemasterLinksView";
 
 export type RecordDetailView = {
+/**
+ * Verified editions of this root document, isolated from unrelated graph/variant reads.
+ */
+counterparts?: RelatedCategoryView<RemasterLinksView>,
 /**
  * Default adjustment for adding this root creature to an encounter.
  */

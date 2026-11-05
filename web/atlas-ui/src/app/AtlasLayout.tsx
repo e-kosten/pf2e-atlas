@@ -24,6 +24,7 @@ import { LinkPickerContext } from "../shared/filters/LinkPickerContext";
 import { LinkConditionPicker } from "../shared/filters/LinkConditionPicker";
 import { BackendCompatibilityGate } from "./BackendCompatibilityGate";
 import { GlobalFeedbackProvider } from "../shared/feedback/GlobalFeedback";
+import { ReferencePreviewProvider } from "../shared/records/ReferencePreviewProvider";
 import { SelectionSearch } from "../shared/records/SelectionSearch";
 import { LoadingStatus } from "../shared/ui/LoadingStatus";
 
@@ -150,47 +151,51 @@ function AtlasWorkspace({
   });
   return (
     <SearchProfileContext value={searchProfile}>
-      <LinkPickerContext value={LinkConditionPicker}>
-        <AppShell
-          activeView={routeError ? "reference" : section}
-          searchReturnDestination={
-            searchReturn
-              ? {
-                  ...searchDestination(searchReturn.route),
-                  hash: searchReturn.location.hash,
-                  state: searchReturn.location.state,
-                  resetScroll: false,
-                }
-              : undefined
-          }
-          colorScheme={colorScheme}
-          onColorSchemeChange={onColorSchemeChange}
-          resolvedColorScheme={resolvedColorScheme}
-          readiness={readiness.data}
-          readinessError={readiness.error}
-          checkingReadiness={readiness.isFetching}
-          onCheckReadiness={() => void readiness.refetch()}
-        >
-          <>
-            <Activity mode={!routeError && section === "search" ? "visible" : "hidden"}>
-              <Suspense
-                fallback={
-                  <main className="detail-empty">
-                    <LoadingStatus label="Loading search…" />
-                  </main>
-                }
+      <ReferencePreviewProvider>
+        <LinkPickerContext value={LinkConditionPicker}>
+          <AppShell
+            activeView={routeError ? "reference" : section}
+            searchReturnDestination={
+              searchReturn
+                ? {
+                    ...searchDestination(searchReturn.route),
+                    hash: searchReturn.location.hash,
+                    state: searchReturn.location.state,
+                    resetScroll: false,
+                  }
+                : undefined
+            }
+            colorScheme={colorScheme}
+            onColorSchemeChange={onColorSchemeChange}
+            resolvedColorScheme={resolvedColorScheme}
+            readiness={readiness.data}
+            readinessError={readiness.error}
+            checkingReadiness={readiness.isFetching}
+            onCheckReadiness={() => void readiness.refetch()}
+          >
+            <>
+              <Activity
+                mode={!routeError && section === "search" ? "visible" : "hidden"}
               >
-                <SearchView
-                  workspace={workspace}
-                  historyState={searchReturn?.location.state}
-                />
-              </Suspense>
-            </Activity>
-            {routeError ?? <Outlet />}
-            <SelectionSearch key={location.href} />
-          </>
-        </AppShell>
-      </LinkPickerContext>
+                <Suspense
+                  fallback={
+                    <main className="detail-empty">
+                      <LoadingStatus label="Loading search…" />
+                    </main>
+                  }
+                >
+                  <SearchView
+                    workspace={workspace}
+                    historyState={searchReturn?.location.state}
+                  />
+                </Suspense>
+              </Activity>
+              {routeError ?? <Outlet />}
+              <SelectionSearch key={location.href} />
+            </>
+          </AppShell>
+        </LinkPickerContext>
+      </ReferencePreviewProvider>
     </SearchProfileContext>
   );
 }

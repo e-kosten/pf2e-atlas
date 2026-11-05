@@ -4,14 +4,15 @@ import { getTraitDetail } from "../../api/atlasApi";
 import { useRetainedRecord } from "./useRetainedRecord";
 import { useReferenceQueryRetirement } from "../queries/useReferenceQueryRetirement";
 
-export function useTraitDetail(traitKey: string) {
+export function useTraitDetail(traitKey: string | null) {
   const queryKey = ["trait-detail", traitKey];
   const query = useQuery({
     meta: referenceQueryMeta,
+    enabled: traitKey !== null,
     queryKey,
     queryFn: ({ signal }) =>
       getTraitDetail(
-        { trait_key: traitKey, expected_artifact_generation: null },
+        { trait_key: traitKey!, expected_artifact_generation: null },
         signal,
       ),
   });

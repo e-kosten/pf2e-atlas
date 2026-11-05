@@ -293,6 +293,7 @@ fn absent_number() -> NumberFactView {
 fn summary(title: &str, family: &str) -> RecordSummaryView {
     RecordSummaryView {
         unit_price_label: None,
+        edition: None,
         record_key: "creatures:caster".into(),
         title: title.into(),
         kind: family.into(),
@@ -326,6 +327,7 @@ fn address() -> RecordNavigationView {
 }
 fn detail(body: RecordBodyView) -> RecordDetailView {
     RecordDetailView {
+        counterparts: None,
         artifact_generation: "test-generation".into(),
         record: summary("Local Caster", "creature"),
         presentation: RecordPresentationView {

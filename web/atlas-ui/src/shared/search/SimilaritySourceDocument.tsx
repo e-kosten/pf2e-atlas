@@ -278,8 +278,10 @@ function TraitSourceDocument({
       ) : (
         query.isPending && <Spin delay={500} description="Loading trait…" />
       )}
-      {preview.recordKey && (
+      {preview.active && (
         <RecordReferenceDrawer
+          trait={preview.trait}
+          onTraitReference={preview.openTrait}
           anchor={preview.anchor}
           requestedNavigation={preview.selection}
           detail={preview.detail}

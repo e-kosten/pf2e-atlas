@@ -27,6 +27,23 @@ pub(super) struct Fixture {
 }
 
 impl Fixture {
+    pub fn corrupt_remaster_evidence(&self) {
+        let workspace =
+            atlas_runtime::initialize_workspace(self._directory.path().join("workspace.sqlite"))
+                .unwrap();
+        let write = workspace
+            .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
+            .unwrap();
+        assert_eq!(
+            write
+                .connection()
+                .execute("UPDATE remaster_pairs SET evidence_json='{}'", [])
+                .unwrap(),
+            1
+        );
+        write.commit().unwrap();
+    }
+
     pub fn without_reference() -> Self {
         let directory = tempfile::tempdir().unwrap();
         let service = AtlasAppService::start(AtlasAppServiceOptions {
@@ -64,12 +81,12 @@ impl Fixture {
             record(
                 "actions",
                 "Item",
-                json!({"_id":"aaaaaaaaaaaaaaaa","type":"action","name":"Test Action 1","system":{"actionType":{"value":"action"},"actions":{"value":1},"traits":{"value":["fire"]},"description":{"value":"<p>Flame @Damage[1d6[fire]] burns.</p>"}}}),
+                json!({"_id":"aaaaaaaaaaaaaaaa","type":"action","name":"Test Action 1","system":{"publication":{"remaster":false},"actionType":{"value":"action"},"actions":{"value":1},"traits":{"value":["fire"]},"description":{"value":"<p>Flame @Damage[1d6[fire]] burns.</p>"}}}),
             ),
             record(
                 "actions",
                 "Item",
-                json!({"_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Test Action 2","system":{"description":{"value":"<p>A second flame.</p>"}}}),
+                json!({"_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Test Action 2","system":{"publication":{"remaster":true},"description":{"value":"<p>A second flame.</p>"}}}),
             ),
             record("actors", "Actor", actor),
             record(

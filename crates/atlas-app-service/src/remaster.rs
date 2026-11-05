@@ -68,3 +68,27 @@ pub(crate) fn links_view(
         links,
     })
 }
+
+/// Counterpart failures are secondary availability, not a failed document read.
+pub(crate) fn counterparts_view(
+    key: &atlas_domain::RecordKey,
+    retrieval: &AtlasRetrievalService,
+) -> atlas_app_model::RelatedCategoryView<RemasterLinksView> {
+    use atlas_app_model::RelatedCategoryView;
+    let result = retrieval
+        .remaster_links(atlas_search::RemasterLinksRequest { record_key: key })
+        .map_err(crate::AppServiceError::from)
+        .and_then(|result| match result {
+            Some(result) if !result.links.is_empty() => Ok(RelatedCategoryView::Content {
+                content: links_view(result, retrieval)?,
+            }),
+            Some(_) => Ok(RelatedCategoryView::Empty),
+            None => Err(crate::AppServiceError::new(
+                atlas_app_model::AppErrorCode::RecordNotFound,
+                "edition seed not found",
+            )),
+        });
+    result.unwrap_or_else(|error| RelatedCategoryView::Error {
+        error: error.into_app_error(),
+    })
+}

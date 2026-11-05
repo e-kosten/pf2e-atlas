@@ -1,3 +1,4 @@
+export type { RecordEditionView } from "../../../../crates/atlas-app-model/bindings/RecordEditionView";
 export type { EncounterManualTrackerView } from "../../../../crates/atlas-app-model/bindings/EncounterManualTrackerView";
 export type { EncounterManualTrackerAction } from "../../../../crates/atlas-app-model/bindings/EncounterManualTrackerAction";
 export type { UpdateEncounterManualTrackerRequest } from "../../../../crates/atlas-app-model/bindings/UpdateEncounterManualTrackerRequest";

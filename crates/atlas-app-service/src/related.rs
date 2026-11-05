@@ -3,9 +3,7 @@ use atlas_app_model::{
     AppErrorCode, RelatedCategoryView, RelatedRecordsRequest, RelatedRecordsView,
 };
 use atlas_domain::RecordKey;
-use atlas_search::{
-    GetRecordRequest, GetRecordsRequest, GraphContextRequest, RemasterLinksRequest,
-};
+use atlas_search::{GetRecordRequest, GetRecordsRequest, GraphContextRequest};
 
 const RELATED_OCCURRENCE_LIMIT: usize = 100;
 
@@ -114,25 +112,7 @@ impl AtlasAppService {
                 }),
             );
             let (counterparts, variants) = if selection.owners.is_empty() {
-                let counterparts = category(
-                    r.remaster_links(RemasterLinksRequest { record_key: &key })
-                        .map_err(AppServiceError::from)
-                        .and_then(|result| {
-                            let g = result.ok_or_else(|| {
-                                AppServiceError::new(
-                                    AppErrorCode::RecordNotFound,
-                                    "related seed not found",
-                                )
-                            })?;
-                            Ok(if g.links.is_empty() {
-                                RelatedCategoryView::Empty
-                            } else {
-                                RelatedCategoryView::Content {
-                                    content: crate::remaster::links_view(g, r)?,
-                                }
-                            })
-                        }),
-                );
+                let counterparts = crate::remaster::counterparts_view(&key, r);
                 (
                     counterparts,
                     category(crate::retrieval::variant_group_view(r, &key)),

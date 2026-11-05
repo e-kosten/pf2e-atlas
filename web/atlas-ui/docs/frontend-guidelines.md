@@ -1172,9 +1172,14 @@ Reader mode, companion layout or reader route. Search results, saved-list member
 and Add candidates keep their primary selected-record detail pane; following a
 reference does not replace that selection or commit a mutation.
 
-Use `RecordReferenceDrawer` for linked records and Original record links on every
-viewport. Trait badges retain native typed trait-page destinations; never coerce
-their identities to record keys. It overlays the host
+Use `RecordReferenceDrawer` for linked records, trait definitions and Original
+record links on every viewport. Trait badges and trait Similar seeds open a
+contextual definition on primary activation while retaining native typed
+trait-page destinations; never coerce trait identities to record keys. Shared
+preview sessions retain mixed record/trait Back history. `ReferencePreviewProvider`
+owns contextual links outside an existing reader; a mounted Drawer supplies its
+own session through `ReferencePreviewContext` so nested references reuse it.
+It overlays the host
 without reserving an empty column or compressing the underlying layout. It is
 full width on narrow screens and has a generous bounded reading width otherwise.
 Nested references replace the document in the same Drawer and keep a bounded
@@ -1259,6 +1264,16 @@ activity detail links still follow the service has_reference_details decision.
 No reader-mode URL adapter or alternate rendering path is retained.
 
 ### Record presentation
+
+Show Rust-projected publication edition beside the record identity and in result
+metadata. Explicit pre-remaster content is labelled Legacy; unavailable source
+metadata receives no inferred era. An edition label does not claim that content
+is unusable or has a replacement. Verified counterpart links belong above the
+rules text in readers and reference drawers, rather than only under Explore →
+Versions. Open them in the shared reference drawer while retaining native links.
+Embedded documents use their own publication metadata and do not inherit their
+parent's counterpart mappings. Missing indexed mappings do not establish that no
+remaster counterpart exists.
 
 Before redesigning a record family, audit its generated Foundry DTO fields through
 the borrowed source views, app-service presentation and rendered UI. The current

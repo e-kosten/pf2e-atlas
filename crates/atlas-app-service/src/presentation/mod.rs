@@ -520,6 +520,7 @@ fn selected_identity(
     let family = node.source_type().value().unwrap_or(node.document_kind());
     RecordSummaryView {
         unit_price_label: None,
+        edition: crate::projection::publication_edition(query.publication_remaster().value()),
         record_key: record.key().to_string(),
         title: node_title(node),
         kind: family.into(),

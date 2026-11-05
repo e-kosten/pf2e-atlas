@@ -175,7 +175,7 @@ export function PhysicalReference({
                   event.stopPropagation();
                   if (!isPrimaryActivation(event)) return;
                   event.preventDefault();
-                  navigateDestination(baseRoute);
+                  navigateDestination(baseRoute, { dismissReadingOverlays: true });
                 }}
               >
                 {baseType.label}

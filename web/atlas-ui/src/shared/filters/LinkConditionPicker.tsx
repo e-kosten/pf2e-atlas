@@ -1,3 +1,5 @@
+import { linkScopeCopy } from "./linkScopeCopy";
+import { useReferencePreview } from "../records/ReferencePreviewContext";
 import {
   isPrimaryActivation,
   navigateDestination,
@@ -5,7 +7,7 @@ import {
 } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { QuestionCircleOutlined } from "@ant-design/icons";
-import { Tooltip, Button, Form, Popover, Radio, Select, Typography, theme } from "antd";
+import { Button, Form, Popover, Radio, Select, Typography, theme } from "antd";
 import { useRef, useState, type KeyboardEvent } from "react";
 import type {
   QueryRelationship,
@@ -27,6 +29,7 @@ export function LinkConditionPicker({
   onCancel,
   onConfirm,
 }: LinkPickerProps) {
+  const reference = useReferencePreview();
   const [candidate, setCandidate] = useState<PickerSelection | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [scopeHelpOpen, setScopeHelpOpen] = useState(false);
@@ -83,13 +86,33 @@ export function LinkConditionPicker({
           <Typography.Text role="status">{feedback}</Typography.Text>
         ) : undefined
       }
-    >
-      {(candidate || initial) && (
-        <Typography.Link
-          onClick={(event) => {
-            if (!isPrimaryActivation(event)) return;
-            event.preventDefault();
-            navigateDestination(
+      summary={
+        (candidate || initial) && (
+          <Typography.Link
+            onClick={(event) => {
+              if (!isPrimaryActivation(event)) return;
+              event.preventDefault();
+              if (reference) {
+                reference.open(
+                  candidate?.record.record_key ?? initial!.selection.record_key,
+                  event.currentTarget,
+                  candidate
+                    ? rootNavigation(candidate.record.record_key)
+                    : initial!.selection,
+                );
+                return;
+              }
+              navigateDestination(
+                recordDestination({
+                  recordKey:
+                    candidate?.record.record_key ?? initial!.selection.record_key,
+                  selection: candidate
+                    ? rootNavigation(candidate.record.record_key)
+                    : initial!.selection,
+                }),
+              );
+            }}
+            href={destinationHref(
               recordDestination({
                 recordKey:
                   candidate?.record.record_key ?? initial!.selection.record_key,
@@ -97,20 +120,13 @@ export function LinkConditionPicker({
                   ? rootNavigation(candidate.record.record_key)
                   : initial!.selection,
               }),
-            );
-          }}
-          href={destinationHref(
-            recordDestination({
-              recordKey: candidate?.record.record_key ?? initial!.selection.record_key,
-              selection: candidate
-                ? rootNavigation(candidate.record.record_key)
-                : initial!.selection,
-            }),
-          )}
-        >
-          {candidate?.record.title ?? initialTitle ?? "Record unavailable"}
-        </Typography.Link>
-      )}
+            )}
+          >
+            {candidate?.record.title ?? initialTitle ?? "Record unavailable"}
+          </Typography.Link>
+        )
+      }
+    >
       <Form.Item
         name="direction"
         label="Direction"
@@ -126,7 +142,7 @@ export function LinkConditionPicker({
       </Form.Item>
       <Form.Item
         name="includeContents"
-        style={{ minWidth: 0, width: 280, maxWidth: "100%" }}
+        style={{ minWidth: 0, width: 160, maxWidth: "100%" }}
         getValueProps={(value: boolean) => ({ value: value ? "whole" : "main" })}
         getValueFromEvent={(value: string) => value === "whole"}
         label={
@@ -138,38 +154,44 @@ export function LinkConditionPicker({
               maxWidth: "100%",
             }}
           >
-            <span style={{ whiteSpace: "normal" }}>
-              {direction === "incoming"
-                ? "Look for links in matching records"
-                : "Look for links in this entry"}
-            </span>
+            <span>Link scope</span>
             <Popover
               trigger="click"
-              placement="bottom"
+              placement="top"
               arrow={false}
               open={scopeHelpOpen}
               onOpenChange={setScopeHelpOpen}
-              styles={{ root: { maxWidth: "calc(100vw - 32px)" } }}
+              title="Where Atlas checks for links"
+              styles={{ root: { width: 320, maxWidth: "calc(100vw - 32px)" } }}
               content={
-                <Typography.Paragraph style={{ margin: 0 }}>
-                  {direction === "incoming"
-                    ? "Whole entry also checks each matching record’s abilities, spells, equipment, and other nested documents."
-                    : "Whole entry also checks this entry’s abilities, spells, equipment, and other nested documents."}
-                </Typography.Paragraph>
+                <div>
+                  <Typography.Paragraph>
+                    <strong>
+                      {direction === "incoming" ? "Links to" : "Linked from"}
+                    </strong>{" "}
+                    {direction === "incoming"
+                      ? "finds records that contain a link to your selection."
+                      : "finds records that your selection links to."}
+                  </Typography.Paragraph>
+                  <Typography.Paragraph>
+                    <strong>Main entry only:</strong> {linkScopeCopy[direction].main}
+                  </Typography.Paragraph>
+                  <Typography.Paragraph style={{ marginBottom: 0 }}>
+                    <strong>Whole entry:</strong> {linkScopeCopy[direction].whole}
+                  </Typography.Paragraph>
+                </div>
               }
             >
-              <Tooltip title="About link scope" trigger={["hover", "focus"]}>
-                <Button
-                  ref={scopeHelpTrigger}
-                  type="text"
-                  size="small"
-                  icon={<QuestionCircleOutlined />}
-                  aria-label="About link scope"
-                  aria-expanded={scopeHelpOpen}
-                  onKeyDown={scopeHelpKeyDown}
-                  styles={{ root: { flexShrink: 0 } }}
-                />
-              </Tooltip>
+              <Button
+                ref={scopeHelpTrigger}
+                type="text"
+                size="small"
+                icon={<QuestionCircleOutlined />}
+                aria-label="About link scope"
+                aria-expanded={scopeHelpOpen}
+                onKeyDown={scopeHelpKeyDown}
+                styles={{ root: { flexShrink: 0 } }}
+              />
             </Popover>
           </span>
         }

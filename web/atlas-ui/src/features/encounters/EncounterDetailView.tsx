@@ -706,6 +706,8 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 onReloadPreview={recordPreview.reload}
                 reloadPreviewLabel={recordPreview.reloadLabel}
                 retryPreviewLabel={recordPreview.retryLabel}
+                previewTrait={recordPreview.trait}
+                onPreviewTrait={recordPreview.openTrait}
                 previewRecordKey={recordPreview.recordKey}
               />
             }

@@ -97,6 +97,8 @@ export function EncounterInspectorPane({
   onReloadPreview,
   reloadPreviewLabel,
   retryPreviewLabel,
+  previewTrait,
+  onPreviewTrait,
   previewRecordKey,
   previewAnchor,
   previewReadingHistory,
@@ -197,6 +199,8 @@ export function EncounterInspectorPane({
   onReloadPreview?: () => void;
   reloadPreviewLabel?: string;
   retryPreviewLabel?: string;
+  previewTrait?: import("../../shared/records/recordPreviewTypes").RecordPreviewContentProps["trait"];
+  onPreviewTrait?: (traitKey: string, anchor?: HTMLElement) => void;
   previewRecordKey: string | null;
   previewAnchor: RecordPreviewAnchor | null;
   previewReadingHistory?: import("../../shared/records/recordPreviewTypes").RecordPreviewContentProps["readingHistory"];
@@ -263,8 +267,10 @@ export function EncounterInspectorPane({
           participants={participants}
         />
       </EncounterConditionRecovery>
-      {previewRecordKey && (
+      {(previewRecordKey || previewTrait) && (
         <RecordReferenceDrawer
+          trait={previewTrait}
+          onTraitReference={onPreviewTrait}
           actions={
             previewDetail?.presentation.body.kind === "spell" && (
               <EncounterSpellControls
@@ -290,13 +296,17 @@ export function EncounterInspectorPane({
           requestedNavigation={previewSelection}
           landing={previewLanding}
           detail={previewDetail}
-          fullPageHref={destinationHref(
-            recordDestination({
-              recordKey: previewRecordKey,
-              selection: previewSelection,
-              landing: previewLanding,
-            }),
-          )}
+          fullPageHref={
+            previewRecordKey
+              ? destinationHref(
+                  recordDestination({
+                    recordKey: previewRecordKey,
+                    selection: previewSelection,
+                    landing: previewLanding,
+                  }),
+                )
+              : undefined
+          }
           loading={previewLoading}
           error={previewError}
           onRetry={onRetryPreview}
@@ -304,7 +314,9 @@ export function EncounterInspectorPane({
           reloadLabel={reloadPreviewLabel}
           retryLabel={retryPreviewLabel}
           onClose={onCloseRecordPreview}
-          onOpenFullPage={() => onOpenRecordFullPage(previewRecordKey)}
+          onOpenFullPage={() => {
+            if (previewRecordKey) onOpenRecordFullPage(previewRecordKey);
+          }}
           onReference={onReference}
         />
       )}

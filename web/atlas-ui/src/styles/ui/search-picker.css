@@ -13,6 +13,7 @@
   flex-shrink: 0;
 }
 .reference-picker__footer {
+  text-align: start;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
@@ -35,6 +36,7 @@
 }
 .reference-picker__fields {
   display: flex;
+  align-items: end;
   flex-wrap: wrap;
   gap: 12px;
   min-width: 0;

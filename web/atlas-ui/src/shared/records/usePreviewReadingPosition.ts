@@ -1,12 +1,16 @@
 import { useCallback, useLayoutEffect, useRef } from "react";
-import type { RecordDetailView, RecordNavigationView } from "../../generated/atlas";
+import type {
+  RecordDetailView,
+  RecordNavigationView,
+  TraitDetailView,
+} from "../../generated/atlas";
 import type { RecordPreviewContentProps } from "./recordPreviewTypes";
 import { landReadingTarget } from "./landReadingTarget";
 
 // The reference Drawer restores its actual scroll container after the
 // addressed document arrives. Background refreshes do not restart reading.
 export function usePreviewReadingPosition(
-  detail: RecordDetailView | undefined,
+  detail: RecordDetailView | TraitDetailView | undefined,
   history: RecordPreviewContentProps["readingHistory"],
   enabled = true,
   landing?: RecordNavigationView,
@@ -28,7 +32,11 @@ export function usePreviewReadingPosition(
     if (!node || !scroll) return;
     scroll.scrollTop = restore.scroll;
     if (restore.focusHref)
-      Array.from(node.querySelectorAll<HTMLAnchorElement>("a[href]"))
+      Array.from(
+        (
+          node.closest(".record-preview-drawer-root") ?? node
+        ).querySelectorAll<HTMLAnchorElement>("a[href]"),
+      )
         .find((link) => link.getAttribute("href") === restore.focusHref)
         ?.focus({ preventScroll: true });
     restoredAddress.current = address;

@@ -1,3 +1,5 @@
+import { linkScopeCopy } from "./linkScopeCopy";
+import { useReferencePreview } from "../records/ReferencePreviewContext";
 import {
   destinationHref,
   isPrimaryActivation,
@@ -136,6 +138,7 @@ function LinkChip({
   onEdit: (leaf: LinkLeaf, relationship?: QueryRelationship) => string | null;
   onRemove: (leaf: LinkLeaf) => void;
 }) {
+  const reference = useReferencePreview();
   const { token } = theme.useToken();
   const [open, setOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -167,6 +170,7 @@ function LinkChip({
       aria-label="Relationship filter"
     >
       <Popover
+        destroyOnHidden
         trigger="click"
         placement="bottom"
         arrow={false}
@@ -205,6 +209,15 @@ function LinkChip({
               onClick={(event) => {
                 if (!isPrimaryActivation(event)) return;
                 event.preventDefault();
+                if (reference) {
+                  close();
+                  reference.open(
+                    relationship.selection.record_key,
+                    trigger.current ?? event.currentTarget,
+                    relationship.selection,
+                  );
+                  return;
+                }
                 navigateDestination(
                   recordDestination({
                     recordKey: relationship.selection.record_key,
@@ -237,9 +250,8 @@ function LinkChip({
               </Space>
             </Radio.Group>
             <Typography.Paragraph type="secondary">
-              {relationship.direction === "incoming"
-                ? "Whole entry also checks each matching record’s abilities, spells, equipment, and other nested documents."
-                : "Whole entry also checks this entry’s abilities, spells, equipment, and other nested documents."}
+              <strong>Whole entry:</strong>{" "}
+              {linkScopeCopy[relationship.direction].whole}
             </Typography.Paragraph>
             <Button
               onClick={() => {

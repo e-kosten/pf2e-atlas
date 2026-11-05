@@ -33,6 +33,7 @@ import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import { chooseAttributeSort, selectSortOption } from "../../test/sortControls";
 import { FilterControls } from "../../shared/filters/FilterPanel";
 import { LinkPickerContext } from "../../shared/filters/LinkPickerContext";
+import { ReferencePreviewProvider } from "../../shared/records/ReferencePreviewProvider";
 import { LinkConditionPicker } from "../../shared/filters/LinkConditionPicker";
 import { linkClauses } from "../../shared/filters/LinkFilterControls";
 import { linkLeaf } from "../../shared/filters/linkPredicates";
@@ -78,9 +79,11 @@ function setup(initial: SearchFormState = DEFAULT_SEARCH_STATE) {
       >
         <RouterTestContext>
           <SearchProfileProvider>
-            <LinkPickerContext value={LinkConditionPicker}>
-              <Harness />
-            </LinkPickerContext>
+            <ReferencePreviewProvider>
+              <LinkPickerContext value={LinkConditionPicker}>
+                <Harness />
+              </LinkPickerContext>
+            </ReferencePreviewProvider>
           </SearchProfileProvider>
         </RouterTestContext>
       </QueryClientProvider>
@@ -276,11 +279,20 @@ it("keeps scope explanation optional and Escape closes inner help only", async (
   setup();
   const dialog = await openAndSelect();
   const explanation =
-    "Whole entry also checks each matching record’s abilities, spells, equipment, and other nested documents.";
+    "Also check links in each result’s contents, such as its abilities, spells, and equipment.";
   expect(screen.queryByText(explanation)).toBeNull();
   const help = within(dialog).getByRole("button", { name: "About link scope" });
   fireEvent.click(help);
   expect(await screen.findByText(explanation)).toBeInTheDocument();
+  fireEvent.click(within(dialog).getByRole("radio", { name: "Linked from" }));
+  expect(
+    await screen.findByText("finds records that your selection links to."),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      "Also check links in the selected entry’s contents, such as its abilities, spells, and equipment.",
+    ),
+  ).toBeInTheDocument();
   fireEvent.keyDown(help, { key: "Escape", keyCode: 27 });
   expect(help).toHaveAttribute("aria-expanded", "false");
   expect(help).toHaveFocus();
@@ -375,4 +387,30 @@ it("rejects a newly selected record from a different reference generation withou
   ).toBeInTheDocument();
   expect(current().search.filter).toBeNull();
   expect(current().pageNumber).toBe(3);
+});
+
+it("reads the selected reference over the picker and preserves its candidate and draft", async () => {
+  const current = setup();
+  const picker = await openAndSelect();
+  fireEvent.click(within(picker).getByRole("radio", { name: "Linked from" }));
+  await selectSortOption("Link filter scope", "Main entry only");
+  fireEvent.click(within(picker).getByRole("link", { name: "Leather Armor" }));
+  const reference = await screen.findByRole("dialog", { name: "Leather Armor" });
+  expect(location.pathname).toBe("/search");
+  fireEvent.click(
+    within(reference).getByRole("button", { name: "Close reference preview" }),
+  );
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog", { name: "Leather Armor" })).toBeNull(),
+  );
+  expect(picker).toBeInTheDocument();
+  expect(within(picker).getByRole("radio", { name: "Linked from" })).toBeChecked();
+  expect(within(picker).getByText("Main entry only", { exact: true })).toBeVisible();
+  fireEvent.click(within(picker).getByRole("button", { name: "Add" }));
+  await waitFor(() => expect(linkClauses(current().search.filter)).toHaveLength(1));
+  expect(linkClauses(current().search.filter)[0].relationship).toEqual({
+    direction: "outgoing",
+    include_contents: false,
+    selection: rootNavigation(selectedKey),
+  });
 });

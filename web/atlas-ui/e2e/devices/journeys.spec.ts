@@ -2464,3 +2464,169 @@ test("routine budgets and check trait disclosures retain keyboard and touch read
   await expect(inheritedPopup.getByText("Visual", { exact: true })).toBeVisible();
   await noPageOverflow(page);
 });
+
+test("reference feedback: traits reuse one drawer and retain mixed record history", async ({
+  page,
+}, info) => {
+  await page.goto("/records/browser-rules:rule000000000001");
+  const ward = page.getByRole("link", { name: "Lantern Ward", exact: true });
+  const hostUrl = page.url();
+  await activate(ward, info);
+  const drawer = page.locator(".record-preview-drawer-root").getByRole("dialog");
+  await expect(
+    drawer.getByRole("heading", { name: "Lantern Ward", exact: true }),
+  ).toBeVisible();
+  const light = drawer.getByRole("link", { name: "Light", exact: true });
+  await expect(light).toHaveAttribute("href", "/traits/trait:light");
+  await activate(light, info);
+  await expect(
+    drawer.getByRole("heading", { name: "Light", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.locator(".record-preview-drawer-root").getByRole("dialog"),
+  ).toHaveCount(1);
+  await activate(drawer.getByRole("button", { name: "Back", exact: true }), info);
+  await expect(
+    drawer.getByRole("heading", { name: "Lantern Ward", exact: true }),
+  ).toBeVisible();
+  await expect(drawer.getByRole("link", { name: "Light", exact: true })).toBeFocused();
+  await activate(
+    drawer.getByRole("button", { name: "Close reference preview", exact: true }),
+    info,
+  );
+  await expect(ward).toBeFocused();
+  await expect(page).toHaveURL(hostUrl);
+  await page.goto("/search?similar=trait%3Alight&search_profile=bge-base");
+  const seed = page
+    .locator(".reference-search-entry--similar")
+    .getByRole("link", { name: "Light", exact: true });
+  await activate(seed, info);
+  await expect(
+    drawer.getByRole("heading", { name: "Light", exact: true }),
+  ).toBeVisible();
+  await activate(
+    drawer.getByRole("button", { name: "Close reference preview", exact: true }),
+    info,
+  );
+  await expect(seed).toBeFocused();
+  await noPageOverflow(page);
+});
+
+test("reference feedback: edition context is visible above rules and counterpart links stay contextual", async ({
+  page,
+}, info) => {
+  await page.goto("/records/browser-editions:legacy0000000001");
+  await expect(page.getByText("Legacy", { exact: true })).toBeVisible();
+  const notice = page.locator("main.record-view .record-edition-notice");
+  const modern = notice.getByRole("link", { name: "Modern signal", exact: true });
+  await expect(modern).toHaveAttribute(
+    "href",
+    "/records/browser-editions:remaster00000001",
+  );
+  await expect(modern).toBeVisible();
+  const noticeBox = (await notice.boundingBox())!;
+  const prose = (await page
+    .getByText("Legacy signal instructions.", { exact: true })
+    .boundingBox())!;
+  expect(noticeBox.y + noticeBox.height).toBeLessThanOrEqual(prose.y);
+  const hostUrl = page.url();
+  await activate(modern, info);
+  const drawer = page.locator(".record-preview-drawer-root").getByRole("dialog");
+  await expect(
+    drawer.getByRole("heading", { name: "Modern signal", exact: true }),
+  ).toBeVisible();
+  await expect(drawer.getByText("Remaster", { exact: true })).toBeVisible();
+  await activate(
+    drawer
+      .locator(".record-edition-notice")
+      .getByRole("link", { name: "Legacy signal", exact: true }),
+    info,
+  );
+  await expect(
+    drawer.getByRole("heading", { name: "Legacy signal", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.locator(".record-preview-drawer-root").getByRole("dialog"),
+  ).toHaveCount(1);
+  await activate(
+    drawer.getByRole("button", { name: "Close reference preview", exact: true }),
+    info,
+  );
+  await expect(modern).toBeFocused();
+  await expect(page).toHaveURL(hostUrl);
+  await noPageOverflow(page);
+});
+
+test("reference feedback: link picker drafts survive reading and filter popovers close before drawers", async ({
+  page,
+}, info) => {
+  await page.goto("/search");
+  await activate(page.getByRole("button", { name: "Links", exact: true }), info);
+  const picker = page.getByRole("dialog", { name: "Add link condition", exact: true });
+  const candidate = picker.locator(".reference-result__summary").first();
+  const title = (await candidate
+    .locator(".reference-result__title strong")
+    .textContent())!;
+  await activate(candidate, info);
+  await activate(picker.getByText("Linked from", { exact: true }), info);
+  const help = picker.getByRole("button", { name: "About link scope", exact: true });
+  await activate(help, info);
+  const scopeHelp = page.locator(".ant-popover:visible");
+  await expect(
+    scopeHelp.getByText("Where Atlas checks for links", { exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(async () => {
+      const bounds = await scopeHelp.boundingBox();
+      const width = page.viewportSize()!.width;
+      return !!bounds && bounds.x >= 0 && bounds.x + bounds.width <= width + 1;
+    })
+    .toBe(true);
+  await noPageOverflow(page);
+  await activate(help, info);
+  await expect(scopeHelp).toBeHidden();
+  const scope = picker
+    .locator(".ant-select")
+    .filter({ has: page.getByRole("combobox", { name: "Link filter scope" }) });
+  await activate(scope, info);
+  await activate(
+    page
+      .locator(".ant-select-dropdown:visible")
+      .getByText("Main entry only", { exact: true }),
+    info,
+  );
+  const summary = picker
+    .locator(".reference-picker__summary")
+    .getByRole("link", { name: title, exact: true });
+  await activate(summary, info);
+  const drawer = page.locator(".record-preview-drawer-root").getByRole("dialog");
+  await expect(
+    drawer.getByRole("heading", { name: title, exact: true }).first(),
+  ).toBeVisible();
+  await activate(
+    drawer.getByRole("button", { name: "Close reference preview", exact: true }),
+    info,
+  );
+  await expect(summary).toBeFocused();
+  await expect(
+    picker.getByRole("radio", { name: "Linked from", exact: true }),
+  ).toBeChecked();
+  await expect(picker.getByText("Main entry only", { exact: true })).toBeVisible();
+  await activate(picker.getByRole("button", { name: "Add", exact: true }), info);
+  await expect(picker).toBeHidden();
+  const chip = page.getByRole("button", {
+    name: `Linked from ${title}; Main entry only`,
+    exact: true,
+  });
+  await activate(chip, info);
+  const open = page.getByRole("link", { name: `Open ${title}`, exact: true });
+  await activate(open, info);
+  await expect(drawer).toBeVisible();
+  await expect(open).toBeHidden();
+  await activate(
+    drawer.getByRole("button", { name: "Close reference preview", exact: true }),
+    info,
+  );
+  await expect(chip).toBeFocused();
+  await noPageOverflow(page);
+});

@@ -353,6 +353,10 @@ impl<'a> LoadedRecordDetail<'a> {
         })?;
         let grants_truncated = relationships.truncated;
         let mut view = RecordDetailView {
+            counterparts: request
+                .owners
+                .is_empty()
+                .then(|| crate::remaster::counterparts_view(&key, r)),
             encounter_adjustment: (request.owners.is_empty()
                 && matches!(
                     detail.summary.record_kind.as_value(),

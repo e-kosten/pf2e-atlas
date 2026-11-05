@@ -44,6 +44,11 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Soon
 
+- [Remaster relationship coverage](items/remaster-relationship-coverage.md)
+  Investigate source-backed counterpart coverage beyond name aliases; validate
+  identity, ambiguity and downstream search/navigation in a focused PR separate
+  from frontend presentation. Status: proposed.
+
 - [Database and ingest simplification](items/database-ingest-simplification.md)
   Bounded reference publication, input-owned vectors, canonical sections,
   saved-state integrity and indexed eligibility. Implementation under review in

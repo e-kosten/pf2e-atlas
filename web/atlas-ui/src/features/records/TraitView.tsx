@@ -9,7 +9,7 @@ import { canonicalRouteSearch } from "../../app/routeSearch";
 import { parseSearchParams } from "../../app/urlState";
 import { recordDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
-import { Alert, Button, Empty, Tabs, Typography } from "antd";
+import { Button, Empty, Tabs, Typography } from "antd";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { AtlasApiError, getTraitRecords } from "../../api/atlasApi";
@@ -28,7 +28,7 @@ import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
 import { DocumentIdentityHeader } from "../../shared/records/DocumentIdentityHeader";
 import { useTraitDetail } from "../../shared/records/useTraitDetail";
-import { PreparedContentBody } from "../../shared/records/PreparedContent";
+import { TraitDefinition } from "../../shared/records/TraitDefinition";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
 import {
   preferredSourceSections,
@@ -93,18 +93,7 @@ export function TraitView({ route }: { route: TraitPageInput }) {
                   title={query.data.label}
                   classification="Trait"
                 />
-                {query.data.content ? (
-                  <PreparedContentBody
-                    body={query.data.content.body}
-                    references={query.data.content.references}
-                    onReference={preview.open}
-                  />
-                ) : (
-                  <Alert
-                    type="info"
-                    title="No definition is available in this reference collection."
-                  />
-                )}
+                <TraitDefinition detail={query.data} onReference={preview.open} />
                 <TraitAssociations
                   key={JSON.stringify([
                     query.data.trait_key,
@@ -124,13 +113,17 @@ export function TraitView({ route }: { route: TraitPageInput }) {
           </section>
         </DocumentPagePane>
       </main>
-      {preview.recordKey && (
+      {preview.active && (
         <RecordReferenceDrawer
+          trait={preview.trait}
+          onTraitReference={preview.openTrait}
           actions={
-            <AddToRecordButton
-              recordKey={preview.recordKey}
-              record={preview.detail?.record}
-            />
+            preview.recordKey && (
+              <AddToRecordButton
+                recordKey={preview.recordKey}
+                record={preview.detail?.record}
+              />
+            )
           }
           anchor={preview.anchor}
           readingHistory={preview.readingHistory}
