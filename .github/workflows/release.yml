@@ -26,7 +26,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -104,7 +104,7 @@ jobs:
             os: windows-2022
             variant: cli-only
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -218,7 +218,7 @@ jobs:
       TAG: ${{ needs.validate-tag.outputs.tag }}
       PRERELEASE: ${{ needs.validate-tag.outputs.prerelease }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -230,7 +230,7 @@ jobs:
           npm --prefix dev-tools/release ci --ignore-scripts
           npm --prefix dev-tools/release run build
       - name: Download packaged artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: package-*
           path: target/distrib
