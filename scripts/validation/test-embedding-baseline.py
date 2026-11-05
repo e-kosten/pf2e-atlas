@@ -1,7 +1,11 @@
 """Regression checks for baseline routing and pin transitions."""
 from pathlib import Path
+from contextlib import closing
+import hashlib
+import json
 import runpy
 import shutil
+import sqlite3
 import subprocess
 import tempfile
 import unittest
@@ -117,6 +121,21 @@ class PinTransition(unittest.TestCase):
 
 
 class ProbeInputs(unittest.TestCase):
+    def test_layout_upgrade_checks_frozen_queries_before_replacing_passages(self):
+        root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        original = {"execution_policy": "same", "input_recipe": "old"}
+        manifest = {"profiles": {"bge-base": original}, "expected_queries": {
+            "bge-base": {"question": [["original record", []]]}}}
+        check = PROBE["check"]
+        build = Mock(side_effect=[{}, AssertionError("Maintenance ran before the frozen query check")])
+        with patch.dict(check.__globals__, build=build, published_vectors=Mock(return_value={}),
+                        migrate_predecessor=Mock(return_value={}),
+                        profile_contracts=Mock(return_value={"bge-base": {
+                            **original, "input_recipe": "new"}}),
+                        queries=Mock(return_value={"question": [["different record", []]]})):
+            with self.assertRaisesRegex(RuntimeError, "Ranked records changed"):
+                check(Path("atlas"), Path("cache"), root, ("bge-base",), manifest, {})
+
     def test_standalone_single_profile_bundle_uses_manifest_profiles(self):
         output = Path(self.enterContext(tempfile.TemporaryDirectory())) / "out"
         argv = ["probe", "--bundle", "archive", "--sha256", "digest",
@@ -142,6 +161,94 @@ class ProbeInputs(unittest.TestCase):
         self.assertEqual(project(baseline), original)
         baseline["items"][0]["note"] = "Different"
         self.assertNotEqual(project(baseline), original)
+
+
+class FrozenVectors(unittest.TestCase):
+    def setUp(self):
+        self.root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        self.contract = {"profile_id": "bge-base", "execution_policy": "old"}
+        self.report = {"inferred_inputs": 0, "reused_inputs": 1}
+
+    def registry(self, name, model_id=1, input_id=2, checksum=b"v" * 32):
+        index = self.root / name
+        with closing(sqlite3.connect(index)) as db, db:
+            db.executescript("CREATE TABLE embedding_models(model_id INTEGER,identity_json TEXT);"
+                             "CREATE TABLE embedding_inputs(input_id INTEGER,model_id INTEGER,"
+                             "input_hash BLOB,token_count INTEGER,published_hash BLOB);")
+            db.execute("INSERT INTO embedding_models VALUES(?,?)",
+                       (model_id, json.dumps(self.contract, sort_keys=bool(model_id % 2))))
+            db.execute("INSERT INTO embedding_inputs VALUES(?,?,?,?,?)",
+                       (input_id, model_id, b"i" * 32, 4, checksum))
+        return PROBE["published_vectors"](index)
+
+    def test_maintenance_may_renumber_rows_without_changing_frozen_vectors(self):
+        before = self.registry("before.sqlite")
+        after = self.registry("after.sqlite", model_id=8, input_id=90)
+        PROBE["require_preserved_vectors"]("bge-base", before, after, self.report)
+
+    def test_replaced_or_missing_vectors_fail_even_when_reuse_is_reported(self):
+        before = self.registry("before.sqlite")
+        changed = self.registry("after.sqlite", checksum=b"x" * 32)
+        for after in (changed, {}):
+            with self.subTest(after=bool(after)), self.assertRaisesRegex(RuntimeError, "frozen"):
+                PROBE["require_preserved_vectors"]("bge-base", before, after, self.report)
+
+    def test_inference_is_rejected_even_if_the_resulting_checksum_matches(self):
+        registry = self.registry("index.sqlite")
+        with self.assertRaisesRegex(RuntimeError, "did not reuse"):
+            PROBE["require_preserved_vectors"](
+                "bge-base", registry, registry, {"inferred_inputs": 1, "reused_inputs": 1})
+
+
+class PolicyAdmission(unittest.TestCase):
+    def setUp(self):
+        self.root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        self.context = dict.fromkeys((
+            "format_version", "snapshot_version", "source_contract", "query_projection_version",
+            "query_catalog_version", "lookup_version", "lexical_selection_version", "fts_tokenizer",
+            "content_interpretation_version", "content_selection_version", "localization_policy",
+            "asset_policy", "relationship_policy"), "unchanged")
+
+    def index(self, name, **changes):
+        index = self.root / name
+        encoded = json.dumps({**self.context, **changes})
+        with closing(sqlite3.connect(index)) as db, db:
+            db.execute("CREATE TABLE artifact_context(singleton INTEGER,context_hash TEXT,context_json TEXT)")
+            db.execute("INSERT INTO artifact_context VALUES(1,?,?)",
+                       (hashlib.sha256(encoded.encode()).hexdigest(), encoded))
+        return index
+
+    def test_content_and_catalog_refresh_explains_policy_admission_failure(self):
+        old = self.index("old.sqlite")
+        new = self.index("new.sqlite", content_interpretation_version="new", query_catalog_version=9)
+        self.assertTrue(PROBE["policy_refresh_required"](old, new))
+
+    def test_unchanged_policy_or_changed_source_contract_does_not_explain_failure(self):
+        old = self.index("old.sqlite")
+        for name, changes in (("same", {}), ("source", {
+                "source_contract": "different", "content_interpretation_version": "new"})):
+            with self.subTest(name=name):
+                self.assertFalse(PROBE["policy_refresh_required"](
+                    old, self.index(name + ".sqlite", **changes)))
+
+    def test_tampered_policy_metadata_is_not_accepted(self):
+        old, new = self.index("old.sqlite"), self.index("new.sqlite")
+        with closing(sqlite3.connect(old)) as db, db:
+            db.execute("UPDATE artifact_context SET context_json='{}'")
+        with self.assertRaisesRegex(RuntimeError, "checksum mismatch"):
+            PROBE["policy_refresh_required"](old, new)
+
+    def test_transition_requires_the_exact_admission_code_and_reason(self):
+        old = self.index("old.sqlite")
+        new = self.index("new.sqlite", content_interpretation_version="new")
+        accepted = PROBE["expected_transition_rejection"]
+        for code, message in (
+                ("vector_readiness_required", "stored query model differs from the executable contract"),
+                ("artifact_incompatible", "projection/lookup/content/FTS policy identity")):
+            self.assertTrue(accepted({"code": code, "message": message}, old, new))
+            self.assertFalse(accepted({"code": "unexpected", "message": message}, old, new))
+        self.assertFalse(accepted({"code": "artifact_incompatible", "message": "source/artifact contract identity"}, old, new))
+        self.assertFalse(accepted({"code": "artifact_incompatible", "message": "projection/lookup/content/FTS policy identity"}, old, old))
 
 
 if __name__ == "__main__":
