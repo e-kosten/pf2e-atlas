@@ -1,0 +1,87 @@
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      embedding-stack:
+        patterns: [fastembed, tokenizers, text-splitter, ort, ort-sys, onig, onig_sys, ndarray, matrixmultiply]
+        update-types: [patch]
+      cargo-patches:
+        exclude-patterns: [fastembed, tokenizers, text-splitter, ort, ort-sys, onig, onig_sys, ndarray, matrixmultiply]
+        update-types: [patch]
+  - package-ecosystem: "npm"
+    directory: "/web/atlas-ui"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      react:
+        patterns: [react, react-dom, '@types/react', '@types/react-dom']
+        update-types: [patch, minor]
+      query-builder:
+        patterns: [react-querybuilder, '@react-querybuilder/antd']
+        update-types: [patch, minor]
+      frontend-compatible:
+        update-types: [patch, minor]
+  - package-ecosystem: "npm"
+    directory: "/dev-tools/source-contracts"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      source-tools-compatible:
+        update-types: [patch, minor]
+  - package-ecosystem: "npm"
+    directory: "/dev-tools/release"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      release-tools-compatible:
+        update-types: [patch, minor]
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      actions-compatible:
+        update-types: [patch, minor]
+  - package-ecosystem: "rust-toolchain"
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope

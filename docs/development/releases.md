@@ -78,8 +78,7 @@ scripts/prepare-release.sh --prepare-pr
 ```
 
 The helper prompts for the release version, creates `release/v<version>`, updates
-`crates/atlas-cli/Cargo.toml`, refreshes `Cargo.lock` and
-`THIRD-PARTY-NOTICES.md`, and scaffolds `docs/releases/v<version>.md`. Pass
+`crates/atlas-cli/Cargo.toml`, refreshes `Cargo.lock`, and scaffolds `docs/releases/v<version>.md`. Pass
 `--version <X.Y.Z[-rc.N]>` to skip the prompt. In an interactive terminal, the
 helper opens the release notes with `VISUAL`, `EDITOR`, or `git config
 core.editor` after creating the file. Edit the release notes and complete independent review of the release-preparation

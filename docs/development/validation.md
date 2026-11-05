@@ -53,7 +53,7 @@ formatting, as ordinary phases in the same Node validation session.
 
 Focused `cargo test -p CRATE FILTER` commands still work without nextest. The full
 gate uses nextest for unit, integration and enabled example tests, then runs
-`cargo test --workspace --doc` for documentation examples. Nextest schedules cases
+`cargo test --workspace --doc --locked` for documentation examples. Nextest schedules cases
 across binaries in separate processes; tests retain their real isolated databases.
 `.config/nextest.toml` keeps retries disabled and runs the complete selected suite
 after a failure. Do not replace process-external resource coordination with an
@@ -430,7 +430,6 @@ Tracked git hooks live in `.githooks/`:
 
 - `pre-commit` and `pre-merge-commit`: check staged whitespace and run path-sensitive formatting checks (Rust and/or frontend). Docs-only changes need only the whitespace check.
 - `commit-msg`: require a Conventional Commit subject; an optional body must be blank-line-separated.
-- `pre-push`: check third-party notices when outgoing commits change Cargo manifests/lockfiles, notices, Cargo configuration, or release tooling. New refs are checked conservatively. This rebuilds the small TypeScript release tool and runs Cargo metadata offline; it does not compile Rust, install packages, or rewrite notices. Install dependencies explicitly with `npm --prefix dev-tools/release ci --ignore-scripts`. For stale notices, run `npm --prefix dev-tools/release run notices` and commit the result. Push relevant refs from a checkout at their tip with committed dependency/notices inputs so the check validates the published candidate.
 - Run the applicable local gates explicitly before opening a PR, reuse passing evidence for unchanged code, and require green CI on the published head before merging. CI retains Clippy, typechecking, tests, builds and platform/browser checks.
 
 Formatting checks read files in the working tree; whitespace checks read the staged diff. Review partial staging carefully so local evidence corresponds to the committed candidate. Hooks do not replace code review or CI.

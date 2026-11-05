@@ -113,6 +113,12 @@ fn real_producer_judged_retrieval_and_witness_evidence() {
         &fs::read(primary.join("scratch/search-projection/queries.json")).unwrap(),
     )
     .unwrap();
+    let stored_profile = atlas_index::test_support::open_reader(&output)
+        .unwrap()
+        .context()
+        .search_profile(&profile)
+        .unwrap()
+        .clone();
     let mut observations = vec![];
     for q in queries["queries"].as_array().unwrap() {
         if q.get("pair_fixture").is_some() {
@@ -155,7 +161,7 @@ fn real_producer_judged_retrieval_and_witness_evidence() {
                 Some(
                     atlas_search::PreparedQueryEmbedding::prepare(
                         &inference,
-                        &profile,
+                        stored_profile.clone(),
                         q["text"].as_str().unwrap(),
                     )
                     .unwrap(),

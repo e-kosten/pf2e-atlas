@@ -45,7 +45,7 @@ impl AtlasRuntime {
                     stored_vectors: true,
                     assets_ready,
                     usable: (assets_ready || loaded.contains(&profile.profile_id()))
-                        && stored_profile == &expected,
+                        && stored_profile.vector_compatible_with(&expected),
                 })
             })
             .collect()
@@ -65,17 +65,8 @@ impl AtlasRuntime {
             let profile = requested
                 .cloned()
                 .unwrap_or(self.resolve_default_search_profile(index.context())?);
-            let spec =
-                atlas_embedding::search_profile(&profile).map_err(SearchError::query_embedding)?;
-            if index.context().search_profile(&profile)?
-                != &atlas_index::SourceSearchProfileIdentity::from_spec(spec)
-            {
-                return Err(SearchError::vector_readiness_required(
-                    "stored query model differs from the executable contract",
-                ));
-            }
-            profile
+            index.context().search_profile(&profile)?.clone()
         };
-        atlas_search::PreparedQueryEmbedding::prepare(&self.inference, &profile, text)
+        atlas_search::PreparedQueryEmbedding::prepare(&self.inference, profile, text)
     }
 }

@@ -53,6 +53,24 @@ pub struct SourceSearchProfileIdentity {
     pub input_recipe: String,
     pub assets: std::collections::BTreeMap<String, String>,
 }
+impl SourceSearchProfileIdentity {
+    /// Published passages can move while a matching native input retains the
+    /// same numerical meaning. Every field outside shared layout must agree.
+    pub fn vector_compatible_with(&self, other: &Self) -> bool {
+        if self == other {
+            return true;
+        }
+        let mut comparable = other.clone();
+        comparable
+            .segmentation_tokenizer_sha256
+            .clone_from(&self.segmentation_tokenizer_sha256);
+        comparable
+            .unit_policy_version
+            .clone_from(&self.unit_policy_version);
+        comparable.input_recipe.clone_from(&self.input_recipe);
+        self == &comparable
+    }
+}
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceArtifactBuildContext {

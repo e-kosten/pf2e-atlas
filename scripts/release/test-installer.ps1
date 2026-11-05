@@ -12,6 +12,8 @@ New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 try {
   $dist = Join-Path $tmp "dist"
   New-Item -ItemType Directory -Force -Path $dist | Out-Null
+  $notices = Join-Path $dist "THIRD-PARTY-NOTICES.md"
+  node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/generate-notices.js") --output $notices | Out-Null
 
   function New-UnixArchive($Target) {
     $work = Join-Path $tmp "work"
@@ -21,7 +23,7 @@ try {
     "#!/bin/sh`nprintf 'atlas 9.9.9\n'`n" | Set-Content -Path (Join-Path $root "atlas") -NoNewline
     Copy-Item (Join-Path $RepoRoot "LICENSE") (Join-Path $root "LICENSE")
     Copy-Item (Join-Path $RepoRoot "README.md") (Join-Path $root "README.md")
-    Copy-Item (Join-Path $RepoRoot "THIRD-PARTY-NOTICES.md") (Join-Path $root "THIRD-PARTY-NOTICES.md")
+    Copy-Item $notices (Join-Path $root "THIRD-PARTY-NOTICES.md")
     node (Join-Path $RepoRoot "dev-tools/release/dist/tests/release-fixtures.js") unix-archive $archive $root
   }
 
@@ -67,7 +69,7 @@ else if (args.Length > 0 && args[0] == "build-info" && "__VARIANT__" != "legacy"
     }
     Copy-Item (Join-Path $RepoRoot "LICENSE") (Join-Path $root "LICENSE")
     Copy-Item (Join-Path $RepoRoot "README.md") (Join-Path $root "README.md")
-    Copy-Item (Join-Path $RepoRoot "THIRD-PARTY-NOTICES.md") (Join-Path $root "THIRD-PARTY-NOTICES.md")
+    Copy-Item $notices (Join-Path $root "THIRD-PARTY-NOTICES.md")
     Compress-Archive -Path $root -DestinationPath (Join-Path $Destination "$prefix-$Target.zip") -Force
   }
 
@@ -86,7 +88,6 @@ else if (args.Length > 0 && args[0] == "build-info" && "__VARIANT__" != "legacy"
 
   Copy-Item (Join-Path $RepoRoot "scripts/install/atlas-installer.sh") (Join-Path $dist "atlas-installer.sh")
   Copy-Item (Join-Path $RepoRoot "scripts/install/atlas-installer.ps1") (Join-Path $dist "atlas-installer.ps1")
-  Copy-Item (Join-Path $RepoRoot "THIRD-PARTY-NOTICES.md") (Join-Path $dist "THIRD-PARTY-NOTICES.md")
   "{}" | Set-Content -Path (Join-Path $dist "dist-manifest.json")
 
   node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/generate-release-manifest.js") v9.9.9 $dist
@@ -257,7 +258,7 @@ function Expand-Archive {
   New-Item -ItemType Directory -Force -Path $badRoot | Out-Null
   Copy-Item (Join-Path $RepoRoot "LICENSE") (Join-Path $badRoot "LICENSE")
   Copy-Item (Join-Path $RepoRoot "README.md") (Join-Path $badRoot "README.md")
-  Copy-Item (Join-Path $RepoRoot "THIRD-PARTY-NOTICES.md") (Join-Path $badRoot "THIRD-PARTY-NOTICES.md")
+  Copy-Item $notices (Join-Path $badRoot "THIRD-PARTY-NOTICES.md")
   "not an executable" | Set-Content -Path (Join-Path $badRoot "atlas.exe")
   Compress-Archive -Path $badRoot -DestinationPath (Join-Path $rollbackDist $archive) -Force
   node (Join-Path $RepoRoot "dev-tools/release/dist/src/cli/generate-release-manifest.js") v9.9.9 $rollbackDist

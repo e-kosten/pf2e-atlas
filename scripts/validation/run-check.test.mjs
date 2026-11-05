@@ -732,7 +732,7 @@ test("public full selector TERM waits for its Rust phase and nested command clea
     `#!/bin/sh
 case "$*" in
  metadata*) printf '{"target_directory":"%s/target","packages":[]}\\n' "$PWD";;
- "nextest run --workspace") printf '%s\n' "$$" >>"$OWNED_PIDS"; sh -c 'printf "%s\n" "$$" >>"$OWNED_PIDS"; sleep 30 & printf "%s\n" "$!" >>"$OWNED_PIDS"; wait' & wait;;
+ "nextest run --workspace --locked") printf '%s\n' "$$" >>"$OWNED_PIDS"; sh -c 'printf "%s\n" "$$" >>"$OWNED_PIDS"; sleep 30 & printf "%s\n" "$!" >>"$OWNED_PIDS"; wait' & wait;;
  *) printf fixture-cargo;;
 esac
 `,

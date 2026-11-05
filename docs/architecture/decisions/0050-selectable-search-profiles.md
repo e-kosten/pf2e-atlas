@@ -41,11 +41,10 @@ snapshot-local navigation meaning. Old artifact formats require rebuilding.
 Within format 3, readers validate structurally complete persisted contracts for
 the finite known IDs and 768-dimensional storage. They do not require every stored
 profile to equal today's executable revision. New writers require current exact
-contracts; query inference and reuse require exact selected-profile identity.
-Thus a Gemma recipe/model revision change invalidates Gemma query/reuse without
-preventing unchanged BGE vector reuse, model-free reads or internally coherent
-stored-vector Similar. This does not admit a previous-format reader or arbitrary
-profile/dimension extensions.
+contracts. Query inference and numerical reuse require a compatible execution
+contract as defined in [ADR0066](0066-embedding-compatibility.md).
+An incompatible Gemma execution change invalidates Gemma query/reuse while BGE
+vectors, model-free reads and coherent stored-vector Similar remain available.
 
 Both profiles emit 768-dimensional normalized vectors in model-owned vec0 tables
 addressed by exact native input ID. Occurrences identify their profile and location
@@ -115,7 +114,7 @@ actual bytes. Loaded sessions remain usable after disk changes. Metadata checks
 require no native mutex merely to observe loaded membership: the inference owner
 publishes a finite retained-profile snapshot only after successful session insertion.
 A text-vector request
-requires the exact selected executable profile and its assets. Missing assets do
+requires a compatible selected execution contract and verified assets. Missing assets do
 not prevent safe stored-vector Similar within the artifact.
 
 Search pages, direct search/Similar and contextual discovery carry request-local

@@ -46,7 +46,6 @@ chmod +x "$fake_bin/npm"
 # and frontend command still resolves to the logging stubs above.
 fixture="$tmp/repo"
 mkdir -p "$fixture/.githooks" "$fixture/scripts/git-hooks" "$fixture/crates/example/src" "$fixture/web/atlas-ui/src"
-sh "$repo_root/scripts/git-hooks/test-pre-push.sh"
 cp "$repo_root/.githooks/pre-commit" "$repo_root/.githooks/pre-merge-commit" "$fixture/.githooks/"
 cp "$repo_root/scripts/git-hooks/common.sh" "$fixture/scripts/git-hooks/common.sh"
 cp "$repo_root/scripts/verify-changed.sh" "$repo_root/scripts/verify.sh" "$fixture/scripts/"
@@ -108,11 +107,11 @@ if ! printf '%s\n' "$verbose_output" | grep -Eq '(cargo|npm) detail output'; the
   exit 1
 fi
 
-grep -q '^cargo nextest run --workspace$' "$log" || {
+grep -q '^cargo nextest run --workspace --locked$' "$log" || {
   echo "full changed-path verification did not run workspace tests" >&2
   exit 1
 }
-grep -q '^cargo test --workspace --doc$' "$log" || {
+grep -q '^cargo test --workspace --doc --locked$' "$log" || {
   echo "full changed-path verification did not run doctests" >&2
   exit 1
 }
@@ -126,7 +125,7 @@ grep -q 'npm --prefix web/atlas-ui run verify' "$log" || {
 }
 
 # A failing test phase must fail the actual gate, with its diagnostic intact.
-for command in 'nextest run --workspace' 'test --workspace --doc'; do
+for command in 'nextest run --workspace --locked' 'test --workspace --doc --locked'; do
   set +e
   (cd "$fixture"; ATLAS_TEST_FAIL_CARGO_COMMAND="$command" ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" \
     scripts/verify.sh) >"$tmp/test-failure" 2>&1
@@ -232,8 +231,8 @@ printf 'unknown-tooling-file' >"$fixture/paths-input"
   cd "$fixture"
   ATLAS_TEST_COMMAND_LOG="$log" PATH="$fake_bin:$PATH" scripts/verify-changed.sh --paths-file paths-input --full
 ) >"$check_output" 2>&1
-grep -q '^cargo nextest run --workspace$' "$log" || { echo 'unterminated path skipped workspace tests' >&2; exit 1; }
-grep -q '^cargo test --workspace --doc$' "$log" || { echo 'unterminated path skipped doctests' >&2; exit 1; }
+grep -q '^cargo nextest run --workspace --locked$' "$log" || { echo 'unterminated path skipped workspace tests' >&2; exit 1; }
+grep -q '^cargo test --workspace --doc --locked$' "$log" || { echo 'unterminated path skipped doctests' >&2; exit 1; }
 grep -q '^npm --prefix web/atlas-ui run verify:bundle$' "$log" || { echo 'unterminated path skipped web gate' >&2; exit 1; }
 case_count=$((case_count + 1))
 printf 'Passed hook fixture: literal final path without newline is classified\n'
@@ -274,7 +273,6 @@ for entry in \
   'crates/atlas-app-model/bindings/Search.ts:110000100' \
   'Cargo.lock:111100110' \
   'crates/atlas-cli/Cargo.toml:111100110' \
-  'THIRD-PARTY-NOTICES.md:000100000' \
   'skills/pf2e-atlas-cli/SKILL.md:000001000' \
   'scripts/validation/skill.ts:000001001' \
   'scripts/validation/research.sh:000010001' \
@@ -316,8 +314,8 @@ for changed_path in web/atlas-ui/src/app.tsx web/atlas-ui/e2e/devices/conditions
       ;;
     *)
       grep -q '^npm --prefix web/atlas-ui run build$' "$log"
-      grep -q '^cargo nextest run --workspace$' "$log"
-      grep -q '^cargo test --workspace --doc$' "$log"
+      grep -q '^cargo nextest run --workspace --locked$' "$log"
+      grep -q '^cargo test --workspace --doc --locked$' "$log"
       if grep -q '^npm --prefix web/atlas-ui run verify$' "$log"; then echo 'non-unit surface ran full frontend verify' >&2; exit 1; fi
       ;;
   esac

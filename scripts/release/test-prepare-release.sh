@@ -333,23 +333,23 @@ grep -q 'npm --prefix web/atlas-ui run build' "$log" || {
 }
 expect_log_absent 'scripts/release/test-prepare-release.sh' "prepare-release --open-pr ran recursive release-script smoke tests"
 expect_log_absent 'scripts/git-hooks/test-common.sh' "prepare-release --open-pr ran git-hook smoke tests"
-grep -q 'cargo clippy --workspace --all-targets -- -D warnings -D clippy::dbg_macro' "$log" || {
+grep -q 'cargo clippy --workspace --all-targets --locked -- -D warnings -D clippy::dbg_macro' "$log" || {
   echo "prepare-release --open-pr did not run broad clippy validation" >&2
   exit 1
 }
-grep -q 'cargo clippy --workspace --lib --bins -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unimplemented -D clippy::todo -D clippy::unreachable' "$log" || {
+grep -q 'cargo clippy --workspace --lib --bins --locked -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::unimplemented -D clippy::todo -D clippy::unreachable' "$log" || {
   echo "prepare-release --open-pr did not run strict runtime clippy validation" >&2
   exit 1
 }
-grep -q '^cargo nextest run --workspace$' "$log" || {
+grep -q '^cargo nextest run --workspace --locked$' "$log" || {
   echo "prepare-release --open-pr did not run workspace tests" >&2
   exit 1
 }
-grep -q '^cargo test --workspace --doc$' "$log" || {
+grep -q '^cargo test --workspace --doc --locked$' "$log" || {
   echo "prepare-release --open-pr did not run doctests" >&2
   exit 1
 }
-grep -q 'git add Cargo.lock THIRD-PARTY-NOTICES.md crates/atlas-cli/Cargo.toml docs/releases/v0.1.0.md' "$log" || {
+grep -q 'git add Cargo.lock crates/atlas-cli/Cargo.toml docs/releases/v0.1.0.md' "$log" || {
   echo "prepare-release --open-pr did not stage release-prep files" >&2
   exit 1
 }
@@ -427,10 +427,6 @@ grep -q 'version = "0.1.0-rc.1"' "$work/crates/atlas-cli/Cargo.toml" || {
 }
 grep -q 'cargo check -p atlas-cli' "$log" || {
   echo "prepare-release --prepare-pr did not refresh the lockfile through cargo" >&2
-  exit 1
-}
-grep -q 'npm --prefix dev-tools/release run notices' "$log" || {
-  echo "prepare-release --prepare-pr did not regenerate third-party notices" >&2
   exit 1
 }
 [ -f "$work/docs/releases/v0.1.0-rc.1.md" ] || {

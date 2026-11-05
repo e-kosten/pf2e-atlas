@@ -25,6 +25,7 @@ pub struct PreparedPublication<'owner> {
     schema: u32,
     metadata: PublicationSpool,
     models: Vec<crate::native_values::NativeModelKey>,
+    previous_layouts: Vec<Option<crate::native_values::NativeModelKey>>,
     cache_bytes: u64,
     cache_limit: u64,
 }
@@ -38,6 +39,15 @@ impl<'owner> PreparedPublication<'owner> {
         let validation_started = std::time::Instant::now();
         crate::writer::validate_input(&metadata)?;
         tracing::info!(target:"atlas_build_diagnostic",stage="publication_input_validation",elapsed_ms=validation_started.elapsed().as_secs_f64()*1000.,"Completed publication input validation");
+        Self::stage(owner, schema, scratch, metadata)
+    }
+
+    fn stage(
+        owner: &'owner UpdateOwner,
+        schema: u32,
+        scratch: &Path,
+        metadata: PublicationSpool,
+    ) -> Result<Self, IndexError> {
         let workspace = Workspace::at(owner.path())?;
         let read = workspace.read(schema)?;
         crate::writer::check_expected(read.connection(), &metadata)?;
@@ -46,6 +56,25 @@ impl<'owner> PreparedPublication<'owner> {
             [],
             |r| r.get(0),
         )?;
+        let previous = crate::read_stored_reference_context(read.connection())?;
+        let previous_layouts = metadata
+            .context
+            .search_profiles
+            .iter()
+            .enumerate()
+            .map(|(ordinal, model)| {
+                previous
+                    .as_ref()
+                    .and_then(|context| {
+                        context
+                            .search_profiles
+                            .iter()
+                            .find(|old| *old != model && old.vector_compatible_with(model))
+                    })
+                    .map(|old| crate::native_values::NativeModelKey::new(ordinal, old))
+                    .transpose()
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         drop(read);
         let selected_file = tempfile::NamedTempFile::new_in(scratch).map_err(operation)?;
         let selected = Connection::open(selected_file.path())?;
@@ -63,6 +92,7 @@ impl<'owner> PreparedPublication<'owner> {
             schema,
             metadata,
             models,
+            previous_layouts,
             cache_bytes,
             cache_limit: CACHE_PAYLOAD_LIMIT,
         };
@@ -127,6 +157,14 @@ impl<'owner> PreparedPublication<'owner> {
             &self.models[ordinal],
             false,
         )?;
+        let previous = if reuse_published {
+            self.previous_layouts[ordinal]
+                .as_ref()
+                .map(|key| crate::native_values::NativeModel::bind(read.connection(), key, false))
+                .transpose()?
+        } else {
+            None
+        };
         let selected_tx = rusqlite::Transaction::new_unchecked(
             &self.selected,
             rusqlite::TransactionBehavior::Immediate,
@@ -138,7 +176,15 @@ impl<'owner> PreparedPublication<'owner> {
                 output.push(NativeValueSelection::AlreadySelected);
                 continue;
             }
-            if let Some(selected) = binding.select(&input, reuse_published)? {
+            let selected = match binding.select(&input, reuse_published)? {
+                Some(selected) => Some(selected),
+                None => previous
+                    .as_ref()
+                    .map(|old| old.copy_published(&input))
+                    .transpose()?
+                    .flatten(),
+            };
+            if let Some(selected) = selected {
                 self.remember(
                     ordinal,
                     &input,

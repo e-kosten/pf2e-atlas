@@ -55,7 +55,7 @@ impl SourceSearchProfileIdentity {
             tokenizer_id: s.tokenizer_id.into(),
             output_name: s.output_name.into(),
             dtype: s.dtype.as_str().into(),
-            execution_policy: atlas_embedding::EMBEDDING_INFERENCE_POLICY_VERSION.into(),
+            execution_policy: s.execution_compatibility.into(),
             input_recipe: atlas_embedding::BASELINE_INPUT_RECIPE.into(),
             assets: s
                 .required_assets

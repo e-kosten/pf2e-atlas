@@ -52,7 +52,7 @@ test("mixed application checks share one bundle before the fixed frontend/Rust p
   assert(
     flatChecks(plan).some(
       (task) =>
-        task.join(" ") === "workspace tests cargo nextest run --workspace",
+        task.join(" ") === "workspace tests cargo nextest run --workspace --locked",
     ),
   );
   assert(

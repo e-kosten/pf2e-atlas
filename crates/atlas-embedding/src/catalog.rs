@@ -92,6 +92,8 @@ pub struct EmbeddingModelSpec {
     pub dtype: VectorDType,
     pub distance_metric: DistanceMetric,
     pub document_prefix: &'static str,
+    /// Stable numerical compatibility ID for this model.
+    pub execution_compatibility: &'static str,
     pub query_prefix: &'static str,
     /// Required package-relative asset paths and their SHA-256 digests.
     pub required_assets: &'static [(&'static str, &'static str)],
@@ -136,6 +138,7 @@ pub const fn embedding_model_spec(model: EmbeddingModelId) -> EmbeddingModelSpec
         distance_metric: DistanceMetric::Cosine,
         document_prefix: "",
         query_prefix: "Represent this sentence for searching relevant passages: ",
+        execution_compatibility: crate::BASE_EXECUTION_COMPATIBILITY,
         required_assets: crate::model_cache::BASE_ASSETS,
     };
     match model {
@@ -153,6 +156,7 @@ pub const fn embedding_model_spec(model: EmbeddingModelId) -> EmbeddingModelSpec
             dimensions: 768,
             document_prefix: "title: none | text: ",
             query_prefix: "task: search result | query: ",
+            execution_compatibility: crate::BASE_EXECUTION_COMPATIBILITY,
             required_assets: crate::model_cache::GEMMA_ASSETS,
             ..base
         },
