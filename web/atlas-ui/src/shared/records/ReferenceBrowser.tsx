@@ -24,6 +24,7 @@ export function ReferenceBrowser({
   reading,
   resultsHeader,
   recordActions,
+  readerHeaderActions,
   readerStatus,
   onReaderClose,
   emptyMessage = "No matching records",
@@ -46,6 +47,7 @@ export function ReferenceBrowser({
   onSelect: (row: SearchResultRow, request: ReadingRequest) => void;
   reading: ReferenceReading;
   resultsHeader?: ReactNode;
+  readerHeaderActions?: ReactNode;
   recordActions?: (record: RecordSummaryView) => ReactNode;
   readerStatus?: ReactNode;
   onReaderClose?: () => void;
@@ -76,6 +78,7 @@ export function ReferenceBrowser({
       resultsIdentity={rows}
       resultsLoading={loading}
       recordActions={recordActions}
+      readerHeaderActions={readerHeaderActions}
       readerStatus={readerStatus}
       onReaderClose={onReaderClose}
       positions={positions}

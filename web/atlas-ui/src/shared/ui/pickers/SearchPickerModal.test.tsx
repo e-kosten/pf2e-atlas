@@ -93,6 +93,7 @@ function Picker({
 }) {
   const [form] = Form.useForm();
   const [selected, setSelected] = useState<string | null>(null);
+  const [preparedAdjustment, setPreparedAdjustment] = useState<string>();
   return (
     <SearchPickerModal
       title="Choose record"
@@ -115,15 +116,17 @@ function Picker({
       emptyPrompt="Search for a record"
       emptyResults="No matching records"
       selectedRecordKey={selected}
-      onSelectionChange={(selection) =>
-        setSelected(selection?.record.record_key ?? null)
-      }
+      onSelectionChange={(selection) => {
+        setSelected(selection?.record.record_key ?? null);
+        setPreparedAdjustment(selection?.detail.encounter_adjustment ?? undefined);
+      }}
       onCancel={cancelPicker}
       onFinish={() => addSelected(selected)}
       okButtonProps={{ disabled: !selected }}
     >
       {(detail) => (
         <>
+          <output aria-label="Prepared adjustment">{preparedAdjustment}</output>
           <output aria-label="Selected adjustment">
             {detail?.encounter_adjustment}
           </output>
@@ -239,6 +242,7 @@ it("keeps the root selection default when a match opens an exact embedded docume
   fireEvent.click(await screen.findByRole("link", { name: /Command/ }));
   expect(await screen.findByRole("heading", { name: "Command" })).toBeVisible();
   expect(screen.getByLabelText("Selected adjustment")).toHaveTextContent("elite");
+  expect(screen.getByLabelText("Prepared adjustment")).toHaveTextContent("elite");
   expect(getRecordDetail).toHaveBeenCalledWith(
     "actors:ghoul",
     expect.objectContaining({ embedded_path: navigation.embedded_path }),

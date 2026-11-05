@@ -1,3 +1,4 @@
+import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { Button, Empty, Spin, theme } from "antd";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
@@ -98,19 +99,30 @@ export function ListItemsPane({
             <span>Record unavailable in this reference collection</span>
           </div>
         )}
-        <DangerActionButton
-          className="list-member__remove"
-          type="text"
-          confirmation="popover"
-          aria-label={`Remove ${title}`}
-          title="Remove"
-          icon={<Trash2 size={15} />}
-          disabled={disabled || overlay}
-          loading={removingKey === item.record_key}
-          confirmTitle="Remove from list?"
-          confirmOkText="Remove"
-          onConfirm={() => onRemove(item.record_key)}
-        />
+        <div className="list-member__actions">
+          {!overlay &&
+            item.status !== "unresolved" &&
+            item.record?.kind === "creature" && (
+              <AddToRecordButton
+                record={item.record}
+                recordKey={item.record_key}
+                encounterOnly
+              />
+            )}
+          <DangerActionButton
+            className="list-member__remove"
+            type="text"
+            confirmation="popover"
+            aria-label={`Remove ${title}`}
+            title="Remove"
+            icon={<Trash2 size={15} />}
+            disabled={disabled || overlay}
+            loading={removingKey === item.record_key}
+            confirmTitle="Remove from list?"
+            confirmOkText="Remove"
+            onConfirm={() => onRemove(item.record_key)}
+          />
+        </div>
       </div>
     );
   };

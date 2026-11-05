@@ -1,5 +1,5 @@
 //! Source/default preparation shared by addition and its read-only difficulty preview.
-use super::mechanics::{effective_max, initial_variant};
+use super::mechanics::{effective_max, record_add_variant};
 use super::projection::participant_variant;
 use crate::{AppServiceError, AppServiceResult};
 use atlas_app_model::EncounterParticipantVariantView;
@@ -38,15 +38,48 @@ pub(super) fn prepare(
             "Elite and Weak adjustments apply only to creatures.",
         ));
     }
-    let (chosen, variant_origin) = match variant {
+    use atlas_local_state::{ParticipantVariant, ParticipantVariantOrigin};
+    let inherited = record_add_variant(&record.source);
+    let (variant, variant_origin) = match variant {
         Some(variant) => (
-            Some(participant_variant(variant)),
-            atlas_local_state::ParticipantVariantOrigin::Explicit,
+            participant_variant(variant),
+            ParticipantVariantOrigin::Explicit,
         ),
-        None => initial_variant(&record.source),
+        None => inherited,
     };
-    let variant = chosen.unwrap_or(atlas_local_state::ParticipantVariant::Normal);
-    let max_hp = effective_max(&record.source, chosen);
+    let max_hp = effective_max(&record.source, Some(variant));
+    let title = record
+        .summary
+        .name
+        .as_value()
+        .cloned()
+        .unwrap_or_else(|| record.summary.key.to_string());
+    let prefix = |variant| match variant {
+        ParticipantVariant::Normal => None,
+        ParticipantVariant::Elite => Some("Elite"),
+        ParticipantVariant::Weak => Some("Weak"),
+    };
+    let name = match (inherited.0, title.split_once(char::is_whitespace)) {
+        (source, Some((first, rest)))
+            if source != variant
+                && prefix(source).is_some_and(|marker| first.eq_ignore_ascii_case(marker))
+                && !rest.trim_start().is_empty() =>
+        {
+            rest.trim_start()
+        }
+        _ => &title,
+    };
+    let display_name = match prefix(variant) {
+        Some(prefix)
+            if !name
+                .split_whitespace()
+                .next()
+                .is_some_and(|word| word.eq_ignore_ascii_case(prefix)) =>
+        {
+            format!("{prefix} {name}")
+        }
+        _ => name.to_owned(),
+    };
     let current_hp = max_hp;
     Ok(AddEncounterParticipant {
         level_override: None,
@@ -60,20 +93,8 @@ pub(super) fn prepare(
         },
         record_key: Some(record.summary.key.clone()),
         participant_kind,
-        display_name: record
-            .summary
-            .name
-            .as_value()
-            .cloned()
-            .unwrap_or_else(|| record.summary.key.to_string()),
-        record_title_snapshot: Some(
-            record
-                .summary
-                .name
-                .as_value()
-                .cloned()
-                .unwrap_or_else(|| record.summary.key.to_string()),
-        ),
+        display_name,
+        record_title_snapshot: Some(title),
         record_kind_snapshot: Some(
             record
                 .summary

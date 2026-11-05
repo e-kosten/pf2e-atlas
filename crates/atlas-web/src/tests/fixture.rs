@@ -51,8 +51,15 @@ impl Fixture {
         Self::with_remaster(false)
     }
     pub fn with_remaster(remaster: bool) -> Self {
+        Self::with_actor_adjustment(remaster, None)
+    }
+    pub fn with_actor_adjustment(remaster: bool, adjustment: Option<&str>) -> Self {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("workspace.sqlite");
+        let mut actor = json!({"_id":"cccccccccccccccc","type":"npc","name":"Test Creature","system":{"details":{"level":{"value":1}},"traits":{"value":[]},"attributes":{"ac":{"value":16},"hp":{"max":20}},"saves":{"fortitude":{"value":5},"reflex":{"value":6},"will":{"value":4}}},"items":[{"_id":"eeeeeeeeeeeeeeee","type":"melee","name":"Claw","system":{"bonus":{"value":7},"traits":{"value":["agile"]},"damageRolls":{"main":{"damage":"1d6+2","damageType":"slashing"}},"description":{"value":"<p>A claw.</p>"}}},{"_id":"eeeeeeeeeeeeeeee","type":"action","name":"Duplicate identity","system":{"description":{"value":"<p>Snapshot-local identity.</p>"}}}]});
+        if let Some(adjustment) = adjustment {
+            actor["system"]["attributes"]["adjustment"] = json!(adjustment);
+        }
         let mut records = vec![
             record(
                 "actions",
@@ -64,11 +71,7 @@ impl Fixture {
                 "Item",
                 json!({"_id":"bbbbbbbbbbbbbbbb","type":"action","name":"Test Action 2","system":{"description":{"value":"<p>A second flame.</p>"}}}),
             ),
-            record(
-                "actors",
-                "Actor",
-                json!({"_id":"cccccccccccccccc","type":"npc","name":"Test Creature","system":{"details":{"level":{"value":1}},"traits":{"value":[]},"attributes":{"ac":{"value":16},"hp":{"max":20}},"saves":{"fortitude":{"value":5},"reflex":{"value":6},"will":{"value":4}}},"items":[{"_id":"eeeeeeeeeeeeeeee","type":"melee","name":"Claw","system":{"bonus":{"value":7},"traits":{"value":["agile"]},"damageRolls":{"main":{"damage":"1d6+2","damageType":"slashing"}},"description":{"value":"<p>A claw.</p>"}}},{"_id":"eeeeeeeeeeeeeeee","type":"action","name":"Duplicate identity","system":{"description":{"value":"<p>Snapshot-local identity.</p>"}}}]}),
-            ),
+            record("actors", "Actor", actor),
             record(
                 "tables",
                 "RollTable",

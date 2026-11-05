@@ -233,3 +233,14 @@ it("offers plain party inputs without requiring PCs or showing average narration
   expect(screen.queryByText(/rounded party average/)).toBeNull();
   expect(screen.queryByText("Set party reference")).toBeNull();
 });
+
+it("keeps colliding budget ticks keyboard-accessible", async () => {
+  setup();
+  const low = screen.getByRole("button", { name: "Low 60 XP" });
+  expect(low.closest("[data-colliding]")).not.toBeNull();
+  fireEvent.focus(low);
+  expect(await screen.findByText("Low 60 XP", { exact: true })).toHaveAttribute(
+    "role",
+    "tooltip",
+  );
+});

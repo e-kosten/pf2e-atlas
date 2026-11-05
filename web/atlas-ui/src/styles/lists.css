@@ -218,13 +218,16 @@
   background: var(--panel);
   box-shadow: var(--shadow);
 }
+.list-member__actions {
+  display: flex;
+  align-items: center;
+  grid-column: 3;
+  grid-row: 1;
+  margin-inline-end: 12px;
+}
 .list-member__remove {
   min-width: 44px;
   min-height: 44px;
-  grid-column: 3;
-  grid-row: 1;
-  align-self: center;
-  margin-inline-end: 12px;
 }
 .list-member__unresolved {
   display: grid;

@@ -1539,7 +1539,7 @@ fn hp_numeric_policy_does_not_coerce_fractional_or_unsigned_out_of_range_values(
 }
 
 #[test]
-fn inherited_elite_applies_once_unknown_adjustment_stays_unknown_and_active_hp_preserves_damage() {
+fn inherited_elite_applies_once_and_unrecognized_adjustment_defaults_to_normal() {
     use crate::{executor::RetrievalExecutor, test_support::fixture_worker_with_executor};
     use atlas_search::test_support::{open_source_fixture, record};
     use serde_json::json;
@@ -1634,54 +1634,8 @@ fn inherited_elite_applies_once_unknown_adjustment_stays_unknown_and_active_hp_p
         .iter()
         .find(|p| p.display_name == "Unknown adjustment")
         .unwrap();
-    assert_eq!((p.max_hp, p.current_hp), (None, None));
-    assert_eq!(p.variant_origin, "inherited_unknown");
-    assert!(
-        actor(p)
-            .runtime
-            .as_ref()
-            .unwrap()
-            .unapplied_effects
-            .iter()
-            .any(|n| n.source == "npc-adjustment")
-    );
-    let mut unrelated = update(p);
-    unrelated.display_name = "Renamed".into();
-    let p = {
-        let participant_key = unrelated.participant_key.clone();
-        f.worker
-            .update_encounter_participant(&e.encounter_key, unrelated)
-            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
-            .map(|detail| {
-                detail
-                    .participants
-                    .into_iter()
-                    .find(|p| p.participant_key == participant_key)
-                    .unwrap()
-            })
-    }
-    .unwrap();
-    assert_eq!((p.max_hp, p.current_hp), (None, None));
-    assert_eq!(p.variant_origin, "inherited_unknown");
-    let mut explicit = update(&p);
-    explicit.variant_edit = true;
-    let p = {
-        let participant_key = explicit.participant_key.clone();
-        f.worker
-            .update_encounter_participant(&e.encounter_key, explicit)
-            .and_then(|receipt| f.worker.encounter(&receipt.encounter_key))
-            .map(|detail| {
-                detail
-                    .participants
-                    .into_iter()
-                    .find(|p| p.participant_key == participant_key)
-                    .unwrap()
-            })
-    }
-    .unwrap();
-    assert_eq!(p.max_hp, Some(60));
-    assert_eq!(p.current_hp, None);
-    assert_eq!(p.variant_origin, "explicit");
+    assert_eq!((p.max_hp, p.current_hp), (Some(60), Some(60)));
+    assert_eq!(p.variant_origin, "default_unadjusted");
     let detail = add("Fractional HP");
     let p = detail
         .participants
@@ -2871,7 +2825,10 @@ fn add_adjustment_replaces_inherited_variant_and_initializes_each_copy_once() {
             "actors:elite00000000000",
             Some(EncounterParticipantVariantView::Elite),
         ),
-        ("actors:unknown000000000", None),
+        (
+            "actors:unknown000000000",
+            Some(EncounterParticipantVariantView::Normal),
+        ),
         (
             "actors:unknownhp0000000",
             Some(EncounterParticipantVariantView::Normal),
@@ -2884,8 +2841,9 @@ fn add_adjustment_replaces_inherited_variant_and_initializes_each_copy_once() {
         );
     }
 
-    for (index, (name, choice, hp, variant, origin, ac)) in [
+    for (index, (name, expected_name, choice, hp, variant, origin, ac)) in [
         (
+            "Elite source",
             "Elite source",
             None,
             Some(80),
@@ -2895,6 +2853,7 @@ fn add_adjustment_replaces_inherited_variant_and_initializes_each_copy_once() {
         ),
         (
             "Elite source",
+            "source",
             Some(EncounterParticipantVariantView::Normal),
             Some(60),
             EncounterParticipantVariantView::Normal,
@@ -2902,6 +2861,7 @@ fn add_adjustment_replaces_inherited_variant_and_initializes_each_copy_once() {
             Some(22),
         ),
         (
+            "Elite source",
             "Elite source",
             Some(EncounterParticipantVariantView::Elite),
             Some(80),
@@ -2911,6 +2871,7 @@ fn add_adjustment_replaces_inherited_variant_and_initializes_each_copy_once() {
         ),
         (
             "Elite source",
+            "Weak source",
             Some(EncounterParticipantVariantView::Weak),
             Some(45),
             EncounterParticipantVariantView::Weak,
@@ -2919,13 +2880,15 @@ fn add_adjustment_replaces_inherited_variant_and_initializes_each_copy_once() {
         ),
         (
             "Unknown adjustment",
+            "Unknown adjustment",
             None,
-            None,
+            Some(60),
             EncounterParticipantVariantView::Normal,
-            "inherited_unknown",
+            "default_unadjusted",
             Some(22),
         ),
         (
+            "Unknown adjustment",
             "Unknown adjustment",
             Some(EncounterParticipantVariantView::Normal),
             Some(60),
@@ -2935,6 +2898,7 @@ fn add_adjustment_replaces_inherited_variant_and_initializes_each_copy_once() {
         ),
         (
             "Unknown HP",
+            "Elite Unknown HP",
             Some(EncounterParticipantVariantView::Elite),
             None,
             EncounterParticipantVariantView::Elite,
@@ -2966,7 +2930,8 @@ fn add_adjustment_replaces_inherited_variant_and_initializes_each_copy_once() {
             .unwrap();
         let detail = f.worker.encounter(&receipt.encounter_key).unwrap();
         assert_eq!(detail.participants.len(), 2);
-        for p in &detail.participants {
+        for (index, p) in detail.participants.iter().enumerate() {
+            assert_eq!(p.display_name, format!("{expected_name} {}", index + 1));
             assert_eq!(
                 (p.max_hp, p.current_hp, p.temporary_hp),
                 (hp, hp, 0),
