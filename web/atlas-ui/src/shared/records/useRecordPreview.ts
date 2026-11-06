@@ -11,14 +11,19 @@ import type {
   RecordPresentationView,
 } from "../../generated/atlas";
 import { useRecordDetail } from "./useRecordDetail";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getEncounterReference } from "../../api/atlasApi";
 import {
   useDefinitionDetail,
   definitionHelpMatchesRecord,
+  definitionDetailQueryOptions,
 } from "./useDefinitionDetail";
 import type { ReferenceHelpHandler } from "./ReferenceHelp";
-import { isArtifactGenerationChanged } from "../queries/referenceQueries";
+import {
+  isArtifactGenerationChanged,
+  retireReferenceQueries,
+} from "../queries/referenceQueries";
+import { recordDetailQueryOptions } from "./recordDetailQuery";
 
 type EncounterPreviewContext = {
   encounterRef: string;
@@ -32,6 +37,7 @@ type EncounterPreviewContext = {
 };
 
 export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
+  const queryClient = useQueryClient();
   const [destination, setDestination] = useState<ReferenceDestinationView | null>(null);
   const [help, setHelp] = useState<ReferenceHelpView>();
   const [generation, setGeneration] = useState<string>();
@@ -156,22 +162,86 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   const readingContext =
     destination?.kind === "record" ? destination.reading_context : undefined;
   const detail = useRecordDetail(
-    requestedContext ? null : recordKey,
+    requestedContext || reloadState?.kind === "loading" ? null : recordKey,
     selection,
     readingContext,
     generation,
   );
   const definition = useDefinitionDetail(
-    destination?.kind === "definition"
-      ? destination.key
-      : (help?.definition_key ?? null),
+    reloadState?.kind === "loading"
+      ? null
+      : destination?.kind === "definition"
+        ? destination.key
+        : (help?.definition_key ?? null),
     generation,
   );
 
+  const refreshReference = async () => {
+    if (!destination || reloadState?.kind === "loading") return;
+    const currentSession = session.current;
+    const focused = document.activeElement;
+    const scrollHost =
+      focused instanceof HTMLElement
+        ? focused.closest<HTMLElement>(".record-preview-drawer__body")
+        : null;
+    setRestore({
+      scroll: scrollHost?.scrollTop ?? restore.scroll,
+      focusHref:
+        focused instanceof Element
+          ? (focused.closest("a")?.getAttribute("href") ?? undefined)
+          : undefined,
+    });
+    setRestoringHistory(true);
+    setReloadState({ kind: "loading" });
+    try {
+      await retireReferenceQueries(queryClient);
+      if (session.current !== currentSession) return;
+      const key =
+        destination.kind === "definition" ? destination.key : help?.definition_key;
+      if (key) {
+        const current = await queryClient.fetchQuery(definitionDetailQueryOptions(key));
+        if (session.current !== currentSession) return;
+        setGeneration(current.artifact_generation);
+        setHelp(current.help);
+        setLanding(undefined);
+        if (!current.help.destination) {
+          setDestination({ kind: "definition", key });
+          setSelection(undefined);
+          setReloadState({
+            kind: "failed",
+            error: new RecordContextError("definitionUnavailable"),
+          });
+          return;
+        }
+        setDestination(current.help.destination);
+        setSelection(
+          current.help.destination.kind === "record"
+            ? current.help.destination.navigation
+            : undefined,
+        );
+      } else if (recordKey) {
+        const current = await queryClient.fetchQuery(
+          recordDetailQueryOptions(recordKey, selection, undefined, readingContext),
+        );
+        if (session.current !== currentSession) return;
+        setGeneration(current.artifact_generation);
+      }
+      setReloadState(null);
+    } catch (error) {
+      if (session.current === currentSession)
+        setReloadState({
+          kind: "failed",
+          error:
+            error instanceof Error
+              ? error
+              : new Error("Unable to refresh this reference."),
+        });
+    }
+  };
+
   const reloadOwner = async () => {
     if (!requestedContext) {
-      if (destination?.kind === "definition") await definition.refetch();
-      else await detail.refetch();
+      await refreshReference();
       return;
     }
     if (!encounterContext?.reloadEncounter || reloadState?.kind === "loading") return;
@@ -364,6 +434,14 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   );
 
   const standalone = destination?.kind === "definition";
+  const referenceError =
+    reloadState?.kind === "failed"
+      ? reloadState.error
+      : standalone
+        ? definition.error
+        : (detail.error ?? definition.error);
+  const refreshRequired =
+    isArtifactGenerationChanged(referenceError) || reloadState?.kind === "failed";
 
   return {
     anchor,
@@ -386,9 +464,11 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
       ? contextualError || reloadState
         ? undefined
         : retainedContextual
-      : detail.data,
+      : reloadState
+        ? undefined
+        : detail.data,
     error: standalone
-      ? definition.error
+      ? referenceError
       : requestedContext
         ? reloadState?.kind === "loading"
           ? null
@@ -397,45 +477,58 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
             : contextualError
               ? contextualError
               : contextual.error
-        : detail.error,
+        : referenceError,
     retry: standalone
-      ? () => void definition.refetch()
-      : reloadState?.kind === "failed" && encounterContext?.reloadEncounter
-        ? () => {
-            void reloadOwner();
-          }
-        : contextualError || reloadState
-          ? undefined
-          : requestedContext && isArtifactGenerationChanged(contextual.error)
-            ? encounterContext?.reloadEncounter
-              ? () => {
-                  void reloadOwner();
-                }
-              : undefined
-            : () => {
-                if (requestedContext) void contextual.refetch();
-                else void detail.refetch();
-              },
+      ? () => {
+          if (refreshRequired) void refreshReference();
+          else void definition.refetch();
+        }
+      : !requestedContext && refreshRequired
+        ? () => void refreshReference()
+        : reloadState?.kind === "failed" && encounterContext?.reloadEncounter
+          ? () => {
+              void reloadOwner();
+            }
+          : contextualError || reloadState
+            ? undefined
+            : requestedContext && isArtifactGenerationChanged(contextual.error)
+              ? encounterContext?.reloadEncounter
+                ? () => {
+                    void reloadOwner();
+                  }
+                : undefined
+              : () => {
+                  if (requestedContext) void contextual.refetch();
+                  else void detail.refetch();
+                },
     loading: standalone
-      ? definition.isFetching
+      ? reloadState?.kind === "loading" || definition.isFetching
       : requestedContext
         ? reloadState?.kind === "loading" ||
           (!reloadState &&
             !contextualError &&
             (contextual.isLoading || contextual.isFetching))
-        : detail.isLoading || detail.isFetching,
+        : reloadState?.kind === "loading" || detail.isLoading || detail.isFetching,
     reload:
       requestedContext && !encounterContext?.reloadEncounter
         ? undefined
         : () => {
             void reloadOwner();
           },
-    reloadLabel: requestedContext ? "Reload encounter" : "Reload record",
+    reloadLabel: requestedContext
+      ? "Reload encounter"
+      : help?.definition_key || standalone
+        ? "Refresh definition"
+        : "Refresh record",
     retryLabel:
       requestedContext &&
       (reloadState?.kind === "failed" || isArtifactGenerationChanged(contextual.error))
         ? "Reload encounter"
-        : "Retry",
+        : refreshRequired
+          ? help?.definition_key || standalone
+            ? "Refresh definition"
+            : "Refresh record"
+          : "Retry",
     open,
     changeRank: (spell_rank: number | undefined) => {
       const current =

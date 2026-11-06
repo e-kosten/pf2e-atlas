@@ -123,7 +123,8 @@ pub struct DefinitionDetailView {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct DefinitionReferenceView {
-    pub destination: ReferenceDestinationView,
+    pub target: QueryDefinitionReferenceTarget,
+    pub destination: Option<ReferenceDestinationView>,
     pub occurrence_path: String,
     pub label: Option<String>,
 }
@@ -219,6 +220,21 @@ pub struct DefinitionFilterOptionView {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn outgoing_reference_preserves_identity_without_reading_capability() {
+        let reference: DefinitionReferenceView = serde_json::from_value(json!({
+            "target":{"kind":"definition","key":"rule:pf2e:Fixture.Rule.Hidden"},
+            "destination":null, "occurrence_path":"/0", "label":null
+        }))
+        .unwrap();
+        let encoded = serde_json::to_value(reference).unwrap();
+        assert_eq!(
+            encoded["target"],
+            json!({"kind":"definition","key":"rule:pf2e:Fixture.Rule.Hidden"})
+        );
+        assert_eq!(encoded.get("destination"), Some(&serde_json::Value::Null));
+    }
 
     #[test]
     fn raw_token_identity_and_optional_help_are_distinct_from_labels() {

@@ -2,7 +2,12 @@ import {
   useDefinitionDetail,
   definitionHelpMatchesRecord,
 } from "../../shared/records/useDefinitionDetail";
-import { ReferenceFilterActions } from "../../shared/filters/ReferenceFilterActions";
+import { DefinitionAssociations } from "../../shared/records/DefinitionAssociations";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  isArtifactGenerationChanged,
+  retireReferenceQueries,
+} from "../../shared/queries/referenceQueries";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { Button } from "antd";
 import { rootNavigation } from "../../shared/records/useReferenceReading";
@@ -30,10 +35,12 @@ export function RecordView({ route }: RecordViewProps) {
   );
   usePageTitle(detail.data?.presentation.identity.title ?? "Record");
   const preview = useRecordPreview();
+  const client = useQueryClient();
   const property = useDefinitionDetail(
     route.definitionKey ?? null,
     detail.data?.artifact_generation,
   );
+  const propertyChanged = isArtifactGenerationChanged(property.error);
   const propertyHelp =
     property.data &&
     definitionHelpMatchesRecord(
@@ -43,6 +50,10 @@ export function RecordView({ route }: RecordViewProps) {
     )
       ? property.data.help
       : undefined;
+  const reload = async () => {
+    await retireReferenceQueries(client);
+    await detail.refetch();
+  };
   const changeRank = (spell_rank: number | undefined) => {
     if (detail.data)
       void atlasRouter.navigate({
@@ -74,22 +85,35 @@ export function RecordView({ route }: RecordViewProps) {
               route.readingContext,
               route.definitionKey,
             ])}
-            readingContext={
+            afterContent={
               route.definitionKey && (
                 <>
                   {property.error && (
                     <ErrorNotice
                       error={property.error}
-                      title="Unable to load related searches"
+                      title={
+                        propertyChanged
+                          ? "Reference collection changed"
+                          : "Unable to load related searches"
+                      }
+                      type={propertyChanged ? "warning" : "error"}
                       action={
-                        <Button onClick={() => void property.refetch()}>Retry</Button>
+                        <Button
+                          onClick={() =>
+                            void (propertyChanged ? reload() : property.refetch())
+                          }
+                        >
+                          {propertyChanged ? "Refresh" : "Retry"}
+                        </Button>
                       }
                     />
                   )}
-                  {propertyHelp && (
-                    <ReferenceFilterActions
+                  {propertyHelp && property.data && (
+                    <DefinitionAssociations
                       actions={propertyHelp.related_filters}
-                      generation={property.data?.artifact_generation}
+                      generation={property.data.artifact_generation}
+                      onReference={preview.open}
+                      onReload={() => void reload()}
                     />
                   )}
                   {property.data && !propertyHelp && (

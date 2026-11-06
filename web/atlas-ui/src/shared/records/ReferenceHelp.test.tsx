@@ -140,8 +140,8 @@ it("uses one mixed Drawer session through nested hosts while preserving the draf
     reading_context: "general_definition",
   });
   expect(
-    within(drawer).getByRole("link", { name: "Creatures with this sense" }),
-  ).toBeVisible();
+    within(drawer).queryByRole("link", { name: "Creatures with this sense" }),
+  ).toBeNull();
   fireEvent.click(within(drawer).getByRole("link", { name: "Language context" }));
   const language = await screen.findByRole("dialog", { name: "Chthonian" });
   expect(screen.getAllByRole("dialog")).toHaveLength(1);

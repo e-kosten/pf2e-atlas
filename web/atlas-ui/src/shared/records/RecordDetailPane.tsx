@@ -50,11 +50,13 @@ export function RecordDetailPane({
   identityActions,
   readingKey,
   readingContext,
+  afterContent,
 }: {
   sectionLanding?: string;
   identityActions?: ReactNode;
   readingKey?: string;
   readingContext?: ReactNode;
+  afterContent?: ReactNode;
   detail: RecordDetailView | undefined;
   visibleOwnerRecordKey?: string;
   identityInHost?: boolean;
@@ -242,6 +244,7 @@ export function RecordDetailPane({
                 onRankChange={onRankChange}
                 onOwnerReturn={onOwnerReturn}
               />
+              {afterContent}
             </>
           ) : loading ? (
             <Spin delay={500} description={loadingMessage}>

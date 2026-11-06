@@ -74,15 +74,7 @@ impl AtlasAppService {
                         SearchPage::new(1, 100)?,
                     )?;
                     (
-                        page.entries
-                            .into_iter()
-                            .filter(|e| e.visible)
-                            .map(|e| DefinitionReferenceView {
-                                destination: reference_destination(e.target, r),
-                                occurrence_path: e.occurrence_path,
-                                label: e.label,
-                            })
-                            .collect(),
+                        outgoing_references(page.entries, r)?,
                         page.page.has_more,
                         DefinitionAvailabilityView::Available,
                     )
@@ -92,7 +84,7 @@ impl AtlasAppService {
             projection_execution.check()?;
             let attribution = attribution(&entry.provenance, &entry.permission);
             let content = match entry.backing {
-                ReferenceBacking::Prepared { content, .. } => Some(prepared_content(content, r)),
+                ReferenceBacking::Prepared { content, .. } => Some(prepared_content(content, r)?),
                 ReferenceBacking::Record { .. } | ReferenceBacking::None => None,
             };
             Ok(DefinitionDetailView {
@@ -169,7 +161,7 @@ fn selected_option(
             match crate::relationship_search::clause_summary(r, "selected_definition", &condition) {
                 Ok(checked) => {
                     view.label = checked.title;
-                    view.help.destination = Some(checked.destination);
+                    view.help.destination = checked.destination;
                     view.help.related_filters = vec![definition_reference_action(
                         target,
                         generation,
@@ -267,7 +259,7 @@ fn filter_option(
             })
         }
         atlas_search::DefinitionFilterOption::Record { summary } => {
-            let navigation = record_navigation(summary.key.clone(), vec![], r);
+            let navigation = record_navigation(summary.key.clone(), vec![], r.source_fingerprint());
             let target = QueryDefinitionReferenceTarget::Record {
                 selection: Box::new(crate::relationship_search::query_selection(&navigation)?),
             };
@@ -315,29 +307,7 @@ pub(crate) fn summary_help(
     generation: &str,
     r: &AtlasRetrievalService,
 ) -> AppServiceResult<ReferenceHelpView> {
-    let destination = match &summary.backing {
-        ReferenceSummaryBacking::Prepared => Some(ReferenceDestinationView::Definition {
-            key: summary.key.to_string(),
-        }),
-        ReferenceSummaryBacking::Record { key } => Some(ReferenceDestinationView::Record {
-            navigation: record_navigation(key.clone(), vec![], r).into(),
-            reading_context: Some(RecordReadingContextView::GeneralDefinition),
-        }),
-        ReferenceSummaryBacking::None
-            if summary.provenance.record_mapping.is_none()
-                && matches!(
-                    summary.availability,
-                    ReferenceAvailability::LabelOnly
-                        | ReferenceAvailability::MissingLocalizedBody
-                        | ReferenceAvailability::PermissionUnresolved
-                ) =>
-        {
-            Some(ReferenceDestinationView::Definition {
-                key: summary.key.to_string(),
-            })
-        }
-        ReferenceSummaryBacking::None => None,
-    };
+    let destination = definition_reading_destination(summary, r.source_fingerprint());
     let mut related_filters = Vec::with_capacity(summary.filter_bindings.len() + 1);
     for binding in &summary.filter_bindings {
         match binding.relation.as_str() {
@@ -368,6 +338,22 @@ pub(crate) fn summary_help(
         destination,
         related_filters,
     })
+}
+
+pub(crate) fn definition_reading_destination(
+    summary: &ReferenceSummary,
+    source_fingerprint: &str,
+) -> Option<ReferenceDestinationView> {
+    match &summary.backing {
+        ReferenceSummaryBacking::Prepared => Some(ReferenceDestinationView::Definition {
+            key: summary.key.to_string(),
+        }),
+        ReferenceSummaryBacking::Record { key } => Some(ReferenceDestinationView::Record {
+            navigation: record_navigation(key.clone(), vec![], source_fingerprint).into(),
+            reading_context: Some(RecordReadingContextView::GeneralDefinition),
+        }),
+        ReferenceSummaryBacking::None => None,
+    }
 }
 
 pub(crate) fn definition_reference_action(
@@ -447,10 +433,10 @@ pub(crate) fn property_action(
             (
                 predicate,
                 match path {
-                    "senses" => "Creatures with this sense".to_owned(),
-                    "defenses.immunities" => "Creatures with this immunity".into(),
-                    "defenses.weaknesses" => "Creatures with this weakness".into(),
-                    "defenses.resistances" => "Creatures with this resistance".into(),
+                    "senses" => "With this sense".to_owned(),
+                    "defenses.immunities" => "With this immunity".into(),
+                    "defenses.weaknesses" => "With this weakness".into(),
+                    "defenses.resistances" => "With this resistance".into(),
                     _ => field.label.clone(),
                 },
             )
@@ -462,10 +448,11 @@ pub(crate) fn property_action(
                 values: vec![value.clone()],
             }),
             match path {
-                "languages" => "Creatures speaking this language".into(),
-                "deity.domains.primary" => "Deities with this primary domain".into(),
-                "deity.domains.alternate" => "Deities with this alternate domain".into(),
-                "traits" => "Records with this trait".into(),
+                "languages" => "With this language".into(),
+                "deity.domains.primary" => "With this primary domain".into(),
+                "deity.domains.alternate" => "With this alternate domain".into(),
+                "traits" => "With this trait".into(),
+                "spell.traditions" => "With this tradition".into(),
                 _ => field.label.clone(),
             },
         ),
@@ -476,8 +463,14 @@ pub(crate) fn property_action(
                 value: QueryLiteral::String(value.clone()),
             }),
             match path {
-                "weapon.group" => "Weapons in this group".into(),
-                "armor.group" => "Armor in this group".into(),
+                "weapon.group" => "In this weapon group".into(),
+                "armor.group" => "In this armor group".into(),
+                "body.size" => "With this body size".into(),
+                "physical.size" => "With this item size".into(),
+                "ancestry.default_size" => "With this ancestry size".into(),
+                "weapon.damage.type" => "With this weapon damage".into(),
+                "consumable.damage.type" => "With this consumable damage".into(),
+                "rarity" => "With this rarity".into(),
                 _ => field.label.clone(),
             },
         ),
@@ -520,41 +513,106 @@ fn availability(value: ReferenceAvailability) -> DefinitionAvailabilityView {
 pub(crate) fn record_navigation(
     key: RecordKey,
     owners: Vec<atlas_domain::OwnedContentLocator>,
-    r: &AtlasRetrievalService,
+    source_fingerprint: &str,
 ) -> RecordNavigationView {
     RecordNavigationView {
         spell_rank: None,
         record_key: key.to_string(),
-        source_fingerprint: crate::projection::navigation_fingerprint(
-            &owners,
-            r.source_fingerprint(),
-        ),
+        source_fingerprint: crate::projection::navigation_fingerprint(&owners, source_fingerprint),
         owners,
         field: None,
         passage: None,
     }
 }
 
-pub(crate) fn reference_destination(
+pub(crate) fn reference_target(
     target: DefinitionReferenceTarget,
-    r: &AtlasRetrievalService,
-) -> ReferenceDestinationView {
+    source_fingerprint: &str,
+) -> QueryDefinitionReferenceTarget {
     match target {
-        DefinitionReferenceTarget::Record { key, owners } => ReferenceDestinationView::Record {
-            navigation: record_navigation(key, owners, r).into(),
-            reading_context: Some(RecordReadingContextView::GeneralDefinition),
-        },
-        DefinitionReferenceTarget::Definition { key } => ReferenceDestinationView::Definition {
-            key: key.to_string(),
-        },
+        DefinitionReferenceTarget::Record { key, owners } => {
+            QueryDefinitionReferenceTarget::Record {
+                selection: Box::new(atlas_domain::QueryRecordSelection {
+                    source_fingerprint: crate::projection::navigation_fingerprint(
+                        &owners,
+                        source_fingerprint,
+                    ),
+                    record_key: key,
+                    owners,
+                    field: None,
+                    passage: None,
+                    spell_rank: None,
+                }),
+            }
+        }
+        DefinitionReferenceTarget::Definition { key } => {
+            QueryDefinitionReferenceTarget::Definition { key }
+        }
     }
+}
+
+pub(crate) fn reference_reading_destination(
+    target: &QueryDefinitionReferenceTarget,
+    summaries: &BTreeMap<DefinitionKey, ReferenceSummary>,
+    r: &AtlasRetrievalService,
+) -> Option<ReferenceDestinationView> {
+    match target {
+        QueryDefinitionReferenceTarget::Record { selection } => {
+            Some(crate::relationship_search::record_destination(
+                r,
+                selection,
+                Some(RecordReadingContextView::GeneralDefinition),
+            ))
+        }
+        QueryDefinitionReferenceTarget::Definition { key } => summaries
+            .get(key)
+            .and_then(|summary| definition_reading_destination(summary, r.source_fingerprint())),
+    }
+}
+
+fn outgoing_references(
+    references: Vec<atlas_search::DefinitionReferenceInput>,
+    r: &AtlasRetrievalService,
+) -> AppServiceResult<Vec<DefinitionReferenceView>> {
+    let references = references
+        .into_iter()
+        .filter(|reference| reference.visible)
+        .collect::<Vec<_>>();
+    let keys = references
+        .iter()
+        .filter_map(|reference| match &reference.target {
+            DefinitionReferenceTarget::Definition { key } => Some(key.clone()),
+            DefinitionReferenceTarget::Record { .. } => None,
+        })
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let mut summaries = BTreeMap::new();
+    for chunk in keys.chunks(100) {
+        for summary in r.reference_summaries(chunk)?.entries {
+            summaries.insert(summary.key.clone(), summary);
+        }
+    }
+    Ok(references
+        .into_iter()
+        .map(|reference| {
+            let target = reference_target(reference.target, r.source_fingerprint());
+            let destination = reference_reading_destination(&target, &summaries, r);
+            DefinitionReferenceView {
+                target,
+                destination,
+                occurrence_path: reference.occurrence_path,
+                label: reference.label,
+            }
+        })
+        .collect())
 }
 
 fn prepared_content(
     content: atlas_record::source_content::PreparedReferenceDefinition,
     r: &AtlasRetrievalService,
-) -> ReferenceContentView {
-    ReferenceContentView {
+) -> AppServiceResult<ReferenceContentView> {
+    Ok(ReferenceContentView {
         section_rendering: Some(PreparedSectionRenderingView {
             html: atlas_record::source_record::single_section_annotated_prepared_html(
                 &content.html,
@@ -563,7 +621,7 @@ fn prepared_content(
         }),
         body: PreparedFieldBodyView::Html {
             inclusions: vec![],
-            controls: crate::prepared_content::content_controls(&content.interactions, None, r),
+            controls: crate::prepared_content::content_controls(&content.interactions, None, r)?,
             html: content.html,
         },
         references: content
@@ -586,7 +644,7 @@ fn prepared_content(
                 }
             })
             .collect(),
-    }
+    })
 }
 
 fn attribution(
@@ -821,14 +879,35 @@ mod tests {
             field: Some(field.into()),
             value: Some(value.into()),
         };
-        for (field, value) in [
-            ("languages", "common"),
-            ("senses", "darkvision"),
-            ("defenses.resistances", "fire"),
-            ("deity.domains.primary", "air"),
-            ("armor.group", "chain"),
+        for (field, value, expected_label) in [
+            ("languages", "common", "With this language"),
+            ("senses", "darkvision", "With this sense"),
+            ("defenses.immunities", "fire", "With this immunity"),
+            ("defenses.weaknesses", "fire", "With this weakness"),
+            ("defenses.resistances", "fire", "With this resistance"),
+            ("deity.domains.primary", "air", "With this primary domain"),
+            (
+                "deity.domains.alternate",
+                "air",
+                "With this alternate domain",
+            ),
+            ("traits", "fire", "With this trait"),
+            ("weapon.group", "sword", "In this weapon group"),
+            ("armor.group", "chain", "In this armor group"),
+            ("body.size", "med", "With this body size"),
+            ("physical.size", "med", "With this item size"),
+            ("ancestry.default_size", "med", "With this ancestry size"),
+            ("weapon.damage.type", "fire", "With this weapon damage"),
+            (
+                "consumable.damage.type",
+                "fire",
+                "With this consumable damage",
+            ),
+            ("rarity", "uncommon", "With this rarity"),
+            ("spell.traditions", "arcane", "With this tradition"),
         ] {
             let ReferenceFilterActionView::Search {
+                label,
                 predicate,
                 artifact_generation,
                 ..
@@ -838,8 +917,9 @@ mod tests {
             };
             retrieval.validate_filter(&predicate).unwrap();
             assert_eq!(artifact_generation, "generation");
+            assert_eq!(label, expected_label);
         }
-        let ReferenceFilterActionView::ConfigureField { field, .. } = property_action(
+        let ReferenceFilterActionView::ConfigureField { label, field } = property_action(
             &binding("abilities.str.modifier", "str"),
             &catalog,
             "generation",
@@ -848,6 +928,7 @@ mod tests {
             panic!("numeric field");
         };
         assert_eq!(field.field_type, QueryFieldType::Number);
+        assert_eq!(label, field.label);
         assert!(property_action(&binding("invented.field", "x"), &catalog, "generation").is_err());
     }
 }

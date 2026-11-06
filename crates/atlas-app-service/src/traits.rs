@@ -26,8 +26,8 @@ impl AtlasAppService {
                     artifact_generation: generation,
                     trait_key: definition.key.to_string(),
                     label: definition.label,
-                    content: definition.prepared.map(|prepared| {
-                        atlas_app_model::ReferenceContentView {
+                    content: definition.prepared.map(|prepared| -> AppServiceResult<_> {
+                        Ok(atlas_app_model::ReferenceContentView {
                             section_rendering: Some(atlas_app_model::PreparedSectionRenderingView {
                                 html: atlas_record::source_record::single_section_annotated_prepared_html(&prepared.html),
                                 selection_version: "trait-definition-centroid/v1".into(),
@@ -39,7 +39,7 @@ impl AtlasAppService {
                                     &prepared.interactions,
                                     None,
                                     retrieval,
-                                ),
+                                )?,
                             },
                             references: prepared
                                 .references
@@ -62,8 +62,8 @@ impl AtlasAppService {
                                     }
                                 })
                                 .collect(),
-                        }
-                    }),
+                        })
+                    }).transpose()?,
                     catalogs: definition.catalogs,
                     source_revision: definition.source_revision,
                     indexing_locale: Some(definition.indexing_locale),

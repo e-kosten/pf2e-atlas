@@ -1,3 +1,4 @@
+import { RouterTestContext } from "../../test/router";
 import { within, waitFor, fireEvent, render, screen } from "@testing-library/react";
 import { PreparedContent } from "./PreparedContent";
 import { destinationHref } from "../../app/navigation";
@@ -957,6 +958,24 @@ it.each([
                   value: "mental",
                   label: "Mental",
                   trait_key: "trait:mental",
+                  help: {
+                    definition_key: "trait:mental",
+                    availability: "available",
+                    destination: { kind: "definition", key: "trait:mental" },
+                    related_filters: [],
+                  },
+                },
+                {
+                  kind: "trait",
+                  value: "fire",
+                  label: "Fire",
+                  trait_key: "trait:fire",
+                  help: {
+                    definition_key: "trait:fire",
+                    availability: "label_only",
+                    destination: null,
+                    related_filters: [],
+                  },
                 },
                 {
                   kind: "trait",
@@ -972,13 +991,15 @@ it.each([
     };
     const onReference = vi.fn();
     const view = (relationships = detail.relationships) => (
-      <ConfigProvider theme={{ token: { motion: false } }}>
-        <PreparedContent
-          content={content}
-          relationships={relationships}
-          onReference={onReference}
-        />
-      </ConfigProvider>
+      <RouterTestContext>
+        <ConfigProvider theme={{ token: { motion: false } }}>
+          <PreparedContent
+            content={content}
+            relationships={relationships}
+            onReference={onReference}
+          />
+        </ConfigProvider>
+      </RouterTestContext>
     );
     const { rerender } = render(view());
     const plain = kind === "plain";
@@ -1003,6 +1024,14 @@ it.each([
       "/traits/trait:mental",
     );
     expect(popup).toHaveTextContent("Custom-trait");
+    await waitFor(() => expect(within(popup).getByText("Fire")).toBeVisible());
+    expect(within(popup).queryByRole("link", { name: "Fire" })).toBeNull();
+    expect(
+      Array.from(
+        popup.querySelectorAll(".record-trait-badge"),
+        (badge) => badge.textContent,
+      ),
+    ).toEqual(["Mental", "Fire", "Custom-trait"]);
     expect(onReference).not.toHaveBeenCalled();
     await waitFor(() => expect(popup).toHaveFocus());
     fireEvent.keyDown(popup, { key: "Escape" });

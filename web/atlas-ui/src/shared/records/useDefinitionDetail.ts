@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { AtlasApiError, getDefinitionDetail } from "../../api/atlasApi";
 import { referenceQueryMeta } from "../queries/referenceQueries";
 import { useReferenceQueryRetirement } from "../queries/useReferenceQueryRetirement";
@@ -6,9 +6,12 @@ import { useRetainedRecord } from "./useRetainedRecord";
 import type { RecordNavigationView, ReferenceHelpView } from "../../generated/atlas";
 import { recordNavigationIdentity } from "./recordNavigationIdentity";
 
-export function useDefinitionDetail(key: string | null, generation?: string | null) {
+export function definitionDetailQueryOptions(
+  key: string | null,
+  generation?: string | null,
+) {
   const queryKey = ["definition-detail", key, generation ?? null];
-  const query = useQuery({
+  return queryOptions({
     queryKey,
     meta: referenceQueryMeta,
     enabled: key !== null,
@@ -27,7 +30,12 @@ export function useDefinitionDetail(key: string | null, generation?: string | nu
       return detail;
     },
   });
-  const retirement = useReferenceQueryRetirement(queryKey);
+}
+
+export function useDefinitionDetail(key: string | null, generation?: string | null) {
+  const options = definitionDetailQueryOptions(key, generation);
+  const query = useQuery(options);
+  const retirement = useReferenceQueryRetirement(options.queryKey);
   const data = useRetainedRecord(
     JSON.stringify([key, generation, retirement]),
     query.data,

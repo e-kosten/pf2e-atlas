@@ -150,7 +150,7 @@ pub(crate) fn prepared_fields(
                             &cached.interactions,
                             Some((&locator, context)),
                             context.retrieval,
-                        ),
+                        )?,
                     },
                     None if cached.outcome == "empty" => PreparedFieldBodyView::Html {
                         inclusions: vec![],
@@ -206,7 +206,7 @@ pub(crate) fn prepared_fields(
         ) {
             rendering.html = render_field_content(&rendering.html, &cached.interactions, context);
         }
-        project_routine_header(field, context.retrieval);
+        project_routine_header(field, context.retrieval)?;
     }
     Ok(fields)
 }
@@ -215,8 +215,8 @@ pub(crate) fn content_controls(
     interactions: &[atlas_record::source_content::ContentInteraction],
     source: Option<(&SourceContentLocator, &PreparedContentContext<'_>)>,
     retrieval: &atlas_search::AtlasRetrievalService,
-) -> Vec<ContentControlView> {
-    interactions
+) -> AppServiceResult<Vec<ContentControlView>> {
+    let mut controls = interactions
         .iter()
         .map(|i| ContentControlView {
             ordinal: i.ordinal,
@@ -331,7 +331,21 @@ pub(crate) fn content_controls(
                 }
             },
         })
-        .collect()
+        .collect::<Vec<_>>();
+    annotate_trait_badges(
+        controls
+            .iter_mut()
+            .filter_map(|control| match &mut control.control {
+                ContentControlKindView::Check {
+                    details: Some(details),
+                    ..
+                } => Some(details.traits.iter_mut()),
+                _ => None,
+            })
+            .flatten(),
+        retrieval,
+    )?;
+    Ok(controls)
 }
 
 /// One bounded rendering copy per selected field. Selection policy remains in
@@ -458,13 +472,13 @@ pub(crate) fn resolve_runtime_content(
             field.section_rendering =
                 contextual_section_rendering(authored, &cached.interactions, &context.formula)?;
             *controls =
-                content_controls(&cached.interactions, Some((&cached.locator, &context)), r);
+                content_controls(&cached.interactions, Some((&cached.locator, &context)), r)?;
             inclusions.clear();
             if let Some(rendering) = &mut field.section_rendering {
                 rendering.html =
                     render_field_content(&rendering.html, &cached.interactions, &context);
             }
-            project_routine_header(field, r);
+            project_routine_header(field, r)?;
         }
     }
     crate::inline_content::compose_inline_content(
@@ -492,6 +506,36 @@ fn trait_badges(
         })
         .collect()
 }
+
+fn annotate_trait_badges<'a>(
+    badges: impl Iterator<Item = &'a mut RecordBadgeView>,
+    retrieval: &atlas_search::AtlasRetrievalService,
+) -> AppServiceResult<()> {
+    let mut badges = badges.collect::<Vec<_>>();
+    if badges.is_empty() {
+        return Ok(());
+    }
+    let keys = badges
+        .iter()
+        .filter_map(|badge| {
+            atlas_domain::DefinitionKey::new(
+                atlas_domain::DefinitionNamespace::Trait,
+                badge.value.clone(),
+            )
+            .ok()
+        })
+        .collect();
+    let context = crate::definitions::HelpContext::load(retrieval, keys)?;
+    for badge in &mut badges {
+        context.keyed(
+            atlas_domain::DefinitionNamespace::Trait,
+            &badge.value,
+            &mut badge.label,
+            &mut badge.help,
+        )?;
+    }
+    Ok(())
+}
 fn check_details(
     options: &std::collections::BTreeMap<String, String>,
     item_traits: &[String],
@@ -509,28 +553,31 @@ fn check_details(
 pub(crate) fn project_routine_header(
     field: &mut PreparedContentFieldView,
     retrieval: &atlas_search::AtlasRetrievalService,
-) {
+) -> AppServiceResult<()> {
     if field.role != "routine" {
-        return;
+        return Ok(());
     }
     let PreparedFieldBodyView::Html { html, .. } = &mut field.body else {
-        return;
+        return Ok(());
     };
     let Some(header) = atlas_record::source_content::routine_header(html) else {
-        return;
+        return Ok(());
     };
     if let Some(rendering) = &mut field.section_rendering {
         // Derive ordinals first, then remove exactly the same supported prefix.
         let Some(section) = atlas_record::source_content::routine_header(&rendering.html) else {
-            return;
+            return Ok(());
         };
         rendering.html = section.html;
     }
     *html = header.html;
+    let mut traits = trait_badges(&header.traits, retrieval);
+    annotate_trait_badges(traits.iter_mut(), retrieval)?;
     field.routine_header = Some(RoutineHeaderView {
         actions: header.actions,
-        traits: trait_badges(&header.traits, retrieval),
+        traits,
     });
+    Ok(())
 }
 
 /// Inherited traits affect generated check labels (notably secret), while

@@ -24,7 +24,7 @@ fn namespace(catalog: &QueryCapability, field: &str) -> Option<N> {
         (_, "deity.domains.primary" | "deity.domains.alternate") => Some(N::Domain),
         (_, "weapon.group") => Some(N::WeaponGroup),
         (_, "armor.group") => Some(N::ArmorGroup),
-        (_, "size" | "physical.size" | "ancestry.size") => Some(N::Size),
+        (_, "body.size" | "physical.size" | "ancestry.default_size") => Some(N::Size),
         (_, "spell.traditions") => Some(N::Tradition),
         _ => None,
     }

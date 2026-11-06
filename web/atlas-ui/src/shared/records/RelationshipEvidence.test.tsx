@@ -343,10 +343,15 @@ it("renders definition evidence with supplied titles and verifies its exact targ
       {
         kind: "definition",
         occurrence: {
-          source: { kind: "record", navigation: rootNavigation("actors:goblin") },
+          source: { kind: "record", selection: rootNavigation("actors:goblin") },
+          source_destination: {
+            kind: "record",
+            navigation: rootNavigation("actors:goblin"),
+          },
           source_title: "Goblin",
           source_field: "/system/details/languages/value",
-          target: definition.destination,
+          target: { kind: "definition", key: "language:chthonian" },
+          target_destination: definition.destination,
           target_title: "Chthonian",
           occurrence_path: "/system/details/languages/value/0",
           evidence: "typed_property",
@@ -408,6 +413,156 @@ it("renders definition evidence with supplied titles and verifies its exact targ
 function neverReference(): never {
   throw new Error("Expected definition fixture");
 }
+
+it("retains exact bodyless proof identity and titles without offering target navigation", async () => {
+  const target = { kind: "definition" as const, key: "rule:pf2e:Fixture.Rule.Hidden" };
+  const reference = { target, include_contents: true };
+  const summary: RelationshipClauseSummaryView = {
+    clause_id: "hidden",
+    condition: { kind: "definition", reference },
+    destination: null,
+    title: "Hidden rule",
+  };
+  const source = {
+    ...rootNavigation("actors:goblin"),
+    embedded_path: [{ collection: "/items", identity: { Stable: "owned-ability" } }],
+    source_fingerprint: "checked-source",
+  };
+  const proof: RelationshipEvidenceView = {
+    ...evidence,
+    clause_id: "hidden",
+    occurrences: [
+      {
+        kind: "definition",
+        occurrence: {
+          source: { kind: "record", selection: source },
+          source_destination: { kind: "record", navigation: source },
+          source_title: "Owned custom ability",
+          source_field: "/system/description/value",
+          target,
+          target_destination: null,
+          target_title: "Hidden rule",
+          occurrence_path: "description:localize:4",
+          evidence: "localization",
+          label: null,
+          visible: true,
+        },
+      },
+    ],
+  };
+  const filter = {
+    kind: "definition_reference" as const,
+    clause_id: "hidden",
+    reference,
+  };
+  api.mockResolvedValue({
+    artifact_generation: "generation-a",
+    clause: summary,
+    result_record: summaryFixture("actors:goblin", "Goblin"),
+    occurrences: proof.occurrences,
+    page: { ...proof.page, number: 2, has_more: false, next_page: null },
+  });
+  render(
+    <RouterTestContext>
+      <QueryClientProvider client={new QueryClient()}>
+        <RelationshipEvidence
+          evidence={proof}
+          filter={filter}
+          summary={summary}
+          resultKey="actors:goblin"
+          generation="generation-a"
+        />
+      </QueryClientProvider>
+    </RouterTestContext>,
+  );
+  expect(screen.getByText("Hidden rule")).toBeVisible();
+  expect(screen.queryByRole("link", { name: "Hidden rule" })).toBeNull();
+  expect(screen.queryByText("Reference unavailable")).toBeNull();
+  const sourceLink = screen.getByRole("link", { name: "Owned custom ability" });
+  expect(
+    selectedNavigation(
+      parseSearchParams(
+        new URL(sourceLink.getAttribute("href")!, "http://atlas.local").search,
+      ),
+      source.record_key,
+    ),
+  ).toEqual(source);
+  fireEvent.click(screen.getByRole("button", { name: "Next links page" }));
+  await waitFor(() =>
+    expect(api).toHaveBeenCalledWith(
+      {
+        filter,
+        clause_id: "hidden",
+        result_record_key: "actors:goblin",
+        page: { number: 2, size: 1 },
+        expected_artifact_generation: "generation-a",
+      },
+      expect.any(AbortSignal),
+    ),
+  );
+  expect(screen.getByText("Hidden rule")).toBeVisible();
+  expect(screen.queryByRole("link", { name: "Hidden rule" })).toBeNull();
+  expect(proof.occurrences[0]).toMatchObject({
+    occurrence: { target, source: { kind: "record", selection: source } },
+  });
+});
+
+it("uses independent source and target reading capabilities for canonical record-backed evidence", () => {
+  const navigation = rootNavigation("abilities:darkvision");
+  const destination = {
+    kind: "record" as const,
+    navigation,
+    reading_context: "general_definition" as const,
+  };
+  const reference = {
+    target: { kind: "definition" as const, key: "sense:darkvision" },
+    include_contents: true,
+  };
+  render(
+    <RouterTestContext>
+      <QueryClientProvider client={new QueryClient()}>
+        <RelationshipEvidence
+          evidence={{
+            ...evidence,
+            occurrences: [
+              {
+                kind: "definition",
+                occurrence: {
+                  source: { kind: "definition", key: "rule:pf2e:Fixture.Rule.Hidden" },
+                  source_destination: null,
+                  source_title: "Hidden source rule",
+                  source_field: null,
+                  target: { kind: "record", selection: navigation },
+                  target_destination: destination,
+                  target_title: "Darkvision",
+                  occurrence_path: "definition:0",
+                  evidence: "localization",
+                  label: null,
+                  visible: true,
+                },
+              },
+            ],
+          }}
+          filter={{ kind: "definition_reference", clause_id: "link", reference }}
+          summary={{
+            clause_id: "link",
+            condition: { kind: "definition", reference },
+            destination,
+            title: "Darkvision",
+          }}
+          resultKey="actors:goblin"
+          generation="generation-a"
+        />
+      </QueryClientProvider>
+    </RouterTestContext>,
+  );
+  expect(screen.getByText("Hidden source rule")).toBeVisible();
+  expect(screen.queryByRole("link", { name: "Hidden source rule" })).toBeNull();
+  expect(screen.getByRole("link", { name: "Darkvision" })).toHaveAttribute(
+    "href",
+    "/records/abilities:darkvision?reading_context=general_definition&definition_key=sense%3Adarkvision",
+  );
+});
 
 it("links context-bearing record destinations with their supplied reading purpose", () => {
   const destination = {

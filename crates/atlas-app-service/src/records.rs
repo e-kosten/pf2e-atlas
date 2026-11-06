@@ -337,7 +337,7 @@ impl<'a> LoadedRecordDetail<'a> {
                             &context,
                         );
                     }
-                    crate::prepared_content::project_routine_header(field, r);
+                    crate::prepared_content::project_routine_header(field, r)?;
                 }
             }
         }

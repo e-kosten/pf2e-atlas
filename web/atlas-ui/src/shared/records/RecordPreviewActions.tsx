@@ -10,6 +10,7 @@ export function RecordPreviewActions({
   onOpenFullPage,
   fullPageHref,
   readingHistory,
+  fullPageDisabled = false,
 }: {
   actions?: React.ReactNode;
   secondaryActions?: React.ReactNode;
@@ -17,6 +18,7 @@ export function RecordPreviewActions({
   onClose: () => void;
   onOpenFullPage: () => void;
   fullPageHref?: string;
+  fullPageDisabled?: boolean;
   readingHistory?: RecordPreviewContentProps["readingHistory"];
 }) {
   return (
@@ -39,6 +41,7 @@ export function RecordPreviewActions({
             aria-label="Open reference full page"
             icon={<ExternalLink size={16} aria-hidden="true" />}
             href={fullPageHref}
+            disabled={fullPageDisabled}
             onClick={(event) => {
               if (fullPageHref && !isPrimaryActivation(event)) return;
               event.preventDefault();

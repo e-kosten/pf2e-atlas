@@ -6,8 +6,11 @@ import { ConfigProvider } from "antd";
 import { useId, useRef, useState } from "react";
 import { DefinitionDetailPane, DefinitionAttribution } from "./DefinitionDetailPane";
 import { DocumentIdentityHeader } from "./DocumentIdentityHeader";
-import { ReferenceHelpProvider, referenceDestination } from "./ReferenceHelp";
-import { ReferenceFilterActions } from "../filters/ReferenceFilterActions";
+import {
+  ReferenceHelpProvider,
+  referenceDestination,
+  definitionClassification,
+} from "./ReferenceHelp";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { RecordPreviewActions } from "./RecordPreviewActions";
 import type {
@@ -19,6 +22,7 @@ import { RecordPresentationIdentity } from "./RecordPresentation";
 import type { RecordNavigationView } from "../../generated/atlas";
 import { SourceSectionSelectionContext } from "./SourceSectionSelectionContext";
 import { readingNavigationForUrl } from "./readingUrlNavigation";
+import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 const getPopupContainer = (trigger?: HTMLElement) =>
   trigger?.closest<HTMLElement>(".record-preview-drawer-root") ?? document.body;
 export function RecordReferenceDrawer({
@@ -53,6 +57,14 @@ export function RecordReferenceDrawer({
   const [closing, setClosing] = useState(false);
   const open = !closing;
   const close = () => setClosing(true);
+  const unavailable = help?.destination === null;
+  const retryActionLabel =
+    retryLabel ??
+    (isArtifactGenerationChanged(error)
+      ? destination?.kind === "definition" || help?.definition_key
+        ? "Refresh definition"
+        : "Refresh record"
+      : "Retry");
   const navigation = detail
     ? readingNavigationForUrl(detail.selected, { navigation: requestedNavigation })
     : undefined;
@@ -65,19 +77,21 @@ export function RecordReferenceDrawer({
         landing,
       )
     : undefined;
-  const href =
-    (typedRoute ? destinationHref(typedRoute) : undefined) ??
-    fullPageHref ??
-    (detail
-      ? destinationHref(
-          recordDestination({
-            recordKey: detail.selected.record_key,
-            selection: navigation,
-            landing,
-          }),
-        )
-      : undefined);
+  const href = unavailable
+    ? undefined
+    : ((typedRoute ? destinationHref(typedRoute) : undefined) ??
+      fullPageHref ??
+      (detail
+        ? destinationHref(
+            recordDestination({
+              recordKey: detail.selected.record_key,
+              selection: navigation,
+              landing,
+            }),
+          )
+        : undefined));
   const openFullPage = () => {
+    if (unavailable) return;
     if (typedRoute) {
       navigateDestination(typedRoute);
       onClose();
@@ -161,7 +175,7 @@ export function RecordReferenceDrawer({
               headingRef={heading}
               headingId={headingId}
               title={definition?.label ?? "Definition"}
-              classification="Definition"
+              classification={definitionClassification(destination.key)}
               attribution={definition && <DefinitionAttribution detail={definition} />}
               actions={
                 <RecordPreviewActions
@@ -169,6 +183,7 @@ export function RecordReferenceDrawer({
                   onClose={close}
                   onOpenFullPage={openFullPage}
                   fullPageHref={href}
+                  fullPageDisabled={unavailable}
                 />
               }
             />
@@ -194,6 +209,7 @@ export function RecordReferenceDrawer({
                   onClose={close}
                   onOpenFullPage={openFullPage}
                   fullPageHref={href}
+                  fullPageDisabled={unavailable}
                 />
               )}
             />
@@ -229,16 +245,11 @@ export function RecordReferenceDrawer({
             loading={loading}
             error={error}
             onRetry={onRetry}
+            retryLabel={retryActionLabel}
             onReference={onReference}
           />
         ) : (
           <>
-            {help && detail && (
-              <ReferenceFilterActions
-                actions={help.related_filters}
-                generation={detail.artifact_generation}
-              />
-            )}
             <RecordDetailPane
               identityInHost
               visibleOwnerRecordKey={visibleOwnerRecordKey}
@@ -250,7 +261,7 @@ export function RecordReferenceDrawer({
               onRetry={onRetry}
               onReload={onReload}
               reloadLabel={reloadLabel}
-              retryLabel={retryLabel}
+              retryLabel={retryActionLabel}
               onBack={close}
               backLabel="Close preview"
               onReference={onReference}

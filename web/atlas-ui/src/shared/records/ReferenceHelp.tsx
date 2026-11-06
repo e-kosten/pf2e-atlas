@@ -59,6 +59,11 @@ export function referenceDestination(
       });
 }
 
+/** Classification follows the exact typed identity namespace, never body text. */
+export function definitionClassification(key: string): "Trait" | "Definition" {
+  return key.startsWith("trait:") ? "Trait" : "Definition";
+}
+
 export function useReferenceHelpNavigation() {
   const host = useContext(HelpContext);
   return (help: ReferenceHelpView, anchor: HTMLElement, generation?: string) => {

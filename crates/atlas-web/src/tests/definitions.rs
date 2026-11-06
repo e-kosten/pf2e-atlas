@@ -283,17 +283,35 @@ async fn mixed_glossary_boolean_clauses_keep_typed_destinations_and_exact_proof_
     assert_eq!(proof["clause"]["destination"]["kind"], "definition");
     assert_eq!(proof["occurrences"][0]["kind"], "definition");
     let occurrence = &proof["occurrences"][0]["occurrence"];
-    assert_eq!(occurrence["source"]["navigation"]["record_key"], ACTOR);
+    assert_eq!(occurrence["source"]["selection"]["record_key"], ACTOR);
     assert_eq!(
-        occurrence["source"]["navigation"]["embedded_path"][0]["collection"],
+        occurrence["source"]["selection"]["embedded_path"][0]["collection"],
         "/items"
     );
     assert_eq!(occurrence["source_field"], "/system/description/value");
+    assert_eq!(
+        occurrence["source"]["selection"]["field"],
+        occurrence["source_field"]
+    );
+    assert_eq!(
+        occurrence["source_destination"]["navigation"]["record_key"],
+        ACTOR
+    );
+    assert!(
+        occurrence["source_destination"]
+            .get("reading_context")
+            .is_none()
+    );
     assert!(occurrence["occurrence_path"].is_string());
     assert_eq!(
         occurrence["target"],
         json!({"kind":"definition","key":"language:chthonian"})
     );
+    assert_eq!(
+        occurrence["target_destination"],
+        json!({"kind":"definition","key":"language:chthonian"})
+    );
+    assert!(clause("zero")["destination"].is_null());
     for id in ["zero", "excluded"] {
         let (status, _) = fixture
             .json(
@@ -304,6 +322,97 @@ async fn mixed_glossary_boolean_clauses_keep_typed_destinations_and_exact_proof_
             .await;
         assert!(status.is_client_error(), "{id}: {status}");
     }
+}
+
+#[tokio::test]
+async fn bodyless_reference_identity_survives_http_without_reading_destinations() {
+    let fixture = Fixture::with_bodyless_glossary_reference();
+    let key = "rule:pf2e:Fixture.Rule.Hidden";
+    let (status, hidden) = fixture
+        .json(
+            Method::POST,
+            "/api/definitions/detail",
+            Some(json!({"definition_key":key})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{hidden}");
+    assert_eq!(hidden["help"]["availability"], "permission_unresolved");
+    assert_eq!(
+        hidden["help"].get("destination"),
+        Some(&serde_json::Value::Null)
+    );
+    let predicate = &hidden["help"]["related_filters"][0]["predicate"];
+    let (status, source) = fixture
+        .json(
+            Method::POST,
+            "/api/definitions/detail",
+            Some(json!({"definition_key":"language:chthonian"})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{source}");
+    assert_eq!(
+        source["help"]["destination"],
+        json!({"kind":"definition","key":"language:chthonian"})
+    );
+    assert!(
+        source["content"]["body"]["html"]
+            .as_str()
+            .unwrap()
+            .contains("Typically spoken")
+    );
+    assert_eq!(
+        source["references"][0]["target"],
+        json!({"kind":"definition","key":key})
+    );
+    assert_eq!(
+        source["references"][0].get("destination"),
+        Some(&serde_json::Value::Null)
+    );
+    let (status, page) = fixture.json(Method::POST, "/api/search/page", Some(json!({"criteria":{"kind":"list_records","filter":predicate},"page":{"number":1,"size":20},"expected_artifact_generation":hidden["artifact_generation"]}))).await;
+    assert_eq!(status, StatusCode::OK, "{page}");
+    assert_eq!(page["rows"].as_array().unwrap().len(), 1);
+    assert_eq!(page["rows"][0]["record"]["record_key"], ACTOR);
+    assert_eq!(
+        page["relationship_clauses"][0].get("destination"),
+        Some(&serde_json::Value::Null)
+    );
+    assert_eq!(
+        page["relationship_clauses"][0]["condition"]["reference"]["target"],
+        json!({"kind":"definition","key":key})
+    );
+    let (status, proof) = fixture.json(Method::POST, "/api/search/relationship-occurrences", Some(json!({"filter":predicate,"clause_id":predicate["clause_id"],"result_record_key":ACTOR,"page":{"number":1,"size":1},"expected_artifact_generation":page["artifact_generation"]}))).await;
+    assert_eq!(status, StatusCode::OK, "{proof}");
+    let occurrence = &proof["occurrences"][0]["occurrence"];
+    assert_eq!(occurrence["target"], json!({"kind":"definition","key":key}));
+    assert_eq!(
+        occurrence.get("target_destination"),
+        Some(&serde_json::Value::Null)
+    );
+    assert_eq!(occurrence["target_title"], "Hidden rule");
+    assert_eq!(occurrence["source"]["kind"], "record");
+    assert_eq!(occurrence["source"]["selection"]["record_key"], ACTOR);
+    assert_eq!(
+        occurrence["source"]["selection"]["field"],
+        "/system/description/value"
+    );
+    assert_eq!(
+        occurrence["source"]["selection"]["embedded_path"],
+        occurrence["source_destination"]["navigation"]["embedded_path"]
+    );
+    assert!(occurrence["source"]["selection"]["source_fingerprint"].is_string());
+    assert_eq!(
+        occurrence["source"]["selection"]["source_fingerprint"],
+        occurrence["source_destination"]["navigation"]["source_fingerprint"]
+    );
+    assert_eq!(
+        occurrence["source_destination"]["navigation"]["field"],
+        occurrence["source_field"]
+    );
+    assert!(
+        occurrence["source_destination"]
+            .get("reading_context")
+            .is_none()
+    );
 }
 
 #[tokio::test]

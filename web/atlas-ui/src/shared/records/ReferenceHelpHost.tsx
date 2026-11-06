@@ -52,6 +52,9 @@ function LocalReferenceHelpHost({
             loading={preview.loading}
             error={preview.error}
             onRetry={preview.retry}
+            onReload={preview.reload}
+            retryLabel={preview.retryLabel}
+            reloadLabel={preview.reloadLabel}
             onClose={preview.close}
             onReference={preview.open}
             onRankChange={preview.changeRank}

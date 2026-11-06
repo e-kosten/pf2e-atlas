@@ -225,15 +225,36 @@ it("offers generation recovery only after a stale association and rereads the tr
   expect(screen.queryByRole("button", { name: "Reload trait" })).toBeNull();
 });
 
-it("keeps an unavailable source definition explicit", async () => {
-  api.getTraitDetail.mockResolvedValueOnce({
-    ...definition,
-    content: null,
+it.each([undefined, "?tab=references", "?tab=similar"])(
+  "uses the generic missing destination for a bodyless trait URL %s",
+  async (query) => {
+    api.getTraitDetail.mockResolvedValueOnce({
+      ...definition,
+      content: null,
+    });
+    setup(query);
+    expect(await screen.findByText("Link not found")).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Agile" })).toBeNull();
+    expect(
+      screen.queryByText("No definition is available in this reference collection."),
+    ).toBeNull();
+    expect(screen.queryByRole("tab")).toBeNull();
+    expect(api.getTraitRecords).not.toHaveBeenCalled();
+    expect(api.searchPage).not.toHaveBeenCalled();
+    expect(document.title).toBe("Link not found · Atlas");
+  },
+);
+it("stops presenting the trait page when a successful refresh removes its content", async () => {
+  const client = setup();
+  expect(await screen.findByText("Multiple attack penalty is reduced.")).toBeVisible();
+  await screen.findByRole("tab", { name: "With this trait" });
+  api.getTraitDetail.mockResolvedValue({ ...definition, content: null });
+  await act(async () => {
+    await client.invalidateQueries({ queryKey: ["trait-detail"] });
   });
-  setup();
-  expect(await screen.findByRole("alert")).toHaveTextContent(
-    "No definition is available in this reference collection.",
-  );
+  expect(await screen.findByText("Link not found")).toBeVisible();
+  expect(screen.queryByText("Multiple attack penalty is reduced.")).toBeNull();
+  expect(screen.queryByRole("tab")).toBeNull();
 });
 
 it("keeps exact embedded membership addresses in native links and navigation", async () => {

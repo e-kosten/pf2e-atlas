@@ -8,6 +8,7 @@ const explanations = {
   generationChanged:
     "The reference collection has changed. Reload the encounter and reopen the activity.",
   participantReferenceRemoved: "This participant's reference is no longer available.",
+  definitionUnavailable: "This definition is no longer available.",
 };
 /** Finite, UI-owned context changes; never constructed from transport diagnostics. */
 export class RecordContextError extends Error {

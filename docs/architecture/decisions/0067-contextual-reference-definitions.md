@@ -164,6 +164,14 @@ carry the executable predicate, or a numeric field configuration that still need
 an operator/value. Older traits-only coverage preserves ordinary record reads and
 reports setup-required help for new namespaces.
 
+Exact reference conditions and evidence retain their typed record/definition
+identities even when no body is readable. Their optional reading destinations are
+projected from canonical backing metadata, separately from query admission. The
+same capability owner decorates fact links, clause summaries, proof endpoints and
+outgoing references. Batched metadata reads preserve inert evidence titles without
+turning label-only or withheld content into a definition page. Prepared check and
+routine badges receive the same metadata-backed help as record presentation badges.
+
 `DefinitionReference` is an incoming query leaf in the existing Boolean eligibility
 engine. A record destination unions visible canonical localization occurrences
 with existing UUID graph evidence; standalone keys use canonical occurrences.
@@ -191,13 +199,21 @@ Record-backed help retains the actual record URL, with explicit reading context
 and optional semantic definition key. Full-page reading resolves that key through
 the existing definition-detail service and uses its property actions only when
 the returned actual destination matches the requested record selection. Standalone
-definitions have direct typed destinations; traits keep their established URLs and
+definitions with readable content have direct typed destinations; metadata-only
+entries remain filterable without a reading destination. Traits keep their URLs and
 specialized membership, reference and Similar workflows. These routes add no
 glossary browser or duplicate record page. Native modified links and the Drawer's
 Open full page action retain the same checked destination and reading purpose.
 
-Related actions consume the Rust-supplied canonical predicate. A numeric action
-opens the existing Advanced Filters editor using a catalog field configuration
-intent; it becomes executable only after an operator and value are supplied. The
-manual definition chooser uses the same actions and draft owner. Opening, nesting
-or closing help does not change the host's selected record, criteria or drafts.
+Glossary Drawers show the useful definition body and ordinary publication
+attribution. Technical extraction provenance stays in its canonical diagnostic/data
+owner; it is not reading content. Related-record exploration belongs on the
+standalone page using the existing trait association presentation. Existing trait
+association and Similar policies are unchanged; other definitions gain no automatic
+Similar capability.
+
+Related actions consume the Rust-supplied canonical predicate. Standalone
+association sections and manual discovery share that predicate and the existing
+query owner. Numeric configuration stays in Advanced Filters and becomes executable
+only after an operator and value are supplied. Opening, nesting or closing help
+does not change the host's selected record, criteria or drafts.

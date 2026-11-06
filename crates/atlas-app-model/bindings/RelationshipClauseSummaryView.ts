@@ -3,7 +3,7 @@ import type { RecordSummaryView } from "./RecordSummaryView";
 import type { ReferenceClauseConditionView } from "./ReferenceClauseConditionView";
 import type { ReferenceDestinationView } from "./ReferenceDestinationView";
 
-export type RelationshipClauseSummaryView = { clause_id: string, condition: ReferenceClauseConditionView, destination: ReferenceDestinationView,
+export type RelationshipClauseSummaryView = { clause_id: string, condition: ReferenceClauseConditionView, destination: ReferenceDestinationView | null,
 /**
  * Supplemental actual-record metadata; never an identity or navigation fallback.
  */

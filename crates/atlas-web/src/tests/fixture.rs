@@ -13,6 +13,110 @@ use super::AtlasWebState;
 #[path = "../../examples/browser_fixture/reference_data.rs"]
 mod reference_data;
 
+fn add_bodyless_reference(
+    data: &mut atlas_index::IndexBuildInput,
+    glossary: &mut reference_data::ReferenceFixture,
+) {
+    let key: atlas_domain::DefinitionKey = "rule:pf2e:Fixture.Rule.Hidden".parse().unwrap();
+    let mut entry = glossary
+        .entries
+        .iter()
+        .find(|entry| entry.key.to_string() == "language:draconic")
+        .unwrap()
+        .clone();
+    entry.key = key.clone();
+    entry.label = "Hidden rule".into();
+    entry.availability = atlas_index::ReferenceAvailability::PermissionUnresolved;
+    entry.permission.disposition =
+        atlas_index::ReferencePermissionDisposition::MetadataOnlyUnresolved;
+    entry.provenance.label_key = Some("Fixture.Rule.Hidden".into());
+    entry.filter_bindings = vec![atlas_index::ReferenceFilterBinding {
+        id: "references".into(),
+        relation: "references_definition".into(),
+        field: None,
+        value: None,
+    }];
+    glossary.entries.push(entry);
+    let keys = [(
+        "Fixture.Rule.Hidden".into(),
+        [key.clone()].into_iter().collect(),
+    )]
+    .into_iter()
+    .collect();
+    glossary.occurrences.extend(
+        data.records
+            .iter()
+            .flat_map(|source| {
+                atlas_record::source_record::definition_record_localization_references(
+                    &source.record,
+                    data.context.audience,
+                    &keys,
+                )
+            })
+            .map(|reference| atlas_index::DefinitionReferenceInput {
+                source: atlas_index::DefinitionReferenceSource::Record {
+                    key: reference.locator.record,
+                    owners: reference.locator.owners,
+                    field: Some(reference.locator.field),
+                },
+                target: atlas_index::DefinitionReferenceTarget::Definition { key: key.clone() },
+                occurrence_path: reference.path,
+                evidence: reference.localization_key,
+                label: None,
+                visible: reference.visible,
+            }),
+    );
+    let source = glossary
+        .entries
+        .iter_mut()
+        .find(|entry| entry.key.to_string() == "language:chthonian")
+        .unwrap();
+    let body = "<p>Typically spoken by demons. @Localize[Fixture.Rule.Hidden]</p>";
+    source.backing = atlas_index::ReferenceBacking::Prepared {
+        authored_markup: body.into(),
+        content: atlas_record::source_content::prepare_reference_definition(
+            source.key.clone(),
+            body,
+            data.context.audience,
+            None,
+            None,
+        )
+        .unwrap(),
+    };
+    source.provenance.source_sha256 = Some(hash(body.as_bytes()));
+    glossary.occurrences.extend(
+        atlas_record::source_content::definition_body_localization_references(
+            body,
+            &keys,
+            data.context.audience,
+            atlas_record::source_content::ContentVisibilityRule::All,
+        )
+        .into_iter()
+        .map(|reference| atlas_index::DefinitionReferenceInput {
+            source: atlas_index::DefinitionReferenceSource::Definition {
+                key: source.key.clone(),
+            },
+            target: atlas_index::DefinitionReferenceTarget::Definition { key: reference.key },
+            occurrence_path: reference.path,
+            evidence: reference.localization_key,
+            label: None,
+            visible: reference.visible,
+        }),
+    );
+    let (count, digest) = atlas_index::reference_inventory_identity(
+        data.traits
+            .iter()
+            .map(|entry| atlas_domain::DefinitionKey::from(entry.key.clone()))
+            .chain(glossary.entries.iter().map(|entry| entry.key.clone())),
+    )
+    .unwrap();
+    let preparation = data.context.reference_preparation.as_mut().unwrap();
+    preparation.expected_entry_count = count;
+    preparation.entry_keys_sha256 = digest;
+    preparation.input_hash =
+        hash(&serde_json::to_vec(&(&glossary.entries, &glossary.notices)).unwrap());
+}
+
 pub(super) const ACTION: &str = "actions:aaaaaaaaaaaaaaaa";
 pub(super) const SECOND_ACTION: &str = "actions:bbbbbbbbbbbbbbbb";
 pub(super) const ACTOR: &str = "actors:cccccccccccccccc";
@@ -56,18 +160,22 @@ impl Fixture {
         Self::with_actor_adjustment(remaster, None)
     }
     pub fn with_actor_adjustment(remaster: bool, adjustment: Option<&str>) -> Self {
-        Self::with_reference_data(remaster, adjustment, None)
+        Self::with_reference_data(remaster, adjustment, None, false)
     }
     pub fn with_glossary() -> Self {
-        Self::with_reference_data(false, None, Some(true))
+        Self::with_reference_data(false, None, Some(true), false)
+    }
+    pub fn with_bodyless_glossary_reference() -> Self {
+        Self::with_reference_data(false, None, Some(true), true)
     }
     pub fn with_legacy_glossary() -> Self {
-        Self::with_reference_data(false, None, Some(false))
+        Self::with_reference_data(false, None, Some(false), false)
     }
     fn with_reference_data(
         remaster: bool,
         adjustment: Option<&str>,
         coverage: Option<bool>,
+        bodyless_reference: bool,
     ) -> Self {
         let glossary = coverage == Some(true);
         let directory = tempfile::tempdir().unwrap();
@@ -83,8 +191,11 @@ impl Fixture {
                 json!({"mod":7,"senses":[{"type":"darkvision","acuity":"precise","range":60}]});
         }
         if glossary {
-            actor["items"][0]["system"]["description"]["value"] =
-                json!("<p>@Localize[Fixture.Language.Chthonian]</p>");
+            actor["items"][0]["system"]["description"]["value"] = json!(if bodyless_reference {
+                "<p>@Localize[Fixture.Language.Chthonian] @Localize[Fixture.Rule.Hidden]</p>"
+            } else {
+                "<p>@Localize[Fixture.Language.Chthonian]</p>"
+            });
         }
         let mut records = vec![
             record(
@@ -171,7 +282,10 @@ impl Fixture {
         });
         let source_fingerprint = data.context.source_fingerprint.clone();
         if glossary {
-            let glossary = reference_data::attach(&mut data).unwrap();
+            let mut glossary = reference_data::attach(&mut data).unwrap();
+            if bodyless_reference {
+                add_bodyless_reference(&mut data, &mut glossary);
+            }
             atlas_index::test_support::publish_input_with_references(
                 &path,
                 &data,

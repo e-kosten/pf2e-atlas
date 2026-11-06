@@ -23,7 +23,7 @@ pub(crate) fn query_selection(
         spell_rank: selection.spell_rank,
     })
 }
-fn record_destination(
+pub(crate) fn record_destination(
     r: &AtlasRetrievalService,
     selection: &atlas_domain::QueryRecordSelection,
     reading_context: Option<atlas_app_model::RecordReadingContextView>,
@@ -79,7 +79,7 @@ pub(crate) fn clause_summary(
             (
                 Some(Box::new(record)),
                 title,
-                record_destination(r, &relationship.selection, None),
+                Some(record_destination(r, &relationship.selection, None)),
             )
         }
         Condition::Definition { reference } => {
@@ -110,15 +110,19 @@ pub(crate) fn clause_summary(
                             &record, r,
                         ))),
                         title,
-                        record_destination(
+                        Some(record_destination(
                             r,
                             selection,
                             Some(RecordReadingContextView::GeneralDefinition),
-                        ),
+                        )),
                     )
                 }
                 atlas_search::CheckedDefinitionReferenceTarget::Definition { definition } => {
-                    let (record, destination) = match &definition.backing {
+                    let destination = crate::definitions::definition_reading_destination(
+                        &definition,
+                        r.source_fingerprint(),
+                    );
+                    let record = match &definition.backing {
                         atlas_search::ReferenceSummaryBacking::Record { key } => {
                             let summary = r
                                 .get_records(GetRecordsRequest {
@@ -133,23 +137,11 @@ pub(crate) fn clause_summary(
                                         "The definition record is unavailable",
                                     )
                                 })?;
-                            (
-                                Some(Box::new(crate::projection::localized_summary_view(
-                                    &summary, r,
-                                ))),
-                                record_destination(
-                                    r,
-                                    &root_selection(key.clone(), vec![]),
-                                    Some(RecordReadingContextView::GeneralDefinition),
-                                ),
-                            )
+                            Some(Box::new(crate::projection::localized_summary_view(
+                                &summary, r,
+                            )))
                         }
-                        _ => (
-                            None,
-                            atlas_app_model::ReferenceDestinationView::Definition {
-                                key: definition.key.to_string(),
-                            },
-                        ),
+                        _ => None,
                     };
                     (record, definition.label, destination)
                 }
@@ -342,32 +334,30 @@ fn canonical_evidence_views(
         .get_records(GetRecordsRequest { record_keys: &keys })?
         .records;
     let owned = r.owned_search_labels(&locations)?;
-    let mut definition_labels = std::collections::BTreeMap::new();
+    let mut definitions_by_key = std::collections::BTreeMap::new();
     for chunk in definitions.into_iter().collect::<Vec<_>>().chunks(100) {
         for summary in r.reference_summaries(chunk)?.entries {
-            definition_labels.insert(summary.key, summary.label);
+            definitions_by_key.insert(summary.key.clone(), summary);
         }
     }
-    let title = |destination: &atlas_app_model::ReferenceDestinationView| match destination {
-        atlas_app_model::ReferenceDestinationView::Definition { key } => key
-            .parse::<atlas_domain::DefinitionKey>()
-            .ok()
-            .and_then(|key| definition_labels.get(&key))
-            .cloned()
+    let title = |target: &atlas_domain::QueryDefinitionReferenceTarget| match target {
+        atlas_domain::QueryDefinitionReferenceTarget::Definition { key } => definitions_by_key
+            .get(key)
+            .map(|summary| summary.label.clone())
             .unwrap_or_else(|| "Unavailable definition".into()),
-        atlas_app_model::ReferenceDestinationView::Record { navigation, .. } => {
-            if !navigation.owners.is_empty() {
+        atlas_domain::QueryDefinitionReferenceTarget::Record { selection } => {
+            if !selection.owners.is_empty() {
                 owned
                     .iter()
                     .find(|(key, owners, _)| {
-                        key.to_string() == navigation.record_key && owners == &navigation.owners
+                        key == &selection.record_key && owners == &selection.owners
                     })
                     .map(|(_, _, name)| name.clone())
                     .unwrap_or_else(|| "Unnamed entry".into())
             } else {
                 records
                     .iter()
-                    .find(|record| record.key.to_string() == navigation.record_key)
+                    .find(|record| record.key == selection.record_key)
                     .and_then(|record| record.name.as_value())
                     .filter(|name| !name.trim().is_empty())
                     .cloned()
@@ -378,26 +368,50 @@ fn canonical_evidence_views(
     Ok(occurrences
         .into_iter()
         .map(|occurrence| {
-            let (source, source_field) = match occurrence.source {
-                Source::Record { key, owners, field } => (
-                    record_destination(r, &root_selection(key, owners), None),
-                    field,
-                ),
-                Source::Definition { key } => (
-                    atlas_app_model::ReferenceDestinationView::Definition {
-                        key: key.to_string(),
-                    },
-                    None,
-                ),
+            let (source, source_field, source_destination) = match occurrence.source {
+                Source::Record { key, owners, field } => {
+                    let mut selection = root_selection(key, owners);
+                    selection.field = field.clone();
+                    selection.source_fingerprint = crate::projection::navigation_fingerprint(
+                        &selection.owners,
+                        r.source_fingerprint(),
+                    );
+                    let destination = record_destination(r, &selection, None);
+                    (
+                        atlas_domain::QueryDefinitionReferenceTarget::Record {
+                            selection: Box::new(selection),
+                        },
+                        field,
+                        Some(destination),
+                    )
+                }
+                Source::Definition { key } => {
+                    let destination = definitions_by_key.get(&key).and_then(|summary| {
+                        crate::definitions::definition_reading_destination(
+                            summary,
+                            r.source_fingerprint(),
+                        )
+                    });
+                    (
+                        atlas_domain::QueryDefinitionReferenceTarget::Definition { key },
+                        None,
+                        destination,
+                    )
+                }
             };
-            let target = crate::definitions::reference_destination(occurrence.target, r);
+            let target =
+                crate::definitions::reference_target(occurrence.target, r.source_fingerprint());
+            let target_destination =
+                crate::definitions::reference_reading_destination(&target, &definitions_by_key, r);
             atlas_app_model::ReferenceOccurrenceView::Definition {
                 occurrence: Box::new(atlas_app_model::DefinitionReferenceEvidenceView {
                     source_title: title(&source),
                     source,
+                    source_destination,
                     source_field,
                     target_title: title(&target),
                     target,
+                    target_destination,
                     occurrence_path: occurrence.occurrence_path,
                     evidence: occurrence.evidence,
                     label: occurrence.label,
@@ -407,6 +421,7 @@ fn canonical_evidence_views(
         })
         .collect())
 }
+
 pub(crate) fn evidence_page(
     r: &AtlasRetrievalService,
     filter: &atlas_domain::QueryPredicate,

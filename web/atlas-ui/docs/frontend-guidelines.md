@@ -1214,10 +1214,17 @@ references remain explicit inert labels, without invented links.
 
 Record destinations use the same RecordDetailPane and family renderer as full
 pages. Standalone definitions reuse prepared content and the shared identity/page
-primitives, with attribution and complete notices available through secondary
-disclosure. Property-specific related actions remain separate from a shared backing
-record. Render the supplied predicate or numeric configuration action; do not infer
-a filter from the visible name or definition destination.
+primitives. Keep ordinary publication attribution; do not fill reading content with
+extraction paths, revisions, declarations or technical provenance. Entries without
+a useful definition stay plain facts and filter choices, without an empty definition
+page or explanatory banner.
+
+Glossary Drawers follow the trait reading surface: definition content without
+Explore or related-filter controls. Put supported related-record sections after the
+body on the standalone page, using the trait count/preview/Search convention. Keep
+property-specific predicates separate from shared backing records and consume the
+supplied relation labels. Numeric configuration belongs in Advanced Filters. Do not
+infer a predicate from a visible name or destination.
 Its header shows the document title once and its consistent action group remains
 reachable while the body scrolls. Use the shared identity composition: title and
 glyph, trailing classification, document actions, traits, then source attribution.

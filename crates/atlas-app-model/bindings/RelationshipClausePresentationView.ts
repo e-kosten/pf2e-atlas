@@ -3,4 +3,4 @@ import type { RecordSummaryView } from "./RecordSummaryView";
 import type { ReferenceClauseConditionView } from "./ReferenceClauseConditionView";
 import type { ReferenceDestinationView } from "./ReferenceDestinationView";
 
-export type RelationshipClausePresentationView = { "status": "available", clause_id: string, condition: ReferenceClauseConditionView, destination: ReferenceDestinationView, record?: RecordSummaryView, title: string, } | { "status": "unavailable", clause_id: string, condition: ReferenceClauseConditionView, message: string, };
+export type RelationshipClausePresentationView = { "status": "available", clause_id: string, condition: ReferenceClauseConditionView, destination: ReferenceDestinationView | null, record?: RecordSummaryView, title: string, } | { "status": "unavailable", clause_id: string, condition: ReferenceClauseConditionView, message: string, };

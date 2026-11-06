@@ -136,9 +136,11 @@ function EvidencePage({
                   kind: "record" as const,
                   navigation: entry.occurrence.source_navigation,
                 }
-              : entry.occurrence.source;
+              : entry.occurrence.source_destination;
           const target =
-            entry.kind === "record" ? entry.destination : entry.occurrence.target;
+            entry.kind === "record"
+              ? entry.destination
+              : entry.occurrence.target_destination;
           return (
             <li key={JSON.stringify([entry.kind, occurrence.source, index])}>
               <Space wrap>
@@ -148,23 +150,20 @@ function EvidencePage({
                   onNavigate={onNavigate}
                 />
                 <Typography.Text type="secondary">→</Typography.Text>
-                {target ? (
-                  <EvidenceDestination
-                    destination={target}
-                    definitionKey={
-                      summary.condition.kind === "definition" &&
-                      summary.condition.reference.target.kind === "definition"
-                        ? summary.condition.reference.target.key
-                        : undefined
-                    }
-                    title={occurrence.target_title ?? "Referenced record"}
-                    onNavigate={onNavigate}
-                  />
-                ) : (
-                  <Typography.Text type="secondary">
-                    Reference unavailable
-                  </Typography.Text>
-                )}
+                <EvidenceDestination
+                  destination={target}
+                  definitionKey={
+                    summary.condition.kind === "definition" &&
+                    summary.condition.reference.target.kind === "definition"
+                      ? summary.condition.reference.target.key
+                      : undefined
+                  }
+                  title={
+                    occurrence.target_title ??
+                    (target ? "Referenced record" : "Reference unavailable")
+                  }
+                  onNavigate={onNavigate}
+                />
               </Space>
             </li>
           );
@@ -203,11 +202,12 @@ function EvidenceDestination({
   title,
   onNavigate,
 }: {
-  destination: import("../../generated/atlas").ReferenceDestinationView;
+  destination: import("../../generated/atlas").ReferenceDestinationView | null;
   definitionKey?: string;
   title: string;
   onNavigate?: (selection: RecordNavigationView, anchor: HTMLElement) => void;
 }) {
+  if (!destination) return <Typography.Text>{title}</Typography.Text>;
   return destination.kind === "record" && !destination.reading_context ? (
     <EvidenceLink
       selection={destination.navigation}

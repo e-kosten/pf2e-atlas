@@ -1,4 +1,5 @@
 import { ReferenceHelpProvider } from "../../shared/records/ReferenceHelp";
+import { LinkNotFound } from "../../app/InvalidUrl";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { traitSimilarPreviewQueryOptions } from "../../shared/search/similarityQueries";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
@@ -10,7 +11,7 @@ import { canonicalRouteSearch } from "../../app/routeSearch";
 import { parseSearchParams } from "../../app/urlState";
 import { recordDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
-import { Alert, Button, Empty, Tabs, Typography } from "antd";
+import { Button, Empty, Tabs, Typography } from "antd";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { AtlasApiError, getTraitRecords } from "../../api/atlasApi";
@@ -51,12 +52,14 @@ import {
 export function TraitView({ route }: { route: TraitPageInput }) {
   const query = useTraitDetail(route.traitKey);
   const preview = useRecordPreview();
-  usePageTitle(query.data?.label ?? "Trait");
+  const unavailable = query.data?.content === null;
+  usePageTitle(unavailable ? "Link not found" : (query.data?.label ?? "Trait"));
   const client = useQueryClient();
   const reload = async () => {
     await retireReferenceQueries(client);
     await query.refetch();
   };
+  if (unavailable) return <LinkNotFound />;
   return (
     <>
       <main className="record-view">
@@ -98,16 +101,11 @@ export function TraitView({ route }: { route: TraitPageInput }) {
                     title={query.data.label}
                     classification="Trait"
                   />
-                  {query.data.content ? (
+                  {query.data.content && (
                     <PreparedContentBody
                       body={query.data.content.body}
                       references={query.data.content.references}
                       onReference={preview.open}
-                    />
-                  ) : (
-                    <Alert
-                      type="info"
-                      title="No definition is available in this reference collection."
                     />
                   )}
                   <TraitAssociations
