@@ -152,7 +152,7 @@ pub(crate) fn run_similar(o: SimilarOptions) -> Result<ExitCode, String> {
         service
             .search_page(
                 SearchResultsRequest {
-                    prefer_remaster: true,
+                    prefer_remaster: !o.all_versions,
                     sort,
                     ranking: None,
                     search_profile: o.search_profile,
