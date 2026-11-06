@@ -75,6 +75,28 @@ class Routing(unittest.TestCase):
         ))
         self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
 
+    def test_daachorse_only_update_requires_review_and_runs_matrix(self):
+        before = STACK["snapshot"]()
+        lockfile = self.root / "Cargo.lock"
+        original = lockfile.read_text()
+        updated = original.replace(
+            'name = "daachorse"\nversion = "',
+            'name = "daachorse"\nversion = "fixture-', 1,
+        )
+        self.assertNotEqual(original, updated, "Fixture must contain daachorse")
+        lockfile.write_text(updated)
+        self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+        after = STACK["snapshot"]()
+        self.assertNotEqual(before, after, "Reviewed receipt must detect the update")
+        self.assertEqual(
+            [row for row in before["packages"] if row["name"] != "daachorse"],
+            [row for row in after["packages"] if row["name"] != "daachorse"],
+        )
+        receipt = self.pin.with_name("embedding-stack.json")
+        receipt.write_text(json.dumps(after))
+        self.git("add", ".")
+        self.assertEqual(self.select("HEAD", False), STACK["FULL_MATRIX"])
+
     def test_native_link_settings_run_matrix(self):
         config = self.root / ".cargo/config.toml"
         config.parent.mkdir()
