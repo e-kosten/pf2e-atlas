@@ -8,6 +8,8 @@ use atlas_search::{
     RemasterOrigin,
 };
 
+mod relationships;
+
 const INFORMATION_LIMIT: usize = 20;
 const TEXT_LIMIT: usize = 400;
 pub(crate) struct ProjectionBudget {
@@ -447,7 +449,7 @@ fn citations(
                 RemasterCitationView {
                     origin,
                     attribution: if origin == RemasterCitationOriginView::AtlasReviewed {
-                        format!("Atlas-reviewed — {}", text(&value.attribution))
+                        "Atlas mapping".into()
                     } else {
                         text(&value.attribution)
                     },
@@ -461,145 +463,6 @@ fn citations(
         cut,
     )
 }
-fn contains_selection(sides: &[RemasterSideView], selection: &RecordNavigationView) -> bool {
-    sides
-        .iter()
-        .flat_map(|side| &side.endpoints)
-        .any(|value| match &value.resolution {
-            RemasterEndpointResolutionView::Current { navigation, .. } => {
-                navigation.record_key == selection.record_key
-                    && navigation.owners == selection.owners
-            }
-            RemasterEndpointResolutionView::Absent { record_key, .. } => {
-                record_key == &selection.record_key && selection.owners.is_empty()
-            }
-            _ => false,
-        })
-}
-fn side_text(sides: &[RemasterSideView]) -> String {
-    text(
-        &sides
-            .iter()
-            .map(|side| side.text.as_str())
-            .collect::<Vec<_>>()
-            .join("; "),
-    )
-}
-fn notice(
-    value: &RemasterDeclarationView,
-    selection: Option<&RecordNavigationView>,
-) -> RemasterNoticeView {
-    let before = selection.is_some_and(|selection| contains_selection(&value.before, selection));
-    let after = selection.is_some_and(|selection| contains_selection(&value.after, selection));
-    let kinds = &value.kinds;
-    let (heading, destinations, description) =
-        if kinds.contains(&RemasterChangeKindView::Discussion) {
-            (
-                "Remaster rules context",
-                &value.after,
-                Some(side_text(&value.after)),
-            )
-        } else if kinds.contains(&RemasterChangeKindView::Merged) {
-            if after {
-                ("Merged from", &value.before, Some(side_text(&value.before)))
-            } else {
-                ("Merged into", &value.after, None)
-            }
-        } else if kinds.contains(&RemasterChangeKindView::Removed) {
-            if after && !before {
-                (
-                    "Related removed entry",
-                    &value.before,
-                    Some(text(&format!(
-                        "{} is listed as removed in the remaster.",
-                        side_text(&value.before)
-                    ))),
-                )
-            } else {
-                (
-                    "Removed in the remaster",
-                    &value.after,
-                    Some("Listed as removed in the remaster.".into()),
-                )
-            }
-        } else if kinds.contains(&RemasterChangeKindView::Renamed) {
-            if after {
-                ("Former name", &value.before, Some(side_text(&value.before)))
-            } else {
-                ("Renamed to", &value.after, Some(side_text(&value.after)))
-            }
-        } else if kinds.contains(&RemasterChangeKindView::Replaced) {
-            if after {
-                ("Replaces", &value.before, Some(side_text(&value.before)))
-            } else {
-                ("Replacement options", &value.after, None)
-            }
-        } else if kinds.contains(&RemasterChangeKindView::MechanicsChanged) {
-            (
-                "Mechanics changed",
-                &value.after,
-                Some(side_text(&value.after)),
-            )
-        } else {
-            (
-                "Remaster relationship",
-                if before { &value.after } else { &value.before },
-                value.authored_status.clone(),
-            )
-        };
-    let mut links = Vec::new();
-    for endpoint in destinations.iter().flat_map(|side| &side.endpoints) {
-        if let RemasterEndpointResolutionView::Current { record, navigation } = &endpoint.resolution
-        {
-            if selection.is_some_and(|selected| {
-                selected.record_key == navigation.record_key && selected.owners == navigation.owners
-            }) {
-                continue;
-            }
-            if !links
-                .iter()
-                .any(|link: &RemasterNoticeLinkView| link.navigation == *navigation)
-            {
-                let label = match &record.publication {
-                    Some(publication) => format!("{} — {publication}", record.title),
-                    None => format!(
-                        "{} — {}",
-                        record.title,
-                        record.pack.as_deref().unwrap_or(&record.record_key)
-                    ),
-                };
-                links.push(RemasterNoticeLinkView {
-                    label,
-                    navigation: navigation.clone(),
-                });
-            }
-        }
-    }
-    let description = description
-        .filter(|description| !description.is_empty())
-        .map(|description| {
-            if kinds.contains(&RemasterChangeKindView::MechanicsChanged)
-                && heading != "Mechanics changed"
-            {
-                text(&format!(
-                    "{description} The source also notes changed mechanics."
-                ))
-            } else {
-                description
-            }
-        });
-    RemasterNoticeView {
-        declaration_id: value.id.clone(),
-        heading: heading.into(),
-        description,
-        links,
-        attribution: value
-            .citations
-            .iter()
-            .any(|citation| citation.origin == RemasterCitationOriginView::AtlasReviewed)
-            .then(|| "Atlas-reviewed correspondence".into()),
-    }
-}
 fn information_category(
     information: atlas_search::RemasterInformation,
     selection: Option<&RecordNavigationView>,
@@ -610,49 +473,87 @@ fn information_category(
         return RelatedCategoryView::Empty;
     }
     let mut truncated = information.truncated;
-    let mut notices = Vec::new();
+    let mut scopes = std::collections::BTreeMap::new();
     let declarations = information
         .declarations
         .into_iter()
         .map(|value| {
-            let atlas_reviewed = value
-                .citations
-                .iter()
-                .any(|citation| citation.origin == RemasterOrigin::AtlasReviewed);
+            let mut origins = Vec::new();
+            for citation in &value.citations {
+                let origin = match citation.origin {
+                    RemasterOrigin::Foundry => RemasterCitationOriginView::Foundry,
+                    RemasterOrigin::AtlasReviewed => RemasterCitationOriginView::AtlasReviewed,
+                };
+                if !origins.contains(&origin) {
+                    origins.push(origin);
+                }
+            }
             let (before, before_cut) = sides(value.before, retrieval);
             let (after, after_cut) = sides(value.after, retrieval);
+            scopes.insert(
+                value.id.clone(),
+                relationships::Scope {
+                    namespace: value.context.namespace.clone(),
+                    family: value.context.source_type.clone(),
+                    qualifier: value.context.qualifier.clone(),
+                    atlas: origins.contains(&RemasterCitationOriginView::AtlasReviewed),
+                    body_truncated: before_cut || after_cut,
+                },
+            );
             let (citations, citations_truncated) = citations(value.citations, retrieval, budget);
-            let mut value = RemasterDeclarationView {
+            let value = RemasterDeclarationView {
                 id: value.id,
-                heading: String::new(),
-                summary: None,
                 kinds: value.kinds.into_iter().map(kind).collect(),
                 authored_status: value.authored_status.map(|value| text(&value)),
                 context: context(&value.context),
                 before,
                 after,
+                origins,
                 citations,
                 citations_truncated,
                 truncated: before_cut || after_cut || citations_truncated,
             };
-            let mut projected = notice(&value, selection);
-            if atlas_reviewed {
-                projected.attribution = Some("Atlas-reviewed correspondence".into());
-            }
-            value.heading = projected.heading.clone();
-            value.summary = projected.description.clone();
-            notices.push(projected);
             truncated |= value.truncated;
             value
         })
         .collect::<Vec<_>>();
+    let relationships = relationships::relationships(&declarations, &scopes, selection);
+    truncated |= relationships.iter().any(|value| value.truncated);
     RelatedCategoryView::Content {
         content: RemasterRelationshipsView {
-            notices,
+            relationships,
             declarations,
             truncated,
         },
     }
+}
+fn lookup_scope(
+    context_value: &atlas_search::RemasterContext,
+    citations: &[atlas_search::RemasterCitationResult],
+) -> Vec<String> {
+    if !citations
+        .iter()
+        .any(|citation| citation.origin == RemasterOrigin::AtlasReviewed)
+    {
+        return context(context_value);
+    }
+    let mut labels = vec!["Atlas mapping".into()];
+    let scope = match context_value.namespace.as_str() {
+        "creature_ability" => Some("Creature ability glossary"),
+        "spell" => Some("Spells"),
+        "class_feature" => Some("Class features"),
+        "feat" => Some("Feats"),
+        "equipment" => Some("Equipment"),
+        "creature" => Some("Creatures"),
+        "condition" => Some("Conditions"),
+        "ancestry" => Some("Ancestries"),
+        "heritage" => Some("Heritages"),
+        _ => None,
+    };
+    if let Some(scope) = scope {
+        labels.push(scope.into());
+    }
+    labels
 }
 pub(crate) fn lookup_context(
     support: atlas_search::RemasterLookupSupport,
@@ -672,6 +573,7 @@ pub(crate) fn lookup_context(
                     RemasterChangeKind::Merged | RemasterChangeKind::Replaced
                 )
             });
+            let scope = lookup_scope(&value.context, &value.citations);
             let (citations, citations_truncated) = citations(value.citations, retrieval, budget);
             truncated |= citations_truncated;
             RemasterLookupSupportView {
@@ -681,7 +583,7 @@ pub(crate) fn lookup_context(
                     .into_iter()
                     .map(|kind| kind_label(kind).into())
                     .collect(),
-                context: context(&value.context),
+                context: scope,
                 citations,
                 citations_truncated,
             }
@@ -721,77 +623,6 @@ pub(crate) fn alias_matches(
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn side(label: &str, key: &str) -> RemasterSideView {
-        RemasterSideView {
-            text: label.into(),
-            terms: vec![label.into()],
-            endpoints: vec![RemasterEndpointView {
-                label: label.into(),
-                context: None,
-                resolution: RemasterEndpointResolutionView::Absent {
-                    record_key: key.into(),
-                    message: "Unavailable".into(),
-                },
-            }],
-            truncated: false,
-        }
-    }
-    fn declaration(kinds: Vec<RemasterChangeKindView>) -> RemasterDeclarationView {
-        RemasterDeclarationView {
-            id: "test".into(),
-            heading: String::new(),
-            summary: None,
-            kinds,
-            authored_status: None,
-            context: vec![],
-            before: vec![side("Old name", "test:aaaaaaaaaaaaaaaa")],
-            after: vec![side("New name", "test:bbbbbbbbbbbbbbbb")],
-            citations: vec![],
-            citations_truncated: false,
-            truncated: false,
-        }
-    }
-    fn selected(key: &str) -> RecordNavigationView {
-        RecordNavigationView {
-            spell_rank: None,
-            record_key: key.into(),
-            owners: vec![],
-            field: None,
-            passage: None,
-            source_fingerprint: None,
-        }
-    }
-    #[test]
-    fn reverse_merger_and_same_identity_rename_have_projected_meaning() {
-        let merged = declaration(vec![RemasterChangeKindView::Merged]);
-        assert_eq!(
-            notice(&merged, Some(&selected("test:bbbbbbbbbbbbbbbb"))).heading,
-            "Merged from"
-        );
-        assert_eq!(
-            notice(&merged, Some(&selected("test:aaaaaaaaaaaaaaaa"))).heading,
-            "Merged into"
-        );
-        let mut renamed = declaration(vec![
-            RemasterChangeKindView::Renamed,
-            RemasterChangeKindView::MechanicsChanged,
-        ]);
-        renamed.after = vec![side("New name", "test:aaaaaaaaaaaaaaaa")];
-        let projected = notice(&renamed, Some(&selected("test:aaaaaaaaaaaaaaaa")));
-        assert_eq!(projected.heading, "Former name");
-        assert!(projected.description.unwrap().contains("changed mechanics"));
-        assert!(projected.links.is_empty());
-    }
-    #[test]
-    fn discussion_and_removed_copy_do_not_claim_mechanical_equivalence() {
-        let discussion = declaration(vec![RemasterChangeKindView::Discussion]);
-        assert_eq!(notice(&discussion, None).heading, "Remaster rules context");
-        let removed = declaration(vec![RemasterChangeKindView::Removed]);
-        assert_eq!(
-            notice(&removed, None).description.as_deref(),
-            Some("Listed as removed in the remaster.")
-        );
-    }
     #[test]
     fn source_excerpt_shortening_counts_unicode_characters() {
         let (short, cut) = shorten(&"é".repeat(401));
@@ -949,10 +780,15 @@ mod owned_tests {
         let RelatedCategoryView::Content { content } = content.relationships else {
             panic!("source relationships");
         };
-        assert_eq!(content.notices[0].links[0].navigation.record_key, NEW);
+        assert!(content.relationships[0].parts.iter().any(|part| matches!(part, RemasterInlinePartView::Reference{navigation,..} if navigation.record_key==NEW)));
+        assert!(
+            content.declarations[0]
+                .origins
+                .contains(&RemasterCitationOriginView::AtlasReviewed)
+        );
         assert_eq!(
-            content.notices[0].attribution.as_deref(),
-            Some("Atlas-reviewed correspondence")
+            content.declarations[0].citations[0].attribution,
+            "Atlas mapping"
         );
         assert!(matches!(
             reading_context(&selection("owned00000000002"), &retrieval).1,
@@ -1094,9 +930,15 @@ mod projection_bounds_tests {
                 assert!(content.declarations[0].citations.is_empty());
                 assert!(content.declarations[0].citations_truncated);
                 assert!(content.truncated);
-                assert_eq!(
-                    content.notices[0].attribution.as_deref(),
-                    Some("Atlas-reviewed correspondence")
+                assert!(
+                    content.declarations[0]
+                        .origins
+                        .contains(&RemasterCitationOriginView::AtlasReviewed)
+                );
+                assert!(
+                    content.relationships[0]
+                        .declaration_ids
+                        .contains(&content.declarations[0].id)
                 );
                 Ok(())
             })
@@ -1141,6 +983,59 @@ mod projection_bounds_tests {
                 assert_eq!(candidates.len(), 10);
                 assert!(truncated);
                 assert!(message.contains("no replacement was selected"));
+                Ok(())
+            })
+            .unwrap();
+    }
+}
+
+#[cfg(test)]
+mod lookup_scope_tests {
+    use super::*;
+    #[test]
+    fn atlas_lookup_context_uses_plain_scope_even_when_citation_budget_is_zero() {
+        let fixture = crate::test_support::fixture_worker();
+        fixture
+            .worker
+            .with_retrieval(&ReadExecutionContext::uncancellable(), |retrieval| {
+                let declaration = atlas_search::RemasterDeclarationResult {
+                    id: "atlas-source".into(),
+                    kinds: vec![RemasterChangeKind::Replaced],
+                    authored_status: Some("Replaced".into()),
+                    context: atlas_search::RemasterContext {
+                        section: "Atlas-reviewed correspondence".into(),
+                        namespace: "creature_ability".into(),
+                        qualifier: Some("Raw internal review rationale".into()),
+                        source_type: Some("action".into()),
+                    },
+                    before: vec![],
+                    after: vec![],
+                    citations: vec![atlas_search::RemasterCitationResult {
+                        origin: RemasterOrigin::AtlasReviewed,
+                        attribution: "Atlas-reviewed correspondence".into(),
+                        revision: "review/v1".into(),
+                        statement: "Old entry becomes new entry".into(),
+                        source: RemasterCitationSource::CapturedFile {
+                            path: "mapping.json".into(),
+                        },
+                    }],
+                };
+                let original = declaration.context.clone();
+                let view = lookup_context(
+                    atlas_search::RemasterLookupSupport {
+                        declarations: vec![declaration.clone()],
+                        truncated: false,
+                    },
+                    retrieval,
+                    &mut ProjectionBudget { citations: 0 },
+                );
+                assert_eq!(
+                    view.supports[0].context,
+                    vec!["Atlas mapping", "Creature ability glossary"]
+                );
+                assert!(view.supports[0].citations.is_empty());
+                assert!(view.supports[0].citations_truncated);
+                assert_eq!(declaration.context, original);
                 Ok(())
             })
             .unwrap();

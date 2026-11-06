@@ -1,17 +1,16 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AtlasApiError, getRemasterRelationships } from "../../api/atlasApi";
+import { rootNavigation } from "./useReferenceReading";
 import { remasterInformationFixture } from "../../test/remasterFixtures";
 import { RemasterQueryInformation } from "./RemasterQueryInformation";
-import { SearchRemasterContext } from "../../features/search/SearchRemasterContext";
-import { ReferencePreviewContext } from "./ReferencePreviewContext";
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
   getRemasterRelationships: vi.fn(),
 }));
 const read = vi.mocked(getRemasterRelationships);
 const request = {
-  subject: { kind: "term" as const, term: "Removed term" },
+  subject: { kind: "record" as const, selection: rootNavigation("rules:absent") },
   expected_artifact_generation: "generation-1",
   limit: 20,
 };
@@ -23,12 +22,11 @@ function setup() {
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
       <input aria-label="Preserved draft" defaultValue="Unsaved filter draft" />
-      <p>0 matching records</p>
+      <p>Saved key: rules:absent</p>
       <RemasterQueryInformation
         request={request}
         onReference={open}
         onReload={refresh}
-        quietEmpty
       />
     </QueryClientProvider>,
   );
@@ -37,22 +35,21 @@ function setup() {
 beforeEach(() => {
   read.mockReset();
 });
-it("shows exact committed-term source context outside counts and keeps the draft", async () => {
+it("reads explicit saved identity without changing its notes", async () => {
   read.mockResolvedValue({
     artifact_generation: "generation-1",
     subject: {
-      kind: "term",
-      query: "Removed term",
-      normalized_term: "removed term",
-      scope_label: "Source statements about this term; independent of record filters.",
+      kind: "record",
+      selection: rootNavigation("rules:absent"),
+      title: null,
+      available: false,
     },
     relationships: { kind: "content", content: remasterInformationFixture() },
   });
   const { open } = setup();
   const link = (await screen.findAllByRole("link", { name: "New name" }))[0];
   expect(read).toHaveBeenCalledWith(request, expect.any(AbortSignal));
-  expect(screen.getByText(/independent of record filters/)).toBeVisible();
-  expect(screen.getByText("0 matching records")).toBeVisible();
+  expect(screen.getByText("Saved key: rules:absent")).toBeVisible();
   expect(screen.getByRole("textbox", { name: "Preserved draft" })).toHaveValue(
     "Unsaved filter draft",
   );
@@ -68,34 +65,19 @@ it("keeps errors local with deliberate generation recovery", async () => {
     }),
   );
   const { refresh } = setup();
-  fireEvent.click(await screen.findByRole("button", { name: "Refresh results" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Reload information" }));
   expect(refresh).toHaveBeenCalledOnce();
   expect(read).toHaveBeenCalledTimes(1);
-  expect(screen.getByText("0 matching records")).toBeVisible();
+  expect(screen.getByText("Saved key: rules:absent")).toBeVisible();
 });
-it("does not request optional context for overlong queries", async () => {
-  render(
-    <QueryClientProvider client={new QueryClient()}>
-      <ReferencePreviewContext value={{ open: vi.fn(), openTrait: vi.fn() }}>
-        <SearchRemasterContext
-          query={"x".repeat(257)}
-          generation="generation-1"
-          onReload={vi.fn()}
-        />
-      </ReferencePreviewContext>
-    </QueryClientProvider>,
-  );
-  await waitFor(() => expect(read).not.toHaveBeenCalled());
-});
-
-it("keeps unknown terms quiet without claiming they are records", async () => {
+it("explains empty information for the retained saved identity", async () => {
   read.mockResolvedValue({
     artifact_generation: "generation-1",
     subject: {
-      kind: "term",
-      query: "Removed term",
-      normalized_term: "removed term",
-      scope_label: "Independent source context",
+      kind: "record",
+      selection: rootNavigation("rules:absent"),
+      title: null,
+      available: false,
     },
     relationships: { kind: "empty" },
   });
@@ -105,9 +87,7 @@ it("keeps unknown terms quiet without claiming they are records", async () => {
     expect(screen.queryByText("Checking remaster information…")).toBeNull(),
   );
   expect(
-    screen.queryByRole("region", {
-      name: "Source statements about this term or entry",
-    }),
-  ).toBeNull();
-  expect(screen.getByText("0 matching records")).toBeVisible();
+    screen.getByText("No remaster information found for this entry."),
+  ).toBeVisible();
+  expect(screen.getByText("Saved key: rules:absent")).toBeVisible();
 });

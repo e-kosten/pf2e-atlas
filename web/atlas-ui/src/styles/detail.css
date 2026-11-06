@@ -138,10 +138,6 @@
   margin-block-end: var(--space-group);
 }
 
-.record-edition-source {
-  padding-inline: var(--browse-pane-inset);
-}
-
 .record-grants {
   --browse-pane-inset: var(--space-group);
 }
@@ -164,44 +160,39 @@
   color: var(--muted);
 }
 
-.remaster-information--compact,
+.remaster-relationship__line {
+  margin: 0;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.remaster-relationship + .remaster-relationship,
 .remaster-source-context {
-  border-inline-start: 3px solid var(--link);
-  background: var(--panel);
-  padding: var(--space-group);
-  border-radius: var(--radius-sm);
+  margin-block-start: var(--space-control);
 }
-.remaster-information p,
-.remaster-source-context p {
-  margin-block: var(--space-control);
-}
-.remaster-information ul {
-  margin-block: var(--space-control);
-  padding-inline-start: var(--space-group);
+.remaster-source-context__heading {
+  color: var(--muted);
+  font-size: 0.875rem;
+  margin-block-end: var(--space-control);
 }
 .remaster-information__context {
   color: var(--muted);
 }
-.remaster-notice + .remaster-notice,
-.remaster-declaration + .remaster-declaration,
-.remaster-citation + .remaster-citation,
-.remaster-source-context {
+.remaster-source-declaration + .remaster-source-declaration {
   margin-block-start: var(--space-group);
-}
-.remaster-information h3,
-.remaster-source-context h3,
-.remaster-side h4 {
-  margin-block: 0 var(--space-control);
-}
-.remaster-declaration {
-  padding-block-end: var(--space-group);
-  border-block-end: 1px solid var(--line);
+  padding-block-start: var(--space-control);
+  border-block-start: 1px solid var(--line);
 }
 .remaster-sides {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
   gap: var(--space-group);
   margin-block: var(--space-group);
+}
+.remaster-side h4 {
+  margin-block: 0 var(--space-control);
+}
+.remaster-side p {
+  margin-block: var(--space-control);
 }
 .remaster-side__group + .remaster-side__group {
   margin-block-start: var(--space-group);

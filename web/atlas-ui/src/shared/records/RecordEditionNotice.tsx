@@ -16,8 +16,10 @@ export function RecordEditionNotice({
   const source = detail.source_remaster_context;
   if (
     (direct.kind === "empty" ||
-      (direct.kind === "content" && !direct.content.notices.length)) &&
-    (!source || source.kind === "empty")
+      (direct.kind === "content" && !direct.content.relationships.length)) &&
+    (!source ||
+      source.kind === "empty" ||
+      (source.kind === "content" && source.content.relationships.kind === "empty"))
   )
     return null;
   return (

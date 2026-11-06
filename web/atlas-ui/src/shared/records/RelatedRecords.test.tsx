@@ -653,7 +653,7 @@ it("shows typed edition attribution and preserves exact native and preview desti
   const onReference = renderRelated();
   openRelated();
   await selectTab("Versions");
-  fireEvent.click(await screen.findByText("Sources (1)"));
+  fireEvent.click(await screen.findByText("Sources"));
   const link = await screen.findByRole("link", {
     name: "Remaster Changes — Class Features",
   });
@@ -700,7 +700,93 @@ it("keeps unavailable edition citations explicit and inert", async () => {
   renderRelated();
   openRelated();
   await selectTab("Versions");
-  fireEvent.click(await screen.findByText("Sources (1)"));
+  fireEvent.click(await screen.findByText("Sources"));
   expect(await screen.findByText(/Source field is unavailable/)).toBeVisible();
   expect(screen.queryByRole("link", { name: "Source unavailable" })).toBeNull();
+});
+
+it("compares a logical relationship's available root without duplicating its name or adding recursive exploration", async () => {
+  const content = remasterInformationFixture();
+  content.relationships[0].parts = [
+    {
+      kind: "reference",
+      label: "Modern creature",
+      navigation: navigation("actors:modern"),
+    },
+  ];
+  api.getRelatedRecords.mockResolvedValue({
+    ...relatedFixture(),
+    remaster_relationships: { kind: "content", content },
+  });
+  api.getRecordDetail.mockImplementation(async (key: string) =>
+    detailFixture(key, key === "actors:seed" ? "Viewed creature" : "Modern creature"),
+  );
+  const onReference = renderRelated();
+  openRelated();
+  await selectTab("Versions");
+  const line = screen.getByText("Renamed to:").closest("p")!;
+  const current = within(line).getByRole("link", { name: "Modern creature" });
+  expect(current).toHaveAttribute("href", "/records/actors:modern");
+  expect(within(line).getAllByText("Modern creature")).toHaveLength(1);
+  fireEvent.click(current, { metaKey: true });
+  expect(onReference).not.toHaveBeenCalled();
+  fireEvent.click(current);
+  expect(onReference).toHaveBeenCalledWith(
+    "actors:modern",
+    current,
+    navigation("actors:modern"),
+  );
+  const compare = within(line).getByRole("button", { name: "Compare" });
+  compare.focus();
+  fireEvent.click(compare);
+  const dialog = await screen.findByRole("dialog", { name: "Variant comparison" });
+  expect(
+    await within(dialog).findByRole("heading", { name: "Modern creature" }),
+  ).toBeVisible();
+  expect(
+    within(dialog).getByRole("heading", { name: "Viewed creature" }),
+  ).toBeVisible();
+  expect(
+    within(dialog).queryByRole("button", { name: "Explore related records" }),
+  ).toBeNull();
+  expect(
+    api.getRelatedRecords.mock.calls.every(
+      ([request]) => request.selection.record_key === "actors:seed",
+    ),
+  ).toBe(true);
+  fireEvent.keyDown(dialog, { key: "Escape", keyCode: 27 });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(compare).toHaveFocus();
+});
+
+it.each([
+  "owned host",
+  "host field",
+  "owned target",
+  "target field",
+  "same root",
+  "unavailable name",
+])("does not offer a root-key comparison for %s", async (scenario) => {
+  const detail = detailFixture("actors:seed", "Viewed creature");
+  const target = navigation("actors:modern");
+  const owned = [{ collection: "items", identity: { Stable: "ability" } }];
+  if (scenario === "owned host") detail.selected.embedded_path = owned;
+  if (scenario === "host field") detail.selected.field = "/system/description/value";
+  if (scenario === "owned target") target.embedded_path = owned;
+  if (scenario === "target field") target.field = "/system/description/value";
+  if (scenario === "same root") target.record_key = detail.selected.record_key;
+  const content = remasterInformationFixture();
+  content.relationships[0].parts =
+    scenario === "unavailable name"
+      ? [{ kind: "text", text: "Unavailable earlier name" }]
+      : [{ kind: "reference", label: "Modern creature", navigation: target }];
+  api.getRelatedRecords.mockResolvedValue({
+    ...relatedFixture(),
+    remaster_relationships: { kind: "content", content },
+  });
+  renderRelated(detail);
+  openRelated();
+  await selectTab("Versions");
+  expect(screen.getByText("Renamed to:")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Compare" })).toBeNull();
 });

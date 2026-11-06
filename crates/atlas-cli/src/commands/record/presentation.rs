@@ -24,7 +24,7 @@ pub(super) fn render_record(
     let mut out = String::new();
     let presentation = &record.presentation;
     identity(&mut out, &presentation.identity);
-    out.push_str(&crate::commands::remaster_presentation::notices(
+    out.push_str(&crate::commands::remaster_presentation::lines(
         &record.remaster_relationships,
     ));
     if let Some(context) = &record.source_remaster_context {

@@ -2323,9 +2323,13 @@ test("Other editions keeps exact source citation navigation and comparison", asy
     info,
   );
   await activate(page.getByRole("tab", { name: "Versions", exact: true }), info);
+  await expect(page.locator(".record-edition-notice")).toHaveCount(0);
+  const relationship = page.locator(".remaster-relationship__line");
+  await expect(relationship).toContainText("Legacy signal");
   await expect(
-    page.getByRole("heading", { name: "Other editions", exact: true }),
-  ).toBeVisible();
+    relationship.getByRole("link", { name: "Legacy signal", exact: true }),
+  ).toHaveCount(1);
+  await activate(page.getByText("Sources", { exact: true }), info);
   const source = page.getByRole("link", {
     name: "Remaster Changes — Class Features",
     exact: true,
@@ -2358,13 +2362,34 @@ test("Other editions keeps exact source citation navigation and comparison", asy
   await expect(
     drawer.getByRole("heading", { name: "Class Features", exact: true }).first(),
   ).toBeVisible();
+  const table = drawer.getByRole("table");
   await expect(
-    drawer.getByText("Explicit edition references:", { exact: false }),
+    table.getByRole("columnheader", { name: "Old", exact: true }),
   ).toBeVisible();
-  await activate(
-    drawer.getByRole("link", { name: "Legacy signal", exact: true }),
-    info,
-  );
+  await expect(
+    table.getByRole("columnheader", { name: "Status", exact: true }),
+  ).toBeVisible();
+  await expect(
+    table.getByRole("columnheader", { name: "New", exact: true }),
+  ).toBeVisible();
+  await expect(table.getByRole("cell", { name: "Renamed", exact: true })).toBeVisible();
+  const legacy = table.getByRole("link", { name: "Legacy signal", exact: true });
+  expect(
+    readUrl(new URL((await legacy.getAttribute("href"))!, page.url())),
+  ).toMatchObject({
+    record_key: "browser-editions:legacy0000000001",
+    embedded_path: [],
+    field: null,
+  });
+  const modern = table.getByRole("link", { name: "Modern signal", exact: true });
+  expect(
+    readUrl(new URL((await modern.getAttribute("href"))!, page.url())),
+  ).toMatchObject({
+    record_key: "browser-editions:remaster00000001",
+    embedded_path: [],
+    field: null,
+  });
+  await activate(legacy, info);
   await expect(
     drawer.getByRole("heading", { name: "Legacy signal", exact: true }).first(),
   ).toBeVisible();

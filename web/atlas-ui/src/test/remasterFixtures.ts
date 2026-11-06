@@ -8,8 +8,6 @@ import { summaryFixture } from "./fixtures";
 export function remasterDeclarationFixture(): RemasterDeclarationView {
   return {
     id: "declaration-1",
-    heading: "Renamed in the remaster",
-    summary: "The current name is New name.",
     kinds: ["renamed"],
     authored_status: null,
     context: ["Class features"],
@@ -49,6 +47,7 @@ export function remasterDeclarationFixture(): RemasterDeclarationView {
         truncated: false,
       },
     ],
+    origins: ["foundry"],
     citations: [
       {
         origin: "foundry",
@@ -65,13 +64,19 @@ export function remasterDeclarationFixture(): RemasterDeclarationView {
 }
 export function remasterInformationFixture(): RemasterRelationshipsView {
   return {
-    notices: [
+    relationships: [
       {
-        declaration_id: "declaration-1",
-        heading: "Renamed in the remaster",
-        description: "The current name is New name.",
-        links: [{ label: "New name", navigation: rootNavigation("rules:new") }],
-        attribution: null,
+        id: "relationship-1",
+        label: "Renamed to",
+        parts: [
+          {
+            kind: "reference",
+            label: "New name",
+            navigation: rootNavigation("rules:new"),
+          },
+        ],
+        declaration_ids: ["declaration-1"],
+        truncated: false,
       },
     ],
     declarations: [remasterDeclarationFixture()],

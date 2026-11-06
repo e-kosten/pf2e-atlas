@@ -52,33 +52,38 @@ pub enum RemasterSubjectView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RemasterRelationshipsView {
-    pub notices: Vec<RemasterNoticeView>,
+    pub relationships: Vec<RemasterRelationshipView>,
     pub declarations: Vec<RemasterDeclarationView>,
     pub truncated: bool,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct RemasterNoticeView {
-    pub declaration_id: String,
-    pub heading: String,
-    pub description: Option<String>,
-    pub links: Vec<RemasterNoticeLinkView>,
-    pub attribution: Option<String>,
+pub struct RemasterRelationshipView {
+    pub id: String,
+    pub label: String,
+    pub parts: Vec<RemasterInlinePartView>,
+    pub declaration_ids: Vec<String>,
+    pub truncated: bool,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct RemasterNoticeLinkView {
-    pub label: String,
-    pub navigation: RecordNavigationView,
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum RemasterInlinePartView {
+    Text {
+        text: String,
+    },
+    Reference {
+        label: String,
+        navigation: RecordNavigationView,
+    },
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RemasterDeclarationView {
     pub id: String,
-    pub heading: String,
-    pub summary: Option<String>,
     pub kinds: Vec<RemasterChangeKindView>,
     pub authored_status: Option<String>,
     pub context: Vec<String>,
     pub before: Vec<RemasterSideView>,
     pub after: Vec<RemasterSideView>,
+    pub origins: Vec<RemasterCitationOriginView>,
     pub citations: Vec<RemasterCitationView>,
     pub citations_truncated: bool,
     pub truncated: bool,

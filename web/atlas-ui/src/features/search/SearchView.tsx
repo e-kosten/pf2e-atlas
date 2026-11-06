@@ -1,4 +1,3 @@
-import { SearchRemasterContext } from "./SearchRemasterContext";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { atlasRouter } from "../../app/router";
 import type { HistoryState } from "@tanstack/react-router";
@@ -153,13 +152,6 @@ export function SearchView({
               {workspace.resultsPaused ? "Refresh results" : "Retry"}
             </Button>
           }
-        />
-      )}
-      {mode?.kind === "text_search" && mode.query === workspace.search.query.trim() && (
-        <SearchRemasterContext
-          query={mode.query}
-          generation={workspace.resultPage?.artifact_generation}
-          onReload={() => void workspace.refreshResults()}
         />
       )}
       <ReferenceBrowser

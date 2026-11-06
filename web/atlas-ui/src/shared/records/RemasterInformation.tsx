@@ -1,3 +1,4 @@
+import { Fragment, useState } from "react";
 import { Button, Typography } from "antd";
 import { recordDestination } from "../../app/destinations";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
@@ -7,6 +8,7 @@ import type {
   RemasterDeclarationView,
   RemasterEndpointView,
   RemasterRelationshipsView,
+  RemasterRelationshipView,
   RemasterSideView,
   RemasterSourceContextView,
   RecordNavigationView,
@@ -112,6 +114,10 @@ export function RemasterEndpoint({
   );
 }
 
+function sourceOriginLabel(origin: RemasterCitationView["origin"]) {
+  return origin === "atlas_reviewed" ? "Relationship added by Atlas" : "Foundry source";
+}
+
 export function RemasterCitation({
   citation,
   onReference,
@@ -123,9 +129,7 @@ export function RemasterCitation({
   return (
     <div className="remaster-citation">
       <small className="remaster-information__context">
-        {citation.origin === "atlas_reviewed"
-          ? "Atlas-reviewed correspondence"
-          : "Foundry source"}
+        {sourceOriginLabel(citation.origin)}
       </small>
       <div>
         {destination.kind === "internal" ? (
@@ -193,10 +197,8 @@ function repeatsVisibleLabels(text: string, labels: Set<string>): boolean {
 function SideGroup({
   group,
   onReference,
-  summary,
 }: {
   group: RemasterSideView;
-  summary: string | null;
   onReference: RecordReferenceHandler;
 }) {
   const labels = new Set(group.endpoints.map((endpoint) => endpoint.label));
@@ -214,8 +216,7 @@ function SideGroup({
     )
       ? firstMessage
       : null;
-  const showCaption =
-    group.text && group.text !== summary && !repeatsVisibleLabels(group.text, labels);
+  const showCaption = group.text && !repeatsVisibleLabels(group.text, labels);
   return (
     <div className="remaster-side__group">
       {showCaption && <p>{group.text}</p>}
@@ -246,10 +247,8 @@ function Side({
   label,
   groups,
   onReference,
-  summary,
 }: {
   label: string;
-  summary: string | null;
   groups: RemasterSideView[];
   onReference: RecordReferenceHandler;
 }) {
@@ -258,18 +257,14 @@ function Side({
     <div className="remaster-side">
       <h4>{label}</h4>
       {groups.map((group, index) => (
-        <SideGroup
-          key={index}
-          group={group}
-          onReference={onReference}
-          summary={summary}
-        />
+        <SideGroup key={index} group={group} onReference={onReference} />
       ))}
     </div>
   );
 }
 
-function Declaration({
+/** Supporting declarations remain evidence; they never become extra product rows. */
+function SourceDeclaration({
   declaration,
   onReference,
 }: {
@@ -277,42 +272,104 @@ function Declaration({
   onReference: RecordReferenceHandler;
 }) {
   return (
-    <article className="remaster-declaration">
-      <h3>{declaration.heading}</h3>
-      {declaration.summary && <p>{declaration.summary}</p>}
-      {declaration.authored_status && <p>{declaration.authored_status}</p>}
-      {declaration.context.length > 0 && (
-        <p className="remaster-information__context">
-          {declaration.context.join(" · ")}
-        </p>
-      )}
+    <div className="remaster-source-declaration">
+      {declaration.origins
+        .filter(
+          (origin) =>
+            !declaration.citations.some((citation) => citation.origin === origin),
+        )
+        .map((origin) => (
+          <p key={origin} className="remaster-information__context">
+            {sourceOriginLabel(origin)}
+          </p>
+        ))}
+      {declaration.citations.map((citation, index) => (
+        <RemasterCitation key={index} citation={citation} onReference={onReference} />
+      ))}
       <div className="remaster-sides">
-        <Side
-          label="Before"
-          groups={declaration.before}
-          onReference={onReference}
-          summary={declaration.summary}
-        />
-        <Side
-          label="After"
-          groups={declaration.after}
-          onReference={onReference}
-          summary={declaration.summary}
-        />
+        <Side label="Before" groups={declaration.before} onReference={onReference} />
+        <Side label="After" groups={declaration.after} onReference={onReference} />
       </div>
+      {declaration.citations_truncated && (
+        <p className="remaster-information__context">More supporting sources exist.</p>
+      )}
       {declaration.truncated && (
         <p className="remaster-information__context">
           Additional details exist in this source statement.
         </p>
       )}
-      <details className="remaster-information__evidence">
-        <summary>Sources ({declaration.citations.length})</summary>
-        {declaration.citations.map((citation, index) => (
-          <RemasterCitation key={index} citation={citation} onReference={onReference} />
-        ))}
-        {declaration.citations_truncated && <p>More supporting sources exist.</p>}
-      </details>
-    </article>
+    </div>
+  );
+}
+
+function Relationship({
+  relationship,
+  declarations,
+  compact,
+  onReference,
+  referenceAction,
+}: {
+  relationship: RemasterRelationshipView;
+  declarations: RemasterDeclarationView[];
+  compact: boolean;
+  onReference: RecordReferenceHandler;
+  referenceAction?: (navigation: RecordNavigationView) => React.ReactNode;
+}) {
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  return (
+    <div className="remaster-relationship">
+      <p className="remaster-relationship__line">
+        <strong>
+          {relationship.label}
+          {relationship.parts.length > 0 ? ":" : ""}
+        </strong>
+        {relationship.parts.length > 0 && " "}
+        {relationship.parts.map((part, index) =>
+          part.kind === "text" ? (
+            <span key={index}>{part.text}</span>
+          ) : (
+            <Fragment key={index}>
+              <RemasterRecordLink
+                navigation={part.navigation}
+                onReference={onReference}
+              >
+                {part.label}
+              </RemasterRecordLink>
+              {referenceAction?.(part.navigation)}
+            </Fragment>
+          ),
+        )}
+        {relationship.truncated && (
+          <span className="remaster-information__context">
+            {" "}
+            More relationship information exists in the sources.
+          </span>
+        )}
+      </p>
+      {!compact && (
+        <details
+          className="remaster-information__evidence"
+          onToggle={(event) => setSourcesOpen(event.currentTarget.open)}
+        >
+          <summary>Sources</summary>
+          {sourcesOpen &&
+            relationship.declaration_ids.map((id) => {
+              const declaration = declarations.find((item) => item.id === id);
+              return declaration ? (
+                <SourceDeclaration
+                  key={id}
+                  declaration={declaration}
+                  onReference={onReference}
+                />
+              ) : (
+                <p key={id} className="remaster-information__context">
+                  Some source information is unavailable.
+                </p>
+              );
+            })}
+        </details>
+      )}
+    </div>
   );
 }
 
@@ -321,11 +378,13 @@ export function RemasterInformation({
   onReference,
   onReload,
   compact = false,
+  referenceAction,
 }: {
   category: RelatedCategoryView<RemasterRelationshipsView>;
   onReference: RecordReferenceHandler;
   onReload?: () => void;
   compact?: boolean;
+  referenceAction?: (navigation: RecordNavigationView) => React.ReactNode;
 }) {
   if (category.kind === "empty") return null;
   if (category.kind === "error")
@@ -351,39 +410,16 @@ export function RemasterInformation({
       className={`remaster-information${compact ? " remaster-information--compact" : ""}`}
       aria-label="Legacy and remaster information"
     >
-      {compact
-        ? content.notices.map((notice) => (
-            <div key={notice.declaration_id} className="remaster-notice">
-              <strong>{notice.heading}</strong>
-              {notice.description && <p>{notice.description}</p>}
-              {notice.links.length > 0 && (
-                <ul>
-                  {notice.links.map((link, index) => (
-                    <li key={index}>
-                      <RemasterRecordLink
-                        navigation={link.navigation}
-                        onReference={onReference}
-                      >
-                        {link.label}
-                      </RemasterRecordLink>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {notice.attribution && (
-                <small className="remaster-information__context">
-                  {notice.attribution}
-                </small>
-              )}
-            </div>
-          ))
-        : content.declarations.map((declaration) => (
-            <Declaration
-              key={declaration.id}
-              declaration={declaration}
-              onReference={onReference}
-            />
-          ))}
+      {content.relationships.map((relationship) => (
+        <Relationship
+          key={relationship.id}
+          relationship={relationship}
+          declarations={content.declarations}
+          compact={compact}
+          onReference={onReference}
+          referenceAction={referenceAction}
+        />
+      ))}
       {content.truncated && (
         <p className="remaster-information__context">
           More remaster information exists in the sources.
@@ -398,11 +434,13 @@ export function SourceRemasterInformation({
   onReference,
   onReload,
   compact = false,
+  referenceAction,
 }: {
   category?: RelatedCategoryView<RemasterSourceContextView> | null;
   onReference: RecordReferenceHandler;
   onReload?: () => void;
   compact?: boolean;
+  referenceAction?: (navigation: RecordNavigationView) => React.ReactNode;
 }) {
   if (!category || category.kind === "empty") return null;
   if (category.kind === "error")
@@ -422,19 +460,48 @@ export function SourceRemasterInformation({
     );
   if (category.kind === "unavailable")
     return <p className="remaster-information__context">{category.reason}</p>;
+  if (category.content.relationships.kind === "empty") return null;
+  const source = category.content.source;
+  const resolution = source.resolution;
   return (
     <section
       className="remaster-source-context"
       aria-label="Source-entry remaster information"
     >
-      <h3>{category.content.heading}</h3>
-      <RemasterEndpoint endpoint={category.content.source} onReference={onReference} />
+      <div className="remaster-source-context__heading">
+        {resolution.kind === "current" && source.label === resolution.record.title ? (
+          <RemasterRecordLink
+            navigation={resolution.navigation}
+            onReference={onReference}
+          >
+            {category.content.heading}
+          </RemasterRecordLink>
+        ) : (
+          <span>{category.content.heading}</span>
+        )}
+        {resolution.kind === "current" && source.label !== resolution.record.title && (
+          <>
+            {" "}
+            ·{" "}
+            <RemasterRecordLink
+              navigation={resolution.navigation}
+              onReference={onReference}
+            >
+              Open current entry: {resolution.record.title}
+            </RemasterRecordLink>
+          </>
+        )}
+      </div>
       <RemasterInformation
         category={category.content.relationships}
         onReference={onReference}
         onReload={onReload}
         compact={compact}
+        referenceAction={referenceAction}
       />
+      {resolution.kind !== "current" && endpointMessage(source) && (
+        <p className="remaster-information__context">{endpointMessage(source)}</p>
+      )}
     </section>
   );
 }

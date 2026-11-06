@@ -1051,10 +1051,13 @@ readiness boundary rather than serving a compatibility projection.
 
 Full validation verifies captured evidence and exact derived rows. Ordinary
 suppression consumes only relevant supported preference identities in index-owned
-SQL; it does not scan unrelated provenance. App-service supplies bounded notices,
-grouped descriptions and readable source navigation to browser and CLI consumers.
+SQL; it does not scan unrelated provenance. App-service consolidates compatible
+source statements into bounded logical inline relationships, retaining scoped and
+collective meanings and every supporting declaration ID. Browser and CLI render
+those facts; Sources owns readable evidence and authorship.
 An exact-key information request may explain an unavailable record without
-creating a record body or changing strict lookup. Independent term context stays
-outside result counts and saved identity. See
+creating a record body or changing strict lookup. Explicit API/CLI term context stays
+outside result counts and saved identity; ordinary Search has no automatic
+source-statement panel. See
 [ADR0067](decisions/0067-remaster-relationships.md) and the
 [artifact contract](artifact-contract.md).

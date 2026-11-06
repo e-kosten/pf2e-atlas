@@ -38,12 +38,16 @@ before changing API error rendering or recovery behavior.
 
 ## Legacy and remaster context
 
-Show a selected entry's supported remaster context above its rules. Explain the
-specific change and offer exact related navigation; preserve grouped changes and
-uncertainty in the detailed view. Publication-era badges alone do not establish a
-replacement. Label an owned entry's origin information as source context without
-substituting that source's rules for the selected content. Attribute Atlas-reviewed
-correspondences explicitly. [ADR0067](architecture/decisions/0067-remaster-relationships.md)
+Show a selected entry's supported remaster relationship as a compact inline
+sentence above its rules, wrapping naturally on narrow screens. Display each name
+once and link only actual available entries. Combine supporting source statements
+into readable logical relationships without merging different scopes or inventing
+record identity. Explore Versions owns its relationship view; omit the repeated
+main notice there. Keep source evidence and plain authorship attribution in Sources.
+
+Publication-era badges alone do not establish a replacement. Label an owned
+entry's origin information as source context without substituting its rules for
+the selected content. [ADR0067](architecture/decisions/0067-remaster-relationships.md)
 owns relationship authority and consumer policy.
 
 ## Product UI Copy

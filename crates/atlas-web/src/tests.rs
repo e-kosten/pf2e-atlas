@@ -1494,13 +1494,20 @@ async fn explicit_missing_key_and_term_information_do_not_rebind_saved_identity(
         "absent"
     );
     assert_eq!(
-        body["relationships"]["content"]["notices"][0]["links"][0]["navigation"]["record_key"],
+        body["relationships"]["content"]["relationships"][0]["parts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|part| part["kind"] == "reference")
+            .unwrap()["navigation"]["record_key"],
         SECOND_ACTION
     );
     let generation = body["artifact_generation"].as_str().unwrap();
-    let (status,term)=fixture.json(Method::POST,"/api/remaster/relationships",Some(json!({"subject":{"kind":"term","term":"Missing old action"},"expected_artifact_generation":generation}))).await;
+    let (status,term)=fixture.json(Method::POST,"/api/remaster/relationships",Some(json!({"subject":{"kind":"term","term":"  MISSING OLD ACTION  "},"expected_artifact_generation":generation}))).await;
     assert_eq!(status, StatusCode::OK, "{term}");
     assert_eq!(term["relationships"]["kind"], "content");
+    assert_eq!(term["subject"]["query"], "  MISSING OLD ACTION  ");
+    assert_eq!(term["subject"]["normalized_term"], "missing old action");
     assert!(term.get("page").is_none());
     assert!(
         term["subject"]["scope_label"]
@@ -1551,4 +1558,46 @@ async fn remaster_owned_known_source_failure_keeps_exact_customized_body_readabl
         body["source_remaster_context"]["content"]["relationships"]["kind"],
         "error"
     );
+}
+
+#[tokio::test]
+async fn remaster_logical_relationships_cross_http_without_per_source_messages() {
+    let fixture = Fixture::with_remaster(true);
+    let (status, body) = fixture
+        .json(Method::GET, &format!("/api/records/{SECOND_ACTION}"), None)
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let content = &body["remaster_relationships"]["content"];
+    assert!(content.get("notices").is_none());
+    assert_eq!(content["relationships"].as_array().unwrap().len(), 1);
+    let relationship = &content["relationships"][0];
+    assert_eq!(relationship["label"], "Replaces");
+    assert_eq!(relationship["declaration_ids"].as_array().unwrap().len(), 2);
+    let parts = relationship["parts"].as_array().unwrap();
+    assert_eq!(
+        parts
+            .iter()
+            .filter(|part| part["kind"] == "reference")
+            .count(),
+        1
+    );
+    assert!(
+        parts
+            .iter()
+            .any(|part| part["kind"] == "reference" && part["label"] == "Test Action 1")
+    );
+    assert!(
+        parts
+            .iter()
+            .any(|part| part["kind"] == "text" && part["text"] == "Missing old action")
+    );
+    let declarations = content["declarations"].as_array().unwrap();
+    assert_eq!(declarations.len(), 2);
+    for declaration in declarations {
+        assert!(declaration.get("heading").is_none());
+        assert!(declaration.get("summary").is_none());
+        assert_eq!(declaration["origins"], json!(["foundry"]));
+        assert_eq!(declaration["citations"].as_array().unwrap().len(), 1);
+    }
+    let _: atlas_app_model::RecordDetailView = serde_json::from_value(body).unwrap();
 }

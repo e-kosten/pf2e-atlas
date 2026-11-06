@@ -4,73 +4,209 @@ import {
   remasterInformationFixture,
 } from "../../test/remasterFixtures";
 import { summaryFixture } from "../../test/fixtures";
+import type { RemasterRelationshipsView } from "../../generated/atlas";
 import { RemasterInformation, SourceRemasterInformation } from "./RemasterInformation";
 import { rootNavigation } from "./useReferenceReading";
 
-it("uses service notices without deriving direction or current names from declaration sides", () => {
+it("renders one compact inline current destination with native/drawer behavior and no source attribution", () => {
   const content = remasterInformationFixture();
-  content.notices[0] = {
-    ...content.notices[0],
-    heading: "These entries were merged",
-    attribution: "Atlas-reviewed correspondence",
-    links: [
-      { label: "Current shared entry", navigation: rootNavigation("rules:shared") },
+  content.relationships[0] = {
+    ...content.relationships[0],
+    label: "Renamed to",
+    parts: [
+      {
+        kind: "reference",
+        label: "Reactive Strike",
+        navigation: rootNavigation("glossary:reactive-strike"),
+      },
     ],
   };
+  content.declarations[0].citations[0].origin = "atlas_reviewed";
+  content.declarations[0].citations[0].attribution = "Atlas mapping";
+  const open = vi.fn();
   render(
     <RemasterInformation
       compact
       category={{ kind: "content", content }}
+      onReference={open}
+    />,
+  );
+  const line = screen.getByText("Renamed to:").closest("p")!;
+  expect(line).toHaveTextContent(/^Renamed to: Reactive Strike$/);
+  const link = within(line).getByRole("link", { name: "Reactive Strike" });
+  expect(link).toHaveAttribute("href", "/records/glossary:reactive-strike");
+  fireEvent.click(link, { metaKey: true });
+  expect(open).not.toHaveBeenCalled();
+  fireEvent.click(link);
+  expect(open).toHaveBeenCalledWith(
+    "glossary:reactive-strike",
+    link,
+    rootNavigation("glossary:reactive-strike"),
+  );
+  expect(screen.queryByText("Atlas mapping")).toBeNull();
+  expect(screen.queryByText("Relationship added by Atlas")).toBeNull();
+  expect(screen.queryByText("Sources")).toBeNull();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Compare" })).toBeNull();
+});
+
+it("prints the server's single Cleanse relationship with three plain absent names and retains all five supports in Sources", async () => {
+  const declarations = Array.from({ length: 5 }, (_, index) => ({
+    ...remasterDeclarationFixture(),
+    id: `support-${index}`,
+    citations: [
+      {
+        ...remasterDeclarationFixture().citations[0],
+        statement: `Supporting source statement ${index + 1}`,
+      },
+    ],
+  }));
+  const content: RemasterRelationshipsView = {
+    relationships: [
+      {
+        id: "cleanse",
+        label: "Replaces",
+        parts: [
+          { kind: "text", text: "Remove Curse, Remove Disease, and Neutralize Poison" },
+        ],
+        declaration_ids: declarations.map((item) => item.id),
+        truncated: false,
+      },
+    ],
+    declarations,
+    truncated: false,
+  };
+  render(
+    <RemasterInformation
+      category={{ kind: "content", content }}
       onReference={vi.fn()}
     />,
   );
-  expect(screen.getByText("These entries were merged")).toBeVisible();
-  expect(screen.getByText("Atlas-reviewed correspondence")).toBeVisible();
-  expect(screen.getByRole("link", { name: "Current shared entry" })).toHaveAttribute(
-    "href",
-    "/records/rules:shared",
+  const line = screen.getByText("Replaces:").closest("p")!;
+  expect(line).toHaveTextContent(
+    /^Replaces: Remove Curse, Remove Disease, and Neutralize Poison$/,
   );
-  expect(screen.queryByRole("heading", { name: "Before" })).toBeNull();
-  expect(screen.queryByRole("alert")).toBeNull();
+  expect(within(line).queryByRole("link")).toBeNull();
+  expect(screen.getAllByText("Replaces:")).toHaveLength(1);
+  expect(screen.queryByText("Supporting source statement 1")).toBeNull();
+  fireEvent.click(screen.getByText("Sources"));
+  for (let index = 1; index <= 5; index++)
+    expect(
+      await screen.findByText(`Supporting source statement ${index}`),
+    ).toBeVisible();
 });
 
-it("preserves grouped sides, same-key authored names, uncertainty, all sources and truthful bounds", () => {
-  const declaration = remasterDeclarationFixture();
-  declaration.kinds = ["renamed", "mechanics_changed", "discussion"];
+it("shows Nephilim once as a collective merger and keeps raw source fragments out of the primary view", () => {
+  const content = remasterInformationFixture();
+  content.relationships[0] = {
+    ...content.relationships[0],
+    label: "Merged from",
+    parts: [{ kind: "text", text: "Aasimar, Aphorite, Ganzi, and Tiefling" }],
+  };
+  content.declarations[0].authored_status = "are merged into";
+  content.declarations[0].context = ["Remaster Changes", "rules"];
+  render(
+    <RemasterInformation
+      category={{ kind: "content", content }}
+      onReference={vi.fn()}
+    />,
+  );
+  expect(screen.getByText("Merged from:").closest("p")).toHaveTextContent(
+    /^Merged from: Aasimar, Aphorite, Ganzi, and Tiefling$/,
+  );
+  expect(screen.queryByText("are merged into")).toBeNull();
+  expect(screen.queryByText("Remaster Changes · rules")).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Before" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "After" })).toBeNull();
+});
+
+it("keeps distinct projected scopes, grouped operands, mixed plain/available names and truthful truncation", () => {
+  const content = remasterInformationFixture();
+  content.relationships = [
+    {
+      ...content.relationships[0],
+      id: "scope-1",
+      label: "Replaces (Fighter)",
+      parts: [
+        { kind: "text", text: "(Unavailable one and " },
+        {
+          kind: "reference",
+          label: "Available current name",
+          navigation: rootNavigation("rules:current"),
+        },
+        { kind: "text", text: ")" },
+      ],
+      truncated: true,
+    },
+    {
+      ...content.relationships[0],
+      id: "scope-2",
+      label: "Replaces (Ranger)",
+      parts: [{ kind: "text", text: "Unavailable one" }],
+    },
+  ];
+  content.truncated = true;
+  render(
+    <RemasterInformation
+      category={{ kind: "content", content }}
+      onReference={vi.fn()}
+    />,
+  );
+  expect(screen.getByText("Replaces (Fighter):").closest("p")).toHaveTextContent(
+    "Replaces (Fighter): (Unavailable one and Available current name)",
+  );
+  expect(screen.getByText("Replaces (Ranger):").closest("p")).toHaveTextContent(
+    /^Replaces \(Ranger\): Unavailable one$/,
+  );
+  expect(screen.getByRole("link", { name: "Available current name" })).toHaveAttribute(
+    "href",
+    "/records/rules:current",
+  );
+  expect(
+    screen.getByText("More relationship information exists in the sources."),
+  ).toBeVisible();
+  expect(
+    screen.getByText("More remaster information exists in the sources."),
+  ).toBeVisible();
+});
+
+it("discloses exact source origins, source availability, authored/current distinctions and bounded evidence", async () => {
+  const content = remasterInformationFixture();
+  const declaration = content.declarations[0];
   declaration.before[0].endpoints = [
     {
       label: "Earlier authored name",
       context: "Earlier book",
       resolution: {
         kind: "current",
-        record: summaryFixture("rules:new", "Current name"),
-        navigation: rootNavigation("rules:new"),
+        record: summaryFixture("rules:current", "Current title"),
+        navigation: rootNavigation("rules:current"),
       },
     },
     {
-      label: "Removed explicit entry",
+      label: "Absent explicit key",
       context: null,
       resolution: {
         kind: "absent",
-        record_key: "rules:removed",
-        message: "This identified record is absent from this collection.",
+        record_key: "rules:absent",
+        message: "This identified record is absent.",
       },
     },
     {
-      label: "Unbound term",
+      label: "Unresolved term",
       context: null,
       resolution: {
         kind: "unresolved",
         reference: null,
-        message: "This term could not be resolved.",
+        message: "No record has been established for this term.",
       },
     },
     {
-      label: "Possible entry",
+      label: "Ambiguous term",
       context: null,
       resolution: {
         kind: "ambiguous",
-        message: "Possible matches; no replacement is verified.",
+        message: "Possible matches; no verified replacement.",
         candidates: [
           {
             record: summaryFixture("rules:possible", "Possibility"),
@@ -81,56 +217,41 @@ it("preserves grouped sides, same-key authored names, uncertainty, all sources a
       },
     },
   ];
-  declaration.after.push({
-    text: "A separate discussion group",
-    terms: ["Authored term"],
-    endpoints: [],
-    truncated: true,
-  });
   declaration.citations.push({
     ...declaration.citations[0],
     origin: "atlas_reviewed",
-    attribution: "Atlas glossary review",
+    attribution: "Atlas mapping",
     shortened: true,
     destination: { kind: "external", url: "https://example.com/pinned-source" },
   });
   declaration.citations_truncated = true;
   declaration.truncated = true;
-  const open = vi.fn();
   render(
     <RemasterInformation
-      category={{
-        kind: "content",
-        content: { notices: [], declarations: [declaration], truncated: true },
-      }}
-      onReference={open}
+      category={{ kind: "content", content }}
+      onReference={vi.fn()}
     />,
   );
-  expect(
-    screen.getAllByRole("heading", { level: 4 }).map((node) => node.textContent),
-  ).toEqual(["Before", "After"]);
-  expect(screen.getByText("Earlier authored name").closest("a")).toBeNull();
-  expect(screen.queryByRole("link", { name: "Earlier authored name" })).toBeNull();
-  const old = screen.getByRole("link", { name: "Open current entry: Current name" });
-  expect(old).toHaveAttribute("href", "/records/rules:new");
-  fireEvent.click(old);
-  expect(open).toHaveBeenCalledWith("rules:new", old, rootNavigation("rules:new"));
-  expect(screen.getByText(/identified record is absent/)).toBeVisible();
-  expect(screen.getByText(/could not be resolved/)).toBeVisible();
-  expect(screen.getByText(/no replacement is verified/)).toBeVisible();
-  expect(screen.getByText("A separate discussion group")).toBeVisible();
-  fireEvent.click(screen.getByText("Sources (2)"));
-  expect(screen.getByText("Foundry source")).toBeVisible();
-  expect(screen.getByText("Atlas-reviewed correspondence")).toBeVisible();
-  expect(screen.getByRole("link", { name: "Atlas glossary review" })).toHaveAttribute(
+  fireEvent.click(screen.getByText("Sources"));
+  expect(await screen.findByText("Relationship added by Atlas")).toBeVisible();
+  expect(screen.getByRole("link", { name: "Atlas mapping" })).toHaveAttribute(
     "href",
     "https://example.com/pinned-source",
   );
-  expect(screen.getByText(/excerpt shortened/)).toBeVisible();
+  expect(screen.getByText("Earlier authored name").closest("a")).toBeNull();
+  expect(
+    screen.getByRole("link", { name: "Open current entry: Current title" }),
+  ).toHaveAttribute("href", "/records/rules:current");
+  expect(screen.getByText("This identified record is absent.")).toBeVisible();
+  expect(
+    screen.getByText("No record has been established for this term."),
+  ).toBeVisible();
+  expect(screen.getByText("Possible matches; no verified replacement.")).toBeVisible();
   expect(screen.getByText("More supporting sources exist.")).toBeVisible();
   expect(
-    screen.getByText("More remaster information exists in the sources."),
+    screen.getByText("Additional details exist in this source statement."),
   ).toBeVisible();
+  expect(screen.getByText(/excerpt shortened/)).toBeVisible();
 });
 
 it.each([
@@ -143,248 +264,55 @@ it.each([
     kind: "error" as const,
     error: { code: "record_not_found" as const, message: "Unavailable" },
   },
-])(
-  "keeps pre-origin source states independent of direct record information: $kind",
-  (category) => {
-    render(
-      <>
-        <p>Owned rules remain readable.</p>
-        <SourceRemasterInformation category={category} onReference={vi.fn()} />
-      </>,
-    );
-    expect(screen.getByText("Owned rules remain readable.")).toBeVisible();
-    expect(screen.queryByRole("link")).toBeNull();
-    if (category.kind === "unavailable")
-      expect(screen.getByText(category.reason)).toBeVisible();
-    if (category.kind === "error")
-      expect(
-        screen.getByText(/Source-entry remaster information could not be checked/),
-      ).toBeVisible();
-  },
-);
+])("keeps source states independent of readable owned content: $kind", (category) => {
+  render(
+    <>
+      <p>Owned rules remain readable.</p>
+      <SourceRemasterInformation category={category} onReference={vi.fn()} />
+    </>,
+  );
+  expect(screen.getByText("Owned rules remain readable.")).toBeVisible();
+  expect(screen.queryByRole("link")).toBeNull();
+  if (category.kind === "unavailable")
+    expect(screen.getByText(category.reason)).toBeVisible();
+  if (category.kind === "error")
+    expect(
+      screen.getByText(/Source-entry remaster information could not be checked/),
+    ).toBeVisible();
+});
 
-const unresolvedMessage =
-  "The source does not establish an available record for this name or reference";
-function showGroups(
-  before: import("../../generated/atlas").RemasterSideView[],
-  after: import("../../generated/atlas").RemasterSideView[] = [],
-) {
+it("keeps declaration origins visible in Sources when citation budget is exhausted", async () => {
+  const content = remasterInformationFixture();
+  content.declarations[0].origins = ["foundry", "atlas_reviewed"];
+  content.declarations[0].citations = [];
+  content.declarations[0].citations_truncated = true;
   render(
     <RemasterInformation
-      category={{
-        kind: "content",
-        content: {
-          notices: [],
-          declarations: [
-            { ...remasterDeclarationFixture(), summary: null, before, after },
-          ],
-          truncated: false,
-        },
-      }}
+      category={{ kind: "content", content }}
       onReference={vi.fn()}
     />,
   );
-  return within(screen.getByRole("heading", { name: "Before" }).parentElement!);
-}
-function unresolved(
-  label: string,
-): import("../../generated/atlas").RemasterEndpointView {
-  return {
-    label,
-    context: null,
-    resolution: { kind: "unresolved", reference: null, message: unresolvedMessage },
+  expect(screen.queryByText("Relationship added by Atlas")).toBeNull();
+  fireEvent.click(screen.getByText("Sources"));
+  expect(await screen.findByText("Relationship added by Atlas")).toBeVisible();
+  expect(screen.getByText("Foundry source")).toBeVisible();
+  expect(screen.getByText("More supporting sources exist.")).toBeVisible();
+});
+it("renders a projected complete fact without a trailing colon when there are no operands", () => {
+  const content = remasterInformationFixture();
+  content.relationships[0] = {
+    ...content.relationships[0],
+    label: "Removed in the remaster",
+    parts: [],
   };
-}
-it("shows the live Off-Guard shape once per side, retaining the exact current link", () => {
-  const before = showGroups(
-    [
-      {
-        text: "Flat-Footed",
-        terms: ["Flat-Footed"],
-        endpoints: [unresolved("Flat-Footed")],
-        truncated: false,
-      },
-    ],
-    [
-      {
-        text: "Off-Guard",
-        terms: ["Off-Guard"],
-        endpoints: [
-          {
-            label: "Off-Guard",
-            context: null,
-            resolution: {
-              kind: "current",
-              record: summaryFixture("conditionitems:AJh5ex99aV6VTggg", "Off-Guard"),
-              navigation: rootNavigation("conditionitems:AJh5ex99aV6VTggg"),
-            },
-          },
-        ],
-        truncated: false,
-      },
-    ],
-  );
-  expect(before.getAllByText("Flat-Footed")).toHaveLength(1);
-  expect(screen.getAllByText("Off-Guard")).toHaveLength(1);
-  expect(screen.getByRole("link", { name: "Off-Guard" })).toHaveAttribute(
-    "href",
-    "/records/conditionitems:AJh5ex99aV6VTggg",
-  );
-  expect(screen.queryByText("Source wording")).toBeNull();
-});
-it("compresses the live four-predecessor Nephilim shape while preserving exact authored wording and evidence", () => {
-  const names = ["Aasimar", "Aphorite", "Ganzi", "Tiefling"];
-  const wording = "Aasimar, Aphorite, Ganzi, and Tiefling";
-  const before = showGroups(
-    [
-      {
-        text: wording,
-        terms: names,
-        endpoints: names.map(unresolved),
-        truncated: true,
-      },
-    ],
-    [
-      {
-        text: "Nephilim .",
-        terms: ["Nephilim"],
-        endpoints: [
-          {
-            label: "Nephilim",
-            context: null,
-            resolution: {
-              kind: "current",
-              record: summaryFixture("heritages:1oLMOmLpurfWTTff", "Nephilim"),
-              navigation: rootNavigation("heritages:1oLMOmLpurfWTTff"),
-            },
-          },
-        ],
-        truncated: false,
-      },
-    ],
-  );
-  for (const name of names) {
-    expect(before.getAllByText(name, { exact: true })).toHaveLength(1);
-    expect(before.getByText(name, { exact: true })).toBeVisible();
-  }
-  expect(before.getAllByText(unresolvedMessage)).toHaveLength(1);
-  expect(before.getByText("More entries exist in this source group.")).toBeVisible();
-  expect(screen.getByRole("link", { name: "Nephilim" })).toHaveAttribute(
-    "href",
-    "/records/heritages:1oLMOmLpurfWTTff",
-  );
-  expect(before.queryByText(wording)).toBeNull();
-  expect(screen.queryByText("Nephilim .")).toBeNull();
-  expect(screen.getByText("Sources (1)")).toBeVisible();
-});
-it("preserves mixed resolution meanings, distinct terms and authored/current names without merging groups", () => {
-  const before = showGroups([
-    {
-      text: "Different source wording",
-      terms: ["Old name", "Old name", "old name", "Distinct term"],
-      endpoints: [
-        {
-          label: "Old name",
-          context: "Earlier book",
-          resolution: {
-            kind: "current",
-            record: summaryFixture("rules:new", "Current title"),
-            navigation: rootNavigation("rules:new"),
-          },
-        },
-        unresolved("Unresolved name"),
-        {
-          label: "Explicit absent key",
-          context: null,
-          resolution: {
-            kind: "absent",
-            record_key: "rules:absent",
-            message: unresolvedMessage,
-          },
-        },
-        {
-          label: "Different uncertainty",
-          context: null,
-          resolution: {
-            kind: "unresolved",
-            reference: null,
-            message: "This other reference requires review.",
-          },
-        },
-      ],
-      truncated: false,
-    },
-    {
-      text: "Second group",
-      terms: [],
-      endpoints: [unresolved("Another name"), unresolved("One more name")],
-      truncated: false,
-    },
-  ]);
-  expect(before.getAllByText("Old name", { exact: true })).toHaveLength(1);
-  expect(before.getByText("Old name", { exact: true }).closest("a")).toBeNull();
-  expect(before.getByText("old name · Distinct term")).toBeVisible();
-  expect(
-    before.getByRole("link", { name: "Open current entry: Current title" }),
-  ).toHaveAttribute("href", "/records/rules:new");
-  expect(before.getAllByText(unresolvedMessage)).toHaveLength(3);
-  expect(before.getByText("This other reference requires review.")).toBeVisible();
-  expect(before.getByText("Earlier book", { exact: false })).toBeVisible();
-  expect(before.getByText("Different source wording")).toBeVisible();
-  expect(before.getByText("Second group")).toBeVisible();
-});
-
-it("keeps meaningful removal context and case-distinct authored text visible", () => {
-  const declaration = remasterDeclarationFixture();
-  declaration.kinds = ["removed", "mechanics_changed"];
-  declaration.summary = "Speedy Rituals";
-  declaration.before = [
-    {
-      text: "Speedy Rituals",
-      terms: ["Speedy Rituals"],
-      endpoints: [unresolved("Speedy Rituals")],
-      truncated: false,
-    },
-  ];
-  declaration.after = [
-    {
-      text: "Folded into Efficient Rituals",
-      terms: ["Efficient Rituals"],
-      endpoints: [
-        {
-          label: "Efficient Rituals",
-          context: null,
-          resolution: {
-            kind: "current",
-            record: summaryFixture("feats:efficient", "Efficient Rituals"),
-            navigation: rootNavigation("feats:efficient"),
-          },
-        },
-      ],
-      truncated: false,
-    },
-    {
-      text: "efficient rituals",
-      terms: ["Efficient Rituals"],
-      endpoints: [],
-      truncated: false,
-    },
-  ];
   render(
     <RemasterInformation
-      category={{
-        kind: "content",
-        content: { notices: [], declarations: [declaration], truncated: false },
-      }}
+      compact
+      category={{ kind: "content", content }}
       onReference={vi.fn()}
     />,
   );
-  expect(screen.getByText("Folded into Efficient Rituals")).toBeVisible();
-  expect(screen.getByText("efficient rituals", { exact: true })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Efficient Rituals" })).toHaveAttribute(
-    "href",
-    "/records/feats:efficient",
+  expect(screen.getByText("Removed in the remaster").closest("p")).toHaveTextContent(
+    /^Removed in the remaster$/,
   );
-  const before = within(screen.getByRole("heading", { name: "Before" }).parentElement!);
-  expect(before.getAllByText("Speedy Rituals")).toHaveLength(1);
 });

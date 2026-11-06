@@ -16,13 +16,11 @@ export function RemasterQueryInformation({
   request,
   onReference,
   onReload,
-  quietEmpty = false,
   enabled = true,
 }: {
   request: RemasterRelationshipsRequest;
   onReference: RecordReferenceHandler;
   onReload?: () => void;
-  quietEmpty?: boolean;
   enabled?: boolean;
 }) {
   const query = useQuery({
@@ -39,11 +37,11 @@ export function RemasterQueryInformation({
       )
         throw new AtlasApiError(
           409,
-          "The reference collection changed. Refresh results.",
+          "The reference collection changed. Reload information.",
           {
             code: "artifact_generation_changed",
-            message: "The reference collection changed. Refresh results.",
-            recoverable_action: "refresh_results",
+            message: "The reference collection changed. Reload information.",
+            recoverable_action: "reload_record",
           },
         );
       return response;
@@ -66,7 +64,7 @@ export function RemasterQueryInformation({
                 : () => void query.refetch()
             }
           >
-            {isArtifactGenerationChanged(query.error) ? "Refresh results" : "Retry"}
+            {isArtifactGenerationChanged(query.error) ? "Reload information" : "Retry"}
           </Button>
         }
       />
@@ -74,30 +72,14 @@ export function RemasterQueryInformation({
   const data = query.data;
   if (!data) return null;
   if (data.relationships.kind === "empty" && !data.source_remaster_context)
-    return quietEmpty ? null : <p>No remaster information found for this entry.</p>;
+    return <p>No remaster information found for this entry.</p>;
   return (
-    <section
-      className="remaster-query-context"
-      aria-label="Source statements about this term or entry"
-    >
-      {data.subject.kind === "term" && (
-        <p className="remaster-information__context">{data.subject.scope_label}</p>
-      )}
+    <section className="remaster-query-context" aria-label="Remaster information">
       <RemasterInformation
-        compact={data.subject.kind === "term"}
         category={data.relationships}
         onReference={onReference}
         onReload={() => void query.refetch()}
       />
-      {data.subject.kind === "term" && data.relationships.kind === "content" && (
-        <details className="remaster-information__evidence">
-          <summary>View source statements</summary>
-          <RemasterInformation
-            category={data.relationships}
-            onReference={onReference}
-          />
-        </details>
-      )}
       <SourceRemasterInformation
         category={data.source_remaster_context}
         onReference={onReference}

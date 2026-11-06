@@ -103,8 +103,8 @@ pub use remaster::{
     RemasterAliasMatchView, RemasterChangeKindView, RemasterCitationDestinationView,
     RemasterCitationOriginView, RemasterCitationView, RemasterDeclarationView,
     RemasterEndpointCandidateView, RemasterEndpointResolutionView, RemasterEndpointView,
-    RemasterLookupContextView, RemasterLookupSupportView, RemasterNoticeLinkView,
-    RemasterNoticeView, RemasterRelationshipsRequest, RemasterRelationshipsResponse,
+    RemasterInlinePartView, RemasterLookupContextView, RemasterLookupSupportView,
+    RemasterRelationshipView, RemasterRelationshipsRequest, RemasterRelationshipsResponse,
     RemasterRelationshipsView, RemasterSideView, RemasterSourceContextView, RemasterSubjectRequest,
     RemasterSubjectView,
 };

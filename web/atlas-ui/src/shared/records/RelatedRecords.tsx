@@ -31,7 +31,11 @@ import {
   searchStateQueryString,
 } from "../filters/searchState";
 import { linkLeaf } from "../filters/linkPredicates";
-import type { RecordDetailView, RecordSummaryView } from "../../generated/atlas";
+import type {
+  RecordDetailView,
+  RecordSummaryView,
+  RecordNavigationView,
+} from "../../generated/atlas";
 import type { RecordReferenceHandler } from "./PreparedContent";
 import { RemasterInformation, SourceRemasterInformation } from "./RemasterInformation";
 import { RecordDetailPane } from "./RecordDetailPane";
@@ -359,6 +363,25 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
     target: string;
     open: boolean;
   } | null>(null);
+  const compareReference = (target: RecordNavigationView) => {
+    if (
+      detail.selected.embedded_path.length ||
+      detail.selected.field ||
+      target.embedded_path.length ||
+      target.field ||
+      target.record_key === detail.selected.record_key
+    )
+      return null;
+    return (
+      <Button
+        size="small"
+        type="text"
+        onClick={() => setComparison({ target: target.record_key, open: true })}
+      >
+        Compare
+      </Button>
+    );
+  };
   const relationships = related.data?.remaster_relationships;
   const variants = related.data?.variants;
   const choices =
@@ -397,12 +420,14 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
           category={relationships}
           onReference={onReference}
           onReload={() => void related.refetch()}
+          referenceAction={compareReference}
         />
       )}
       <SourceRemasterInformation
         category={related.data?.source_remaster_context}
         onReference={onReference}
         onReload={() => void related.refetch()}
+        referenceAction={compareReference}
       />
       {choices.length > 0 && (
         <section>

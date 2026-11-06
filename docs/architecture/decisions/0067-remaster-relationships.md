@@ -67,9 +67,14 @@ labelled source context.
 
 App-service projects relationship meaning, contextual targets, readable evidence
 and availability into typed product DTOs. Browser and CLI render these facts.
-Routine context appears above rules with informational document semantics; detailed
-ambiguity and attribution remain available through related reading. Term change
-context is separate from record results/counts and strict identity lookup.
+App-service consolidates compatible statements into logical relationships with
+ordered inline text and exact record references. Supporting declaration IDs retain
+bounded evidence; consolidation does not establish new identity or preference.
+Reading shows concise inline context above rules, without duplicate names or
+source-origin badges. Explore Versions shows the relationships once and places
+evidence and plain authorship attribution under Sources; its main notice is omitted.
+Explicit term API/CLI lookup stays separate from record counts and strict identity
+lookup. Ordinary Search does not add an automatic source-statement panel.
 
 ## Publication and upgrade
 

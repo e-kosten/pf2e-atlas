@@ -171,7 +171,7 @@ impl AtlasRetrievalService {
             .remaster_term_information(request.term, request.limit)?;
         let summaries = self.remaster_summaries(std::iter::once(&information))?;
         Ok(RemasterTermInformationResult {
-            term: request.term.to_owned(),
+            term: atlas_domain::normalize_record_name(request.term),
             information: project_information(information, &summaries)?,
         })
     }

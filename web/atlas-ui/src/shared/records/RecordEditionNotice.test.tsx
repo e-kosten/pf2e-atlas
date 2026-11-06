@@ -30,7 +30,7 @@ function setup(
 it("renders projected notices above rules with native exact links and normal document semantics", () => {
   const { open } = setup("legacy");
   expect(screen.getByText("Legacy")).toBeVisible();
-  expect(screen.getByText("Renamed in the remaster")).toBeVisible();
+  expect(screen.getByText("Renamed to:")).toBeVisible();
   expect(screen.queryByRole("alert")).toBeNull();
   const link = screen.getByRole("link", { name: "New name" });
   expect(link).toHaveAttribute("href", "/records/rules:new");
