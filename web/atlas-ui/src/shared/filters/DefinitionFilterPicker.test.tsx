@@ -1,13 +1,16 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider, Grid } from "antd";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { getDefinitionFilterOptions } from "../../api/atlasApi";
 import type {
   DefinitionFilterOptionView,
   ReferenceFilterActionView,
 } from "../../generated/atlas";
 import { DefinitionFilterPicker } from "./DefinitionFilterPicker";
-import { ReferenceHelpProvider } from "../records/ReferenceHelp";
+import {
+  ReferenceHelpProvider,
+  type ReferenceHelpReturn,
+} from "../records/ReferenceHelp";
 import { fieldFixture } from "../../test/fixtures";
 import { RouterTestContext } from "../../test/router";
 
@@ -91,11 +94,16 @@ it("keeps help separate from selection and inserts only the supplied property re
   const read = (await screen.findByText("Read")).closest("a")!;
   expect(read).toHaveAccessibleName(/Read\s*Supplied vision/);
   fireEvent.click(read);
-  expect(help).toHaveBeenCalledWith(
-    first.help,
-    expect.any(HTMLElement),
-    "generation-a",
+  await waitFor(() =>
+    expect(help).toHaveBeenCalledWith(
+      first.help,
+      expect.any(HTMLElement),
+      "generation-a",
+      expect.any(Function),
+    ),
   );
+  act(() => (help.mock.calls[0][3] as ReferenceHelpReturn)("return"));
+  await waitFor(() => expect(read).toHaveFocus());
   expect(action).not.toHaveBeenCalled();
   expect(screen.queryByRole("button", { name: property.label })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: /Definition: Supplied vision/ }));
@@ -128,3 +136,95 @@ it("keeps help separate from selection and inserts only the supplied property re
   expect(action).toHaveBeenLastCalledWith(configure);
   expect(action).toHaveBeenCalledTimes(2);
 });
+
+it.each(["desktop", "phone"] as const)(
+  "suspends and returns the same %s picker session after reading",
+  async (device) => {
+    vi.mocked(Grid.useBreakpoint).mockReturnValue(
+      device === "phone" ? { xs: true, sm: false } : { lg: true },
+    );
+    const next = {
+      ...first,
+      label: "Supplied Chthonian",
+      target: { kind: "definition" as const, key: "language:chthonian" },
+      help: {
+        ...first.help,
+        definition_key: "language:chthonian",
+        destination: { kind: "definition" as const, key: "language:chthonian" },
+      },
+    };
+    api.mockImplementation(async (request) => ({
+      artifact_generation: "generation-a",
+      options: request.offset === 0 ? [first] : [next],
+      selected: request.selected.flatMap((target) =>
+        [first, next].filter(
+          (entry) => JSON.stringify(entry.target) === JSON.stringify(target),
+        ),
+      ),
+      total: 41n,
+    }));
+    const { help, action } = setup();
+    const trigger = screen.getByRole("button", { name: "Edit Definition values" });
+    fireEvent.click(trigger);
+    const search = await screen.findByRole("textbox", {
+      name: "Search definition choices",
+    });
+    fireEvent.change(search, { target: { value: "Supplied" } });
+    await waitFor(() =>
+      expect(api.mock.calls.some(([request]) => request.text === "Supplied")).toBe(
+        true,
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "More definitions" }));
+    const row = await screen.findByRole("button", {
+      name: /Definition: Supplied Chthonian/,
+    });
+    fireEvent.click(row);
+    await waitFor(() =>
+      expect(
+        api.mock.calls.some(
+          ([request]) => request.offset === 40 && request.selected.length === 1,
+        ),
+      ).toBe(true),
+    );
+    const read = screen.getByText("Read").closest("a")!;
+    read.focus();
+    fireEvent.click(read);
+    await waitFor(() => expect(help).toHaveBeenCalledOnce());
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(read.isConnected).toBe(true);
+    expect(search).toHaveValue("Supplied");
+    expect(action).not.toHaveBeenCalled();
+    act(() => (help.mock.calls[0][3] as ReferenceHelpReturn)("return"));
+    await waitFor(() => expect(read).toHaveFocus());
+    await waitFor(() => expect(read).toBeVisible());
+    expect(search).toHaveValue("Supplied");
+    expect(screen.getByRole("status")).toHaveTextContent("Page 2 of 2");
+    expect(
+      screen.getByRole("button", { name: /Remove selected Supplied Chthonian/ }),
+    ).toBeVisible();
+  },
+);
+
+it.each(["desktop", "phone"] as const)(
+  "does not resume a suspended %s picker on full-page departure",
+  async (device) => {
+    vi.mocked(Grid.useBreakpoint).mockReturnValue(
+      device === "phone" ? { xs: true, sm: false } : { lg: true },
+    );
+    const { help } = setup();
+    const trigger = screen.getByRole("button", { name: "Edit Definition values" });
+    fireEvent.click(trigger);
+    const read = (await screen.findByText("Read")).closest("a")!;
+    fireEvent.click(read, { ctrlKey: true });
+    expect(help).not.toHaveBeenCalled();
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(read);
+    await waitFor(() => expect(help).toHaveBeenCalledOnce());
+    act(() => (help.mock.calls[0][3] as ReferenceHelpReturn)("navigate"));
+    await waitFor(() => expect(trigger).toHaveAttribute("aria-expanded", "false"));
+    expect(
+      screen.queryByRole("textbox", { name: "Search definition choices" }),
+    ).toBeNull();
+  },
+);

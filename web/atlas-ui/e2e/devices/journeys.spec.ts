@@ -2474,7 +2474,9 @@ test("glossary vocabulary labels and communication notes use supplied context @e
   await expect(
     page.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Common", { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByText("Languages", { exact: true }).locator(".."),
+  ).toContainText("Common, Chthonian");
   await expect(
     page
       .getByText("Understands the watchtower's lantern signals.", { exact: true })

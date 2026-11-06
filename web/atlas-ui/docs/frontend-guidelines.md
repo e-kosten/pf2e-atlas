@@ -1189,6 +1189,15 @@ navigation. Native full-page links, modified clicks and middle clicks preserve
 browser behavior and exact destinations. Opening a reference does not alter an
 Add candidate, saved-list membership, selected participant or unfinished draft.
 
+When help starts inside a choice overlay, suspend that existing choice session
+before opening the reference Drawer. Preserve its search, page, selections and
+unfinished draft. Dismissal resumes the choice overlay and its exact Read action;
+full-page navigation must not reopen a hidden picker on the destination page. Use
+the existing native overlay close/open lifecycle and shared reading return owner,
+without stacking a higher picker mask over the reader or patching z-index values.
+Short Select options remain selection controls; definition reading is available
+through the shared definition chooser and record facts.
+
 Keep action tooltips within the Drawer's stationary viewport root. The shared
 Drawer supplies Ant's `getPopupContainer` to all its popup descendants, including
 feature-provided actions, through a scoped `ConfigProvider`. A body-level tooltip can

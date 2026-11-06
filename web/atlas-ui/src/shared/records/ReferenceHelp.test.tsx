@@ -1,4 +1,11 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider } from "antd";
 import { useState } from "react";
@@ -6,7 +13,12 @@ import { RouterTestContext } from "../../test/router";
 import { detailFixture } from "../../test/fixtures";
 import { getDefinitionDetail, getRecordDetail } from "../../api/atlasApi";
 import type { DefinitionDetailView, ReferenceHelpView } from "../../generated/atlas";
-import { ReferenceHelpLink, ReferenceHelpProvider } from "./ReferenceHelp";
+import {
+  ReferenceHelpLink,
+  ReferenceHelpProvider,
+  type ReferenceHelpHandoff,
+  type ReferenceHelpReturn,
+} from "./ReferenceHelp";
 import { ReferenceHelpHost } from "./ReferenceHelpHost";
 import { rootNavigation } from "./useReferenceReading";
 import { definitionHelpMatchesRecord } from "./useDefinitionDetail";
@@ -191,3 +203,119 @@ it("separates ordinary and general requests and rejects changed semantic mapping
     ),
   ).toBe(false);
 });
+
+it("hands primary reading to its owner before opening while modified links remain native", () => {
+  const open = vi.fn();
+  const finish = vi.fn();
+  let startReading: Parameters<ReferenceHelpHandoff>[1] | undefined;
+  const handoff = vi.fn<ReferenceHelpHandoff>((_anchor, start) => {
+    startReading = start;
+  });
+  render(
+    <ReferenceHelpProvider onHelp={open} generation="generation-a">
+      <ReferenceHelpLink help={languageHelp} handoff={handoff}>
+        Read Chthonian
+      </ReferenceHelpLink>
+    </ReferenceHelpProvider>,
+    { wrapper },
+  );
+  const link = screen.getByRole("link", { name: "Read Chthonian" });
+  fireEvent.click(link, { ctrlKey: true });
+  fireEvent.click(link, { button: 1 });
+  expect(handoff).not.toHaveBeenCalled();
+  expect(open).not.toHaveBeenCalled();
+  fireEvent.click(link);
+  expect(handoff).toHaveBeenCalledExactlyOnceWith(link, expect.any(Function));
+  expect(open).not.toHaveBeenCalled();
+  act(() => startReading!(finish));
+  expect(open).toHaveBeenCalledExactlyOnceWith(
+    languageHelp,
+    link,
+    "generation-a",
+    finish,
+  );
+});
+
+it.each(["return", "navigate"] as const)(
+  "finishes a suspended owner exactly once with %s after nested reading",
+  async (reason) => {
+    history.replaceState(null, "", "/search");
+    const record = detailFixture("abilities:darkvision", "Darkvision");
+    record.artifact_generation = "generation-a";
+    record.presentation.identity.rarity = {
+      value: "chthonian",
+      label: "Language context",
+      help: languageHelp,
+    };
+    vi.mocked(getRecordDetail).mockResolvedValue(record);
+    vi.mocked(getDefinitionDetail).mockImplementation(async (request) =>
+      request.definition_key === "sense:darkvision"
+        ? {
+            ...standalone,
+            definition_key: "sense:darkvision",
+            label: "Darkvision",
+            help: propertyHelp,
+            content: null,
+          }
+        : standalone,
+    );
+    let owner: HTMLElement;
+    let opener: HTMLElement;
+    const finish = vi.fn<ReferenceHelpReturn>((result) => {
+      if (result === "return") {
+        owner.hidden = false;
+        opener.focus({ preventScroll: true });
+      }
+    });
+    const handoff: ReferenceHelpHandoff = (anchor, start) => {
+      opener = anchor;
+      owner = anchor.closest<HTMLElement>("[data-picker-owner]")!;
+      owner.hidden = true;
+      start(finish);
+    };
+    render(
+      <ReferenceHelpHost generation="generation-a">
+        <div data-picker-owner>
+          <label>
+            Unfinished filter
+            <input defaultValue="Keep exact draft" />
+          </label>
+          <ReferenceHelpLink help={propertyHelp} handoff={handoff}>
+            Read sense
+          </ReferenceHelpLink>
+        </div>
+      </ReferenceHelpHost>,
+      { wrapper },
+    );
+    const link = screen.getByRole("link", { name: "Read sense" });
+    link.focus();
+    const focus = vi.spyOn(link, "focus");
+    fireEvent.click(link);
+    let drawer = await screen.findByRole("dialog", { name: "Darkvision" });
+    fireEvent.click(within(drawer).getByRole("link", { name: "Language context" }));
+    drawer = await screen.findByRole("dialog", { name: "Chthonian" });
+    expect(finish).not.toHaveBeenCalled();
+    if (reason === "return")
+      fireEvent.click(
+        within(drawer).getByRole("button", { name: "Close reference preview" }),
+      );
+    else
+      fireEvent.click(
+        within(drawer).getByRole("link", { name: "Open reference full page" }),
+      );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(finish).toHaveBeenCalledExactlyOnceWith(reason);
+    if (reason === "return") {
+      expect(link).toHaveFocus();
+      expect(focus).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("textbox", { name: "Unfinished filter" })).toHaveValue(
+        "Keep exact draft",
+      );
+    } else {
+      expect(owner!.hidden).toBe(true);
+      expect(focus).not.toHaveBeenCalled();
+      expect(link).not.toHaveFocus();
+      expect(location.pathname).toBe("/definitions/language:chthonian");
+    }
+  },
+);

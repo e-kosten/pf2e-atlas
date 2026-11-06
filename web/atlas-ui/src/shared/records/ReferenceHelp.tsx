@@ -13,6 +13,13 @@ export type ReferenceHelpHandler = (
   help: ReferenceHelpView,
   anchor: HTMLElement,
   generation?: string,
+  returnToOwner?: ReferenceHelpReturn,
+) => void;
+export type ReferenceHelpCloseReason = "return" | "navigate";
+export type ReferenceHelpReturn = (reason: ReferenceHelpCloseReason) => void;
+export type ReferenceHelpHandoff = (
+  anchor: HTMLElement,
+  start: (finish: ReferenceHelpReturn) => void,
 ) => void;
 const HelpContext = createContext<{
   onHelp?: ReferenceHelpHandler;
@@ -66,10 +73,18 @@ export function definitionClassification(key: string): "Trait" | "Definition" {
 
 export function useReferenceHelpNavigation() {
   const host = useContext(HelpContext);
-  return (help: ReferenceHelpView, anchor: HTMLElement, generation?: string) => {
+  return (
+    help: ReferenceHelpView,
+    anchor: HTMLElement,
+    generation?: string,
+    returnToOwner?: ReferenceHelpReturn,
+  ) => {
     if (!help.destination) return;
-    if (host.onHelp) host.onHelp(help, anchor, generation ?? host.generation);
-    else
+    if (host.onHelp) {
+      if (returnToOwner)
+        host.onHelp(help, anchor, generation ?? host.generation, returnToOwner);
+      else host.onHelp(help, anchor, generation ?? host.generation);
+    } else
       navigateDestination(referenceDestination(help.destination, help.definition_key));
   };
 }
@@ -80,11 +95,13 @@ export function ReferenceHelpLink({
   children,
   generation,
   className,
+  handoff,
 }: {
   help: ReferenceHelpView | null | undefined;
   children: ReactNode;
   generation?: string;
   className?: string;
+  handoff?: ReferenceHelpHandoff;
 }) {
   const open = useReferenceHelpNavigation();
   if (!help?.destination) return <>{children}</>;
@@ -97,7 +114,10 @@ export function ReferenceHelpLink({
         event.stopPropagation();
         if (!isPrimaryActivation(event)) return;
         event.preventDefault();
-        open(help, event.currentTarget, generation);
+        const anchor = event.currentTarget;
+        if (handoff)
+          handoff(anchor, (finish) => open(help, anchor, generation, finish));
+        else open(help, anchor, generation);
       }}
     >
       {children}

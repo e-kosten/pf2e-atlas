@@ -29,6 +29,8 @@ export type RecordPreviewContentProps = {
   reloadLabel?: string;
   retryLabel?: string;
   onClose: () => void;
+  onNavigateAway?: () => void;
+  restoreAnchorFocus?: boolean;
   onOpenFullPage: () => void;
   onReference: RecordReferenceHandler;
   onRankChange?: (rank: number | undefined) => void;

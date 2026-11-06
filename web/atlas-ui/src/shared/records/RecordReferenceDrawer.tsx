@@ -40,6 +40,8 @@ export function RecordReferenceDrawer({
   reloadLabel,
   retryLabel,
   onClose,
+  onNavigateAway,
+  restoreAnchorFocus = true,
   onOpenFullPage,
   onReference,
   onRankChange,
@@ -94,7 +96,7 @@ export function RecordReferenceDrawer({
     if (unavailable) return;
     if (typedRoute) {
       navigateDestination(typedRoute);
-      onClose();
+      (onNavigateAway ?? onClose)();
       return;
     }
     if (landing && detail)
@@ -143,7 +145,8 @@ export function RecordReferenceDrawer({
             target.focus({ preventScroll: true });
         } else {
           onClose();
-          if (anchor?.isConnected) anchor.focus({ preventScroll: true });
+          if (restoreAnchorFocus && anchor?.isConnected)
+            anchor.focus({ preventScroll: true });
         }
       }}
       focusable={{ focusTriggerAfterClose: false }}

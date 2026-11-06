@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, Space, Spin, Typography } from "antd";
 import type { DefinitionFilterOptionView } from "../../generated/atlas";
-import { ChoicePicker } from "../ui/pickers/ChoicePicker";
+import { ChoicePicker, ChoicePickerAction } from "../ui/pickers/ChoicePicker";
 import { ReferenceHelpLink } from "../records/ReferenceHelp";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import { isArtifactGenerationChanged } from "../queries/referenceQueries";
@@ -104,9 +104,13 @@ export function DefinitionFilterPicker({
       optionAction={(option) => {
         const help = byId.get(option.value)?.help;
         return help?.destination ? (
-          <ReferenceHelpLink help={help} generation={generation}>
-            Read<span className="sr-only"> {option.label}</span>
-          </ReferenceHelpLink>
+          <ChoicePickerAction>
+            {(handoff) => (
+              <ReferenceHelpLink help={help} generation={generation} handoff={handoff}>
+                Read<span className="sr-only"> {option.label}</span>
+              </ReferenceHelpLink>
+            )}
+          </ChoicePickerAction>
         ) : null;
       }}
     >

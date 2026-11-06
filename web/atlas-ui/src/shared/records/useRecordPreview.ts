@@ -18,7 +18,11 @@ import {
   definitionHelpMatchesRecord,
   definitionDetailQueryOptions,
 } from "./useDefinitionDetail";
-import type { ReferenceHelpHandler } from "./ReferenceHelp";
+import type {
+  ReferenceHelpHandler,
+  ReferenceHelpReturn,
+  ReferenceHelpCloseReason,
+} from "./ReferenceHelp";
 import {
   isArtifactGenerationChanged,
   retireReferenceQueries,
@@ -83,6 +87,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   });
   const [restoringHistory, setRestoringHistory] = useState(false);
   const opener = useRef<HTMLElement | null>(null);
+  const returnToOwner = useRef<ReferenceHelpReturn | undefined>(undefined);
   // Openers include prepared HTML links outside React's prop ownership. Keep
   // their expanded state with the preview owner, including nested navigation.
   useLayoutEffect(() => {
@@ -275,8 +280,11 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     }
   };
 
-  const close = useCallback(() => {
-    if (opener.current?.isConnected) opener.current.focus({ preventScroll: true });
+  const finishSession = useCallback((reason: ReferenceHelpCloseReason) => {
+    const returnOwner = returnToOwner.current;
+    returnToOwner.current = undefined;
+    if (!returnOwner && reason === "return" && opener.current?.isConnected)
+      opener.current.focus({ preventScroll: true });
     opener.current = null;
     session.current += 1;
     setReloadState(null);
@@ -289,9 +297,15 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     setLanding(undefined);
     setHistory([]);
     setRestoringHistory(false);
+    returnOwner?.(reason);
   }, []);
+  const close = useCallback(() => finishSession("return"), [finishSession]);
+  const closeForNavigation = useCallback(
+    () => finishSession("navigate"),
+    [finishSession],
+  );
 
-  useDismissOnReadingNavigation(destination !== null, close);
+  useDismissOnReadingNavigation(destination !== null, closeForNavigation);
 
   const open = useCallback(
     (
@@ -395,9 +409,10 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   );
 
   const openHelp: ReferenceHelpHandler = useCallback(
-    (nextHelp, nextAnchor, nextGeneration) => {
+    (nextHelp, nextAnchor, nextGeneration, finishOwner) => {
       const next = nextHelp.destination;
       if (!next) return;
+      returnToOwner.current ??= finishOwner;
       if (next.kind === "record") {
         open(
           next.navigation.record_key,
@@ -460,6 +475,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   return {
     anchor,
     close,
+    closeForNavigation,
     destination,
     help: standalone
       ? (definition.data?.help ?? help)

@@ -7,10 +7,34 @@ import {
 } from "@ant-design/icons";
 import { Button, Grid, Input, Popover, Typography, theme } from "antd";
 import type { InputRef } from "antd";
-import { Fragment, useId, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  Fragment,
+  useCallback,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { KeyboardEvent } from "react";
 export type ChoiceState = "neutral" | "include" | "exclude";
 export type ChoiceOption = { value: string; label: string };
+export type ChoicePickerActionHandoff = (
+  anchor: HTMLElement,
+  start: (finish: (reason: "return" | "navigate") => void) => void,
+) => void;
+const ChoiceActionContext = createContext<ChoicePickerActionHandoff | undefined>(
+  undefined,
+);
+/** Action content consumes its owning picker's event handoff without owning a session. */
+export function ChoicePickerAction({
+  children,
+}: {
+  children: (handoff: ChoicePickerActionHandoff | undefined) => ReactNode;
+}) {
+  return children(useContext(ChoiceActionContext));
+}
 
 /** Shared include/exclude interaction; callers own vocabulary and filter semantics. */
 export function ChoicePicker({
@@ -56,12 +80,52 @@ export function ChoicePicker({
 }) {
   const { token } = theme.useToken();
   const [sessionValues, setSessionValues] = useState<string[]>([]);
+  const [actionPhase, setActionPhase] = useState<"suspended" | "returning" | null>(
+    null,
+  );
+  const externalAction = useRef<{
+    anchor: HTMLElement;
+    start: Parameters<ChoicePickerActionHandoff>[1];
+    started: boolean;
+    returning: boolean;
+  } | null>(null);
   const input = useRef<InputRef>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const initialFocusPending = useRef(false);
   const menuId = useId();
   const screens = Grid.useBreakpoint();
   const narrow = screens.xs === true && !screens.sm;
+  const visible = open && actionPhase !== "suspended";
+  const handoff = useCallback<ChoicePickerActionHandoff>((anchor, start) => {
+    initialFocusPending.current = false;
+    externalAction.current = { anchor, start, started: false, returning: false };
+    setActionPhase("suspended");
+  }, []);
+  function completeVisibility(next: boolean): boolean {
+    const owner = externalAction.current;
+    if (!owner) return false;
+    if (!next && !owner.started) {
+      owner.started = true;
+      owner.start((reason) => {
+        if (externalAction.current !== owner || owner.returning) return;
+        if (reason === "navigate") {
+          externalAction.current = null;
+          setActionPhase(null);
+          onOpenChange(false);
+        } else {
+          owner.returning = true;
+          setActionPhase("returning");
+        }
+      });
+    } else if (next && owner.returning) {
+      externalAction.current = null;
+      setActionPhase(null);
+      (owner.anchor.isConnected ? owner.anchor : trigger.current)?.focus({
+        preventScroll: true,
+      });
+    }
+    return true;
+  }
   // Retain initial selections and every edited value through this open session.
   // Suggestions always keep server/catalog order, irrespective of selection.
   const options = [
@@ -76,6 +140,7 @@ export function ChoicePicker({
       )
     : options;
   function setMenuOpen(next: boolean) {
+    if (externalAction.current) return;
     initialFocusPending.current = next;
     if (next) setSessionValues(selected);
     else {
@@ -254,8 +319,8 @@ export function ChoicePicker({
       block
       aria-label={"Edit " + label + (valueEditing ? " values" : " filter")}
       aria-haspopup="dialog"
-      aria-expanded={open}
-      aria-controls={open ? menuId : undefined}
+      aria-expanded={visible}
+      aria-controls={visible ? menuId : undefined}
       icon={<DownOutlined aria-hidden="true" />}
       iconPlacement="end"
       onClick={narrow ? () => setMenuOpen(true) : undefined}
@@ -266,98 +331,103 @@ export function ChoicePicker({
     </Button>
   );
   return (
-    <div className="common-choice-picker">
-      {narrow ? (
-        button
-      ) : (
-        <Popover
-          content={menu}
-          open={open}
-          onOpenChange={setMenuOpen}
-          afterOpenChange={(visible) => {
-            if (visible && open && !narrow && initialFocusPending.current) {
-              initialFocusPending.current = false;
-              input.current?.focus();
-            }
-          }}
-          placement="bottom"
-          trigger="click"
-          arrow={false}
-          destroyOnHidden
-        >
-          {button}
-        </Popover>
-      )}
-      {narrow && (
-        <Drawer
-          title={label}
-          open={open}
-          placement="bottom"
-          size="min(80vh, 540px)"
-          onClose={() => setMenuOpen(false)}
-          afterOpenChange={(visible) => {
-            if (!visible) trigger.current?.focus();
-          }}
-        >
-          {open && menu}
-        </Drawer>
-      )}
-      {selected.length > 0 && (
-        <div
-          className="common-choice-selections"
-          aria-label={"Selected " + label.toLowerCase()}
-        >
-          {selected.map((value) => {
-            const state = stateOf(value);
-            const valueLabel =
-              choices.find((choice) => choice.value === value)?.label ??
-              labelForValue(value);
-            return (
-              <Button
-                key={value}
-                size="small"
-                color="default"
-                variant="filled"
-                styles={{
-                  root: {
-                    color:
-                      state === "exclude"
-                        ? "var(--filter-exclude-text)"
-                        : "var(--filter-include-text)",
-                    background:
-                      state === "exclude"
-                        ? "var(--filter-exclude-bg)"
-                        : "var(--filter-include-bg)",
-                    borderColor:
-                      state === "exclude"
-                        ? "var(--filter-exclude-border)"
-                        : "var(--filter-include-border)",
-                  },
-                }}
-                aria-label={
-                  "Remove " +
-                  (valueEditing
-                    ? "selected"
-                    : state === "exclude"
-                      ? "excluded"
-                      : "included") +
-                  " " +
-                  valueLabel +
-                  " from " +
-                  label
-                }
-                onClick={() => change(value, "neutral")}
-              >
-                <span aria-hidden="true">
-                  {state === "exclude" ? <MinusOutlined /> : <PlusOutlined />}
-                </span>
-                {valueLabel}
-                <CloseOutlined aria-hidden="true" />
-              </Button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <ChoiceActionContext value={handoff}>
+      <div className="common-choice-picker">
+        {narrow ? (
+          button
+        ) : (
+          <Popover
+            content={menu}
+            open={visible}
+            onOpenChange={setMenuOpen}
+            afterOpenChange={(shown) => {
+              if (completeVisibility(shown)) return;
+              if (shown && open && !narrow && initialFocusPending.current) {
+                initialFocusPending.current = false;
+                input.current?.focus();
+              }
+            }}
+            placement="bottom"
+            trigger="click"
+            arrow={false}
+            destroyOnHidden={actionPhase === null}
+          >
+            {button}
+          </Popover>
+        )}
+        {narrow && (
+          <Drawer
+            title={label}
+            open={visible}
+            placement="bottom"
+            size="min(80vh, 540px)"
+            onClose={() => setMenuOpen(false)}
+            focusable={{ focusTriggerAfterClose: false }}
+            afterOpenChange={(shown) => {
+              if (completeVisibility(shown)) return;
+              if (!shown) trigger.current?.focus();
+            }}
+          >
+            {open && menu}
+          </Drawer>
+        )}
+        {selected.length > 0 && (
+          <div
+            className="common-choice-selections"
+            aria-label={"Selected " + label.toLowerCase()}
+          >
+            {selected.map((value) => {
+              const state = stateOf(value);
+              const valueLabel =
+                choices.find((choice) => choice.value === value)?.label ??
+                labelForValue(value);
+              return (
+                <Button
+                  key={value}
+                  size="small"
+                  color="default"
+                  variant="filled"
+                  styles={{
+                    root: {
+                      color:
+                        state === "exclude"
+                          ? "var(--filter-exclude-text)"
+                          : "var(--filter-include-text)",
+                      background:
+                        state === "exclude"
+                          ? "var(--filter-exclude-bg)"
+                          : "var(--filter-include-bg)",
+                      borderColor:
+                        state === "exclude"
+                          ? "var(--filter-exclude-border)"
+                          : "var(--filter-include-border)",
+                    },
+                  }}
+                  aria-label={
+                    "Remove " +
+                    (valueEditing
+                      ? "selected"
+                      : state === "exclude"
+                        ? "excluded"
+                        : "included") +
+                    " " +
+                    valueLabel +
+                    " from " +
+                    label
+                  }
+                  onClick={() => change(value, "neutral")}
+                >
+                  <span aria-hidden="true">
+                    {state === "exclude" ? <MinusOutlined /> : <PlusOutlined />}
+                  </span>
+                  {valueLabel}
+                  <CloseOutlined aria-hidden="true" />
+                </Button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </ChoiceActionContext>
   );
 }

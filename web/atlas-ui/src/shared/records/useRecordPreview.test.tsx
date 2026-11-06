@@ -278,3 +278,77 @@ it("closes a retained linked preview on an explicit reading departure to the cur
   expect(result.current.recordKey).toBeNull();
   expect(result.current.selection).toBeUndefined();
 });
+
+it("retains the original owner callback through nested record/help reading and returns only once", () => {
+  const { result } = renderHook(() => useRecordPreview(), { wrapper: queryWrapper });
+  const firstOwner = vi.fn();
+  const nestedOwner = vi.fn();
+  const anchor = document.createElement("a");
+  const navigation = detailFixture("rules:first").selected;
+  const help = {
+    definition_key: null,
+    availability: "available" as const,
+    destination: { kind: "record" as const, navigation },
+    related_filters: [],
+  };
+  act(() => result.current.openHelp(help, anchor, undefined, firstOwner));
+  act(() =>
+    result.current.openHelp(
+      {
+        ...help,
+        destination: {
+          kind: "record",
+          navigation: { ...navigation, record_key: "rules:second" },
+        },
+      },
+      anchor,
+      undefined,
+      nestedOwner,
+    ),
+  );
+  act(() => result.current.open("rules:third", anchor));
+  act(() => result.current.close());
+  act(() => result.current.close());
+  expect(firstOwner).toHaveBeenCalledExactlyOnceWith("return");
+  expect(nestedOwner).not.toHaveBeenCalled();
+});
+
+it("abandons a suspended owner on explicit navigation without resuming or focusing its opener", () => {
+  const { result } = renderHook(() => useRecordPreview(), { wrapper: queryWrapper });
+  const finish = vi.fn();
+  const anchor = document.createElement("a");
+  const focus = vi.spyOn(anchor, "focus");
+  const navigation = detailFixture("rules:first").selected;
+  act(() =>
+    result.current.openHelp(
+      {
+        definition_key: null,
+        availability: "available",
+        destination: { kind: "record", navigation },
+        related_filters: [],
+      },
+      anchor,
+      undefined,
+      finish,
+    ),
+  );
+  act(() =>
+    atlasRouter.emit({
+      type: "onBeforeNavigate",
+      fromLocation: atlasRouter.latestLocation,
+      toLocation: {
+        ...atlasRouter.latestLocation,
+        state: {
+          ...atlasRouter.latestLocation.state,
+          atlasReadingDismissal: "leave-owner",
+        },
+      },
+      pathChanged: false,
+      hrefChanged: false,
+      hashChanged: false,
+    }),
+  );
+  expect(finish).toHaveBeenCalledExactlyOnceWith("navigate");
+  expect(focus).not.toHaveBeenCalled();
+  expect(result.current.destination).toBeNull();
+});

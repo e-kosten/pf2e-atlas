@@ -8,7 +8,11 @@ import type {
   QueryPredicate,
 } from "../../generated/atlas";
 import { sentenceCase } from "../ui/labels";
-import { ChoicePicker, type ChoiceState } from "../ui/pickers/ChoicePicker";
+import {
+  ChoicePicker,
+  ChoicePickerAction,
+  type ChoiceState,
+} from "../ui/pickers/ChoicePicker";
 import { ReferenceHelpLink } from "../records/ReferenceHelp";
 import {
   changeChoiceValue,
@@ -211,12 +215,17 @@ function FilterChoicePicker({
       optionAction={(option) => {
         const help = choices.find((choice) => choice.value === option.value)?.help;
         return help?.destination ? (
-          <ReferenceHelpLink
-            help={help}
-            generation={countContext?.expected_artifact_generation ?? undefined}
-          >
-            Read<span className="sr-only"> {option.label}</span>
-          </ReferenceHelpLink>
+          <ChoicePickerAction>
+            {(handoff) => (
+              <ReferenceHelpLink
+                help={help}
+                generation={countContext?.expected_artifact_generation ?? undefined}
+                handoff={handoff}
+              >
+                Read<span className="sr-only"> {option.label}</span>
+              </ReferenceHelpLink>
+            )}
+          </ChoicePickerAction>
         ) : null;
       }}
       labelForValue={labelForValue}

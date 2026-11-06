@@ -56,6 +56,8 @@ function LocalReferenceHelpHost({
             retryLabel={preview.retryLabel}
             reloadLabel={preview.reloadLabel}
             onClose={preview.close}
+            onNavigateAway={preview.closeForNavigation}
+            restoreAnchorFocus={false}
             onReference={preview.open}
             onRankChange={preview.changeRank}
             readingHistory={preview.readingHistory}
