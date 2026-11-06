@@ -1,5 +1,7 @@
 import { isPrimaryActivation } from "../../app/navigation";
 import { Grid, Splitter } from "antd";
+import { X } from "lucide-react";
+import { PaneIconButton } from "../ui/actions/PaneAction";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { atlasRouter } from "../../app/router";
 import { ReferenceReader } from "./ReferenceReader";
@@ -7,7 +9,6 @@ import { useBrowsePositions, type BrowsePositions } from "./useBrowsePositions";
 import { type ReferenceReading } from "./useReferenceReading";
 import type { RecordSummaryView } from "../../generated/atlas";
 import { BrowsePaneHeader } from "./BrowsePaneHeader";
-import { useBrowseHeaderAlignment } from "./useBrowseHeaderAlignment";
 // The browse host owns layout, scroll and mobile return. Features own rows,
 // queries, selection and mutation semantics; no search DTO is required here.
 export function BrowseReader({
@@ -19,10 +20,11 @@ export function BrowseReader({
   selectedRecordKey,
   reading,
   recordActions,
-  readerHeaderActions,
   readerStatus,
   readerContext,
   onReaderClose,
+  onClearSelection,
+  clearSelectionDisabled,
   readerFooter,
   positions,
 }: {
@@ -34,16 +36,15 @@ export function BrowseReader({
   selectedRecordKey: string | null;
   reading: ReferenceReading;
   readerContext?: ReactNode;
-  readerHeaderActions?: ReactNode;
   recordActions?: (record: RecordSummaryView) => ReactNode;
   readerStatus?: ReactNode;
   onReaderClose?: () => void;
+  onClearSelection?: () => void;
+  clearSelectionDisabled?: boolean;
   readerFooter?: ReactNode;
   positions?: BrowsePositions;
 }) {
   const narrow = !Grid.useBreakpoint().lg;
-  const root = useRef<HTMLDivElement>(null);
-  useBrowseHeaderAlignment(root, !narrow, Boolean(resultsHeader));
   const [closedRequest, setClosedRequest] = useState<ReferenceReading["request"]>();
   const localPositions = useBrowsePositions();
   const saved = positions ?? localPositions;
@@ -98,17 +99,49 @@ export function BrowseReader({
   function closeReader() {
     onReaderClose?.();
     setClosedRequest(reading.request);
+    restoreResultsFocus();
+  }
+  function restoreResultsFocus() {
     requestAnimationFrame(() => {
       const trigger = beforePreview.current?.isConnected
         ? beforePreview.current
         : (listRef.current?.querySelector<HTMLElement>('[aria-current="true"]') ??
-          listRef.current?.querySelector<HTMLElement>("[data-record-key]"));
+          listRef.current?.querySelector<HTMLElement>("[data-record-key]") ??
+          listRef.current?.closest<HTMLElement>(".reference-results"));
       trigger?.focus({ preventScroll: true });
     });
+  }
+  function clearSelectionAction() {
+    return onClearSelection && (selectedRecordKey || reading.request) ? (
+      <PaneIconButton
+        label="Clear selection"
+        icon={<X size={16} aria-hidden="true" />}
+        disabled={clearSelectionDisabled}
+        onClick={() => {
+          onClearSelection();
+          restoreResultsFocus();
+        }}
+      />
+    ) : undefined;
+  }
+  function toolbar(actions: ReactNode) {
+    return (
+      <BrowsePaneHeader
+        className={
+          narrow
+            ? "reference-browser__toolbar reference-results__header"
+            : "reference-browser__toolbar"
+        }
+      >
+        {resultsHeader}
+        <div className="reference-browser__reader-actions">{actions}</div>
+      </BrowsePaneHeader>
+    );
   }
   const results = (
     <section
       className="reference-results"
+      tabIndex={-1}
       aria-label={resultsLabel}
       onClickCapture={(event) => {
         if (isPrimaryActivation(event)) rememberOpener(event.target);
@@ -118,11 +151,9 @@ export function BrowseReader({
           rememberOpener(event.target);
       }}
     >
-      {resultsHeader && (
-        <BrowsePaneHeader className="reference-results__header">
-          {resultsHeader}
-        </BrowsePaneHeader>
-      )}
+      {narrow &&
+        (resultsHeader || clearSelectionAction()) &&
+        toolbar(clearSelectionAction())}
       <div
         className="reference-results__scroll"
         ref={listRef}
@@ -145,18 +176,37 @@ export function BrowseReader({
       reading={reading}
       selectedRecordKey={selectedRecordKey}
       recordActions={recordActions}
-      readerHeaderActions={readerHeaderActions}
       readerContext={readerContext}
       status={readerStatus}
       readerFooter={readerFooter}
       positions={saved}
       onResults={narrow ? closeReader : undefined}
       active={!narrow || readerOpen}
+      selectionActions={clearSelectionAction()}
+      renderLayout={
+        narrow
+          ? undefined
+          : (actions, content) => (
+              <>
+                {toolbar(actions)}
+                <Splitter
+                  styles={{
+                    root: { flex: 1, minHeight: 0, overflow: "clip" },
+                    panel: { overflow: "clip" },
+                  }}
+                >
+                  <Splitter.Panel defaultSize="35%" min="25%" max="55%">
+                    {results}
+                  </Splitter.Panel>
+                  <Splitter.Panel min="40%">{content}</Splitter.Panel>
+                </Splitter>
+              </>
+            )
+      }
     />
   );
   return (
     <div
-      ref={root}
       className="reference-browser"
       data-reading={narrow && readerOpen ? "true" : undefined}
     >
@@ -170,12 +220,7 @@ export function BrowseReader({
           </div>
         </>
       ) : (
-        <Splitter styles={{ root: { overflow: "clip" }, panel: { overflow: "clip" } }}>
-          <Splitter.Panel defaultSize="35%" min="25%" max="55%">
-            {results}
-          </Splitter.Panel>
-          <Splitter.Panel min="40%">{reader}</Splitter.Panel>
-        </Splitter>
+        reader
       )}
     </div>
   );

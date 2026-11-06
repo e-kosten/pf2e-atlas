@@ -38,6 +38,7 @@
   min-width: 0;
 }
 .reference-search-entry__criterion {
+  box-sizing: border-box;
   display: flex;
   flex: 1;
   align-items: center;
@@ -45,10 +46,15 @@
   min-width: 0;
   border: 1px solid;
 }
+.reference-search-entry__criterion > :not(.reference-search-entry__source) {
+  flex-shrink: 0;
+}
 .reference-search-entry__source {
   flex: 1;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   user-select: text;
 }
 

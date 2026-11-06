@@ -1,5 +1,7 @@
 import {
   changeChoiceValue,
+  hasAdvancedFilterConditions,
+  chipLinkClauses,
   choiceValueState,
   clearAllFilters,
   choiceCondition,
@@ -954,4 +956,102 @@ it("round trips exact link leaves in mixed Boolean groups, atomic NOT and double
       "embedded.equipment",
     ),
   ).toThrow("Link conditions belong outside collection conditions.");
+});
+
+describe("applied-filter chip coverage", () => {
+  const kind = fieldFixture("kind");
+  const traits = fieldFixture("traits", "set");
+  const level = fieldFixture("level", "number");
+  const link: QueryPredicate = {
+    kind: "relationship",
+    clause_id: "link",
+    relationship: {
+      direction: "incoming",
+      include_contents: true,
+      selection: {
+        record_key: "actors:target",
+        embedded_path: [],
+        field: null,
+        passage: null,
+        source_fingerprint: null,
+      },
+    },
+  };
+  it("keeps independent links alongside represented included/excluded choices without an advanced indication", () => {
+    const predicate: QueryPredicate = {
+      kind: "all_of",
+      children: [
+        {
+          kind: "all_of",
+          children: [
+            { kind: "in", field: "kind", values: ["creature"] },
+            {
+              kind: "not",
+              predicate: { kind: "in", field: "kind", values: ["character"] },
+            },
+            {
+              kind: "set_match",
+              field: "traits",
+              op: "includes_any",
+              values: ["aberration"],
+            },
+          ],
+        },
+        link,
+      ],
+    };
+    const before = structuredClone(predicate);
+    expect(chipLinkClauses(predicate)).toEqual([link]);
+    expect(hasAdvancedFilterConditions(predicate, [kind, traits])).toBe(false);
+    expect(predicate).toEqual(before);
+  });
+  it.each(["any_of", "not", "exists"] as const)(
+    "does not flatten %s links into editable chips",
+    (group) => {
+      const predicate: QueryPredicate =
+        group === "any_of"
+          ? { kind: group, children: [link] }
+          : group === "not"
+            ? { kind: group, predicate: link }
+            : { kind: group, collection: "items", scope_id: "items", predicate: link };
+      expect(chipLinkClauses(predicate)).toEqual([]);
+      expect(hasAdvancedFilterConditions(predicate, [kind])).toBe(true);
+    },
+  );
+  it("indicates unsupported numeric conditions even when there are no links", () => {
+    expect(
+      hasAdvancedFilterConditions(
+        { kind: "compare", field: "level", op: "gt", value: 5 },
+        [level],
+      ),
+    ).toBe(true);
+    expect(
+      hasAdvancedFilterConditions(
+        { kind: "compare", field: "level", op: "gte", value: 5 },
+        [level],
+      ),
+    ).toBe(false);
+  });
+  it("indicates a hidden empty include even when its paired exclusion has a chip", () => {
+    expect(
+      hasAdvancedFilterConditions(
+        {
+          kind: "all_of",
+          children: [
+            { kind: "in", field: "kind", values: [] },
+            {
+              kind: "not",
+              predicate: { kind: "in", field: "kind", values: ["character"] },
+            },
+          ],
+        },
+        [kind],
+      ),
+    ).toBe(true);
+  });
+  it("does not hide an empty choice constraint that has no chip", () => {
+    expect(
+      hasAdvancedFilterConditions({ kind: "in", field: "kind", values: [] }, [kind]),
+    ).toBe(true);
+  });
 });

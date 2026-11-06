@@ -81,6 +81,8 @@ Reuse one task preview URL and its saved state. Refresh deliberately; frontend-o
 work can use Vite with a compatible running backend. Human previews use the
 full-corpus workspace and verified models; automated browser fixtures are separate.
 Do not reset preview state or run setup automatically on compatibility failure.
+Report a stale shared preview baseline to the user and ask permission before
+refreshing it; follow the linked setup guide for evidence and refresh procedure.
 
 Reuse one checkout-local Cargo target; do not share targets across worktrees.
 Preserve active output and shared source/model caches. Follow the linked resource

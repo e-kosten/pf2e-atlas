@@ -114,3 +114,47 @@
   ):active {
   background: var(--primary-active);
 }
+
+/* These classes are supplied through Ant's public Button semantic hook. */
+.atlas-accent-control.atlas-accent-control:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--selection-text);
+}
+.atlas-accent-control--outlined.atlas-accent-control--outlined:not(:disabled):not(
+    [aria-disabled="true"]
+  ) {
+  border-color: var(--selection-border);
+  background: var(--selection-bg);
+}
+.atlas-accent-control--filled.atlas-accent-control--filled:not(:disabled):not(
+    [aria-disabled="true"]
+  ) {
+  background: var(--selection-bg);
+}
+.atlas-accent-control:is(
+    .atlas-accent-control--outlined,
+    .atlas-accent-control--filled
+  ):not(:disabled):not([aria-disabled="true"]):is(:hover, :active) {
+  background: var(--selection-hover-bg);
+}
+.atlas-accent-control--link.atlas-accent-control--link:not(:disabled):not(
+    [aria-disabled="true"]
+  ) {
+  color: var(--link);
+}
+
+.atlas-accent-control.atlas-accent-control:not(:disabled):not(
+    [aria-disabled="true"]
+  ):is(:hover, :active) {
+  color: var(--selection-text);
+}
+.atlas-accent-control--link.atlas-accent-control--link:not(:disabled):not(
+    [aria-disabled="true"]
+  ):is(:hover, :active) {
+  color: var(--link);
+}
+
+.atlas-accent-control--text.atlas-accent-control--text:not(:disabled):not(
+    [aria-disabled="true"]
+  ):is(:hover, :active) {
+  background: var(--selection-hover-bg);
+}

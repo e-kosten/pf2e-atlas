@@ -82,15 +82,18 @@ pub(crate) fn eligible_sql(
         if keys.is_empty() {
             sql.push_str(" AND 0");
         } else {
+            let parameter = params.len() + 1;
             sql.push_str(&format!(
-                " AND r.key IN ({})",
-                vec!["?"; keys.len()].join(",")
+                " AND r.key IN (SELECT value FROM json_each(?{parameter}))"
             ));
-            params.extend(keys.iter().map(|k| Value::Text(k.to_string())));
+            params.push(Value::Text(serde_json::to_string(
+                &keys.iter().map(ToString::to_string).collect::<Vec<_>>(),
+            )?));
         }
     }
     Ok((sql, params))
 }
+
 pub(crate) fn parse_key(s: String) -> Result<RecordKey, IndexError> {
     RecordKey::parse(&s).map_err(|e| IndexError::Invalid(e.to_string()))
 }

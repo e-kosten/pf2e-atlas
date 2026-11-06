@@ -24,24 +24,20 @@ function setup(
   openReference = vi.fn(),
 ) {
   const edit = vi.fn().mockReturnValue(null),
-    remove = vi.fn(),
-    advanced = vi.fn();
+    remove = vi.fn();
   const view = render(
     <ConfigProvider theme={{ token: { motion: false } }}>
       <ReferencePreviewContext value={{ open: openReference, openTrait: vi.fn() }}>
         <LinkFilterControls
           filter={filter}
-          fields={[]}
           title={() => "Leather Armor"}
-          onAdd={vi.fn()}
           onEdit={edit}
           onRemove={remove}
-          onAdvanced={advanced}
         />
       </ReferencePreviewContext>
     </ConfigProvider>,
   );
-  return { edit, remove, advanced, view };
+  return { edit, remove, view };
 }
 it("shows human link labels and exact scope without IDs", () => {
   const { view } = setup();
@@ -105,29 +101,13 @@ it("removes only the selected leaf and restores focus on popover Escape", async 
   fireEvent.click(screen.getByRole("button", { name: "Remove relationship filter" }));
   expect(remove).toHaveBeenCalledWith(leaf);
 });
-it("preserves OR and NOT grouping in a single truthful summary rather than flat chips", () => {
-  const { advanced } = setup({
+it("keeps grouped OR and NOT links out of independent chips", () => {
+  setup({
     kind: "any_of",
-    children: [
-      leaf,
-      {
-        kind: "not",
-        predicate: {
-          ...leaf,
-          clause_id: "two",
-          relationship: { ...leaf.relationship, direction: "outgoing" },
-        },
-      },
-    ],
+    children: [leaf, { kind: "not", predicate: { ...leaf, clause_id: "two" } }],
   });
   expect(screen.queryByRole("group", { name: "Relationship filter" })).toBeNull();
-  expect(
-    screen.getByText(/\(Links to Leather Armor.* OR NOT Linked from Leather Armor/),
-  ).toBeInTheDocument();
-  fireEvent.click(
-    screen.getByRole("button", { name: /Grouped filters: 2 link conditions/ }),
-  );
-  expect(advanced).toHaveBeenCalled();
+  expect(screen.queryByText(/Grouped filters/)).toBeNull();
 });
 
 it("closes the filter popover before opening its reference and returns to the persistent chip", async () => {

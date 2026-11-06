@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-/** The browse host aligns these headers; each content row keeps its natural height. */
+/** Shared browse toolbar frame with a naturally wrapping content row. */
 export function BrowsePaneHeader({
   className,
   children,

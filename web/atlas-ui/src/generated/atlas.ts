@@ -446,3 +446,7 @@ export type { RemasterSubjectView } from "../../../../crates/atlas-app-model/bin
 export type { RemasterRelationshipView } from "../../../../crates/atlas-app-model/bindings/RemasterRelationshipView";
 export type { RemasterInlinePartView } from "../../../../crates/atlas-app-model/bindings/RemasterInlinePartView";
 export type { RemasterExplanationLinkView } from "../../../../crates/atlas-app-model/bindings/RemasterExplanationLinkView";
+
+export type { StaticSearchContext } from "../../../../crates/atlas-app-model/bindings/StaticSearchContext";
+export type { ConnectionScopeView } from "../../../../crates/atlas-app-model/bindings/ConnectionScopeView";
+export type { ConnectionScopeUnavailableReason } from "../../../../crates/atlas-app-model/bindings/ConnectionScopeUnavailableReason";

@@ -1,4 +1,4 @@
-/** Restore focus lost when an anchored popup hides; respect a deliberate move. */
+/** Restore focus when local content hides or disappears; respect a deliberate move. */
 export function restoreOverlayFocus(
   trigger: HTMLElement | null,
   closingContent: HTMLElement | null | undefined,

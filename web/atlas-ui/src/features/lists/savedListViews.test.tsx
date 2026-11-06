@@ -775,6 +775,35 @@ describe("list views", () => {
     expect(window.location.pathname).toBe("/lists/research/actions%3AtestAction1");
   });
 
+  it("clears the selected URL of an unresolved member while preserving the list filter", async () => {
+    const unresolved = savedListDetailFixture();
+    unresolved.items[0] = {
+      ...unresolved.items[0],
+      status: "unresolved",
+      record: undefined,
+    };
+    apiMocks.filterSavedList.mockResolvedValue(unresolved);
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <App>
+          <ListDetailView
+            route={{
+              slug: "research",
+              selectedRecordKey: "actions:testAction1",
+              query: "q=action",
+            }}
+          />
+        </App>
+      </QueryClientProvider>,
+    );
+    await screen.findByText("Record unavailable in this reference collection");
+    fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
+    await waitFor(() => expect(window.location.pathname).toBe("/lists/research"));
+    expect(new URLSearchParams(window.location.search).get("q")).toBe("action");
+  });
+
   it.each([false, true])(
     "recovers the same selected reader when an unresolved member becomes active (filtered omission=%s)",
     async (omitWhileBlocked) => {

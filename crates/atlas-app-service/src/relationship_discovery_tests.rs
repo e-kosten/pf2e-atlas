@@ -52,6 +52,7 @@ fn filtered(
     generation: &str,
 ) -> FilterDiscoveryContext {
     FilterDiscoveryContext::Filtered {
+        connection_scope: None,
         search_content: None,
         search_profile: None,
         expected_artifact_generation: Some(generation.into()),
@@ -175,6 +176,7 @@ fn relationship_discovery_validates_scope_and_intersects_saved_list_keys() {
             })
             .unwrap();
         let context = FilterDiscoveryContext::SavedList {
+            connection_scope: None,
             search_content: None,
             search_profile: None,
             expected_artifact_generation: Some(generation.clone()),

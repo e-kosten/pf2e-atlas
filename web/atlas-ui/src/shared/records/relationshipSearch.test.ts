@@ -1,7 +1,7 @@
 import { stringifySearchParams } from "../../app/urlState";
 import type { QueryRelationship } from "../../generated/atlas";
 import { linkLeaf } from "../filters/linkPredicates";
-import { linkClauses } from "../filters/LinkFilterControls";
+import { linkClauses } from "../filters/linkPredicates";
 import { relationshipSearchRoute } from "./relationshipSearch";
 import {
   decodeSearchStateFromParams,

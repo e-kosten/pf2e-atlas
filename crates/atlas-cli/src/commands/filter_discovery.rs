@@ -167,6 +167,7 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
     };
     let context = match o.list_ref {
         Some(list_ref) => atlas_app_model::FilterDiscoveryContext::SavedList {
+            connection_scope: None,
             search_content: None,
             list_ref,
             filter,
@@ -176,6 +177,7 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
             expected_artifact_generation: o.artifact_generation,
         },
         None => atlas_app_model::FilterDiscoveryContext::Filtered {
+            connection_scope: None,
             search_content: None,
             filter,
             text: None,

@@ -1,11 +1,11 @@
 import { createContext, createElement, useContext, type ComponentType } from "react";
-import type { QueryRelationship } from "../../generated/atlas";
+import type { QueryRelationship, StaticSearchContext } from "../../generated/atlas";
 import type { PickerSelection } from "../ui/pickers/SearchPickerModal";
 
 export type LinkPickerProps = {
   open: boolean;
+  parent: StaticSearchContext;
   initial?: QueryRelationship;
-  initialTitle?: string;
   onCancel: () => void;
   onConfirm: (
     relationship: QueryRelationship,

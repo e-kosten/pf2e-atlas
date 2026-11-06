@@ -21,7 +21,7 @@ export function fixture(t) {
   };
   put(
     "web/atlas-ui/package.json",
-    '{"type":"module","engines":{"node":"^22.18.0 || ^24.0.0"}}',
+    '{"type":"module","engines":{"node":"^22.18.0 || ^24.0.0 || ^26.0.0"}}',
   );
   put("rust-toolchain.toml", '[toolchain]\nchannel="1.95.0"\n');
   put("Cargo.toml", "[workspace]\n");
