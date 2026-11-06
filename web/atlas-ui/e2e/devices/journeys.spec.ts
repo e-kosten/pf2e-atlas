@@ -2057,6 +2057,12 @@ test("record picker saves an optional entry note and brings the changed list fir
     const choices = page.locator(".ant-select-item-option-content");
     await expect(choices.first()).toHaveText(`Alpha ${suffix}`);
     await activate(choices.filter({ hasText: `Zulu ${suffix}` }), info);
+    await expect(dialog.locator(".record-destination-picker__select")).toContainText(
+      `Zulu ${suffix}`,
+    );
+    await expect(
+      dialog.getByRole("button", { name: "Add", exact: true }),
+    ).toBeEnabled();
     const note = dialog.getByRole("textbox", { name: "Note" });
     const noteText = "  Discuss before the next session.\n\nBring the map.\n";
     await note.fill("  Discuss before the next session.");
