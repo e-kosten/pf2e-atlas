@@ -430,51 +430,65 @@ async function renderedContrast(
   locator: import("@playwright/test").Locator,
   radio = false,
 ) {
-  return locator.evaluate(async (element, radio) => {
-    const root = radio ? element.closest("label")! : element;
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-    getComputedStyle(root).getPropertyValue("color");
-    await Promise.all(
-      root
-        .getAnimations({ subtree: true })
-        .filter(
-          (animation) => animation.effect?.getComputedTiming().iterations !== Infinity,
-        )
-        .map((animation) => animation.finished.catch(() => {})),
-    );
-    const ink = radio ? root.lastElementChild! : root;
-    const channels = (color: string) => color.match(/[\d.]+/g)!.map(Number);
-    let background = [0, 0, 0, 0];
-    for (let current: Element | null = root; current; current = current.parentElement) {
-      const value = channels(getComputedStyle(current).backgroundColor);
-      const alpha = value[3] ?? 1;
-      background = [
-        ...background
-          .slice(0, 3)
-          .map(
-            (channel, index) => channel + value[index] * alpha * (1 - background[3]),
-          ),
-        background[3] + alpha * (1 - background[3]),
-      ];
-      if (background[3] >= 0.999) break;
-    }
-    const luminance = (rgb: number[]) =>
-      rgb
-        .slice(0, 3)
-        .map((value) => value / 255)
-        .map((value) =>
-          value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4,
-        )
-        .reduce(
-          (sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index],
-          0,
+  let ratio = 0;
+  await expect
+    .poll(async () => {
+      ratio = await locator.evaluate(async (element, radio) => {
+        const root = radio ? element.closest("label")! : element;
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        getComputedStyle(root).getPropertyValue("color");
+        await Promise.all(
+          root
+            .getAnimations({ subtree: true })
+            .filter(
+              (animation) =>
+                animation.effect?.getComputedTiming().iterations !== Infinity,
+            )
+            .map((animation) => animation.finished.catch(() => {})),
         );
-    const values = [
-      luminance(channels(getComputedStyle(ink).color)),
-      luminance(background),
-    ].sort((a, b) => b - a);
-    return (values[0] + 0.05) / (values[1] + 0.05);
-  }, radio);
+        if (!root.isConnected) return 0;
+        const ink = radio ? root.lastElementChild! : root;
+        const channels = (color: string) => color.match(/[\d.]+/g)!.map(Number);
+        let background = [0, 0, 0, 0];
+        for (
+          let current: Element | null = root;
+          current;
+          current = current.parentElement
+        ) {
+          const value = channels(getComputedStyle(current).backgroundColor);
+          const alpha = value[3] ?? 1;
+          background = [
+            ...background
+              .slice(0, 3)
+              .map(
+                (channel, index) =>
+                  channel + value[index] * alpha * (1 - background[3]),
+              ),
+            background[3] + alpha * (1 - background[3]),
+          ];
+          if (background[3] >= 0.999) break;
+        }
+        const luminance = (rgb: number[]) =>
+          rgb
+            .slice(0, 3)
+            .map((value) => value / 255)
+            .map((value) =>
+              value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4,
+            )
+            .reduce(
+              (sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index],
+              0,
+            );
+        const values = [
+          luminance(channels(getComputedStyle(ink).color)),
+          luminance(background),
+        ].sort((a, b) => b - a);
+        return (values[0] + 0.05) / (values[1] + 0.05);
+      }, radio);
+      return ratio;
+    })
+    .toBeGreaterThan(0);
+  return ratio;
 }
 
 test("shared selected and hover states keep readable rendered contrast in both themes", async ({
@@ -564,4 +578,56 @@ test("shared selected and hover states keep readable rendered contrast in both t
       await page.mouse.up();
     }
   }
+});
+
+test("Advanced link edits inside OR disclose all-entry discovery and send static context", async ({
+  page,
+}) => {
+  const filter = encodeFilterUrl({
+    kind: "any_of",
+    children: [
+      { kind: "compare", field: "kind", op: "eq", value: "creature" },
+      {
+        kind: "relationship",
+        clause_id: "or-edit",
+        relationship: {
+          direction: "incoming",
+          include_contents: true,
+          selection: {
+            record_key: "equipment-srd:e9Xiei2wduOEGI5r",
+            embedded_path: [],
+            field: null,
+            passage: null,
+            source_fingerprint: null,
+          },
+        },
+      },
+    ],
+  });
+  await page.goto(`/search?q=cat&filter=${encodeURIComponent(filter)}`);
+  await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
+  const advanced = page.getByRole("dialog", { name: "Advanced filters", exact: true });
+  const response = page.waitForResponse(
+    async (response) =>
+      response.url().endsWith("/api/search/page") &&
+      !!response.request().postDataJSON()?.connection_scope,
+  );
+  await advanced.getByRole("button", { name: /Wovenwood Shield.*Whole entry/ }).click();
+  const picker = page.getByRole("dialog", { name: "Edit link condition", exact: true });
+  await expect(
+    picker.getByText(
+      "Searching all entries because this condition is inside OR or a compound NOT group.",
+    ),
+  ).toBeVisible();
+  const result = await response;
+  expect(result.ok()).toBe(true);
+  const context = result.request().postDataJSON().connection_scope.parent;
+  expect(context.exclude_clause_id).toBeTruthy();
+  expect(context.filter.kind).toBe("any_of");
+  expect(context).not.toHaveProperty("criteria");
+  expect(context).not.toHaveProperty("query");
+  expect((await result.json()).connection_scope).toEqual({
+    kind: "all_entries",
+    reason: "non_conjunctive_context",
+  });
 });

@@ -84,6 +84,7 @@ fn abandoned_discovery_checks_before_saved_list_scope_reads_or_lazy_open() {
     let execution = ReadExecutionContext::tracked();
     execution.abandon();
     let context = FilterDiscoveryContext::SavedList {
+        connection_scope: None,
         search_content: None,
         search_profile: None,
         expected_artifact_generation: None,

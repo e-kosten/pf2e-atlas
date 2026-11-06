@@ -106,7 +106,7 @@ export function SearchPickerModal<FormValues>({
   confirmLabel?: string;
   status?: React.ReactNode;
   summary?: React.ReactNode;
-  searchHeader?: React.ReactNode;
+  searchHeader?: (scope: SearchResultsPage["connection_scope"]) => React.ReactNode;
   selectionContext?: string;
   footerLayout?: "form" | "actions";
   initialSelection?: RecordNavigationView;
@@ -247,11 +247,14 @@ export function SearchPickerModal<FormValues>({
   }, [selectionContext, selection, reading]);
   const preparing = selection.current;
   const selectionGenerationChanged = isArtifactGenerationChanged(preparing?.error);
-  const context = buildFilterDiscoveryContext(
-    { ...search, filter },
-    profile.id ?? undefined,
-    retrieval.generation ?? undefined,
-  );
+  const context = {
+    ...buildFilterDiscoveryContext(
+      { ...search, filter },
+      profile.id ?? undefined,
+      retrieval.generation ?? undefined,
+    ),
+    connection_scope: request.connection_scope,
+  };
   const discovery = useFilterDiscovery({
     context,
     enabled: open && !retrieval.recovering,
@@ -447,7 +450,6 @@ export function SearchPickerModal<FormValues>({
               filterEditor: discovery.filterEditor,
               filterApplicabilityCurrent: discovery.filterApplicabilityCurrent,
               filterCountsEnabled:
-                !request.connection_scope &&
                 discovery.filterCountsEnabled &&
                 profileReady &&
                 request.criteria.kind !== "similar_records",
@@ -458,7 +460,7 @@ export function SearchPickerModal<FormValues>({
               filterDiscoveryError: discovery.errorMessage,
             }}
           >
-            {searchHeader}
+            {searchHeader?.(recordResults.data?.connection_scope)}
           </FilterControls>
           <div className="reference-picker__feedback">
             <SearchProfileNotice />

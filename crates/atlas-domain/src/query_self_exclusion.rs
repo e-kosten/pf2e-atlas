@@ -9,10 +9,8 @@ pub enum QuerySelfExclusion<'a> {
 #[derive(Debug, Clone)]
 pub struct SelfExcludedQuery {
     pub predicate: QueryPredicate,
-    pub target: QueryPredicate,
     /// Retains correlation for counts within one authored collection member.
     pub member: Option<QueryPredicate>,
-    pub scope: Option<String>,
 }
 impl QuerySelfExclusion<'_> {
     fn matches(&self, p: &QueryPredicate) -> bool {
@@ -25,6 +23,35 @@ impl QuerySelfExclusion<'_> {
         }
     }
 }
+/// Locate an addressed clause and its authored collection scope before classifying
+/// discovery support. Invalid targets remain errors even under OR or NOT.
+pub fn addressed_query_clause<'a>(
+    p: &'a QueryPredicate,
+    id: &str,
+) -> Option<(&'a QueryPredicate, Option<&'a str>)> {
+    fn find<'a>(
+        p: &'a QueryPredicate,
+        id: &str,
+        scope: Option<&'a str>,
+    ) -> Option<(&'a QueryPredicate, Option<&'a str>)> {
+        if p.clause_id.as_deref() == Some(id) {
+            return Some((p, scope));
+        }
+        match &p.expression {
+            QueryExpression::AllOf { children } | QueryExpression::AnyOf { children } => {
+                children.iter().find_map(|p| find(p, id, scope))
+            }
+            QueryExpression::Not { predicate } => find(predicate, id, scope),
+            QueryExpression::Exists {
+                collection,
+                predicate,
+                ..
+            } => find(predicate, id, Some(collection)),
+            _ => None,
+        }
+    }
+    find(p, id, None)
+}
 /// `None` means no addressed selection exists. Unsupported discovery does not
 /// change the executable expression or invent Boolean influence semantics.
 pub fn exclude_query_selection(
@@ -33,9 +60,8 @@ pub fn exclude_query_selection(
 ) -> Option<QueryFacetOutcome<SelfExcludedQuery>> {
     struct Walk<'a> {
         selector: QuerySelfExclusion<'a>,
-        target: Option<QueryPredicate>,
+        found: bool,
         member: Option<QueryPredicate>,
-        scope: Option<String>,
         unavailable: bool,
     }
     impl Walk<'_> {
@@ -47,8 +73,7 @@ pub fn exclude_query_selection(
         ) -> QueryPredicate {
             if self.selector.matches(p) {
                 self.unavailable |= !allowed;
-                self.target = Some(p.clone());
-                self.scope = scope.map(str::to_owned);
+                self.found = true;
                 return QueryPredicate::boolean(true);
             }
             let mut result = p.clone();
@@ -78,9 +103,9 @@ pub fn exclude_query_selection(
                     scope_id,
                     predicate,
                 } if matches!(self.selector, QuerySelfExclusion::Clause(_)) => {
-                    let before = self.target.is_some();
+                    let before = self.found;
                     let child = self.visit(predicate, Some(collection), allowed);
-                    if !before && self.target.is_some() {
+                    if !before && self.found {
                         self.member = Some(child.clone());
                     }
                     QueryExpression::Exists {
@@ -96,13 +121,14 @@ pub fn exclude_query_selection(
     }
     let mut walk = Walk {
         selector,
-        target: None,
+        found: false,
         member: None,
-        scope: None,
         unavailable: false,
     };
     let predicate = walk.visit(predicate, None, true);
-    let target = walk.target?;
+    if !walk.found {
+        return None;
+    }
     Some(if walk.unavailable {
         QueryFacetOutcome::Unavailable {
             reason: FacetUnavailableReason::NonConjunctiveContext,
@@ -111,9 +137,7 @@ pub fn exclude_query_selection(
         QueryFacetOutcome::Available {
             value: SelfExcludedQuery {
                 predicate,
-                target,
                 member: walk.member,
-                scope: walk.scope,
             },
         }
     })
@@ -215,7 +239,6 @@ mod tests {
         else {
             panic!("supported member")
         };
-        assert_eq!(value.scope.as_deref(), Some("items"));
         assert_eq!(
             value.member,
             Some(and(vec![

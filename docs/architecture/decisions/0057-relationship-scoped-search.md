@@ -107,14 +107,31 @@ while retaining text/Similar and result order.
 
 The record finder reuses SearchPickerModal and retains its own search and filters.
 Its candidate corpus is the inverse of the chosen relationship over the parent's
-complete result membership, before picker ranking and pagination. App-service
-resolves a stateless parent search descriptor, including saved-list membership or
-bounded text/Similar admission. Index owns the inverse resolved-occurrence join
-and exact root owner restrictions. Nested descriptors retain their enclosing scope
-and are bounded to four levels. Parent and picker text inference use separate
-short-lived, generation-checked reads. Editing omits the precise edited occurrence
-with empty wrappers pruned and Boolean siblings preserved. Optional contextual
-counts are suppressed until discovery supports this connected corpus.
+static eligibility, before picker ranking and pagination. Parent text and Similar
+admission, paging, ranking and edition preference do not restrict that eligibility.
+App-service resolves saved-list membership, trait-reference route membership and
+inherited connected scopes in the consuming workspace snapshot. The static DTO
+cannot carry a parent semantic search. Nested contexts are bounded to four levels.
+Index compiles the parent predicate through ordinary eligibility SQL and joins
+resolved occurrences directly, retaining exact root owner restrictions. Only the
+final distinct connected candidate keys cross into the existing retrieval and
+facet key scopes; no parent result hydration or alternate predicate evaluator is
+needed. Picker edition preference applies after this eligibility.
+
+Field counts and relationship editing share atlas-domain's structural self-exclusion
+policy. Root-field facets remove the complete field selection; link editing removes
+one addressed clause while retaining other conditions. Scoped field facets preserve
+member correlation. Index keeps catalog validation and physical query ownership.
+Conjunctive and directly negated root selections are supported; OR and compound
+negative contexts remain explicitly unavailable. The picker searches all entries
+and visibly explains the broader scope when self-exclusion is unavailable.
+Unprojectable unfinished drafts use the same explicit broader scope with an
+incomplete-edit explanation. An unconfigured link uses an addressed true placeholder
+at its exact editor position solely for discovery classification; it is never a
+persisted relationship. Invalid targets remain errors before optional capability
+classification. Counts and result requests resolve the same connection descriptor.
+Parent generations, predicate admission and nesting are checked before picker text
+inference and again in the consuming snapshot.
 Direction and scope precede search; changing either clears the pending candidate
 and refreshes the corpus without discarding the picker's own filters. A stable app-composed picker component is supplied through a lightweight
 shared-filter composition context, avoiding a filter-to-picker import cycle.

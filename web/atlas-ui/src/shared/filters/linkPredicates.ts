@@ -90,23 +90,18 @@ export function appendLink(
     : leaf;
 }
 
-/** Remove one edited occurrence and prune emptied wrappers, retaining Boolean siblings. */
-export function withoutLinkClause(
-  filter: QueryPredicate | null,
-  id: string,
-): QueryPredicate | null {
-  if (!filter) return null;
-  if (filter.kind === "relationship") return filter.clause_id === id ? null : filter;
-  if (filter.kind === "all_of" || filter.kind === "any_of") {
-    const children = filter.children.flatMap((child) => {
-      const next = withoutLinkClause(child, id);
-      return next ? [next] : [];
-    });
-    return children.length ? { ...filter, children } : null;
+export type LinkLeaf = Extract<
+  QueryPredicate,
+  {
+    kind: "relationship";
   }
-  if (filter.kind === "not" || filter.kind === "exists") {
-    const predicate = withoutLinkClause(filter.predicate, id);
-    return predicate ? { ...filter, predicate } : null;
-  }
-  return filter;
+>;
+export function linkClauses(filter: QueryPredicate | null): LinkLeaf[] {
+  if (!filter) return [];
+  if (filter.kind === "relationship") return [filter];
+  if (filter.kind === "all_of" || filter.kind === "any_of")
+    return filter.children.flatMap(linkClauses);
+  if (filter.kind === "not" || filter.kind === "exists")
+    return linkClauses(filter.predicate);
+  return [];
 }

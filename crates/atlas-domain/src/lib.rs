@@ -7,7 +7,9 @@ pub use search_profile::SearchProfileId;
 pub mod query;
 pub mod query_discovery;
 mod query_self_exclusion;
-pub use query_self_exclusion::{QuerySelfExclusion, SelfExcludedQuery, exclude_query_selection};
+pub use query_self_exclusion::{
+    QuerySelfExclusion, SelfExcludedQuery, addressed_query_clause, exclude_query_selection,
+};
 pub mod record_key;
 pub use query_discovery::{
     FacetUnavailableReason, QueryFacetOutcome, QueryFieldCounts, QueryStateCount, QueryValueOption,

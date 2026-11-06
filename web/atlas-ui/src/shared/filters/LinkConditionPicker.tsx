@@ -19,7 +19,6 @@ export function LinkConditionPicker({
   open,
   initial,
   parent,
-  parentListRef,
   onCancel,
   onConfirm,
 }: LinkPickerProps) {
@@ -150,25 +149,28 @@ export function LinkConditionPicker({
         ...buildSearchRequest({ ...DEFAULT_SEARCH_STATE, query }, 1),
         connection_scope: {
           parent,
-          list_ref: parentListRef,
           direction,
           include_contents: includeContents,
         },
       })}
       selectionContext={`${direction}:${includeContents}`}
-      searchHeader={
+      searchHeader={(scope) => (
         <div className="link-picker-context" role="group" aria-label="Link matching">
           <div className="link-picker-context__fields">{controls}</div>
           <Typography.Text
             type="secondary"
             className="link-picker-context__description"
           >
-            {direction === "incoming"
-              ? "Choose an entry that matching records link to."
-              : "Choose an entry that links to matching records."}
+            {scope?.kind === "all_entries"
+              ? scope.reason === "incomplete_draft"
+                ? "Searching all entries because some filter edits are incomplete."
+                : "Searching all entries because this condition is inside OR or a compound NOT group."
+              : direction === "incoming"
+                ? "Choose an entry that records matching your filters link to."
+                : "Choose an entry that links to records matching your filters."}
           </Typography.Text>
         </div>
-      }
+      )}
       emptyPrompt="Search or choose filters."
       emptyResults="No matching records."
       status={

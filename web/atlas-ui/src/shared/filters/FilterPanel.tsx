@@ -1,4 +1,3 @@
-import { buildSearchRequest } from "./searchState";
 import { restoreOverlayFocus } from "../ui/overlays/restoreOverlayFocus";
 import { createPortal } from "react-dom";
 import { AtlasDrawer as Drawer } from "../ui/overlays/AtlasDrawer";
@@ -89,7 +88,8 @@ import {
   LinkPickerContext,
   type LinkPickerProps,
 } from "./LinkPickerContext";
-import { LinkFilterControls, linkClauses, type LinkLeaf } from "./LinkFilterControls";
+import { LinkFilterControls } from "./LinkFilterControls";
+import { linkClauses, type LinkLeaf } from "./linkPredicates";
 import { sameRelationship } from "./linkPredicates";
 import { CollectionValueInput, isCompactCollection } from "./CollectionValueInput";
 import { ActorMetricPicker } from "./ActorMetricPicker";
@@ -205,39 +205,34 @@ export function FilterControls({
   ) {
     if (!Picker) throw new Error("Link condition picker provider is required");
     const openingQuery = prepared.query;
+    const parentContext = prepared.linkDiscoveryContext(id, advanced);
     setPicker({
       key: crypto.randomUUID(),
       advanced,
       open: true,
       initial,
       parent: {
-        ...(workspace.resultRequest ??
-          buildSearchRequest(
-            search,
-            1,
-            generation ?? null,
-            workspace.filterDiscoveryContext?.search_profile,
-          )),
-        criteria: {
-          ...(workspace.resultRequest?.criteria ??
-            buildSearchRequest(search, 1).criteria),
-          filter: workspace.fixedFilter
-            ? {
-                kind: "all_of",
-                children: [
-                  workspace.fixedFilter,
-                  ...[prepared.filterWithoutLink(id, advanced)].flatMap((filter) =>
-                    filter ? [filter] : [],
-                  ),
-                ],
-              }
-            : prepared.filterWithoutLink(id, advanced),
-        },
+        ...parentContext,
+        filter: workspace.fixedFilter
+          ? {
+              kind: "all_of",
+              children: [
+                workspace.fixedFilter,
+                ...[parentContext.filter].flatMap((filter) => (filter ? [filter] : [])),
+              ],
+            }
+          : parentContext.filter,
+        expected_artifact_generation: generation ?? null,
+        list_ref:
+          workspace.filterDiscoveryContext?.kind === "saved_list"
+            ? workspace.filterDiscoveryContext.list_ref
+            : null,
+        trait_key:
+          workspace.resultRequest?.criteria.kind === "trait_references"
+            ? workspace.resultRequest.criteria.trait_key
+            : null,
+        connection_scope: workspace.resultRequest?.connection_scope ?? null,
       },
-      parentListRef:
-        workspace.filterDiscoveryContext?.kind === "saved_list"
-          ? workspace.filterDiscoveryContext.list_ref
-          : undefined,
       onCancel: () =>
         setPicker((current) => (current ? { ...current, open: false } : null)),
       onConfirm: (relationship, selection) => {

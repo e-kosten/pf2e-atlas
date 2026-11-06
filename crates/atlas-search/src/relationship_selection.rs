@@ -16,13 +16,17 @@ pub struct CheckedRelationshipSelection {
 impl AtlasRetrievalService {
     pub fn connected_record_keys(
         &self,
-        parents: &[atlas_domain::RecordKey],
+        filter: Option<&QueryPredicate>,
+        scope: crate::RecordScope<'_>,
         direction: atlas_domain::QueryRelationshipDirection,
         include_contents: bool,
     ) -> Result<Vec<atlas_domain::RecordKey>, crate::SearchError> {
-        Ok(self
-            .index
-            .connected_record_keys(parents, direction, include_contents)?)
+        Ok(self.index.connected_record_keys(
+            &self.predicate(filter)?,
+            scope.keys(),
+            direction,
+            include_contents,
+        )?)
     }
     pub fn checked_relationship_selection(
         &self,

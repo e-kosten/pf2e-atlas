@@ -253,34 +253,14 @@ fn remove_clause(
 ) -> Result<QueryFacetOutcome<RemovedClause>, IndexError> {
     use atlas_domain::{QuerySelfExclusion, exclude_query_selection};
     // Validate the addressed leaf even when its context cannot supply suggestions.
-    fn target<'a>(
-        p: &'a QueryPredicate,
-        id: &str,
-        scope: Option<&'a str>,
-    ) -> Option<(&'a QueryPredicate, Option<&'a str>)> {
-        if p.clause_id.as_deref() == Some(id) {
-            return Some((p, scope));
-        }
-        match &p.expression {
-            QueryExpression::AllOf { children } | QueryExpression::AnyOf { children } => {
-                children.iter().find_map(|p| target(p, id, scope))
-            }
-            QueryExpression::Not { predicate } => target(predicate, id, scope),
-            QueryExpression::Exists {
-                collection,
-                predicate,
-                ..
-            } => target(predicate, id, Some(collection)),
-            _ => None,
-        }
-    }
-    let (target, scope) = target(query.predicate(), id, None).ok_or_else(|| {
-        error(
-            "clause_id",
-            "The target clause ID does not exist in the request",
-            Some(&expected.definition.id),
-        )
-    })?;
+    let (target, scope) =
+        atlas_domain::addressed_query_clause(query.predicate(), id).ok_or_else(|| {
+            error(
+                "clause_id",
+                "The target clause ID does not exist in the request",
+                Some(&expected.definition.id),
+            )
+        })?;
     if scope != expected.definition.scope.as_deref() {
         return Err(error(
             "facet_target_scope",

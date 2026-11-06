@@ -213,11 +213,12 @@ pub use record::{
     RecordSummaryView,
 };
 pub use search::{
-    RelationshipClausePresentationView, RelationshipClauseSummaryView, RelationshipEvidenceView,
-    RelationshipOccurrencesPage, RelationshipOccurrencesRequest, RetrievalModeView,
-    SearchConnectionScope, SearchCoverageView, SearchCriteria, SearchLaneView,
-    SearchMatchSectionView, SearchModeSummary, SearchPageRequest, SearchPageView, SearchResultRow,
-    SearchResultsPage, SearchResultsRequest, SearchWitnessView,
+    ConnectionScopeUnavailableReason, ConnectionScopeView, RelationshipClausePresentationView,
+    RelationshipClauseSummaryView, RelationshipEvidenceView, RelationshipOccurrencesPage,
+    RelationshipOccurrencesRequest, RetrievalModeView, SearchConnectionScope, SearchCoverageView,
+    SearchCriteria, SearchLaneView, SearchMatchSectionView, SearchModeSummary, SearchPageRequest,
+    SearchPageView, SearchResultRow, SearchResultsPage, SearchResultsRequest, SearchWitnessView,
+    StaticSearchContext,
 };
 
 #[cfg(test)]

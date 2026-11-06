@@ -19,12 +19,6 @@ impl crate::AtlasRetrievalService {
         &self,
         request: SimilarRecordRequest<'_>,
     ) -> Result<Option<SimilarRecordResult>, crate::SearchError> {
-        self.similar_records_impl::<false>(request)
-    }
-    pub(crate) fn similar_records_impl<const MEMBERSHIP: bool>(
-        &self,
-        request: SimilarRecordRequest<'_>,
-    ) -> Result<Option<SimilarRecordResult>, crate::SearchError> {
         Self::validate_search_sort(&request.sort)?;
         self.resolve_search_profile(request.search_profile, request.search_profile.is_some())?;
         let Some(seed) = self.index.read_summary(request.record_key)? else {
@@ -53,7 +47,7 @@ impl crate::AtlasRetrievalService {
             vector: Some(&vector.vector),
             exclude: Some(request.record_key),
         })?;
-        let results = self.finish_results::<MEMBERSHIP>(
+        let results = self.finish_results(
             &search_profile,
             roots,
             request.page,

@@ -242,23 +242,6 @@ impl SqliteIndexReader {
         .collect()
     }
 
-    /// Complete root membership without summary hydration or pagination.
-    pub fn all_eligible_keys(
-        &self,
-        query: &ValidatedQuery,
-        keys: Option<&[RecordKey]>,
-        prefer_remaster: bool,
-    ) -> Result<Vec<RecordKey>, IndexError> {
-        let (base, params) = preferred_root_keys_sql(query, keys, prefer_remaster)?;
-        self.count_statement();
-        let mut statement = self.native()?.prepare(&format!("{base} ORDER BY r.key"))?;
-        let values = statement
-            .query_map(params_from_iter(params.iter()), |row| {
-                row.get::<_, String>(0)
-            })?
-            .collect::<Result<Vec<_>, _>>()?;
-        values.into_iter().map(parse_key).collect()
-    }
     pub fn eligible_keys(
         &self,
         query: &ValidatedQuery,

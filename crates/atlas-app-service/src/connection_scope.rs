@@ -1,10 +1,11 @@
-//! Stateless link-picker membership, composed from the parent's normal retrieval policy.
-use crate::{AppServiceError, AppServiceResult, AtlasAppService, ReadExecutionContext};
+//! Static connected discovery, resolved in the consuming workspace snapshot.
+use crate::{AppServiceError, AppServiceResult};
 use atlas_app_model::{
-    AppRecoverableAction, SearchConnectionScope, SearchCriteria, SearchResultsRequest,
+    AppRecoverableAction, ConnectionScopeUnavailableReason, ConnectionScopeView,
+    SearchConnectionScope,
 };
-use atlas_domain::{RecordKey, SimilaritySeed};
-use atlas_search::{RecordScope, SearchPage, TextSearchRequest};
+use atlas_domain::{QueryFacetOutcome, QuerySelfExclusion, RecordKey, exclude_query_selection};
+use atlas_search::RecordScope;
 
 pub(crate) fn check_generation(expected: Option<&str>, actual: &str) -> AppServiceResult<()> {
     if let Some(expected) = expected
@@ -19,286 +20,144 @@ pub(crate) fn check_generation(expected: Option<&str>, actual: &str) -> AppServi
     Ok(())
 }
 
-pub(crate) fn validate_caller_similarity(request: &SearchResultsRequest) -> AppServiceResult<()> {
-    match &request.criteria {
-        SearchCriteria::SimilarRecords {
-            similarity: Some(options),
-            ..
-        }
-        | SearchCriteria::SimilarTraits {
-            similarity: Some(options),
-            ..
-        } => crate::similarity::require_parts_generation(
-            options,
-            request.expected_artifact_generation.as_deref(),
-        ),
-        _ => Ok(()),
-    }
+pub(crate) struct ResolvedConnectionScope {
+    pub keys: Option<Vec<RecordKey>>,
+    pub view: ConnectionScopeView,
 }
 
-impl AtlasAppService {
-    pub(crate) fn connection_keys(
-        &self,
-        context: &SearchConnectionScope,
-        execution: &ReadExecutionContext,
-    ) -> AppServiceResult<(String, Vec<RecordKey>)> {
-        let mut depth = 1;
-        let mut parent = &*context.parent;
-        while let Some(scope) = &parent.connection_scope {
-            depth += 1;
-            if depth > 4 {
+pub(crate) fn resolve_connection_scope(
+    workspace: &mut atlas_runtime::WorkspaceRead,
+    context: &SearchConnectionScope,
+) -> AppServiceResult<ResolvedConnectionScope> {
+    validate_connection_scope(workspace.retrieval(), context)?;
+    resolve(workspace, context)
+}
+pub(crate) fn validate_connection_scope(
+    retrieval: &atlas_search::AtlasRetrievalService,
+    context: &SearchConnectionScope,
+) -> AppServiceResult<()> {
+    let mut current = Some(context);
+    let mut depth = 0;
+    while let Some(scope) = current {
+        depth += 1;
+        if depth > 4 {
+            return Err(AppServiceError::invalid_request(
+                "Link pickers may be nested at most four levels",
+            ));
+        }
+        let parent = &scope.parent;
+        check_generation(
+            parent.expected_artifact_generation.as_deref(),
+            &retrieval.artifact_generation()?,
+        )?;
+        if let Some(filter) = &parent.filter {
+            retrieval.validate_filter(filter)?;
+        }
+        if let Some(id) = &parent.exclude_clause_id {
+            let (target, member) = parent
+                .filter
+                .as_ref()
+                .and_then(|filter| atlas_domain::addressed_query_clause(filter, id))
+                .ok_or_else(|| {
+                    AppServiceError::invalid_request("The addressed link condition does not exist")
+                })?;
+            if member.is_some()
+                || !matches!(
+                    target.expression,
+                    atlas_domain::QueryExpression::Relationship { .. }
+                        | atlas_domain::QueryExpression::BooleanConstant { value: true }
+                )
+            {
                 return Err(AppServiceError::invalid_request(
-                    "Link pickers may be nested at most four levels",
+                    "Link self-exclusion requires a root relationship condition",
                 ));
             }
-            parent = &scope.parent;
         }
-        let (generation, parents) = self.result_membership(
-            (*context.parent).clone(),
-            context.list_ref.clone(),
-            execution,
-        )?;
-        let direction = context.direction;
-        let include_contents = context.include_contents;
-        let operation = execution.clone();
-        self.with_retrieval(execution, move |retrieval| {
-            check_generation(Some(&generation), &retrieval.artifact_generation()?)?;
-            operation.check()?;
-            Ok((
-                generation,
-                retrieval.connected_record_keys(&parents, direction, include_contents)?,
-            ))
-        })
+        current = parent.connection_scope.as_deref();
     }
-
-    fn result_membership(
-        &self,
-        mut request: SearchResultsRequest,
-        list_ref: Option<String>,
-        execution: &ReadExecutionContext,
-    ) -> AppServiceResult<(String, Vec<RecordKey>)> {
-        validate_caller_similarity(&request)?;
-        let inherited = request
-            .connection_scope
-            .as_ref()
-            .map(|scope| self.connection_keys(scope, execution))
-            .transpose()?;
-        if let Some((generation, _)) = &inherited {
-            check_generation(request.expected_artifact_generation.as_deref(), generation)?;
-            request.expected_artifact_generation = Some(generation.clone());
+    Ok(())
+}
+fn intersect(keys: &mut Option<Vec<RecordKey>>, restriction: Vec<RecordKey>) {
+    *keys = Some(match keys.take() {
+        Some(keys) => {
+            let allowed: std::collections::BTreeSet<_> = restriction.into_iter().collect();
+            keys.into_iter()
+                .filter(|key| allowed.contains(key))
+                .collect()
         }
-        let text = match &request.criteria {
-            SearchCriteria::TextSearch { query, mode, .. } => {
-                Some((query.as_str(), crate::retrieval::retrieval_mode(*mode)))
-            }
-            SearchCriteria::TraitReferences {
-                query: Some(query), ..
-            } => Some((query.as_str(), atlas_search::RetrievalMode::Hybrid)),
-            _ => None,
-        };
-        // Each text query is prepared outside its consuming snapshot. Parent and picker
-        // can use different semantic queries, so they deliberately use separate reads.
-        let expected = request.expected_artifact_generation.clone();
-        let filter = match &request.criteria {
-            SearchCriteria::ListRecords { filter }
-            | SearchCriteria::TextSearch { filter, .. }
-            | SearchCriteria::SimilarRecords { filter, .. }
-            | SearchCriteria::SimilarTraits { filter, .. }
-            | SearchCriteria::TraitReferences { filter, .. } => filter.clone(),
-        };
-        let generation = self.with_retrieval(execution, move |retrieval| {
-            let generation = retrieval.artifact_generation()?;
-            check_generation(expected.as_deref(), &generation)?;
-            if let Some(filter) = filter {
-                retrieval.validate_filter(&filter)?;
-            }
-            Ok(generation)
+        None => restriction,
+    });
+}
+fn resolve(
+    workspace: &mut atlas_runtime::WorkspaceRead,
+    context: &SearchConnectionScope,
+) -> AppServiceResult<ResolvedConnectionScope> {
+    let parent = &context.parent;
+    let inherited = parent
+        .connection_scope
+        .as_deref()
+        .map(|scope| resolve(workspace, scope))
+        .transpose()?;
+    let mut keys = inherited.and_then(|scope| scope.keys);
+    if let Some(list_keys) =
+        crate::filters::scoped_list_keys(workspace, parent.list_ref.as_deref())?
+    {
+        intersect(&mut keys, list_keys);
+    }
+    let retrieval = workspace.retrieval_mut();
+    if let Some(trait_key) = &parent.trait_key {
+        let trait_key = trait_key
+            .parse()
+            .map_err(|error: atlas_domain::TraitKeyParseError| {
+                AppServiceError::invalid_request(error.to_string())
+            })?;
+        if retrieval.trait_definition(&trait_key)?.is_none() {
+            return Err(AppServiceError::invalid_request(
+                "Trait definition not found",
+            ));
+        }
+        intersect(
+            &mut keys,
+            retrieval.trait_reference_record_keys(&trait_key)?,
+        );
+    }
+    let broad = |reason| ResolvedConnectionScope {
+        keys: None,
+        view: ConnectionScopeView::AllEntries { reason },
+    };
+    if parent.incomplete {
+        return Ok(broad(ConnectionScopeUnavailableReason::IncompleteDraft));
+    }
+    let filter = if let Some(id) = &parent.exclude_clause_id {
+        let filter = parent.filter.as_ref().ok_or_else(|| {
+            AppServiceError::invalid_request("Self-exclusion requires an addressed condition")
         })?;
-        request.expected_artifact_generation = Some(generation);
-        let prepared = if list_ref.is_none() {
-            if let Some((query, mode)) = text {
-                self.prepare_query(request.search_profile.as_ref(), query, mode)?
-            } else {
-                None
+        match exclude_query_selection(filter, QuerySelfExclusion::Clause(id)) {
+            None => {
+                return Err(AppServiceError::invalid_request(
+                    "The addressed link condition does not exist",
+                ));
             }
-        } else {
-            None
-        };
-        let operation = execution.clone();
-        self.with_prepared_workspace(execution, prepared, move |workspace| {
-            let list_keys = if let Some(list_ref) = &list_ref {
-                Some(
-                    workspace
-                        .local_state()
-                        .saved_lists()
-                        .get_with_items(list_ref)?
-                        .ok_or_else(|| AppServiceError::invalid_request("Saved list not found"))?
-                        .items
-                        .into_iter()
-                        .filter_map(|item| RecordKey::parse(&item.record_key).ok())
-                        .collect::<Vec<_>>(),
-                )
-            } else {
-                None
-            };
-            let mut keys = inherited.map(|(_, keys)| keys);
-            if let Some(list_keys) = list_keys {
-                keys = Some(match keys {
-                    Some(keys) => {
-                        let allowed: std::collections::BTreeSet<_> =
-                            list_keys.into_iter().collect();
-                        keys.into_iter()
-                            .filter(|key| allowed.contains(key))
-                            .collect()
-                    }
-                    None => list_keys,
-                });
+            Some(QueryFacetOutcome::Unavailable { .. }) => {
+                return Ok(broad(
+                    ConnectionScopeUnavailableReason::NonConjunctiveContext,
+                ));
             }
-            let retrieval = workspace.retrieval_mut();
-            let generation = retrieval.artifact_generation()?;
-            check_generation(request.expected_artifact_generation.as_deref(), &generation)?;
-            let scope = keys
-                .as_deref()
-                .map(RecordScope::Keys)
-                .unwrap_or(RecordScope::All);
-            let page = SearchPage::first(1)?;
-            let matched = match request.criteria {
-                SearchCriteria::ListRecords { filter } => retrieval.all_record_keys(
-                    filter.as_ref(),
-                    scope,
-                    list_ref.is_none() || filter.is_some(),
-                )?,
-                SearchCriteria::TextSearch {
-                    query,
-                    filter,
-                    mode,
-                    search_content,
-                } => retrieval.search_text_membership(TextSearchRequest {
-                    query: &query,
-                    filter: filter.as_ref(),
-                    scope,
-                    page,
-                    prefer_remaster: true,
-                    content_scope: search_content.unwrap_or_default(),
-                    sort: atlas_domain::ResultSort::Relevance {},
-                    ranking: request.ranking.unwrap_or_default(),
-                    search_profile: request.search_profile.as_ref(),
-                    mode: if list_ref.is_some() {
-                        atlas_search::RetrievalMode::Fts
-                    } else {
-                        crate::retrieval::retrieval_mode(mode)
-                    },
-                })?,
-                SearchCriteria::TraitReferences {
-                    trait_key,
-                    query,
-                    filter,
-                } => {
-                    let trait_key =
-                        trait_key
-                            .parse()
-                            .map_err(|error: atlas_domain::TraitKeyParseError| {
-                                AppServiceError::invalid_request(error.to_string())
-                            })?;
-                    let mut trait_keys = retrieval.trait_reference_record_keys(&trait_key)?;
-                    if let Some(keys) = keys {
-                        let keys: std::collections::BTreeSet<_> = keys.into_iter().collect();
-                        trait_keys.retain(|key| keys.contains(key));
-                    }
-                    let scope = RecordScope::Keys(&trait_keys);
-                    if let Some(query) = query {
-                        retrieval.search_text_membership(TextSearchRequest {
-                            query: &query,
-                            filter: filter.as_ref(),
-                            scope,
-                            page,
-                            prefer_remaster: true,
-                            content_scope: Default::default(),
-                            sort: atlas_domain::ResultSort::Relevance {},
-                            ranking: request.ranking.unwrap_or_default(),
-                            search_profile: request.search_profile.as_ref(),
-                            mode: atlas_search::RetrievalMode::Hybrid,
-                        })?
-                    } else {
-                        retrieval.all_record_keys(filter.as_ref(), scope, true)?
-                    }
-                }
-                criteria @ (SearchCriteria::SimilarRecords { .. }
-                | SearchCriteria::SimilarTraits { .. }) => {
-                    let (seed, filter, options, sections, content) = match criteria {
-                        SearchCriteria::SimilarRecords {
-                            seed_record_key,
-                            filter,
-                            similarity,
-                            source_sections,
-                            search_content,
-                        } => (
-                            SimilaritySeed::Record {
-                                record_key: RecordKey::parse(&seed_record_key).map_err(
-                                    |error| AppServiceError::invalid_request(error.to_string()),
-                                )?,
-                            },
-                            filter,
-                            similarity,
-                            source_sections,
-                            search_content,
-                        ),
-                        SearchCriteria::SimilarTraits {
-                            seed_trait_key,
-                            filter,
-                            similarity,
-                            source_sections,
-                            search_content,
-                        } => (
-                            SimilaritySeed::Trait {
-                                trait_key: seed_trait_key.parse().map_err(
-                                    |error: atlas_domain::TraitKeyParseError| {
-                                        AppServiceError::invalid_request(error.to_string())
-                                    },
-                                )?,
-                            },
-                            filter,
-                            similarity,
-                            source_sections,
-                            search_content,
-                        ),
-                        _ => unreachable!(),
-                    };
-                    let options = options.unwrap_or_else(|| {
-                        if sections.is_some() {
-                            Default::default()
-                        } else {
-                            atlas_domain::SimilarityOptions::default_for_seed(&seed)
-                        }
-                    });
-                    crate::similarity::validate_options(
-                        &seed,
-                        &options,
-                        request.expected_artifact_generation.as_deref(),
-                    )?;
-                    retrieval
-                        .configurable_similar_membership(
-                            atlas_search::ConfigurableSimilarRequest {
-                                seed: &seed,
-                                options: &options,
-                                source_sections: sections,
-                                content_scope: content.unwrap_or_default(),
-                                search_profile: request.search_profile.as_ref(),
-                                filter: filter.as_ref(),
-                                scope,
-                                page,
-                                prefer_remaster: true,
-                                sort: atlas_domain::ResultSort::Relevance {},
-                                cancelled: Some(&|| operation.check().is_err()),
-                            },
-                        )?
-                        .ok_or_else(|| {
-                            AppServiceError::invalid_request("The similarity seed is unavailable")
-                        })?
-                }
-            };
-            operation.check()?;
-            Ok((generation, matched))
-        })
-    }
+            Some(QueryFacetOutcome::Available { value }) => Some(value.predicate),
+        }
+    } else {
+        parent.filter.clone()
+    };
+    let keys = retrieval.connected_record_keys(
+        filter.as_ref(),
+        keys.as_deref()
+            .map(RecordScope::Keys)
+            .unwrap_or(RecordScope::All),
+        context.direction,
+        context.include_contents,
+    )?;
+    Ok(ResolvedConnectionScope {
+        keys: Some(keys),
+        view: ConnectionScopeView::Connected,
+    })
 }

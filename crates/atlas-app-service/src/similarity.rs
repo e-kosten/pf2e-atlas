@@ -1,6 +1,9 @@
 //! Generation-checked inventory for stored-vector content comparison.
 use crate::{AppServiceError, AppServiceResult, AtlasAppService, ReadExecutionContext};
-use atlas_app_model::{AppRecoverableAction, SimilarityPartsRequest, SimilarityPartsView};
+use atlas_app_model::{
+    AppRecoverableAction, SearchCriteria, SearchResultsRequest, SimilarityPartsRequest,
+    SimilarityPartsView,
+};
 use atlas_domain::{SimilarityOptions, SimilaritySeed};
 
 impl AtlasAppService {
@@ -332,6 +335,23 @@ fn part_view(
         role_label: part.role.label().into(),
         has_vectors: part.has_vectors,
         label_only: part.label_only,
+    }
+}
+
+pub(crate) fn validate_caller_similarity(request: &SearchResultsRequest) -> AppServiceResult<()> {
+    match &request.criteria {
+        SearchCriteria::SimilarRecords {
+            similarity: Some(options),
+            ..
+        }
+        | SearchCriteria::SimilarTraits {
+            similarity: Some(options),
+            ..
+        } => crate::similarity::require_parts_generation(
+            options,
+            request.expected_artifact_generation.as_deref(),
+        ),
+        _ => Ok(()),
     }
 }
 

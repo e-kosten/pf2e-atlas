@@ -2224,12 +2224,16 @@ Editing initializes that preview once from the exact saved link navigation and
 parent generation. Clearing or changing direction/scope must not restore it. Changing
 either clears the candidate with a short
 explanation while retaining target filters. An untouched edit retains its exact
-embedded selection. The parent descriptor includes its complete criteria and any
-saved-list or enclosing picker scope; editing omits only that link occurrence.
-The backend owns complete membership and inverse link eligibility before picker
-ranking and pagination. Do not filter the targets by the parent's record kind or
-assemble eligibility by iterating visible result rows. Contextual option counts
-are omitted until the facet API supports the connected corpus.
+embedded selection. The parent descriptor contains only static filters, saved-list
+or trait-reference membership and enclosing picker scope; parent text/Similar,
+ranking and page are absent. Keep the addressed editing clause in its original
+Boolean position. An unconfigured link uses an addressed true placeholder only
+for discovery; the backend owns self-exclusion and eligibility. Show the backend's
+all-entry explanation for unsupported OR/compound-NOT contexts or incomplete drafts.
+Do not prune Boolean wrappers or silently omit unfinished siblings to manufacture
+an executable context. Do not filter targets by the parent's record kind or iterate
+visible parent result rows. Contextual counts use the same connected descriptor as
+results, subject to ordinary count availability for the picker's own search.
 
 For a picker opening, retain the fixed frame and show controls/results together
 when metadata and initial data are ready; delay loading feedback through the

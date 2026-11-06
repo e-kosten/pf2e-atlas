@@ -35,7 +35,7 @@ import { FilterControls } from "../../shared/filters/FilterPanel";
 import { LinkPickerContext } from "../../shared/filters/LinkPickerContext";
 import { ReferencePreviewProvider } from "../../shared/records/ReferencePreviewProvider";
 import { LinkConditionPicker } from "../../shared/filters/LinkConditionPicker";
-import { linkClauses } from "../../shared/filters/LinkFilterControls";
+import { linkClauses } from "../../shared/filters/linkPredicates";
 import { linkLeaf } from "../../shared/filters/linkPredicates";
 import { useSearchWorkspace, type SearchWorkspaceState } from "./useSearchWorkspace";
 vi.mock("../../api/atlasApi", async (original) => ({
@@ -261,6 +261,11 @@ it.each([
     if (change === "direction")
       fireEvent.click(within(dialog).getByRole("radio", { name: "Linked from" }));
     else await selectSortOption("Link filter scope", "Main entry only");
+    expect(within(dialog).getByRole("button", { name: "Add" })).toBeDisabled();
+    fireEvent.click(await within(dialog).findByRole("link", { name: /Leather Armor/ }));
+    await waitFor(() =>
+      expect(within(dialog).getByRole("button", { name: "Add" })).toBeEnabled(),
+    );
     fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
     await waitFor(() => expect(linkClauses(current().search.filter)).toHaveLength(2));
     expect(
@@ -346,17 +351,17 @@ it("edits an exact embedded selection without rebinding it until a parent row is
     within(drawer).getByRole("button", { name: /Loading record… · Main entry only/ }),
   );
   let dialog = await screen.findByRole("dialog", { name: "Edit link condition" });
-  fireEvent.click(within(dialog).getByRole("radio", { name: "Links to" }));
+  await waitFor(() =>
+    expect(within(dialog).getByRole("button", { name: "Apply" })).toBeEnabled(),
+  );
   fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
   await waitFor(() => expect(dialog).not.toBeVisible());
-  expect(linkClauses(current().search.filter)[0].relationship).toEqual({
-    ...existing,
-    direction: "incoming",
-  });
+  expect(linkClauses(current().search.filter)[0].relationship).toEqual(existing);
   fireEvent.click(
     within(drawer).getByRole("button", { name: /Loading record… · Main entry only/ }),
   );
   dialog = await screen.findByRole("dialog", { name: "Edit link condition" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Clear selection" }));
   fireEvent.click(await within(dialog).findByRole("link", { name: /Leather Armor/ }));
   await within(dialog).findByRole("heading", { name: "Leather Armor" });
   await waitFor(() =>
@@ -414,20 +419,19 @@ it("rejects a newly selected record from a different reference generation withou
   expect(current().pageNumber).toBe(3);
 });
 
-it("reads the selected reference over the picker and preserves its candidate and draft", async () => {
+it("uses the selected preview as identity and retains the revised direction and scope", async () => {
   const current = setup();
   const picker = await openAndSelect();
   fireEvent.click(within(picker).getByRole("radio", { name: "Linked from" }));
   await selectSortOption("Link filter scope", "Main entry only");
-  fireEvent.click(within(picker).getByRole("link", { name: "Leather Armor" }));
-  const reference = await screen.findByRole("dialog", { name: "Leather Armor" });
-  expect(location.pathname).toBe("/search");
-  fireEvent.click(
-    within(reference).getByRole("button", { name: "Close reference preview" }),
-  );
+  expect(within(picker).getByRole("button", { name: "Add" })).toBeDisabled();
+  fireEvent.click(await within(picker).findByRole("link", { name: /Leather Armor/ }));
+  await within(picker).findByRole("heading", { name: "Leather Armor" });
   await waitFor(() =>
-    expect(screen.queryByRole("dialog", { name: "Leather Armor" })).toBeNull(),
+    expect(within(picker).getByRole("button", { name: "Add" })).toBeEnabled(),
   );
+  expect(picker.querySelector(".reference-picker__footer a")).toBeNull();
+  expect(location.pathname).toBe("/search");
   expect(picker).toBeInTheDocument();
   expect(within(picker).getByRole("radio", { name: "Linked from" })).toBeChecked();
   expect(within(picker).getByText("Main entry only", { exact: true })).toBeVisible();

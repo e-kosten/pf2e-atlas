@@ -11,21 +11,7 @@ import { Button, Popover, Radio, Space, Tooltip, Typography } from "antd";
 import { CloseOutlined, DownOutlined } from "@ant-design/icons";
 import { useRef, useState } from "react";
 import type { QueryPredicate, QueryRelationship } from "../../generated/atlas";
-export type LinkLeaf = Extract<
-  QueryPredicate,
-  {
-    kind: "relationship";
-  }
->;
-export function linkClauses(filter: QueryPredicate | null): LinkLeaf[] {
-  if (!filter) return [];
-  if (filter.kind === "relationship") return [filter];
-  if (filter.kind === "all_of" || filter.kind === "any_of")
-    return filter.children.flatMap(linkClauses);
-  if (filter.kind === "not" || filter.kind === "exists")
-    return linkClauses(filter.predicate);
-  return [];
-}
+import { linkClauses, type LinkLeaf } from "./linkPredicates";
 export function LinkFilterControls({
   filter,
   title,
