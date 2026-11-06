@@ -208,7 +208,7 @@ beforeEach(() => {
       artifact_generation: request.artifact_generation,
       seed: detailFixture(request.selection.record_key, "Current actor").record,
       references: { kind: "empty" },
-      counterparts: { kind: "empty" },
+      remaster_relationships: { kind: "empty" },
       variants: { kind: "empty" },
     }),
   );

@@ -62,3 +62,15 @@ it("ANDs a record-origin condition with the entire previous tree while retaining
     new URLSearchParams(stringifySearchParams(route.search)).get("search_profile"),
   ).toBe("bge-base");
 });
+
+it("carries the active version preference when opening Explore search from a record", () => {
+  history.replaceState(null, "", "/records/items:dagger");
+  const route = relationshipSearchRoute(
+    { kind: "boolean_constant", value: false },
+    "bge-base",
+    false,
+  );
+  expect(new URLSearchParams(stringifySearchParams(route.search)).get("versions")).toBe(
+    "all",
+  );
+});

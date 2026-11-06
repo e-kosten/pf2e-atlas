@@ -3,11 +3,7 @@ import { referenceQueryMeta } from "../queries/referenceQueries";
 import { similarityPartsQueryOptions } from "../search/similarityQueries";
 import { AtlasModal as Modal } from "../ui/overlays/AtlasModal";
 import { ErrorNotice } from "../feedback/ErrorNotice";
-import {
-  destinationHref,
-  isPrimaryActivation,
-  navigateDestination,
-} from "../../app/navigation";
+import { navigateDestination } from "../../app/navigation";
 import { recordDestination, searchDestination } from "../../app/destinations";
 import { Button, Empty, Tabs, Typography } from "antd";
 import { LoadingStatus } from "../ui/LoadingStatus";
@@ -35,12 +31,9 @@ import {
   searchStateQueryString,
 } from "../filters/searchState";
 import { linkLeaf } from "../filters/linkPredicates";
-import type {
-  RecordDetailView,
-  RecordSummaryView,
-  RemasterProvenanceView,
-} from "../../generated/atlas";
+import type { RecordDetailView, RecordSummaryView } from "../../generated/atlas";
 import type { RecordReferenceHandler } from "./PreparedContent";
+import { RemasterInformation, SourceRemasterInformation } from "./RemasterInformation";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { useRecordDetail } from "./useRecordDetail";
 import { isArtifactGenerationChanged } from "../queries/referenceQueries";
@@ -78,9 +71,11 @@ export function RelatedRecords(props: ExploreProps) {
     graph?.kind === "unavailable";
   const versions =
     related.data &&
-    [related.data.counterparts, related.data.variants].some(
-      (category) => category.kind !== "empty",
-    );
+    [
+      related.data.remaster_relationships,
+      related.data.source_remaster_context,
+      related.data.variants,
+    ].some((category) => category && category.kind !== "empty");
   const items = [
     ...(hasIncoming
       ? [
@@ -101,7 +96,7 @@ export function RelatedRecords(props: ExploreProps) {
         ]
       : []),
     { key: "similar", label: "Similar", children: <SimilarPreview {...props} /> },
-    ...(props.detail.selected.embedded_path.length === 0 && (versions || related.error)
+    ...(versions || related.error
       ? [{ key: "versions", label: "Versions", children: <Versions {...props} /> }]
       : []),
   ];
@@ -167,6 +162,7 @@ function useReferencePreview(detail: RecordDetailView, incoming: boolean) {
       filter,
       detail.artifact_generation,
       profile.id,
+      profile.preferRemaster,
     ],
     staleTime: Infinity,
     enabled: !profile.loading && profile.id !== null,
@@ -174,13 +170,21 @@ function useReferencePreview(detail: RecordDetailView, incoming: boolean) {
       const page = await searchPage(
         {
           search_profile: profile.id ?? undefined,
+          prefer_remaster: profile.preferRemaster,
           criteria: { kind: "list_records", filter },
           page: { number: 1, size: 5 },
           expected_artifact_generation: detail.artifact_generation,
         },
         signal,
       );
-      assertSearchIdentity(page, profile.id, detail.artifact_generation);
+      assertSearchIdentity(
+        page,
+        profile.id,
+        detail.artifact_generation,
+        undefined,
+        undefined,
+        profile.preferRemaster,
+      );
       return page;
     },
   });
@@ -200,7 +204,7 @@ function ReferencePreview({
   return (
     <div className="record-explore__task">
       <ExploreSearchAction
-        route={relationshipSearchRoute(filter)}
+        route={relationshipSearchRoute(filter, profile.id, profile.preferRemaster)}
         summary={
           data
             ? `${data.rows.length} of ${data.page.total.toString()} ${data.page.total === 1n ? "record" : "records"}`
@@ -325,18 +329,16 @@ function VersionCard({
   onReference,
   onCompare,
   context,
-  provenance,
 }: {
   record: RecordSummaryView;
   onReference: RecordReferenceHandler;
   onCompare: () => void;
   context?: string;
-  provenance?: RemasterProvenanceView;
 }) {
   return (
     <div role="listitem">
       <ReferenceResult
-        row={{ record, matches: [], relationship_evidence: [] }}
+        row={{ record, matches: [], alias_matches: [], relationship_evidence: [] }}
         selected={false}
         disabled={false}
         onPreview={(anchor) => onReference(record.record_key, anchor)}
@@ -347,35 +349,6 @@ function VersionCard({
           </Button>
         }
       />
-      {provenance && (
-        <Typography.Paragraph type="secondary" className="record-edition-source">
-          Source:{" "}
-          {provenance.navigation ? (
-            <Typography.Link
-              href={destinationHref(
-                recordDestination({
-                  recordKey: provenance.navigation.record_key,
-                  selection: provenance.navigation,
-                }),
-              )}
-              onClick={(event) => {
-                if (!isPrimaryActivation(event) || !provenance.navigation) return;
-                event.preventDefault();
-                onReference(
-                  provenance.navigation.record_key,
-                  event.currentTarget,
-                  provenance.navigation,
-                );
-              }}
-            >
-              {provenance.attribution}
-            </Typography.Link>
-          ) : (
-            provenance.attribution
-          )}
-          {provenance.unavailable_reason && <> · {provenance.unavailable_reason}</>}
-        </Typography.Paragraph>
-      )}
     </div>
   );
 }
@@ -386,9 +359,8 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
     target: string;
     open: boolean;
   } | null>(null);
-  const counterparts = related.data?.counterparts;
+  const relationships = related.data?.remaster_relationships;
   const variants = related.data?.variants;
-  const pairs = counterparts?.kind === "content" ? counterparts.content.links : [];
   const choices =
     variants?.kind === "content"
       ? variants.content.variants.filter(
@@ -406,49 +378,32 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
           reloadLabel={reloadLabel}
         />
       )}
-      {[counterparts, variants].map((category, index) =>
-        category?.kind === "error" ? (
-          <ErrorNotice
-            error={category.error}
-            compact
-            key={index}
-            title={`${index === 0 ? "Editions" : "Variants"} could not be checked`}
-            action={
-              <Button size="small" onClick={() => void related.refetch()}>
-                Retry
-              </Button>
-            }
-          />
-        ) : category?.kind === "unavailable" ? (
-          <Typography.Paragraph key={index} type="secondary">
-            {category.reason}
-          </Typography.Paragraph>
-        ) : null,
+      {variants?.kind === "error" ? (
+        <ErrorNotice
+          error={variants.error}
+          compact
+          title="Variants could not be checked"
+          action={
+            <Button size="small" onClick={() => void related.refetch()}>
+              Retry
+            </Button>
+          }
+        />
+      ) : variants?.kind === "unavailable" ? (
+        <Typography.Paragraph type="secondary">{variants.reason}</Typography.Paragraph>
+      ) : null}
+      {relationships && (
+        <RemasterInformation
+          category={relationships}
+          onReference={onReference}
+          onReload={() => void related.refetch()}
+        />
       )}
-      {pairs.length > 0 && (
-        <section>
-          <h3>Other editions</h3>
-          <div className="record-explore__results" role="list">
-            {pairs.map((pair) => {
-              const legacy =
-                pair.remaster_record.record_key === detail.record.record_key;
-              const other = legacy ? pair.legacy_record : pair.remaster_record;
-              return (
-                <VersionCard
-                  key={other.record_key}
-                  record={other}
-                  onReference={onReference}
-                  onCompare={() =>
-                    setComparison({ target: other.record_key, open: true })
-                  }
-                  context={legacy ? "Legacy" : "Remaster"}
-                  provenance={pair.provenance}
-                />
-              );
-            })}
-          </div>
-        </section>
-      )}
+      <SourceRemasterInformation
+        category={related.data?.source_remaster_context}
+        onReference={onReference}
+        onReload={() => void related.refetch()}
+      />
       {choices.length > 0 && (
         <section>
           <h3>Suggested variants</h3>
@@ -476,12 +431,15 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
           )}
         </section>
       )}
-      {counterparts?.kind === "empty" && variants?.kind === "empty" && (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="No other editions or suggested variants found."
-        />
-      )}
+      {relationships?.kind === "empty" &&
+        variants?.kind === "empty" &&
+        (!related.data?.source_remaster_context ||
+          related.data.source_remaster_context.kind === "empty") && (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="No other editions or suggested variants found."
+          />
+        )}
       {comparison && (
         <Comparison
           source={detail.record.record_key}
@@ -532,6 +490,7 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
       seed,
       detail.artifact_generation,
       profile.id,
+      profile.preferRemaster,
       similarity,
       sourceSections,
       searchContent,
@@ -545,6 +504,7 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
       const page = await searchPage(
         {
           search_profile: profile.id ?? undefined,
+          prefer_remaster: profile.preferRemaster,
           criteria: {
             kind: "similar_records",
             seed_record_key: seed,
@@ -558,9 +518,16 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
         },
         signal,
       );
-      assertSearchIdentity(page, profile.id, detail.artifact_generation, {
-        kind: "relevance",
-      });
+      assertSearchIdentity(
+        page,
+        profile.id,
+        detail.artifact_generation,
+        {
+          kind: "relevance",
+        },
+        undefined,
+        profile.preferRemaster,
+      );
       assertSimilarityIdentity(page, similarity, sourceSections, searchContent);
       return page;
     },
@@ -572,6 +539,7 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
     query: searchStateQueryString(
       {
         ...(currentSearch ?? DEFAULT_SEARCH_STATE),
+        preferRemaster: profile.preferRemaster,
         query: "",
         mode: "similar_records",
         similarSeed: seed,

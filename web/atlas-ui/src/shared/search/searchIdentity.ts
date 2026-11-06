@@ -65,12 +65,18 @@ export function assertSearchIdentity(
     artifact_generation: string;
     sort?: ResultSort;
     search_content?: SearchContentScope;
+    prefer_remaster?: boolean;
   },
   profile: string | null | undefined,
   generation?: string | null,
   sort?: ResultSort,
   searchContent?: SearchContentScope,
+  preferRemaster?: boolean,
 ) {
+  if (preferRemaster !== undefined && response.prefer_remaster !== preferRemaster)
+    throw new Error(
+      "The search response used a different version preference. Retry the search.",
+    );
   if (searchContent != null && response.search_content !== searchContent)
     throw new Error(
       "The search response used different search content. Retry the search.",

@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { detailFixture, summaryFixture } from "../../test/fixtures";
+import { detailFixture } from "../../test/fixtures";
+import { remasterInformationFixture } from "../../test/remasterFixtures";
+import { rootNavigation } from "./useReferenceReading";
 import { RecordEditionNotice } from "./RecordEditionNotice";
 import { RecordEditionBadge } from "./RecordEditionBadge";
 import type { RecordDetailView, RecordSummaryView } from "../../generated/atlas";
@@ -7,31 +9,12 @@ function setup(
   edition: RecordSummaryView["edition"],
   change?: (detail: RecordDetailView) => void,
 ) {
-  const key = edition === "remaster" ? "rules:new" : "rules:old";
-  const detail = detailFixture(key);
+  const detail = detailFixture("rules:old");
   detail.record.edition = edition;
   detail.presentation.identity.edition = edition;
-  detail.counterparts = {
+  detail.remaster_relationships = {
     kind: "content",
-    content: {
-      seed: summaryFixture(key),
-      links: [
-        {
-          legacy_record: summaryFixture("rules:old", "Old name"),
-          remaster_record: summaryFixture("rules:new", "New name"),
-          provenance: {
-            source: {
-              record: "journals:changes",
-              embedded_path: [],
-              field: "/text/content",
-            },
-            attribution: "Remaster changes",
-            navigation: null,
-            unavailable_reason: null,
-          },
-        },
-      ],
-    },
+    content: remasterInformationFixture(),
   };
   change?.(detail);
   const open = vi.fn(),
@@ -44,57 +27,63 @@ function setup(
   );
   return { open, reload };
 }
-it.each(["legacy", "remaster"] as const)(
-  "shows %s status and an inline native counterpart link that previews locally",
-  (edition) => {
-    const { open } = setup(edition);
-    expect(
-      screen.getByText(edition === "legacy" ? "Legacy" : "Remaster"),
-    ).toBeVisible();
-    const title = edition === "legacy" ? "New name" : "Old name";
-    const key = edition === "legacy" ? "rules:new" : "rules:old";
-    const link = screen.getByRole("link", { name: title });
-    expect(link).toHaveAttribute("href", `/records/${key}`);
-    fireEvent.click(link, { ctrlKey: true });
-    expect(open).not.toHaveBeenCalled();
-    fireEvent.click(link);
-    expect(open).toHaveBeenCalledWith(key, link);
-  },
-);
-it("shows verified counterparts even when publication metadata is unavailable", () => {
+it("renders projected notices above rules with native exact links and normal document semantics", () => {
+  const { open } = setup("legacy");
+  expect(screen.getByText("Legacy")).toBeVisible();
+  expect(screen.getByText("Renamed in the remaster")).toBeVisible();
+  expect(screen.queryByRole("alert")).toBeNull();
+  const link = screen.getByRole("link", { name: "New name" });
+  expect(link).toHaveAttribute("href", "/records/rules:new");
+  fireEvent.click(link, { ctrlKey: true });
+  expect(open).not.toHaveBeenCalled();
+  fireEvent.click(link);
+  expect(open).toHaveBeenCalledWith("rules:new", link, rootNavigation("rules:new"));
+});
+it("renders source-backed information even when publication era is unknown", () => {
   setup(undefined);
   expect(screen.getByRole("link", { name: "New name" })).toBeVisible();
   expect(screen.queryByText("Legacy")).toBeNull();
-  expect(screen.queryByText("Remaster")).toBeNull();
 });
-it("does not lend root edition mappings to an embedded document", () => {
+it("renders an exact owned notice supplied by Rust without borrowing root classification", () => {
   setup("legacy", (detail) => {
     detail.selected.embedded_path = [
       { collection: "items", identity: { SnapshotLocal: { index: 0 } } },
     ];
+    detail.remaster_relationships = { kind: "empty" };
+    detail.source_remaster_context = {
+      kind: "content",
+      content: {
+        heading: "Source entry: Old name",
+        source: {
+          label: "Old name",
+          context: null,
+          resolution: { kind: "term", message: "Explicit source entry" },
+        },
+        relationships: { kind: "content", content: remasterInformationFixture() },
+      },
+    };
   });
-  expect(screen.queryByRole("link")).toBeNull();
+  expect(
+    screen.getByRole("region", { name: "Source-entry remaster information" }),
+  ).toBeVisible();
+  expect(screen.getByRole("link", { name: "New name" })).toBeVisible();
 });
-it("keeps legacy status without claiming there is no replacement when no pair is indexed", () => {
+it("keeps legacy metadata without inventing a replacement when information is empty", () => {
   setup("legacy", (detail) => {
-    detail.counterparts = { kind: "empty" };
+    detail.remaster_relationships = { kind: "empty" };
   });
   expect(screen.getByText("Legacy")).toBeVisible();
   expect(screen.queryByRole("link")).toBeNull();
 });
-it.each(["record_not_found", "artifact_generation_changed"] as const)(
-  "keeps edition status readable with %s and offers record reload",
-  (code) => {
-    const { reload } = setup("legacy", (detail) => {
-      detail.counterparts = {
-        kind: "error",
-        error: { code, message: "private diagnostic" },
-      };
-    });
-    expect(screen.getByText("Legacy")).toBeVisible();
-    expect(screen.getByRole("status")).toHaveTextContent("Edition links unavailable");
-    expect(screen.queryByText("private diagnostic")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Reload record" }));
-    expect(reload).toHaveBeenCalledOnce();
-  },
-);
+it("keeps readable identity when information fails and supports local retry", () => {
+  const { reload } = setup("legacy", (detail) => {
+    detail.remaster_relationships = {
+      kind: "error",
+      error: { code: "record_not_found", message: "private diagnostic" },
+    };
+  });
+  expect(screen.getByText("Legacy")).toBeVisible();
+  expect(screen.queryByText("private diagnostic")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  expect(reload).toHaveBeenCalledOnce();
+});

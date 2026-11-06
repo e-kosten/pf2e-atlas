@@ -1,3 +1,4 @@
+import { remasterInformationFixture } from "../../test/remasterFixtures";
 import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import { RouterTestContext } from "../../test/router";
 import { RecordReadingWorkspace } from "./RecordReadingWorkspace";
@@ -137,7 +138,7 @@ function relatedFixture() {
     artifact_generation: detail.artifact_generation,
     seed: detail.record,
     references: { kind: "content" as const, content: graphFixture() },
-    counterparts: { kind: "empty" as const },
+    remaster_relationships: { kind: "empty" as const },
     variants: { kind: "empty" as const },
   };
 }
@@ -148,6 +149,7 @@ function page(
   total = rows.length,
 ): SearchResultsPage {
   return {
+    prefer_remaster: request.prefer_remaster ?? true,
     search_content: "all",
     ...(request.criteria.kind === "similar_records" && request.criteria.similarity
       ? {
@@ -200,6 +202,7 @@ function page(
 const row = (key: string, title: string): SearchResultRow => ({
   record: summaryFixture(key, title),
   matches: [],
+  alias_matches: [],
   relationship_evidence: [],
 });
 function preview(request: SearchResultsRequest) {
@@ -629,20 +632,19 @@ it("shows typed edition attribution and preserves exact native and preview desti
   };
   api.getRelatedRecords.mockResolvedValue({
     ...relatedFixture(),
-    counterparts: {
+    remaster_relationships: {
       kind: "content",
       content: {
-        seed: summaryFixture("actors:seed"),
-        links: [
+        ...remasterInformationFixture(),
+        declarations: [
           {
-            legacy_record: summaryFixture("actors:legacy", "Legacy creature"),
-            remaster_record: summaryFixture("actors:seed"),
-            provenance: {
-              source,
-              attribution: "Remaster Changes — Class Features",
-              navigation: target,
-              unavailable_reason: null,
-            },
+            ...remasterInformationFixture().declarations[0],
+            citations: [
+              {
+                ...remasterInformationFixture().declarations[0].citations[0],
+                destination: { kind: "internal", navigation: target },
+              },
+            ],
           },
         ],
       },
@@ -651,6 +653,7 @@ it("shows typed edition attribution and preserves exact native and preview desti
   const onReference = renderRelated();
   openRelated();
   await selectTab("Versions");
+  fireEvent.click(await screen.findByText("Sources (1)"));
   const link = await screen.findByRole("link", {
     name: "Remaster Changes — Class Features",
   });
@@ -667,31 +670,28 @@ it("shows typed edition attribution and preserves exact native and preview desti
   expect(onReference).not.toHaveBeenCalled();
   fireEvent.click(link);
   expect(onReference).toHaveBeenCalledWith(source.record, link, target);
-  expect(screen.getByRole("button", { name: "Compare" })).toBeEnabled();
 });
 
 it("keeps unavailable edition citations explicit and inert", async () => {
   api.getRelatedRecords.mockResolvedValue({
     ...relatedFixture(),
-    counterparts: {
+    remaster_relationships: {
       kind: "content",
       content: {
-        seed: summaryFixture("actors:seed"),
-        links: [
+        ...remasterInformationFixture(),
+        declarations: [
           {
-            legacy_record: summaryFixture("actors:legacy"),
-            remaster_record: summaryFixture("actors:seed"),
-            provenance: {
-              source: {
-                record: "journals:missing",
-                embedded_path: [],
-                field: "/text/content",
+            ...remasterInformationFixture().declarations[0],
+            citations: [
+              {
+                ...remasterInformationFixture().declarations[0].citations[0],
+                attribution: "Source unavailable",
+                destination: {
+                  kind: "attribution",
+                  reason: "Source field is unavailable in the current collection.",
+                },
               },
-              attribution: "Source unavailable",
-              navigation: null,
-              unavailable_reason:
-                "Source field is unavailable in the current collection.",
-            },
+            ],
           },
         ],
       },
@@ -700,6 +700,7 @@ it("keeps unavailable edition citations explicit and inert", async () => {
   renderRelated();
   openRelated();
   await selectTab("Versions");
+  fireEvent.click(await screen.findByText("Sources (1)"));
   expect(await screen.findByText(/Source field is unavailable/)).toBeVisible();
   expect(screen.queryByRole("link", { name: "Source unavailable" })).toBeNull();
 });

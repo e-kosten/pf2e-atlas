@@ -22,6 +22,7 @@ export type SearchPreferences = {
   model: string | null;
   ranking: SearchRanking;
   searchContent: SearchContentScope;
+  preferRemaster: boolean;
   sourceSectionsByFamily: Partial<Record<CoreSectionFamily, "all" | "core">>;
   matchDisplay: MatchDisplay;
   showSmallerWeights: boolean;
@@ -45,6 +46,7 @@ export const DEFAULT_SEARCH_PREFERENCES: SearchPreferences = {
   model: null,
   ranking: "score",
   searchContent: "all",
+  preferRemaster: true,
   sourceSectionsByFamily: {},
   matchDisplay: DEFAULT_MATCH_DISPLAY,
   showSmallerWeights: false,
@@ -94,6 +96,7 @@ export function readSearchPreferences(): SearchPreferences {
         model: typeof input.model === "string" ? input.model : null,
         ranking: input.ranking === "rrf" ? "rrf" : "score",
         searchContent: input.searchContent === "core" ? "core" : "all",
+        preferRemaster: input.preferRemaster !== false,
         sourceSectionsByFamily: Object.fromEntries(
           Object.entries(object(input.sourceSectionsByFamily) ?? {}).filter(
             ([, value]) => value === "all" || value === "core",

@@ -112,7 +112,7 @@ describe("AtlasApp routing", () => {
         artifact_generation: request.artifact_generation,
         seed: summaryFixture(request.selection.record_key),
         references: { kind: "empty" },
-        counterparts: { kind: "empty" },
+        remaster_relationships: { kind: "empty" },
         variants: { kind: "empty" },
       }),
     );
@@ -1015,6 +1015,7 @@ function emptyFilterEditor(): FilterEditorView {
 function searchResultsPage(recordKeys: string[] = []): SearchResultsPage {
   return {
     search_content: "all",
+    prefer_remaster: true,
     relationship_clauses: [],
     sort: { kind: "relevance" } as const,
     ranking: "score" as const,
@@ -1031,6 +1032,7 @@ function searchResultsPage(recordKeys: string[] = []): SearchResultsPage {
     },
     rows: recordKeys.map((key) => ({
       record: summaryFixture(key),
+      alias_matches: [],
       relationship_evidence: [],
       matches: [],
     })),

@@ -43,6 +43,7 @@ const navigation = activityFixture("Jaws", "actors:ghoul").navigation;
 const rows: SearchResultRow[] = [
   {
     record: summaryFixture("actors:ghoul", "Ghoul"),
+    alias_matches: [],
     relationship_evidence: [],
     matching_sections: [{ navigation, label: "Jaws", snippet: null }],
     matches: [
@@ -59,6 +60,7 @@ const rows: SearchResultRow[] = [
   {
     record: summaryFixture("spells:heal", "Heal"),
     matches: [],
+    alias_matches: [],
     relationship_evidence: [],
   },
 ];

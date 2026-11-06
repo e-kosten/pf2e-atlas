@@ -758,7 +758,7 @@ describe("source-backed API transport", () => {
       artifact_generation: detail.artifact_generation,
       seed: detail.record,
       references: { kind: "empty" },
-      counterparts: { kind: "empty" },
+      remaster_relationships: { kind: "empty" },
       variants: { kind: "empty" },
     });
     await getRelatedRecords(

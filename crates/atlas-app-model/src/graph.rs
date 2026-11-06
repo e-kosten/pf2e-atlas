@@ -19,25 +19,6 @@ pub struct GraphSectionView {
     pub truncated: bool,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct RemasterLinksView {
-    pub seed: RecordSummaryView,
-    pub links: Vec<RemasterLinkView>,
-}
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct RemasterLinkView {
-    pub legacy_record: RecordSummaryView,
-    pub remaster_record: RecordSummaryView,
-    pub provenance: RemasterProvenanceView,
-}
-/// Authored field attribution, without a claim to an exact row or text span.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct RemasterProvenanceView {
-    pub source: crate::ContentLocationView,
-    pub attribution: String,
-    pub navigation: Option<crate::RecordNavigationView>,
-    pub unavailable_reason: Option<String>,
-}
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct VariantGroupView {
     pub seed: RecordSummaryView,
     pub base_name: String,
@@ -104,6 +85,9 @@ pub struct RelatedRecordsView {
     pub artifact_generation: String,
     pub seed: RecordSummaryView,
     pub references: RelatedCategoryView<GraphContextView>,
-    pub counterparts: RelatedCategoryView<RemasterLinksView>,
+    pub remaster_relationships: RelatedCategoryView<crate::RemasterRelationshipsView>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub source_remaster_context: Option<RelatedCategoryView<crate::RemasterSourceContextView>>,
     pub variants: RelatedCategoryView<VariantGroupView>,
 }

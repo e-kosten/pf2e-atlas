@@ -28,7 +28,7 @@ afterEach(() => {
   window.getSelection()?.removeAllRanges();
 });
 
-function preview(dialog = false) {
+function preview(dialog = false, preferRemaster = true) {
   const content = (
     <article data-selection-search>
       <h2 tabIndex={-1}>Reference</h2>
@@ -43,7 +43,7 @@ function preview(dialog = false) {
     </article>
   );
   return render(
-    <SearchProfileProvider id="embeddinggemma">
+    <SearchProfileProvider id="embeddinggemma" preferRemaster={preferRemaster}>
       {dialog ? (
         <section role="dialog" aria-label="Preview">
           {content}
@@ -81,6 +81,7 @@ it("offers a fresh native search link, preserving punctuation and the chosen mod
   expect(Object.fromEntries(url.searchParams)).toEqual({
     q: "Fire & ice?",
     search_profile: "embeddinggemma",
+    versions: "prefer",
   });
   expect(navigateDestination).not.toHaveBeenCalled();
   const originalSelection = window.getSelection()?.toString();
@@ -90,7 +91,11 @@ it("offers a fresh native search link, preserving punctuation and the chosen mod
   expect(navigateDestination).toHaveBeenCalledExactlyOnceWith(
     expect.objectContaining({
       to: "/search",
-      search: { q: "Fire & ice?", search_profile: "embeddinggemma" },
+      search: {
+        q: "Fire & ice?",
+        search_profile: "embeddinggemma",
+        versions: "prefer",
+      },
     }),
     { dismissReadingOverlays: true },
   );
@@ -248,4 +253,15 @@ it("positions the initial action after a reader's queued layout scroll", async (
   await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
   fireEvent.scroll(screen.getByRole("article"));
   expect(await searchAction()).toBeInTheDocument();
+});
+
+it("carries the active all-versions choice into a new selected-text search", async () => {
+  preview(false, false);
+  select(screen.getByText("Fire & ice?"));
+  const action = await searchAction();
+  expect(
+    new URL(action.getAttribute("href")!, "http://localhost").searchParams.get(
+      "versions",
+    ),
+  ).toBe("all");
 });

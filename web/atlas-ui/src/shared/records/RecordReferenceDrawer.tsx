@@ -1,3 +1,4 @@
+import { useSearchProfile } from "../search/SearchProfileContext";
 import { AtlasDrawer as Drawer } from "../ui/overlays/AtlasDrawer";
 import { destinationHref, navigateDestination } from "../../app/navigation";
 import { recordDestination, traitDestination } from "../../app/destinations";
@@ -48,6 +49,13 @@ export function RecordReferenceDrawer({
 }: {
   anchor: RecordPreviewAnchor | null;
 } & RecordPreviewContentProps) {
+  const profile = useSearchProfile();
+  const traitRoute = trait
+    ? traitDestination({
+        traitKey: trait.key,
+        query: `?versions=${profile.preferRemaster ? "prefer" : "all"}`,
+      })
+    : null;
   const headingId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
   const [closing, setClosing] = useState(false);
@@ -57,9 +65,7 @@ export function RecordReferenceDrawer({
     ? readingNavigationForUrl(detail.selected, { navigation: requestedNavigation })
     : undefined;
   const href =
-    (trait
-      ? destinationHref(traitDestination({ traitKey: trait.key }))
-      : fullPageHref) ??
+    (trait ? destinationHref(traitRoute!) : fullPageHref) ??
     (detail
       ? destinationHref(
           recordDestination({
@@ -71,7 +77,7 @@ export function RecordReferenceDrawer({
       : undefined);
   const openFullPage = () => {
     if (trait) {
-      navigateDestination(traitDestination({ traitKey: trait.key }));
+      navigateDestination(traitRoute!);
       onClose();
     } else if (landing && detail)
       navigateDestination(

@@ -59,6 +59,7 @@ beforeEach(() => {
         if (request.criteria.kind !== "similar_traits" || !request.criteria.similarity)
           throw new Error("Expected an explicit trait Similar request");
         return {
+          prefer_remaster: request.prefer_remaster ?? true,
           search_content: "all",
           search_profile: request.search_profile ?? "embeddinggemma",
           artifact_generation: request.expected_artifact_generation ?? "generation-one",
@@ -71,6 +72,7 @@ beforeEach(() => {
             {
               record: summaryFixture("weapons:dagger", "Dagger"),
               matches: [],
+              alias_matches: [],
               relationship_evidence: [],
             },
           ],

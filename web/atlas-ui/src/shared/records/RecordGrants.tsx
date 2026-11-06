@@ -20,7 +20,12 @@ export function RecordGrants({
           <div key={JSON.stringify(entry.navigation)} role="listitem">
             {entry.record ? (
               <ReferenceResult
-                row={{ record: entry.record, matches: [], relationship_evidence: [] }}
+                row={{
+                  record: entry.record,
+                  matches: [],
+                  alias_matches: [],
+                  relationship_evidence: [],
+                }}
                 navigation={entry.navigation}
                 selected={false}
                 disabled={false}

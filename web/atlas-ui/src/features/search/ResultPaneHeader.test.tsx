@@ -343,6 +343,7 @@ function workspace(
 function searchResultsPage(): SearchResultsPage {
   return {
     search_content: "all",
+    prefer_remaster: true,
     relationship_clauses: [],
     sort: { kind: "relevance" } as const,
     ranking: "score" as const,

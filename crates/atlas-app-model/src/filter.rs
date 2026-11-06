@@ -11,6 +11,9 @@ use ts_rs::TS;
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum FilterDiscoveryContext {
     Filtered {
+        #[serde(default = "crate::remaster::default_prefer_remaster")]
+        #[ts(as = "Option<bool>", optional)]
+        prefer_remaster: bool,
         #[serde(default)]
         #[ts(optional)]
         search_content: Option<atlas_domain::SearchContentScope>,

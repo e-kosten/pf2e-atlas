@@ -15,6 +15,7 @@ it("keeps record and trait launch defaults independent", () => {
     model: null,
     ranking: "score",
     searchContent: "all",
+    preferRemaster: true,
     sourceSectionsByFamily: {},
     matchDisplay: "sections",
     showSmallerWeights: false,
@@ -195,4 +196,11 @@ it("recovers an invalid display preference without accepting arbitrary values", 
     JSON.stringify({ version: 1, matchDisplay: "invalid" }),
   );
   expect(readSearchPreferences().matchDisplay).toBe("sections");
+});
+
+it("defaults older preferences to remaster and persists an explicit all-versions choice", () => {
+  localStorage.setItem(SEARCH_PREFERENCES_KEY, JSON.stringify({ version: 1 }));
+  expect(readSearchPreferences().preferRemaster).toBe(true);
+  writeSearchPreferences({ ...DEFAULT_SEARCH_PREFERENCES, preferRemaster: false });
+  expect(readSearchPreferences().preferRemaster).toBe(false);
 });

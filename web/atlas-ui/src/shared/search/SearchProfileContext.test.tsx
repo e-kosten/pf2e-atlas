@@ -1,4 +1,8 @@
 import { act, renderHook as renderHookDom } from "@testing-library/react";
+import {
+  DEFAULT_SEARCH_PREFERENCES,
+  SEARCH_PREFERENCES_KEY,
+} from "./searchPreferences";
 import { readinessFixture } from "../../test/fixtures";
 import type { AppReadinessView } from "../../generated/atlas";
 import { RouterTestContext } from "../../test/router";
@@ -167,3 +171,51 @@ const renderHook: typeof renderHookDom = (callback, options) => {
     ),
   });
 };
+
+it("retains the tab version choice across routes without changing other active tabs", async () => {
+  localStorage.setItem(
+    SEARCH_PREFERENCES_KEY,
+    JSON.stringify({ ...DEFAULT_SEARCH_PREFERENCES, preferRemaster: false }),
+  );
+  const firstRouter = createAtlasRouter(
+    createMemoryHistory({ initialEntries: ["/search?versions=prefer"] }),
+  );
+  const secondRouter = createAtlasRouter(
+    createMemoryHistory({ initialEntries: ["/search"] }),
+  );
+  const first = renderHookDom(() => useSearchProfileSelection(readinessFixture()), {
+    wrapper: ({ children }: { children: ReactNode }) => (
+      <RouterTestContext router={firstRouter}>{children}</RouterTestContext>
+    ),
+  });
+  const second = renderHookDom(() => useSearchProfileSelection(readinessFixture()), {
+    wrapper: ({ children }: { children: ReactNode }) => (
+      <RouterTestContext router={secondRouter}>{children}</RouterTestContext>
+    ),
+  });
+  expect(first.result.current.preferRemaster).toBe(true);
+  expect(second.result.current.preferRemaster).toBe(false);
+  await act(async () =>
+    first.result.current.applyPreferences({
+      ...DEFAULT_SEARCH_PREFERENCES,
+      preferRemaster: true,
+    }),
+  );
+  act(() =>
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: SEARCH_PREFERENCES_KEY,
+        newValue: localStorage.getItem(SEARCH_PREFERENCES_KEY),
+      }),
+    ),
+  );
+  expect(second.result.current.preferRemaster).toBe(false);
+  await act(async () => {
+    await firstRouter.navigate({ to: "/encounters" });
+  });
+  expect(first.result.current.preferRemaster).toBe(true);
+  await act(async () => {
+    await firstRouter.navigate({ to: "/search", search: { versions: "all" } });
+  });
+  expect(first.result.current.preferRemaster).toBe(false);
+});

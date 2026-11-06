@@ -5,4 +5,4 @@ import type { SearchProfileId } from "./SearchProfileId";
 import type { SearchRanking } from "./SearchRanking";
 import type { TraitAssociationKind } from "./TraitAssociationKind";
 
-export type TraitRecordsRequest = { sort?: ResultSort, trait_key: string, kind: TraitAssociationKind, page: SearchPageRequest, expected_artifact_generation: string, search_profile: SearchProfileId | null, ranking: SearchRanking | null, };
+export type TraitRecordsRequest = { prefer_remaster?: boolean, sort?: ResultSort, trait_key: string, kind: TraitAssociationKind, page: SearchPageRequest, expected_artifact_generation: string, search_profile: SearchProfileId | null, ranking: SearchRanking | null, };

@@ -59,6 +59,7 @@ function setup(
               resetLink: vi.fn(),
               select: vi.fn(),
               preferences,
+              preferRemaster: preferences.preferRemaster,
               applyPreferences: remember,
             }}
           >

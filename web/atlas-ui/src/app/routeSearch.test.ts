@@ -256,3 +256,17 @@ it("normalizes the root to Search without changing supported criteria or native 
   expect(history.length).toBe(1);
   expect(recordDestination({ recordKey: "spells:one" }).search).toEqual({});
 });
+
+it("preserves explicit version preference in search and reading links and rejects conflicting choices", () => {
+  for (const kind of ["search", "search_record", "record", "trait"] as const) {
+    expect(canonicalRouteSearch(kind, { versions: "all" })).toMatchObject({
+      versions: "all",
+    });
+    expect(() => canonicalRouteSearch(kind, { versions: ["prefer", "all"] })).toThrow(
+      /versions/,
+    );
+  }
+  expect(() => canonicalRouteSearch("trait", { versions: "unknown" })).toThrow(
+    /versions/,
+  );
+});

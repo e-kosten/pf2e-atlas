@@ -1,3 +1,4 @@
+import { UnavailableRecordRemasterAction } from "./UnavailableRecordRemasterAction";
 import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { Tooltip, Button, Empty, Spin, theme } from "antd";
@@ -104,6 +105,14 @@ export function ListItemsPane({
           </div>
         )}
         <div className="list-member__actions">
+          {!overlay && item.status === "unresolved" && (
+            <UnavailableRecordRemasterAction
+              recordKey={item.record_key}
+              title={title}
+              disabled={disabled}
+            />
+          )}
+
           {!overlay &&
             item.status !== "unresolved" &&
             item.record?.kind === "creature" && (

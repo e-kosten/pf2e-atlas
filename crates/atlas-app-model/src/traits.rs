@@ -31,6 +31,9 @@ pub enum TraitAssociationKind {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct TraitRecordsRequest {
+    #[serde(default = "crate::remaster::default_prefer_remaster")]
+    #[ts(as = "Option<bool>", optional)]
+    pub prefer_remaster: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub sort: Option<atlas_domain::ResultSort>,
@@ -52,6 +55,10 @@ pub struct TraitRecordView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct TraitRecordsPage {
+    /// Only Similar discovery applies edition preference; exact evidence omits this.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub prefer_remaster: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub sort: Option<atlas_domain::ResultSort>,

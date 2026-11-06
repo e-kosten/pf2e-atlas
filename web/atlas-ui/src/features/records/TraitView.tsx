@@ -200,6 +200,7 @@ function TraitAssociations({
     ).search_profile;
     if (typeof explicitProfile === "string")
       params.set("search_profile", explicitProfile);
+    params.set("versions", profile.preferRemaster ? "prefer" : "all");
     if (kind !== "members") params.set("tab", kind);
     encodeResultSort(params, search.sort);
     const query = params.size ? "?" + params.toString() : undefined;
@@ -307,6 +308,7 @@ function TraitSimilarRecords({
       search_content: searchContent,
     },
     search_profile: profile.id ?? undefined,
+    prefer_remaster: profile.preferRemaster,
     expected_artifact_generation: detail.artifact_generation,
     page: { number: 1, size: 5 },
     sort: effectiveResultSort(search),
@@ -324,6 +326,7 @@ function TraitSimilarRecords({
     query: searchStateQueryString(
       {
         ...search,
+        preferRemaster: profile.preferRemaster,
         query: "",
         similarSeed: detail.trait_key,
         similarity,
@@ -409,6 +412,7 @@ function TraitAssociatedRecords({
     query: searchStateQueryString(
       {
         ...DEFAULT_SEARCH_STATE,
+        preferRemaster: profile.preferRemaster,
         filter: {
           kind: "set_match",
           field: "traits",
@@ -426,6 +430,7 @@ function TraitAssociatedRecords({
           query: searchStateQueryString(
             {
               ...search,
+              preferRemaster: profile.preferRemaster,
               query: "",
               similarSeed: null,
               traitReferenceSeed: detail.trait_key,
@@ -490,7 +495,12 @@ function TraitAssociatedRecords({
               {data.rows.map((row, index) => (
                 <div role="listitem" key={JSON.stringify([row.navigation, index])}>
                   <ReferenceResult
-                    row={{ record: row.record, matches: [], relationship_evidence: [] }}
+                    row={{
+                      record: row.record,
+                      matches: [],
+                      alias_matches: [],
+                      relationship_evidence: [],
+                    }}
                     selected={false}
                     disabled={false}
                     navigation={row.navigation}

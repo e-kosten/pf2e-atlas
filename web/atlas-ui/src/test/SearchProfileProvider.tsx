@@ -7,10 +7,12 @@ export function SearchProfileProvider({
   children,
   id = "bge-base",
   usable = true,
+  preferRemaster = true,
 }: {
   children: ReactNode;
   id?: string;
   usable?: boolean;
+  preferRemaster?: boolean;
 }) {
   return (
     <SearchProfileContext
@@ -27,6 +29,7 @@ export function SearchProfileProvider({
         select: () => {},
         defaultId: "bge-base",
         preferences: DEFAULT_SEARCH_PREFERENCES,
+        preferRemaster,
         applyPreferences: () => true,
       }}
     >

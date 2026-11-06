@@ -454,6 +454,7 @@ describe("useSearchWorkspace", () => {
         rows: [
           {
             record: summaryFixture("items:new"),
+            alias_matches: [],
             relationship_evidence: [],
             matches: [],
           },
@@ -582,6 +583,7 @@ describe("useSearchWorkspace", () => {
           pageNumber: request.page.number,
         }),
         ranking: request.ranking ?? "score",
+        prefer_remaster: request.prefer_remaster ?? true,
       }),
     );
     const { result } = renderHook(
@@ -608,7 +610,7 @@ describe("useSearchWorkspace", () => {
     { rank: 5, pending: false },
     { rank: 5, pending: true },
   ])(
-    "applies settings while retaining exact match, focus and requested rank $rank (pending=$pending)",
+    "applies version and ranking settings while retaining exact match, focus and requested rank $rank (pending=$pending)",
     async ({ rank, pending }) => {
       const recordKey = "spell:heal";
       history.replaceState(
@@ -660,6 +662,7 @@ describe("useSearchWorkspace", () => {
           pageNumber: request.page.number,
         }),
         ranking: request.ranking ?? "score",
+        prefer_remaster: request.prefer_remaster ?? true,
       }));
       const { result, rerender } = renderHook(
         ({ profile }) => useSearchWorkspace({ searchProfile: profile }),
@@ -702,7 +705,7 @@ describe("useSearchWorkspace", () => {
       apiMocks.searchPage.mockClear();
       act(() => {
         result.current.applySettings!(
-          { ...result.current.search, ranking: "rrf" },
+          { ...result.current.search, ranking: "rrf", preferRemaster: false },
           "embeddinggemma",
         );
         rerender({ profile: "embeddinggemma" });
@@ -712,6 +715,8 @@ describe("useSearchWorkspace", () => {
         await delay(350);
       });
       expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
+      expect(apiMocks.searchPage.mock.lastCall?.[0].prefer_remaster).toBe(false);
+      expect(new URLSearchParams(location.search).get("versions")).toBe("all");
       expect(new URLSearchParams(location.search).has("page")).toBe(false);
       expect(new URLSearchParams(location.search).get("record_view")).toBe("explore");
       expect(new URLSearchParams(location.search).get("record_tab")).toBe("similar");
@@ -1133,6 +1138,7 @@ describe("useSearchWorkspace", () => {
     act(() => result.current.setPageNumber(2));
     await waitFor(() => expect(result.current.resultPage?.page.number).toBe(2));
     expect(apiMocks.searchPage.mock.calls[1][0]).toEqual({
+      prefer_remaster: true,
       search_profile: "bge-base",
       criteria: {
         kind: "similar_records",
@@ -1527,6 +1533,7 @@ describe("useSearchWorkspace", () => {
     expect(apiMocks.searchPage).toHaveBeenLastCalledWith(
       {
         ranking: "score",
+        prefer_remaster: true,
         search_profile: "bge-base",
         criteria: {
           search_content: "all",
@@ -1584,7 +1591,7 @@ describe("useSearchWorkspace", () => {
     expect(result.current.filterEditor).toEqual(editorB);
     expect(apiMocks.searchPage).toHaveBeenCalledTimes(4);
     expect(window.location.search).toBe(
-      "?search_profile=bge-base&ranking=score&search_content=all&q=dirge",
+      "?search_profile=bge-base&versions=prefer&ranking=score&search_content=all&q=dirge",
     );
   });
 
@@ -1863,14 +1870,14 @@ describe("useSearchWorkspace", () => {
       expect(window.location.pathname).toBe("/search/records/spell:heal"),
     );
     expect(window.location.search).toBe(
-      "?search_profile=bge-base&ranking=score&search_content=all&q=dirge",
+      "?search_profile=bge-base&versions=prefer&ranking=score&search_content=all&q=dirge",
     );
 
     act(() => result.current.selectRecord(null));
     expect(result.current.selectedRecordKey).toBeNull();
     await waitFor(() => expect(window.location.pathname).toBe("/search"));
     expect(window.location.search).toBe(
-      "?search_profile=bge-base&ranking=score&search_content=all&q=dirge",
+      "?search_profile=bge-base&versions=prefer&ranking=score&search_content=all&q=dirge",
     );
   });
 
@@ -2010,6 +2017,7 @@ describe("useSearchWorkspace", () => {
       expect(apiMocks.searchPage).toHaveBeenCalledWith(
         {
           ranking: "score",
+          prefer_remaster: true,
           search_profile: "bge-base",
           expected_artifact_generation: "generation-a",
           criteria: {
@@ -2200,6 +2208,7 @@ function searchResultsPage(
   } = {},
 ): SearchResultsPage {
   return {
+    prefer_remaster: true,
     search_content: "all",
     ...(options.similarity
       ? { similarity: similarityConfigurationFixture(options.similarity) }
@@ -2224,6 +2233,7 @@ function searchResultsPage(
     },
     rows: recordKeys.map((key) => ({
       record: summaryFixture(key),
+      alias_matches: [],
       relationship_evidence: [],
       matches: [],
     })),

@@ -1,3 +1,4 @@
+import { RemasterAliasEvidence } from "./RemasterAliasEvidence";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { Button, Popover } from "antd";
@@ -93,6 +94,9 @@ export function ReferenceResult({
             : undefined
         }
       />
+      {!!row.alias_matches?.length && (
+        <RemasterAliasEvidence matches={row.alias_matches} />
+      )}
       {(matchCount > 0n || actions) && (
         <div className="reference-result__actions">
           {matchCount > 0n && (

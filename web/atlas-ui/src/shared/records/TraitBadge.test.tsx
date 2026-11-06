@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ReferencePreviewContext } from "./ReferencePreviewContext";
+import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import { TraitBadge } from "./TraitBadge";
 
 it("opens exact variant definitions through the contextual reader", () => {
@@ -18,7 +19,7 @@ it("opens exact variant definitions through the contextual reader", () => {
     </ReferencePreviewContext>,
   );
   const link = screen.getByRole("link", { name: "Deadly d12" });
-  expect(link.getAttribute("href")).toBe("/traits/trait:deadly-d12");
+  expect(link.getAttribute("href")).toBe("/traits/trait:deadly-d12?versions=prefer");
   expect(link.parentElement?.closest("a")).toBeNull();
   fireEvent.click(link);
   expect(openTrait).toHaveBeenCalledWith("trait:deadly-d12", link);
@@ -47,4 +48,22 @@ it("preserves native modified clicks", () => {
   );
   fireEvent.click(screen.getByRole("link"), { ctrlKey: true });
   expect(location.pathname).toBe("/search");
+});
+
+it("carries an all-versions choice into native trait navigation", () => {
+  render(
+    <SearchProfileProvider preferRemaster={false}>
+      <TraitBadge
+        trait={{
+          kind: "trait",
+          value: "agile",
+          label: "Agile",
+          trait_key: "trait:agile",
+        }}
+      />
+    </SearchProfileProvider>,
+  );
+  expect(screen.getByRole("link").getAttribute("href")).toBe(
+    "/traits/trait:agile?versions=all",
+  );
 });

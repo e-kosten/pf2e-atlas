@@ -20,6 +20,8 @@ export const SEARCH_SCOPE_CONFLICT = "Choose either Similar or trait references"
 export const UNKNOWN_SEARCH_RANKING = "Unknown search ranking";
 export const UNKNOWN_RESULT_SORT = "Unknown result order";
 export const INVALID_RESULT_SORT = "Choose an order available for this search";
+export const INVALID_VERSION_SETTINGS =
+  "Invalid version preference in this search link";
 export const INVALID_SIMILARITY_SETTINGS =
   "Invalid similarity settings in this search link";
 export type SearchFormState = {
@@ -27,6 +29,7 @@ export type SearchFormState = {
   ranking?: SearchRanking;
   similarity?: SimilarityOptions;
   searchContent?: SearchContentScope;
+  preferRemaster?: boolean;
   sourceSections?: SimilaritySourceSections;
   similarityGeneration?: string;
   query: string;
@@ -67,6 +70,7 @@ export function buildSearchRequest(
   if (state.traitReferenceSeed)
     return {
       search_profile,
+      prefer_remaster: state.preferRemaster ?? true,
       ...sortRequest,
       page,
       expected_artifact_generation,
@@ -81,6 +85,7 @@ export function buildSearchRequest(
   if (state.similarSeed)
     return {
       search_profile,
+      prefer_remaster: state.preferRemaster ?? true,
       ...sortRequest,
       page,
       expected_artifact_generation:
@@ -111,6 +116,7 @@ export function buildSearchRequest(
     };
   return {
     search_profile,
+    prefer_remaster: state.preferRemaster ?? true,
     ...sortRequest,
     page,
     expected_artifact_generation,
@@ -145,6 +151,7 @@ export function buildFilterDiscoveryContext(
     search_profile,
     expected_artifact_generation,
     kind: "filtered",
+    prefer_remaster: state.preferRemaster ?? true,
     filter: state.filter,
     text: state.query.trim() || null,
     mode: "hybrid",
@@ -158,8 +165,9 @@ export function buildSavedListFilterDiscoveryContext(
   state: SearchFormState,
 ): FilterDiscoveryContext {
   return {
-    ...buildFilterDiscoveryContext({ ...state, searchContent: "all" }),
     kind: "saved_list",
+    filter: state.filter,
+    text: state.query.trim() || null,
     list_ref,
     mode: "lexical",
   };
@@ -175,6 +183,7 @@ export function encodeSearchExecutionState(
     JSON.stringify({
       search_profile,
       ranking: state.ranking ?? "score",
+      preferRemaster: state.preferRemaster ?? true,
       similarity: state.similarSeed ? state.similarity : undefined,
       searchContent:
         state.similarSeed || state.query.trim()
@@ -203,6 +212,8 @@ export function searchStateQueryString(
   const params = new URLSearchParams();
   if (search_profile != null) params.set("search_profile", search_profile);
   if (state.ranking) params.set("ranking", state.ranking);
+  if (state.preferRemaster !== undefined)
+    params.set("versions", state.preferRemaster ? "prefer" : "all");
   encodeResultSort(params, state.sort);
   if (state.query) params.set("q", state.query);
   if (state.similarSeed) params.set("similar", state.similarSeed);
@@ -252,6 +263,15 @@ export function decodeSearchStateFromParams(
     filterWasReset = true;
   }
   if (filterWasReset) return { ...DEFAULT_SEARCH_STATE, filterWasReset: true };
+  const versions = params.getAll("versions");
+  const version = versions[0];
+  if (
+    versions.some((value) => value !== version) ||
+    (version !== undefined && version !== "all" && version !== "prefer")
+  )
+    filterError = INVALID_VERSION_SETTINGS;
+  const preferRemaster =
+    version === undefined ? preferences.preferRemaster : version !== "all";
   const ranking = params.get("ranking") ?? preferences.ranking;
   if (!filterError && ranking !== "rrf" && ranking !== "score")
     filterError = UNKNOWN_SEARCH_RANKING;
@@ -308,6 +328,7 @@ export function decodeSearchStateFromParams(
   return {
     ...DEFAULT_SEARCH_STATE,
     ranking: ranking === "rrf" ? "rrf" : "score",
+    preferRemaster,
     searchContent: rawContent === "core" ? "core" : "all",
     ...(sourceSections ? { sourceSections } : {}),
     ...(sort ? { sort } : {}),

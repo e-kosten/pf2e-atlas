@@ -3415,6 +3415,7 @@ function participantFixture(
 
 function searchResultsFixture(): SearchResultsPage {
   return {
+    prefer_remaster: true,
     search_content: "all",
     relationship_clauses: [],
     sort: { kind: "relevance" } as const,
@@ -3434,6 +3435,7 @@ function searchResultsFixture(): SearchResultsPage {
     rows: [
       {
         record: recordSummaryFixture("actors:goblin", "Goblin Warrior"),
+        alias_matches: [],
         relationship_evidence: [],
         matches: [],
       },

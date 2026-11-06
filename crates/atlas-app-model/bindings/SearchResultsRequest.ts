@@ -5,4 +5,4 @@ import type { SearchPageRequest } from "./SearchPageRequest";
 import type { SearchProfileId } from "./SearchProfileId";
 import type { SearchRanking } from "./SearchRanking";
 
-export type SearchResultsRequest = { sort?: ResultSort, ranking?: SearchRanking, search_profile?: SearchProfileId, criteria: SearchCriteria, page: SearchPageRequest, expected_artifact_generation: string | null, };
+export type SearchResultsRequest = { prefer_remaster?: boolean, sort?: ResultSort, ranking?: SearchRanking, search_profile?: SearchProfileId, criteria: SearchCriteria, page: SearchPageRequest, expected_artifact_generation: string | null, };

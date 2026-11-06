@@ -1,6 +1,7 @@
 import { Checkbox, Typography } from "antd";
 import type { SimilarityComponentView, SimilaritySeed } from "../../generated/atlas";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
+import { useSearchProfile } from "./SearchProfileContext";
 import { recordDestination, traitDestination } from "../../app/destinations";
 
 export function SimilaritySectionChoices({
@@ -16,6 +17,7 @@ export function SimilaritySectionChoices({
   selected: string[] | null;
   onChange: (parts: string[] | null) => void;
 }) {
+  const profile = useSearchProfile();
   const groups = new Map<string, { label: string; parts: SimilarityComponentView[] }>();
   for (const part of parts) {
     const key = part.kind === "identity" ? "identity" : JSON.stringify(part.owners);
@@ -69,7 +71,10 @@ export function SimilaritySectionChoices({
                       strong={singleSection}
                       href={destinationHref(
                         seed.kind === "trait"
-                          ? traitDestination({ traitKey: seed.trait_key })
+                          ? traitDestination({
+                              traitKey: seed.trait_key,
+                              query: `?versions=${profile.preferRemaster ? "prefer" : "all"}`,
+                            })
                           : recordDestination({
                               recordKey: seed.record_key,
                               selection: part.navigation ?? undefined,

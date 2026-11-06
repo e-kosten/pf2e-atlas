@@ -801,7 +801,7 @@
   },
   "record_detail": {
     "artifact_generation": "fixture-generation",
-    "counterparts": {
+    "remaster_relationships": {
       "kind": "empty"
     },
     "encounter_adjustment": "normal",
