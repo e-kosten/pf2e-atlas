@@ -11,6 +11,58 @@ import {
   sentinel,
 } from "./reading";
 
+test("browse controls share one desktop toolbar above independently scrollable panes", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name !== "desktop-chromium", "Desktop split layout");
+  await page.goto("/search?similar=browser-rules:rule000000000001");
+  const row = page.locator(".reference-results [data-record-key]").first();
+  await expect(row).toBeVisible();
+  await row.click();
+  await expect(
+    page.locator(".reference-reader .record-reference__title"),
+  ).toBeVisible();
+  const toolbar = page.locator(".reference-browser__toolbar");
+  for (const width of [1440, 1100, 1000]) {
+    await page.setViewportSize({ width, height: 900 });
+    const sort = toolbar.getByRole("button", { name: /^Sort:/ });
+    await expect(sort).toBeVisible();
+    await expect(
+      toolbar.getByRole("combobox", { name: "Records per page" }),
+    ).toBeVisible();
+    await expect(toolbar.getByRole("textbox", { name: "Current page" })).toBeVisible();
+    const geometry = await page.locator(".reference-browser").evaluate((host) => {
+      const bar = host
+        .querySelector(".reference-browser__toolbar")!
+        .getBoundingClientRect();
+      const results = host.querySelector(".reference-results")!.getBoundingClientRect();
+      const reader = host.querySelector(".reference-reader")!.getBoundingClientRect();
+      return {
+        bar: { x: bar.x, right: bar.right, bottom: bar.bottom, height: bar.height },
+        results: { x: results.x, y: results.y },
+        reader: { right: reader.right, y: reader.y },
+      };
+    });
+    expect(geometry.bar.x).toBeCloseTo(geometry.results.x, 0);
+    expect(geometry.bar.right).toBeCloseTo(geometry.reader.right, 0);
+    expect(geometry.results.y).toBeCloseTo(geometry.bar.bottom, 0);
+    expect(geometry.reader.y).toBeCloseTo(geometry.bar.bottom, 0);
+    expect(geometry.bar.height).toBeLessThan(80);
+    await expect(page.locator(".reference-reader__header")).toHaveCount(0);
+    await noPageOverflow(page);
+  }
+  const current = toolbar.getByRole("textbox", { name: "Current page" });
+  await current.focus();
+  await current.fill("1");
+  await current.press("Enter");
+  await expect(current).toHaveValue("1");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Results", exact: true }).click();
+  await expect(row).toBeFocused();
+  await expect(page.getByRole("textbox", { name: "Current page" })).toBeVisible();
+  await noPageOverflow(page);
+});
+
 test("Explore keeps header geometry stable and restores mode and tab through browser history", async ({
   page,
 }, info) => {
@@ -1247,7 +1299,7 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
       info,
     );
     await expect(
-      picker.getByRole("searchbox", { name: "Search records" }),
+      picker.locator(`[data-record-key="${sentinel}"]`).first(),
     ).toBeFocused();
     await expect(
       picker.getByRole("button", { name: "Add", exact: true }),
@@ -2564,11 +2616,12 @@ test("reference feedback: link picker drafts survive reading and filter popovers
   await activate(page.getByRole("button", { name: "Links", exact: true }), info);
   const picker = page.getByRole("dialog", { name: "Add link condition", exact: true });
   const candidate = picker.locator(".reference-result__summary").first();
-  const title = (await candidate
-    .locator(".reference-result__title strong")
-    .textContent())!;
   await activate(candidate, info);
+  await expect(picker.getByRole("button", { name: "Add", exact: true })).toBeEnabled();
+  const results = picker.getByRole("button", { name: "Results", exact: true });
+  if (await results.isVisible()) await activate(results, info);
   await activate(picker.getByText("Linked from", { exact: true }), info);
+  await expect(picker.getByRole("button", { name: "Add", exact: true })).toBeDisabled();
   const help = picker.getByRole("button", { name: "About link scope", exact: true });
   await activate(help, info);
   const scopeHelp = page.locator(".ant-popover:visible");
@@ -2595,19 +2648,20 @@ test("reference feedback: link picker drafts survive reading and filter popovers
       .getByText("Main entry only", { exact: true }),
     info,
   );
-  const summary = picker
-    .locator(".reference-picker__summary")
-    .getByRole("link", { name: title, exact: true });
-  await activate(summary, info);
-  const drawer = page.locator(".record-preview-drawer-root").getByRole("dialog");
+  const refreshedCandidate = picker.locator(".reference-result__summary").first();
+  const title = (await refreshedCandidate
+    .locator(".reference-result__title strong")
+    .textContent())!;
+  await activate(refreshedCandidate, info);
   await expect(
-    drawer.getByRole("heading", { name: title, exact: true }).first(),
+    picker
+      .locator(".reference-reader")
+      .getByRole("heading", { name: title, exact: true })
+      .first(),
   ).toBeVisible();
-  await activate(
-    drawer.getByRole("button", { name: "Close reference preview", exact: true }),
-    info,
-  );
-  await expect(summary).toBeFocused();
+  await expect(picker.locator(".reference-picker__footer a")).toHaveCount(0);
+  await expect(picker.getByRole("button", { name: "Add", exact: true })).toBeEnabled();
+  if (await results.isVisible()) await activate(results, info);
   await expect(
     picker.getByRole("radio", { name: "Linked from", exact: true }),
   ).toBeChecked();
@@ -2621,6 +2675,7 @@ test("reference feedback: link picker drafts survive reading and filter popovers
   await activate(chip, info);
   const open = page.getByRole("link", { name: `Open ${title}`, exact: true });
   await activate(open, info);
+  const drawer = page.locator(".record-preview-drawer-root").getByRole("dialog");
   await expect(drawer).toBeVisible();
   await expect(open).toBeHidden();
   await activate(

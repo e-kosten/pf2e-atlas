@@ -34,8 +34,25 @@ chooses `Reset search link`, which removes the unsupported selection while keepi
 criteria and reading state. Stale unavailable browser preferences are optional
 defaults and resolve to the valid server or sole stored default on launch.
 Unbuilt catalog entries are never offered as choices in the comparison UI.
-`FilterControls` owns the input row and its trailing control slot; the row wraps
-when space requires it without covering the existing `Input.Search` control.
+`FilterControls` owns one search row with its trailing settings control. Size that
+row to the natural filter-control row below it, bounded by the available width;
+applied chip contents do not widen the controls. Let the search field shrink so
+settings stays beside it. Similar uses the same normal
+control height as text search; truncate its source title to one line while
+retaining the complete linked title and source-preview interaction. Filter
+controls follow on their own row at their natural widths with the same spacing
+at every width; wrap when they no longer fit instead of stretching into a grid.
+Keep trigger labels stable as choices change. Common selections, numeric ranges
+and link conditions share a separate wrapping area, so values do not create holes
+beneath individual controls. Use compact joined edit/remove link chips; keep each
+remove action attached to its chip and its complete title available from the
+link-scope popover. Conditions that cannot be represented as independent chips
+show “Advanced · Applied” inside the neutral Advanced button; its hover/focus
+tooltip and accessible description say Advanced filters applied. Applied chips
+share a neutral surface, border and height; include/exclude color belongs to
+the +/- marker rather than changing the whole chip. Do not print the boolean
+expression in the toolbar or count groups as though they were individual choices.
+Clear filters uses the same outlined control treatment as its neighbors.
 The settings icon has a normal-sized button target, accessible Search settings
 name and a tooltip summarizing effective values. Model and method controls live
 inside the shared dialog; ordinary
@@ -359,8 +376,9 @@ mismatches with local pixel heights or additional configuration providers.
 The shared owner aligns controls at the top, with consistent gaps and responsive
 wrapping. Feature composition supplies meaningful widths: let search shrink
 before a primary action wraps, and use a full search row on phone where needed.
-Selected filter choices may extend beneath their trigger without centering its
-neighbors against the taller group. Verify actual input, selector and button
+Toolbar filter selections occupy their shared applied-filter area instead of
+extending beneath individual triggers. Standalone choice controls may keep values
+beneath their trigger without centering neighboring controls against that group. Verify actual input, selector and button
 alignment together at wide, intermediate and phone widths in both themes.
 
 Index pages use the shared page toolbar slot below the heading; feature styles
@@ -405,6 +423,10 @@ shared 6px base radius. Generic controls retain Ant component/token ownership.
 `themeDefinitions.ts` owns the authored light/dark anchors and shared semantic
 roles. `atlasTheme.ts` projects them into the Ant configuration and document-level
 CSS variables. Use the root provider so portaled content receives the same colors.
+Generic selected/hover/pressed contrast belongs to these shared tokens and the
+root provider's public Button/Radio semantic hooks, not feature-local providers.
+Keep solid action fills separate from readable selected-control ink; check settled
+interaction states rather than sampling during their color transition.
 The shell stores only the optional appearance preference; changing it must preserve
 the active route, reader and drafts. Native `color-scheme` follows the resolved
 appearance. Pass that resolved appearance to Ant components with documented
@@ -612,7 +634,7 @@ A single-entity page starts with the entity name and its actions. Do not put a
 generic Reference or Details bar above Allfood's title or a trait definition.
 Keep the action component mounted while the identity arrives or refreshes, so an
 open saved-list dialog survives the read. Use pane labels where they distinguish
-actual regions, such as search results and Preview.
+actual regions, such as encounter roster and turn details.
 
 Standalone record and trait pages use native document scrolling. DocumentPagePane
 and its card grow with the content; do not constrain the card to viewport height
@@ -630,13 +652,23 @@ keeps a long identity reachable while the body scrolls independently. Verify the
 title, close action and computed body/header insets after opening on phone and
 desktop; DOM presence and focus assertions do not establish visible geometry.
 
-Paired browse headers use BrowsePaneHeader. Its inner row owns control spacing
-and padding; BrowseReader owns the common header height through
-useBrowseHeaderAlignment. Measure natural rows so wrapping can grow both headers
-and unwrapping can shrink them again. Do not set independent fixed heights or
-match headers with feature-local padding. On phone only the visible pane needs
-its natural height. The results and Preview separators must align at each split
-width, including multi-row pagination and loading/empty results.
+BrowseReader uses one shared BrowsePaneHeader composition for wide and narrow
+results. Its explicit workspace background, insets, control sizes and centered
+vertical alignment remain the same across that breakpoint. On desktop it spans
+the split. Results controls and reader navigation/status share its naturally wrapping row;
+the reader starts directly with its document, without a Preview label or a
+separately measured header. Both panes retain independent scrolling below the
+shared toolbar. On narrow layouts, the visible pane owns its header and the
+reader keeps the Results return control. The browse host supplies a trailing
+Clear selection icon when its feature provides a clear callback. Search and
+saved lists clear their selected URL; record pickers clear the candidate while
+retaining their form draft. Restore focus to the result context and disable clear
+during a submitted write. On narrow layouts, keep clear available in the results
+header whenever a candidate remains selected. Removing an applied filter chip
+returns keyboard focus to its filter trigger. Keep Open full page with the document identity while
+ordinary browse details load or change, rather than briefly moving it into the
+workspace toolbar. Verify pagination, reader navigation and status through
+wrapping, pane resizing and loading/empty results.
 
 One action/control group uses one Ant size. Inputs, Selects, text buttons and
 icon buttons in a toolbar align at that size; icon-only and secondary do not imply
@@ -898,7 +930,10 @@ Search and encounter selection share `ReferenceBrowser` and `useReferenceReading
 A compact common-filter toolbar sits above results and the generous reader. Search
 occupies its own row; common pickers and Advanced/Clear actions share a wrapping,
 top-aligned row underneath, including when selected chips add height. Use
-an icon beside the Advanced label. Clear is an icon with an accessible label and
+an icon beside the Advanced label. When additional applied conditions have no
+chip representation, show a centered dot inside Advanced with the shared soft
+selection treatment. Reserve the dot's space in the inactive state to keep the
+button width stable; describe it as “Additional filters applied.” Clear is an icon with an accessible label and
 tooltip, shown when criteria or unfinished drafts can be cleared; clearing returns
 keyboard focus to the retained Advanced control. Use
 native Ant Splitter on desktop; below the lg breakpoint show results or the reader,
@@ -2175,3 +2210,40 @@ current value (Frightened 2) and Reduce by 1; retain the condition name on actio
 without that visible context. Do not infer a missing effective value in the browser.
 A dice icon must initiate a dice/check
 interaction rather than hide a plain counter action.
+
+### Connected link picker
+
+The link picker keeps its own search and ordinary filters, within entries connected
+to the parent results. Direction and link scope appear above search because they
+define the candidate corpus. Keep them in a compact row within the same toolbar
+frame, inset and background as search and filters; let the row wrap naturally.
+A quiet direction-specific sentence below the controls explains which entries the
+user is choosing. Selected direction uses a soft filled Ant radio treatment.
+Avoid a separate form section with stacked labels or another inset. The connected
+picker omits the nested Links shortcut; its Advanced editor retains link conditions.
+Its footer keeps Cancel/Add on one row, with actionable feedback beside the actions.
+The preview owns selection identity; do not duplicate its record title in the footer.
+Editing initializes that preview once from the exact saved link navigation and
+parent generation. Clearing or changing direction/scope must not restore it. Changing
+either clears the candidate with a short
+explanation while retaining target filters. An untouched edit retains its exact
+embedded selection. The parent descriptor contains only static filters, saved-list
+or trait-reference membership and enclosing picker scope; parent text/Similar,
+ranking and page are absent. Keep the addressed editing clause in its original
+Boolean position. An unconfigured link uses an addressed true placeholder only
+for discovery; the backend owns self-exclusion and eligibility. Show the backend's
+all-entry explanation for unsupported OR/compound-NOT contexts or incomplete drafts.
+Do not prune Boolean wrappers or silently omit unfinished siblings to manufacture
+an executable context. Do not filter targets by the parent's record kind or iterate
+visible parent result rows. Contextual counts use the same connected descriptor as
+results, subject to ordinary count availability for the picker's own search.
+
+For a picker opening, retain the fixed frame and show controls/results together
+when metadata and initial data are ready; delay loading feedback through the
+shared LoadingStatus. Once initialized, keep search and filters available during
+refreshes. Retain the backend's scope classification independently of result rows
+when direction, link scope or target criteria change. Invalidate that retained
+classification when the static parent context or artifact generation changes;
+a pending page must not temporarily imply a connected corpus. If the parent generation changes, offer Close picker and explain that
+the parent results must be refreshed before reopening; retrying the unchanged
+parent descriptor cannot recover it.

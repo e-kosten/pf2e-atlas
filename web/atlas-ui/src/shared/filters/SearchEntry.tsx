@@ -64,7 +64,7 @@ export function SearchEntry({
           }}
         >
           <Tag>Similar to</Tag>
-          <span className="reference-search-entry__source">
+          <span className="reference-search-entry__source" title={similar.title}>
             <SimilaritySeedLink
               seed={similar.seed}
               title={similar.title}

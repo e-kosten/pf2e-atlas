@@ -1,5 +1,6 @@
 import type {
   RecordNavigationView,
+  QueryPredicate,
   QueryRelationship,
   SourcePassageAddress,
 } from "../../generated/atlas";
@@ -87,4 +88,20 @@ export function appendLink(
         children: [filter, leaf],
       }
     : leaf;
+}
+
+export type LinkLeaf = Extract<
+  QueryPredicate,
+  {
+    kind: "relationship";
+  }
+>;
+export function linkClauses(filter: QueryPredicate | null): LinkLeaf[] {
+  if (!filter) return [];
+  if (filter.kind === "relationship") return [filter];
+  if (filter.kind === "all_of" || filter.kind === "any_of")
+    return filter.children.flatMap(linkClauses);
+  if (filter.kind === "not" || filter.kind === "exists")
+    return linkClauses(filter.predicate);
+  return [];
 }

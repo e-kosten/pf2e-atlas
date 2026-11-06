@@ -428,3 +428,7 @@ export type { RemasterProvenanceView } from "../../../../crates/atlas-app-model/
 
 export type { CheckDetailsView } from "../../../../crates/atlas-app-model/bindings/CheckDetailsView";
 export type { RoutineHeaderView } from "../../../../crates/atlas-app-model/bindings/RoutineHeaderView";
+
+export type { StaticSearchContext } from "../../../../crates/atlas-app-model/bindings/StaticSearchContext";
+export type { ConnectionScopeView } from "../../../../crates/atlas-app-model/bindings/ConnectionScopeView";
+export type { ConnectionScopeUnavailableReason } from "../../../../crates/atlas-app-model/bindings/ConnectionScopeUnavailableReason";

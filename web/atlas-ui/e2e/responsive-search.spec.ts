@@ -212,9 +212,9 @@ for (const width of [1440, 1100, 390]) {
         await expect(seed).toBeFocused();
       }
       for (const control of [
-        results.getByRole("combobox", { name: "Records per page" }),
-        results.getByRole("textbox", { name: "Current page" }),
-        results.getByRole("button", { name: "Next page" }),
+        page.getByRole("combobox", { name: "Records per page" }),
+        page.getByRole("textbox", { name: "Current page" }),
+        page.getByRole("button", { name: "Next page" }),
       ]) {
         const box = await control.boundingBox();
         expect(box).not.toBeNull();
@@ -364,9 +364,7 @@ test("reader matches keep result rows stable and navigate without scrolling app 
   );
   await expect(page.locator("[data-atlas-passage-target]")).toBeFocused();
   expect(await page.evaluate(() => scrollY)).toBe(0);
-  await preview
-    .getByRole("button", { name: "Return to selection", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Return to selection", exact: true }).click();
   await expect(matches).toBeVisible();
 });
 

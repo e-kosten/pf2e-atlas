@@ -28,6 +28,9 @@ pub struct SearchPageView {
 pub struct SearchResultsRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub connection_scope: Option<SearchConnectionScope>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub sort: Option<atlas_domain::ResultSort>,
     #[serde(default)]
     #[ts(optional)]
@@ -37,6 +40,40 @@ pub struct SearchResultsRequest {
     pub criteria: SearchCriteria,
     pub page: SearchPageRequest,
     pub expected_artifact_generation: Option<String>,
+}
+/// Static parent eligibility. Text, Similar admission, ranking and paging are absent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct StaticSearchContext {
+    pub filter: Option<QueryPredicate>,
+    pub exclude_clause_id: Option<String>,
+    #[serde(default)]
+    pub incomplete: bool,
+    pub list_ref: Option<String>,
+    pub trait_key: Option<String>,
+    pub connection_scope: Option<Box<SearchConnectionScope>>,
+    pub expected_artifact_generation: Option<String>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct SearchConnectionScope {
+    pub parent: Box<StaticSearchContext>,
+    pub direction: atlas_domain::QueryRelationshipDirection,
+    pub include_contents: bool,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ConnectionScopeView {
+    Connected,
+    AllEntries {
+        reason: ConnectionScopeUnavailableReason,
+    },
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectionScopeUnavailableReason {
+    NonConjunctiveContext,
+    IncompleteDraft,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -106,6 +143,9 @@ pub enum SearchModeSummary {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultsPage {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub connection_scope: Option<ConnectionScopeView>,
     pub search_content: atlas_domain::SearchContentScope,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -208,4 +248,30 @@ pub struct RelationshipOccurrencesPage {
     pub result_record: RecordSummaryView,
     pub occurrences: Vec<crate::RecordRelationshipView>,
     pub page: SearchPageView,
+}
+
+#[cfg(test)]
+mod connection_contract_tests {
+    use super::*;
+    #[test]
+    fn static_context_omission_defaults_and_round_trip_exclude_semantic_inputs() {
+        let context: StaticSearchContext = serde_json::from_value(serde_json::json!({})).unwrap();
+        assert!(!context.incomplete);
+        let encoded = serde_json::to_value(&context).unwrap();
+        assert_eq!(encoded["filter"], serde_json::Value::Null);
+        assert_eq!(context, serde_json::from_value(encoded.clone()).unwrap());
+        for field in ["query", "criteria", "ranking", "page", "search_profile"] {
+            let mut invalid = encoded.clone();
+            invalid[field] = serde_json::Value::Null;
+            assert!(
+                serde_json::from_value::<StaticSearchContext>(invalid).is_err(),
+                "{field}"
+            );
+        }
+        let missing: SearchConnectionScope = serde_json::from_value(
+            serde_json::json!({"parent":{}, "direction":"incoming", "include_contents":true}),
+        )
+        .unwrap();
+        assert_eq!(missing.parent, Box::new(context));
+    }
 }

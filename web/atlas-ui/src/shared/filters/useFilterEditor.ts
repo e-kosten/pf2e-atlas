@@ -13,8 +13,9 @@ import {
   predicateBuilder,
   commonDraftCondition,
   LINK_CONDITION,
+  BOOLEAN_CONDITION,
 } from "./queryBuilder";
-import { appendLink, linkLeaf, sameRelationship } from "./linkPredicates";
+import { appendLink, linkLeaf, sameRelationship, linkClauses } from "./linkPredicates";
 import { commonCondition, replaceCommonCondition } from "./filterControls";
 
 type EditorDraft = {
@@ -239,6 +240,46 @@ export function useFilterEditor(
     return null;
   }
   return {
+    linkDiscoveryContext: (ruleId: string, advanced: boolean) => {
+      if (advanced && prepared.query) {
+        // Preserve the exact edit location, including OR/NOT wrappers. Rust owns
+        // self-exclusion capability; this true leaf is only an editor placeholder.
+        const project = (group: RuleGroupType): RuleGroupType => ({
+          ...group,
+          rules: group.rules.map((node) =>
+            "rules" in node
+              ? project(node as RuleGroupType)
+              : node.id === ruleId && !node.value?.selection
+                ? {
+                    ...node,
+                    field: BOOLEAN_CONDITION,
+                    operator: "constant",
+                    value: true,
+                  }
+                : node,
+          ),
+        });
+        try {
+          return {
+            filter: builderPredicate(project(prepared.query), definitions),
+            exclude_clause_id: ruleId,
+            incomplete: false,
+          };
+        } catch {
+          // Do not pretend silently omitted unfinished siblings were analyzed.
+          return { filter: search.filter, exclude_clause_id: null, incomplete: true };
+        }
+      }
+      return {
+        filter: search.filter,
+        exclude_clause_id: linkClauses(search.filter).some(
+          (leaf) => leaf.clause_id === ruleId,
+        )
+          ? ruleId
+          : null,
+        incomplete: false,
+      };
+    },
     query: prepared.query,
     error: prepared.error,
     change,

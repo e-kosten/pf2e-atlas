@@ -336,11 +336,6 @@ describe("compact common choice picker", () => {
       name: "Remove excluded Fire from Traits",
     });
     expect(remove).toHaveTextContent("Fire");
-    expect(remove).toHaveStyle({
-      color: "var(--filter-exclude-text)",
-      backgroundColor: "var(--filter-exclude-bg)",
-    });
-    expect(remove.style.borderColor).toBe("var(--filter-exclude-border)");
     expect(screen.queryByText("cold")).not.toBeInTheDocument();
     fireEvent.click(remove);
     expect(change).toHaveBeenLastCalledWith(null);

@@ -336,3 +336,88 @@ it.each([
     });
   },
 );
+
+it("sends the full OR/NOT expression and addressed edit to backend discovery", () => {
+  const link: QueryPredicate = {
+    kind: "relationship",
+    clause_id: "editing",
+    relationship: {
+      direction: "incoming",
+      include_contents: true,
+      selection: {
+        record_key: "items:0000000000000000",
+        embedded_path: [],
+        field: null,
+        passage: null,
+        source_fingerprint: null,
+      },
+    },
+  };
+  const sibling: QueryPredicate = {
+    kind: "compare",
+    field: kind.path,
+    op: "eq",
+    value: "creature",
+  };
+  const { result } = harness({
+    ...DEFAULT_SEARCH_STATE,
+    filter: { kind: "any_of", children: [{ kind: "not", predicate: link }, sibling] },
+  });
+  const before = result.current.editor.query;
+  expect(result.current.editor.linkDiscoveryContext("editing", false)).toEqual({
+    filter: { kind: "any_of", children: [{ kind: "not", predicate: link }, sibling] },
+    exclude_clause_id: "editing",
+    incomplete: false,
+  });
+  expect(result.current.editor.query).toBe(before);
+  expect(result.current.search.filter).toEqual({
+    kind: "any_of",
+    children: [{ kind: "not", predicate: link }, sibling],
+  });
+});
+
+it("projects an unconfigured Advanced link at its exact OR/NOT location", () => {
+  const { result } = harness();
+  act(() =>
+    result.current.editor.change({
+      combinator: "or",
+      not: true,
+      rules: [
+        { id: "hp", field: hp.id, operator: "gte", value: 80 },
+        { id: "new-link", field: LINK_CONDITION, operator: "incoming", value: null },
+      ],
+    }),
+  );
+  expect(result.current.editor.linkDiscoveryContext("new-link", true)).toMatchObject({
+    exclude_clause_id: "new-link",
+    incomplete: false,
+    filter: {
+      kind: "not",
+      predicate: {
+        kind: "any_of",
+        children: [
+          { kind: "compare", clause_id: "hp", field: hp.path, value: 80 },
+          { kind: "boolean_constant", clause_id: "new-link", value: true },
+        ],
+      },
+    },
+  });
+});
+
+it("marks unprojectable sibling edits as incomplete without removing them", () => {
+  const { result } = harness();
+  const draft: RuleGroupType = {
+    combinator: "and",
+    rules: [
+      { id: "hp", field: hp.id, operator: "gte", value: "unfinished" },
+      { id: "new-link", field: LINK_CONDITION, operator: "incoming", value: null },
+    ],
+  };
+  act(() => result.current.editor.change(draft));
+  expect(result.current.editor.linkDiscoveryContext("new-link", true)).toEqual({
+    filter: initial.filter,
+    exclude_clause_id: null,
+    incomplete: true,
+  });
+  expect(result.current.editor.query).toBe(draft);
+});
