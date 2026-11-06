@@ -59,43 +59,71 @@ async fn main() -> Result<(), Box<dyn Error>> {
         remaster: "browser-editions:remaster00000001".parse()?,
         provenance: serde_json::from_value(serde_json::json!({"record":"browser-journals:editionjournal01","owners":[{"collection":"/pages","identity":{"Stable":"editionpage00001"}}],"field":"/text/content"}))?,
     });
-    let trait_key = TraitKey::new("light")?;
-    fixture.traits.push(TraitDefinition {
-        key: trait_key.clone(),
-        label: "Light".into(),
-        label_key: None,
-        description_key: None,
-        description_html: None,
-        authored_markup: None,
-        prepared: None,
-        catalogs: vec![],
-        source_locations: vec![],
-        source_revision: None,
-        indexing_locale: "en".into(),
-        content_locale: None,
-    });
-    let mut vector = vec![0.; 768];
-    vector[0] = 1.;
-    let chunk_hash = hash(b"Light\n");
-    fixture.trait_vectors.push(TraitVectorInput {
-        key: trait_key,
-        profile_id: SearchProfileId::new("bge-base"),
-        input_hash: hash(format!("trait-definition-centroid/v1:{chunk_hash}").as_bytes()),
-        vector: vector.clone(),
-        chunks: vec![TraitSeedChunk {
-            input: "Light\n".into(),
-            input_hash: chunk_hash.clone(),
-            token_count: 2,
-            vector,
-            address: SourcePassageAddress::PlainSection {
-                source_text_sha256: chunk_hash,
-                selection_version: "trait-definition-centroid/v1".into(),
-                section_ordinal: 0,
-                label: Some("Light".into()),
-                chunk_bytes: SourceByteRange { start: 0, end: 6 },
-            },
-        }],
-    });
+    // Explicit short synthetic definitions and seeds keep the normal trait reading
+    // and Similar paths available without claiming model inference or ranking quality.
+    for (token, label, markup) in [
+        (
+            "light",
+            "Light",
+            "<p>Fixture light trait marks bright lantern effects.</p>",
+        ),
+        (
+            "agile",
+            "Agile",
+            "<p>Fixture agile trait explains nimble follow-up attacks.</p>",
+        ),
+    ] {
+        let key = TraitKey::new(token)?;
+        let prepared = atlas_record::source_content::prepare_reference_definition(
+            atlas_domain::DefinitionKey::from(key.clone()),
+            markup,
+            fixture.context.audience,
+            None,
+            None,
+        )?;
+        let seed_input = format!("{label}\n{}", prepared.text);
+        let seed_hash = hash(seed_input.as_bytes());
+        let seed_end = seed_input.len();
+        let mut vector = vec![0.; 768];
+        // Preserve the existing Light seed's normalized first-axis direction.
+        vector[0] = 1.;
+        fixture.traits.push(TraitDefinition {
+            key: key.clone(),
+            label: label.into(),
+            label_key: None,
+            description_key: None,
+            description_html: Some(prepared.html.clone()),
+            authored_markup: Some(markup.into()),
+            prepared: Some(prepared),
+            catalogs: vec![],
+            source_locations: vec![],
+            source_revision: None,
+            indexing_locale: "en".into(),
+            content_locale: Some("en".into()),
+        });
+        fixture.trait_vectors.push(TraitVectorInput {
+            key,
+            profile_id: SearchProfileId::new("bge-base"),
+            input_hash: hash(format!("trait-definition-centroid/v1:{seed_hash}").as_bytes()),
+            vector: vector.clone(),
+            chunks: vec![TraitSeedChunk {
+                input: seed_input,
+                input_hash: seed_hash.clone(),
+                token_count: 8,
+                vector,
+                address: SourcePassageAddress::PlainSection {
+                    source_text_sha256: seed_hash,
+                    selection_version: "trait-definition-centroid/v1".into(),
+                    section_ordinal: 0,
+                    label: Some(label.into()),
+                    chunk_bytes: SourceByteRange {
+                        start: 0,
+                        end: seed_end,
+                    },
+                },
+            }],
+        });
+    }
     // Give distinct roots positive overlap so the default passage comparison
     // exercises result navigation. The shared fixture's orthogonal vectors
     // correctly produce no positive passage matches. These remain structural
@@ -109,29 +137,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             *common = std::f32::consts::FRAC_1_SQRT_2;
         }
     }
-    let agile_key = TraitKey::new("agile")?;
-    let agile_markup = "<p>Fixture agile trait explains nimble follow-up attacks.</p>";
-    let agile_content = atlas_record::source_content::prepare_reference_definition(
-        atlas_domain::DefinitionKey::from(agile_key.clone()),
-        agile_markup,
-        fixture.context.audience,
-        None,
-        None,
-    )?;
-    fixture.traits.push(TraitDefinition {
-        key: agile_key,
-        label: "Agile".into(),
-        label_key: None,
-        description_key: None,
-        description_html: Some(agile_content.html.clone()),
-        authored_markup: Some(agile_markup.into()),
-        prepared: Some(agile_content),
-        catalogs: vec![],
-        source_locations: vec![],
-        source_revision: None,
-        indexing_locale: "en".into(),
-        content_locale: Some("en".into()),
-    });
     let glossary = reference_data::attach(&mut fixture)?;
     atlas_index::test_support::publish_input_with_references(
         &index_path,
