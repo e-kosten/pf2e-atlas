@@ -412,7 +412,7 @@ impl<'a> LoadedRecordDetail<'a> {
             relationships_truncated: relationships.truncated || !content.bounded.is_empty(),
         };
         (view.remaster_relationships, view.source_remaster_context) =
-            crate::remaster::reading_context(&view.selected, r);
+            crate::remaster::reading_context(&view.selected, r, Some(detail));
         crate::contextual_references::attach_consumable_spell(&mut view, r)?;
         crate::contextual_references::attach_ranked_effects(&mut view, r)?;
         if whole_document {

@@ -303,6 +303,17 @@ fn compatible_upgrade_preserves_values_saved_state_and_selectors_for_zero_one_an
                 .prepare("SELECT * FROM similarity_parts")
                 .is_err()
         );
+        assert_eq!(
+            read.connection()
+                .prepare("SELECT selector FROM selected_sections ORDER BY selector")
+                .unwrap()
+                .query_map([], |row| row.get::<_, String>(0))
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap(),
+            selectors,
+            "stale remaster metadata does not discard compatible section attribution"
+        );
         assert_eq!(read.connection().query_row("SELECT count(*) FROM selected_sections WHERE record_id=(SELECT record_id FROM records WHERE name='Empty')",[],|r|r.get::<_,usize>(0)).unwrap(),0);
         drop(read);
         assert!(!ensure_reference_projections(&upgraded, TEST_WORKSPACE_SCHEMA_VERSION).unwrap());

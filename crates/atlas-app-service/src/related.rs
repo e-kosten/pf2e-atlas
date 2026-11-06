@@ -112,7 +112,7 @@ impl AtlasAppService {
                 }),
             );
             let (remaster_relationships, source_remaster_context) =
-                crate::remaster::reading_context(&selection, r);
+                crate::remaster::reading_context(&selection, r, None);
             let variants = if selection.owners.is_empty() {
                 category(crate::retrieval::variant_group_view(r, &key))
             } else {

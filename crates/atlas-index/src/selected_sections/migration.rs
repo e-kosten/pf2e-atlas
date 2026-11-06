@@ -24,14 +24,19 @@ fn migrate(c: &Connection) -> Result<(), IndexError> {
     }
     let compatible = context
         .as_ref()
-        .map(|_| crate::classify_reference_upgrade(c))
-        .transpose()?
-        .is_none_or(|upgrade| {
-            !matches!(
-                upgrade,
-                ReferenceUpgrade::SourcePreparation | ReferenceUpgrade::SourceReplacement
+        .map(|context| {
+            // Remaster metadata may require source-backed publication without
+            // changing the checked text or historical section addresses. Still
+            // classify first to reject unsupported policies, and never decode
+            // actual retired source preparation.
+            let upgrade = crate::classify_reference_upgrade(c)?;
+            Ok::<_, IndexError>(
+                upgrade != ReferenceUpgrade::SourceReplacement
+                    && crate::component_upgrade::source_preparation_is_current(context),
             )
-        });
+        })
+        .transpose()?
+        .unwrap_or(true);
     c.execute_batch(include_str!("occurrences.sql"))?;
     if let Some(context) = context.as_ref().filter(|_| compatible) {
         let mut after = 0i64;

@@ -200,7 +200,21 @@ fn authentic_v7_schema29_upgrade_reuses_sources_layouts_and_native_values() {
     workspace
         .migrate(&TEST_MIGRATIONS[..29], |_| Ok(()))
         .unwrap();
-    let mut input = crate::foundation_tests::fixture(true);
+    let mut input = crate::core_tests::fixture(
+        vec![
+            (
+                "items",
+                "Item",
+                serde_json::json!({"_id":"bbbbbbbbbbbbbbbb","name":"Dragon Staff","type":"weapon","system":{"description":{"value":"<h2>Flame</h2><p>Dragon breath.</p>"}}}),
+            ),
+            (
+                "items",
+                "Item",
+                serde_json::json!({"_id":"cccccccccccccccc","name":"Remastered Dragon Staff","type":"weapon","system":{"description":{"value":"<h2>Flame</h2><p>Dragon breath.</p>"}}}),
+            ),
+        ],
+        true,
+    );
     assert_eq!(
         input.context.relationship_policy,
         "typed-authored-occurrences/v7"
@@ -279,13 +293,46 @@ fn authentic_v7_schema29_upgrade_reuses_sources_layouts_and_native_values() {
             .unwrap()
     );
     let layouts = reuse.read_layouts(&keys).unwrap();
+    // Both profiles publish occurrences, but segmentation is shared. Compare
+    // the exact distinct source locations, not the number of model occurrences.
+    assert_eq!(input.context.search_profiles.len(), 2);
     let expected = input
         .semantic_units
         .iter()
-        .filter(|u| u.field.is_some())
-        .count();
-    assert!(expected > 0);
-    assert_eq!(layouts.iter().map(Vec::len).sum::<usize>(), expected);
+        .filter_map(|unit| {
+            unit.field.as_ref().map(|field| {
+                serde_json::to_string(&(
+                    &unit.record,
+                    &unit.owners,
+                    field,
+                    unit.chunk_ordinal,
+                    &unit.address,
+                    &unit.input_hash,
+                ))
+                .unwrap()
+            })
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+    let actual = keys
+        .iter()
+        .zip(&layouts)
+        .flat_map(|(key, layouts)| {
+            layouts.iter().map(move |layout| {
+                serde_json::to_string(&(
+                    key,
+                    &layout.owners,
+                    &layout.field,
+                    layout.chunk_ordinal,
+                    &layout.passage.address,
+                    &layout.passage.input_sha256,
+                ))
+                .unwrap()
+            })
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+    assert!(!expected.is_empty());
+    assert_eq!(actual, expected);
+    assert_eq!(layouts.iter().map(Vec::len).sum::<usize>(), actual.len());
     // Current captured declarations are newly projected; the old physical fixture
     // contains neither a remaster identity nor any new metadata table/authority.
     add_remaster_relationship(

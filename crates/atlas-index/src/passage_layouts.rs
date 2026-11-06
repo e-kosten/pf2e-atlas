@@ -71,7 +71,6 @@ impl<'a> PassageLayoutReader<'a> {
         let upgrade = crate::classify_reference_upgrade(c)?;
         if upgrade == crate::ReferenceUpgrade::SourceReplacement
             || !crate::component_upgrade::source_preparation_is_current(context)
-            || context.selected_sections_recipe != crate::SELECTED_SECTIONS_RECIPE
         {
             return Ok(None);
         }
@@ -255,7 +254,6 @@ mod tests {
             ("content_interpretation_version", "foundry-content/v22"),
             ("content_selection_version", "structural-source-sections/v3"),
             ("relationship_policy", "typed-authored-occurrences/v6"),
-            ("selected_sections_recipe", ""),
         ] {
             let mut old = serde_json::to_value(&metadata).unwrap();
             old[field] = serde_json::json!(older);
@@ -267,7 +265,15 @@ mod tests {
                 "{field}"
             );
         }
-        store(&metadata);
+        let mut projected = metadata.clone();
+        projected.selected_sections_recipe.clear();
+        store(&projected);
+        let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        assert!(
+            !read_reusable_passage_layouts(&read).unwrap().is_empty(),
+            "a missing projection marker does not retire checked normalized locations"
+        );
+        drop(read);
         c.execute("UPDATE semantic_locations SET section_id=NULL,chunk_ordinal=NULL,chunk_start=NULL,chunk_end=NULL WHERE location_id=(SELECT min(location_id) FROM semantic_units WHERE unit_kind='passage')",[]).unwrap();
         let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
         assert!(

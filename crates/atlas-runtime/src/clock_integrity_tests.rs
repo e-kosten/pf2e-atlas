@@ -98,8 +98,21 @@ fn populated_main24_upgrade_preserves_clock_trackers_baseline_receipts_and_both_
     write.commit().unwrap();
     let upgraded = initialize_workspace(&path).unwrap();
     assert!(
-        atlas_index::ensure_reference_projections(&upgraded, WORKSPACE_SCHEMA_VERSION).unwrap()
+        !atlas_index::ensure_reference_projections(&upgraded, WORKSPACE_SCHEMA_VERSION).unwrap()
     );
+    assert!(open_workspace_index(&path).is_err());
+    {
+        let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
+        assert_eq!(
+            crate::test_support::occurrence_vector_bits(read.connection()),
+            before_vectors
+        );
+        assert_eq!(ledger(read.connection()), before_ledger);
+    }
+    // Migration preserves the checked content and vectors. Only source-backed
+    // remaster publication makes this genuinely historical workspace readable.
+    atlas_index::test_support::publish_input_in(&upgraded, WORKSPACE_SCHEMA_VERSION, &input)
+        .unwrap();
     let read = upgraded.read(WORKSPACE_SCHEMA_VERSION).unwrap();
     let domain = LocalStateRead::new(&read);
     assert_eq!(

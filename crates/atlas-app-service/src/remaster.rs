@@ -115,6 +115,7 @@ fn check_fingerprint(
 pub(crate) fn reading_context(
     selection: &RecordNavigationView,
     retrieval: &AtlasRetrievalService,
+    loaded: Option<&atlas_search::SourceRecordDetail>,
 ) -> (
     RelatedCategoryView<RemasterRelationshipsView>,
     Option<RelatedCategoryView<RemasterSourceContextView>>,
@@ -122,13 +123,26 @@ pub(crate) fn reading_context(
     let mut budget = ProjectionBudget::default();
     let relationships = category((|| {
         let key = parse_key(&selection.record_key)?;
-        let result = retrieval.record_remaster_information(
-            atlas_search::RecordRemasterInformationRequest {
-                record_key: &key,
-                owners: &selection.owners,
-                limit: INFORMATION_LIMIT,
-            },
-        )?;
+        let result = if let Some(detail) = loaded {
+            if detail.source.key() != &key {
+                return Err(AppServiceError::invalid_request(
+                    "remaster selection belongs to another loaded record",
+                ));
+            }
+            retrieval.loaded_record_remaster_information(
+                detail,
+                &selection.owners,
+                INFORMATION_LIMIT,
+            )?
+        } else {
+            retrieval.record_remaster_information(
+                atlas_search::RecordRemasterInformationRequest {
+                    record_key: &key,
+                    owners: &selection.owners,
+                    limit: INFORMATION_LIMIT,
+                },
+            )?
+        };
         Ok(information_category(
             result.information,
             Some(selection),
@@ -788,7 +802,7 @@ mod owned_tests {
     #[test]
     fn remaster_owned_source_context_is_separate_exact_and_honest_about_origins() {
         let (retrieval, _artifact) = fixture();
-        let (direct, source) = reading_context(&selection("owned00000000001"), &retrieval);
+        let (direct, source) = reading_context(&selection("owned00000000001"), &retrieval, None);
         assert!(matches!(direct, RelatedCategoryView::Empty));
         let Some(RelatedCategoryView::Content { content }) = source else {
             panic!("explicit source");
@@ -810,17 +824,17 @@ mod owned_tests {
             "Atlas mapping"
         );
         assert!(matches!(
-            reading_context(&selection("owned00000000002"), &retrieval).1,
+            reading_context(&selection("owned00000000002"), &retrieval, None).1,
             Some(RelatedCategoryView::Empty)
         ));
         for id in ["owned00000000004", "owned00000000005"] {
             assert!(matches!(
-                reading_context(&selection(id), &retrieval).1,
+                reading_context(&selection(id), &retrieval, None).1,
                 Some(RelatedCategoryView::Unavailable { .. })
             ));
         }
         let Some(RelatedCategoryView::Content { content }) =
-            reading_context(&selection("owned00000000003"), &retrieval).1
+            reading_context(&selection("owned00000000003"), &retrieval, None).1
         else {
             panic!("known absent origin");
         };

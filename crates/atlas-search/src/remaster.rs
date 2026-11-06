@@ -132,6 +132,36 @@ impl AtlasRetrievalService {
                 ));
             }
         }
+        self.project_record_remaster_information(request, seed)
+    }
+
+    pub fn loaded_record_remaster_information(
+        &self,
+        detail: &crate::SourceRecordDetail,
+        owners: &[atlas_domain::OwnedContentLocator],
+        limit: usize,
+    ) -> Result<RecordRemasterInformationResult, SearchError> {
+        check_limit(limit)?;
+        if detail.source.node_at(owners).is_none() {
+            return Err(SearchError::invalid_search_options(
+                "The selected entry is unavailable. Open the record again.",
+            ));
+        }
+        self.project_record_remaster_information(
+            RecordRemasterInformationRequest {
+                record_key: detail.source.key(),
+                owners,
+                limit,
+            },
+            Some(detail.summary.clone()),
+        )
+    }
+
+    fn project_record_remaster_information(
+        &self,
+        request: RecordRemasterInformationRequest<'_>,
+        seed: Option<SourceRecordSummary>,
+    ) -> Result<RecordRemasterInformationResult, SearchError> {
         let information = self.index.remaster_record_information(
             request.record_key,
             request.owners,

@@ -192,3 +192,39 @@ fn term_information_retains_removed_context_without_creating_record_identity() {
         );
     }
 }
+
+#[test]
+fn loaded_remaster_information_reuses_the_checked_parent_and_validates_owned_addresses() {
+    let parent = record(
+        "actors",
+        "Actor",
+        json!({"_id":"aaaaaaaaaaaaaaaa","name":"Parent","type":"npc","items":[
+            {"_id":"bbbbbbbbbbbbbbbb","name":"Owned action","type":"action","system":{}}
+        ]}),
+    );
+    let (service, _artifact) = open_input_fixture(input(vec![parent], false)).unwrap();
+    let record_key = "actors:aaaaaaaaaaaaaaaa".parse().unwrap();
+    let detail = service
+        .get_record(GetRecordRequest {
+            record_key: &record_key,
+            selected_content: &[],
+        })
+        .unwrap()
+        .unwrap();
+    service.reset_read_metrics();
+    let owner = |id: &str| OwnedContentLocator {
+        collection: "/items".into(),
+        identity: OwnedContentIdentity::Stable(id.into()),
+    };
+    let result = service
+        .loaded_record_remaster_information(&detail, &[owner("bbbbbbbbbbbbbbbb")], 20)
+        .unwrap();
+    assert_eq!(result.record_key, record_key);
+    assert!(result.information.declarations.is_empty());
+    assert!(
+        service
+            .loaded_record_remaster_information(&detail, &[owner("cccccccccccccccc")], 20,)
+            .is_err()
+    );
+    assert_eq!(service.read_metrics().source_body_decodes, 0);
+}
