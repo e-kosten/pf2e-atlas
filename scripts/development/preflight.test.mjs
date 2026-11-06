@@ -25,10 +25,10 @@ import {
 import { fixture } from "./test-fixtures.mjs";
 
 test("supported Node ranges come from metadata and reject unsupported runtimes", () => {
-  for (const version of ["v22.18.0", "v22.24.0", "v24.0.0", "v24.22.1"])
-    assert.equal(nodeSupported(version, "^22.18.0 || ^24.0.0"), true);
-  for (const version of ["v22.17.9", "v23.0.0", "v26.12.1"])
-    assert.equal(nodeSupported(version, "^22.18.0 || ^24.0.0"), false);
+  for (const version of ["v22.18.0", "v22.24.0", "v24.0.0", "v24.22.1", "v26.0.0", "v26.13.0"])
+    assert.equal(nodeSupported(version, "^22.18.0 || ^24.0.0 || ^26.0.0"), true);
+  for (const version of ["v22.17.9", "v23.0.0", "v25.0.0", "v27.0.0"])
+    assert.equal(nodeSupported(version, "^22.18.0 || ^24.0.0 || ^26.0.0"), false);
 });
 
 test("ordinary Rust readiness works without a populated dependency cache; tool provenance still requires its graph", async (t) => {

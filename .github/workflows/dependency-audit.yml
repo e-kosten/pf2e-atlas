@@ -16,6 +16,6 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
       - name: Scan Cargo and npm lockfiles
         run: python3 scripts/validation/dependency-audit.py

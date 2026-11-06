@@ -414,7 +414,7 @@ it.each([
         ([r]) => r.page.number === 1 && r.page.size === 5,
       ),
     ).toBe(true);
-    expect(screen.queryByTitle("Next Page")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next Page" })).toBeNull();
     expect(screen.queryByText(/See more|Browse all/i)).toBeNull();
   },
 );
@@ -459,7 +459,7 @@ it.each(["members", "references", "similar"] as const)(
           : { kind: "similar_traits", seed_trait_key: "trait:agile" },
     );
     expect(fireEvent.click(link, { metaKey: true })).toBe(true);
-    expect(screen.queryByTitle("Next Page")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next Page" })).toBeNull();
   },
 );
 

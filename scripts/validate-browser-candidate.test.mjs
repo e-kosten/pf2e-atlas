@@ -479,7 +479,7 @@ function prepareNormalCommand(f) {
     resolve(f.root, "web/atlas-ui/package.json"),
     JSON.stringify({
       type: "module",
-      engines: { node: "^22.18.0 || ^24.0.0" },
+      engines: { node: "^22.18.0 || ^24.0.0 || ^26.0.0" },
     }),
   );
   writeFileSync(

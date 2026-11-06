@@ -397,14 +397,14 @@ it("shows loading without pagination, then completed empty for a queryless picke
   await waitFor(() =>
     expect(screen.getByRole("status", { name: "Searching…" })).toBeVisible(),
   );
-  expect(screen.queryByTitle("Next Page")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Next Page" })).toBeNull();
   expect(screen.queryByText("No matching records")).toBeNull();
   await act(async () =>
     finish({ ...result(), rows: [], page: { ...result().page, count: 0, total: 0n } }),
   );
   expect(await screen.findByText("No matching records")).toBeVisible();
   expect(screen.queryByText("Search for a record")).toBeNull();
-  expect(screen.queryByTitle("Next Page")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Next Page" })).toBeNull();
 });
 
 it("previews before explicit Add and retains the candidate when a later query has no results", async () => {
@@ -621,7 +621,7 @@ it("inherits a profile switch on page one while retaining the explicit candidate
     target: { value: "Keep encounter draft" },
   });
   fireEvent.click(await screen.findByRole("button", { name: "Results" }));
-  fireEvent.click(screen.getByTitle("Next Page"));
+  fireEvent.click(screen.getByRole("button", { name: "Next Page" }));
   await waitFor(() => expect(search).toHaveBeenCalledTimes(2));
   setProfile("embeddinggemma");
   await waitFor(() => expect(search).toHaveBeenCalledTimes(3));
