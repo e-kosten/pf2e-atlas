@@ -2927,7 +2927,7 @@ test("definition discovery preserves drafts while reading help and applies suppl
     name: "Search results",
     exact: true,
   });
-  await expect(emptyResults.getByText("0 records", { exact: true })).toBeVisible();
+  await expect(page.getByText("0 records", { exact: true })).toBeVisible();
   await expect(emptyResults.locator("[data-record-key]")).toHaveCount(0);
   await expect(
     emptyResults.getByRole("group", { name: "Result pages", exact: true }),
