@@ -6,11 +6,18 @@ import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { RecordPreviewAnchor } from "./recordPreviewTypes";
 import type {
   RecordNavigationView,
+  ReferenceDestinationView,
+  ReferenceHelpView,
   RecordPresentationView,
 } from "../../generated/atlas";
 import { useRecordDetail } from "./useRecordDetail";
 import { useQuery } from "@tanstack/react-query";
 import { getEncounterReference } from "../../api/atlasApi";
+import {
+  useDefinitionDetail,
+  definitionHelpMatchesRecord,
+} from "./useDefinitionDetail";
+import type { ReferenceHelpHandler } from "./ReferenceHelp";
 import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 
 type EncounterPreviewContext = {
@@ -25,12 +32,18 @@ type EncounterPreviewContext = {
 };
 
 export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
-  const [recordKey, setRecordKey] = useState<string | null>(null);
+  const [destination, setDestination] = useState<ReferenceDestinationView | null>(null);
+  const [help, setHelp] = useState<ReferenceHelpView>();
+  const [generation, setGeneration] = useState<string>();
+  const recordKey =
+    destination?.kind === "record" ? destination.navigation.record_key : null;
   const [anchor, setAnchor] = useState<RecordPreviewAnchor | null>(null);
   const [selection, setSelection] = useState<RecordNavigationView>();
   const [landing, setLanding] = useState<RecordNavigationView>();
   type PriorDocument = {
-    recordKey: string;
+    destination: ReferenceDestinationView;
+    help?: ReferenceHelpView;
+    generation?: string;
     selection?: RecordNavigationView;
     landing?: RecordNavigationView;
     context?: { identity: string; generation: string | null; conditionId?: bigint };
@@ -48,14 +61,14 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   // their expanded state with the preview owner, including nested navigation.
   useLayoutEffect(() => {
     const element = opener.current;
-    if (!recordKey || !element) return;
+    if (!destination || !element) return;
     const previous = element.getAttribute("aria-expanded");
     element.setAttribute("aria-expanded", "true");
     return () => {
       if (previous === null) element.removeAttribute("aria-expanded");
       else element.setAttribute("aria-expanded", previous);
     };
-  }, [recordKey]);
+  }, [destination]);
   const session = useRef(0);
   const [reloadState, setReloadState] = useState<
     { kind: "loading" } | { kind: "finished" } | { kind: "failed"; error: Error } | null
@@ -140,11 +153,25 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     contextual.data,
     contextual.error,
   );
-  const detail = useRecordDetail(requestedContext ? null : recordKey, selection);
+  const readingContext =
+    destination?.kind === "record" ? destination.reading_context : undefined;
+  const detail = useRecordDetail(
+    requestedContext ? null : recordKey,
+    selection,
+    readingContext,
+    generation,
+  );
+  const definition = useDefinitionDetail(
+    destination?.kind === "definition"
+      ? destination.key
+      : (help?.definition_key ?? null),
+    generation,
+  );
 
   const reloadOwner = async () => {
     if (!requestedContext) {
-      await detail.refetch();
+      if (destination?.kind === "definition") await definition.refetch();
+      else await detail.refetch();
       return;
     }
     if (!encounterContext?.reloadEncounter || reloadState?.kind === "loading") return;
@@ -167,7 +194,9 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     opener.current = null;
     session.current += 1;
     setReloadState(null);
-    setRecordKey(null);
+    setDestination(null);
+    setHelp(undefined);
+    setGeneration(undefined);
     setAnchor(null);
     setSelection(undefined);
     setRequestedContext(undefined);
@@ -176,7 +205,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     setRestoringHistory(false);
   }, []);
 
-  useDismissOnReadingNavigation(recordKey !== null, close);
+  useDismissOnReadingNavigation(destination !== null, close);
 
   const open = useCallback(
     (
@@ -184,10 +213,13 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
       anchor?: HTMLElement,
       navigation?: RecordNavigationView,
       nextLanding?: RecordNavigationView,
+      nextHelp?: ReferenceHelpView,
+      nextGeneration?: string,
     ) => {
       if (
-        recordKey &&
+        destination &&
         (recordKey !== nextRecordKey ||
+          JSON.stringify(help) !== JSON.stringify(nextHelp) ||
           JSON.stringify(selection) !== JSON.stringify(navigation) ||
           JSON.stringify(landing) !== JSON.stringify(nextLanding))
       ) {
@@ -196,7 +228,9 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
           [
             ...prior,
             {
-              recordKey,
+              destination,
+              help,
+              generation,
               selection,
               landing,
               context: requestedContext,
@@ -211,7 +245,22 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         (document.activeElement instanceof HTMLElement ? document.activeElement : null);
       session.current += 1;
       setReloadState(null);
-      setRecordKey(nextRecordKey);
+      setDestination({
+        kind: "record",
+        navigation: navigation ?? {
+          record_key: nextRecordKey,
+          embedded_path: [],
+          field: null,
+          passage: null,
+          source_fingerprint: null,
+        },
+        reading_context:
+          nextHelp?.destination?.kind === "record"
+            ? nextHelp.destination.reading_context
+            : undefined,
+      });
+      setHelp(nextHelp);
+      setGeneration(nextGeneration);
       setAnchor((current) => current ?? anchor ?? null);
       const condition = encounterContext?.conditions?.find(
         (condition) =>
@@ -234,8 +283,9 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
       setRestore({ scroll: 0, focusHref: undefined });
       setRestoringHistory(false);
       const contextual =
-        (encounterContext?.parentRecordKey === nextRecordKey && navigation) ||
-        condition;
+        !nextHelp &&
+        ((encounterContext?.parentRecordKey === nextRecordKey && navigation) ||
+          condition);
       setRequestedContext(
         contextual
           ? {
@@ -246,28 +296,111 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
           : undefined,
       );
     },
-    [encounterContext, recordKey, selection, landing, requestedContext],
+    [
+      encounterContext,
+      destination,
+      recordKey,
+      selection,
+      landing,
+      requestedContext,
+      help,
+      generation,
+    ],
   );
+
+  const openHelp: ReferenceHelpHandler = useCallback(
+    (nextHelp, nextAnchor, nextGeneration) => {
+      const next = nextHelp.destination;
+      if (!next) return;
+      if (next.kind === "record") {
+        open(
+          next.navigation.record_key,
+          nextAnchor,
+          next.navigation,
+          undefined,
+          nextHelp,
+          nextGeneration,
+        );
+        return;
+      }
+      if (
+        destination &&
+        (JSON.stringify(destination) !== JSON.stringify(next) ||
+          help?.definition_key !== nextHelp.definition_key)
+      ) {
+        const scrollHost = nextAnchor.closest<HTMLElement>(
+          ".record-preview-drawer__body",
+        );
+        setHistory((prior) =>
+          [
+            ...prior,
+            {
+              destination,
+              help,
+              generation,
+              selection,
+              landing,
+              context: requestedContext,
+              scroll: scrollHost?.scrollTop ?? 0,
+              focusHref: nextAnchor.closest("a")?.getAttribute("href") ?? undefined,
+            },
+          ].slice(-24),
+        );
+      }
+      opener.current ??= nextAnchor;
+      session.current += 1;
+      setReloadState(null);
+      setDestination(next);
+      setHelp(nextHelp);
+      setGeneration(nextGeneration);
+      setAnchor((current) => current ?? nextAnchor);
+      setSelection(undefined);
+      setLanding(undefined);
+      setRequestedContext(undefined);
+      setRestore({ scroll: 0, focusHref: undefined });
+      setRestoringHistory(false);
+    },
+    [open, destination, help, generation, selection, landing, requestedContext],
+  );
+
+  const standalone = destination?.kind === "definition";
 
   return {
     anchor,
     close,
+    destination,
+    help: standalone
+      ? (definition.data?.help ?? help)
+      : definition.data &&
+          destination?.kind === "record" &&
+          definitionHelpMatchesRecord(
+            definition.data.help,
+            selection ?? destination.navigation,
+            readingContext,
+          )
+        ? definition.data.help
+        : help,
+    definition: standalone ? definition.data : undefined,
+    openHelp,
     detail: requestedContext
       ? contextualError || reloadState
         ? undefined
         : retainedContextual
       : detail.data,
-    error: requestedContext
-      ? reloadState?.kind === "loading"
-        ? null
-        : reloadState?.kind === "failed"
-          ? reloadState.error
-          : contextualError
-            ? contextualError
-            : contextual.error
-      : detail.error,
-    retry:
-      reloadState?.kind === "failed" && encounterContext?.reloadEncounter
+    error: standalone
+      ? definition.error
+      : requestedContext
+        ? reloadState?.kind === "loading"
+          ? null
+          : reloadState?.kind === "failed"
+            ? reloadState.error
+            : contextualError
+              ? contextualError
+              : contextual.error
+        : detail.error,
+    retry: standalone
+      ? () => void definition.refetch()
+      : reloadState?.kind === "failed" && encounterContext?.reloadEncounter
         ? () => {
             void reloadOwner();
           }
@@ -283,12 +416,14 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
                 if (requestedContext) void contextual.refetch();
                 else void detail.refetch();
               },
-    loading: requestedContext
-      ? reloadState?.kind === "loading" ||
-        (!reloadState &&
-          !contextualError &&
-          (contextual.isLoading || contextual.isFetching))
-      : detail.isLoading || detail.isFetching,
+    loading: standalone
+      ? definition.isFetching
+      : requestedContext
+        ? reloadState?.kind === "loading" ||
+          (!reloadState &&
+            !contextualError &&
+            (contextual.isLoading || contextual.isFetching))
+        : detail.isLoading || detail.isFetching,
     reload:
       requestedContext && !encounterContext?.reloadEncounter
         ? undefined
@@ -312,7 +447,16 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     selection,
     landing,
     readingHistory: {
-      address: JSON.stringify([recordReadingIdentity(recordKey, selection), landing]),
+      address: JSON.stringify([
+        destination?.kind,
+        destination?.kind === "definition"
+          ? destination.key
+          : recordReadingIdentity(recordKey, selection),
+        readingContext,
+        help?.definition_key,
+        generation,
+        landing,
+      ]),
       restoringHistory,
       restore,
       canGoBack: history.length > 0,
@@ -322,7 +466,9 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         session.current += 1;
         setReloadState(null);
         setHistory(history.slice(0, -1));
-        setRecordKey(prior.recordKey);
+        setDestination(prior.destination);
+        setHelp(prior.help);
+        setGeneration(prior.generation);
         setSelection(prior.selection);
         setLanding(prior.landing);
         setRequestedContext(prior.context);

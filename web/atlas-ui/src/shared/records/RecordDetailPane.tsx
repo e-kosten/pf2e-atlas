@@ -14,6 +14,7 @@ import { RecordPresentation, RecordPresentationIdentity } from "./RecordPresenta
 import { RecordReadingWorkspace } from "./RecordReadingWorkspace";
 import { recordReadingIdentity } from "./useRetainedRecord";
 import type { RecordReferenceHandler } from "./PreparedContent";
+import { ReferenceHelpProvider, type ReferenceHelpHandler } from "./ReferenceHelp";
 import { RelatedRecords } from "./RelatedRecords";
 type RecordDetailPaneError =
   | Error
@@ -35,6 +36,7 @@ export function RecordDetailPane({
   onBack,
   backLabel = "Back to search",
   onReference,
+  onHelp,
   onRankChange,
   compact = false,
   showRelated = true,
@@ -68,6 +70,7 @@ export function RecordDetailPane({
   onBack?: () => void;
   backLabel?: string;
   onReference: RecordReferenceHandler;
+  onHelp?: ReferenceHelpHandler;
   onRankChange?: (rank: number | undefined) => void;
   compact?: boolean;
   showRelated?: boolean;
@@ -83,160 +86,175 @@ export function RecordDetailPane({
     error && "appError" in error ? (error as AtlasApiError).appError?.code : undefined;
   const notFound = code === "record_not_found";
   return (
-    <section
-      className={`detail-panel${compact ? " detail-panel--compact" : ""}`}
-      aria-busy={loading}
-    >
-      <RecordReadingContent
-        key={
-          readingKey ??
-          JSON.stringify([
-            recordReadingIdentity(detail?.record.record_key ?? null, detail?.selected),
-            detail?.artifact_generation,
-          ])
-        }
-        enabled={showRelated && (Boolean(detail) || Boolean(identityActions))}
-        identity={
-          !identityInHost
-            ? (exploreAction) => (
-                <RecordPresentationIdentity
-                  presentation={detail?.presentation}
-                  root={detail?.record}
-                  selection={detail?.selected}
-                  relationships={detail?.relationships}
-                  onReference={onReference}
-                  onRankChange={onRankChange}
-                  onOwnerReturn={onOwnerReturn}
-                  visibleOwnerRecordKey={visibleOwnerRecordKey}
-                  showOwnerReturn={showOwnerReturn}
-                  actions={
-                    <Space wrap size={4}>
-                      {detail && exploreAction}
-                      {identityActions}
-                    </Space>
-                  }
-                />
-              )
-            : undefined
-        }
-        status={
-          <>
-            {detail && loading && (
-              <div className="detail-refresh" aria-label="Updating record">
-                <Spin size="small" delay={500} />
-              </div>
-            )}
-            {error && (
-              <div className="detail-status">
-                <ErrorNotice
-                  error={error}
-                  title={
-                    detail
-                      ? "Unable to refresh this record"
-                      : notFound
-                        ? "Record unavailable"
-                        : "Unable to load this record"
-                  }
-                  description={
-                    error instanceof RecordContextError
-                      ? error.explanation
-                      : detail
-                        ? "Previously loaded content remains below."
-                        : notFound
-                          ? "This record is not present in the current reference collection."
-                          : undefined
-                  }
-                  action={
-                    <Space wrap>
-                      {onRetry && (
-                        <Button size="small" onClick={onRetry} loading={loading}>
-                          {retryLabel}
-                        </Button>
-                      )}
-                      {onBack ? (
-                        <Button size="small" onClick={onBack}>
-                          {backLabel}
-                        </Button>
-                      ) : (
-                        <Button
-                          size="small"
-                          href={destinationHref(
-                            searchDestination({ selectedRecordKey: null }),
-                          )}
-                          onClick={(event) => {
-                            if (!isPrimaryActivation(event)) return;
-                            event.preventDefault();
-                            navigateDestination(
-                              searchDestination({
-                                selectedRecordKey: null,
-                              }),
-                            );
-                          }}
-                        >
-                          Back to search
-                        </Button>
-                      )}
-                    </Space>
-                  }
-                />
-              </div>
-            )}
-          </>
-        }
-        explore={
-          detail && (
-            <RelatedRecords
-              detail={detail}
-              onReference={onReference}
-              onReload={onReload}
-              reloadLabel={reloadLabel}
-            />
-          )
-        }
+    <ReferenceHelpProvider onHelp={onHelp} generation={detail?.artifact_generation}>
+      <section
+        className={`detail-panel${compact ? " detail-panel--compact" : ""}`}
+        aria-busy={loading}
       >
-        {detail ? (
-          <>
-            {readingContext}
-            <RecordPresentation
-              sectionLanding={sectionLanding}
-              identityInHost={identityInHost || showRelated}
-              showOwnerReturn={showOwnerReturn}
-              visibleOwnerRecordKey={visibleOwnerRecordKey}
-              presentation={detail.presentation}
-              root={detail.record}
-              selection={detail.selected}
-              compact={compact}
-              relationships={detail.relationships}
-              reading={{
-                generation: detail.artifact_generation,
-                parent: {
-                  record_key: detail.record.record_key,
-                  embedded_path: [],
-                  field: null,
-                  passage: null,
-                  source_fingerprint: null,
-                },
-                landing,
-                onLandingReady,
-                reloadParent: onReload,
-                reloadParentLabel: reloadLabel,
-              }}
-              onReference={onReference}
-              onRankChange={onRankChange}
-              onOwnerReturn={onOwnerReturn}
-            />
-          </>
-        ) : loading ? (
-          <Spin delay={500} description={loadingMessage}>
-            <div className="detail-empty" role="status" aria-label={loadingMessage} />
-          </Spin>
-        ) : !error ? (
-          <div className="detail-empty">
-            <Empty description={emptyMessage} />
-          </div>
-        ) : null}
-      </RecordReadingContent>
-    </section>
+        <RecordReadingContent
+          key={
+            readingKey ??
+            JSON.stringify([
+              recordReadingIdentity(
+                detail?.record.record_key ?? null,
+                detail?.selected,
+              ),
+              detail?.artifact_generation,
+            ])
+          }
+          enabled={showRelated && (Boolean(detail) || Boolean(identityActions))}
+          identity={
+            !identityInHost
+              ? (exploreAction) => (
+                  <RecordPresentationIdentity
+                    presentation={detail?.presentation}
+                    root={detail?.record}
+                    selection={detail?.selected}
+                    relationships={detail?.relationships}
+                    onRankChange={onRankChange}
+                    onOwnerReturn={onOwnerReturn}
+                    visibleOwnerRecordKey={visibleOwnerRecordKey}
+                    showOwnerReturn={showOwnerReturn}
+                    actions={
+                      <Space wrap size={4}>
+                        {detail && exploreAction}
+                        {identityActions}
+                      </Space>
+                    }
+                  />
+                )
+              : undefined
+          }
+          status={
+            <>
+              {detail && loading && (
+                <div className="detail-refresh" aria-label="Updating record">
+                  <Spin size="small" delay={500} />
+                </div>
+              )}
+              {error && (
+                <div className="detail-status">
+                  <ErrorNotice
+                    error={error}
+                    title={
+                      detail
+                        ? "Unable to refresh this record"
+                        : notFound
+                          ? "Record unavailable"
+                          : "Unable to load this record"
+                    }
+                    description={
+                      error instanceof RecordContextError
+                        ? error.explanation
+                        : detail
+                          ? "Previously loaded content remains below."
+                          : notFound
+                            ? "This record is not present in the current reference collection."
+                            : undefined
+                    }
+                    action={
+                      <Space wrap>
+                        {onRetry && (
+                          <Button size="small" onClick={onRetry} loading={loading}>
+                            {retryLabel}
+                          </Button>
+                        )}
+                        {onBack ? (
+                          <Button size="small" onClick={onBack}>
+                            {backLabel}
+                          </Button>
+                        ) : (
+                          <Button
+                            size="small"
+                            href={destinationHref(
+                              searchDestination({ selectedRecordKey: null }),
+                            )}
+                            onClick={(event) => {
+                              if (!isPrimaryActivation(event)) return;
+                              event.preventDefault();
+                              navigateDestination(
+                                searchDestination({
+                                  selectedRecordKey: null,
+                                }),
+                              );
+                            }}
+                          >
+                            Back to search
+                          </Button>
+                        )}
+                      </Space>
+                    }
+                  />
+                </div>
+              )}
+            </>
+          }
+          explore={
+            detail && (
+              <RelatedRecords
+                detail={detail}
+                onReference={onReference}
+                onReload={onReload}
+                reloadLabel={reloadLabel}
+              />
+            )
+          }
+        >
+          {detail ? (
+            <>
+              {readingContext}
+              {detail.presentation.general_definition &&
+                detail.presentation.general_definition.unspecified_parameters.length >
+                  0 && (
+                  <p className="muted">
+                    Varies by creature:{" "}
+                    {detail.presentation.general_definition.unspecified_parameters
+                      .map((parameter) => parameter.label)
+                      .join(", ")}
+                    .
+                  </p>
+                )}
+              <RecordPresentation
+                sectionLanding={sectionLanding}
+                identityInHost={identityInHost || showRelated}
+                showOwnerReturn={showOwnerReturn}
+                visibleOwnerRecordKey={visibleOwnerRecordKey}
+                presentation={detail.presentation}
+                root={detail.record}
+                selection={detail.selected}
+                compact={compact}
+                relationships={detail.relationships}
+                reading={{
+                  generation: detail.artifact_generation,
+                  parent: {
+                    record_key: detail.record.record_key,
+                    embedded_path: [],
+                    field: null,
+                    passage: null,
+                    source_fingerprint: null,
+                  },
+                  landing,
+                  onLandingReady,
+                  reloadParent: onReload,
+                  reloadParentLabel: reloadLabel,
+                }}
+                onReference={onReference}
+                onRankChange={onRankChange}
+                onOwnerReturn={onOwnerReturn}
+              />
+            </>
+          ) : loading ? (
+            <Spin delay={500} description={loadingMessage}>
+              <div className="detail-empty" role="status" aria-label={loadingMessage} />
+            </Spin>
+          ) : !error ? (
+            <div className="detail-empty">
+              <Empty description={emptyMessage} />
+            </div>
+          ) : null}
+        </RecordReadingContent>
+      </section>
+    </ReferenceHelpProvider>
   );
 }
 

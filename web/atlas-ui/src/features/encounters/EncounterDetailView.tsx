@@ -698,6 +698,10 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                 previewAnchor={recordPreview.anchor}
                 previewReadingHistory={recordPreview.readingHistory}
                 previewLanding={recordPreview.landing}
+                previewDestination={recordPreview.destination}
+                previewDefinition={recordPreview.definition}
+                previewHelp={recordPreview.help}
+                onHelp={recordPreview.openHelp}
                 previewDetail={recordPreview.detail}
                 previewSelection={recordPreview.selection}
                 previewLoading={recordPreview.loading}

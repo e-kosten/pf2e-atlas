@@ -1,3 +1,4 @@
+import { ReferenceValues } from "./ReferenceHelp";
 import type { ReactNode } from "react";
 import { Collapse } from "antd";
 import type {
@@ -30,6 +31,7 @@ function rankValue(
   kind: SpellRankFactView["kind"],
   label: string,
   componentId?: string,
+  interactiveContent = false,
 ): FactValueRenderer | undefined {
   const change = changes?.find(
     (change) =>
@@ -38,7 +40,11 @@ function rankValue(
   );
   return change
     ? (value) => (
-        <SpellRankValue change={change} label={label}>
+        <SpellRankValue
+          change={change}
+          label={label}
+          interactiveContent={interactiveContent}
+        >
           {value}
         </SpellRankValue>
       )
@@ -229,7 +235,8 @@ export function SpellChanges({
     kind: SpellRankFactView["kind"],
     label: string,
     componentId?: string,
-  ) => rankValue(rankChanges, kind, label, componentId);
+    interactiveContent = false,
+  ) => rankValue(rankChanges, kind, label, componentId, interactiveContent);
   return (
     <>
       <ActionCost
@@ -285,14 +292,37 @@ export function SpellChanges({
       />
       <FactLine
         label="Traits"
-        renderValue={explain("traits", "Traits")}
+        renderValue={(value) => {
+          const values = changes.traits.state === "value" ? changes.traits.value : null;
+          const content = values?.length ? <ReferenceValues values={values} /> : value;
+          return (
+            explain(
+              "traits",
+              "Traits",
+              undefined,
+              values?.some((entry) => Boolean(entry.help?.destination)),
+            )?.(content) ?? content
+          );
+        }}
         fact={changes.traits}
         patch={!effective}
         format={(values) => values.map((value) => value.label).join(", ")}
       />
       <FactLine
         label="Traditions"
-        renderValue={explain("traditions", "Traditions")}
+        renderValue={(value) => {
+          const values =
+            changes.traditions.state === "value" ? changes.traditions.value : null;
+          const content = values?.length ? <ReferenceValues values={values} /> : value;
+          return (
+            explain(
+              "traditions",
+              "Traditions",
+              undefined,
+              values?.some((entry) => Boolean(entry.help?.destination)),
+            )?.(content) ?? content
+          );
+        }}
         fact={changes.traditions}
         patch={!effective}
         format={(values) => values.map((value) => value.label).join(", ")}
@@ -303,7 +333,12 @@ export function SpellChanges({
           <DamageComponents
             damage={changes.damage}
             renderComponent={(component, value) =>
-              explain("damage", "Damage", component.id)?.(value) ?? value
+              explain(
+                "damage",
+                "Damage",
+                component.id,
+                Boolean(component.damage_type.value?.help?.destination),
+              )?.(value) ?? value
             }
           />
         </div>
@@ -312,7 +347,12 @@ export function SpellChanges({
           damage={changes.damage}
           patch={!effective}
           renderComponent={(component, value) =>
-            explain("damage", "Damage", component.id)?.(value) ?? value
+            explain(
+              "damage",
+              "Damage",
+              component.id,
+              Boolean(component.damage_type.value?.help?.destination),
+            )?.(value) ?? value
           }
         />
       )}
@@ -384,7 +424,8 @@ export function SpellReference({
     kind: SpellRankFactView["kind"],
     label: string,
     componentId?: string,
-  ) => rankValue(spell.rank_changes, kind, label, componentId);
+    interactiveContent = false,
+  ) => rankValue(spell.rank_changes, kind, label, componentId, interactiveContent);
 
   return (
     <div className="spell-reference">
@@ -416,7 +457,23 @@ export function SpellReference({
           label="Traditions"
           fact={spell.traditions}
           format={(values) => values.map((value) => value.label).join(", ")}
-          renderValue={explain("traditions", "Traditions")}
+          renderValue={(value) => {
+            const values =
+              spell.traditions.state === "value" ? spell.traditions.value : null;
+            const content = values?.length ? (
+              <ReferenceValues values={values} />
+            ) : (
+              value
+            );
+            return (
+              explain(
+                "traditions",
+                "Traditions",
+                undefined,
+                values?.some((entry) => Boolean(entry.help?.destination)),
+              )?.(content) ?? content
+            );
+          }}
         />
         <ActionCost
           label="Cast"
@@ -534,7 +591,12 @@ export function SpellReference({
             <DamageComponents
               damage={spell.damage}
               renderComponent={(component, value) =>
-                explain("damage", "Damage", component.id)?.(value) ?? value
+                explain(
+                  "damage",
+                  "Damage",
+                  component.id,
+                  Boolean(component.damage_type.value?.help?.destination),
+                )?.(value) ?? value
               }
             />
           </div>
@@ -542,7 +604,12 @@ export function SpellReference({
           <DamageComponents
             damage={spell.damage}
             renderComponent={(component, value) =>
-              explain("damage", "Damage", component.id)?.(value) ?? value
+              explain(
+                "damage",
+                "Damage",
+                component.id,
+                Boolean(component.damage_type.value?.help?.destination),
+              )?.(value) ?? value
             }
           />
         )}

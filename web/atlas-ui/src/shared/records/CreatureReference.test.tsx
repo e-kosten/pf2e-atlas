@@ -1,7 +1,23 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import type { ActorActivityView } from "../../generated/atlas";
+import {
+  fireEvent,
+  render as renderWithContext,
+  screen,
+  within,
+} from "@testing-library/react";
+import { RouterTestContext } from "../../test/router";
+import { ReferenceHelpProvider } from "./ReferenceHelp";
+import { ActorActivity, ActorAwareness } from "./ActorReference";
+import type { ActorActivityView, ReferenceHelpView } from "../../generated/atlas";
 import { CreatureReference } from "./CreatureReference";
-import { actorFixture, activityFixture, knownFact } from "../../test/fixtures";
+import {
+  actorFixture,
+  activityFixture,
+  knownFact,
+  numberFact,
+} from "../../test/fixtures";
+
+const render = (ui: React.ReactNode) =>
+  renderWithContext(ui, { wrapper: RouterTestContext });
 
 it("prioritizes complete prose in exploration and retains it after encounter tasks", () => {
   const actor = actorFixture();
@@ -169,4 +185,149 @@ it("uses the same authored reading groups in reference and encounter with early 
   check();
   view.rerender(<CreatureReference {...props} encounter />);
   check();
+});
+
+const senseHelp: ReferenceHelpView = {
+  definition_key: "sense:darkvision",
+  availability: "available",
+  destination: {
+    kind: "record",
+    navigation: {
+      record_key: "actions:darkvision",
+      embedded_path: [],
+      field: null,
+      passage: null,
+      source_fingerprint: null,
+    },
+  },
+  related_filters: [],
+};
+
+it("activates supplied categorical help while keeping actor qualifiers, modifiers and communication inline", () => {
+  const actor = actorFixture();
+  const onHelp = vi.fn();
+  actor.senses = knownFact([
+    {
+      sense: knownFact({ value: "darkvision", label: "Darkvision", help: senseHelp }),
+      acuity: knownFact("precise"),
+      range_feet: numberFact(60),
+    },
+  ]);
+  actor.languages = knownFact([
+    {
+      value: "common",
+      label: "Common",
+      help: { ...senseHelp, definition_key: "language:common" },
+    },
+    { value: "unknown", label: "Supplied language" },
+  ]);
+  actor.language_details = knownFact("Understands speech but cannot speak.");
+  actor.abilities.value![0].help = { ...senseHelp, definition_key: "ability:str" };
+  actor.skills = knownFact([
+    {
+      key: "athletics",
+      label: "Athletics",
+      help: { ...senseHelp, definition_key: "skill:athletics" },
+      modifier: numberFact(8),
+      note: knownFact("while climbing"),
+      conditional: knownFact([]),
+    },
+  ]);
+  actor.resistances = knownFact([
+    {
+      damage_type: knownFact({ value: "fire", label: "Fire", help: senseHelp }),
+      magnitude: numberFact(5),
+      exceptions: knownFact(["silver"]),
+      double_against: knownFact(["magical fire"]),
+    },
+  ]);
+  render(
+    <ReferenceHelpProvider onHelp={onHelp}>
+      <CreatureReference
+        actor={actor}
+        recordKey="actors:ghoul"
+        prose={null}
+        onReference={vi.fn()}
+      />
+    </ReferenceHelpProvider>,
+  );
+  expect(screen.getByText("Senses").parentElement).toHaveTextContent(
+    "Darkvision precise 60 feet",
+  );
+  expect(screen.getByText("Perception").parentElement).toHaveTextContent("+7");
+  expect(screen.getByText("Communication").parentElement).toHaveTextContent(
+    "Understands speech but cannot speak.",
+  );
+  expect(screen.getByText("Resistances").parentElement).toHaveTextContent(
+    "Fire 5 (except silver) (double against magical fire)",
+  );
+  expect(
+    screen.getByRole("link", { name: "Athletics" }).closest(".record-fact"),
+  ).toHaveTextContent("+8 · while climbing");
+  expect(screen.queryByRole("link", { name: "Supplied language" })).toBeNull();
+  fireEvent.click(screen.getByRole("link", { name: "Darkvision" }));
+  expect(onHelp).toHaveBeenLastCalledWith(
+    senseHelp,
+    expect.any(HTMLElement),
+    undefined,
+  );
+  fireEvent.click(screen.getByRole("link", { name: "Strength" }));
+  expect(onHelp.mock.lastCall?.[0].definition_key).toBe("ability:str");
+});
+
+it("keeps runtime sense availability and Perception beside the supplied help", () => {
+  const actor = actorFixture();
+  actor.runtime = {
+    senses: [
+      {
+        sense_type: { value: "darkvision", label: "Darkvision", help: senseHelp },
+        precision: "precise",
+        range_feet: 60,
+        available: false,
+        reason: "Blinded",
+        perception: 4,
+      },
+    ],
+    contextual_armor_class: [],
+    action_budget: null,
+    unapplied_effects: [],
+  };
+  render(
+    <ReferenceHelpProvider onHelp={vi.fn()}>
+      <ActorAwareness actor={actor} encounter />
+    </ReferenceHelpProvider>,
+  );
+  expect(
+    screen.getByRole("link", { name: "Darkvision" }).closest(".record-fact"),
+  ).toHaveTextContent("precise · 60 feet · Unavailable (Blinded) · Perception +4");
+});
+
+it("keeps an owned ability's title destination primary with separate verified general help", () => {
+  const activity = {
+    ...activityFixture("Customized ward"),
+    kind: "ability" as const,
+    help: senseHelp,
+  };
+  const onReference = vi.fn();
+  const onHelp = vi.fn();
+  render(
+    <ReferenceHelpProvider onHelp={onHelp}>
+      <ActorActivity activity={activity} onReference={onReference} inline />
+    </ReferenceHelpProvider>,
+  );
+  const title = within(screen.getByRole("heading")).getByRole("link", {
+    name: "Customized ward",
+  });
+  fireEvent.click(title);
+  expect(onReference).toHaveBeenCalledWith(
+    activity.navigation.record_key,
+    title,
+    activity.navigation,
+  );
+  expect(onHelp).not.toHaveBeenCalled();
+  const general = within(
+    screen.getByText("General definition").parentElement!,
+  ).getByRole("link");
+  fireEvent.click(general);
+  expect(onHelp).toHaveBeenCalledWith(senseHelp, general, undefined);
 });

@@ -9,6 +9,7 @@ import type {
 } from "../../generated/atlas";
 import { sentenceCase } from "../ui/labels";
 import { ChoicePicker, type ChoiceState } from "../ui/pickers/ChoicePicker";
+import { ReferenceHelpLink } from "../records/ReferenceHelp";
 import {
   changeChoiceValue,
   choiceClauses,
@@ -132,6 +133,7 @@ function FilterChoicePicker({
   ).map((option) => ({
     value: String(option.value),
     label: option.label,
+    help: option.help,
   }));
   const contextualCounts =
     countsEnabled && !query.error ? query.data?.counts : undefined;
@@ -206,6 +208,17 @@ function FilterChoicePicker({
 
   return (
     <ChoicePicker
+      optionAction={(option) => {
+        const help = choices.find((choice) => choice.value === option.value)?.help;
+        return help?.destination ? (
+          <ReferenceHelpLink
+            help={help}
+            generation={countContext?.expected_artifact_generation ?? undefined}
+          >
+            Read<span className="sr-only"> {option.label}</span>
+          </ReferenceHelpLink>
+        ) : null;
+      }}
       labelForValue={labelForValue}
       id={field.definition.id}
       label={label}

@@ -1,6 +1,6 @@
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { atlasRouter } from "../../app/router";
-import type { HistoryState } from "@tanstack/react-router";
+import { useRouterState, type HistoryState } from "@tanstack/react-router";
 import {
   FILTER_URL_RESET_NOTICE,
   useFilterUrlRecovery,
@@ -16,6 +16,7 @@ import { SearchSettings } from "../../shared/search/SearchSettings";
 import { SearchProfileNotice } from "../../shared/search/SearchProfileNotice";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
 import { hasExecutableSearch } from "../../shared/filters/searchState";
+import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
 
 export function SearchView({
   workspace,
@@ -25,6 +26,13 @@ export function SearchView({
   historyState?: Pick<HistoryState, "atlasSearchReset" | "atlasFilterResetNotice">;
 }) {
   usePageTitle("Search");
+  const configureField = useRouterState({
+    select: (state) =>
+      state.location.pathname.startsWith("/search") &&
+      typeof state.location.search.configure_field === "string"
+        ? state.location.search.configure_field
+        : undefined,
+  });
   useFilterUrlRecovery(workspace.search, workspace.recoverFilterUrl);
   const reset = {
     token: historyState.atlasSearchReset,
@@ -58,141 +66,164 @@ export function SearchView({
       ? "Record unavailable"
       : "Loading record…");
   return (
-    <main className="search-workspace">
-      {reset.notice && (
-        <Alert
-          type="info"
-          showIcon
-          title={FILTER_URL_RESET_NOTICE}
-          closable={{
-            onClose: () =>
-              void atlasRouter.navigate({
-                to: ".",
-                search: true,
-                replace: true,
-                resetScroll: false,
-                state: (state) => ({ ...state, atlasFilterResetNotice: false }),
-              }),
-          }}
-        />
+    <ReferenceHelpHost
+      generation={workspace.filterEditor?.artifact_generation}
+      recordActions={(record) => (
+        <AddToRecordButton recordKey={record.record_key} record={record} />
       )}
-      <FilterControls
-        key={reset.token ?? "search"}
-        filterState={workspace}
-        layout="toolbar"
-        similarSearch={
-          workspace.search.similarSeed
-            ? {
-                title: similarTitle,
-                seed: workspace.search.similarSeed.startsWith("trait:")
-                  ? { kind: "trait", trait_key: workspace.search.similarSeed }
-                  : { kind: "record", record_key: workspace.search.similarSeed },
-                onSearch: workspace.refresh,
-                onClear: () =>
-                  workspace.setSearch({
-                    ...workspace.search,
-                    query: "",
-                    similarSeed: null,
-                    mode: "browse",
-                  }),
-              }
-            : undefined
-        }
-        searchRowEnd={
-          <>
-            {workspace.search.traitReferenceSeed && (
-              <Tag
-                closable
-                onClose={() =>
-                  workspace.setSearch({ ...workspace.search, traitReferenceSeed: null })
-                }
-              >
-                Trait references:{" "}
-                {mode?.kind === "trait_references" &&
-                mode.trait_key === workspace.search.traitReferenceSeed
-                  ? mode.title
-                  : "Loading trait…"}
-              </Tag>
-            )}
-            <SearchSettings
-              search={workspace.search}
-              seedTitle={seedTitle}
-              seed={
-                workspace.search.similarSeed
-                  ? workspace.search.similarSeed.startsWith("trait:")
-                    ? { kind: "trait", trait_key: workspace.search.similarSeed }
-                    : { kind: "record", record_key: workspace.search.similarSeed }
-                  : null
-              }
-              generation={workspace.resultPage?.artifact_generation}
-              onApply={(next, model) =>
-                workspace.applySettings
-                  ? workspace.applySettings(next, model)
-                  : workspace.setSearch(next)
-              }
-            />
-          </>
-        }
-      />
-      <SearchProfileNotice />
-      {workspace.errorMessage && (
-        <ErrorNotice
-          error={workspace.errorMessage}
-          title="Unable to update results"
-          description={workspace.errorMessage}
-          action={
-            <Button
-              loading={workspace.resultsRecovering}
-              onClick={() =>
-                workspace.resultsPaused
-                  ? void workspace.refreshResults()
-                  : workspace.refresh()
-              }
-            >
-              {workspace.resultsPaused ? "Refresh results" : "Retry"}
-            </Button>
-          }
-        />
-      )}
-      <ReferenceBrowser
-        emptyMessage={
-          failed
-            ? null
-            : hasCriteria
-              ? workspace.resultPage
-                ? "No matching records."
-                : null
-              : "Search or choose filters."
-        }
-        rows={workspace.resultPage?.rows ?? []}
-        matchDisplay={profile.preferences.matchDisplay}
-        showSmallerWeights={profile.preferences.showSmallerWeights}
-        query={
-          workspace.resultPage?.mode.kind === "text_search"
-            ? workspace.resultPage.mode.query
-            : undefined
-        }
-        relationshipClauses={workspace.resultPage?.relationship_clauses}
-        filter={workspace.resultFilter}
-        generation={workspace.resultPage?.artifact_generation}
-        onRefreshResults={workspace.refreshResults}
-        loading={loading}
-        selectedRecordKey={workspace.selectedRecordKey}
-        onSelect={(row, request) => {
-          workspace.selectRecord(row.record.record_key);
-          workspace.reading.select(request);
-        }}
-        reading={workspace.reading}
-        positions={workspace.positions}
-        resultsHeader={<ResultPaneHeader workspace={workspace} />}
-        recordActions={(record) => (
-          <AddToRecordButton
-            key={record.record_key}
-            recordKey={record.record_key}
-            record={record}
+    >
+      <main className="search-workspace">
+        {reset.notice && (
+          <Alert
+            type="info"
+            showIcon
+            title={FILTER_URL_RESET_NOTICE}
+            closable={{
+              onClose: () =>
+                void atlasRouter.navigate({
+                  to: ".",
+                  search: true,
+                  replace: true,
+                  resetScroll: false,
+                  state: (state) => ({ ...state, atlasFilterResetNotice: false }),
+                }),
+            }}
           />
         )}
-      />
-    </main>
+        <FilterControls
+          key={reset.token ?? "search"}
+          filterState={workspace}
+          layout="toolbar"
+          configureField={configureField}
+          onConfigured={() => {
+            void atlasRouter.navigate({
+              to: ".",
+              search: (previous) => {
+                const { configure_field: _configured, ...retained } = previous;
+                void _configured;
+                return retained;
+              },
+              replace: true,
+              resetScroll: false,
+            });
+          }}
+          similarSearch={
+            workspace.search.similarSeed
+              ? {
+                  title: similarTitle,
+                  seed: workspace.search.similarSeed.startsWith("trait:")
+                    ? { kind: "trait", trait_key: workspace.search.similarSeed }
+                    : { kind: "record", record_key: workspace.search.similarSeed },
+                  onSearch: workspace.refresh,
+                  onClear: () =>
+                    workspace.setSearch({
+                      ...workspace.search,
+                      query: "",
+                      similarSeed: null,
+                      mode: "browse",
+                    }),
+                }
+              : undefined
+          }
+          searchRowEnd={
+            <>
+              {workspace.search.traitReferenceSeed && (
+                <Tag
+                  closable
+                  onClose={() =>
+                    workspace.setSearch({
+                      ...workspace.search,
+                      traitReferenceSeed: null,
+                    })
+                  }
+                >
+                  Trait references:{" "}
+                  {mode?.kind === "trait_references" &&
+                  mode.trait_key === workspace.search.traitReferenceSeed
+                    ? mode.title
+                    : "Loading trait…"}
+                </Tag>
+              )}
+              <SearchSettings
+                search={workspace.search}
+                seedTitle={seedTitle}
+                seed={
+                  workspace.search.similarSeed
+                    ? workspace.search.similarSeed.startsWith("trait:")
+                      ? { kind: "trait", trait_key: workspace.search.similarSeed }
+                      : { kind: "record", record_key: workspace.search.similarSeed }
+                    : null
+                }
+                generation={workspace.resultPage?.artifact_generation}
+                onApply={(next, model) =>
+                  workspace.applySettings
+                    ? workspace.applySettings(next, model)
+                    : workspace.setSearch(next)
+                }
+              />
+            </>
+          }
+        />
+        <SearchProfileNotice />
+        {workspace.errorMessage && (
+          <ErrorNotice
+            error={workspace.errorMessage}
+            title="Unable to update results"
+            description={workspace.errorMessage}
+            action={
+              <Button
+                loading={workspace.resultsRecovering}
+                onClick={() =>
+                  workspace.resultsPaused
+                    ? void workspace.refreshResults()
+                    : workspace.refresh()
+                }
+              >
+                {workspace.resultsPaused ? "Refresh results" : "Retry"}
+              </Button>
+            }
+          />
+        )}
+        <ReferenceBrowser
+          emptyMessage={
+            failed
+              ? null
+              : hasCriteria
+                ? workspace.resultPage
+                  ? "No matching records."
+                  : null
+                : "Search or choose filters."
+          }
+          rows={workspace.resultPage?.rows ?? []}
+          matchDisplay={profile.preferences.matchDisplay}
+          showSmallerWeights={profile.preferences.showSmallerWeights}
+          query={
+            workspace.resultPage?.mode.kind === "text_search"
+              ? workspace.resultPage.mode.query
+              : undefined
+          }
+          relationshipClauses={workspace.resultPage?.relationship_clauses}
+          filter={workspace.resultFilter}
+          generation={workspace.resultPage?.artifact_generation}
+          onRefreshResults={workspace.refreshResults}
+          loading={loading}
+          selectedRecordKey={workspace.selectedRecordKey}
+          onSelect={(row, request) => {
+            workspace.selectRecord(row.record.record_key);
+            workspace.reading.select(request);
+          }}
+          reading={workspace.reading}
+          positions={workspace.positions}
+          resultsHeader={<ResultPaneHeader workspace={workspace} />}
+          recordActions={(record) => (
+            <AddToRecordButton
+              key={record.record_key}
+              recordKey={record.record_key}
+              record={record}
+            />
+          )}
+        />
+      </main>
+    </ReferenceHelpHost>
   );
 }

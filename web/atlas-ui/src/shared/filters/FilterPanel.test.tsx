@@ -1,6 +1,13 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render as rtlRender,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { ConfigProvider, Grid } from "antd";
-import { useState, type ComponentProps } from "react";
+import { useState, type ComponentProps, type ReactElement } from "react";
+import { RouterTestContext } from "../../test/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FilterControls } from "./FilterPanel";
 import { DEFAULT_SEARCH_STATE, type SearchFormState } from "./searchState";
@@ -11,6 +18,9 @@ import type {
   QueryPredicate,
 } from "../../generated/atlas";
 import * as atlasApi from "../../api/atlasApi";
+function render(ui: ReactElement) {
+  return rtlRender(ui, { wrapper: RouterTestContext });
+}
 
 const kindLabels = { kind: { creature: "Creature", spell: "Spell" } };
 const actorMetricCatalog = () =>
@@ -217,7 +227,7 @@ function renderControls(
   filterError: string | null = null,
   presentation: Pick<
     ComponentProps<typeof FilterControls>,
-    "layout" | "includeSearch"
+    "layout" | "includeSearch" | "configureField" | "onConfigured"
   > = {},
   discoveryContext?: FilterDiscoveryContext,
 ) {
@@ -262,6 +272,42 @@ function renderControls(
 describe("shared common and maintained advanced filters", () => {
   beforeEach(() => vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true }));
   afterEach(() => vi.restoreAllMocks());
+  it("consumes a numeric configuration once and opens the existing blank editor without executing it", async () => {
+    const consumed = vi.fn();
+    const change = renderControls(
+      editorFixture([fieldFixture("level", "number", "Level")]),
+      null,
+      null,
+      { configureField: "level", onConfigured: consumed },
+    );
+    expect(await screen.findByRole("textbox", { name: "Level" })).toHaveValue("");
+    expect(consumed).toHaveBeenCalledOnce();
+    expect(change).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole("textbox", { name: "Level" }), {
+      target: { value: "4" },
+    });
+    expect(change).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filter: expect.objectContaining({ field: "level", value: 4 }),
+      }),
+    );
+    expect(consumed).toHaveBeenCalledOnce();
+  });
+  it("reports an unavailable numeric intent without executing or resetting filters", async () => {
+    const consumed = vi.fn();
+    const change = renderControls(
+      editorFixture([fieldFixture("level", "number", "Level")]),
+      { kind: "compare", field: "level", op: "gte", value: 7 },
+      null,
+      { configureField: "removed.field", onConfigured: consumed },
+    );
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "This numeric filter is unavailable",
+    );
+    expect(screen.getByRole("textbox", { name: "Level" })).toHaveValue("7");
+    expect(change).not.toHaveBeenCalled();
+    expect(consumed).toHaveBeenCalledOnce();
+  });
   it("distinguishes open bounds, exact values and ranges while editing and clearing", async () => {
     const change = renderControls(
       editorFixture([fieldFixture("level_or_rank", "number", "Level / rank")]),

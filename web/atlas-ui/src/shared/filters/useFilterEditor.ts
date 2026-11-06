@@ -178,6 +178,77 @@ export function useFilterEditor(
     commit(next);
     return null;
   }
+  function appendDraft(nodes: RuleGroupType["rules"]): RuleGroupType | null {
+    if (!prepared.query) return null;
+    return prepared.query.combinator === "and" && !prepared.query.not
+      ? { ...prepared.query, rules: [...prepared.query.rules, ...nodes] }
+      : {
+          id: crypto.randomUUID(),
+          combinator: "and",
+          rules: [prepared.query, ...nodes],
+        };
+  }
+  function addPredicate(predicate: QueryPredicate): string | null {
+    // Fresh editor addresses keep repeated supplied actions independently editable.
+    function addressed(node: QueryPredicate): QueryPredicate {
+      const clause_id = crypto.randomUUID();
+      if (node.kind === "all_of" || node.kind === "any_of")
+        return { ...node, clause_id, children: node.children.map(addressed) };
+      if (node.kind === "not")
+        return { ...node, clause_id, predicate: addressed(node.predicate) };
+      if (node.kind === "exists")
+        return {
+          ...node,
+          clause_id,
+          scope_id: crypto.randomUUID(),
+          predicate: addressed(node.predicate),
+        };
+      return { ...node, clause_id };
+    }
+    const leaf = addressed(predicate);
+    let additions: RuleGroupType;
+    try {
+      additions = predicateBuilder(leaf, definitions);
+      builderPredicate(additions, definitions);
+    } catch (error) {
+      return error instanceof Error
+        ? error.message
+        : "This definition filter is unavailable.";
+    }
+    const query = appendDraft([additions]);
+    if (!query) return "Reset the filters before adding a definition filter.";
+    const filter: QueryPredicate = search.filter
+      ? { kind: "all_of", children: [search.filter, leaf] }
+      : leaf;
+    const next = { ...search, filter, filterError: null };
+    retain(query, next);
+    commit(next);
+    return null;
+  }
+  function addFieldDraft(fieldId: string): string | null {
+    const field = fields.find(
+      (candidate) =>
+        candidate.definition.id === fieldId && candidate.definition.scope === null,
+    );
+    if (!field || field.definition.field_type !== "number")
+      return "This numeric filter is unavailable in the current reference collection.";
+    const operator =
+      field.operators.find(
+        (entry) => entry.operator === "eq" && entry.operand === "scalar",
+      ) ?? field.operators.find((entry) => entry.operand === "scalar");
+    if (!operator) return "This filter has no numeric comparison available.";
+    const query = appendDraft([
+      {
+        id: crypto.randomUUID(),
+        field: fieldId,
+        operator: operator.operator,
+        value: "",
+      },
+    ]);
+    if (!query) return "Reset the filters before configuring this field.";
+    retain(query);
+    return null;
+  }
   function editLink(
     clause: Extract<QueryPredicate, { kind: "relationship" }>,
     relationship: QueryRelationship | null,
@@ -245,6 +316,8 @@ export function useFilterEditor(
     change,
     changeCommon,
     addLink,
+    addPredicate,
+    addFieldDraft,
     editLink,
     clear: () => setDraft(null),
   };

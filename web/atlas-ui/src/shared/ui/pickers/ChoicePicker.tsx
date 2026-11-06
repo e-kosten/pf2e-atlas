@@ -7,7 +7,7 @@ import {
 } from "@ant-design/icons";
 import { Button, Grid, Input, Popover, Typography, theme } from "antd";
 import type { InputRef } from "antd";
-import { useId, useRef, useState, type ReactNode } from "react";
+import { Fragment, useId, useRef, useState, type ReactNode } from "react";
 import type { KeyboardEvent } from "react";
 export type ChoiceState = "neutral" | "include" | "exclude";
 export type ChoiceOption = { value: string; label: string };
@@ -32,6 +32,7 @@ export function ChoicePicker({
   counts,
   valueEditing,
   pageKey,
+  optionAction,
 }: {
   label: string;
   id: string;
@@ -51,6 +52,7 @@ export function ChoicePicker({
   counts?: ReadonlyMap<string, bigint>;
   valueEditing?: { triggerText: string; enterValue?: string; manualValue?: string };
   pageKey?: string;
+  optionAction?: (option: ChoiceOption) => ReactNode;
 }) {
   const { token } = theme.useToken();
   const [sessionValues, setSessionValues] = useState<string[]>([]);
@@ -137,9 +139,8 @@ export function ChoicePicker({
               : state === "include"
                 ? "exclude"
                 : "neutral";
-          return (
+          const button = (
             <Button
-              key={option.value}
               className="common-choice-row"
               block
               color={
@@ -152,6 +153,8 @@ export function ChoicePicker({
               variant="text"
               styles={{
                 root: {
+                  minWidth: 0,
+                  flex: optionAction ? 1 : undefined,
                   color:
                     state === "include"
                       ? "var(--filter-include-text)"
@@ -196,6 +199,17 @@ export function ChoicePicker({
                 </span>
               )}
             </Button>
+          );
+          return optionAction ? (
+            <div
+              key={option.value}
+              style={{ display: "flex", alignItems: "center", minWidth: 0 }}
+            >
+              {button}
+              <span style={{ flexShrink: 0 }}>{optionAction(option)}</span>
+            </div>
+          ) : (
+            <Fragment key={option.value}>{button}</Fragment>
           );
         })}
         {!rows.length && !loading && emptyMessage && (

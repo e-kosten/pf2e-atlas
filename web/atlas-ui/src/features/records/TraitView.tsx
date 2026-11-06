@@ -1,3 +1,4 @@
+import { ReferenceHelpProvider } from "../../shared/records/ReferenceHelp";
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { traitSimilarPreviewQueryOptions } from "../../shared/search/similarityQueries";
 import { LoadingStatus } from "../../shared/ui/LoadingStatus";
@@ -88,34 +89,39 @@ export function TraitView({ route }: { route: TraitPageInput }) {
               />
             )}
             {query.data ? (
-              <article className="record-reference" data-selection-search>
-                <DocumentIdentityHeader
-                  title={query.data.label}
-                  classification="Trait"
-                />
-                {query.data.content ? (
-                  <PreparedContentBody
-                    body={query.data.content.body}
-                    references={query.data.content.references}
+              <ReferenceHelpProvider
+                onHelp={preview.openHelp}
+                generation={query.data.artifact_generation}
+              >
+                <article className="record-reference" data-selection-search>
+                  <DocumentIdentityHeader
+                    title={query.data.label}
+                    classification="Trait"
+                  />
+                  {query.data.content ? (
+                    <PreparedContentBody
+                      body={query.data.content.body}
+                      references={query.data.content.references}
+                      onReference={preview.open}
+                    />
+                  ) : (
+                    <Alert
+                      type="info"
+                      title="No definition is available in this reference collection."
+                    />
+                  )}
+                  <TraitAssociations
+                    key={JSON.stringify([
+                      query.data.trait_key,
+                      query.data.artifact_generation,
+                    ])}
+                    detail={query.data}
+                    route={route}
+                    onReload={() => void reload()}
                     onReference={preview.open}
                   />
-                ) : (
-                  <Alert
-                    type="info"
-                    title="No definition is available in this reference collection."
-                  />
-                )}
-                <TraitAssociations
-                  key={JSON.stringify([
-                    query.data.trait_key,
-                    query.data.artifact_generation,
-                  ])}
-                  detail={query.data}
-                  route={route}
-                  onReload={() => void reload()}
-                  onReference={preview.open}
-                />
-              </article>
+                </article>
+              </ReferenceHelpProvider>
             ) : query.isLoading ? (
               <div className="detail-empty">
                 <LoadingStatus label="Loading trait…" />
@@ -124,13 +130,19 @@ export function TraitView({ route }: { route: TraitPageInput }) {
           </section>
         </DocumentPagePane>
       </main>
-      {preview.recordKey && (
+      {preview.destination && (
         <RecordReferenceDrawer
+          destination={preview.destination}
+          definition={preview.definition}
+          help={preview.help}
+          onHelp={preview.openHelp}
           actions={
-            <AddToRecordButton
-              recordKey={preview.recordKey}
-              record={preview.detail?.record}
-            />
+            preview.recordKey ? (
+              <AddToRecordButton
+                recordKey={preview.recordKey!}
+                record={preview.detail?.record}
+              />
+            ) : undefined
           }
           anchor={preview.anchor}
           readingHistory={preview.readingHistory}

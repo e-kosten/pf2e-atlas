@@ -54,8 +54,12 @@ export function EncounterOriginalRecord({
           }}
         />
       )}
-      {preview.recordKey && (
+      {preview.destination && (
         <RecordReferenceDrawer
+          destination={preview.destination}
+          definition={preview.definition}
+          help={preview.help}
+          onHelp={preview.openHelp}
           anchor={preview.anchor}
           detail={preview.detail}
           loading={preview.loading}

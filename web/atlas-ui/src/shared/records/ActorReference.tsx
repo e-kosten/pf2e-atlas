@@ -1,3 +1,4 @@
+import { ReferenceHelpLink, ReferenceValue, ReferenceValues } from "./ReferenceHelp";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { ValueExplanation } from "../ui/ValueExplanation";
@@ -94,14 +95,20 @@ export function DamageComponents({
                   ? "Formula cleared"
                   : factText(component.formula, String, { required: true, patch })}
             </strong>{" "}
-            {patch && component.damage_type.state === "missing"
-              ? ""
-              : patch && component.damage_type.state === "null"
-                ? "Type cleared"
-                : factText(component.damage_type, (value) => value.label, {
-                    required: true,
-                    patch,
-                  })}
+            {patch && component.damage_type.state === "missing" ? (
+              ""
+            ) : patch && component.damage_type.state === "null" ? (
+              "Type cleared"
+            ) : component.damage_type.state === "value" &&
+              component.damage_type.value &&
+              !isEmptyFactValue(component.damage_type.value) ? (
+              <ReferenceValue value={component.damage_type.value} />
+            ) : (
+              factText(component.damage_type, (value) => value.label, {
+                required: true,
+                patch,
+              })
+            )}
             {kinds
               ? component.kinds.state === "value" &&
                 !(patch && isEmptyFactValue(component.kinds.value))
@@ -172,7 +179,11 @@ export function renderIwr({
             return (
               <span key={index}>
                 {index ? "; " : ""}
-                {factText(entry.damage_type)}
+                {entry.damage_type.state === "value" && entry.damage_type.value ? (
+                  <ReferenceValue value={entry.damage_type.value} />
+                ) : (
+                  factText(entry.damage_type)
+                )}
                 {entry.magnitude.state !== "not_applicable" ? (
                   <>
                     {" "}
@@ -325,7 +336,7 @@ export function ActorAwareness({
       {encounter && actor.runtime ? (
         <div className="record-fact-list">
           {actor.runtime.senses.map((sense, index) => (
-            <FactRow label={sense.sense_type.label} key={index}>
+            <FactRow label={<ReferenceValue value={sense.sense_type} />} key={index}>
               {[
                 sense.precision,
                 sense.range_feet === null ? null : `${sense.range_feet} feet`,
@@ -345,20 +356,25 @@ export function ActorAwareness({
         <FactLine
           label="Senses"
           fact={actor.senses}
-          format={(senses) =>
-            senses
-              .map((sense) =>
-                [
-                  factText(sense.sense),
-                  sense.acuity.state === "missing" ? "" : factText(sense.acuity),
-                  sense.range_feet.state === "missing"
-                    ? ""
-                    : factText(sense.range_feet, (value) => `${value} feet`),
-                ]
-                  .filter(Boolean)
-                  .join(" "),
-              )
-              .join(", ")
+          renderValue={(value) =>
+            actor.senses.state === "value" && actor.senses.value?.length
+              ? actor.senses.value.map((sense, index) => (
+                  <span key={index}>
+                    {index > 0 && ", "}
+                    {sense.sense.state === "value" && sense.sense.value ? (
+                      <ReferenceValue value={sense.sense.value} />
+                    ) : (
+                      factText(sense.sense)
+                    )}
+                    {sense.acuity.state === "missing"
+                      ? ""
+                      : ` ${factText(sense.acuity)}`}
+                    {sense.range_feet.state === "missing"
+                      ? ""
+                      : ` ${factText(sense.range_feet, (range) => `${range} feet`)}`}
+                  </span>
+                ))
+              : value
           }
         />
       )}
@@ -404,7 +420,13 @@ export function ActorLanguages({ actor }: { actor: ActorPresentationView }) {
       <FactLine
         label="Languages"
         fact={actor.languages}
-        format={(values) => values.map((value) => value.label).join(", ")}
+        renderValue={(value) =>
+          actor.languages.state === "value" && actor.languages.value?.length ? (
+            <ReferenceValues values={actor.languages.value} />
+          ) : (
+            value
+          )
+        }
       />
       <FactLine label="Communication" fact={actor.language_details} />
     </div>
@@ -495,7 +517,14 @@ export function ActorSkills({
           )}
           <div className="record-fact-list">
             {(actor.abilities.value ?? []).map((ability) => (
-              <FactRow key={ability.key} label={ability.label}>
+              <FactRow
+                key={ability.key}
+                label={
+                  <ReferenceHelpLink help={ability.help}>
+                    {ability.label}
+                  </ReferenceHelpLink>
+                }
+              >
                 <NumberFact fact={ability.modifier} signed />
               </FactRow>
             ))}
@@ -511,7 +540,13 @@ export function ActorSkills({
           <div className="record-fact-list">
             {(actor.skills.value ?? []).map((skill) => (
               <div key={skill.key}>
-                <FactRow label={sentenceCase(skill.label)}>
+                <FactRow
+                  label={
+                    <ReferenceHelpLink help={skill.help}>
+                      {sentenceCase(skill.label)}
+                    </ReferenceHelpLink>
+                  }
+                >
                   <NumberFact fact={skill.modifier} signed />
                   {skill.note.state !== "missing" && hasReadingFact(skill.note)
                     ? ` · ${factText(skill.note)}`
@@ -777,7 +812,13 @@ export function ActorSecondaryFacts({
           <FactLine
             label="Languages"
             fact={actor.languages}
-            format={(values) => values.map((value) => value.label).join(", ")}
+            renderValue={(value) =>
+              actor.languages.state === "value" && actor.languages.value?.length ? (
+                <ReferenceValues values={actor.languages.value} />
+              ) : (
+                value
+              )
+            }
           />
           <FactLine label="Communication" fact={actor.language_details} />
           <ActorSkills actor={actor} />
@@ -926,6 +967,11 @@ export function ActorActivity({
         </div>
       )}
       <div className="actor-activity__facts">
+        {activity.help?.destination && (
+          <FactRow label="General definition">
+            <ReferenceHelpLink help={activity.help}>{activity.title}</ReferenceHelpLink>
+          </FactRow>
+        )}
         {activity.first_level_only?.value === true && (
           <FactRow label="Selection">At 1st level only</FactRow>
         )}

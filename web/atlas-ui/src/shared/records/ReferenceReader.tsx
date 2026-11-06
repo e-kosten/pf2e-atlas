@@ -1,3 +1,4 @@
+import { useReferenceHelpSession } from "./ReferenceHelpHost";
 import { PaneIconLink } from "../ui/actions/PaneAction";
 import { ReaderMatchNavigation } from "./ReaderMatchNavigation";
 import type { RecordNavigationView, RecordSummaryView } from "../../generated/atlas";
@@ -24,22 +25,7 @@ import { landReadingTarget } from "./landReadingTarget";
 import { BrowsePaneHeader } from "./BrowsePaneHeader";
 import { useRecordExploreLocation } from "./recordExploreLocation";
 import { readingNavigationForUrl } from "./readingUrlNavigation";
-export function ReferenceReader({
-  reading,
-  selectedRecordKey = null,
-  recordActions,
-  readerHeaderActions,
-  readerContext,
-  status,
-  readerFooter,
-  positions,
-  onResults,
-  active = true,
-  label = "Preview",
-  returnToSelectionLabel = "Return to selection",
-  showRelated = true,
-  retryLabel,
-}: {
+type ReferenceReaderProps = {
   reading: ReferenceReading;
   selectedRecordKey?: string | null;
   readerContext?: ReactNode;
@@ -54,8 +40,41 @@ export function ReferenceReader({
   returnToSelectionLabel?: string;
   showRelated?: boolean;
   retryLabel?: string;
-}) {
+};
+
+export function ReferenceReader(props: ReferenceReaderProps) {
+  const shared = useReferenceHelpSession();
+  return shared ? (
+    <ReferenceReaderContent {...props} preview={shared} ownsPreview={false} />
+  ) : (
+    <LocalReferenceReader {...props} />
+  );
+}
+function LocalReferenceReader(props: ReferenceReaderProps) {
   const preview = useRecordPreview();
+  return <ReferenceReaderContent {...props} preview={preview} ownsPreview />;
+}
+function ReferenceReaderContent({
+  preview,
+  ownsPreview,
+  reading,
+  selectedRecordKey = null,
+  recordActions,
+  readerHeaderActions,
+  readerContext,
+  status,
+  readerFooter,
+  positions,
+  onResults,
+  active = true,
+  label = "Preview",
+  returnToSelectionLabel = "Return to selection",
+  showRelated = true,
+  retryLabel,
+}: ReferenceReaderProps & {
+  preview: ReturnType<typeof useRecordPreview>;
+  ownsPreview: boolean;
+}) {
   const { mode, tab } = useRecordExploreLocation();
   const localPositions = useBrowsePositions();
   const saved = positions ?? localPositions;
@@ -135,7 +154,7 @@ export function ReferenceReader({
         if (pendingPosition.current && href) pendingPosition.current.focusHref = href;
       }
     },
-    [active, address, saved],
+    [address, saved],
   );
   const inspect = reading.inspect;
   const openReference = preview.open;
@@ -434,6 +453,7 @@ export function ReferenceReader({
       >
         <ReaderMatchNavigation.Provider value={navigateToMatch}>
           <RecordDetailPane
+            onHelp={preview.openHelp}
             showRelated={showRelated}
             identityActions={showRelated && detail ? documentActions : undefined}
             detail={detail}
@@ -462,8 +482,12 @@ export function ReferenceReader({
         </ReaderMatchNavigation.Provider>
       </section>
       {readerFooter}
-      {preview.recordKey && (
+      {ownsPreview && preview.destination && (
         <RecordReferenceDrawer
+          destination={preview.destination}
+          definition={preview.definition}
+          help={preview.help}
+          onHelp={preview.openHelp}
           actions={preview.detail && recordActions?.(preview.detail.record)}
           anchor={preview.anchor}
           visibleOwnerRecordKey={

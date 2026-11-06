@@ -1,3 +1,4 @@
+import { ReferenceValue } from "./ReferenceHelp";
 import {
   destinationHref,
   isPrimaryActivation,
@@ -92,7 +93,12 @@ export function PhysicalReference({
             }
           >
             {factText(consumable.damage.value.formula)}{" "}
-            {factText(consumable.damage.value.damage_type)}
+            {consumable.damage.value.damage_type.state === "value" &&
+            consumable.damage.value.damage_type.value ? (
+              <ReferenceValue value={consumable.damage.value.damage_type.value} />
+            ) : (
+              factText(consumable.damage.value.damage_type)
+            )}
           </FactRow>
         ),
         consumable.damage.state === "invalid" && (
@@ -182,11 +188,7 @@ export function PhysicalReference({
               </Typography.Link>
             </FactRow>
           ) : item.base_type.state === "invalid" ? (
-            <FactLine
-              label="Base type"
-              fact={item.base_type}
-              format={(value) => value.label}
-            />
+            <FactLine label="Base type" fact={item.base_type} />
           ) : null}
           {((item.quantity.state === "value" && item.quantity.value !== 1) ||
             ["invalid", "null"].includes(item.quantity.state)) && (
@@ -209,7 +211,7 @@ export function PhysicalReference({
             <FactLine label="Material" fact={item.material} />
           )}
           {item.size.state === "value" && item.size.value?.value !== "med" && (
-            <FactLine label="Size" fact={item.size} format={(value) => value.label} />
+            <FactLine label="Size" fact={item.size} />
           )}
           {item.size.state === "invalid" && <FactLine label="Size" fact={item.size} />}
         </div>

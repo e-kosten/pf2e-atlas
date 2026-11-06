@@ -1,3 +1,4 @@
+import { ReferenceValue } from "./ReferenceHelp";
 import { Children, type ReactNode } from "react";
 import type { HazardPresentationView } from "../../generated/atlas";
 import {
@@ -59,7 +60,12 @@ export function HazardReference({
           format: (value) => (value ? "Complex" : "Simple"),
         })
       : null,
-    renderReferenceFact({ label: "Size", fact: hazard.actor.size, optional: true }),
+    renderReferenceFact({
+      label: "Size",
+      fact: hazard.actor.size,
+      optional: true,
+      renderValue: (value) => <ReferenceValue value={value} />,
+    }),
     renderReferenceFact({
       label: "Detection DC",
       fact: hazard.detection_dc,

@@ -177,3 +177,27 @@ error rather than silently dropping a capability. Artifact-scoped definition-opt
 discovery includes eligible zero-match and label-only values plus admitted existing
 glossary records; it does not change corpus/list value-vocabulary semantics or add
 a glossary browser.
+
+### Contextual browser reading
+
+The existing linked-reference session owns one mixed record/definition Drawer and
+its bounded local history. An initiating property help value remains separate
+from the actual reading destination, so properties sharing a record keep distinct
+related-filter actions. Record reading context participates in request, cache and
+retained-content identity; ordinary authored reading cannot reuse a general-template
+projection. Exact owner returns retain their ordinary source address.
+
+Record-backed help retains the actual record URL, with explicit reading context
+and optional semantic definition key. Full-page reading resolves that key through
+the existing definition-detail service and uses its property actions only when
+the returned actual destination matches the requested record selection. Standalone
+definitions have direct typed destinations; traits keep their established URLs and
+specialized membership, reference and Similar workflows. These routes add no
+glossary browser or duplicate record page. Native modified links and the Drawer's
+Open full page action retain the same checked destination and reading purpose.
+
+Related actions consume the Rust-supplied canonical predicate. A numeric action
+opens the existing Advanced Filters editor using a catalog field configuration
+intent; it becomes executable only after an operator and value are supplied. The
+manual definition chooser uses the same actions and draft owner. Opening, nesting
+or closing help does not change the host's selected record, criteria or drafts.

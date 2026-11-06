@@ -1,3 +1,7 @@
+import {
+  ReferenceHelpProvider,
+  type ReferenceHelpHandler,
+} from "../../shared/records/ReferenceHelp";
 import type { EncounterMutationCommand } from "./useEncounterMutations";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import {
@@ -90,6 +94,10 @@ export function EncounterInspectorPane({
   conditionDefinitions,
   damageTypes,
   standardRecoveryDc,
+  previewDestination,
+  previewDefinition,
+  previewHelp,
+  onHelp,
   previewDetail,
   previewLoading,
   previewError,
@@ -189,6 +197,10 @@ export function EncounterInspectorPane({
   }>;
   standardRecoveryDc?: bigint;
   onPreviewRankChange?: (rank: number | undefined) => void;
+  previewDestination?: import("../../generated/atlas").ReferenceDestinationView | null;
+  previewDefinition?: import("../../generated/atlas").DefinitionDetailView;
+  previewHelp?: import("../../generated/atlas").ReferenceHelpView;
+  onHelp?: ReferenceHelpHandler;
   previewSelection?: import("../../generated/atlas").RecordNavigationView;
   previewDetail: Awaited<ReturnType<typeof getRecordDetail>> | undefined;
   previewLoading: boolean;
@@ -208,107 +220,119 @@ export function EncounterInspectorPane({
     );
   }
   return (
-    <section
-      className="encounter-pane encounter-record-pane"
-      tabIndex={-1}
-      aria-label="Participant"
-    >
-      <EncounterConditionRecovery
-        key={participant.participant_key}
-        encounterRef={encounterKey}
-        revision={encounterRevision}
-        participant={participant}
-        disabled={disabled}
-        onApply={onConditionRecovery}
+    <ReferenceHelpProvider onHelp={onHelp} generation={artifactGeneration ?? undefined}>
+      <section
+        className="encounter-pane encounter-record-pane"
+        tabIndex={-1}
+        aria-label="Participant"
       >
-        <EncounterParticipantSurface
-          key={`participant-${participant.participant_key}`}
-          disabled={disabled}
-          encounterRevision={encounterRevision}
-          currentTurnKey={currentTurnKey}
-          encounterKey={encounterKey}
-          artifactGeneration={artifactGeneration}
-          pending={pending}
-          recovery={recovery}
-          conditionsDisabled={conditionsDisabled}
-          conditionError={conditionError}
-          onRetryConditions={onRetryConditions}
-          error={error}
-          errorKind={errorKind}
-          spellError={spellError}
-          conditionDefinitions={conditionDefinitions}
-          damageTypes={damageTypes}
-          standardRecoveryDc={standardRecoveryDc}
-          onAddCondition={onAddCondition}
-          onReference={onReference}
-          onRemoveCondition={onRemoveCondition}
-          onUpdate={onUpdate}
-          onReset={onReset}
-          onLifeSettings={onLifeSettings}
-          onRecoverPersistent={onRecoverPersistent}
-          onResolveDrained={onResolveDrained}
-          onPreviewCondition={onPreviewCondition}
-          onTurnResources={onTurnResources}
-          onAbilityState={onAbilityState}
-          onManualTracker={onManualTracker}
-          onHpAction={onHpAction}
-          onSpellAction={onSpellAction}
-          onUpdateCondition={onUpdateCondition}
+        <EncounterConditionRecovery
+          key={participant.participant_key}
+          encounterRef={encounterKey}
+          revision={encounterRevision}
           participant={participant}
-          onResolveHpLifecycle={onResolveHpLifecycle}
-          onBeginStrike={onBeginStrike}
-          onPrepareStrike={onPrepareStrike}
-          renderStrikeContext={renderStrikeContext}
-          requestedConditionEdit={requestedConditionEdit}
-          participants={participants}
-        />
-      </EncounterConditionRecovery>
-      {previewRecordKey && (
-        <RecordReferenceDrawer
-          actions={
-            previewDetail?.presentation.body.kind === "spell" && (
-              <EncounterSpellControls
-                encounterRevision={encounterRevision}
-                participant={participant}
-                detail={previewDetail}
-                disabled={disabled || previewLoading || !!previewError}
-                pending={pending}
-                error={spellError}
-                recovery={recovery}
-                encounterRef={encounterKey}
-                onAction={(action, expectedRevision) =>
-                  onSpellAction(participant, action, expectedRevision)
-                }
-              />
-            )
-          }
-          context="encounter"
-          onRankChange={onPreviewRankChange}
-          visibleOwnerRecordKey={participant.record_key}
-          anchor={previewAnchor}
-          readingHistory={previewReadingHistory}
-          requestedNavigation={previewSelection}
-          landing={previewLanding}
-          detail={previewDetail}
-          fullPageHref={destinationHref(
-            recordDestination({
-              recordKey: previewRecordKey,
-              selection: previewSelection,
-              landing: previewLanding,
-            }),
-          )}
-          loading={previewLoading}
-          error={previewError}
-          onRetry={onRetryPreview}
-          onReload={onReloadPreview}
-          reloadLabel={reloadPreviewLabel}
-          retryLabel={retryPreviewLabel}
-          onClose={onCloseRecordPreview}
-          onOpenFullPage={() => onOpenRecordFullPage(previewRecordKey)}
-          onReference={onReference}
-        />
-      )}
-    </section>
+          disabled={disabled}
+          onApply={onConditionRecovery}
+        >
+          <EncounterParticipantSurface
+            key={`participant-${participant.participant_key}`}
+            disabled={disabled}
+            encounterRevision={encounterRevision}
+            currentTurnKey={currentTurnKey}
+            encounterKey={encounterKey}
+            artifactGeneration={artifactGeneration}
+            pending={pending}
+            recovery={recovery}
+            conditionsDisabled={conditionsDisabled}
+            conditionError={conditionError}
+            onRetryConditions={onRetryConditions}
+            error={error}
+            errorKind={errorKind}
+            spellError={spellError}
+            conditionDefinitions={conditionDefinitions}
+            damageTypes={damageTypes}
+            standardRecoveryDc={standardRecoveryDc}
+            onAddCondition={onAddCondition}
+            onReference={onReference}
+            onRemoveCondition={onRemoveCondition}
+            onUpdate={onUpdate}
+            onReset={onReset}
+            onLifeSettings={onLifeSettings}
+            onRecoverPersistent={onRecoverPersistent}
+            onResolveDrained={onResolveDrained}
+            onPreviewCondition={onPreviewCondition}
+            onTurnResources={onTurnResources}
+            onAbilityState={onAbilityState}
+            onManualTracker={onManualTracker}
+            onHpAction={onHpAction}
+            onSpellAction={onSpellAction}
+            onUpdateCondition={onUpdateCondition}
+            participant={participant}
+            onResolveHpLifecycle={onResolveHpLifecycle}
+            onBeginStrike={onBeginStrike}
+            onPrepareStrike={onPrepareStrike}
+            renderStrikeContext={renderStrikeContext}
+            requestedConditionEdit={requestedConditionEdit}
+            participants={participants}
+          />
+        </EncounterConditionRecovery>
+        {(previewDestination || previewRecordKey) && (
+          <RecordReferenceDrawer
+            destination={previewDestination ?? undefined}
+            definition={previewDefinition}
+            help={previewHelp}
+            onHelp={onHelp}
+            actions={
+              previewDetail?.presentation.body.kind === "spell" && (
+                <EncounterSpellControls
+                  encounterRevision={encounterRevision}
+                  participant={participant}
+                  detail={previewDetail}
+                  disabled={disabled || previewLoading || !!previewError}
+                  pending={pending}
+                  error={spellError}
+                  recovery={recovery}
+                  encounterRef={encounterKey}
+                  onAction={(action, expectedRevision) =>
+                    onSpellAction(participant, action, expectedRevision)
+                  }
+                />
+              )
+            }
+            context="encounter"
+            onRankChange={onPreviewRankChange}
+            visibleOwnerRecordKey={participant.record_key}
+            anchor={previewAnchor}
+            readingHistory={previewReadingHistory}
+            requestedNavigation={previewSelection}
+            landing={previewLanding}
+            detail={previewDetail}
+            fullPageHref={
+              previewRecordKey
+                ? destinationHref(
+                    recordDestination({
+                      recordKey: previewRecordKey!,
+                      selection: previewSelection,
+                      landing: previewLanding,
+                    }),
+                  )
+                : undefined
+            }
+            loading={previewLoading}
+            error={previewError}
+            onRetry={onRetryPreview}
+            onReload={onReloadPreview}
+            reloadLabel={reloadPreviewLabel}
+            retryLabel={retryPreviewLabel}
+            onClose={onCloseRecordPreview}
+            onOpenFullPage={() => {
+              if (previewRecordKey) onOpenRecordFullPage(previewRecordKey);
+            }}
+            onReference={onReference}
+          />
+        )}
+      </section>
+    </ReferenceHelpProvider>
   );
 }
 function EncounterParticipantSurface({

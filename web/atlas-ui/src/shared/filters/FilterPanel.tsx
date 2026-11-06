@@ -29,6 +29,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useEffect,
 } from "react";
 import {
   QueryBuilder,
@@ -75,6 +76,7 @@ import {
 } from "./filterControls";
 import { FilterValueInput } from "./FilterValueInput";
 import { DefinitionReferenceValue } from "./DefinitionReferenceValue";
+import { DefinitionFilterPicker } from "./DefinitionFilterPicker";
 import { SearchEntry, type SimilarSearchCriterion } from "./SearchEntry";
 import { CommonChoicePicker } from "./FilterChoicePicker";
 import { PrimaryToolbar } from "../ui/PrimaryToolbar";
@@ -119,6 +121,8 @@ export function FilterControls({
   searchInputRef,
   similarSearch,
   additionalFilters,
+  configureField,
+  onConfigured,
   children,
 }: {
   filterState: FilterPanelState;
@@ -128,6 +132,8 @@ export function FilterControls({
   searchInputRef?: RefObject<InputRef | null>;
   similarSearch?: SimilarSearchCriterion;
   additionalFilters?: ReactNode;
+  configureField?: string;
+  onConfigured?: () => void;
   children?: ReactNode;
 }) {
   const { search, setSearch } = workspace;
@@ -157,6 +163,36 @@ export function FilterControls({
   const generation =
     workspace.filterDiscoveryContext?.expected_artifact_generation ??
     editor?.artifact_generation;
+  const configured = useRef<string | null>(null);
+  const [configuration, setConfiguration] = useState<{
+    field?: string;
+    error: string | null;
+  }>({ error: null });
+  if (
+    configuration.field !== configureField &&
+    (!configureField ||
+      (editor &&
+        !workspace.filterDiscoveryLoading &&
+        (!generation || editor.artifact_generation === generation)))
+  ) {
+    setConfiguration({
+      field: configureField,
+      error: configureField
+        ? prepared.addFieldDraft(configureField)
+        : configuration.error,
+    });
+    if (configureField) setAdvanced(true);
+  }
+  useEffect(() => {
+    if (!configureField) {
+      configured.current = null;
+      return;
+    }
+    if (configuration.field !== configureField || configured.current === configureField)
+      return;
+    configured.current = configureField;
+    onConfigured?.();
+  }, [configureField, configuration.field, onConfigured]);
   const latestContext = useRef({ generation, filter: search.filter });
   useLayoutEffect(() => {
     latestContext.current = { generation, filter: search.filter };
@@ -476,6 +512,22 @@ export function FilterControls({
           onClose={() => setAdvanced(false)}
         >
           <section className="advanced-filters" aria-label="Advanced filters">
+            {configuration.error && (
+              <Typography.Text type="danger" role="status">
+                {configuration.error}
+              </Typography.Text>
+            )}
+            {editor && (
+              <DefinitionFilterPicker
+                generation={generation}
+                onRefresh={workspace.refreshFilterInformation}
+                onAction={(action) =>
+                  action.kind === "search"
+                    ? latestEditor.current.addPredicate(action.predicate)
+                    : latestEditor.current.addFieldDraft(action.field.id)
+                }
+              />
+            )}
             {prepared.error &&
               !search.filterError &&
               search.filter &&

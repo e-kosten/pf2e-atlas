@@ -1,3 +1,5 @@
+import { Fragment } from "react";
+import { ReferenceValue, ReferenceValues } from "./ReferenceHelp";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { Table, Typography } from "antd";
@@ -21,6 +23,7 @@ export function renderReferenceFact<T>({
   unit = "",
   optional = false,
   emptyLabel,
+  renderValue,
 }: {
   label: string;
   fact: FactView<T> | NumberFactView;
@@ -28,6 +31,7 @@ export function renderReferenceFact<T>({
   unit?: string;
   optional?: boolean;
   emptyLabel?: string;
+  renderValue?: (value: T) => ReactNode;
 }) {
   if (
     fact.state === "not_applicable" ||
@@ -51,7 +55,7 @@ export function renderReferenceFact<T>({
             unit={unit}
           />
         ) : (
-          `${format(value as T)}${unit}`
+          <>{renderValue ? renderValue(value as T) : `${format(value as T)}${unit}`}</>
         )
       ) : (
         <span className="muted">Unavailable</span>
@@ -61,18 +65,20 @@ export function renderReferenceFact<T>({
 }
 export const ReferenceFact = renderReferenceFact;
 
-const list = (values: unknown[]) => values.map(scalarFactText).join(", ");
 const alternatives = (values: unknown[]) => values.map(scalarFactText).join(" or ");
 const choices = (slots: AttributeChoiceView[]) =>
-  slots
-    .map((slot) =>
-      slot.choices.state !== "value" || !slot.choices.value
-        ? "Unavailable"
-        : slot.free_choice
-          ? "Free"
-          : alternatives(slot.choices.value),
-    )
-    .join(", ");
+  slots.map((slot, index) => (
+    <Fragment key={index}>
+      {index > 0 && ", "}
+      {slot.choices.state !== "value" || !slot.choices.value ? (
+        "Unavailable"
+      ) : slot.free_choice ? (
+        "Free"
+      ) : (
+        <ReferenceValues values={slot.choices.value} separator=" or " />
+      )}
+    </Fragment>
+  ));
 export function referenceRows(rows: ReactNode[]) {
   return Children.toArray(rows).map((row) =>
     isValidElement(row) ? cloneElement(row, { key: row.key }) : row,
@@ -264,8 +270,16 @@ export function ReferenceProfiles({
           rows={[
             renderReferenceFact({ label: "HP", fact: v.hit_points }),
             renderReferenceFact({ label: "Speed", fact: v.speed, unit: " feet" }),
-            renderReferenceFact({ label: "Size", fact: v.size }),
-            renderReferenceFact({ label: "Vision", fact: v.vision }),
+            renderReferenceFact({
+              label: "Size",
+              fact: v.size,
+              renderValue: (value) => <ReferenceValue value={value} />,
+            }),
+            renderReferenceFact({
+              label: "Vision",
+              fact: v.vision,
+              renderValue: (value) => <ReferenceValue value={value} />,
+            }),
             renderReferenceFact({ label: "Hands", fact: v.hands, optional: true }),
             renderReferenceFact({
               label: "Reach",
@@ -280,12 +294,12 @@ export function ReferenceProfiles({
             renderReferenceFact({
               label: "Attribute boosts",
               fact: v.boosts,
-              format: choices,
+              renderValue: choices,
             }),
             renderReferenceFact({
               label: "Attribute flaws",
               fact: v.flaws,
-              format: choices,
+              renderValue: choices,
             }),
           ]}
         />
@@ -294,7 +308,7 @@ export function ReferenceProfiles({
             renderReferenceFact({
               label: "Languages",
               fact: v.languages,
-              format: list,
+              renderValue: (values) => <ReferenceValues values={values} />,
               emptyLabel: "None listed",
             }),
             renderReferenceFact({
@@ -305,7 +319,7 @@ export function ReferenceProfiles({
             renderReferenceFact({
               label: "Additional language choices",
               fact: v.additional_languages,
-              format: list,
+              renderValue: (values) => <ReferenceValues values={values} />,
             }),
             renderReferenceFact({
               label: "Additional languages",
@@ -336,7 +350,9 @@ export function ReferenceProfiles({
             renderReferenceFact({
               label: "Key attribute",
               fact: v.key_attributes,
-              format: alternatives,
+              renderValue: (values) => (
+                <ReferenceValues values={values} separator=" or " />
+              ),
             }),
           ]}
         />
@@ -382,7 +398,7 @@ export function ReferenceProfiles({
               renderReferenceFact({
                 label: "Listed trained skills",
                 fact: v.trained_skills,
-                format: list,
+                renderValue: (values) => <ReferenceValues values={values} />,
               }),
               renderReferenceFact({
                 label: "Additional skills",
@@ -407,7 +423,9 @@ export function ReferenceProfiles({
             renderReferenceFact({
               label: "Divine attributes",
               fact: v.attributes,
-              format: alternatives,
+              renderValue: (values) => (
+                <ReferenceValues values={values} separator=" or " />
+              ),
             }),
             renderReferenceFact({
               label: "Divine font",
@@ -418,7 +436,7 @@ export function ReferenceProfiles({
             renderReferenceFact({
               label: "Divine skill",
               fact: v.skills,
-              format: list,
+              renderValue: (values) => <ReferenceValues values={values} />,
             }),
             renderReferenceFact({
               label: "Favored weapon",
@@ -428,12 +446,12 @@ export function ReferenceProfiles({
             renderReferenceFact({
               label: "Domains",
               fact: v.primary_domains,
-              format: list,
+              renderValue: (values) => <ReferenceValues values={values} />,
             }),
             renderReferenceFact({
               label: "Alternate domains",
               fact: v.alternate_domains,
-              format: list,
+              renderValue: (values) => <ReferenceValues values={values} />,
             }),
             renderReferenceFact({
               label: "Sanctification",
@@ -492,7 +510,11 @@ export function ReferenceProfiles({
         <Group
           rows={[
             renderReferenceFact({ label: "Price", fact: v.price_gp, unit: " gp" }),
-            renderReferenceFact({ label: "Size", fact: v.size }),
+            renderReferenceFact({
+              label: "Size",
+              fact: v.size,
+              renderValue: (value) => <ReferenceValue value={value} />,
+            }),
             renderReferenceFact({ label: "Length", fact: v.length, unit: " feet" }),
             renderReferenceFact({ label: "Width", fact: v.width, unit: " feet" }),
             renderReferenceFact({ label: "Height", fact: v.height, unit: " feet" }),

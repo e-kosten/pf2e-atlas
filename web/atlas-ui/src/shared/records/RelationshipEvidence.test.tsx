@@ -6,6 +6,7 @@ import { AtlasApiError, getRelationshipOccurrences } from "../../api/atlasApi";
 import { summaryFixture } from "../../test/fixtures";
 import { RelationshipEvidence } from "./RelationshipEvidence";
 import { rootNavigation } from "./useReferenceReading";
+import { RouterTestContext } from "../../test/router";
 import type {
   RecordRelationshipView,
   RelationshipClauseSummaryView,
@@ -69,20 +70,22 @@ function setup() {
   const refresh = vi.fn(async () => {});
   const view = render(
     <ConfigProvider theme={{ token: { motion: false } }}>
-      <QueryClientProvider client={client}>
-        <RelationshipEvidence
-          evidence={evidence}
-          filter={{
-            kind: "relationship",
-            clause_id: constraint.clause_id,
-            relationship: relationship,
-          }}
-          summary={constraint}
-          resultKey="actors:goblin"
-          generation="generation-a"
-          onRefresh={refresh}
-        />
-      </QueryClientProvider>
+      <RouterTestContext>
+        <QueryClientProvider client={client}>
+          <RelationshipEvidence
+            evidence={evidence}
+            filter={{
+              kind: "relationship",
+              clause_id: constraint.clause_id,
+              relationship: relationship,
+            }}
+            summary={constraint}
+            resultKey="actors:goblin"
+            generation="generation-a"
+            onRefresh={refresh}
+          />
+        </QueryClientProvider>
+      </RouterTestContext>
     </ConfigProvider>,
   );
   return { ...view, refresh };
@@ -176,22 +179,24 @@ it("resets evidence paging and retained content when the exact relationship chan
     preview: RelationshipEvidenceView,
   ) => (
     <ConfigProvider theme={{ token: { motion: false } }}>
-      <QueryClientProvider client={client}>
-        <RelationshipEvidence
-          evidence={preview}
-          filter={{
-            kind: "relationship",
-            clause_id: summary.clause_id,
-            relationship:
-              summary.condition.kind === "record"
-                ? summary.condition.relationship
-                : relationship,
-          }}
-          summary={summary}
-          resultKey="actors:goblin"
-          generation="generation-a"
-        />
-      </QueryClientProvider>
+      <RouterTestContext>
+        <QueryClientProvider client={client}>
+          <RelationshipEvidence
+            evidence={preview}
+            filter={{
+              kind: "relationship",
+              clause_id: summary.clause_id,
+              relationship:
+                summary.condition.kind === "record"
+                  ? summary.condition.relationship
+                  : relationship,
+            }}
+            summary={summary}
+            resultKey="actors:goblin"
+            generation="generation-a"
+          />
+        </QueryClientProvider>
+      </RouterTestContext>
     </ConfigProvider>
   );
   const view = render(content(constraint, evidence));
@@ -368,28 +373,33 @@ it("renders definition evidence with supplied titles and verifies its exact targ
     page: { ...proof.page, number: 2 },
   });
   render(
-    <QueryClientProvider
-      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-    >
-      <RelationshipEvidence
-        evidence={proof}
-        filter={{
-          kind: "definition_reference",
-          clause_id: "language",
-          reference:
-            definition.condition.kind === "definition"
-              ? definition.condition.reference
-              : neverReference(),
-        }}
-        summary={definition}
-        resultKey="actors:goblin"
-        generation="generation-a"
-      />
-    </QueryClientProvider>,
+    <RouterTestContext>
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <RelationshipEvidence
+          evidence={proof}
+          filter={{
+            kind: "definition_reference",
+            clause_id: "language",
+            reference:
+              definition.condition.kind === "definition"
+                ? definition.condition.reference
+                : neverReference(),
+          }}
+          summary={definition}
+          resultKey="actors:goblin"
+          generation="generation-a"
+        />
+      </QueryClientProvider>
+    </RouterTestContext>,
   );
   expect(screen.getByText("Chthonian")).toBeVisible();
   expect(screen.queryByText("language:chthonian")).toBeNull();
-  expect(screen.queryByRole("link", { name: "Chthonian" })).toBeNull();
+  expect(screen.getByRole("link", { name: "Chthonian" })).toHaveAttribute(
+    "href",
+    "/definitions/language:chthonian",
+  );
   expect(screen.getByRole("link", { name: "Goblin" })).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Next links page" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Unable to update links");
@@ -399,7 +409,7 @@ function neverReference(): never {
   throw new Error("Expected definition fixture");
 }
 
-it("retains context-bearing record destinations as supplied titles until contextual reading is activated", () => {
+it("links context-bearing record destinations with their supplied reading purpose", () => {
   const destination = {
     kind: "record" as const,
     navigation: rootNavigation("abilities:darkvision"),
@@ -410,31 +420,36 @@ it("retains context-bearing record destinations as supplied titles until context
     include_contents: true,
   };
   render(
-    <QueryClientProvider client={new QueryClient()}>
-      <RelationshipEvidence
-        evidence={{
-          ...evidence,
-          occurrences: [
-            {
-              kind: "record",
-              destination,
-              occurrence: { ...occurrence, target_title: "Darkvision" },
-            },
-          ],
-        }}
-        filter={{ kind: "definition_reference", clause_id: "link", reference }}
-        summary={{
-          clause_id: "link",
-          condition: { kind: "definition", reference },
-          destination,
-          title: "Darkvision",
-        }}
-        resultKey="actors:goblin"
-        generation="generation-a"
-      />
-    </QueryClientProvider>,
+    <RouterTestContext>
+      <QueryClientProvider client={new QueryClient()}>
+        <RelationshipEvidence
+          evidence={{
+            ...evidence,
+            occurrences: [
+              {
+                kind: "record",
+                destination,
+                occurrence: { ...occurrence, target_title: "Darkvision" },
+              },
+            ],
+          }}
+          filter={{ kind: "definition_reference", clause_id: "link", reference }}
+          summary={{
+            clause_id: "link",
+            condition: { kind: "definition", reference },
+            destination,
+            title: "Darkvision",
+          }}
+          resultKey="actors:goblin"
+          generation="generation-a"
+        />
+      </QueryClientProvider>
+    </RouterTestContext>,
   );
   expect(screen.getByRole("link", { name: "Goblin" })).toBeVisible();
   expect(screen.getByText("Darkvision", { exact: true })).toBeVisible();
-  expect(screen.queryByRole("link", { name: "Darkvision" })).toBeNull();
+  expect(screen.getByRole("link", { name: "Darkvision" })).toHaveAttribute(
+    "href",
+    "/records/abilities:darkvision?reading_context=general_definition&definition_key=sense%3Adarkvision",
+  );
 });

@@ -6,7 +6,8 @@ import { landReadingTarget } from "./landReadingTarget";
 // The reference Drawer restores its actual scroll container after the
 // addressed document arrives. Background refreshes do not restart reading.
 export function usePreviewReadingPosition(
-  detail: RecordDetailView | undefined,
+  detail:
+    RecordDetailView | import("../../generated/atlas").DefinitionDetailView | undefined,
   history: RecordPreviewContentProps["readingHistory"],
   enabled = true,
   landing?: RecordNavigationView,

@@ -4,6 +4,10 @@ import type { RecordReferenceHandler } from "./PreparedContent";
 export type RecordPreviewAnchor = HTMLElement;
 
 export type RecordPreviewContentProps = {
+  destination?: import("../../generated/atlas").ReferenceDestinationView;
+  definition?: import("../../generated/atlas").DefinitionDetailView;
+  help?: import("../../generated/atlas").ReferenceHelpView;
+  onHelp?: import("./ReferenceHelp").ReferenceHelpHandler;
   actions?: import("react").ReactNode;
   context?: "reference" | "encounter";
   visibleOwnerRecordKey?: string;

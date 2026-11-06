@@ -1,3 +1,4 @@
+import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
 import { Grid } from "antd";
 import type { ListPageInput } from "../../app/destinations";
 import { navigateDestination, destinationHref } from "../../app/navigation";
@@ -243,142 +244,146 @@ export function ListDetailView({ route }: ListDetailViewProps) {
     !buildFilter(filters) &&
     !buildFilter(activeFilters);
   return (
-    <main className="list-workspace">
-      <ListBrowseHeader
-        error={list.error}
-        onRetry={() => void list.refetch()}
-        filterState={{
-          search: filters,
-          setSearch: changeFilters,
-          filterEditor: filterDiscovery.filterEditor,
-          refreshFilterInformation: filterDiscovery.refreshFilterInformation,
-          filterApplicabilityCurrent: filterDiscovery.filterApplicabilityCurrent,
-          filterCountsEnabled: filterDiscovery.filterCountsEnabled,
-          filterCountQueryKey: filterDiscovery.filterCountQueryKey,
-          filterDiscoveryContext: filterDiscovery.filterDiscoveryContext,
-          vocabularyScope: filterDiscovery.vocabularyScope,
-          filterDiscoveryLoading: filterDiscovery.loading,
-          filterDiscoveryError: filterDiscovery.errorMessage,
-        }}
-        list={list.data?.list}
-        loading={list.isLoading}
-        onAddRecords={() => setAddOpen(true)}
-      />
-      <ListRecordPicker
-        key={route.slug}
-        list={list.data?.list}
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-      />
-      <BrowseReader
-        reading={addressableReading}
-        readerStatus={!narrow && <ReferenceSelectionStatus selection={selection} />}
-        selectedRecordKey={route.selectedRecordKey}
-        readerFooter={
-          route.selectedRecordKey &&
-          list.data &&
-          (list.data.list.slug === route.slug ||
-            list.data.list.list_key === route.slug) ? (
-            <ListEntryNote
-              key={JSON.stringify([list.data.list.list_key, route.selectedRecordKey])}
-              listRef={list.data.list.list_key}
-              recordKey={route.selectedRecordKey}
-              initialNote={
-                selectedItem
-                  ? {
-                      list_key: list.data.list.list_key,
-                      slug: list.data.list.slug,
-                      record_key: selectedItem.record_key,
-                      title: selectedItem.snapshot.title,
-                      note: selectedItem.note ?? null,
-                    }
-                  : undefined
-              }
-              initialNoteUpdatedAt={list.dataUpdatedAt}
-              hidden={Boolean(
-                route.selection &&
-                route.selection.record_key !== route.selectedRecordKey,
-              )}
-            />
-          ) : undefined
-        }
-        resultsLabel="Saved records"
-        resultsIdentity={list.data?.items}
-        resultsLoading={list.isLoading || list.isFetching}
-        resultsHeader={
-          <div className="result-pane-header">
-            {narrow && hasReferenceSelectionStatus(selection.current) ? (
-              <ReferenceSelectionStatus selection={selection} />
-            ) : (
-              <span>
-                {list.data
-                  ? `${list.data.items.length.toLocaleString()} saved records`
-                  : "Saved records"}
-              </span>
-            )}
-            <ResultSortControl
-              search={filters}
-              surface="saved_list"
-              setSearch={changeFilters}
-            />
-          </div>
-        }
-      >
-        <ListItemsPane
-          error={removeItem.error}
-          reorderError={reorderItem.error}
-          mutating={
-            reorderItem.isPending ||
-            removeItem.isPending ||
-            list.isPlaceholderData ||
-            Boolean(list.error)
-          }
-          items={list.data?.items ?? []}
-          loading={list.isLoading || list.isFetching}
-          unavailable={Boolean(list.error && !list.data)}
-          filtered={Boolean(filters.query.trim() || buildFilter(filters))}
-          removingKey={removeItem.isPending ? removeItem.variables : null}
-          selectedRecordKey={route.selectedRecordKey}
-          itemHref={(recordKey) =>
-            destinationHref(
-              listDestination({
-                slug: route.slug,
-                selectedRecordKey: recordKey,
-                query: listQuery,
-              }),
-            )
-          }
-          onRemove={(key) => removeItem.mutateAsync(key)}
-          onReorder={
-            canReorder
-              ? async (recordKey, targetRecordKey, placement) => {
-                  await reorderItem.mutateAsync({
-                    recordKey,
-                    targetRecordKey,
-                    placement,
-                  });
-                  return true;
-                }
-              : undefined
-          }
-          onSelect={(recordKey) => {
-            const item = list.data?.items.find((item) => item.record_key === recordKey);
-            void selection.select({
-              request: { navigation: rootNavigation(recordKey) },
-              name: item?.record?.title ?? item?.snapshot.title ?? "record",
-              generation: null,
-              commit: () =>
-                navigateDestination(
-                  listDestination({
-                    slug: route.slug,
-                    selectedRecordKey: recordKey,
-                    query: listQuery,
-                  }),
-                ),
-            });
+    <ReferenceHelpHost generation={reading.detail?.artifact_generation}>
+      <main className="list-workspace">
+        <ListBrowseHeader
+          error={list.error}
+          onRetry={() => void list.refetch()}
+          filterState={{
+            search: filters,
+            setSearch: changeFilters,
+            filterEditor: filterDiscovery.filterEditor,
+            refreshFilterInformation: filterDiscovery.refreshFilterInformation,
+            filterApplicabilityCurrent: filterDiscovery.filterApplicabilityCurrent,
+            filterCountsEnabled: filterDiscovery.filterCountsEnabled,
+            filterCountQueryKey: filterDiscovery.filterCountQueryKey,
+            filterDiscoveryContext: filterDiscovery.filterDiscoveryContext,
+            vocabularyScope: filterDiscovery.vocabularyScope,
+            filterDiscoveryLoading: filterDiscovery.loading,
+            filterDiscoveryError: filterDiscovery.errorMessage,
           }}
+          list={list.data?.list}
+          loading={list.isLoading}
+          onAddRecords={() => setAddOpen(true)}
         />
-      </BrowseReader>
-    </main>
+        <ListRecordPicker
+          key={route.slug}
+          list={list.data?.list}
+          open={addOpen}
+          onClose={() => setAddOpen(false)}
+        />
+        <BrowseReader
+          reading={addressableReading}
+          readerStatus={!narrow && <ReferenceSelectionStatus selection={selection} />}
+          selectedRecordKey={route.selectedRecordKey}
+          readerFooter={
+            route.selectedRecordKey &&
+            list.data &&
+            (list.data.list.slug === route.slug ||
+              list.data.list.list_key === route.slug) ? (
+              <ListEntryNote
+                key={JSON.stringify([list.data.list.list_key, route.selectedRecordKey])}
+                listRef={list.data.list.list_key}
+                recordKey={route.selectedRecordKey}
+                initialNote={
+                  selectedItem
+                    ? {
+                        list_key: list.data.list.list_key,
+                        slug: list.data.list.slug,
+                        record_key: selectedItem.record_key,
+                        title: selectedItem.snapshot.title,
+                        note: selectedItem.note ?? null,
+                      }
+                    : undefined
+                }
+                initialNoteUpdatedAt={list.dataUpdatedAt}
+                hidden={Boolean(
+                  route.selection &&
+                  route.selection.record_key !== route.selectedRecordKey,
+                )}
+              />
+            ) : undefined
+          }
+          resultsLabel="Saved records"
+          resultsIdentity={list.data?.items}
+          resultsLoading={list.isLoading || list.isFetching}
+          resultsHeader={
+            <div className="result-pane-header">
+              {narrow && hasReferenceSelectionStatus(selection.current) ? (
+                <ReferenceSelectionStatus selection={selection} />
+              ) : (
+                <span>
+                  {list.data
+                    ? `${list.data.items.length.toLocaleString()} saved records`
+                    : "Saved records"}
+                </span>
+              )}
+              <ResultSortControl
+                search={filters}
+                surface="saved_list"
+                setSearch={changeFilters}
+              />
+            </div>
+          }
+        >
+          <ListItemsPane
+            error={removeItem.error}
+            reorderError={reorderItem.error}
+            mutating={
+              reorderItem.isPending ||
+              removeItem.isPending ||
+              list.isPlaceholderData ||
+              Boolean(list.error)
+            }
+            items={list.data?.items ?? []}
+            loading={list.isLoading || list.isFetching}
+            unavailable={Boolean(list.error && !list.data)}
+            filtered={Boolean(filters.query.trim() || buildFilter(filters))}
+            removingKey={removeItem.isPending ? removeItem.variables : null}
+            selectedRecordKey={route.selectedRecordKey}
+            itemHref={(recordKey) =>
+              destinationHref(
+                listDestination({
+                  slug: route.slug,
+                  selectedRecordKey: recordKey,
+                  query: listQuery,
+                }),
+              )
+            }
+            onRemove={(key) => removeItem.mutateAsync(key)}
+            onReorder={
+              canReorder
+                ? async (recordKey, targetRecordKey, placement) => {
+                    await reorderItem.mutateAsync({
+                      recordKey,
+                      targetRecordKey,
+                      placement,
+                    });
+                    return true;
+                  }
+                : undefined
+            }
+            onSelect={(recordKey) => {
+              const item = list.data?.items.find(
+                (item) => item.record_key === recordKey,
+              );
+              void selection.select({
+                request: { navigation: rootNavigation(recordKey) },
+                name: item?.record?.title ?? item?.snapshot.title ?? "record",
+                generation: null,
+                commit: () =>
+                  navigateDestination(
+                    listDestination({
+                      slug: route.slug,
+                      selectedRecordKey: recordKey,
+                      query: listQuery,
+                    }),
+                  ),
+              });
+            }}
+          />
+        </BrowseReader>
+      </main>
+    </ReferenceHelpHost>
   );
 }

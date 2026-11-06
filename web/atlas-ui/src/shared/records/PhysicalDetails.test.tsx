@@ -1,23 +1,43 @@
-import { render, screen } from "@testing-library/react";
+import { render as renderWithContext, screen } from "@testing-library/react";
+import { RouterTestContext } from "../../test/router";
 import { describe, expect, it } from "vitest";
 import type { ShieldReferenceView, WeaponReferenceView } from "../../generated/atlas";
 import { knownFact, numberFact, unavailableFact } from "../../test/fixtures";
 import { PhysicalDetails } from "./PhysicalDetails";
 
+const render = (ui: React.ReactNode) =>
+  renderWithContext(ui, { wrapper: RouterTestContext });
+
+const help = {
+  definition_key: "weapon_group:bow",
+  availability: "available" as const,
+  destination: {
+    kind: "record" as const,
+    navigation: {
+      record_key: "actions:critical-specialization",
+      embedded_path: [],
+      field: null,
+      passage: null,
+      source_fingerprint: null,
+    },
+  },
+  related_filters: [],
+};
+
 describe("authored equipment facts", () => {
   it("keeps base damage separate from runes and preserves range and damage qualifiers", () => {
     const weapon: WeaponReferenceView = {
       category: knownFact("martial"),
-      group: knownFact({ value: "bow", label: "bow" }),
+      group: knownFact({ value: "bow", label: "bow", help }),
       damage: knownFact({
         dice: numberFact(1),
         die: knownFact("d8"),
-        damage_type: knownFact({ value: "piercing", label: "piercing" }),
+        damage_type: knownFact({ value: "piercing", label: "piercing", help }),
         modifier: { ...unavailableFact<number>("missing"), adjustment: null },
         persistent: knownFact({
           number: numberFact(2),
           faces: { ...unavailableFact<number>("null"), adjustment: null },
-          damage_type: knownFact({ value: "fire", label: "fire" }),
+          damage_type: knownFact({ value: "fire", label: "fire", help }),
         }),
       }),
       range_increment: numberFact(100),
@@ -32,9 +52,11 @@ describe("authored equipment facts", () => {
       }),
       melee_usage: knownFact({
         die: knownFact("d6"),
-        damage_type: knownFact({ value: "bludgeoning", label: "Bludgeoning" }),
-        group: knownFact({ value: "club", label: "Club" }),
-        traits: knownFact([{ value: "agile-token", label: "Supplied melee trait" }]),
+        damage_type: knownFact({ value: "bludgeoning", label: "Bludgeoning", help }),
+        group: knownFact({ value: "club", label: "Club", help }),
+        traits: knownFact([
+          { value: "agile-token", label: "Supplied melee trait", help },
+        ]),
       }),
     };
     render(<PhysicalDetails details={{ kind: "weapon", value: weapon }} />);
@@ -56,6 +78,18 @@ describe("authored equipment facts", () => {
       "Persistent damage 2 fire",
     );
     expect(screen.getByText("Splash damage").parentElement).toHaveTextContent("1");
+    for (const name of [
+      "bow",
+      "piercing",
+      "fire",
+      "Bludgeoning",
+      "Club",
+      "Supplied melee trait",
+    ])
+      expect(screen.getByRole("link", { name })).toHaveAttribute(
+        "href",
+        expect.stringContaining("critical-specialization"),
+      );
   });
 
   it("omits duplicate shield durability only when the service confirms an authored table", () => {

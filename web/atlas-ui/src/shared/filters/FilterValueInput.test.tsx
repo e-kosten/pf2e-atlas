@@ -10,6 +10,8 @@ import type {
   FilterCountsView,
 } from "../../generated/atlas";
 import { editorFixture, fieldFixture } from "../../test/fixtures";
+import { RouterTestContext } from "../../test/router";
+import { ReferenceHelpProvider } from "../records/ReferenceHelp";
 
 const api = vi.hoisted(() => ({
   discoverFilterValues:
@@ -88,6 +90,51 @@ function renderInput(
 function openVocabulary() {
   fireEvent.click(screen.getByRole("button", { name: "Edit Traits values" }));
 }
+it("opens short-choice help without selecting or excluding the value", async () => {
+  const field = editorFixture([
+    { ...fieldFixture("traits", "set", "Traits"), choices: ["fire"] },
+  ]).groups[0].fields[0];
+  field.choices[0].help = {
+    definition_key: "trait:fire",
+    availability: "available",
+    destination: { kind: "definition", key: "trait:fire" },
+    related_filters: [],
+  };
+  const change = vi.fn();
+  const help = vi.fn();
+  render(
+    <RouterTestContext>
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <ReferenceHelpProvider onHelp={help}>
+            <FilterValueInput
+              field={field}
+              operator="includes_any"
+              value={[]}
+              onChange={change}
+              scope={{ kind: "artifact" }}
+              countsEnabled={false}
+            />
+          </ReferenceHelpProvider>
+        </QueryClientProvider>
+      </ConfigProvider>
+    </RouterTestContext>,
+  );
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Traits" }));
+  const read = (await screen.findByText("Read")).closest("a")!;
+  fireEvent.mouseDown(read);
+  fireEvent.click(read);
+  expect(help).toHaveBeenCalledWith(
+    field.choices[0].help,
+    expect.any(HTMLElement),
+    undefined,
+  );
+  expect(change).not.toHaveBeenCalled();
+  fireEvent.keyDown(read, { key: "Enter" });
+  expect(change).not.toHaveBeenCalled();
+});
 describe("shared value control vocabulary", () => {
   it("allows excluding a known-zero choice", async () => {
     const change = vi.fn();

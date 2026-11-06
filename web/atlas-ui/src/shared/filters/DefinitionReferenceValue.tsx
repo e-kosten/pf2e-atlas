@@ -8,6 +8,7 @@ import {
   referenceQueryMeta,
 } from "../queries/referenceQueries";
 import { sameReferenceCondition } from "./linkPredicates";
+import { ReferenceHelpLink } from "../records/ReferenceHelp";
 
 /** Read an already-selected exact reference; new selection belongs to its picker. */
 export function DefinitionReferenceValue({
@@ -65,13 +66,16 @@ export function DefinitionReferenceValue({
     },
   });
   const changed = isArtifactGenerationChanged(options.error);
+  const selected = changed ? undefined : options.data?.selected[0];
   return (
     <Space className="filter-rule-value" direction="vertical" align="start">
       <Typography.Text>
-        {options.data?.selected[0]?.label ??
-          (options.isPending && target
-            ? "Loading definition…"
-            : "Definition unavailable")}
+        <ReferenceHelpLink help={selected?.help} generation={generation}>
+          {selected?.label ??
+            (options.isPending && target
+              ? "Loading definition…"
+              : "Definition unavailable")}
+        </ReferenceHelpLink>
       </Typography.Text>
       {options.error && (
         <ErrorNotice

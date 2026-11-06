@@ -1,3 +1,4 @@
+import { ReferenceHelpLink } from "./ReferenceHelp";
 import { Tag, theme } from "antd";
 
 export function RecordRarity({
@@ -23,7 +24,7 @@ export function RecordRarity({
         },
       }}
     >
-      {rarity?.label}
+      <ReferenceHelpLink help={rarity?.help}>{rarity?.label}</ReferenceHelpLink>
     </Tag>
   );
 }

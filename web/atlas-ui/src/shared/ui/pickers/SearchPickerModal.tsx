@@ -1,3 +1,4 @@
+import { ReferenceHelpHost } from "../../records/ReferenceHelpHost";
 import { useDismissOnReadingNavigation } from "../overlays/useDismissOnReadingNavigation";
 import { AtlasModal as Modal } from "../overlays/AtlasModal";
 import { ErrorNotice } from "../../feedback/ErrorNotice";
@@ -271,270 +272,272 @@ export function SearchPickerModal<FormValues>({
     />
   ) : undefined;
   return (
-    <ConfigProvider componentDisabled={disabled}>
-      <Modal
-        layout="browse"
-        className="reference-picker"
-        classNames={{
-          container: "reference-picker__container",
-          body: "reference-picker__body",
-        }}
-        width="min(1400px, calc(100vw - 32px))"
-        styles={{
-          body: { display: "flex", flexDirection: "column", overflow: "hidden" },
-          footer: { containerType: "inline-size", containerName: "picker-footer" },
-        }}
-        afterOpenChange={(isOpen) => {
-          if (!isOpen) reset();
-        }}
-        footer={
-          <Form
-            name={formId}
-            className={`reference-picker__footer${summary ? " reference-picker__footer--summary" : ""}`}
-            disabled={disabled}
-            form={form}
-            layout="vertical"
-            onFinish={(values) => {
-              if (!disabled && !preparing) onFinish(values);
-            }}
-          >
-            {summary && <div className="reference-picker__summary">{summary}</div>}
-            <div className="reference-picker__footer-content">
-              <div className="reference-picker__fields">
-                {typeof children === "function"
-                  ? children(reading.parentDetail)
-                  : children}
-              </div>
-              {!summary && status}
-              {summary && status && (
-                <div className="reference-picker__status">{status}</div>
-              )}
-            </div>
-            <Space wrap className="reference-picker__actions">
-              <Button disabled={disabled} onClick={onCancel}>
-                {dismissLabel}
-              </Button>
-              <Button
-                {...okButtonProps}
-                disabled={
-                  disabled ||
-                  Boolean(preparing) ||
-                  !selectedRecordKey ||
-                  okButtonProps?.disabled
-                }
-                type="primary"
-                htmlType="submit"
-              >
-                {confirmLabel}
-              </Button>
-            </Space>
-          </Form>
-        }
-        closable={!disabled}
-        keyboard={!disabled}
-        mask={{ closable: !disabled }}
-        onCancel={onCancel}
-        open={open}
-        title={title}
-      >
-        <FilterControls
-          searchInputRef={searchInput}
-          layout="toolbar"
-          searchRowEnd={
-            <SearchSettings
-              seedTitle={
-                recordResults.data?.mode.kind === "similar_records" &&
-                request.criteria.kind === "similar_records" &&
-                recordResults.data.mode.seed.record_key ===
-                  request.criteria.seed_record_key
-                  ? recordResults.data.mode.seed.title
-                  : recordResults.data?.mode.kind === "similar_traits" &&
-                      request.criteria.kind === "similar_traits" &&
-                      recordResults.data.mode.trait_key ===
-                        request.criteria.seed_trait_key
-                    ? recordResults.data.mode.title
-                    : undefined
-              }
-              search={
-                request.criteria.kind === "similar_records" ||
-                request.criteria.kind === "similar_traits"
-                  ? { ...search, similarity: request.criteria.similarity }
-                  : search
-              }
-              seed={
-                request.criteria.kind === "similar_records"
-                  ? { kind: "record", record_key: request.criteria.seed_record_key }
-                  : request.criteria.kind === "similar_traits"
-                    ? { kind: "trait", trait_key: request.criteria.seed_trait_key }
-                    : null
-              }
-              generation={retrieval.generation}
+    <ReferenceHelpHost generation={recordResults.data?.artifact_generation}>
+      <ConfigProvider componentDisabled={disabled}>
+        <Modal
+          layout="browse"
+          className="reference-picker"
+          classNames={{
+            container: "reference-picker__container",
+            body: "reference-picker__body",
+          }}
+          width="min(1400px, calc(100vw - 32px))"
+          styles={{
+            body: { display: "flex", flexDirection: "column", overflow: "hidden" },
+            footer: { containerType: "inline-size", containerName: "picker-footer" },
+          }}
+          afterOpenChange={(isOpen) => {
+            if (!isOpen) reset();
+          }}
+          footer={
+            <Form
+              name={formId}
+              className={`reference-picker__footer${summary ? " reference-picker__footer--summary" : ""}`}
               disabled={disabled}
-              onApply={applySettings}
-            />
-          }
-          filterState={{
-            search,
-            setSearch: (next) => {
-              if (!disabled) {
-                if (preparing) selection.cancel();
-                setSearch(normalizeSortTransition(search, next));
-                setPageNumber(1);
-              }
-            },
-            filterEditor: discovery.filterEditor,
-            refreshFilterInformation: refreshResults,
-            filterApplicabilityCurrent: discovery.filterApplicabilityCurrent,
-            filterCountsEnabled:
-              discovery.filterCountsEnabled &&
-              profileReady &&
-              request.criteria.kind !== "similar_records",
-            filterCountQueryKey: discovery.filterCountQueryKey,
-            filterDiscoveryContext: discovery.filterDiscoveryContext,
-            vocabularyScope: discovery.vocabularyScope,
-            filterDiscoveryLoading: discovery.loading,
-            filterDiscoveryError: discovery.errorMessage,
-          }}
-        />
-        <div className="reference-picker__feedback">
-          <SearchProfileNotice />
-          {recordResults.error && (
-            <ErrorNotice
-              error={recordResults.error}
-              title="Search failed"
-              action={
-                <Button
-                  onClick={() =>
-                    generationChanged
-                      ? void refreshResults()
-                      : void recordResults.refetch()
-                  }
-                  loading={recordResults.isFetching || retrieval.recovering}
-                >
-                  {generationChanged ? "Refresh results" : "Retry search"}
+              form={form}
+              layout="vertical"
+              onFinish={(values) => {
+                if (!disabled && !preparing) onFinish(values);
+              }}
+            >
+              {summary && <div className="reference-picker__summary">{summary}</div>}
+              <div className="reference-picker__footer-content">
+                <div className="reference-picker__fields">
+                  {typeof children === "function"
+                    ? children(reading.parentDetail)
+                    : children}
+                </div>
+                {!summary && status}
+                {summary && status && (
+                  <div className="reference-picker__status">{status}</div>
+                )}
+              </div>
+              <Space wrap className="reference-picker__actions">
+                <Button disabled={disabled} onClick={onCancel}>
+                  {dismissLabel}
                 </Button>
-              }
-            />
-          )}
-        </div>
-        <ReferenceBrowser
-          rows={currentRows}
-          query={
-            recordResults.data?.mode.kind === "text_search"
-              ? recordResults.data.mode.query
-              : undefined
-          }
-          relationshipClauses={recordResults.data?.relationship_clauses}
-          filter={request.criteria.filter}
-          generation={recordResults.data?.artifact_generation}
-          onRefreshResults={refreshResults}
-          loading={
-            !recordResults.error && !search.filterError && recordResults.isFetching
-          }
-          disabled={disabled}
-          selectedRecordKey={selectedRecordKey}
-          onReaderClose={selection.cancel}
-          readerHeaderActions={
-            allowClearSelection && selectedRecordKey ? (
-              <Tooltip title="Clear selection" trigger={["hover", "focus"]}>
                 <Button
-                  type="text"
-                  icon={<X size={16} aria-hidden="true" />}
-                  aria-label="Clear selection"
-                  disabled={disabled}
-                  onClick={() => {
-                    selection.cancel();
-                    reading.inspect(null);
-                    onSelectionChange(null);
-                    requestAnimationFrame(() =>
-                      searchInput.current?.focus({ preventScroll: true }),
-                    );
-                  }}
-                />
-              </Tooltip>
-            ) : undefined
+                  {...okButtonProps}
+                  disabled={
+                    disabled ||
+                    Boolean(preparing) ||
+                    !selectedRecordKey ||
+                    okButtonProps?.disabled
+                  }
+                  type="primary"
+                  htmlType="submit"
+                >
+                  {confirmLabel}
+                </Button>
+              </Space>
+            </Form>
           }
-          onSelect={(row, request) => {
-            const page = recordResults.data;
-            if (!disabled && page)
-              void selection.select({
-                request,
-                name: row.record.title,
-                generation: page.artifact_generation,
-                commit: (detail) =>
-                  onSelectionChange({
-                    detail,
-                    record: row.record,
-                    artifact_generation: page.artifact_generation,
-                  }),
-              });
-          }}
-          readerStatus={selectionStatus}
-          reading={reading}
-          emptyMessage={
-            recordResults.error || search.filterError
-              ? null
-              : recordResults.data
-                ? emptyResults
-                : emptyPrompt
-          }
-          resultsHeader={
-            <div className="result-pane-header">
-              <div
-                className="reference-picker__result-caption"
-                style={{ minHeight: token.controlHeightSM }}
-              >
-                {narrow && selectionStatus ? (
-                  selectionStatus
-                ) : (
-                  <Typography.Text>
-                    {recordResults.isPlaceholderData
-                      ? "Updating results"
-                      : recordResults.data?.page
-                        ? recordResults.data.coverage?.exhaustive === false
-                          ? `Top ${recordResults.data.page.total.toLocaleString()} matches`
-                          : `${recordResults.data.page.total.toLocaleString()} records`
-                        : "Results"}
-                  </Typography.Text>
-                )}
-              </div>
-              <div className="pager pager--compact">
-                <ResultSortControl
-                  search={search}
-                  disabled={disabled || retrieval.recovering}
-                  setSearch={(next) => {
-                    setSearch(next);
-                    setPageNumber(1);
-                  }}
-                />
-                {recordResults.data && recordResults.data.page.total > 0n && (
-                  <div
-                    className="pager__navigation"
-                    role="group"
-                    aria-label="Result pages"
+          closable={!disabled}
+          keyboard={!disabled}
+          mask={{ closable: !disabled }}
+          onCancel={onCancel}
+          open={open}
+          title={title}
+        >
+          <FilterControls
+            searchInputRef={searchInput}
+            layout="toolbar"
+            searchRowEnd={
+              <SearchSettings
+                seedTitle={
+                  recordResults.data?.mode.kind === "similar_records" &&
+                  request.criteria.kind === "similar_records" &&
+                  recordResults.data.mode.seed.record_key ===
+                    request.criteria.seed_record_key
+                    ? recordResults.data.mode.seed.title
+                    : recordResults.data?.mode.kind === "similar_traits" &&
+                        request.criteria.kind === "similar_traits" &&
+                        recordResults.data.mode.trait_key ===
+                          request.criteria.seed_trait_key
+                      ? recordResults.data.mode.title
+                      : undefined
+                }
+                search={
+                  request.criteria.kind === "similar_records" ||
+                  request.criteria.kind === "similar_traits"
+                    ? { ...search, similarity: request.criteria.similarity }
+                    : search
+                }
+                seed={
+                  request.criteria.kind === "similar_records"
+                    ? { kind: "record", record_key: request.criteria.seed_record_key }
+                    : request.criteria.kind === "similar_traits"
+                      ? { kind: "trait", trait_key: request.criteria.seed_trait_key }
+                      : null
+                }
+                generation={retrieval.generation}
+                disabled={disabled}
+                onApply={applySettings}
+              />
+            }
+            filterState={{
+              search,
+              setSearch: (next) => {
+                if (!disabled) {
+                  if (preparing) selection.cancel();
+                  setSearch(normalizeSortTransition(search, next));
+                  setPageNumber(1);
+                }
+              },
+              filterEditor: discovery.filterEditor,
+              refreshFilterInformation: refreshResults,
+              filterApplicabilityCurrent: discovery.filterApplicabilityCurrent,
+              filterCountsEnabled:
+                discovery.filterCountsEnabled &&
+                profileReady &&
+                request.criteria.kind !== "similar_records",
+              filterCountQueryKey: discovery.filterCountQueryKey,
+              filterDiscoveryContext: discovery.filterDiscoveryContext,
+              vocabularyScope: discovery.vocabularyScope,
+              filterDiscoveryLoading: discovery.loading,
+              filterDiscoveryError: discovery.errorMessage,
+            }}
+          />
+          <div className="reference-picker__feedback">
+            <SearchProfileNotice />
+            {recordResults.error && (
+              <ErrorNotice
+                error={recordResults.error}
+                title="Search failed"
+                action={
+                  <Button
+                    onClick={() =>
+                      generationChanged
+                        ? void refreshResults()
+                        : void recordResults.refetch()
+                    }
+                    loading={recordResults.isFetching || retrieval.recovering}
                   >
-                    <Pagination
-                      simple
-                      size="small"
-                      current={pageNumber}
-                      pageSize={search.pageSize}
-                      total={Number(recordResults.data?.page?.total ?? 0)}
-                      disabled={
-                        disabled ||
-                        recordResults.isFetching ||
-                        generationChanged ||
-                        retrieval.recovering
-                      }
-                      showSizeChanger={false}
-                      onChange={setPageNumber}
-                    />
-                  </div>
-                )}
+                    {generationChanged ? "Refresh results" : "Retry search"}
+                  </Button>
+                }
+              />
+            )}
+          </div>
+          <ReferenceBrowser
+            rows={currentRows}
+            query={
+              recordResults.data?.mode.kind === "text_search"
+                ? recordResults.data.mode.query
+                : undefined
+            }
+            relationshipClauses={recordResults.data?.relationship_clauses}
+            filter={request.criteria.filter}
+            generation={recordResults.data?.artifact_generation}
+            onRefreshResults={refreshResults}
+            loading={
+              !recordResults.error && !search.filterError && recordResults.isFetching
+            }
+            disabled={disabled}
+            selectedRecordKey={selectedRecordKey}
+            onReaderClose={selection.cancel}
+            readerHeaderActions={
+              allowClearSelection && selectedRecordKey ? (
+                <Tooltip title="Clear selection" trigger={["hover", "focus"]}>
+                  <Button
+                    type="text"
+                    icon={<X size={16} aria-hidden="true" />}
+                    aria-label="Clear selection"
+                    disabled={disabled}
+                    onClick={() => {
+                      selection.cancel();
+                      reading.inspect(null);
+                      onSelectionChange(null);
+                      requestAnimationFrame(() =>
+                        searchInput.current?.focus({ preventScroll: true }),
+                      );
+                    }}
+                  />
+                </Tooltip>
+              ) : undefined
+            }
+            onSelect={(row, request) => {
+              const page = recordResults.data;
+              if (!disabled && page)
+                void selection.select({
+                  request,
+                  name: row.record.title,
+                  generation: page.artifact_generation,
+                  commit: (detail) =>
+                    onSelectionChange({
+                      detail,
+                      record: row.record,
+                      artifact_generation: page.artifact_generation,
+                    }),
+                });
+            }}
+            readerStatus={selectionStatus}
+            reading={reading}
+            emptyMessage={
+              recordResults.error || search.filterError
+                ? null
+                : recordResults.data
+                  ? emptyResults
+                  : emptyPrompt
+            }
+            resultsHeader={
+              <div className="result-pane-header">
+                <div
+                  className="reference-picker__result-caption"
+                  style={{ minHeight: token.controlHeightSM }}
+                >
+                  {narrow && selectionStatus ? (
+                    selectionStatus
+                  ) : (
+                    <Typography.Text>
+                      {recordResults.isPlaceholderData
+                        ? "Updating results"
+                        : recordResults.data?.page
+                          ? recordResults.data.coverage?.exhaustive === false
+                            ? `Top ${recordResults.data.page.total.toLocaleString()} matches`
+                            : `${recordResults.data.page.total.toLocaleString()} records`
+                          : "Results"}
+                    </Typography.Text>
+                  )}
+                </div>
+                <div className="pager pager--compact">
+                  <ResultSortControl
+                    search={search}
+                    disabled={disabled || retrieval.recovering}
+                    setSearch={(next) => {
+                      setSearch(next);
+                      setPageNumber(1);
+                    }}
+                  />
+                  {recordResults.data && recordResults.data.page.total > 0n && (
+                    <div
+                      className="pager__navigation"
+                      role="group"
+                      aria-label="Result pages"
+                    >
+                      <Pagination
+                        simple
+                        size="small"
+                        current={pageNumber}
+                        pageSize={search.pageSize}
+                        total={Number(recordResults.data?.page?.total ?? 0)}
+                        disabled={
+                          disabled ||
+                          recordResults.isFetching ||
+                          generationChanged ||
+                          retrieval.recovering
+                        }
+                        showSizeChanger={false}
+                        onChange={setPageNumber}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          }
-        />
-      </Modal>
-    </ConfigProvider>
+            }
+          />
+        </Modal>
+      </ConfigProvider>
+    </ReferenceHelpHost>
   );
 }

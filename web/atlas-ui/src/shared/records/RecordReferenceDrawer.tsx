@@ -4,6 +4,10 @@ import { recordDestination } from "../../app/destinations";
 import { usePreviewReadingPosition } from "./usePreviewReadingPosition";
 import { ConfigProvider } from "antd";
 import { useId, useRef, useState } from "react";
+import { DefinitionDetailPane, DefinitionAttribution } from "./DefinitionDetailPane";
+import { DocumentIdentityHeader } from "./DocumentIdentityHeader";
+import { ReferenceHelpProvider, referenceDestination } from "./ReferenceHelp";
+import { ReferenceFilterActions } from "../filters/ReferenceFilterActions";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { RecordPreviewActions } from "./RecordPreviewActions";
 import type {
@@ -18,6 +22,10 @@ import { readingNavigationForUrl } from "./readingUrlNavigation";
 const getPopupContainer = (trigger?: HTMLElement) =>
   trigger?.closest<HTMLElement>(".record-preview-drawer-root") ?? document.body;
 export function RecordReferenceDrawer({
+  destination,
+  definition,
+  help,
+  onHelp,
   context = "reference",
   actions: recordActions,
   detail,
@@ -48,7 +56,17 @@ export function RecordReferenceDrawer({
   const navigation = detail
     ? readingNavigationForUrl(detail.selected, { navigation: requestedNavigation })
     : undefined;
+  const typedRoute = destination
+    ? referenceDestination(
+        destination.kind === "record" && navigation
+          ? { ...destination, navigation }
+          : destination,
+        help?.definition_key,
+        landing,
+      )
+    : undefined;
   const href =
+    (typedRoute ? destinationHref(typedRoute) : undefined) ??
     fullPageHref ??
     (detail
       ? destinationHref(
@@ -60,6 +78,11 @@ export function RecordReferenceDrawer({
         )
       : undefined);
   const openFullPage = () => {
+    if (typedRoute) {
+      navigateDestination(typedRoute);
+      onClose();
+      return;
+    }
     if (landing && detail)
       navigateDestination(
         recordDestination({
@@ -70,7 +93,12 @@ export function RecordReferenceDrawer({
       );
     else onOpenFullPage();
   };
-  const readingRef = usePreviewReadingPosition(detail, readingHistory, open, landing);
+  const readingRef = usePreviewReadingPosition(
+    definition ?? detail,
+    readingHistory,
+    open,
+    landing,
+  );
   const contentFocus = usePreviewContentFocus(open, readingRef.ref);
   const headerFocus = usePreviewContentFocus(open, heading);
   const returnToOwner = (
@@ -109,7 +137,14 @@ export function RecordReferenceDrawer({
       className="record-preview-drawer"
       drawerRender={(panel) => (
         <SourceSectionSelectionContext value={null}>
-          <ConfigProvider getPopupContainer={getPopupContainer}>{panel}</ConfigProvider>
+          <ReferenceHelpProvider
+            onHelp={onHelp}
+            generation={definition?.artifact_generation ?? detail?.artifact_generation}
+          >
+            <ConfigProvider getPopupContainer={getPopupContainer}>
+              {panel}
+            </ConfigProvider>
+          </ReferenceHelpProvider>
         </SourceSectionSelectionContext>
       )}
       closable={false}
@@ -120,31 +155,49 @@ export function RecordReferenceDrawer({
           onFocusCapture={headerFocus.onFocusCapture}
           onBlurCapture={headerFocus.onBlurCapture}
         >
-          <RecordPresentationIdentity
-            stacked
-            headingRef={heading}
-            headingId={headingId}
-            presentation={detail?.presentation}
-            root={detail?.record}
-            selection={detail?.selected}
-            relationships={detail?.relationships}
-            onReference={onReference}
-            onRankChange={onRankChange}
-            onOwnerReturn={returnToOwner}
-            visibleOwnerRecordKey={visibleOwnerRecordKey}
-            showOwnerReturn={context !== "encounter"}
-            actions={(secondaryActions) => (
-              <RecordPreviewActions
-                actions={context === "encounter" ? undefined : recordActions}
-                contextActions={context === "encounter" ? recordActions : undefined}
-                secondaryActions={secondaryActions}
-                readingHistory={readingHistory}
-                onClose={close}
-                onOpenFullPage={openFullPage}
-                fullPageHref={href}
-              />
-            )}
-          />
+          {destination?.kind === "definition" ? (
+            <DocumentIdentityHeader
+              stacked
+              headingRef={heading}
+              headingId={headingId}
+              title={definition?.label ?? "Definition"}
+              classification="Definition"
+              attribution={definition && <DefinitionAttribution detail={definition} />}
+              actions={
+                <RecordPreviewActions
+                  readingHistory={readingHistory}
+                  onClose={close}
+                  onOpenFullPage={openFullPage}
+                  fullPageHref={href}
+                />
+              }
+            />
+          ) : (
+            <RecordPresentationIdentity
+              stacked
+              headingRef={heading}
+              headingId={headingId}
+              presentation={detail?.presentation}
+              root={detail?.record}
+              selection={detail?.selected}
+              relationships={detail?.relationships}
+              onRankChange={onRankChange}
+              onOwnerReturn={returnToOwner}
+              visibleOwnerRecordKey={visibleOwnerRecordKey}
+              showOwnerReturn={context !== "encounter"}
+              actions={(secondaryActions) => (
+                <RecordPreviewActions
+                  actions={context === "encounter" ? undefined : recordActions}
+                  contextActions={context === "encounter" ? recordActions : undefined}
+                  secondaryActions={secondaryActions}
+                  readingHistory={readingHistory}
+                  onClose={close}
+                  onOpenFullPage={openFullPage}
+                  fullPageHref={href}
+                />
+              )}
+            />
+          )}
         </div>
       }
       size="min(760px, 100vw)"
@@ -169,26 +222,46 @@ export function RecordReferenceDrawer({
       onClose={close}
     >
       <section {...contentFocus} aria-label="Reference content">
-        <RecordDetailPane
-          identityInHost
-          visibleOwnerRecordKey={visibleOwnerRecordKey}
-          showRelated={false}
-          showOwnerReturn={context !== "encounter"}
-          detail={detail}
-          loading={loading}
-          error={error}
-          onRetry={onRetry}
-          onReload={onReload}
-          reloadLabel={reloadLabel}
-          retryLabel={retryLabel}
-          onBack={close}
-          backLabel="Close preview"
-          onReference={onReference}
-          onRankChange={onRankChange}
-          landing={landing}
-          onLandingReady={readingRef.onLandingReady}
-          onOwnerReturn={returnToOwner}
-        />
+        {destination?.kind === "definition" ? (
+          <DefinitionDetailPane
+            identityInHost
+            detail={definition}
+            loading={loading}
+            error={error}
+            onRetry={onRetry}
+            onReference={onReference}
+          />
+        ) : (
+          <>
+            {help && detail && (
+              <ReferenceFilterActions
+                actions={help.related_filters}
+                generation={detail.artifact_generation}
+              />
+            )}
+            <RecordDetailPane
+              identityInHost
+              visibleOwnerRecordKey={visibleOwnerRecordKey}
+              showRelated={false}
+              showOwnerReturn={context !== "encounter"}
+              detail={detail}
+              loading={loading}
+              error={error}
+              onRetry={onRetry}
+              onReload={onReload}
+              reloadLabel={reloadLabel}
+              retryLabel={retryLabel}
+              onBack={close}
+              backLabel="Close preview"
+              onReference={onReference}
+              onHelp={onHelp}
+              onRankChange={onRankChange}
+              landing={landing}
+              onLandingReady={readingRef.onLandingReady}
+              onOwnerReturn={returnToOwner}
+            />
+          </>
+        )}
       </section>
     </Drawer>
   );

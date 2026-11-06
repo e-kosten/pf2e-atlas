@@ -3,6 +3,7 @@ import { CalculationTable } from "../ui/tables/CalculationTable";
 import { ValueExplanation } from "../ui/ValueExplanation";
 import type { ReactNode } from "react";
 import type { FactView, NumberFactView } from "../../generated/atlas";
+import { ReferenceValue } from "./ReferenceHelp";
 
 export type FactValueRenderer = (value: ReactNode) => ReactNode;
 
@@ -148,6 +149,16 @@ export function FactLine<T>({
   const value =
     fact.state === "missing" ? (
       <MissingFact label={label} />
+    ) : !format &&
+      !isEmptyFactValue(fact.value) &&
+      fact.state === "value" &&
+      fact.value &&
+      typeof fact.value === "object" &&
+      "label" in fact.value &&
+      "value" in fact.value ? (
+      <ReferenceValue
+        value={fact.value as import("../../generated/atlas").ReferenceValueView}
+      />
     ) : (
       factText(fact, format, { patch, required })
     );
@@ -158,7 +169,13 @@ export function FactLine<T>({
   );
 }
 
-export function FactRow({ label, children }: { label: string; children: ReactNode }) {
+export function FactRow({
+  label,
+  children,
+}: {
+  label: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <div className="record-fact">
       <strong>{label}</strong> <span>{children}</span>

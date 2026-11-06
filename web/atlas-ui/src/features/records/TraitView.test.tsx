@@ -171,7 +171,6 @@ it("shares the normal document identity chrome without routine navigation or ref
     <RecordIdentity
       identity={summaryFixture("weapons:rapier", "Rapier")}
       classification="Weapon 0"
-      onReference={vi.fn()}
     />,
   );
   const recordHeader = screen

@@ -15,13 +15,64 @@ import {
   listDestination,
   listsDestination,
   encountersDestination,
+  definitionDestination,
 } from "./destinations";
+import { definitionReading } from "./urlState";
 
 const filter = encodeFilterUrl({
   kind: "in",
   clause_id: "example",
   field: "kind",
   values: ["spell"],
+});
+
+it("preserves typed general purpose and property context on actual record URLs", () => {
+  const route = recordDestination({
+    recordKey: "abilities:darkvision",
+    readingContext: "general_definition",
+    definitionKey: "sense:darkvision",
+  });
+  const router = createAtlasRouter();
+  expect(router.buildLocation(route).href).toBe(
+    "/records/abilities:darkvision?reading_context=general_definition&definition_key=sense%3Adarkvision",
+  );
+  expect(definitionReading(route.search)).toEqual({
+    readingContext: "general_definition",
+    definitionKey: "sense:darkvision",
+  });
+  expect(() =>
+    canonicalRouteSearch("record", {
+      reading_context: ["general_definition", "other"],
+    }),
+  ).toThrow("conflicting");
+  expect(() => canonicalRouteSearch("record", { reading_context: "other" })).toThrow(
+    "invalid reading context",
+  );
+  expect(() =>
+    canonicalRouteSearch("record", { definition_key: "sense:darkvision" }),
+  ).toThrow("invalid definition context");
+  expect(
+    router.buildLocation(definitionDestination({ definitionKey: "language:chthonian" }))
+      .href,
+  ).toBe("/definitions/language:chthonian");
+  expect(
+    router.buildLocation(definitionDestination({ definitionKey: "trait:fire" })).href,
+  ).toBe("/traits/trait:fire");
+});
+
+it("preserves a nonexecuting numeric-field intent independently of criteria", () => {
+  const route = searchDestination({ query: "?q=dragon", configureField: "level" });
+  expect(route.search).toEqual({ configure_field: "level", q: "dragon" });
+  expect(
+    canonicalRouteSearch("search", { configure_field: ["level", "level"] }),
+  ).toEqual({ configure_field: "level" });
+  expect(() =>
+    canonicalRouteSearch("search", { configure_field: ["level", "hp"] }),
+  ).toThrow("configure_field");
+  expect(() => canonicalRouteSearch("search", { configure_field: "" })).toThrow(
+    "configure_field",
+  );
+  expect(canonicalRouteSearch("list", { configure_field: "level" })).toEqual({});
 });
 
 it("normalizes committed values and defaults without dropping explicit ordered sort intent", () => {

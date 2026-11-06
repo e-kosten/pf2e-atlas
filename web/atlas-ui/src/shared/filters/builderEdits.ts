@@ -1,6 +1,10 @@
 import type { RuleGroupType, RuleType } from "react-querybuilder";
 import type { FilterEditorFieldView } from "../../generated/atlas";
-import { BOOLEAN_CONDITION, LINK_CONDITION } from "./queryBuilder";
+import {
+  BOOLEAN_CONDITION,
+  DEFINITION_CONDITION,
+  LINK_CONDITION,
+} from "./queryBuilder";
 import { transitionOperand } from "./operatorTransitions";
 import { sameActorMetricMeasure } from "./actorMetricFields";
 
@@ -37,6 +41,13 @@ export function normalizeBuilderEdit(
         return {
           ...node,
           operator: "incoming",
+          value: undefined,
+          meta: { ...node.meta, atlasExcluded: false },
+        };
+      if (node.field === DEFINITION_CONDITION && oldRule.field !== node.field)
+        return {
+          ...node,
+          operator: "references",
           value: undefined,
           meta: { ...node.meta, atlasExcluded: false },
         };

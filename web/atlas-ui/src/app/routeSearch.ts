@@ -7,6 +7,7 @@ import {
 import { encodeReadingAddress } from "./readingUrl";
 import {
   readingView,
+  definitionReading,
   selectedNavigation,
   stringifySearchParams,
   validateReadingSearch,
@@ -20,6 +21,7 @@ export type RouteSearchKind =
   | "list_record"
   | "record"
   | "trait"
+  | "definition"
   | "lists"
   | "encounters"
   | "empty";
@@ -98,6 +100,9 @@ function readingSearch(search: AtlasSearchParams): AtlasSearchParams {
     if (focus !== undefined) result.focus = focus;
   }
   const view = readingView(search);
+  const definition = definitionReading(search);
+  if (definition.readingContext) result.reading_context = definition.readingContext;
+  if (definition.definitionKey) result.definition_key = definition.definitionKey;
   if (view.view === "explore") result.record_view = "explore";
   if (view.tab !== "incoming") result.record_tab = view.tab;
   return result;
@@ -138,6 +143,11 @@ export function canonicalRouteSearch(
     if (profile) result.search_profile = profile;
   }
   if (isSearch) {
+    const configureField = singleton(search, "configure_field");
+    if (configureField !== undefined) {
+      if (!configureField.trim()) throw new RouteSearchError("configure_field");
+      result.configure_field = configureField;
+    }
     // Explicit settings remain authoritative over remembered browser preferences.
     for (const key of [
       "ranking",

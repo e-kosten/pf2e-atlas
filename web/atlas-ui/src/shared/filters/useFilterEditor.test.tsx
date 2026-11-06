@@ -23,6 +23,71 @@ function harness(start: SearchFormState = initial) {
 }
 
 describe("persistent filter editing lifecycle", () => {
+  it("adds a supplied collection predicate intact while retaining unrelated invalid edits", () => {
+    const senses = fieldFixture("senses", "collection", "Senses");
+    const type = {
+      ...fieldFixture("senses[].type", "string", "Sense"),
+      scope: "senses",
+      path: "type",
+    };
+    const range = {
+      ...fieldFixture("senses[].range", "number", "Range"),
+      scope: "senses",
+      path: "range",
+    };
+    const catalog = editorFixture([hp, senses, type, range]).groups[0].fields;
+    const { result } = renderHook(() => {
+      const [search, setSearch] = useState<SearchFormState>(initial);
+      return { search, editor: useFilterEditor(search, catalog, setSearch) };
+    });
+    act(() =>
+      result.current.editor.change({
+        combinator: "and",
+        rules: [{ id: "draft", field: hp.id, operator: "gte", value: "unfinished" }],
+      }),
+    );
+    const predicate: QueryPredicate = {
+      kind: "exists",
+      collection: "senses",
+      scope_id: "sense",
+      predicate: {
+        kind: "all_of",
+        children: [
+          { kind: "compare", field: "type", op: "eq", value: "darkvision" },
+          { kind: "compare", field: "range", op: "gte", value: 60 },
+        ],
+      },
+    };
+    act(() => expect(result.current.editor.addPredicate(predicate)).toBeNull());
+    expect(result.current.search.filter).toMatchObject({
+      kind: "all_of",
+      children: [
+        initial.filter,
+        { kind: "exists", collection: "senses", predicate: predicate.predicate },
+      ],
+    });
+    expect(result.current.editor.query?.rules[0]).toMatchObject({
+      value: "unfinished",
+    });
+    expect(result.current.editor.error).toBe("Enter a finite numeric value");
+  });
+  it("configures a numeric field as an unfinished rule without changing executed criteria", () => {
+    const { result } = harness();
+    act(() => expect(result.current.editor.addFieldDraft(hp.id)).toBeNull());
+    expect(result.current.search.filter).toEqual(initial.filter);
+    const rules = result.current.editor.query?.rules ?? [];
+    expect(rules[rules.length - 1]).toMatchObject({
+      field: hp.id,
+      operator: "eq",
+      value: "",
+    });
+    act(() =>
+      expect(result.current.editor.addFieldDraft("missing-number")).toMatch(
+        /unavailable/,
+      ),
+    );
+    expect(result.current.editor.query?.rules).toHaveLength(2);
+  });
   it("commits a Kind change or removal while retaining an unused condition row", () => {
     const { result } = harness({
       ...DEFAULT_SEARCH_STATE,

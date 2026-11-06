@@ -1,3 +1,4 @@
+import { ReferenceHelpHost } from "./ReferenceHelpHost";
 import { DEFAULT_MATCH_DISPLAY, type MatchDisplay } from "../search/searchPreferences";
 import { Empty } from "antd";
 import { LoadingStatus } from "../ui/LoadingStatus";
@@ -70,53 +71,55 @@ export function ReferenceBrowser({
     !detail.selected.field &&
     !detail.selected.passage;
   return (
-    <BrowseReader
-      reading={reading}
-      selectedRecordKey={selectedRecordKey}
-      resultsHeader={resultsHeader}
-      resultsLabel="Search results"
-      resultsIdentity={rows}
-      resultsLoading={loading}
-      recordActions={recordActions}
-      readerHeaderActions={readerHeaderActions}
-      readerStatus={readerStatus}
-      onReaderClose={onReaderClose}
-      positions={positions}
-      readerContext={
-        showContext ? (
-          <SearchMatchContext
-            row={selected}
-            matchDisplay={matchDisplay}
-            showSmallerWeights={showSmallerWeights}
-            query={query}
-            clauses={relationshipClauses}
+    <ReferenceHelpHost generation={generation}>
+      <BrowseReader
+        reading={reading}
+        selectedRecordKey={selectedRecordKey}
+        resultsHeader={resultsHeader}
+        resultsLabel="Search results"
+        resultsIdentity={rows}
+        resultsLoading={loading}
+        recordActions={recordActions}
+        readerHeaderActions={readerHeaderActions}
+        readerStatus={readerStatus}
+        onReaderClose={onReaderClose}
+        positions={positions}
+        readerContext={
+          showContext ? (
+            <SearchMatchContext
+              row={selected}
+              matchDisplay={matchDisplay}
+              showSmallerWeights={showSmallerWeights}
+              query={query}
+              clauses={relationshipClauses}
+              filter={filter}
+              generation={generation}
+              onRefresh={onRefreshResults}
+            />
+          ) : undefined
+        }
+      >
+        {loading && !rows.length ? (
+          <LoadingStatus className="reference-loading" label="Searching…" />
+        ) : !rows.length && emptyMessage ? (
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyMessage} />
+        ) : null}
+        {rows.map((row) => (
+          <ReferenceResult
+            key={row.record.record_key}
+            row={row}
+            relationshipClauses={relationshipClauses}
             filter={filter}
             generation={generation}
-            onRefresh={onRefreshResults}
+            onRefreshResults={onRefreshResults}
+            selected={row.record.record_key === selectedRecordKey}
+            disabled={disabled}
+            onPreview={() => {
+              onSelect(row, { navigation: rootNavigation(row.record.record_key) });
+            }}
           />
-        ) : undefined
-      }
-    >
-      {loading && !rows.length ? (
-        <LoadingStatus className="reference-loading" label="Searching…" />
-      ) : !rows.length && emptyMessage ? (
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyMessage} />
-      ) : null}
-      {rows.map((row) => (
-        <ReferenceResult
-          key={row.record.record_key}
-          row={row}
-          relationshipClauses={relationshipClauses}
-          filter={filter}
-          generation={generation}
-          onRefreshResults={onRefreshResults}
-          selected={row.record.record_key === selectedRecordKey}
-          disabled={disabled}
-          onPreview={() => {
-            onSelect(row, { navigation: rootNavigation(row.record.record_key) });
-          }}
-        />
-      ))}
-    </BrowseReader>
+        ))}
+      </BrowseReader>
+    </ReferenceHelpHost>
   );
 }

@@ -1,3 +1,11 @@
+import {
+  useDefinitionDetail,
+  definitionHelpMatchesRecord,
+} from "../../shared/records/useDefinitionDetail";
+import { ReferenceFilterActions } from "../../shared/filters/ReferenceFilterActions";
+import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
+import { Button } from "antd";
+import { rootNavigation } from "../../shared/records/useReferenceReading";
 import { atlasRouter } from "../../app/router";
 import type { RecordPageInput } from "../../app/destinations";
 import { navigateDestination } from "../../app/navigation";
@@ -15,9 +23,26 @@ type RecordViewProps = {
   route: RecordPageInput;
 };
 export function RecordView({ route }: RecordViewProps) {
-  const detail = useRecordDetail(route.recordKey, route.selection);
+  const detail = useRecordDetail(
+    route.recordKey,
+    route.selection,
+    route.readingContext,
+  );
   usePageTitle(detail.data?.presentation.identity.title ?? "Record");
   const preview = useRecordPreview();
+  const property = useDefinitionDetail(
+    route.definitionKey ?? null,
+    detail.data?.artifact_generation,
+  );
+  const propertyHelp =
+    property.data &&
+    definitionHelpMatchesRecord(
+      property.data.help,
+      route.selection ?? rootNavigation(route.recordKey),
+      route.readingContext,
+    )
+      ? property.data.help
+      : undefined;
   const changeRank = (spell_rank: number | undefined) => {
     if (detail.data)
       void atlasRouter.navigate({
@@ -35,6 +60,7 @@ export function RecordView({ route }: RecordViewProps) {
       <main className="record-view">
         <DocumentPagePane layout={recordLayout(detail.data?.presentation)}>
           <RecordDetailPane
+            onHelp={preview.openHelp}
             sectionLanding={route.section}
             identityActions={
               <AddToRecordButton
@@ -43,7 +69,37 @@ export function RecordView({ route }: RecordViewProps) {
                 record={detail.data?.record}
               />
             }
-            readingKey={recordReadingIdentity(route.recordKey, route.selection)}
+            readingKey={JSON.stringify([
+              recordReadingIdentity(route.recordKey, route.selection),
+              route.readingContext,
+              route.definitionKey,
+            ])}
+            readingContext={
+              route.definitionKey && (
+                <>
+                  {property.error && (
+                    <ErrorNotice
+                      error={property.error}
+                      title="Unable to load related searches"
+                      action={
+                        <Button onClick={() => void property.refetch()}>Retry</Button>
+                      }
+                    />
+                  )}
+                  {propertyHelp && (
+                    <ReferenceFilterActions
+                      actions={propertyHelp.related_filters}
+                      generation={property.data?.artifact_generation}
+                    />
+                  )}
+                  {property.data && !propertyHelp && (
+                    <p className="muted">
+                      This definition no longer points to this entry.
+                    </p>
+                  )}
+                </>
+              )
+            }
             landing={
               route.landing?.record_key === route.recordKey ? route.landing : undefined
             }
@@ -56,13 +112,19 @@ export function RecordView({ route }: RecordViewProps) {
           />
         </DocumentPagePane>
       </main>
-      {preview.recordKey && (
+      {preview.destination && (
         <RecordReferenceDrawer
+          destination={preview.destination}
+          definition={preview.definition}
+          help={preview.help}
+          onHelp={preview.openHelp}
           actions={
-            <AddToRecordButton
-              recordKey={preview.recordKey}
-              record={preview.detail?.record}
-            />
+            preview.recordKey ? (
+              <AddToRecordButton
+                recordKey={preview.recordKey!}
+                record={preview.detail?.record}
+              />
+            ) : undefined
           }
           visibleOwnerRecordKey={
             detail.data?.selected.embedded_path.length === 0

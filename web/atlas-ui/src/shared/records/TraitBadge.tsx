@@ -6,6 +6,7 @@ import {
 import { traitDestination } from "../../app/destinations";
 import { Tag, Typography } from "antd";
 import type { RecordBadgeView } from "../../generated/atlas";
+import { ReferenceHelpLink } from "./ReferenceHelp";
 import { sentenceCase } from "../ui/labels";
 /** Definition navigation is supplied by Rust; other badge namespaces stay plain. */
 export function TraitBadge({ trait }: { trait: RecordBadgeView }) {
@@ -17,7 +18,9 @@ export function TraitBadge({ trait }: { trait: RecordBadgeView }) {
     : null;
   return (
     <Tag className="record-trait-badge">
-      {route ? (
+      {trait.help?.destination ? (
+        <ReferenceHelpLink help={trait.help}>{label}</ReferenceHelpLink>
+      ) : route ? (
         <Typography.Link
           style={{ fontSize: "inherit", lineHeight: "inherit" }}
           href={destinationHref(route)}

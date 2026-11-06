@@ -9,6 +9,7 @@ import type {
   FilterDiscoveryContext,
 } from "../../generated/atlas";
 import { useFilterOptionCounts } from "./useFilterDiscovery";
+import { ReferenceHelpLink } from "../records/ReferenceHelp";
 
 export function FilterValueInput({
   field,
@@ -133,15 +134,35 @@ export function FilterValueInput({
             !selectedChoices.includes(String(choice.value)) &&
             !["neq", "excludes_any"].includes(operator),
         }))}
+        optionRender={(option) => {
+          const choice = field.choices.find(
+            (entry) => String(entry.value) === option.value,
+          );
+          return (
+            <span style={{ display: "flex", gap: 8, justifyContent: "space-between" }}>
+              <span>
+                {option.label}
+                {counts.has(String(option.value))
+                  ? ` (${new Intl.NumberFormat().format(counts.get(String(option.value))!)})`
+                  : ""}
+              </span>
+              {choice?.help?.destination && (
+                <span
+                  onMouseDownCapture={(event) => event.stopPropagation()}
+                  onKeyDownCapture={(event) => event.stopPropagation()}
+                >
+                  <ReferenceHelpLink
+                    help={choice.help}
+                    generation={countContext?.expected_artifact_generation ?? undefined}
+                  >
+                    Read<span className="sr-only"> {choice.label}</span>
+                  </ReferenceHelpLink>
+                </span>
+              )}
+            </span>
+          );
+        }}
         onOpenChange={setOpen}
-        optionRender={(option) => (
-          <span>
-            {option.label}
-            {counts.has(String(option.value))
-              ? ` (${new Intl.NumberFormat().format(counts.get(String(option.value))!)})`
-              : ""}
-          </span>
-        )}
         onChange={(next) => onChange(next ?? (multiple ? [] : ""))}
       />
     );

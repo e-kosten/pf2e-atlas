@@ -1172,9 +1172,10 @@ Reader mode, companion layout or reader route. Search results, saved-list member
 and Add candidates keep their primary selected-record detail pane; following a
 reference does not replace that selection or commit a mutation.
 
-Use `RecordReferenceDrawer` for linked records and Original record links on every
-viewport. Trait badges retain native typed trait-page destinations; never coerce
-their identities to record keys. It overlays the host
+Use `RecordReferenceDrawer` for linked records, contextual definitions and Original
+record links on every viewport. Trait badges open the same contextual host while
+retaining native typed trait-page destinations; never coerce definition identities
+to record keys. It overlays the host
 without reserving an empty column or compressing the underlying layout. It is
 full width on narrow screens and has a generous bounded reading width otherwise.
 Nested references replace the document in the same Drawer and keep a bounded
@@ -1211,7 +1212,12 @@ to understand embedded storage or an "original record" concept. Neither action
 replaces a customized copy or guesses a destination by name. Unavailable
 references remain explicit inert labels, without invented links.
 
-The Drawer uses the same RecordDetailPane and family renderer as full pages.
+Record destinations use the same RecordDetailPane and family renderer as full
+pages. Standalone definitions reuse prepared content and the shared identity/page
+primitives, with attribution and complete notices available through secondary
+disclosure. Property-specific related actions remain separate from a shared backing
+record. Render the supplied predicate or numeric configuration action; do not infer
+a filter from the visible name or definition destination.
 Its header shows the document title once and its consistent action group remains
 reachable while the body scrolls. Use the shared identity composition: title and
 glyph, trailing classification, document actions, traits, then source attribution.

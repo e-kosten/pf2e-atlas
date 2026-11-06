@@ -18,6 +18,7 @@ import type {
 } from "../../generated/atlas";
 import { sameReferenceCondition } from "../filters/linkPredicates";
 import { isArtifactGenerationChanged } from "../queries/referenceQueries";
+import { ReferenceHelpLink } from "./ReferenceHelp";
 export function RelationshipEvidence({
   evidence,
   filter,
@@ -150,6 +151,12 @@ function EvidencePage({
                 {target ? (
                   <EvidenceDestination
                     destination={target}
+                    definitionKey={
+                      summary.condition.kind === "definition" &&
+                      summary.condition.reference.target.kind === "definition"
+                        ? summary.condition.reference.target.key
+                        : undefined
+                    }
                     title={occurrence.target_title ?? "Referenced record"}
                     onNavigate={onNavigate}
                   />
@@ -192,10 +199,12 @@ function EvidencePage({
 }
 function EvidenceDestination({
   destination,
+  definitionKey,
   title,
   onNavigate,
 }: {
   destination: import("../../generated/atlas").ReferenceDestinationView;
+  definitionKey?: string;
   title: string;
   onNavigate?: (selection: RecordNavigationView, anchor: HTMLElement) => void;
 }) {
@@ -206,7 +215,17 @@ function EvidenceDestination({
       onNavigate={onNavigate}
     />
   ) : (
-    <Typography.Text>{title}</Typography.Text>
+    <ReferenceHelpLink
+      help={{
+        definition_key:
+          destination.kind === "definition" ? destination.key : (definitionKey ?? null),
+        availability: "available",
+        destination,
+        related_filters: [],
+      }}
+    >
+      {title}
+    </ReferenceHelpLink>
   );
 }
 function EvidenceLink({
