@@ -336,3 +336,41 @@ it.each([
     });
   },
 );
+
+it("omits the edited link inside OR/NOT while retaining its siblings and draft", () => {
+  const link: QueryPredicate = {
+    kind: "relationship",
+    clause_id: "editing",
+    relationship: {
+      direction: "incoming",
+      include_contents: true,
+      selection: {
+        record_key: "items:0000000000000000",
+        embedded_path: [],
+        field: null,
+        passage: null,
+        source_fingerprint: null,
+      },
+    },
+  };
+  const sibling: QueryPredicate = {
+    kind: "compare",
+    field: kind.path,
+    op: "eq",
+    value: "creature",
+  };
+  const { result } = harness({
+    ...DEFAULT_SEARCH_STATE,
+    filter: { kind: "any_of", children: [{ kind: "not", predicate: link }, sibling] },
+  });
+  const before = result.current.editor.query;
+  expect(result.current.editor.filterWithoutLink("editing", false)).toEqual({
+    kind: "any_of",
+    children: [sibling],
+  });
+  expect(result.current.editor.query).toBe(before);
+  expect(result.current.search.filter).toEqual({
+    kind: "any_of",
+    children: [{ kind: "not", predicate: link }, sibling],
+  });
+});

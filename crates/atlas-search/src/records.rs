@@ -156,6 +156,17 @@ impl AtlasRetrievalService {
     ) -> Result<Option<String>, SearchError> {
         Ok(self.index.recover_passage(location)?)
     }
+    pub fn all_record_keys(
+        &self,
+        filter: Option<&atlas_domain::QueryPredicate>,
+        scope: crate::RecordScope<'_>,
+        prefer_remaster: bool,
+    ) -> Result<Vec<atlas_domain::RecordKey>, crate::SearchError> {
+        Ok(self
+            .index
+            .all_eligible_keys(&self.predicate(filter)?, scope.keys(), prefer_remaster)?)
+    }
+
     pub fn list_records(
         &self,
         request: ListRecordsRequest<'_>,

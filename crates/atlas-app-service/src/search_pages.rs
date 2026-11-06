@@ -10,10 +10,23 @@ use atlas_search::{ListRecordsRequest, RecordScope, SearchPage, TextSearchReques
 impl AtlasAppService {
     pub fn search_page(
         &self,
-        request: SearchResultsRequest,
+        mut request: SearchResultsRequest,
         execution: &ReadExecutionContext,
     ) -> AppServiceResult<SearchResultsPage> {
         execution.check()?;
+        crate::connection_scope::validate_caller_similarity(&request)?;
+        let connected = request
+            .connection_scope
+            .as_ref()
+            .map(|scope| self.connection_keys(scope, execution))
+            .transpose()?;
+        if let Some((generation, _)) = &connected {
+            crate::connection_scope::check_generation(
+                request.expected_artifact_generation.as_deref(),
+                generation,
+            )?;
+            request.expected_artifact_generation = Some(generation.clone());
+        }
         let page = SearchPage::new(request.page.number, request.page.size)?;
         let sort = crate::result_order::search_sort(request.sort, &request.criteria)?;
         let projection_execution = execution.clone();
@@ -79,7 +92,10 @@ impl AtlasAppService {
             let relationship_summaries =
                 crate::relationship_search::prepare_filter(retrieval, filter)?;
             let evidence_filter = filter.cloned();
-            let scope = RecordScope::All;
+            let scope = connected
+                .as_ref()
+                .map(|(_, keys)| RecordScope::Keys(keys))
+                .unwrap_or(RecordScope::All);
             let cancelled = || projection_execution.check().is_err();
             let search_content = match &request.criteria {
                 SearchCriteria::TextSearch { search_content, .. }
@@ -190,7 +206,11 @@ impl AtlasAppService {
                     let definition = retrieval.trait_definition(&key)?.ok_or_else(|| {
                         AppServiceError::invalid_request("Trait definition not found")
                     })?;
-                    let keys = retrieval.trait_reference_record_keys(&key)?;
+                    let mut keys = retrieval.trait_reference_record_keys(&key)?;
+                    if let Some((_, connected)) = &connected {
+                        let connected: std::collections::BTreeSet<_> = connected.iter().collect();
+                        keys.retain(|key| connected.contains(key));
+                    }
                     let scope = RecordScope::Keys(&keys);
                     let mode = SearchModeSummary::TraitReferences {
                         trait_key,

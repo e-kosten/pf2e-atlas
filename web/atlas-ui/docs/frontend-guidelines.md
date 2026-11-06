@@ -47,8 +47,10 @@ and link conditions share a separate wrapping area, so values do not create hole
 beneath individual controls. Use compact joined edit/remove link chips; keep each
 remove action attached to its chip and its complete title available from the
 link-scope popover. Conditions that cannot be represented as independent chips
-mark the Advanced button with an active outline and dot; its hover/focus tooltip
-and accessible description say Advanced filters applied. Do not print the boolean
+show “Advanced · Applied” inside the neutral Advanced button; its hover/focus
+tooltip and accessible description say Advanced filters applied. Applied chips
+share a neutral surface, border and height; include/exclude color belongs to
+the +/- marker rather than changing the whole chip. Do not print the boolean
 expression in the toolbar or count groups as though they were individual choices.
 Clear filters uses the same outlined control treatment as its neighbors.
 The settings icon has a normal-sized button target, accessible Search settings
@@ -2201,3 +2203,23 @@ current value (Frightened 2) and Reduce by 1; retain the condition name on actio
 without that visible context. Do not infer a missing effective value in the browser.
 A dice icon must initiate a dice/check
 interaction rather than hide a plain counter action.
+
+### Connected link picker
+
+The link picker keeps its own search and ordinary filters, within entries connected
+to the parent results. Direction and link scope appear above search because they
+define the candidate corpus. Changing either clears the candidate with a short
+explanation while retaining target filters. An untouched edit retains its exact
+embedded selection. The parent descriptor includes its complete criteria and any
+saved-list or enclosing picker scope; editing omits only that link occurrence.
+The backend owns complete membership and inverse link eligibility before picker
+ranking and pagination. Do not filter the targets by the parent's record kind or
+assemble eligibility by iterating visible result rows. Contextual option counts
+are omitted until the facet API supports the connected corpus.
+
+For a picker opening, retain the fixed frame and show controls/results together
+when metadata and initial data are ready; delay loading feedback through the
+shared LoadingStatus. Once initialized, keep search and filters available during
+refreshes. If the parent generation changes, offer Close picker and explain that
+the parent results must be refreshed before reopening; retrying the unchanged
+parent descriptor cannot recover it.

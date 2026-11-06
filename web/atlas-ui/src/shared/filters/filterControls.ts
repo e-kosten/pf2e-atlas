@@ -1,5 +1,6 @@
 import type {
   FilterDiscoveryContext,
+  SearchResultsRequest,
   FilterEditorView,
   FilterVocabularyScope,
   QueryFieldDefinition,
@@ -9,6 +10,8 @@ import type { SearchFormState } from "./searchState";
 export type SearchUpdateIntent = "edit" | "submit";
 
 export type FilterPanelState = {
+  resultRequest?: SearchResultsRequest;
+  fixedFilter?: QueryPredicate | null;
   search: SearchFormState;
   setSearch: (next: SearchFormState, intent?: SearchUpdateIntent) => void;
   filterEditor: FilterEditorView | undefined;

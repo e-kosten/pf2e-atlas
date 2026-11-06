@@ -854,7 +854,7 @@ fn summary_browse_stays_body_free_and_plain_passages_decode_each_root_once() {
         })
         .unwrap();
     let results = service
-        .finish_results(
+        .finish_results::<false>(
             &atlas_domain::SearchProfileId::new("bge-base"),
             roots,
             SearchPage::default(),

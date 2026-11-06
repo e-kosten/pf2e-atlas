@@ -1,10 +1,10 @@
+import { buildSearchRequest } from "./searchState";
 import { restoreOverlayFocus } from "../ui/overlays/restoreOverlayFocus";
 import { createPortal } from "react-dom";
 import { AtlasDrawer as Drawer } from "../ui/overlays/AtlasDrawer";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import {
   Button,
-  Badge,
   Form,
   Input,
   Popover,
@@ -134,7 +134,6 @@ export function FilterControls({
   children?: ReactNode;
 }) {
   const { search, setSearch } = workspace;
-  const { token: filterTokens } = theme.useToken();
   const [advanced, setAdvanced] = useState(false);
   const [selectionContainer, setSelectionContainer] = useState<HTMLDivElement | null>(
     null,
@@ -211,6 +210,34 @@ export function FilterControls({
       open: true,
       initial,
       initialTitle: title,
+      parent: {
+        ...(workspace.resultRequest ??
+          buildSearchRequest(
+            search,
+            1,
+            generation ?? null,
+            workspace.filterDiscoveryContext?.search_profile,
+          )),
+        criteria: {
+          ...(workspace.resultRequest?.criteria ??
+            buildSearchRequest(search, 1).criteria),
+          filter: workspace.fixedFilter
+            ? {
+                kind: "all_of",
+                children: [
+                  workspace.fixedFilter,
+                  ...[prepared.filterWithoutLink(id, advanced)].flatMap((filter) =>
+                    filter ? [filter] : [],
+                  ),
+                ],
+              }
+            : prepared.filterWithoutLink(id, advanced),
+        },
+      },
+      parentListRef:
+        workspace.filterDiscoveryContext?.kind === "saved_list"
+          ? workspace.filterDiscoveryContext.list_ref
+          : undefined,
       onCancel: () =>
         setPicker((current) => (current ? { ...current, open: false } : null)),
       onConfirm: (relationship, selection) => {
@@ -404,23 +431,21 @@ export function FilterControls({
             title={advancedApplied ? "Advanced filters applied" : undefined}
             trigger={["hover", "focus"]}
           >
-            <Badge dot={advancedApplied} color={filterTokens.colorPrimary}>
-              <Button
-                ref={advancedTrigger}
-                className="filter-controls__advanced"
-                color={advancedApplied ? "primary" : "default"}
-                variant="outlined"
-                aria-description={
-                  advancedApplied ? "Advanced filters applied" : undefined
-                }
-                icon={<FilterOutlined aria-hidden="true" />}
-                onClick={() => setAdvanced(!advanced)}
-                aria-expanded={advanced}
-                aria-label="Advanced filters"
-              >
-                Advanced
-              </Button>
-            </Badge>
+            <Button
+              ref={advancedTrigger}
+              className="filter-controls__advanced"
+              color="default"
+              variant="outlined"
+              aria-description={
+                advancedApplied ? "Advanced filters applied" : undefined
+              }
+              icon={<FilterOutlined aria-hidden="true" />}
+              onClick={() => setAdvanced(!advanced)}
+              aria-expanded={advanced}
+              aria-label="Advanced filters"
+            >
+              Advanced{advancedApplied ? " · Applied" : ""}
+            </Button>
           </Tooltip>
           {(search.filter ||
             search.filterError ||
@@ -648,6 +673,7 @@ function CommonFilter({
         selectionContainer &&
         createPortal(
           <Button
+            className="applied-filter-chip"
             size="small"
             color="default"
             variant="filled"

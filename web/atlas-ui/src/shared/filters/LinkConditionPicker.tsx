@@ -26,6 +26,8 @@ export function LinkConditionPicker({
   open,
   initial,
   initialTitle,
+  parent,
+  parentListRef,
   onCancel,
   onConfirm,
 }: LinkPickerProps) {
@@ -38,7 +40,12 @@ export function LinkConditionPicker({
   const scopeHelpTrigger = useRef<HTMLButtonElement>(null);
   const { token } = theme.useToken();
   const [form] = Form.useForm<LinkFilterForm>();
-  const direction = Form.useWatch("direction", form) ?? "incoming";
+  const [direction, setDirection] = useState<QueryRelationshipDirection>(
+    initial?.direction ?? "incoming",
+  );
+  const [includeContents, setIncludeContents] = useState(
+    initial?.include_contents ?? true,
+  );
   function close() {
     setScopeHelpOpen(false);
     onCancel();
@@ -57,15 +64,98 @@ export function LinkConditionPicker({
       : candidate
         ? rootNavigation(candidate.record.record_key)
         : undefined;
-  function add(values: LinkFilterForm) {
+  function add(_values: LinkFilterForm) {
     if (!selection) return;
     const relationship: QueryRelationship = {
-      direction: values.direction,
-      include_contents: values.includeContents,
+      direction,
+      include_contents: includeContents,
       selection,
     };
     setFeedback(onConfirm(relationship, candidate ?? null));
   }
+  const controls = (
+    <>
+      <div>
+        <Typography.Text>Direction</Typography.Text>
+        <Radio.Group
+          aria-label="Link filter direction"
+          value={direction}
+          onChange={(event) => {
+            setDirection(event.target.value);
+            setCandidate(null);
+            setFeedback(selection ? "Direction changed. Choose a record." : null);
+          }}
+        >
+          <Radio.Button value="incoming">Links to</Radio.Button>
+          <Radio.Button value="outgoing">Linked from</Radio.Button>
+        </Radio.Group>
+      </div>
+      <div className="link-picker-context__scope">
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: token.marginXXS,
+            maxWidth: "100%",
+          }}
+        >
+          <span>Link scope</span>
+          <Popover
+            trigger="click"
+            placement="top"
+            arrow={false}
+            open={scopeHelpOpen}
+            onOpenChange={setScopeHelpOpen}
+            title="Where Atlas checks for links"
+            styles={{ root: { width: 320, maxWidth: "calc(100vw - 32px)" } }}
+            content={
+              <div>
+                <Typography.Paragraph>
+                  <strong>
+                    {direction === "incoming" ? "Links to" : "Linked from"}
+                  </strong>{" "}
+                  {direction === "incoming"
+                    ? "finds records that contain a link to your selection."
+                    : "finds records that your selection links to."}
+                </Typography.Paragraph>
+                <Typography.Paragraph>
+                  <strong>Main entry only:</strong> {linkScopeCopy[direction].main}
+                </Typography.Paragraph>
+                <Typography.Paragraph style={{ marginBottom: 0 }}>
+                  <strong>Whole entry:</strong> {linkScopeCopy[direction].whole}
+                </Typography.Paragraph>
+              </div>
+            }
+          >
+            <Button
+              ref={scopeHelpTrigger}
+              type="text"
+              size="small"
+              icon={<QuestionCircleOutlined />}
+              aria-label="About link scope"
+              aria-expanded={scopeHelpOpen}
+              onKeyDown={scopeHelpKeyDown}
+              styles={{ root: { flexShrink: 0 } }}
+            />
+          </Popover>
+        </span>
+        <Select
+          aria-label="Link filter scope"
+          value={includeContents ? "whole" : "main"}
+          onChange={(value) => {
+            setIncludeContents(value === "whole");
+            setCandidate(null);
+            setFeedback(selection ? "Link scope changed. Choose a record." : null);
+          }}
+          style={{ width: "100%" }}
+          options={[
+            { value: "main", label: "Main entry only" },
+            { value: "whole", label: "Whole entry" },
+          ]}
+        />
+      </div>
+    </>
+  );
   return (
     <SearchPickerModal<LinkFilterForm>
       confirmLabel={initial ? "Apply" : "Add"}
@@ -79,8 +169,23 @@ export function LinkConditionPicker({
         setCandidate(selection);
         setFeedback(null);
       }}
-      buildRequest={(query) =>
-        buildSearchRequest({ ...DEFAULT_SEARCH_STATE, query }, 1)
+      buildRequest={(query) => ({
+        ...buildSearchRequest({ ...DEFAULT_SEARCH_STATE, query }, 1),
+        connection_scope: {
+          parent,
+          list_ref: parentListRef,
+          direction,
+          include_contents: includeContents,
+        },
+      })}
+      selectionContext={`${direction}:${includeContents}`}
+      searchHeader={
+        <div className="link-picker-context" aria-label="Link matching">
+          <div className="link-picker-context__fields">{controls}</div>
+          <Typography.Text type="secondary">
+            Connected to matching records
+          </Typography.Text>
+        </div>
       }
       emptyPrompt="Search or choose filters."
       emptyResults="No matching records."
@@ -117,87 +222,6 @@ export function LinkConditionPicker({
           </Typography.Link>
         )
       }
-    >
-      <Form.Item
-        name="direction"
-        label="Direction"
-        initialValue={initial?.direction ?? "incoming"}
-      >
-        <Radio.Group
-          aria-label="Link filter direction"
-          onChange={() => setFeedback(null)}
-        >
-          <Radio.Button value="incoming">Links to</Radio.Button>
-          <Radio.Button value="outgoing">Linked from</Radio.Button>
-        </Radio.Group>
-      </Form.Item>
-      <Form.Item
-        name="includeContents"
-        style={{ minWidth: 0, width: 160, maxWidth: "100%" }}
-        getValueProps={(value: boolean) => ({ value: value ? "whole" : "main" })}
-        getValueFromEvent={(value: string) => value === "whole"}
-        label={
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: token.marginXXS,
-              maxWidth: "100%",
-            }}
-          >
-            <span>Link scope</span>
-            <Popover
-              trigger="click"
-              placement="top"
-              arrow={false}
-              open={scopeHelpOpen}
-              onOpenChange={setScopeHelpOpen}
-              title="Where Atlas checks for links"
-              styles={{ root: { width: 320, maxWidth: "calc(100vw - 32px)" } }}
-              content={
-                <div>
-                  <Typography.Paragraph>
-                    <strong>
-                      {direction === "incoming" ? "Links to" : "Linked from"}
-                    </strong>{" "}
-                    {direction === "incoming"
-                      ? "finds records that contain a link to your selection."
-                      : "finds records that your selection links to."}
-                  </Typography.Paragraph>
-                  <Typography.Paragraph>
-                    <strong>Main entry only:</strong> {linkScopeCopy[direction].main}
-                  </Typography.Paragraph>
-                  <Typography.Paragraph style={{ marginBottom: 0 }}>
-                    <strong>Whole entry:</strong> {linkScopeCopy[direction].whole}
-                  </Typography.Paragraph>
-                </div>
-              }
-            >
-              <Button
-                ref={scopeHelpTrigger}
-                type="text"
-                size="small"
-                icon={<QuestionCircleOutlined />}
-                aria-label="About link scope"
-                aria-expanded={scopeHelpOpen}
-                onKeyDown={scopeHelpKeyDown}
-                styles={{ root: { flexShrink: 0 } }}
-              />
-            </Popover>
-          </span>
-        }
-        initialValue={initial?.include_contents ?? true}
-      >
-        <Select
-          aria-label="Link filter scope"
-          onChange={() => setFeedback(null)}
-          style={{ width: "100%" }}
-          options={[
-            { value: "main", label: "Main entry only" },
-            { value: "whole", label: "Whole entry" },
-          ]}
-        />
-      </Form.Item>
-    </SearchPickerModal>
+    />
   );
 }

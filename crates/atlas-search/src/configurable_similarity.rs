@@ -271,7 +271,17 @@ impl crate::AtlasRetrievalService {
         &self,
         request: ConfigurableSimilarRequest<'_>,
     ) -> Result<Option<ConfigurableSimilarResult>, SearchError> {
-        self.configurable_similar_impl::<true>(request)
+        self.configurable_similar_impl::<true, false>(request)
+    }
+
+    /// Same configured admission as result pages, without result document hydration.
+    pub fn configurable_similar_membership(
+        &self,
+        request: ConfigurableSimilarRequest<'_>,
+    ) -> Result<Option<Vec<RecordKey>>, SearchError> {
+        Ok(self
+            .configurable_similar_impl::<true, true>(request)?
+            .map(|result| result.results.matched_record_keys))
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -279,10 +289,10 @@ impl crate::AtlasRetrievalService {
         &self,
         request: ConfigurableSimilarRequest<'_>,
     ) -> Result<Option<ConfigurableSimilarResult>, SearchError> {
-        self.configurable_similar_impl::<false>(request)
+        self.configurable_similar_impl::<false, false>(request)
     }
 
-    fn configurable_similar_impl<const REUSE: bool>(
+    fn configurable_similar_impl<const REUSE: bool, const MEMBERSHIP: bool>(
         &self,
         request: ConfigurableSimilarRequest<'_>,
     ) -> Result<Option<ConfigurableSimilarResult>, SearchError> {
@@ -318,7 +328,7 @@ impl crate::AtlasRetrievalService {
         if matches!(request.options, SimilarityOptions::Baseline {}) {
             let results = match request.seed {
                 SimilaritySeed::Record { record_key } => self
-                    .similar_records(crate::SimilarRecordRequest {
+                    .similar_records_impl::<MEMBERSHIP>(crate::SimilarRecordRequest {
                         sort: request.sort,
                         search_profile: request.search_profile,
                         record_key,
@@ -330,7 +340,7 @@ impl crate::AtlasRetrievalService {
                     })?
                     .map(|result| result.results),
                 SimilaritySeed::Trait { trait_key } => self
-                    .similar_trait(crate::SimilarTraitRequest {
+                    .similar_trait_impl::<MEMBERSHIP>(crate::SimilarTraitRequest {
                         sort: request.sort,
                         search_profile: request.search_profile,
                         trait_key,
@@ -676,7 +686,7 @@ impl crate::AtlasRetrievalService {
         let roots = self.suppress_pairs(roots, request.prefer_remaster)?;
         request.check()?;
         let hydration_started = std::time::Instant::now();
-        let mut results = self.finish_results(
+        let mut results = self.finish_results::<MEMBERSHIP>(
             &profile,
             roots,
             request.page,

@@ -32,6 +32,7 @@ fn fixture(semantic: bool) -> (FixtureWorker, RetrievalExecutor) {
 
 fn request(criteria: SearchCriteria, number: u32) -> SearchResultsRequest {
     SearchResultsRequest {
+        connection_scope: None,
         sort: None,
 
         ranking: None,
@@ -971,6 +972,37 @@ fn similarity_inventory_and_explicit_parts_share_generation_and_effective_config
             .code,
         AppErrorCode::InvalidRequest
     );
+    let connection = atlas_app_model::SearchConnectionScope {
+        parent: Box::new(request(SearchCriteria::ListRecords { filter: None }, 1)),
+        list_ref: None,
+        direction: atlas_domain::QueryRelationshipDirection::Incoming,
+        include_contents: true,
+    };
+    let mut scoped = query.clone();
+    scoped.connection_scope = Some(connection.clone());
+    assert_eq!(
+        fixture
+            .worker
+            .search_page(scoped, &execution)
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::InvalidRequest
+    );
+    let mut parent_parts = request(SearchCriteria::ListRecords { filter: None }, 1);
+    parent_parts.connection_scope = Some(atlas_app_model::SearchConnectionScope {
+        parent: Box::new(query.clone()),
+        ..connection
+    });
+    assert_eq!(
+        fixture
+            .worker
+            .search_page(parent_parts, &execution)
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::InvalidRequest
+    );
     query.expected_artifact_generation = Some(inventory.artifact_generation);
     let page = fixture
         .worker
@@ -1480,4 +1512,178 @@ fn similar_record_and_trait_responses_acknowledge_scoring_and_mapping_recipes() 
             }
         }
     }
+}
+
+#[test]
+fn connected_picker_uses_all_parent_pages_and_its_own_filters_before_paging() {
+    let executor = RetrievalExecutor::from_test_fixture_factory(2, 16, || {
+        let mut records = (0..125).map(|i| record("items", "Item", json!({"_id":format!("{i:016}"), "name":format!("Parent {i:03}"), "type":"effect", "system":{"description":{"value":format!("<p>@UUID[Compendium.pf2e.items.Item.target0000000000] {}</p>", if i == 124 { "@UUID[Compendium.pf2e.items.Item.target0000000001]" } else { "" })}}}))).collect::<Vec<_>>();
+        records.extend([
+            record(
+                "items",
+                "Item",
+                json!({"_id":"target0000000000", "name":"Common target", "type":"effect"}),
+            ),
+            record(
+                "items",
+                "Item",
+                json!({"_id":"target0000000001", "name":"Last target", "type":"weapon"}),
+            ),
+            record(
+                "items",
+                "Item",
+                json!({"_id":"unlinked00000000", "name":"Unlinked target", "type":"weapon"}),
+            ),
+        ]);
+        Ok(open_input_fixture(input(records, false))?)
+    });
+    let worker = fixture_worker_with_executor(executor).worker;
+    let execution = crate::ReadExecutionContext::uncancellable();
+    let parent = request(
+        SearchCriteria::TextSearch {
+            query: "Parent".into(),
+            filter: None,
+            mode: RetrievalModeView::Lexical,
+            search_content: None,
+        },
+        2,
+    );
+    let mut picker = request(SearchCriteria::ListRecords { filter: None }, 1);
+    picker.page.size = 100;
+    picker.connection_scope = Some(atlas_app_model::SearchConnectionScope {
+        parent: Box::new(parent),
+        list_ref: None,
+        direction: atlas_domain::QueryRelationshipDirection::Incoming,
+        include_contents: false,
+    });
+    let found = worker.search_page(picker.clone(), &execution).unwrap();
+    assert_eq!(found.page.total, 2);
+    assert_eq!(
+        found
+            .rows
+            .iter()
+            .map(|row| row.record.title.as_str())
+            .collect::<Vec<_>>(),
+        ["Common target", "Last target"]
+    );
+    worker
+        .with_write(|write| {
+            Ok(write
+                .local_state()
+                .saved_lists()
+                .import(atlas_local_state::ImportSavedList {
+                    slug: "connected-parent".into(),
+                    name: "Connected parent".into(),
+                    description: None,
+                    items: vec![atlas_local_state::ImportSavedListItem {
+                        record_key: "items:0000000000000000".into(),
+                        note: None,
+                        record_title_snapshot: "Parent 000".into(),
+                        record_kind_snapshot: None,
+                    }],
+                    tags: vec![],
+                    replace: false,
+                })?)
+        })
+        .unwrap();
+    let mut in_list = picker.clone();
+    in_list.connection_scope.as_mut().unwrap().list_ref = Some("connected-parent".into());
+    let scoped = worker.search_page(in_list, &execution).unwrap();
+    assert_eq!(scoped.page.total, 1);
+    assert_eq!(scoped.rows[0].record.title, "Common target");
+    let mut too_deep = picker.clone();
+    for _ in 0..4 {
+        let scope = too_deep.connection_scope.as_mut().unwrap();
+        let parent = (*scope.parent).clone();
+        scope.parent.connection_scope = Some(atlas_app_model::SearchConnectionScope {
+            parent: Box::new(parent),
+            list_ref: None,
+            direction: atlas_domain::QueryRelationshipDirection::Incoming,
+            include_contents: true,
+        });
+    }
+    assert_eq!(
+        worker
+            .search_page(too_deep, &execution)
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::InvalidRequest
+    );
+    picker.criteria = SearchCriteria::TextSearch {
+        query: "target".into(),
+        filter: Some(
+            serde_json::from_value(
+                json!({"kind":"compare", "field":"kind", "op":"eq", "value":"equipment"}),
+            )
+            .unwrap(),
+        ),
+        mode: RetrievalModeView::Lexical,
+        search_content: None,
+    };
+    let narrowed = worker.search_page(picker.clone(), &execution).unwrap();
+    assert_eq!(narrowed.page.total, 1);
+    assert_eq!(narrowed.rows[0].record.title, "Last target");
+    picker.connection_scope.as_mut().unwrap().parent.criteria = SearchCriteria::TextSearch {
+        query: "No such parent".into(),
+        filter: None,
+        mode: RetrievalModeView::Lexical,
+        search_content: None,
+    };
+    assert_eq!(
+        worker
+            .search_page(picker.clone(), &execution)
+            .unwrap()
+            .page
+            .total,
+        0
+    );
+    picker
+        .connection_scope
+        .as_mut()
+        .unwrap()
+        .parent
+        .expected_artifact_generation = Some("stale".into());
+    assert_eq!(
+        worker
+            .search_page(picker, &execution)
+            .unwrap_err()
+            .into_app_error()
+            .code,
+        AppErrorCode::ArtifactGenerationChanged
+    );
+}
+
+#[test]
+fn connected_trait_scope_intersects_instead_of_replacing_connected_candidates() {
+    let fixture = trait_search_fixture(false, 3);
+    let execution = crate::ReadExecutionContext::uncancellable();
+    let mut search = request(
+        SearchCriteria::TraitReferences {
+            trait_key: "trait:agile".into(),
+            query: None,
+            filter: None,
+        },
+        1,
+    );
+    search.connection_scope = Some(atlas_app_model::SearchConnectionScope {
+        parent: Box::new(request(
+            SearchCriteria::ListRecords {
+                filter: Some(atlas_domain::QueryPredicate::boolean(false)),
+            },
+            1,
+        )),
+        list_ref: None,
+        direction: atlas_domain::QueryRelationshipDirection::Incoming,
+        include_contents: true,
+    });
+    assert_eq!(
+        fixture
+            .worker
+            .search_page(search, &execution)
+            .unwrap()
+            .page
+            .total,
+        0
+    );
 }

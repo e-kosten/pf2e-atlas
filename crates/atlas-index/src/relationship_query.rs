@@ -67,6 +67,40 @@ pub(crate) fn compile_relationship(
     ))
 }
 impl SqliteIndexReader {
+    /// Inverse of a root relationship leaf, scoped to the parent's complete admitted roots.
+    pub fn connected_record_keys(
+        &self,
+        parents: &[RecordKey],
+        direction: QueryRelationshipDirection,
+        include_contents: bool,
+    ) -> Result<Vec<RecordKey>, IndexError> {
+        let (parent, candidate, target_scope) = match direction {
+            QueryRelationshipDirection::Incoming => {
+                ("s", "t", " AND COALESCE(o.target_owners_json,'[]')='[]'")
+            }
+            QueryRelationshipDirection::Outgoing => ("t", "s", ""),
+        };
+        let source_scope = if include_contents {
+            ""
+        } else {
+            " AND o.owners_json='[]'"
+        };
+        let keys =
+            serde_json::to_string(&parents.iter().map(ToString::to_string).collect::<Vec<_>>())?;
+        self.count_statement();
+        let mut statement = self.native()?.prepare(&format!(
+            "SELECT DISTINCT {candidate}.key FROM relationship_occurrences o JOIN records s ON s.record_id=o.record_id JOIN records t ON t.record_id=o.target_record_id WHERE s.document_kind<>'Macro' AND t.document_kind<>'Macro' AND o.resolution IN ('resolved_record','resolved_owned') AND {parent}.key IN (SELECT value FROM json_each(?1)){target_scope}{source_scope} ORDER BY {candidate}.key"
+        ))?;
+        let values = statement
+            .query_map([keys], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        values
+            .into_iter()
+            .map(|key| {
+                RecordKey::parse(&key).map_err(|error| IndexError::Invalid(error.to_string()))
+            })
+            .collect()
+    }
     pub fn relationship_occurrence_page(
         &self,
         request: RelationshipOccurrencePageRequest<'_>,

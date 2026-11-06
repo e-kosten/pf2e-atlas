@@ -342,3 +342,56 @@
 .filter-toolbar .filter-controls__criteria {
   gap: var(--space-control);
 }
+
+/* Applied selections share one surface; polarity belongs to the +/- marker. */
+.applied-filter-chip.ant-btn {
+  border-color: var(--line);
+  box-shadow: none;
+}
+.applied-filter-chip__include {
+  color: var(--filter-include-text);
+}
+.applied-filter-chip__exclude {
+  color: var(--filter-exclude-text);
+}
+
+.link-picker-context {
+  padding: var(--space-group) var(--space-group) 0;
+  flex-shrink: 0;
+}
+.link-picker-context__fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-control) var(--space-group);
+  margin-bottom: var(--space-control);
+}
+.link-picker-context__fields > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-control);
+}
+.link-picker-context__scope {
+  width: 160px;
+  max-width: 100%;
+}
+
+.reference-picker__workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+.reference-picker__workspace[data-initial-loading]
+  > :not(.reference-picker__initial-status) {
+  visibility: hidden;
+}
+.reference-picker__initial-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-control);
+}

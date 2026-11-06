@@ -32,6 +32,7 @@ fn abandoned_public_read_never_opens_lazy_command_reader() {
     let error = service
         .search_page(
             SearchResultsRequest {
+                connection_scope: None,
                 sort: None,
 
                 ranking: None,

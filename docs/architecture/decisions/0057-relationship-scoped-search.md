@@ -101,17 +101,26 @@ The full expression participates in request, URL and browser-cache identity.
 
 The toolbar's Links picker and Advanced's structural Record links condition edit
 one tree, retaining unfinished siblings in the existing editor owner. Common
-positive conjunctions support direct chips. Mixed/negated groups use a bounded
-full-expression summary retaining Boolean operators and grouping, with Advanced
-providing complete editing. Global Clear filters clears ordinary and link conditions
+positive conjunctions support direct chips. Conditions that cannot be represented by independent chips mark the Advanced
+button as applied; Advanced retains the complete Boolean expression for editing. Global Clear filters clears ordinary and link conditions
 while retaining text/Similar and result order.
 
-The record finder reuses SearchPickerModal and searches independently of parent
-criteria. A stable app-composed picker component is supplied through a lightweight
+The record finder reuses SearchPickerModal and retains its own search and filters.
+Its candidate corpus is the inverse of the chosen relationship over the parent's
+complete result membership, before picker ranking and pagination. App-service
+resolves a stateless parent search descriptor, including saved-list membership or
+bounded text/Similar admission. Index owns the inverse resolved-occurrence join
+and exact root owner restrictions. Nested descriptors retain their enclosing scope
+and are bounded to four levels. Parent and picker text inference use separate
+short-lived, generation-checked reads. Editing omits the precise edited occurrence
+with empty wrappers pruned and Boolean siblings preserved. Optional contextual
+counts are suppressed until discovery supports this connected corpus.
+Direction and scope precede search; changing either clears the pending candidate
+and refreshes the corpus without discarding the picker's own filters. A stable app-composed picker component is supplied through a lightweight
 shared-filter composition context, avoiding a filter-to-picker import cycle.
 Each editing owner retains its local selection/draft state; nested lookups use Ant's
-overlay stack. Explicit root-row selection replaces an embedded target; direction
-or scope edits alone preserve that exact target. Human names and useful kind/source/
+overlay stack. Explicit root-row selection replaces an embedded target. An untouched edit keeps
+its exact embedded target; changing direction or scope asks for a new candidate. Human names and useful kind/source/
 parent disambiguation are displayed; IDs never substitute for relationship labels.
 
 Record and Related actions create the same predicate leaves. On active Search,

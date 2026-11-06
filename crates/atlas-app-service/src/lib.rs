@@ -6,6 +6,7 @@ mod content_roll_presentation;
 mod contextual_references;
 mod physical_labels;
 
+mod connection_scope;
 mod discovery;
 mod embedded_reading;
 mod encounters;

@@ -57,6 +57,13 @@ pub(crate) fn validate_options(
     options
         .validate(seed)
         .map_err(AppServiceError::invalid_request)?;
+    require_parts_generation(options, expected_generation)
+}
+
+pub(crate) fn require_parts_generation(
+    options: &SimilarityOptions,
+    expected_generation: Option<&str>,
+) -> AppServiceResult<()> {
     if options.parts().is_some() && expected_generation.is_none() {
         return Err(AppServiceError::invalid_request(
             "explicit comparison parts require the artifact generation from the part inventory; refresh Compare parts or rerun `atlas similar <SEED> --list-parts`",

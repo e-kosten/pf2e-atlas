@@ -211,6 +211,10 @@ test("search and filter rows align and the results bar keeps its wide-screen chr
       | undefined;
     for (const width of [1440, 1024, 992, 991, 768]) {
       await page.setViewportSize({ width, height: 900 });
+      const bar = page.locator(".reference-browser__toolbar");
+      if (width <= 991) await expect(bar).toHaveClass(/reference-results__header/);
+      else await expect(bar).not.toHaveClass(/reference-results__header/);
+      await expect(bar).toBeVisible();
       const geometry = await page
         .locator(".reference-browser__toolbar")
         .evaluate((bar) => {
@@ -251,5 +255,88 @@ test("search and filter rows align and the results bar keeps its wide-screen chr
         0,
       );
     }
+  }
+});
+
+test("link picker keeps target filters while refreshing its connected corpus and stable header", async ({
+  page,
+}) => {
+  const filter = encodeFilterUrl({
+    kind: "compare",
+    field: "kind",
+    op: "eq",
+    value: "creature",
+  });
+  await page.goto(`/search?filter=${encodeURIComponent(filter)}`);
+  await expect(
+    page.locator(".reference-results [data-record-key]").first(),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Links", exact: true }).click();
+  const picker = page.getByRole("dialog", { name: "Add link condition", exact: true });
+  const search = picker.getByRole("searchbox", { name: "Search records", exact: true });
+  await expect(search).toBeVisible();
+  await expect(
+    picker.locator(".reference-results [data-record-key]").first(),
+  ).toBeVisible();
+  const top = await picker.locator(".link-picker-context").boundingBox();
+  const searchBox = await search.boundingBox();
+  expect(top!.y + top!.height).toBeLessThanOrEqual(searchBox!.y);
+  await picker.getByRole("button", { name: "Edit Kind filter", exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: "Kind: Spell, neutral; activate to include",
+      exact: true,
+    })
+    .click();
+  await page.keyboard.press("Escape");
+  await expect(
+    picker.getByRole("button", { name: "Remove included Spell from Kind" }),
+  ).toBeVisible();
+  await expect(
+    picker.locator(".reference-results [data-record-key]").first(),
+  ).toBeVisible();
+  await picker.locator(".reference-results [data-record-key]").first().click();
+  const add = picker.getByRole("button", { name: "Add", exact: true });
+  await expect(add).toBeEnabled();
+  let release!: () => void;
+  let requested!: () => void;
+  const hold = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const pending = new Promise<void>((resolve) => {
+    requested = resolve;
+  });
+  await page.route("**/api/search/page", async (route) => {
+    const request = route.request().postDataJSON();
+    if (request.connection_scope?.direction !== "outgoing") return route.continue();
+    const response = await route.fetch();
+    requested();
+    await hold;
+    await route.fulfill({ response });
+  });
+  await picker.getByText("Linked from", { exact: true }).click();
+  try {
+    await pending;
+    await expect(search).toBeVisible();
+    await expect(
+      picker.getByRole("button", { name: "Remove included Spell from Kind" }),
+    ).toBeVisible();
+    await expect(add).toBeDisabled();
+    await expect(picker.getByText("Direction changed. Choose a record.")).toBeVisible();
+  } finally {
+    release();
+  }
+  for (const width of [1440, 768, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(
+      picker.getByRole("combobox", { name: "Link filter scope", exact: true }),
+    ).toBeVisible();
+    await expect(search).toBeVisible();
+    await expect(
+      picker.getByRole("button", { name: "Cancel", exact: true }),
+    ).toBeVisible();
+    expect(await picker.evaluate((host) => host.scrollWidth <= host.clientWidth)).toBe(
+      true,
+    );
   }
 });

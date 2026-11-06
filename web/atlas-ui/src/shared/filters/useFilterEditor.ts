@@ -14,7 +14,12 @@ import {
   commonDraftCondition,
   LINK_CONDITION,
 } from "./queryBuilder";
-import { appendLink, linkLeaf, sameRelationship } from "./linkPredicates";
+import {
+  appendLink,
+  linkLeaf,
+  sameRelationship,
+  withoutLinkClause,
+} from "./linkPredicates";
 import { commonCondition, replaceCommonCondition } from "./filterControls";
 
 type EditorDraft = {
@@ -239,6 +244,30 @@ export function useFilterEditor(
     return null;
   }
   return {
+    filterWithoutLink: (ruleId: string, advanced: boolean) => {
+      if (advanced && prepared.query) {
+        const omit = (group: RuleGroupType): RuleGroupType => ({
+          ...group,
+          rules: group.rules.flatMap<RuleGroupType | RuleType>((node) =>
+            "rules" in node
+              ? [omit(node as RuleGroupType)]
+              : node.id === ruleId
+                ? []
+                : [node],
+          ),
+        });
+        try {
+          return builderPredicate(omit(prepared.query), definitions);
+        } catch {
+          /* Keep last executable values for unfinished siblings. */
+        }
+      }
+      const committedId = advanced
+        ? ([...prepared.linkRuleIds].find(([, draftId]) => draftId === ruleId)?.[0] ??
+          ruleId)
+        : ruleId;
+      return withoutLinkClause(search.filter, committedId);
+    },
     query: prepared.query,
     error: prepared.error,
     change,

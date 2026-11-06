@@ -512,6 +512,7 @@ mod tests {
                 .worker
                 .search_page(
                     SearchResultsRequest {
+                        connection_scope: None,
                         sort: None,
 
                         ranking: None,

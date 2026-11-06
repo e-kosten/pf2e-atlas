@@ -1,5 +1,6 @@
 import type {
   RecordNavigationView,
+  QueryPredicate,
   QueryRelationship,
   SourcePassageAddress,
 } from "../../generated/atlas";
@@ -87,4 +88,25 @@ export function appendLink(
         children: [filter, leaf],
       }
     : leaf;
+}
+
+/** Remove one edited occurrence and prune emptied wrappers, retaining Boolean siblings. */
+export function withoutLinkClause(
+  filter: QueryPredicate | null,
+  id: string,
+): QueryPredicate | null {
+  if (!filter) return null;
+  if (filter.kind === "relationship") return filter.clause_id === id ? null : filter;
+  if (filter.kind === "all_of" || filter.kind === "any_of") {
+    const children = filter.children.flatMap((child) => {
+      const next = withoutLinkClause(child, id);
+      return next ? [next] : [];
+    });
+    return children.length ? { ...filter, children } : null;
+  }
+  if (filter.kind === "not" || filter.kind === "exists") {
+    const predicate = withoutLinkClause(filter.predicate, id);
+    return predicate ? { ...filter, predicate } : null;
+  }
+  return filter;
 }

@@ -83,6 +83,8 @@ pub struct SearchCoverage {
 }
 #[derive(Debug, Clone)]
 pub struct TextSearchResult {
+    /// Populated only for the membership projection, before paging or document hydration.
+    pub(crate) matched_record_keys: Vec<RecordKey>,
     pub sort: atlas_domain::ResultSort,
     pub search_profile: atlas_domain::SearchProfileId,
     pub artifact_generation: String,
@@ -182,6 +184,19 @@ impl AtlasRetrievalService {
         &mut self,
         request: TextSearchRequest<'_>,
     ) -> Result<TextSearchResult, SearchError> {
+        self.search_text_impl::<false>(request)
+    }
+    /// Complete admitted membership without hydrating result documents.
+    pub fn search_text_membership(
+        &mut self,
+        request: TextSearchRequest<'_>,
+    ) -> Result<Vec<RecordKey>, SearchError> {
+        Ok(self.search_text_impl::<true>(request)?.matched_record_keys)
+    }
+    fn search_text_impl<const MEMBERSHIP: bool>(
+        &mut self,
+        request: TextSearchRequest<'_>,
+    ) -> Result<TextSearchResult, SearchError> {
         Self::validate_search_sort(&request.sort)?;
         if request.query.trim().is_empty() {
             return Err(SearchError::invalid_search_options(
@@ -209,7 +224,7 @@ impl AtlasRetrievalService {
             vector: vector.as_deref(),
             exclude: None,
         })?;
-        self.finish_results(
+        self.finish_results::<MEMBERSHIP>(
             &search_profile,
             roots,
             request.page,
@@ -401,7 +416,7 @@ impl AtlasRetrievalService {
         let roots = self.suppress_pairs(roots, prefer && suppress)?;
         Ok((roots, window))
     }
-    pub(crate) fn finish_results(
+    pub(crate) fn finish_results<const MEMBERSHIP: bool>(
         &self,
         search_profile: &atlas_domain::SearchProfileId,
         roots: Vec<RankedRoot>,
@@ -410,13 +425,26 @@ impl AtlasRetrievalService {
         window: Option<usize>,
         sort: atlas_domain::ResultSort,
     ) -> Result<TextSearchResult, SearchError> {
-        let roots = self.order_ranked_roots(roots, sort.clone())?;
+        let roots = if MEMBERSHIP {
+            roots
+        } else {
+            self.order_ranked_roots(roots, sort.clone())?
+        };
         let total = roots.len();
-        let selected = roots
-            .into_iter()
-            .skip(page.offset()? as usize)
-            .take(page.size() as usize)
-            .collect::<Vec<_>>();
+        let matched_record_keys = if MEMBERSHIP {
+            roots.iter().map(|root| root.key.clone()).collect()
+        } else {
+            Vec::new()
+        };
+        let selected = if MEMBERSHIP {
+            Vec::new()
+        } else {
+            roots
+                .into_iter()
+                .skip(page.offset()? as usize)
+                .take(page.size() as usize)
+                .collect::<Vec<_>>()
+        };
         let keys = selected.iter().map(|r| r.key.clone()).collect::<Vec<_>>();
         let summaries = self.summaries(&keys)?;
         let owned_locations = selected
@@ -526,6 +554,7 @@ impl AtlasRetrievalService {
         }
         let info = SearchPageInfo::from_page(page, records.len(), total as u64)?;
         Ok(TextSearchResult {
+            matched_record_keys,
             sort,
             search_profile: search_profile.clone(),
             artifact_generation: self.artifact_generation()?,

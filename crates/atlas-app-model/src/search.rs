@@ -28,6 +28,9 @@ pub struct SearchPageView {
 pub struct SearchResultsRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub connection_scope: Option<SearchConnectionScope>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub sort: Option<atlas_domain::ResultSort>,
     #[serde(default)]
     #[ts(optional)]
@@ -37,6 +40,17 @@ pub struct SearchResultsRequest {
     pub criteria: SearchCriteria,
     pub page: SearchPageRequest,
     pub expected_artifact_generation: Option<String>,
+}
+/// Stateless context for a link picker. Parent paging is ignored when finding membership.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct SearchConnectionScope {
+    pub parent: Box<SearchResultsRequest>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub list_ref: Option<String>,
+    pub direction: atlas_domain::QueryRelationshipDirection,
+    pub include_contents: bool,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]

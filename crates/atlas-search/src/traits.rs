@@ -76,6 +76,12 @@ impl AtlasRetrievalService {
         &self,
         request: SimilarTraitRequest<'_>,
     ) -> Result<Option<SimilarTraitResult>, SearchError> {
+        self.similar_trait_impl::<false>(request)
+    }
+    pub(crate) fn similar_trait_impl<const MEMBERSHIP: bool>(
+        &self,
+        request: SimilarTraitRequest<'_>,
+    ) -> Result<Option<SimilarTraitResult>, SearchError> {
         Self::validate_search_sort(&request.sort)?;
         let Some(seed) = self.index.trait_definition(request.trait_key)? else {
             return Ok(None);
@@ -96,8 +102,14 @@ impl AtlasRetrievalService {
             vector: Some(&vector),
             exclude: None,
         })?;
-        let results =
-            self.finish_results(&profile, roots, request.page, true, window, request.sort)?;
+        let results = self.finish_results::<MEMBERSHIP>(
+            &profile,
+            roots,
+            request.page,
+            true,
+            window,
+            request.sort,
+        )?;
         Ok(Some(SimilarTraitResult { seed, results }))
     }
 }

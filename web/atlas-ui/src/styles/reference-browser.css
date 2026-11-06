@@ -254,8 +254,10 @@ body:has(:is(.atlas-app--search, .list-workspace)) {
 }
 @media (max-width: 991px) {
   .search-workspace:has(.reference-browser[data-reading="true"]) > .filter-toolbar,
+  .reference-picker__workspace:has(.reference-browser[data-reading="true"])
+    > .filter-toolbar,
   .reference-picker__body:has(.reference-browser[data-reading="true"])
-    > .filter-toolbar {
+    > .link-picker-context {
     display: none;
   }
   .atlas-app:is(.atlas-app--search, :has(.list-workspace)) {

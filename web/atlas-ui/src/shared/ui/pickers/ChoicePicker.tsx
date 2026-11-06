@@ -271,22 +271,7 @@ export function ChoicePicker({
               size="small"
               color="default"
               variant="filled"
-              styles={{
-                root: {
-                  color:
-                    state === "exclude"
-                      ? "var(--filter-exclude-text)"
-                      : "var(--filter-include-text)",
-                  backgroundColor:
-                    state === "exclude"
-                      ? "var(--filter-exclude-bg)"
-                      : "var(--filter-include-bg)",
-                  borderColor:
-                    state === "exclude"
-                      ? "var(--filter-exclude-border)"
-                      : "var(--filter-include-border)",
-                },
-              }}
+              className="applied-filter-chip"
               aria-label={
                 "Remove " +
                 (valueEditing
@@ -304,7 +289,14 @@ export function ChoicePicker({
                 change(value, "neutral");
               }}
             >
-              <span aria-hidden="true">
+              <span
+                className={
+                  state === "exclude"
+                    ? "applied-filter-chip__exclude"
+                    : "applied-filter-chip__include"
+                }
+                aria-hidden="true"
+              >
                 {state === "exclude" ? <MinusOutlined /> : <PlusOutlined />}
               </span>
               {valueLabel}

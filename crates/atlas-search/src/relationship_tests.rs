@@ -490,3 +490,86 @@ fn relationship_admission_checks_negated_and_short_circuited_selections() {
         "links must not imply authored-child matching"
     );
 }
+
+#[test]
+fn connected_candidate_roots_obey_direction_and_main_whole_owner_scopes() {
+    use atlas_domain::QueryRelationshipDirection::{Incoming, Outgoing};
+    let root = "source0000000000";
+    let target = "target0000000000";
+    let other = "target0000000001";
+    let records = vec![
+        effect(target, "Target", ""),
+        effect(other, "Other", ""),
+        record(
+            "items",
+            "Item",
+            json!({"_id":root,"type":"effect","name":"Source","system":{"description":{"value":format!("<p>@UUID[Compendium.pf2e.items.Item.{target}]</p>")}}}),
+        ),
+        record(
+            "actors",
+            "Actor",
+            json!({"_id":"actor00000000000","type":"npc","name":"Actor","items":[{"_id":"owned00000000000","type":"action","name":"Owned link","system":{"description":{"value":format!("<p>@UUID[Compendium.pf2e.items.Item.{other}]</p>")}}}]}),
+        ),
+    ];
+    let (service, _artifact) = open_input_fixture(input(records, false)).unwrap();
+    let source = key("items", root);
+    let actor = key("actors", "actor00000000000");
+    assert_eq!(
+        service
+            .connected_record_keys(std::slice::from_ref(&source), Incoming, false)
+            .unwrap(),
+        [key("items", target)]
+    );
+    assert!(
+        service
+            .connected_record_keys(std::slice::from_ref(&actor), Incoming, false)
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        service
+            .connected_record_keys(std::slice::from_ref(&actor), Incoming, true)
+            .unwrap(),
+        [key("items", other)]
+    );
+    assert_eq!(
+        service
+            .connected_record_keys(&[key("items", other)], Outgoing, true)
+            .unwrap(),
+        [actor]
+    );
+    assert!(
+        service
+            .connected_record_keys(&[key("items", other)], Outgoing, false)
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        service
+            .connected_record_keys(&[key("items", target)], Outgoing, false)
+            .unwrap(),
+        [source]
+    );
+    assert!(
+        service
+            .connected_record_keys(&[], Incoming, true)
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+fn generated_membership_scopes_do_not_exceed_sqlite_parameter_limits() {
+    let (service, _artifact) =
+        open_input_fixture(input(vec![effect("target0000000000", "Target", "")], false)).unwrap();
+    let mut keys = (0..40_000)
+        .map(|i| key("absent", &format!("{i:016}")))
+        .collect::<Vec<_>>();
+    keys.push(key("items", "target0000000000"));
+    assert_eq!(
+        service
+            .all_record_keys(None, RecordScope::Keys(&keys), true)
+            .unwrap(),
+        [key("items", "target0000000000")]
+    );
+}

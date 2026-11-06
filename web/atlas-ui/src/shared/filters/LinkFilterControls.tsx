@@ -102,7 +102,7 @@ function LinkChip({
   }
   return (
     <Space.Compact
-      className="relationship-filter"
+      className="relationship-filter applied-filter-chip-group"
       size="small"
       role="group"
       aria-label="Relationship filter"
@@ -205,7 +205,7 @@ function LinkChip({
       >
         <Button
           ref={trigger}
-          className="relationship-filter__edit"
+          className="relationship-filter__edit applied-filter-chip"
           title={`${direction} ${title}`}
           color="default"
           variant="filled"
@@ -222,6 +222,7 @@ function LinkChip({
       </Popover>
       <Tooltip title="Remove relationship filter" trigger={["hover", "focus"]}>
         <Button
+          className="applied-filter-chip"
           color="default"
           variant="filled"
           icon={<CloseOutlined />}
