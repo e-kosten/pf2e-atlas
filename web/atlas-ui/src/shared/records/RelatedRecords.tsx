@@ -113,7 +113,7 @@ export function RelatedRecords(props: ExploreProps) {
         ]
       : []),
     { key: "similar", label: "Similar", children: <SimilarPreview {...props} /> },
-    ...(versions || related.isPending || related.error
+    ...(versions || (related.isPending && active === "versions") || related.error
       ? [{ key: "versions", label: "Versions", children: <Versions {...props} /> }]
       : []),
   ];

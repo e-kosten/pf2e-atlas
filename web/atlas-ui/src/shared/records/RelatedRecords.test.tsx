@@ -808,6 +808,27 @@ it.each([
   expect(screen.queryByRole("button", { name: "Compare" })).toBeNull();
 });
 
+it("waits for useful alternatives before advertising Versions during ordinary Explore loading", async () => {
+  let resolve!: (value: ReturnType<typeof relatedFixture>) => void;
+  api.getRelatedRecords.mockReturnValue(
+    new Promise((yes) => {
+      resolve = yes;
+    }),
+  );
+  renderRelated(
+    detailFixture("actors:seed", "Viewed creature"),
+    undefined,
+    createAtlasRouter(
+      createMemoryHistory({ initialEntries: ["/records/actors:seed"] }),
+    ),
+  );
+  openRelated();
+  await waitFor(() => expect(api.getRelatedRecords).toHaveBeenCalled());
+  expect(screen.queryByRole("tab", { name: "Versions" })).toBeNull();
+  await act(async () => resolve({ ...relatedFixture(), show_versions: true }));
+  expect(await screen.findByRole("tab", { name: "Versions" })).toBeVisible();
+});
+
 it.each([
   ["Former name", "Magic Missile"],
   ["Replaces", "Remove Curse, Remove Disease, and Neutralize Poison"],
