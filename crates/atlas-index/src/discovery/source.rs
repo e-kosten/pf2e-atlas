@@ -246,138 +246,111 @@ pub(crate) fn field_counts(
 }
 
 type RemovedClause = (ValidatedQuery, QueryPredicate, Option<QueryPredicate>);
-struct ClauseRemoval {
-    target: Option<QueryPredicate>,
-    member: Option<QueryPredicate>,
-    unavailable: Option<FacetUnavailableReason>,
-}
 fn remove_clause(
     query: &ValidatedQuery,
     id: &str,
     expected: &crate::query::catalog::Descriptor,
 ) -> Result<QueryFacetOutcome<RemovedClause>, IndexError> {
-    let mut removal = ClauseRemoval {
-        target: None,
-        member: None,
-        unavailable: None,
-    };
-    fn walk(
-        p: &QueryPredicate,
+    use atlas_domain::{QuerySelfExclusion, exclude_query_selection};
+    // Validate the addressed leaf even when its context cannot supply suggestions.
+    fn target<'a>(
+        p: &'a QueryPredicate,
         id: &str,
-        scope: Option<&str>,
-        allowed: bool,
-        removal: &mut ClauseRemoval,
-        expected: &crate::query::catalog::Descriptor,
-    ) -> Result<QueryPredicate, IndexError> {
+        scope: Option<&'a str>,
+    ) -> Option<(&'a QueryPredicate, Option<&'a str>)> {
         if p.clause_id.as_deref() == Some(id) {
-            if scope != expected.definition.scope.as_deref() {
-                return Err(error(
-                    "facet_target_scope",
-                    "The target condition does not use the requested field scope",
-                    Some(&expected.definition.id),
-                )
-                .into());
-            }
-            let actual = match &p.expression {
-                QueryExpression::Compare { field, .. }
-                | QueryExpression::In { field, .. }
-                | QueryExpression::SetMatch { field, .. }
-                | QueryExpression::StateMatch { field, .. } => field,
-                _ => {
-                    return Err(error(
-                        "facet_target_type",
-                        "Facet target must be a field clause",
-                        Some(&expected.definition.id),
-                    )
-                    .into());
-                }
-            };
-            if actual != &expected.definition.path {
-                return Err(error(
-                    "facet_target_field",
-                    "The target condition does not use the requested field",
-                    Some(&expected.definition.id),
-                )
-                .into());
-            }
-            if !allowed {
-                removal.unavailable = Some(FacetUnavailableReason::NonConjunctiveContext);
-            } else if matches!(
-                &p.expression,
-                QueryExpression::SetMatch {
-                    op: QuerySetMatch::ExcludesAny,
-                    ..
-                } | QueryExpression::Compare {
-                    op: QueryCompare::Neq,
-                    ..
-                }
-            ) {
-                removal.unavailable = Some(FacetUnavailableReason::NegativeCondition);
-            }
-            removal.target = Some(p.clone());
-            return Ok(QueryPredicate::boolean(true));
+            return Some((p, scope));
         }
-        let mut result = p.clone();
-        result.expression = match &p.expression {
-            QueryExpression::AllOf { children } => QueryExpression::AllOf {
-                children: children
-                    .iter()
-                    .map(|p| walk(p, id, scope, allowed, removal, expected))
-                    .collect::<Result<_, _>>()?,
-            },
-            QueryExpression::AnyOf { children } => QueryExpression::AnyOf {
-                children: children
-                    .iter()
-                    .map(|p| walk(p, id, scope, false, removal, expected))
-                    .collect::<Result<_, _>>()?,
-            },
-            QueryExpression::Not { predicate } => QueryExpression::Not {
-                predicate: Box::new(walk(predicate, id, scope, false, removal, expected)?),
-            },
+        match &p.expression {
+            QueryExpression::AllOf { children } | QueryExpression::AnyOf { children } => {
+                children.iter().find_map(|p| target(p, id, scope))
+            }
+            QueryExpression::Not { predicate } => target(predicate, id, scope),
             QueryExpression::Exists {
                 collection,
-                scope_id,
                 predicate,
-            } => {
-                let previously_removed = removal.target.is_some();
-                let child = walk(predicate, id, Some(collection), allowed, removal, expected)?;
-                if !previously_removed && removal.target.is_some() {
-                    removal.member = Some(child.clone());
-                }
-                QueryExpression::Exists {
-                    collection: collection.clone(),
-                    scope_id: scope_id.clone(),
-                    predicate: Box::new(child),
-                }
-            }
-            expression => expression.clone(),
-        };
-        Ok(result)
+                ..
+            } => target(predicate, id, Some(collection)),
+            _ => None,
+        }
     }
-    let base = walk(query.predicate(), id, None, true, &mut removal, expected)?;
-    let target = removal.target.ok_or_else(|| {
+    let (target, scope) = target(query.predicate(), id, None).ok_or_else(|| {
         error(
             "clause_id",
             "The target clause ID does not exist in the request",
             Some(&expected.definition.id),
         )
     })?;
-    if expected.definition.scope.is_none() {
-        return match root_field_context(query.predicate(), &expected.definition.path) {
-            Some(base) => Ok(QueryFacetOutcome::Available {
-                value: (validate_query(&base)?, target, None),
-            }),
-            None => Ok(QueryFacetOutcome::Unavailable {
-                reason: FacetUnavailableReason::NonConjunctiveContext,
-            }),
-        };
+    if scope != expected.definition.scope.as_deref() {
+        return Err(error(
+            "facet_target_scope",
+            "The target condition does not use the requested field scope",
+            Some(&expected.definition.id),
+        )
+        .into());
     }
-    if let Some(reason) = removal.unavailable {
-        return Ok(QueryFacetOutcome::Unavailable { reason });
+    let actual = match &target.expression {
+        QueryExpression::Compare { field, .. }
+        | QueryExpression::In { field, .. }
+        | QueryExpression::SetMatch { field, .. }
+        | QueryExpression::StateMatch { field, .. } => field,
+        _ => {
+            return Err(error(
+                "facet_target_type",
+                "Facet target must be a field clause",
+                Some(&expected.definition.id),
+            )
+            .into());
+        }
+    };
+    if actual != &expected.definition.path {
+        return Err(error(
+            "facet_target_field",
+            "The target condition does not use the requested field",
+            Some(&expected.definition.id),
+        )
+        .into());
     }
-    Ok(QueryFacetOutcome::Available {
-        value: (validate_query(&base)?, target, removal.member),
-    })
+    let selector = if scope.is_none() {
+        QuerySelfExclusion::RootField(&expected.definition.path)
+    } else {
+        QuerySelfExclusion::Clause(id)
+    };
+    let outcome = exclude_query_selection(query.predicate(), selector).ok_or_else(|| {
+        error(
+            "clause_id",
+            "The target clause ID does not exist in the request",
+            Some(&expected.definition.id),
+        )
+    })?;
+    match outcome {
+        QueryFacetOutcome::Unavailable { reason } => Ok(QueryFacetOutcome::Unavailable { reason }),
+        QueryFacetOutcome::Available { value } => {
+            if scope.is_some()
+                && matches!(
+                    &target.expression,
+                    QueryExpression::SetMatch {
+                        op: QuerySetMatch::ExcludesAny,
+                        ..
+                    } | QueryExpression::Compare {
+                        op: QueryCompare::Neq,
+                        ..
+                    }
+                )
+            {
+                return Ok(QueryFacetOutcome::Unavailable {
+                    reason: FacetUnavailableReason::NegativeCondition,
+                });
+            }
+            Ok(QueryFacetOutcome::Available {
+                value: (
+                    validate_query(&value.predicate)?,
+                    target.clone(),
+                    value.member,
+                ),
+            })
+        }
+    }
 }
 /// The same supported self-exclusion used by counts/values supplies search's
 /// clause-removed candidate universe. Physical SQL bindings stay private.
@@ -395,42 +368,14 @@ pub fn facet_base_query(
         }),
     }
 }
-// Remove a root field's complete selection only through conjunctions. A NOT
-// around one field leaf is a negative selection; compound NOT/OR is not a facet.
 fn root_field_context(p: &QueryPredicate, field: &str) -> Option<QueryPredicate> {
-    fn is_field(p: &QueryPredicate, expected: &str) -> bool {
-        matches!(&p.expression,
-            QueryExpression::Compare { field, .. } | QueryExpression::In { field, .. }
-            | QueryExpression::SetMatch { field, .. } | QueryExpression::StateMatch { field, .. }
-            if field == expected)
-    }
-    fn contains(p: &QueryPredicate, field: &str) -> bool {
-        if is_field(p, field) {
-            return true;
-        }
-        match &p.expression {
-            QueryExpression::AllOf { children } | QueryExpression::AnyOf { children } => {
-                children.iter().any(|child| contains(child, field))
-            }
-            QueryExpression::Not { predicate } => contains(predicate, field),
-            _ => false, // Exists belongs to a different scope.
-        }
-    }
-    if is_field(p, field) {
-        return Some(QueryPredicate::boolean(true));
-    }
-    match &p.expression {
-        QueryExpression::AllOf { children } => Some(QueryPredicate::new(QueryExpression::AllOf {
-            children: children
-                .iter()
-                .map(|child| root_field_context(child, field))
-                .collect::<Option<Vec<_>>>()?,
-        })),
-        QueryExpression::Not { predicate } if is_field(predicate, field) => {
-            Some(QueryPredicate::boolean(true))
-        }
-        QueryExpression::Not { .. } | QueryExpression::AnyOf { .. } if contains(p, field) => None,
-        _ => Some(p.clone()),
+    match atlas_domain::exclude_query_selection(
+        p,
+        atlas_domain::QuerySelfExclusion::RootField(field),
+    ) {
+        Some(QueryFacetOutcome::Available { value }) => Some(value.predicate),
+        Some(QueryFacetOutcome::Unavailable { .. }) => None,
+        None => Some(p.clone()),
     }
 }
 fn replace_clause(p: &QueryPredicate, id: &str, replacement: &QueryPredicate) -> QueryPredicate {
