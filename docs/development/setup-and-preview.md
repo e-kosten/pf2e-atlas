@@ -52,8 +52,16 @@ it does not change baseline executables, manifests, data, or existing previews.
 developer tool for the thin shell launchers. The selected Atlas app executable
 is a separate choice controlled by `--binary`.
 
-After a validated build changes schema, baseline support or developer capabilities,
-refresh the shared default explicitly:
+If the shared preview baseline is behind the current required API contract,
+schema or content policy, tell the user what is stale and how it affects the
+preview, then ask permission to update the shared baseline. Use the selected
+binary, seed manifest and actual compatibility/readiness results as evidence;
+an older Git commit alone does not establish incompatibility. Obtain permission
+before rebuilding or publishing the shared default. Authorization already given
+in the current task covers the agreed refresh without another confirmation.
+Preserve existing task databases and the installed workspace.
+
+After authorization, run the refresh from a clean, validated merged candidate:
 
 ```sh
 just dev-tool-build
