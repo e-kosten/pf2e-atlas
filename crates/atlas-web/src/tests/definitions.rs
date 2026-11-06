@@ -309,7 +309,7 @@ async fn mixed_glossary_boolean_clauses_keep_typed_destinations_and_exact_proof_
 #[tokio::test]
 async fn selected_non_catalog_records_keep_exact_identity_and_label_without_glossary_purpose() {
     let fixture = Fixture::with_glossary();
-    let targets = vec![
+    let targets = [
         (
             json!({"kind":"record","selection":{"record_key":ACTOR,"embedded_path":[],"field":null,"passage":null,"source_fingerprint":null}}),
             "Test Creature",
