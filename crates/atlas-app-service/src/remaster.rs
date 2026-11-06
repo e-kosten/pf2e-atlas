@@ -504,7 +504,6 @@ fn information_category(
                     namespace: value.context.namespace.clone(),
                     family: value.context.source_type.clone(),
                     qualifier: value.context.qualifier.clone(),
-                    atlas: origins.contains(&RemasterCitationOriginView::AtlasReviewed),
                     body_truncated: before_cut || after_cut,
                 },
             );

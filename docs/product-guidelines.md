@@ -40,7 +40,9 @@ before changing API error rendering or recovery behavior.
 
 Show a selected entry's supported remaster relationship as a compact inline
 sentence above its rules, wrapping naturally on narrow screens. Display each name
-once and link only actual available entries. Combine supporting source statements
+once and link only actual available entries. Keep source section qualifiers and
+generic mechanics-change annotations in the linked explanation rather than
+appending them to relationship notices. Combine supporting source statements
 into readable logical relationships without merging different scopes or inventing
 record identity. Place a compact information action beside the reading context to
 open a readable change explanation in the reference drawer, deduplicating repeated

@@ -12,7 +12,6 @@ pub(super) struct Scope {
     pub namespace: String,
     pub family: Option<String>,
     pub qualifier: Option<String>,
-    pub atlas: bool,
     pub body_truncated: bool,
 }
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -533,12 +532,10 @@ fn append_expression(
 fn render(
     group: &Group,
     values: &[RemasterDeclarationView],
-    scopes: &BTreeMap<String, Scope>,
     selected: Option<&RecordNavigationView>,
     labels: &BTreeMap<Address, String>,
 ) -> RemasterRelationshipView {
     let first = &values[group.indices[0]];
-    let scope = &scopes[&first.id];
     let declarations = group
         .indices
         .iter()
@@ -547,9 +544,6 @@ fn render(
     let replaced = declarations
         .iter()
         .any(|value| value.kinds.contains(&Kind::Replaced));
-    let mechanics = declarations
-        .iter()
-        .any(|value| value.kinds.contains(&Kind::MechanicsChanged));
     let opposite = declarations
         .iter()
         .flat_map(|value| match group.key.direction {
@@ -613,12 +607,6 @@ fn render(
         }
         .into();
     }
-    if let Some(qualifier) = &scope.qualifier
-        && !scope.atlas
-        && !qualifier.trim().is_empty()
-    {
-        label = format!("{label} ({})", super::text(qualifier));
-    }
     let mut parts = Vec::new();
     let mut remaining = 20;
     let mut truncated = declarations.iter().any(|value| value.truncated);
@@ -667,9 +655,6 @@ fn render(
             );
         }
     }
-    if mechanics && group.key.meaning != Meaning::Mechanics {
-        push_text(&mut parts, " (mechanics changed)");
-    }
     let (label, label_shortened) = super::shorten(&label);
     truncated |= label_shortened;
     RemasterRelationshipView {
@@ -702,7 +687,7 @@ pub(super) fn relationships(
     let labels = destination_labels(values);
     groups
         .iter()
-        .map(|group| render(group, values, scopes, selected, &labels))
+        .map(|group| render(group, values, selected, &labels))
         .collect()
 }
 
@@ -734,9 +719,6 @@ mod tests {
                         namespace: namespace.into(),
                         family: family.map(str::to_owned),
                         qualifier: None,
-                        atlas: value
-                            .origins
-                            .contains(&atlas_app_model::RemasterCitationOriginView::AtlasReviewed),
                         body_truncated: value
                             .before
                             .iter()
@@ -861,8 +843,11 @@ mod tests {
         scope.get_mut(&values[1].id).unwrap().qualifier = Some("Cleric".into());
         let grouped = relationships(&values, &scope, Some(&case.selection));
         assert_eq!(grouped.len(), 2);
-        assert!(grouped[0].label.contains("Wizard"));
-        assert!(grouped[1].label.contains("Cleric"));
+        assert!(grouped.iter().all(|value| value.label == "Replaces"));
+        assert_eq!(grouped[0].declaration_ids, [values[0].id.clone()]);
+        assert_eq!(grouped[1].declaration_ids, [values[1].id.clone()]);
+        assert_eq!(scope[&values[0].id].qualifier.as_deref(), Some("Wizard"));
+        assert_eq!(scope[&values[1].id].qualifier.as_deref(), Some("Cleric"));
         let mut values = vec![case.declarations[0].clone(), case.declarations[0].clone()];
         values[1].id = "opposite".into();
         let second = &mut values[1];
@@ -1063,20 +1048,64 @@ mod tests {
         assert_eq!(grouped[0].declaration_ids.len(), 2);
     }
     #[test]
-    fn remaster_consolidation_preserves_one_mechanics_note_and_all_raw_kinds() {
+    fn remaster_consolidation_omits_generic_mechanics_suffix_and_preserves_all_raw_kinds() {
         let case = self::case("cleanse");
         let mut values = case.declarations;
         values[0].kinds.push(Kind::MechanicsChanged);
         values[1].kinds.push(Kind::MechanicsChanged);
+        let canonical = serde_json::to_value(&values).unwrap();
         let grouped = relationships(
             &values,
             &scopes(&values, "spell", Some("spell")),
             Some(&case.selection),
         );
         assert_eq!(grouped.len(), 1);
-        assert_eq!(words(&grouped[0]).matches("mechanics changed").count(), 1);
+        assert_eq!(grouped[0].label, "Replaces");
+        assert_eq!(
+            words(&grouped[0]),
+            "Remove Curse, Remove Disease, and Neutralize Poison"
+        );
         assert_eq!(grouped[0].declaration_ids.len(), 5);
+        assert_eq!(serde_json::to_value(&values).unwrap(), canonical);
+        assert!(
+            values[..2]
+                .iter()
+                .all(|value| value.kinds.contains(&Kind::MechanicsChanged))
+        );
+    }
+    #[test]
+    fn remaster_feat_rename_uses_plain_former_name_without_losing_scoped_evidence() {
+        let case = self::case("cleanse");
+        let mut value = case.declarations[0].clone();
+        value.id = "runelord-counterspell".into();
+        value.kinds = vec![Kind::Renamed, Kind::MechanicsChanged];
+        value.context = vec![
+            "Feats".into(),
+            "feat".into(),
+            "Runelord Class Archetype".into(),
+        ];
+        value.before[0].text = "School Counterspell".into();
+        value.before[0].terms = vec!["School Counterspell".into()];
+        value.before[0].endpoints[0].label = "School Counterspell".into();
+        let values = vec![value];
+        let canonical = serde_json::to_value(&values).unwrap();
+        let mut scope = scopes(&values, "feat", Some("feat"));
+        scope.get_mut(&values[0].id).unwrap().qualifier = Some("Runelord Class Archetype".into());
+        let grouped = relationships(&values, &scope, Some(&case.selection));
+        assert_eq!(grouped.len(), 1);
+        assert_eq!(grouped[0].label, "Former name");
+        assert_eq!(words(&grouped[0]), "School Counterspell");
+        assert_eq!(grouped[0].declaration_ids, [values[0].id.clone()]);
+        assert_eq!(serde_json::to_value(&values).unwrap(), canonical);
+        assert_eq!(
+            scope[&values[0].id].qualifier.as_deref(),
+            Some("Runelord Class Archetype")
+        );
         assert!(values[0].kinds.contains(&Kind::MechanicsChanged));
+        assert_eq!(
+            values[0].context,
+            ["Feats", "feat", "Runelord Class Archetype"]
+        );
     }
     #[test]
     fn remaster_same_title_sibling_owned_destinations_have_distinct_exact_context() {
