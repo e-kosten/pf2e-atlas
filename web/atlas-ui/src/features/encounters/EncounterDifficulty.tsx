@@ -1,7 +1,8 @@
 import { referenceQueryMeta } from "../../shared/queries/referenceQueries";
 import { ErrorNotice } from "../../shared/feedback/ErrorNotice";
 import { useQuery } from "@tanstack/react-query";
-import { Button, InputNumber, Popover, Table, Tooltip, Typography } from "antd";
+import { Button, InputNumber, Popover, Table, Typography } from "antd";
+import { InlineContext, InlineIconButton } from "../../shared/ui/actions/InlineAction";
 import { ChevronDown, Info } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type {
@@ -328,17 +329,19 @@ function DifficultyReference({
         </dl>
         <div className="encounter-difficulty__award">
           <span>
-            Suggested XP per PC
-            {display.award_note && (
-              <Tooltip title={display.award_note} trigger={["hover", "focus"]}>
-                <Button
-                  type="text"
-                  size="small"
-                  aria-label="XP award calculation"
-                  icon={<Info size={14} />}
-                />
-              </Tooltip>
-            )}
+            <InlineContext
+              actions={
+                display.award_note ? (
+                  <InlineIconButton
+                    label="XP award calculation"
+                    title={display.award_note}
+                    icon={<Info aria-hidden="true" />}
+                  />
+                ) : null
+              }
+            >
+              Suggested XP per PC
+            </InlineContext>
           </span>
           <strong>{display.xp_per_pc ?? "—"}</strong>
         </div>

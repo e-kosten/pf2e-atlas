@@ -28,6 +28,7 @@ read the relevant sections below before changing their behavior.
 | Errors, unavailable states, retries or recovery    | [Error feedback and recovery](docs/frontend-guidelines.md#error-feedback-and-recovery)                                                            |
 | Navigation, native links or browser history        | [Routing and navigation](docs/frontend-guidelines.md#routing-and-navigation)                                                                      |
 | Repeated controls, toolbars or destructive actions | [Shared UI layer](docs/frontend-guidelines.md#shared-ui-layer)                                                                                    |
+| Text-adjacent information or help icons            | [Inline context actions](docs/frontend-guidelines.md#inline-context-actions)                                                                      |
 | Inline editing and persistent edit cues            | [Reading and editing values](docs/frontend-guidelines.md#reading-and-editing-values)                                                              |
 | CSS, scroll containers, insets and content frames  | [Styling](docs/frontend-guidelines.md#styling) and [padding ownership](docs/frontend-guidelines.md#padding-and-control-group-ownership)           |
 | Small tasks, dialogs, popovers or drawers          | [Choosing an interaction surface](docs/frontend-guidelines.md#choosing-an-interaction-surface)                                                    |

@@ -44,7 +44,9 @@ once and link only actual available entries. Combine supporting source statement
 into readable logical relationships without merging different scopes or inventing
 record identity. Place a compact information action beside the reading context to
 open a readable change explanation in the reference drawer, deduplicating repeated
-citations to the same journal page. Keep software-provider
+citations to the same journal page. Use the shared
+[inline context action treatment](../web/atlas-ui/docs/frontend-guidelines.md#inline-context-actions)
+for text-adjacent information controls. Keep software-provider
 labels, internal revisions and diagnostic evidence out of ordinary presentation.
 
 Explore Versions appears for available counterparts or suggested variants, with

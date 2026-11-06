@@ -1,5 +1,5 @@
 import { Info } from "lucide-react";
-import { PaneIconLink } from "../ui/actions/PaneAction";
+import { InlineContext, InlineIconLink } from "../ui/actions/InlineAction";
 import { Button, Typography } from "antd";
 import { recordDestination } from "../../app/destinations";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
@@ -59,51 +59,60 @@ function Relationship({
       (part): part is RemasterReferencePart => part.kind === "reference",
     ),
   );
+  const explanations =
+    showExplanations && relationship.explanation_links.length > 0
+      ? relationship.explanation_links.map((link, index) => (
+          <InlineIconLink
+            key={index}
+            label={link.label}
+            icon={<Info aria-hidden="true" />}
+            href={destinationHref(
+              recordDestination({
+                recordKey: link.navigation.record_key,
+                selection: link.navigation,
+              }),
+            )}
+            onClick={(event) => {
+              if (!isPrimaryActivation(event)) return;
+              event.preventDefault();
+              onReference(
+                link.navigation.record_key,
+                event.currentTarget,
+                link.navigation,
+              );
+            }}
+          />
+        ))
+      : null;
   return (
     <div className="remaster-relationship">
       <p className="remaster-relationship__line">
         <strong>
-          {relationship.label}
-          {relationship.parts.length > 0 ? ":" : ""}
+          {relationship.parts.length ? (
+            `${relationship.label}:`
+          ) : (
+            <InlineContext actions={explanations}>{relationship.label}</InlineContext>
+          )}
         </strong>
         {relationship.parts.length > 0 && " "}
-        {relationship.parts.map((part, index) =>
-          part.kind === "text" ? (
-            <span key={index}>{part.text}</span>
-          ) : (
-            <RemasterRecordLink
-              key={index}
-              navigation={part.navigation}
-              onReference={onReference}
-            >
-              {part.label}
-            </RemasterRecordLink>
-          ),
-        )}
-        {showExplanations &&
-          relationship.explanation_links.map((link, index) => (
-            <PaneIconLink
-              key={index}
-              size="small"
-              label={link.label}
-              icon={<Info size={14} aria-hidden="true" />}
-              href={destinationHref(
-                recordDestination({
-                  recordKey: link.navigation.record_key,
-                  selection: link.navigation,
-                }),
+        {relationship.parts.map((part, index) => {
+          const tailActions =
+            index === relationship.parts.length - 1 ? explanations : null;
+          return (
+            <InlineContext key={index} actions={tailActions}>
+              {part.kind === "text" ? (
+                part.text
+              ) : (
+                <RemasterRecordLink
+                  navigation={part.navigation}
+                  onReference={onReference}
+                >
+                  {part.label}
+                </RemasterRecordLink>
               )}
-              onClick={(event) => {
-                if (!isPrimaryActivation(event)) return;
-                event.preventDefault();
-                onReference(
-                  link.navigation.record_key,
-                  event.currentTarget,
-                  link.navigation,
-                );
-              }}
-            />
-          ))}
+            </InlineContext>
+          );
+        })}
         {relationship.truncated && (
           <span className="remaster-information__context">
             {" "}

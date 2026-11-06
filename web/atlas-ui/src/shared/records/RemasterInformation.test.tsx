@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { remasterInformationFixture } from "../../test/remasterFixtures";
 import { RemasterInformation, SourceRemasterInformation } from "./RemasterInformation";
 import { rootNavigation } from "./useReferenceReading";
@@ -61,7 +61,7 @@ it.each([
       />,
     );
     const line = screen.getByText(`${label}:`).closest("p")!;
-    expect(within(line).getAllByText(text)).toHaveLength(1);
+    expect(line.textContent).toBe(`${label}: ${text}`);
     expect(screen.getAllByRole("link")).toHaveLength(1);
     expect(
       screen.getByRole("link", { name: "Remaster Changes — Spells" }),

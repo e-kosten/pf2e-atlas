@@ -165,10 +165,7 @@
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
-.remaster-relationship__line > .ant-btn {
-  margin-inline-start: var(--space-control);
-  vertical-align: baseline;
-}
+
 .remaster-relationship__actions {
   display: flex;
   flex-wrap: wrap;

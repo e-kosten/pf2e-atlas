@@ -244,3 +244,14 @@ it("keeps colliding budget ticks keyboard-accessible", async () => {
     "tooltip",
   );
 });
+
+it("opens the XP award caption with a direct click without relying on hover or native focus", async () => {
+  setup();
+  const award = screen.getByRole("button", { name: "XP award calculation" });
+  fireEvent.click(award);
+  await waitFor(() => expect(screen.getByText(initial.award_note!)).toBeVisible());
+  expect(award).toHaveFocus();
+  fireEvent.keyDown(award, { key: "Escape" });
+  await waitFor(() => expect(screen.getByText(initial.award_note!)).not.toBeVisible());
+  expect(award).toHaveFocus();
+});
