@@ -142,7 +142,7 @@ atlas graph variants 'Dread Ampoule' --json
 it. `uses` finds entries referring to the chosen rule or record. Read the same compact relationship information shown in the record reader:
 
 ```bash
-atlas record get 'Force Barrage'
+atlas record get spells-srd:gKKqvLohtrSJj3BM
 atlas graph remaster bestiary-ability-glossary-srd:hFtNbo1LKYCoDy2O --json
 ```
 

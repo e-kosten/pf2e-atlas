@@ -227,11 +227,12 @@ pub fn journal_context(
             _ => continue,
         };
         let status = status.to_ascii_lowercase();
-        let relation = if status.contains("replaced") {
+        let has = |kind: &str| status.split(',').any(|token| token.trim() == kind);
+        let relation = if has("replaced") {
             RemasterRelation::Replaces
-        } else if status.contains("merged") {
+        } else if has("merged") {
             RemasterRelation::MergedFrom
-        } else if status.contains("renamed") {
+        } else if has("rename") || has("renamed") {
             RemasterRelation::FormerName
         } else {
             continue;
@@ -419,5 +420,14 @@ mod tests {
             row.targets[1].record.as_ref().unwrap().to_string(),
             "items:dddddddddddddddd"
         );
+    }
+    #[test]
+    fn singular_rename_status_preserves_the_pinned_nocturnal_grippli_alias() {
+        let rows = extract(&format!(
+            "<table><tr><th>Old</th><th>Main Trait</th><th>Status</th><th>New</th></tr><tr><td>Nocturnal Grippli</td><td>Grippli</td><td>Rename</td><td>{TARGET}</td></tr></table>"
+        ));
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].relation, RemasterRelation::FormerName);
+        assert_eq!(rows[0].targets[0].name, "Nocturnal Grippli");
     }
 }
