@@ -68,6 +68,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         source_locations: vec![],
         source_revision: None,
         indexing_locale: "en".into(),
+        content_locale: None,
     });
     let mut vector = vec![0.; 768];
     vector[0] = 1.;

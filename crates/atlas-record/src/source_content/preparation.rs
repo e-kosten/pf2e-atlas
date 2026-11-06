@@ -27,10 +27,9 @@ pub fn prepare_source_content(
     formula_context: &super::FormulaContext,
 ) -> Result<PreparedSourceContent, html2text::Error> {
     prepare_source_content_with_selection(
-        locator,
+        (locator, visibility),
         markup,
         audience,
-        visibility,
         localization,
         references,
         formula_context,
@@ -39,15 +38,17 @@ pub fn prepare_source_content(
 }
 
 pub(crate) fn prepare_source_content_with_selection(
-    locator: SourceContentLocator,
+    source: (SourceContentLocator, ContentVisibilityRule),
     markup: &str,
     audience: ContentAudience,
-    visibility: ContentVisibilityRule,
     localization: Option<&dyn LocalizationResolver>,
     references: Option<&dyn ContentReferenceResolver>,
     formula_context: &super::FormulaContext,
     selection: Option<(&str, &str)>,
 ) -> Result<PreparedSourceContent, html2text::Error> {
+    // Address and authored visibility describe the source field; the audience
+    // describes this projection of that field.
+    let (locator, visibility) = source;
     let authored_hash = format!(
         "{:x}",
         <sha2::Sha256 as sha2::Digest>::digest(markup.as_bytes())

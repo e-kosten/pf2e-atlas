@@ -73,6 +73,7 @@ fn with_traits() -> atlas_index::IndexBuildInput {
             source_locations: vec![],
             source_revision: data.context.source_revision.clone(),
             indexing_locale: data.context.indexing_locale.clone(),
+            content_locale: None,
         });
         for profile in ["bge-base", "embeddinggemma"] {
             let input = format!("{label}\n");

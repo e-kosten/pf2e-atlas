@@ -152,12 +152,12 @@ pub(crate) fn validate(
     context: &SourceArtifactBuildContext,
     reference_index: &atlas_record::source_record::SourceReferenceIndex,
 ) -> Result<(), IndexError> {
-    if let Some(preparation) = &context.reference_preparation {
-        if preparation.recipe.is_empty() || !crate::codec::checked_hash(&preparation.input_hash) {
-            return Err(IndexError::Invalid(
-                "invalid reference preparation identity".into(),
-            ));
-        }
+    if let Some(preparation) = &context.reference_preparation
+        && (preparation.recipe.is_empty() || !crate::codec::checked_hash(&preparation.input_hash))
+    {
+        return Err(IndexError::Invalid(
+            "invalid reference preparation identity".into(),
+        ));
     }
     let keys = c
         .prepare("SELECT key FROM reference_entries ORDER BY key")?
@@ -208,40 +208,35 @@ pub(crate) fn validate(
                 expected.insert(id);
             }
         }
-        if complete {
-            if let ReferenceBacking::Prepared {
+        if complete
+            && let ReferenceBacking::Prepared {
                 authored_markup, ..
             } = &entry.backing
-            {
-                for occurrence in
-                    atlas_record::source_content::definition_body_localization_references(
-                        authored_markup,
-                        &catalog.keys,
-                        context.audience,
-                        ContentVisibilityRule::All,
-                    )
-                {
-                    let target = catalog
-                        .targets
-                        .get(&occurrence.key)
-                        .ok_or_else(|| {
-                            IndexError::Invalid(
-                                "definition body occurrence target is absent".into(),
-                            )
-                        })?
-                        .clone();
-                    let reference = DefinitionReferenceInput {
-                        source: DefinitionReferenceSource::Definition {
-                            key: entry.key.clone(),
-                        },
-                        target,
-                        occurrence_path: occurrence.path,
-                        evidence: occurrence.localization_key,
-                        label: None,
-                        visible: occurrence.visible,
-                    };
-                    expected.insert(crate::references::reference_id(&reference)?);
-                }
+        {
+            for occurrence in atlas_record::source_content::definition_body_localization_references(
+                authored_markup,
+                &catalog.keys,
+                context.audience,
+                ContentVisibilityRule::All,
+            ) {
+                let target = catalog
+                    .targets
+                    .get(&occurrence.key)
+                    .ok_or_else(|| {
+                        IndexError::Invalid("definition body occurrence target is absent".into())
+                    })?
+                    .clone();
+                let reference = DefinitionReferenceInput {
+                    source: DefinitionReferenceSource::Definition {
+                        key: entry.key.clone(),
+                    },
+                    target,
+                    occurrence_path: occurrence.path,
+                    evidence: occurrence.localization_key,
+                    label: None,
+                    visible: occurrence.visible,
+                };
+                expected.insert(crate::references::reference_id(&reference)?);
             }
         }
         Ok(())

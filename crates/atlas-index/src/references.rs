@@ -805,13 +805,12 @@ fn validate_record_mapping(
             "reference mapping document kind differs".into(),
         ));
     }
-    if let Some(expected) = &evidence.expected_item_type {
-        if !matches!(node,atlas_record::source_record::SourceNodeView::Item(item) if item.family()==expected)
-        {
-            return Err(IndexError::Invalid(
-                "reference mapping item family differs".into(),
-            ));
-        }
+    if let Some(expected) = &evidence.expected_item_type
+        && !matches!(node,atlas_record::source_record::SourceNodeView::Item(item) if item.family()==expected)
+    {
+        return Err(IndexError::Invalid(
+            "reference mapping item family differs".into(),
+        ));
     }
     if let Some(required) = &evidence.required_localization_key {
         let mut map = atlas_record::source_content::DefinitionLocalizationMap::new();
@@ -917,12 +916,12 @@ pub(crate) fn write_entries(
                 "duplicate or trait-specialized reference entry".into(),
             ));
         }
-        if let ReferenceBacking::Record { key } = &entry.backing {
-            if !roots.contains(key) {
-                return Err(IndexError::Invalid(
-                    "reference mapping target is absent from captured publication".into(),
-                ));
-            }
+        if let ReferenceBacking::Record { key } = &entry.backing
+            && !roots.contains(key)
+        {
+            return Err(IndexError::Invalid(
+                "reference mapping target is absent from captured publication".into(),
+            ));
         }
         outgoing.extend(prepared_record_references(&entry));
         write_reference_entry(c, &entry, input.context.reference_preparation.as_ref())

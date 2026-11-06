@@ -729,6 +729,7 @@ fn trait_search_fixture(semantic: bool, reference_count: u32) -> FixtureWorker {
             source_locations: vec![],
             source_revision: fixture.context.source_revision.clone(),
             indexing_locale: fixture.context.indexing_locale.clone(),
+            content_locale: None,
         });
         if semantic {
             let mut vector = vec![0.; 768];

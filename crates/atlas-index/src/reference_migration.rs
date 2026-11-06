@@ -49,19 +49,18 @@ fn backfill(c: &Connection) -> Result<(), IndexError> {
         crate::references::insert_reference(c, &reference.into())?;
     }
     c.execute_batch("DROP TABLE legacy_trait_references;")?;
-    if let Some(context) = crate::read_stored_reference_context(c)? {
-        if context.snapshot_version == atlas_foundry_model::SNAPSHOT_VERSION
-            && context.source_contract == atlas_foundry_model::SOURCE_CONTRACT_ID
-            && !matches!(
-                crate::classify_reference_upgrade(c)?,
-                crate::ReferenceUpgrade::SourcePreparation
-                    | crate::ReferenceUpgrade::SourceReplacement
-                    | crate::ReferenceUpgrade::QueryProjections
-            )
-        {
-            backfill_reference_facts(c, &context)?;
-            crate::component_digests::refresh_present(c, &context)?;
-        }
+    if let Some(context) = crate::read_stored_reference_context(c)?
+        && context.snapshot_version == atlas_foundry_model::SNAPSHOT_VERSION
+        && context.source_contract == atlas_foundry_model::SOURCE_CONTRACT_ID
+        && !matches!(
+            crate::classify_reference_upgrade(c)?,
+            crate::ReferenceUpgrade::SourcePreparation
+                | crate::ReferenceUpgrade::SourceReplacement
+                | crate::ReferenceUpgrade::QueryProjections
+        )
+    {
+        backfill_reference_facts(c, &context)?;
+        crate::component_digests::refresh_present(c, &context)?;
     }
     Ok(())
 }

@@ -866,6 +866,7 @@ impl TraitEvidence {
         Ok(())
     }
 }
+#[cfg(any(test, feature = "test-support"))]
 pub(crate) fn record_reference_inputs(
     record: &atlas_record::source_record::SourceBackedRecord,
     audience: atlas_record::source_content::ContentAudience,

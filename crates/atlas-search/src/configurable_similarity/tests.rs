@@ -741,6 +741,7 @@ fn trait_label_only_parts_use_stored_chunks_without_fabricating_record_navigatio
         source_locations: vec![],
         source_revision: None,
         indexing_locale: "en".into(),
+        content_locale: None,
     });
     let mut vector = vec![0.; 768];
     vector[0] = 1.;

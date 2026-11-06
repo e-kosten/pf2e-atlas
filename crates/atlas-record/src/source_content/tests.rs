@@ -839,7 +839,7 @@ fn trait_reference_markers_validate_only_against_exact_trait_identity() {
     assert!(
         validate_prepared_trait_reference_bindings(
             &prepared.html,
-            &atlas_domain::TraitKey::new("agile").unwrap().into(),
+            &atlas_domain::TraitKey::new("agile").unwrap(),
             &prepared.authored_markup_sha256,
             &prepared.references
         )

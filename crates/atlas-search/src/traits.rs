@@ -127,6 +127,7 @@ mod tests {
             source_locations: vec![],
             source_revision: fixture.context.source_revision.clone(),
             indexing_locale: fixture.context.indexing_locale.clone(),
+            content_locale: None,
         });
         if vector {
             let mut vector = vec![0.; 768];

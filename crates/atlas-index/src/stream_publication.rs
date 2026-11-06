@@ -85,10 +85,9 @@ pub(crate) fn write(
     input.records(&mut |frame|{
         let source=frame.source;
         for outcome in &source.content {
-            if let atlas_record::source_record::SourceContentStatus::Prepared(prepared) = &outcome.status {
-                if prepared.general_definition_reading.is_some() || prepared.html.contains("data-atlas-definition-selection") {
-                    crate::references::validate_template_scope(&source.record, prepared, input.context.reference_preparation.as_ref())?;
-                }
+            if let atlas_record::source_record::SourceContentStatus::Prepared(prepared) = &outcome.status
+                && (prepared.general_definition_reading.is_some() || prepared.html.contains("data-atlas-definition-selection")) {
+                crate::references::validate_template_scope(&source.record, prepared, input.context.reference_preparation.as_ref())?;
             }
         }
         let id=crate::writer::product_id(&ids,source.record.key())?;

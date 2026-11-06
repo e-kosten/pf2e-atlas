@@ -388,6 +388,7 @@ fn label_only_trait_baseline_and_content_oracles_match_both_product_profiles() {
         source_locations: vec![],
         source_revision: data.context.source_revision.clone(),
         indexing_locale: data.context.indexing_locale.clone(),
+        content_locale: None,
     });
     let source = "Amp\n";
     let hash = crate::test_support::hash(source.as_bytes());

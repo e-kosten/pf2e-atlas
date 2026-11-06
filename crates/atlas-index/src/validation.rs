@@ -475,16 +475,15 @@ fn validate_content(
         return Err(bad("selected content cache coverage is incomplete"));
     }
     for outcome in &content {
-        if let SourceContentStatus::Prepared(prepared) = &outcome.status {
-            if prepared.general_definition_reading.is_some()
-                || prepared.html.contains("data-atlas-definition-selection")
-            {
-                crate::references::validate_template_scope(
-                    record,
-                    prepared,
-                    context.reference_preparation.as_ref(),
-                )?;
-            }
+        if let SourceContentStatus::Prepared(prepared) = &outcome.status
+            && (prepared.general_definition_reading.is_some()
+                || prepared.html.contains("data-atlas-definition-selection"))
+        {
+            crate::references::validate_template_scope(
+                record,
+                prepared,
+                context.reference_preparation.as_ref(),
+            )?;
         }
     }
     Ok((n, content))

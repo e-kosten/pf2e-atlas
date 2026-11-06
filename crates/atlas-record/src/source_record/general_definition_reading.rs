@@ -118,10 +118,9 @@ pub fn bind_general_definition_reading(
                 )
             });
         let mut replacement = source_content::prepare_source_content_with_selection(
-            prepared.locator.clone(),
+            (prepared.locator.clone(), outcome.visibility),
             markup,
             audience,
-            outcome.visibility,
             localization,
             references.map(|r| r as &dyn ContentReferenceResolver),
             &formula,
