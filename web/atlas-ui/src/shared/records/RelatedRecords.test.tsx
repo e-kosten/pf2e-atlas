@@ -718,10 +718,32 @@ it("compares a logical relationship's available root without duplicating its nam
     ...relatedFixture(),
     remaster_relationships: { kind: "content", content },
   });
-  api.getRecordDetail.mockImplementation(async (key: string) =>
-    detailFixture(key, key === "actors:seed" ? "Viewed creature" : "Modern creature"),
-  );
-  const onReference = renderRelated();
+  api.getRecordDetail.mockImplementation(async (key: string) => {
+    const isLegacy = key === "actors:seed";
+    const detail = detailFixture(
+      key,
+      isLegacy ? "Viewed creature" : "Modern creature",
+      "rules:nested",
+    );
+    const body = detail.presentation.content[0].body;
+    if (body.kind === "html")
+      body.html = `<p>${isLegacy ? "Legacy comparison rules." : "Modern comparison rules."}</p>${body.html}`;
+    const reciprocal = remasterInformationFixture();
+    reciprocal.relationships[0].label = "Reciprocal edition banner";
+    reciprocal.relationships[0].parts = [
+      {
+        kind: "reference",
+        label: isLegacy ? "Modern creature" : "Viewed creature",
+        navigation: navigation(isLegacy ? "actors:modern" : "actors:seed"),
+      },
+    ];
+    detail.remaster_relationships = { kind: "content", content: reciprocal };
+    return detail;
+  });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  });
+  const onReference = renderRelated(undefined, client);
   openRelated();
   await selectTab("Versions");
   const line = screen.getByText("Renamed to:").closest("p")!;
@@ -749,6 +771,22 @@ it("compares a logical relationship's available root without duplicating its nam
   expect(
     within(dialog).queryByRole("button", { name: "Explore related records" }),
   ).toBeNull();
+  expect(within(dialog).getByText("Legacy comparison rules.")).toBeVisible();
+  expect(within(dialog).getByText("Modern comparison rules.")).toBeVisible();
+  expect(within(dialog).queryByText("Reciprocal edition banner:")).toBeNull();
+  expect(dialog.querySelector(".record-edition-notice")).toBeNull();
+  expect(within(dialog).getAllByRole("link", { name: "Nested Rule" })).toHaveLength(2);
+  api.getRecordDetail.mockRejectedValueOnce(new Error("Refresh unavailable"));
+  await act(async () => {
+    await client.refetchQueries({ queryKey: ["record-detail", "actors:modern"] });
+  });
+  expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+    "Unable to refresh this record",
+  );
+  expect(within(dialog).getByText("Legacy comparison rules.")).toBeVisible();
+  expect(within(dialog).getByText("Modern comparison rules.")).toBeVisible();
+  expect(within(dialog).getByRole("button", { name: "Retry" })).toBeVisible();
+  expect(dialog.querySelector(".record-edition-notice")).toBeNull();
   expect(
     api.getRelatedRecords.mock.calls.every(
       ([request]) => request.selection.record_key === "actors:seed",

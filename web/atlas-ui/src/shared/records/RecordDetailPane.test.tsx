@@ -7,6 +7,7 @@ import {
 import { fireEvent, render, screen } from "@testing-library/react";
 import { AtlasApiError } from "../../api/atlasApi";
 import type { RecordDetailView } from "../../generated/atlas";
+import { remasterInformationFixture } from "../../test/remasterFixtures";
 import { RecordDetailPane } from "./RecordDetailPane";
 
 describe("RecordDetailPane", () => {
@@ -21,6 +22,28 @@ describe("RecordDetailPane", () => {
 
     expect(container.querySelector(".detail-panel")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Dirge of Doom" })).toBeInTheDocument();
+  });
+
+  it("keeps routine remaster context in a non-exploring reader by default", () => {
+    const detail = recordDetailFixture();
+    detail.remaster_relationships = {
+      kind: "content",
+      content: remasterInformationFixture(),
+    };
+    render(
+      <RecordDetailPane
+        detail={detail}
+        loading={false}
+        showRelated={false}
+        onReference={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("heading", { name: "Dirge of Doom" })).toBeVisible();
+    expect(screen.getByText("Renamed to:")).toBeVisible();
+    expect(screen.getByRole("link", { name: "New name" })).toHaveAttribute(
+      "href",
+      "/records/rules:new",
+    );
   });
 
   it("renders a custom empty state when there is no selection", () => {

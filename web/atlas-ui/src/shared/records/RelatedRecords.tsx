@@ -674,6 +674,7 @@ function Comparison({
           }}
           onReference={navigate}
           showRelated={false}
+          showRemasterNotice={false}
         />
         <RecordDetailPane
           detail={right.data}
@@ -684,6 +685,7 @@ function Comparison({
           }}
           onReference={navigate}
           showRelated={false}
+          showRemasterNotice={false}
         />
       </div>
     </Modal>

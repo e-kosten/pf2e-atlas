@@ -39,6 +39,7 @@ export function RecordDetailPane({
   onRankChange,
   compact = false,
   showRelated = true,
+  showRemasterNotice = true,
   landing,
   onLandingReady,
   onOwnerReturn,
@@ -72,6 +73,7 @@ export function RecordDetailPane({
   onRankChange?: (rank: number | undefined) => void;
   compact?: boolean;
   showRelated?: boolean;
+  showRemasterNotice?: boolean;
   landing?: import("../../generated/atlas").RecordNavigationView;
   onLandingReady?: (target?: HTMLElement) => void;
   onOwnerReturn?: (
@@ -121,6 +123,7 @@ export function RecordDetailPane({
             : undefined
         }
         readingNotice={
+          showRemasterNotice &&
           detail && (
             <RecordEditionNotice
               detail={detail}
