@@ -183,7 +183,15 @@ fn publish(
         .map(|d| d.key.clone().into())
         .chain(entries.iter().map(|e| e.key.clone()));
     let (expected_entry_count, entry_keys_sha256) = reference_inventory_identity(keys)?;
+    let (source_package, pack_systems) = input
+        .context
+        .reference_preparation
+        .as_ref()
+        .map(|p| (p.source_package.clone(), p.pack_systems.clone()))
+        .unwrap_or((Some("pf2e".into()), Default::default()));
     input.context.reference_preparation = Some(ReferencePreparation {
+        source_package,
+        pack_systems,
         recipe: "fixture-reference/v1".into(),
         input_hash: crate::codec::sha256(&serde_json::to_vec(&(entries, notices))?),
         coverage: ReferenceCoverage::Complete,
@@ -262,6 +270,15 @@ fn publish(
             input.context.audience,
             &keys,
         ) {
+            if occurrence.key.namespace() != DefinitionNamespace::Trait
+                && !reference_pack_applies(
+                    input.context.reference_preparation.as_ref(),
+                    "pf2e",
+                    source.record.key().pack().as_str(),
+                )
+            {
+                continue;
+            }
             spool
                 .definition_references
                 .push(&DefinitionReferenceInput {
@@ -690,6 +707,7 @@ fn exact_template_annotation_survives_canonical_cache_and_deep_audit_rejects_tam
     atlas_record::source_record::bind_general_definition_reading(
         &source.record,
         "pf2e",
+        true,
         input.context.audience,
         Some(&english),
         None,
@@ -744,6 +762,39 @@ fn exact_template_annotation_survives_canonical_cache_and_deep_audit_rejects_tam
     assert_eq!(cached, &expected);
     drop(reader);
     validate_artifact(&path).unwrap();
+    let saved_context: (String, String) = Connection::open(&path)
+        .unwrap()
+        .query_row(
+            "SELECT context_json,context_hash FROM artifact_context",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    let c = Connection::open(&path).unwrap();
+    let mut forged: serde_json::Value = serde_json::from_str(&saved_context.0).unwrap();
+    forged["reference_preparation"]["pack_systems"][pack] = "sf2e".into();
+    let forged = serde_json::to_string(&forged).unwrap();
+    c.execute(
+        "UPDATE artifact_context SET context_json=?,context_hash=?",
+        rusqlite::params![forged, crate::codec::sha256(forged.as_bytes())],
+    )
+    .unwrap();
+    assert!(validate_reference(&c).is_err());
+    c.execute(
+        "UPDATE artifact_context SET context_json=?,context_hash=?",
+        rusqlite::params![saved_context.0, saved_context.1],
+    )
+    .unwrap();
+    validate_artifact(&path).unwrap();
+    input
+        .context
+        .reference_preparation
+        .as_mut()
+        .unwrap()
+        .pack_systems
+        .insert(pack.into(), Some("sf2e".into()));
+    assert!(publish(&path, &mut input, &[], &[]).is_err());
+    validate_artifact(&path).unwrap();
     // Annotation is persisted beside the one canonical full body, not in a copy.
     let c = Connection::open(&path).unwrap();
     assert_eq!(
@@ -759,5 +810,121 @@ fn exact_template_annotation_survives_canonical_cache_and_deep_audit_rejects_tam
         0
     );
     c.execute("UPDATE prepared_content SET metadata_json=json_set(metadata_json,'$.general_definition_reading.rules_sha256',?) WHERE field_path='/system/description/value'", ["0".repeat(64)]).unwrap();
+    assert!(validate_reference(&c).is_err());
+}
+
+#[test]
+fn captured_pack_scope_distinguishes_inheritance_explicit_match_conflict_and_unknown() {
+    let mut preparation = ReferencePreparation {
+        source_package: Some("pf2e".into()),
+        pack_systems: Default::default(),
+        recipe: "fixture/v1".into(),
+        input_hash: "a".repeat(64),
+        coverage: ReferenceCoverage::Complete,
+        expected_entry_count: 0,
+        entry_keys_sha256: "b".repeat(64),
+    };
+    assert!(reference_pack_applies(
+        Some(&preparation),
+        "pf2e",
+        "actions"
+    ));
+    preparation
+        .pack_systems
+        .insert("actions".into(), Some("pf2e".into()));
+    assert!(reference_pack_applies(
+        Some(&preparation),
+        "pf2e",
+        "actions"
+    ));
+    for scope in [None, Some("sf2e".into()), Some(String::new())] {
+        preparation.pack_systems.insert("actions".into(), scope);
+        assert!(!reference_pack_applies(
+            Some(&preparation),
+            "pf2e",
+            "actions"
+        ));
+        assert!(reference_pack_applies(
+            Some(&preparation),
+            "pf2e",
+            "omitted"
+        ));
+    }
+    preparation.source_package = None;
+    assert!(!reference_pack_applies(
+        Some(&preparation),
+        "pf2e",
+        "omitted"
+    ));
+    assert!(!reference_pack_applies(None, "pf2e", "omitted"));
+    preparation.pack_systems.clear();
+    let retained = serde_json::to_string(&preparation).unwrap();
+    assert!(!retained.contains("source_package"));
+    assert!(!retained.contains("pack_systems"));
+    let decoded: ReferencePreparation = serde_json::from_str(&retained).unwrap();
+    assert_eq!(serde_json::to_string(&decoded).unwrap(), retained);
+}
+
+#[test]
+fn conflicting_pack_scope_rejects_record_backing_and_excludes_new_source_associations() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("scope.sqlite");
+    let (mut input, mut entries, notices) = fixture();
+    publish(&path, &mut input, &entries, &notices).unwrap();
+    for declared in [None, Some("sf2e".into())] {
+        input
+            .context
+            .reference_preparation
+            .as_mut()
+            .unwrap()
+            .pack_systems
+            .insert("items".into(), declared);
+        assert!(publish(&path, &mut input, &entries, &notices).is_err());
+        validate_artifact(&path).unwrap();
+    }
+    // Retain honest mapping disposition, while a standalone key remains known.
+    entries[2].backing = ReferenceBacking::None;
+    entries[2].availability = ReferenceAvailability::SourceInapplicable;
+    entries[1].provenance.description_key = Some("Fixture.Sense".into());
+    publish(&path, &mut input, &entries, &notices).unwrap();
+    validate_artifact(&path).unwrap();
+    let c = Connection::open(&path).unwrap();
+    assert_eq!(c.query_row("SELECT count(*) FROM definition_reference_occurrences WHERE source_record_key IS NOT NULL", [], |r| r.get::<_, usize>(0)).unwrap(), 0);
+    assert_eq!(
+        c.query_row(
+            "SELECT count(*) FROM trait_memberships WHERE trait_key='trait:dragon'",
+            [],
+            |r| r.get::<_, usize>(0)
+        )
+        .unwrap(),
+        1
+    );
+    let mut lookup = DefinitionLocalizationMap::new();
+    lookup.insert(
+        "Fixture.Sense".into(),
+        [entries[1].key.clone()].into_iter().collect(),
+    );
+    let occurrence = atlas_record::source_record::definition_record_localization_references(
+        &input.records[1].record,
+        input.context.audience,
+        &lookup,
+    )
+    .pop()
+    .unwrap();
+    let forged = DefinitionReferenceInput {
+        source: DefinitionReferenceSource::Record {
+            key: occurrence.locator.record,
+            owners: occurrence.locator.owners,
+            field: Some(occurrence.locator.field),
+        },
+        target: DefinitionReferenceTarget::Definition {
+            key: occurrence.key,
+        },
+        occurrence_path: occurrence.path,
+        evidence: occurrence.localization_key,
+        label: None,
+        visible: occurrence.visible,
+    };
+    crate::references::insert_reference(&c, &forged).unwrap();
     assert!(validate_reference(&c).is_err());
 }

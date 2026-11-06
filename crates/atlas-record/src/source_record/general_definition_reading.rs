@@ -81,12 +81,15 @@ fn checked_origin(record: &SourceBackedRecord, package: &str) -> Option<GeneralD
 pub fn bind_general_definition_reading(
     record: &SourceBackedRecord,
     source_package: &str,
+    source_applicable: bool,
     audience: ContentAudience,
     localization: Option<&dyn LocalizationResolver>,
     references: Option<&SourceReferenceIndex>,
     content: &mut [SourceContentOutcome],
 ) -> Result<(), html2text::Error> {
-    let origin = checked_origin(record, source_package);
+    let origin = source_applicable
+        .then(|| checked_origin(record, source_package))
+        .flatten();
     for outcome in content {
         let SourceContentStatus::Prepared(prepared) = &mut outcome.status else {
             continue;
@@ -150,6 +153,7 @@ pub fn bind_general_definition_reading(
 pub fn validate_general_definition_reading(
     record: &SourceBackedRecord,
     source_package: &str,
+    source_applicable: bool,
     prepared: &PreparedSourceContent,
 ) -> Result<(), String> {
     let Some(actual) = &prepared.general_definition_reading else {
@@ -158,6 +162,9 @@ pub fn validate_general_definition_reading(
         }
         return Ok(());
     };
+    if !source_applicable {
+        return Err("general-definition source scope is inapplicable".into());
+    }
     if prepared.locator.record != *record.key()
         || !prepared.locator.owners.is_empty()
         || prepared.locator.field != "/system/description/value"
@@ -230,6 +237,7 @@ mod tests {
         bind_general_definition_reading(
             record,
             "pf2e",
+            true,
             audience(gm),
             Some(&Prose),
             None,
@@ -252,6 +260,29 @@ mod tests {
             .unwrap()
     }
     #[test]
+    fn inapplicable_scope_rejects_and_removes_an_existing_selection() {
+        let record = template_record(fixtures().remove(0));
+        let mut content = prepare(&record, true);
+        assert!(
+            validate_general_definition_reading(&record, "pf2e", false, body(&content)).is_err()
+        );
+        bind_general_definition_reading(
+            &record,
+            "pf2e",
+            false,
+            audience(true),
+            Some(&Prose),
+            None,
+            &mut content,
+        )
+        .unwrap();
+        let prepared = body(&content);
+        assert!(prepared.general_definition_reading.is_none());
+        assert!(!prepared.html.contains("data-atlas-definition-selection"));
+        assert!(prepared.text.contains("Reusable prose"));
+        validate_general_definition_reading(&record, "pf2e", false, prepared).unwrap();
+    }
+    #[test]
     fn all_ten_exact_signatures_bind_roles_to_actual_controls_and_reusable_prose() {
         let items = fixtures();
         assert_eq!(items.len(), 10);
@@ -264,7 +295,7 @@ mod tests {
                     .general_definition_reading
                     .as_ref()
                     .unwrap_or_else(|| panic!("missing {}", record.key()));
-                validate_general_definition_reading(&record, "pf2e", prepared).unwrap();
+                validate_general_definition_reading(&record, "pf2e", true, prepared).unwrap();
                 assert_eq!(reading.reference_ordinals.len(), 1);
                 assert_eq!(reading.interaction_ordinals.len(), if gm { 2 } else { 1 });
                 assert!(reading.parameters.iter().all(
@@ -286,12 +317,16 @@ mod tests {
                     .unwrap()
                     .interaction_ordinals
                     .clear();
-                assert!(validate_general_definition_reading(&record, "pf2e", &corrupt).is_err());
+                assert!(
+                    validate_general_definition_reading(&record, "pf2e", true, &corrupt).is_err()
+                );
                 let mut corrupt = prepared.clone();
                 corrupt.html = corrupt
                     .html
                     .replace("data-atlas-definition-selection", "data-removed");
-                assert!(validate_general_definition_reading(&record, "pf2e", &corrupt).is_err());
+                assert!(
+                    validate_general_definition_reading(&record, "pf2e", true, &corrupt).is_err()
+                );
             }
         }
     }
@@ -314,6 +349,7 @@ mod tests {
             bind_general_definition_reading(
                 &record,
                 "pf2e",
+                true,
                 audience(true),
                 Some(&english),
                 None,
@@ -349,7 +385,7 @@ mod tests {
                         .is_empty()
                 );
             }
-            validate_general_definition_reading(&record, "pf2e", prepared).unwrap();
+            validate_general_definition_reading(&record, "pf2e", true, prepared).unwrap();
         }
     }
     #[test]
@@ -375,7 +411,7 @@ mod tests {
                 let prepared = body(&content);
                 assert!(prepared.general_definition_reading.is_none());
                 assert!(!prepared.html.contains("data-atlas-definition-selection"));
-                validate_general_definition_reading(&record, "pf2e", prepared).unwrap();
+                validate_general_definition_reading(&record, "pf2e", true, prepared).unwrap();
             }
             let record = template_record(item);
             let mut content = prepare(&record, true);
@@ -383,6 +419,7 @@ mod tests {
             bind_general_definition_reading(
                 &record,
                 "custom",
+                true,
                 audience(true),
                 Some(&Prose),
                 None,
@@ -446,6 +483,7 @@ mod tests {
         bind_general_definition_reading(
             &source,
             "pf2e",
+            true,
             audience(true),
             Some(&Prose),
             None,

@@ -15,11 +15,49 @@ pub enum ReferenceCoverage {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReferencePreparation {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_package: Option<String>,
+    /// Only explicitly declared pack scopes; absent keys inherit the root package.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub pack_systems: std::collections::BTreeMap<String, Option<String>>,
     pub recipe: String,
     pub input_hash: String,
     pub coverage: ReferenceCoverage,
     pub expected_entry_count: usize,
     pub entry_keys_sha256: String,
+}
+
+/// Check captured package/pack applicability without consulting source files.
+/// Explicit unsupported declarations never inherit the root package.
+pub fn reference_pack_applies(
+    preparation: Option<&ReferencePreparation>,
+    expected_package: &str,
+    pack: &str,
+) -> bool {
+    let Some(preparation) = preparation else {
+        return false;
+    };
+    !expected_package.is_empty()
+        && preparation.source_package.as_deref() == Some(expected_package)
+        && preparation
+            .pack_systems
+            .get(pack)
+            .is_none_or(|declared| declared.as_deref() == Some(expected_package))
+}
+
+pub(crate) fn validate_template_scope(
+    record: &atlas_record::source_record::SourceBackedRecord,
+    prepared: &atlas_record::source_content::PreparedSourceContent,
+    preparation: Option<&ReferencePreparation>,
+) -> Result<(), IndexError> {
+    let package = preparation
+        .and_then(|p| p.source_package.as_deref())
+        .unwrap_or("");
+    let applicable = reference_pack_applies(preparation, "pf2e", record.key().pack().as_str());
+    atlas_record::source_record::validate_general_definition_reading(
+        record, package, applicable, prepared,
+    )
+    .map_err(IndexError::Invalid)
 }
 
 /// Compact inventory of selected canonical keys, independent of definition bodies.
@@ -574,7 +612,7 @@ pub(crate) fn read_entry(
                 "reference definition identity mismatch".into(),
             ));
         }
-        validate_entry_metadata(c, &entry, false)?;
+        validate_entry_metadata(c, &entry, None, false)?;
         Ok(entry)
     })
     .transpose()
@@ -592,13 +630,18 @@ pub(crate) fn validate_notice(notice: &ReferenceNotice) -> Result<(), IndexError
     Ok(())
 }
 
-pub(crate) fn validate_entry(c: &Connection, entry: &ReferenceEntry) -> Result<(), IndexError> {
-    validate_entry_metadata(c, entry, true)
+pub(crate) fn validate_entry(
+    c: &Connection,
+    entry: &ReferenceEntry,
+    preparation: Option<&ReferencePreparation>,
+) -> Result<(), IndexError> {
+    validate_entry_metadata(c, entry, preparation, true)
 }
 
 fn validate_entry_metadata(
     c: &Connection,
     entry: &ReferenceEntry,
+    preparation: Option<&ReferencePreparation>,
     inspect_retained_source: bool,
 ) -> Result<(), IndexError> {
     if entry.label.trim().is_empty()
@@ -673,6 +716,14 @@ fn validate_entry_metadata(
                 ));
             }
             if inspect_retained_source {
+                let mapping = entry.provenance.record_mapping.as_ref().ok_or_else(|| {
+                    IndexError::Invalid("record-backed reference lacks mapping evidence".into())
+                })?;
+                if !reference_pack_applies(preparation, &mapping.package, key.pack().as_str()) {
+                    return Err(IndexError::Invalid(
+                        "reference mapping captured package/pack is inapplicable".into(),
+                    ));
+                }
                 validate_record_mapping(c, entry, key)?;
             }
         }
@@ -814,8 +865,9 @@ pub(crate) fn insert_reference(
 pub(crate) fn write_reference_entry(
     c: &Connection,
     entry: &ReferenceEntry,
+    preparation: Option<&ReferencePreparation>,
 ) -> Result<(), IndexError> {
-    validate_entry(c, entry)?;
+    validate_entry(c, entry, preparation)?;
     let json = serde_json::to_string(entry)?;
     c.execute("INSERT INTO reference_entries VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET definition_json=excluded.definition_json,definition_hash=excluded.definition_hash WHERE definition_hash IS NOT excluded.definition_hash",params![entry.key.to_string(),json,crate::codec::sha256(json.as_bytes())])?;
     Ok(())
@@ -873,7 +925,7 @@ pub(crate) fn write_entries(
             }
         }
         outgoing.extend(prepared_record_references(&entry));
-        write_reference_entry(c, &entry)
+        write_reference_entry(c, &entry, input.context.reference_preparation.as_ref())
     })?;
     let old = c
         .prepare("SELECT key FROM reference_entries WHERE key NOT LIKE 'trait:%'")?
@@ -894,7 +946,7 @@ pub(crate) fn write_occurrences(
 ) -> Result<(), IndexError> {
     let mut desired = std::collections::BTreeMap::new();
     input.definition_references.visit(&mut |reference| {
-        validate_reference(c, &reference)?;
+        validate_reference(c, &reference, input.context.reference_preparation.as_ref())?;
         let id = reference_id(&reference)?;
         if desired.insert(id, reference).is_some() {
             return Err(IndexError::Invalid(
@@ -904,7 +956,7 @@ pub(crate) fn write_occurrences(
         Ok(())
     })?;
     for reference in outgoing {
-        validate_reference(c, &reference)?;
+        validate_reference(c, &reference, input.context.reference_preparation.as_ref())?;
         desired.insert(reference_id(&reference)?, reference);
     }
     let mut old = c
@@ -928,7 +980,17 @@ pub(crate) fn write_occurrences(
 fn validate_reference(
     c: &Connection,
     reference: &DefinitionReferenceInput,
+    preparation: Option<&ReferencePreparation>,
 ) -> Result<(), IndexError> {
+    if let DefinitionReferenceSource::Record { key, .. } = &reference.source {
+        let is_trait = matches!(&reference.target, DefinitionReferenceTarget::Definition { key }
+            if key.namespace() == DefinitionNamespace::Trait);
+        if !is_trait && !reference_pack_applies(preparation, "pf2e", key.pack().as_str()) {
+            return Err(IndexError::Invalid(
+                "definition occurrence source package/pack is inapplicable".into(),
+            ));
+        }
+    }
     match &reference.source {
         DefinitionReferenceSource::Definition { key } => {
             if !c.query_row(

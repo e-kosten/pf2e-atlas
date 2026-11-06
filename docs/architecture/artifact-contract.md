@@ -626,9 +626,18 @@ published definition do not require seeds. See
 [ADR0067](./decisions/0067-contextual-reference-definitions.md).
 
 `reference_preparation` independently records the glossary recipe, combined input
-identity, coverage and compact selected-key count/digest. Missing new coverage
+identity, coverage and compact selected-key count/digest. It also retains the
+captured root package and a sparse typed map of explicit pack-system declarations:
+missing map keys inherit the root, explicit matching systems permit association,
+and unsupported/null declarations remain distinct from omission. New record
+mappings, non-trait localization associations and template annotations require
+that captured scope; deep audit never trusts an annotation's own package claim.
+Missing new coverage
 does not block retained record or trait reads; new glossary reads report an explicit
-setup requirement. Explicit setup captures approved supplemental data/notices and
+setup requirement. Traits-only audit preserves the legacy visible-association
+contract in both directions: absent hidden rows do not invalidate retained prose,
+while any stored hidden row must remain attributable and target-valid. Complete
+preparation requires exact visible and hidden evidence. Explicit setup captures approved supplemental data/notices and
 publishes complete inventory atomically with ordinary Foundry content. Other
 namespaces receive no implicit vectors or ordinary Search candidacy.
 

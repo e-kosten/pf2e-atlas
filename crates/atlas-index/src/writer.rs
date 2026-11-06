@@ -371,20 +371,6 @@ pub(crate) fn write_content(
                     &prepared.references,
                 )
                 .map_err(|e| IndexError::Invalid(e.to_string()))?;
-                if prepared.general_definition_reading.is_some()
-                    || prepared.html.contains("data-atlas-definition-selection")
-                {
-                    let package = prepared
-                        .general_definition_reading
-                        .as_ref()
-                        .map_or("", |reading| reading.source_package.as_str());
-                    atlas_record::source_record::validate_general_definition_reading(
-                        &source.record,
-                        package,
-                        prepared,
-                    )
-                    .map_err(IndexError::Invalid)?;
-                }
                 for reference in &prepared.references {
                     if reference.visible && published && write_references {
                         let kind = match reference.kind {

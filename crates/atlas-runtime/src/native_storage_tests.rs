@@ -141,7 +141,9 @@ fn input(profile_count: usize) -> IndexBuildInput {
 pub(super) fn main24(profile_count: usize) -> (tempfile::TempDir, Workspace, IndexBuildInput) {
     main24_input(input(profile_count))
 }
-fn main24_input(input: IndexBuildInput) -> (tempfile::TempDir, Workspace, IndexBuildInput) {
+pub(super) fn main24_input(
+    input: IndexBuildInput,
+) -> (tempfile::TempDir, Workspace, IndexBuildInput) {
     register_extensions().unwrap();
     let dir = tempfile::tempdir().unwrap();
     let workspace = Workspace::at(dir.path().join("main24.sqlite")).unwrap();

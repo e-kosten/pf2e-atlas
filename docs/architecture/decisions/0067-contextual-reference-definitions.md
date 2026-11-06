@@ -42,6 +42,13 @@ the actual captured package, declared packs and consumed records. A compatible
 same-key custom description remains that selected record's content unless an
 explicit required structural signature conflicts. Names and translated labels
 never establish identity or activate a mapping for an unrelated package.
+The preparation retains the captured root package and only explicit pack-system
+declarations. An omitted pack declaration inherits the root; an explicit matching
+system permits the new association, while conflicting or unsupported declarations
+disable it. Unknown historical scope stays unknown. Record mappings, new non-trait
+localization associations and template selections use this retained evidence;
+annotation metadata cannot assert its own applicability. Ordinary records and
+legacy trait behavior remain available for conflicting packs.
 
 ## Exact reference evidence
 
@@ -83,7 +90,12 @@ Physical schema version does not establish new glossary coverage. Missing
 `reference_preparation` means retained traits-only coverage, preserving existing
 record and trait reads. Explicit setup prepares the additional definitions and
 records their separate recipe, combined input identity and selected-key inventory.
-Startup does not fetch sources or run setup. New namespaces gain no automatic
+Startup does not fetch sources or run setup. Retained traits-only evidence
+requires the legacy visible incoming and outgoing associations. Hidden authored
+occurrences remain intact in prepared content but do not newly require association
+rows or destinations. Any stored hidden association must still match checked
+source and a valid destination. Complete preparation attests all visible and
+hidden evidence; its audit remains exact. New namespaces gain no automatic
 vectors; existing record and trait numerical policies retain their owners.
 
 Named SQL projections retain authored sense acuity, range and source states, and

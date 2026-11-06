@@ -70,6 +70,8 @@ mod tests {
             recipe: atlas_ingest::REFERENCE_PREPARATION_RECIPE.into(),
             input_hash: first.reference_inputs_identity().into(),
             coverage: atlas_index::ReferenceCoverage::Complete,
+            source_package: Some("custom".into()),
+            pack_systems: Default::default(),
             expected_entry_count,
             entry_keys_sha256,
         });

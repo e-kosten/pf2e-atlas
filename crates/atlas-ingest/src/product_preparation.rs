@@ -176,9 +176,10 @@ pub(crate) fn prepare(
     let fingerprint = capture.fingerprint.clone();
     let mut context = crate::build::build_context(inputs, &catalog)?;
     let source_package = inputs.source_package();
+    let reference_preparation = context.reference_preparation.clone();
     let audience = context.audience;
     let mut reference_build =
-        crate::references::ReferenceBuild::new(inputs, &catalog, scratch, context.audience)?;
+        crate::references::ReferenceBuild::new(inputs, &catalog, scratch, &context)?;
     let preparation_hash = context.preparation_sha256().map_err(index)?;
     let reuse_preparation = reuse
         .preparation_matches(&preparation_hash)
@@ -533,6 +534,7 @@ pub(crate) fn prepare(
                     &preparation_hash,
                     source_package,
                     audience,
+                    reference_preparation.as_ref(),
                 )
                 .map_err(index)?;
                 work.alias_journal_reads += 1;
@@ -585,6 +587,7 @@ pub(crate) fn prepare(
                     &preparation_hash,
                     source_package,
                     audience,
+                    reference_preparation.as_ref(),
                 )?;
                 report.reused_preparations += usize::from(reused);
                 work.main_fresh_preparations += usize::from(!reused);
@@ -788,6 +791,7 @@ fn prepare_content(
     preparation_hash: &str,
     source_package: &str,
     audience: atlas_record::source_content::ContentAudience,
+    reference_preparation: Option<&atlas_index::ReferencePreparation>,
 ) -> Result<PreparedContent, atlas_index::IndexError> {
     let source = atlas_foundry_model::decode_snapshot(frame.snapshot.as_bytes())?;
     let record = SourceBackedRecord::new(&frame.pack, source)
@@ -814,6 +818,7 @@ fn prepare_content(
     atlas_record::source_record::bind_general_definition_reading(
         &record,
         source_package,
+        atlas_index::reference_pack_applies(reference_preparation, "pf2e", &frame.pack),
         audience,
         Some(catalog),
         Some(resolver),

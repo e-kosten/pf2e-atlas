@@ -76,6 +76,15 @@ pub(crate) fn build_context(
             coverage: atlas_index::ReferenceCoverage::Complete,
             expected_entry_count,
             entry_keys_sha256,
+            source_package: inputs
+                .capture
+                .manifest()
+                .manifest
+                .metadata
+                .get("id")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned),
+            pack_systems: inputs.reference_pack_systems(),
         }),
         core_sections_recipe: atlas_domain::CORE_SECTIONS_RECIPE.into(),
         trait_policy: "trait-definition-centroid/v1".into(),
@@ -111,6 +120,23 @@ pub struct CapturedBuildInputs {
     reference_supplement: crate::reference_supplement::ReferenceSupplementCapture,
     reference_inputs_identity: String,
     reference_notices: crate::reference_notices::CapturedReferenceNotices,
+}
+fn captured_pack_systems(capture: &SourceCapture) -> BTreeMap<String, Option<String>> {
+    let mut systems = BTreeMap::new();
+    for pack in &capture.manifest().manifest.packs {
+        if let Some(value) = pack.metadata.get("system") {
+            let declared = value.as_str().map(str::to_owned);
+            systems
+                .entry(pack.name.clone())
+                .and_modify(|previous| {
+                    if *previous != declared {
+                        *previous = None;
+                    }
+                })
+                .or_insert(declared);
+        }
+    }
+    systems
 }
 impl CapturedBuildInputs {
     pub fn capture(options: BuildArtifactOptions) -> Result<Self, IngestError> {
@@ -153,6 +179,8 @@ impl CapturedBuildInputs {
         let reference_inputs_identity = {
             use sha2::{Digest, Sha256};
             let mut hash = Sha256::new();
+            let pack_systems = serde_json::to_string(&captured_pack_systems(&capture))
+                .map_err(|error| IngestError::SourceSelectionFailed(error.to_string()))?;
             for value in [
                 crate::REFERENCE_PREPARATION_RECIPE,
                 atlas_record::source_content::GENERAL_DEFINITION_READING_RECIPE,
@@ -161,6 +189,7 @@ impl CapturedBuildInputs {
                 reference_notices.identity.as_str(),
                 options.locale.as_str(),
                 package,
+                pack_systems.as_str(),
             ] {
                 hash.update((value.len() as u64).to_be_bytes());
                 hash.update(value.as_bytes());
@@ -185,6 +214,9 @@ impl CapturedBuildInputs {
             .get("id")
             .and_then(serde_json::Value::as_str)
             .unwrap_or("unknown")
+    }
+    pub(crate) fn reference_pack_systems(&self) -> BTreeMap<String, Option<String>> {
+        captured_pack_systems(&self.capture)
     }
     pub(crate) fn source_revision(&self) -> Option<&str> {
         self.source_revision.as_deref()

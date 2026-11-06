@@ -13,6 +13,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) fn visit_entries(
     c: &Connection,
+    preparation: Option<&crate::ReferencePreparation>,
     visitor: &mut dyn FnMut(ReferenceEntry) -> Result<(), IndexError>,
 ) -> Result<(), IndexError> {
     let mut statement = c.prepare(
@@ -34,7 +35,7 @@ pub(crate) fn visit_entries(
                 "reference definition identity mismatch".into(),
             ));
         }
-        crate::references::validate_entry(c, &entry)?;
+        crate::references::validate_entry(c, &entry, preparation)?;
         visitor(entry)?;
     }
     Ok(())
@@ -84,12 +85,12 @@ struct ReferenceCatalog {
     targets: BTreeMap<DefinitionKey, DefinitionReferenceTarget>,
 }
 impl ReferenceCatalog {
-    fn read(c: &Connection) -> Result<Self, IndexError> {
+    fn read(c: &Connection, context: &SourceArtifactBuildContext) -> Result<Self, IndexError> {
         let mut catalog = Self {
             keys: Default::default(),
             targets: Default::default(),
         };
-        visit_entries(c, &mut |entry| {
+        visit_entries(c, context.reference_preparation.as_ref(), &mut |entry| {
             if entry.availability == crate::ReferenceAvailability::SourceInapplicable
                 || (entry.provenance.record_mapping.is_some()
                     && matches!(&entry.backing, ReferenceBacking::None))
@@ -149,6 +150,7 @@ impl ReferenceCatalog {
 pub(crate) fn validate(
     c: &Connection,
     context: &SourceArtifactBuildContext,
+    reference_index: &atlas_record::source_record::SourceReferenceIndex,
 ) -> Result<(), IndexError> {
     if let Some(preparation) = &context.reference_preparation {
         if preparation.recipe.is_empty() || !crate::codec::checked_hash(&preparation.input_hash) {
@@ -162,15 +164,49 @@ pub(crate) fn validate(
         .query_map([], |r| r.get::<_, String>(0))?
         .collect::<Result<Vec<_>, _>>()?;
     crate::references::validate_inventory(context.reference_preparation.as_ref(), keys)?;
-    let catalog = ReferenceCatalog::read(c)?;
+    let catalog = ReferenceCatalog::read(c, context)?;
     let complete = context
         .reference_preparation
         .as_ref()
         .is_some_and(|p| p.coverage == ReferenceCoverage::Complete);
     let mut expected = BTreeSet::new();
-    visit_entries(c, &mut |entry| {
+    let mut optional_hidden = BTreeSet::new();
+    visit_entries(c, context.reference_preparation.as_ref(), &mut |entry| {
         for reference in prepared_record_references(&entry) {
-            expected.insert(crate::references::reference_id(&reference)?);
+            let id = crate::references::reference_id(&reference)?;
+            if !complete
+                && entry.key.namespace() == atlas_domain::DefinitionNamespace::Trait
+                && !reference.visible
+            {
+                // Retained trait coverage attests visible associations only. A
+                // stored hidden edge is still permitted only when its retained
+                // occurrence resolves to that same checked current destination.
+                let attributable = match &entry.backing {
+                    ReferenceBacking::Prepared { content, .. } => content
+                        .references
+                        .iter()
+                        .find(|occurrence| occurrence.path == reference.occurrence_path)
+                        .is_some_and(|occurrence| {
+                            let ContentReferenceResolution::Resolved(target) =
+                                &occurrence.resolution
+                            else {
+                                return false;
+                            };
+                            reference_index
+                                .resolve_global_content_reference(
+                                    &occurrence.kind,
+                                    &occurrence.authored_target,
+                                )
+                                .is_some_and(|resolved| resolved.target == *target)
+                        }),
+                    _ => false,
+                };
+                if attributable {
+                    optional_hidden.insert(id);
+                }
+            } else {
+                expected.insert(id);
+            }
         }
         if complete {
             if let ReferenceBacking::Prepared {
@@ -217,6 +253,15 @@ pub(crate) fn validate(
                 context.audience,
                 &catalog.keys,
             ) {
+                if occurrence.key.namespace() != atlas_domain::DefinitionNamespace::Trait
+                    && !crate::reference_pack_applies(
+                        context.reference_preparation.as_ref(),
+                        "pf2e",
+                        source.record.key().pack().as_str(),
+                    )
+                {
+                    continue;
+                }
                 let target = catalog
                     .targets
                     .get(&occurrence.key)
@@ -247,18 +292,49 @@ pub(crate) fn validate(
                 expected.insert(crate::references::reference_id(&reference)?);
             }
         } else {
-            // Retained trait-only coverage does not claim complete new glossary
-            // associations; its existing visible trait surface remains checked.
-            for occurrence in
-                crate::traits::record_reference_inputs(&source.record, context.audience)?
-            {
-                expected.insert(crate::references::reference_id(&occurrence)?);
+            // Both directions retain the legacy visible-only contract. Hidden
+            // occurrences can be absent, while any stored row must be attributable
+            // to the checked authored source rather than merely have a valid FK.
+            for occurrence in atlas_record::source_record::trait_record_localization_references(
+                &source.record,
+                context.audience,
+            ) {
+                let label = if occurrence.locator.owners.is_empty() {
+                    None
+                } else {
+                    source
+                        .record
+                        .node_at(&occurrence.locator.owners)
+                        .and_then(|node| node.name().value().cloned())
+                };
+                let reference = DefinitionReferenceInput {
+                    source: DefinitionReferenceSource::Record {
+                        key: occurrence.locator.record,
+                        owners: occurrence.locator.owners,
+                        field: Some(occurrence.locator.field),
+                    },
+                    target: DefinitionReferenceTarget::Definition {
+                        key: occurrence.trait_key.into(),
+                    },
+                    occurrence_path: occurrence.path,
+                    evidence: occurrence.localization_key,
+                    label,
+                    visible: occurrence.visible,
+                };
+                let id = crate::references::reference_id(&reference)?;
+                if reference.visible {
+                    expected.insert(id);
+                } else {
+                    optional_hidden.insert(id);
+                }
             }
         }
         Ok(())
     })?;
     let actual = actual_occurrences(c)?;
-    if actual != expected {
+    if !expected.is_subset(&actual)
+        || !actual.is_subset(&expected.union(&optional_hidden).cloned().collect())
+    {
         return Err(IndexError::Invalid(
             "definition reference evidence differs from checked source".into(),
         ));

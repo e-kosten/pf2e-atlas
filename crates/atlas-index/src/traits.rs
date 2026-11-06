@@ -77,7 +77,7 @@ fn write_trait_definition(
     outgoing.extend(crate::reference_evidence::prepared_record_references(
         &entry,
     ));
-    crate::references::write_reference_entry(c, &entry)?;
+    crate::references::write_reference_entry(c, &entry, None)?;
     Ok(())
 }
 pub(crate) fn write_record_trait_relations(
@@ -188,25 +188,28 @@ pub(crate) fn write_historical_traits(
         let json = serde_json::to_string(definition)?;
         c.execute("INSERT INTO trait_definitions VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET definition_json=excluded.definition_json,definition_hash=excluded.definition_hash",params![key,json,crate::codec::sha256(json.as_bytes())])?;
     }
+    let mut evidence = TraitEvidence::default();
+    for definition in &input.traits {
+        evidence.add_definition(definition)?;
+    }
     for source in &input.records {
-        let mut evidence = TraitEvidence::default();
         evidence.add_record(&source.record, input.context.audience)?;
-        for (key, record, owners, label) in evidence.memberships {
-            c.execute("INSERT INTO trait_memberships VALUES(?,?,?,?) ON CONFLICT(trait_key,record_key,owners_json) DO UPDATE SET source_label=excluded.source_label",params![key,record,owners,label])?;
-        }
-        for (key, record, json) in evidence.references {
-            let occurrence: crate::DefinitionReferenceInput = serde_json::from_str(&json)?;
-            let trait_key = key
-                .parse()
-                .map_err(|e| IndexError::Invalid(format!("historical trait key: {e}")))?;
-            let reference = occurrence
-                .trait_view(&trait_key)
-                .ok_or_else(|| IndexError::Invalid("historical trait occurrence differs".into()))?;
-            c.execute(
-                "INSERT INTO trait_references VALUES(?,?,?)",
-                params![key, record, serde_json::to_string(&reference)?],
-            )?;
-        }
+    }
+    for (key, record, owners, label) in evidence.memberships {
+        c.execute("INSERT INTO trait_memberships VALUES(?,?,?,?) ON CONFLICT(trait_key,record_key,owners_json) DO UPDATE SET source_label=excluded.source_label",params![key,record,owners,label])?;
+    }
+    for (key, record, json) in evidence.references {
+        let occurrence: crate::DefinitionReferenceInput = serde_json::from_str(&json)?;
+        let trait_key = key
+            .parse()
+            .map_err(|e| IndexError::Invalid(format!("historical trait key: {e}")))?;
+        let reference = occurrence
+            .trait_view(&trait_key)
+            .ok_or_else(|| IndexError::Invalid("historical trait occurrence differs".into()))?;
+        c.execute(
+            "INSERT INTO trait_references VALUES(?,?,?)",
+            params![key, record, serde_json::to_string(&reference)?],
+        )?;
     }
     c.execute_batch("DELETE FROM trait_seed_chunks; DELETE FROM trait_vectors; DELETE FROM trait_native_values;")?;
     for seed in &input.trait_vectors {

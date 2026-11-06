@@ -125,6 +125,25 @@ impl Fixture {
             embedding_batch_size: 8,
         }
     }
+    fn pack_system(&self, pack: &str, system: Option<serde_json::Value>) {
+        let path = self.source.join("module.json");
+        let mut manifest: serde_json::Value =
+            serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        let declaration = manifest["packs"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|declaration| declaration["name"] == pack)
+            .unwrap()
+            .as_object_mut()
+            .unwrap();
+        if let Some(system) = system {
+            declaration.insert("system".into(), system);
+        } else {
+            declaration.remove("system");
+        }
+        fs::write(path, manifest.to_string()).unwrap();
+    }
     fn build(
         &self,
         selection: ReferenceSupplementSelection,
@@ -153,6 +172,136 @@ impl Fixture {
             .map(|row| serde_json::from_str(&row.unwrap()).unwrap())
             .collect()
     }
+}
+
+#[test]
+fn captured_pack_system_controls_only_new_associations_and_restores_on_omission() {
+    let fixture = Fixture::new("pf2e");
+    fixture.family_templates();
+    fixture.observer(&format!("<p>@Localize[{AGILE}] @Localize[{AIR}] @Localize[PF2E.NPC.Abilities.Glossary.Darkvision]</p>"));
+    let declarations = [
+        Some(serde_json::json!("sf2e")), // initial full publication
+        None,                            // compatible export inherits root
+        Some(serde_json::json!("pf2e")), // explicit matching declaration
+        Some(serde_json::Value::Null),   // malformed explicit declaration remains admitted
+        Some(serde_json::json!(17)),
+        None, // incremental restoration
+    ];
+    for system in declarations {
+        let applicable = system.is_none() || system.as_ref().is_some_and(|value| value == "pf2e");
+        for pack in [
+            "items",
+            "bestiary-ability-glossary-srd",
+            "bestiary-family-ability-glossary",
+        ] {
+            fixture.pack_system(pack, system.clone());
+        }
+        fixture
+            .build(ReferenceSupplementSelection::Bundled)
+            .unwrap();
+        let reader = test_support::open_reader(&fixture.database).unwrap();
+        assert_eq!(
+            fixture.entry("sense:darkvision").availability,
+            if applicable {
+                ReferenceAvailability::Available
+            } else {
+                ReferenceAvailability::SourceInapplicable
+            }
+        );
+        for (id, name) in FAMILY_TEMPLATES {
+            let key = format!("bestiary-family-ability-glossary:{id}")
+                .parse()
+                .unwrap();
+            let bundle = reader.read_content_for_record(&key, 16).unwrap();
+            assert_eq!(
+                bundle.fields.len(),
+                1,
+                "ordinary record survives every source-system state"
+            );
+            assert_eq!(
+                bundle.fields[0].general_definition_reading.is_some(),
+                applicable
+            );
+            let entry = fixture.entry(&format!("rule:pf2e:PF2E.NPC.Abilities.Glossary.{name}"));
+            assert_eq!(
+                matches!(entry.backing, ReferenceBacking::Record { .. }),
+                applicable
+            );
+        }
+        let observer: RecordKey = "items:aaaaaaaaaaaaaaaa".parse().unwrap();
+        assert_eq!(
+            reader
+                .read_content_for_record(&observer, 16)
+                .unwrap()
+                .fields
+                .len(),
+            1
+        );
+        let edges = fixture.edges();
+        let observer_edge = |edge: &&DefinitionReferenceInput| {
+            matches!(&edge.source,
+            DefinitionReferenceSource::Record { key, .. } if key == &observer)
+        };
+        assert!(
+            edges
+                .iter()
+                .filter(observer_edge)
+                .any(|edge| edge.evidence == AGILE),
+            "established exact trait evidence stays readable"
+        );
+        assert_eq!(
+            edges
+                .iter()
+                .filter(observer_edge)
+                .any(|edge| edge.evidence == AIR),
+            applicable
+        );
+        assert_eq!(
+            edges
+                .iter()
+                .filter(observer_edge)
+                .any(|edge| edge.evidence == "PF2E.NPC.Abilities.Glossary.Darkvision"),
+            applicable
+        );
+        let preparation = reader.reference_preparation().unwrap();
+        assert_eq!(preparation.source_package.as_deref(), Some("pf2e"));
+        assert_eq!(
+            preparation.pack_systems.get("items"),
+            system
+                .as_ref()
+                .map(|value| value.as_str().map(str::to_owned))
+                .as_ref()
+        );
+        atlas_index::validate_artifact(&fixture.database).unwrap();
+    }
+}
+
+#[test]
+fn pack_system_scope_is_owned_by_capture_without_tightening_manifest_admission() {
+    let fixture = Fixture::new("pf2e");
+    let captured =
+        CapturedBuildInputs::capture(fixture.options(ReferenceSupplementSelection::Bundled))
+            .unwrap();
+    fixture.pack_system("items", Some(serde_json::json!("sf2e")));
+    let later =
+        CapturedBuildInputs::capture(fixture.options(ReferenceSupplementSelection::Bundled))
+            .unwrap();
+    assert!(!captured.reference_pack_systems().contains_key("items"));
+    assert_eq!(
+        later.reference_pack_systems().get("items"),
+        Some(&Some("sf2e".into()))
+    );
+    assert_ne!(
+        captured.reference_inputs_identity(),
+        later.reference_inputs_identity()
+    );
+    let manifest = br#"{"packs":[{"name":"items","label":"Items","type":"Item","path":"packs/items","system":17,"system":"pf2e"}]}"#;
+    let parsed = crate::source::discovery::parse_manifest_bytes(manifest).unwrap();
+    assert_eq!(
+        parsed.manifest.packs[0].metadata.get("system"),
+        Some(&serde_json::json!("pf2e")),
+        "previously unknown duplicate fields retain their prior last-value semantics"
+    );
 }
 
 #[test]
@@ -575,13 +724,8 @@ fn pinned_source_all_approved_standalone_policies_are_readable() {
     let inputs = CapturedBuildInputs::capture(options).unwrap();
     let catalog =
         LocalizationCatalog::load_captured(&source, "en", None, Some(inputs.source())).unwrap();
-    let mut builder = ReferenceBuild::new(
-        &inputs,
-        &catalog,
-        directory.path(),
-        crate::build::default_audience(),
-    )
-    .unwrap();
+    let context = crate::build::build_context(&inputs, &catalog).unwrap();
+    let mut builder = ReferenceBuild::new(&inputs, &catalog, directory.path(), &context).unwrap();
     // Verify the producer against actual admitted documents and the captured
     // manifest too, not just the generator's reviewed expected pointers.
     let target_packs = builder

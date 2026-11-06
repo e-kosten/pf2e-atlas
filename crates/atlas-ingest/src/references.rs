@@ -76,6 +76,7 @@ pub(crate) struct ReferenceBuild<'a> {
     inputs: &'a CapturedBuildInputs,
     catalog: &'a LocalizationCatalog,
     applicable: bool,
+    preparation: Option<atlas_index::ReferencePreparation>,
     audience: atlas_record::source_content::ContentAudience,
     declared_item_packs: BTreeSet<String>,
     records: BTreeMap<RecordKey, MappingRecord>,
@@ -95,7 +96,7 @@ impl<'a> ReferenceBuild<'a> {
         inputs: &'a CapturedBuildInputs,
         catalog: &'a LocalizationCatalog,
         scratch: &Path,
-        audience: atlas_record::source_content::ContentAudience,
+        context: &atlas_index::SourceArtifactBuildContext,
     ) -> Result<Self, IngestError> {
         let manifest = &inputs.source().manifest().manifest;
         let applicable = manifest
@@ -112,7 +113,8 @@ impl<'a> ReferenceBuild<'a> {
             inputs,
             catalog,
             applicable,
-            audience,
+            audience: context.audience,
+            preparation: context.reference_preparation.clone(),
             declared_item_packs: manifest
                 .packs
                 .iter()
@@ -168,6 +170,10 @@ impl<'a> ReferenceBuild<'a> {
             self.occurrences.push(&occurrence).map_err(index)?;
         }
         Ok(())
+    }
+
+    fn pack_applies(&self, pack: &str) -> bool {
+        atlas_index::reference_pack_applies(self.preparation.as_ref(), "pf2e", pack)
     }
 
     pub(crate) fn publish_catalog(
@@ -278,6 +284,11 @@ impl<'a> ReferenceBuild<'a> {
         while let Some(occurrence) = cursor.next_frame().map_err(index)? {
             if let Some(target) = self.resolve_localization(&occurrence.occurrence.localization_key)
             {
+                if !self.pack_applies(occurrence.locator.record.pack().as_str())
+                    && !matches!(&target, DefinitionReferenceTarget::Definition { key } if key.namespace() == DefinitionNamespace::Trait)
+                {
+                    continue;
+                }
                 spool
                     .definition_references
                     .push(&DefinitionReferenceInput {
@@ -451,6 +462,9 @@ impl<'a> ReferenceBuild<'a> {
         if let Some(target) = target {
             entry.permission.disposition = ReferencePermissionDisposition::ExistingRecordPolicy;
             entry.availability = match record {
+                _ if !self.pack_applies(target.pack().as_str()) => {
+                    ReferenceAvailability::SourceInapplicable
+                }
                 None => ReferenceAvailability::MissingTarget,
                 Some(record)
                     if !self.declared_item_packs.contains(target.pack().as_str())

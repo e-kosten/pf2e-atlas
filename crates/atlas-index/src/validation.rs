@@ -124,7 +124,7 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
         }
     }
     trait_evidence.validate(c)?;
-    crate::reference_evidence::validate(c, &context)?;
+    crate::reference_evidence::validate(c, &context, &reference_index)?;
     let mut cursor = root_query.query([])?;
     while let Some(row) = cursor.next()? {
         roots += 1;
@@ -479,14 +479,11 @@ fn validate_content(
             if prepared.general_definition_reading.is_some()
                 || prepared.html.contains("data-atlas-definition-selection")
             {
-                let package = prepared
-                    .general_definition_reading
-                    .as_ref()
-                    .map_or("", |reading| reading.source_package.as_str());
-                atlas_record::source_record::validate_general_definition_reading(
-                    record, package, prepared,
-                )
-                .map_err(bad)?;
+                crate::references::validate_template_scope(
+                    record,
+                    prepared,
+                    context.reference_preparation.as_ref(),
+                )?;
             }
         }
     }
