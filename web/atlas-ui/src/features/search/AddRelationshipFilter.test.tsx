@@ -8,7 +8,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { ConfigProvider } from "antd";
+import { ConfigProvider, Grid } from "antd";
 import {
   discoverFilterCounts,
   discoverFilterEditor,
@@ -298,6 +298,31 @@ it("keeps scope explanation optional and Escape closes inner help only", async (
   expect(help).toHaveFocus();
   expect(dialog).toBeInTheDocument();
 });
+
+it.each([true, false])(
+  "clears an existing link target without restoring it or applying a parent filter change (wide=%s)",
+  async (wide) => {
+    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: wide });
+    const current = setup({
+      ...DEFAULT_SEARCH_STATE,
+      filter: linkLeaf(existing, "existing"),
+    });
+    const before = current().search;
+    fireEvent.click(screen.getByRole("button", { name: /^Linked from/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Change record" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit link condition" });
+    fireEvent.click(
+      await within(dialog).findByRole("button", { name: "Clear selection" }),
+    );
+    expect(within(dialog).getByRole("button", { name: "Apply" })).toBeDisabled();
+    expect(
+      within(dialog).queryByRole("button", { name: "Clear selection" }),
+    ).toBeNull();
+    expect(current().search).toEqual(before);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(current().search).toEqual(before);
+  },
+);
 
 it("edits an exact embedded selection without rebinding it until a parent row is explicitly selected", async () => {
   const lookup = vi.mocked(searchPage).getMockImplementation()!;

@@ -461,7 +461,6 @@ export function EncounterRosterPane({
         open={recordOpen}
         selectedRecordKey={selectedRecordKey}
         title="Add creature or hazard"
-        allowClearSelection
         dismissLabel="Done"
         summary={
           difficulty && recordOpen ? (

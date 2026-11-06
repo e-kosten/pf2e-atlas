@@ -1299,7 +1299,7 @@ test("encounter roster, repeated Add, settings focus and HP intents survive narr
       info,
     );
     await expect(
-      picker.getByRole("searchbox", { name: "Search records" }),
+      picker.locator(`[data-record-key="${sentinel}"]`).first(),
     ).toBeFocused();
     await expect(
       picker.getByRole("button", { name: "Add", exact: true }),

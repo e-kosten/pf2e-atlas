@@ -271,6 +271,20 @@ export function ListDetailView({ route }: ListDetailViewProps) {
       />
       <BrowseReader
         reading={addressableReading}
+        onClearSelection={() => {
+          selection.cancel();
+          reading.select(null);
+          void atlasRouter.navigate({
+            ...listDestination({
+              slug: route.slug,
+              selectedRecordKey: null,
+              query: listQuery,
+            }),
+            replace: true,
+            resetScroll: false,
+            state: true,
+          });
+        }}
         readerStatus={!narrow && <ReferenceSelectionStatus selection={selection} />}
         selectedRecordKey={route.selectedRecordKey}
         readerFooter={

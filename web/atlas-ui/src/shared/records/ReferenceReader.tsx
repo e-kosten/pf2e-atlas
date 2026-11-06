@@ -28,7 +28,6 @@ export function ReferenceReader({
   reading,
   selectedRecordKey = null,
   recordActions,
-  readerHeaderActions,
   readerContext,
   status,
   readerFooter,
@@ -40,11 +39,11 @@ export function ReferenceReader({
   showRelated = true,
   retryLabel,
   renderLayout,
+  selectionActions,
 }: {
   reading: ReferenceReading;
   selectedRecordKey?: string | null;
   readerContext?: ReactNode;
-  readerHeaderActions?: ReactNode;
   recordActions?: (record: RecordSummaryView) => ReactNode;
   status?: ReactNode;
   readerFooter?: ReactNode;
@@ -56,6 +55,7 @@ export function ReferenceReader({
   showRelated?: boolean;
   retryLabel?: string;
   renderLayout?: (actions: ReactNode, reader: ReactNode) => ReactNode;
+  selectionActions?: ReactNode;
 }) {
   const preview = useRecordPreview();
   const { mode, tab } = useRecordExploreLocation();
@@ -421,8 +421,8 @@ export function ReferenceReader({
               {returnToSelectionLabel}
             </Button>
           )}
-        {(!showRelated || !detail) && documentActions}
-        {detail && readerHeaderActions}
+        {!showRelated && documentActions}
+        {selectionActions}
       </Space>
     </>
   );

@@ -30,7 +30,9 @@ export function LinkConditionPicker({
   onConfirm,
 }: LinkPickerProps) {
   const reference = useReferencePreview();
-  const [candidate, setCandidate] = useState<PickerSelection | null>(null);
+  const [candidate, setCandidate] = useState<PickerSelection | null | undefined>(
+    undefined,
+  );
   const [feedback, setFeedback] = useState<string | null>(null);
   const [scopeHelpOpen, setScopeHelpOpen] = useState(false);
   const scopeHelpTrigger = useRef<HTMLButtonElement>(null);
@@ -49,17 +51,20 @@ export function LinkConditionPicker({
       scopeHelpTrigger.current?.focus({ preventScroll: true });
     }
   }
+  const selection =
+    candidate === undefined
+      ? initial?.selection
+      : candidate
+        ? rootNavigation(candidate.record.record_key)
+        : undefined;
   function add(values: LinkFilterForm) {
-    const selection = candidate
-      ? rootNavigation(candidate.record.record_key)
-      : initial?.selection;
     if (!selection) return;
     const relationship: QueryRelationship = {
       direction: values.direction,
       include_contents: values.includeContents,
       selection,
     };
-    setFeedback(onConfirm(relationship, candidate));
+    setFeedback(onConfirm(relationship, candidate ?? null));
   }
   return (
     <SearchPickerModal<LinkFilterForm>
@@ -69,9 +74,7 @@ export function LinkConditionPicker({
       form={form}
       onCancel={close}
       onFinish={add}
-      selectedRecordKey={
-        candidate?.record.record_key ?? initial?.selection.record_key ?? null
-      }
+      selectedRecordKey={selection?.record_key ?? null}
       onSelectionChange={(selection) => {
         setCandidate(selection);
         setFeedback(null);
@@ -87,38 +90,26 @@ export function LinkConditionPicker({
         ) : undefined
       }
       summary={
-        (candidate || initial) && (
+        selection && (
           <Typography.Link
             onClick={(event) => {
               if (!isPrimaryActivation(event)) return;
               event.preventDefault();
               if (reference) {
-                reference.open(
-                  candidate?.record.record_key ?? initial!.selection.record_key,
-                  event.currentTarget,
-                  candidate
-                    ? rootNavigation(candidate.record.record_key)
-                    : initial!.selection,
-                );
+                reference.open(selection.record_key, event.currentTarget, selection);
                 return;
               }
               navigateDestination(
                 recordDestination({
-                  recordKey:
-                    candidate?.record.record_key ?? initial!.selection.record_key,
-                  selection: candidate
-                    ? rootNavigation(candidate.record.record_key)
-                    : initial!.selection,
+                  recordKey: selection.record_key,
+                  selection: selection,
                 }),
               );
             }}
             href={destinationHref(
               recordDestination({
-                recordKey:
-                  candidate?.record.record_key ?? initial!.selection.record_key,
-                selection: candidate
-                  ? rootNavigation(candidate.record.record_key)
-                  : initial!.selection,
+                recordKey: selection.record_key,
+                selection: selection,
               }),
             )}
           >

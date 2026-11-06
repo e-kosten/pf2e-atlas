@@ -10,10 +10,8 @@ import {
   Pagination,
   Space,
   theme,
-  Tooltip,
   Typography,
 } from "antd";
-import { X } from "lucide-react";
 import type { FormInstance, InputRef, ModalProps } from "antd";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { searchPage } from "../../../api/atlasApi";
@@ -83,7 +81,6 @@ export function SearchPickerModal<FormValues>({
   confirmLabel = "Add",
   status,
   summary,
-  allowClearSelection = false,
 }: {
   buildRequest: (query: string) => SearchResultsRequest;
   disabled?: boolean;
@@ -103,7 +100,6 @@ export function SearchPickerModal<FormValues>({
   confirmLabel?: string;
   status?: React.ReactNode;
   summary?: React.ReactNode;
-  allowClearSelection?: boolean;
 }) {
   useDismissOnReadingNavigation(open && !disabled, onCancel);
   const formId = useId();
@@ -433,26 +429,11 @@ export function SearchPickerModal<FormValues>({
           disabled={disabled}
           selectedRecordKey={selectedRecordKey}
           onReaderClose={selection.cancel}
-          readerHeaderActions={
-            allowClearSelection && selectedRecordKey ? (
-              <Tooltip title="Clear selection" trigger={["hover", "focus"]}>
-                <Button
-                  type="text"
-                  icon={<X size={16} aria-hidden="true" />}
-                  aria-label="Clear selection"
-                  disabled={disabled}
-                  onClick={() => {
-                    selection.cancel();
-                    reading.inspect(null);
-                    onSelectionChange(null);
-                    requestAnimationFrame(() =>
-                      searchInput.current?.focus({ preventScroll: true }),
-                    );
-                  }}
-                />
-              </Tooltip>
-            ) : undefined
-          }
+          onClearSelection={() => {
+            selection.cancel();
+            reading.select(null);
+            onSelectionChange(null);
+          }}
           onSelect={(row, request) => {
             const page = recordResults.data;
             if (!disabled && page)

@@ -407,6 +407,36 @@ it("shows loading without pagination, then completed empty for a queryless picke
   expect(screen.queryByRole("button", { name: "Next Page" })).toBeNull();
 });
 
+it("clears the candidate from the shared toolbar while retaining the Add form draft", async () => {
+  vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true });
+  renderPicker();
+  const row = await screen.findByRole("link", { name: /^Ghoul/ });
+  fireEvent.click(row);
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
+  );
+  fireEvent.change(screen.getByLabelText("Note"), {
+    target: { value: "Keep my note" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
+  expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "Clear selection" })).toBeNull();
+  expect(screen.getByLabelText("Note")).toHaveValue("Keep my note");
+  await waitFor(() => expect(row).toHaveFocus());
+});
+
+it("keeps clear selection available after returning to narrow results", async () => {
+  vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: false });
+  renderPicker();
+  fireEvent.click(await screen.findByRole("link", { name: /^Ghoul/ }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Results" }));
+  fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
+  expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+});
+
 it("previews before explicit Add and retains the candidate when a later query has no results", async () => {
   renderPicker();
   const link = await screen.findByRole("link", { name: /Ghoul/ });

@@ -1,5 +1,7 @@
 import { isPrimaryActivation } from "../../app/navigation";
 import { Grid, Splitter } from "antd";
+import { X } from "lucide-react";
+import { PaneIconButton } from "../ui/actions/PaneAction";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { atlasRouter } from "../../app/router";
 import { ReferenceReader } from "./ReferenceReader";
@@ -18,10 +20,11 @@ export function BrowseReader({
   selectedRecordKey,
   reading,
   recordActions,
-  readerHeaderActions,
   readerStatus,
   readerContext,
   onReaderClose,
+  onClearSelection,
+  clearSelectionDisabled,
   readerFooter,
   positions,
 }: {
@@ -33,10 +36,11 @@ export function BrowseReader({
   selectedRecordKey: string | null;
   reading: ReferenceReading;
   readerContext?: ReactNode;
-  readerHeaderActions?: ReactNode;
   recordActions?: (record: RecordSummaryView) => ReactNode;
   readerStatus?: ReactNode;
   onReaderClose?: () => void;
+  onClearSelection?: () => void;
+  clearSelectionDisabled?: boolean;
   readerFooter?: ReactNode;
   positions?: BrowsePositions;
 }) {
@@ -95,17 +99,36 @@ export function BrowseReader({
   function closeReader() {
     onReaderClose?.();
     setClosedRequest(reading.request);
+    restoreResultsFocus();
+  }
+  function restoreResultsFocus() {
     requestAnimationFrame(() => {
       const trigger = beforePreview.current?.isConnected
         ? beforePreview.current
         : (listRef.current?.querySelector<HTMLElement>('[aria-current="true"]') ??
-          listRef.current?.querySelector<HTMLElement>("[data-record-key]"));
+          listRef.current?.querySelector<HTMLElement>("[data-record-key]") ??
+          listRef.current?.closest<HTMLElement>(".reference-results"));
       trigger?.focus({ preventScroll: true });
     });
+  }
+  function clearSelectionAction(size?: "small") {
+    return onClearSelection && (selectedRecordKey || reading.request) ? (
+      <PaneIconButton
+        label="Clear selection"
+        icon={<X size={16} aria-hidden="true" />}
+        size={size}
+        disabled={clearSelectionDisabled}
+        onClick={() => {
+          onClearSelection();
+          restoreResultsFocus();
+        }}
+      />
+    ) : undefined;
   }
   const results = (
     <section
       className="reference-results"
+      tabIndex={-1}
       aria-label={resultsLabel}
       onClickCapture={(event) => {
         if (isPrimaryActivation(event)) rememberOpener(event.target);
@@ -115,9 +138,10 @@ export function BrowseReader({
           rememberOpener(event.target);
       }}
     >
-      {narrow && resultsHeader && (
+      {narrow && (resultsHeader || clearSelectionAction()) && (
         <BrowsePaneHeader className="reference-results__header">
-          {resultsHeader}
+          <div className="reference-results__controls">{resultsHeader}</div>
+          {clearSelectionAction("small")}
         </BrowsePaneHeader>
       )}
       <div
@@ -142,13 +166,13 @@ export function BrowseReader({
       reading={reading}
       selectedRecordKey={selectedRecordKey}
       recordActions={recordActions}
-      readerHeaderActions={readerHeaderActions}
       readerContext={readerContext}
       status={readerStatus}
       readerFooter={readerFooter}
       positions={saved}
       onResults={narrow ? closeReader : undefined}
       active={!narrow || readerOpen}
+      selectionActions={clearSelectionAction()}
       renderLayout={
         narrow
           ? undefined
