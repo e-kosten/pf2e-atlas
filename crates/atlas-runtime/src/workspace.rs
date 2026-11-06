@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 30;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 31;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -206,6 +206,12 @@ const MIGRATIONS: &[Migration] = &[
         version: 30,
         name: "remaster-information",
         sql: atlas_index::REMASTER_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 31,
+        name: "remove-remaster-preference",
+        sql: atlas_index::REMOVE_REMASTER_PREFERENCE_SCHEMA_SQL,
         backfill: None,
     },
 ];

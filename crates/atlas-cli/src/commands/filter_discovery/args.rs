@@ -45,11 +45,6 @@ pub(crate) struct FiltersFieldsOptions {
     after_help = "Values retain all supplied filters unless --clause-id requests replacement suggestions.\nClosed fields include allowed choices with zero matches; open fields enumerate observed values.\nNumeric and collection fields return statistics, without paged values.\nUse filters fields --field ID for the declared choices and CEL examples.\n\nExamples:\n  atlas filters values --field traits --kind spell\n  atlas filters values --field languages --kind creature --text common\n  atlas filters values --field 'movement.speeds[].type' --kind creature\n  atlas filters values --field defenses.hp.maximum --kind creature --json"
 )]
 pub(crate) struct FiltersValuesOptions {
-    #[arg(
-        long,
-        help = "Show every matching version, including older entries with a matching verified replacement"
-    )]
-    pub(crate) all_versions: bool,
     #[arg(long = "list", help = "Restrict context to this saved list")]
     pub(crate) list_ref: Option<String>,
     #[arg(

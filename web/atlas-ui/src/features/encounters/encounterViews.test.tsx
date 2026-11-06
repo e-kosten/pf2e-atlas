@@ -3415,7 +3415,6 @@ function participantFixture(
 
 function searchResultsFixture(): SearchResultsPage {
   return {
-    prefer_remaster: true,
     search_content: "all",
     relationship_clauses: [],
     sort: { kind: "relevance" } as const,

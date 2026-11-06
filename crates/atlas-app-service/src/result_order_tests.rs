@@ -33,7 +33,6 @@ fn fixture() -> crate::test_support::FixtureWorker {
 }
 fn search(sort: Option<ResultSort>, criteria: SearchCriteria) -> SearchResultsRequest {
     SearchResultsRequest {
-        prefer_remaster: true,
         sort,
 
         ranking: None,
@@ -384,7 +383,6 @@ fn sorting_trait_modes_reject_provided_order_outside_similar() {
         TraitAssociationKind::References,
     ] {
         let request = TraitRecordsRequest {
-            prefer_remaster: true,
             sort: Some(ResultSort::Random { seed: 0 }),
             trait_key: "trait:fire".into(),
             kind,
@@ -407,7 +405,6 @@ fn sorting_trait_modes_reject_provided_order_outside_similar() {
         );
     }
     let request = TraitRecordsRequest {
-        prefer_remaster: true,
         sort: Some(ResultSort::Attributes { rules: vec![] }),
         trait_key: "trait:fire".into(),
         kind: TraitAssociationKind::Similar,
@@ -431,7 +428,7 @@ fn sorting_trait_modes_reject_provided_order_outside_similar() {
 }
 
 #[test]
-fn remaster_preference_is_explicit_on_browse_and_lexical_search() {
+fn browse_and_lexical_search_keep_every_matching_relationship_root() {
     let fixture = fixture();
     for criteria in [
         SearchCriteria::ListRecords { filter: None },
@@ -442,35 +439,16 @@ fn remaster_preference_is_explicit_on_browse_and_lexical_search() {
             search_content: None,
         },
     ] {
-        let request = search(None, criteria);
-        let preferred = fixture
-            .worker
-            .search_page(request.clone(), &ReadExecutionContext::uncancellable())
-            .unwrap();
-        assert!(preferred.prefer_remaster);
-        assert_eq!(preferred.page.total, 3);
-        assert!(
-            !preferred
-                .rows
-                .iter()
-                .any(|row| row.record.record_key == "items:0000000000000002")
-        );
-        let all = fixture
+        let result = fixture
             .worker
             .search_page(
-                SearchResultsRequest {
-                    prefer_remaster: false,
-                    ..request
-                },
+                search(None, criteria),
                 &ReadExecutionContext::uncancellable(),
             )
             .unwrap();
-        assert!(!all.prefer_remaster);
-        assert_eq!(all.page.total, 4);
-        assert!(
-            all.rows
-                .iter()
-                .any(|row| row.record.record_key == "items:0000000000000002")
-        );
+        assert_eq!(result.page.total, 4);
+        for key in ["items:0000000000000002", "items:0000000000000003"] {
+            assert!(result.rows.iter().any(|row| row.record.record_key == key));
+        }
     }
 }

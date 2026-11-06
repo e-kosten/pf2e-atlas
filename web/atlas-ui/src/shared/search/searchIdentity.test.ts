@@ -187,13 +187,3 @@ it("rejects a stale or differently addressed source inventory", () => {
     assertSimilarityInventoryIdentity(inventory, inventory.seed, "bge-base", "retired"),
   ).toThrow("reference collection changed");
 });
-
-it("rejects a response for a different version preference", () => {
-  const response = { artifact_generation: "generation-1", prefer_remaster: true };
-  expect(() =>
-    assertSearchIdentity(response, null, undefined, undefined, undefined, false),
-  ).toThrow(/version preference/);
-  expect(() =>
-    assertSearchIdentity(response, null, undefined, undefined, undefined, true),
-  ).not.toThrow();
-});

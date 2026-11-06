@@ -71,7 +71,7 @@ vocabulary. Owned names qualify independently of prose presence when their exact
 owner is admitted; heading/definition labels require their exact Core section.
 Do not add prose terms, lexical rows, a separate FTS index or scope-specific BM25
 statistics. Intersect eligibility before FTS/KNN limits, aggregation, centroids,
-witnesses, counts and edition preference. Ordinary semantic search keeps its
+witnesses and counts. Ordinary semantic search keeps its
 strongest-unit-per-root aggregation.
 
 Migration 21 adds metadata tables. Offline publication reconstructs membership

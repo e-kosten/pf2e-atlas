@@ -81,8 +81,6 @@ export function traitSimilarPreviewQueryOptions(
         request.search_profile,
         request.expected_artifact_generation,
         request.sort,
-        undefined,
-        request.prefer_remaster ?? true,
       );
       assertSimilarityIdentity(
         page,

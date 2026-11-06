@@ -495,9 +495,9 @@ Count-free vocabulary is a separate discovery request with artifact or saved-lis
 membership scope, value-search text, bounded paging and selected literals. It has
 no query predicate, query text or retrieval mode. App-service resolves saved-list
 keys; search forwards scope without embedding; index enumerates known applicable
-product values before edition preference. Empty membership remains empty, and
+product values. Empty membership remains empty, and
 retained selections do not inflate suggestion totals. Contextual counts retain
-their exact same-child/counterfactual/remaster semantics over structured eligibility.
+their exact same-child/counterfactual semantics over structured eligibility.
 The app counts operation accepts a bounded explicit literal page, independently
 of vocabulary enumeration. It uses the same index-owned counterfactual compiler
 and counts distinct displayed roots for each replacement literal. Text context
@@ -528,10 +528,10 @@ defaults to fixed score fusion, and candidate windows remain bounded.
 `SearchRanking` also permits an RRF60 dogfooding alternative (ADR0053).
 CLI `--ranking` and the browser's URL-preserved ranking selector carry that choice
 independently of the embedding profile; adapters do not implement ranking policy.
-Default remaster preference requires one clear approved preferred replacement
-that also matches the complete request, before paging. All versions disables it.
-Exact keys and saved selections retain their identity; filtered saved lists keep
-all independently matching chosen members. Macros are excluded on every
+Search and discovery retain every independently matching record across publication
+eras. Explicit counterpart mappings provide navigation and comparison. Exact keys
+and saved selections retain their identity; filtered saved lists keep all
+independently matching chosen members. Macros are excluded on every
 product path; RollTables remain browse/search/detail records.
 
 Text search uses an exhaustive query-embedding error conversion. Empty input and
@@ -591,8 +591,7 @@ cosine over all semantic units, including identities; content methods use the sa
 logical-part scorer and role masks as product search. Evaluation batches share
 stored vector reads and complete passage maxima across decay variants, then
 reselect explanation pairs for each variant. Evidence remains bounded to the raw
-top ten scored rows; a later remaster preference may require source lookup for a
-promoted row. Evaluation preparation/aggregation timings are not product latency.
+top ten scored rows. Evaluation preparation/aggregation timings are not product latency.
 
 Product content-method diagnostics separate seed preparation, candidate generation,
 vector reads, scoring, and evidence hydration. Their complete pre-reranking root
@@ -705,7 +704,7 @@ and clause ID. Shared retrieval admission validates every selected record/owner/
 field/fingerprint, including negative and unreachable branches, before inference.
 App-service owns workflow generation and human DTO projection. Index compiles the
 complete tree to parameterized eligibility before lexical/vector candidate selection,
-edition preference, ordering and paging. Saved-list membership intersects that tree.
+ordering and paging. Saved-list membership intersects that tree.
 
 Root totals are distinct and independent of occurrence caps. Human clause annotations
 cover all leaves, including negative/zero-result cases; per-root evidence includes
@@ -1037,21 +1036,22 @@ These presentation changes require no artifact re-preparation or locale changes.
 
 ### Remaster declaration preparation
 
-`source-remaster-statements/v2` replaces pair-only and opaque-alias authority
+`source-remaster-statements/v3` replaces pair-only and opaque-alias authority
 with typed declarations, captured source inputs and rebuildable bindings/supports.
 The unchanged content occurrence policy remains v7. Remaster-input identity
 independently requires metadata publication while content and layout reuse check
 their actual preparation, section, segmentation and model dependencies. Physical
-profile-storage corruption remains an error on that reuse path. Schema30 appends this contract without modifying
-released migration checksums. Existing workspaces use source-backed setup and
+profile-storage corruption remains an error on that reuse path. Schema30 introduced the declaration contract; schema31 removes its preference
+projections without modifying earlier migration checksums. Existing workspaces use source-backed setup and
 atomic checked publication, preserving saved state and compatible vector reuse.
 Old strings do not supply invented evidence. When a committed contract upgrade
 needs source-backed preparation, ordinary reference reads retain the normal
 readiness boundary rather than serving a compatibility projection.
 
-Full validation verifies captured evidence and exact derived rows. Ordinary
-suppression consumes only relevant supported preference identities in index-owned
-SQL; it does not scan unrelated provenance. App-service consolidates compatible
+Full validation verifies captured evidence and exact derived rows. A small explicit
+Atlas manifest supplies reviewed counterpart identities; normal source preparation
+validates those keys and families. No matching-name counterpart discovery or
+replacement-based result suppression runs. App-service consolidates compatible
 source statements into bounded logical inline relationships, retaining scoped and
 collective meanings and every supporting declaration ID. Browser and CLI render
 those facts. Browser presentation uses useful direct journal explanation links;

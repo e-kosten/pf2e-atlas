@@ -11,7 +11,6 @@ import {
 export function relationshipSearchRoute(
   filter: QueryPredicate,
   profile?: string | null,
-  preferRemaster = true,
 ) {
   const route = currentSearchLocation();
   const params = new URLSearchParams(window.location.search);
@@ -24,8 +23,6 @@ export function relationshipSearchRoute(
         ? { kind: "all_of" as const, children: [search.filter, filter] }
         : filter;
   if (route !== null && next === search.filter) {
-    if (!params.has("versions"))
-      params.set("versions", preferRemaster ? "prefer" : "all");
     return searchDestination({ ...route, query: `?${params}` });
   }
   return searchDestination({
@@ -33,7 +30,6 @@ export function relationshipSearchRoute(
     query: searchStateQueryString(
       {
         ...search,
-        preferRemaster: params.has("versions") ? search.preferRemaster : preferRemaster,
         filter: next,
       },
       profile ?? params.get("search_profile"),

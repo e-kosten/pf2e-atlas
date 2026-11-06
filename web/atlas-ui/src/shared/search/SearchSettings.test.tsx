@@ -131,7 +131,6 @@ function setup(
               resetLink: vi.fn(),
               select: vi.fn(),
               preferences,
-              preferRemaster: preferences.preferRemaster,
               applyPreferences: remember,
             }}
           >
@@ -1109,29 +1108,13 @@ it("shows identity-only Core and keeps a missing required identity actionable", 
   expect(apply).not.toHaveBeenCalled();
 });
 
-it("keeps version changes in the draft until Apply and remembers the complete choice", () => {
-  const { apply, remember } = setup({
-    ...DEFAULT_SEARCH_STATE,
-    query: "heal",
-    preferRemaster: true,
-  });
-  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Versions" }));
-  fireEvent.click(screen.getByText("All versions"));
-  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-  expect(apply).not.toHaveBeenCalled();
-  expect(remember).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "Search settings" }));
+it("offers only content, model, ranking and match-display settings for a text search", () => {
+  setup({ ...DEFAULT_SEARCH_STATE, query: "heal" });
+  openMatchDisplay();
+  const dialog = screen.getByRole("dialog", { name: "Search settings" });
   expect(
-    screen.getByRole("combobox", { name: "Versions" }).closest(".ant-select"),
-  ).toHaveTextContent("Prefer remaster versions");
-  fireEvent.mouseDown(screen.getByRole("combobox", { name: "Versions" }));
-  fireEvent.click(screen.getByText("All versions"));
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-  expect(apply).toHaveBeenCalledExactlyOnceWith(
-    expect.objectContaining({ query: "heal", preferRemaster: false }),
-    "bge-base",
-  );
-  expect(remember).toHaveBeenCalledExactlyOnceWith(
-    expect.objectContaining({ preferRemaster: false }),
-  );
+    within(dialog)
+      .getAllByRole("combobox")
+      .map((control) => control.getAttribute("aria-label")),
+  ).toEqual(["Search content", "Search model", "Search ranking", "Match display"]);
 });

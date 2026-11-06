@@ -564,7 +564,7 @@ pub(crate) fn prepare(
         );
         spool.remaster_sources.push(source).map_err(index)?;
     }
-    let projection = crate::remaster_information::projection(
+    let aliases = crate::remaster_information::aliases(
         &declarations,
         &fields,
         &names,
@@ -573,17 +573,9 @@ pub(crate) fn prepare(
         &sources,
     )?;
     report.remaster_declarations = declarations.len();
-    report.remaster_aliases = projection.aliases.len();
-    report.remaster_preferences = projection.preferences.len();
-    for diagnostic in &projection.diagnostics {
-        *report
-            .remaster_decisions
-            .entry(diagnostic.reason.as_str().into())
-            .or_default() += 1;
-    }
-    report.remaster_decision_examples = projection.diagnostics.into_iter().take(20).collect();
+    report.remaster_aliases = aliases.len();
     let mut by_record = BTreeMap::<RecordKey, Vec<String>>::new();
-    for alias in projection.aliases {
+    for alias in aliases {
         by_record.entry(alias.record).or_default().push(alias.alias);
     }
     for declaration in declarations {

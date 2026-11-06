@@ -219,6 +219,9 @@ fn reviewed_input(before: &str, after: &str) -> RemasterSourceInput {
                 before_label: "Old".into(),
                 after_label: "New".into(),
                 namespace: "fixture".into(),
+                kind: RemasterChangeKind::Replaced,
+                qualifier: None,
+                journal_context: None,
                 rationale: "Explicit test assertion".into(),
                 source_type: "action".into(),
             }],
@@ -258,70 +261,150 @@ fn facts() -> std::collections::BTreeMap<atlas_domain::RecordKey, RemasterRecord
         .collect()
 }
 #[test]
-fn preference_retains_repeated_support_but_rejects_conflicts_cycles_groups_and_removal() {
+fn aliases_retain_independent_support_without_rewriting_record_identity() {
     let (a, ab) = reviewed("aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb");
     let mut repeat = a.clone();
-    repeat.context.qualifier = Some("Independent repeated citation".into());
+    repeat.context.qualifier = Some("Independent source scope".into());
     let repeat = repeat.seal().unwrap();
     let rb = bind_remaster_declarations(std::slice::from_ref(&repeat), &facts(), &[]).unwrap();
-    let projection = derive_remaster_projection(
-        &[a.clone(), repeat],
-        &[ab.clone(), rb].concat(),
-        &facts(),
-        &sources(),
+    let aliases = derive_remaster_aliases(&[a, repeat], &[ab, rb].concat(), &facts(), &sources());
+    assert_eq!(aliases.len(), 1);
+    assert_eq!(aliases[0].declarations.len(), 2);
+    assert_eq!(aliases[0].record.to_string(), "actions:bbbbbbbbbbbbbbbb");
+}
+#[test]
+fn reviewed_manifest_has_exact_actor_item_addresses_and_separate_semantic_scope() {
+    let entries: ReviewedCorrespondences =
+        serde_json::from_slice(ATLAS_CORRESPONDENCE_BYTES).unwrap();
+    assert_eq!(entries.entries.len(), 25);
+    let input = RemasterSourceInput::new(
+        RemasterInputKind::AtlasCorrespondence,
+        RemasterOrigin::AtlasReviewed,
+        "review/v2".into(),
+        "correspondences.json".into(),
+        ATLAS_CORRESPONDENCE_BYTES.to_vec(),
     );
-    assert_eq!(projection.preferences.len(), 1);
-    assert_eq!(projection.preferences[0].declarations.len(), 2);
-    assert!(projection.diagnostics.is_empty());
-    let (conflict, cb) = reviewed("aaaaaaaaaaaaaaaa", "cccccccccccccccc");
-    assert!(
-        derive_remaster_projection(
-            &[a.clone(), conflict],
-            &[ab.clone(), cb].concat(),
-            &facts(),
-            &sources()
-        )
-        .preferences
-        .is_empty()
-    );
-    let (reverse, reverseb) = reviewed("bbbbbbbbbbbbbbbb", "aaaaaaaaaaaaaaaa");
-    assert!(
-        derive_remaster_projection(
-            &[a.clone(), reverse],
-            &[ab.clone(), reverseb].concat(),
-            &facts(),
-            &sources()
-        )
-        .preferences
-        .is_empty()
-    );
-    for kind in [RemasterChangeKind::Removed, RemasterChangeKind::Merged] {
-        let mut counter = a.clone();
-        counter.kinds = vec![kind];
-        let counter = counter.seal().unwrap();
-        let bindings =
-            bind_remaster_declarations(std::slice::from_ref(&counter), &facts(), &[]).unwrap();
+    let declarations = file_declarations(&input).unwrap();
+    let mut keys = std::collections::BTreeSet::new();
+    for (row, declaration) in entries.entries.iter().zip(&declarations) {
+        assert!(keys.insert((&row.before, &row.after)));
+        let document = if matches!(row.source_type.as_str(), "npc" | "hazard") {
+            ".Actor."
+        } else {
+            ".Item."
+        };
         assert!(
-            derive_remaster_projection(
-                &[a.clone(), counter],
-                &[ab.clone(), bindings].concat(),
-                &facts(),
-                &sources()
-            )
-            .preferences
-            .is_empty()
+            declaration.before[0].references[0]
+                .target
+                .contains(document)
         );
+        assert!(declaration.after[0].references[0].target.contains(document));
+        assert_eq!(declaration.context.qualifier, row.qualifier);
+        assert_eq!(declaration.kinds, vec![row.kind]);
+        assert!(!row.rationale.is_empty());
+        if let Some(context) = &row.journal_context {
+            assert_eq!(context.locator.owners[0].collection, "/pages");
+        }
     }
-    let mut grouped = a.clone();
-    let second = grouped.after[0].references[0].clone();
-    grouped.after[0].references.push(second);
-    let grouped = grouped.seal().unwrap();
-    let gb = bind_remaster_declarations(std::slice::from_ref(&grouped), &facts(), &[]).unwrap();
-    assert!(
-        derive_remaster_projection(&[a, grouped], &[ab, gb].concat(), &facts(), &sources())
-            .preferences
-            .is_empty()
+    assert_eq!(
+        entries
+            .entries
+            .iter()
+            .filter(|row| row.journal_context.is_some())
+            .count(),
+        15
     );
+}
+
+#[test]
+fn reviewed_actor_and_item_family_drift_withdraws_both_bindings_and_alias() {
+    let entries: ReviewedCorrespondences =
+        serde_json::from_slice(ATLAS_CORRESPONDENCE_BYTES).unwrap();
+    for family in ["npc", "feat"] {
+        let row = entries
+            .entries
+            .iter()
+            .find(|row| row.source_type == family)
+            .unwrap();
+        let input = RemasterSourceInput::new(
+            RemasterInputKind::AtlasCorrespondence,
+            RemasterOrigin::AtlasReviewed,
+            "fixture".into(),
+            "review.json".into(),
+            serde_json::to_vec(&ReviewedCorrespondences {
+                entries: vec![row.clone()],
+            })
+            .unwrap(),
+        );
+        let declarations = file_declarations(&input).unwrap();
+        for changed in [&row.before, &row.after] {
+            let mut records = std::collections::BTreeMap::from([
+                (
+                    row.before.clone(),
+                    RemasterRecordFacts {
+                        name: Some(row.before_label.clone()),
+                        source_type: Some(family.into()),
+                    },
+                ),
+                (
+                    row.after.clone(),
+                    RemasterRecordFacts {
+                        name: Some(row.after_label.clone()),
+                        source_type: Some(family.into()),
+                    },
+                ),
+            ]);
+            let valid = bind_remaster_declarations(&declarations, &records, &[]).unwrap();
+            assert!(valid.iter().all(|binding| matches!(
+                binding.resolution,
+                RemasterBindingResolution::Current { .. }
+            )));
+            records.get_mut(changed).unwrap().source_type = Some("spell".into());
+            let bindings = bind_remaster_declarations(&declarations, &records, &[]).unwrap();
+            assert!(bindings.iter().all(|binding| matches!(
+                binding.resolution,
+                RemasterBindingResolution::Unresolved
+            )));
+            assert!(
+                derive_remaster_aliases(
+                    &declarations,
+                    &bindings,
+                    &records,
+                    std::slice::from_ref(&input)
+                )
+                .is_empty()
+            );
+            assert_eq!(
+                declarations[0].before[0].references[0]
+                    .explicit_key
+                    .as_ref(),
+                Some(&row.before)
+            );
+        }
+    }
+}
+#[test]
+fn absent_reviewed_identity_survives_other_endpoint_family_drift() {
+    let source = reviewed_input("aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb");
+    let declarations = file_declarations(&source).unwrap();
+    let before = "actions:aaaaaaaaaaaaaaaa".parse().unwrap();
+    let records = std::collections::BTreeMap::from([(
+        "actions:bbbbbbbbbbbbbbbb".parse().unwrap(),
+        RemasterRecordFacts {
+            name: Some("Different-family current body".into()),
+            source_type: Some("spell".into()),
+        },
+    )]);
+    let bindings = bind_remaster_declarations(&declarations, &records, &[]).unwrap();
+    assert_eq!(
+        bindings[0].resolution,
+        RemasterBindingResolution::MissingExplicitKey { record_key: before }
+    );
+    assert_eq!(
+        bindings[1].resolution,
+        RemasterBindingResolution::Unresolved
+    );
+    assert!(derive_remaster_aliases(&declarations, &bindings, &records, &[source]).is_empty());
 }
 #[test]
 fn resolver_veto_is_not_rebound_but_absent_literal_identity_is_retained() {
@@ -342,11 +425,7 @@ fn resolver_veto_is_not_rebound_but_absent_literal_identity_is_retained() {
     assert!(
         matches!(&bindings[1].resolution,RemasterBindingResolution::MissingExplicitKey{record_key} if record_key.to_string()=="actions:dddddddddddddddd")
     );
-    assert!(
-        derive_remaster_projection(&declarations, &bindings, &facts(), &sources())
-            .preferences
-            .is_empty()
-    );
+    assert!(derive_remaster_aliases(&declarations, &bindings, &facts(), &sources()).is_empty());
 }
 
 #[test]
@@ -395,13 +474,12 @@ fn unknown_reordered_headers_sections_and_statuses_never_grant_lookup_authority(
                 owners: vec![],
             },
         };
-        let projection = derive_remaster_projection(&declarations, &[binding], &facts(), &[]);
-        assert!(projection.aliases.is_empty());
-        assert!(projection.preferences.is_empty());
+        let projection = derive_remaster_aliases(&declarations, &[binding], &facts(), &[]);
+        assert!(projection.is_empty());
     }
 }
 #[test]
-fn conditional_adapter_withdraws_aliases_as_well_as_preference_when_current_facts_fail() {
+fn conditional_adapter_withdraws_aliases_when_current_facts_fail() {
     let source = reviewed_input("aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb");
     let declarations = file_declarations(&source).unwrap();
     for defect in [
@@ -428,20 +506,13 @@ fn conditional_adapter_withdraws_aliases_as_well_as_preference_when_current_fact
             }
         }
         let bindings = bind_remaster_declarations(&declarations, &records, &[]).unwrap();
-        let projection = derive_remaster_projection(
+        let projection = derive_remaster_aliases(
             &declarations,
             &bindings,
             &records,
             std::slice::from_ref(&source),
         );
-        assert!(projection.aliases.is_empty(), "{defect}");
-        assert!(projection.preferences.is_empty(), "{defect}");
-        assert!(
-            projection
-                .diagnostics
-                .iter()
-                .any(|d| d.reason == RemasterDerivationReason::AdapterConditions)
-        );
+        assert!(projection.is_empty(), "{defect}");
     }
     let input=RemasterSourceInput::new(RemasterInputKind::Migration850,RemasterOrigin::Foundry,"fixture".into(),"850.ts".into(),br##"class M { #oldNamePattern = new RegExp(/\bFlat-Footed\b/g); #newName = "Off-Guard"; condition = "AJh5ex99aV6VTggg"; }"##.to_vec());
     let declarations = file_declarations(&input).unwrap();
@@ -453,14 +524,10 @@ fn conditional_adapter_withdraws_aliases_as_well_as_preference_when_current_fact
         },
     )]);
     let bindings = bind_remaster_declarations(&declarations, &records, &[]).unwrap();
-    assert!(
-        derive_remaster_projection(&declarations, &bindings, &records, &[input])
-            .aliases
-            .is_empty()
-    );
+    assert!(derive_remaster_aliases(&declarations, &bindings, &records, &[input]).is_empty());
 }
 #[test]
-fn migration887_absent_predecessor_keeps_verified_spell_lookup_without_a_preference() {
+fn migration887_absent_predecessor_keeps_verified_spell_lookup() {
     let input=RemasterSourceInput::new(RemasterInputKind::Migration887,RemasterOrigin::Foundry,"fixture".into(),"887.ts".into(),br#"class M { #spells=[{from:{_id:"aaaaaaaaaaaaaaaa",name:"Old spell"},to:{_id:"bbbbbbbbbbbbbbbb",name:"Current spell"}}]; }"#.to_vec());
     let declarations = file_declarations(&input).unwrap();
     let records = std::collections::BTreeMap::from([(
@@ -471,9 +538,8 @@ fn migration887_absent_predecessor_keeps_verified_spell_lookup_without_a_prefere
         },
     )]);
     let bindings = bind_remaster_declarations(&declarations, &records, &[]).unwrap();
-    let projection = derive_remaster_projection(&declarations, &bindings, &records, &[input]);
-    assert_eq!(projection.aliases[0].alias, "Old spell");
-    assert!(projection.preferences.is_empty());
+    let projection = derive_remaster_aliases(&declarations, &bindings, &records, &[input]);
+    assert_eq!(projection[0].alias, "Old spell");
 }
 
 #[test]

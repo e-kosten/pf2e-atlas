@@ -173,6 +173,6 @@ mod publication_crash_tests;
 
 mod remaster;
 pub use remaster::{
-    REMASTER_SCHEMA_SQL, SourceRemasterCitation, SourceRemasterDeclaration,
-    SourceRemasterInformation,
+    REMASTER_SCHEMA_SQL, REMOVE_REMASTER_PREFERENCE_SCHEMA_SQL, SourceRemasterCitation,
+    SourceRemasterDeclaration, SourceRemasterInformation,
 };

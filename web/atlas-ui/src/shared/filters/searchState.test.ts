@@ -324,7 +324,6 @@ it("round trips a root similar criterion and filters without adding a kind filte
     filter: { ...state.filter, clause_id: expect.any(String) },
   });
   expect(buildSearchRequest(state, 3)).toEqual({
-    prefer_remaster: true,
     page: { number: 3, size: 25 },
     expected_artifact_generation: null,
     criteria: {
@@ -424,7 +423,6 @@ it("carries complete relationship constraints in browse and saved-list discovery
   };
   expect(buildFilterDiscoveryContext(state, "bge-base", "generation-a")).toEqual({
     kind: "filtered",
-    prefer_remaster: true,
     filter: state.filter,
     text: null,
     mode: "hybrid",
@@ -576,61 +574,4 @@ describe("Core search content and source preset state", () => {
       "core",
     );
   });
-});
-
-describe("version preference", () => {
-  it.each([true, false])(
-    "carries %s through every ordinary mode and discovery",
-    (preferRemaster) => {
-      for (const criterion of [
-        { query: "fire" },
-        { similarSeed: "items:seed" },
-        { traitReferenceSeed: "trait:fire" },
-        {},
-      ]) {
-        const state = { ...DEFAULT_SEARCH_STATE, ...criterion, preferRemaster };
-        expect(buildSearchRequest(state, 1).prefer_remaster).toBe(preferRemaster);
-        expect(buildFilterDiscoveryContext(state)).toMatchObject({
-          prefer_remaster: preferRemaster,
-        });
-        expect(
-          buildSavedListFilterDiscoveryContext("chosen", state),
-        ).not.toHaveProperty("prefer_remaster");
-        expect(
-          decodeSearchStateFromParams(
-            new URLSearchParams(searchStateQueryString(state)),
-          ).preferRemaster,
-        ).toBe(preferRemaster);
-        expect(encodeSearchExecutionState(state)).not.toBe(
-          encodeSearchExecutionState({ ...state, preferRemaster: !preferRemaster }),
-        );
-      }
-    },
-  );
-  it("lets an explicit URL override the launch preference", () => {
-    const preferences = { ...DEFAULT_SEARCH_PREFERENCES, preferRemaster: false };
-    expect(
-      decodeSearchStateFromParams(new URLSearchParams("q=fire"), "search", preferences)
-        .preferRemaster,
-    ).toBe(false);
-    expect(
-      decodeSearchStateFromParams(
-        new URLSearchParams("q=fire&versions=prefer"),
-        "search",
-        preferences,
-      ).preferRemaster,
-    ).toBe(true);
-    expect(
-      decodeSearchStateFromParams(new URLSearchParams("q=fire&versions=all"))
-        .preferRemaster,
-    ).toBe(false);
-  });
-  it.each(["versions=unknown", "versions=all&versions=prefer"])(
-    "rejects invalid link choice %s",
-    (query) => {
-      const state = decodeSearchStateFromParams(new URLSearchParams(query));
-      expect(state.filterError).toMatch(/version preference/);
-      expect(() => buildSearchRequest(state, 1)).toThrow(/version preference/);
-    },
-  );
 });

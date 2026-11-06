@@ -10,4 +10,4 @@ import type { SearchRanking } from "./SearchRanking";
 import type { SearchResultRow } from "./SearchResultRow";
 import type { SimilarityConfigurationView } from "./SimilarityConfigurationView";
 
-export type SearchResultsPage = { prefer_remaster: boolean, search_content: SearchContentScope, core_recipe?: string, similarity?: SimilarityConfigurationView, sort: ResultSort, relationship_clauses: Array<RelationshipClauseSummaryView>, ranking: SearchRanking, search_profile: SearchProfileId, artifact_generation: string, mode: SearchModeSummary, page: SearchPageView, rows: Array<SearchResultRow>, coverage: SearchCoverageView | null, };
+export type SearchResultsPage = { search_content: SearchContentScope, core_recipe?: string, similarity?: SimilarityConfigurationView, sort: ResultSort, relationship_clauses: Array<RelationshipClauseSummaryView>, ranking: SearchRanking, search_profile: SearchProfileId, artifact_generation: string, mode: SearchModeSummary, page: SearchPageView, rows: Array<SearchResultRow>, coverage: SearchCoverageView | null, };

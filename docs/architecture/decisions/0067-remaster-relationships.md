@@ -1,6 +1,6 @@
 # ADR0067: Source-backed remaster relationships over current records
 
-Status: Accepted, 2026-11-05.
+Status: Accepted, 2026-11-05. Revised 2026-11-06: explicit counterparts and all matching results; automatic suppression removed.
 
 ## Context
 
@@ -23,7 +23,7 @@ name or source discussion; missing old content does not create a synthetic recor
 Compound changes and intentionally grouped targets remain grouped.
 
 Current bindings are rebuildable projections, separate from authored declarations.
-They support bounded record/term context, name lookup and preferred replacements.
+They support bounded record/term context, name lookup and counterpart navigation.
 Keep multiple supporting declarations for the same fact. Neither matching names,
 matching bodies nor membership in a broad subject group establishes identity.
 
@@ -39,24 +39,24 @@ Atlas-reviewed correspondences, when supplied, have explicit Atlas origin, exact
 scope and evidence/validation conditions. They must not appear upstream-authored.
 Rebuild bindings on ingest. A relevant failed condition withdraws derived authority;
 unrelated source revision or ordinary errata alone is not a blanket invalidation.
-Apply these conditions to lookup as well as preference authority. The shared
+Apply these conditions to derived lookup and counterpart availability. The shared
 compiled manifest/recipe identity participates in offline preparation admission;
 a curated-only binary change requires normal source-backed preparation before
 reference reads resume. Keep that identity separate from Foundry authorship.
 
 ## Consumer policy
 
-Default discovery prefers a verified replacement only when a matching older
-record has one clear approved preferred successor that also satisfies the
-complete current request. All versions disables suppression. Grouped, ambiguous
-and non-preferred relationships leave independently matching records visible.
-Conflicting supported successors and active preference cycles grant no unsafe
-suppression. Preserve direct-edge semantics rather than inferring transitive
-latest identity.
+Search, browse, Similar, traits and discovery retain every independently matching
+record. Publication era and counterpart relationships do not hide results or
+change counts. There is no remaster-preference request, URL/settings mode, CLI
+switch or dormant suppression policy.
 
-Apply this policy before paging and result counts. Source-availability statistics
-keep their documented before-suppression basis; contextual option counts retain
-complete counterfactual/same-child semantics under the selected preference.
+A small explicit Atlas manifest supplies reviewed exact old/new record keys and
+source-family scope. Normal preparation validates current endpoints. This is a
+maintained mapping, not automatic discovery from names, native IDs or general
+UUID redirects. Journal extraction continues to supply the hundreds of old-name
+aliases and compact change statements. Useful journal context can explain a
+reviewed mapping without presenting its exact-root identity as Foundry-authored.
 
 Exact opening and saved hydration keep the requested key. Same-key source updates
 change displayed current content; a replacement relationship never silently
@@ -69,7 +69,7 @@ App-service projects relationship meaning, contextual targets, readable evidence
 and availability into typed product DTOs. Browser and CLI render these facts.
 App-service consolidates compatible statements into logical relationships with
 ordered inline text and exact record references. Supporting declaration IDs retain
-bounded evidence; consolidation does not establish new identity or preference.
+bounded evidence; consolidation does not establish new record identity.
 Reading shows concise inline context above rules, without duplicate names or
 source-origin badges. Useful journal explanations are linked directly without
 exposing internal provenance. Full attributed evidence stays available through
@@ -90,7 +90,7 @@ callers. Reprepare source information that previous projections discarded. Do no
 invent richer evidence by splitting old opaque strings or retain parallel old/new
 authorities.
 
-Declarations, captures, bindings, supports and preference policy participate in
+Declarations, captures, bindings and alias supports participate in
 reference generation. Metadata-only changes invalidate affected reads without
 requiring unrelated native inference. Reuse unchanged compatible inputs through
 the existing publication owner. Remaster metadata alone does not invalidate source

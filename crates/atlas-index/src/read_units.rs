@@ -218,7 +218,7 @@ impl SqliteIndexReader {
         &self,
         query: &ValidatedQuery,
         keys: Option<&[RecordKey]>,
-        prefer_remaster: bool,
+
         sort: atlas_domain::ResultSort,
         offset: usize,
         limit: usize,
@@ -234,13 +234,8 @@ impl SqliteIndexReader {
             Some(crate::result_order::attribute_order(&sort)?)
         };
         let (eligible, mut params) = eligible_sql(query, keys)?;
-        let preference = if prefer_remaster {
-            " AND NOT EXISTS(SELECT 1 FROM remaster_preferences rp WHERE rp.legacy_record_id=r.record_id AND rp.remaster_record_id IN (SELECT record_id FROM eligible))"
-        } else {
-            ""
-        };
         let base = format!(
-            "WITH eligible AS ({eligible}) SELECT r.key FROM records r WHERE r.record_id IN(SELECT record_id FROM eligible){preference}"
+            "WITH eligible AS ({eligible}) SELECT r.key FROM records r WHERE r.record_id IN(SELECT record_id FROM eligible)"
         );
         let c = self.native()?;
         self.count_statement();
@@ -414,32 +409,6 @@ impl SqliteIndexReader {
                     key: parse_key(key)?,
                     alias,
                 })
-            })
-            .collect()
-    }
-    /// Legacy roots hidden only when both endpoints belong to the complete matching set.
-    /// Publication and explicit validation own provenance integrity; suppression does
-    /// not consume citations. One JSON parameter keeps large sets within bind limits.
-    pub fn matched_legacy_keys(&self, keys: &[RecordKey]) -> Result<Vec<RecordKey>, IndexError> {
-        if keys.is_empty() {
-            return Ok(Vec::new());
-        }
-        let requested = serde_json::to_string(keys)?;
-        let c = self.native()?;
-        self.count_statement();
-        let mut statement = c.prepare(
-            "WITH requested AS MATERIALIZED (SELECT DISTINCT r.record_id FROM json_each(?1) k JOIN records r ON r.key=k.value WHERE r.document_kind<>'Macro')
-             SELECT DISTINCT l.key FROM requested legacy
-             JOIN remaster_preferences p ON p.legacy_record_id=legacy.record_id
-             JOIN records l ON l.record_id=p.legacy_record_id
-             WHERE p.remaster_record_id IN (SELECT record_id FROM requested)
-             ORDER BY l.key",
-        )?;
-        statement
-            .query_map([requested], |r| r.get::<_, String>(0))?
-            .map(|row| {
-                self.count_remaster_row(false);
-                parse_key(row?)
             })
             .collect()
     }

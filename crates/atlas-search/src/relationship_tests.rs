@@ -155,7 +155,6 @@ fn relationship_roots_are_exhaustive_distinct_filtered_and_conjunctive_before_re
             filter: Some(&filter),
             scope,
             page: SearchPage::default(),
-            prefer_remaster: true,
         })
         .unwrap()
         .unwrap();
@@ -362,7 +361,7 @@ fn occurrence_paging_has_complete_total_beyond_preview_budget() {
     );
 }
 #[test]
-fn remaster_preference_does_not_rebind_an_exact_reference() {
+fn remaster_relationship_does_not_rebind_an_exact_reference() {
     let mut fixture = input(
         vec![
             effect("aaaaaaaaaaaaaaaa", "Target", ""),

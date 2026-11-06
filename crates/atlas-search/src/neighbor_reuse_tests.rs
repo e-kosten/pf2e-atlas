@@ -84,7 +84,6 @@ fn reopened_pages_orders_fusion_and_profiles_match_exact_uncached_results() {
                     sort: sort.clone(),
                     ranking,
                     search_profile: None,
-                    prefer_remaster: true,
                 };
                 let actual = cached.search_text(request()).unwrap();
                 let expected = cold.search_text(request()).unwrap();
@@ -159,7 +158,7 @@ fn explicit_key_scopes_and_discovery_do_not_retain_native_windows() {
                     search_profile: None,
                     text: Some("Ember"),
                     scope: RecordScope::All,
-                    prefer_remaster: true,
+
                     filter: None,
                 },
             })

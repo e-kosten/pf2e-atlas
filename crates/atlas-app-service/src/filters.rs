@@ -73,7 +73,7 @@ impl AtlasAppService {
         request: RawFilterValuesRequest,
     ) -> AppServiceResult<QueryValueOptions> {
         let execution = ReadExecutionContext::uncancellable();
-        let (list, filter, text, profile, expected, content_scope, prefer_remaster) =
+        let (list, filter, text, profile, expected, content_scope) =
             context_parts(request.context)?;
         self.with_workspace(&execution, move |workspace| {
             let keys = scoped_list_keys(workspace, list.as_deref())?;
@@ -92,7 +92,7 @@ impl AtlasAppService {
                             .as_deref()
                             .map(RecordScope::Keys)
                             .unwrap_or(RecordScope::All),
-                        prefer_remaster,
+
                         filter: filter.as_ref(),
                     },
                     text: request.text.as_deref(),
@@ -107,7 +107,7 @@ impl AtlasAppService {
         request: RawFilterCountsRequest,
     ) -> AppServiceResult<QueryFieldCounts> {
         let execution = ReadExecutionContext::uncancellable();
-        let (list, filter, text, profile, expected, content_scope, prefer_remaster) =
+        let (list, filter, text, profile, expected, content_scope) =
             context_parts(request.context)?;
         self.with_workspace(&execution, move |workspace| {
             let keys = scoped_list_keys(workspace, list.as_deref())?;
@@ -125,7 +125,7 @@ impl AtlasAppService {
                             .as_deref()
                             .map(RecordScope::Keys)
                             .unwrap_or(RecordScope::All),
-                        prefer_remaster,
+
                         filter: filter.as_ref(),
                     },
                 })?,
@@ -149,15 +149,8 @@ impl AtlasAppService {
                 offset,
                 limit,
             } => {
-                let (
-                    keys,
-                    filter,
-                    text,
-                    search_profile,
-                    expected_generation,
-                    content_scope,
-                    prefer_remaster,
-                ) = context_parts(*context)?;
+                let (keys, filter, text, search_profile, expected_generation, content_scope) =
+                    context_parts(*context)?;
                 self.with_workspace(execution, move |workspace| {
                     let keys = scoped_list_keys(workspace, keys.as_deref())?;
                     let retrieval = workspace.retrieval_mut();
@@ -177,7 +170,7 @@ impl AtlasAppService {
                                 .as_deref()
                                 .map(RecordScope::Keys)
                                 .unwrap_or(RecordScope::All),
-                            prefer_remaster,
+
                             filter: filter.as_ref(),
                         },
                         text: value_text.as_deref(),
@@ -229,15 +222,8 @@ impl AtlasAppService {
         execution: &ReadExecutionContext,
     ) -> AppServiceResult<FilterCountsView> {
         execution.check()?;
-        let (
-            keys,
-            filter,
-            text,
-            search_profile,
-            expected_generation,
-            content_scope,
-            prefer_remaster,
-        ) = context_parts(request.context)?;
+        let (keys, filter, text, search_profile, expected_generation, content_scope) =
+            context_parts(request.context)?;
         let projection_execution = execution.clone();
         self.with_workspace(execution, move |workspace| {
             let keys = scoped_list_keys(workspace, keys.as_deref())?;
@@ -257,7 +243,7 @@ impl AtlasAppService {
                         .as_deref()
                         .map(RecordScope::Keys)
                         .unwrap_or(RecordScope::All),
-                    prefer_remaster,
+
                     filter: filter.as_ref(),
                 },
             })?;
@@ -287,7 +273,7 @@ fn editor_values(
                 search_profile: None,
                 text: None,
                 scope: RecordScope::All,
-                prefer_remaster: false,
+
                 filter,
             },
             text: None,
@@ -321,12 +307,10 @@ type ContextParts = (
     Option<atlas_domain::SearchProfileId>,
     Option<String>,
     atlas_domain::SearchContentScope,
-    bool,
 );
 fn context_parts(context: FilterDiscoveryContext) -> AppServiceResult<ContextParts> {
-    let (list, filter, text, profile, expected, search_content, prefer_remaster) = match context {
+    let (list, filter, text, profile, expected, search_content) = match context {
         FilterDiscoveryContext::Filtered {
-            prefer_remaster,
             filter,
             text,
             mode: _,
@@ -340,7 +324,6 @@ fn context_parts(context: FilterDiscoveryContext) -> AppServiceResult<ContextPar
             search_profile,
             expected_artifact_generation,
             search_content,
-            prefer_remaster,
         ),
         FilterDiscoveryContext::SavedList {
             list_ref,
@@ -357,7 +340,6 @@ fn context_parts(context: FilterDiscoveryContext) -> AppServiceResult<ContextPar
             search_profile,
             expected_artifact_generation,
             search_content,
-            false,
         ),
     };
     if search_content.is_some() && text.as_deref().is_none_or(|text| text.trim().is_empty()) {
@@ -372,7 +354,6 @@ fn context_parts(context: FilterDiscoveryContext) -> AppServiceResult<ContextPar
         profile,
         expected,
         search_content.unwrap_or_default(),
-        prefer_remaster,
     ))
 }
 
@@ -467,7 +448,6 @@ mod tests {
     #[test]
     fn explicit_discovery_scope_requires_text_and_legacy_browse_keeps_all() {
         let context = |text, search_content| FilterDiscoveryContext::Filtered {
-            prefer_remaster: true,
             search_content,
             search_profile: None,
             expected_artifact_generation: None,
@@ -532,7 +512,6 @@ mod tests {
                 .worker
                 .search_page(
                     SearchResultsRequest {
-                        prefer_remaster: true,
                         sort: None,
 
                         ranking: None,
@@ -556,7 +535,6 @@ mod tests {
                 .discover_filter_counts(
                     DiscoverFilterCountsRequest {
                         context: FilterDiscoveryContext::Filtered {
-                            prefer_remaster: true,
                             search_content: None,
                             search_profile: None,
                             expected_artifact_generation: None,

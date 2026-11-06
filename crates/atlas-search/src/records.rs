@@ -28,7 +28,6 @@ pub struct ListRecordsRequest<'a> {
     pub filter: Option<&'a QueryPredicate>,
     pub scope: RecordScope<'a>,
     pub page: SearchPage,
-    pub prefer_remaster: bool,
 }
 impl<'a> ListRecordsRequest<'a> {
     pub fn new(filter: Option<&'a QueryPredicate>, page: SearchPage) -> Self {
@@ -40,7 +39,6 @@ impl<'a> ListRecordsRequest<'a> {
             filter,
             scope: RecordScope::All,
             page,
-            prefer_remaster: true,
         }
     }
     pub fn with_sort(mut self, sort: atlas_domain::ResultSort) -> Self {
@@ -164,7 +162,6 @@ impl AtlasRetrievalService {
         let page = self.index.eligible_keys(
             &predicate,
             request.scope.keys(),
-            request.prefer_remaster,
             request.sort,
             request.page.offset()? as usize,
             request.page.size() as usize,
@@ -194,7 +191,6 @@ impl AtlasRetrievalService {
         let eligible = self.index.eligible_keys(
             &query,
             Some(&keys),
-            false,
             atlas_domain::ResultSort::attribute(
                 atlas_domain::SortField::Name,
                 atlas_domain::SortDirection::Asc,
@@ -267,7 +263,6 @@ impl AtlasRetrievalService {
             let eligible = self.index.eligible_keys(
                 &query,
                 Some(std::slice::from_ref(&key)),
-                false,
                 atlas_domain::ResultSort::attribute(
                     atlas_domain::SortField::Name,
                     atlas_domain::SortDirection::Asc,

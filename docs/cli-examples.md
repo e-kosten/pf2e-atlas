@@ -150,9 +150,8 @@ atlas graph remaster --term 'Attack of Opportunity' --limit 20 --json
 
 The exact-key form can return change information even when the record itself is
 unavailable. Responses preserve grouped changes, uncertain endpoints and source
-attribution. Use `--all-versions` with search, Similar or filter discovery to keep
-all independently matching versions; the default prefers a single verified
-replacement only when it also matches the complete request. Suggested variants are
+attribution. Search, Similar and filter discovery retain all independently matching
+legacy and remaster entries. Suggested variants are
 possible alternatives, rather than verified names for the same record. Some
 source links have unresolved targets; graph previews retain those links.
 
@@ -311,10 +310,10 @@ fields, or availability for collections. Fields with a fixed choice list include
 choices with no matches; other fields list values found in the reference data.
 `--text` searches values, not record prose.
 
-Counts respect supplied filters and count each containing record once per value,
-after applying preference for remastered entries. Source-availability statistics
-are measured before that preference. A collection may have several occurrences
-in the same record. Unavailable counts do not mean zero matches.
+Counts respect supplied filters and count each containing record once per value.
+Source-availability statistics describe the applicable artifact or saved-list
+vocabulary. A collection may have several occurrences in the same record.
+Unavailable counts do not mean zero matches.
 
 `--list ID` restricts results to a saved list. `--artifact-generation` requires the
 same reference-data version as an earlier response. Optional `--clause-id` asks

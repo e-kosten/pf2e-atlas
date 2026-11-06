@@ -1411,36 +1411,38 @@ async fn unreadable_remaster_evidence_does_not_prevent_reading_the_record() {
 }
 
 #[tokio::test]
-async fn remaster_preference_crosses_http_and_saved_members_remain_exact() {
+async fn remaster_relationship_roots_survive_http_search_and_saved_members_remain_exact() {
     let fixture = Fixture::with_remaster(true);
     let base = json!({"criteria":{"kind":"text_search","query":"Test Action","filter":null,"mode":"lexical"},"page":{"number":1,"size":100}});
-    for preference in [None, Some(true), Some(false)] {
-        let mut request = base.clone();
-        if let Some(value) = preference {
-            request["prefer_remaster"] = json!(value);
-        }
+    for criteria in [
+        json!({"kind":"list_records","filter":null}),
+        base["criteria"].clone(),
+    ] {
         let (status, body) = fixture
-            .json(Method::POST, "/api/search/page", Some(request))
+            .json(
+                Method::POST,
+                "/api/search/page",
+                Some(json!({"criteria":criteria,"page":{"number":1,"size":100}})),
+            )
             .await;
         assert_eq!(status, StatusCode::OK, "{body}");
-        assert_eq!(body["prefer_remaster"], preference.unwrap_or(true));
+        assert!(body.get("prefer_remaster").is_none());
         let keys = body["rows"]
             .as_array()
             .unwrap()
             .iter()
             .filter_map(|row| row["record"]["record_key"].as_str())
             .collect::<Vec<_>>();
-        assert!(keys.contains(&SECOND_ACTION));
-        assert_eq!(keys.contains(&ACTION), preference == Some(false));
+        assert!(keys.contains(&SECOND_ACTION), "{body}");
+        assert!(keys.contains(&ACTION), "{body}");
     }
-    for invalid in [json!(null), json!("false")] {
-        let mut request = base.clone();
-        request["prefer_remaster"] = invalid;
-        let (status, _) = fixture
-            .json(Method::POST, "/api/search/page", Some(request))
-            .await;
-        assert_eq!(status, StatusCode::BAD_REQUEST);
-    }
+    // The removed field is not retained as an ignored compatibility flag.
+    let mut obsolete = base;
+    obsolete["prefer_remaster"] = json!(true);
+    let (status, _) = fixture
+        .json(Method::POST, "/api/search/page", Some(obsolete))
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
     fixture
         .service
         .add_saved_list_item(atlas_app_model::AddSavedListItemRequest {

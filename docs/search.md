@@ -102,10 +102,9 @@ passages from descriptions and other prose.
 
 ## Legacy and remaster versions
 
-In **Search settings**, **Versions** defaults to **Prefer remaster versions**.
-When an older entry and its single verified preferred replacement both match your
-search and filters, Atlas shows the replacement. Choose **All versions** to see
-both. Merged, ambiguous or otherwise related entries can still appear together.
+Search shows every entry that matches your search and filters, including both
+legacy and remaster entries. Edition labels identify them; available counterpart
+links let you open or compare related records.
 
 Open an entry to see a compact remaster relationship above its rules, with a
 compact information action for a readable explanation when available. For example,

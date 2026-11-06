@@ -89,6 +89,7 @@ fn hydrate(
     let citations = source_citations.values().flatten().collect::<Vec<_>>();
     let selected_fields = selected_fields(reader, &citations)?;
     let inputs = captured_inputs(reader, &citations)?;
+    let reviewed_contexts = reviewed_contexts(reader, &inputs)?;
     // The reader's context was authenticated when this bounded snapshot opened.
     let context = reader.context();
     let revision = context
@@ -112,20 +113,24 @@ fn hydrate(
                         let name = selected_fields
                             .get(&field_key(&locator, &authored_sha256)?)
                             .ok_or_else(|| invalid("remaster citation field is unavailable"))?;
-                        Ok(SourceRemasterCitation {
+                        Ok(vec![SourceRemasterCitation {
                             origin: RemasterOrigin::Foundry,
                             attribution: format!("{name} — {}", declaration.context.section),
                             revision: revision.clone(),
                             statement: statement.clone(),
                             locator: Some(locator),
                             path: None,
-                        })
+                        }])
                     }
-                    RemasterCitation::CapturedFile { input_key, .. } => {
+                    RemasterCitation::CapturedFile { input_key, selector } => {
                         let input = inputs
                             .get(&input_key)
                             .ok_or_else(|| invalid("remaster source input unavailable"))?;
-                        Ok(SourceRemasterCitation {
+                        let reviewed = match selector {
+                            RemasterSelector::LiteralEntry { ordinal } => input.reviewed.get(ordinal),
+                            _ => None,
+                        };
+                        let mut citations = vec![SourceRemasterCitation {
                             origin: input.origin,
                             attribution: match input.origin {
                                 RemasterOrigin::Foundry => format!("Foundry — {}", input.path),
@@ -134,13 +139,26 @@ fn hydrate(
                                 }
                             },
                             revision: input.revision.clone(),
-                            statement: statement.clone(),
+                            statement: reviewed.map_or_else(|| statement.clone(), |row| format!("{statement}. {}", row.rationale)),
                             locator: None,
                             path: Some(input.path.clone()),
-                        })
+                        }];
+                        if let Some(context) = reviewed.and_then(|row| row.journal_context.as_ref())
+                            && reviewed_contexts.contains(&field_key(&context.locator, &context.authored_sha256)?)
+                        {
+                            citations.push(SourceRemasterCitation {
+                                origin: RemasterOrigin::AtlasReviewed,
+                                attribution: "Atlas mapping — journal explanation".into(),
+                                revision: input.revision.clone(),
+                                statement: "Journal context for this reviewed correspondence; the exact record mapping was added by Atlas.".into(),
+                                locator: Some(context.locator.clone()),
+                                path: None,
+                            });
+                        }
+                        Ok(citations)
                     }
                 })
-                .collect::<Result<Vec<_>, IndexError>>()?;
+                .collect::<Result<Vec<_>, IndexError>>()?.into_iter().flatten().collect();
             Ok((
                 id.clone(),
                 SourceRemasterDeclaration {
@@ -236,6 +254,36 @@ struct CapturedInput {
     origin: RemasterOrigin,
     revision: String,
     path: String,
+    reviewed: Vec<ReviewedCorrespondence>,
+}
+fn reviewed_contexts(
+    reader: &SqliteIndexReader,
+    inputs: &BTreeMap<String, CapturedInput>,
+) -> Result<BTreeSet<FieldKey>, IndexError> {
+    let wanted = inputs
+        .values()
+        .flat_map(|input| &input.reviewed)
+        .filter_map(|row| row.journal_context.as_ref())
+        .map(|context| field_key(&context.locator, &context.authored_sha256))
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    if wanted.is_empty() {
+        return Ok(BTreeSet::new());
+    }
+    reader.count_statement();
+    let mut query = reader.native()?.prepare(
+        "SELECT r.key,p.owners_json,p.field_path,p.authored_markup_sha256 \
+         FROM json_each(?1) w JOIN records r ON r.key=json_extract(w.value,'$[0]') \
+         JOIN prepared_content p ON p.record_id=r.record_id \
+         AND p.owners_json=json_extract(w.value,'$[1]') AND p.field_path=json_extract(w.value,'$[2]') \
+         AND p.authored_markup_sha256=json_extract(w.value,'$[3]') \
+         WHERE r.document_kind='JournalEntry' AND p.published=1 AND p.outcome='prepared'"
+    )?;
+    query
+        .query_map([serde_json::to_string(&wanted)?], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })?
+        .collect::<Result<BTreeSet<_>, _>>()
+        .map_err(IndexError::from)
 }
 fn captured_inputs(
     reader: &SqliteIndexReader,
@@ -270,6 +318,11 @@ fn captured_inputs(
         result.insert(
             key,
             CapturedInput {
+                reviewed: if input.kind == RemasterInputKind::AtlasCorrespondence {
+                    serde_json::from_slice::<ReviewedCorrespondences>(&input.bytes)?.entries
+                } else {
+                    vec![]
+                },
                 origin: input.origin,
                 revision: input.revision,
                 path: input.path,

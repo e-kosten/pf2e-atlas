@@ -1,6 +1,5 @@
 import { ConfigProvider, Typography } from "antd";
 import type { SimilaritySeed } from "../../generated/atlas";
-import { useSearchProfile } from "./SearchProfileContext";
 import { recordDestination, traitDestination } from "../../app/destinations";
 import {
   destinationHref,
@@ -21,7 +20,6 @@ export function SimilaritySeedLink({
   title: string;
   disabled?: boolean;
 }) {
-  const profile = useSearchProfile();
   const reference = useReferencePreview();
   const { componentDisabled } = ConfigProvider.useConfig();
   const unavailable = disabled ?? componentDisabled;
@@ -32,7 +30,6 @@ export function SimilaritySeedLink({
         href={destinationHref(
           traitDestination({
             traitKey: seed.trait_key,
-            query: `?versions=${profile.preferRemaster ? "prefer" : "all"}`,
           }),
         )}
         onClick={(event) => {

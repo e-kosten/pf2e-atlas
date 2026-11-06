@@ -219,6 +219,12 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         sql: crate::REMASTER_SCHEMA_SQL,
         backfill: None,
     },
+    Migration {
+        version: 31,
+        name: "remove-remaster-preference",
+        sql: crate::REMOVE_REMASTER_PREFERENCE_SCHEMA_SQL,
+        backfill: None,
+    },
 ];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
@@ -837,8 +843,7 @@ pub fn capture_remaster_declarations(input: &mut crate::IndexBuildInput) -> Resu
     let bindings = bind_remaster_declarations(&declarations, &facts, &fields)
         .map_err(|e| IndexError::Invalid(e.to_string()))?;
     let aliases =
-        derive_remaster_projection(&declarations, &bindings, &facts, &input.remaster_sources)
-            .aliases;
+        derive_remaster_aliases(&declarations, &bindings, &facts, &input.remaster_sources);
     input
         .lexical_units
         .retain(|unit| unit.kind != crate::SourceLexicalUnitKind::RootAlias);
@@ -911,6 +916,9 @@ pub fn add_remaster_relationship(
             before_label: label(predecessor),
             after_label: label(successor),
             namespace: "fixture".into(),
+            kind: atlas_record::remaster::RemasterChangeKind::Replaced,
+            qualifier: None,
+            journal_context: None,
             rationale: "Explicit fixture correspondence".into(),
             source_type: family,
         }],

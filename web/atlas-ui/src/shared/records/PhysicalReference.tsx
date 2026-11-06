@@ -44,7 +44,6 @@ export function PhysicalReference({
         query: searchStateQueryString(
           {
             ...DEFAULT_SEARCH_STATE,
-            preferRemaster: profile.preferRemaster,
             filter: {
               kind: "compare",
               field: "physical.base_type",

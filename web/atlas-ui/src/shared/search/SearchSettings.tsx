@@ -25,7 +25,6 @@ import type {
 } from "../../generated/atlas";
 import {
   INVALID_SIMILARITY_SETTINGS,
-  INVALID_VERSION_SETTINGS,
   UNKNOWN_SEARCH_RANKING,
   type SearchFormState,
 } from "../filters/searchState";
@@ -62,7 +61,6 @@ type SettingsDraft = {
   model: string | null;
   ranking: SearchRanking;
   searchContent: SearchContentScope;
-  preferRemaster: boolean;
   sourceSections: SimilaritySourceSections;
   matchDisplay: MatchDisplay;
   showSmallerWeights: boolean;
@@ -107,7 +105,6 @@ export function SearchSettings({
   const appliedSourceSections =
     search.sourceSections ?? (appliedParts ? "custom" : "all");
   const searchContent = search.searchContent ?? "all";
-  const preferRemaster = search.preferRemaster ?? profile.preferRemaster;
   const [draft, setDraft] = useState<SettingsDraft | null>(null);
   const [partsOpen, setPartsOpen] = useState(false);
   const chooseSectionsRef = useRef<HTMLButtonElement>(null);
@@ -225,7 +222,6 @@ export function SearchSettings({
     profile.profiles.find((item) => item.id === profile.id)?.label ?? profile.id;
   const summary = [
     modelLabel,
-    preferRemaster ? "Prefer remaster versions" : "All versions",
     seed
       ? similarityLabel(appliedSimilarity, trait)
       : ranking === "rrf"
@@ -256,7 +252,6 @@ export function SearchSettings({
       model: profile.id,
       ranking,
       searchContent,
-      preferRemaster,
       sourceSections: appliedSourceSections,
       matchDisplay: profile.preferences.matchDisplay,
       showSmallerWeights: profile.preferences.showSmallerWeights,
@@ -307,7 +302,6 @@ export function SearchSettings({
       draft.model === profile.id &&
       draft.ranking === ranking &&
       draft.searchContent === searchContent &&
-      draft.preferRemaster === preferRemaster &&
       draft.sourceSections === appliedSourceSections &&
       draft.similarity.method === appliedPreferences.method &&
       draft.similarity.decay === appliedPreferences.decay &&
@@ -318,7 +312,6 @@ export function SearchSettings({
       ...profile.preferences,
       model: draft.model,
       searchContent: draft.searchContent,
-      preferRemaster: draft.preferRemaster,
       sourceSectionsByFamily:
         inventory.data &&
         draft.sourceSections !== "custom" &&
@@ -343,7 +336,6 @@ export function SearchSettings({
           ...search,
           ranking: seed ? search.ranking : draft.ranking,
           searchContent: draft.searchContent,
-          preferRemaster: draft.preferRemaster,
           ...(seed
             ? {
                 similarity: nextSimilarity,
@@ -360,8 +352,7 @@ export function SearchSettings({
             : {}),
           filterError:
             search.filterError === UNKNOWN_SEARCH_RANKING ||
-            search.filterError === INVALID_SIMILARITY_SETTINGS ||
-            search.filterError === INVALID_VERSION_SETTINGS
+            search.filterError === INVALID_SIMILARITY_SETTINGS
               ? null
               : search.filterError,
         },
@@ -527,7 +518,6 @@ export function SearchSettings({
                         model: profile.defaultId,
                         ranking: DEFAULT_SEARCH_PREFERENCES.ranking,
                         searchContent: DEFAULT_SEARCH_PREFERENCES.searchContent,
-                        preferRemaster: DEFAULT_SEARCH_PREFERENCES.preferRemaster,
                         sourceSections: DEFAULT_SOURCE_SECTIONS,
                         matchDisplay: DEFAULT_SEARCH_PREFERENCES.matchDisplay,
                         showSmallerWeights:
@@ -768,23 +758,6 @@ export function SearchSettings({
                           ]}
                           onChange={(searchContent) =>
                             setDraft({ ...draft, searchContent })
-                          }
-                        />
-                      </Form.Item>
-                      <Form.Item label="Versions" htmlFor={`${id}-versions`}>
-                        <Select
-                          id={`${id}-versions`}
-                          aria-label="Versions"
-                          value={draft.preferRemaster ? "prefer" : "all"}
-                          options={[
-                            { value: "prefer", label: "Prefer remaster versions" },
-                            { value: "all", label: "All versions" },
-                          ]}
-                          onChange={(versions) =>
-                            setDraft({
-                              ...draft,
-                              preferRemaster: versions === "prefer",
-                            })
                           }
                         />
                       </Form.Item>

@@ -339,6 +339,9 @@ pub(super) fn correspondence(
         before_label: before_label.into(),
         after_label: after_label.into(),
         namespace: "fixture".into(),
+        kind: atlas_record::remaster::RemasterChangeKind::Replaced,
+        qualifier: None,
+        journal_context: None,
         rationale: "Explicit fixture correspondence".into(),
         source_type: source_type.into(),
     }
@@ -526,7 +529,6 @@ fn roundtrip_summary_content_and_macro_scope() {
             .eligible_keys(
                 &all,
                 None,
-                false,
                 atlas_domain::ResultSort::attribute(
                     atlas_domain::SortField::Name,
                     atlas_domain::SortDirection::Asc
@@ -1214,12 +1216,6 @@ fn explicit_alias_and_remaster_evidence_are_collision_preserving() {
             .all(|information| information.declarations.len() == 1
                 && information.declarations[0].citations.len() == 1)
     );
-    assert!(
-        reader
-            .matched_legacy_keys(std::slice::from_ref(input.records[1].record.key()))
-            .unwrap()
-            .is_empty()
-    );
     assert_eq!(
         reader
             .remaster_record_information(input.records[1].record.key(), &[], 20)
@@ -1234,7 +1230,6 @@ fn explicit_alias_and_remaster_evidence_are_collision_preserving() {
             .eligible_keys(
                 &all,
                 None,
-                true,
                 atlas_domain::ResultSort::attribute(
                     atlas_domain::SortField::Name,
                     atlas_domain::SortDirection::Asc
@@ -1244,14 +1239,13 @@ fn explicit_alias_and_remaster_evidence_are_collision_preserving() {
             )
             .unwrap()
             .total,
-        2
+        3
     );
     assert_eq!(
         reader
             .eligible_keys(
                 &all,
                 Some(std::slice::from_ref(input.records[1].record.key())),
-                true,
                 atlas_domain::ResultSort::attribute(
                     atlas_domain::SortField::Name,
                     atlas_domain::SortDirection::Asc
@@ -1766,66 +1760,6 @@ fn physical_projection_keeps_price_state_and_amount_across_equipment_families() 
             "{family}"
         );
     }
-}
-
-#[test]
-fn remaster_suppression_reads_only_matching_identities_for_complete_sets() {
-    let mut input = fixture(false);
-    let legacy = input.records[1].record.key().clone();
-    let remaster = input.records[2].record.key().clone();
-    let second_legacy = input.records[0].record.key().clone();
-    for index in [0, 1] {
-        let key = input.records[index].record.key().clone();
-        let mut replacement = record(
-            key.pack().as_str(),
-            "Item",
-            json!({"_id":key.id().as_str(),"name":format!("Older spell {index}"),"type":"spell","system":{"level":{"value":1}}}),
-        );
-        replacement.preparation_context_hash =
-            input.records[index].preparation_context_hash.clone();
-        input.records[index] = replacement;
-    }
-    input.packs[0].document_kind = "Item".into();
-    synchronize_fixture_terms(&mut input);
-    crate::test_support::add_remaster_relationship(&mut input, &legacy, &remaster).unwrap();
-    crate::test_support::add_remaster_relationship(&mut input, &second_legacy, &remaster).unwrap();
-    let (_directory, path) = build(&input);
-    Connection::open(&path)
-        .unwrap()
-        .execute("UPDATE remaster_declarations SET payload_json='{}'", [])
-        .unwrap();
-    let reader = crate::test_support::open_reader(&path).unwrap();
-    reader.reset_read_metrics();
-    assert!(reader.matched_legacy_keys(&[]).unwrap().is_empty());
-    assert_eq!(reader.read_metrics().sql_statements, 0);
-    for keys in [vec![legacy.clone()], vec![remaster.clone()]] {
-        assert!(reader.matched_legacy_keys(&keys).unwrap().is_empty());
-    }
-    let mut keys = vec![legacy.clone(), legacy.clone(), remaster.clone()];
-    keys.extend((0..40000).map(|i| format!("absent:{i:016}").parse().unwrap()));
-    reader.reset_read_metrics();
-    assert_eq!(
-        reader.matched_legacy_keys(&keys).unwrap(),
-        vec![legacy.clone()]
-    );
-    assert_eq!(reader.read_metrics().sql_statements, 1);
-    assert_eq!(reader.read_metrics().source_body_decodes, 0);
-    assert_eq!(reader.read_metrics().remaster_pair_rows, 1);
-    assert_eq!(reader.read_metrics().remaster_provenance_decodes, 0);
-    let mut expected = vec![legacy.clone(), second_legacy.clone()];
-    expected.sort();
-    assert_eq!(
-        reader
-            .matched_legacy_keys(&[legacy.clone(), second_legacy, remaster])
-            .unwrap(),
-        expected
-    );
-    assert!(
-        reader
-            .remaster_record_information(&legacy, &[], 20)
-            .is_err()
-    );
-    assert!(validate_artifact(&path).is_err());
 }
 
 #[test]

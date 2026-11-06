@@ -58,7 +58,9 @@ tab owns its content. In Versions, place comparison actions below their relation
 line. Comparison columns retain their own identities and rules without reciprocal
 notices. Technical attribution remains available in explicit inspection workflows.
 
-Publication-era badges alone do not establish a replacement. Label an owned
+Search and discovery show every independently matching legacy and remaster entry.
+Counterpart links explain relationships and enable comparison; they do not hide
+results. Publication-era badges alone do not establish a replacement. Label an owned
 entry's origin information as source context without substituting its rules for
 the selected content. [ADR0067](architecture/decisions/0067-remaster-relationships.md)
 owns relationship authority and consumer policy.

@@ -4,4 +4,4 @@ import type { RetrievalModeView } from "./RetrievalModeView";
 import type { SearchContentScope } from "./SearchContentScope";
 import type { SearchProfileId } from "./SearchProfileId";
 
-export type FilterDiscoveryContext = { "kind": "filtered", prefer_remaster?: boolean, search_content?: SearchContentScope, search_profile?: SearchProfileId, expected_artifact_generation?: string, filter: QueryPredicate | null, text: string | null, mode: RetrievalModeView, } | { "kind": "saved_list", search_content?: SearchContentScope, search_profile?: SearchProfileId, expected_artifact_generation?: string, list_ref: string, filter: QueryPredicate | null, text: string | null, mode: RetrievalModeView, };
+export type FilterDiscoveryContext = { "kind": "filtered", search_content?: SearchContentScope, search_profile?: SearchProfileId, expected_artifact_generation?: string, filter: QueryPredicate | null, text: string | null, mode: RetrievalModeView, } | { "kind": "saved_list", search_content?: SearchContentScope, search_profile?: SearchProfileId, expected_artifact_generation?: string, list_ref: string, filter: QueryPredicate | null, text: string | null, mode: RetrievalModeView, };

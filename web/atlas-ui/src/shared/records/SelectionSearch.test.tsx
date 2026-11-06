@@ -28,7 +28,7 @@ afterEach(() => {
   window.getSelection()?.removeAllRanges();
 });
 
-function preview(dialog = false, preferRemaster = true) {
+function preview(dialog = false) {
   const content = (
     <article data-selection-search>
       <h2 tabIndex={-1}>Reference</h2>
@@ -43,7 +43,7 @@ function preview(dialog = false, preferRemaster = true) {
     </article>
   );
   return render(
-    <SearchProfileProvider id="embeddinggemma" preferRemaster={preferRemaster}>
+    <SearchProfileProvider id="embeddinggemma">
       {dialog ? (
         <section role="dialog" aria-label="Preview">
           {content}
@@ -81,7 +81,6 @@ it("offers a fresh native search link, preserving punctuation and the chosen mod
   expect(Object.fromEntries(url.searchParams)).toEqual({
     q: "Fire & ice?",
     search_profile: "embeddinggemma",
-    versions: "prefer",
   });
   expect(navigateDestination).not.toHaveBeenCalled();
   const originalSelection = window.getSelection()?.toString();
@@ -94,7 +93,6 @@ it("offers a fresh native search link, preserving punctuation and the chosen mod
       search: {
         q: "Fire & ice?",
         search_profile: "embeddinggemma",
-        versions: "prefer",
       },
     }),
     { dismissReadingOverlays: true },
@@ -253,15 +251,4 @@ it("positions the initial action after a reader's queued layout scroll", async (
   await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
   fireEvent.scroll(screen.getByRole("article"));
   expect(await searchAction()).toBeInTheDocument();
-});
-
-it("carries the active all-versions choice into a new selected-text search", async () => {
-  preview(false, false);
-  select(screen.getByText("Fire & ice?"));
-  const action = await searchAction();
-  expect(
-    new URL(action.getAttribute("href")!, "http://localhost").searchParams.get(
-      "versions",
-    ),
-  ).toBe("all");
 });

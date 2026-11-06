@@ -23,8 +23,8 @@ preference. This is separate from displaying explicit publication era metadata.
 
 The [research and adversarial model review](../../research/remaster-information.md)
 now records the source funnel, missing declaration kinds, schema/provenance limits
-and consumer policy risks. The accepted direction is checked typed declarations
-with separate lookup aliases and narrowly approved preference relationships.
+and consumer policy risks. The accepted direction retains useful journal-derived
+lookup/context and a small explicit counterpart mapping, without result suppression.
 
 ## Current implementation and coverage audit
 
@@ -37,12 +37,13 @@ found 19 journal-backed candidates: 15 individual renames, two mergers and two
 class-scoped changes. Nine of the same-name candidates are core-publication
 comparisons worth prioritizing separately. None was promoted during the audit.
 
-Next decision: review exact old endpoints for the 15 individual journal renames,
-then the nine core-publication correspondences, before claiming useful search
-preference coverage. Keep scope, navigation and suppression authority separate.
-If mapping expansion is deferred and only one preference remains, reconsider
-exposing the new search preference choice. The user requested this audit before
-deciding; no policy or source-contract expansion is authorized by its findings alone.
+Accepted simplification, 2026-11-06: maintain a small explicit Atlas counterpart
+mapping for the 15 individual journal renames and nine core-publication cases,
+plus the existing glossary pair. Validate exact keys and scope through normal
+preparation. Remove automatic suppression, preference projections and all API, CLI
+and browser controls. Search and discovery retain both independently matching
+records. Journal extraction continues to supply useful aliases and compact context;
+uncertain class, merger and adventure cases are not promoted by name matching.
 
 ## Desired outcome
 
@@ -50,8 +51,8 @@ Deliver this as a focused PR, separate from the merged frontend presentation cha
 Preserve authored change statements, context, grouped endpoints and repeatable
 source evidence, including missing legacy text and non-record terminology. Bind
 records only through explicit evidence or an agreed reviewed-correspondence policy.
-Keep publication metadata, declaration meaning, endpoint resolution and search
-preference authority separate.
+Keep publication metadata, declaration meaning, endpoint resolution and
+counterpart navigation separate.
 
 - Distinguish name renames, merges, replacements and verified document counterparts.
 - Audit declarations whose legacy record is absent, ambiguous or in a different
@@ -59,14 +60,14 @@ preference authority separate.
   between a class feature, general action and creature ability.
 - Preserve source attribution and exact destinations. Keep useful aliases when
   the evidence cannot identify a legacy record.
-- Add an ordinary-search choice: prefer a verified remaster result by default,
-  or show all versions. Preserve independently matching saved members and exact
-  encounter/owned identities under either choice.
+- Retain every independently matching record in search and discovery. Counterpart
+  mappings enable navigation and comparison without hiding results. Preserve exact
+  saved, encounter and owned identities.
 - Present relation-specific context above rules, with source navigation and CLI
   parity; do not label every merger or replacement group an interchangeable version.
 - Cover real pinned-source examples, including Attack of Opportunity, and report
   corpus-wide accepted, unresolved and rejected relationship coverage.
-- Validate downstream counterpart presentation, search preference and ordinary
+- Validate downstream counterpart presentation, search visibility and ordinary
   lookup. Preserve saved state and compatible embeddings through any required
   artifact upgrade.
 
@@ -74,7 +75,7 @@ The baseline extractor and pair tables above are being replaced by the declarati
 binding and support ownership in [ADR0067](../../architecture/decisions/0067-remaster-relationships.md).
 See [artifact evidence policy](../../architecture/artifact-contract.md) and
 [runtime architecture](../../architecture/runtime.md). Keep navigation, name lookup
-and preferred replacement authority distinct.
+and reviewed counterpart identity distinct.
 
 Additional reference providers, general UUID redirect handling and explicit
 saved-entry conversion remain separate potential work. Saved records follow the

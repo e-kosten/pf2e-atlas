@@ -1,4 +1,3 @@
-import { useSearchProfile } from "../search/SearchProfileContext";
 import { AtlasDrawer as Drawer } from "../ui/overlays/AtlasDrawer";
 import { destinationHref, navigateDestination } from "../../app/navigation";
 import { recordDestination, traitDestination } from "../../app/destinations";
@@ -49,11 +48,9 @@ export function RecordReferenceDrawer({
 }: {
   anchor: RecordPreviewAnchor | null;
 } & RecordPreviewContentProps) {
-  const profile = useSearchProfile();
   const traitRoute = trait
     ? traitDestination({
         traitKey: trait.key,
-        query: `?versions=${profile.preferRemaster ? "prefer" : "all"}`,
       })
     : null;
   const headingId = useId();

@@ -39,7 +39,7 @@ impl Capture {
             returned_top20: vec![],
             returned_scores: vec![],
             admitted_keys: None,
-            admission_stage: "complete_pre_rerank_pre_remaster_root_union_when_available",
+            admission_stage: "complete_pre_rerank_root_union_when_available",
             recipe: None,
             samples: vec![],
             evidence_locations: vec![],
@@ -66,7 +66,7 @@ pub(super) fn capture(
     case: &Case<'_>,
     variant: &SimilarityEvaluationVariant,
     scope: RecordScope<'_>,
-    prefer_remaster: bool,
+
     repetitions: u32,
 ) -> Result<Capture, String> {
     let scenario = case.scenario;
@@ -87,7 +87,6 @@ pub(super) fn capture(
             scope,
             page: SearchPage::first(20).map_err(|e| e.to_string())?,
             sort: ResultSort::Relevance {},
-            prefer_remaster,
             cancelled: None,
         });
         let elapsed = started.elapsed().as_secs_f64() * 1000.0;
@@ -142,7 +141,7 @@ pub(super) fn captures(
     case: &Case<'_>,
     variants: &[SimilarityEvaluationVariant],
     scope: RecordScope<'_>,
-    prefer_remaster: bool,
+
     repetitions: u32,
 ) -> Result<Captures, String> {
     let scenario = case.scenario;
@@ -160,13 +159,13 @@ pub(super) fn captures(
                 scenario.id,
                 profile,
                 variant.id,
-                if prefer_remaster {
+                if matches!(scope, RecordScope::All) {
                     "production"
                 } else {
                     "controlled"
                 }
             );
-            let report = capture(service, case, variant, scope, prefer_remaster, repetitions)?;
+            let report = capture(service, case, variant, scope, repetitions)?;
             let index = groups.len();
             groups.push(report);
             group_ids.insert(key, index);
@@ -213,19 +212,13 @@ fn exact(
     verify_generation(service, generation)?;
     Ok(result)
 }
-fn ranked(
-    service: &AtlasRetrievalService,
-    run: &SimilarityEvaluationRun,
-    allowed: Option<&BTreeSet<RecordKey>>,
-    prefer_remaster: bool,
-) -> Result<Vec<RecordKey>, String> {
-    let mut eligible = run.clone();
-    if let Some(allowed) = allowed {
-        eligible.rows.retain(|r| allowed.contains(&r.record_key));
-    }
-    service
-        .evaluation_ranking(&eligible, prefer_remaster)
-        .map_err(|e| e.to_string())
+fn ranked(run: &SimilarityEvaluationRun, allowed: Option<&BTreeSet<RecordKey>>) -> Vec<RecordKey> {
+    run.rows
+        .iter()
+        .filter(|row| row.disposition == "scored")
+        .filter(|row| allowed.is_none_or(|keys| keys.contains(&row.record_key)))
+        .map(|row| row.record_key.clone())
+        .collect()
 }
 pub(super) fn production(
     service: &AtlasRetrievalService,
@@ -244,7 +237,6 @@ pub(super) fn production(
         },
         variants,
         RecordScope::All,
-        true,
         repetitions,
     )?;
     let mut union = BTreeSet::new();
@@ -293,16 +285,13 @@ pub(super) fn production(
                 .as_ref()
                 .and_then(|m| m.runs.iter().find(|r| r.id == variant.id))
                 .ok_or("reused decay lacks exact score matrix")?;
-            ranked(service, run, Some(&allowed), true)?
-                .into_iter()
-                .take(20)
-                .collect()
+            ranked(run, Some(&allowed)).into_iter().take(20).collect()
         };
         derived.push(json!({"id":variant.id,"options":variant.options,"capture_group":captures.group_for_variant[&variant.id],"status":capture.status,"returned_top20":top,"ranking_source":if capture.representative_variant==variant.id {"actual_complete_product_request"} else {"exact_same_admitted_candidate_set_decay_reaggregation"},"fresh_product_latency_ms":if capture.representative_variant==variant.id {capture.samples.first().and_then(|v|v.get("elapsed_ms")).cloned()} else {None},"error":capture.error}));
     }
     let preparation=matrix.as_ref().map(|m|json!({"requested_candidates":m.requested_candidates,"eligible_candidates":m.eligible_candidates,"candidate_vectors":m.candidate_vectors,"baseline_vectors":m.baseline_vectors,"pairwise_comparisons":m.pairwise_comparisons,"seed_preparation_ms":m.seed_preparation_ms,"vector_read_ms":m.vector_read_ms,"baseline_read_and_scoring_ms":m.baseline_read_and_scoring_ms,"shared_maxima_ms":m.shared_maxima_ms,"total_ms":m.total_ms,"scope":"shared exact preparation over complete bounded candidate union; not full product latency"}));
     Ok(
-        json!({"scope":"production_full_corpus","prefer_remaster":true,"capture_groups":captures.groups,"variants":derived,"candidate_score_preparation":preparation}),
+        json!({"scope":"production_full_corpus","capture_groups":captures.groups,"variants":derived,"candidate_score_preparation":preparation}),
     )
 }
 pub(super) fn oracle(
@@ -322,13 +311,12 @@ pub(super) fn oracle(
         },
         variants,
         RecordScope::Keys(keys),
-        false,
         1,
     )?;
     let matrix = exact(service, scenario, profile, variants, keys, generation)?;
     let mut comparisons = Vec::new();
     for run in &matrix.runs {
-        let ordered = ranked(service, run, None, false)?;
+        let ordered = ranked(run, None);
         let oracle_top = ordered.into_iter().take(10).collect::<Vec<_>>();
         let capture = &captures.groups[captures.group_for_variant[&run.id]];
         let admitted = capture
@@ -340,10 +328,7 @@ pub(super) fn oracle(
         } else if capture.representative_variant == run.id {
             capture.returned_top20.iter().take(10).cloned().collect()
         } else if let Some(allowed) = admitted.as_ref() {
-            ranked(service, run, Some(allowed), false)?
-                .into_iter()
-                .take(10)
-                .collect()
+            ranked(run, Some(allowed)).into_iter().take(10).collect()
         } else {
             vec![]
         };
@@ -372,7 +357,7 @@ pub(super) fn oracle(
         comparisons.push(json!({"id":run.id,"oracle_top10":oracle_top,"bounded_returned_top10":actual_top,"capture_group":captures.group_for_variant[&run.id],"bounded_status":capture.status,"metrics":comparison,"oracle_boundary_score":boundary,"admission_misses":missed}));
     }
     Ok(
-        json!({"scope":"controlled_explicit_corpus","prefer_remaster":false,"capture_groups":captures.groups,"exact":matrix,"comparisons":comparisons}),
+        json!({"scope":"controlled_explicit_corpus","capture_groups":captures.groups,"exact":matrix,"comparisons":comparisons}),
     )
 }
 pub(super) fn recall(
@@ -414,11 +399,11 @@ pub(super) fn fixed_pool(
     let mut rankings = Vec::new();
     let mut blind_pool = BTreeSet::new();
     for run in &matrix.runs {
-        let ranking = ranked(service, run, None, true)?;
+        let ranking = ranked(run, None);
         blind_pool.extend(ranking.iter().take(10).cloned());
         rankings.push(json!({"id":run.id,"ranking":ranking}));
     }
     Ok(
-        json!({"scope":"same_scenario_cross_profile_fixed_pool","pool_source":"union of successful variant/profile bounded top20","keys":keys,"pool_profile_coverage":profile_coverage,"complete_manifest_profile_coverage":complete_profiles,"prefer_remaster":true,"exact":matrix,"rankings":rankings,"blind_judging_pool_keys":blind_pool}),
+        json!({"scope":"same_scenario_cross_profile_fixed_pool","pool_source":"union of successful variant/profile bounded top20","keys":keys,"pool_profile_coverage":profile_coverage,"complete_manifest_profile_coverage":complete_profiles,"exact":matrix,"rankings":rankings,"blind_judging_pool_keys":blind_pool}),
     )
 }

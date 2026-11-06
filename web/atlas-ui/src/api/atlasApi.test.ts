@@ -170,7 +170,7 @@ describe("source-backed API transport", () => {
         options: [{ value: "fire" }],
         selected_values: ["absent"],
         total_values: 1,
-        basis: "product_artifact_before_edition_preference",
+        basis: "product_artifact",
       },
     });
     const result = await discoverFilterValues(

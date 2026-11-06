@@ -198,7 +198,6 @@ impl AtlasAppService {
                             filter: None,
                             scope: RecordScope::All,
                             page,
-                            prefer_remaster: request.prefer_remaster,
                         })?
                         .ok_or_else(|| {
                             AppServiceError::invalid_request(
@@ -239,8 +238,6 @@ impl AtlasAppService {
             };
             projection_execution.check()?;
             Ok(TraitRecordsPage {
-                prefer_remaster: matches!(request.kind, TraitAssociationKind::Similar)
-                    .then_some(request.prefer_remaster),
                 sort,
                 search_profile,
                 artifact_generation: generation,
@@ -307,7 +304,6 @@ mod tests {
         assert!(view.source_revision.is_none());
         assert!(view.indexing_locale.is_none());
         let request = TraitRecordsRequest {
-            prefer_remaster: true,
             sort: None,
             trait_key: "trait:attack".into(),
             kind: TraitAssociationKind::Members,
@@ -329,7 +325,6 @@ mod tests {
             .worker
             .trait_records(
                 TraitRecordsRequest {
-                    prefer_remaster: true,
                     sort: None,
                     expected_artifact_generation: view.artifact_generation,
                     ..request
@@ -381,7 +376,6 @@ mod tests {
             .worker
             .trait_records(
                 TraitRecordsRequest {
-                    prefer_remaster: true,
                     sort: None,
                     trait_key: "trait:agile".into(),
                     kind: TraitAssociationKind::Members,

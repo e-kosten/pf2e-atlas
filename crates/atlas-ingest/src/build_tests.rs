@@ -1520,7 +1520,7 @@ fn actual_model_reuse_rejects_corrupted_published_input_metadata() {
 }
 
 #[test]
-fn verified_name_aliases_never_invent_legacy_record_pairs() {
+fn verified_name_aliases_and_explicit_relationships_have_no_suppression_storage() {
     fn copy_dir(from: &Path, to: &Path) {
         fs::create_dir_all(to).unwrap();
         for entry in fs::read_dir(from).unwrap() {
@@ -1576,7 +1576,7 @@ fn verified_name_aliases_never_invent_legacy_record_pairs() {
     );
     assert_eq!(
         database
-            .query_row("SELECT count(*) FROM remaster_preferences", [], |r| r
+            .query_row("SELECT count(*) FROM sqlite_master WHERE name IN ('remaster_preferences','remaster_preference_support')", [], |r| r
                 .get::<_, usize>(0))
             .unwrap(),
         0
@@ -1595,10 +1595,10 @@ fn verified_name_aliases_never_invent_legacy_record_pairs() {
     let database = rusqlite::Connection::open(explicit.output_path).unwrap();
     assert_eq!(
         database
-            .query_row("SELECT count(*) FROM remaster_preferences", [], |r| r
+            .query_row("SELECT count(*) FROM sqlite_master WHERE name IN ('remaster_preferences','remaster_preference_support')", [], |r| r
                 .get::<_, usize>(0))
             .unwrap(),
-        1
+        0
     );
     drop(database);
     let reopened = atlas_index::test_support::open_reader(&report.output_path).unwrap();

@@ -26,9 +26,6 @@ pub struct SearchPageView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct SearchResultsRequest {
-    #[serde(default = "crate::remaster::default_prefer_remaster")]
-    #[ts(as = "Option<bool>", optional)]
-    pub prefer_remaster: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub sort: Option<atlas_domain::ResultSort>,
@@ -109,7 +106,6 @@ pub enum SearchModeSummary {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SearchResultsPage {
-    pub prefer_remaster: bool,
     pub search_content: atlas_domain::SearchContentScope,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

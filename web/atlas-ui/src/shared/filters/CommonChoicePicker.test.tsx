@@ -137,7 +137,7 @@ describe("compact common choice picker", () => {
               options: request.offset
                 ? [{ value: "second-page" }]
                 : [{ value: "fire" }, { value: "cold" }],
-              basis: "product_key_scope_before_edition_preference",
+              basis: "product_key_scope",
             },
           },
     );
@@ -570,7 +570,7 @@ describe("compact common choice picker", () => {
         selected_values: ["fire"],
         total_values: 90n,
         options: [{ value: "fire" }, { value: "cold" }],
-        basis: "product_key_scope_before_edition_preference",
+        basis: "product_key_scope",
       },
     });
     await waitFor(() =>

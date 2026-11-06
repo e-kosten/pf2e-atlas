@@ -809,12 +809,10 @@ fn filtered_saved_list_records(
     let mut page_number = 1;
     loop {
         let page = SearchPage::new(page_number, atlas_search::MAX_SEARCH_PAGE_SIZE)?;
-        let result = retrieval.list_records({
-            let mut request = ListRecordsRequest::new(filter.as_ref(), page)
-                .with_scope(RecordScope::Keys(&record_keys));
-            request.prefer_remaster = false;
-            request
-        })?;
+        let result = retrieval.list_records(
+            ListRecordsRequest::new(filter.as_ref(), page)
+                .with_scope(RecordScope::Keys(&record_keys)),
+        )?;
         for record in result.records {
             records.insert(
                 record.key.to_string(),
@@ -860,7 +858,6 @@ fn searched_saved_list_records(
             scope: RecordScope::Keys(&record_keys),
             page,
             mode: RetrievalMode::Fts,
-            prefer_remaster: false,
         })?;
         for record in result.records {
             if scoped_keys.contains(&record.record.key) {

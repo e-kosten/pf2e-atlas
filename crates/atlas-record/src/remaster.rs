@@ -9,14 +9,16 @@ use sha2::{Digest, Sha256};
 
 pub use journal::journal_declarations;
 pub use projection::*;
-pub use static_inputs::{ReviewedCorrespondence, ReviewedCorrespondences, file_declarations};
+pub use static_inputs::{
+    ReviewedCorrespondence, ReviewedCorrespondences, ReviewedJournalContext, file_declarations,
+};
 
 pub const ATLAS_CORRESPONDENCE_BYTES: &[u8] = include_bytes!("remaster/correspondences.json");
 /// Metadata inputs have their own admission identity, independent of content rendering.
 pub fn remaster_inputs_identity() -> String {
     hash(format!("{}:{}", REMASTER_RECIPE, hash(ATLAS_CORRESPONDENCE_BYTES)).as_bytes())
 }
-pub const REMASTER_RECIPE: &str = "source-remaster-statements/v2";
+pub const REMASTER_RECIPE: &str = "source-remaster-statements/v3";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

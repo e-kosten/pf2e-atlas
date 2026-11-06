@@ -245,7 +245,6 @@ impl AtlasRetrievalService {
             let page = self.index.eligible_keys(
                 &predicate,
                 Some(keys),
-                false,
                 atlas_domain::ResultSort::attribute(
                     atlas_domain::SortField::Name,
                     atlas_domain::SortDirection::Asc,
@@ -569,36 +568,5 @@ fn retain_top_evidence(run: &mut SimilarityEvaluationRun) {
         run.rows[index].evidence.clear();
     }
 }
-impl AtlasRetrievalService {
-    /// Apply the same matching-set remaster policy to an exact score matrix.
-    pub fn evaluation_ranking(
-        &self,
-        run: &SimilarityEvaluationRun,
-        prefer_remaster: bool,
-    ) -> Result<Vec<RecordKey>, SearchError> {
-        let roots = run
-            .rows
-            .iter()
-            .filter(|row| row.disposition == "scored")
-            .filter_map(|row| {
-                Some(crate::text::RankedRoot {
-                    key: row.record_key.clone(),
-                    lexical_rank: None,
-                    similarity: row.score,
-                    score: row.score?,
-                    tier: 3,
-                    witnesses: vec![],
-                    matched_aliases: vec![],
-                })
-            })
-            .collect();
-        Ok(self
-            .apply_remaster_preference(roots, prefer_remaster)?
-            .into_iter()
-            .map(|row| row.key)
-            .collect())
-    }
-}
-
 #[cfg(test)]
 mod tests;

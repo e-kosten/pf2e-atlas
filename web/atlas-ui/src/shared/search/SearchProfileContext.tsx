@@ -25,7 +25,6 @@ export type SearchProfileSelection = {
   select: (id: SearchProfileId) => void;
   defaultId: SearchProfileId | null;
   preferences: SearchPreferences;
-  preferRemaster: boolean;
   applyPreferences: (preferences: SearchPreferences) => boolean;
 };
 export const SearchProfileContext = createContext<SearchProfileSelection>({
@@ -41,7 +40,6 @@ export const SearchProfileContext = createContext<SearchProfileSelection>({
   select: () => {},
   defaultId: null,
   preferences: DEFAULT_SEARCH_PREFERENCES,
-  preferRemaster: true,
   applyPreferences: () => true,
 });
 export function useSearchProfile() {
@@ -74,22 +72,6 @@ export function useSearchProfileSelection(
 ): SearchProfileSelection {
   const router = useRouter();
   const [preferences, setPreferences] = useState(readSearchPreferences);
-  const explicitVersions = useRouterState({
-    select: (state) => searchParam(state.location.search, "versions"),
-  });
-  const [preferRemaster, setPreferRemaster] = useState(() =>
-    explicitVersions === "all"
-      ? false
-      : explicitVersions === "prefer"
-        ? true
-        : preferences.preferRemaster,
-  );
-  const [observedVersions, setObservedVersions] = useState(explicitVersions);
-  if (observedVersions !== explicitVersions) {
-    setObservedVersions(explicitVersions);
-    if (explicitVersions === "all" || explicitVersions === "prefer")
-      setPreferRemaster(explicitVersions === "prefer");
-  }
   const [choice, setChoice] = useState(() =>
     initialChoice(
       searchParam(router.latestLocation.search, SEARCH_PROFILE_PARAM) ?? null,
@@ -147,10 +129,8 @@ export function useSearchProfileSelection(
     canResetLink,
     defaultId: readiness ? defaultChoice(readiness).id : null,
     preferences,
-    preferRemaster,
     applyPreferences: (next) => {
       setPreferences(next);
-      setPreferRemaster(next.preferRemaster);
       if (next.model !== null) setChoice({ id: next.model, source: "selection" });
       return writeSearchPreferences(next);
     },

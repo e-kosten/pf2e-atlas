@@ -544,7 +544,7 @@ fn render(
     let replaced = declarations
         .iter()
         .any(|value| value.kinds.contains(&Kind::Replaced));
-    let opposite = declarations
+    let mut opposite = declarations
         .iter()
         .flat_map(|value| match group.key.direction {
             Direction::Incoming | Direction::Same | Direction::Term => {
@@ -553,6 +553,42 @@ fn render(
             Direction::Outgoing => operands(&value.after, selected, false),
         })
         .collect::<Vec<_>>();
+    // A reviewed exact operand can supply the link for the corresponding plain
+    // journal operand in this same scoped relationship. This is presentation
+    // consolidation of an explicit mapping, never global old-name resolution.
+    if !group.generic && group.key.meaning == Meaning::Succession {
+        let mut reviewed = BTreeMap::<String, Vec<Operand>>::new();
+        for declaration in &declarations {
+            if !declaration
+                .origins
+                .contains(&atlas_app_model::RemasterCitationOriginView::AtlasReviewed)
+            {
+                continue;
+            }
+            let sides = if group.key.direction == Direction::Outgoing {
+                &declaration.after
+            } else {
+                &declaration.before
+            };
+            for endpoint in sides.iter().flat_map(|side| &side.endpoints) {
+                if matches!(endpoint.resolution, Resolution::Current { .. }) {
+                    let value = operand(endpoint, selected, false);
+                    let candidates = reviewed.entry(normalized(&endpoint.label)).or_default();
+                    if !candidates.iter().any(|prior| prior.key == value.key) {
+                        candidates.push(value);
+                    }
+                }
+            }
+        }
+        for value in &mut opposite {
+            if let OperandKey::Name(name) = &value.key
+                && let Some(candidates) = reviewed.get(name)
+                && let [candidate] = candidates.as_slice()
+            {
+                *value = candidate.clone();
+            }
+        }
+    }
     let old_count = deduplicate(opposite.clone()).len();
     let mut label = match (group.key.meaning, group.key.direction) {
         (Meaning::Succession, Direction::Same) => {
@@ -832,6 +868,61 @@ mod tests {
                 "Atlas mapping"
             );
         }
+    }
+    #[test]
+    fn reviewed_exact_rename_and_scoped_journal_operand_render_one_link_with_all_support() {
+        use atlas_app_model::RemasterCitationOriginView as Origin;
+        let manifest: atlas_record::remaster::ReviewedCorrespondences =
+            serde_json::from_slice(atlas_record::remaster::ATLAS_CORRESPONDENCE_BYTES).unwrap();
+        let row = manifest
+            .entries
+            .iter()
+            .find(|row| row.before_label == "Dragging Strike")
+            .unwrap();
+        let mut case = self::case("reactive");
+        case.selection.record_key = row.after.to_string();
+        let mut reviewed = case.declarations.remove(0);
+        reviewed.kinds = vec![Kind::Renamed];
+        reviewed.before[0].text = row.before_label.clone();
+        reviewed.before[0].terms = vec![row.before_label.clone()];
+        reviewed.after[0].text = row.after_label.clone();
+        reviewed.after[0].terms = vec![row.after_label.clone()];
+        for (sides, key, label) in [
+            (&mut reviewed.before, &row.before, &row.before_label),
+            (&mut reviewed.after, &row.after, &row.after_label),
+        ] {
+            let endpoint = &mut sides[0].endpoints[0];
+            endpoint.label = label.clone();
+            let Resolution::Current { record, navigation } = &mut endpoint.resolution else {
+                panic!("current fixture")
+            };
+            record.record_key = key.to_string();
+            record.title = label.clone();
+            record.source_type = Some(row.source_type.clone());
+            navigation.record_key = key.to_string();
+        }
+        reviewed.origins = vec![Origin::AtlasReviewed];
+        let mut journal = reviewed.clone();
+        journal.id = "authored-journal".into();
+        journal.origins = vec![Origin::Foundry];
+        journal.before[0].endpoints.clear();
+        let values = vec![reviewed, journal];
+        let mut scope = scopes(&values, &row.namespace, Some(&row.source_type));
+        for value in scope.values_mut() {
+            value.qualifier = row.qualifier.clone();
+        }
+        let result = relationships(&values, &scope, Some(&case.selection));
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].label, "Former name");
+        assert_eq!(words(&result[0]), "Dragging Strike");
+        assert_eq!(refs(&result[0]).len(), 1);
+        assert_eq!(refs(&result[0])[0].1.record_key, row.before.to_string());
+        assert_eq!(result[0].declaration_ids.len(), 2);
+        // A plain journal name does not acquire a link without reviewed evidence.
+        let mut unreviewed = values.clone();
+        unreviewed[0].origins = vec![Origin::Foundry];
+        let result = relationships(&unreviewed, &scope, Some(&case.selection));
+        assert!(words(&result[0]).contains("unidentified"));
     }
     #[test]
     fn remaster_class_scopes_opposite_directions_and_ambiguity_remain_separate() {

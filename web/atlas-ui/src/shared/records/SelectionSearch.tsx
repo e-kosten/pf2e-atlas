@@ -82,7 +82,7 @@ export function SelectionSearch() {
   const [selected, setSelected] = useState<SelectedText | null>(null);
   const current = useRef(selected);
   const popup = useRef<HTMLDivElement>(null);
-  const { id: profile, preferRemaster } = useSearchProfile();
+  const { id: profile } = useSearchProfile();
   useEffect(() => {
     current.current = selected;
   }, [selected]);
@@ -205,7 +205,6 @@ export function SelectionSearch() {
   if (!selected) return null;
   const params = new URLSearchParams({ q: selected.text });
   if (profile) params.set("search_profile", profile);
-  params.set("versions", preferRemaster ? "prefer" : "all");
   const destination = searchDestination({ query: `?${params}` });
   return createPortal(
     <Popover

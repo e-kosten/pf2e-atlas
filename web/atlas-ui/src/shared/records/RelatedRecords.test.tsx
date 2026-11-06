@@ -161,7 +161,6 @@ function page(
   total = rows.length,
 ): SearchResultsPage {
   return {
-    prefer_remaster: request.prefer_remaster ?? true,
     search_content: "all",
     ...(request.criteria.kind === "similar_records" && request.criteria.similarity
       ? {
@@ -859,7 +858,7 @@ it.each([
 
 it("replaces a successfully unavailable explicit Versions location once and preserves selection, state, hash and drafts", async () => {
   const href =
-    "/records/actors:seed?versions=all&rank=5&record_view=explore&record_tab=versions#retained-field";
+    "/records/actors:seed?rank=5&record_view=explore&record_tab=versions#retained-field";
   const router = createAtlasRouter(
     createMemoryHistory({
       initialEntries: ["/search?q=retained", href],
@@ -892,7 +891,6 @@ it("replaces a successfully unavailable explicit Versions location once and pres
   expect(router.latestLocation.search.record_tab).toBeUndefined();
   expect(router.latestLocation.pathname).toBe("/records/actors:seed");
   expect(router.latestLocation.search.rank).toBe("5");
-  expect(router.latestLocation.search.versions).toBe("all");
   expect(router.latestLocation.href).toContain("#retained-field");
   expect(router.latestLocation.state.atlasSearchReset).toBe("retained-draft-state");
   expect(router.history.length).toBe(2);

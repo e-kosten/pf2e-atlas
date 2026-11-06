@@ -199,48 +199,25 @@ mod remaster_args_tests {
         );
     }
     #[test]
-    fn all_versions_flag_is_available_on_ordinary_search_similar_and_filter_discovery() {
-        let Cli {
-            command: Command::Search(options),
-            ..
-        } = Cli::try_parse_from(["atlas", "search", "old name", "--all-versions"]).unwrap()
-        else {
-            panic!("search");
-        };
-        assert!(options.all_versions);
-        let Cli {
-            command: Command::Similar(options),
-            ..
-        } = Cli::try_parse_from([
-            "atlas",
-            "similar",
-            "items:aaaaaaaaaaaaaaaa",
-            "--all-versions",
-        ])
-        .unwrap()
-        else {
-            panic!("similar");
-        };
-        assert!(options.all_versions);
-        let Cli {
-            command:
-                Command::Filters(crate::commands::filter_discovery::args::FiltersArgs {
-                    command:
-                        crate::commands::filter_discovery::args::FiltersCommand::Values(options),
-                }),
-            ..
-        } = Cli::try_parse_from([
-            "atlas",
-            "filters",
-            "values",
-            "--field",
-            "traits",
-            "--all-versions",
-        ])
-        .unwrap()
-        else {
-            panic!("filters");
-        };
-        assert!(options.all_versions);
+    fn removed_all_versions_flag_is_rejected() {
+        for arguments in [
+            vec!["atlas", "search", "old name", "--all-versions"],
+            vec![
+                "atlas",
+                "similar",
+                "items:aaaaaaaaaaaaaaaa",
+                "--all-versions",
+            ],
+            vec![
+                "atlas",
+                "filters",
+                "values",
+                "--field",
+                "traits",
+                "--all-versions",
+            ],
+        ] {
+            assert!(Cli::try_parse_from(arguments).is_err());
+        }
     }
 }

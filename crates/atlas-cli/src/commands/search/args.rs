@@ -11,11 +11,6 @@ use std::path::PathBuf;
 pub(crate) struct SearchOptions {
     #[arg(
         long,
-        help = "Show every matching version, including older entries with a matching verified replacement"
-    )]
-    pub(crate) all_versions: bool,
-    #[arg(
-        long,
         value_enum,
         requires = "query",
         conflicts_with = "print_filter",

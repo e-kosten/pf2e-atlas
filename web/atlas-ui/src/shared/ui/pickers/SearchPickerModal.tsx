@@ -114,7 +114,6 @@ export function SearchPickerModal<FormValues>({
   const [search, setSearch] = useState<SearchFormState>(() => ({
     ...DEFAULT_SEARCH_STATE,
     ranking: profile.preferences.ranking,
-    preferRemaster: profile.preferRemaster,
   }));
   const [paging, setPaging] = useState({ profile: profile.id, number: 1 });
   const pageNumber = paging.profile === profile.id ? paging.number : 1;
@@ -130,7 +129,6 @@ export function SearchPickerModal<FormValues>({
     ...(search.sort ? { sort: search.sort } : {}),
     search_profile: profile.id ?? undefined,
     ranking: search.ranking ?? profile.preferences.ranking,
-    prefer_remaster: search.preferRemaster ?? profile.preferRemaster,
     criteria:
       base.criteria.kind === "similar_records" ||
       base.criteria.kind === "similar_traits"
@@ -200,8 +198,6 @@ export function SearchPickerModal<FormValues>({
               ? request.criteria.seed_record_key
               : null,
         }),
-        undefined,
-        request.prefer_remaster ?? true,
       );
       if (
         request.criteria.kind === "similar_records" ||
@@ -264,7 +260,6 @@ export function SearchPickerModal<FormValues>({
     setSearch({
       ...DEFAULT_SEARCH_STATE,
       ranking: profile.preferences.ranking,
-      preferRemaster: profile.preferRemaster,
     });
     setPageNumber(1);
     reading.inspect(null);

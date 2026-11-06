@@ -179,7 +179,6 @@ function useReferencePreview(detail: RecordDetailView, incoming: boolean) {
       filter,
       detail.artifact_generation,
       profile.id,
-      profile.preferRemaster,
     ],
     staleTime: Infinity,
     enabled: !profile.loading && profile.id !== null,
@@ -187,21 +186,13 @@ function useReferencePreview(detail: RecordDetailView, incoming: boolean) {
       const page = await searchPage(
         {
           search_profile: profile.id ?? undefined,
-          prefer_remaster: profile.preferRemaster,
           criteria: { kind: "list_records", filter },
           page: { number: 1, size: 5 },
           expected_artifact_generation: detail.artifact_generation,
         },
         signal,
       );
-      assertSearchIdentity(
-        page,
-        profile.id,
-        detail.artifact_generation,
-        undefined,
-        undefined,
-        profile.preferRemaster,
-      );
+      assertSearchIdentity(page, profile.id, detail.artifact_generation);
       return page;
     },
   });
@@ -221,7 +212,7 @@ function ReferencePreview({
   return (
     <div className="record-explore__task">
       <ExploreSearchAction
-        route={relationshipSearchRoute(filter, profile.id, profile.preferRemaster)}
+        route={relationshipSearchRoute(filter, profile.id)}
         summary={
           data
             ? `${data.rows.length} of ${data.page.total.toString()} ${data.page.total === 1n ? "record" : "records"}`
@@ -547,7 +538,6 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
       seed,
       detail.artifact_generation,
       profile.id,
-      profile.preferRemaster,
       similarity,
       sourceSections,
       searchContent,
@@ -561,7 +551,6 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
       const page = await searchPage(
         {
           search_profile: profile.id ?? undefined,
-          prefer_remaster: profile.preferRemaster,
           criteria: {
             kind: "similar_records",
             seed_record_key: seed,
@@ -575,16 +564,9 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
         },
         signal,
       );
-      assertSearchIdentity(
-        page,
-        profile.id,
-        detail.artifact_generation,
-        {
-          kind: "relevance",
-        },
-        undefined,
-        profile.preferRemaster,
-      );
+      assertSearchIdentity(page, profile.id, detail.artifact_generation, {
+        kind: "relevance",
+      });
       assertSimilarityIdentity(page, similarity, sourceSections, searchContent);
       return page;
     },
@@ -596,7 +578,6 @@ function SimilarPreview({ detail, onReference, onReload, reloadLabel }: ExploreP
     query: searchStateQueryString(
       {
         ...(currentSearch ?? DEFAULT_SEARCH_STATE),
-        preferRemaster: profile.preferRemaster,
         query: "",
         mode: "similar_records",
         similarSeed: seed,

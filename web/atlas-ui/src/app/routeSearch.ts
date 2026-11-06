@@ -137,14 +137,6 @@ export function canonicalRouteSearch(
     const profile = singleton(search, "search_profile")?.trim();
     if (profile) result.search_profile = profile;
   }
-  if (isSearch || kind === "trait" || reading) {
-    const versions = singleton(search, "versions");
-    if (versions !== undefined) {
-      if (!isSearch && versions !== "all" && versions !== "prefer")
-        throw new RouteSearchError("versions");
-      result.versions = versions;
-    }
-  }
   if (isSearch) {
     // Explicit settings remain authoritative over remembered browser preferences.
     for (const key of [

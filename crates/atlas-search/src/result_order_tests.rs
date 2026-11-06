@@ -249,7 +249,6 @@ fn sorting_semantic_set_above_two_hundred_preserves_membership_window_and_witnes
                 filter: None,
                 scope: RecordScope::All,
                 page: SearchPage::new(page, size).unwrap(),
-                prefer_remaster: true,
             })
             .unwrap()
             .unwrap()
@@ -325,8 +324,7 @@ fn sorting_hybrid_keeps_lexical_members_outside_semantic_window_and_ranking_stra
                 mode: RetrievalMode::Hybrid,
                 query: &query,
                 scope: RecordScope::All,
-                prefer: true,
-                suppress: true,
+
                 vector: Some(&vector),
                 exclude: None,
             })
@@ -537,7 +535,6 @@ fn sorting_adaptive_semantic_windows_preserves_expansion_for_dense_contents() {
                 filter: None,
                 scope: RecordScope::All,
                 page: SearchPage::new(1, 100).unwrap(),
-                prefer_remaster: true,
             })
             .unwrap()
             .unwrap()

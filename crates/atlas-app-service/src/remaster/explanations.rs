@@ -8,7 +8,7 @@ use atlas_record::source_content::SourceContentLocator;
 use atlas_record::source_record::SourceNodeView;
 use atlas_search::{
     AtlasRetrievalService, GetRecordRequest, RemasterCitationResult, RemasterCitationSource,
-    RemasterOrigin, SourceRecordDetail,
+    SourceRecordDetail,
 };
 use std::collections::{BTreeMap, btree_map::Entry};
 
@@ -108,9 +108,8 @@ pub(super) fn attach(
     for relationship in relationships {
         'sources: for id in &relationship.declaration_ids {
             for citation in evidence.get(id.as_str()).copied().unwrap_or_default() {
-                if citation.origin != RemasterOrigin::Foundry {
-                    continue;
-                }
+                // Atlas may supply a checked journal explanation for its exact
+                // mapping. Captured manifests/scripts never become journal links.
                 let RemasterCitationSource::Journal { locator } = &citation.source else {
                     continue;
                 };
@@ -148,6 +147,7 @@ mod tests {
     use super::*;
     use atlas_app_model::{RecordNavigationView, RemasterInlinePartView};
     use atlas_record::source_content::SourceContentLocator;
+    use atlas_search::RemasterOrigin;
     use atlas_search::test_support::{
         capture_remaster_declarations, input, open_input_fixture, record,
     };
@@ -224,7 +224,7 @@ mod tests {
         script.source = RemasterCitationSource::CapturedFile {
             path: "src/module/migration/887.ts".into(),
         };
-        let mut atlas = citation(1);
+        let mut atlas = citation(0);
         atlas.origin = RemasterOrigin::AtlasReviewed;
         let evidence = vec![(
             "one".into(),
@@ -253,6 +253,34 @@ mod tests {
         assert_eq!(budget.citations, 0);
         assert!(!relationships[0].truncated);
         assert_eq!(evidence[0].1.len(), 7);
+    }
+    #[test]
+    fn reviewed_mapping_uses_its_journal_explanation_without_linking_the_manifest() {
+        let (retrieval, _artifact) = fixture();
+        let mut context = citation(1);
+        context.origin = RemasterOrigin::AtlasReviewed;
+        let mut manifest = context.clone();
+        manifest.source = RemasterCitationSource::CapturedFile {
+            path: "correspondences.json".into(),
+        };
+        let evidence = vec![("reviewed".into(), vec![manifest, context])];
+        let mut relationships = vec![relationship("reviewed")];
+        attach(
+            &mut relationships,
+            &evidence,
+            &retrieval,
+            None,
+            &mut ProjectionBudget::default(),
+        );
+        let links = &relationships[0].explanation_links;
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].label, "Remaster Changes — Section 1");
+        assert_eq!(
+            links[0].navigation.record_key,
+            locator(1).record.to_string()
+        );
+        assert_eq!(links[0].navigation.owners, locator(1).owners);
+        assert_eq!(links[0].navigation.field.as_deref(), Some("/text/content"));
     }
     #[test]
     fn remaster_explanation_self_body_is_skipped_but_other_page_or_field_remains_distinct() {

@@ -11,6 +11,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub const REMASTER_SCHEMA_SQL: &str =
     include_str!("../migrations/00000000000030_remaster_information/up.sql");
+pub const REMOVE_REMASTER_PREFERENCE_SCHEMA_SQL: &str =
+    include_str!("../migrations/00000000000031_remove_remaster_preference/up.sql");
 #[derive(Debug, Clone)]
 pub struct SourceRemasterInformation {
     pub declarations: Vec<SourceRemasterDeclaration>,
@@ -143,7 +145,7 @@ struct State {
     sources: Vec<RemasterSourceInput>,
     declarations: Vec<RemasterDeclaration>,
     bindings: Vec<RemasterBinding>,
-    projection: RemasterProjection,
+    aliases: Vec<RemasterAlias>,
 }
 impl State {
     fn derive(
@@ -165,12 +167,12 @@ impl State {
         }
         let bindings =
             bind_remaster_declarations(&declarations, facts, &fields).map_err(invalid)?;
-        let projection = derive_remaster_projection(&declarations, &bindings, facts, &sources);
+        let aliases = derive_remaster_aliases(&declarations, &bindings, facts, &sources);
         Ok(Self {
             sources,
             declarations,
             bindings,
-            projection,
+            aliases,
         })
     }
     fn digest(&self) -> Result<String, IndexError> {
@@ -180,8 +182,7 @@ impl State {
                 &self.sources,
                 &self.declarations,
                 &self.bindings,
-                &self.projection.aliases,
-                &self.projection.preferences,
+                &self.aliases,
             ))?
             .as_slice(),
         ))
@@ -224,7 +225,6 @@ pub(crate) fn publish(
     c.execute("DELETE FROM remaster_declarations", [])?;
     c.execute("DELETE FROM remaster_source_inputs", [])?;
     c.execute("DELETE FROM remaster_aliases", [])?;
-    c.execute("DELETE FROM remaster_preferences", [])?;
     for source in &state.sources {
         c.execute(
             "INSERT INTO remaster_source_inputs VALUES(?,?)",
@@ -306,7 +306,7 @@ pub(crate) fn publish(
             ],
         )?;
     }
-    for alias in &state.projection.aliases {
+    for alias in &state.aliases {
         let id = products
             .get(&alias.record)
             .ok_or_else(|| invalid("alias root unavailable"))?;
@@ -318,24 +318,6 @@ pub(crate) fn publish(
             c.execute(
                 "INSERT INTO remaster_alias_support VALUES(?,?,?)",
                 params![id, alias.alias, source],
-            )?;
-        }
-    }
-    for preference in &state.projection.preferences {
-        let old = products
-            .get(&preference.predecessor)
-            .ok_or_else(|| invalid("predecessor missing"))?;
-        let new = products
-            .get(&preference.successor)
-            .ok_or_else(|| invalid("successor missing"))?;
-        c.execute(
-            "INSERT INTO remaster_preferences VALUES(?,?)",
-            params![old, new],
-        )?;
-        for source in &preference.declarations {
-            c.execute(
-                "INSERT INTO remaster_preference_support VALUES(?,?)",
-                params![old, source],
             )?;
         }
     }
@@ -461,9 +443,7 @@ pub(crate) fn validate(c: &Connection) -> Result<(), IndexError> {
     )?;
     let mut aliases = BTreeSet::new();
     let mut alias_support = BTreeSet::new();
-    let mut prefs = BTreeSet::new();
-    let mut pref_support = BTreeSet::new();
-    for a in &state.projection.aliases {
+    for a in &state.aliases {
         aliases.insert(encoded((
             a.record.to_string(),
             &a.alias,
@@ -471,15 +451,6 @@ pub(crate) fn validate(c: &Connection) -> Result<(), IndexError> {
         ))?);
         for d in &a.declarations {
             alias_support.insert(encoded((a.record.to_string(), &a.alias, d))?);
-        }
-    }
-    for p in &state.projection.preferences {
-        prefs.insert(encoded((
-            p.predecessor.to_string(),
-            p.successor.to_string(),
-        ))?);
-        for d in &p.declarations {
-            pref_support.insert(encoded((p.predecessor.to_string(), d))?);
         }
     }
     require_rows(
@@ -491,16 +462,6 @@ pub(crate) fn validate(c: &Connection) -> Result<(), IndexError> {
         c,
         "SELECT json_array(r.key,a.alias,a.declaration_id) FROM remaster_alias_support a JOIN records r USING(record_id)",
         alias_support,
-    )?;
-    require_rows(
-        c,
-        "SELECT json_array(l.key,r.key) FROM remaster_preferences p JOIN records l ON l.record_id=p.legacy_record_id JOIN records r ON r.record_id=p.remaster_record_id",
-        prefs,
-    )?;
-    require_rows(
-        c,
-        "SELECT json_array(r.key,p.declaration_id) FROM remaster_preference_support p JOIN records r ON r.record_id=p.legacy_record_id",
-        pref_support,
     )?;
     let digest: Option<String> = c
         .query_row(

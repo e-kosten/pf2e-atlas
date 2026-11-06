@@ -51,7 +51,6 @@ pub(super) fn run(
             },
             variant,
             RecordScope::All,
-            true,
             1,
         )?;
         let count = options
@@ -67,7 +66,6 @@ pub(super) fn run(
                 },
                 variant,
                 RecordScope::All,
-                true,
                 count,
             )?)
         } else {

@@ -23,7 +23,6 @@ use rusqlite::{Connection, params_from_iter, types::Value};
 #[derive(Debug, Clone, Default)]
 pub struct QueryFacetContext {
     pub eligible_keys: Option<Vec<RecordKey>>,
-    pub prefer_remaster: bool,
 }
 #[derive(Debug, Clone)]
 pub struct QueryValuesRequest {
@@ -237,8 +236,7 @@ pub(crate) fn field_counts(
                 .unwrap_or_else(|| "root".to_owned()),
             states,
             exhaustive: true,
-            count_basis: "clause-removed eligible source roots; before remaster suppression"
-                .to_owned(),
+            count_basis: "clause-removed eligible source roots".to_owned(),
             minimum,
             maximum,
         },
@@ -619,13 +617,7 @@ fn count_options(
         let accepted = validate_query(&p)?;
         let (eligible, parameters) =
             crate::read_units::eligible_sql(&accepted, context.eligible_keys.as_deref())?;
-        let preference = if context.prefer_remaster {
-            "WHERE NOT EXISTS(SELECT 1 FROM remaster_preferences p JOIN matches replacement ON replacement.record_id=p.remaster_record_id WHERE p.legacy_record_id=m.record_id)"
-        } else {
-            ""
-        };
-        let sql =
-            format!("WITH matches AS ({eligible}) SELECT COUNT(*) FROM matches m {preference}");
+        let sql = format!("WITH matches AS ({eligible}) SELECT COUNT(*) FROM matches");
         let count =
             connection.query_row(&sql, params_from_iter(&parameters), |r| r.get::<_, u64>(0))?;
         options.push(QueryValueOption {
@@ -836,8 +828,6 @@ pub(crate) fn field_vocabulary(
     let base = validate_query(&QueryPredicate::boolean(true))?;
     let context = QueryFacetContext {
         eligible_keys: request.eligible_keys.clone(),
-
-        prefer_remaster: false,
     };
     let mut values = enumerate_values(connection, d, &base, &context, None)?;
     if let Some(text) = &request.text {
@@ -864,9 +854,9 @@ pub(crate) fn field_vocabulary(
         selected_values,
         total_values,
         basis: if request.eligible_keys.is_some() {
-            QueryVocabularyBasis::ProductKeyScopeBeforeEditionPreference
+            QueryVocabularyBasis::ProductKeyScope
         } else {
-            QueryVocabularyBasis::ProductArtifactBeforeEditionPreference
+            QueryVocabularyBasis::ProductArtifact
         },
     })
 }

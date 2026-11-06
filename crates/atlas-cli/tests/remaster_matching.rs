@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 use std::process::Command;
 
 #[test]
-fn all_versions_controls_real_browse_text_and_similar_requests_and_results() {
+fn every_matching_remaster_relationship_root_survives_browse_text_and_similar() {
     let seed = "items:seed000000000001";
     let old = "items:legacy0000000001";
     let modern = "items:modern0000000001";
@@ -40,46 +40,41 @@ fn all_versions_controls_real_browse_text_and_similar_requests_and_results() {
         vec!["search", "Signal", "--retrieval", "fts"],
         vec!["similar", seed, "--method", "baseline"],
     ] {
-        for all_versions in [false, true] {
-            let mut command = Command::new(env!("CARGO_BIN_EXE_atlas"));
-            command
-                .args(&arguments)
-                .arg("--index")
-                .arg(artifact.path())
-                .args(["--limit", "100", "--json"]);
-            if all_versions {
-                command.arg("--all-versions");
-            }
-            for name in [
-                "GIT_DIR",
-                "GIT_WORK_TREE",
-                "GIT_INDEX_FILE",
-                "GIT_PREFIX",
-                "ATLAS_LOG",
-            ] {
-                command.env_remove(name);
-            }
-            let output = command.output().unwrap();
-            assert!(
-                output.status.success(),
-                "{arguments:?} all={all_versions}: {} {}",
-                String::from_utf8_lossy(&output.stdout),
-                String::from_utf8_lossy(&output.stderr)
-            );
-            let envelope: Value = serde_json::from_slice(&output.stdout).unwrap();
-            let result = &envelope["data"];
-            assert_eq!(
-                result["prefer_remaster"], !all_versions,
-                "{arguments:?}: {result}"
-            );
-            let keys = result["rows"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .filter_map(|row| row["record"]["record_key"].as_str())
-                .collect::<Vec<_>>();
-            assert!(keys.contains(&modern), "{arguments:?}: {result}");
-            assert_eq!(keys.contains(&old), all_versions, "{arguments:?}: {result}");
+        let mut command = Command::new(env!("CARGO_BIN_EXE_atlas"));
+        command
+            .args(&arguments)
+            .arg("--index")
+            .arg(artifact.path())
+            .args(["--limit", "100", "--json"]);
+        for name in [
+            "GIT_DIR",
+            "GIT_WORK_TREE",
+            "GIT_INDEX_FILE",
+            "GIT_PREFIX",
+            "ATLAS_LOG",
+        ] {
+            command.env_remove(name);
         }
+        let output = command.output().unwrap();
+        assert!(
+            output.status.success(),
+            "{arguments:?}: {} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let envelope: Value = serde_json::from_slice(&output.stdout).unwrap();
+        let result = &envelope["data"];
+        assert!(
+            result.get("prefer_remaster").is_none(),
+            "{arguments:?}: {result}"
+        );
+        let keys = result["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|row| row["record"]["record_key"].as_str())
+            .collect::<Vec<_>>();
+        assert!(keys.contains(&modern), "{arguments:?}: {result}");
+        assert!(keys.contains(&old), "{arguments:?}: {result}");
     }
 }

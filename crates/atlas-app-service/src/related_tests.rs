@@ -72,7 +72,6 @@ fn declared_grants_appear_in_explore_and_reference_search_without_duplicate_resu
         .worker
         .search_page(
             SearchResultsRequest {
-                prefer_remaster: true,
                 sort: None,
                 ranking: None,
                 search_profile: None,

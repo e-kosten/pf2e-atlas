@@ -40,52 +40,6 @@ pub struct RemasterAlias {
     pub alias: String,
     pub declarations: Vec<String>,
 }
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RemasterPreference {
-    pub predecessor: RecordKey,
-    pub successor: RecordKey,
-    pub declarations: Vec<String>,
-}
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RemasterProjection {
-    pub aliases: Vec<RemasterAlias>,
-    pub preferences: Vec<RemasterPreference>,
-    pub diagnostics: Vec<RemasterDerivationDiagnostic>,
-}
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RemasterDerivationReason {
-    AdapterConditions,
-    UnsupportedDisposition,
-    MissingExplicitPredecessor,
-    GroupedEndpoints,
-    EndpointUnavailable,
-    SameIdentity,
-    FamilyMismatch,
-    ConflictingDisposition,
-    Cycle,
-}
-impl RemasterDerivationReason {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::AdapterConditions => "adapter_conditions",
-            Self::UnsupportedDisposition => "unsupported_disposition",
-            Self::MissingExplicitPredecessor => "missing_explicit_predecessor",
-            Self::GroupedEndpoints => "grouped_endpoints",
-            Self::EndpointUnavailable => "endpoint_unavailable",
-            Self::SameIdentity => "same_identity",
-            Self::FamilyMismatch => "family_mismatch",
-            Self::ConflictingDisposition => "conflicting_disposition",
-            Self::Cycle => "cycle",
-        }
-    }
-}
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RemasterDerivationDiagnostic {
-    pub declaration: String,
-    pub reason: RemasterDerivationReason,
-}
-
 #[derive(Debug, Clone)]
 pub struct RemasterRecordFacts {
     pub name: Option<String>,
@@ -108,7 +62,7 @@ fn roots<'a>(
         .collect()
 }
 /// A retained statement can stay navigable after current conditions withdraw
-/// every derived lookup/discovery permission from its source adapter.
+/// derived lookup permission from its source adapter.
 fn adapter_approved(
     declaration: &RemasterDeclaration,
     bindings: &[RemasterBinding],
@@ -163,17 +117,14 @@ fn adapter_approved(
             }),
     })
 }
-/// Source relations grant lookup and discovery different, explicit permissions.
-pub fn derive_remaster_projection(
+/// Derive supported lookup aliases independently of counterpart navigation.
+pub fn derive_remaster_aliases(
     declarations: &[RemasterDeclaration],
     bindings: &[RemasterBinding],
     records: &BTreeMap<RecordKey, RemasterRecordFacts>,
     sources: &[RemasterSourceInput],
-) -> RemasterProjection {
+) -> Vec<RemasterAlias> {
     let mut aliases = BTreeMap::<(RecordKey, String), BTreeSet<String>>::new();
-    let mut preferences = BTreeMap::<(RecordKey, RecordKey), BTreeSet<String>>::new();
-    let mut unsafe_predecessors = BTreeSet::new();
-    let mut diagnostics = BTreeSet::<(String, RemasterDerivationReason)>::new();
     for declaration in declarations {
         let approved = adapter_approved(declaration, bindings, records, sources);
         let kinds = &declaration.kinds;
@@ -217,176 +168,15 @@ pub fn derive_remaster_projection(
                 }
             }
         }
-        let before_refs = declaration
-            .before
-            .iter()
-            .map(|s| s.references.len())
-            .sum::<usize>();
-        let before = roots(bindings, &declaration.id, RemasterSideKind::Before);
-        if !kinds.contains(&RemasterChangeKind::Discussion) {
-            let reason = if !approved {
-                Some(RemasterDerivationReason::AdapterConditions)
-            } else if kinds.iter().any(|k| {
-                matches!(
-                    k,
-                    RemasterChangeKind::Merged
-                        | RemasterChangeKind::Removed
-                        | RemasterChangeKind::Unclassified
-                )
-            }) {
-                Some(RemasterDerivationReason::UnsupportedDisposition)
-            } else if before_refs == 0 {
-                Some(RemasterDerivationReason::MissingExplicitPredecessor)
-            } else if before_refs != 1 || after_refs != 1 {
-                Some(RemasterDerivationReason::GroupedEndpoints)
-            } else if before.len() != 1 || after.len() != 1 {
-                Some(RemasterDerivationReason::EndpointUnavailable)
-            } else if before[0] == after[0] {
-                Some(RemasterDerivationReason::SameIdentity)
-            } else {
-                None
-            };
-            if let Some(reason) = reason {
-                diagnostics.insert((declaration.id.clone(), reason));
-            }
-        }
-        // A grouped or contradictory authored disposition cannot be made safe by
-        // another single-output declaration. Keep its information, veto preference.
-        if !kinds.contains(&RemasterChangeKind::Discussion)
-            && before.len() == 1
-            && before_refs == 1
-            && (after_refs != 1
-                || after.len() != 1
-                || kinds.iter().any(|k| {
-                    matches!(
-                        k,
-                        RemasterChangeKind::Merged
-                            | RemasterChangeKind::Removed
-                            | RemasterChangeKind::Unclassified
-                    )
-                }))
-        {
-            unsafe_predecessors.insert(before[0].clone());
-        }
-        if !approved
-            || before_refs != 1
-            || after_refs != 1
-            || before.len() != 1
-            || after.len() != 1
-            || before[0] == after[0]
-            || kinds.iter().any(|k| {
-                matches!(
-                    k,
-                    RemasterChangeKind::Merged
-                        | RemasterChangeKind::Removed
-                        | RemasterChangeKind::Unclassified
-                        | RemasterChangeKind::Discussion
-                )
-            })
-            || !kinds.iter().any(|k| {
-                matches!(
-                    k,
-                    RemasterChangeKind::Renamed | RemasterChangeKind::Replaced
-                )
-            })
-        {
-            continue;
-        }
-        let (Some(old), Some(new)) = (records.get(before[0]), records.get(after[0])) else {
-            continue;
-        };
-        if old.source_type.is_none()
-            || old.source_type != new.source_type
-            || declaration
-                .context
-                .source_type
-                .as_ref()
-                .is_some_and(|family| old.source_type.as_ref() != Some(family))
-        {
-            diagnostics.insert((
-                declaration.id.clone(),
-                RemasterDerivationReason::FamilyMismatch,
-            ));
-            continue;
-        }
-        if declaration.context.namespace == "creature_ability"
-            && (before[0].pack().as_str() != "bestiary-ability-glossary-srd"
-                || after[0].pack().as_str() != "bestiary-ability-glossary-srd")
-        {
-            continue;
-        }
-        preferences
-            .entry((before[0].clone(), after[0].clone()))
-            .or_default()
-            .insert(declaration.id.clone());
     }
-    let mut successors = BTreeMap::<RecordKey, BTreeSet<RecordKey>>::new();
-    for (old, new) in preferences.keys() {
-        successors
-            .entry(old.clone())
-            .or_default()
-            .insert(new.clone());
-    }
-    preferences.retain(|(old, _), support| {
-        let keep =
-            !unsafe_predecessors.contains(old) && successors.get(old).is_some_and(|s| s.len() == 1);
-        if !keep {
-            for id in support.iter() {
-                diagnostics.insert((id.clone(), RemasterDerivationReason::ConflictingDisposition));
-            }
-        }
-        keep
-    });
-    let graph = preferences
-        .keys()
-        .map(|(a, b)| (a.clone(), b.clone()))
-        .collect::<BTreeMap<_, _>>();
-    let mut cyclic = BTreeSet::new();
-    for start in graph.keys() {
-        let mut path = Vec::new();
-        let mut node = start;
-        while let Some(next) = graph.get(node) {
-            if let Some(position) = path.iter().position(|seen| seen == node) {
-                cyclic.extend(path[position..].iter().cloned());
-                break;
-            }
-            path.push(node.clone());
-            node = next;
-        }
-    }
-    for ((old, _), support) in &preferences {
-        if cyclic.contains(old) {
-            for id in support {
-                diagnostics.insert((id.clone(), RemasterDerivationReason::Cycle));
-            }
-        }
-    }
-    RemasterProjection {
-        diagnostics: diagnostics
-            .into_iter()
-            .map(|(declaration, reason)| RemasterDerivationDiagnostic {
-                declaration,
-                reason,
-            })
-            .collect(),
-        aliases: aliases
-            .into_iter()
-            .map(|((record, alias), sources)| RemasterAlias {
-                record,
-                alias,
-                declarations: sources.into_iter().collect(),
-            })
-            .collect(),
-        preferences: preferences
-            .into_iter()
-            .filter(|((old, _), _)| !cyclic.contains(old))
-            .map(|((predecessor, successor), sources)| RemasterPreference {
-                predecessor,
-                successor,
-                declarations: sources.into_iter().collect(),
-            })
-            .collect(),
-    }
+    aliases
+        .into_iter()
+        .map(|((record, alias), sources)| RemasterAlias {
+            record,
+            alias,
+            declarations: sources.into_iter().collect(),
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone)]
@@ -404,6 +194,22 @@ pub fn bind_remaster_declarations(
     use crate::source_content::{ContentReferenceResolution, ContentReferenceTarget};
     let mut result = vec![];
     for declaration in declarations {
+        // Exact reviewed/static endpoints must remain in their declared family.
+        // Keep the statement, but withdraw both current bindings on family drift.
+        let family_changed = declaration
+            .context
+            .source_type
+            .as_ref()
+            .is_some_and(|family| {
+                declaration
+                    .before
+                    .iter()
+                    .chain(&declaration.after)
+                    .flat_map(|side| &side.references)
+                    .filter_map(|reference| reference.explicit_key.as_ref())
+                    .filter_map(|key| records.get(key))
+                    .any(|record| record.source_type.as_ref() != Some(family))
+            });
         for (side, groups) in [
             (RemasterSideKind::Before, &declaration.before),
             (RemasterSideKind::After, &declaration.after),
@@ -469,14 +275,16 @@ pub fn bind_remaster_declarations(
                             .unwrap_or(RemasterBindingResolution::Unresolved),
                         }
                     } else if let Some(key) = &value.explicit_key {
-                        if records.contains_key(key) {
+                        if !records.contains_key(key) {
+                            RemasterBindingResolution::MissingExplicitKey {
+                                record_key: key.clone(),
+                            }
+                        } else if family_changed {
+                            RemasterBindingResolution::Unresolved
+                        } else {
                             RemasterBindingResolution::Current {
                                 record_key: key.clone(),
                                 owners: vec![],
-                            }
-                        } else {
-                            RemasterBindingResolution::MissingExplicitKey {
-                                record_key: key.clone(),
                             }
                         }
                     } else {

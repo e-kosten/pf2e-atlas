@@ -18,7 +18,7 @@ fn context<'a>(
         search_profile: None,
         text: None,
         scope,
-        prefer_remaster: true,
+
         filter,
     }
 }
@@ -413,7 +413,7 @@ fn relationship_scoped_facets_keep_same_child_witness_and_parameter_bindings() {
 }
 
 #[test]
-fn relationship_option_counts_apply_edition_preference_only_to_matching_edges() {
+fn relationship_option_counts_keep_independently_matching_relationship_roots() {
     let mut fixture = input(
         vec![
             effect("aaaaaaaaaaaaaaaa", "Target", ""),

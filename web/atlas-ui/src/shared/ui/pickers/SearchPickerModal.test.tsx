@@ -55,7 +55,6 @@ function result(
 ): SearchResultsPage {
   return {
     search_content: "all",
-    prefer_remaster: true,
     sort: {
       kind: "attributes",
       rules: [{ field: "name", direction: "asc" }],
@@ -140,7 +139,7 @@ function Picker({
     </SearchPickerModal>
   );
 }
-function renderPicker(similar = false, preferRemaster = true) {
+function renderPicker(similar = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: 20_000 } },
   });
@@ -150,7 +149,7 @@ function renderPicker(similar = false, preferRemaster = true) {
   const content = () => (
     <ConfigProvider theme={{ token: { motion: false } }}>
       <QueryClientProvider client={client}>
-        <SearchProfileProvider id={profile} preferRemaster={preferRemaster}>
+        <SearchProfileProvider id={profile}>
           <App>
             <Picker disabled={disabled} open={open} similar={similar} />
           </App>
@@ -938,14 +937,4 @@ it("keeps picker selections and drafts through profile/page continuation navigat
   expect(screen.getByRole("button", { name: "Add" })).toBeEnabled();
   expect(cancelPicker).not.toHaveBeenCalled();
   expect(screen.getByRole("dialog", { name: "Choose record" })).toBeInTheDocument();
-});
-
-it("inherits all versions for new candidate discovery", async () => {
-  search.mockImplementation(async (request) => ({
-    ...result(),
-    prefer_remaster: request.prefer_remaster ?? true,
-  }));
-  renderPicker(false, false);
-  await waitFor(() => expect(search).toHaveBeenCalled());
-  expect(search.mock.lastCall?.[0].prefer_remaster).toBe(false);
 });

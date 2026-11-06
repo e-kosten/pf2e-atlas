@@ -86,7 +86,7 @@ fn request<'a>(
         scope: RecordScope::All,
         page: SearchPage::first(5).unwrap(),
         sort: ResultSort::Relevance {},
-        prefer_remaster: true,
+
         cancelled: None,
     }
 }

@@ -546,10 +546,7 @@ fn information_category(
         },
     }
 }
-fn lookup_scope(
-    context_value: &atlas_search::RemasterContext,
-    citations: &[atlas_search::RemasterCitationResult],
-) -> Vec<String> {
+fn lookup_scope(context_value: &atlas_search::RemasterContext) -> Vec<String> {
     let scope = match context_value.namespace.as_str() {
         "creature_ability" => Some("Creature ability glossary"),
         "spell" => Some("Spells"),
@@ -568,10 +565,7 @@ fn lookup_scope(
         _ => None,
     };
     let mut labels = scope.map(str::to_owned).into_iter().collect::<Vec<_>>();
-    if citations
-        .iter()
-        .any(|citation| citation.origin == RemasterOrigin::Foundry)
-        && let Some(qualifier) = &context_value.qualifier
+    if let Some(qualifier) = &context_value.qualifier
         && !qualifier.trim().is_empty()
     {
         labels.push(text(qualifier));
@@ -596,7 +590,7 @@ pub(crate) fn lookup_context(
                     RemasterChangeKind::Merged | RemasterChangeKind::Replaced
                 )
             });
-            let scope = lookup_scope(&value.context, &value.citations);
+            let scope = lookup_scope(&value.context);
             let (citations, citations_truncated) = citations(value.citations, retrieval, budget);
             truncated |= citations_truncated;
             RemasterLookupSupportView {
@@ -1030,8 +1024,8 @@ mod lookup_scope_tests {
                     authored_status: Some("Replaced".into()),
                     context: atlas_search::RemasterContext {
                         section: "Atlas-reviewed correspondence".into(),
-                        namespace: "creature_ability".into(),
-                        qualifier: Some("Raw internal review rationale".into()),
+                        namespace: "feat".into(),
+                        qualifier: Some("Fighter".into()),
                         source_type: Some("action".into()),
                     },
                     before: vec![],
@@ -1058,7 +1052,7 @@ mod lookup_scope_tests {
                         ..ProjectionBudget::default()
                     },
                 );
-                assert_eq!(view.supports[0].context, vec!["Creature ability glossary"]);
+                assert_eq!(view.supports[0].context, vec!["Feats", "Fighter"]);
                 assert!(view.supports[0].citations.is_empty());
                 assert!(view.supports[0].citations_truncated);
                 assert_eq!(declaration.context, original);

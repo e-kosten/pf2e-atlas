@@ -6,8 +6,4 @@ import type { SearchProfileId } from "./SearchProfileId";
 import type { TraitAssociationKind } from "./TraitAssociationKind";
 import type { TraitRecordView } from "./TraitRecordView";
 
-export type TraitRecordsPage = {
-/**
- * Only Similar discovery applies edition preference; exact evidence omits this.
- */
-prefer_remaster?: boolean, sort?: ResultSort, search_profile: SearchProfileId | null, artifact_generation: string, trait_key: string, kind: TraitAssociationKind, rows: Array<TraitRecordView>, page: SearchPageView, coverage: SearchCoverageView | null, };
+export type TraitRecordsPage = { sort?: ResultSort, search_profile: SearchProfileId | null, artifact_generation: string, trait_key: string, kind: TraitAssociationKind, rows: Array<TraitRecordView>, page: SearchPageView, coverage: SearchCoverageView | null, };

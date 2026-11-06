@@ -3,9 +3,6 @@ use crate::{RecordNavigationView, RecordSummaryView, RelatedCategoryView};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-pub(crate) const fn default_prefer_remaster() -> bool {
-    true
-}
 fn default_limit() -> usize {
     20
 }
@@ -207,56 +204,5 @@ mod tests {
         .unwrap();
         assert_eq!(value.limit, 20);
         assert!(matches!(value.subject, RemasterSubjectRequest::Term { .. }));
-    }
-}
-
-#[cfg(test)]
-mod preference_tests {
-    use crate::{FilterDiscoveryContext, SearchResultsRequest, TraitRecordsRequest};
-    use serde_json::json;
-    #[test]
-    fn preference_omission_is_true_false_is_preserved_and_null_is_rejected() {
-        let search =
-            json!({"criteria":{"kind":"list_records","filter":null},"page":{"number":1,"size":20}});
-        let filtered = json!({"kind":"filtered","filter":null,"text":null,"mode":"lexical"});
-        let similar = json!({"trait_key":"trait:fire","kind":"similar","page":{"number":1,"size":20},"expected_artifact_generation":"generation","search_profile":null,"ranking":null});
-        assert!(
-            serde_json::from_value::<SearchResultsRequest>(search.clone())
-                .unwrap()
-                .prefer_remaster
-        );
-        assert!(
-            serde_json::from_value::<TraitRecordsRequest>(similar.clone())
-                .unwrap()
-                .prefer_remaster
-        );
-        assert!(matches!(
-            serde_json::from_value::<FilterDiscoveryContext>(filtered.clone()).unwrap(),
-            FilterDiscoveryContext::Filtered {
-                prefer_remaster: true,
-                ..
-            }
-        ));
-        for value in [false, true] {
-            let mut input = search.clone();
-            input["prefer_remaster"] = json!(value);
-            assert_eq!(
-                serde_json::from_value::<SearchResultsRequest>(input)
-                    .unwrap()
-                    .prefer_remaster,
-                value
-            );
-        }
-        for invalid in [json!(null), json!("false"), json!(0)] {
-            let mut input = search.clone();
-            input["prefer_remaster"] = invalid.clone();
-            assert!(serde_json::from_value::<SearchResultsRequest>(input).is_err());
-            let mut input = filtered.clone();
-            input["prefer_remaster"] = invalid.clone();
-            assert!(serde_json::from_value::<FilterDiscoveryContext>(input).is_err());
-            let mut input = similar.clone();
-            input["prefer_remaster"] = invalid;
-            assert!(serde_json::from_value::<TraitRecordsRequest>(input).is_err());
-        }
     }
 }

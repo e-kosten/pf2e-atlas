@@ -176,7 +176,6 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
             expected_artifact_generation: o.artifact_generation,
         },
         None => atlas_app_model::FilterDiscoveryContext::Filtered {
-            prefer_remaster: !o.all_versions,
             search_content: None,
             filter,
             text: None,
@@ -278,10 +277,7 @@ pub(crate) fn run_filters_values(o: FiltersValuesOptions) -> Result<ExitCode, St
                 definition.id
             );
         }
-        println!(
-            "Source availability ({}; before remaster suppression):",
-            counts.counting_scope
-        );
+        println!("Source availability ({}):", counts.counting_scope);
         for state in counts.states {
             println!(
                 "{}\t{} records\t{} occurrences",

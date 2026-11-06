@@ -285,7 +285,6 @@ export function useSearchWorkspace({
           searchStateQueryString({
             ...search,
             ranking: search.ranking ?? searchPreferences.ranking,
-            preferRemaster: search.preferRemaster ?? searchPreferences.preferRemaster,
           }) ||
         restored.search.filterError !== search.filterError ||
         restored.search.filterWasReset !== search.filterWasReset)
@@ -394,7 +393,6 @@ export function useSearchWorkspace({
           (activeSearch.similarSeed || activeSearch.query.trim())
           ? (activeSearch.searchContent ?? "all")
           : undefined,
-        activeSearch.preferRemaster ?? true,
       );
       if (activeSearch.similarSeed)
         assertSimilarityIdentity(

@@ -27,7 +27,7 @@ pub(super) fn database() -> Connection {
         .unwrap();
     db
 }
-fn remaster_preference(db: &Connection, before: i64, after: i64) {
+fn remaster_relationship(db: &Connection, before: i64, after: i64) {
     let mut input = crate::foundation_tests::fixture(false);
     input.records = [before, after].into_iter().map(|id| {
         let family: String = db.query_row("SELECT source_type FROM records WHERE record_id=?", [id], |row| row.get(0)).unwrap();
@@ -591,12 +591,61 @@ fn numeric_boundaries_and_unit_gates_preserve_exact_domains() {
 }
 
 #[test]
-fn remaster_facets_restore_candidate_before_suppression_and_keep_absent_choices() {
+fn remaster_relationships_keep_every_matching_root_in_discovery_counts() {
+    use crate::discovery::{
+        QueryFacetContext, QueryValueCountsRequest, QueryValuesRequest, field_value_counts,
+        field_values,
+    };
+    let db = database();
+    root(&db, 1, "spell", "common");
+    root(&db, 2, "spell", "common");
+    remaster_relationship(&db, 1, 2);
+    let query = validate_query(&QueryPredicate::boolean(true)).unwrap();
+    let options = available(
+        field_values(
+            &db,
+            &QueryValuesRequest {
+                only_matching: true,
+                field: "rarity".into(),
+                clause_id: None,
+                query: query.clone(),
+                context: QueryFacetContext::default(),
+                text: None,
+                offset: 0,
+                limit: 100,
+            },
+        )
+        .unwrap(),
+    );
+    assert_eq!(options.options.len(), 1);
+    assert_eq!(
+        options.options[0].value,
+        QueryLiteral::String("common".into())
+    );
+    assert_eq!(options.options[0].distinct_roots, 2);
+    let counts = available(
+        field_value_counts(
+            &db,
+            &QueryValueCountsRequest {
+                field: "rarity".into(),
+                clause_id: None,
+                query,
+                context: QueryFacetContext::default(),
+                values: vec![QueryLiteral::String("common".into())],
+            },
+        )
+        .unwrap(),
+    );
+    assert_eq!(counts.options[0].distinct_roots, 2);
+}
+
+#[test]
+fn remaster_facets_keep_independent_candidates_and_absent_choices() {
     use crate::discovery::{QueryFacetContext, QueryValuesRequest, field_values};
     let db = database();
     root(&db, 1, "spell", "rare");
     root(&db, 2, "spell", "common");
-    remaster_preference(&db, 1, 2);
+    remaster_relationship(&db, 1, 2);
     let mut predicate = parse_where("rarity=='common'").unwrap().predicate().clone();
     predicate.clause_id = Some("rarity-choice".to_owned());
     let mut request = QueryValuesRequest {
@@ -604,10 +653,7 @@ fn remaster_facets_restore_candidate_before_suppression_and_keep_absent_choices(
         field: "rarity".to_owned(),
         clause_id: Some("rarity-choice".to_owned()),
         query: validate_query(&predicate).unwrap(),
-        context: QueryFacetContext {
-            prefer_remaster: true,
-            ..Default::default()
-        },
+        context: QueryFacetContext::default(),
         text: None,
         offset: 0,
         limit: 100,
@@ -658,7 +704,7 @@ fn remaster_facets_restore_candidate_before_suppression_and_keep_absent_choices(
 fn explicit_value_counts_use_independent_counterfactual_root_sets_and_scopes() {
     use crate::discovery::{QueryFacetContext, QueryValueCountsRequest, field_value_counts};
     let db = database();
-    // Roots 1 and 2 form a verified edition pair; 3 is another spell, 4 an NPC,
+    // Roots 1 and 2 have a remaster relationship; 3 is another spell, 4 an NPC,
     // and 5 an excluded product family. An absent but valid rarity stays zero.
     for (id, family, rarity) in [
         (1, "spell", "rare"),
@@ -669,23 +715,19 @@ fn explicit_value_counts_use_independent_counterfactual_root_sets_and_scopes() {
     ] {
         root(&db, id, family, rarity);
     }
-    remaster_preference(&db, 1, 2);
+    remaster_relationship(&db, 1, 2);
     let predicate: QueryPredicate = serde_json::from_value(json!({"kind":"all_of","children":[{"kind":"compare","field":"source.type","op":"eq","value":"spell"},{"kind":"in","clause_id":"rarity","field":"rarity","values":["common","rare"]}]})).unwrap();
     let mut request = QueryValueCountsRequest {
         field: "rarity".into(),
         clause_id: Some("rarity".into()),
         query: validate_query(&predicate).unwrap(),
-        context: QueryFacetContext {
-            prefer_remaster: true,
-            ..Default::default()
-        },
+        context: QueryFacetContext::default(),
         values: ["rare", "common", "unique", "rare"]
             .map(|v| QueryLiteral::String(v.into()))
             .to_vec(),
     };
     let counts = available(field_value_counts(&db, &request).unwrap());
-    // Replacing the multi-selection with rare restores legacy 1 because remaster
-    // 2 does not match rare. Count roots {1,3}; common has {2}; unique has {}.
+    // Every matching root counts independently: rare has {1,3}; common has {2}; unique has {}.
     let expected_roots = [vec![1, 3], vec![2], vec![]];
     assert_eq!(
         counts
@@ -1189,7 +1231,7 @@ fn count_free_vocabulary_is_scoped_paged_and_keeps_selections_separately() {
         )
         .unwrap();
     }
-    remaster_preference(&db, 1, 2);
+    remaster_relationship(&db, 1, 2);
     let mut request = QueryVocabularyRequest {
         field: "traits".into(),
         eligible_keys: None,
@@ -1203,10 +1245,7 @@ fn count_free_vocabulary_is_scoped_paged_and_keeps_selections_separately() {
     assert_eq!(page.options.len(), 1);
     assert_eq!(page.options[0].value, QueryLiteral::String("flying".into()));
     assert_eq!(page.selected_values, request.selected_values);
-    assert_eq!(
-        page.basis,
-        QueryVocabularyBasis::ProductArtifactBeforeEditionPreference
-    );
+    assert_eq!(page.basis, QueryVocabularyBasis::ProductArtifact);
     let json = serde_json::to_value(&page).unwrap();
     assert!(json["options"][0].get("distinct_roots").is_none());
     request.text = None;
@@ -1215,10 +1254,7 @@ fn count_free_vocabulary_is_scoped_paged_and_keeps_selections_separately() {
     let scoped = field_vocabulary(&db, &request).unwrap();
     assert_eq!(scoped.total_values, 1);
     assert_eq!(scoped.options[0].value, QueryLiteral::String("cold".into()));
-    assert_eq!(
-        scoped.basis,
-        QueryVocabularyBasis::ProductKeyScopeBeforeEditionPreference
-    );
+    assert_eq!(scoped.basis, QueryVocabularyBasis::ProductKeyScope);
     request.eligible_keys = Some(vec![]);
     let empty = field_vocabulary(&db, &request).unwrap();
     assert_eq!(empty.total_values, 0);
@@ -1705,7 +1741,6 @@ fn reference_numeric_filters_use_authored_root_and_embedded_values() {
                     query: parse_where("true").unwrap(),
                     context: crate::discovery::QueryFacetContext {
                         eligible_keys: None,
-                        prefer_remaster: false,
                     },
                     text: Some(query_text.into()),
                     offset: 0,

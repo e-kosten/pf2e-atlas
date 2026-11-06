@@ -29,6 +29,18 @@ pub struct ReviewedCorrespondence {
     pub namespace: String,
     pub rationale: String,
     pub source_type: String,
+    pub kind: RemasterChangeKind,
+    #[serde(default)]
+    pub qualifier: Option<String>,
+    #[serde(default)]
+    pub journal_context: Option<ReviewedJournalContext>,
+}
+/// An explanation address, not upstream proof of the reviewed exact-root binding.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReviewedJournalContext {
+    pub locator: SourceContentLocator,
+    pub authored_sha256: String,
 }
 fn literal_json(source: &str) -> Result<String, RemasterError> {
     let mut result = String::new();
@@ -238,28 +250,38 @@ pub fn file_declarations(
                     if row.source_type.is_empty()
                         || row.before == row.after
                         || row.rationale.trim().is_empty()
+                        || !matches!(
+                            row.kind,
+                            RemasterChangeKind::Renamed | RemasterChangeKind::Replaced
+                        )
                     {
                         return Err(invalid_literal());
                     }
-                    make(
+                    let document = match row.source_type.as_str() {
+                        "npc" | "hazard" => "Actor",
+                        _ => "Item",
+                    };
+                    let mut declaration = make(
                         input,
                         ordinal,
                         single(
                             row.before_label.clone(),
-                            record_ref(&row.before, "Item", row.before_label),
+                            record_ref(&row.before, document, row.before_label),
                         ),
                         single(
                             row.after_label.clone(),
-                            record_ref(&row.after, "Item", row.after_label),
+                            record_ref(&row.after, document, row.after_label),
                         ),
                         RemasterContext {
                             section: "Atlas-reviewed correspondence".into(),
                             namespace: row.namespace,
-                            qualifier: Some(row.rationale),
+                            qualifier: row.qualifier,
                             source_type: Some(row.source_type),
                         },
                         "Atlas-reviewed counterpart",
-                    )
+                    )?;
+                    declaration.kinds = vec![row.kind];
+                    declaration.seal()
                 })
                 .collect()
         }

@@ -33,7 +33,6 @@ pub struct TextSearchRequest<'a> {
     pub filter: Option<&'a QueryPredicate>,
     pub scope: RecordScope<'a>,
     pub page: SearchPage,
-    pub prefer_remaster: bool,
 }
 impl<'a> TextSearchRequest<'a> {
     pub fn new(query: &'a str, page: SearchPage) -> Self {
@@ -47,7 +46,6 @@ impl<'a> TextSearchRequest<'a> {
             filter: None,
             scope: RecordScope::All,
             page,
-            prefer_remaster: true,
         }
     }
 }
@@ -115,8 +113,7 @@ pub(crate) struct CandidateRequest<'a> {
     pub mode: RetrievalMode,
     pub query: &'a ValidatedQuery,
     pub scope: RecordScope<'a>,
-    pub prefer: bool,
-    pub suppress: bool,
+
     pub vector: Option<&'a [f32]>,
     pub exclude: Option<&'a RecordKey>,
 }
@@ -207,8 +204,7 @@ impl AtlasRetrievalService {
             mode: request.mode,
             query: &predicate,
             scope: request.scope,
-            prefer: request.prefer_remaster,
-            suppress: true,
+
             vector: vector.as_deref(),
             exclude: None,
         })?;
@@ -248,22 +244,6 @@ impl AtlasRetrievalService {
         store.insert(key, neighbors);
         Ok(hits)
     }
-    pub(crate) fn apply_remaster_preference(
-        &self,
-        mut roots: Vec<RankedRoot>,
-        prefer: bool,
-    ) -> Result<Vec<RankedRoot>, SearchError> {
-        if prefer {
-            let keys = roots.iter().map(|r| r.key.clone()).collect::<Vec<_>>();
-            let removed = self
-                .index
-                .matched_legacy_keys(&keys)?
-                .into_iter()
-                .collect::<BTreeSet<_>>();
-            roots.retain(|r| !removed.contains(&r.key));
-        }
-        Ok(roots)
-    }
     pub(crate) fn vector_window(
         &self,
         request: &CandidateRequest<'_>,
@@ -281,8 +261,7 @@ impl AtlasRetrievalService {
             };
             let hits = self.native_vector_candidates(input, request.text)?;
             let roots = semantic_roots(hits);
-            let displayed = self.apply_remaster_preference(roots.clone(), request.prefer)?;
-            if displayed.len() >= TARGET_ROOTS || window == 4096 {
+            if roots.len() >= TARGET_ROOTS || window == 4096 {
                 return Ok((roots, window));
             }
         }
@@ -301,8 +280,7 @@ impl AtlasRetrievalService {
             mode,
             query,
             scope,
-            prefer,
-            suppress,
+
             vector,
             ..
         } = request;
@@ -420,7 +398,6 @@ impl AtlasRetrievalService {
                 .then(b.score.total_cmp(&a.score))
                 .then(a.key.cmp(&b.key))
         });
-        let roots = self.apply_remaster_preference(roots, prefer && suppress)?;
         Ok((roots, window))
     }
     pub(crate) fn finish_results(

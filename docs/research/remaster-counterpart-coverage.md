@@ -19,7 +19,17 @@ pair today; additional navigation candidates do not automatically grant it more
 authority. Complete a bounded mapping review before claiming broad preference
 coverage. No mappings or search behavior changed during this audit.
 
-## Method and current coverage
+## Subsequent implementation decision
+
+After this audit the user approved a small explicit Atlas mapping, retaining
+journal-derived aliases/context and existing comparison. Automatic suppression
+and its settings/plumbing are being removed. The proposed mapping scope is the
+15 individual journal renames plus nine core-book candidates and the existing
+glossary pair. The figures below describe the audited pre-expansion candidate;
+[ADR0067](../architecture/decisions/0067-remaster-relationships.md) owns the accepted
+current behavior.
+
+## Audit method and observed coverage
 
 Two independent read-only passes checked the database, pinned source records,
 Remaster Changes journal and UUID redirect file. One reproduced catalog counts and

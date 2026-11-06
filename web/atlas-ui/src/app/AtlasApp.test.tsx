@@ -1016,7 +1016,6 @@ function emptyFilterEditor(): FilterEditorView {
 function searchResultsPage(recordKeys: string[] = []): SearchResultsPage {
   return {
     search_content: "all",
-    prefer_remaster: true,
     relationship_clauses: [],
     sort: { kind: "relevance" } as const,
     ranking: "score" as const,

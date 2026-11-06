@@ -13,27 +13,27 @@ and [ADR index](./decisions/README.md) for the relevant owner.
 
 ## Crate ownership
 
-| Crate | Responsibility |
-| --- | --- |
-| `atlas-foundry-model` | Generated authored Foundry DTOs, admission/field retention and versioned checked snapshots. No ingest/runtime/SQLite dependency. |
-| `atlas-record` | Minimal source-backed record, checked embedded addressing, consumer-required borrowed source views, content interpretation/selection, attributed relationship policies and pure remaster extraction/binding/permission derivation over supplied current facts. Storage and presentation neutral. |
-| `atlas-domain` | Shared keys, predicates including exact reference conditions, query catalog/discovery vocabulary, summary facts and neutral source addresses. No SQLite or source parser ownership. |
-| `atlas-embedding` | Two pinned baseline search profiles, shared segmentation/native input budgets, FastEmbed inference, retained shared query sessions and exact vector reuse identity. |
-| `atlas-ingest` | Source filesystem loading/provenance, admission reporting, one-time remaster evidence capture, explicit content/reference context, index inputs and build-time embedding execution. |
-| `atlas-storage` | Connection admission, bounded read/write sessions, maintenance ownership, transactional migrations and backups. No domain schema ownership. |
-| `atlas-index` | Reference SQL schema, checked publication/validation, incremental projection updates, native-vector reuse and pending inference, row readers, query catalog/bindings/discovery, parameterized filter SQL and vector queries. |
-| `atlas-search` | Concrete retrieval service, strict lookup, browse, lexical/semantic/hybrid root ordering, bounded exact native-neighbor reuse, attributable witnesses, bounded remaster information, graph, verified replacement preference and Suggested variants. |
-| `atlas-runtime` | Paths, setup/source-fetch/cache policy, requested configuration, shared migration composition, reference readiness and bounded typed workspace operations. |
-| `atlas-local-state` | Saved-domain SQL and session-bound lists/encounters, revision guards and versioned durable roll receipts. |
-| `atlas-dice` | Bounded library-backed dice evaluation and structured outcomes; no source, persistence or UI policy. |
-| `atlas-app-model` | Intentional app DTOs and generated TypeScript contracts for filters, search pages, record content, lists and encounters. |
-| `atlas-app-service` | Cross-layer app workflows, bounded retrieval execution, catalog editor presentation, source-based product projections and local-state hydration. |
-| `atlas-web` | Thin Axum transport over app-service and static frontend serving. |
-| `atlas-cli` | Product grammar, terminal/JSON presentation, progress/exit behavior, web startup and agent skill installation. |
-| `atlas-dev` | Private Rust source discovery/audit/artifact inspection, reproducible similarity evaluation, and development baseline orchestration. Builds independently of the web UI and Node. |
-| `atlas-cli-support` | Shared path/progress argument and JSON/output primitives for both Rust CLIs. No runtime/ingest policy. |
-| `atlas-tags` | File-owned tag definitions/assignment DTOs and structural validation. Assessment and product filtering are deferred pending demonstrated retrieval gaps (ADR0054). |
-| `atlas-sqlite-vec` | sqlite-vec registration and capability probing. |
+| Crate                 | Responsibility                                                                                                                                                                                                                                                                                   |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `atlas-foundry-model` | Generated authored Foundry DTOs, admission/field retention and versioned checked snapshots. No ingest/runtime/SQLite dependency.                                                                                                                                                                 |
+| `atlas-record`        | Minimal source-backed record, checked embedded addressing, consumer-required borrowed source views, content interpretation/selection, attributed relationship policies and pure remaster extraction/binding/permission derivation over supplied current facts. Storage and presentation neutral. |
+| `atlas-domain`        | Shared keys, predicates including exact reference conditions, query catalog/discovery vocabulary, summary facts and neutral source addresses. No SQLite or source parser ownership.                                                                                                              |
+| `atlas-embedding`     | Two pinned baseline search profiles, shared segmentation/native input budgets, FastEmbed inference, retained shared query sessions and exact vector reuse identity.                                                                                                                              |
+| `atlas-ingest`        | Source filesystem loading/provenance, admission reporting, one-time remaster evidence capture, explicit content/reference context, index inputs and build-time embedding execution.                                                                                                              |
+| `atlas-storage`       | Connection admission, bounded read/write sessions, maintenance ownership, transactional migrations and backups. No domain schema ownership.                                                                                                                                                      |
+| `atlas-index`         | Reference SQL schema, checked publication/validation, incremental projection updates, native-vector reuse and pending inference, row readers, query catalog/bindings/discovery, parameterized filter SQL and vector queries.                                                                     |
+| `atlas-search`        | Concrete retrieval service, strict lookup, browse, lexical/semantic/hybrid root ordering, bounded exact native-neighbor reuse, attributable witnesses, bounded remaster information, graph and Suggested variants.                                                                               |
+| `atlas-runtime`       | Paths, setup/source-fetch/cache policy, requested configuration, shared migration composition, reference readiness and bounded typed workspace operations.                                                                                                                                       |
+| `atlas-local-state`   | Saved-domain SQL and session-bound lists/encounters, revision guards and versioned durable roll receipts.                                                                                                                                                                                        |
+| `atlas-dice`          | Bounded library-backed dice evaluation and structured outcomes; no source, persistence or UI policy.                                                                                                                                                                                             |
+| `atlas-app-model`     | Intentional app DTOs and generated TypeScript contracts for filters, search pages, record content, lists and encounters.                                                                                                                                                                         |
+| `atlas-app-service`   | Cross-layer app workflows, bounded retrieval execution, catalog editor presentation, source-based product projections and local-state hydration.                                                                                                                                                 |
+| `atlas-web`           | Thin Axum transport over app-service and static frontend serving.                                                                                                                                                                                                                                |
+| `atlas-cli`           | Product grammar, terminal/JSON presentation, progress/exit behavior, web startup and agent skill installation.                                                                                                                                                                                   |
+| `atlas-dev`           | Private Rust source discovery/audit/artifact inspection, reproducible similarity evaluation, and development baseline orchestration. Builds independently of the web UI and Node.                                                                                                                |
+| `atlas-cli-support`   | Shared path/progress argument and JSON/output primitives for both Rust CLIs. No runtime/ingest policy.                                                                                                                                                                                           |
+| `atlas-tags`          | File-owned tag definitions/assignment DTOs and structural validation. Assessment and product filtering are deferred pending demonstrated retrieval gaps (ADR0054).                                                                                                                               |
+| `atlas-sqlite-vec`    | sqlite-vec registration and capability probing.                                                                                                                                                                                                                                                  |
 
 `atlas-record` uses atlas-dice's pure preparation for bounded literal damage and inline-roll
 arithmetic. App-service owns random reference rolls from these prepared controls.
@@ -45,7 +45,7 @@ Declarations preserve rename, merge, replacement, removal, mechanics and discuss
 context, including grouped and unavailable endpoints. Missing publication metadata
 stays absent; missing relationships do not prove that no counterpart exists.
 [ADR0067](decisions/0067-remaster-relationships.md) owns this distinction and
-separates relationship navigation from preferred search replacements.
+keeps relationship navigation separate from independently matching search results.
 
 `web/atlas-ui` renders generated app contracts with React and Ant Design. Its shared
 `AtlasModal` frame owns form, browsing and confirmation geometry, viewport gutters,
@@ -198,11 +198,10 @@ Keep product retrieval in search. Surfaces do not open SQLite, implement ranking
 scan source clones or load models. Summary reads are body free; explicit detail
 decodes one root and batches selected cache reads. Filters and key scopes apply
 before KNN/FTS ranking. Search witnesses retain actual owner/field/passage addresses.
-Remaster preference suppresses a matching predecessor only for one clear approved
-preferred successor that also matches the complete request. All versions disables
-suppression. Exact record reads and saved-member hydration retain the chosen key;
-filtered saved lists retain all independently matching chosen members. Variants
-are separate derived suggestions.
+Search and discovery retain every independently matching legacy and remaster
+record. Explicit reviewed counterpart mappings provide navigation and comparison;
+they do not hide results. Exact record reads and saved-member hydration retain the
+chosen key. Variants are separate derived suggestions.
 
 Keep application workflows in app-service. It uses runtime/search/local-state,
 not index imports or handcrafted SQL readers. Retain the bounded retrieval

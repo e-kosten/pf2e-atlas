@@ -21,7 +21,7 @@ fn request<'a>(
         scope: RecordScope::All,
         page: SearchPage::first(50).unwrap(),
         sort: atlas_domain::ResultSort::Relevance {},
-        prefer_remaster: false,
+
         cancelled: None,
     }
 }
@@ -473,7 +473,7 @@ fn record_text_context_is_unavailable_for_all_facets_without_inference() {
             search_profile: None,
             text: Some("Fireball"),
             scope: RecordScope::All,
-            prefer_remaster: false,
+
             filter: None,
         };
         service.reset_read_metrics();
@@ -529,7 +529,7 @@ fn record_text_context_is_unavailable_for_all_facets_without_inference() {
                 search_profile: None,
                 text: None,
                 scope: RecordScope::All,
-                prefer_remaster: false,
+
                 filter: None,
             },
         })
@@ -774,7 +774,7 @@ fn ordinary_core_vector_and_hybrid_search_use_eligible_root_maxima_for_both_prof
 }
 
 #[test]
-fn core_lexical_edition_preference_uses_scoped_matches_before_sorting_and_paging() {
+fn core_lexical_matching_preserves_all_relationship_roots_before_sorting_and_paging() {
     let mut data = input(
         vec![
             record(
@@ -817,8 +817,8 @@ fn core_lexical_edition_preference_uses_scoped_matches_before_sorting_and_paging
     let mut query = TextSearchRequest::new("Moonlit", SearchPage::first(50).unwrap());
     query.mode = RetrievalMode::Fts;
     let all = service.search_text(query).unwrap();
-    assert_eq!(all.page.total, 3);
-    assert!(!all.records.iter().any(|row| row.record.key == legacy));
+    assert_eq!(all.page.total, 4);
+    assert!(all.records.iter().any(|row| row.record.key == legacy));
     let modern = all
         .records
         .iter()

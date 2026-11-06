@@ -136,6 +136,46 @@ describe("useSearchWorkspace", () => {
     expect(apiMocks.searchPage.mock.lastCall?.[0].page.number).toBe(5);
   });
 
+  it("retains both independently returned legacy and remaster matches with the server's total", async () => {
+    history.replaceState(null, "", "/search?q=opportunity");
+    const keys = ["glossary:attack-of-opportunity", "glossary:reactive-strike"];
+    const page = searchResultsPage(keys);
+    page.rows[0].record = {
+      ...page.rows[0].record,
+      title: "Attack of Opportunity",
+      edition: "legacy",
+    };
+    page.rows[1].record = {
+      ...page.rows[1].record,
+      title: "Reactive Strike",
+      edition: "remaster",
+    };
+    apiMocks.searchPage.mockResolvedValue(page);
+    const { result } = renderHook(
+      () => useSearchWorkspace({ searchProfile: "bge-base" }),
+      { wrapper: queryClientWrapper() },
+    );
+    await waitFor(() =>
+      expect(
+        result.current.resultPage?.rows.map((row) => row.record.record_key),
+      ).toEqual(keys),
+    );
+    expect(result.current.resultPage?.page.total).toBe(2n);
+    expect(apiMocks.searchPage.mock.lastCall?.[0]).toEqual({
+      search_profile: "bge-base",
+      ranking: "score",
+      page: { number: 1, size: 25 },
+      expected_artifact_generation: null,
+      criteria: {
+        kind: "text_search",
+        query: "opportunity",
+        filter: null,
+        mode: "hybrid",
+        search_content: "all",
+      },
+    });
+  });
+
   it("keeps a shared outage distinct from successful empty results", async () => {
     history.replaceState(null, "", "/search?q=fire");
     apiMocks.searchPage.mockRejectedValue(
@@ -583,7 +623,6 @@ describe("useSearchWorkspace", () => {
           pageNumber: request.page.number,
         }),
         ranking: request.ranking ?? "score",
-        prefer_remaster: request.prefer_remaster ?? true,
       }),
     );
     const { result } = renderHook(
@@ -662,7 +701,6 @@ describe("useSearchWorkspace", () => {
           pageNumber: request.page.number,
         }),
         ranking: request.ranking ?? "score",
-        prefer_remaster: request.prefer_remaster ?? true,
       }));
       const { result, rerender } = renderHook(
         ({ profile }) => useSearchWorkspace({ searchProfile: profile }),
@@ -705,7 +743,7 @@ describe("useSearchWorkspace", () => {
       apiMocks.searchPage.mockClear();
       act(() => {
         result.current.applySettings!(
-          { ...result.current.search, ranking: "rrf", preferRemaster: false },
+          { ...result.current.search, ranking: "rrf" },
           "embeddinggemma",
         );
         rerender({ profile: "embeddinggemma" });
@@ -715,8 +753,6 @@ describe("useSearchWorkspace", () => {
         await delay(350);
       });
       expect(apiMocks.searchPage).toHaveBeenCalledTimes(1);
-      expect(apiMocks.searchPage.mock.lastCall?.[0].prefer_remaster).toBe(false);
-      expect(new URLSearchParams(location.search).get("versions")).toBe("all");
       expect(new URLSearchParams(location.search).has("page")).toBe(false);
       expect(new URLSearchParams(location.search).get("record_view")).toBe("explore");
       expect(new URLSearchParams(location.search).get("record_tab")).toBe("similar");
@@ -1138,7 +1174,6 @@ describe("useSearchWorkspace", () => {
     act(() => result.current.setPageNumber(2));
     await waitFor(() => expect(result.current.resultPage?.page.number).toBe(2));
     expect(apiMocks.searchPage.mock.calls[1][0]).toEqual({
-      prefer_remaster: true,
       search_profile: "bge-base",
       criteria: {
         kind: "similar_records",
@@ -1533,7 +1568,6 @@ describe("useSearchWorkspace", () => {
     expect(apiMocks.searchPage).toHaveBeenLastCalledWith(
       {
         ranking: "score",
-        prefer_remaster: true,
         search_profile: "bge-base",
         criteria: {
           search_content: "all",
@@ -1591,7 +1625,7 @@ describe("useSearchWorkspace", () => {
     expect(result.current.filterEditor).toEqual(editorB);
     expect(apiMocks.searchPage).toHaveBeenCalledTimes(4);
     expect(window.location.search).toBe(
-      "?search_profile=bge-base&versions=prefer&ranking=score&search_content=all&q=dirge",
+      "?search_profile=bge-base&ranking=score&search_content=all&q=dirge",
     );
   });
 
@@ -1870,14 +1904,14 @@ describe("useSearchWorkspace", () => {
       expect(window.location.pathname).toBe("/search/records/spell:heal"),
     );
     expect(window.location.search).toBe(
-      "?search_profile=bge-base&versions=prefer&ranking=score&search_content=all&q=dirge",
+      "?search_profile=bge-base&ranking=score&search_content=all&q=dirge",
     );
 
     act(() => result.current.selectRecord(null));
     expect(result.current.selectedRecordKey).toBeNull();
     await waitFor(() => expect(window.location.pathname).toBe("/search"));
     expect(window.location.search).toBe(
-      "?search_profile=bge-base&versions=prefer&ranking=score&search_content=all&q=dirge",
+      "?search_profile=bge-base&ranking=score&search_content=all&q=dirge",
     );
   });
 
@@ -2017,7 +2051,6 @@ describe("useSearchWorkspace", () => {
       expect(apiMocks.searchPage).toHaveBeenCalledWith(
         {
           ranking: "score",
-          prefer_remaster: true,
           search_profile: "bge-base",
           expected_artifact_generation: "generation-a",
           criteria: {
@@ -2208,7 +2241,6 @@ function searchResultsPage(
   } = {},
 ): SearchResultsPage {
   return {
-    prefer_remaster: true,
     search_content: "all",
     ...(options.similarity
       ? { similarity: similarityConfigurationFixture(options.similarity) }

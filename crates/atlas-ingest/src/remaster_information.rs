@@ -79,20 +79,20 @@ pub(crate) fn captured_inputs(
     result.push(RemasterSourceInput::new(
         RemasterInputKind::AtlasCorrespondence,
         RemasterOrigin::AtlasReviewed,
-        "atlas-remaster-correspondence/v1".into(),
+        "atlas-remaster-correspondence/v2".into(),
         "crates/atlas-record/src/remaster/correspondences.json".into(),
         ATLAS_CORRESPONDENCE_BYTES.to_vec(),
     ));
     Ok(result)
 }
-pub(crate) fn projection(
+pub(crate) fn aliases(
     declarations: &[RemasterDeclaration],
     fields: &[RemasterSelectedField],
     names: &BTreeMap<RecordKey, String>,
     families: &BTreeMap<RecordKey, Option<String>>,
     products: &BTreeSet<RecordKey>,
     sources: &[RemasterSourceInput],
-) -> Result<RemasterProjection, IngestError> {
+) -> Result<Vec<RemasterAlias>, IngestError> {
     let facts = families
         .iter()
         .filter(|(key, _)| products.contains(*key))
@@ -107,7 +107,7 @@ pub(crate) fn projection(
         })
         .collect();
     let bindings = bind_remaster_declarations(declarations, &facts, fields).map_err(error)?;
-    Ok(derive_remaster_projection(
+    Ok(derive_remaster_aliases(
         declarations,
         &bindings,
         &facts,

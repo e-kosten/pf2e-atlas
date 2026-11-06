@@ -257,16 +257,22 @@ it("normalizes the root to Search without changing supported criteria or native 
   expect(recordDestination({ recordKey: "spells:one" }).search).toEqual({});
 });
 
-it("preserves explicit version preference in search and reading links and rejects conflicting choices", () => {
-  for (const kind of ["search", "search_record", "record", "trait"] as const) {
-    expect(canonicalRouteSearch(kind, { versions: "all" })).toMatchObject({
+it("ignores retired and unknown query keys while retaining exact reader and Versions-tab state", () => {
+  expect(
+    canonicalRouteSearch("search_record", {
+      q: "strike",
+      search_profile: "bge-base",
       versions: "all",
-    });
-    expect(() => canonicalRouteSearch(kind, { versions: ["prefer", "all"] })).toThrow(
-      /versions/,
-    );
-  }
-  expect(() => canonicalRouteSearch("trait", { versions: "unknown" })).toThrow(
-    /versions/,
-  );
+      unused: "ignored",
+      rank: "3",
+      record_view: "explore",
+      record_tab: "versions",
+    }),
+  ).toEqual({
+    q: "strike",
+    search_profile: "bge-base",
+    rank: "3",
+    record_view: "explore",
+    record_tab: "versions",
+  });
 });

@@ -52,7 +52,6 @@ fn filtered(
     generation: &str,
 ) -> FilterDiscoveryContext {
     FilterDiscoveryContext::Filtered {
-        prefer_remaster: true,
         search_content: None,
         search_profile: None,
         expected_artifact_generation: Some(generation.into()),

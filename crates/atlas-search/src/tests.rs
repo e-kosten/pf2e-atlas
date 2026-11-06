@@ -61,8 +61,7 @@ fn hybrid_choices_preserve_identity_tiers_and_single_lane_scores() {
                 mode,
                 query: &query,
                 scope: RecordScope::Keys(&candidates),
-                prefer: false,
-                suppress: false,
+
                 vector: Some(&vector),
                 exclude: None,
             })
@@ -166,7 +165,6 @@ fn search(service: &mut AtlasRetrievalService, text: &str) -> TextSearchResult {
             filter: None,
             scope: RecordScope::All,
             page: SearchPage::default(),
-            prefer_remaster: true,
         })
         .unwrap()
 }
@@ -265,7 +263,6 @@ fn strict_identity_alias_ambiguity_and_macro_exclusion() {
                 filter: None,
                 scope: RecordScope::All,
                 page: SearchPage::default(),
-                prefer_remaster: true
             })
             .unwrap()
             .is_none()
@@ -325,7 +322,7 @@ fn exact_key_resolution_obeys_filters_without_suppressing_legacy_identity() {
     }
 }
 #[test]
-fn pair_preference_is_conditional_and_precedes_paging() {
+fn remaster_relationships_keep_all_matching_roots_before_counts_and_paging() {
     let mut fixture = input(
         vec![
             effect(
@@ -337,7 +334,7 @@ fn pair_preference_is_conditional_and_precedes_paging() {
             effect("bbbbbbbbbbbbbbbb", "Remaster flame", 2, ""),
             effect("cccccccccccccccc", "Other flame", 3, ""),
         ],
-        false,
+        true,
     );
     crate::test_support::add_remaster_relationship(
         &mut fixture,
@@ -345,17 +342,43 @@ fn pair_preference_is_conditional_and_precedes_paging() {
         &key("bbbbbbbbbbbbbbbb"),
     )
     .unwrap();
+    for unit in &mut fixture.semantic_units {
+        unit.vector.fill(0.0);
+        unit.vector[0] = 1.0;
+    }
     let (_dir, mut service) = service(fixture);
+    let profile = atlas_domain::SearchProfileId::new("bge-base");
+    let predicate = service.predicate(None).unwrap();
+    let mut vector = vec![0.0; 768];
+    vector[0] = 1.0;
+    // Exercise the real native semantic and hybrid candidate path without a query model.
+    for mode in [RetrievalMode::Vector, RetrievalMode::Hybrid] {
+        let (roots, _) = service
+            .rank_candidates(crate::text::CandidateRequest {
+                content_scope: atlas_domain::SearchContentScope::All,
+                ranking: Default::default(),
+                search_profile: &profile,
+                text: "flame",
+                mode,
+                query: &predicate,
+                scope: RecordScope::All,
+                vector: Some(&vector),
+                exclude: None,
+            })
+            .unwrap();
+        assert_eq!(roots.len(), 3);
+        for id in ["aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb"] {
+            assert!(roots.iter().any(|root| root.key == key(id)));
+        }
+    }
     let both = search(&mut service, "flame");
-    assert_eq!(both.page.total, 2);
+    assert_eq!(both.page.total, 3);
     let mut all_request = TextSearchRequest::new("flame", SearchPage::first(1).unwrap());
     all_request.mode = RetrievalMode::Fts;
-    all_request.prefer_remaster = false;
     let all = service.search_text(all_request).unwrap();
     assert_eq!(all.page.total, 3);
     assert!(
-        !both
-            .records
+        both.records
             .iter()
             .any(|r| r.record.key == key("aaaaaaaaaaaaaaaa"))
     );
@@ -373,7 +396,6 @@ fn pair_preference_is_conditional_and_precedes_paging() {
             filter: Some(filter.predicate()),
             scope: RecordScope::All,
             page: SearchPage::first(1).unwrap(),
-            prefer_remaster: true,
         })
         .unwrap();
     assert_eq!(filtered.page.total, 1);
@@ -389,11 +411,11 @@ fn pair_preference_is_conditional_and_precedes_paging() {
             filter: None,
             scope: RecordScope::All,
             page: SearchPage::new(2, 1).unwrap(),
-            prefer_remaster: true,
         })
         .unwrap();
-    assert_eq!(page2.page.total, 2);
+    assert_eq!(page2.page.total, 3);
     assert_eq!(page2.records.len(), 1);
+    assert_eq!(page2.records[0].record.key, both.records[1].record.key);
     assert_eq!(
         service
             .record_remaster_information(RecordRemasterInformationRequest {
@@ -508,7 +530,6 @@ fn similar_uses_max_passage_score_excludes_seed_and_applies_key_scope_before_knn
             filter: None,
             scope: RecordScope::All,
             page: SearchPage::default(),
-            prefer_remaster: true,
         })
         .unwrap()
         .unwrap();
@@ -530,7 +551,6 @@ fn similar_uses_max_passage_score_excludes_seed_and_applies_key_scope_before_knn
             filter: None,
             scope: RecordScope::Keys(&keys),
             page: SearchPage::default(),
-            prefer_remaster: true,
         })
         .unwrap()
         .unwrap();
@@ -744,7 +764,7 @@ fn contextual_numeric_bounds_restore_target_clause_over_structured_eligibility()
                 search_profile: None,
                 text: None,
                 scope: RecordScope::All,
-                prefer_remaster: true,
+
                 filter: Some(&predicate),
             },
         })
@@ -831,8 +851,7 @@ fn summary_browse_stays_body_free_and_plain_passages_decode_each_root_once() {
             mode: RetrievalMode::Vector,
             query: &query,
             scope: RecordScope::All,
-            prefer: false,
-            suppress: true,
+
             vector: Some(&vector.vector),
             exclude: None,
         })
@@ -915,7 +934,6 @@ fn full_production_artifact_preserves_owned_and_gm_definition_navigation() {
                 filter: Some(filter.predicate()),
                 scope: RecordScope::All,
                 page: SearchPage::default(),
-                prefer_remaster: true,
             })
             .unwrap();
         let root = result
@@ -1042,7 +1060,6 @@ fn many_embedded_spell_units_expand_a_fixed_window_without_a_root_score_bonus() 
             filter: None,
             scope: RecordScope::All,
             page: SearchPage::default(),
-            prefer_remaster: true,
         })
         .unwrap()
         .unwrap();
@@ -1067,7 +1084,6 @@ fn many_embedded_spell_units_expand_a_fixed_window_without_a_root_score_bonus() 
             filter: None,
             scope: RecordScope::All,
             page: SearchPage::new(2, 1).unwrap(),
-            prefer_remaster: true,
         })
         .unwrap()
         .unwrap();
@@ -1091,7 +1107,7 @@ fn optional_discovery_is_analyzed_before_embedding_and_preserves_actual_errors()
         search_profile: None,
         text: Some("flame"),
         scope: RecordScope::All,
-        prefer_remaster: true,
+
         filter: Some(&predicate),
     };
     assert!(matches!(
@@ -1240,7 +1256,7 @@ fn variant_absence_requires_complete_known_compatibility() {
 }
 
 #[test]
-fn similar_filters_and_verified_remaster_policy_are_preserved() {
+fn similar_keeps_matching_relationship_roots_and_applies_only_explicit_filters() {
     let mut fixture = input(
         vec![
             effect("aaaaaaaaaaaaaaaa", "Seed", 0, ""),
@@ -1267,7 +1283,6 @@ fn similar_filters_and_verified_remaster_policy_are_preserved() {
             filter: Some(filtered.predicate()),
             scope: RecordScope::All,
             page: SearchPage::default(),
-            prefer_remaster: true,
         })
         .unwrap()
         .unwrap();
@@ -1284,12 +1299,11 @@ fn similar_filters_and_verified_remaster_policy_are_preserved() {
             filter: None,
             scope: RecordScope::All,
             page: SearchPage::default(),
-            prefer_remaster: true,
         })
         .unwrap()
         .unwrap();
     assert!(
-        !result
+        result
             .results
             .records
             .iter()

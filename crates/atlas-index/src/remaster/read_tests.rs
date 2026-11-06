@@ -60,6 +60,100 @@ fn add_journal(input: &mut crate::IndexBuildInput, pages: serde_json::Value) {
 }
 
 #[test]
+fn reviewed_context_is_a_checked_selected_journal_address_not_foundry_mapping_proof() {
+    let markup = "<table><tr><th>Old</th><th>New</th></tr><tr><td>Former Staff</td><td>@UUID[Compendium.pf2e.items.Item.bbbbbbbbbbbbbbbb]{Dragon Staff}</td></tr></table>";
+    for valid_hash in [true, false] {
+        let mut input = fixture(false);
+        let before: RecordKey = "items:0000000000000000".parse().unwrap();
+        let after: RecordKey = "items:bbbbbbbbbbbbbbbb".parse().unwrap();
+        let source = record(
+            "items",
+            "Item",
+            json!({"_id":"0000000000000000","name":"Former Staff","type":"weapon","system":{"level":{"value":0},"traits":{"value":[]},"description":{"value":""}}}),
+        );
+        let selection = select_record_search(
+            &source.record,
+            &source.content,
+            input.context.audience,
+            "Items",
+            &input.context.used_trait_labels,
+        )
+        .unwrap();
+        input
+            .lexical_units
+            .extend(crate::project_lexical_units(&selection, &[]));
+        input.records.push(source);
+        input.context.source_file_count += 1;
+        add_journal(
+            &mut input,
+            json!([{"_id":"ffffffffffffffff","name":"Equipment","type":"text","text":{"format":1,"content":markup}}]),
+        );
+        let locator = SourceContentLocator {
+            record: "journals:eeeeeeeeeeeeeeee".parse().unwrap(),
+            owners: vec![OwnedContentLocator {
+                collection: "/pages".into(),
+                identity: OwnedContentIdentity::Stable("ffffffffffffffff".into()),
+            }],
+            field: "/text/content".into(),
+        };
+        let mut row = crate::foundation_tests::correspondence(
+            before.clone(),
+            after.clone(),
+            "Former Staff",
+            "Dragon Staff",
+            "weapon",
+        );
+        row.namespace = "equipment".into();
+        row.kind = RemasterChangeKind::Renamed;
+        row.journal_context = Some(ReviewedJournalContext {
+            locator: locator.clone(),
+            authored_sha256: if valid_hash {
+                hash(markup.as_bytes())
+            } else {
+                "0".repeat(64)
+            },
+        });
+        crate::foundation_tests::add_correspondences(&mut input, vec![row]);
+        crate::test_support::capture_remaster_declarations(&mut input).unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("workspace.sqlite");
+        crate::test_support::publish_input(&path, &input).unwrap();
+        let reader = crate::test_support::open_reader(&path).unwrap();
+        let information = reader
+            .remaster_record_information(&before, &[], 20)
+            .unwrap();
+        assert_eq!(information.declarations.len(), 1);
+        let citations = &information.declarations[0].citations;
+        assert!(
+            citations
+                .iter()
+                .all(|citation| citation.origin == RemasterOrigin::AtlasReviewed)
+        );
+        assert_eq!(
+            citations
+                .iter()
+                .filter(|citation| citation.locator.as_ref() == Some(&locator))
+                .count(),
+            usize::from(valid_hash)
+        );
+        assert!(citations.iter().any(|citation| citation.path.is_some()));
+        if valid_hash {
+            let journal = reader.read_source_record(&locator.record).unwrap().unwrap();
+            assert_eq!(
+                journal.authored_content_at(&locator).value().unwrap(),
+                markup
+            );
+        }
+        let new = reader.remaster_record_information(&after, &[], 20).unwrap();
+        assert_eq!(
+            new.declarations.len(),
+            2,
+            "authored rename and reviewed exact mapping remain separate evidence"
+        );
+    }
+}
+
+#[test]
 fn alias_batch_hydrates_shared_declarations_fields_and_capture_once() {
     let mut input = fixture(false);
     for (ordinal, name) in ["Former Hammer", "Former Staff"].into_iter().enumerate() {
@@ -101,6 +195,9 @@ fn alias_batch_hydrates_shared_declarations_fields_and_capture_once() {
             after_label: "Dragon Staff".into(),
             namespace: "fixture".into(),
             source_type: "weapon".into(),
+            kind: atlas_record::remaster::RemasterChangeKind::Replaced,
+            qualifier: None,
+            journal_context: None,
             rationale: "Explicit fixture correspondence".into(),
         })
         .collect();
