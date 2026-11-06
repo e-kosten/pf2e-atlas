@@ -6,6 +6,7 @@ import { atlasRouter } from "../../app/router";
 import type { DefinitionDetailView } from "../../generated/atlas";
 import { RouterTestContext } from "../../test/router";
 import { SearchProfileProvider } from "../../test/SearchProfileProvider";
+import { summaryFixture } from "../../test/fixtures";
 import { DefinitionView } from "./DefinitionView";
 
 vi.mock("../../api/atlasApi", async (original) => ({
@@ -76,8 +77,14 @@ beforeEach(() => {
     mode: { kind: "list_records" },
     coverage: null,
     relationship_clauses: [],
-    rows: [],
-    page: { number: 1, size: 5, count: 0, total: 0n, has_more: false, next_page: null },
+    rows: [
+      {
+        record: summaryFixture("creatures:speaker", "Speaker"),
+        matches: [],
+        relationship_evidence: [],
+      },
+    ],
+    page: { number: 1, size: 5, count: 1, total: 1n, has_more: false, next_page: null },
   });
 });
 

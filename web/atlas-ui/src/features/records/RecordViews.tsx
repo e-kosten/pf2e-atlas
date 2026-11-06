@@ -3,7 +3,8 @@ import {
   definitionHelpMatchesRecord,
 } from "../../shared/records/useDefinitionDetail";
 import { DefinitionAssociations } from "../../shared/records/DefinitionAssociations";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { definitionFilterSelectionQueryOptions } from "../../shared/filters/definitionFilterSelectionQuery";
 import {
   isArtifactGenerationChanged,
   retireReferenceQueries,
@@ -40,7 +41,16 @@ export function RecordView({ route }: RecordViewProps) {
     route.definitionKey ?? null,
     detail.data?.artifact_generation,
   );
-  const propertyChanged = isArtifactGenerationChanged(property.error);
+  const recordOnlyDefinition =
+    !route.definitionKey && route.readingContext === "general_definition";
+  const recordOption = useQuery(
+    definitionFilterSelectionQueryOptions(
+      recordOnlyDefinition && detail.data
+        ? { kind: "record", selection: detail.data.selected }
+        : undefined,
+      detail.data?.artifact_generation,
+    ),
+  );
   const propertyHelp =
     property.data &&
     definitionHelpMatchesRecord(
@@ -50,6 +60,24 @@ export function RecordView({ route }: RecordViewProps) {
     )
       ? property.data.help
       : undefined;
+  const selectedOption = recordOption.data?.selected[0];
+  const recordHelp =
+    selectedOption?.help.availability === "available" &&
+    detail.data &&
+    !isArtifactGenerationChanged(recordOption.error) &&
+    definitionHelpMatchesRecord(
+      selectedOption.help,
+      detail.data.selected,
+      route.readingContext,
+    )
+      ? selectedOption.help
+      : undefined;
+  const relatedError = route.definitionKey ? property.error : recordOption.error;
+  const relatedChanged = isArtifactGenerationChanged(relatedError);
+  const relatedHelp = route.definitionKey ? propertyHelp : recordHelp;
+  const relatedGeneration = route.definitionKey
+    ? property.data?.artifact_generation
+    : recordOption.data?.artifact_generation;
   const reload = async () => {
     await retireReferenceQueries(client);
     await detail.refetch();
@@ -86,37 +114,41 @@ export function RecordView({ route }: RecordViewProps) {
               route.definitionKey,
             ])}
             afterContent={
-              route.definitionKey && (
+              (route.definitionKey || recordOnlyDefinition) && (
                 <>
-                  {property.error && (
+                  {relatedError && (
                     <ErrorNotice
-                      error={property.error}
+                      error={relatedError}
                       title={
-                        propertyChanged
+                        relatedChanged
                           ? "Reference collection changed"
                           : "Unable to load related searches"
                       }
-                      type={propertyChanged ? "warning" : "error"}
+                      type={relatedChanged ? "warning" : "error"}
                       action={
                         <Button
                           onClick={() =>
-                            void (propertyChanged ? reload() : property.refetch())
+                            void (relatedChanged
+                              ? reload()
+                              : route.definitionKey
+                                ? property.refetch()
+                                : recordOption.refetch())
                           }
                         >
-                          {propertyChanged ? "Refresh" : "Retry"}
+                          {relatedChanged ? "Refresh" : "Retry"}
                         </Button>
                       }
                     />
                   )}
-                  {propertyHelp && property.data && (
+                  {relatedHelp && relatedGeneration && (
                     <DefinitionAssociations
-                      actions={propertyHelp.related_filters}
-                      generation={property.data.artifact_generation}
+                      actions={relatedHelp.related_filters}
+                      generation={relatedGeneration}
                       onReference={preview.open}
                       onReload={() => void reload()}
                     />
                   )}
-                  {property.data && !propertyHelp && (
+                  {route.definitionKey && property.data && !propertyHelp && (
                     <p className="muted">
                       This definition no longer points to this entry.
                     </p>

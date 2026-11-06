@@ -1,8 +1,11 @@
-import { Button, Empty, Tabs } from "antd";
-import { useQuery } from "@tanstack/react-query";
+import { Button, Tabs } from "antd";
+import { queryOptions, useQueries, type UseQueryResult } from "@tanstack/react-query";
 import { searchPage } from "../../api/atlasApi";
 import { searchDestination } from "../../app/destinations";
-import type { ReferenceFilterActionView } from "../../generated/atlas";
+import type {
+  ReferenceFilterActionView,
+  SearchResultsPage,
+} from "../../generated/atlas";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import { DEFAULT_SEARCH_STATE, searchStateQueryString } from "../filters/searchState";
 import {
@@ -34,18 +37,36 @@ export function DefinitionAssociations({
   const searches = actions.filter(
     (action): action is SearchAction => action.kind === "search",
   );
-  if (!searches.length) return null;
+  const profile = useSearchProfile();
+  const availability = useQueries({
+    queries: searches.map((action) =>
+      associationPreviewQueryOptions(action, generation, profile.id, profile.loading),
+    ),
+  });
+  const visible = searches
+    .map((action, index) => ({ action, query: availability[index], index }))
+    .filter(
+      ({ action, query }) =>
+        action.artifact_generation !== generation ||
+        query.error ||
+        query.isFetching ||
+        !query.data ||
+        query.data.page.total !== 0n ||
+        query.data.rows.length > 0,
+    );
+  if (!visible.length) return null;
   return (
     <section className="record-explore" aria-label="Related records">
       <Tabs
         animated={false}
         destroyOnHidden
-        items={searches.map((action, index) => ({
+        items={visible.map(({ action, query, index }) => ({
           key: JSON.stringify([index, action.predicate, generation]),
           label: action.label,
           children: (
             <DefinitionAssociatedRecords
               action={action}
+              query={query}
               generation={generation}
               onReference={onReference}
               onReload={onReload}
@@ -59,42 +80,19 @@ export function DefinitionAssociations({
 
 function DefinitionAssociatedRecords({
   action,
+  query,
   generation,
   onReference,
   onReload,
 }: {
   action: SearchAction;
+  query: UseQueryResult<SearchResultsPage, Error>;
   generation: string;
   onReference: RecordReferenceHandler;
   onReload: () => void;
 }) {
   const profile = useSearchProfile();
   const staleAction = action.artifact_generation !== generation;
-  const query = useQuery({
-    meta: referenceQueryMeta,
-    queryKey: [
-      "definition-association-preview",
-      action.predicate,
-      generation,
-      profile.id,
-    ],
-    staleTime: Infinity,
-    retryOnMount: false,
-    enabled: !staleAction && !profile.loading && profile.id !== null,
-    queryFn: async ({ signal }) => {
-      const page = await searchPage(
-        {
-          search_profile: profile.id ?? undefined,
-          criteria: { kind: "list_records", filter: action.predicate },
-          page: { number: 1, size: 5 },
-          expected_artifact_generation: generation,
-        },
-        signal,
-      );
-      assertSearchIdentity(page, profile.id, generation);
-      return page;
-    },
-  });
   const changed = staleAction || isArtifactGenerationChanged(query.error);
   const data = changed ? undefined : query.data;
   const route = searchDestination({
@@ -138,20 +136,50 @@ function DefinitionAssociatedRecords({
           <LoadingStatus label="Updating associated records…" />
         </div>
       )}
-      {data &&
-        (data.rows.length ? (
-          <SearchPreviewRows
-            page={data}
-            filter={action.predicate}
-            onReference={onReference}
-            onReload={onReload}
-          />
-        ) : (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="No matching records"
-          />
-        ))}
+      {data && data.rows.length > 0 && (
+        <SearchPreviewRows
+          page={data}
+          filter={action.predicate}
+          onReference={onReference}
+          onReload={onReload}
+        />
+      )}
     </section>
   );
+}
+
+function associationPreviewQueryOptions(
+  action: SearchAction,
+  generation: string,
+  profileId: string | null,
+  profileLoading: boolean,
+) {
+  return queryOptions({
+    meta: referenceQueryMeta,
+    queryKey: [
+      "definition-association-preview",
+      action.predicate,
+      generation,
+      profileId,
+    ],
+    staleTime: Infinity,
+    retryOnMount: false,
+    enabled:
+      action.artifact_generation === generation &&
+      !profileLoading &&
+      profileId !== null,
+    queryFn: async ({ signal }) => {
+      const page = await searchPage(
+        {
+          search_profile: profileId ?? undefined,
+          criteria: { kind: "list_records", filter: action.predicate },
+          page: { number: 1, size: 5 },
+          expected_artifact_generation: generation,
+        },
+        signal,
+      );
+      assertSearchIdentity(page, profileId, generation);
+      return page;
+    },
+  });
 }

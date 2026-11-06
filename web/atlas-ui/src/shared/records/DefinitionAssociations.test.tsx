@@ -121,7 +121,7 @@ it("uses the supplied exact predicate for a five-row preview, count, and full Se
   expect(onReference).toHaveBeenCalledWith("actors:speaker-0", expect.any(HTMLElement));
 });
 
-it("keeps distinct supplied relations in tabs, including a known-empty result", async () => {
+it("hides confirmed zero relations from mixed tabs while retaining nonempty supplied relations", async () => {
   const alternate: typeof action = {
     ...action,
     label: "With this alternate domain",
@@ -132,20 +132,63 @@ it("keeps distinct supplied relations in tabs, including a known-empty result", 
       values: ["knowledge"],
     },
   };
-  api.mockImplementation(async (request) => page(request, 0));
+  api.mockImplementation(async (request) =>
+    page(
+      request,
+      JSON.stringify(request.criteria) ===
+        JSON.stringify({ kind: "list_records", filter: action.predicate })
+        ? 0
+        : 5,
+    ),
+  );
   setup([action, alternate]);
-  expect(await screen.findByText("0 of 0 entries")).toBeVisible();
-  expect(screen.getByText("No matching records")).toBeVisible();
-  fireEvent.click(screen.getByRole("tab", { name: alternate.label }));
+  expect(await screen.findByText("5 of 88 entries")).toBeVisible();
   await waitFor(() =>
-    expect(api).toHaveBeenLastCalledWith(
+    expect(api).toHaveBeenCalledWith(
       expect.objectContaining({
         criteria: { kind: "list_records", filter: alternate.predicate },
       }),
       expect.any(AbortSignal),
     ),
   );
+  expect(screen.queryByRole("tab", { name: action.label })).toBeNull();
+  expect(screen.getByRole("tab", { name: alternate.label })).toBeVisible();
+  expect(screen.queryByText("0 of 0 entries")).toBeNull();
+  expect(screen.queryByText("No matching records")).toBeNull();
+});
+
+it("hides the entire association block only after all relations confirm zero results", async () => {
+  api.mockImplementation(async (request) => page(request, 0));
+  setup();
+  await waitFor(() => expect(api).toHaveBeenCalledOnce());
+  await waitFor(() =>
+    expect(screen.queryByRole("region", { name: "Related records" })).toBeNull(),
+  );
+  expect(screen.queryByRole("link", { name: "Search records" })).toBeNull();
+  expect(screen.queryByText("0 of 0 entries")).toBeNull();
+});
+
+it("keeps unknown and failed availability visible with recovery instead of treating it as zero", async () => {
+  let reject!: (error: Error) => void;
+  api.mockImplementationOnce(
+    () =>
+      new Promise((_resolve, fail) => {
+        reject = fail;
+      }),
+  );
+  setup();
+  expect(await screen.findByRole("status", { name: "Loading records…" })).toBeVisible();
   expect(screen.getByRole("tab", { name: action.label })).toBeVisible();
+  await act(async () => {
+    reject(new Error("Offline"));
+  });
+  expect(await screen.findByRole("button", { name: "Retry" })).toBeVisible();
+  expect(screen.getByRole("tab", { name: action.label })).toBeVisible();
+  api.mockImplementation(async (request) => page(request, 0));
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  await waitFor(() =>
+    expect(screen.queryByRole("region", { name: "Related records" })).toBeNull(),
+  );
 });
 
 it("removes invalidated-generation rows and reloads the definition rather than retrying stale criteria", async () => {

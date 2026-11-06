@@ -3,7 +3,7 @@
 Status: in_progress
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-11-05
+Last reviewed: 2026-11-06
 
 ## Remaining outcome
 
@@ -19,11 +19,17 @@ query/discovery bindings. Rust projections retain raw values beside readable lab
 communication notes, sense qualifiers, attribution and typed help destinations.
 See [ADR0067](../../architecture/decisions/0067-contextual-reference-definitions.md).
 
-Remaining presentation work activates the shared Drawer and complete per-type help,
-new definition selection controls, related-filter actions and mixed reading history
-with purpose-aware native destinations. Preserve the distinction between having a
-property and explicitly referencing a definition. Labels without source definitions
-stay useful filter values; do not invent rules prose or name-based links.
+Contextual reading uses the shared Drawer and mixed history with exact native
+destinations. Readable definitions have ordinary publication attribution and use the
+existing trait presentation for related records on their standalone pages. Metadata-
+only values remain plain facts and useful filter choices, without empty definition
+pages, technical source panels or invented rules prose. Property membership and
+explicit references keep separate filter meanings.
+
+A further discovery refinement is to distinguish same-title choices with concise,
+readable context. For example, a sense property and references to its general rule
+can both be named Darkvision. Preserve their exact identities and predicates; do
+not expose source keys or merge definitions merely to disambiguate the chooser.
 
 Trait pages, exact membership/reference navigation, stored-vector Similar, CLI
 lookup and shared document chrome were delivered in
