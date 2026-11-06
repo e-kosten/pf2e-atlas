@@ -7,6 +7,78 @@ use std::{fs, path::PathBuf};
 const DARKVISION: &str = "bestiary-ability-glossary-srd:qCCLZhnp2HhP3Ex6";
 const AIR: &str = "PF2E.Item.Deity.Domain.Air.Description";
 const AGILE: &str = "PF2E.TraitDescriptionAgile";
+
+#[test]
+fn structured_language_speakers_have_context_and_preserve_source_names() {
+    for (speakers, expected) in [
+        (vec!["Demons"], "Spoken by: demons"),
+        (
+            vec!["Dragons", "reptilian humanoids"],
+            "Spoken by: dragons and reptilian humanoids",
+        ),
+        (
+            vec!["Fey", "centaurs", "plant", "fungus creatures"],
+            "Spoken by: fey, centaurs, plant and fungus creatures",
+        ),
+        (
+            vec!["Nidalese", "Netherworld creatures"],
+            "Spoken by: Nidalese and Netherworld creatures",
+        ),
+        (
+            vec!["Absalom", "Golarion"],
+            "Spoken by: Absalom and Golarion",
+        ),
+        (
+            vec!["<new speakers>", "A&B"],
+            "Spoken by: &lt;new speakers&gt; and A&amp;B",
+        ),
+    ] {
+        let speakers = speakers.into_iter().map(str::to_owned).collect::<Vec<_>>();
+        assert_eq!(
+            language_speaker_markup(&speakers).unwrap(),
+            format!("<p>{expected}</p>")
+        );
+    }
+    assert!(language_speaker_markup(&[]).is_none());
+}
+
+#[test]
+fn prepared_language_speaker_context_is_readable_without_changing_other_prose() {
+    let fixture = Fixture::new("pf2e");
+    fixture
+        .build(ReferenceSupplementSelection::Bundled)
+        .unwrap();
+    for (key, expected) in [
+        ("language:chthonian", "Spoken by: demons"),
+        (
+            "language:draconic",
+            "Spoken by: dragons and reptilian humanoids",
+        ),
+        (
+            "language:common",
+            "Spoken by: humans, dwarves, elves, halflings and other common ancestries",
+        ),
+        (
+            "language:shadowtongue",
+            "Spoken by: Nidalese and Netherworld creatures",
+        ),
+        ("domain:air", "You can control winds and the weather."),
+    ] {
+        let ReferenceBacking::Prepared { content, .. } = fixture.entry(key).backing else {
+            panic!("prepared {key}")
+        };
+        assert_eq!(content.text, expected, "{key}");
+    }
+    let ReferenceBacking::Prepared {
+        authored_markup,
+        content,
+    } = fixture.entry("weapon_group:dart").backing
+    else {
+        panic!("prepared weapon specialization")
+    };
+    assert!(!content.text.starts_with("Spoken by:"));
+    assert!(!authored_markup.starts_with("<p>Spoken by:"));
+}
 const FAMILY_TEMPLATES: &[(&str, &str)] = &[
     ("r34QDwKiWZoVymJa", "GolemAntimagic"),
     ("xS8ybzuqPSi3Jb8k", "WindUp"),

@@ -519,10 +519,11 @@ impl<'a> ReferenceBuild<'a> {
                 entry.permission.notices.push("community-use".into());
             }
             supplemental.markup.clone().or_else(|| {
-                Some(format!(
-                    "<p>{}</p>",
-                    escape_content_text(&supplemental.speakers.join(", "))
-                ))
+                if key.namespace() == DefinitionNamespace::Language {
+                    language_speaker_markup(&supplemental.speakers)
+                } else {
+                    None
+                }
             })
         } else if let Some(description_key) = authored.description_key {
             let Some(markup) = self
@@ -600,6 +601,48 @@ impl<'a> ReferenceBuild<'a> {
         }
         Ok(entry)
     }
+}
+
+fn language_speaker_markup(speakers: &[String]) -> Option<String> {
+    let mut speakers = speakers.to_vec();
+    let first = speakers.first_mut()?;
+    // The captured table capitalizes its first cell. Only reviewed common-noun
+    // phrases change case; proper names and new source wording stay verbatim.
+    if matches!(
+        first.as_str(),
+        "Evil fey"
+            | "Demons"
+            | "Humans"
+            | "Devils"
+            | "Dragons"
+            | "Dwarves"
+            | "Elves"
+            | "Angels"
+            | "Fey"
+            | "Gnomes"
+            | "Goblins"
+            | "Halflings"
+            | "Giants"
+            | "The hyena-like kholos"
+            | "Wood elemental creatures"
+            | "Ghouls"
+            | "Orcs"
+            | "Earth elemental creatures"
+            | "Fire elemental creatures"
+            | "Subterranean civilizations"
+            | "Air elemental creatures"
+            | "Metal elemental creatures"
+            | "Aquatic creatures"
+    ) {
+        first.make_ascii_lowercase();
+    }
+    let (last, leading) = speakers.split_last()?;
+    let text = if leading.is_empty() {
+        last.clone()
+    } else {
+        format!("{} and {last}", leading.join(", "))
+    };
+    Some(format!("<p>Spoken by: {}</p>", escape_content_text(&text)))
 }
 
 #[cfg(test)]

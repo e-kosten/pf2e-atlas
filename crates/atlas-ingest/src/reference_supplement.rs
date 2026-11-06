@@ -6,7 +6,7 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fs, path::PathBuf};
 
-pub const REFERENCE_PREPARATION_RECIPE: &str = "reference-definitions/v2";
+pub const REFERENCE_PREPARATION_RECIPE: &str = "reference-definitions/v3";
 
 #[derive(Debug, Clone, Default)]
 pub enum ReferenceSupplementSelection {
