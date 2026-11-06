@@ -86,7 +86,7 @@ pub struct RecordResolutionResult {
     pub normalized_query: String,
     pub match_kind: RecordResolutionMatchKind,
     pub matched_text: String,
-    pub evidence: Option<String>,
+    pub support: Option<crate::RemasterLookupSupport>,
     pub record: SourceRecordSummary,
 }
 #[derive(Debug, Clone)]
@@ -208,17 +208,33 @@ impl AtlasRetrievalService {
             ));
         }
         let summaries = self.summaries(&eligible.keys)?;
+        let selected = summaries
+            .into_iter()
+            .map(|record| {
+                let exact = matches
+                    .iter()
+                    .find(|matched| matched.key == record.key && matched.alias.is_none())
+                    .or_else(|| matches.iter().find(|matched| matched.key == record.key))
+                    .ok_or_else(|| {
+                        SearchError::artifact_contract_violation(
+                            "eligible exact candidate has no indexed identity evidence",
+                        )
+                    })?;
+                Ok((record, exact))
+            })
+            .collect::<Result<Vec<_>, SearchError>>()?;
+        let aliases = selected
+            .iter()
+            .filter_map(|(record, exact)| {
+                exact
+                    .alias
+                    .as_ref()
+                    .map(|alias| (record.key.clone(), alias.clone()))
+            })
+            .collect::<Vec<_>>();
+        let mut supports = self.remaster_alias_support(&aliases)?;
         let mut result = Vec::new();
-        for record in summaries {
-            let exact = matches
-                .iter()
-                .find(|m| m.key == record.key && m.alias.is_none())
-                .or_else(|| matches.iter().find(|m| m.key == record.key))
-                .ok_or_else(|| {
-                    SearchError::artifact_contract_violation(
-                        "eligible exact candidate has no indexed identity evidence",
-                    )
-                })?;
+        for (record, exact) in selected {
             let name = record.name.as_value().cloned().unwrap_or_default();
             let match_kind = if exact.alias.is_some() {
                 RecordResolutionMatchKind::Alias
@@ -232,7 +248,10 @@ impl AtlasRetrievalService {
                 normalized_query: atlas_domain::normalize_record_name(request.query),
                 match_kind,
                 matched_text: exact.alias.clone().unwrap_or(name),
-                evidence: exact.evidence.clone(),
+                support: exact
+                    .alias
+                    .as_ref()
+                    .and_then(|alias| supports.remove(&(record.key.clone(), alias.clone()))),
                 record,
             });
         }

@@ -816,10 +816,10 @@ fn alias_journal_barrier_filters_duplicates_and_keeps_final_preparation_counts_a
     ]}).to_string()).unwrap();
     let journal = |file: &str, id: &str, alias: &str| {
         let body = format!(
-            "<table><tr><td>{alias}</td><td>@UUID[Compendium.pf2e.items.Item.bbbbbbbbbbbbbbbb]</td></tr></table>"
+            "<table><tr><th>Old Name</th><th>New Name</th></tr><tr><td>{alias}</td><td>@UUID[Compendium.pf2e.items.Item.bbbbbbbbbbbbbbbb]</td></tr></table>"
         );
         fs::write(fixture.0.path().join("packs/journals").join(file),serde_json::json!({
-            "_id":id,"name":"Remaster Changes","pages":[{"_id":"ffffffffffffffff","name":"Changes","type":"text","text":{"format":1,"content":body}}]
+            "_id":id,"name":"Remaster Changes","pages":[{"_id":"ffffffffffffffff","name":"Equipment","type":"text","text":{"format":1,"content":body}}]
         }).to_string()).unwrap();
     };
     journal("one.json", "cccccccccccccccc", "First old name");
@@ -832,7 +832,7 @@ fn alias_journal_barrier_filters_duplicates_and_keeps_final_preparation_counts_a
     assert_eq!(fresh.work.alias_journal_reads, 2);
     assert_eq!(fresh.work.alias_journal_fresh_preparations, 2);
     assert_eq!(fresh.work.alias_journal_reused_preparations, 0);
-    assert_eq!(fresh.work.main_fresh_preparations, 4);
+    assert_eq!(fresh.work.main_fresh_preparations, 2);
     assert_eq!(fresh.work.selection_calls, 4);
     assert_eq!(
         fresh.source_report.identity_unavailable.get("DuplicateId"),
@@ -841,9 +841,11 @@ fn alias_journal_barrier_filters_duplicates_and_keeps_final_preparation_counts_a
     let mut aliases = Vec::new();
     fresh
         .spool
-        .aliases
+        .lexical
         .visit(&mut |alias| {
-            aliases.push((alias.record.to_string(), alias.alias));
+            if alias.kind == atlas_index::SourceLexicalUnitKind::RootAlias {
+                aliases.push((alias.record.to_string(), alias.alias_terms));
+            }
             Ok(())
         })
         .unwrap();
@@ -891,4 +893,48 @@ fn alias_journal_barrier_filters_duplicates_and_keeps_final_preparation_counts_a
     assert_eq!(changed.work.selection_calls, 4);
     assert!(changed.work.largest_content_overlap.total() <= 32);
     assert!(changed.work.largest_semantic_overlap.total() <= 32);
+}
+
+#[test]
+fn metadata_authority_readiness_does_not_invalidate_unchanged_source_preparation() {
+    let fixture = SourceFixture::new();
+    let options = fixture.options("metadata-authority");
+    fixture.build("metadata-authority");
+    let before = components(&options.output_path);
+    let reader = atlas_index::test_support::open_reader(&options.output_path).unwrap();
+    let mut context = reader.context().clone();
+    let original_preparation = context.preparation_sha256().unwrap();
+    let revision = reader.artifact_instance().reference_revision();
+    drop(reader);
+    context.remaster_inputs_identity = "0".repeat(64);
+    assert_eq!(context.preparation_sha256().unwrap(), original_preparation);
+    let workspace = atlas_storage::Workspace::at(&options.output_path).unwrap();
+    let write = workspace
+        .write(atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    write
+        .connection()
+        .execute(
+            "UPDATE artifact_context SET context_hash=?,context_json=?",
+            rusqlite::params![
+                context.sha256().unwrap(),
+                serde_json::to_string(&context).unwrap()
+            ],
+        )
+        .unwrap();
+    write.commit().unwrap();
+    assert!(atlas_index::test_support::open_reader(&options.output_path).is_err());
+    let prepared = prepare_fixture(&options).unwrap();
+    assert_eq!(prepared.source_report.reused_admissions, 2);
+    assert_eq!(prepared.source_report.reused_preparations, 2);
+    assert_eq!(prepared.work.main_fresh_preparations, 0);
+    assert_eq!(
+        prepared.spool.context().source_fingerprint,
+        context.source_fingerprint
+    );
+    fixture.build("metadata-authority");
+    let reader = atlas_index::test_support::open_reader(&options.output_path).unwrap();
+    assert!(reader.artifact_instance().reference_revision() > revision);
+    drop(reader);
+    assert_eq!(components(&options.output_path), before);
 }

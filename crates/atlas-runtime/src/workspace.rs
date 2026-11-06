@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 29;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 30;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -200,6 +200,12 @@ const MIGRATIONS: &[Migration] = &[
         version: 29,
         name: "reference-component-reconciliation",
         sql: atlas_index::COMPONENT_DIGEST_SCHEMA_SQL,
+        backfill: None,
+    },
+    Migration {
+        version: 30,
+        name: "remaster-information",
+        sql: atlas_index::REMASTER_SCHEMA_SQL,
         backfill: None,
     },
 ];
@@ -1377,3 +1383,7 @@ mod tests {
         assert_eq!(prototype_columns, 0);
     }
 }
+
+#[cfg(test)]
+#[path = "remaster_upgrade_tests.rs"]
+mod remaster_upgrade_tests;

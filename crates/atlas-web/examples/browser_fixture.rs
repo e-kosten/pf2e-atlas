@@ -50,11 +50,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
     let index_path = run_directory.join("artifact.sqlite");
     let mut fixture = input(corpus::records(), true);
-    fixture.remaster_pairs.push(atlas_index::SourceRemasterPairInput {
-        legacy: "browser-editions:legacy0000000001".parse()?,
-        remaster: "browser-editions:remaster00000001".parse()?,
-        provenance: serde_json::from_value(serde_json::json!({"record":"browser-journals:editionjournal01","owners":[{"collection":"/pages","identity":{"Stable":"editionpage00001"}}],"field":"/text/content"}))?,
-    });
+    atlas_index::test_support::capture_remaster_declarations(&mut fixture)?;
     let trait_key = TraitKey::new("light")?;
     fixture.traits.push(TraitDefinition {
         key: trait_key.clone(),

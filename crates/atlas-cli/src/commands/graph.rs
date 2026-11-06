@@ -124,36 +124,52 @@ pub(crate) fn run_graph_remaster(o: GraphRemasterOptions) -> Result<ExitCode, St
         Ok(service) => service,
         Err(error) => return report_app_error(error, o.json),
     };
-    let key = match seed(&s, o.record_ref, o.json)? {
-        Ok(key) => key,
-        Err(exit) => return Ok(exit),
+    let subject = if let Some(term) = o.term {
+        atlas_app_model::RemasterSubjectRequest::Term { term }
+    } else if let Some(reference) = o.record_ref {
+        let key = match reference.parse::<atlas_domain::RecordKey>() {
+            Ok(key) => key,
+            Err(_) => match seed(&s, reference, o.json)? {
+                Ok(key) => key,
+                Err(exit) => return Ok(exit),
+            },
+        };
+        atlas_app_model::RemasterSubjectRequest::Record {
+            selection: atlas_app_model::RecordNavigationView {
+                spell_rank: None,
+                record_key: key.to_string(),
+                owners: vec![],
+                field: None,
+                passage: None,
+                source_fingerprint: None,
+            },
+        }
+    } else {
+        return Err("Specify a record or --term".into());
     };
-    let r = match s.remaster_links(key) {
-        Ok(value) => value,
+    let result = match s.remaster_relationships(
+        atlas_app_model::RemasterRelationshipsRequest {
+            subject,
+            limit: o.limit,
+            expected_artifact_generation: None,
+        },
+        &atlas_app_service::ReadExecutionContext::uncancellable(),
+    ) {
+        Ok(result) => result,
         Err(error) => return report_app_error(error.into_app_error(), o.json),
     };
-    let Some(r) = r else {
-        return report_app_error(
-            atlas_app_model::AppError::new(
-                atlas_app_model::AppErrorCode::RecordNotFound,
-                "record not found",
-            ),
-            o.json,
-        );
-    };
     if o.json {
-        write_json_data(serde_json::to_value(&r).map_err(|e| e.to_string())?)?;
+        write_json_data(&result)?;
     } else {
-        println!("Other editions of {}", r.seed.title);
-        for link in r.links {
-            println!(
-                "{} → {}",
-                link.legacy_record.title, link.remaster_record.title
-            );
-            println!("  Source: {}", link.provenance.attribution);
-            if let Some(reason) = link.provenance.unavailable_reason {
-                println!("  {reason}");
-            }
+        if let atlas_app_model::RemasterSubjectView::Term { scope_label, .. } = &result.subject {
+            println!("{scope_label}");
+        }
+        print!(
+            "{}",
+            super::remaster_presentation::full(&result.relationships)
+        );
+        if let Some(context) = &result.source_remaster_context {
+            print!("{}", super::remaster_presentation::source_context(context));
         }
     }
     Ok(ExitCode::SUCCESS)

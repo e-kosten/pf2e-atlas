@@ -9,6 +9,11 @@ use std::path::PathBuf;
 pub(crate) struct SimilarOptions {
     #[arg(
         long,
+        help = "Show every matching version, including older entries with a matching verified replacement"
+    )]
+    pub(crate) all_versions: bool,
+    #[arg(
+        long,
         value_enum,
         conflicts_with = "parts",
         help = "Source selection: identity and all sections, or identity and Core sections chosen for this record kind"

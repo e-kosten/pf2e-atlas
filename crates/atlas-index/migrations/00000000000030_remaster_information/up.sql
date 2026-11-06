@@ -1,0 +1,14 @@
+DROP TABLE remaster_pairs;
+DROP TABLE verified_aliases;
+CREATE TABLE remaster_source_inputs(input_key TEXT PRIMARY KEY,payload_json TEXT NOT NULL CHECK(json_valid(payload_json))) WITHOUT ROWID,STRICT;
+CREATE TABLE remaster_declarations(declaration_id TEXT PRIMARY KEY,payload_json TEXT NOT NULL CHECK(json_valid(payload_json))) WITHOUT ROWID,STRICT;
+CREATE TABLE remaster_citations(declaration_id TEXT NOT NULL REFERENCES remaster_declarations ON DELETE CASCADE,ordinal INTEGER NOT NULL,input_key TEXT REFERENCES remaster_source_inputs,source_record_id INTEGER REFERENCES records ON DELETE CASCADE,payload_json TEXT NOT NULL CHECK(json_valid(payload_json)),PRIMARY KEY(declaration_id,ordinal),CHECK((input_key IS NULL)<>(source_record_id IS NULL))) WITHOUT ROWID,STRICT;
+CREATE TABLE remaster_bindings(declaration_id TEXT NOT NULL REFERENCES remaster_declarations ON DELETE CASCADE,side TEXT NOT NULL CHECK(side IN ('before','after')),group_ordinal INTEGER NOT NULL,reference_ordinal INTEGER NOT NULL,record_key TEXT,record_id INTEGER REFERENCES records ON DELETE CASCADE,owners_json TEXT NOT NULL CHECK(json_valid(owners_json)),payload_json TEXT NOT NULL CHECK(json_valid(payload_json)),PRIMARY KEY(declaration_id,side,group_ordinal,reference_ordinal)) WITHOUT ROWID,STRICT;
+CREATE INDEX remaster_bindings_key ON remaster_bindings(record_key,owners_json);
+CREATE TABLE remaster_terms(term TEXT NOT NULL,namespace TEXT NOT NULL,declaration_id TEXT NOT NULL REFERENCES remaster_declarations ON DELETE CASCADE,PRIMARY KEY(term,namespace,declaration_id)) WITHOUT ROWID,STRICT;
+CREATE TABLE remaster_aliases(record_id INTEGER NOT NULL REFERENCES records ON DELETE CASCADE,alias TEXT NOT NULL,alias_lookup_key TEXT NOT NULL,PRIMARY KEY(record_id,alias)) WITHOUT ROWID,STRICT;
+CREATE INDEX remaster_aliases_lookup ON remaster_aliases(alias_lookup_key);
+CREATE TABLE remaster_alias_support(record_id INTEGER NOT NULL,alias TEXT NOT NULL,declaration_id TEXT NOT NULL REFERENCES remaster_declarations ON DELETE CASCADE,PRIMARY KEY(record_id,alias,declaration_id),FOREIGN KEY(record_id,alias) REFERENCES remaster_aliases ON DELETE CASCADE) WITHOUT ROWID,STRICT;
+CREATE TABLE remaster_preferences(legacy_record_id INTEGER PRIMARY KEY REFERENCES records ON DELETE CASCADE,remaster_record_id INTEGER NOT NULL REFERENCES records ON DELETE CASCADE,CHECK(legacy_record_id<>remaster_record_id)) STRICT;
+CREATE TABLE remaster_preference_support(legacy_record_id INTEGER NOT NULL REFERENCES remaster_preferences ON DELETE CASCADE,declaration_id TEXT NOT NULL REFERENCES remaster_declarations ON DELETE CASCADE,PRIMARY KEY(legacy_record_id,declaration_id)) WITHOUT ROWID,STRICT;
+CREATE TABLE remaster_metadata(singleton INTEGER PRIMARY KEY CHECK(singleton=1),digest TEXT NOT NULL CHECK(length(digest)=64)) STRICT;

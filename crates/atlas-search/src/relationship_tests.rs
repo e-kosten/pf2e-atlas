@@ -375,17 +375,12 @@ fn remaster_preference_does_not_rebind_an_exact_reference() {
         ],
         false,
     );
-    fixture
-        .remaster_pairs
-        .push(atlas_index::SourceRemasterPairInput {
-            legacy: key("items", "bbbbbbbbbbbbbbbb"),
-            remaster: key("items", "cccccccccccccccc"),
-            provenance: atlas_record::source_content::SourceContentLocator {
-                record: key("items", "bbbbbbbbbbbbbbbb"),
-                owners: vec![],
-                field: "/system/description/value".into(),
-            },
-        });
+    crate::test_support::add_remaster_relationship(
+        &mut fixture,
+        &key("items", "bbbbbbbbbbbbbbbb"),
+        &key("items", "cccccccccccccccc"),
+    )
+    .unwrap();
     let (service, _artifact) = open_input_fixture(fixture).unwrap();
     let constraints = [criterion(
         SourceRelationshipDirection::Incoming,

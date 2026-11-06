@@ -1,9 +1,8 @@
 //! Disposable typed build streams. No stream supplies SQL or persistent identity.
 use crate::{
     ArtifactInstance, CompleteSourceInventory, IndexBuildPack, IndexError, PreparedRecordRef,
-    SemanticOccurrence, SourceAliasInput, SourceArtifactBuildContext, SourceArtifactDiagnostic,
-    SourceArtifactRecordInput, SourceLexicalUnitInput, SourceRemasterPairInput, TraitDefinition,
-    TraitSeedOccurrence,
+    SemanticOccurrence, SourceArtifactBuildContext, SourceArtifactDiagnostic,
+    SourceArtifactRecordInput, SourceLexicalUnitInput, TraitDefinition, TraitSeedOccurrence,
 };
 use atlas_record::source_record::{
     SourceBackedRecord, SourceContentOutcome, SourceRelationshipOccurrence, SourceSearchSelection,
@@ -288,8 +287,8 @@ pub struct PublicationSpool {
     pub(crate) records: BuildFrameStream<PreparedRecordFrame>,
     pub lexical: BuildFrameStream<SourceLexicalUnitInput>,
     pub semantic: BuildFrameStream<SemanticOccurrence>,
-    pub aliases: BuildFrameStream<SourceAliasInput>,
-    pub remaster_pairs: BuildFrameStream<SourceRemasterPairInput>,
+    pub remaster_sources: BuildFrameStream<atlas_record::remaster::RemasterSourceInput>,
+    pub remaster_declarations: BuildFrameStream<atlas_record::remaster::RemasterDeclaration>,
     pub traits: BuildFrameStream<TraitDefinition>,
     pub trait_seeds: BuildFrameStream<TraitSeedOccurrence>,
     preparation_hash: String,
@@ -316,8 +315,8 @@ impl PublicationSpool {
             records: BuildFrameStream::new_in(scratch)?,
             lexical: BuildFrameStream::new_in(scratch)?,
             semantic: BuildFrameStream::new_in(scratch)?,
-            aliases: BuildFrameStream::new_in(scratch)?,
-            remaster_pairs: BuildFrameStream::new_in(scratch)?,
+            remaster_sources: BuildFrameStream::new_in(scratch)?,
+            remaster_declarations: BuildFrameStream::new_in(scratch)?,
             traits: BuildFrameStream::new_in(scratch)?,
             trait_seeds: BuildFrameStream::new_in(scratch)?,
         })
@@ -375,8 +374,8 @@ impl PublicationSpool {
         for next in [
             self.lexical.file_usage()?,
             self.semantic.file_usage()?,
-            self.aliases.file_usage()?,
-            self.remaster_pairs.file_usage()?,
+            self.remaster_sources.file_usage()?,
+            self.remaster_declarations.file_usage()?,
             self.traits.file_usage()?,
             self.trait_seeds.file_usage()?,
         ] {
@@ -412,17 +411,17 @@ impl PublicationSpool {
     ) -> Result<(), IndexError> {
         self.semantic.visit(&mut |row| v(&row))
     }
-    pub(crate) fn aliases(
+    pub(crate) fn remaster_sources(
         &self,
-        v: &mut dyn FnMut(&SourceAliasInput) -> Result<(), IndexError>,
+        v: &mut dyn FnMut(&atlas_record::remaster::RemasterSourceInput) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
-        self.aliases.visit(&mut |row| v(&row))
+        self.remaster_sources.visit(&mut |row| v(&row))
     }
-    pub(crate) fn remaster_pairs(
+    pub(crate) fn remaster_declarations(
         &self,
-        v: &mut dyn FnMut(&SourceRemasterPairInput) -> Result<(), IndexError>,
+        v: &mut dyn FnMut(&atlas_record::remaster::RemasterDeclaration) -> Result<(), IndexError>,
     ) -> Result<(), IndexError> {
-        self.remaster_pairs.visit(&mut |row| v(&row))
+        self.remaster_declarations.visit(&mut |row| v(&row))
     }
     pub(crate) fn traits(
         &self,

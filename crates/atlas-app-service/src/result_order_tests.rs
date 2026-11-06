@@ -23,12 +23,17 @@ fn fixture() -> crate::test_support::FixtureWorker {
             ],
             false,
         );
-        fixture.remaster_pairs.push(serde_json::from_value(json!({"legacy":"items:0000000000000002","remaster":"items:0000000000000003","provenance":{"record":"items:0000000000000002","owners":[],"field":"/system/description/value"}})).unwrap());
+        atlas_search::test_support::add_remaster_relationship(
+            &mut fixture,
+            &"items:0000000000000002".parse().unwrap(),
+            &"items:0000000000000003".parse().unwrap(),
+        )?;
         Ok(open_input_fixture(fixture)?)
     }))
 }
 fn search(sort: Option<ResultSort>, criteria: SearchCriteria) -> SearchResultsRequest {
     SearchResultsRequest {
+        prefer_remaster: true,
         sort,
 
         ranking: None,
@@ -274,7 +279,7 @@ fn sorting_saved_lists_is_temporary_and_retains_unavailable_tails_and_explicit_e
             .iter()
             .map(|i| i.record_key.as_str())
             .collect::<Vec<_>>(),
-        [keys[0], keys[2], keys[5]]
+        [keys[0], keys[2], keys[4], keys[5]]
     );
     assert_eq!(
         f.worker.saved_list("ordered").unwrap(),
@@ -379,6 +384,7 @@ fn sorting_trait_modes_reject_provided_order_outside_similar() {
         TraitAssociationKind::References,
     ] {
         let request = TraitRecordsRequest {
+            prefer_remaster: true,
             sort: Some(ResultSort::Random { seed: 0 }),
             trait_key: "trait:fire".into(),
             kind,
@@ -401,6 +407,7 @@ fn sorting_trait_modes_reject_provided_order_outside_similar() {
         );
     }
     let request = TraitRecordsRequest {
+        prefer_remaster: true,
         sort: Some(ResultSort::Attributes { rules: vec![] }),
         trait_key: "trait:fire".into(),
         kind: TraitAssociationKind::Similar,
@@ -421,4 +428,49 @@ fn sorting_trait_modes_reject_provided_order_outside_similar() {
             .code,
         AppErrorCode::InvalidRequest
     );
+}
+
+#[test]
+fn remaster_preference_is_explicit_on_browse_and_lexical_search() {
+    let fixture = fixture();
+    for criteria in [
+        SearchCriteria::ListRecords { filter: None },
+        SearchCriteria::TextSearch {
+            query: "Item".into(),
+            filter: None,
+            mode: RetrievalModeView::Lexical,
+            search_content: None,
+        },
+    ] {
+        let request = search(None, criteria);
+        let preferred = fixture
+            .worker
+            .search_page(request.clone(), &ReadExecutionContext::uncancellable())
+            .unwrap();
+        assert!(preferred.prefer_remaster);
+        assert_eq!(preferred.page.total, 3);
+        assert!(
+            !preferred
+                .rows
+                .iter()
+                .any(|row| row.record.record_key == "items:0000000000000002")
+        );
+        let all = fixture
+            .worker
+            .search_page(
+                SearchResultsRequest {
+                    prefer_remaster: false,
+                    ..request
+                },
+                &ReadExecutionContext::uncancellable(),
+            )
+            .unwrap();
+        assert!(!all.prefer_remaster);
+        assert_eq!(all.page.total, 4);
+        assert!(
+            all.rows
+                .iter()
+                .any(|row| row.record.record_key == "items:0000000000000002")
+        );
+    }
 }

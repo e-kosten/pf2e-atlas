@@ -280,18 +280,21 @@ fn captured_inputs_are_consumed_once_and_later_changes_belong_to_the_next_build(
             let fixture = Fixture::new();
             let directory = fixture.0.join("src/module/migration/migrations");
             fs::create_dir_all(&directory).unwrap();
-            let path = directory.join("rename.ts");
-            fs::write(
-                &path,
-                r#"// Rename all uses and mentions of "Old name" to "Useful record""#,
-            )
-            .unwrap();
+            fs::create_dir_all(fixture.0.join("packs/spells")).unwrap();
+            fs::write(fixture.0.join("packs/spells/new.json"),r#"{"_id":"cccccccccccccccc","name":"Useful spell","type":"spell","system":{"description":{"value":"<p>Spell body.</p>"}}}"#).unwrap();
+            let manifest_path = fixture.0.join("module.json");
+            let mut manifest: serde_json::Value =
+                serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+            manifest["packs"].as_array_mut().unwrap().push(serde_json::json!({"name":"spells-srd","label":"Spells","type":"Item","path":"packs/spells"}));
+            fs::write(manifest_path, manifest.to_string()).unwrap();
+            let path = directory.join("887-redirect-spell-links.ts");
+            fs::write(&path,r#"class M { #spells=[{from:{_id:"dddddddddddddddd",name:"Old name"},to:{_id:"cccccccccccccccc",name:"Useful spell"}}]; }"#).unwrap();
             let options = fixture.options();
             let before = build_artifact(options.clone()).unwrap();
             let aliases = |path: &Path| -> Vec<String> {
                 rusqlite::Connection::open(path)
                     .unwrap()
-                    .prepare("SELECT alias FROM verified_aliases ORDER BY alias")
+                    .prepare("SELECT alias FROM remaster_aliases ORDER BY alias")
                     .unwrap()
                     .query_map([], |row| row.get(0))
                     .unwrap()
@@ -311,7 +314,7 @@ fn captured_inputs_are_consumed_once_and_later_changes_belong_to_the_next_build(
                     if remove {
                         fs::remove_file(&path).unwrap();
                     } else {
-                        fs::write(&path, r#"// Rename all uses and mentions of "Next old name" to "Useful record""#).unwrap();
+                        fs::write(&path,r#"class M { #spells=[{from:{_id:"dddddddddddddddd",name:"Next old name"},to:{_id:"cccccccccccccccc",name:"Useful spell"}}]; }"#).unwrap();
                     }
                 }
             });
@@ -1530,7 +1533,7 @@ fn verified_name_aliases_never_invent_legacy_record_pairs() {
                 for (before, after) in [
                     ("attackOpportunity1", "aaaaaaaaaaaaaaaa"),
                     ("reactiveStrike1", "bbbbbbbbbbbbbbbb"),
-                    ("offGuard1", "cccccccccccccccc"),
+                    ("offGuard1", "AJh5ex99aV6VTggg"),
                     ("flatFooted1", "dddddddddddddddd"),
                     ("aliasCarrier1", "eeeeeeeeeeeeeeee"),
                     ("journal1", "ffffffffffffffff"),
@@ -1554,7 +1557,7 @@ fn verified_name_aliases_never_invent_legacy_record_pairs() {
     assert!(
         database
             .query_row(
-                "SELECT count(*) FROM verified_aliases WHERE alias='Attack of Opportunity'",
+                "SELECT count(*) FROM remaster_aliases WHERE alias='Attack of Opportunity'",
                 [],
                 |r| r.get::<_, usize>(0)
             )
@@ -1564,7 +1567,7 @@ fn verified_name_aliases_never_invent_legacy_record_pairs() {
     assert!(
         database
             .query_row(
-                "SELECT count(*) FROM verified_aliases WHERE alias='flat-footed'",
+                "SELECT count(*) FROM remaster_aliases WHERE alias='Flat-Footed'",
                 [],
                 |r| r.get::<_, usize>(0)
             )
@@ -1573,7 +1576,7 @@ fn verified_name_aliases_never_invent_legacy_record_pairs() {
     );
     assert_eq!(
         database
-            .query_row("SELECT count(*) FROM remaster_pairs", [], |r| r
+            .query_row("SELECT count(*) FROM remaster_preferences", [], |r| r
                 .get::<_, usize>(0))
             .unwrap(),
         0
@@ -1592,32 +1595,23 @@ fn verified_name_aliases_never_invent_legacy_record_pairs() {
     let database = rusqlite::Connection::open(explicit.output_path).unwrap();
     assert_eq!(
         database
-            .query_row("SELECT count(*) FROM remaster_pairs", [], |r| r
+            .query_row("SELECT count(*) FROM remaster_preferences", [], |r| r
                 .get::<_, usize>(0))
             .unwrap(),
         1
     );
-    let json: String = database
-        .query_row("SELECT evidence_json FROM remaster_pairs", [], |r| r.get(0))
-        .unwrap();
-    let provenance: atlas_record::source_content::SourceContentLocator =
-        serde_json::from_str(&json).unwrap();
-    assert_eq!(provenance.record.to_string(), "journals:ffffffffffffffff");
-    assert_eq!(
-        provenance.owners,
-        vec![atlas_domain::OwnedContentLocator {
-            collection: "/pages".into(),
-            identity: atlas_domain::OwnedContentIdentity::Stable("hhhhhhhhhhhhhhhh".into())
-        }]
-    );
-    assert_eq!(provenance.field, "/text/content");
     drop(database);
     let reopened = atlas_index::test_support::open_reader(&report.output_path).unwrap();
-    let links = reopened
-        .read_remaster_links(&"actions:aaaaaaaaaaaaaaaa".parse().unwrap())
+    let information = reopened
+        .remaster_record_information(&"actions:aaaaaaaaaaaaaaaa".parse().unwrap(), &[], 20)
         .unwrap();
-    assert_eq!(links.len(), 1);
-    assert_eq!(links[0].provenance, provenance);
+    assert_eq!(information.declarations.len(), 1);
+    let provenance = information.declarations[0].citations[0]
+        .locator
+        .clone()
+        .unwrap();
+    assert_eq!(provenance.record.to_string(), "journals:ffffffffffffffff");
+    assert_eq!(provenance.field, "/text/content");
     assert!(
         reopened
             .read_source_record(&provenance.record)
@@ -1637,15 +1631,6 @@ fn verified_name_aliases_never_invent_legacy_record_pairs() {
     )
     .unwrap();
     let before = rusqlite::Connection::open(&report.output_path).unwrap();
-    before
-        .execute(
-            "UPDATE remaster_pairs SET evidence_json=?",
-            [
-                serde_json::to_string("journal:journals:ffffffffffffffff:[owners]:/text/content")
-                    .unwrap(),
-            ],
-        )
-        .unwrap();
     before.execute_batch("INSERT INTO saved_lists(id,list_key,slug,name,description,created_at,updated_at) VALUES(1,'saved','saved','Saved editions','Retain notes','now','now'); INSERT INTO saved_list_items(list_id,record_key,position,note,record_title_snapshot,added_at,updated_at) VALUES(1,'actions:aaaaaaaaaaaaaaaa',0,'Legacy reference','Attack of Opportunity','now','now'); INSERT INTO encounters(id,encounter_key,slug,name,note,status,created_at,updated_at,revision) VALUES(1,'encounter','encounter','Saved encounter','Keep this note','running','now','now',4);").unwrap();
     let identity: i64 = before
         .query_row(
@@ -1667,9 +1652,13 @@ fn verified_name_aliases_never_invent_legacy_record_pairs() {
     let reopened = atlas_index::test_support::open_reader(&upgraded.output_path).unwrap();
     assert_eq!(
         reopened
-            .read_remaster_links(&"actions:aaaaaaaaaaaaaaaa".parse().unwrap())
-            .unwrap()[0]
-            .provenance,
+            .remaster_record_information(&"actions:aaaaaaaaaaaaaaaa".parse().unwrap(), &[], 20)
+            .unwrap()
+            .declarations[0]
+            .citations[0]
+            .locator
+            .clone()
+            .unwrap(),
         provenance
     );
     assert_eq!(reopened.artifact_instance().workspace_key(), workspace);
@@ -1792,9 +1781,14 @@ fn actual_complete_source_semantic_preparation_covers_every_selected_body_and_id
     let mut aliases = std::collections::BTreeMap::<_, Vec<String>>::new();
     prepared
         .spool
-        .aliases
+        .lexical
         .visit(&mut |alias| {
-            aliases.entry(alias.record).or_default().push(alias.alias);
+            if alias.kind == atlas_index::SourceLexicalUnitKind::RootAlias {
+                aliases
+                    .entry(alias.record)
+                    .or_default()
+                    .push(alias.alias_terms);
+            }
             Ok(())
         })
         .unwrap();
@@ -2039,7 +2033,7 @@ fn unconsumed_localization_and_alias_inputs_reject_transient_changes() {
     let fixture = Fixture::new();
     let migration = fixture.0.join("src/module/migration/migrations");
     fs::create_dir_all(&migration).unwrap();
-    let alias_path = migration.join("test.ts");
+    let alias_path = migration.join("850-flat-footed-to-off-guard.ts");
     fs::write(&alias_path, "// original").unwrap();
     for path in [fixture.0.join("static/lang/en.json"), alias_path] {
         let capture = crate::source_fingerprint::SourceCapture::capture(&fixture.0, None).unwrap();
@@ -2054,14 +2048,8 @@ fn unconsumed_localization_and_alias_inputs_reject_transient_changes() {
             )
             .map(|_| ())
         } else {
-            crate::source_aliases::extract_prepared_aliases(
-                &Default::default(),
-                &Default::default(),
-                &mut |_| Ok(()),
-                &fixture.0,
-                &capture,
-            )
-            .map(|_| ())
+            crate::remaster_information::captured_inputs(&fixture.0, &capture, "fixture")
+                .map(|_| ())
         };
         fs::write(&path, original).unwrap();
         assert_eq!(

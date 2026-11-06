@@ -133,7 +133,7 @@ pub(crate) fn write(
         })?;
         Ok(())
     })?;
-    crate::publication_delta::aliases(c, input, &products)?;
+    crate::remaster::publish(c, input, &products)?;
     let definitions = crate::query::query_capabilities()?.fields;
     let existing = c
         .prepare("SELECT field FROM query_field_catalog")?

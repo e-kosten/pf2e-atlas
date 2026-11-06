@@ -1,0 +1,13 @@
+{
+  "entries": [
+    {
+      "before": "bestiary-ability-glossary-srd:hFtNbo1LKYCoDy2O",
+      "after": "bestiary-ability-glossary-srd:W7SbTykXrNwxDzJc",
+      "before_label": "Attack of Opportunity",
+      "after_label": "Reactive Strike",
+      "namespace": "creature_ability",
+      "source_type": "action",
+      "rationale": "Atlas-reviewed creature glossary counterpart. Foundry PF2e 28d9d156f252d084371d994dc359509b49eadf18 retains the Bestiary Attack of Opportunity and Monster Core Reactive Strike entries in the same glossary. Their selected English ability texts agree (SHA-256 6366c8de03d73b324eae84473f9008fd53573ebd1dd13e871efbf57f238eedd9). This correspondence is an Atlas assertion about those exact glossary entries, not the class-feature journal's general-action link or a claim that all identically named actions are interchangeable. Ordinary errata does not alone withdraw counterpart meaning; current exact endpoints, action family and glossary scope are required."
+    }
+  ]
+}

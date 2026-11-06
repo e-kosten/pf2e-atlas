@@ -214,6 +214,12 @@ pub struct SourceEnrichmentReport {
     pub content_diagnostics: BTreeMap<String, usize>,
     pub references: usize,
     pub relationships: usize,
+    pub remaster_declarations: usize,
+    pub remaster_aliases: usize,
+    pub remaster_preferences: usize,
+    pub remaster_decisions: BTreeMap<String, usize>,
+    /// Deterministic bounded examples; counts above remain complete.
+    pub remaster_decision_examples: Vec<atlas_record::remaster::RemasterDerivationDiagnostic>,
 }
 
 impl EnrichedFoundrySource {

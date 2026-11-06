@@ -28,20 +28,11 @@ pub(super) struct Fixture {
 
 impl Fixture {
     pub fn corrupt_remaster_evidence(&self) {
-        let workspace =
-            atlas_runtime::initialize_workspace(self._directory.path().join("workspace.sqlite"))
-                .unwrap();
-        let write = workspace
-            .write(atlas_runtime::WORKSPACE_SCHEMA_VERSION)
-            .unwrap();
-        assert_eq!(
-            write
-                .connection()
-                .execute("UPDATE remaster_pairs SET evidence_json='{}'", [])
-                .unwrap(),
-            1
-        );
-        write.commit().unwrap();
+        atlas_index::test_support::corrupt_remaster_declaration(
+            self._directory.path().join("workspace.sqlite"),
+            atlas_runtime::WORKSPACE_SCHEMA_VERSION,
+        )
+        .unwrap();
     }
 
     pub fn without_reference() -> Self {
@@ -74,6 +65,9 @@ impl Fixture {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("workspace.sqlite");
         let mut actor = json!({"_id":"cccccccccccccccc","type":"npc","name":"Test Creature","system":{"details":{"level":{"value":1}},"traits":{"value":[]},"attributes":{"ac":{"value":16},"hp":{"max":20}},"saves":{"fortitude":{"value":5},"reflex":{"value":6},"will":{"value":4}}},"items":[{"_id":"eeeeeeeeeeeeeeee","type":"melee","name":"Claw","system":{"bonus":{"value":7},"traits":{"value":["agile"]},"damageRolls":{"main":{"damage":"1d6+2","damageType":"slashing"}},"description":{"value":"<p>A claw.</p>"}}},{"_id":"eeeeeeeeeeeeeeee","type":"action","name":"Duplicate identity","system":{"description":{"value":"<p>Snapshot-local identity.</p>"}}}]});
+        if remaster {
+            actor["items"].as_array_mut().unwrap().push(json!({"_id":"owned00000000006","name":"Customized owned action","type":"action","_stats":{"compendiumSource":"Compendium.pf2e.actions.Item.bbbbbbbbbbbbbbbb"},"system":{"publication":{"remaster":false},"description":{"value":"<p>Keep customized rules.</p>"}}}));
+        }
         if let Some(adjustment) = adjustment {
             actor["system"]["attributes"]["adjustment"] = json!(adjustment);
         }
@@ -101,16 +95,11 @@ impl Fixture {
             ),
         ];
         if remaster {
-            records.push(record("journals", "JournalEntry", json!({"_id":"editionjournal01","name":"Remaster Changes","pages":[{"_id":"editionpage00001","name":"Class Features","type":"text","text":{"content":"<p>Explicit old and new references.</p>","format":1}}]})));
+            records.push(record("journals", "JournalEntry", json!({"_id":"editionjournal01","name":"Remaster Changes","pages":[{"_id":"editionpage00001","name":"Class Features","type":"text","text":{"content":"<table><tr><th>Old</th><th>Status</th><th>New</th></tr><tr><td>@UUID[Compendium.pf2e.actions.Item.aaaaaaaaaaaaaaaa]{Test Action 1}</td><td>Renamed</td><td>@UUID[Compendium.pf2e.actions.Item.bbbbbbbbbbbbbbbb]{Test Action 2}</td></tr><tr><td>@UUID[Compendium.pf2e.actions.Item.missing000000001]{Missing old action}</td><td>Replaced</td><td>@UUID[Compendium.pf2e.actions.Item.bbbbbbbbbbbbbbbb]{Test Action 2}</td></tr></table>","format":1}}]})));
         }
         let mut data = input(records, true);
         if remaster {
-            data.remaster_pairs
-                .push(atlas_index::SourceRemasterPairInput {
-                    legacy: ACTION.parse().unwrap(),
-                    remaster: SECOND_ACTION.parse().unwrap(),
-                    provenance: serde_json::from_value(json!({"record":"journals:editionjournal01","owners":[{"collection":"/pages","identity":{"Stable":"editionpage00001"}}],"field":"/text/content"})).unwrap(),
-                });
+            atlas_index::test_support::capture_remaster_declarations(&mut data).unwrap();
         }
         let key = TraitKey::new("fire").unwrap();
         data.traits.push(TraitDefinition {

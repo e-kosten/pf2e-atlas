@@ -55,12 +55,13 @@ impl AtlasAppService {
         filter: Option<QueryPredicate>,
     ) -> AppServiceResult<Vec<atlas_app_model::RecordResolutionCandidateView>> {
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
+            let mut budget = crate::remaster::ProjectionBudget::default();
             Ok(r.resolve_record(ResolveRecordRequest {
                 query: &query,
                 filter: filter.as_ref(),
             })?
             .into_iter()
-            .map(|v| crate::projection::resolution_view(v, r))
+            .map(|v| crate::projection::resolution_view(v, r, &mut budget))
             .collect())
         })
     }
@@ -70,6 +71,7 @@ impl AtlasAppService {
         filter: Option<QueryPredicate>,
     ) -> AppServiceResult<atlas_app_model::RecordRefResolutionView> {
         self.with_retrieval(&crate::ReadExecutionContext::uncancellable(), move |r| {
+            let mut budget = crate::remaster::ProjectionBudget::default();
             Ok(
                 match r.resolve_record_ref(ResolveRecordRefRequest {
                     record_ref: &record_ref,
@@ -84,7 +86,7 @@ impl AtlasAppService {
                     RecordRefResolutionResult::Ambiguous(v) => {
                         atlas_app_model::RecordRefResolutionView::Ambiguous(
                             v.into_iter()
-                                .map(|v| crate::projection::resolution_view(v, r))
+                                .map(|v| crate::projection::resolution_view(v, r, &mut budget))
                                 .collect(),
                         )
                     }
@@ -353,10 +355,8 @@ impl<'a> LoadedRecordDetail<'a> {
         })?;
         let grants_truncated = relationships.truncated;
         let mut view = RecordDetailView {
-            counterparts: request
-                .owners
-                .is_empty()
-                .then(|| crate::remaster::counterparts_view(&key, r)),
+            remaster_relationships: atlas_app_model::RelatedCategoryView::Empty,
+            source_remaster_context: None,
             encounter_adjustment: (request.owners.is_empty()
                 && matches!(
                     detail.summary.record_kind.as_value(),
@@ -411,6 +411,8 @@ impl<'a> LoadedRecordDetail<'a> {
             .collect(),
             relationships_truncated: relationships.truncated || !content.bounded.is_empty(),
         };
+        (view.remaster_relationships, view.source_remaster_context) =
+            crate::remaster::reading_context(&view.selected, r);
         crate::contextual_references::attach_consumable_spell(&mut view, r)?;
         crate::contextual_references::attach_ranked_effects(&mut view, r)?;
         if whole_document {

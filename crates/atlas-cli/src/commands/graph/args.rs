@@ -22,7 +22,7 @@ pub(crate) enum GraphCommand {
     Occurrences(Box<GraphOccurrencesOptions>),
     #[command(about = "Show bounded Suggested variants with naming evidence")]
     Variants(GraphVariantsOptions),
-    #[command(about = "Show legacy/remaster links for a record")]
+    #[command(about = "Show source-backed remaster relationships for a record or explicit term")]
     Remaster(GraphRemasterOptions),
 }
 
@@ -114,8 +114,20 @@ pub(crate) struct GraphVariantsOptions {
     after_help = "Examples:\n  atlas graph remaster \"Air Mephit\"\n  atlas graph remaster pathfinder-bestiary:KDRlxdIUADWHI6Vr --json"
 )]
 pub(crate) struct GraphRemasterOptions {
-    #[arg(help = "Seed record key or strict resolvable record name")]
-    pub(crate) record_ref: String,
+    #[arg(
+        required_unless_present = "term",
+        conflicts_with = "term",
+        help = "Exact key (including unavailable keys) or strict resolvable record name"
+    )]
+    pub(crate) record_ref: Option<String>,
+    #[arg(
+        long,
+        conflicts_with = "record_ref",
+        help = "Read source statements about this exact authored term, independently of record lookup"
+    )]
+    pub(crate) term: Option<String>,
+    #[arg(long, default_value_t = 20, help = "Maximum change statements (1-100)")]
+    pub(crate) limit: usize,
     #[arg(long, help = "Override the SQLite artifact path")]
     pub(crate) index: Option<PathBuf>,
     #[arg(long, value_enum, default_value_t = CliPathMode::Global, help = "Use global runtime paths or checkout-local repo paths")]
@@ -134,5 +146,101 @@ fn parse_graph_limit(value: &str) -> Result<usize, String> {
         Err(format!(
             "graph limit must be between 0 and 1024, got {limit}"
         ))
+    }
+}
+
+#[cfg(test)]
+mod remaster_args_tests {
+    use super::*;
+    use crate::cli::{Cli, Command};
+    use clap::Parser;
+    #[test]
+    fn explicit_term_and_unavailable_key_are_distinct_remaster_requests() {
+        let Cli {
+            command:
+                Command::Graph(GraphArgs {
+                    command: GraphCommand::Remaster(options),
+                }),
+            ..
+        } = Cli::try_parse_from(["atlas", "graph", "remaster", "--term", "Removed old spell"])
+            .unwrap()
+        else {
+            panic!("term command");
+        };
+        assert_eq!(options.term.as_deref(), Some("Removed old spell"));
+        assert!(options.record_ref.is_none());
+        assert_eq!(options.limit, 20);
+        let Cli {
+            command:
+                Command::Graph(GraphArgs {
+                    command: GraphCommand::Remaster(options),
+                }),
+            ..
+        } = Cli::try_parse_from(["atlas", "graph", "remaster", "spells:missing000000001"]).unwrap()
+        else {
+            panic!("key command");
+        };
+        assert_eq!(
+            options.record_ref.as_deref(),
+            Some("spells:missing000000001")
+        );
+        assert!(options.term.is_none());
+        assert!(Cli::try_parse_from(["atlas", "graph", "remaster"]).is_err());
+        assert!(
+            Cli::try_parse_from([
+                "atlas",
+                "graph",
+                "remaster",
+                "spells:missing000000001",
+                "--term",
+                "Old spell"
+            ])
+            .is_err()
+        );
+    }
+    #[test]
+    fn all_versions_flag_is_available_on_ordinary_search_similar_and_filter_discovery() {
+        let Cli {
+            command: Command::Search(options),
+            ..
+        } = Cli::try_parse_from(["atlas", "search", "old name", "--all-versions"]).unwrap()
+        else {
+            panic!("search");
+        };
+        assert!(options.all_versions);
+        let Cli {
+            command: Command::Similar(options),
+            ..
+        } = Cli::try_parse_from([
+            "atlas",
+            "similar",
+            "items:aaaaaaaaaaaaaaaa",
+            "--all-versions",
+        ])
+        .unwrap()
+        else {
+            panic!("similar");
+        };
+        assert!(options.all_versions);
+        let Cli {
+            command:
+                Command::Filters(crate::commands::filter_discovery::args::FiltersArgs {
+                    command:
+                        crate::commands::filter_discovery::args::FiltersCommand::Values(options),
+                }),
+            ..
+        } = Cli::try_parse_from([
+            "atlas",
+            "filters",
+            "values",
+            "--field",
+            "traits",
+            "--all-versions",
+        ])
+        .unwrap()
+        else {
+            panic!("filters");
+        };
+        assert!(options.all_versions);
     }
 }

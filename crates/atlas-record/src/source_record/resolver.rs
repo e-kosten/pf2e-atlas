@@ -82,6 +82,16 @@ impl SourceReferenceIndex {
         (!pack.is_empty() && !identifier.is_empty()).then_some((pack, identifier))
     }
 
+    /// Decode an identifier-bearing root compendium origin without resolving a name.
+    /// Builder-name references and owned paths never establish absent identities.
+    pub fn explicit_root_key(target: &str) -> Option<RecordKey> {
+        let (pack, id) = Self::root_lookup_hint(target)?;
+        if id.len() != 16 || !id.bytes().all(|c| c.is_ascii_alphanumeric()) {
+            return None;
+        }
+        RecordKey::parse(&format!("{pack}:{id}")).ok()
+    }
+
     /// Body-free root resolution uses the same checked identity/name aliases as
     /// full source preparation. This does not admit owned-node destinations.
     pub fn insert_root_summary(&mut self, summary: &atlas_domain::SourceRecordSummary) {

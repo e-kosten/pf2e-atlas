@@ -56,6 +56,7 @@ pub(crate) fn run_search(o: SearchOptions) -> Result<ExitCode, String> {
     let result = match app_result(
         service.search_page(
             SearchResultsRequest {
+                prefer_remaster: true,
                 sort,
                 ranking: Some(o.ranking),
                 search_profile: o.search_profile,

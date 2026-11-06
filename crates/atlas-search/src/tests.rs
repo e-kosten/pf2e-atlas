@@ -1,10 +1,7 @@
 use crate::test_support::{input, record};
 use crate::*;
 use atlas_domain::{RecordKey, SourcePassageAddress};
-use atlas_index::{
-    IndexBuildInput, SourceAliasInput, SourceLexicalUnitInput, SourceLexicalUnitKind,
-    SourceRemasterPairInput,
-};
+use atlas_index::{IndexBuildInput, SourceLexicalUnitKind};
 use serde_json::json;
 fn effect(id: &str, name: &str, level: i32, html: &str) -> atlas_index::SourceArtifactRecordInput {
     record(
@@ -30,23 +27,8 @@ fn hybrid_choices_preserve_identity_tiers_and_single_lane_scores() {
         ],
         true,
     );
-    let alias_root = fixture
-        .lexical_units
-        .iter()
-        .find(|u| u.record == key("bbbbbbbbbbbbbbbb"))
-        .unwrap()
-        .clone();
-    fixture.aliases.push(SourceAliasInput {
-        record: alias_root.record.clone(),
-        alias: "Ember".into(),
-        evidence: "source redirect".into(),
-    });
-    fixture.lexical_units.push(SourceLexicalUnitInput {
-        kind: SourceLexicalUnitKind::RootAlias,
-        identity_terms: String::new(),
-        alias_terms: "Ember".into(),
-        ..alias_root
-    });
+    crate::test_support::add_remaster_alias(&mut fixture, &key("bbbbbbbbbbbbbbbb"), "Ember")
+        .unwrap();
     for unit in &mut fixture.semantic_units {
         unit.vector.fill(0.0);
         let axis = if unit.record == key("dddddddddddddddd") {
@@ -61,6 +43,14 @@ fn hybrid_choices_preserve_identity_tiers_and_single_lane_scores() {
     let profile = atlas_domain::SearchProfileId::new("bge-base");
     let mut vector = vec![0.0; 768];
     vector[0] = 1.0;
+    // The journal is source evidence; this scorer comparison concerns the four
+    // original records, including the record reached through its former name.
+    let candidates = [
+        key("aaaaaaaaaaaaaaaa"),
+        key("bbbbbbbbbbbbbbbb"),
+        key("cccccccccccccccc"),
+        key("dddddddddddddddd"),
+    ];
     let rank = |mode, ranking| {
         service
             .rank_candidates(crate::text::CandidateRequest {
@@ -70,7 +60,7 @@ fn hybrid_choices_preserve_identity_tiers_and_single_lane_scores() {
                 text: "Ember",
                 mode,
                 query: &query,
-                scope: RecordScope::All,
+                scope: RecordScope::Keys(&candidates),
                 prefer: false,
                 suppress: false,
                 vector: Some(&vector),
@@ -194,24 +184,12 @@ fn strict_identity_alias_ambiguity_and_macro_exclusion() {
         ],
         false,
     );
-    fixture.aliases.push(SourceAliasInput {
-        record: key("aaaaaaaaaaaaaaaa"),
-        alias: "Verified dragon".into(),
-        evidence: "source redirect".into(),
-    });
-    let root = fixture
-        .lexical_units
-        .iter()
-        .find(|unit| {
-            unit.record == key("aaaaaaaaaaaaaaaa") && unit.kind == SourceLexicalUnitKind::RootName
-        })
-        .unwrap();
-    fixture.lexical_units.push(SourceLexicalUnitInput {
-        kind: SourceLexicalUnitKind::RootAlias,
-        identity_terms: String::new(),
-        alias_terms: "Verified dragon".into(),
-        ..root.clone()
-    });
+    crate::test_support::add_remaster_alias(
+        &mut fixture,
+        &key("aaaaaaaaaaaaaaaa"),
+        "Verified dragon",
+    )
+    .unwrap();
     let (_dir, mut service) = service(fixture);
     assert_eq!(
         service
@@ -241,7 +219,7 @@ fn strict_identity_alias_ambiguity_and_macro_exclusion() {
     assert_eq!(aliases.len(), 1);
     assert_eq!(aliases[0].match_kind, RecordResolutionMatchKind::Alias);
     assert_eq!(aliases[0].record.key, key("aaaaaaaaaaaaaaaa"));
-    assert_eq!(aliases[0].evidence.as_deref(), Some("source redirect"));
+    assert_eq!(aliases[0].support.as_ref().unwrap().declarations.len(), 1);
     assert_eq!(
         search(&mut service, "Verified dragon").records[0]
             .record
@@ -309,15 +287,12 @@ fn exact_key_resolution_obeys_filters_without_suppressing_legacy_identity() {
         ],
         false,
     );
-    fixture.remaster_pairs.push(SourceRemasterPairInput {
-        legacy: legacy.clone(),
-        remaster: key("bbbbbbbbbbbbbbbb"),
-        provenance: atlas_record::source_content::SourceContentLocator {
-            record: legacy.clone(),
-            owners: vec![],
-            field: "/system/description/value".into(),
-        },
-    });
+    crate::test_support::add_remaster_relationship(
+        &mut fixture,
+        &legacy.clone(),
+        &key("bbbbbbbbbbbbbbbb"),
+    )
+    .unwrap();
     let (_dir, service) = service(fixture);
     let legacy_ref = legacy.to_string();
     for (expression, accepted) in [("level >= 1", true), ("level == 2", false)] {
@@ -353,31 +328,38 @@ fn exact_key_resolution_obeys_filters_without_suppressing_legacy_identity() {
 fn pair_preference_is_conditional_and_precedes_paging() {
     let mut fixture = input(
         vec![
-            effect("aaaaaaaaaaaaaaaa", "Legacy flame", 1, ""),
+            effect(
+                "aaaaaaaaaaaaaaaa",
+                "Legacy flame",
+                1,
+                "<h2>Unremastered</h2>",
+            ),
             effect("bbbbbbbbbbbbbbbb", "Remaster flame", 2, ""),
             effect("cccccccccccccccc", "Other flame", 3, ""),
         ],
         false,
     );
-    fixture.remaster_pairs.push(SourceRemasterPairInput {
-        legacy: key("aaaaaaaaaaaaaaaa"),
-        remaster: key("bbbbbbbbbbbbbbbb"),
-        provenance: atlas_record::source_content::SourceContentLocator {
-            record: key("aaaaaaaaaaaaaaaa"),
-            owners: vec![],
-            field: "/system/description/value".into(),
-        },
-    });
+    crate::test_support::add_remaster_relationship(
+        &mut fixture,
+        &key("aaaaaaaaaaaaaaaa"),
+        &key("bbbbbbbbbbbbbbbb"),
+    )
+    .unwrap();
     let (_dir, mut service) = service(fixture);
     let both = search(&mut service, "flame");
     assert_eq!(both.page.total, 2);
+    let mut all_request = TextSearchRequest::new("flame", SearchPage::first(1).unwrap());
+    all_request.mode = RetrievalMode::Fts;
+    all_request.prefer_remaster = false;
+    let all = service.search_text(all_request).unwrap();
+    assert_eq!(all.page.total, 3);
     assert!(
         !both
             .records
             .iter()
             .any(|r| r.record.key == key("aaaaaaaaaaaaaaaa"))
     );
-    let only = search(&mut service, "Legacy");
+    let only = search(&mut service, "Unremastered");
     assert_eq!(only.records[0].record.key, key("aaaaaaaaaaaaaaaa"));
     let filter = service.parse_where("level == 1").unwrap();
     let filtered = service
@@ -414,12 +396,14 @@ fn pair_preference_is_conditional_and_precedes_paging() {
     assert_eq!(page2.records.len(), 1);
     assert_eq!(
         service
-            .remaster_links(RemasterLinksRequest {
-                record_key: &key("aaaaaaaaaaaaaaaa")
+            .record_remaster_information(RecordRemasterInformationRequest {
+                record_key: &key("aaaaaaaaaaaaaaaa"),
+                owners: &[],
+                limit: 20
             })
             .unwrap()
-            .unwrap()
-            .links
+            .information
+            .declarations
             .len(),
         1
     );
@@ -1266,15 +1250,12 @@ fn similar_filters_and_verified_remaster_policy_are_preserved() {
         ],
         true,
     );
-    fixture.remaster_pairs.push(SourceRemasterPairInput {
-        legacy: key("bbbbbbbbbbbbbbbb"),
-        remaster: key("cccccccccccccccc"),
-        provenance: atlas_record::source_content::SourceContentLocator {
-            record: key("bbbbbbbbbbbbbbbb"),
-            owners: vec![],
-            field: "/system/description/value".into(),
-        },
-    });
+    crate::test_support::add_remaster_relationship(
+        &mut fixture,
+        &key("bbbbbbbbbbbbbbbb"),
+        &key("cccccccccccccccc"),
+    )
+    .unwrap();
     let (_, service) = service(fixture);
     let filtered = service.parse_where("level >= 2").unwrap();
     let result = service
@@ -1421,17 +1402,7 @@ fn lexical_rows_cannot_combine_parent_child_or_separate_alias_terms() {
         .unwrap()
         .clone();
     for alias in aliases {
-        fixture.aliases.push(SourceAliasInput {
-            record: root.record.clone(),
-            alias: alias.into(),
-            evidence: "source redirect".into(),
-        });
-        fixture.lexical_units.push(SourceLexicalUnitInput {
-            kind: SourceLexicalUnitKind::RootAlias,
-            identity_terms: String::new(),
-            alias_terms: alias.into(),
-            ..root.clone()
-        });
+        crate::test_support::add_remaster_alias(&mut fixture, &root.record.clone(), alias).unwrap();
     }
     let (_, mut service) = service(fixture);
     for query in [

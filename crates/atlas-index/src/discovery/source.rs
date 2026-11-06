@@ -620,7 +620,7 @@ fn count_options(
         let (eligible, parameters) =
             crate::read_units::eligible_sql(&accepted, context.eligible_keys.as_deref())?;
         let preference = if context.prefer_remaster {
-            "WHERE NOT EXISTS(SELECT 1 FROM remaster_pairs p JOIN matches replacement ON replacement.record_id=p.remaster_record_id WHERE p.legacy_record_id=m.record_id)"
+            "WHERE NOT EXISTS(SELECT 1 FROM remaster_preferences p JOIN matches replacement ON replacement.record_id=p.remaster_record_id WHERE p.legacy_record_id=m.record_id)"
         } else {
             ""
         };

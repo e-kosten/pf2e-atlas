@@ -7,7 +7,7 @@ use atlas_domain::OwnedContentLocator;
 use atlas_domain::{RecordKey, SearchContentScope, SourcePassageAddress};
 use rusqlite::{OptionalExtension, params_from_iter, types::Value};
 use serde::{Deserialize, Serialize};
-pub(crate) const NAME_LOOKUP_SQL: &str = "SELECT r.key,NULL,NULL FROM records r WHERE r.document_kind<>'Macro' AND r.name_state='value' AND r.name_lookup_key=?1 UNION ALL SELECT r.key,a.alias,a.evidence_json FROM verified_aliases a JOIN records r ON r.record_id=a.record_id WHERE r.document_kind<>'Macro' AND a.alias_lookup_key=?1 ORDER BY 1,2";
+pub(crate) const NAME_LOOKUP_SQL: &str = "SELECT r.key,NULL FROM records r WHERE r.document_kind<>'Macro' AND r.name_state='value' AND r.name_lookup_key=?1 UNION ALL SELECT r.key,a.alias FROM remaster_aliases a JOIN records r ON r.record_id=a.record_id WHERE r.document_kind<>'Macro' AND a.alias_lookup_key=?1 ORDER BY 1,2";
 
 fn lexical_content_sql(scope: SearchContentScope) -> &'static str {
     match scope {
@@ -63,13 +63,6 @@ pub struct SourceKeyPage {
 pub struct SourceIdentityMatch {
     pub key: RecordKey,
     pub alias: Option<String>,
-    pub evidence: Option<String>,
-}
-#[derive(Debug, Clone)]
-pub struct SourceRemasterPair {
-    pub legacy: RecordKey,
-    pub remaster: RecordKey,
-    pub provenance: atlas_record::source_content::SourceContentLocator,
 }
 #[derive(Debug, Clone)]
 pub struct SourceIdentityVector {
@@ -242,7 +235,7 @@ impl SqliteIndexReader {
         };
         let (eligible, mut params) = eligible_sql(query, keys)?;
         let preference = if prefer_remaster {
-            " AND NOT EXISTS(SELECT 1 FROM remaster_pairs rp WHERE rp.legacy_record_id=r.record_id AND rp.remaster_record_id IN (SELECT record_id FROM eligible))"
+            " AND NOT EXISTS(SELECT 1 FROM remaster_preferences rp WHERE rp.legacy_record_id=r.record_id AND rp.remaster_record_id IN (SELECT record_id FROM eligible))"
         } else {
             ""
         };
@@ -411,20 +404,15 @@ impl SqliteIndexReader {
         let mut statement = c.prepare(NAME_LOOKUP_SQL)?;
         let values = statement
             .query_map([&key], |r| {
-                Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, Option<String>>(1)?,
-                    r.get::<_, Option<String>>(2)?,
-                ))
+                Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?))
             })?
             .collect::<Result<Vec<_>, _>>()?;
         values
             .into_iter()
-            .map(|(key, alias, evidence)| {
+            .map(|(key, alias)| {
                 Ok(SourceIdentityMatch {
                     key: parse_key(key)?,
                     alias,
-                    evidence: evidence.map(|s| serde_json::from_str(&s)).transpose()?,
                 })
             })
             .collect()
@@ -442,7 +430,7 @@ impl SqliteIndexReader {
         let mut statement = c.prepare(
             "WITH requested AS MATERIALIZED (SELECT DISTINCT r.record_id FROM json_each(?1) k JOIN records r ON r.key=k.value WHERE r.document_kind<>'Macro')
              SELECT DISTINCT l.key FROM requested legacy
-             JOIN remaster_pairs p ON p.legacy_record_id=legacy.record_id
+             JOIN remaster_preferences p ON p.legacy_record_id=legacy.record_id
              JOIN records l ON l.record_id=p.legacy_record_id
              WHERE p.remaster_record_id IN (SELECT record_id FROM requested)
              ORDER BY l.key",
@@ -615,31 +603,6 @@ impl SqliteIndexReader {
                 .then_with(|| a.record.cmp(&b.record))
         });
         Ok(values)
-    }
-    pub fn read_remaster_links(
-        &self,
-        seed: &RecordKey,
-    ) -> Result<Vec<SourceRemasterPair>, IndexError> {
-        let c = self.native()?;
-        self.count_statement();
-        let mut s=c.prepare("SELECT l.key,m.key,p.evidence_json FROM remaster_pairs p JOIN records l ON l.record_id=p.legacy_record_id JOIN records m ON m.record_id=p.remaster_record_id WHERE l.document_kind<>'Macro' AND m.document_kind<>'Macro' AND (l.key=? OR m.key=?) ORDER BY l.key,m.key")?;
-        s.query_map([seed.to_string(), seed.to_string()], |r| {
-            Ok((
-                r.get::<_, String>(0)?,
-                r.get::<_, String>(1)?,
-                r.get::<_, String>(2)?,
-            ))
-        })?
-        .map(|r| {
-            let (l, m, e) = r?;
-            self.count_remaster_row(true);
-            Ok(SourceRemasterPair {
-                legacy: parse_key(l)?,
-                remaster: parse_key(m)?,
-                provenance: serde_json::from_str(&e)?,
-            })
-        })
-        .collect()
     }
 }
 

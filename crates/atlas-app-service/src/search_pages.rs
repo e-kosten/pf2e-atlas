@@ -80,6 +80,7 @@ impl AtlasAppService {
                 crate::relationship_search::prepare_filter(retrieval, filter)?;
             let evidence_filter = filter.cloned();
             let scope = RecordScope::All;
+            let prefer_remaster = request.prefer_remaster;
             let cancelled = || projection_execution.check().is_err();
             let search_content = match &request.criteria {
                 SearchCriteria::TextSearch { search_content, .. }
@@ -127,7 +128,7 @@ impl AtlasAppService {
                             filter: filter.as_ref(),
                             scope,
                             page,
-                            prefer_remaster: true,
+                            prefer_remaster: request.prefer_remaster,
                         },
                         &projection_execution,
                     )?;
@@ -171,7 +172,7 @@ impl AtlasAppService {
                             filter: filter.as_ref(),
                             scope,
                             page,
-                            prefer_remaster: true,
+                            prefer_remaster: request.prefer_remaster,
                         },
                         &projection_execution,
                     )?;
@@ -207,22 +208,25 @@ impl AtlasAppService {
                             filter: filter.as_ref(),
                             scope,
                             page,
-                            prefer_remaster: true,
+                            prefer_remaster: request.prefer_remaster,
                         })?;
                         projection_execution.check()?;
                         let result = search_results_view(result, retrieval);
                         (mode, result.rows, result.page, Some(result.coverage))
                     } else {
-                        let result = retrieval.list_records(
-                            ListRecordsRequest::new(filter.as_ref(), page)
+                        let result = retrieval.list_records({
+                            let mut request = ListRecordsRequest::new(filter.as_ref(), page)
                                 .with_scope(scope)
-                                .with_sort(sort.clone()),
-                        )?;
+                                .with_sort(sort.clone());
+                            request.prefer_remaster = prefer_remaster;
+                            request
+                        })?;
                         projection_execution.check()?;
                         let rows = result
                             .records
                             .iter()
                             .map(|record| SearchResultRow {
+                                alias_matches: vec![],
                                 similarity: None,
                                 relationship_evidence: vec![],
                                 record: localized_summary_view(record, retrieval),
@@ -234,11 +238,13 @@ impl AtlasAppService {
                     }
                 }
                 SearchCriteria::ListRecords { filter } => {
-                    let result = retrieval.list_records(
-                        ListRecordsRequest::new(filter.as_ref(), page)
+                    let result = retrieval.list_records({
+                        let mut request = ListRecordsRequest::new(filter.as_ref(), page)
                             .with_scope(scope)
-                            .with_sort(sort.clone()),
-                    )?;
+                            .with_sort(sort.clone());
+                        request.prefer_remaster = prefer_remaster;
+                        request
+                    })?;
                     projection_execution.check()?;
                     (
                         SearchModeSummary::ListRecords,
@@ -246,6 +252,7 @@ impl AtlasAppService {
                             .records
                             .iter()
                             .map(|record| SearchResultRow {
+                                alias_matches: vec![],
                                 similarity: None,
                                 relationship_evidence: vec![],
                                 record: localized_summary_view(record, retrieval),
@@ -273,7 +280,7 @@ impl AtlasAppService {
                         filter: filter.as_ref(),
                         scope,
                         page,
-                        prefer_remaster: true,
+                        prefer_remaster: request.prefer_remaster,
                     })?;
                     projection_execution.check()?;
                     let results = search_results_view(result, retrieval);
@@ -329,6 +336,7 @@ impl AtlasAppService {
                 }
             }
             Ok(SearchResultsPage {
+                prefer_remaster: request.prefer_remaster,
                 core_recipe: if matches!(mode, SearchModeSummary::TextSearch { .. })
                     && search_content == atlas_domain::SearchContentScope::Core
                 {

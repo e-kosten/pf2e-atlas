@@ -18,7 +18,7 @@ pub const SOURCE_LOOKUP_VERSION: &str = "nfc-lowercase-whitespace/v1";
 pub const LEXICAL_SELECTION_VERSION: &str = "curated-lexical/v2";
 pub const LOCALIZATION_POLICY_VERSION: &str = "selected-source-catalog/english-fallback/v2";
 pub const ASSET_POLICY_VERSION: &str = "safe-remote-images/local-unavailable/v1";
-pub const RELATIONSHIP_POLICY_VERSION: &str = "typed-authored-occurrences/v7";
+pub const RELATIONSHIP_POLICY_VERSION: &str = "typed-authored-occurrences/v8";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -98,6 +98,8 @@ pub struct SourceArtifactBuildContext {
     pub content_selection_version: String,
     pub asset_policy: String,
     pub relationship_policy: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub remaster_inputs_identity: String,
     pub query_projection_version: String,
     pub query_catalog_version: u32,
     pub lookup_version: String,
@@ -125,20 +127,6 @@ pub struct SourceArtifactRecordInput {
     pub content: Vec<SourceContentOutcome>,
     pub relationships: Vec<SourceRelationshipOccurrence>,
     pub diagnostics: Vec<SourceArtifactDiagnostic>,
-}
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct SourceAliasInput {
-    pub record: RecordKey,
-    pub alias: String,
-    pub evidence: String,
-}
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct SourceRemasterPairInput {
-    pub legacy: RecordKey,
-    pub remaster: RecordKey,
-    pub provenance: SourceContentLocator,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -196,8 +184,8 @@ pub struct IndexBuildInput {
     pub records: Vec<SourceArtifactRecordInput>,
     pub packs: Vec<IndexBuildPack>,
     pub context: SourceArtifactBuildContext,
-    pub aliases: Vec<SourceAliasInput>,
-    pub remaster_pairs: Vec<SourceRemasterPairInput>,
+    pub remaster_sources: Vec<atlas_record::remaster::RemasterSourceInput>,
+    pub remaster_declarations: Vec<atlas_record::remaster::RemasterDeclaration>,
     pub lexical_units: Vec<SourceLexicalUnitInput>,
     pub semantic_units: Vec<SourceSemanticUnitInput>,
 }

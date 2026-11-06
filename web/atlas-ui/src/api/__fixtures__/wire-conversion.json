@@ -801,9 +801,6 @@
   },
   "record_detail": {
     "artifact_generation": "fixture-generation",
-    "remaster_relationships": {
-      "kind": "empty"
-    },
     "encounter_adjustment": "normal",
     "presentation": {
       "body": {
@@ -1367,6 +1364,9 @@
     },
     "relationships": [],
     "relationships_truncated": false,
+    "remaster_relationships": {
+      "kind": "empty"
+    },
     "selected": {
       "embedded_path": [],
       "field": null,

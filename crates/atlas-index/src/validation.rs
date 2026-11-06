@@ -99,7 +99,6 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
     if c.prepare("PRAGMA foreign_key_check")?.exists([])? {
         return Err(IndexError::Invalid("foreign key violation".into()));
     }
-    let mut remaster_sources = remaster_sources(c)?;
     let mut counts = BTreeMap::<&'static str, usize>::new();
     let mut roots = 0usize;
     let mut prepared_fields = 0;
@@ -142,13 +141,6 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
             return Err(IndexError::Invalid("invalid source provenance".into()));
         }
         let record = checked_record_row(row)?;
-        if let Some(locators) = remaster_sources.remove(record.key()) {
-            for locator in locators {
-                if record.authored_content_at(&locator).value().is_none() {
-                    return Err(bad("remaster provenance source field is unavailable"));
-                }
-            }
-        }
         let input = SourceArtifactRecordInput {
             record,
             source_path: path,
@@ -240,7 +232,7 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
     validate_fts(c)?;
     tracing::info!(target:"atlas_progress",phase="artifact_vector_integrity","Checking semantic search index");
     validate_vectors(c, &context, product_count)?;
-    validate_aliases(c)?;
+    crate::remaster::validate(c)?;
     crate::component_digests::validate_present(c, &context)?;
     let mut urls=c.prepare("SELECT target_url FROM relationship_occurrences WHERE resolution IN ('resolved_url','unverified_url')")?;
     for url in urls.query_map([], |r| r.get::<_, String>(0))? {
@@ -554,65 +546,6 @@ fn validate_relationships(
         }
     }
     Ok(n)
-}
-fn validate_aliases(c: &Connection) -> Result<(), IndexError> {
-    let mut s=c.prepare("SELECT a.alias,a.alias_lookup_key,a.evidence_json,r.document_kind FROM verified_aliases a JOIN records r USING(record_id)")?;
-    for row in s.query_map([], |r| {
-        Ok((
-            r.get::<_, String>(0)?,
-            r.get::<_, String>(1)?,
-            r.get::<_, String>(2)?,
-            r.get::<_, String>(3)?,
-        ))
-    })? {
-        let (alias, key, evidence, kind) = row?;
-        let evidence: String = serde_json::from_str(&evidence)?;
-        if alias.trim().is_empty()
-            || key != atlas_domain::normalize_record_name(&alias)
-            || evidence.trim().is_empty()
-            || kind == "Macro"
-        {
-            return Err(bad("invalid verified alias"));
-        }
-    }
-    Ok(())
-}
-/// Full validation consumes all citations. Search suppression never calls this.
-fn remaster_sources(
-    c: &Connection,
-) -> Result<
-    BTreeMap<atlas_domain::RecordKey, Vec<atlas_record::source_content::SourceContentLocator>>,
-    IndexError,
-> {
-    let mut sources = BTreeMap::<_, Vec<_>>::new();
-    let mut statement = c.prepare("SELECT p.evidence_json,l.document_kind,r.document_kind FROM remaster_pairs p JOIN records l ON l.record_id=p.legacy_record_id JOIN records r ON r.record_id=p.remaster_record_id")?;
-    for row in statement.query_map([], |r| {
-        Ok((
-            r.get::<_, String>(0)?,
-            r.get::<_, String>(1)?,
-            r.get::<_, String>(2)?,
-        ))
-    })? {
-        let (json, legacy, remaster) = row?;
-        if legacy == "Macro" || remaster == "Macro" {
-            return Err(bad("remaster endpoint is not a product record"));
-        }
-        let source: atlas_record::source_content::SourceContentLocator =
-            serde_json::from_str(&json)?;
-        let exists: bool = c.query_row(
-            "SELECT EXISTS(SELECT 1 FROM records WHERE key=? AND document_kind<>'Macro')",
-            [source.record.to_string()],
-            |r| r.get(0),
-        )?;
-        if !exists {
-            return Err(bad("remaster provenance source record is absent"));
-        }
-        sources
-            .entry(source.record.clone())
-            .or_default()
-            .push(source);
-    }
-    Ok(sources)
 }
 fn validate_vectors(
     c: &Connection,

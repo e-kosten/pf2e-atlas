@@ -62,6 +62,7 @@ impl Context {
             content_interpretation_version: self.content_interpretation_version,
             content_selection_version: self.content_selection_version,
             asset_policy: self.asset_policy,
+            remaster_inputs_identity: String::new(),
             relationship_policy: self.relationship_policy,
             query_projection_version: self.query_projection_version,
             query_catalog_version: self.query_catalog_version,

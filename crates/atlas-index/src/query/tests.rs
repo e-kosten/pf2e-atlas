@@ -22,9 +22,42 @@ pub(super) fn database() -> Connection {
         .unwrap();
     db.execute_batch(crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL)
         .unwrap();
+    db.execute_batch(crate::REMASTER_SCHEMA_SQL).unwrap();
     db.execute("INSERT INTO packs VALUES('test','Test')", [])
         .unwrap();
     db
+}
+fn remaster_preference(db: &Connection, before: i64, after: i64) {
+    let mut input = crate::foundation_tests::fixture(false);
+    input.records = [before, after].into_iter().map(|id| {
+        let family: String = db.query_row("SELECT source_type FROM records WHERE record_id=?", [id], |row| row.get(0)).unwrap();
+        let kind = if ["npc", "hazard"].contains(&family.as_str()) { "Actor" } else { "Item" };
+        let mut record = crate::foundation_tests::record("test", kind, json!({"_id":format!("{id:016}"),"name":format!("Fixture {id}"),"type":family,"system":{}}));
+        record.preparation_context_hash = input.context.preparation_sha256().unwrap();
+        record
+    }).collect();
+    input.packs = vec![crate::IndexBuildPack {
+        pack_id: "test".into(),
+        label: "Test".into(),
+        document_kind: atlas_record::source_record::SourceNodeView::from(
+            input.records[0].record.source(),
+        )
+        .document_kind()
+        .into(),
+        declared_path: "packs/test".into(),
+    }];
+    input.inventory = crate::CompleteSourceInventory::checked(
+        &input.context.source_fingerprint,
+        ["test".into()],
+        ["test".into()],
+    )
+    .unwrap();
+    input.lexical_units.clear();
+    input.semantic_units.clear();
+    let old = input.records[0].record.key().clone();
+    let new = input.records[1].record.key().clone();
+    crate::test_support::add_remaster_relationship(&mut input, &old, &new).unwrap();
+    crate::foundation_tests::publish_remaster_projection(db, &input);
 }
 pub(super) fn row(db: &Connection, table: &str, overrides: &[(&str, Value)]) {
     let mut stmt = db.prepare(&format!("PRAGMA table_info({table})")).unwrap();
@@ -563,15 +596,7 @@ fn remaster_facets_restore_candidate_before_suppression_and_keep_absent_choices(
     let db = database();
     root(&db, 1, "spell", "rare");
     root(&db, 2, "spell", "common");
-    row(
-        &db,
-        "remaster_pairs",
-        &[
-            ("legacy_record_id", 1.into()),
-            ("remaster_record_id", 2.into()),
-            ("evidence_json", text("{}")),
-        ],
-    );
+    remaster_preference(&db, 1, 2);
     let mut predicate = parse_where("rarity=='common'").unwrap().predicate().clone();
     predicate.clause_id = Some("rarity-choice".to_owned());
     let mut request = QueryValuesRequest {
@@ -644,15 +669,7 @@ fn explicit_value_counts_use_independent_counterfactual_root_sets_and_scopes() {
     ] {
         root(&db, id, family, rarity);
     }
-    row(
-        &db,
-        "remaster_pairs",
-        &[
-            ("legacy_record_id", 1.into()),
-            ("remaster_record_id", 2.into()),
-            ("evidence_json", text("{}")),
-        ],
-    );
+    remaster_preference(&db, 1, 2);
     let predicate: QueryPredicate = serde_json::from_value(json!({"kind":"all_of","children":[{"kind":"compare","field":"source.type","op":"eq","value":"spell"},{"kind":"in","clause_id":"rarity","field":"rarity","values":["common","rare"]}]})).unwrap();
     let mut request = QueryValueCountsRequest {
         field: "rarity".into(),
@@ -1172,15 +1189,7 @@ fn count_free_vocabulary_is_scoped_paged_and_keeps_selections_separately() {
         )
         .unwrap();
     }
-    row(
-        &db,
-        "remaster_pairs",
-        &[
-            ("legacy_record_id", 1.into()),
-            ("remaster_record_id", 2.into()),
-            ("evidence_json", text("{}")),
-        ],
-    );
+    remaster_preference(&db, 1, 2);
     let mut request = QueryVocabularyRequest {
         field: "traits".into(),
         eligible_keys: None,

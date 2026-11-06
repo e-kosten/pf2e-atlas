@@ -32,6 +32,7 @@ pub(crate) fn router_with_state(state: AtlasWebState) -> Router {
         .route("/api/traits/detail", post(crate::handlers::trait_definition))
         .route("/api/traits/records", post(crate::handlers::trait_records))
         .route("/api/related",post(crate::handlers::related_records))
+        .route("/api/remaster/relationships", post(crate::handlers::remaster_relationships))
         .route("/api/encounters/{encounter_ref}/strike-context",post(crate::handlers::preview_encounter_strike_context))
         .route("/api/encounters/{encounter_ref}/casting-reminders", post(crate::handlers::encounter_casting_reminders))
         .route("/api/encounters", get(encounters).post(create_encounter))

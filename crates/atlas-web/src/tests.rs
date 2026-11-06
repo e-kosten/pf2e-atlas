@@ -1324,26 +1324,36 @@ async fn remaster_provenance_crosses_real_http_with_exact_field_navigation() {
     let detail = fixture.service.record_detail(ACTION).unwrap();
     let (status, body) = fixture.json(Method::POST, "/api/related", Some(json!({"selection":detail.selected,"artifact_generation":detail.artifact_generation}))).await;
     assert_eq!(status, StatusCode::OK, "{body}");
-    let wire = &body["counterparts"]["content"]["links"][0]["provenance"];
+    let wire = &body["remaster_relationships"]["content"]["declarations"][0]["citations"][0];
     assert_eq!(wire["attribution"], "Remaster Changes — Class Features");
-    assert_eq!(wire["source"]["field"], "/text/content");
+    assert_eq!(wire["destination"]["navigation"]["field"], "/text/content");
     assert_eq!(
-        wire["source"]["embedded_path"][0]["identity"]["Stable"],
+        wire["destination"]["navigation"]["embedded_path"][0]["identity"]["Stable"],
         "editionpage00001"
     );
     assert_eq!(
-        wire["navigation"]["record_key"],
+        wire["destination"]["navigation"]["record_key"],
         "journals:editionjournal01"
     );
-    assert_eq!(wire["navigation"]["field"], "/text/content");
-    assert!(wire["navigation"].get("spell_rank").is_none());
-    assert!(wire["navigation"]["source_fingerprint"].is_null());
-    assert!(wire["unavailable_reason"].is_null());
+    assert_eq!(wire["destination"]["navigation"]["field"], "/text/content");
+    assert!(
+        wire["destination"]["navigation"]
+            .get("spell_rank")
+            .is_none()
+    );
+    assert!(wire["destination"]["navigation"]["source_fingerprint"].is_null());
+    assert_eq!(wire["origin"], "foundry");
+    assert_eq!(wire["destination"]["kind"], "internal");
     let decoded: atlas_app_model::RelatedRecordsView = serde_json::from_value(body).unwrap();
-    let atlas_app_model::RelatedCategoryView::Content { content } = decoded.counterparts else {
-        panic!("counterparts")
+    let atlas_app_model::RelatedCategoryView::Content { content } = decoded.remaster_relationships
+    else {
+        panic!("remaster relationships")
     };
-    let navigation = content.links[0].provenance.navigation.as_ref().unwrap();
+    let atlas_app_model::RemasterCitationDestinationView::Internal { navigation } =
+        &content.declarations[0].citations[0].destination
+    else {
+        panic!("internal source");
+    };
     let (status, source) = fixture.json(Method::POST, "/api/records/detail", Some(json!({"record_key":navigation.record_key,"embedded_path":navigation.owners,"fields":[navigation.field],"source_fingerprint":navigation.source_fingerprint}))).await;
     assert_eq!(status, StatusCode::OK, "{source}");
 }
@@ -1373,27 +1383,172 @@ async fn publication_edition_crosses_real_http_for_known_and_unknown_sources() {
         .json(Method::GET, &format!("/api/records/{ACTION}"), None)
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
-    assert_eq!(body["counterparts"]["kind"], "content");
+    assert_eq!(body["remaster_relationships"]["kind"], "content");
     assert_eq!(
-        body["counterparts"]["content"]["links"][0]["remaster_record"]["record_key"],
+        body["remaster_relationships"]["content"]["declarations"][0]["after"][0]["endpoints"][0]["resolution"]
+            ["record"]["record_key"],
         SECOND_ACTION
     );
     assert_eq!(
-        body["counterparts"]["content"]["links"][0]["provenance"]["navigation"]["record_key"],
+        body["remaster_relationships"]["content"]["declarations"][0]["citations"][0]["destination"]
+            ["navigation"]["record_key"],
         "journals:editionjournal01"
     );
 }
 
 #[tokio::test]
-async fn unreadable_counterpart_evidence_does_not_prevent_reading_the_record() {
+async fn unreadable_remaster_evidence_does_not_prevent_reading_the_record() {
     let fixture = Fixture::with_remaster(true);
     fixture.corrupt_remaster_evidence();
     let (status, body) = fixture
-        .json(Method::GET, &format!("/api/records/{ACTION}"), None)
+        .json(Method::GET, &format!("/api/records/{SECOND_ACTION}"), None)
         .await;
     assert_eq!(status, StatusCode::OK, "{body}");
-    assert_eq!(body["record"]["title"], "Test Action 1");
-    assert_eq!(body["presentation"]["identity"]["edition"], "legacy");
-    assert_eq!(body["counterparts"]["kind"], "error");
+    assert_eq!(body["record"]["title"], "Test Action 2");
+    assert_eq!(body["presentation"]["identity"]["edition"], "remaster");
+    assert_eq!(body["remaster_relationships"]["kind"], "error");
     let _: atlas_app_model::RecordDetailView = serde_json::from_value(body).unwrap();
+}
+
+#[tokio::test]
+async fn remaster_preference_crosses_http_and_saved_members_remain_exact() {
+    let fixture = Fixture::with_remaster(true);
+    let base = json!({"criteria":{"kind":"text_search","query":"Test Action","filter":null,"mode":"lexical"},"page":{"number":1,"size":100}});
+    for preference in [None, Some(true), Some(false)] {
+        let mut request = base.clone();
+        if let Some(value) = preference {
+            request["prefer_remaster"] = json!(value);
+        }
+        let (status, body) = fixture
+            .json(Method::POST, "/api/search/page", Some(request))
+            .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(body["prefer_remaster"], preference.unwrap_or(true));
+        let keys = body["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|row| row["record"]["record_key"].as_str())
+            .collect::<Vec<_>>();
+        assert!(keys.contains(&SECOND_ACTION));
+        assert_eq!(keys.contains(&ACTION), preference == Some(false));
+    }
+    for invalid in [json!(null), json!("false")] {
+        let mut request = base.clone();
+        request["prefer_remaster"] = invalid;
+        let (status, _) = fixture
+            .json(Method::POST, "/api/search/page", Some(request))
+            .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+    }
+    fixture
+        .service
+        .add_saved_list_item(atlas_app_model::AddSavedListItemRequest {
+            list_ref: fixture.list_key.clone(),
+            record_ref: SECOND_ACTION.into(),
+            note: Some("modern note".into()),
+        })
+        .unwrap();
+    let before = fixture.service.saved_list(&fixture.list_key).unwrap();
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            &format!("/api/lists/{}/filter", fixture.list_key),
+            Some(json!({"list_ref":fixture.list_key,"query":"Test Action"})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["items"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        fixture.service.saved_list(&fixture.list_key).unwrap(),
+        before
+    );
+}
+
+#[tokio::test]
+async fn explicit_missing_key_and_term_information_do_not_rebind_saved_identity() {
+    let fixture = Fixture::with_remaster(true);
+    let missing = "actions:missing000000001";
+    let request=serde_json::from_value::<atlas_app_model::ImportSavedListRequest>(json!({
+        "document":{"format":"pf2e-atlas.saved-list","version":1,"exported_at":"2026-11-05","list":{"id":"missing-edition","name":"Missing edition","tags":[]},"items":[{"position":0,"record_key":missing,"record_name":"Missing old action","status":"unresolved","note":"Keep my note","snapshot":{"title":"Missing old action","kind":"action"}}]},"replace":false
+    })).unwrap();
+    let list = fixture.service.import_saved_list(request).unwrap();
+    let before = fixture.service.saved_list(&list.list.list_key).unwrap();
+    assert!(before.items[0].record.is_none());
+    assert_eq!(before.items[0].record_key, missing);
+    let selection = json!({"record_key":missing,"embedded_path":[],"field":null,"passage":null,"source_fingerprint":null});
+    let (status, body) = fixture
+        .json(
+            Method::POST,
+            "/api/remaster/relationships",
+            Some(json!({"subject":{"kind":"record","selection":selection}})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["subject"]["available"], false);
+    assert!(body["subject"]["title"].is_null());
+    assert_eq!(body["relationships"]["kind"], "content");
+    assert_eq!(
+        body["relationships"]["content"]["declarations"][0]["before"][0]["endpoints"][0]["resolution"]
+            ["kind"],
+        "absent"
+    );
+    assert_eq!(
+        body["relationships"]["content"]["notices"][0]["links"][0]["navigation"]["record_key"],
+        SECOND_ACTION
+    );
+    let generation = body["artifact_generation"].as_str().unwrap();
+    let (status,term)=fixture.json(Method::POST,"/api/remaster/relationships",Some(json!({"subject":{"kind":"term","term":"Missing old action"},"expected_artifact_generation":generation}))).await;
+    assert_eq!(status, StatusCode::OK, "{term}");
+    assert_eq!(term["relationships"]["kind"], "content");
+    assert!(term.get("page").is_none());
+    assert!(
+        term["subject"]["scope_label"]
+            .as_str()
+            .unwrap()
+            .contains("independent of record filters")
+    );
+    let (status,stale)=fixture.json(Method::POST,"/api/remaster/relationships",Some(json!({"subject":{"kind":"term","term":"Missing old action"},"expected_artifact_generation":"stale"}))).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{stale}");
+    let (status, empty) = fixture
+        .json(
+            Method::POST,
+            "/api/remaster/relationships",
+            Some(json!({"subject":{"kind":"term","term":"No such authored term"}})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{empty}");
+    assert_eq!(empty["relationships"]["kind"], "empty");
+    let (status, _) = fixture
+        .json(Method::GET, &format!("/api/records/{missing}"), None)
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(
+        fixture.service.saved_list(&list.list.list_key).unwrap(),
+        before
+    );
+}
+
+#[tokio::test]
+async fn remaster_owned_known_source_failure_keeps_exact_customized_body_readable() {
+    let fixture = Fixture::with_remaster(true);
+    fixture.corrupt_remaster_evidence();
+    let (status,body)=fixture.json(Method::POST,"/api/records/detail",Some(json!({"record_key":ACTOR,"embedded_path":[{"collection":"/items","identity":{"Stable":"owned00000000006"}}]}))).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(
+        body["presentation"]["identity"]["title"],
+        "Customized owned action"
+    );
+    assert_eq!(body["presentation"]["identity"]["edition"], "legacy");
+    assert_eq!(body["selected"]["record_key"], ACTOR);
+    assert_eq!(body["remaster_relationships"]["kind"], "empty");
+    assert_eq!(body["source_remaster_context"]["kind"], "content");
+    assert_eq!(
+        body["source_remaster_context"]["content"]["source"]["resolution"]["record"]["record_key"],
+        SECOND_ACTION
+    );
+    assert_eq!(
+        body["source_remaster_context"]["content"]["relationships"]["kind"],
+        "error"
+    );
 }

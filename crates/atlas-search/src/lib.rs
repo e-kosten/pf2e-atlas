@@ -42,10 +42,7 @@ pub use discovery::{
     DiscoverFilterVocabularyRequest, FilterDiscoveryContext,
 };
 pub use error::{SearchError, SearchErrorKind};
-pub use graph::{
-    GraphContextRequest, GraphContextResult, GraphContextSection, RemasterLinkResult,
-    RemasterLinksRequest, RemasterLinksResult,
-};
+pub use graph::{GraphContextRequest, GraphContextResult, GraphContextSection};
 pub use page::{DEFAULT_SEARCH_PAGE_SIZE, MAX_SEARCH_PAGE_SIZE, SearchPage, SearchPageInfo};
 pub use records::{
     GetRecordRequest, GetRecordsRequest, ListRecordsRequest, ListRecordsResult,
@@ -89,3 +86,17 @@ pub use relationship_selection::CheckedRelationshipSelection;
 mod core_search_tests;
 #[cfg(test)]
 mod neighbor_reuse_tests;
+
+mod remaster;
+pub use remaster::{
+    DEFAULT_REMASTER_INFORMATION_LIMIT, MAX_REMASTER_INFORMATION_LIMIT,
+    RecordRemasterInformationRequest, RecordRemasterInformationResult, RemasterAliasMatch,
+    RemasterChangeKind, RemasterCitationResult, RemasterCitationSource, RemasterContext,
+    RemasterDeclarationResult, RemasterEndpointCandidate, RemasterEndpointResolution,
+    RemasterEndpointResult, RemasterInformation, RemasterLookupSupport, RemasterOrigin,
+    RemasterRecordAvailability, RemasterSideResult, RemasterTermInformationRequest,
+    RemasterTermInformationResult,
+};
+
+#[cfg(test)]
+mod remaster_tests;

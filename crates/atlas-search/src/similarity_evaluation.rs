@@ -588,11 +588,12 @@ impl AtlasRetrievalService {
                     score: row.score?,
                     tier: 3,
                     witnesses: vec![],
+                    matched_aliases: vec![],
                 })
             })
             .collect();
         Ok(self
-            .suppress_pairs(roots, prefer_remaster)?
+            .apply_remaster_preference(roots, prefer_remaster)?
             .into_iter()
             .map(|row| row.key)
             .collect())

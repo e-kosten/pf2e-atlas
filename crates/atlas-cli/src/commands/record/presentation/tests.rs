@@ -327,7 +327,8 @@ fn address() -> RecordNavigationView {
 }
 fn detail(body: RecordBodyView) -> RecordDetailView {
     RecordDetailView {
-        counterparts: None,
+        remaster_relationships: atlas_app_model::RelatedCategoryView::Empty,
+        source_remaster_context: None,
         artifact_generation: "test-generation".into(),
         record: summary("Local Caster", "creature"),
         presentation: RecordPresentationView {

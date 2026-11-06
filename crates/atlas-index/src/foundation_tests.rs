@@ -84,6 +84,7 @@ fn audience() -> ContentAudience {
 }
 fn context(n: usize, semantic: bool) -> SourceArtifactBuildContext {
     SourceArtifactBuildContext {
+        remaster_inputs_identity: atlas_record::remaster::remaster_inputs_identity(),
         selected_sections_recipe: crate::SELECTED_SECTIONS_RECIPE.into(),
 
         admission: None,
@@ -201,8 +202,8 @@ pub(super) fn fixture_with_description(semantic: bool, description: &str) -> Ind
                 declared_path: "packs/macros".into(),
             },
         ],
-        aliases: vec![],
-        remaster_pairs: vec![],
+        remaster_sources: vec![],
+        remaster_declarations: vec![],
         lexical_units: vec![],
         semantic_units: vec![],
     };
@@ -316,19 +317,70 @@ fn synchronize_fixture_terms(input: &mut IndexBuildInput) {
             &input.context.used_trait_labels,
         )
         .unwrap();
-        let aliases = input
-            .aliases
-            .iter()
-            .filter(|alias| alias.record == *r.record.key())
-            .map(|alias| alias.alias.clone())
-            .collect::<Vec<_>>();
         input
             .lexical_units
             .retain(|unit| unit.record != *r.record.key());
         input
             .lexical_units
-            .extend(crate::project_lexical_units(&selection, &aliases));
+            .extend(crate::project_lexical_units(&selection, &[]));
     }
+    crate::test_support::capture_remaster_declarations(input).unwrap();
+}
+pub(super) fn correspondence(
+    before: atlas_domain::RecordKey,
+    after: atlas_domain::RecordKey,
+    before_label: &str,
+    after_label: &str,
+    source_type: &str,
+) -> atlas_record::remaster::ReviewedCorrespondence {
+    atlas_record::remaster::ReviewedCorrespondence {
+        before,
+        after,
+        before_label: before_label.into(),
+        after_label: after_label.into(),
+        namespace: "fixture".into(),
+        rationale: "Explicit fixture correspondence".into(),
+        source_type: source_type.into(),
+    }
+}
+pub(super) fn add_correspondences(
+    input: &mut IndexBuildInput,
+    entries: Vec<atlas_record::remaster::ReviewedCorrespondence>,
+) {
+    use atlas_record::remaster::*;
+    input.remaster_sources.push(RemasterSourceInput::new(
+        RemasterInputKind::AtlasCorrespondence,
+        RemasterOrigin::AtlasReviewed,
+        "fixture/v1".into(),
+        format!(
+            "fixtures/correspondences-{}.json",
+            input.remaster_sources.len()
+        ),
+        serde_json::to_vec(&ReviewedCorrespondences { entries }).unwrap(),
+    ));
+    crate::test_support::capture_remaster_declarations(input).unwrap();
+}
+pub(super) fn publish_remaster_projection(connection: &Connection, input: &IndexBuildInput) {
+    let scratch = tempfile::tempdir().unwrap();
+    let spool = crate::test_support::publication_spool_in(
+        scratch.path(),
+        input,
+        ArtifactInstance::new("fixture".into(), 0),
+    )
+    .unwrap();
+    let products = connection
+        .prepare("SELECT key,record_id FROM records WHERE document_kind<>'Macro'")
+        .unwrap()
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+        })
+        .unwrap()
+        .map(|row| {
+            let (key, id) = row.unwrap();
+            (key.parse().unwrap(), id)
+        })
+        .collect();
+    crate::remaster::publish(connection, &spool, &products).unwrap();
 }
 pub(super) fn build(input: &IndexBuildInput) -> (tempfile::TempDir, std::path::PathBuf) {
     let directory = tempfile::tempdir().unwrap();
@@ -1090,35 +1142,77 @@ fn missing_vectors_and_wrong_model_identity_cannot_be_published() {
 #[test]
 fn explicit_alias_and_remaster_evidence_are_collision_preserving() {
     let mut input = fixture(false);
-    input.aliases = vec![
-        SourceAliasInput {
-            record: input.records[1].record.key().clone(),
-            alias: "Old Name".into(),
-            evidence: "verified migration declaration".into(),
-        },
-        SourceAliasInput {
-            record: input.records[2].record.key().clone(),
-            alias: "Old Name".into(),
-            evidence: "separate declaration".into(),
-        },
-    ];
-    input.remaster_pairs = vec![SourceRemasterPairInput {
-        legacy: input.records[1].record.key().clone(),
-        remaster: input.records[2].record.key().clone(),
-        provenance: atlas_record::source_content::SourceContentLocator {
-            record: input.records[1].record.key().clone(),
-            owners: vec![],
-            field: "/system/description/value".into(),
-        },
-    }];
+    // Distinct captured assertions can share an old label without merging keys.
+    let legacy = input.records[1].record.key().clone();
+    let successor = input.records[2].record.key().clone();
+    let mut source = record(
+        "items",
+        "Item",
+        json!({"_id":"bbbbbbbbbbbbbbbb","name":"Dragon Staff","type":"spell","system":{"level":{"value":1}}}),
+    );
+    source.preparation_context_hash = input.records[1].preparation_context_hash.clone();
+    input.records[1] = source;
+    let predecessor = input.records[0].record.key().clone();
+    let mut ancestor = record(
+        "actors",
+        "Item",
+        json!({"_id":"aaaaaaaaaaaaaaaa","name":"Ancestor Spell","type":"spell","system":{"level":{"value":1}}}),
+    );
+    ancestor.preparation_context_hash = input.records[0].preparation_context_hash.clone();
+    input.records[0] = ancestor;
+    input.packs[0].document_kind = "Item".into();
+    add_correspondences(
+        &mut input,
+        vec![
+            correspondence(
+                predecessor.clone(),
+                legacy.clone(),
+                "Old Name",
+                "Dragon Staff",
+                "spell",
+            ),
+            correspondence(
+                predecessor,
+                successor.clone(),
+                "Old Name",
+                "Dragon Spell",
+                "spell",
+            ),
+            correspondence(
+                legacy.clone(),
+                successor.clone(),
+                "Dragon Staff",
+                "Dragon Spell",
+                "spell",
+            ),
+        ],
+    );
     synchronize_fixture_terms(&mut input);
     let (_directory, path) = build(&input);
     let reader = crate::test_support::open_reader(path).unwrap();
     let matches = reader.lookup_name_or_alias(" OLD  NAME ").unwrap();
     assert_eq!(matches.len(), 2);
-    assert_eq!(
-        matches[0].evidence.as_deref(),
-        Some("verified migration declaration")
+    assert!(
+        matches
+            .iter()
+            .all(|matched| matched.alias.as_deref() == Some("Old Name"))
+    );
+    assert_ne!(matches[0].key, matches[1].key);
+    let support = reader
+        .remaster_alias_information(
+            &matches
+                .iter()
+                .map(|matched| (matched.key.clone(), matched.alias.clone().unwrap()))
+                .collect::<Vec<_>>(),
+            20,
+        )
+        .unwrap();
+    assert_eq!(support.len(), 2);
+    assert!(
+        support
+            .values()
+            .all(|information| information.declarations.len() == 1
+                && information.declarations[0].citations.len() == 1)
     );
     assert!(
         reader
@@ -1128,10 +1222,11 @@ fn explicit_alias_and_remaster_evidence_are_collision_preserving() {
     );
     assert_eq!(
         reader
-            .read_remaster_links(input.records[1].record.key())
+            .remaster_record_information(input.records[1].record.key(), &[], 20)
             .unwrap()
+            .declarations
             .len(),
-        1
+        2
     );
     let all = validate_query(&QueryPredicate::boolean(true)).unwrap();
     assert_eq!(
@@ -1678,27 +1773,27 @@ fn remaster_suppression_reads_only_matching_identities_for_complete_sets() {
     let mut input = fixture(false);
     let legacy = input.records[1].record.key().clone();
     let remaster = input.records[2].record.key().clone();
-    input.remaster_pairs = vec![SourceRemasterPairInput {
-        legacy: legacy.clone(),
-        remaster: remaster.clone(),
-        provenance: atlas_record::source_content::SourceContentLocator {
-            record: legacy.clone(),
-            owners: vec![],
-            field: "/system/description/value".into(),
-        },
-    }];
     let second_legacy = input.records[0].record.key().clone();
-    input.remaster_pairs.push(SourceRemasterPairInput {
-        legacy: second_legacy.clone(),
-        remaster: remaster.clone(),
-        provenance: input.remaster_pairs[0].provenance.clone(),
-    });
-    let (_directory, path) = build(&input);
-    {
-        let c = Connection::open(&path).unwrap();
-        c.execute("UPDATE remaster_pairs SET evidence_json='{}'", [])
-            .unwrap();
+    for index in [0, 1] {
+        let key = input.records[index].record.key().clone();
+        let mut replacement = record(
+            key.pack().as_str(),
+            "Item",
+            json!({"_id":key.id().as_str(),"name":format!("Older spell {index}"),"type":"spell","system":{"level":{"value":1}}}),
+        );
+        replacement.preparation_context_hash =
+            input.records[index].preparation_context_hash.clone();
+        input.records[index] = replacement;
     }
+    input.packs[0].document_kind = "Item".into();
+    synchronize_fixture_terms(&mut input);
+    crate::test_support::add_remaster_relationship(&mut input, &legacy, &remaster).unwrap();
+    crate::test_support::add_remaster_relationship(&mut input, &second_legacy, &remaster).unwrap();
+    let (_directory, path) = build(&input);
+    Connection::open(&path)
+        .unwrap()
+        .execute("UPDATE remaster_declarations SET payload_json='{}'", [])
+        .unwrap();
     let reader = crate::test_support::open_reader(&path).unwrap();
     reader.reset_read_metrics();
     assert!(reader.matched_legacy_keys(&[]).unwrap().is_empty());
@@ -1725,34 +1820,44 @@ fn remaster_suppression_reads_only_matching_identities_for_complete_sets() {
             .unwrap(),
         expected
     );
-    assert!(reader.read_remaster_links(&legacy).is_err());
+    assert!(
+        reader
+            .remaster_record_information(&legacy, &[], 20)
+            .is_err()
+    );
     assert!(validate_artifact(&path).is_err());
 }
 
 #[test]
 fn explicit_audit_rejects_invalid_typed_remaster_source() {
-    for defect in ["record", "owner", "field"] {
-        let mut next = fixture(false);
-        let (_directory, path) = build(&next);
-        let mut provenance = atlas_record::source_content::SourceContentLocator {
-            record: next.records[1].record.key().clone(),
-            owners: vec![],
-            field: "/system/description/value".into(),
+    for defect in ["statement", "endpoint", "capture", "support"] {
+        let mut input = fixture(false);
+        let mut predecessor = record(
+            "items",
+            "Item",
+            json!({"_id":"bbbbbbbbbbbbbbbb","name":"Dragon Staff","type":"spell","system":{"level":{"value":1}}}),
+        );
+        predecessor.preparation_context_hash = input.records[1].preparation_context_hash.clone();
+        input.records[1] = predecessor;
+        synchronize_fixture_terms(&mut input);
+        let before = input.records[1].record.key().clone();
+        let after = input.records[2].record.key().clone();
+        crate::test_support::add_remaster_relationship(&mut input, &before, &after).unwrap();
+        let (_directory, path) = build(&input);
+        let connection = Connection::open(&path).unwrap();
+        let sql = match defect {
+            "statement" => {
+                "UPDATE remaster_declarations SET payload_json=json_set(payload_json,'$.authored_status','tampered')"
+            }
+            "endpoint" => {
+                "UPDATE remaster_declarations SET payload_json=json_set(payload_json,'$.after[0].references[0].explicit_key','missing:aaaaaaaaaaaaaaaa')"
+            }
+            "capture" => {
+                "UPDATE remaster_source_inputs SET payload_json=json_set(payload_json,'$.sha256','tampered')"
+            }
+            _ => "DELETE FROM remaster_alias_support",
         };
-        match defect {
-            "record" => provenance.record = "missing:aaaaaaaaaaaaaaaa".parse().unwrap(),
-            "owner" => provenance.owners.push(OwnedContentLocator {
-                collection: "/items".into(),
-                identity: OwnedContentIdentity::Stable("missingowner0001".into()),
-            }),
-            _ => provenance.field = "/missing".into(),
-        }
-        next.remaster_pairs.push(SourceRemasterPairInput {
-            legacy: next.records[1].record.key().clone(),
-            remaster: next.records[2].record.key().clone(),
-            provenance,
-        });
-        crate::test_support::publish_input(&path, &next).unwrap();
+        assert!(connection.execute(sql, []).unwrap() > 0, "{defect}");
         assert!(validate_artifact(&path).is_err(), "{defect}");
     }
 }

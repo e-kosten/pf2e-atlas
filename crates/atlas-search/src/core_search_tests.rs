@@ -804,16 +804,8 @@ fn core_lexical_edition_preference_uses_scoped_matches_before_sorting_and_paging
     let remaster: atlas_domain::RecordKey = "actors:bbbbbbbbbbbbbbbb".parse().unwrap();
     let alpha: atlas_domain::RecordKey = "items:dddddddddddddddd".parse().unwrap();
     let zebra: atlas_domain::RecordKey = "spells:cccccccccccccccc".parse().unwrap();
-    data.remaster_pairs
-        .push(atlas_index::SourceRemasterPairInput {
-            legacy: legacy.clone(),
-            remaster: remaster.clone(),
-            provenance: atlas_record::source_content::SourceContentLocator {
-                record: legacy.clone(),
-                owners: vec![],
-                field: "/system/details/publicNotes".into(),
-            },
-        });
+    crate::test_support::add_remaster_relationship(&mut data, &legacy.clone(), &remaster.clone())
+        .unwrap();
     let (mut service, _artifact) = open_input_fixture(data).unwrap();
     assert!(
         service

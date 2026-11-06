@@ -644,6 +644,7 @@ impl crate::AtlasRetrievalService {
                     // Page selection needs ranks/summaries only. Recover seed and
                     // candidate witnesses together once the page is known.
                     witnesses: vec![],
+                    matched_aliases: vec![],
                 });
                 pending.insert(
                     key,
@@ -673,7 +674,7 @@ impl crate::AtlasRetrievalService {
                 scoring_started.elapsed().as_secs_f64() * 1000.0;
         }
         roots.sort_by(|a, b| b.score.total_cmp(&a.score).then(a.key.cmp(&b.key)));
-        let roots = self.suppress_pairs(roots, request.prefer_remaster)?;
+        let roots = self.apply_remaster_preference(roots, request.prefer_remaster)?;
         request.check()?;
         let hydration_started = std::time::Instant::now();
         let mut results = self.finish_results(

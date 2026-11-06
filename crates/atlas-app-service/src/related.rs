@@ -111,28 +111,22 @@ impl AtlasAppService {
                     )
                 }),
             );
-            let (counterparts, variants) = if selection.owners.is_empty() {
-                let counterparts = crate::remaster::counterparts_view(&key, r);
-                (
-                    counterparts,
-                    category(crate::retrieval::variant_group_view(r, &key)),
-                )
+            let (remaster_relationships, source_remaster_context) =
+                crate::remaster::reading_context(&selection, r);
+            let variants = if selection.owners.is_empty() {
+                category(crate::retrieval::variant_group_view(r, &key))
             } else {
-                (
-                    RelatedCategoryView::Unavailable {
-                        reason: "Counterparts apply to root records".into(),
-                    },
-                    RelatedCategoryView::Unavailable {
-                        reason: "Variant verification applies to root records".into(),
-                    },
-                )
+                RelatedCategoryView::Unavailable {
+                    reason: "Variant verification applies to root records".into(),
+                }
             };
             Ok(RelatedRecordsView {
                 selection,
                 artifact_generation: generation,
                 seed: crate::projection::localized_summary_view(&seed, r),
                 references,
-                counterparts,
+                remaster_relationships,
+                source_remaster_context,
                 variants,
             })
         })

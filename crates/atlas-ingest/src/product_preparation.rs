@@ -56,6 +56,7 @@ struct Envelope {
     contribution: Option<SourceReferenceContribution>,
     labels: BTreeMap<String, String>,
     alias_name: Option<String>,
+    is_product: bool,
     family: Option<String>,
     journal: Option<BuildFrameOffset>,
 }
@@ -362,6 +363,7 @@ pub(crate) fn prepare(
                     contribution: None,
                     labels: BTreeMap::new(),
                     alias_name: None,
+                    is_product: false,
                     family: None,
                     journal: None,
                 };
@@ -384,7 +386,8 @@ pub(crate) fn prepare(
                             let snapshot = String::from_utf8(snapshot)
                                 .map_err(|e| IngestError::SourceSelectionFailed(e.to_string()))?;
                             let node = SourceNodeView::from(record.source());
-                            if node.document_kind() != "Macro" {
+                            observation.is_product = node.document_kind() != "Macro";
+                            if observation.is_product {
                                 observation.alias_name = node.name().value().cloned();
                             }
                             observation.family = node.source_type().value().map(str::to_owned);
@@ -422,6 +425,7 @@ pub(crate) fn prepare(
     let mut active = BTreeSet::new();
     let mut names = BTreeMap::new();
     let mut families = BTreeMap::new();
+    let mut products = BTreeSet::new();
     let mut journals = Vec::new();
     let mut partial_records = 0usize;
     for mut observation in envelopes.into_iter().flatten() {
@@ -438,6 +442,9 @@ pub(crate) fn prepare(
             if let Some(key) = observation.key {
                 if let Some(name) = observation.alias_name {
                     names.insert(key.clone(), name);
+                }
+                if observation.is_product {
+                    products.insert(key.clone());
                 }
                 families.insert(key.clone(), observation.family);
                 if let Some(offset) = observation.journal {
@@ -506,44 +513,84 @@ pub(crate) fn prepare(
     let mut spool =
         PublicationSpool::new_in(scratch, context, packs, inventory, reuse.expected().clone())
             .map_err(index)?;
-    // Alias journals need the complete resolver but ordinary roots need aliases
-    // before lexical/identity selection. Read only those journals here, one rich
-    // record at a time; their content is deliberately prepared again in the final
-    // slice. Shared search selection still runs exactly once per active root.
+    // Prepare only selected remaster journals with the complete source resolver.
+    // Canonical statements retain authored targets, never current display labels.
+    let mut declarations = Vec::new();
+    let mut fields = Vec::new();
+    let mut journal_preparations =
+        BuildFrameStream::<JournalPreparation>::new_in(scratch).map_err(index)?;
+    let mut journal_offsets = BTreeMap::new();
     let mut admitted_reader = admitted.cursor().map_err(index)?;
-    let (aliases, pairs) = crate::source_aliases::extract_prepared_aliases(
+    for (key, offset) in &journals {
+        let mut frame = admitted_reader.read_at(*offset).map_err(index)?;
+        if &frame.key != key {
+            return Err(index(atlas_index::IndexError::Invalid(
+                "journal frame identity differs".into(),
+            )));
+        }
+        let prepared =
+            prepare_content(&mut frame, &catalog, &resolver, &preparation_hash).map_err(index)?;
+        work.alias_journal_reads += 1;
+        work.alias_journal_fresh_preparations += usize::from(!prepared.reused);
+        work.alias_journal_reused_preparations += usize::from(prepared.reused);
+        let (selected, selected_fields) = crate::remaster_information::selected_journal(
+            &prepared.record,
+            &prepared.content,
+            default_audience(),
+        )?;
+        declarations.extend(selected);
+        fields.extend(selected_fields);
+        let offset = journal_preparations
+            .push_indexed(&JournalPreparation {
+                content: prepared.content,
+                relationships: prepared.relationships,
+                reused: prepared.reused,
+            })
+            .map_err(index)?;
+        journal_offsets.insert(key.clone(), offset);
+    }
+    let mut journal_reader = journal_preparations.cursor().map_err(index)?;
+    let revision = spool
+        .context()
+        .source_revision
+        .as_deref()
+        .unwrap_or(&spool.context().source_fingerprint);
+    let sources =
+        crate::remaster_information::captured_inputs(&options.source_root, capture, revision)?;
+    for source in &sources {
+        declarations.extend(
+            atlas_record::remaster::file_declarations(source)
+                .map_err(|e| IngestError::SourceSelectionFailed(e.to_string()))?,
+        );
+        spool.remaster_sources.push(source).map_err(index)?;
+    }
+    let projection = crate::remaster_information::projection(
+        &declarations,
+        &fields,
         &names,
         &families,
-        &mut |visitor| {
-            for (key, offset) in &journals {
-                let mut frame = admitted_reader.read_at(*offset).map_err(index)?;
-                if &frame.key != key {
-                    return Err(index(atlas_index::IndexError::Invalid(
-                        "journal frame identity differs".into(),
-                    )));
-                }
-                let content = prepare_content(&mut frame, &catalog, &resolver, &preparation_hash)
-                    .map_err(index)?;
-                work.alias_journal_reads += 1;
-                work.alias_journal_fresh_preparations += usize::from(!content.reused);
-                work.alias_journal_reused_preparations += usize::from(content.reused);
-                visitor(key, &content.content)?;
-            }
-            Ok(())
-        },
-        &options.source_root,
-        capture,
+        &products,
+        &sources,
     )?;
-    let mut by_record = BTreeMap::<RecordKey, Vec<String>>::new();
-    for alias in aliases {
-        by_record
-            .entry(alias.record.clone())
-            .or_default()
-            .push(alias.alias.clone());
-        spool.aliases.push(&alias).map_err(index)?;
+    report.remaster_declarations = declarations.len();
+    report.remaster_aliases = projection.aliases.len();
+    report.remaster_preferences = projection.preferences.len();
+    for diagnostic in &projection.diagnostics {
+        *report
+            .remaster_decisions
+            .entry(diagnostic.reason.as_str().into())
+            .or_default() += 1;
     }
-    for pair in pairs {
-        spool.remaster_pairs.push(&pair).map_err(index)?;
+    report.remaster_decision_examples = projection.diagnostics.into_iter().take(20).collect();
+    let mut by_record = BTreeMap::<RecordKey, Vec<String>>::new();
+    for alias in projection.aliases {
+        by_record.entry(alias.record).or_default().push(alias.alias);
+    }
+    for declaration in declarations {
+        spool
+            .remaster_declarations
+            .push(&declaration)
+            .map_err(index)?;
     }
     let tokenizer = options
         .search_profiles
@@ -567,9 +614,24 @@ pub(crate) fn prepare(
                     content,
                     relationships,
                     reused,
-                } = prepare_content(&mut frame, &catalog, &resolver, &preparation_hash)?;
+                } = if let Some(offset) = journal_offsets.get(&frame.key) {
+                    let journal = journal_reader.read_at(*offset)?;
+                    let source = atlas_foundry_model::decode_snapshot(frame.snapshot.as_bytes())?;
+                    let record = SourceBackedRecord::new(&frame.pack, source).map_err(|_| {
+                        atlas_index::IndexError::Invalid("prepared journal identity differs".into())
+                    })?;
+                    PreparedContent {
+                        record,
+                        content: journal.content,
+                        relationships: journal.relationships,
+                        reused: journal.reused,
+                    }
+                } else {
+                    prepare_content(&mut frame, &catalog, &resolver, &preparation_hash)?
+                };
                 report.reused_preparations += usize::from(reused);
-                work.main_fresh_preparations += usize::from(!reused);
+                work.main_fresh_preparations +=
+                    usize::from(!reused && !journal_offsets.contains_key(&frame.key));
                 count_prepared(&mut report, &record, &content, relationships.len());
                 work.selection_calls += 1;
                 let selection = select_record_search(
@@ -700,6 +762,8 @@ pub(crate) fn prepare(
         .map_err(index)?
         .combine(spool.file_usage().map_err(index)?)
         .map_err(index)?
+        .combine(journal_preparations.file_usage().map_err(index)?)
+        .map_err(index)?
         .combine(native_inputs.file_usage().map_err(index)?)
         .map_err(index)?;
     tracing::info!(target:"atlas_build_diagnostic",stage="admission_publication_overlap",file_bytes=usage.file_bytes,allocated_bytes=usage.allocated_bytes.unwrap_or(0),allocated_bytes_known=usage.allocated_bytes.is_some(),"Observed indexed admission and final publication files");
@@ -745,6 +809,12 @@ pub(crate) fn prepare(
     })
 }
 
+#[derive(Serialize, Deserialize)]
+struct JournalPreparation {
+    content: Vec<SourceContentOutcome>,
+    relationships: Vec<SourceRelationshipOccurrence>,
+    reused: bool,
+}
 struct PreparedContent {
     record: SourceBackedRecord,
     content: Vec<SourceContentOutcome>,
