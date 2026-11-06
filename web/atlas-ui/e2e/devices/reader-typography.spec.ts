@@ -1,31 +1,37 @@
-import type { Locator } from "@playwright/test";
+import { devices, type Locator } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { activate } from "./reading";
 
 const fontSize = (element: Locator) =>
   element.evaluate((node) => parseFloat(getComputedStyle(node).fontSize));
 
-test("narrow Explore overflow dismisses after selecting Versions", async ({
-  page,
-}, info) => {
-  await page.setViewportSize({ width: 320, height: 844 });
-  await page.goto("/records/browser-editions:remaster00000001");
-  await activate(
-    page.getByRole("button", { name: "Explore related records", exact: true }),
-    info,
-  );
-  const more = page.locator(".record-explore .ant-tabs-nav-more");
-  await expect(more).toBeVisible();
-  await activate(more, info);
-  const menu = page.getByRole("listbox", { name: "expanded dropdown", exact: true });
-  await activate(menu.getByRole("option", { name: "Versions", exact: true }), info);
-  await expect(menu).toBeHidden();
-  await expect(page.locator(".remaster-relationship__line")).toContainText(
-    "Legacy signal",
-  );
-  await expect(
-    page.getByRole("button", { name: "Compare", exact: true }),
-  ).toBeVisible();
+test.describe("narrow desktop tabs with touch input", () => {
+  // Desktop-UA touch devices use the overflow menu; phone UA uses scrollable tabs.
+  test.use({
+    hasTouch: true,
+    isMobile: false,
+    userAgent: devices["Desktop Chrome"].userAgent,
+  });
+
+  test("Explore overflow dismisses after selecting Versions", async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 844 });
+    await page.goto("/records/browser-editions:remaster00000001");
+    await page
+      .getByRole("button", { name: "Explore related records", exact: true })
+      .tap();
+    const more = page.locator(".record-explore .ant-tabs-nav-more");
+    await expect(more).toBeVisible();
+    await more.tap();
+    const menu = page.getByRole("listbox", { name: "expanded dropdown", exact: true });
+    await menu.getByRole("option", { name: "Versions", exact: true }).tap();
+    await expect(menu).toBeHidden();
+    await expect(page.locator(".remaster-relationship__line")).toContainText(
+      "Legacy signal",
+    );
+    await expect(
+      page.getByRole("button", { name: "Compare", exact: true }),
+    ).toBeVisible();
+  });
 });
 
 test("reading and Versions share inline text size without enlarging controls", async ({
