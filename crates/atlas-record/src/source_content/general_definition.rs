@@ -247,8 +247,11 @@ pub(crate) fn validate_general_definition_markers(
 /// Inspect actual attributes, allowing ordinary prose to quote marker names.
 pub(crate) fn has_general_definition_marker(html: &str) -> bool {
     let document = Html::parse_fragment(html);
-    let selector = Selector::parse("[data-atlas-definition-selection]").expect("fixed selector");
-    document.select(&selector).next().is_some()
+    document.root_element().descendants().any(|node| {
+        node.value()
+            .as_element()
+            .is_some_and(|element| element.attr("data-atlas-definition-selection").is_some())
+    })
 }
 
 #[cfg(test)]
