@@ -49,5 +49,4 @@ tokio = { workspace = true, optional = true }
 tracing.workspace = true
 
 [dev-dependencies]
-atlas-search = { workspace = true, features = ["test-support"] }
 rusqlite.workspace = true
