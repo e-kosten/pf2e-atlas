@@ -4,6 +4,7 @@ mod error;
 mod operations;
 mod paths;
 mod profile_assets;
+mod reference_acquisition;
 mod retrieval;
 mod runtime;
 mod setup;

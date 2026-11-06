@@ -26,6 +26,28 @@ pub fn prepare_source_content(
     references: Option<&dyn ContentReferenceResolver>,
     formula_context: &super::FormulaContext,
 ) -> Result<PreparedSourceContent, html2text::Error> {
+    prepare_source_content_with_selection(
+        locator,
+        markup,
+        audience,
+        visibility,
+        localization,
+        references,
+        formula_context,
+        None,
+    )
+}
+
+pub(crate) fn prepare_source_content_with_selection(
+    locator: SourceContentLocator,
+    markup: &str,
+    audience: ContentAudience,
+    visibility: ContentVisibilityRule,
+    localization: Option<&dyn LocalizationResolver>,
+    references: Option<&dyn ContentReferenceResolver>,
+    formula_context: &super::FormulaContext,
+    selection: Option<(&str, &str)>,
+) -> Result<PreparedSourceContent, html2text::Error> {
     let authored_hash = format!(
         "{:x}",
         <sha2::Sha256 as sha2::Digest>::digest(markup.as_bytes())
@@ -45,6 +67,7 @@ pub fn prepare_source_content(
         diagnostics: Vec::new(),
         block: String::new(),
         formula_context,
+        selection,
     };
     let audiences = match visibility {
         ContentVisibilityRule::All => Vec::new(),
@@ -70,18 +93,19 @@ pub fn prepare_source_content(
         references: projection.references,
         interactions: projection.interactions,
         diagnostics: projection.diagnostics,
+        general_definition_reading: None,
     })
 }
 
 /// Prepare a localization-backed definition using the same content interpreter as documents.
 /// The exact term identity binds reference markers without inventing a record locator.
-pub fn prepare_trait_definition(
-    key: atlas_domain::TraitKey,
+pub fn prepare_reference_definition(
+    key: atlas_domain::DefinitionKey,
     markup: &str,
     audience: ContentAudience,
     localization: Option<&dyn LocalizationResolver>,
     references: Option<&super::ContentReferenceLookup<'_>>,
-) -> Result<super::PreparedTraitDefinition, html2text::Error> {
+) -> Result<super::PreparedReferenceDefinition, html2text::Error> {
     let authored_hash = format!(
         "{:x}",
         <sha2::Sha256 as sha2::Digest>::digest(markup.as_bytes())
@@ -89,7 +113,7 @@ pub fn prepare_trait_definition(
     let parsed = parse_foundry_content_with_localization(markup, localization);
     let formula_context = &super::FormulaContext::default();
     let mut projection = Projection {
-        origin: PreparationOrigin::Trait(&key),
+        origin: PreparationOrigin::Definition(&key),
         authored_hash: &authored_hash,
         audience,
         localization,
@@ -99,11 +123,12 @@ pub fn prepare_trait_definition(
         diagnostics: Vec::new(),
         block: String::new(),
         formula_context,
+        selection: None,
     };
     let html = projection.nodes(&parsed.document.nodes, "", &[], true, false);
     let html = sanitizer().clean(&html).to_string();
     let text = super::text_projection::plain_text(&html)?;
-    Ok(super::PreparedTraitDefinition {
+    Ok(super::PreparedReferenceDefinition {
         key: key.clone(),
         interpretation_version: CONTENT_INTERPRETATION_VERSION.to_string(),
         authored_markup_sha256: authored_hash.clone(),
@@ -119,6 +144,7 @@ pub(super) fn sanitizer() -> ammonia::Builder<'static> {
     let mut builder = ammonia::Builder::default();
     builder
         .add_generic_attributes([
+            "data-atlas-definition-selection",
             "data-atlas-reference",
             "data-atlas-reference-binding",
             "data-atlas-interaction",
@@ -153,6 +179,7 @@ struct Projection<'a> {
     diagnostics: Vec<ContentInterpretationDiagnostic>,
     block: String,
     formula_context: &'a super::FormulaContext,
+    selection: Option<(&'a str, &'a str)>,
 }
 
 struct InlineContext<'a> {
@@ -162,7 +189,7 @@ struct InlineContext<'a> {
 
 enum PreparationOrigin<'a> {
     Record(&'a SourceContentLocator),
-    Trait(&'a atlas_domain::TraitKey),
+    Definition(&'a atlas_domain::DefinitionKey),
 }
 
 impl Projection<'_> {
@@ -173,11 +200,13 @@ impl Projection<'_> {
                 self.authored_hash,
                 &self.references[ordinal],
             ),
-            PreparationOrigin::Trait(key) => super::marker_validation::trait_reference_binding(
-                key,
-                self.authored_hash,
-                &self.references[ordinal],
-            ),
+            PreparationOrigin::Definition(key) => {
+                super::marker_validation::definition_reference_binding(
+                    key,
+                    self.authored_hash,
+                    &self.references[ordinal],
+                )
+            }
         }
     }
 
@@ -611,13 +640,24 @@ impl Projection<'_> {
                 self.nodes(label, &format!("{path}/label"), audiences, false, in_link);
             }
             return if let Some(nodes) = resolved {
-                self.nodes(
+                let html = self.nodes(
                     nodes,
                     &format!("{path}/localize"),
                     audiences,
                     visible,
                     in_link,
-                )
+                );
+                if let Some((_, marker)) = self
+                    .selection
+                    .filter(|(selected, _)| *selected == path && visible)
+                {
+                    format!(
+                        "<div data-atlas-definition-selection=\"{}\">{html}</div>",
+                        escape(marker)
+                    )
+                } else {
+                    html
+                }
             } else {
                 self.issue(path, ContentDiagnosticCode::UnresolvedLocalization, key);
                 if visible {

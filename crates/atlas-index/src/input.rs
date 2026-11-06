@@ -74,6 +74,8 @@ impl SourceSearchProfileIdentity {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceArtifactBuildContext {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reference_preparation: Option<crate::ReferencePreparation>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub selected_sections_recipe: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -210,6 +212,8 @@ impl IndexBuildInput {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourcePreparedContent {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub general_definition_reading: Option<atlas_record::source_content::GeneralDefinitionReading>,
     pub locator: SourceContentLocator,
     pub role: String,
     pub visibility: ContentVisibilityRule,

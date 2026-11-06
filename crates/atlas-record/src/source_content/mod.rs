@@ -4,6 +4,12 @@
 //! transient parser tree or bind runtime gameplay values. Expression trees remain
 //! transient during preparation and selected reading.
 
+mod general_definition;
+pub use general_definition::GENERAL_DEFINITION_READING_RECIPE;
+pub(crate) use general_definition::{
+    finish_general_definition_reading, general_definition_origin, has_general_definition_marker,
+    validate_general_definition_markers,
+};
 mod contextual_formula;
 pub use contextual_formula::{
     FormulaContext, FormulaText, contextual_damage_text, contextual_roll_text,
@@ -31,7 +37,8 @@ mod text_projection;
 
 pub use literal_damage::{LiteralDamageComponent, LiteralDamageKind, literal_damage};
 pub use marker_validation::{
-    PreparedMarkerError, validate_prepared_markers, validate_prepared_reference_bindings,
+    PreparedMarkerError, validate_prepared_definition_reference_bindings,
+    validate_prepared_markers, validate_prepared_reference_bindings,
     validate_prepared_trait_reference_bindings,
 };
 pub use model::{
@@ -39,16 +46,23 @@ pub use model::{
     ContentInteractionKind, ContentInteractionLabel, ContentInterpretationDiagnostic,
     ContentReferenceKind, ContentReferenceLabel, ContentReferenceLookup,
     ContentReferenceOccurrence, ContentReferenceResolution, ContentReferenceResolver,
-    ContentReferenceTarget, ContentVisibilityRule, PreparedSourceContent, PreparedTraitDefinition,
-    ResolvedContentReference, SourceContentLocator,
+    ContentReferenceTarget, ContentVisibilityRule, GeneralDefinitionParameterBinding,
+    GeneralDefinitionParameterRole, GeneralDefinitionReading, PreparedReferenceDefinition,
+    PreparedSourceContent, ResolvedContentReference, SourceByteRange, SourceContentLocator,
 };
 pub use parse_diagnostics::{ContentParseDiagnostics, DroppedContentMacro};
 pub use parser::LocalizationResolver;
-pub use preparation::{is_safe_content_url, prepare_source_content, prepare_trait_definition};
+pub(crate) use preparation::prepare_source_content_with_selection;
+pub use preparation::{is_safe_content_url, prepare_reference_definition, prepare_source_content};
 pub use text_projection::plain_text as prepared_plain_text;
 
-mod trait_references;
-pub use trait_references::{TraitLocalizationReference, trait_localization_references};
+mod definition_references;
+pub use definition_references::{
+    AuthoredLocalizationOccurrence, DefinitionLocalizationMap, DefinitionLocalizationOccurrence,
+    DefinitionLocalizationReference, TraitLocalizationReference, authored_localization_occurrences,
+    definition_body_localization_references, definition_localization_references,
+    trait_localization_references,
+};
 
 mod inclusion;
 pub use inclusion::{

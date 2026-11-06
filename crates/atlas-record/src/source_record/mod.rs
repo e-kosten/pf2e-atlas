@@ -9,6 +9,10 @@ mod core_sections;
 mod core_sections_tests;
 #[cfg(test)]
 mod declared_grant_tests;
+mod general_definition_reading;
+pub use general_definition_reading::{
+    bind_general_definition_reading, validate_general_definition_reading,
+};
 mod identity;
 mod item_query;
 mod model;
@@ -34,8 +38,10 @@ pub use actor_query::{
 };
 pub use availability::{FieldAvailability, SourceFieldView};
 pub use content::{
-    SourceContentFormat, SourceContentOutcome, SourceContentRole, SourceContentSelection,
-    SourceContentStatus, prepare_record_content, trait_record_localization_references,
+    RecordLocalizationOccurrence, SourceContentFormat, SourceContentOutcome, SourceContentRole,
+    SourceContentSelection, SourceContentStatus, authored_record_localization_references,
+    definition_record_localization_references, prepare_record_content,
+    trait_record_localization_references,
 };
 pub use core_sections::{CoreSearchSelection, core_search_selection};
 pub use identity::{SourceIdentityError, source_record_key};

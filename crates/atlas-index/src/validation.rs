@@ -124,6 +124,7 @@ pub fn validate_reference(c: &Connection) -> Result<ArtifactValidationReport, In
         }
     }
     trait_evidence.validate(c)?;
+    crate::reference_evidence::validate(c, &context)?;
     let mut cursor = root_query.query([])?;
     while let Some(row) = cursor.next()? {
         roots += 1;
@@ -447,6 +448,7 @@ fn validate_content(
                     visibility,
                     visibility_availability: FieldAvailability::Value,
                     status: SourceContentStatus::Prepared(Box::new(PreparedSourceContent {
+                        general_definition_reading: metadata.general_definition_reading().cloned(),
                         locator,
                         interpretation_version: context.content_interpretation_version.clone(),
                         authored_markup_sha256: hash,
@@ -471,6 +473,22 @@ fn validate_content(
     }
     if !expected.is_empty() {
         return Err(bad("selected content cache coverage is incomplete"));
+    }
+    for outcome in &content {
+        if let SourceContentStatus::Prepared(prepared) = &outcome.status {
+            if prepared.general_definition_reading.is_some()
+                || prepared.html.contains("data-atlas-definition-selection")
+            {
+                let package = prepared
+                    .general_definition_reading
+                    .as_ref()
+                    .map_or("", |reading| reading.source_package.as_str());
+                atlas_record::source_record::validate_general_definition_reading(
+                    record, package, prepared,
+                )
+                .map_err(bad)?;
+            }
+        }
     }
     Ok((n, content))
 }

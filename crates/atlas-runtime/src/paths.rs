@@ -25,6 +25,8 @@ pub struct ResolvedAtlasPaths {
     pub managed_source_root: PathBuf,
     pub source_root_explicit: bool,
     pub embedding_cache_root: PathBuf,
+    /// Approved reference supplements, addressed by the manifest's content identity.
+    pub reference_cache_root: PathBuf,
     pub index_path: PathBuf,
 }
 
@@ -108,12 +110,23 @@ pub(crate) fn resolve_atlas_paths(
         .source_root
         .clone()
         .ok_or_else(|| RuntimeError::path_default_unavailable(RuntimePathTarget::SourceRoot))?;
+    let reference_cache_root = match resolved_mode {
+        ResolvedPathMode::Repo => repo_root
+            .as_ref()
+            .ok_or_else(RuntimeError::repo_mode_outside_checkout)?
+            .join(".cache")
+            .join("reference-supplements"),
+        ResolvedPathMode::Global => platform_cache_root()?
+            .join("pf2e-atlas")
+            .join("reference-supplements"),
+    };
     let index_path = overrides
         .index_path
         .or(defaults.index_path)
         .ok_or_else(|| RuntimeError::path_default_unavailable(RuntimePathTarget::IndexPath))?;
 
     Ok(ResolvedAtlasPaths {
+        reference_cache_root,
         managed_source_root,
         source_root_explicit: overrides.source_root.is_some(),
         mode: resolved_mode,

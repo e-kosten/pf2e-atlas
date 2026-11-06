@@ -1,0 +1,1683 @@
+{
+  "schema": 1,
+  "recipe": "foundry-reference-source-policy/v1",
+  "rows": [
+    {
+      "key": "domain:abomination",
+      "body_sha256": "8ac6dd1a1fc1d27afd6689bdf00b05625fcb80975ac58e9082d36534d519e978",
+      "publications": [
+        {
+          "title": "Pathfinder Adventure Path #165: Eyes of Empty Death",
+          "page": 65,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:air",
+      "body_sha256": "a50382b7b9202f3fd63994a65d189435a1f367ca568d76e22e07c186ee4908de",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:airapocryphal",
+      "body_sha256": "9269b98e4fdeea2a2070c06a137f4129cbf5ea5eafe090000f238d1dd6dc2d52",
+      "publications": [
+        {
+          "title": "Pathfinder Core Rulebook (Second Edition, 2019)",
+          "page": 441,
+          "license": "OGL-1.0a"
+        },
+        {
+          "title": "Pathfinder Dark Archive (2022)",
+          "page": null,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "core-rulebook-original-credit"
+      ]
+    },
+    {
+      "key": "domain:ambition",
+      "body_sha256": "c420868586c32afcfc34cc1d544f6a36ce17a6d9e4814a13b67ede9c43edae37",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:ambitionapocryphal",
+      "body_sha256": "45756230d5f89b68ec38d49e544194a471712634796e4a6a388d22d54ea57601",
+      "publications": [
+        {
+          "title": "Pathfinder Core Rulebook (Second Edition, 2019)",
+          "page": 441,
+          "license": "OGL-1.0a"
+        },
+        {
+          "title": "Pathfinder Dark Archive (2022)",
+          "page": null,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "core-rulebook-original-credit"
+      ]
+    },
+    {
+      "key": "domain:change",
+      "body_sha256": "66b43e995794bc8d507af314679a7846a3645584062998ce6977ed5cbc3a0514",
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 112,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:cities",
+      "body_sha256": "b51063b3da41b95f683bab33cc15385b26362c763134d360faac83f36d340d28",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:cold",
+      "body_sha256": "1a47e6dcddc9571ac8e7456020889fe4438c65d62d7e6b9b72ce43d1f4c6daa0",
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 112,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:confidence",
+      "body_sha256": "dc634fb67eb7f2bb8b95c7f742dc2b8518c12ac66356ad57f590fc1f17f896d1",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:confidenceapocryphal",
+      "body_sha256": "a21dbc0c3bacd202f8c38c982c7dcfd69dccfb0ed18f723edbc3e6c6d167d615",
+      "publications": [
+        {
+          "title": "Pathfinder Core Rulebook (Second Edition, 2019)",
+          "page": 441,
+          "license": "OGL-1.0a"
+        },
+        {
+          "title": "Pathfinder Dark Archive (2022)",
+          "page": null,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "core-rulebook-original-credit"
+      ]
+    },
+    {
+      "key": "domain:creation",
+      "body_sha256": "2e5aa0c0c0468ab47998ed6eee4b1e4fc30674b0a95a2f04ad6533148da4a9e4",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:darkness",
+      "body_sha256": "e674bddd3230d6e4780a88968d55b86120a16c9c0fa7b383d4e40129e833708e",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:darknessapocryphal",
+      "body_sha256": "addc418d0a2bba9fb02fbdfd91cbdc80a61da58ad11fc5c557bc9fd67f4bd190",
+      "publications": [
+        {
+          "title": "Pathfinder Core Rulebook (Second Edition, 2019)",
+          "page": 441,
+          "license": "OGL-1.0a"
+        },
+        {
+          "title": "Pathfinder Dark Archive (2022)",
+          "page": null,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "core-rulebook-original-credit"
+      ]
+    },
+    {
+      "key": "domain:death",
+      "body_sha256": "9a855869a96761d62f98bbf6813ae44aa4887ea5784a4cea2bc1670538e29629",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:deathapocryphal",
+      "body_sha256": "928f91d01c3ebe30d7148d27f66e5dbc2db4fa048f1853e80ef9b66c1d976d24",
+      "publications": [
+        {
+          "title": "Pathfinder Core Rulebook (Second Edition, 2019)",
+          "page": 441,
+          "license": "OGL-1.0a"
+        },
+        {
+          "title": "Pathfinder Dark Archive (2022)",
+          "page": null,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "core-rulebook-original-credit"
+      ]
+    },
+    {
+      "key": "domain:decay",
+      "body_sha256": "e061c788902b328c04b38ea38f213ef878fabf62768aaf03a76a63c4e1641e02",
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 112,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:delirium",
+      "body_sha256": "6cfa4a5b389e34753ca50b9294747b9d041474c36da677d618fb4f2f36e852d8",
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 113,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:destruction",
+      "body_sha256": "84ec5dfe57240170ca2be725213a2521ae28a96c9fe7e944eb5e557e90dfe919",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:dreams",
+      "body_sha256": "9868240281e71a5cd6242dfc7fab7cdb2b0571a7c188c719e3495f940b305503",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:dust",
+      "body_sha256": "705cfe944107aec1c6bdd74495cf59050c9f22081809ea75e0ab409d57d06670",
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 114,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:duty",
+      "body_sha256": "60fff6c15e3c02ec97495d311f2f04a6603f6fcf5efb3ac46200da995e7d6648",
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 114,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:earth",
+      "body_sha256": "a3e281a77ef710f558c0ddd68e0333dcf14b1bc94bcd69b1636b1e36610e82f0",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:family",
+      "body_sha256": "b11f4e9456ef284b9731e13260ac3bbe06947072be4309daed2c2a4c2ab0f333",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:fate",
+      "body_sha256": "007ff2f87910d5427ee7a6898e522f22b593da7c72b0fd83133f9879b6d00f9a",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:fateapocryphal",
+      "body_sha256": "5c4e77c0260b4802c13161c32338d0a61e42d969c5717b4fd0d80c743b2bc354",
+      "publications": [
+        {
+          "title": "Pathfinder Core Rulebook (Second Edition, 2019)",
+          "page": 441,
+          "license": "OGL-1.0a"
+        },
+        {
+          "title": "Pathfinder Dark Archive (2022)",
+          "page": null,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "core-rulebook-original-credit"
+      ]
+    },
+    {
+      "key": "domain:fire",
+      "body_sha256": "bfc698d6c3897f692c023c9bc6956c8de1f3cc1b611c46f28ca2b7c984ce9b6b",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:fireapocryphal",
+      "body_sha256": "7dbd87c171d4e27d8e35569ac3a8bc1b2ed656cb19923369855805e461cba519",
+      "publications": [
+        {
+          "title": "Pathfinder Core Rulebook (Second Edition, 2019)",
+          "page": 441,
+          "license": "OGL-1.0a"
+        },
+        {
+          "title": "Pathfinder Dark Archive (2022)",
+          "page": null,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "core-rulebook-original-credit"
+      ]
+    },
+    {
+      "key": "domain:freedom",
+      "body_sha256": "818d210dba90a482d427059bbf905089b3ebcdf728c89635575eceff49b12c7d",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:glyph",
+      "body_sha256": "e45b891277ca0fccd064917dc2efc414ba94546845a85833cfbee7c3ca632a98",
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 114,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:healing",
+      "body_sha256": "7cd82e9a627aabe1e6d1513cd5d3e97f73fd6487f5e40f1e2382f6f4e3f34800",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:indulgence",
+      "body_sha256": "39a91554204aa3f935ce45e7a6ad45fa9b905fcc6ace35260ad23c3429d8f9f7",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:indulgenceapocryphal",
+      "body_sha256": "60a080bfde08af189f843fcb1b1fd03543b8b74fd09b1f71c06a85db5efa591c",
+      "publications": [
+        {
+          "title": "Pathfinder Core Rulebook (Second Edition, 2019)",
+          "page": 441,
+          "license": "OGL-1.0a"
+        },
+        {
+          "title": "Pathfinder Dark Archive (2022)",
+          "page": null,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "core-rulebook-original-credit"
+      ]
+    },
+    {
+      "key": "domain:introspection",
+      "body_sha256": "00357fa383064592467ea8f4518564c1e34ff171355847bd93d63fa40f785e04",
+      "publications": [
+        {
+          "title": "Pathfinder Adventure Path #186: Ghost King’s Rage",
+          "page": 73,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:knowledge",
+      "body_sha256": "d6e3965eb513570e05ef0d1d21e5a59106dcae6ecf48371ea12348bce73e836f",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:knowledgeapocryphal",
+      "body_sha256": "6c2fa088eadc977a3dcd1f8505214eb705e8cd878c0fa59de67dce23ab99ee08",
+      "publications": [
+        {
+          "title": "Pathfinder Core Rulebook (Second Edition, 2019)",
+          "page": 441,
+          "license": "OGL-1.0a"
+        },
+        {
+          "title": "Pathfinder Dark Archive (2022)",
+          "page": null,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "core-rulebook-original-credit"
+      ]
+    },
+    {
+      "key": "domain:lightning",
+      "body_sha256": "18d51c189913052e70d447be360909882a37304956c0f462b9b94f5ca15bfbad",
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 115,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:luck",
+      "body_sha256": "cac3693c56fd3a5969f3c04f528ee48331ce4730555da091001c23be88a3ad84",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:magic",
+      "body_sha256": "42f1a03066e3f104ece5d14089cf8d36575e2430cdc7a825641aef63c9faa8c6",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:metal",
+      "body_sha256": "da12d1f344497d636b607c76eb726a22a1d2e0a0d115e1c78d6a4d1d795a3149",
+      "publications": [
+        {
+          "title": "Pathfinder Rage of Elements",
+          "page": null,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license"
+      ]
+    },
+    {
+      "key": "domain:might",
+      "body_sha256": "a6fe50e4ee67252e28cd5365212ff29e85db6e28c754435904efe77d358c2a43",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:mightapocryphal",
+      "body_sha256": "0281acdea47a586f9af8cdd32f96de7b38ad34fccc9867b30f4f32f3398e3ff7",
+      "publications": [
+        {
+          "title": "Pathfinder Core Rulebook (Second Edition, 2019)",
+          "page": 441,
+          "license": "OGL-1.0a"
+        },
+        {
+          "title": "Pathfinder Dark Archive (2022)",
+          "page": null,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "core-rulebook-original-credit"
+      ]
+    },
+    {
+      "key": "domain:moon",
+      "body_sha256": "1ce03906ca0927c41ff31871eb50c2aee8ba614679cad2ab556250abc35b1dbd",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:naga",
+      "body_sha256": "54a2da50cf0b31ca424867795e8a614c40d4f3483d44a1e7588695aac8108c54",
+      "publications": [
+        {
+          "title": "Pathfinder Adventure Path #161: Belly of the Black Whale",
+          "page": null,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a",
+        "CUP"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "community-use"
+      ]
+    },
+    {
+      "key": "domain:nature",
+      "body_sha256": "15be9668ed6b431765cc0246851e61b1f294bb1ab030f779f8f03f04560b9336",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:nightmares",
+      "body_sha256": "57243ffd239ee7ee75e8fa719cd0ea1caed937d3dceba21e1835e4c53e91c59a",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:pain",
+      "body_sha256": "32aab863d877fc0b08744112fe740a6aeceb24e65b527f6bb8917c2f1dc555e2",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:passion",
+      "body_sha256": "5ef31bd995a2fd541914e2f6c33620156add7d23ee6612a199ee5b3e6d543784",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:perfection",
+      "body_sha256": "13d6982d1fc8d208945caafdf0e3b43240da6a9046f856f6088f2a5c262c516f",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:plague",
+      "body_sha256": "61a948568a14624d6df45cd689a53c652c6b7201ab52a65349e3f63516b0f425",
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 115,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:protection",
+      "body_sha256": "adfbf2ab410368ba444bcb29ce953f052cf93b4af3f5c1cf6ae8cac92f938451",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:repose",
+      "body_sha256": "a4df9825ce6b7fd2c13313a4258c7c14f59ca22ea220dfaccfc41e5970ff10f3",
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 116,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:secrecy",
+      "body_sha256": "9af21182931f637bdce1c74f6c08703c5d1688f88b5a0367aeea21b23d9fbc43",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:secrecyapocryphal",
+      "body_sha256": "1c7abc70a1a4895a1699f43e8c76f255827906385105eaca93a26ed0ee6d6123",
+      "publications": [
+        {
+          "title": "Pathfinder Core Rulebook (Second Edition, 2019)",
+          "page": 441,
+          "license": "OGL-1.0a"
+        },
+        {
+          "title": "Pathfinder Dark Archive (2022)",
+          "page": null,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "core-rulebook-original-credit"
+      ]
+    },
+    {
+      "key": "domain:sorrow",
+      "body_sha256": "49c5e12f3cec72a766eb2ef744498e16c7ad4790a460bacc07170ccad97cfa44",
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 116,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:soul",
+      "body_sha256": "0ae68a8885622ad0af83cb430008f6ea2c4ffe65ad25f31c3db0f4f701074ae7",
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 117,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:star",
+      "body_sha256": "b139863abfdceff1f89b060010d2f629a4567db8fe5e3f13f20f65d90a72ec89",
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 117,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:sun",
+      "body_sha256": "29233668dacfd0c6d4b227864fcca2650fb18e4157abbb0d08355f603fc23605",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:swarm",
+      "body_sha256": "b627e2ae2fd4ead0005e94aadfe2a09e41ab16fe0a529dce70558f9cc9958636",
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 117,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:time",
+      "body_sha256": "575f2dd8050844c5f66bf337a319fc3b1cfb2c7b0b4a403a6bdbca9550024767",
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 118,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:toil",
+      "body_sha256": "c1aaf2d8ee856d85c733a6a8754e4c0d6fcaf2afe19d13594853713a8df44f04",
+      "publications": [
+        {
+          "title": "Pathfinder Rage of Elements",
+          "page": null,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license"
+      ]
+    },
+    {
+      "key": "domain:travel",
+      "body_sha256": "8aab11ffd3af69daa10b1e9fb6bb4f4cb2ec556077b02e8962149c6da71a83df",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:travelapocryphal",
+      "body_sha256": "b6eaed12c4966744eaacc635b207118ac88cd35f1b9760f4ee6071f0ae4b7d1f",
+      "publications": [
+        {
+          "title": "Pathfinder Core Rulebook (Second Edition, 2019)",
+          "page": 441,
+          "license": "OGL-1.0a"
+        },
+        {
+          "title": "Pathfinder Dark Archive (2022)",
+          "page": null,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "core-rulebook-original-credit"
+      ]
+    },
+    {
+      "key": "domain:trickery",
+      "body_sha256": "f0e7e1976c1a6ab8d61ef3ea5690128a8d3d9c8afd64c0c3cad8f9e45d335805",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:truth",
+      "body_sha256": "509d44803922c15a64e46cd583f261fdce8495d89d27bbe2541c323a48cb9356",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:tyranny",
+      "body_sha256": "93c35b5220235f25250cef82da938ae471cc9a0a6f5d2e4e34d3971826b03e45",
+      "publications": [
+        {
+          "title": "Pathfinder Core Rulebook (Second Edition, 2019)",
+          "page": 441,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "core-rulebook-original-credit"
+      ]
+    },
+    {
+      "key": "domain:undeath",
+      "body_sha256": "f5cdedd3988127619092de67370cb1f1d52a14b197fb3bd953654aa428e2eeae",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:vigil",
+      "body_sha256": "1f228e9aaa7fe160efe9c5b12f58baa850285784d37051bcb8d014069bd0eb68",
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 118,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:void",
+      "body_sha256": "1f6a25b968d8bde2404328893a0a9f32ef00e0f3a2179d9fe2a5f75e4b35e766",
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 112,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:water",
+      "body_sha256": "455098b2d5c03c2311200f554b4e5b175e5ca6838cb9fbb8d7723045ba909caa",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:waterapocryphal",
+      "body_sha256": "c780f0716c56adef31269f42baabe82e121a4f80a44d604a20d614aed9cfb38d",
+      "publications": [
+        {
+          "title": "Pathfinder Core Rulebook (Second Edition, 2019)",
+          "page": 441,
+          "license": "OGL-1.0a"
+        },
+        {
+          "title": "Pathfinder Dark Archive (2022)",
+          "page": null,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "core-rulebook-original-credit"
+      ]
+    },
+    {
+      "key": "domain:wealth",
+      "body_sha256": "071adfeb10067318af9432cdebf3b621ce7fc500430d6f253a9fccf053dc2519",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "domain:wood",
+      "body_sha256": "b8e1703ff239bfe16e1b5e8f76e7bcbf326888d08e978db2a828007525b2f764",
+      "publications": [
+        {
+          "title": "Pathfinder Rage of Elements",
+          "page": null,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license"
+      ]
+    },
+    {
+      "key": "domain:wyrmkin",
+      "body_sha256": "1b00f41fddd6456a34c64ad4bc0c57e6b726bfe34c10fef75d697daeb0c05501",
+      "publications": [
+        {
+          "title": "Pathfinder Lost Omens Gods & Magic",
+          "page": 119,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "domain:zeal",
+      "body_sha256": "99f6b739d356367020be35a6e5159527516b92b7e555d487f0346ed9f16375b9",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 39,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "rule:pf2e:PF2E.NPC.Abilities.Glossary.SneakAttack",
+      "body_sha256": "b8627c7c59337d02db109ff86846033bf7722fe07ea4aefa9cd79a7edbba52dc",
+      "publications": [
+        {
+          "title": "Pathfinder Bestiary",
+          "page": 344,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl",
+        "bestiary-original-credit"
+      ]
+    },
+    {
+      "key": "weapon_group:axe",
+      "body_sha256": "25363b017db0d3ed9bc3960e40b07ad1baf968dc5f35c7f5333b874de88fa054",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 283,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "weapon_group:bomb",
+      "body_sha256": "c0b9e576b489985e034c22d4a8227eabd06fb7c3013c297aecdf5341fb9b8956",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 283,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "weapon_group:bow",
+      "body_sha256": "4d7aa5bc2e520877143fa73ce60e757bf62f7abfc708bd8840e7a5380a1526fc",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 283,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "weapon_group:brawling",
+      "body_sha256": "80bf3b96083c424450bba1a1eb6fbc0996c50d9f05ab050bb41369532b57fde7",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 283,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "weapon_group:club",
+      "body_sha256": "34990fcb4e2d246cbab85871a893ff66c8ee0dac728a6d53f41db36964b2691c",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 283,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "weapon_group:firearm",
+      "body_sha256": "fa4ca6d36f33bfaafec1ff4120bb880452ec61607129c4f9b948b66995ff7336",
+      "publications": [
+        {
+          "title": "Pathfinder Guns & Gears (original)",
+          "page": 152,
+          "license": "OGL-1.0a"
+        }
+      ],
+      "grants": [
+        "OGL-1.0a"
+      ],
+      "notices": [
+        "foundry-ogl"
+      ]
+    },
+    {
+      "key": "weapon_group:flail",
+      "body_sha256": "85b1435d90459fdc7ac00c755387da8585fd91ac9606c1568c671f7900cb9c4e",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 283,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "weapon_group:hammer",
+      "body_sha256": "c5dc2e776a0aed53d4e592f90d94ad7f89c58e60499360bde92960a4982fcd63",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 283,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "weapon_group:polearm",
+      "body_sha256": "7591a2bac123d517a73e81dc8e00a1ad6c9243984fd534269d2be9a25747514c",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 283,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "weapon_group:shield",
+      "body_sha256": "2d6f13d84361a1335346f8894bcc82cbad6f875ad44121daa94aa5350e7d6611",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 283,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "weapon_group:sling",
+      "body_sha256": "9fc443761eef743838c02d8394b6bf53fd0c89120a86bb865ee1b9d5c3c451db",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 283,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "weapon_group:spear",
+      "body_sha256": "b8458eb3c8cd9a95630d876494fb959932044590697b77e004c91deef6c63f5b",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 283,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    },
+    {
+      "key": "weapon_group:sword",
+      "body_sha256": "b52ebf2b0f907fc5d2c7d79c32b8b535c93f5455c2b6ef8a14c70864ee75aca0",
+      "publications": [
+        {
+          "title": "Pathfinder Player Core",
+          "page": 283,
+          "license": "ORC"
+        }
+      ],
+      "grants": [
+        "ORC"
+      ],
+      "notices": [
+        "foundry-orc",
+        "orc-license",
+        "player-core"
+      ]
+    }
+  ]
+}

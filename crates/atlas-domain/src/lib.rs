@@ -40,6 +40,8 @@ pub use search_ranking::SearchRanking;
 
 mod trait_key;
 pub use trait_key::{TraitKey, TraitKeyParseError};
+mod definition_key;
+pub use definition_key::{DefinitionKey, DefinitionKeyParseError, DefinitionNamespace};
 
 mod result_sort;
 pub use result_sort::{ResultSort, SortDirection, SortField, SortRule};

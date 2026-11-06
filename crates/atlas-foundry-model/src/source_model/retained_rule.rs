@@ -7,6 +7,13 @@ impl RuleElementSource {
     /// This does not read JSON, admit a parent again, apply defaults or execute rules.
     /// A rejected field makes the entire specific interpretation unavailable.
     pub fn interpret(&self, context: SourceContext) -> Result<RuleSource, SourceDiagnostic> {
+        let value = self.authored_value()?;
+        super::generated::parse_rule_source(&value, &context, &context.json_path)
+    }
+
+    /// Reconstruct the complete retained authored rule without interpreting or defaulting it.
+    /// Missing and null fields, repeated unknown members and their values remain distinct.
+    pub fn authored_value(&self) -> Result<SourceValue, SourceDiagnostic> {
         let mut fields = self.additional_fields.fields().to_vec();
         for (key, value) in [
             ("key", &self.key),
@@ -32,8 +39,7 @@ impl RuleElementSource {
                 JSONValue::Object(value) => value.clone(),
             })?;
         }
-        let value = SourceValue::Object(SourceObject { fields });
-        super::generated::parse_rule_source(&value, &context, &context.json_path)
+        Ok(SourceValue::Object(SourceObject { fields }))
     }
 }
 
@@ -196,5 +202,45 @@ mod tests {
                 "{value}"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod authored_value_tests {
+    use super::*;
+    #[test]
+    fn authored_reconstruction_retains_unknown_null_missing_duplicate_and_array_order() {
+        let json = br#"{"type":"action","system":{"rules":[{"key":"Aura","label":null,"radius":0,"unknown":[2,1],"repeated":1,"repeated":2}]}}"#;
+        let crate::ItemSourcePF2e::AbilitySource(item) =
+            crate::parse_item_source_pf2e(SourceContext::new("test:item", "fixture", "$"), json)
+                .unwrap()
+        else {
+            panic!()
+        };
+        let rule = &item.system.as_value().unwrap().rules.as_value().unwrap()[0];
+        let SourceValue::Object(value) = rule.authored_value().unwrap() else {
+            panic!()
+        };
+        assert!(
+            value
+                .fields()
+                .iter()
+                .any(|(key, value)| key == "label" && value == &SourceValue::Null)
+        );
+        assert!(!value.fields().iter().any(|(key, _)| key == "slug"));
+        assert_eq!(
+            value
+                .fields()
+                .iter()
+                .filter(|(key, _)| key == "repeated")
+                .count(),
+            2
+        );
+        assert!(value.fields().iter().any(|(key, value)| key == "unknown"
+            && value
+                == &SourceValue::Array(vec![
+                    SourceValue::Number(2.into()),
+                    SourceValue::Number(1.into())
+                ])));
     }
 }

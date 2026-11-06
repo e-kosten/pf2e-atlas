@@ -44,6 +44,7 @@ impl SourceFixture {
             output_path: self.0.path().join(format!("{name}.sqlite")),
             manifest_path: None,
             locale: "en".into(),
+            reference_supplement: crate::ReferenceSupplementSelection::default(),
             search_profiles: vec![],
             reuse_embeddings: true,
             reuse_passage_layouts: true,

@@ -3,7 +3,7 @@ use crate::{
     AtlasRetrievalService, RecordScope, SearchError, SearchPage, SearchPageInfo, TextSearchResult,
 };
 use atlas_domain::{QueryPredicate, SearchProfileId, SearchRanking, TraitKey};
-pub use atlas_index::{TraitDefinition, TraitMembership, TraitReference, TraitSourceLocation};
+pub use atlas_index::{ReferenceSourceLocation, TraitDefinition, TraitMembership, TraitReference};
 pub struct TraitAssociationRequest<'a> {
     pub trait_key: &'a TraitKey,
     pub page: SearchPage,

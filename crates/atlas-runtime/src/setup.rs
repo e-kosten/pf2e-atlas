@@ -164,6 +164,9 @@ pub(crate) fn ensure_setup(
             Ok(())
         }
         .and_then(|()| {
+            let reference_supplement =
+                crate::reference_acquisition::selection(&paths.reference_cache_root, options.check)
+                    .map_err(|error| (error, true))?;
             capture_build_inputs(BuildArtifactOptions {
                 source_root: paths.source_root.clone(),
                 output_path: paths.index_path.clone(),
@@ -173,6 +176,7 @@ pub(crate) fn ensure_setup(
                 reuse_embeddings: true,
                 reuse_passage_layouts: !options.force_rebuild,
                 embedding_batch_size: options.embedding_batch_size,
+                reference_supplement,
             })
             .map_err(|error| {
                 let failed = !matches!(error, atlas_ingest::IngestError::SourceIncompatible(_));
@@ -253,7 +257,7 @@ pub(crate) fn ensure_setup(
             if options.force_rebuild {
                 "source rebuild explicitly requested"
             } else {
-                "source content differs from the indexed fingerprint"
+                "reference inputs or glossary preparation differ from the indexed publication"
             },
         )),
         Err(e) => checks.push(SetupAction::with_reason(

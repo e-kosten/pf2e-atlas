@@ -2,7 +2,7 @@
 use atlas_storage::{Migration, StorageResult, Workspace};
 use std::path::Path;
 
-pub const WORKSPACE_SCHEMA_VERSION: u32 = 29;
+pub const WORKSPACE_SCHEMA_VERSION: u32 = 30;
 const MIGRATIONS: &[Migration] = &[
     Migration {
         backfill: None,
@@ -202,6 +202,16 @@ const MIGRATIONS: &[Migration] = &[
         sql: atlas_index::COMPONENT_DIGEST_SCHEMA_SQL,
         backfill: None,
     },
+    Migration {
+        version: 30,
+        name: "reference-entries",
+        sql: atlas_index::REFERENCE_ENTRIES_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: true,
+            id: "reference-entries/v1",
+            apply: atlas_index::backfill_reference_entries,
+        }),
+    },
 ];
 
 /// Initialize or upgrade one workspace. Reference readiness is independent:
@@ -260,6 +270,10 @@ mod native_storage_tests;
 #[cfg(test)]
 #[path = "historical_similarity_tests.rs"]
 mod historical_similarity_tests;
+
+#[cfg(test)]
+#[path = "reference_upgrade_tests.rs"]
+mod reference_upgrade_tests;
 
 #[cfg(test)]
 mod tests {
@@ -826,6 +840,12 @@ mod tests {
                 "encounter_recovery_receipts",
                 "encounter_turn_receipts",
                 "reference_component_digests",
+                // This fixture has no traits; M30 replaces their empty owner tables.
+                "trait_definitions",
+                "trait_references",
+                "reference_entries",
+                "definition_reference_occurrences",
+                "reference_notices",
             ] {
                 if let Some(rows) = values.remove(table) {
                     assert!(rows.is_empty(), "unexpected rows in {table}");

@@ -41,6 +41,7 @@ implementation status does not require a new ADR; a new durable decision does.
 - [0066: Embedding compatibility across dependency upgrades](0066-embedding-compatibility.md)
 - [0053: Field-aware fusion](0053-field-aware-search-fusion.md)
 - [0056: Trait reference entities](0056-trait-reference-entities.md)
+- [0067: Contextual reference definitions](0067-contextual-reference-definitions.md)
 - [0057: Relationship-scoped search](0057-relationship-scoped-search.md)
 - [0059: Configurable Similar](0059-configurable-similarity.md)
 - [0060: Core sections and scopes](0060-core-sections-and-search-scope.md)

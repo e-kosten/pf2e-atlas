@@ -39,6 +39,7 @@ impl Fixture {
             &workspace,
             atlas_runtime::WORKSPACE_SCHEMA_VERSION,
             BuildArtifactOptions {
+                reference_supplement: Default::default(),
                 source_root: self.0.clone(),
                 output_path: index.clone(),
                 manifest_path: None,

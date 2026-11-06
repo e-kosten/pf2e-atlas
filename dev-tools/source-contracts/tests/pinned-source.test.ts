@@ -6,6 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import ts from 'typescript';
 import { conditionSourceInputs } from '../src/generation/condition-definitions.js';
+import { referencePackFolders, referenceSourceFiles, referenceSourceInputs } from '../src/generation/reference-definitions.js';
 import { sourceIdentity } from '../src/discovery/source-identity.js';
 import { assertSourcePin, preparePinnedSource, type SourcePin } from '../src/generation/pinned-source.js';
 
@@ -20,10 +21,20 @@ async function fixture() {
     'packs/pf2e/conditions/fixture.json': '{}',
     'tsconfig.json': '{}', 'system.pf2e.json': '{}', 'static/lang/en.json': '{}',
   })) await writeFile(path.join(source, relative), text);
+  for (const relative of [...referenceSourceFiles,
+    ...referencePackFolders.map(folder => 'packs/pf2e/' + folder + '/fixture.json')]) {
+    const file = path.join(source, relative);
+    await mkdir(path.dirname(file), { recursive: true });
+    try { await readFile(file); } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      await writeFile(file, relative.endsWith('.json') ? '{}' : 'export {};');
+    }
+  }
   const identity = await sourceIdentity(source);
   const pin: SourcePin = { repository: 'https://github.com/foundryvtt/pf2e.git', commit: 'a'.repeat(40),
     systemVersion: 'fixture', sourceDigest: identity.source_digest, inputFileCount: identity.input_file_count,
-    conditionSourceDigest: (await conditionSourceInputs(source)).digest, typescriptVersion: ts.version, ruleKeys: [] };
+    conditionSourceDigest: (await conditionSourceInputs(source)).digest,
+    referenceSourceDigest: (await referenceSourceInputs(source)).digest, typescriptVersion: ts.version, ruleKeys: [] };
   return { directory, source, pin, identity };
 }
 
@@ -72,4 +83,13 @@ test('condition-pack changes invalidate generation independently of declaration 
   await writeFile(path.join(source, 'packs/pf2e/conditions/fixture.json'), '{"changed":true}');
   assert.equal((await sourceIdentity(source)).source_digest, identity.source_digest);
   await assert.rejects(preparePinnedSource(pin, path.join(directory,'cache'), source), /Condition pack bytes/);
+});
+
+test('glossary pack changes invalidate only the separate reference-source identity', async t => {
+  const { directory, source, pin, identity } = await fixture();
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  await writeFile(path.join(source, 'packs/pf2e/actions/fixture.json'), '{"changed":true}');
+  assert.equal((await sourceIdentity(source)).source_digest, identity.source_digest);
+  assert.equal((await conditionSourceInputs(source)).digest, pin.conditionSourceDigest);
+  await assert.rejects(preparePinnedSource(pin, path.join(directory, 'cache'), source), /Reference pack bytes/);
 });

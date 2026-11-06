@@ -10,7 +10,14 @@ mod native_execution;
 #[cfg(test)]
 mod passage_benchmark;
 mod product_preparation;
+mod reference_notices;
+mod reference_supplement;
+mod references;
 mod report;
+pub use reference_supplement::{
+    BundledReferenceFile, REFERENCE_PREPARATION_RECIPE, ReferenceSupplementSelection,
+    bundled_reference_supplement, bundled_reference_supplement_id,
+};
 mod source;
 mod source_aliases;
 mod source_compatibility;

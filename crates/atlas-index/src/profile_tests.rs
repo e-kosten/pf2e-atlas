@@ -325,6 +325,7 @@ fn adding_and_removing_profile_preserves_existing_vector_rows() {
             source_locations: vec![],
             source_revision: input.context.source_revision.clone(),
             indexing_locale: input.context.indexing_locale.clone(),
+            content_locale: None,
         });
         let text = "Dragon\n";
         let hash = crate::codec::sha256(text.as_bytes());
@@ -395,9 +396,9 @@ fn adding_and_removing_profile_preserves_existing_vector_rows() {
         "relationship_occurrences",
         "selected_sections",
         "lexical_units",
-        "trait_definitions",
+        "reference_entries",
         "trait_memberships",
-        "trait_references",
+        "definition_reference_occurrences",
         "reference_component_digests",
     ];
     c.execute_batch(

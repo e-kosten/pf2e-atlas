@@ -87,6 +87,7 @@ fn real_producer_judged_retrieval_and_witness_evidence() {
         &durable_workspace,
         atlas_runtime::WORKSPACE_SCHEMA_VERSION,
         BuildArtifactOptions {
+            reference_supplement: Default::default(),
             source_root: source,
             output_path: output.clone(),
             manifest_path: None,

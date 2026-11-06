@@ -1,16 +1,28 @@
-# Remaining localization-backed rules terms
+# Contextual glossary references
 
-Status: proposed
+Status: in_progress
 Priority: soon
 Owner: unassigned
-Last reviewed: 2026-10-20
+Last reviewed: 2026-11-05
 
 ## Remaining outcome
 
-Extend source-backed reference lookup to high-confidence NPC ability glossary
-entries and explicit rules references that are not already represented by the
-trait delivery. Trait pages, exact membership/reference navigation, stored-vector
-Similar, CLI lookup and shared document chrome were delivered in
+Extend contextual help and Advanced Filter discovery to senses, languages, domains,
+groups and reusable ability definitions. Reuse existing glossary records and their
+prepared content wherever available. Standalone definitions extend the trait
+storage owner in place. Open contextual help in the shared Drawer; discovery comes
+from record context and filters. A dedicated glossary browser is outside this scope.
+
+The initial implementation slice covers generated source evidence, canonical
+definition storage/publication, offline migration and explicit setup freshness.
+Remaining retrieval and presentation work must provide readable language names with
+communication notes, sense qualifiers, sourced definition content and exact related-
+record filters for every included entry. Preserve the distinction between having
+a property and explicitly referencing a definition. Labels without source
+definitions stay useful filter values; do not invent rules prose or name-based links.
+
+Trait pages, exact membership/reference navigation, stored-vector Similar, CLI
+lookup and shared document chrome were delivered in
 [PR93](https://github.com/e-kosten/pf2e-atlas/pull/93); see the
 [completed trait milestone](../history/items/trait-reference-pages.md).
 
@@ -20,11 +32,15 @@ records the existing typed identity, publication and ownership boundaries.
 
 ## Source investigation
 
-Inspect the current pinned source before choosing additional namespaces. For
+The pinned inventory and selected source evidence determine namespace coverage. For
 `PF2E.NPC.Abilities.Glossary.*`, distinguish reusable definitions from labels,
 one-off rule-element strings and UI text. Establish exact source identity,
-prepared content, attributable references and a candidate set for Similar before
-implementation. Preserve absent definitions and source removal behavior.
+prepared content and attributable references. Only traits and existing record
+destinations retain their established Similar capabilities; new vocabulary does
+not automatically require vectors. Preserve absent definitions and source removal
+behavior. Brief language speaker context and missing weapon-group prose use a
+small approved, versioned subset with content-specific notices and an explicit
+maintainer update path.
 
 Foundry otherTags, rarity and Atlas authored tags retain separate semantics.
 Localization alone supplies neither a trait implication graph nor executable
@@ -63,4 +79,4 @@ policy before implementation. Do not auto-link arbitrary prose from label matche
 Description permission/attribution decisions remain in the separate
 [content-rights item](trait-description-content-rights.md). Trait-driven encounter
 mechanics remain in [trait runtime effects](rust-encounter-trait-runtime-effects.md).
-Neither is implied by adding glossary pages.
+Neither is implied by adding contextual glossary references.

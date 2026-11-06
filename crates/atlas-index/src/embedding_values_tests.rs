@@ -676,6 +676,7 @@ pub(super) fn add_label_only_trait(input: &mut IndexBuildInput) {
         source_locations: vec![],
         source_revision: input.context.source_revision.clone(),
         indexing_locale: input.context.indexing_locale.clone(),
+        content_locale: None,
     });
     input.trait_vectors.push(TraitVectorInput {
         key: input.traits[0].key.clone(),

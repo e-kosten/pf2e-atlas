@@ -85,6 +85,7 @@ pub fn audience() -> ContentAudience {
 }
 pub fn context(semantic: bool) -> SourceArtifactBuildContext {
     SourceArtifactBuildContext {
+        reference_preparation: None,
         selected_sections_recipe: atlas_index::SELECTED_SECTIONS_RECIPE.into(),
 
         admission: None,

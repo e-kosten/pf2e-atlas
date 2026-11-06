@@ -22,6 +22,10 @@ pub(super) fn database() -> Connection {
         .unwrap();
     db.execute_batch(crate::PHYSICAL_BASE_TYPE_SCHEMA_SQL)
         .unwrap();
+    db.execute_batch(crate::TRAIT_SCHEMA_SQL).unwrap();
+    db.execute_batch(crate::REFERENCE_ENTRIES_SCHEMA_SQL)
+        .unwrap();
+    crate::backfill_reference_entries(&db).unwrap();
     db.execute("INSERT INTO packs VALUES('test','Test')", [])
         .unwrap();
     db

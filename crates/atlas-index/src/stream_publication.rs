@@ -72,11 +72,13 @@ pub(crate) fn write(
             products.insert(identity.key.clone(), id);
         }
     }
+    crate::references::write_notices(c, input)?;
     let previous_traits = c
-        .prepare("SELECT key FROM trait_definitions")?
+        .prepare("SELECT key FROM reference_entries WHERE key LIKE 'trait:%'")?
         .query_map([], |row| row.get::<_, String>(0))?
         .collect::<Result<BTreeSet<_>, _>>()?;
-    let kept_traits = crate::traits::write_trait_definitions(c, input)?;
+    let mut definition_outgoing = Vec::new();
+    let kept_traits = crate::traits::write_trait_definitions(c, input, &mut definition_outgoing)?;
     let trait_vocabulary_changed = previous_traits != kept_traits;
     let mut next_roots = crate::BuildFrameStream::<RootUpdate>::new_in(scratch)?;
     let mut sections_to_prune = BTreeMap::<i64, BTreeSet<i64>>::new();
@@ -167,6 +169,12 @@ pub(crate) fn write(
         }
     }
     crate::publication_delta::remove_absent_roots(c, &live)?;
+    let kept_entries = crate::references::write_entries(c, input, &mut definition_outgoing)?;
+    crate::references::validate_inventory(
+        input.context.reference_preparation.as_ref(),
+        kept_traits.iter().chain(&kept_entries).cloned(),
+    )?;
+    crate::references::write_occurrences(c, input, definition_outgoing)?;
     crate::traits::write_traits_stream(c, input, values, &kept_traits)?;
     next_roots.visit(&mut |root| {
         if let Some(core) = root.core

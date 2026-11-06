@@ -175,6 +175,10 @@ pub(crate) fn prepare(
     )?;
     let fingerprint = capture.fingerprint.clone();
     let mut context = crate::build::build_context(inputs, &catalog)?;
+    let source_package = inputs.source_package();
+    let audience = context.audience;
+    let mut reference_build =
+        crate::references::ReferenceBuild::new(inputs, &catalog, scratch, context.audience)?;
     let preparation_hash = context.preparation_sha256().map_err(index)?;
     let reuse_preparation = reuse
         .preparation_matches(&preparation_hash)
@@ -522,8 +526,15 @@ pub(crate) fn prepare(
                         "journal frame identity differs".into(),
                     )));
                 }
-                let content = prepare_content(&mut frame, &catalog, &resolver, &preparation_hash)
-                    .map_err(index)?;
+                let content = prepare_content(
+                    &mut frame,
+                    &catalog,
+                    &resolver,
+                    &preparation_hash,
+                    source_package,
+                    audience,
+                )
+                .map_err(index)?;
                 work.alias_journal_reads += 1;
                 work.alias_journal_fresh_preparations += usize::from(!content.reused);
                 work.alias_journal_reused_preparations += usize::from(content.reused);
@@ -567,7 +578,14 @@ pub(crate) fn prepare(
                     content,
                     relationships,
                     reused,
-                } = prepare_content(&mut frame, &catalog, &resolver, &preparation_hash)?;
+                } = prepare_content(
+                    &mut frame,
+                    &catalog,
+                    &resolver,
+                    &preparation_hash,
+                    source_package,
+                    audience,
+                )?;
                 report.reused_preparations += usize::from(reused);
                 work.main_fresh_preparations += usize::from(!reused);
                 count_prepared(&mut report, &record, &content, relationships.len());
@@ -668,6 +686,9 @@ pub(crate) fn prepare(
                     )
                     .map_err(|e| atlas_index::IndexError::Invalid(e.to_string()))?;
                 }
+                reference_build
+                    .observe_record(&frame.source.record)
+                    .map_err(|error| atlas_index::IndexError::Invalid(error.to_string()))?;
                 spool.push_record(frame)?;
             }
             Ok(())
@@ -705,6 +726,7 @@ pub(crate) fn prepare(
     tracing::info!(target:"atlas_build_diagnostic",stage="admission_publication_overlap",file_bytes=usage.file_bytes,allocated_bytes=usage.allocated_bytes.unwrap_or(0),allocated_bytes_known=usage.allocated_bytes.is_some(),"Observed indexed admission and final publication files");
     drop(admitted_reader);
     drop(admitted);
+    reference_build.publish_catalog(&mut spool, &resolver)?;
     let trait_context = spool.context().clone();
     crate::traits::prepare_traits_stream(
         &catalog,
@@ -713,6 +735,13 @@ pub(crate) fn prepare(
         &resolver,
         &mut |definition, inputs| {
             let key = definition.key.clone();
+            if let Some(markup) = &definition.authored_markup {
+                reference_build.publish_definition_references(
+                    &key.clone().into(),
+                    markup,
+                    &mut spool,
+                )?;
+            }
             spool.traits.push(&definition).map_err(index)?;
             for input in inputs {
                 let address = input.address.clone();
@@ -757,6 +786,8 @@ fn prepare_content(
     catalog: &LocalizationCatalog,
     resolver: &SourceReferenceIndex,
     preparation_hash: &str,
+    source_package: &str,
+    audience: atlas_record::source_content::ContentAudience,
 ) -> Result<PreparedContent, atlas_index::IndexError> {
     let source = atlas_foundry_model::decode_snapshot(frame.snapshot.as_bytes())?;
     let record = SourceBackedRecord::new(&frame.pack, source)
@@ -767,7 +798,7 @@ fn prepare_content(
         ));
     }
     let relationships = resolve_source_relationships(&record, Some(resolver));
-    let (content, reused) = match frame.previous.take() {
+    let (mut content, reused) = match frame.previous.take() {
         Some(previous)
             if previous.hash == preparation_hash
                 && previous.relationships == relationships
@@ -776,10 +807,19 @@ fn prepare_content(
             (previous.content, true)
         }
         _ => (
-            prepare_record_content(&record, default_audience(), Some(catalog), Some(resolver)),
+            prepare_record_content(&record, audience, Some(catalog), Some(resolver)),
             false,
         ),
     };
+    atlas_record::source_record::bind_general_definition_reading(
+        &record,
+        source_package,
+        audience,
+        Some(catalog),
+        Some(resolver),
+        &mut content,
+    )
+    .map_err(|error| atlas_index::IndexError::Invalid(error.to_string()))?;
     Ok(PreparedContent {
         record,
         content,

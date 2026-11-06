@@ -371,10 +371,10 @@ mod tests {
             }
         }
         for table in [
-            "trait_definitions",
+            "reference_entries",
             "trait_vectors",
             "trait_memberships",
-            "trait_references",
+            "definition_reference_occurrences",
         ] {
             for event in ["INSERT", "UPDATE", "DELETE"] {
                 c.execute_batch(&format!("CREATE TRIGGER component_audit_{table}_{event} AFTER {event} ON {table} BEGIN INSERT INTO component_write_audit VALUES('{table}',NULL); END;")).unwrap();

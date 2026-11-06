@@ -373,6 +373,12 @@ fn actor_rows(
             r.id("record_id", root);
             r.id("original_index", index as i64);
             choice(SourceFieldView::from(&sense.r#type))?.field(&mut r, "type");
+            choice(SourceFieldView::from(&sense.acuity))?.field(&mut r, "acuity");
+            number(SourceFieldView::from(&sense.range))?.field(&mut r, "range");
+            convert(SourceFieldView::from(&sense.source), |source| {
+                Ok(Value::Text(source.clone()))
+            })?
+            .field(&mut r, "source");
             rows.push(r);
         }
     }
@@ -517,6 +523,7 @@ fn item_rows(
             let mut r = ProjectionRow::new("armor_projection");
             r.id("physical_id", id);
             choice(i.armor_category())?.field(&mut r, "category");
+            choice(i.armor_group())?.field(&mut r, "armor_group");
             number(i.armor_ac_bonus())?.field(&mut r, "ac_bonus");
             number(i.armor_dex_cap())?.field(&mut r, "dex_cap");
             number(i.armor_strength())?.field(&mut r, "strength");

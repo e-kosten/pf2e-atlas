@@ -802,6 +802,13 @@ pub use trait_definitions::{
     FoundryTraitDefinition, FoundryTraitSourceLocation, trait_definition, trait_definitions,
 };
 
+pub mod reference_definitions;
+pub use reference_definitions::{
+    FoundryDefinitionParameterRole, FoundryGeneralDefinitionTemplate, FoundryReferenceDefinition,
+    REFERENCE_CATALOG_SHA256, foundry_glossary_records, general_definition_templates,
+    reference_definitions,
+};
+
 mod action_definitions;
 pub use action_definitions::{
     FoundryActionDefinition, FoundryActionVariant, action_definition, action_definitions,

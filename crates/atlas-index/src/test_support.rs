@@ -213,6 +213,16 @@ pub(crate) const TEST_MIGRATIONS: &[Migration] = &[
         sql: crate::COMPONENT_DIGEST_SCHEMA_SQL,
         backfill: None,
     },
+    Migration {
+        version: 30,
+        name: "reference-entries",
+        sql: crate::REFERENCE_ENTRIES_SCHEMA_SQL,
+        backfill: Some(atlas_storage::DataBackfill {
+            reconstruct_tables: true,
+            id: "reference-entries/v1",
+            apply: crate::backfill_reference_entries,
+        }),
+    },
 ];
 pub fn initialize_workspace(path: impl AsRef<Path>) -> Result<Workspace, IndexError> {
     atlas_sqlite_vec::register_sqlite_vec_auto_extension()
@@ -356,6 +366,13 @@ fn spool_input_in(
     }
     for row in &input.traits {
         spool.traits.push(row)?;
+    }
+    for source in &input.records {
+        for occurrence in
+            crate::traits::record_reference_inputs(&source.record, input.context.audience)?
+        {
+            spool.definition_references.push(&occurrence)?;
+        }
     }
     for seed in &input.trait_vectors {
         spool.trait_seeds.push(&crate::TraitSeedOccurrence {

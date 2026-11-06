@@ -12,6 +12,7 @@ fn paths(dir: &std::path::Path) -> ResolvedAtlasPaths {
         repo_root: None,
         source_root: dir.join("source"),
         embedding_cache_root: dir.join("models"),
+        reference_cache_root: dir.join("reference-supplements"),
         index_path: dir.join("atlas.sqlite"),
     }
 }
@@ -343,7 +344,7 @@ fn assert_projection_backfill(query_changed: bool, lexical_changed: bool, initia
             assert_eq!(context.lexical_selection_version, "curated-lexical/v1");
             assert_eq!(
                 read.connection()
-                    .query_row("SELECT count(*) FROM trait_definitions", [], |r| r
+                    .query_row("SELECT count(*) FROM reference_entries", [], |r| r
                         .get::<_, usize>(0))
                     .unwrap(),
                 0
@@ -628,6 +629,7 @@ fn stale_build_configuration_is_rejected_before_reading_source() {
             reuse_embeddings: true,
             reuse_passage_layouts: true,
             embedding_batch_size: 32,
+            reference_supplement: Default::default(),
         },
     )
     .unwrap_err();
@@ -712,6 +714,7 @@ fn setup_chooses_metadata_refresh_or_one_source_publication() {
                     reuse_embeddings: true,
                     reuse_passage_layouts: true,
                     embedding_batch_size: 32,
+                    reference_supplement: Default::default(),
                 },
             )
             .unwrap();
@@ -755,6 +758,7 @@ fn owned_build_inputs_keep_captured_manifest_and_reject_unconsumed_source_change
         reuse_embeddings: true,
         reuse_passage_layouts: true,
         embedding_batch_size: 32,
+        reference_supplement: Default::default(),
     };
     let manifest_path = paths.source_root.join("module.json");
     let manifest = fs::read(&manifest_path).unwrap();
@@ -1521,4 +1525,169 @@ fn explicit_setup_replaces_prior_model_and_preserves_saved_state() {
     );
     drop(read);
     assert!(crate::workspace::open_workspace_index(&paths.index_path).is_ok());
+}
+
+#[test]
+fn incomplete_glossary_coverage_preserves_reads_and_requires_explicit_setup() {
+    use atlas_local_state::{LocalStateRead, LocalStateWrite, NewEncounter, NewSavedList};
+    let directory = tempfile::tempdir().unwrap();
+    let paths = paths(directory.path());
+    source(&paths);
+    let initial = crate::setup::ensure_setup(&paths, options(false));
+    assert!(initial.ready, "{initial:?}");
+    let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
+    let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+    let state = LocalStateWrite::new(&write);
+    let list = state
+        .saved_lists()
+        .create(NewSavedList {
+            slug: "glossary-kept".into(),
+            name: "Kept list".into(),
+            description: None,
+            tags: vec![],
+        })
+        .unwrap();
+    let encounter = state
+        .encounters()
+        .create(NewEncounter {
+            slug: "glossary-kept".into(),
+            name: "Kept encounter".into(),
+            description: None,
+            note: Some("Keep my notes".into()),
+        })
+        .unwrap();
+    let mut context = atlas_index::read_stored_reference_context(write.connection())
+        .unwrap()
+        .unwrap();
+    let fingerprint = context.source_fingerprint.clone();
+    context.reference_preparation = None;
+    let json = serde_json::to_string(&context).unwrap();
+    write
+        .connection()
+        .execute(
+            "UPDATE artifact_context SET context_hash=?1,context_json=?2",
+            [atlas_search::test_support::hash(json.as_bytes()), json],
+        )
+        .unwrap();
+    let revision = write.reference_revision().unwrap();
+    write.commit().unwrap();
+
+    // A source-free ordinary read stays useful, without claiming new coverage.
+    let hidden_source = directory.path().join("source-retained");
+    fs::rename(&paths.source_root, &hidden_source).unwrap();
+    let reader = open_reader(&paths.index_path).unwrap();
+    assert_eq!(
+        reader.reference_coverage(),
+        atlas_index::ReferenceCoverage::TraitsOnly
+    );
+    assert_eq!(reader.statistics().unwrap().records, 1);
+    assert!(
+        reader
+            .read_source_record(&atlas_domain::RecordKey::parse("items:aaaaaaaaaaaaaaaa").unwrap())
+            .unwrap()
+            .is_some()
+    );
+    drop(reader);
+    assert!(!paths.embedding_cache_root.exists());
+    fs::rename(&hidden_source, &paths.source_root).unwrap();
+
+    let check = crate::setup::ensure_setup(&paths, options(true));
+    assert!(!check.ready);
+    assert!(
+        check
+            .actions
+            .iter()
+            .any(|action| action.kind == SetupActionKind::BuildIndex
+                && action.status == SetupActionStatus::Planned)
+    );
+    assert_eq!(
+        workspace
+            .read(WORKSPACE_SCHEMA_VERSION)
+            .unwrap()
+            .reference_revision()
+            .unwrap(),
+        revision
+    );
+
+    let rebuilt = crate::setup::ensure_setup(&paths, options(false));
+    assert!(rebuilt.ready, "{rebuilt:?}");
+    assert!(rebuilt.build.is_some());
+    let reader = open_reader(&paths.index_path).unwrap();
+    assert_eq!(
+        reader.reference_coverage(),
+        atlas_index::ReferenceCoverage::Complete
+    );
+    assert_eq!(reader.context().source_fingerprint, fingerprint);
+    let state = LocalStateRead::new(reader.workspace_session());
+    assert_eq!(state.saved_lists().list().unwrap(), vec![list]);
+    assert_eq!(state.encounters().list().unwrap(), vec![encounter]);
+    let rebuilt_revision = reader.workspace_session().reference_revision().unwrap();
+    drop(reader);
+    let unchanged = crate::setup::ensure_setup(&paths, options(false));
+    assert!(unchanged.ready, "{unchanged:?}");
+    assert!(unchanged.build.is_none());
+    assert_eq!(
+        workspace
+            .read(WORKSPACE_SCHEMA_VERSION)
+            .unwrap()
+            .reference_revision()
+            .unwrap(),
+        rebuilt_revision
+    );
+    assert!(!paths.embedding_cache_root.exists());
+}
+
+#[test]
+fn corrupt_reference_supplement_preserves_the_committed_generation_and_saved_state() {
+    use atlas_local_state::{LocalStateRead, LocalStateWrite, NewSavedList};
+    let directory = tempfile::tempdir().unwrap();
+    let paths = paths(directory.path());
+    source(&paths);
+    assert!(crate::setup::ensure_setup(&paths, options(false)).ready);
+    let workspace = atlas_storage::Workspace::at(&paths.index_path).unwrap();
+    let write = workspace.write(WORKSPACE_SCHEMA_VERSION).unwrap();
+    let list = LocalStateWrite::new(&write)
+        .saved_lists()
+        .create(NewSavedList {
+            slug: "kept-cache-failure".into(),
+            name: "Kept".into(),
+            description: None,
+            tags: vec![],
+        })
+        .unwrap();
+    let before = write.reference_revision().unwrap();
+    write.commit().unwrap();
+    let cached = paths
+        .reference_cache_root
+        .join(atlas_ingest::bundled_reference_supplement_id())
+        .join("payload.json");
+    fs::write(&cached, "corrupt selected data").unwrap();
+    for check in [true, false] {
+        let report = crate::setup::ensure_setup(&paths, options(check));
+        assert!(!report.ready);
+        assert!(
+            report
+                .checks
+                .iter()
+                .any(|action| action.kind == SetupActionKind::AnalyzeSource
+                    && action.status == SetupActionStatus::Failed)
+        );
+        assert_eq!(
+            fs::read_to_string(&cached).unwrap(),
+            "corrupt selected data"
+        );
+        let reader = open_reader(&paths.index_path).unwrap();
+        assert_eq!(
+            reader.workspace_session().reference_revision().unwrap(),
+            before
+        );
+        assert_eq!(reader.statistics().unwrap().records, 1);
+        assert_eq!(
+            LocalStateRead::new(reader.workspace_session())
+                .saved_lists()
+                .list()
+                .unwrap(),
+            vec![list.clone()]
+        );
+    }
 }

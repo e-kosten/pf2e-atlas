@@ -130,6 +130,18 @@ deep audit independently reconstructs and checks present hashes. Metadata-only
 upgrades refresh existing hashes after their dependent projections change. Saved state,
 source/native recipes and historical migration callbacks retain their owners.
 
+Workspace migration 30 generalizes retained trait definitions into the single
+`reference_entries` owner and trait reference evidence into oriented
+`definition_reference_occurrences`. Both occurrence endpoints are checked unions
+of record addresses and definition keys. The migration preserves numerical bytes,
+trait membership, identities and saved state without acquiring source or models.
+It backfills authored sense acuity/range/source states and armor group from
+compatible retained snapshots. Retired or otherwise deferred source preparation
+keeps its existing setup requirement and is not decoded by this backfill.
+Missing `reference_preparation` remains explicit traits-only coverage; migration
+does not claim new definition completeness. See
+[ADR0067](./decisions/0067-contextual-reference-definitions.md).
+
 One owned prepared publication binds workspace/revision, context, complete source
 inventory, metadata and selected values. Its private files are disposable attempt
 state. Disposable frames contain uncompressed typed JSON with observed allocation
@@ -172,6 +184,8 @@ and non-null ownership, with owner-scoped slug uniqueness.
 | Query accelerators | `record_traits`, `actor_projection`, `actor_items`, Actor IWR/language/speed/sense rows, and named Spell/physical/weapon/armor/shield/ability/heritage/effect/condition/deity projection tables. Explicit immediate-child `embedded.*` collections use the same typed extractors as the corresponding standalone families. |
 | Query catalog | `query_field_catalog`: serialized public definitions checked against executable Rust bindings; no artifact-defined extractor expressions. |
 | Prepared content | `prepared_content`: selected field outcomes, one compressed sanitized HTML cache, narrow interaction facts and authored/preparation hashes. Plain authored fields are read from the checked source when needed. |
+| Contextual definitions | `reference_entries`: one canonical vocabulary/source-rule owner with typed key, readable label, finite availability, checked prepared body or record pointer, source/locale/publication evidence, separate body/label grants and exact filter bindings. Record pointers contain no copied body or vector. `reference_notices` retains deduplicated required notice text and hashes. |
+| Definition references | `definition_reference_occurrences`: exact authored localization and standalone-body occurrences with record-or-definition source and target, owners, field, path and visibility. Trait reference APIs project their existing subset; existing record graph rows are not copied here. |
 | Developer reports | `developer_diagnostics`: attributed admission/preparation/resolution/projection evidence. Product record responses do not expose these reports. |
 | Relationships | `relationship_occurrences`: attributed structured and visible content occurrences, preserving repeated links and resolved/unverified/unresolved/blocked status. |
 | Verified identity evidence | `verified_aliases`, `remaster_pairs`: explicit evidence-backed lookup names and edition relationships. |
@@ -595,8 +609,10 @@ never change identity or suppression.
 
 ## Publication, readers and validation
 
-Trait vocabulary publication retains exact typed trait identity, source catalog
-and localization-key evidence, selected localized definitions and prepared HTML.
+Canonical reference publication retains exact namespace/token and source-rule
+identities, source catalog/localization evidence, selected prepared definitions
+or verified pointers, availability and required notices. Trait publication remains
+a specialization of that owner, retaining its external identity and semantics.
 Membership retains the actual source owner; explicit references remain separate
 from membership and arbitrary label matches. Stored trait seeds bind their
 complete selected input, versioned recipe and profile. Trait Similar uses the
@@ -606,7 +622,26 @@ publication and deep validation require a seed for every published trait definit
 in every configured profile, including definitions with label-only input. An empty
 profile manifest permits metadata-only publication; unknown identifiers without a
 published definition do not require seeds. See
-[ADR0056](./decisions/0056-trait-reference-entities.md).
+[ADR0056](./decisions/0056-trait-reference-entities.md) and
+[ADR0067](./decisions/0067-contextual-reference-definitions.md).
+
+`reference_preparation` independently records the glossary recipe, combined input
+identity, coverage and compact selected-key count/digest. Missing new coverage
+does not block retained record or trait reads; new glossary reads report an explicit
+setup requirement. Explicit setup captures approved supplemental data/notices and
+publishes complete inventory atomically with ordinary Foundry content. Other
+namespaces receive no implicit vectors or ordinary Search candidacy.
+
+Reading selection for ten exact templates (eight general actions and two family
+abilities) is optional typed metadata inside the
+existing prepared-field metadata and HTML cache. Exact source/rules signatures,
+authored byte spans, parser paths and finite ordinal/marker bindings establish it.
+The original checked record and canonical full body remain intact. Owned abilities
+and customized signatures retain ordinary values and controls; zero alone never
+activates template selection. Index publication and deep audit use the record-owned
+source-free validator. A missing annotation is omitted from serialized metadata,
+preserving retained preparation identities. The Golem Antimagic and Wind-Up
+vocabulary entries point to their existing records and share that canonical body.
 
 Ingest fingerprints the deterministic actual relevant input set, including pack
 definitions, manifests and excluded inputs. Local edits therefore change identity

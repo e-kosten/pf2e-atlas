@@ -43,6 +43,7 @@ impl Context {
     // New fields are absent; preparation_sha256 excludes both and is main-identical.
     fn into_record_context(self) -> SourceArtifactBuildContext {
         SourceArtifactBuildContext {
+            reference_preparation: None,
             selected_sections_recipe: String::new(),
             admission: None,
             core_sections_recipe: self.core_sections_recipe,

@@ -1,4 +1,5 @@
 import { conditionSourceInputs } from './condition-definitions.js';
+import { referenceSourceInputs, referenceAdditionalPaths } from './reference-definitions.js';
 import { execFile as execFileCallback, spawnSync } from 'node:child_process';
 import { cp, lstat, mkdir, mkdtemp, readFile, realpath, rename, rm, symlink } from 'node:fs/promises';
 import path from 'node:path';
@@ -14,13 +15,14 @@ export const repositoryRoot = path.resolve(packageRoot, '../..');
 export const defaultCache = path.join(repositoryRoot, '.cache/source-contracts');
 export interface SourcePin {
   repository: string; commit: string; systemVersion: string; sourceDigest: string;
-  inputFileCount: number; conditionSourceDigest: string; typescriptVersion: string; ruleKeys: string[];
+  inputFileCount: number; conditionSourceDigest: string; referenceSourceDigest: string; typescriptVersion: string; ruleKeys: string[];
 }
 export async function readSourcePin(): Promise<SourcePin> {
   const pin = JSON.parse(await readFile(path.join(packageRoot, 'source-pin.json'), 'utf8')) as SourcePin;
   if (!/^https:\/\/[A-Za-z0-9./_-]+\.git$/.test(pin.repository) || !/^[a-f0-9]{40}$/.test(pin.commit)
     || !/^[a-f0-9]{64}$/.test(pin.sourceDigest) || !Number.isSafeInteger(pin.inputFileCount)
-    || !/^[a-f0-9]{64}$/.test(pin.conditionSourceDigest) || pin.inputFileCount <= 0 || typeof pin.systemVersion !== 'string' || pin.typescriptVersion !== ts.version
+    || !/^[a-f0-9]{64}$/.test(pin.conditionSourceDigest) || !/^[a-f0-9]{64}$/.test(pin.referenceSourceDigest)
+    || pin.inputFileCount <= 0 || typeof pin.systemVersion !== 'string' || pin.typescriptVersion !== ts.version
     || !Array.isArray(pin.ruleKeys) || !pin.ruleKeys.every(key => /^[A-Z][A-Za-z0-9]*$/.test(key))
     || new Set(pin.ruleKeys).size !== pin.ruleKeys.length) throw new Error('Invalid source pin or TypeScript version mismatch');
   return pin;
@@ -33,7 +35,7 @@ export function contains(parent: string, child: string): boolean {
   const relative = path.relative(path.resolve(parent), path.resolve(child));
   return !relative || relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative);
 }
-const sourcePaths = ['src', 'types', 'package.json', 'tsconfig.json', 'system.pf2e.json', 'static/lang/en.json', 'packs/pf2e/conditions'];
+const sourcePaths = ['src', 'types', 'package.json', 'tsconfig.json', 'system.pf2e.json', 'static/lang/en.json', ...referenceAdditionalPaths];
 async function exists(file: string): Promise<boolean> {
   try { await lstat(file); return true; } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
@@ -50,6 +52,7 @@ export async function preparePinnedSource(pin: SourcePin, cache = defaultCache, 
   if (suppliedSource) {
     assertSourcePin(await sourceIdentity(suppliedSource), pin);
     if ((await conditionSourceInputs(suppliedSource)).digest !== pin.conditionSourceDigest) throw new Error('Condition pack bytes do not match source-pin.json');
+    if ((await referenceSourceInputs(suppliedSource)).digest !== pin.referenceSourceDigest) throw new Error('Reference pack bytes do not match source-pin.json');
   }
   await mkdir(cache, { recursive: true });
   if ((await lstat(cache)).isSymbolicLink()) throw new Error('Source cache must not be a symlink');
@@ -79,12 +82,14 @@ export async function preparePinnedSource(pin: SourcePin, cache = defaultCache, 
       }
       assertSourcePin(await sourceIdentity(stage), pin);
       if ((await conditionSourceInputs(stage)).digest !== pin.conditionSourceDigest) throw new Error('Exported condition bytes do not match source pin');
+      if ((await referenceSourceInputs(stage)).digest !== pin.referenceSourceDigest) throw new Error('Exported reference bytes do not match source pin');
       await rename(stage, source);
     } finally { await rm(stage, { recursive: true, force: true }); }
   }
   if ((await lstat(source)).isSymbolicLink()) throw new Error('Cached source must not be a symlink');
   assertSourcePin(await sourceIdentity(source), pin);
   if ((await conditionSourceInputs(source)).digest !== pin.conditionSourceDigest) throw new Error('Cached condition bytes do not match source pin; regenerate the private source export');
+  if ((await referenceSourceInputs(source)).digest !== pin.referenceSourceDigest) throw new Error('Cached reference bytes do not match source pin; regenerate the private source export');
   const dependencies = path.join(source, 'node_modules'), lockedDependencies = await realpath(path.join(packageRoot, 'node_modules'));
   if (await exists(dependencies)) {
     if (!(await lstat(dependencies)).isSymbolicLink()) throw new Error('Cached dependency path must be a tool-owned symlink');

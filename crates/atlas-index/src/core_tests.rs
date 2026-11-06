@@ -480,6 +480,17 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
     let mut context = input.context.clone();
     context.core_sections_recipe.clear();
     let mut before = table_values(write.connection()).unwrap();
+    for (old, new) in [
+        ("trait_definitions", "reference_entries"),
+        ("trait_references", "definition_reference_occurrences"),
+    ] {
+        let rows = before.remove(old).unwrap();
+        assert!(
+            rows.is_empty(),
+            "this unrelated-table preservation fixture has no trait definitions or references"
+        );
+        before.insert(new.into(), rows);
+    }
     assert!(
         before
             .remove("encounter_participant_adjustments")
@@ -521,6 +532,7 @@ fn offline_core_upgrade_preserves_every_existing_table_and_publishes_one_generat
         .unwrap();
     assert_eq!(read.reference_revision().unwrap(), revision + 1);
     let mut after = table_values(read.connection()).unwrap();
+    assert!(after.remove("reference_notices").unwrap().is_empty());
     assert!(
         after
             .remove("encounter_participant_baselines")
@@ -649,6 +661,7 @@ fn trait_core_inventory_retains_its_single_label_only_representation() {
         source_locations: vec![],
         source_revision: None,
         indexing_locale: "en".into(),
+        content_locale: None,
     });
     input.trait_vectors.push(TraitVectorInput {
         key: key.clone(),
