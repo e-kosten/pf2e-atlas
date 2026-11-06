@@ -42,9 +42,11 @@ export function RemasterRecordLink({
 export function RemasterEndpoint({
   endpoint,
   onReference,
+  showMessage = true,
 }: {
   endpoint: RemasterEndpointView;
   onReference: RecordReferenceHandler;
+  showMessage?: boolean;
 }) {
   const resolution = endpoint.resolution;
   return (
@@ -76,10 +78,11 @@ export function RemasterEndpoint({
       {endpoint.context && (
         <span className="remaster-information__context"> · {endpoint.context}</span>
       )}
-      {(resolution.kind === "absent" ||
-        resolution.kind === "unresolved" ||
-        resolution.kind === "term" ||
-        resolution.kind === "ambiguous") &&
+      {showMessage &&
+        (resolution.kind === "absent" ||
+          resolution.kind === "unresolved" ||
+          resolution.kind === "term" ||
+          resolution.kind === "ambiguous") &&
         resolution.message && (
           <p className="remaster-information__context">{resolution.message}</p>
         )}
@@ -160,12 +163,93 @@ export function RemasterCitation({
   );
 }
 
+function endpointMessage(endpoint: RemasterEndpointView): string | null {
+  const resolution = endpoint.resolution;
+  return resolution.kind === "absent" ||
+    resolution.kind === "unresolved" ||
+    resolution.kind === "ambiguous" ||
+    resolution.kind === "term"
+    ? (resolution.message ?? null)
+    : null;
+}
+
+/** Compare exact display forms only; qualifiers and case differences stay visible. */
+function repeatsVisibleLabels(text: string, labels: Set<string>): boolean {
+  if (labels.has(text)) return true;
+  const entries = [...labels];
+  if (!entries.length) return false;
+  const forms = [entries.join(", "), entries.join(" · ")];
+  if (entries.length > 1) {
+    const last = entries[entries.length - 1];
+    const preceding = entries.slice(0, -1).join(", ");
+    forms.push(`${preceding} and ${last}`, `${preceding}, and ${last}`);
+  }
+  return forms.some(
+    (form) => text === form || text === `${form}.` || text === `${form} .`,
+  );
+}
+
+/** Each canonical group keeps its own entries and exact authored wording. */
+function SideGroup({
+  group,
+  onReference,
+  summary,
+}: {
+  group: RemasterSideView;
+  summary: string | null;
+  onReference: RecordReferenceHandler;
+}) {
+  const labels = new Set(group.endpoints.map((endpoint) => endpoint.label));
+  const terms = [...new Set(group.terms)].filter((term) => !labels.has(term));
+  for (const term of terms) labels.add(term);
+  const first = group.endpoints[0];
+  const firstMessage = first ? endpointMessage(first) : null;
+  const sharedMessage =
+    firstMessage &&
+    group.endpoints.length > 1 &&
+    group.endpoints.every(
+      (endpoint) =>
+        endpoint.resolution.kind === first.resolution.kind &&
+        endpointMessage(endpoint) === firstMessage,
+    )
+      ? firstMessage
+      : null;
+  const showCaption =
+    group.text && group.text !== summary && !repeatsVisibleLabels(group.text, labels);
+  return (
+    <div className="remaster-side__group">
+      {showCaption && <p>{group.text}</p>}
+      {group.endpoints.map((endpoint, index) => (
+        <RemasterEndpoint
+          key={index}
+          endpoint={endpoint}
+          onReference={onReference}
+          showMessage={!sharedMessage}
+        />
+      ))}
+      {sharedMessage && (
+        <p className="remaster-information__context">{sharedMessage}</p>
+      )}
+      {terms.length > 0 && (
+        <p className="remaster-information__context">{terms.join(" · ")}</p>
+      )}
+      {group.truncated && (
+        <p className="remaster-information__context">
+          More entries exist in this source group.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function Side({
   label,
   groups,
   onReference,
+  summary,
 }: {
   label: string;
+  summary: string | null;
   groups: RemasterSideView[];
   onReference: RecordReferenceHandler;
 }) {
@@ -174,24 +258,12 @@ function Side({
     <div className="remaster-side">
       <h4>{label}</h4>
       {groups.map((group, index) => (
-        <div key={index} className="remaster-side__group">
-          {group.text && <p>{group.text}</p>}
-          {group.endpoints.map((endpoint, endpointIndex) => (
-            <RemasterEndpoint
-              key={endpointIndex}
-              endpoint={endpoint}
-              onReference={onReference}
-            />
-          ))}
-          {group.terms.length > 0 && (
-            <p className="remaster-information__context">{group.terms.join(" · ")}</p>
-          )}
-          {group.truncated && (
-            <p className="remaster-information__context">
-              More entries exist in this source group.
-            </p>
-          )}
-        </div>
+        <SideGroup
+          key={index}
+          group={group}
+          onReference={onReference}
+          summary={summary}
+        />
       ))}
     </div>
   );
@@ -215,8 +287,18 @@ function Declaration({
         </p>
       )}
       <div className="remaster-sides">
-        <Side label="Before" groups={declaration.before} onReference={onReference} />
-        <Side label="After" groups={declaration.after} onReference={onReference} />
+        <Side
+          label="Before"
+          groups={declaration.before}
+          onReference={onReference}
+          summary={declaration.summary}
+        />
+        <Side
+          label="After"
+          groups={declaration.after}
+          onReference={onReference}
+          summary={declaration.summary}
+        />
       </div>
       {declaration.truncated && (
         <p className="remaster-information__context">
