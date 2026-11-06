@@ -109,6 +109,29 @@ async fn main() -> Result<(), Box<dyn Error>> {
             *common = std::f32::consts::FRAC_1_SQRT_2;
         }
     }
+    let agile_key = TraitKey::new("agile")?;
+    let agile_markup = "<p>Fixture agile trait explains nimble follow-up attacks.</p>";
+    let agile_content = atlas_record::source_content::prepare_reference_definition(
+        atlas_domain::DefinitionKey::from(agile_key.clone()),
+        agile_markup,
+        fixture.context.audience,
+        None,
+        None,
+    )?;
+    fixture.traits.push(TraitDefinition {
+        key: agile_key,
+        label: "Agile".into(),
+        label_key: None,
+        description_key: None,
+        description_html: Some(agile_content.html.clone()),
+        authored_markup: Some(agile_markup.into()),
+        prepared: Some(agile_content),
+        catalogs: vec![],
+        source_locations: vec![],
+        source_revision: None,
+        indexing_locale: "en".into(),
+        content_locale: Some("en".into()),
+    });
     let glossary = reference_data::attach(&mut fixture)?;
     atlas_index::test_support::publish_input_with_references(
         &index_path,
