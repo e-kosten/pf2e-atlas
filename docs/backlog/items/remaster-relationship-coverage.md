@@ -17,14 +17,32 @@ gate and use plain old names. Attack of Opportunity
 was retained as an alias for the general Reactive Strike action, without pairing
 the legacy creature-glossary record with a remaster counterpart.
 
-The pair infrastructure therefore has fixture coverage while the inspected corpus
-provides no populated counterpart data for version navigation or pair-based search
+That baseline pair infrastructure therefore had fixture coverage while the inspected corpus
+provided no populated counterpart data for version navigation or pair-based search
 preference. This is separate from displaying explicit publication era metadata.
 
 The [research and adversarial model review](../../research/remaster-information.md)
 now records the source funnel, missing declaration kinds, schema/provenance limits
 and consumer policy risks. The accepted direction is checked typed declarations
 with separate lookup aliases and narrowly approved preference relationships.
+
+## Current implementation and coverage audit
+
+The 2026-11-06 [available-counterpart audit](../../research/remaster-counterpart-coverage.md)
+found 612 declarations, 499 aliases and one approved two-record preference in the
+current implementation. This is mapping coverage, not the number of available
+legacy/remaster bodies. The complete 57-group / 118-record same-name census has
+14 correspondence review candidates and 43 held cases. A broader old-term scan
+found 19 journal-backed candidates: 15 individual renames, two mergers and two
+class-scoped changes. Nine of the same-name candidates are core-publication
+comparisons worth prioritizing separately. None was promoted during the audit.
+
+Next decision: review exact old endpoints for the 15 individual journal renames,
+then the nine core-publication correspondences, before claiming useful search
+preference coverage. Keep scope, navigation and suppression authority separate.
+If mapping expansion is deferred and only one preference remains, reconsider
+exposing the new search preference choice. The user requested this audit before
+deciding; no policy or source-contract expansion is authorized by its findings alone.
 
 ## Desired outcome
 

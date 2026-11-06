@@ -3,7 +3,10 @@
 Research date: 2026-11-05. Atlas baseline: `344395cf917c840f7b2c10469c19200e2bbf4c16`
 (merged PR #213). Foundry source: `28d9d156f252d084371d994dc359509b49eadf18`,
 PF2e 8.6.1, English. This report separates observed behavior from proposed changes.
-The implementation work remains [proposed in the backlog](../backlog/items/remaster-relationship-coverage.md).
+This baseline report predates the implementation now
+[in progress](../backlog/items/remaster-relationship-coverage.md). See the
+[2026-11-06 counterpart audit](remaster-counterpart-coverage.md) for current
+declaration/alias counts, available but unbound old records and comparison coverage.
 
 ## Finding
 
@@ -23,16 +26,16 @@ this investigation.
 
 Read-only queries against the retained full-corpus development workspace found:
 
-| Observed fact | Count |
-| --- | ---: |
-| Root records | 29,894 |
-| Explicit publication `remaster=true` | 19,488 |
-| Explicit publication `remaster=false` | 9,956 |
-| Publication flag not applicable | 450 |
-| Verified name aliases | 495 |
-| Distinct normalized alias terms | 482 |
-| Alias terms with two target records | 13 |
-| Stored remaster pairs | **0** |
+| Observed fact                         |  Count |
+| ------------------------------------- | -----: |
+| Root records                          | 29,894 |
+| Explicit publication `remaster=true`  | 19,488 |
+| Explicit publication `remaster=false` |  9,956 |
+| Publication flag not applicable       |    450 |
+| Verified name aliases                 |    495 |
+| Distinct normalized alias terms       |    482 |
+| Alias terms with two target records   |     13 |
+| Stored remaster pairs                 |  **0** |
 
 The database's recorded source revision matches the pin above. Its source
 fingerprint is `dcc3a33936e7e519dcded488fc102c53e6dab8fce74a9a3c0b803619b9c640f7`,
@@ -65,15 +68,15 @@ headers and an empty row. Independent bounded HTML-parser probes agreed on these
 counts.
 
 | Authored status or table form | Rows |
-| --- | ---: |
-| Renamed | 272 |
-| Merged | 50 |
-| Removed | 54 |
-| Altered mechanics | 5 |
-| Renamed and altered mechanics | 3 |
-| Replaced | 2 |
-| `Rename` spelling variant | 1 |
-| Two-column name-change rows | 173 |
+| ----------------------------- | ---: |
+| Renamed                       |  272 |
+| Merged                        |   50 |
+| Removed                       |   54 |
+| Altered mechanics             |    5 |
+| Renamed and altered mechanics |    3 |
+| Replaced                      |    2 |
+| `Rename` spelling variant     |    1 |
+| Two-column name-change rows   |  173 |
 
 The current [extractor](https://github.com/e-kosten/pf2e-atlas/blob/344395cf917c840f7b2c10469c19200e2bbf4c16/crates/atlas-ingest/src/source_aliases.rs) reduces
 that source through this funnel:
@@ -95,16 +98,16 @@ relationships. It also shows why simply increasing pair counts is not a safe goa
 
 Important declarations currently lost or flattened include:
 
-| Example | Information that must survive |
-| --- | --- |
-| Abundant Step | A feat merges into Advanced Qi Spells; a spell is renamed Shrink the Span. Family/context distinguishes them. |
-| Stance Savant | Fighter and Monk declarations have different successors. |
-| Feather Token variants; Wyrm on the Wing variants | Each row groups three destinations. The grouping does not assert every old/new combination. |
-| Skillful Tail (Ganzi) | A same-name Merged declaration remains meaningful despite not adding a useful alias. |
-| Speedy Rituals | Marked Removed, with an explicit reference to Efficient Rituals. Removal can coexist with a related successor. |
-| Cauldron; Crossbow Ace | Changed mechanics can be explained without a distinct old document. |
-| Languages, domains, pantheons and materials | Respectively 12, 3, 4 and 2 name changes have no record UUID destination. |
-| Witch patrons and wizard schools | Replacement context links to a journal discussion, not one interchangeable item. |
+| Example                                           | Information that must survive                                                                                  |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Abundant Step                                     | A feat merges into Advanced Qi Spells; a spell is renamed Shrink the Span. Family/context distinguishes them.  |
+| Stance Savant                                     | Fighter and Monk declarations have different successors.                                                       |
+| Feather Token variants; Wyrm on the Wing variants | Each row groups three destinations. The grouping does not assert every old/new combination.                    |
+| Skillful Tail (Ganzi)                             | A same-name Merged declaration remains meaningful despite not adding a useful alias.                           |
+| Speedy Rituals                                    | Marked Removed, with an explicit reference to Efficient Rituals. Removal can coexist with a related successor. |
+| Cauldron; Crossbow Ace                            | Changed mechanics can be explained without a distinct old document.                                            |
+| Languages, domains, pantheons and materials       | Respectively 12, 3, 4 and 2 name changes have no record UUID destination.                                      |
+| Witch patrons and wizard schools                  | Replacement context links to a journal discussion, not one interchangeable item.                               |
 
 The maintained [Foundry wiki](https://github.com/foundryvtt/pf2e/wiki/Remaster-Changes)
 also distinguishes these categories and describes its coverage as partial. It is
