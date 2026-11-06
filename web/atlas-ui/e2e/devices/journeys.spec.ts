@@ -178,6 +178,7 @@ test("variant comparison bounds complete documents on wide screens and stays rea
       response,
       json: {
         ...related,
+        show_versions: true,
         variants: {
           kind: "content",
           content: {
