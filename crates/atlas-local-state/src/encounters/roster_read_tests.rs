@@ -6,19 +6,19 @@ thread_local! {
     static STATEMENTS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
 }
 fn measured_roster(
-    connection: &rusqlite::Connection,
+    connection: &mut rusqlite::Connection,
 ) -> crate::LocalStateResult<(EncounterWithParticipants, usize)> {
     STATEMENTS.with(|statements| statements.borrow_mut().clear());
     connection.trace_v2(
         TraceEventCodes::SQLITE_TRACE_STMT,
-        Some(|event| {
+        Some(|event: TraceEvent<'_>| {
             if let TraceEvent::Stmt(_, sql) = event {
                 STATEMENTS.with(|statements| statements.borrow_mut().push(sql.into()));
             }
         }),
-    );
+    )?;
     let result = EncountersRead::from_connection(connection).get_with_participants("test");
-    connection.trace_v2(TraceEventCodes::empty(), None);
+    connection.trace_v2(TraceEventCodes::empty(), None::<fn(TraceEvent<'_>)>)?;
     Ok((
         result?.unwrap(),
         STATEMENTS.with(|statements| statements.borrow().len()),
@@ -29,15 +29,15 @@ fn measured_roster(
 fn roster_statement_count_depends_on_collections_instead_of_participant_count()
 -> crate::LocalStateResult<()> {
     let store = fixture("roster-statements")?;
-    let connection = store.connection()?;
-    assert!(measured_roster(&connection)?.1 <= 2);
+    let mut connection = store.connection()?;
+    assert!(measured_roster(&mut connection)?.1 <= 2);
     let mut populated_statements = None;
     for count in 1..=40 {
         store
             .encounters()
             .add_participant("test", creature(&format!("Actor {count}"), Some(count), 20))?;
         if [1, 2, 8, 40].contains(&count) {
-            let (roster, statements) = measured_roster(&connection)?;
+            let (roster, statements) = measured_roster(&mut connection)?;
             assert_eq!(roster.participants.len(), count as usize);
             assert!(
                 statements <= 8,
