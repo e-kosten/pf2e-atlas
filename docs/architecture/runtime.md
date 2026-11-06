@@ -203,8 +203,9 @@ not add translation-module ingestion or multilingual product support.
 Admission writes one indexed temporary stream. Compact per-pack frame addresses
 preserve declaration order, including packs sharing a physical directory, without
 holding a file open for each pack. Global collision/reference knowledge remains
-compact. After that inventory is complete, only the remaster-alias journals need
-early content preparation. With aliases resolved, bounded record slices combine
+compact. After that inventory is complete, remaster journals use early audience-
+selected preparation. Typed declarations and selected source-file captures derive
+supported aliases against the complete resolver. Bounded record slices then combine
 content, search selection, lexical projection and passage preparation directly
 into the owned publication. They do not replay a second full rich-record stream.
 
@@ -474,7 +475,8 @@ receipts and their reference reads use the normal uncancellable path under
 
 `AtlasRetrievalService` is a concrete service over index, an explicit default
 profile and an optional prepared query embedding. Narrow inherent methods own strict name/key lookup, browse, text search,
-similar, graph, remaster links, Suggested variants and catalog discovery. The
+similar, graph, bounded record/term remaster information, Suggested variants and
+catalog discovery. The
 service uses the concrete index reader defined by the artifact contract.
 
 The shared predicate compiles to index-owned parameterized eligibility SQL.
@@ -526,8 +528,10 @@ defaults to fixed score fusion, and candidate windows remain bounded.
 `SearchRanking` also permits an RRF60 dogfooding alternative (ADR0053).
 CLI `--ranking` and the browser's URL-preserved ranking selector carry that choice
 independently of the embedding profile; adapters do not implement ranking policy.
-Verified legacy preference applies only among records matching the complete request,
-before paging. Exact legacy keys remain accessible. Macros are excluded on every
+Default remaster preference requires one clear approved preferred replacement
+that also matches the complete request, before paging. All versions disables it.
+Exact keys and saved selections retain their identity; filtered saved lists keep
+all independently matching chosen members. Macros are excluded on every
 product path; RollTables remain browse/search/detail records.
 
 Text search uses an exhaustive query-embedding error conversion. Empty input and
@@ -679,8 +683,10 @@ reference previews. Snapshot-local owner selections remain exact.
 
 One bounded app-service Related operation returns verified nonempty categories
 with separate empty, unavailable and error outcomes. Its reference scope is the
-exact selected owner (including the empty root owner path). Verified counterparts
-and typed variant checks apply only to roots. Variant checks retain their bounded
+exact selected owner (including the empty root owner path). Direct remaster
+information describes that selection; an owned entry's exact source-origin context
+is a separately labelled category, with independent availability/error outcomes.
+Typed variant checks apply only to roots. Variant checks retain their bounded
 source-snapshot compatibility verification; category discovery never runs Similar
 ranking. Responses and browser caches use the complete selection and immutable
 artifact-context hash, distinct from snapshot-local navigation fingerprints.
@@ -1029,12 +1035,26 @@ Damage/healing categories come from parsed source tags, not display-string tests
 The browser renders these facts and binds each dialog name to its visible heading.
 These presentation changes require no artifact re-preparation or locale changes.
 
-### Remaster provenance preparation
+### Remaster declaration preparation
 
-Relationship policy v7 replaces opaque remaster evidence with directly captured
-source-content locators. Existing workspaces use source-backed setup preparation,
-atomic checked publication and saved-state preservation; old strings are never
-converted. Suppression consumes only matching pair identities in index-owned SQL.
-Preparation establishes source-backed citations; explicit full validation checks
-all citations. Ordinary search does not scan unrelated provenance. App-service supplies shared readable attribution
-and exact source-field navigation for Other editions and CLI/API consumers.
+`source-remaster-statements/v2` replaces pair-only and opaque-alias authority
+with typed declarations, captured source inputs and rebuildable bindings/supports.
+The unchanged content occurrence policy remains v7. Remaster-input identity
+independently requires metadata publication while content and layout reuse check
+their actual preparation, section, segmentation and model dependencies. Physical
+profile-storage corruption remains an error on that reuse path. Schema30 appends this contract without modifying
+released migration checksums. Existing workspaces use source-backed setup and
+atomic checked publication, preserving saved state and compatible vector reuse.
+Old strings do not supply invented evidence. When a committed contract upgrade
+needs source-backed preparation, ordinary reference reads retain the normal
+readiness boundary rather than serving a compatibility projection.
+
+Full validation verifies captured evidence and exact derived rows. Ordinary
+suppression consumes only relevant supported preference identities in index-owned
+SQL; it does not scan unrelated provenance. App-service supplies bounded notices,
+grouped descriptions and readable source navigation to browser and CLI consumers.
+An exact-key information request may explain an unavailable record without
+creating a record body or changing strict lookup. Independent term context stays
+outside result counts and saved identity. See
+[ADR0067](decisions/0067-remaster-relationships.md) and the
+[artifact contract](artifact-contract.md).

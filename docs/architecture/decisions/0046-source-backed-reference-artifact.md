@@ -1,7 +1,10 @@
 # ADR 0046: Source-backed reference artifact and query projections
 
 Status: Accepted. [ADR0051](0051-persistent-workspace.md) amends the physical
-artifact and saved-database lifetimes; source authority and query policy remain.
+artifact and saved-database lifetimes. [ADR0067](0067-remaster-relationships.md)
+amends remaster pairs and opaque aliases with source-backed declarations, derived
+bindings/supports and explicit consumer policy. The other source authority and
+query boundaries remain.
 
 ## Decision
 

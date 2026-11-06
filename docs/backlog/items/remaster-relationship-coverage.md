@@ -1,6 +1,6 @@
 # Remaster relationship coverage
 
-Status: proposed
+Status: in progress
 
 ## Problem
 
@@ -23,7 +23,7 @@ preference. This is separate from displaying explicit publication era metadata.
 
 The [research and adversarial model review](../../research/remaster-information.md)
 now records the source funnel, missing declaration kinds, schema/provenance limits
-and consumer policy risks. The proposed direction is checked typed declarations
+and consumer policy risks. The accepted direction is checked typed declarations
 with separate lookup aliases and narrowly approved preference relationships.
 
 ## Desired outcome
@@ -52,12 +52,11 @@ preference authority separate.
   lookup. Preserve saved state and compatible embeddings through any required
   artifact upgrade.
 
-Relevant owners are `atlas-ingest/src/source_aliases.rs`, the index's
-`verified_aliases` and `remaster_pairs`, and the shared app-service remaster
-projection. See [artifact evidence policy](../../architecture/artifact-contract.md)
-and [runtime architecture](../../architecture/runtime.md). Do not weaken the
-existing pair contract solely to populate the UI; establish and test the intended
-identity/evidence contract first.
+The baseline extractor and pair tables above are being replaced by the declaration,
+binding and support ownership in [ADR0067](../../architecture/decisions/0067-remaster-relationships.md).
+See [artifact evidence policy](../../architecture/artifact-contract.md) and
+[runtime architecture](../../architecture/runtime.md). Keep navigation, name lookup
+and preferred replacement authority distinct.
 
 Additional reference providers, general UUID redirect handling and explicit
 saved-entry conversion remain separate potential work. Saved records follow the

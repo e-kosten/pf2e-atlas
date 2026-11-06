@@ -36,6 +36,16 @@ one owner per shared failure, reviewed task-specific copy, local persistent acti
 feedback, preserved drafts and truthful save/retry outcomes. Read that policy
 before changing API error rendering or recovery behavior.
 
+## Legacy and remaster context
+
+Show a selected entry's supported remaster context above its rules. Explain the
+specific change and offer exact related navigation; preserve grouped changes and
+uncertainty in the detailed view. Publication-era badges alone do not establish a
+replacement. Label an owned entry's origin information as source context without
+substituting that source's rules for the selected content. Attribute Atlas-reviewed
+correspondences explicitly. [ADR0067](architecture/decisions/0067-remaster-relationships.md)
+owns relationship authority and consumer policy.
+
 ## Product UI Copy
 
 These rules apply to all user-visible copy, including text projected by Rust into

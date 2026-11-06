@@ -139,8 +139,20 @@ atlas graph variants 'Dread Ampoule' --json
 ```
 
 `links` shows references made by an entry and, with `--backlinks`, references to
-it. `uses` finds entries referring to the chosen rule or record. Use `graph remaster
-PACK:ID` for verified counterparts in another edition. Suggested variants are
+it. `uses` finds entries referring to the chosen rule or record. Read source-backed
+remaster changes by exact record key, or look up an authored term independently
+of record lookup:
+
+```bash
+atlas graph remaster bestiary-ability-glossary-srd:hFtNbo1LKYCoDy2O --json
+atlas graph remaster --term 'Attack of Opportunity' --limit 20 --json
+```
+
+The exact-key form can return change information even when the record itself is
+unavailable. Responses preserve grouped changes, uncertain endpoints and source
+attribution. Use `--all-versions` with search, Similar or filter discovery to keep
+all independently matching versions; the default prefers a single verified
+replacement only when it also matches the complete request. Suggested variants are
 possible alternatives, rather than verified names for the same record. Some
 source links have unresolved targets; graph previews retain those links.
 

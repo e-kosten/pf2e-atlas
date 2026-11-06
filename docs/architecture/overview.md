@@ -16,13 +16,13 @@ and [ADR index](./decisions/README.md) for the relevant owner.
 | Crate | Responsibility |
 | --- | --- |
 | `atlas-foundry-model` | Generated authored Foundry DTOs, admission/field retention and versioned checked snapshots. No ingest/runtime/SQLite dependency. |
-| `atlas-record` | Minimal source-backed record, checked embedded addressing, consumer-required borrowed source views, content interpretation/selection and attributed relationship policies. Storage and presentation neutral. |
+| `atlas-record` | Minimal source-backed record, checked embedded addressing, consumer-required borrowed source views, content interpretation/selection, attributed relationship policies and pure remaster extraction/binding/permission derivation over supplied current facts. Storage and presentation neutral. |
 | `atlas-domain` | Shared keys, predicates including exact reference conditions, query catalog/discovery vocabulary, summary facts and neutral source addresses. No SQLite or source parser ownership. |
 | `atlas-embedding` | Two pinned baseline search profiles, shared segmentation/native input budgets, FastEmbed inference, retained shared query sessions and exact vector reuse identity. |
-| `atlas-ingest` | Source filesystem loading/provenance, admission reporting, explicit content/reference context, index inputs and build-time embedding execution. |
+| `atlas-ingest` | Source filesystem loading/provenance, admission reporting, one-time remaster evidence capture, explicit content/reference context, index inputs and build-time embedding execution. |
 | `atlas-storage` | Connection admission, bounded read/write sessions, maintenance ownership, transactional migrations and backups. No domain schema ownership. |
 | `atlas-index` | Reference SQL schema, checked publication/validation, incremental projection updates, native-vector reuse and pending inference, row readers, query catalog/bindings/discovery, parameterized filter SQL and vector queries. |
-| `atlas-search` | Concrete retrieval service, strict lookup, browse, lexical/semantic/hybrid root ordering, bounded exact native-neighbor reuse, attributable witnesses, graph, verified edition preference and Suggested variants. |
+| `atlas-search` | Concrete retrieval service, strict lookup, browse, lexical/semantic/hybrid root ordering, bounded exact native-neighbor reuse, attributable witnesses, bounded remaster information, graph, verified replacement preference and Suggested variants. |
 | `atlas-runtime` | Paths, setup/source-fetch/cache policy, requested configuration, shared migration composition, reference readiness and bounded typed workspace operations. |
 | `atlas-local-state` | Saved-domain SQL and session-bound lists/encounters, revision guards and versioned durable roll receipts. |
 | `atlas-dice` | Bounded library-backed dice evaluation and structured outcomes; no source, persistence or UI policy. |
@@ -40,8 +40,12 @@ arithmetic. App-service owns random reference rolls from these prepared controls
 
 App-service projects explicit publication metadata into an optional legacy/remaster
 edition on record summaries, including selected embedded identities. This era is
-separate from verified record-to-record remaster mappings; missing metadata stays
-absent and missing mappings do not prove that no counterpart exists.
+separate from source-backed remaster declarations and their current bindings.
+Declarations preserve rename, merge, replacement, removal, mechanics and discussion
+context, including grouped and unavailable endpoints. Missing publication metadata
+stays absent; missing relationships do not prove that no counterpart exists.
+[ADR0067](decisions/0067-remaster-relationships.md) owns this distinction and
+separates relationship navigation from preferred search replacements.
 
 `web/atlas-ui` renders generated app contracts with React and Ant Design. Its shared
 `AtlasModal` frame owns form, browsing and confirmation geometry, viewport gutters,
@@ -194,8 +198,11 @@ Keep product retrieval in search. Surfaces do not open SQLite, implement ranking
 scan source clones or load models. Summary reads are body free; explicit detail
 decodes one root and batches selected cache reads. Filters and key scopes apply
 before KNN/FTS ranking. Search witnesses retain actual owner/field/passage addresses.
-Verified remaster preference applies only when both records match the complete
-request; variants are separate derived suggestions.
+Remaster preference suppresses a matching predecessor only for one clear approved
+preferred successor that also matches the complete request. All versions disables
+suppression. Exact record reads and saved-member hydration retain the chosen key;
+filtered saved lists retain all independently matching chosen members. Variants
+are separate derived suggestions.
 
 Keep application workflows in app-service. It uses runtime/search/local-state,
 not index imports or handcrafted SQL readers. Retain the bounded retrieval

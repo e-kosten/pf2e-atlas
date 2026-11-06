@@ -100,6 +100,22 @@ all sections prepared for searching and is the default. Neither setting makes
 keyword search cover every description; meaning-based search covers selected
 passages from descriptions and other prose.
 
+## Legacy and remaster versions
+
+In **Search settings**, **Versions** defaults to **Prefer remaster versions**.
+When an older entry and its single verified preferred replacement both match your
+search and filters, Atlas shows the replacement. Choose **All versions** to see
+both. Merged, ambiguous or otherwise related entries can still appear together.
+
+Open an entry to see its remaster context above the rules. **Explore** shows the
+full change description and its sources, including grouped changes and targets
+that are unavailable in the current content. Searching an older name can also
+show source context beside the results without creating a record for that name.
+
+Saved lists and encounters keep the record you selected and follow updates to
+that record. A replacement link offers navigation to another entry; it does not
+change a saved selection.
+
 ## Try another search model
 
 Setup prepares **BGE Base** by default. You can also try **EmbeddingGemma** to

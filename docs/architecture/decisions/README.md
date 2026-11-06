@@ -39,6 +39,7 @@ implementation status does not require a new ADR; a new durable decision does.
 - [0049: Search lifetimes and pages](0049-search-lifetimes-and-pages.md)
 - [0050: Selectable search profiles](0050-selectable-search-profiles.md)
 - [0066: Embedding compatibility across dependency upgrades](0066-embedding-compatibility.md)
+- [0067: Current-content remaster relationships](0067-remaster-relationships.md)
 - [0053: Field-aware fusion](0053-field-aware-search-fusion.md)
 - [0056: Trait reference entities](0056-trait-reference-entities.md)
 - [0057: Relationship-scoped search](0057-relationship-scoped-search.md)

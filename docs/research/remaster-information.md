@@ -75,7 +75,7 @@ counts.
 | `Rename` spelling variant | 1 |
 | Two-column name-change rows | 173 |
 
-The current [extractor](../../crates/atlas-ingest/src/source_aliases.rs) reduces
+The current [extractor](https://github.com/e-kosten/pf2e-atlas/blob/344395cf917c840f7b2c10469c19200e2bbf4c16/crates/atlas-ingest/src/source_aliases.rs) reduces
 that source through this funnel:
 
 1. 504 rows pass the initial positional/status gate. This includes seven
@@ -167,9 +167,9 @@ latent limitations; zero stored pairs means the pair hazards were not observed
 as production corpus failures.
 
 1. **Evidence multiplicity conflicts with publication.** Extraction emits one
-   input per distinct citation. The [writer](../../crates/atlas-index/src/publication_delta.rs#L148)
+   input per distinct citation. The [writer](https://github.com/e-kosten/pf2e-atlas/blob/344395cf917c840f7b2c10469c19200e2bbf4c16/crates/atlas-index/src/publication_delta.rs#L148)
    rejects a second input with the same legacy key, while the
-   [schema](../../crates/atlas-index/migrations/00000000000001_create_artifact/up.sql#L544)
+   [schema](https://github.com/e-kosten/pf2e-atlas/blob/344395cf917c840f7b2c10469c19200e2bbf4c16/crates/atlas-index/migrations/00000000000001_create_artifact/up.sql#L544)
    has that key as its primary key. Two citations supporting the same pair can
    therefore fail publication. Alias extraction distinguishes evidence strings,
    while its writer rejects duplicate `(record, alias)` inputs as well.
@@ -189,7 +189,7 @@ as production corpus failures.
    exact keys and show both versions. Filtered views and lexical list search apply
    preference, temporarily hiding an explicitly saved legacy member when its
    saved counterpart also matches. This is covered by an existing
-   [regression](../../crates/atlas-app-service/src/result_order_tests.rs#L165), not
+   [regression](https://github.com/e-kosten/pf2e-atlas/blob/344395cf917c840f7b2c10469c19200e2bbf4c16/crates/atlas-app-service/src/result_order_tests.rs#L165), not
    an accidental untested path. The new plan should explicitly change that policy.
 7. **Human CLI and user controls lag the DTO.** Record DTOs carry edition and
    counterpart context, but human record output omits it. Ordinary search

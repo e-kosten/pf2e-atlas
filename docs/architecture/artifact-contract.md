@@ -174,7 +174,8 @@ and non-null ownership, with owner-scoped slug uniqueness.
 | Prepared content | `prepared_content`: selected field outcomes, one compressed sanitized HTML cache, narrow interaction facts and authored/preparation hashes. Plain authored fields are read from the checked source when needed. |
 | Developer reports | `developer_diagnostics`: attributed admission/preparation/resolution/projection evidence. Product record responses do not expose these reports. |
 | Relationships | `relationship_occurrences`: attributed structured and visible content occurrences, preserving repeated links and resolved/unverified/unresolved/blocked status. |
-| Verified identity evidence | `verified_aliases`, `remaster_pairs`: explicit evidence-backed lookup names and edition relationships. |
+| Remaster source evidence | `remaster_source_inputs`, `remaster_declarations`: checked selected-file captures and typed authored change statements. |
+| Remaster projections | `remaster_citations`, `remaster_bindings`, `remaster_terms`, `remaster_aliases`/`remaster_alias_support`, `remaster_preferences`/`remaster_preference_support`, `remaster_metadata`: derived citation FKs, current endpoint resolution, lookup terms, supported aliases/preferences and publication digest. |
 | Selected sections | `selected_sections`: one canonical record/owner/field/ordinal, whole typed address and extent, body hash, role, labels, recipe and public selector. Address components are stored once in named columns. |
 | Precision lexical search | `lexical_units`, `lexical_fts`: root names, verified aliases, typed vocabulary, owned names, headings and structural definition labels. |
 | Semantic search | `search_profiles`, `semantic_units`, profile-specific `native_vectors_<identity hash>` tables keyed by input ID: complete profile identity and one active vector per native input. `semantic_locations` references a canonical section plus chunk ordinal/range; `semantic_units` binds occurrences to profile/native inputs. |
@@ -541,8 +542,11 @@ Public reference generation for search pages, detail envelopes and Related
 availability is `workspace_key:reference_revision`. The complete serialized
 `SourceArtifactBuildContext` SHA-256 additionally identifies preparation/reuse. It covers
 locale, shared preparation policies and the complete sorted profile manifest as
-well as source identity. Shared HTML/content preparation hashes exclude the
-profile manifest, including its model and passage recipe. Raw input hashes identify
+well as source identity. `remaster_inputs_identity` binds the shared remaster
+recipe and exact compiled Atlas correspondence bytes. Offline admission classifies
+a mismatch as source preparation required, independently of Foundry authorship or
+source pin. Shared HTML/content preparation hashes exclude that metadata identity
+and the profile manifest, including its model and passage recipe. Raw input hashes identify
 unprefixed selected strings. Exact numerical reuse also binds the native token count
 and the execution contract, including prefixes and native tokenizer assets. Passage
 layout separately binds the full shared BGE segmentation-tokenizer SHA-256, including
@@ -567,27 +571,43 @@ identity, rehydrating all neighbors in the
 consuming snapshot. Index still owns the masked native query and location decoder;
 search owns bounded transient retention. See [ADR0062](decisions/0062-exact-text-neighbor-reuse.md).
 
-Remaster pair `evidence_json` stores a typed `SourceContentLocator`: source record,
-checked embedded owners and field. Ingest captures the actual journal field that
-contains both explicit endpoint references. Alias provenance remains a separate
-string contract. Relationship preparation `typed-authored-occurrences/v7` requires
-normal source-backed rebuilding of previous evidence; it changes no physical
-schema or published migration checksum. Setup preserves saved lists/encounters,
-record identities and compatible vector reuse. Without compatible source, old
-reference preparation remains unavailable with the normal rebuild guidance.
+Remaster declarations retain authored context, compound kinds, ordered sides,
+references and evidence. Current record bindings and summaries remain derived.
+Selected non-record source inputs retain exact bytes, revision, path, hash and
+adapter origin once. Journal statements use audience-selected prepared content
+and authored reference evidence bound to checked source-field hashes. Excluded
+fragments cannot become statements, aliases or excerpts. The canonical payload
+never incorporates a current resolved label as authored source truth.
 
-Preparation retains remaster citations from checked source fields. Explicit full
-validation decodes every citation and verifies its source field against checked
-content. Ordinary suppression reads only relevant legacy identities through complete SQL candidate membership at both
-endpoints, with one JSON-bound candidate relation and no provenance decoding.
-Unrelated malformed provenance therefore cannot fail a valid search; detail
-consumers still decode their selected citations and never fabricate navigation.
-App-service projects readable record/page attribution and a typed exact destination
-at Other editions, shared with CLI/API remaster links.
+`source-remaster-statements/v2` and the exact remaster-input identity require
+source-backed preparation after the schema30 upgrade. The content occurrence
+policy remains v7; unchanged rendering and passage-layout dependencies stay
+reusable. Old opaque strings are not converted.
+Setup preserves saved lists/encounters, exact record keys and compatible vectors;
+without compatible source, reference readiness reports normal source-preparation
+guidance. Captures and declarations support the installed current corpus rather
+than historical document rendering.
 
-Legacy suppression occurs only when its verified remaster also matches the complete
-current request, before paging. A legacy-only match remains visible, and exact key
-lookup remains available. Suggested variants are bounded evidence-backed same-pack,
+Derived bindings retain explicit key text even when the referenced record is
+absent. Multiple statements can support the same alias or preferred replacement.
+Full validation checks captures, declarations and the exact derived projection,
+including missing or extra citation FKs and support rows. Metadata/support changes
+participate in generation. Ordinary no-op setup skips publication; an unchanged
+remaster digest skips remaster-row writes. Explicit publication retains the
+existing reference-revision increment. Ordinary search
+reads relevant preference identities without decoding unrelated provenance.
+
+Default discovery suppresses a matching predecessor only when one clear approved
+preferred successor also matches the complete request, before counts and paging.
+Conflicting successors and preference cycles grant no unsafe suppression; there
+is no transitive latest-record inference. All versions disables suppression.
+Exact key reads and saved hydration retain chosen identity; saved-list filtering
+retains independently matching chosen members. App-service projects bounded,
+readable relationship notices, grouped details and attribution. Term information
+and exact unavailable-key relationship reads remain separate from strict record
+lookup. See [ADR0067](decisions/0067-remaster-relationships.md).
+
+Suggested variants are bounded evidence-backed same-pack,
 family and compatible-category candidates. Verification distinguishes a complete
 empty result from unavailable seed/candidate compatibility or an incomplete
 bounded check; nonempty results retain ambiguity and truncation. These suggestions
