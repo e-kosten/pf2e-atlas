@@ -6,7 +6,7 @@ import {
   navigateDestination,
 } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
-import { Button, Popover, Radio, Space, Tooltip, Typography, theme } from "antd";
+import { Button, Popover, Radio, Space, Tooltip, Typography } from "antd";
 import { CloseOutlined, DownOutlined } from "@ant-design/icons";
 import { useRef, useState } from "react";
 import type {
@@ -66,7 +66,6 @@ export function LinkFilterControls({
   filter,
   fields,
   title,
-  onAdd,
   onEdit,
   onRemove,
   onAdvanced,
@@ -75,7 +74,6 @@ export function LinkFilterControls({
   filter: QueryPredicate | null;
   fields: FilterEditorFieldView[];
   title: (leaf: LinkLeaf) => string;
-  onAdd: () => void;
   onEdit: (leaf: LinkLeaf, relationship?: QueryRelationship) => string | null;
   onRemove: (leaf: LinkLeaf) => void;
   onAdvanced: () => void;
@@ -85,46 +83,47 @@ export function LinkFilterControls({
   const expression =
     filter && clauses.length ? humanExpression(filter, title, fields) : "";
   const rootOperator = "Grouped filters";
+  if (!clauses.length) return null;
   return (
-    <>
-      <Button onClick={onAdd}>
-        Links <DownOutlined aria-hidden="true" />
-      </Button>
-      {!!clauses.length &&
-        (filter && simple(filter) ? (
-          clauses.map((leaf) => (
-            <LinkChip
-              key={leaf.clause_id}
-              leaf={leaf}
-              title={title(leaf)}
-              onEdit={onEdit}
-              onRemove={onRemove}
-            />
-          ))
-        ) : (
-          <Tooltip
-            title={<span style={{ whiteSpace: "normal" }}>{expression}</span>}
-            trigger={["hover", "focus"]}
-            styles={{ root: { maxWidth: "min(600px, calc(100vw - 24px))" } }}
+    <div
+      className="filter-controls__applied-links"
+      role="group"
+      aria-label="Link filters"
+    >
+      {filter && simple(filter) ? (
+        clauses.map((leaf) => (
+          <LinkChip
+            key={leaf.clause_id}
+            leaf={leaf}
+            title={title(leaf)}
+            onEdit={onEdit}
+            onRemove={onRemove}
+          />
+        ))
+      ) : (
+        <Tooltip
+          title={<span style={{ whiteSpace: "normal" }}>{expression}</span>}
+          trigger={["hover", "focus"]}
+          styles={{ root: { maxWidth: "min(600px, calc(100vw - 24px))" } }}
+        >
+          <Button
+            className="link-filter-summary"
+            onClick={onAdvanced}
+            aria-label={`${rootOperator}: ${clauses.length} link conditions. Edit advanced filters.`}
           >
-            <Button
-              className="link-filter-summary"
-              onClick={onAdvanced}
-              aria-label={`${rootOperator}: ${clauses.length} link conditions. Edit advanced filters.`}
-            >
-              <span>
-                {rootOperator} · {clauses.length} link conditions
-              </span>
-              <span className="link-filter-summary__expression">{expression}</span>
-            </Button>
-          </Tooltip>
-        ))}
+            <span>
+              {rootOperator} · {clauses.length} link conditions
+            </span>
+            <span className="link-filter-summary__expression">{expression}</span>
+          </Button>
+        </Tooltip>
+      )}
       {limit !== undefined && clauses.length >= limit && (
         <Typography.Text role="status">
           Remove a link condition before adding another.
         </Typography.Text>
       )}
-    </>
+    </div>
   );
 }
 function LinkChip({
@@ -139,7 +138,6 @@ function LinkChip({
   onRemove: (leaf: LinkLeaf) => void;
 }) {
   const reference = useReferencePreview();
-  const { token } = theme.useToken();
   const [open, setOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -163,9 +161,9 @@ function LinkChip({
     }
   }
   return (
-    <div
+    <Space.Compact
       className="relationship-filter"
-      style={{ gap: token.marginXXS }}
+      size="small"
       role="group"
       aria-label="Relationship filter"
     >
@@ -267,6 +265,8 @@ function LinkChip({
       >
         <Button
           ref={trigger}
+          className="relationship-filter__edit"
+          title={`${direction} ${title}`}
           color="default"
           variant="filled"
           icon={<DownOutlined aria-hidden="true" />}
@@ -282,7 +282,8 @@ function LinkChip({
       </Popover>
       <Tooltip title="Remove relationship filter" trigger={["hover", "focus"]}>
         <Button
-          type="text"
+          color="default"
+          variant="filled"
           icon={<CloseOutlined />}
           aria-label="Remove relationship filter"
           onClick={() => {
@@ -291,6 +292,6 @@ function LinkChip({
           }}
         />
       </Tooltip>
-    </div>
+    </Space.Compact>
   );
 }

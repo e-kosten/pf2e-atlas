@@ -1,3 +1,5 @@
+import { restoreOverlayFocus } from "../ui/overlays/restoreOverlayFocus";
+import { createPortal } from "react-dom";
 import { AtlasDrawer as Drawer } from "../ui/overlays/AtlasDrawer";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import {
@@ -15,6 +17,7 @@ import {
 } from "antd";
 import {
   ClearOutlined,
+  DownOutlined,
   CloseOutlined,
   FilterOutlined,
   PlusOutlined,
@@ -121,7 +124,7 @@ export function FilterControls({
 }: {
   filterState: FilterPanelState;
   includeSearch?: boolean;
-  layout?: "panel" | "toolbar" | "inline-toolbar";
+  layout?: "panel" | "toolbar";
   searchRowEnd?: ReactNode;
   searchInputRef?: RefObject<InputRef | null>;
   similarSearch?: SimilarSearchCriterion;
@@ -130,7 +133,11 @@ export function FilterControls({
 }) {
   const { search, setSearch } = workspace;
   const [advanced, setAdvanced] = useState(false);
+  const [selectionContainer, setSelectionContainer] = useState<HTMLDivElement | null>(
+    null,
+  );
   const advancedTrigger = useRef<HTMLButtonElement>(null);
+  const linksTrigger = useRef<HTMLButtonElement>(null);
   const [draftRevision, setDraftRevision] = useState(0);
   const editor = workspace.filterEditor;
   const fields = useMemo(
@@ -312,159 +319,165 @@ export function FilterControls({
   );
   const criteria = (
     <>
-      <div className="common-filters">
-        {!editor && workspace.filterDiscoveryLoading && (
-          <div
-            className="filter-controls__pending"
-            role="status"
-            aria-label="Loading filters"
-          >
-            {[112, 144, 112, 112].map((width, index) => (
-              <Skeleton.Button key={index} style={{ width }} aria-hidden="true" />
-            ))}
-          </div>
-        )}
-        {(editor?.common_field_ids ?? []).map((id) => {
-          const field = fields.find((candidate) => candidate.definition.id === id);
-          return field ? (
-            <CommonFilter
-              key={id + ":" + draftRevision}
-              field={field}
-              layout={commonLayout}
-              condition={
-                prepared.query
-                  ? commonDraftCondition(prepared.query, field.definition)
-                  : { status: "empty", clause: null }
-              }
-              range={
-                prepared.query
-                  ? commonDraftRange(prepared.query, field.definition)
-                  : null
-              }
-              onChange={(replacement) => {
-                if (prepared.query)
-                  prepared.changeCommon(
-                    replaceCommonDraft(prepared.query, field.definition, replacement),
-                    field.definition,
-                  );
-              }}
-              onRangeChange={(range) => {
-                if (prepared.query)
-                  prepared.changeCommon(
-                    replaceCommonRangeDraft(prepared.query, field.definition, range),
-                    field.definition,
-                  );
-              }}
-              workspace={countWorkspace}
-              onAdvanced={() => setAdvanced(true)}
-            />
-          ) : null;
-        })}
-      </div>
-      <LinkFilterControls
-        filter={search.filter}
-        fields={fields}
-        title={linkTitle}
-        limit={editor?.limits.relationship_leaves}
-        onAdd={() => {
-          const limit = editor?.limits.relationship_leaves;
-          if (limit !== undefined && linkClauses(search.filter).length >= limit) {
-            setAdvanced(true);
-            return;
-          }
-          const id = crypto.randomUUID();
-          openPicker(undefined, undefined, id, (relationship) =>
-            latestEditor.current.addLink(relationship, id),
-          );
-        }}
-        onEdit={(leaf, relationship) => {
-          if (!relationship) {
-            openPicker(leaf.relationship, linkTitle(leaf), leaf.clause_id!, (next) =>
-              latestEditor.current.editLink(leaf, next),
-            );
-            return null;
-          }
-          const error = latestEditor.current.editLink(leaf, relationship);
-          const title = linkTitle(leaf);
-          if (
-            !error &&
-            generation &&
-            title !== "Loading record…" &&
-            title !== "Record unavailable"
-          )
-            setDraftLabels((current) => ({
-              ...current,
-              [leaf.clause_id!]: { relationship, title, generation },
-            }));
-          return error;
-        }}
-        onRemove={(leaf) => {
-          latestEditor.current.editLink(leaf, null);
-        }}
-        onAdvanced={() => setAdvanced(true)}
-      />
-      {additionalFilters}
-      <div className="filter-panel-actions">
+      <div className="filter-controls__tools">
+        <div className="common-filters">
+          {!editor && workspace.filterDiscoveryLoading && (
+            <div
+              className="filter-controls__pending"
+              role="status"
+              aria-label="Loading filters"
+            >
+              {[112, 144, 112, 112].map((width, index) => (
+                <Skeleton.Button key={index} style={{ width }} aria-hidden="true" />
+              ))}
+            </div>
+          )}
+          {(editor?.common_field_ids ?? []).map((id) => {
+            const field = fields.find((candidate) => candidate.definition.id === id);
+            return field ? (
+              <CommonFilter
+                key={id + ":" + draftRevision}
+                field={field}
+                layout={commonLayout}
+                selectionContainer={
+                  commonLayout === "toolbar" ? selectionContainer : undefined
+                }
+                condition={
+                  prepared.query
+                    ? commonDraftCondition(prepared.query, field.definition)
+                    : { status: "empty", clause: null }
+                }
+                range={
+                  prepared.query
+                    ? commonDraftRange(prepared.query, field.definition)
+                    : null
+                }
+                onChange={(replacement) => {
+                  if (prepared.query)
+                    prepared.changeCommon(
+                      replaceCommonDraft(prepared.query, field.definition, replacement),
+                      field.definition,
+                    );
+                }}
+                onRangeChange={(range) => {
+                  if (prepared.query)
+                    prepared.changeCommon(
+                      replaceCommonRangeDraft(prepared.query, field.definition, range),
+                      field.definition,
+                    );
+                }}
+                workspace={countWorkspace}
+                onAdvanced={() => setAdvanced(true)}
+              />
+            ) : null;
+          })}
+        </div>
         <Button
-          ref={advancedTrigger}
-          icon={<FilterOutlined aria-hidden="true" />}
-          onClick={() => setAdvanced(!advanced)}
-          aria-expanded={advanced}
+          ref={linksTrigger}
+          onClick={() => {
+            const limit = editor?.limits.relationship_leaves;
+            if (limit !== undefined && linkClauses(search.filter).length >= limit) {
+              setAdvanced(true);
+              return;
+            }
+            const id = crypto.randomUUID();
+            openPicker(undefined, undefined, id, (relationship) =>
+              latestEditor.current.addLink(relationship, id),
+            );
+          }}
         >
-          Advanced filters
+          Links <DownOutlined aria-hidden="true" />
         </Button>
-        {(search.filter ||
-          search.filterError ||
-          prepared.error ||
-          (prepared.query?.rules.length ?? 0) > 0) && (
-          <Tooltip title="Clear filters">
-            <Button
-              type="text"
-              icon={<ClearOutlined aria-hidden="true" />}
-              aria-label="Clear filters"
-              onClick={() => {
-                prepared.clear();
-                setDraftRevision((revision) => revision + 1);
-                setSearch(clearAllFilters(search));
-                advancedTrigger.current?.focus();
-              }}
-            />
-          </Tooltip>
-        )}
+        {additionalFilters}
+        <div className="filter-panel-actions">
+          <Button
+            ref={advancedTrigger}
+            className="filter-controls__advanced"
+            icon={<FilterOutlined aria-hidden="true" />}
+            onClick={() => setAdvanced(!advanced)}
+            aria-expanded={advanced}
+            aria-label="Advanced filters"
+          >
+            Advanced
+          </Button>
+          {(search.filter ||
+            search.filterError ||
+            prepared.error ||
+            (prepared.query?.rules.length ?? 0) > 0) && (
+            <Tooltip title="Clear filters">
+              <Button
+                type="text"
+                icon={<ClearOutlined aria-hidden="true" />}
+                aria-label="Clear filters"
+                onClick={() => {
+                  prepared.clear();
+                  setDraftRevision((revision) => revision + 1);
+                  setSearch(clearAllFilters(search));
+                  advancedTrigger.current?.focus();
+                }}
+              />
+            </Tooltip>
+          )}
+        </div>
+      </div>
+      <div
+        className="filter-controls__selections"
+        role="group"
+        aria-label="Applied filters"
+      >
+        <div
+          className="filter-controls__common-selections"
+          ref={setSelectionContainer}
+        />
+        <LinkFilterControls
+          filter={search.filter}
+          fields={fields}
+          title={linkTitle}
+          limit={editor?.limits.relationship_leaves}
+          onEdit={(leaf, relationship) => {
+            if (!relationship) {
+              openPicker(leaf.relationship, linkTitle(leaf), leaf.clause_id!, (next) =>
+                latestEditor.current.editLink(leaf, next),
+              );
+              return null;
+            }
+            const error = latestEditor.current.editLink(leaf, relationship);
+            const title = linkTitle(leaf);
+            if (
+              !error &&
+              generation &&
+              title !== "Loading record…" &&
+              title !== "Record unavailable"
+            )
+              setDraftLabels((current) => ({
+                ...current,
+                [leaf.clause_id!]: { relationship, title, generation },
+              }));
+            return error;
+          }}
+          onRemove={(leaf) => {
+            restoreOverlayFocus(
+              linksTrigger.current,
+              linksTrigger.current?.ownerDocument.activeElement as HTMLElement | null,
+            );
+            latestEditor.current.editLink(leaf, null);
+          }}
+          onAdvanced={() => setAdvanced(true)}
+        />
       </div>
     </>
   );
   return (
     <LinkEditingContext value={linkEditing}>
-      <aside
-        className={
-          layout === "panel"
-            ? "filter-panel"
-            : layout === "inline-toolbar"
-              ? "filter-toolbar filter-toolbar--inline"
-              : "filter-toolbar"
-        }
-      >
+      <aside className={layout === "panel" ? "filter-panel" : "filter-toolbar"}>
         {children}
-        {layout === "inline-toolbar" ? (
-          <PrimaryToolbar className="filter-controls__criteria filter-controls__inline">
+        {includeSearch && (
+          <PrimaryToolbar className="filter-controls__search-row">
             {searchEntry}
             {searchRowEnd}
-            {criteria}
           </PrimaryToolbar>
-        ) : (
-          <>
-            {includeSearch && (
-              <PrimaryToolbar className="filter-controls__search-row">
-                {searchEntry}
-                {searchRowEnd}
-              </PrimaryToolbar>
-            )}
-            <CriteriaHost className="filter-controls__criteria">
-              {criteria}
-            </CriteriaHost>
-          </>
         )}
+        <CriteriaHost className="filter-controls__criteria">{criteria}</CriteriaHost>
         <Drawer
           title="Advanced filters"
           placement="left"
@@ -512,8 +525,10 @@ function CommonFilter({
   workspace,
   onAdvanced,
   layout,
+  selectionContainer,
 }: {
   field: FilterEditorFieldView;
+  selectionContainer?: HTMLElement | null;
   layout: "panel" | "toolbar";
   condition: CommonCondition;
   range: [string, string] | null;
@@ -523,6 +538,7 @@ function CommonFilter({
   onAdvanced: () => void;
 }) {
   const update = onChange;
+  const rangeTrigger = useRef<HTMLButtonElement>(null);
   return (
     <section
       className={
@@ -579,16 +595,18 @@ function CommonFilter({
             }
           >
             <Button
+              ref={rangeTrigger}
               aria-label={
                 "Edit " + field.label + " range: " + rangeSummary(range, "words")
               }
             >
-              {field.label}: {rangeSummary(range)}
+              {field.label}
             </Button>
           </Popover>
         )
       ) : (
         <CommonChoicePicker
+          selectionContainer={selectionContainer}
           field={field}
           clause={condition.clause}
           scope={workspace.vocabularyScope ?? { kind: "artifact" }}
@@ -599,6 +617,25 @@ function CommonFilter({
           onChange={update}
         />
       )}
+      {layout === "toolbar" &&
+        range?.some((bound) => bound.trim()) &&
+        selectionContainer &&
+        createPortal(
+          <Button
+            size="small"
+            color="default"
+            variant="filled"
+            aria-label={`Clear ${field.label} range`}
+            onClick={(event) => {
+              restoreOverlayFocus(rangeTrigger.current, event.currentTarget);
+              onRangeChange(["", ""]);
+            }}
+          >
+            {field.label}: {rangeSummary(range)}
+            <CloseOutlined aria-hidden="true" />
+          </Button>,
+          selectionContainer,
+        )}
     </section>
   );
 }

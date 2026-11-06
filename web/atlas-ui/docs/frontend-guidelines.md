@@ -34,8 +34,17 @@ chooses `Reset search link`, which removes the unsupported selection while keepi
 criteria and reading state. Stale unavailable browser preferences are optional
 defaults and resolve to the valid server or sole stored default on launch.
 Unbuilt catalog entries are never offered as choices in the comparison UI.
-`FilterControls` owns the input row and its trailing control slot; the row wraps
-when space requires it without covering the existing `Input.Search` control.
+`FilterControls` owns one search row with its trailing settings control. Let the
+search field shrink so settings stays beside it. Similar uses the same normal
+control height as text search; truncate its source title to one line while
+retaining the complete linked title and source-preview interaction. Filter
+controls follow on their own row at their natural widths with the same spacing
+at every width; wrap when they no longer fit instead of stretching into a grid.
+Keep trigger labels stable as choices change. Common selections, numeric ranges
+and link conditions share a separate wrapping area, so values do not create holes
+beneath individual controls. Use compact joined edit/remove link chips; keep each
+remove action attached to its chip and its complete title available from the
+link-scope popover.
 The settings icon has a normal-sized button target, accessible Search settings
 name and a tooltip summarizing effective values. Model and method controls live
 inside the shared dialog; ordinary
@@ -359,8 +368,9 @@ mismatches with local pixel heights or additional configuration providers.
 The shared owner aligns controls at the top, with consistent gaps and responsive
 wrapping. Feature composition supplies meaningful widths: let search shrink
 before a primary action wraps, and use a full search row on phone where needed.
-Selected filter choices may extend beneath their trigger without centering its
-neighbors against the taller group. Verify actual input, selector and button
+Toolbar filter selections occupy their shared applied-filter area instead of
+extending beneath individual triggers. Standalone choice controls may keep values
+beneath their trigger without centering neighboring controls against that group. Verify actual input, selector and button
 alignment together at wide, intermediate and phone widths in both themes.
 
 Index pages use the shared page toolbar slot below the heading; feature styles
@@ -635,8 +645,16 @@ Results controls and reader navigation/status share its naturally wrapping row;
 the reader starts directly with its document, without a Preview label or a
 separately measured header. Both panes retain independent scrolling below the
 shared toolbar. On narrow layouts, the visible pane owns its header and the
-reader keeps the Results return control. Verify pagination, reader navigation
-and status through wrapping, pane resizing and loading/empty results.
+reader keeps the Results return control. The browse host supplies a trailing
+Clear selection icon when its feature provides a clear callback. Search and
+saved lists clear their selected URL; record pickers clear the candidate while
+retaining their form draft. Restore focus to the result context and disable clear
+during a submitted write. On narrow layouts, keep clear available in the results
+header whenever a candidate remains selected. Removing an applied filter chip
+returns keyboard focus to its filter trigger. Keep Open full page with the document identity while
+ordinary browse details load or change, rather than briefly moving it into the
+workspace toolbar. Verify pagination, reader navigation and status through
+wrapping, pane resizing and loading/empty results.
 
 One action/control group uses one Ant size. Inputs, Selects, text buttons and
 icon buttons in a toolbar align at that size; icon-only and secondary do not imply

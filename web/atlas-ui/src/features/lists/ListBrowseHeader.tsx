@@ -100,11 +100,7 @@ export function ListBrowseHeader({
               <ListTagSummary tags={list.tags} lines={2} />
             </div>
           )}
-          <FilterControls
-            filterState={filterState}
-            includeSearch
-            layout="inline-toolbar"
-          />
+          <FilterControls filterState={filterState} includeSearch layout="toolbar" />
         </>
       )}
     </section>

@@ -33,7 +33,6 @@ function setup(
           filter={filter}
           fields={[]}
           title={() => "Leather Armor"}
-          onAdd={vi.fn()}
           onEdit={edit}
           onRemove={remove}
           onAdvanced={advanced}
