@@ -2241,6 +2241,9 @@ results, subject to ordinary count availability for the picker's own search.
 For a picker opening, retain the fixed frame and show controls/results together
 when metadata and initial data are ready; delay loading feedback through the
 shared LoadingStatus. Once initialized, keep search and filters available during
-refreshes. If the parent generation changes, offer Close picker and explain that
+refreshes. Retain the backend's scope classification independently of result rows
+when direction, link scope or target criteria change. Invalidate that retained
+classification when the static parent context or artifact generation changes;
+a pending page must not temporarily imply a connected corpus. If the parent generation changes, offer Close picker and explain that
 the parent results must be refreshed before reopening; retrying the unchanged
 parent descriptor cannot recover it.

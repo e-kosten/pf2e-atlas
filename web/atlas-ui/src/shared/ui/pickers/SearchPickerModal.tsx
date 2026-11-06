@@ -217,6 +217,41 @@ export function SearchPickerModal<FormValues>({
       return page;
     },
   });
+  // Scope classification belongs to the static parent context, not a direction's
+  // transient result page. Retain this backend fact while different rows load.
+  const scopeContext = JSON.stringify([
+    request.connection_scope?.parent,
+    retrieval.epoch,
+    retrieval.generation,
+  ]);
+  const [retainedScope, setRetainedScope] = useState<{
+    context: string;
+    value: SearchResultsPage["connection_scope"];
+  } | null>(null);
+  const generationChanged = isArtifactGenerationChanged(recordResults.error);
+  // Changing queries clears their error, but cannot revalidate a rejected generation.
+  const scopeGeneration = JSON.stringify([retrieval.epoch, retrieval.generation]);
+  const [invalidScopeGeneration, setInvalidScopeGeneration] = useState<string | null>(
+    null,
+  );
+  if (generationChanged && invalidScopeGeneration !== scopeGeneration)
+    setInvalidScopeGeneration(scopeGeneration);
+  const scopeInvalid = generationChanged || invalidScopeGeneration === scopeGeneration;
+  const currentScope = scopeInvalid ? undefined : recordResults.data?.connection_scope;
+  if (scopeInvalid && retainedScope) {
+    setRetainedScope(null);
+  } else if (
+    currentScope &&
+    !recordResults.isPlaceholderData &&
+    (retainedScope?.context !== scopeContext || retainedScope.value !== currentScope)
+  ) {
+    setRetainedScope({ context: scopeContext, value: currentScope });
+  }
+  const guidanceScope =
+    currentScope ??
+    (retainedScope?.context === scopeContext && !scopeInvalid
+      ? retainedScope.value
+      : undefined);
   useReferenceQueryRetirement(resultsKey);
   useReferenceGenerationAdoption(
     retrieval,
@@ -261,7 +296,6 @@ export function SearchPickerModal<FormValues>({
     queryKeyPrefix: ["filter-discovery", "picker", retrieval.epoch],
     catalogIdentity: [retrieval.epoch],
   });
-  const generationChanged = isArtifactGenerationChanged(recordResults.error);
   function refreshResults() {
     if (request.connection_scope) {
       onCancel();
@@ -460,7 +494,7 @@ export function SearchPickerModal<FormValues>({
               filterDiscoveryError: discovery.errorMessage,
             }}
           >
-            {searchHeader?.(recordResults.data?.connection_scope)}
+            {searchHeader?.(guidanceScope)}
           </FilterControls>
           <div className="reference-picker__feedback">
             <SearchProfileNotice />

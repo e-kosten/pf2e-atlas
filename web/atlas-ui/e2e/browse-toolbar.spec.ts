@@ -653,4 +653,46 @@ test("Advanced link edits inside OR disclose all-entry discovery and send static
     kind: "all_entries",
     reason: "non_conjunctive_context",
   });
+  const guidance = picker.locator(".link-picker-context__description");
+  await guidance.evaluate((element) => {
+    const observer = new MutationObserver(() => {
+      if (element.textContent !== "Searching all entries · Complex filter")
+        element.setAttribute("data-scope-flash", "true");
+    });
+    observer.observe(element, { childList: true, subtree: true, characterData: true });
+  });
+  let release!: () => void;
+  let requested!: () => void;
+  let fulfilled!: () => void;
+  const hold = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const pending = new Promise<void>((resolve) => {
+    requested = resolve;
+  });
+  const finished = new Promise<void>((resolve) => {
+    fulfilled = resolve;
+  });
+  await page.route("**/api/search/page", async (route) => {
+    if (route.request().postDataJSON().connection_scope?.direction !== "outgoing")
+      return route.continue();
+    const response = await route.fetch();
+    requested();
+    await hold;
+    await route.fulfill({ response });
+    fulfilled();
+  });
+  await picker.getByText("Linked from", { exact: true }).click();
+  try {
+    await pending;
+    await expect(guidance).toHaveText("Searching all entries · Complex filter");
+    await expect(guidance).not.toHaveAttribute("data-scope-flash", "true");
+  } finally {
+    release();
+    await finished;
+    await page.unrouteAll({ behavior: "wait" });
+  }
+  await picker.getByText("Links to", { exact: true }).click();
+  await expect(guidance).toHaveText("Searching all entries · Complex filter");
+  await expect(guidance).not.toHaveAttribute("data-scope-flash", "true");
 });
