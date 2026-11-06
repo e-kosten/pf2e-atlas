@@ -117,6 +117,7 @@ export function FilterPanel({
 export function FilterControls({
   filterState: workspace,
   includeSearch = true,
+  includeLinks = true,
   layout = "panel",
   searchRowEnd,
   searchInputRef,
@@ -126,6 +127,7 @@ export function FilterControls({
 }: {
   filterState: FilterPanelState;
   includeSearch?: boolean;
+  includeLinks?: boolean;
   layout?: "panel" | "toolbar";
   searchRowEnd?: ReactNode;
   searchInputRef?: RefObject<InputRef | null>;
@@ -197,7 +199,6 @@ export function FilterControls({
   }
   function openPicker(
     initial: QueryRelationship | undefined,
-    title: string | undefined,
     id: string,
     confirm: (relationship: QueryRelationship) => string | null,
     advanced = false,
@@ -209,7 +210,6 @@ export function FilterControls({
       advanced,
       open: true,
       initial,
-      initialTitle: title,
       parent: {
         ...(workspace.resultRequest ??
           buildSearchRequest(
@@ -287,9 +287,6 @@ export function FilterControls({
       const id = rule.id ?? crypto.randomUUID();
       openPicker(
         initial,
-        initial
-          ? linkTitle({ kind: "relationship", clause_id: id, relationship: initial })
-          : undefined,
         id,
         (relationship) => {
           if (initial && sameRelationship(initial, relationship)) return null;
@@ -409,22 +406,24 @@ export function FilterControls({
             ) : null;
           })}
         </div>
-        <Button
-          ref={linksTrigger}
-          onClick={() => {
-            const limit = editor?.limits.relationship_leaves;
-            if (limit !== undefined && linkClauses(search.filter).length >= limit) {
-              setAdvanced(true);
-              return;
-            }
-            const id = crypto.randomUUID();
-            openPicker(undefined, undefined, id, (relationship) =>
-              latestEditor.current.addLink(relationship, id),
-            );
-          }}
-        >
-          Links <DownOutlined aria-hidden="true" />
-        </Button>
+        {includeLinks && (
+          <Button
+            ref={linksTrigger}
+            onClick={() => {
+              const limit = editor?.limits.relationship_leaves;
+              if (limit !== undefined && linkClauses(search.filter).length >= limit) {
+                setAdvanced(true);
+                return;
+              }
+              const id = crypto.randomUUID();
+              openPicker(undefined, id, (relationship) =>
+                latestEditor.current.addLink(relationship, id),
+              );
+            }}
+          >
+            Links <DownOutlined aria-hidden="true" />
+          </Button>
+        )}
         {additionalFilters}
         <div className="filter-panel-actions">
           <Tooltip
@@ -481,7 +480,7 @@ export function FilterControls({
           limit={editor?.limits.relationship_leaves}
           onEdit={(leaf, relationship) => {
             if (!relationship) {
-              openPicker(leaf.relationship, linkTitle(leaf), leaf.clause_id!, (next) =>
+              openPicker(leaf.relationship, leaf.clause_id!, (next) =>
                 latestEditor.current.editLink(leaf, next),
               );
               return null;
@@ -501,9 +500,10 @@ export function FilterControls({
             return error;
           }}
           onRemove={(leaf) => {
+            const trigger = linksTrigger.current ?? advancedTrigger.current;
             restoreOverlayFocus(
-              linksTrigger.current,
-              linksTrigger.current?.ownerDocument.activeElement as HTMLElement | null,
+              trigger,
+              trigger?.ownerDocument.activeElement as HTMLElement | null,
             );
             latestEditor.current.editLink(leaf, null);
           }}

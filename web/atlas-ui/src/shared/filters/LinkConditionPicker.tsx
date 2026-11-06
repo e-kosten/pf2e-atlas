@@ -1,13 +1,15 @@
 import { linkScopeCopy } from "./linkScopeCopy";
-import { useReferencePreview } from "../records/ReferencePreviewContext";
-import {
-  isPrimaryActivation,
-  navigateDestination,
-  destinationHref,
-} from "../../app/navigation";
-import { recordDestination } from "../../app/destinations";
 import { QuestionCircleOutlined } from "@ant-design/icons";
-import { Button, Form, Popover, Radio, Select, Typography } from "antd";
+import {
+  Button,
+  ConfigProvider,
+  Form,
+  Popover,
+  Radio,
+  Select,
+  Typography,
+  theme,
+} from "antd";
 import { useRef, useState, type KeyboardEvent } from "react";
 import type {
   QueryRelationship,
@@ -25,13 +27,11 @@ type LinkFilterForm = {
 export function LinkConditionPicker({
   open,
   initial,
-  initialTitle,
   parent,
   parentListRef,
   onCancel,
   onConfirm,
 }: LinkPickerProps) {
-  const reference = useReferencePreview();
   const [candidate, setCandidate] = useState<PickerSelection | null | undefined>(
     undefined,
   );
@@ -39,6 +39,7 @@ export function LinkConditionPicker({
   const [scopeHelpOpen, setScopeHelpOpen] = useState(false);
   const scopeHelpTrigger = useRef<HTMLButtonElement>(null);
   const [form] = Form.useForm<LinkFilterForm>();
+  const { token } = theme.useToken();
   const [direction, setDirection] = useState<QueryRelationshipDirection>(
     initial?.direction ?? "incoming",
   );
@@ -74,9 +75,21 @@ export function LinkConditionPicker({
   }
   const controls = (
     <>
-      <div className="link-picker-context__direction">
+      <ConfigProvider
+        theme={{
+          components: {
+            Radio: {
+              buttonSolidCheckedBg: token.colorPrimaryBg,
+              buttonSolidCheckedColor: token.colorPrimaryText,
+              buttonSolidCheckedHoverBg: token.colorPrimaryBgHover,
+              buttonSolidCheckedActiveBg: token.colorPrimaryBgHover,
+            },
+          },
+        }}
+      >
         <Radio.Group
           aria-label="Link filter direction"
+          buttonStyle="solid"
           value={direction}
           onChange={(event) => {
             setDirection(event.target.value);
@@ -87,7 +100,7 @@ export function LinkConditionPicker({
           <Radio.Button value="incoming">Links to</Radio.Button>
           <Radio.Button value="outgoing">Linked from</Radio.Button>
         </Radio.Group>
-      </div>
+      </ConfigProvider>
       <div className="link-picker-context__scope">
         <Select
           className="link-picker-context__scope-select"
@@ -144,6 +157,8 @@ export function LinkConditionPicker({
   return (
     <SearchPickerModal<LinkFilterForm>
       confirmLabel={initial ? "Apply" : "Add"}
+      footerLayout="actions"
+      initialSelection={initial?.selection}
       title={initial ? "Edit link condition" : "Add link condition"}
       open={open}
       form={form}
@@ -183,34 +198,6 @@ export function LinkConditionPicker({
         feedback ? (
           <Typography.Text role="status">{feedback}</Typography.Text>
         ) : undefined
-      }
-      summary={
-        selection && (
-          <Typography.Link
-            onClick={(event) => {
-              if (!isPrimaryActivation(event)) return;
-              event.preventDefault();
-              if (reference) {
-                reference.open(selection.record_key, event.currentTarget, selection);
-                return;
-              }
-              navigateDestination(
-                recordDestination({
-                  recordKey: selection.record_key,
-                  selection: selection,
-                }),
-              );
-            }}
-            href={destinationHref(
-              recordDestination({
-                recordKey: selection.record_key,
-                selection: selection,
-              }),
-            )}
-          >
-            {candidate?.record.title ?? initialTitle ?? "Record unavailable"}
-          </Typography.Link>
-        )
       }
     />
   );

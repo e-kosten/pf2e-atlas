@@ -32,6 +32,7 @@ import {
 } from "../../search/searchIdentity";
 import type {
   RecordSummaryView,
+  RecordNavigationView,
   RecordDetailView,
   SearchResultsPage,
   SearchResultsRequest,
@@ -84,6 +85,8 @@ export function SearchPickerModal<FormValues>({
   summary,
   searchHeader,
   selectionContext,
+  footerLayout = "form",
+  initialSelection,
 }: {
   buildRequest: (query: string) => SearchResultsRequest;
   disabled?: boolean;
@@ -105,6 +108,8 @@ export function SearchPickerModal<FormValues>({
   summary?: React.ReactNode;
   searchHeader?: React.ReactNode;
   selectionContext?: string;
+  footerLayout?: "form" | "actions";
+  initialSelection?: RecordNavigationView;
 }) {
   useDismissOnReadingNavigation(open && !disabled, onCancel);
   const formId = useId();
@@ -220,10 +225,12 @@ export function SearchPickerModal<FormValues>({
     resultsKeyForGeneration(recordResults.data?.artifact_generation ?? null),
   );
   const reading = useReferenceReading(
-    null,
+    initialSelection ? { navigation: initialSelection } : null,
     open && !retrieval.recovering,
     retrieval.epoch,
-    retrieval.generation,
+    retrieval.generation ??
+      request.connection_scope?.parent.expected_artifact_generation ??
+      null,
   );
   const selection = usePreparedReferenceSelection(
     reading,
@@ -320,7 +327,7 @@ export function SearchPickerModal<FormValues>({
         footer={
           <Form
             name={formId}
-            className={`reference-picker__footer${summary ? " reference-picker__footer--summary" : ""}`}
+            className={`reference-picker__footer${summary ? " reference-picker__footer--summary" : ""}${footerLayout === "actions" ? " reference-picker__footer--actions" : ""}`}
             disabled={disabled}
             form={form}
             layout="vertical"
@@ -328,19 +335,30 @@ export function SearchPickerModal<FormValues>({
               if (!disabled && !preparing) onFinish(values);
             }}
           >
-            {summary && <div className="reference-picker__summary">{summary}</div>}
-            <div className="reference-picker__footer-content">
-              <div className="reference-picker__fields">
-                {typeof children === "function"
-                  ? children(reading.parentDetail)
-                  : children}
+            {footerLayout === "actions" ? (
+              <div className="reference-picker__action-status">
+                {status && <div className="reference-picker__status">{status}</div>}
               </div>
-              {!summary && status}
-              {summary && status && (
-                <div className="reference-picker__status">{status}</div>
-              )}
-            </div>
-            <Space wrap className="reference-picker__actions">
+            ) : (
+              <>
+                {summary && <div className="reference-picker__summary">{summary}</div>}
+                <div className="reference-picker__footer-content">
+                  <div className="reference-picker__fields">
+                    {typeof children === "function"
+                      ? children(reading.parentDetail)
+                      : children}
+                  </div>
+                  {!summary && status}
+                  {summary && status && (
+                    <div className="reference-picker__status">{status}</div>
+                  )}
+                </div>
+              </>
+            )}
+            <Space
+              wrap={footerLayout !== "actions"}
+              className="reference-picker__actions"
+            >
               <Button disabled={disabled} onClick={onCancel}>
                 {dismissLabel}
               </Button>
@@ -379,6 +397,7 @@ export function SearchPickerModal<FormValues>({
             />
           )}
           <FilterControls
+            includeLinks={!request.connection_scope}
             searchInputRef={searchInput}
             layout="toolbar"
             searchRowEnd={

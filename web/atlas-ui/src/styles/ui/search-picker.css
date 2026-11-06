@@ -63,7 +63,9 @@
 }
 
 @media (max-width: 600px) {
-  .reference-picker__footer:not(.reference-picker__footer--summary) {
+  .reference-picker__footer:not(.reference-picker__footer--summary):not(
+      .reference-picker__footer--actions
+    ) {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -127,4 +129,12 @@
    and a result row when the connected picker has a taller control stack. */
 .reference-picker .filter-toolbar:has(.link-picker-context) {
   max-height: max(88px, calc(var(--atlas-modal-height) - 180px));
+}
+
+.reference-picker__footer--actions {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+.reference-picker__action-status {
+  min-width: 0;
 }

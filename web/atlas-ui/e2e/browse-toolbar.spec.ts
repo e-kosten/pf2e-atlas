@@ -278,6 +278,9 @@ test("link picker keeps target filters while refreshing its connected corpus and
   await expect(
     picker.locator(".reference-results [data-record-key]").first(),
   ).toBeVisible();
+  await expect(picker.getByRole("button", { name: "Links", exact: true })).toHaveCount(
+    0,
+  );
   const top = await picker.locator(".link-picker-context").boundingBox();
   const searchBox = await search.boundingBox();
   expect(top!.y + top!.height).toBeLessThanOrEqual(searchBox!.y);
@@ -298,6 +301,31 @@ test("link picker keeps target filters while refreshing its connected corpus and
   await picker.locator(".reference-results [data-record-key]").first().click();
   const add = picker.getByRole("button", { name: "Add", exact: true });
   await expect(add).toBeEnabled();
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect
+      .poll(() =>
+        picker.locator(".reference-picker__footer").evaluate((footer) => {
+          const buttons = [
+            ...footer.querySelectorAll(".reference-picker__actions button"),
+          ];
+          const [cancel, add] = buttons.map((button) => button.getBoundingClientRect());
+          return (
+            Math.abs(cancel.y - add.y) < 1 &&
+            Math.abs(footer.getBoundingClientRect().height - cancel.height) < 1 &&
+            buttons.every(
+              (button) =>
+                button.getBoundingClientRect().right <=
+                footer.getBoundingClientRect().right,
+            ) &&
+            footer.scrollWidth <= footer.clientWidth &&
+            !footer.querySelector("a")
+          );
+        }),
+      )
+      .toBe(true);
+  }
+  await page.setViewportSize({ width: 1440, height: 844 });
   let release!: () => void;
   let requested!: () => void;
   const hold = new Promise<void>((resolve) => {
@@ -358,4 +386,42 @@ test("link picker keeps target filters while refreshing its connected corpus and
       true,
     );
   }
+});
+
+test("editing a link opens its current target and clearing never restores it", async ({
+  page,
+}) => {
+  const filter = encodeFilterUrl({
+    kind: "relationship",
+    clause_id: "edit-preview",
+    relationship: {
+      direction: "incoming",
+      include_contents: true,
+      selection: {
+        record_key: "equipment-srd:e9Xiei2wduOEGI5r",
+        embedded_path: [],
+        field: null,
+        passage: null,
+        source_fingerprint: null,
+      },
+    },
+  });
+  await page.goto(`/search?filter=${encodeURIComponent(filter)}`);
+  await page
+    .getByRole("group", { name: "Relationship filter", exact: true })
+    .getByRole("button", { name: /Links to Wovenwood Shield/ })
+    .click();
+  await page.getByRole("button", { name: "Change record", exact: true }).click();
+  const picker = page.getByRole("dialog", { name: "Edit link condition", exact: true });
+  await expect(
+    picker.getByRole("heading", { name: "Wovenwood Shield (Major)", exact: true }),
+  ).toBeVisible();
+  await expect(picker.locator(".reference-picker__footer a")).toHaveCount(0);
+  await picker.getByRole("button", { name: "Clear selection", exact: true }).click();
+  await expect(picker.getByText("Select a record", { exact: true })).toBeVisible();
+  await picker.getByText("Linked from", { exact: true }).click();
+  await expect(
+    picker.getByRole("button", { name: "Apply", exact: true }),
+  ).toBeDisabled();
+  await expect(picker.locator(".record-reference__title")).toHaveCount(0);
 });

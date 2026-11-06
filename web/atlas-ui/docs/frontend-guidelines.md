@@ -2210,8 +2210,14 @@ The link picker keeps its own search and ordinary filters, within entries connec
 to the parent results. Direction and link scope appear above search because they
 define the candidate corpus. Keep them in a compact row within the same toolbar
 frame, inset and background as search and filters; let the row wrap naturally.
-A quiet direction-specific sentence explains which entries the user is choosing.
-Avoid a separate form section with stacked labels or another inset. Changing
+A quiet direction-specific sentence below the controls explains which entries the
+user is choosing. Selected direction uses a soft filled Ant radio treatment.
+Avoid a separate form section with stacked labels or another inset. The connected
+picker omits the nested Links shortcut; its Advanced editor retains link conditions.
+Its footer keeps Cancel/Add on one row, with actionable feedback beside the actions.
+The preview owns selection identity; do not duplicate its record title in the footer.
+Editing initializes that preview once from the exact saved link navigation and
+parent generation. Clearing or changing direction/scope must not restore it. Changing
 either clears the candidate with a short
 explanation while retaining target filters. An untouched edit retains its exact
 embedded selection. The parent descriptor includes its complete criteria and any

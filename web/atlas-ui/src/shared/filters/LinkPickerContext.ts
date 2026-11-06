@@ -7,7 +7,6 @@ export type LinkPickerProps = {
   parent: SearchResultsRequest;
   parentListRef?: string;
   initial?: QueryRelationship;
-  initialTitle?: string;
   onCancel: () => void;
   onConfirm: (
     relationship: QueryRelationship,

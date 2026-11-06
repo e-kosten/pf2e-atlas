@@ -357,9 +357,9 @@
 
 .link-picker-context {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-control) var(--space-group);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-control);
   width: 100%;
 }
 .link-picker-context__fields {
