@@ -5,7 +5,8 @@ use atlas_foundry_model::{
 };
 pub use atlas_index::test_support::publish_input;
 use atlas_index::*;
-pub use atlas_index::{TraitSeedChunk, TraitVectorInput};
+pub use atlas_index::{ReferencePreparation, reference_inventory_identity};
+pub use atlas_index::{TraitDefinition, TraitSeedChunk, TraitVectorInput};
 use atlas_record::{
     source_content::{CONTENT_INTERPRETATION_VERSION, ContentAudience, ContentVisibilityRule},
     source_record::{
@@ -60,6 +61,38 @@ pub fn open_input_fixture(
             .map_err(|e| crate::SearchError::query_failed(e.to_string()))?,
     };
     publish_input(artifact.path(), &input)?;
+    let reader = atlas_index::test_support::open_reader(artifact.path())?;
+    if !input.context.search_profiles.is_empty() {
+        reader.require_vectors()?;
+    }
+    Ok((
+        crate::AtlasRetrievalService::from_index(
+            reader,
+            atlas_domain::SearchProfileId::new("bge-base"),
+            None,
+        )?,
+        artifact,
+    ))
+}
+
+/// Publish explicit reference evidence through the canonical fixture publisher.
+pub fn open_input_fixture_with_references(
+    input: IndexBuildInput,
+    entries: &[ReferenceEntry],
+    notices: &[ReferenceNotice],
+    occurrences: &[DefinitionReferenceInput],
+) -> Result<(crate::AtlasRetrievalService, FixtureArtifact), crate::SearchError> {
+    let artifact = FixtureArtifact {
+        directory: tempfile::tempdir()
+            .map_err(|e| crate::SearchError::query_failed(e.to_string()))?,
+    };
+    atlas_index::test_support::publish_input_with_references(
+        artifact.path(),
+        &input,
+        entries,
+        notices,
+        occurrences,
+    )?;
     let reader = atlas_index::test_support::open_reader(artifact.path())?;
     if !input.context.search_profiles.is_empty() {
         reader.require_vectors()?;

@@ -481,6 +481,7 @@ fn trait_badges(
     traits
         .iter()
         .map(|value| RecordBadgeView {
+            help: None,
             kind: "trait".into(),
             value: value.clone(),
             label: retrieval.trait_label(value).unwrap_or(value).to_owned(),

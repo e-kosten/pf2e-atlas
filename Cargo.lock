@@ -438,6 +438,7 @@ dependencies = [
  "atlas-app-service",
  "atlas-domain",
  "atlas-index",
+ "atlas-record",
  "atlas-runtime",
  "atlas-search",
  "axum",

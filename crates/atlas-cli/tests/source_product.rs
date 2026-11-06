@@ -1638,3 +1638,121 @@ fn setup_reports_admission_counts_and_missing_pack_failure_without_losing_search
         "Keep"
     );
 }
+
+#[test]
+fn glossary_commands_are_source_free_and_keep_existing_record_reading_and_generation() {
+    let fixture = Fixture::new();
+    fs::create_dir_all(fixture.root.join("packs/general")).unwrap();
+    fs::create_dir_all(fixture.root.join("static/licenses")).unwrap();
+    fs::write(fixture.root.join("module.json"), serde_json::json!({"id":"pf2e","version":"8.6.1","packs":[{"name":"actions","label":"Actions","type":"Item","path":"packs/actions"},{"name":"bestiary-ability-glossary-srd","label":"Abilities","type":"Item","path":"packs/general"}]}).to_string()).unwrap();
+    let templates: Value = serde_json::from_str(include_str!(
+        "../../atlas-record/src/source_record/fixtures/general-definition-templates.json"
+    ))
+    .unwrap();
+    let buck = templates["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["name"] == "Buck")
+        .unwrap();
+    fs::write(
+        fixture.root.join("packs/general/buck.json"),
+        buck.to_string(),
+    )
+    .unwrap();
+    fs::write(fixture.root.join("packs/general/darkvision.json"), serde_json::json!({"_id":"qCCLZhnp2HhP3Ex6","name":"Darkvision","type":"action","system":{"description":{"value":"<p>Existing darkvision record prose.</p>"},"actionType":{"value":"passive"}}}).to_string()).unwrap();
+    let mut locale = templates["localizations"].clone();
+    locale["PF2E.Actor.Creature.Language.common"] = serde_json::json!("Common");
+    locale["PF2E.Actor.Creature.Language.chthonian"] = serde_json::json!("Chthonian");
+    locale["PF2E.Actor.Creature.Sense.Type.Darkvision"] = serde_json::json!("Darkvision");
+    fs::write(fixture.root.join("static/lang/en.json"), locale.to_string()).unwrap();
+    let notices: Value = serde_json::from_slice(include_bytes!(
+        "../../atlas-ingest/reference-data/base-notices.json"
+    ))
+    .unwrap();
+    let notice = notices["notices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|notice| notice["id"] == "player-core")
+        .unwrap()["text"]
+        .as_str()
+        .unwrap();
+    fs::write(fixture.root.join("static/licenses/ORCLicense.md"), notice).unwrap();
+    let build = fixture.command(&["index", "build", "--no-embeddings", "--json"], true);
+    assert!(
+        build.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&build.stdout),
+        String::from_utf8_lossy(&build.stderr)
+    );
+    for name in ["module.json", "packs", "static"] {
+        fs::rename(
+            fixture.root.join(name),
+            fixture.root.join(format!("removed-{name}")),
+        )
+        .unwrap();
+    }
+    let language = fixture.data(&["definition", "get", "language:chthonian", "--json"]);
+    assert_eq!(language["label"], "Chthonian");
+    assert!(
+        language["content"]["body"]["html"]
+            .as_str()
+            .unwrap()
+            .to_lowercase()
+            .contains("demon")
+    );
+    assert!(!language["notices"].as_array().unwrap().is_empty());
+    let sense = fixture.data(&["definition", "get", "sense:darkvision", "--json"]);
+    assert!(sense["content"].is_null());
+    assert_eq!(
+        sense["help"]["destination"]["navigation"]["record_key"],
+        "bestiary-ability-glossary-srd:qCCLZhnp2HhP3Ex6"
+    );
+    let text = fixture.command(&["definition", "get", "sense:darkvision"], false);
+    assert!(
+        text.status.success(),
+        "{}",
+        String::from_utf8_lossy(&text.stderr)
+    );
+    assert!(String::from_utf8_lossy(&text.stdout).contains("Existing darkvision record prose."));
+    let buck = fixture.command(
+        &[
+            "definition",
+            "get",
+            "rule:pf2e:PF2E.NPC.Abilities.Glossary.Buck",
+        ],
+        false,
+    );
+    assert!(
+        buck.status.success(),
+        "{}",
+        String::from_utf8_lossy(&buck.stderr)
+    );
+    let buck = String::from_utf8_lossy(&buck.stdout);
+    assert!(buck.contains("Unspecified:"), "{buck}");
+    assert!(buck.contains("DC"), "{buck}");
+    let options = fixture.data(&["filters", "definitions", "--text", "Chthonian", "--json"]);
+    assert_eq!(options["total"], 1);
+    assert_eq!(
+        options["options"][0]["target"],
+        serde_json::json!({"kind":"definition","key":"language:chthonian"})
+    );
+    let unknown = fixture.data(&["definition", "get", "language:custom-unpublished", "--json"]);
+    assert_eq!(unknown["help"]["availability"], "unavailable_unknown");
+    assert!(unknown["help"]["destination"].is_null());
+    let stale = fixture.command(
+        &[
+            "definition",
+            "get",
+            "language:chthonian",
+            "--artifact-generation",
+            "old-generation",
+            "--json",
+        ],
+        false,
+    );
+    assert!(!stale.status.success());
+    let error: Value = serde_json::from_slice(&stale.stdout).unwrap();
+    assert_eq!(error["error"]["code"], "artifact_generation_changed");
+}

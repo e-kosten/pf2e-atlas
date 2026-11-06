@@ -383,6 +383,7 @@ export function SearchPickerModal<FormValues>({
               }
             },
             filterEditor: discovery.filterEditor,
+            refreshFilterInformation: refreshResults,
             filterApplicabilityCurrent: discovery.filterApplicabilityCurrent,
             filterCountsEnabled:
               discovery.filterCountsEnabled &&

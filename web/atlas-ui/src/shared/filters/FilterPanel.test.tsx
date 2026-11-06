@@ -1041,9 +1041,11 @@ describe("field applicability while editing Boolean groups", () => {
       op: "eq",
       value: "uncommon",
     };
-    const values = vi
-      .spyOn(atlasApi, "discoverFilterValues")
-      .mockResolvedValue(valuesFixture("physical.base_type", ["chain-mail"]));
+    const values = vi.spyOn(atlasApi, "discoverFilterValues").mockResolvedValue(
+      valuesFixture("physical.base_type", ["chain-mail"], {
+        "chain-mail": "Chain Mail",
+      }),
+    );
     try {
       const change = renderControls(
         editor,
@@ -1210,4 +1212,104 @@ describe("field applicability while editing Boolean groups", () => {
       expect(screen.getByRole("textbox", { name: "Hardness" })).toBeEnabled();
     },
   );
+});
+
+it("refreshes a stale loaded definition label through its host without discarding an unfinished advanced draft", async () => {
+  const target = { kind: "definition" as const, key: "language:chthonian" };
+  const change = vi.fn();
+  const refresh = vi.fn();
+  const values = vi
+    .spyOn(atlasApi, "getDefinitionFilterOptions")
+    .mockImplementation(async (request) => {
+      if (request.expected_artifact_generation === "generation-a")
+        throw new atlasApi.AtlasApiError(409, "Changed", {
+          code: "artifact_generation_changed",
+          message: "Changed",
+          recoverable_action: "refresh_results",
+        });
+      return {
+        artifact_generation: "generation-b",
+        options: [],
+        selected: [
+          {
+            target,
+            label: "Updated Chthonian",
+            help: {
+              definition_key: target.key,
+              availability: "available",
+              destination: { kind: "definition", key: target.key },
+              related_filters: [],
+            },
+          },
+        ],
+        total: 0n,
+      };
+    });
+  const original: QueryPredicate = {
+    kind: "any_of",
+    clause_id: "or",
+    children: [
+      {
+        kind: "not",
+        clause_id: "negation",
+        predicate: {
+          kind: "definition_reference",
+          clause_id: "definition",
+          reference: { target, include_contents: false },
+        },
+      },
+      { kind: "compare", clause_id: "level", field: "level", op: "gte", value: 3 },
+    ],
+  };
+  function Host() {
+    const [generation, setGeneration] = useState("generation-a");
+    const [search, setSearch] = useState<SearchFormState>({
+      ...DEFAULT_SEARCH_STATE,
+      filter: original,
+    });
+    return (
+      <FilterControls
+        includeSearch={false}
+        filterState={{
+          search,
+          setSearch: (next) => {
+            change(next);
+            setSearch(next);
+          },
+          filterEditor: {
+            ...editorFixture([fieldFixture("level", "number", "Level")]),
+            artifact_generation: generation,
+          },
+          refreshFilterInformation: async () => {
+            refresh();
+            setGeneration("generation-b");
+          },
+        }}
+      />
+    );
+  }
+  try {
+    render(
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <Host />
+        </QueryClientProvider>
+      </ConfigProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Advanced filters" }));
+    const input = screen.getByRole("textbox", { name: "Level" });
+    fireEvent.change(input, { target: { value: "unfinished" } });
+    fireEvent.click(await screen.findByRole("button", { name: "Refresh filters" }));
+    expect(await screen.findByText("Updated Chthonian")).toBeVisible();
+    expect(screen.getByRole("textbox", { name: "Level" })).toHaveValue("unfinished");
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(change).not.toHaveBeenCalled();
+    expect(
+      values.mock.calls.map(([request]) => request.expected_artifact_generation),
+    ).toEqual(["generation-a", "generation-b"]);
+  } finally {
+    values.mockRestore();
+  }
 });

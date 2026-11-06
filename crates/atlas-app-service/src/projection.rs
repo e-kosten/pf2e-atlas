@@ -61,13 +61,28 @@ pub fn record_summary_view(record: &SourceRecordSummary) -> RecordSummaryView {
             }
             .into()
         }),
-        rarity: record.rarity.as_value().cloned(),
+        rarity: record
+            .rarity
+            .as_value()
+            .map(|value| atlas_app_model::ReferenceValueView {
+                value: value.clone(),
+                label: match value.as_str() {
+                    "common" => "Common",
+                    "uncommon" => "Uncommon",
+                    "rare" => "Rare",
+                    "unique" => "Unique",
+                    other => other,
+                }
+                .into(),
+                help: None,
+            }),
         traits: record
             .traits
             .as_value()
             .into_iter()
             .flatten()
             .map(|value| RecordBadgeView {
+                help: None,
                 kind: "trait".into(),
                 trait_key: atlas_domain::TraitKey::new(value.clone())
                     .ok()

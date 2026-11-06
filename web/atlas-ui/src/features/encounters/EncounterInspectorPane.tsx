@@ -617,7 +617,7 @@ function EncounterParticipantSurface({
           {presentation &&
           (presentation.identity.traits.length > 0 ||
             (presentation.identity.rarity &&
-              presentation.identity.rarity !== "common")) ? (
+              presentation.identity.rarity.value !== "common")) ? (
             <div className="badge-row">
               <RecordRarity rarity={presentation.identity.rarity} />
               {presentation.identity.traits

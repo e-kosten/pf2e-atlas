@@ -208,20 +208,8 @@ export function PhysicalReference({
           {item.material.state === "invalid" && (
             <FactLine label="Material" fact={item.material} />
           )}
-          {item.size.state === "value" && item.size.value !== "med" && (
-            <FactLine
-              label="Size"
-              fact={item.size}
-              format={(v) =>
-                ({
-                  tiny: "Tiny",
-                  sm: "Small",
-                  lg: "Large",
-                  huge: "Huge",
-                  grg: "Gargantuan",
-                })[v] ?? v
-              }
-            />
+          {item.size.state === "value" && item.size.value?.value !== "med" && (
+            <FactLine label="Size" fact={item.size} format={(value) => value.label} />
           )}
           {item.size.state === "invalid" && <FactLine label="Size" fact={item.size} />}
         </div>

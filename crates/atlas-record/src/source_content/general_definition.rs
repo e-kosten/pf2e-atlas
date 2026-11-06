@@ -144,6 +144,84 @@ pub(crate) fn general_definition_origin(
         excluded_parameter_interaction_ordinals: Vec::new(),
     })
 }
+/// A transient view of the verified reusable prose, retaining original local
+/// marker ordinals. The canonical prepared field remains untouched.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GeneralDefinitionProjection {
+    pub html: String,
+    pub text: String,
+    pub reference_ordinals: Vec<usize>,
+    pub interactions: Vec<super::ContentInteraction>,
+    pub parameter_roles: Vec<Role>,
+}
+
+/// Actual retained field facts needed by the pure selection policy.
+pub struct GeneralDefinitionProjectionInput<'a> {
+    pub locator: &'a super::SourceContentLocator,
+    pub html: &'a str,
+    pub interactions: &'a [super::ContentInteraction],
+    pub reading: Option<&'a GeneralDefinitionReading>,
+}
+
+/// Select only a canonical root template's bound reusable prose. Unbound/custom
+/// fields return None and retain their ordinary reading; invalid bindings error.
+pub fn general_definition_projection(
+    prepared: GeneralDefinitionProjectionInput<'_>,
+) -> Result<Option<GeneralDefinitionProjection>, String> {
+    let Some(reading) = prepared.reading else {
+        if has_general_definition_marker(prepared.html) {
+            return Err("unbound general-definition marker".into());
+        }
+        return Ok(None);
+    };
+    if prepared.locator.record != reading.template_key
+        || !prepared.locator.owners.is_empty()
+        || prepared.locator.field != "/system/description/value"
+        || reading.recipe != GENERAL_DEFINITION_READING_RECIPE
+    {
+        return Err("general-definition projection source mismatch".into());
+    }
+    validate_general_definition_markers(prepared.html, reading)?;
+    super::validate_prepared_markers(prepared.html, prepared.interactions)
+        .map_err(|e| e.to_string())?;
+    let document = Html::parse_fragment(prepared.html);
+    let selector =
+        Selector::parse("[data-atlas-definition-selection]").map_err(|e| e.to_string())?;
+    let element = document
+        .select(&selector)
+        .next()
+        .ok_or("missing general-definition selection")?;
+    let html = element.inner_html();
+    let text = super::text_projection::plain_text(&html).map_err(|e| e.to_string())?;
+    let interactions: Vec<_> = prepared
+        .interactions
+        .iter()
+        .filter(|interaction| {
+            reading.interaction_ordinals.contains(&interaction.ordinal)
+                && !reading
+                    .excluded_parameter_interaction_ordinals
+                    .contains(&interaction.ordinal)
+        })
+        .cloned()
+        .collect();
+    if interactions.len() != reading.interaction_ordinals.len() {
+        return Err("general-definition projection lacks retained sidecar evidence".into());
+    }
+    let mut parameter_roles = Vec::new();
+    for parameter in &reading.parameters {
+        if !parameter_roles.contains(&parameter.role) {
+            parameter_roles.push(parameter.role);
+        }
+    }
+    Ok(Some(GeneralDefinitionProjection {
+        html,
+        text,
+        reference_ordinals: reading.reference_ordinals.clone(),
+        interactions,
+        parameter_roles,
+    }))
+}
+
 fn within(path: &str, root: &str) -> bool {
     path == root
         || path
@@ -200,17 +278,17 @@ pub(crate) fn finish_general_definition_reading(
     {
         return None;
     }
-    validate_general_definition_markers(prepared, &reading).ok()?;
+    validate_general_definition_markers(&prepared.html, &reading).ok()?;
     Some(reading)
 }
 
 /// The same DOM owner that checks canonical reference/control markers checks the
 /// selection boundary. Ordinals come from actual projected node paths.
 pub(crate) fn validate_general_definition_markers(
-    prepared: &PreparedSourceContent,
+    html: &str,
     reading: &GeneralDefinitionReading,
 ) -> Result<(), String> {
-    let document = Html::parse_fragment(&prepared.html);
+    let document = Html::parse_fragment(html);
     let selector =
         Selector::parse("[data-atlas-definition-selection]").map_err(|e| e.to_string())?;
     let elements: Vec<_> = document.select(&selector).collect();

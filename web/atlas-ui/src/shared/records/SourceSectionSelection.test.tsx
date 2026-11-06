@@ -93,7 +93,7 @@ it("keeps rendered grant references outside selected source sections without los
   const presentation = detailFixture(location.record, "Source").presentation;
   presentation.content = [content];
   const granted = summaryFixture("feats:granted", "Granted feat");
-  granted.rarity = "rare";
+  granted.rarity = { value: "rare", label: "Rare" };
   granted.traits = [{ kind: "trait", value: "fire", label: "Fire" }];
   const navigation = {
     record_key: granted.record_key,

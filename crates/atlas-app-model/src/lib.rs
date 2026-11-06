@@ -74,10 +74,20 @@ pub use condition_events::{
     RemoveEncounterParticipantConditionRequest, ResolveDrainedConsequenceRequest,
     SetEncounterLifeSettingsRequest, WakingRuleView,
 };
+mod definitions;
 mod traits;
+pub use definitions::{
+    DefinitionAttributionView, DefinitionAvailabilityView, DefinitionDetailRequest,
+    DefinitionDetailView, DefinitionFilterOptionView, DefinitionFilterOptionsRequest,
+    DefinitionFilterOptionsView, DefinitionGrantScopeView, DefinitionGrantView,
+    DefinitionNoticeView, DefinitionPermissionDispositionView, DefinitionPublicationView,
+    DefinitionReferenceView, DefinitionSourceLocationView, GeneralDefinitionParameterView,
+    GeneralDefinitionReadingView, RecordReadingContextView, ReferenceContentView,
+    ReferenceDestinationView, ReferenceFilterActionView, ReferenceHelpView, ReferenceValueView,
+};
 pub use traits::{
-    TraitAssociationKind, TraitContentView, TraitDetailRequest, TraitDetailView, TraitRecordView,
-    TraitRecordsPage, TraitRecordsRequest,
+    TraitAssociationKind, TraitDetailRequest, TraitDetailView, TraitRecordView, TraitRecordsPage,
+    TraitRecordsRequest,
 };
 mod table_roll;
 pub use table_roll::{RollTableRequest, TableRollView};
@@ -157,7 +167,8 @@ pub use filter::{
     FilterChoiceView, FilterCollectionControlView, FilterControlView, FilterCountsView,
     FilterDiscoveryContext, FilterEditorFieldView, FilterEditorGroupView, FilterEditorView,
     FilterFieldPlacement, FilterOperandView, FilterOperatorView, FilterUnitFieldView,
-    FilterValidationResult, FilterValueListView, FilterVocabularyScope,
+    FilterValidationResult, FilterValueListView, FilterValueOptionView, FilterValueOptionsView,
+    FilterVocabularyScope, FilterVocabularyView,
 };
 pub use graph::{
     GraphContextView, GraphContextViewRequest, GraphSectionView, RecordListView,
@@ -212,6 +223,7 @@ pub use record::{
     RecordResolutionAmbiguousView, RecordResolutionCandidateView, RecordSummaryView,
 };
 pub use search::{
+    DefinitionReferenceEvidenceView, ReferenceClauseConditionView, ReferenceOccurrenceView,
     RelationshipClausePresentationView, RelationshipClauseSummaryView, RelationshipEvidenceView,
     RelationshipOccurrencesPage, RelationshipOccurrencesRequest, RetrievalModeView,
     SearchCoverageView, SearchCriteria, SearchLaneView, SearchMatchSectionView, SearchModeSummary,
@@ -259,6 +271,11 @@ mod tests {
     }
 
     fn export_bindings_to(path: &Path) {
+        DefinitionDetailRequest::export_all_to(path).expect("definition detail request bindings");
+        DefinitionDetailView::export_all_to(path).expect("definition detail bindings");
+        DefinitionFilterOptionsRequest::export_all_to(path)
+            .expect("definition picker request bindings");
+        DefinitionFilterOptionsView::export_all_to(path).expect("definition picker bindings");
         SimilarityPartsRequest::export_all_to(path).expect("similarity inventory request bindings");
         SimilarityPartsView::export_all_to(path).expect("similarity inventory bindings");
         SimilarityPartView::export_all_to(path).expect("similarity section bindings");

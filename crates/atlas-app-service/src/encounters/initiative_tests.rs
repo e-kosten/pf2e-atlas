@@ -237,7 +237,7 @@ fn implicit_bleed_is_projected_and_rolled_as_persistent() {
         .as_ref()
         .unwrap()
         .iter()
-        .find(|c| c.damage_type.value.as_deref() == Some("bleed"))
+        .find(|c| c.damage_type.value.as_ref().map(|v| v.value.as_str()) == Some("bleed"))
         .unwrap();
     assert_eq!(bleed.category.value.as_deref(), Some("persistent"));
     let request = RollEncounterStrikeRequest {
@@ -253,6 +253,8 @@ fn implicit_bleed_is_projected_and_rolled_as_persistent() {
             condition_id: None,
             artifact_generation: detail.artifact_generation.unwrap(),
             selection: RecordDetailRequest {
+                expected_artifact_generation: None,
+                reading_context: None,
                 record_key: activity.navigation.record_key.clone(),
                 owners: activity.navigation.owners.clone(),
                 fields: vec![],

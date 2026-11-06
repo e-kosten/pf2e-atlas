@@ -8,16 +8,16 @@ describe("authored equipment facts", () => {
   it("keeps base damage separate from runes and preserves range and damage qualifiers", () => {
     const weapon: WeaponReferenceView = {
       category: knownFact("martial"),
-      group: knownFact("bow"),
+      group: knownFact({ value: "bow", label: "bow" }),
       damage: knownFact({
         dice: numberFact(1),
         die: knownFact("d8"),
-        damage_type: knownFact("piercing"),
+        damage_type: knownFact({ value: "piercing", label: "piercing" }),
         modifier: { ...unavailableFact<number>("missing"), adjustment: null },
         persistent: knownFact({
           number: numberFact(2),
           faces: { ...unavailableFact<number>("null"), adjustment: null },
-          damage_type: knownFact("fire"),
+          damage_type: knownFact({ value: "fire", label: "fire" }),
         }),
       }),
       range_increment: numberFact(100),
@@ -30,13 +30,20 @@ describe("authored equipment facts", () => {
         striking: knownFact("Greater striking"),
         property: knownFact([]),
       }),
-      melee_usage: unavailableFact("missing"),
+      melee_usage: knownFact({
+        die: knownFact("d6"),
+        damage_type: knownFact({ value: "bludgeoning", label: "Bludgeoning" }),
+        group: knownFact({ value: "club", label: "Club" }),
+        traits: knownFact([{ value: "agile-token", label: "Supplied melee trait" }]),
+      }),
     };
     render(<PhysicalDetails details={{ kind: "weapon", value: weapon }} />);
     expect(screen.getByText("Base damage").parentElement).toHaveTextContent(
       "Base damage 1d8 piercing",
     );
     expect(screen.queryByText("3d8", { exact: false })).toBeNull();
+    expect(screen.getByText("Supplied melee trait")).toBeVisible();
+    expect(screen.queryByText("agile-token")).toBeNull();
     expect(screen.getByText("Striking rune").parentElement).toHaveTextContent(
       "Greater striking",
     );

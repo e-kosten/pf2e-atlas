@@ -269,8 +269,8 @@ it("inherits lazy contextual counts in Add pickers and leaves text searches coun
       value: {
         field: "kind",
         options: [
-          { value: "creature", distinct_roots: 4n, selected: false },
-          { value: "spell", distinct_roots: 0n, selected: false },
+          { value: "creature", label: "Creature", distinct_roots: 4n, selected: false },
+          { value: "spell", label: "Spell", distinct_roots: 0n, selected: false },
         ],
         total_values: 2n,
         exhaustive: true,

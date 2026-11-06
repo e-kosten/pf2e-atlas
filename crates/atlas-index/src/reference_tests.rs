@@ -928,3 +928,266 @@ fn conflicting_pack_scope_rejects_record_backing_and_excludes_new_source_associa
     crate::references::insert_reference(&c, &forged).unwrap();
     assert!(validate_reference(&c).is_err());
 }
+
+#[test]
+fn metadata_batches_skip_prepared_body_hydration_and_keep_integrity_checks() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("references.sqlite");
+    let (mut input, entries, notices) = fixture();
+    publish(&path, &mut input, &entries, &notices).unwrap();
+    let key: DefinitionKey = "domain:air".parse().unwrap();
+    let c = Connection::open(&path).unwrap();
+    let json: String = c
+        .query_row(
+            "SELECT definition_json FROM reference_entries WHERE key=?",
+            [key.to_string()],
+            |r| r.get(0),
+        )
+        .unwrap();
+    let mut envelope: serde_json::Value = serde_json::from_str(&json).unwrap();
+    envelope["backing"]["content"] = serde_json::json!({"intentionally":"not a prepared body"});
+    let unreadable_body = serde_json::to_string(&envelope).unwrap();
+    c.execute(
+        "UPDATE reference_entries SET definition_json=?,definition_hash=? WHERE key=?",
+        rusqlite::params![
+            unreadable_body,
+            crate::codec::sha256(unreadable_body.as_bytes()),
+            key.to_string()
+        ],
+    )
+    .unwrap();
+    let reader = open_reader(&path).unwrap();
+    let missing: DefinitionKey = "language:custom-unpublished".parse().unwrap();
+    let batch = reader
+        .reference_summaries(&[
+            key.clone(),
+            entries[2].key.clone(),
+            key.clone(),
+            missing.clone(),
+            entries[3].key.clone(),
+        ])
+        .unwrap();
+    assert_eq!(
+        batch.entries.iter().map(|e| &e.key).collect::<Vec<_>>(),
+        vec![&key, &entries[2].key, &entries[3].key]
+    );
+    assert_eq!(batch.missing, vec![missing]);
+    assert_eq!(batch.entries[0].backing, ReferenceSummaryBacking::Prepared);
+    assert!(
+        reader.reference_entry(&key).is_err(),
+        "explicit detail must still decode and reject malformed prepared content"
+    );
+    assert_eq!(
+        reader.reference_notice("fixture-notice").unwrap(),
+        Some(notices[0].clone())
+    );
+    assert!(reader.reference_summaries(&vec![key.clone(); 101]).is_err());
+    drop(reader);
+    envelope["label"] = serde_json::json!(" ");
+    let invalid_metadata = serde_json::to_string(&envelope).unwrap();
+    c.execute(
+        "UPDATE reference_entries SET definition_json=?,definition_hash=? WHERE key=?",
+        rusqlite::params![
+            invalid_metadata,
+            crate::codec::sha256(invalid_metadata.as_bytes()),
+            key.to_string()
+        ],
+    )
+    .unwrap();
+    assert!(open_reader(&path).unwrap().reference_summary(&key).is_err());
+    envelope["label"] = serde_json::json!("Readable");
+    envelope["key"] = serde_json::json!("domain:water");
+    let wrong_identity = serde_json::to_string(&envelope).unwrap();
+    c.execute(
+        "UPDATE reference_entries SET definition_json=?,definition_hash=? WHERE key=?",
+        rusqlite::params![
+            wrong_identity,
+            crate::codec::sha256(wrong_identity.as_bytes()),
+            key.to_string()
+        ],
+    )
+    .unwrap();
+    assert!(open_reader(&path).unwrap().reference_summary(&key).is_err());
+    c.execute(
+        "UPDATE reference_entries SET definition_json=? WHERE key=?",
+        rusqlite::params![json, key.to_string()],
+    )
+    .unwrap();
+    assert!(
+        open_reader(&path).unwrap().reference_summary(&key).is_err(),
+        "envelope checksum remains mandatory for metadata reads"
+    );
+}
+
+#[test]
+fn outbound_evidence_retains_exact_source_owner_and_complete_target_uniqueness() {
+    use atlas_domain::{OwnedContentIdentity, OwnedContentLocator};
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("references.sqlite");
+    let (mut input, entries, notices) = fixture();
+    let repeated = format!(
+        "{} @Localize[Fixture.Other]",
+        "@Localize[Fixture.Sense] ".repeat(121)
+    );
+    let mut actor = crate::foundation_tests::record(
+        "actors",
+        "Actor",
+        serde_json::json!({
+            "_id":"aaaaaaaaaaaaaaaa","name":"Dragon Guard","type":"npc",
+            "system":{"details":{"publicNotes":"@Localize[Fixture.First]"}},
+            "items":[
+                {"_id":"1111111111111111","name":"Ambiguous ability","type":"action","system":{"description":{"value":repeated}}},
+                {"_id":"2222222222222222","name":"Exact ability","type":"action","system":{"description":{"value":"@Localize[Fixture.Sense]<span data-visibility=\"none\">@Localize[Fixture.First]</span>"}}},
+                {"_id":"3333333333333333","name":"Hidden ability","type":"action","system":{"description":{"value":"<span data-visibility=\"none\">@Localize[Fixture.First]</span>"}}}
+            ]
+        }),
+    );
+    actor.preparation_context_hash = input.context.preparation_sha256().unwrap();
+    input
+        .lexical_units
+        .retain(|unit| unit.record != *actor.record.key());
+    let selection = atlas_record::source_record::select_record_search(
+        &actor.record,
+        &actor.content,
+        input.context.audience,
+        "Actors",
+        &input.context.used_trait_labels,
+    )
+    .unwrap();
+    input
+        .lexical_units
+        .extend(crate::project_lexical_units(&selection, &[]));
+    input.records[0] = actor;
+    publish(&path, &mut input, &entries, &notices).unwrap();
+    let reader = open_reader(&path).unwrap();
+    let record: atlas_domain::RecordKey = "actors:aaaaaaaaaaaaaaaa".parse().unwrap();
+    let owner = |id: &str| {
+        vec![OwnedContentLocator {
+            collection: "/items".into(),
+            identity: OwnedContentIdentity::Stable(id.into()),
+        }]
+    };
+    let field = Some("/system/description/value");
+    let source = DefinitionReferenceSource::Record {
+        key: record.clone(),
+        owners: owner("1111111111111111"),
+        field: field.map(str::to_owned),
+    };
+    let (page, total) = reader
+        .definition_references_from_source(&source, 1, 0)
+        .unwrap();
+    assert_eq!(page.len(), 1);
+    assert_eq!(total, 122);
+    assert_eq!(
+        reader
+            .source_definition_target(&record, &owner("1111111111111111"), field)
+            .unwrap(),
+        SourceDefinitionTarget::Ambiguous
+    );
+    let expected = DefinitionReferenceTarget::Record {
+        key: "items:eeeeeeeeeeeeeeee".parse().unwrap(),
+        owners: vec![],
+    };
+    assert_eq!(
+        reader
+            .source_definition_target(&record, &owner("2222222222222222"), field)
+            .unwrap(),
+        SourceDefinitionTarget::Unique { target: expected }
+    );
+    assert_eq!(
+        reader
+            .source_definition_target(&record, &owner("3333333333333333"), field)
+            .unwrap(),
+        SourceDefinitionTarget::None
+    );
+    assert_eq!(
+        reader.source_definition_target(&record, &[], None).unwrap(),
+        SourceDefinitionTarget::Unique {
+            target: DefinitionReferenceTarget::Definition {
+                key: "domain:air".parse().unwrap()
+            }
+        }
+    );
+    assert_eq!(
+        reader
+            .source_definition_target(
+                &record,
+                &owner("2222222222222222"),
+                Some("/system/description/gm")
+            )
+            .unwrap(),
+        SourceDefinitionTarget::None
+    );
+    let (outbound, total) = reader
+        .definition_references_from_source(
+            &DefinitionReferenceSource::Definition {
+                key: "domain:air".parse().unwrap(),
+            },
+            100,
+            0,
+        )
+        .unwrap();
+    assert_eq!(total, 1);
+    assert_eq!(
+        outbound[0].target,
+        DefinitionReferenceTarget::Definition {
+            key: "domain:water".parse().unwrap()
+        }
+    );
+    assert!(outbound[0].visible);
+    assert!(
+        reader
+            .definition_references_from_source(&source, 0, 0)
+            .is_err()
+    );
+}
+
+#[test]
+fn retained_trait_metadata_does_not_imply_new_namespace_coverage() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("retained.sqlite");
+    let mut input = crate::foundation_tests::fixture(false);
+    let key = atlas_domain::TraitKey::new("custom-retained").unwrap();
+    input.traits.push(TraitDefinition {
+        key: key.clone(),
+        label: "Retained custom trait".into(),
+        label_key: None,
+        description_key: None,
+        description_html: None,
+        authored_markup: None,
+        prepared: None,
+        catalogs: vec![],
+        source_locations: vec![],
+        source_revision: input.context.source_revision.clone(),
+        indexing_locale: "en".into(),
+        content_locale: None,
+    });
+    publish_input(&path, &input).unwrap();
+    let reader = open_reader(&path).unwrap();
+    let key: DefinitionKey = key.into();
+    assert_eq!(reader.reference_coverage(), ReferenceCoverage::TraitsOnly);
+    assert_eq!(
+        reader.reference_summary(&key).unwrap().unwrap().label,
+        "Retained custom trait"
+    );
+    assert_eq!(reader.reference_summaries(&[key]).unwrap().entries.len(), 1);
+    let new_key: DefinitionKey = "language:common".parse().unwrap();
+    assert!(matches!(
+        reader.reference_summary(&new_key),
+        Err(IndexError::Unavailable(_))
+    ));
+    assert!(matches!(
+        reader.definition_references_from_source(
+            &DefinitionReferenceSource::Record {
+                key: "actors:aaaaaaaaaaaaaaaa".parse().unwrap(),
+                owners: vec![],
+                field: None
+            },
+            100,
+            0
+        ),
+        Err(IndexError::Unavailable(_))
+    ));
+}
+
+mod query_integration;

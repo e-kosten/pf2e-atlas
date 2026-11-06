@@ -167,7 +167,8 @@ pub use references::{
     ReferenceAvailability, ReferenceBacking, ReferenceCoverage, ReferenceEntry,
     ReferenceFilterBinding, ReferenceGrantScope, ReferenceGrantUse, ReferenceNotice,
     ReferencePermission, ReferencePermissionDisposition, ReferencePreparation, ReferenceProvenance,
-    ReferencePublication, ReferenceRecordMapping, ReferenceSourceLocation,
+    ReferencePublication, ReferenceRecordMapping, ReferenceSourceLocation, ReferenceSummary,
+    ReferenceSummaryBacking, ReferenceSummaryBatch, SourceDefinitionTarget,
     reference_inventory_identity, reference_pack_applies,
 };
 pub use traits::{
@@ -186,3 +187,15 @@ mod embedding_values_tests;
 
 #[cfg(test)]
 mod publication_crash_tests;
+
+mod definition_query;
+pub use definition_query::{
+    DefinitionReferenceOccurrence, DefinitionReferenceOccurrencePage,
+    DefinitionReferenceOccurrencePageRequest,
+};
+
+mod definition_discovery;
+pub use definition_discovery::{
+    DefinitionFilterOption, DefinitionFilterOptionsPage, DefinitionFilterOptionsRequest,
+    DefinitionFilterSelection, DefinitionFilterSelectionAvailability,
+};

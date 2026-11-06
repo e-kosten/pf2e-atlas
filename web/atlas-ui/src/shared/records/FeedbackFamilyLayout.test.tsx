@@ -13,7 +13,7 @@ import {
 it("keeps encounter essentials before strikes and secondary facts available without changing reference density", async () => {
   const actor = actorFixture();
   actor.activities = knownFact([activityFixture("Jaws")]);
-  actor.languages = knownFact(["Necril"]);
+  actor.languages = knownFact([{ value: "Necril", label: "Necril" }]);
   actor.skills = knownFact([
     {
       key: "stealth",
@@ -139,7 +139,7 @@ it("omits the service-selected empty hazard defense block without hiding IWR", (
   }
   actor.immunities = knownFact([
     {
-      damage_type: knownFact("mental"),
+      damage_type: knownFact({ value: "mental", label: "mental" }),
       magnitude: { state: "not_applicable", value: null, adjustment: null },
       exceptions: knownFact([]),
       double_against: knownFact([]),
@@ -478,7 +478,7 @@ it("keeps sense summaries concise and explains contextual Perception beside its 
   actor.runtime = {
     senses: [
       {
-        sense_type: "vision",
+        sense_type: { value: "vision", label: "Vision" },
         precision: "precise",
         range_feet: null,
         available: false,
@@ -486,7 +486,7 @@ it("keeps sense summaries concise and explains contextual Perception beside its 
         reason: "Blinded",
       },
       {
-        sense_type: "echolocation",
+        sense_type: { value: "echolocation", label: "Echolocation" },
         precision: "precise",
         range_feet: 40,
         available: null,

@@ -21,23 +21,42 @@ fn labels<T: Serialize>(value: SourceFieldView<'_, &Vec<T>>) -> FactView<Vec<Str
 }
 fn attribute_names(
     value: SourceFieldView<'_, &Vec<PhysicalSystemSourceApexAttribute>>,
-) -> FactView<Vec<String>> {
-    fact(value.map(|values| {
-        values
-            .iter()
-            .map(|v| {
-                match v {
-                    PhysicalSystemSourceApexAttribute::Str => "Strength",
-                    PhysicalSystemSourceApexAttribute::Dex => "Dexterity",
-                    PhysicalSystemSourceApexAttribute::Con => "Constitution",
-                    PhysicalSystemSourceApexAttribute::Int => "Intelligence",
-                    PhysicalSystemSourceApexAttribute::Wis => "Wisdom",
-                    PhysicalSystemSourceApexAttribute::Cha => "Charisma",
-                }
-                .to_owned()
-            })
-            .collect()
-    }))
+) -> FactView<Vec<ReferenceValueView>> {
+    let mut result = reference_identifiers(value);
+    for value in result.value.iter_mut().flatten() {
+        value.label = match value.value.as_str() {
+            "str" => "Strength",
+            "dex" => "Dexterity",
+            "con" => "Constitution",
+            "int" => "Intelligence",
+            "wis" => "Wisdom",
+            "cha" => "Charisma",
+            _ => value.value.as_str(),
+        }
+        .to_owned();
+    }
+    result
+}
+fn reference_labels<T: Serialize>(
+    value: SourceFieldView<'_, &Vec<T>>,
+) -> FactView<Vec<ReferenceValueView>> {
+    let mut result = reference_identifiers(value);
+    for value in result.value.iter_mut().flatten() {
+        value.label = label(&value.value);
+    }
+    result
+}
+fn vision(value: SourceFieldView<'_, &AncestryVision>) -> FactView<ReferenceValueView> {
+    let label = value.value().map(|value| match value {
+        AncestryVision::Normal => "Normal",
+        AncestryVision::Darkvision => "Darkvision",
+        AncestryVision::LowLightVision => "Low-light vision",
+    });
+    let mut result = reference_identifier(value);
+    if let (Some(value), Some(label)) = (&mut result.value, label) {
+        value.label = label.into();
+    }
+    result
 }
 fn attribute_choices(
     value: SourceFieldView<'_, &AncestrySystemSourceBoosts>,
@@ -117,25 +136,15 @@ pub(super) fn item(item: ItemSourceView<'_>) -> Option<RecordBodyView> {
             RecordBodyView::Ancestry(Box::new(AncestryReferenceView {
                 hit_points: number(s.and_then(|s| (&s.hp).into())),
                 speed: number(s.and_then(|s| (&s.speed).into())),
-                size: fact(
-                    s.and_then(|s| (&s.size).into())
-                        .map(super::facts::size_label),
-                ),
-                vision: fact(s.and_then(|s| (&s.vision).into()).map(|v| {
-                    match v {
-                        AncestryVision::Normal => "Normal",
-                        AncestryVision::Darkvision => "Darkvision",
-                        AncestryVision::LowLightVision => "Low-light vision",
-                    }
-                    .into()
-                })),
+                size: reference_size(s.and_then(|s| (&s.size).into())),
+                vision: vision(s.and_then(|s| (&s.vision).into())),
                 hands: number(s.and_then(|s| (&s.hands).into())),
                 reach: number(s.and_then(|s| (&s.reach).into())),
                 boosts: attribute_choices(s.and_then(|s| (&s.boosts).into())),
                 flaws: attribute_choices(s.and_then(|s| (&s.flaws).into())),
-                languages: labels(languages.and_then(|l| (&l.value).into())),
+                languages: reference_labels(languages.and_then(|l| (&l.value).into())),
                 language_details: text(languages.and_then(|l| (&l.custom).into())),
-                additional_languages: labels(additional.and_then(|l| (&l.value).into())),
+                additional_languages: reference_labels(additional.and_then(|l| (&l.value).into())),
                 additional_language_count: number(additional.and_then(|l| (&l.count).into())),
                 additional_language_details: text(additional.and_then(|l| (&l.custom).into())),
                 grants: grants(s.and_then(|s| (&s.items).into())),
@@ -169,7 +178,7 @@ pub(super) fn item(item: ItemSourceView<'_>) -> Option<RecordBodyView> {
                 medium_armor: proficiency(defenses.and_then(|d| (&d.medium).into())),
                 heavy_armor: proficiency(defenses.and_then(|d| (&d.heavy).into())),
                 spellcasting: proficiency(s.and_then(|s| (&s.spellcasting).into())),
-                trained_skills: labels(skills.and_then(|s| (&s.value).into())),
+                trained_skills: reference_labels(skills.and_then(|s| (&s.value).into())),
                 additional_skills: number(skills.and_then(|s| (&s.additional).into())),
                 grants: grants(s.and_then(|s| (&s.items).into())),
                 ancestry_feat_levels: levels(s.and_then(|s| (&s.ancestry_feat_levels).into())),
@@ -194,9 +203,11 @@ pub(super) fn item(item: ItemSourceView<'_>) -> Option<RecordBodyView> {
                         choices: labels((&v.what).into()),
                     }
                 })),
-                skills: labels(s.and_then(|s| (&s.skill).into())),
-                primary_domains: labels(domains.and_then(|d| (&d.primary).into())),
-                alternate_domains: labels(domains.and_then(|d| (&d.alternate).into())),
+                skills: reference_labels(s.and_then(|s| (&s.skill).into())),
+                primary_domains: reference_identifiers(domains.and_then(|d| (&d.primary).into())),
+                alternate_domains: reference_identifiers(
+                    domains.and_then(|d| (&d.alternate).into()),
+                ),
                 favored_weapons: labels(s.and_then(|s| (&s.weapons).into())),
                 spells: fact(s.and_then(|s| (&s.spells).into()).map(|spells| {
                     spells
@@ -252,7 +263,7 @@ pub(super) fn actor(
                 length: number(space.and_then(|s| (&s.long).into())),
                 width: number(space.and_then(|s| (&s.wide).into())),
                 height: number(space.and_then(|s| (&s.high).into())),
-                size: fact(query.size().map(super::facts::size_label)),
+                size: reference_size(query.size()),
                 collision_damage: text(
                     a.and_then(|a| (&a.collision_damage).into())
                         .and_then(|d| (&d.value).into()),

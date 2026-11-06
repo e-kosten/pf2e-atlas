@@ -6,6 +6,9 @@ mod facts;
 mod hazard_readouts;
 mod item_reference;
 mod physical_reference;
+pub(crate) mod reference_help;
+#[cfg(test)]
+mod reference_help_tests;
 mod reference_profiles;
 mod skill_qualification;
 mod spell;
@@ -90,13 +93,14 @@ pub(crate) fn apply_casting_rank(
         pack_id: record.key().pack().as_str(),
         pack_label: "",
     };
-    presentation.identity.rarity = identifier(query.rarity()).value;
+    presentation.identity.rarity = reference_identifier(query.rarity()).value;
     presentation.identity.traits = query
         .traits()
         .value()
         .into_iter()
         .flatten()
         .map(|t| RecordBadgeView {
+            help: None,
             kind: "trait".into(),
             trait_key: atlas_domain::TraitKey::new(t.clone())
                 .ok()
@@ -393,6 +397,7 @@ pub(crate) fn record_presentation(
     activity_references::resolve(&mut body, record.key(), retrieval)?;
     reference_profiles::resolve_links(&mut body, retrieval)?;
     Ok(RecordPresentationView {
+        general_definition: None,
         grants: None,
         classification: classification(node, &identity),
         identity,
@@ -553,13 +558,14 @@ fn selected_identity(
         source_type: Some(family.into()),
         level_label: level,
         level_basis: None,
-        rarity: identifier(query.rarity()).value,
+        rarity: reference_identifier(query.rarity()).value,
         traits: query
             .traits()
             .value()
             .into_iter()
             .flatten()
             .map(|t| RecordBadgeView {
+                help: None,
                 kind: "trait".into(),
                 trait_key: atlas_domain::TraitKey::new(t.clone())
                     .ok()
@@ -696,7 +702,7 @@ fn physical(item: ItemSourceView<'_>) -> PhysicalPresentationView {
         details: physical_reference::details(item),
         quantity: physical_reference::quantity(item),
         material: physical_reference::material(item),
-        size: identifier(item.physical_size()),
+        size: reference_size(item.physical_size()),
         consumable: item_reference::consumable(item),
         usage: fact(item.physical_usage().map(crate::physical_labels::usage)),
         bulk: number(item.physical_bulk()),

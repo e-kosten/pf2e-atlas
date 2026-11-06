@@ -152,7 +152,7 @@ export function ReferenceResult({
                         <RelationshipEvidence
                           key={JSON.stringify([
                             generation,
-                            summary.relationship,
+                            summary.condition,
                             row.record.record_key,
                           ])}
                           evidence={evidence}

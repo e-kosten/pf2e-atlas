@@ -10,6 +10,8 @@ use atlas_search::test_support::{hash, input, publish_input, record};
 use serde_json::json;
 
 use super::AtlasWebState;
+#[path = "../../examples/browser_fixture/reference_data.rs"]
+mod reference_data;
 
 pub(super) const ACTION: &str = "actions:aaaaaaaaaaaaaaaa";
 pub(super) const SECOND_ACTION: &str = "actions:bbbbbbbbbbbbbbbb";
@@ -54,11 +56,35 @@ impl Fixture {
         Self::with_actor_adjustment(remaster, None)
     }
     pub fn with_actor_adjustment(remaster: bool, adjustment: Option<&str>) -> Self {
+        Self::with_reference_data(remaster, adjustment, None)
+    }
+    pub fn with_glossary() -> Self {
+        Self::with_reference_data(false, None, Some(true))
+    }
+    pub fn with_legacy_glossary() -> Self {
+        Self::with_reference_data(false, None, Some(false))
+    }
+    fn with_reference_data(
+        remaster: bool,
+        adjustment: Option<&str>,
+        coverage: Option<bool>,
+    ) -> Self {
+        let glossary = coverage == Some(true);
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("workspace.sqlite");
         let mut actor = json!({"_id":"cccccccccccccccc","type":"npc","name":"Test Creature","system":{"details":{"level":{"value":1}},"traits":{"value":[]},"attributes":{"ac":{"value":16},"hp":{"max":20}},"saves":{"fortitude":{"value":5},"reflex":{"value":6},"will":{"value":4}}},"items":[{"_id":"eeeeeeeeeeeeeeee","type":"melee","name":"Claw","system":{"bonus":{"value":7},"traits":{"value":["agile"]},"damageRolls":{"main":{"damage":"1d6+2","damageType":"slashing"}},"description":{"value":"<p>A claw.</p>"}}},{"_id":"eeeeeeeeeeeeeeee","type":"action","name":"Duplicate identity","system":{"description":{"value":"<p>Snapshot-local identity.</p>"}}}]});
         if let Some(adjustment) = adjustment {
             actor["system"]["attributes"]["adjustment"] = json!(adjustment);
+        }
+        if coverage.is_some() {
+            actor["system"]["details"]["languages"] =
+                json!({"value":["common","chthonian"],"details":"Communicates by signing."});
+            actor["system"]["perception"] =
+                json!({"mod":7,"senses":[{"type":"darkvision","acuity":"precise","range":60}]});
+        }
+        if glossary {
+            actor["items"][0]["system"]["description"]["value"] =
+                json!("<p>@Localize[Fixture.Language.Chthonian]</p>");
         }
         let mut records = vec![
             record(
@@ -83,8 +109,19 @@ impl Fixture {
                 json!({"_id":"TBSHQspnbcqxsmjL","type":"condition","name":"Frightened","system":{"slug":"frightened","value":{"isValued":true,"value":1}}}),
             ),
         ];
+        if glossary {
+            records[0] = record(
+                "actions",
+                "Item",
+                json!({"_id":"aaaaaaaaaaaaaaaa","type":"action","name":"Test Action 1","system":{"actionType":{"value":"action"},"actions":{"value":1},"traits":{"value":["fire"]},"description":{"value":"<p>@Localize[Fixture.Language.Chthonian] @Localize[Fixture.Sense.Darkvision] @UUID[Compendium.pf2e.bestiary-ability-glossary-srd.Item.qCCLZhnp2HhP3Ex6]</p>"}}}),
+            );
+        }
         if remaster {
             records.push(record("journals", "JournalEntry", json!({"_id":"editionjournal01","name":"Remaster Changes","pages":[{"_id":"editionpage00001","name":"Class Features","type":"text","text":{"content":"<p>Explicit old and new references.</p>","format":1}}]})));
+        }
+        if glossary {
+            records.push(reference_data::darkvision_record());
+            records.push(record("equipment", "Item", json!({"_id":"armor00000000000","type":"armor","name":"Fixture Chain Mail","system":{"baseItem":"chain-mail"}})));
         }
         let mut data = input(records, true);
         if remaster {
@@ -133,7 +170,19 @@ impl Fixture {
             }],
         });
         let source_fingerprint = data.context.source_fingerprint.clone();
-        publish_input(&path, &data).unwrap();
+        if glossary {
+            let glossary = reference_data::attach(&mut data).unwrap();
+            atlas_index::test_support::publish_input_with_references(
+                &path,
+                &data,
+                &glossary.entries,
+                &glossary.notices,
+                &glossary.occurrences,
+            )
+            .unwrap();
+        } else {
+            publish_input(&path, &data).unwrap();
+        }
         let service = AtlasAppService::start(AtlasAppServiceOptions {
             default_search_profile: Some(SearchProfileId::new("bge-base")),
             path_mode: atlas_runtime::AtlasPathMode::Global,

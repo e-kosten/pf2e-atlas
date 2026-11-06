@@ -316,7 +316,7 @@ struct CompiledTruth {
     truth: String,
     kind: BooleanNode,
     children: Vec<CompiledTruth>,
-    relationship_id: Option<String>,
+    reference_id: Option<String>,
 }
 impl CompiledTruth {
     fn positive_proofs(&self, required: bool, guard: &str, out: &mut Vec<(String, String)>) {
@@ -339,7 +339,7 @@ impl CompiledTruth {
                 }
             }
             BooleanNode::Leaf => {
-                if required && let Some(id) = &self.relationship_id {
+                if required && let Some(id) = &self.reference_id {
                     out.push((
                         id.clone(),
                         format!("({guard}) AND ({}) IS TRUE", self.truth),
@@ -368,6 +368,9 @@ fn compile_tree(
     let truth = match &p.expression {
         QueryExpression::Relationship { relationship } => {
             crate::relationship_query::compile_relationship(relationship, parameters)?
+        }
+        QueryExpression::DefinitionReference { reference } => {
+            crate::definition_query::compile_definition_reference(reference, parameters)?
         }
         QueryExpression::BooleanConstant { value } => if *value { "1" } else { "0" }.to_owned(),
         QueryExpression::Compare { field, op, value } => {
@@ -480,7 +483,10 @@ fn compile_tree(
         truth,
         kind,
         children: children_trees,
-        relationship_id: if matches!(p.expression, QueryExpression::Relationship { .. }) {
+        reference_id: if matches!(
+            p.expression,
+            QueryExpression::Relationship { .. } | QueryExpression::DefinitionReference { .. }
+        ) {
             p.clause_id.clone()
         } else {
             None

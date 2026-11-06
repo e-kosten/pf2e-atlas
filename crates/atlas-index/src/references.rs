@@ -206,6 +206,61 @@ pub struct ReferenceEntry {
     pub filter_bindings: Vec<ReferenceFilterBinding>,
 }
 
+/// Metadata-only view of a canonical entry. The prepared body is not decoded.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReferenceSummary {
+    pub key: DefinitionKey,
+    pub label: String,
+    pub availability: ReferenceAvailability,
+    pub backing: ReferenceSummaryBacking,
+    pub provenance: ReferenceProvenance,
+    pub permission: ReferencePermission,
+    pub filter_bindings: Vec<ReferenceFilterBinding>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ReferenceSummaryBacking {
+    Prepared,
+    Record { key: RecordKey },
+    None,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReferenceSummaryBatch {
+    /// Found entries in first-requested order, without repeated keys.
+    pub entries: Vec<ReferenceSummary>,
+    pub missing: Vec<DefinitionKey>,
+}
+
+/// Uniqueness is decided over the complete indexed source, not a preview page.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SourceDefinitionTarget {
+    None,
+    Unique { target: DefinitionReferenceTarget },
+    Ambiguous,
+}
+
+impl From<&ReferenceEntry> for ReferenceSummary {
+    fn from(entry: &ReferenceEntry) -> Self {
+        Self {
+            key: entry.key.clone(),
+            label: entry.label.clone(),
+            availability: entry.availability,
+            backing: match &entry.backing {
+                ReferenceBacking::Prepared { .. } => ReferenceSummaryBacking::Prepared,
+                ReferenceBacking::Record { key } => {
+                    ReferenceSummaryBacking::Record { key: key.clone() }
+                }
+                ReferenceBacking::None => ReferenceSummaryBacking::None,
+            },
+            provenance: entry.provenance.clone(),
+            permission: entry.permission.clone(),
+            filter_bindings: entry.filter_bindings.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ReferenceAvailability {
@@ -459,6 +514,85 @@ impl SqliteIndexReader {
         &self,
         key: &DefinitionKey,
     ) -> Result<Option<ReferenceEntry>, IndexError> {
+        self.require_reference_key_coverage(key)?;
+        read_entry(self.native()?, key)
+    }
+
+    /// Reads the checksummed canonical envelope without hydrating its prepared body.
+    pub fn reference_summary(
+        &self,
+        key: &DefinitionKey,
+    ) -> Result<Option<ReferenceSummary>, IndexError> {
+        self.require_reference_key_coverage(key)?;
+        let row = self
+            .native()?
+            .query_row(
+                "SELECT definition_json,definition_hash FROM reference_entries WHERE key=?",
+                [key.to_string()],
+                |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)),
+            )
+            .optional()?;
+        row.map(|(json, hash)| decode_reference_summary(self.native()?, key, &json, &hash))
+            .transpose()
+    }
+
+    /// At most 100 keys. Missing complete-coverage keys remain distinct from a
+    /// workspace which has not prepared the requested namespace.
+    pub fn reference_summaries(
+        &self,
+        keys: &[DefinitionKey],
+    ) -> Result<ReferenceSummaryBatch, IndexError> {
+        if keys.len() > 100 {
+            return Err(IndexError::Invalid(
+                "reference metadata batch must contain at most 100 keys".into(),
+            ));
+        }
+        let mut unique = std::collections::BTreeSet::new();
+        let keys: Vec<_> = keys.iter().filter(|key| unique.insert(*key)).collect();
+        for key in &keys {
+            self.require_reference_key_coverage(key)?;
+        }
+        let mut result = ReferenceSummaryBatch {
+            entries: Vec::new(),
+            missing: Vec::new(),
+        };
+        if keys.is_empty() {
+            return Ok(result);
+        }
+        let placeholders = std::iter::repeat_n("?", keys.len())
+            .collect::<Vec<_>>()
+            .join(",");
+        let mut statement = self.native()?.prepare(&format!(
+            "SELECT key,definition_json,definition_hash FROM reference_entries WHERE key IN ({placeholders})"
+        ))?;
+        let mut entries = std::collections::BTreeMap::new();
+        for row in statement.query_map(
+            rusqlite::params_from_iter(keys.iter().map(|key| key.to_string())),
+            |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                ))
+            },
+        )? {
+            let (key, json, hash) = row?;
+            let key: DefinitionKey = key
+                .parse()
+                .map_err(|e| IndexError::Invalid(format!("invalid stored definition key: {e}")))?;
+            let summary = decode_reference_summary(self.native()?, &key, &json, &hash)?;
+            entries.insert(key, summary);
+        }
+        for key in keys {
+            match entries.remove(key) {
+                Some(entry) => result.entries.push(entry),
+                None => result.missing.push(key.clone()),
+            }
+        }
+        Ok(result)
+    }
+
+    fn require_reference_key_coverage(&self, key: &DefinitionKey) -> Result<(), IndexError> {
         if key.namespace() != DefinitionNamespace::Trait
             && self.reference_coverage() != ReferenceCoverage::Complete
         {
@@ -466,7 +600,7 @@ impl SqliteIndexReader {
                 "glossary coverage requires explicit atlas setup".into(),
             ));
         }
-        read_entry(self.native()?, key)
+        Ok(())
     }
 
     pub fn reference_entries(
@@ -530,6 +664,88 @@ impl SqliteIndexReader {
         Ok(notice)
     }
 
+    /// Visible authored evidence from one exact source owner. A record source's
+    /// absent field selects all fields of that owner, never descendants/siblings.
+    pub fn definition_references_from_source(
+        &self,
+        source: &DefinitionReferenceSource,
+        limit: u32,
+        offset: u32,
+    ) -> Result<(Vec<DefinitionReferenceInput>, u64), IndexError> {
+        if !(1..=100).contains(&limit) {
+            return Err(IndexError::Invalid(
+                "definition occurrence page size must be 1..100".into(),
+            ));
+        }
+        self.require_complete_reference_evidence()?;
+        if let DefinitionReferenceSource::Definition { key } = source
+            && self.reference_summary(key)?.is_none()
+        {
+            return Err(IndexError::Unavailable(
+                "definition occurrence source is unavailable".into(),
+            ));
+        }
+        let (predicate, key, owners, field) = source_occurrence_selection(source)?;
+        let total = self.native()?.query_row(
+            &format!("SELECT count(*) FROM definition_reference_occurrences WHERE visible=1 AND {predicate}"),
+            params![key,owners,field], |r| r.get(0),
+        )?;
+        let mut statement = self.native()?.prepare(&format!(
+            "SELECT occurrence_id,evidence FROM definition_reference_occurrences WHERE visible=1 AND {predicate} ORDER BY occurrence_id LIMIT ?4 OFFSET ?5"
+        ))?;
+        let mut entries = Vec::new();
+        for row in statement.query_map(params![key, owners, field, limit, offset], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+        })? {
+            let (id, json) = row?;
+            entries.push(decode_source_occurrence(source, &id, &json)?);
+        }
+        Ok((entries, total))
+    }
+
+    /// Resolve a general-help target using every visible occurrence on the exact
+    /// owner. Two distinct destinations remain ambiguous even beyond page one.
+    pub fn source_definition_target(
+        &self,
+        record: &RecordKey,
+        owners: &[OwnedContentLocator],
+        field: Option<&str>,
+    ) -> Result<SourceDefinitionTarget, IndexError> {
+        self.require_complete_reference_evidence()?;
+        let source = DefinitionReferenceSource::Record {
+            key: record.clone(),
+            owners: owners.to_vec(),
+            field: field.map(str::to_owned),
+        };
+        let (predicate, key, owners, field) = source_occurrence_selection(&source)?;
+        let mut statement = self.native()?.prepare(&format!(
+            "SELECT min(occurrence_id),evidence FROM definition_reference_occurrences WHERE visible=1 AND {predicate} GROUP BY json_extract(evidence,'$.target') ORDER BY min(occurrence_id) LIMIT 2"
+        ))?;
+        let mut targets = Vec::new();
+        for row in statement.query_map(params![key, owners, field], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+        })? {
+            let (id, json) = row?;
+            targets.push(decode_source_occurrence(&source, &id, &json)?.target);
+        }
+        Ok(match targets.as_slice() {
+            [] => SourceDefinitionTarget::None,
+            [target] => SourceDefinitionTarget::Unique {
+                target: target.clone(),
+            },
+            _ => SourceDefinitionTarget::Ambiguous,
+        })
+    }
+
+    fn require_complete_reference_evidence(&self) -> Result<(), IndexError> {
+        if self.reference_coverage() != ReferenceCoverage::Complete {
+            return Err(IndexError::Unavailable(
+                "glossary occurrence coverage requires explicit atlas setup".into(),
+            ));
+        }
+        Ok(())
+    }
+
     /// Exact indexed occurrence evidence. Record graph edges retain their own
     /// existing owner and are not copied into this page.
     pub fn definition_reference_occurrences(
@@ -543,11 +759,7 @@ impl SqliteIndexReader {
                 "definition occurrence page size must be 1..100".into(),
             ));
         }
-        if self.reference_coverage() != ReferenceCoverage::Complete {
-            return Err(IndexError::Unavailable(
-                "glossary occurrence coverage requires explicit atlas setup".into(),
-            ));
-        }
+        self.require_complete_reference_evidence()?;
         let (predicate, value, owners) = match target {
             DefinitionReferenceTarget::Record { key, owners } => (
                 "target_record_key=?1 AND json_extract(evidence,'$.target.owners')=?2",
@@ -587,6 +799,56 @@ impl SqliteIndexReader {
         }
         Ok((result, total))
     }
+}
+
+fn source_occurrence_selection(
+    source: &DefinitionReferenceSource,
+) -> Result<(&'static str, String, String, Option<String>), IndexError> {
+    Ok(match source {
+        DefinitionReferenceSource::Record { key, owners, field } => (
+            "source_record_key=?1 AND json_extract(evidence,'$.source.owners')=?2 AND (?3 IS NULL OR json_extract(evidence,'$.source.field')=?3)",
+            key.to_string(),
+            serde_json::to_string(owners)?,
+            field.clone(),
+        ),
+        DefinitionReferenceSource::Definition { key } => (
+            "source_definition_key=?1 AND ?2='' AND ?3 IS NULL",
+            key.to_string(),
+            String::new(),
+            None,
+        ),
+    })
+}
+
+fn decode_source_occurrence(
+    source: &DefinitionReferenceSource,
+    id: &str,
+    json: &str,
+) -> Result<DefinitionReferenceInput, IndexError> {
+    let occurrence: DefinitionReferenceInput = serde_json::from_str(json)?;
+    let matches_source = match (source, &occurrence.source) {
+        (
+            DefinitionReferenceSource::Record { key, owners, field },
+            DefinitionReferenceSource::Record {
+                key: actual_key,
+                owners: actual_owners,
+                field: actual_field,
+            },
+        ) => {
+            key == actual_key
+                && owners == actual_owners
+                && field
+                    .as_ref()
+                    .is_none_or(|field| actual_field.as_ref() == Some(field))
+        }
+        _ => source == &occurrence.source,
+    };
+    if reference_id(&occurrence)? != id || !occurrence.visible || !matches_source {
+        return Err(IndexError::Invalid(
+            "definition occurrence identity/source mismatch".into(),
+        ));
+    }
+    Ok(occurrence)
 }
 
 pub(crate) fn read_entry(
@@ -638,12 +900,30 @@ pub(crate) fn validate_entry(
     validate_entry_metadata(c, entry, preparation, true)
 }
 
-fn validate_entry_metadata(
+fn decode_reference_summary(
     c: &Connection,
-    entry: &ReferenceEntry,
-    preparation: Option<&ReferencePreparation>,
-    inspect_retained_source: bool,
-) -> Result<(), IndexError> {
+    key: &DefinitionKey,
+    json: &str,
+    hash: &str,
+) -> Result<ReferenceSummary, IndexError> {
+    // The canonical checksum covers the entire envelope, even though serde skips
+    // prepared content. A second persisted metadata copy is unnecessary.
+    if crate::codec::sha256(json.as_bytes()) != hash {
+        return Err(IndexError::Invalid(
+            "reference definition checksum mismatch".into(),
+        ));
+    }
+    let summary: ReferenceSummary = serde_json::from_str(json)?;
+    if &summary.key != key {
+        return Err(IndexError::Invalid(
+            "reference definition identity mismatch".into(),
+        ));
+    }
+    validate_reference_summary(c, &summary)?;
+    Ok(summary)
+}
+
+fn validate_reference_summary(c: &Connection, entry: &ReferenceSummary) -> Result<(), IndexError> {
     if entry.label.trim().is_empty()
         || entry.provenance.indexing_locale.is_empty()
         || entry.provenance.source_package.is_empty()
@@ -653,7 +933,7 @@ fn validate_entry_metadata(
         return Err(IndexError::Invalid("incomplete reference metadata".into()));
     }
     if (entry.availability == ReferenceAvailability::Available)
-        == matches!(&entry.backing, ReferenceBacking::None)
+        == matches!(&entry.backing, ReferenceSummaryBacking::None)
     {
         return Err(IndexError::Invalid(
             "reference availability differs from its backing".into(),
@@ -702,8 +982,7 @@ fn validate_entry_metadata(
         }
     }
     match &entry.backing {
-        ReferenceBacking::None => {}
-        ReferenceBacking::Record { key } => {
+        ReferenceSummaryBacking::Record { key } => {
             if entry.permission.disposition != ReferencePermissionDisposition::ExistingRecordPolicy
                 || !c.query_row(
                     "SELECT EXISTS(SELECT 1 FROM records WHERE key=?)",
@@ -715,6 +994,43 @@ fn validate_entry_metadata(
                     "reference record backing is unavailable or has invalid permission".into(),
                 ));
             }
+        }
+        ReferenceSummaryBacking::Prepared => {
+            if !matches!(
+                entry.permission.disposition,
+                ReferencePermissionDisposition::ApprovedContent
+                    | ReferencePermissionDisposition::ExistingTraitPolicy
+            ) {
+                return Err(IndexError::Invalid(
+                    "reference prepared-content permission mismatch".into(),
+                ));
+            }
+            if entry.permission.disposition == ReferencePermissionDisposition::ApprovedContent
+                && (entry.permission.body_grants.is_empty()
+                    || entry.permission.notices.is_empty()
+                    || entry.provenance.content_locale.is_none()
+                    || entry.provenance.source_sha256.is_none())
+            {
+                return Err(IndexError::Invalid(
+                    "approved reference prose lacks source/locale/grant/notice evidence".into(),
+                ));
+            }
+        }
+        ReferenceSummaryBacking::None => {}
+    }
+    Ok(())
+}
+
+fn validate_entry_metadata(
+    c: &Connection,
+    entry: &ReferenceEntry,
+    preparation: Option<&ReferencePreparation>,
+    inspect_retained_source: bool,
+) -> Result<(), IndexError> {
+    validate_reference_summary(c, &ReferenceSummary::from(entry))?;
+    match &entry.backing {
+        ReferenceBacking::None => {}
+        ReferenceBacking::Record { key } => {
             if inspect_retained_source {
                 let mapping = entry.provenance.record_mapping.as_ref().ok_or_else(|| {
                     IndexError::Invalid("record-backed reference lacks mapping evidence".into())
@@ -731,11 +1047,7 @@ fn validate_entry_metadata(
             authored_markup,
             content,
         } => {
-            if !matches!(
-                entry.permission.disposition,
-                ReferencePermissionDisposition::ApprovedContent
-                    | ReferencePermissionDisposition::ExistingTraitPolicy
-            ) || content.key != entry.key
+            if content.key != entry.key
                 || content.authored_markup_sha256
                     != crate::codec::sha256(authored_markup.as_bytes())
                 || content.interpretation_version
@@ -757,16 +1069,6 @@ fn validate_entry_metadata(
                 &content.references,
             )
             .map_err(|e| IndexError::Invalid(e.to_string()))?;
-            if entry.permission.disposition == ReferencePermissionDisposition::ApprovedContent
-                && (entry.permission.body_grants.is_empty()
-                    || entry.permission.notices.is_empty()
-                    || entry.provenance.content_locale.is_none()
-                    || entry.provenance.source_sha256.is_none())
-            {
-                return Err(IndexError::Invalid(
-                    "approved reference prose lacks source/locale/grant/notice evidence".into(),
-                ));
-            }
         }
     }
     Ok(())

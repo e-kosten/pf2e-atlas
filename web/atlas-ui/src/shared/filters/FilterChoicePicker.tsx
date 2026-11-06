@@ -131,7 +131,7 @@ function FilterChoicePicker({
     closedChoices ? field.choices : (query.data?.values.options ?? [])
   ).map((option) => ({
     value: String(option.value),
-    label: labelForValue(String(option.value)),
+    label: option.label,
   }));
   const contextualCounts =
     countsEnabled && !query.error ? query.data?.counts : undefined;

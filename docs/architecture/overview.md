@@ -66,6 +66,13 @@ mapping, locale and notice identities. Supplemental reference content is an appr
 normalized asset verified through setup's cache owner, with no upstream polling
 or source-file reads during ordinary reference retrieval.
 
+Contextual help retains raw property identity beside its readable label and typed
+record/definition destination. Rust app-service supplies exact related-filter
+actions; CLI and browser consume those contracts. Definition-reference predicates
+share ordinary query eligibility, while artifact-scoped definition discovery keeps
+zero-match values available without adding ordinary Search candidates or changing
+corpus/list vocabulary discovery.
+
 ## Data flow
 
 1. Ingest captures the source inventory and consumes checked files into bounded

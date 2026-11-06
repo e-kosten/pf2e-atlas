@@ -44,6 +44,8 @@ export function humanExpression(
     return `NOT ${humanExpression(filter.predicate, title, fields)}`;
   if (filter.kind === "relationship")
     return `${filter.relationship.direction === "incoming" ? "Links to" : "Linked from"} ${title(filter)} [${filter.relationship.include_contents ? "Whole entry" : "Main entry only"}]`;
+  if (filter.kind === "definition_reference")
+    return `References a definition [${filter.reference.include_contents ? "Whole entry" : "Main entry only"}]`;
   if (filter.kind === "boolean_constant")
     return filter.value ? "All records" : "No records";
   const field = fields.find(

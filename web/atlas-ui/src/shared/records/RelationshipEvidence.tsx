@@ -16,7 +16,7 @@ import type {
   RelationshipEvidenceView,
   RelationshipOccurrencesPage,
 } from "../../generated/atlas";
-import { recordReadingIdentity } from "./useRetainedRecord";
+import { sameReferenceCondition } from "../filters/linkPredicates";
 import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 export function RelationshipEvidence({
   evidence,
@@ -41,7 +41,7 @@ export function RelationshipEvidence({
         generation,
         filter,
         summary.clause_id,
-        summary.relationship,
+        summary.condition,
         resultKey,
       ])}
       evidence={evidence}
@@ -71,7 +71,7 @@ function EvidencePage({
       generation,
       filter,
       summary.clause_id,
-      summary.relationship,
+      summary.condition,
       resultKey,
       page,
       evidence.page.size,
@@ -97,15 +97,10 @@ function EvidencePage({
           message: "Reference collection changed",
           recoverable_action: "refresh_results",
         });
-      const actual = response.clause.relationship;
-      const expected = summary.relationship;
       if (
         response.result_record.record_key !== resultKey ||
         response.clause.clause_id !== summary.clause_id ||
-        actual.direction !== expected.direction ||
-        actual.include_contents !== expected.include_contents ||
-        recordReadingIdentity(actual.selection.record_key, actual.selection) !==
-          recordReadingIdentity(expected.selection.record_key, expected.selection)
+        !sameReferenceCondition(response.clause.condition, summary.condition)
       )
         throw new Error("Unable to verify reference links response");
       return response;
@@ -132,29 +127,41 @@ function EvidencePage({
         />
       )}
       <ul className="relationship-evidence__list">
-        {displayed.occurrences.map((occurrence, index) => (
-          <li key={JSON.stringify([occurrence.source, occurrence.ordinal, index])}>
-            <Space wrap>
-              <EvidenceLink
-                selection={occurrence.source_navigation}
-                title={occurrence.source_title ?? "Referring record"}
-                onNavigate={onNavigate}
-              />
-              <Typography.Text type="secondary">→</Typography.Text>
-              {occurrence.target ? (
-                <EvidenceLink
-                  selection={occurrence.target}
-                  title={occurrence.target_title ?? "Referenced record"}
+        {displayed.occurrences.map((entry, index) => {
+          const occurrence = entry.occurrence;
+          const source =
+            entry.kind === "record"
+              ? {
+                  kind: "record" as const,
+                  navigation: entry.occurrence.source_navigation,
+                }
+              : entry.occurrence.source;
+          const target =
+            entry.kind === "record" ? entry.destination : entry.occurrence.target;
+          return (
+            <li key={JSON.stringify([entry.kind, occurrence.source, index])}>
+              <Space wrap>
+                <EvidenceDestination
+                  destination={source}
+                  title={occurrence.source_title ?? "Referring record"}
                   onNavigate={onNavigate}
                 />
-              ) : (
-                <Typography.Text type="secondary">
-                  Reference unavailable
-                </Typography.Text>
-              )}
-            </Space>
-          </li>
-        ))}
+                <Typography.Text type="secondary">→</Typography.Text>
+                {target ? (
+                  <EvidenceDestination
+                    destination={target}
+                    title={occurrence.target_title ?? "Referenced record"}
+                    onNavigate={onNavigate}
+                  />
+                ) : (
+                  <Typography.Text type="secondary">
+                    Reference unavailable
+                  </Typography.Text>
+                )}
+              </Space>
+            </li>
+          );
+        })}
       </ul>
       {evidence.page.total > BigInt(evidence.page.size) && (
         <Pagination
@@ -181,6 +188,25 @@ function EvidencePage({
         {displayed.occurrences.length} of {displayed.page.total.toString()} links
       </Typography.Text>
     </div>
+  );
+}
+function EvidenceDestination({
+  destination,
+  title,
+  onNavigate,
+}: {
+  destination: import("../../generated/atlas").ReferenceDestinationView;
+  title: string;
+  onNavigate?: (selection: RecordNavigationView, anchor: HTMLElement) => void;
+}) {
+  return destination.kind === "record" && !destination.reading_context ? (
+    <EvidenceLink
+      selection={destination.navigation}
+      title={title}
+      onNavigate={onNavigate}
+    />
+  ) : (
+    <Typography.Text>{title}</Typography.Text>
   );
 }
 function EvidenceLink({

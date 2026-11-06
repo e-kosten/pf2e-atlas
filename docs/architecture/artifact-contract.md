@@ -227,6 +227,13 @@ explicit invalid query facts while the checked source remains retained.
 vocabulary. Relationship leaves apply to candidate roots and are rejected inside
 authored Exists scopes. Neutral owner-address primitives live in atlas-domain;
 source selection policy remains atlas-record-owned.
+The incoming definition-reference leaf shares this compiler and its clause budget,
+admission and positive-proof evidence. Its typed target is a real record selection
+or definition key. Record backing resolves through checked canonical metadata and
+unions existing UUID occurrences with visible localization evidence; it never
+copies graph rows or substitutes capped neighboring keys. Unknown/inapplicable
+targets are errors even under NOT or an unmatched OR branch. Ordinary record-link
+leaves and the symmetric specialized trait-reference reader remain distinct.
 Index validates fields, applicability, operators, literals and bounded complexity
 against its catalog, then compiles parameterized SQL. Only true roots match;
 unknown remains unknown under NOT. Exists uses one child witness for its complete
@@ -257,6 +264,13 @@ bounded paging and separately validated selections. An empty key scope stays emp
 Vocabulary totals describe available matching values, exclude absent selections,
 and never masquerade as displayed-root counts. Closed choices remain in the
 executable catalog even when absent from the corpus.
+
+Artifact-scoped definition-option discovery separately enumerates eligible published
+definition identities and admitted existing glossary records. It includes zero-match
+and label-only entries and retains unavailable selected identities separately. Its
+labels, metadata and predicates stay checked against the executable query catalog;
+persisted binding metadata is not SQL authority. Sense acuity/range qualify the same
+`senses` member, and armor groups use the ordinary root/immediate-equipment field.
 
 Public filters use domain namespaces, including root `kind`, `traits`,
 `level_or_rank` and explicit `embedded.spells`/`embedded.equipment` collections.

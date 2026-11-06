@@ -1,4 +1,5 @@
 import { readUrl } from "../readingUrl";
+import { encodeFilterUrl } from "../../src/shared/filters/filterUrl";
 import { encodeReadingAddress } from "../../src/app/readingUrl";
 import { expect, test } from "./fixtures";
 import type { Page } from "@playwright/test";
@@ -2463,4 +2464,79 @@ test("routine budgets and check trait disclosures retain keyboard and touch read
   });
   await expect(inheritedPopup.getByText("Visual", { exact: true })).toBeVisible();
   await noPageOverflow(page);
+});
+
+test("glossary vocabulary labels and communication notes use supplied context @engine", async ({
+  page,
+  request,
+}) => {
+  await page.goto(`/records/${sentinel}`);
+  await expect(
+    page.getByRole("heading", { name: "Atlas Sentinel", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Common, Chthonian", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByText("Understands the watchtower's lantern signals.", { exact: true })
+      .first(),
+  ).toBeVisible();
+  await expect(page.getByText(/Darkvision/).first()).toBeVisible();
+  await page.goto("/records/browser-equipment:sword00000000001");
+  await expect(
+    page.getByRole("heading", { name: "Glossary Sword", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Sword", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Large", { exact: true }).first()).toBeVisible();
+  const detail = await request.post("/api/definitions/detail", {
+    data: { definition_key: "sense:darkvision" },
+  });
+  expect(detail.ok()).toBeTruthy();
+  const value = await detail.json();
+  expect(value.content).toBeNull();
+  expect(value.help.destination).toMatchObject({
+    kind: "record",
+    navigation: { record_key: "bestiary-ability-glossary-srd:qCCLZhnp2HhP3Ex6" },
+    reading_context: "general_definition",
+  });
+  const language = await request.post("/api/definitions/detail", {
+    data: {
+      definition_key: "language:chthonian",
+      expected_artifact_generation: value.artifact_generation,
+    },
+  });
+  expect(language.ok()).toBeTruthy();
+  expect((await language.json()).content.body.html).toContain(
+    "Typically spoken by demons",
+  );
+});
+
+test("glossary reference filters keep loaded exact criteria and readable labels @engine", async ({
+  page,
+}) => {
+  const filter = {
+    kind: "definition_reference" as const,
+    reference: {
+      target: { kind: "definition" as const, key: "language:chthonian" },
+      include_contents: false,
+    },
+  };
+  const response = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/search/page") &&
+      response.request().postDataJSON()?.criteria?.filter?.kind ===
+        "definition_reference",
+  );
+  await page.goto(`/?filter=${encodeFilterUrl(filter)}`);
+  expect((await response).ok()).toBeTruthy();
+  await page.getByRole("button", { name: "Advanced filters", exact: true }).click();
+  const drawer = page.getByRole("dialog", { name: "Advanced filters", exact: true });
+  await expect(drawer.getByText("Chthonian", { exact: true })).toBeVisible();
+  await expect(
+    drawer.getByRole("combobox", { name: "Definition reference scope" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(drawer).toBeHidden();
+  expect(new URL(page.url()).searchParams.get("filter")).toBe(encodeFilterUrl(filter));
 });

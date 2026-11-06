@@ -55,7 +55,7 @@ describe("reference fact reading policy", () => {
     const component = {
       id: "authored",
       formula: knownFact("0"),
-      damage_type: knownFact(" "),
+      damage_type: knownFact({ value: " ", label: " " }),
       kinds: knownFact<string[]>([]),
       category: knownFact(" "),
       materials: knownFact<string[]>([]),

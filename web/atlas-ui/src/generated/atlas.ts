@@ -133,11 +133,10 @@ export type { QueryLiteral } from "../../../../crates/atlas-app-model/bindings/Q
 export type { QueryPredicate } from "../../../../crates/atlas-app-model/bindings/QueryPredicate";
 export type { QuerySetMatch } from "../../../../crates/atlas-app-model/bindings/QuerySetMatch";
 export type { QueryValueDiscovery } from "../../../../crates/atlas-app-model/bindings/QueryValueDiscovery";
-export type { QueryValueOption } from "../../../../crates/atlas-app-model/bindings/QueryValueOption";
-export type { QueryValueOptions } from "../../../../crates/atlas-app-model/bindings/QueryValueOptions";
-export type { QueryVocabulary } from "../../../../crates/atlas-app-model/bindings/QueryVocabulary";
+export type { FilterValueOptionView } from "../../../../crates/atlas-app-model/bindings/FilterValueOptionView";
+export type { FilterValueOptionsView } from "../../../../crates/atlas-app-model/bindings/FilterValueOptionsView";
+export type { FilterVocabularyView } from "../../../../crates/atlas-app-model/bindings/FilterVocabularyView";
 export type { QueryVocabularyBasis } from "../../../../crates/atlas-app-model/bindings/QueryVocabularyBasis";
-export type { QueryVocabularyOption } from "../../../../crates/atlas-app-model/bindings/QueryVocabularyOption";
 export type { RecordBadgeView } from "../../../../crates/atlas-app-model/bindings/RecordBadgeView";
 export type { RecordBodyView } from "../../../../crates/atlas-app-model/bindings/RecordBodyView";
 export type { RecordDetailRequest } from "../../../../crates/atlas-app-model/bindings/RecordDetailRequest";
@@ -240,7 +239,6 @@ export type { EncounterSpellcastingView } from "../../../../crates/atlas-app-mod
 export type { EncounterSpellResourceView } from "../../../../crates/atlas-app-model/bindings/EncounterSpellResourceView";
 export type { EncounterSpellView } from "../../../../crates/atlas-app-model/bindings/EncounterSpellView";
 export type { EncounterSpellRankView } from "../../../../crates/atlas-app-model/bindings/EncounterSpellRankView";
-
 export type { RollTableRequest } from "../../../../crates/atlas-app-model/bindings/RollTableRequest";
 export type { TableRollView } from "../../../../crates/atlas-app-model/bindings/TableRollView";
 export type { RollTableRowView } from "../../../../crates/atlas-app-model/bindings/RollTableRowView";
@@ -251,10 +249,8 @@ export type { StrikeRollKind } from "../../../../crates/atlas-app-model/bindings
 export type { RollEncounterStrikeRequest } from "../../../../crates/atlas-app-model/bindings/RollEncounterStrikeRequest";
 export type { StrikeDamageRollView } from "../../../../crates/atlas-app-model/bindings/StrikeDamageRollView";
 export type { EncounterStrikeRollView } from "../../../../crates/atlas-app-model/bindings/EncounterStrikeRollView";
-
 export type { SearchRanking } from "../../../../crates/atlas-app-model/bindings/SearchRanking";
 export type { ConsumableDamageView } from "../../../../crates/atlas-app-model/bindings/ConsumableDamageView";
-
 export type { ConditionEventPreviewView } from "../../../../crates/atlas-app-model/bindings/ConditionEventPreviewView";
 export type { SetEncounterLifeSettingsRequest } from "../../../../crates/atlas-app-model/bindings/SetEncounterLifeSettingsRequest";
 export type { RemoveEncounterParticipantConditionRequest } from "../../../../crates/atlas-app-model/bindings/RemoveEncounterParticipantConditionRequest";
@@ -262,41 +258,29 @@ export type { RecoverPersistentDamageRequest } from "../../../../crates/atlas-ap
 export type { PersistentRecoveryResultView } from "../../../../crates/atlas-app-model/bindings/PersistentRecoveryResultView";
 export type { PendingConditionConsequenceView } from "../../../../crates/atlas-app-model/bindings/PendingConditionConsequenceView";
 export type { ResolveDrainedConsequenceRequest } from "../../../../crates/atlas-app-model/bindings/ResolveDrainedConsequenceRequest";
-
 export type { PersistentDamageGroupView } from "../../../../crates/atlas-app-model/bindings/PersistentDamageGroupView";
-
 export type { EncounterCastingRemindersRequest } from "../../../../crates/atlas-app-model/bindings/EncounterCastingRemindersRequest";
 export type { EncounterCastingRemindersView } from "../../../../crates/atlas-app-model/bindings/EncounterCastingRemindersView";
 export type { EncounterActionFactView } from "../../../../crates/atlas-app-model/bindings/EncounterActionFactView";
-
 export type { ApplyPersistentDamageRequest } from "../../../../crates/atlas-app-model/bindings/ApplyPersistentDamageRequest";
 export type { PersistentDamageResultView } from "../../../../crates/atlas-app-model/bindings/PersistentDamageResultView";
 export type { HpEventContextView } from "../../../../crates/atlas-app-model/bindings/HpEventContextView";
 export type { PendingHpLifecycleView } from "../../../../crates/atlas-app-model/bindings/PendingHpLifecycleView";
 export type { ResolveEncounterHpLifecycleRequest } from "../../../../crates/atlas-app-model/bindings/ResolveEncounterHpLifecycleRequest";
-
 export type { PersistentReviewView } from "../../../../crates/atlas-app-model/bindings/PersistentReviewView";
-
 export type { ApplyConditionLifecycleRequest } from "../../../../crates/atlas-app-model/bindings/ApplyConditionLifecycleRequest";
 export type { ConditionLifecycleActionView } from "../../../../crates/atlas-app-model/bindings/ConditionLifecycleActionView";
 export type { ConditionLifecycleActionsView } from "../../../../crates/atlas-app-model/bindings/ConditionLifecycleActionsView";
 export type { ConditionLifecycleOptionView } from "../../../../crates/atlas-app-model/bindings/ConditionLifecycleOptionView";
 export type { ConditionLifecycleResultView } from "../../../../crates/atlas-app-model/bindings/ConditionLifecycleResultView";
 export type { LifecycleCheckInputView } from "../../../../crates/atlas-app-model/bindings/LifecycleCheckInputView";
-
 export type { EncounterActionIssueView } from "../../../../crates/atlas-app-model/bindings/EncounterActionIssueView";
-
 export type { EncounterStrikeContextRequest } from "../../../../crates/atlas-app-model/bindings/EncounterStrikeContextRequest";
 export type { EncounterStrikeContextView } from "../../../../crates/atlas-app-model/bindings/EncounterStrikeContextView";
-
 export type { EncounterTargetingRequirementsView } from "../../../../crates/atlas-app-model/bindings/EncounterTargetingRequirementsView";
-
 export type { ConditionActionView } from "../../../../crates/atlas-app-model/bindings/ConditionActionView";
-
 export type { EncounterTurnBoundaryView } from "../../../../crates/atlas-app-model/bindings/EncounterTurnBoundaryView";
-
 export type { EncounterNextTurnUnavailableReason } from "../../../../crates/atlas-app-model/bindings/EncounterNextTurnUnavailableReason";
-
 export type { RollFlatCheckRequest } from "../../../../crates/atlas-app-model/bindings/RollFlatCheckRequest";
 export type { FlatCheckRollView } from "../../../../crates/atlas-app-model/bindings/FlatCheckRollView";
 export type { PartyView } from "../../../../crates/atlas-app-model/bindings/PartyView";
@@ -308,31 +292,20 @@ export type { CreatePartyRequest } from "../../../../crates/atlas-app-model/bind
 export type { UpdatePartyRequest } from "../../../../crates/atlas-app-model/bindings/UpdatePartyRequest";
 export type { DeletePartyRequest } from "../../../../crates/atlas-app-model/bindings/DeletePartyRequest";
 export type { AddEncounterPartyRequest } from "../../../../crates/atlas-app-model/bindings/AddEncounterPartyRequest";
-
 export type { SavedListItemNoteView } from "../../../../crates/atlas-app-model/bindings/SavedListItemNoteView";
 export type { UpdateSavedListItemNoteRequest } from "../../../../crates/atlas-app-model/bindings/UpdateSavedListItemNoteRequest";
-
 export type { EncounterStrikeActionContextView } from "../../../../crates/atlas-app-model/bindings/EncounterStrikeActionContextView";
-
 export type { EncounterActionCheckView } from "../../../../crates/atlas-app-model/bindings/EncounterActionCheckView";
 export type { ConditionRecoveryOfferView } from "../../../../crates/atlas-app-model/bindings/ConditionRecoveryOfferView";
 export type { LifecycleCheckFactsView } from "../../../../crates/atlas-app-model/bindings/LifecycleCheckFactsView";
 export type { ConditionParametersInputView } from "../../../../crates/atlas-app-model/bindings/ConditionParametersInputView";
-
 export type { TraitDetailRequest } from "../../../../crates/atlas-app-model/bindings/TraitDetailRequest";
-
 export type { TraitDetailView } from "../../../../crates/atlas-app-model/bindings/TraitDetailView";
-
 export type { TraitRecordsRequest } from "../../../../crates/atlas-app-model/bindings/TraitRecordsRequest";
-
 export type { TraitRecordsPage } from "../../../../crates/atlas-app-model/bindings/TraitRecordsPage";
-
 export type { TraitAssociationKind } from "../../../../crates/atlas-app-model/bindings/TraitAssociationKind";
-
 export type { TraitRecordView } from "../../../../crates/atlas-app-model/bindings/TraitRecordView";
-
-export type { TraitContentView } from "../../../../crates/atlas-app-model/bindings/TraitContentView";
-
+export type { ReferenceContentView } from "../../../../crates/atlas-app-model/bindings/ReferenceContentView";
 export type { PreparedReferenceView } from "../../../../crates/atlas-app-model/bindings/PreparedReferenceView";
 export type { RelationshipEvidenceView } from "../../../../crates/atlas-app-model/bindings/RelationshipEvidenceView";
 export type { RelationshipOccurrencesPage } from "../../../../crates/atlas-app-model/bindings/RelationshipOccurrencesPage";
@@ -346,17 +319,12 @@ export type { QueryRecordSelection } from "../../../../crates/atlas-app-model/bi
 export type { QueryRelationship } from "../../../../crates/atlas-app-model/bindings/QueryRelationship";
 export type { RelationshipClauseSummaryView } from "../../../../crates/atlas-app-model/bindings/RelationshipClauseSummaryView";
 export type { RelationshipClausePresentationView } from "../../../../crates/atlas-app-model/bindings/RelationshipClausePresentationView";
-
 export type { ConditionHpChangeView } from "../../../../crates/atlas-app-model/bindings/ConditionHpChangeView";
 export type { KnockoutOptionView } from "../../../../crates/atlas-app-model/bindings/KnockoutOptionView";
-
 export type { PersistentRecoveryResolution } from "../../../../crates/atlas-app-model/bindings/PersistentRecoveryResolution";
-
 export type { PersistentDamagePrecedenceView } from "../../../../crates/atlas-app-model/bindings/PersistentDamagePrecedenceView";
 export type { PersistentDamageSourceRefView } from "../../../../crates/atlas-app-model/bindings/PersistentDamageSourceRefView";
-
 export type { PersistentDamagePrecedenceEntryView } from "../../../../crates/atlas-app-model/bindings/PersistentDamagePrecedenceEntryView";
-
 export type { PersistentDamageProtectionView } from "../../../../crates/atlas-app-model/bindings/PersistentDamageProtectionView";
 export type { PersistentDamageResolutionView } from "../../../../crates/atlas-app-model/bindings/PersistentDamageResolutionView";
 export type { PhysicalDetailsView } from "../../../../crates/atlas-app-model/bindings/PhysicalDetailsView";
@@ -391,7 +359,6 @@ export type { PersistentRecoveryInput } from "../../../../crates/atlas-app-model
 export type { PersistentDamageGroupInput } from "../../../../crates/atlas-app-model/bindings/PersistentDamageGroupInput";
 export type { PersistentDamageOutcomeView } from "../../../../crates/atlas-app-model/bindings/PersistentDamageOutcomeView";
 export type { PersistentEpisodeReviewView } from "../../../../crates/atlas-app-model/bindings/PersistentEpisodeReviewView";
-
 export type { RollPreviewExpression } from "../../../../crates/atlas-app-model/bindings/RollPreviewExpression";
 export type { SpellRankChangeView } from "../../../../crates/atlas-app-model/bindings/SpellRankChangeView";
 export type { SpellRankFactView } from "../../../../crates/atlas-app-model/bindings/SpellRankFactView";
@@ -407,12 +374,10 @@ export type { SimilarityPartsRequest } from "../../../../crates/atlas-app-model/
 export type { SimilarityPartsView } from "../../../../crates/atlas-app-model/bindings/SimilarityPartsView";
 export type { SimilarityEvidenceView } from "../../../../crates/atlas-app-model/bindings/SimilarityEvidenceView";
 export type { SimilarityConfigurationView } from "../../../../crates/atlas-app-model/bindings/SimilarityConfigurationView";
-
 export type { ContentRollComponentView } from "../../../../crates/atlas-app-model/bindings/ContentRollComponentView";
 export type { RollContentRequest } from "../../../../crates/atlas-app-model/bindings/RollContentRequest";
 export type { ContentRollResultView } from "../../../../crates/atlas-app-model/bindings/ContentRollResultView";
 export type { ContentRollComponentResultView } from "../../../../crates/atlas-app-model/bindings/ContentRollComponentResultView";
-
 export type { ContentRollPresentationView } from "../../../../crates/atlas-app-model/bindings/ContentRollPresentationView";
 export type { RollUnitView } from "../../../../crates/atlas-app-model/bindings/RollUnitView";
 export type { CoreFallbackReason } from "../../../../crates/atlas-app-model/bindings/CoreFallbackReason";
@@ -424,6 +389,24 @@ export type { SimilaritySourceSections } from "../../../../crates/atlas-app-mode
 export type { SimilarityComparisonKey } from "../../../../crates/atlas-app-model/bindings/SimilarityComparisonKey";
 export type { SimilarityComponentView } from "../../../../crates/atlas-app-model/bindings/SimilarityComponentView";
 export type { RemasterProvenanceView } from "../../../../crates/atlas-app-model/bindings/RemasterProvenanceView";
-
 export type { CheckDetailsView } from "../../../../crates/atlas-app-model/bindings/CheckDetailsView";
 export type { RoutineHeaderView } from "../../../../crates/atlas-app-model/bindings/RoutineHeaderView";
+export type { ReferenceValueView } from "../../../../crates/atlas-app-model/bindings/ReferenceValueView";
+export type { ReferenceHelpView } from "../../../../crates/atlas-app-model/bindings/ReferenceHelpView";
+export type { ReferenceDestinationView } from "../../../../crates/atlas-app-model/bindings/ReferenceDestinationView";
+export type { RecordReadingContextView } from "../../../../crates/atlas-app-model/bindings/RecordReadingContextView";
+export type { ReferenceFilterActionView } from "../../../../crates/atlas-app-model/bindings/ReferenceFilterActionView";
+export type { DefinitionAvailabilityView } from "../../../../crates/atlas-app-model/bindings/DefinitionAvailabilityView";
+export type { DefinitionDetailRequest } from "../../../../crates/atlas-app-model/bindings/DefinitionDetailRequest";
+export type { DefinitionDetailView } from "../../../../crates/atlas-app-model/bindings/DefinitionDetailView";
+export type { DefinitionFilterOptionsRequest } from "../../../../crates/atlas-app-model/bindings/DefinitionFilterOptionsRequest";
+export type { DefinitionFilterOptionsView } from "../../../../crates/atlas-app-model/bindings/DefinitionFilterOptionsView";
+export type { DefinitionFilterOptionView } from "../../../../crates/atlas-app-model/bindings/DefinitionFilterOptionView";
+export type { QueryDefinitionReference } from "../../../../crates/atlas-app-model/bindings/QueryDefinitionReference";
+export type { QueryDefinitionReferenceTarget } from "../../../../crates/atlas-app-model/bindings/QueryDefinitionReferenceTarget";
+
+export type { ReferenceClauseConditionView } from "../../../../crates/atlas-app-model/bindings/ReferenceClauseConditionView";
+
+export type { ReferenceOccurrenceView } from "../../../../crates/atlas-app-model/bindings/ReferenceOccurrenceView";
+
+export type { DefinitionReferenceEvidenceView } from "../../../../crates/atlas-app-model/bindings/DefinitionReferenceEvidenceView";

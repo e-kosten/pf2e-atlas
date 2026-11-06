@@ -5,7 +5,10 @@
 //! transient during preparation and selected reading.
 
 mod general_definition;
-pub use general_definition::GENERAL_DEFINITION_READING_RECIPE;
+pub use general_definition::{
+    GENERAL_DEFINITION_READING_RECIPE, GeneralDefinitionProjection,
+    GeneralDefinitionProjectionInput, general_definition_projection,
+};
 pub(crate) use general_definition::{
     finish_general_definition_reading, general_definition_origin, has_general_definition_marker,
     validate_general_definition_markers,

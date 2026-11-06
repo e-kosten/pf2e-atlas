@@ -151,6 +151,17 @@ Similar remains a separate search criterion. Its named, selectable read-only see
 occupies the keyword search shell with identical clear/search affordances. Clearing
 it retains filters and returns focus to keyword entry.
 
+## Definition-reference extension
+
+[ADR0067](./0067-contextual-reference-definitions.md) extends the same predicate,
+clause-budget, admission, Boolean proof and evidence owners with an incoming-only
+`DefinitionReference` leaf. Its destination is an exact record selection or typed
+definition key; source-contents scope retains exact owner semantics. Record-backed
+definitions combine canonical localization evidence with existing resolved UUID
+occurrences without copying either store. Definitions do not become result records.
+Existing `QueryRelationship` leaves keep their graph-only meaning, and specialized
+trait-reference APIs keep their symmetric incoming/outgoing semantics.
+
 ## Consequences
 
 The shared query model, CLI grammar, web editor, discovery and evidence readers

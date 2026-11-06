@@ -11,13 +11,13 @@ import type {
   AttributeChoiceView,
 } from "../../generated/atlas";
 import type { RecordReferenceHandler } from "./PreparedContent";
-import { FactRow, NumberFact } from "./presentationFacts";
+import { FactRow, NumberFact, scalarFactText } from "./presentationFacts";
 import { renderIwr } from "./ActorReference";
 import "../../styles/ui/reference-profiles.css";
 export function renderReferenceFact<T>({
   label,
   fact,
-  format = String,
+  format = scalarFactText,
   unit = "",
   optional = false,
   emptyLabel,
@@ -61,8 +61,8 @@ export function renderReferenceFact<T>({
 }
 export const ReferenceFact = renderReferenceFact;
 
-const list = (values: string[]) => values.join(", ");
-const alternatives = (values: string[]) => values.join(" or ");
+const list = (values: unknown[]) => values.map(scalarFactText).join(", ");
+const alternatives = (values: unknown[]) => values.map(scalarFactText).join(" or ");
 const choices = (slots: AttributeChoiceView[]) =>
   slots
     .map((slot) =>

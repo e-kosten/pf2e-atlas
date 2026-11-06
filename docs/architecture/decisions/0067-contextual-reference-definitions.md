@@ -146,3 +146,34 @@ published evidence; app-service owns semantic labels, help destinations and rela
 filter actions. CLI and browser render generated product contracts. Contextual
 reading uses the shared Drawer, and discoverability follows existing Advanced
 Filters. Extending those product surfaces does not change these content owners.
+
+
+Contextual retrieval uses the existing bounded workspace/search service. Metadata
+batches select at most 100 identities and avoid prepared-body deserialization;
+they still read the canonical envelope bytes to verify their checksum. Full detail
+loads the standalone prepared body and required notices, or returns the existing
+record destination. Exact-owner outgoing evidence and complete SQL target
+uniqueness support owned-ability help without guessing from names or capped pages.
+
+App-service projects categorical values as raw identity, readable label and optional
+typed help. Record destinations retain `RecordNavigationView`; an optional general-
+definition reading context selects a verified canonical template subtree, preserving
+original control/reference ordinals. Other reads retain ordinary authored content.
+Standalone definition destinations remain typed definition keys. Related actions
+carry the executable predicate, or a numeric field configuration that still needs
+an operator/value. Older traits-only coverage preserves ordinary record reads and
+reports setup-required help for new namespaces.
+
+`DefinitionReference` is an incoming query leaf in the existing Boolean eligibility
+engine. A record destination unions visible canonical localization occurrences
+with existing UUID graph evidence; standalone keys use canonical occurrences.
+Definition keys backed by records retain their semantic identity while resolving
+to the checked record destination. Missing or inapplicable targets fail admission
+even under negation. Existing record-link predicates and symmetric specialized
+trait-reference workflows retain their meanings. Generic trait help supplies the
+exact membership predicate; the legacy symmetric reference binding stays with the
+existing trait References/Similar workflow. Unknown binding metadata remains an
+error rather than silently dropping a capability. Artifact-scoped definition-option
+discovery includes eligible zero-match and label-only values plus admitted existing
+glossary records; it does not change corpus/list value-vocabulary semantics or add
+a glossary browser.

@@ -173,7 +173,8 @@ pub(crate) fn read_encounter_reference(
         adjustment_applicable,
         &relationship_causes,
     );
-    let current = crate::presentation::compose_participant(root, &block);
+    let mut current = crate::presentation::compose_participant(root, &block);
+    crate::presentation::reference_help::annotate(&mut current, r)?;
     compose_selected(&mut selected, current, &block)?;
     let source = records
         .get(&source_key)

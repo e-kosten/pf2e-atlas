@@ -2,7 +2,7 @@
 use crate::RetrievalModeView;
 use atlas_domain::{
     QueryError, QueryFacetOutcome, QueryFieldDefinition, QueryLimits, QueryLiteral, QueryPredicate,
-    QueryValueOptions, QueryVocabulary,
+    QueryVocabularyBasis,
 };
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -133,6 +133,9 @@ pub struct FilterCollectionControlView {
 pub struct FilterChoiceView {
     pub value: QueryLiteral,
     pub label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub help: Option<crate::ReferenceHelpView>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct FilterOperatorView {
@@ -175,20 +178,47 @@ pub struct FilterValidationResult {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum FilterValueListView {
     Contextual {
-        outcome: QueryFacetOutcome<QueryValueOptions>,
+        outcome: QueryFacetOutcome<FilterValueOptionsView>,
         search_profile: atlas_domain::SearchProfileId,
         artifact_generation: String,
     },
     Vocabulary {
         scope: FilterVocabularyScope,
-        values: QueryVocabulary,
+        values: FilterVocabularyView,
     },
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct FilterCountsView {
     pub search_profile: atlas_domain::SearchProfileId,
     pub artifact_generation: String,
-    pub counts: QueryFacetOutcome<QueryValueOptions>,
+    pub counts: QueryFacetOutcome<FilterValueOptionsView>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct FilterValueOptionView {
+    pub value: QueryLiteral,
+    pub label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub help: Option<crate::ReferenceHelpView>,
+    pub distinct_roots: u64,
+    pub selected: bool,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct FilterValueOptionsView {
+    pub field: String,
+    pub options: Vec<FilterValueOptionView>,
+    pub total_values: u64,
+    pub exhaustive: bool,
+    pub count_basis: String,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct FilterVocabularyView {
+    pub field: String,
+    pub options: Vec<FilterChoiceView>,
+    pub selected_values: Vec<QueryLiteral>,
+    pub total_values: u64,
+    pub basis: QueryVocabularyBasis,
 }
 
 #[cfg(test)]

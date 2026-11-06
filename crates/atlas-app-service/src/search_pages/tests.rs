@@ -530,23 +530,32 @@ fn relationship_pages_label_exact_entries_and_page_evidence_with_generation_guar
     assert_eq!(result.relationship_clauses[0].title, "Leather Armor");
     assert_eq!(result.page.total, 1);
     assert_eq!(result.rows[0].relationship_evidence[0].page.total, 2);
-    assert_eq!(
-        result.rows[0].relationship_evidence[0].occurrences[0]
-            .source_title
-            .as_deref(),
-        Some("Guard's armor")
+    let atlas_app_model::ReferenceOccurrenceView::Record {
+        occurrence: first,
+        destination,
+    } = &result.rows[0].relationship_evidence[0].occurrences[0]
+    else {
+        panic!("record graph evidence expected")
+    };
+    assert_eq!(first.source_title.as_deref(), Some("Guard's armor"));
+    assert!(matches!(
+        destination.as_ref(),
+        atlas_app_model::ReferenceDestinationView::Record {
+            reading_context: None,
+            ..
+        }
+    ));
+    assert!(
+        result.rows[0].relationship_evidence[0]
+            .occurrences
+            .iter()
+            .any(|o| matches!(o,atlas_app_model::ReferenceOccurrenceView::Record{occurrence, ..} if occurrence.origin=="structured" && occurrence.kind=="CompendiumProvenance"))
     );
     assert!(
         result.rows[0].relationship_evidence[0]
             .occurrences
             .iter()
-            .any(|o| o.origin == "structured" && o.kind == "CompendiumProvenance")
-    );
-    assert!(
-        result.rows[0].relationship_evidence[0]
-            .occurrences
-            .iter()
-            .any(|o| o.origin == "content")
+            .any(|o| matches!(o,atlas_app_model::ReferenceOccurrenceView::Record{occurrence, ..} if occurrence.origin=="content"))
     );
     let page = f
         .worker
@@ -655,7 +664,17 @@ fn relationship_source_navigation_opens_structured_owner_and_precise_prose_field
     let result = f.worker.search_page(criteria, &execution).unwrap();
     let occurrences = &result.rows[0].relationship_evidence[0].occurrences;
     for origin in ["structured", "content"] {
-        let occurrence = occurrences.iter().find(|o| o.origin == origin).unwrap();
+        let occurrence = occurrences
+            .iter()
+            .find_map(|o| match o {
+                atlas_app_model::ReferenceOccurrenceView::Record { occurrence, .. }
+                    if occurrence.origin == origin =>
+                {
+                    Some(occurrence.as_ref())
+                }
+                _ => None,
+            })
+            .unwrap();
         let navigation = &occurrence.source_navigation;
         assert!(
             !navigation.owners.is_empty(),
@@ -682,6 +701,8 @@ fn relationship_source_navigation_opens_structured_owner_and_precise_prose_field
         let opened = f
             .worker
             .record_detail_at(RecordDetailRequest {
+                expected_artifact_generation: None,
+                reading_context: None,
                 spell_rank: navigation.spell_rank,
                 record_key: navigation.record_key.clone(),
                 owners: navigation.owners.clone(),
@@ -1105,6 +1126,8 @@ fn core_source_acknowledges_identity_and_prose_and_identity_navigation_opens_the
     let detail = fixture
         .worker
         .record_detail_at(atlas_app_model::RecordDetailRequest {
+            expected_artifact_generation: None,
+            reading_context: None,
             spell_rank: None,
             record_key: navigation.record_key.clone(),
             owners: vec![],
@@ -1388,6 +1411,8 @@ fn similarity_section_labels_preserve_authored_headings_and_navigate_checked_sou
             let detail = fixture
                 .worker
                 .record_detail_at(atlas_app_model::RecordDetailRequest {
+                    expected_artifact_generation: None,
+                    reading_context: None,
                     spell_rank: None,
                     record_key: navigation.record_key.clone(),
                     owners: navigation.owners.clone(),

@@ -98,7 +98,10 @@ export function DamageComponents({
               ? ""
               : patch && component.damage_type.state === "null"
                 ? "Type cleared"
-                : factText(component.damage_type, String, { required: true, patch })}
+                : factText(component.damage_type, (value) => value.label, {
+                    required: true,
+                    patch,
+                  })}
             {kinds
               ? component.kinds.state === "value" &&
                 !(patch && isEmptyFactValue(component.kinds.value))
@@ -188,7 +191,13 @@ export function renderIwr({
 }
 export const Iwr = renderIwr;
 
-function DefenseNote({ label, fact }: { label: string; fact: FactView<string> }) {
+function DefenseNote({
+  label,
+  fact,
+}: {
+  label: string;
+  fact: FactView<string | import("../../generated/atlas").ReferenceValueView>;
+}) {
   if (fact.state === "missing" || fact.state === "not_applicable") return null;
   return <FactLine label={label} fact={fact} />;
 }
@@ -316,10 +325,7 @@ export function ActorAwareness({
       {encounter && actor.runtime ? (
         <div className="record-fact-list">
           {actor.runtime.senses.map((sense, index) => (
-            <FactRow
-              label={sentenceCase(sense.sense_type.replace(/-/g, " "))}
-              key={index}
-            >
+            <FactRow label={sense.sense_type.label} key={index}>
               {[
                 sense.precision,
                 sense.range_feet === null ? null : `${sense.range_feet} feet`,
@@ -398,7 +404,7 @@ export function ActorLanguages({ actor }: { actor: ActorPresentationView }) {
       <FactLine
         label="Languages"
         fact={actor.languages}
-        format={(values) => values.join(", ")}
+        format={(values) => values.map((value) => value.label).join(", ")}
       />
       <FactLine label="Communication" fact={actor.language_details} />
     </div>
@@ -771,7 +777,7 @@ export function ActorSecondaryFacts({
           <FactLine
             label="Languages"
             fact={actor.languages}
-            format={(value) => value.join(", ")}
+            format={(values) => values.map((value) => value.label).join(", ")}
           />
           <FactLine label="Communication" fact={actor.language_details} />
           <ActorSkills actor={actor} />

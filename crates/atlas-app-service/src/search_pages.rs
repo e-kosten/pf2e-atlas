@@ -316,7 +316,12 @@ impl AtlasAppService {
                     }
                     let (occurrences, page) = crate::relationship_search::evidence_page(
                         retrieval,
-                        &summary.relationship,
+                        evidence_filter.as_ref().ok_or_else(|| {
+                            AppServiceError::invalid_request(
+                                "Reference evidence requires the selected filter",
+                            )
+                        })?,
+                        summary,
                         &key,
                         SearchPage::new(1, 3)?,
                     )?;
@@ -328,6 +333,10 @@ impl AtlasAppService {
                         });
                 }
             }
+            crate::presentation::reference_help::annotate_summaries(
+                rows.iter_mut().map(|row| &mut row.record),
+                retrieval,
+            )?;
             Ok(SearchResultsPage {
                 core_recipe: if matches!(mode, SearchModeSummary::TextSearch { .. })
                     && search_content == atlas_domain::SearchContentScope::Core

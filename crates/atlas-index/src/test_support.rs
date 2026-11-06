@@ -241,10 +241,41 @@ pub fn publish_input(path: impl AsRef<Path>, input: &IndexBuildInput) -> Result<
     publish_input_in(&workspace, TEST_WORKSPACE_SCHEMA_VERSION, input)
 }
 
+/// Publish explicit glossary fixtures through the same checked publication owner.
+/// The caller supplies complete inventory/scope evidence in the input context.
+pub fn publish_input_with_references(
+    path: impl AsRef<Path>,
+    input: &IndexBuildInput,
+    entries: &[crate::ReferenceEntry],
+    notices: &[crate::ReferenceNotice],
+    occurrences: &[crate::DefinitionReferenceInput],
+) -> Result<(), IndexError> {
+    let workspace = initialize_workspace(path)?;
+    publish_input_in_with_references(
+        &workspace,
+        TEST_WORKSPACE_SCHEMA_VERSION,
+        input,
+        entries,
+        notices,
+        occurrences,
+    )
+}
+
 pub fn publish_input_in(
     workspace: &Workspace,
     schema: u32,
     input: &IndexBuildInput,
+) -> Result<(), IndexError> {
+    publish_input_in_with_references(workspace, schema, input, &[], &[], &[])
+}
+
+fn publish_input_in_with_references(
+    workspace: &Workspace,
+    schema: u32,
+    input: &IndexBuildInput,
+    entries: &[crate::ReferenceEntry],
+    notices: &[crate::ReferenceNotice],
+    occurrences: &[crate::DefinitionReferenceInput],
 ) -> Result<(), IndexError> {
     let native = fixture_native_values(input)?;
     let owner = workspace.update_owner()?;
@@ -253,7 +284,16 @@ pub fn publish_input_in(
     let read = workspace.read(schema)?;
     let expected = crate::ArtifactInstance::new(read.workspace_key()?, read.reference_revision()?);
     drop(read);
-    let metadata = spool_input_in(scratch.path(), input, expected)?;
+    let mut metadata = spool_input_in(scratch.path(), input, expected)?;
+    for entry in entries {
+        metadata.reference_entries.push(entry)?;
+    }
+    for notice in notices {
+        metadata.reference_notices.push(notice)?;
+    }
+    for occurrence in occurrences {
+        metadata.definition_references.push(occurrence)?;
+    }
     let mut publication =
         crate::PreparedPublication::new_in(&owner, schema, scratch.path(), metadata)?;
     for model in &input.context.search_profiles {

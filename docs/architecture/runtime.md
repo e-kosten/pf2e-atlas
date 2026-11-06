@@ -502,6 +502,16 @@ that every browser abort drops its server handler. Durable mutations, transactio
 receipts and their reference reads use the normal uncancellable path under
 [ADR0048](./decisions/0048-atomic-mutable-workflows.md).
 
+Contextual definition operations use this same workspace/retrieval composition.
+Bounded metadata batches omit prepared-body decoding while verifying the existing
+canonical-envelope checksum. Exact-owner outgoing occurrences retain field/path
+and visibility; SQL target uniqueness considers the complete selected owner scope.
+App-service supplies typed help destinations, readable labels, query actions and
+scoped attribution/notices. Record backing returns existing navigation, and the
+optional general-definition reading context selects only a verified canonical
+template subtree. It creates no record identity or persisted body. Traits-only
+coverage preserves ordinary reads with explicit setup-required nontrait help.
+
 `AtlasRetrievalService` is a concrete service over index, an explicit default
 profile and an optional prepared query embedding. Narrow inherent methods own strict name/key lookup, browse, text search,
 similar, graph, remaster links, Suggested variants and catalog discovery. The

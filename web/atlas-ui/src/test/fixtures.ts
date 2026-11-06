@@ -49,7 +49,7 @@ export const numberFact = (value: number): NumberFactView => ({
 });
 export function actorFixture(): ActorPresentationView {
   return {
-    size: knownFact("Medium"),
+    size: knownFact({ value: "med", label: "Medium" }),
     hardness: { state: "not_applicable", value: null, adjustment: null },
     ritual_difficulty_class: { state: "not_applicable", value: null, adjustment: null },
     defense_notes: {
@@ -75,7 +75,7 @@ export function actorFixture(): ActorPresentationView {
     resistances: knownFact([]),
     senses: knownFact([]),
     perception_details: knownFact(""),
-    languages: knownFact(["Common"]),
+    languages: knownFact([{ value: "Common", label: "Common" }]),
     language_details: knownFact(""),
     activities: knownFact([]),
     runtime: null,
@@ -140,7 +140,10 @@ export function spellFixture(): SpellPresentationView {
     counteraction: knownFact(false),
     base_rank: numberFact(1),
     rank: numberFact(3),
-    traditions: knownFact(["arcane", "primal"]),
+    traditions: knownFact([
+      { value: "arcane", label: "arcane" },
+      { value: "primal", label: "primal" },
+    ]),
     cast: knownFact({ glyph: "two_actions", label: "2 actions" }),
     requirements: knownFact(""),
     cost: knownFact(""),
@@ -352,6 +355,7 @@ export function editorFixture(fields: QueryFieldDefinition[] = []): FilterEditor
 export function valuesFixture(
   field: string,
   values: string[] = [],
+  labels: Record<string, string> = {},
 ): FilterValueListView {
   return {
     kind: "contextual",
@@ -363,6 +367,7 @@ export function valuesFixture(
         field,
         options: values.map((value) => ({
           value,
+          label: labels[value] ?? String(value),
           distinct_roots: 1n,
           selected: false,
         })),

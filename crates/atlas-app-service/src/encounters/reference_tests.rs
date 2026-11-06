@@ -88,6 +88,8 @@ fn addressed_condition_formula_includes_the_creatures_authored_condition_value()
                 artifact_generation: current.artifact_generation.unwrap(),
                 condition_id: Some(saved.condition_id),
                 selection: RecordDetailRequest {
+                    expected_artifact_generation: None,
+                    reading_context: None,
                     record_key: "conditionitems:e1XGnhKNSQIm5IXg".into(),
                     owners: vec![],
                     fields: vec![],
@@ -161,6 +163,8 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
         condition_id: None,
         artifact_generation: generation.clone(),
         selection: RecordDetailRequest {
+            expected_artifact_generation: None,
+            reading_context: None,
             spell_rank: None,
             record_key: "actors:aaaaaaaaaaaaaaaa".into(),
             owners: vec![atlas_domain::OwnedContentLocator {
@@ -372,6 +376,8 @@ fn selected_reference_preserves_local_documents_and_composes_current_participant
                 condition_id: None,
                 artifact_generation: generation,
                 selection: RecordDetailRequest {
+                    expected_artifact_generation: None,
+                    reading_context: None,
                     spell_rank: None,
                     record_key: "actors:aaaaaaaaaaaaaaaa".into(),
                     owners: vec![],
@@ -439,6 +445,8 @@ fn restarted_encounter_reference_requires_reload_when_only_full_build_context_ch
         condition_id: None,
         artifact_generation: generation_a.clone(),
         selection: RecordDetailRequest {
+            expected_artifact_generation: None,
+            reading_context: None,
             spell_rank: None,
             record_key: "actors:aaaaaaaaaaaaaaaa".into(),
             owners: vec![atlas_domain::OwnedContentLocator {
@@ -603,6 +611,8 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
         condition_id: None,
         artifact_generation: current.artifact_generation.clone().unwrap(),
         selection: RecordDetailRequest {
+            expected_artifact_generation: None,
+            reading_context: None,
             record_key: "actors:contextActor0001".into(),
             owners: vec![],
             fields: vec![],
@@ -794,6 +804,8 @@ fn contextual_reference_uses_current_actor_level_and_effective_condition_value()
                 condition_id: None,
                 artifact_generation: current.artifact_generation.unwrap(),
                 selection: RecordDetailRequest {
+                    expected_artifact_generation: None,
+                    reading_context: None,
                     record_key: "actors:contextUnknown01".into(),
                     owners: vec![],
                     fields: vec![],

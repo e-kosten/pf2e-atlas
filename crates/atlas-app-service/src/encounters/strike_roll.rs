@@ -189,6 +189,7 @@ mod tests {
             [(1, 12), (2, 7), (3, 2)]
         );
         activity.traits.push(RecordBadgeView {
+            help: None,
             trait_key: Some("trait:agile".into()),
             kind: "trait".into(),
             label: "Agile".into(),

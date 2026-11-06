@@ -1084,7 +1084,7 @@ fn common_level_or_rank_preserves_spell_rank_and_all_unavailable_states() {
     }
     assert_eq!(result(&db, "level == 3"), vec![1, 2]);
     assert_eq!(result(&db, "spell.rank == 7"), vec![3]);
-    assert_eq!(query_capabilities().unwrap().version, 9);
+    assert_eq!(query_capabilities().unwrap().version, 10);
     let catalog = query_capabilities().unwrap();
     assert_eq!(
         catalog
@@ -1742,5 +1742,148 @@ fn reference_numeric_filters_use_authored_root_and_embedded_values() {
     assert_eq!(
         result(&db, "skills.athletics.modifier != 20"),
         Vec::<i64>::new()
+    );
+}
+
+#[test]
+fn authored_sense_qualifiers_share_one_member_and_keep_unknown_states() {
+    let db = database();
+    for (id, state) in [
+        (1, "value"),
+        (2, "value"),
+        (3, "missing"),
+        (4, "value"),
+        (5, "value"),
+    ] {
+        root(&db, id, "npc", "common");
+        row(
+            &db,
+            "actor_projection",
+            &[("record_id", id.into()), ("senses_state", text(state))],
+        );
+    }
+    for (id, root, sense, acuity, range, state) in [
+        (1, 1, "darkvision", "precise", 30, "value"),
+        (2, 1, "tremorsense", "imprecise", 60, "value"),
+        (3, 2, "darkvision", "imprecise", 60, "value"),
+        (4, 2, "tremorsense", "precise", 30, "value"),
+        (5, 5, "darkvision", "precise", 0, "invalid"),
+    ] {
+        row(
+            &db,
+            "actor_senses",
+            &[
+                ("id", id.into()),
+                ("record_id", root.into()),
+                ("original_index", id.into()),
+                ("type_state", text("value")),
+                ("type", text(sense)),
+                ("acuity_state", text("value")),
+                ("acuity", text(acuity)),
+                ("range_state", text(state)),
+                (
+                    "range",
+                    if state == "value" {
+                        range.into()
+                    } else {
+                        Value::Null
+                    },
+                ),
+            ],
+        );
+    }
+    assert_eq!(
+        result(
+            &db,
+            "senses.exists(s,s.type=='darkvision' && s.acuity=='precise' && s.range>=60)"
+        ),
+        Vec::<i64>::new()
+    );
+    assert_eq!(
+        result(
+            &db,
+            "senses.exists(s,s.type=='darkvision' && s.acuity=='precise' && s.range>=30)"
+        ),
+        vec![1]
+    );
+    assert_eq!(
+        result(
+            &db,
+            "senses.exists(s,s.type=='darkvision' && s.acuity=='imprecise' && s.range>=60)"
+        ),
+        vec![2]
+    );
+    assert_eq!(
+        result(&db, "!senses.exists(s,s.type=='darkvision' && s.range>=60)"),
+        vec![1, 4]
+    );
+    assert_eq!(
+        result(&db, "senses.exists(s,s.availability['range']=='invalid')"),
+        vec![5]
+    );
+}
+
+#[test]
+fn armor_group_filters_root_and_immediate_equipment_without_promoting_membership() {
+    let db = database();
+    root(&db, 1, "armor", "common");
+    root(&db, 2, "npc", "common");
+    row(
+        &db,
+        "actor_projection",
+        &[("record_id", 2.into()), ("items_state", text("value"))],
+    );
+    row(
+        &db,
+        "actor_items",
+        &[
+            ("id", 1.into()),
+            ("record_id", 2.into()),
+            ("original_index", 0.into()),
+            ("owner_selector_json", text("[]")),
+            ("source_type_state", text("value")),
+            ("source_type", text("armor")),
+        ],
+    );
+    row(
+        &db,
+        "physical_projection",
+        &[("id", 1.into()), ("root_record_id", 1.into())],
+    );
+    row(
+        &db,
+        "physical_projection",
+        &[("id", 2.into()), ("actor_item_id", 1.into())],
+    );
+    row(
+        &db,
+        "armor_projection",
+        &[
+            ("physical_id", 1.into()),
+            ("armor_group_state", text("value")),
+            ("armor_group", text("chain")),
+        ],
+    );
+    row(
+        &db,
+        "armor_projection",
+        &[
+            ("physical_id", 2.into()),
+            ("armor_group_state", text("value")),
+            ("armor_group", text("plate")),
+        ],
+    );
+    assert_eq!(result(&db, "armor.group=='chain'"), vec![1]);
+    assert_eq!(result(&db, "armor.group=='plate'"), Vec::<i64>::new());
+    assert_eq!(
+        result(&db, "embedded.equipment.exists(i,i.armor.group=='plate')"),
+        vec![2]
+    );
+    assert_eq!(
+        result(
+            &db,
+            "armor.group=='chain' || embedded.equipment.exists(i,i.armor.group=='plate')"
+        ),
+        vec![1, 2]
     );
 }

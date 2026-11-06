@@ -13,6 +13,7 @@ import {
   predicateBuilder,
   commonDraftCondition,
   LINK_CONDITION,
+  DEFINITION_CONDITION,
 } from "./queryBuilder";
 import { appendLink, linkLeaf, sameRelationship } from "./linkPredicates";
 import { commonCondition, replaceCommonCondition } from "./filterControls";
@@ -30,7 +31,7 @@ function linkClausePaths(
   path = "root",
 ): Array<[string, string]> {
   if (!predicate) return [];
-  if (predicate.kind === "relationship")
+  if (predicate.kind === "relationship" || predicate.kind === "definition_reference")
     return predicate.clause_id ? [[path, predicate.clause_id]] : [];
   if (predicate.kind === "all_of" || predicate.kind === "any_of")
     return predicate.children.flatMap((child, index) =>
@@ -45,7 +46,7 @@ function draftLinkIds(query: RuleGroupType): Set<string> {
     query.rules.flatMap((node): string[] =>
       "rules" in node
         ? [...draftLinkIds(node)]
-        : node.field === LINK_CONDITION && node.id
+        : [LINK_CONDITION, DEFINITION_CONDITION].includes(node.field) && node.id
           ? [node.id]
           : [],
     ),

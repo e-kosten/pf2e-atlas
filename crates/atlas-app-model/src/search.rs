@@ -165,11 +165,26 @@ pub struct SearchCoverageView {
     pub count_basis: String,
 }
 
+/// Executable reference condition, independent of its human label and reading destination.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ReferenceClauseConditionView {
+    Record {
+        relationship: Box<atlas_domain::QueryRelationship>,
+    },
+    Definition {
+        reference: atlas_domain::QueryDefinitionReference,
+    },
+}
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RelationshipClauseSummaryView {
     pub clause_id: String,
-    pub relationship: atlas_domain::QueryRelationship,
-    pub record: RecordSummaryView,
+    pub condition: ReferenceClauseConditionView,
+    pub destination: crate::ReferenceDestinationView,
+    /// Supplemental actual-record metadata; never an identity or navigation fallback.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub record: Option<Box<RecordSummaryView>>,
     pub title: String,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -177,20 +192,46 @@ pub struct RelationshipClauseSummaryView {
 pub enum RelationshipClausePresentationView {
     Available {
         clause_id: String,
-        relationship: atlas_domain::QueryRelationship,
-        record: Box<RecordSummaryView>,
+        condition: ReferenceClauseConditionView,
+        destination: crate::ReferenceDestinationView,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        record: Option<Box<RecordSummaryView>>,
         title: String,
     },
     Unavailable {
         clause_id: String,
-        relationship: atlas_domain::QueryRelationship,
+        condition: ReferenceClauseConditionView,
         message: String,
     },
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ReferenceOccurrenceView {
+    Record {
+        occurrence: Box<crate::RecordRelationshipView>,
+        destination: Box<crate::ReferenceDestinationView>,
+    },
+    Definition {
+        occurrence: Box<DefinitionReferenceEvidenceView>,
+    },
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct DefinitionReferenceEvidenceView {
+    pub source: crate::ReferenceDestinationView,
+    pub source_title: String,
+    pub source_field: Option<String>,
+    pub target: crate::ReferenceDestinationView,
+    pub target_title: String,
+    pub occurrence_path: String,
+    pub evidence: String,
+    pub label: Option<String>,
+    pub visible: bool,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RelationshipEvidenceView {
     pub clause_id: String,
-    pub occurrences: Vec<crate::RecordRelationshipView>,
+    pub occurrences: Vec<ReferenceOccurrenceView>,
     pub page: SearchPageView,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -206,6 +247,6 @@ pub struct RelationshipOccurrencesPage {
     pub artifact_generation: String,
     pub clause: RelationshipClauseSummaryView,
     pub result_record: RecordSummaryView,
-    pub occurrences: Vec<crate::RecordRelationshipView>,
+    pub occurrences: Vec<ReferenceOccurrenceView>,
     pub page: SearchPageView,
 }

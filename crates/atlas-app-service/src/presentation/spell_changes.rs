@@ -64,10 +64,10 @@ fn defense(defense: &SpellDefenseView) -> String {
 fn damage(damage: &DamageComponentView) -> String {
     let mut text = value(&damage.formula, Clone::clone);
     if let Some(kind) = &damage.damage_type.value
-        && !kind.is_empty()
+        && !kind.value.is_empty()
     {
         text.push(' ');
-        text.push_str(kind);
+        text.push_str(&kind.label);
     }
     if let Some(qualifier) = &damage.category.value
         && !qualifier.trim().is_empty()
@@ -149,7 +149,11 @@ pub(super) fn rank_changes(
         &traits(effective),
         |v: &Vec<String>| v.join(", "),
     );
-    compare!(traditions, Traditions, |v: &Vec<String>| v.join(", "));
+    compare!(traditions, Traditions, |v: &Vec<ReferenceValueView>| v
+        .iter()
+        .map(|v| v.label.as_str())
+        .collect::<Vec<_>>()
+        .join(", "));
     for (kind, before, after) in [
         (SpellRankFactView::Cost, &base.cost, &current.cost),
         (

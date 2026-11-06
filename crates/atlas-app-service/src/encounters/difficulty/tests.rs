@@ -300,6 +300,8 @@ fn curated_rules_open_the_exact_journal_pages() {
         let selected = f
             .worker
             .record_detail_at(atlas_app_model::RecordDetailRequest {
+                expected_artifact_generation: None,
+                reading_context: None,
                 spell_rank: None,
                 record_key: rule.navigation.record_key,
                 owners: rule.navigation.owners.clone(),

@@ -89,6 +89,7 @@ pub(crate) fn filter_editor_view(
             .choices
             .iter()
             .map(|value| FilterChoiceView {
+                help: None,
                 value: QueryLiteral::String(value.clone()),
                 label: if definition.path == "kind" {
                     crate::projection::kind_label(value)
@@ -99,10 +100,12 @@ pub(crate) fn filter_editor_view(
             .chain(if definition.field_type == QueryFieldType::Boolean {
                 vec![
                     FilterChoiceView {
+                        help: None,
                         value: QueryLiteral::Boolean(true),
                         label: "Yes".into(),
                     },
                     FilterChoiceView {
+                        help: None,
                         value: QueryLiteral::Boolean(false),
                         label: "No".into(),
                     },
@@ -115,6 +118,7 @@ pub(crate) fn filter_editor_view(
             choices = crate::physical_labels::USAGES
                 .iter()
                 .map(|(value, label)| FilterChoiceView {
+                    help: None,
                     value: QueryLiteral::String((*value).into()),
                     label: (*label).into(),
                 })
@@ -267,7 +271,7 @@ fn product_group(d: &QueryFieldDefinition) -> ProductGroup {
         _ => ProductGroup::Other,
     }
 }
-fn words(value: &str) -> String {
+pub(crate) fn words(value: &str) -> String {
     let spaced = value.replace(['_', '-'], " ");
     let mut chars = spaced.chars();
     match chars.next() {

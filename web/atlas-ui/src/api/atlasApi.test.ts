@@ -8,6 +8,8 @@ import {
   getRecordDetail,
   getRelatedRecords,
   getTraitDetail,
+  getDefinitionDetail,
+  getDefinitionFilterOptions,
   getTraitRecords,
   searchPage,
   getRelationshipOccurrences,
@@ -1578,4 +1580,97 @@ it("requires deliberate intent for non-GET transport requests", () => {
   expectTypeOf<{ method: "POST"; intent: "read" }>().toExtend<AtlasRequestInit>();
   expectTypeOf<{ method: "POST"; intent: "action" }>().toExtend<AtlasRequestInit>();
   expectTypeOf<{ signal: AbortSignal }>().toExtend<AtlasRequestInit>();
+});
+
+it("reads exact definition detail and preserves absence and record purpose context", async () => {
+  const result = {
+    artifact_generation: "generation-a",
+    definition_key: "sense:darkvision",
+    label: "Darkvision",
+    help: {
+      definition_key: "sense:darkvision",
+      availability: "available",
+      destination: {
+        kind: "record",
+        navigation: {
+          record_key: "abilities:darkvision",
+          embedded_path: [],
+          field: null,
+          passage: null,
+          source_fingerprint: null,
+        },
+        reading_context: "general_definition",
+      },
+      related_filters: [],
+    },
+    content: null,
+    attribution: null,
+    notices: [],
+    references: [],
+    references_availability: "available",
+    references_truncated: false,
+  };
+  respond(result);
+  expect(
+    await getDefinitionDetail({
+      definition_key: "sense:darkvision",
+      expected_artifact_generation: "generation-a",
+    }),
+  ).toEqual(result);
+  expect(fetchMock.mock.calls[0][0]).toBe("/api/definitions/detail");
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+    definition_key: "sense:darkvision",
+    expected_artifact_generation: "generation-a",
+  });
+  respond({ ...result, definition_key: "language:common" });
+  await expect(
+    getDefinitionDetail({
+      definition_key: "sense:darkvision",
+      expected_artifact_generation: null,
+    }),
+  ).rejects.toBeInstanceOf(AtlasApiError);
+});
+it("normalizes complete definition-option totals without inventing contextual counts", async () => {
+  respond({
+    artifact_generation: "generation-a",
+    total: 2549,
+    options: [],
+    selected: [],
+  });
+  const response = await getDefinitionFilterOptions({
+    text: "common",
+    offset: 0,
+    limit: 10,
+    selected: [],
+    expected_artifact_generation: null,
+  });
+  expect(response.total).toBe(2549n);
+  expect(response).not.toHaveProperty("distinct_roots");
+  expect(fetchMock.mock.calls[0][0]).toBe("/api/filters/definitions");
+});
+
+it("keeps definition totals exact and rejects unsafe wire counters", async () => {
+  const request = {
+    text: null,
+    offset: 0,
+    limit: 10,
+    selected: [],
+    expected_artifact_generation: null,
+  };
+  respond({
+    artifact_generation: "generation-a",
+    total: Number.MAX_SAFE_INTEGER,
+    options: [],
+    selected: [],
+  });
+  expect((await getDefinitionFilterOptions(request)).total).toBe(9007199254740991n);
+  respond({
+    artifact_generation: "generation-a",
+    total: Number.MAX_SAFE_INTEGER + 1,
+    options: [],
+    selected: [],
+  });
+  await expect(getDefinitionFilterOptions(request)).rejects.toThrow(
+    "Invalid numeric field",
+  );
 });

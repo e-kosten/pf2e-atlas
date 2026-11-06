@@ -251,6 +251,7 @@ export function ListDetailView({ route }: ListDetailViewProps) {
           search: filters,
           setSearch: changeFilters,
           filterEditor: filterDiscovery.filterEditor,
+          refreshFilterInformation: filterDiscovery.refreshFilterInformation,
           filterApplicabilityCurrent: filterDiscovery.filterApplicabilityCurrent,
           filterCountsEnabled: filterDiscovery.filterCountsEnabled,
           filterCountQueryKey: filterDiscovery.filterCountQueryKey,

@@ -86,7 +86,7 @@ pub(in crate::encounters) fn adapt_senses(block: &mut StatBlockView, record: &So
                 available,
             });
             block.senses.push(EncounterSenseView {
-                sense_type: kind,
+                sense_type: kind.into(),
                 precision,
                 range_feet: range,
                 available,

@@ -644,6 +644,8 @@ fn unknown_source_condition_cannot_roll_an_authored_strike_subtotal() {
                     condition_id: None,
                     artifact_generation: initial.artifact_generation.clone().unwrap(),
                     selection: RecordDetailRequest {
+                        reading_context: None,
+                        expected_artifact_generation: None,
                         spell_rank: None,
                         record_key: participant.record_key.clone().unwrap(),
                         owners: vec![atlas_domain::OwnedContentLocator {

@@ -24,7 +24,7 @@ function actorPresentation(): RecordPresentationView {
   const actor = actorFixture();
   actor.resistances = knownFact([
     {
-      damage_type: knownFact("all damage"),
+      damage_type: knownFact({ value: "all damage", label: "all damage" }),
       magnitude: numberFact(10),
       exceptions: knownFact(["force", "ghost touch", "vitality"]),
       double_against: knownFact(["non-magical attacks"]),
@@ -40,7 +40,7 @@ function actorPresentation(): RecordPresentationView {
       ...summaryFixture("actors:ghoul", "Ghoul"),
       kind: "creature",
       kind_label: "Creature",
-      rarity: "uncommon",
+      rarity: { value: "uncommon", label: "Uncommon" },
       publication: "Monster Core",
       level_label: "1",
     },
@@ -352,7 +352,7 @@ describe("semantic family presentation", () => {
       kind: "casting_entry" as const,
       attack: numberFact(23),
       difficulty_class: numberFact(33),
-      casting_tradition: knownFact("arcane"),
+      casting_tradition: knownFact({ value: "arcane", label: "arcane" }),
       preparation: knownFact("prepared"),
     };
     const spell = {
@@ -566,13 +566,13 @@ describe("semantic family presentation", () => {
       if (presentation.body.kind !== "creature") throw new Error("fixture family");
       presentation.body.value.resistances = knownFact([
         {
-          damage_type: knownFact("fire"),
+          damage_type: knownFact({ value: "fire", label: "fire" }),
           magnitude: { state, value: null, adjustment: null },
           exceptions: unavailableFact(state),
           double_against: unavailableFact(state),
         },
         {
-          damage_type: knownFact("cold"),
+          damage_type: knownFact({ value: "cold", label: "cold" }),
           magnitude: numberFact(0),
           exceptions: knownFact([]),
           double_against: unavailableFact("not_applicable"),
@@ -594,7 +594,7 @@ describe("semantic family presentation", () => {
       {
         id: "0",
         formula: knownFact("1d6"),
-        damage_type: knownFact("fire"),
+        damage_type: knownFact({ value: "fire", label: "fire" }),
         kinds: unavailableFact<string[]>("invalid"),
         category: unavailableFact<string>("null"),
         materials: unavailableFact<string[]>("missing"),
@@ -724,7 +724,7 @@ describe("semantic family presentation", () => {
         {
           id: "living",
           formula: knownFact("(1d8+8) + 2 × (1d8+8)"),
-          damage_type: knownFact("vitality"),
+          damage_type: knownFact({ value: "vitality", label: "vitality" }),
           kinds: knownFact(["healing"]),
           category: unavailableFact("null"),
           materials: knownFact([]),
@@ -1146,7 +1146,7 @@ describe("optional authored reference facts", () => {
     const component = (id: string, formula: string, damageType: string) => ({
       id,
       formula: knownFact(formula),
-      damage_type: knownFact(damageType),
+      damage_type: knownFact({ value: damageType, label: damageType }),
       kinds: knownFact([]),
       category: unavailableFact<string>("null"),
       materials: knownFact([]),

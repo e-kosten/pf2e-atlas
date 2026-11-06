@@ -933,6 +933,34 @@ pub(crate) async fn update_saved_list_item_note(
     ))
 }
 
+pub(crate) async fn definition_detail(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<atlas_app_model::DefinitionDetailRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_read_service(state, move |execution| {
+            service.definition_detail(request, &execution)
+        })
+        .await?,
+    ))
+}
+
+pub(crate) async fn definition_filter_options(
+    State(state): State<AtlasWebState>,
+    payload: Result<Json<atlas_app_model::DefinitionFilterOptionsRequest>, JsonRejection>,
+) -> Result<impl IntoResponse, WebError> {
+    let Json(request) = payload.map_err(WebError::invalid_request)?;
+    let service = state.service.clone();
+    Ok(Json(
+        call_read_service(state, move |execution| {
+            service.definition_filter_options(request, &execution)
+        })
+        .await?,
+    ))
+}
+
 pub(crate) async fn trait_definition(
     State(state): State<AtlasWebState>,
     payload: Result<Json<atlas_app_model::TraitDetailRequest>, JsonRejection>,

@@ -45,6 +45,9 @@ pub struct NumberAdjustmentView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordPresentationView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub general_definition: Option<crate::GeneralDefinitionReadingView>,
     pub identity: RecordSummaryView,
     pub classification: String,
     pub content: Vec<PreparedContentFieldView>,
@@ -99,7 +102,7 @@ pub struct EmbeddedRecordLinkView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ActorPresentationView {
-    pub size: FactView<String>,
+    pub size: FactView<crate::ReferenceValueView>,
     pub hardness: NumberFactView,
     pub ritual_difficulty_class: NumberFactView,
     pub defense_notes: ActorDefenseNotesView,
@@ -118,7 +121,7 @@ pub struct ActorPresentationView {
     pub resistances: FactView<Vec<IwrEntryView>>,
     pub senses: FactView<Vec<ActorSenseView>>,
     pub perception_details: FactView<String>,
-    pub languages: FactView<Vec<String>>,
+    pub languages: FactView<Vec<crate::ReferenceValueView>>,
     pub language_details: FactView<String>,
     pub activities: FactView<Vec<ActorActivityView>>,
     pub runtime: Option<ActorRuntimeView>,
@@ -148,12 +151,18 @@ pub struct ActorSavesView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ActorModifierView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub help: Option<crate::ReferenceHelpView>,
     pub key: String,
     pub label: String,
     pub modifier: NumberFactView,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ActorSkillView {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub help: Option<crate::ReferenceHelpView>,
     pub key: String,
     pub label: String,
     pub modifier: NumberFactView,
@@ -173,13 +182,13 @@ pub struct ActorMovementView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ActorSenseView {
-    pub sense: FactView<String>,
+    pub sense: FactView<crate::ReferenceValueView>,
     pub acuity: FactView<String>,
     pub range_feet: NumberFactView,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct IwrEntryView {
-    pub damage_type: FactView<String>,
+    pub damage_type: FactView<crate::ReferenceValueView>,
     pub magnitude: NumberFactView,
     pub exceptions: FactView<Vec<String>>,
     pub double_against: FactView<Vec<String>>,
@@ -236,6 +245,9 @@ pub struct StrikeRangeView {
 pub struct ActorActivityView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub help: Option<crate::ReferenceHelpView>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub spell_effect: Option<SpellEffectPreviewView>,
     /// Display order within a reading group; never the runtime item ordinal.
     pub reading_order: usize,
@@ -265,7 +277,7 @@ pub struct ActorActivityView {
     pub lore_modifier: NumberFactView,
     pub damage: FactView<Vec<DamageComponentView>>,
     pub difficulty_class: NumberFactView,
-    pub casting_tradition: FactView<String>,
+    pub casting_tradition: FactView<crate::ReferenceValueView>,
     pub preparation: FactView<String>,
     pub casting_entry: Option<RecordNavigationView>,
     pub association: FactView<String>,
@@ -298,6 +310,7 @@ pub struct SpellEffectStrikeView {
     pub traits: Vec<crate::RecordBadgeView>,
     pub attack: SpellEffectFactView,
     pub damage: SpellEffectFactView,
+    pub damage_type: FactView<crate::ReferenceValueView>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct SpellEffectChoiceView {
@@ -315,7 +328,7 @@ pub struct CastingEntryContextView {
 pub struct DamageComponentView {
     pub id: String,
     pub formula: FactView<String>,
-    pub damage_type: FactView<String>,
+    pub damage_type: FactView<crate::ReferenceValueView>,
     pub kinds: FactView<Vec<String>>,
     pub category: FactView<String>,
     pub materials: FactView<Vec<String>>,
@@ -340,7 +353,7 @@ pub struct SpellPresentationView {
     #[ts(optional)]
     pub runtime_notes: Option<Vec<crate::RuntimeEffectNoteView>>,
     pub rank: NumberFactView,
-    pub traditions: FactView<Vec<String>>,
+    pub traditions: FactView<Vec<crate::ReferenceValueView>>,
     pub cast: FactView<ActionCostView>,
     pub requirements: Option<FactView<String>>,
     pub cost: Option<FactView<String>>,
@@ -424,8 +437,8 @@ pub struct SpellChangeView {
     pub defense: FactView<SpellDefenseView>,
     pub duration: FactView<String>,
     pub sustained: FactView<bool>,
-    pub traits: FactView<Vec<String>>,
-    pub traditions: FactView<Vec<String>>,
+    pub traits: FactView<Vec<crate::ReferenceValueView>>,
+    pub traditions: FactView<Vec<crate::ReferenceValueView>>,
     pub damage: FactView<Vec<DamageComponentView>>,
     pub heightening: FactView<SpellHeighteningChangeView>,
 }
@@ -459,7 +472,7 @@ pub struct PhysicalPresentationView {
     pub details: Option<PhysicalDetailsView>,
     pub quantity: NumberFactView,
     pub material: FactView<PhysicalMaterialReferenceView>,
-    pub size: FactView<String>,
+    pub size: FactView<crate::ReferenceValueView>,
     pub consumable: Option<ConsumablePresentationView>,
     pub usage: FactView<String>,
     pub bulk: NumberFactView,
@@ -484,7 +497,7 @@ pub enum PhysicalDetailsView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct WeaponReferenceView {
     pub category: FactView<String>,
-    pub group: FactView<String>,
+    pub group: FactView<crate::ReferenceValueView>,
     pub damage: FactView<WeaponDamageReferenceView>,
     pub range_increment: NumberFactView,
     pub maximum_range: NumberFactView,
@@ -498,7 +511,7 @@ pub struct WeaponReferenceView {
 pub struct WeaponDamageReferenceView {
     pub dice: NumberFactView,
     pub die: FactView<String>,
-    pub damage_type: FactView<String>,
+    pub damage_type: FactView<crate::ReferenceValueView>,
     pub modifier: NumberFactView,
     pub persistent: FactView<WeaponPersistentReferenceView>,
 }
@@ -506,7 +519,7 @@ pub struct WeaponDamageReferenceView {
 pub struct WeaponPersistentReferenceView {
     pub number: NumberFactView,
     pub faces: NumberFactView,
-    pub damage_type: FactView<String>,
+    pub damage_type: FactView<crate::ReferenceValueView>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct WeaponAmmunitionReferenceView {
@@ -523,14 +536,14 @@ pub struct WeaponRuneReferenceView {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct WeaponMeleeReferenceView {
     pub die: FactView<String>,
-    pub damage_type: FactView<String>,
-    pub group: FactView<String>,
-    pub traits: FactView<Vec<String>>,
+    pub damage_type: FactView<crate::ReferenceValueView>,
+    pub group: FactView<crate::ReferenceValueView>,
+    pub traits: FactView<Vec<crate::ReferenceValueView>>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct ArmorReferenceView {
     pub category: FactView<String>,
-    pub group: FactView<String>,
+    pub group: FactView<crate::ReferenceValueView>,
     pub ac_bonus: NumberFactView,
     pub dex_cap: NumberFactView,
     pub check_penalty: NumberFactView,
@@ -594,7 +607,7 @@ pub struct ConsumablePresentationView {
 pub struct ConsumableDamageView {
     pub formula: FactView<String>,
     pub kind: FactView<String>,
-    pub damage_type: FactView<String>,
+    pub damage_type: FactView<crate::ReferenceValueView>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RollTablePresentationView {
@@ -650,7 +663,7 @@ pub struct JournalPagePresentationView {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct EncounterSenseView {
-    pub sense_type: String,
+    pub sense_type: crate::ReferenceValueView,
     pub precision: Option<String>,
     pub range_feet: Option<serde_json::Number>,
     pub available: Option<bool>,

@@ -17,15 +17,21 @@ vi.mock("../../api/atlasApi", async (original) => ({
   getRelationshipOccurrences: vi.fn(),
 }));
 const api = vi.mocked(getRelationshipOccurrences);
+const relationship = {
+  direction: "incoming" as const,
+  selection: rootNavigation("items:armor"),
+  include_contents: true,
+};
 const constraint: RelationshipClauseSummaryView = {
   clause_id: "link",
-  relationship: {
-    direction: "incoming",
-    selection: rootNavigation("items:armor"),
-    include_contents: true,
-  },
+  condition: { kind: "record", relationship },
+  destination: { kind: "record", navigation: relationship.selection },
   title: "Leather Armor",
   record: summaryFixture("items:armor", "Leather Armor"),
+};
+const ordinaryDestination = {
+  kind: "record" as const,
+  navigation: relationship.selection,
 };
 const occurrence: RecordRelationshipView = {
   source: {
@@ -53,7 +59,7 @@ const occurrence: RecordRelationshipView = {
 };
 const evidence: RelationshipEvidenceView = {
   clause_id: "link",
-  occurrences: [occurrence],
+  occurrences: [{ kind: "record", occurrence, destination: ordinaryDestination }],
   page: { number: 1, size: 1, count: 1, total: 2n, has_more: true, next_page: 2 },
 };
 function setup() {
@@ -69,7 +75,7 @@ function setup() {
           filter={{
             kind: "relationship",
             clause_id: constraint.clause_id,
-            relationship: constraint.relationship,
+            relationship: relationship,
           }}
           summary={constraint}
           resultKey="actors:goblin"
@@ -88,12 +94,19 @@ it("shows bounded provenance on demand and requests further pages with the compl
     artifact_generation: "generation-a",
     clause: constraint,
     result_record: summaryFixture("actors:goblin", "Goblin"),
-    occurrences: [{ ...occurrence, source_title: "Goblin equipment", ordinal: 4 }],
+    occurrences: [
+      {
+        kind: "record",
+        destination: ordinaryDestination,
+        occurrence: { ...occurrence, source_title: "Goblin equipment", ordinal: 4 },
+      },
+    ],
     page: { ...evidence.page, number: 2, has_more: false, next_page: null },
   });
   const view = setup();
   expect(api).not.toHaveBeenCalled();
   expect(screen.getByText("1 of 2 links")).toBeVisible();
+  expect(screen.getByRole("link", { name: "Leather Armor" })).toBeVisible();
   const source = screen.getByRole("link", { name: "Goblin" });
   expect(
     selectedNavigation(
@@ -113,7 +126,7 @@ it("shows bounded provenance on demand and requests further pages with the compl
       filter: {
         kind: "relationship",
         clause_id: constraint.clause_id,
-        relationship: constraint.relationship,
+        relationship: relationship,
       },
       result_record_key: "actors:goblin",
       page: { number: 2, size: 1 },
@@ -146,7 +159,13 @@ it("resets evidence paging and retained content when the exact relationship chan
     artifact_generation: "generation-a",
     clause: constraint,
     result_record: summaryFixture("actors:goblin", "Goblin"),
-    occurrences: [{ ...occurrence, source_title: "Old evidence page", ordinal: 4 }],
+    occurrences: [
+      {
+        kind: "record",
+        destination: ordinaryDestination,
+        occurrence: { ...occurrence, source_title: "Old evidence page", ordinal: 4 },
+      },
+    ],
     page: { ...evidence.page, number: 2, has_more: false, next_page: null },
   });
   const client = new QueryClient({
@@ -163,7 +182,10 @@ it("resets evidence paging and retained content when the exact relationship chan
           filter={{
             kind: "relationship",
             clause_id: summary.clause_id,
-            relationship: summary.relationship,
+            relationship:
+              summary.condition.kind === "record"
+                ? summary.condition.relationship
+                : relationship,
           }}
           summary={summary}
           resultKey="actors:goblin"
@@ -178,16 +200,27 @@ it("resets evidence paging and retained content when the exact relationship chan
   const next = {
     ...constraint,
     title: "Stunned",
-    relationship: {
-      ...constraint.relationship,
-      selection: rootNavigation("conditions:stunned"),
+    condition: {
+      kind: "record" as const,
+      relationship: {
+        ...relationship,
+        selection: rootNavigation("conditions:stunned"),
+      },
     },
   };
   view.rerender(
     content(next, {
       ...evidence,
       occurrences: [
-        { ...occurrence, source_title: "New exact evidence", target_title: "Stunned" },
+        {
+          kind: "record",
+          destination: ordinaryDestination,
+          occurrence: {
+            ...occurrence,
+            source_title: "New exact evidence",
+            target_title: "Stunned",
+          },
+        },
       ],
     }),
   );
@@ -223,7 +256,10 @@ it.each([
     resultKey: "actors:goblin",
     clause: {
       ...constraint,
-      relationship: { ...constraint.relationship, direction: "outgoing" as const },
+      condition: {
+        kind: "record" as const,
+        relationship: { ...relationship, direction: "outgoing" as const },
+      },
     },
   },
   {
@@ -231,7 +267,10 @@ it.each([
     resultKey: "actors:goblin",
     clause: {
       ...constraint,
-      relationship: { ...constraint.relationship, include_contents: false },
+      condition: {
+        kind: "record" as const,
+        relationship: { ...relationship, include_contents: false },
+      },
     },
   },
   {
@@ -239,11 +278,14 @@ it.each([
     resultKey: "actors:goblin",
     clause: {
       ...constraint,
-      relationship: {
-        ...constraint.relationship,
-        selection: {
-          ...constraint.relationship.selection,
-          source_fingerprint: "foreign",
+      condition: {
+        kind: "record" as const,
+        relationship: {
+          ...relationship,
+          selection: {
+            ...relationship.selection,
+            source_fingerprint: "foreign",
+          },
         },
       },
     },
@@ -255,7 +297,13 @@ it.each([
       artifact_generation: "generation-a",
       clause,
       result_record: summaryFixture(resultKey, "Foreign result"),
-      occurrences: [{ ...occurrence, source_title: "Foreign evidence" }],
+      occurrences: [
+        {
+          kind: "record",
+          destination: ordinaryDestination,
+          occurrence: { ...occurrence, source_title: "Foreign evidence" },
+        },
+      ],
       page: { ...evidence.page, number: 2, has_more: false, next_page: null },
     });
     setup();
@@ -269,3 +317,124 @@ it.each([
     expect(api).toHaveBeenCalledOnce();
   },
 );
+
+it("renders definition evidence with supplied titles and verifies its exact target on paging", async () => {
+  const definition: RelationshipClauseSummaryView = {
+    clause_id: "language",
+    condition: {
+      kind: "definition",
+      reference: {
+        target: { kind: "definition", key: "language:chthonian" },
+        include_contents: true,
+      },
+    },
+    destination: { kind: "definition", key: "language:chthonian" },
+    title: "Chthonian",
+  };
+  const proof: RelationshipEvidenceView = {
+    ...evidence,
+    clause_id: "language",
+    occurrences: [
+      {
+        kind: "definition",
+        occurrence: {
+          source: { kind: "record", navigation: rootNavigation("actors:goblin") },
+          source_title: "Goblin",
+          source_field: "/system/details/languages/value",
+          target: definition.destination,
+          target_title: "Chthonian",
+          occurrence_path: "/system/details/languages/value/0",
+          evidence: "typed_property",
+          label: null,
+          visible: true,
+        },
+      },
+    ],
+  };
+  api.mockResolvedValue({
+    artifact_generation: "generation-a",
+    clause: {
+      ...definition,
+      condition: {
+        kind: "definition",
+        reference: {
+          target: { kind: "definition", key: "language:common" },
+          include_contents: true,
+        },
+      },
+    },
+    result_record: summaryFixture("actors:goblin", "Goblin"),
+    occurrences: [],
+    page: { ...proof.page, number: 2 },
+  });
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <RelationshipEvidence
+        evidence={proof}
+        filter={{
+          kind: "definition_reference",
+          clause_id: "language",
+          reference:
+            definition.condition.kind === "definition"
+              ? definition.condition.reference
+              : neverReference(),
+        }}
+        summary={definition}
+        resultKey="actors:goblin"
+        generation="generation-a"
+      />
+    </QueryClientProvider>,
+  );
+  expect(screen.getByText("Chthonian")).toBeVisible();
+  expect(screen.queryByText("language:chthonian")).toBeNull();
+  expect(screen.queryByRole("link", { name: "Chthonian" })).toBeNull();
+  expect(screen.getByRole("link", { name: "Goblin" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Next links page" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Unable to update links");
+  expect(screen.getByText("Chthonian")).toBeVisible();
+});
+function neverReference(): never {
+  throw new Error("Expected definition fixture");
+}
+
+it("retains context-bearing record destinations as supplied titles until contextual reading is activated", () => {
+  const destination = {
+    kind: "record" as const,
+    navigation: rootNavigation("abilities:darkvision"),
+    reading_context: "general_definition" as const,
+  };
+  const reference = {
+    target: { kind: "definition" as const, key: "sense:darkvision" },
+    include_contents: true,
+  };
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <RelationshipEvidence
+        evidence={{
+          ...evidence,
+          occurrences: [
+            {
+              kind: "record",
+              destination,
+              occurrence: { ...occurrence, target_title: "Darkvision" },
+            },
+          ],
+        }}
+        filter={{ kind: "definition_reference", clause_id: "link", reference }}
+        summary={{
+          clause_id: "link",
+          condition: { kind: "definition", reference },
+          destination,
+          title: "Darkvision",
+        }}
+        resultKey="actors:goblin"
+        generation="generation-a"
+      />
+    </QueryClientProvider>,
+  );
+  expect(screen.getByRole("link", { name: "Goblin" })).toBeVisible();
+  expect(screen.getByText("Darkvision", { exact: true })).toBeVisible();
+  expect(screen.queryByRole("link", { name: "Darkvision" })).toBeNull();
+});

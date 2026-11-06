@@ -94,6 +94,8 @@ impl AtlasAppService {
     }
     pub fn record_detail(&self, key: &str) -> AppServiceResult<RecordDetailView> {
         self.record_detail_at(RecordDetailRequest {
+            expected_artifact_generation: None,
+            reading_context: None,
             spell_rank: None,
             record_key: key.into(),
             owners: vec![],
@@ -157,6 +159,10 @@ impl<'a> LoadedRecordDetail<'a> {
     ) -> AppServiceResult<RecordDetailView> {
         let r = self.retrieval;
         let detail = &self.detail;
+        crate::definitions::check_generation(
+            request.expected_artifact_generation.as_deref(),
+            &r.artifact_generation()?,
+        )?;
         let key = validate_selection(r, &request)?;
         if &key != detail.source.key() {
             return Err(AppServiceError::invalid_request(
@@ -208,7 +214,7 @@ impl<'a> LoadedRecordDetail<'a> {
                 field: s.field.to_string(),
             })
             .collect();
-        let content = r.read_attributed_content(&locators)?;
+        let mut content = r.read_attributed_content(&locators)?;
         let summary = crate::projection::localized_summary_view(&detail.summary, r);
         let mut presentation = crate::presentation::record_presentation(
             &detail.source,
@@ -225,6 +231,7 @@ impl<'a> LoadedRecordDetail<'a> {
             &mut presentation,
             r,
         )?;
+        crate::presentation::reference_help::annotate(&mut presentation, r)?;
         let mut context = crate::prepared_content::PreparedContentContext::source(
             r,
             &detail.source,
@@ -332,6 +339,68 @@ impl<'a> LoadedRecordDetail<'a> {
                     }
                     crate::prepared_content::project_routine_header(field, r);
                 }
+            }
+        }
+        if request.reading_context
+            == Some(atlas_app_model::RecordReadingContextView::GeneralDefinition)
+            && request.owners.is_empty()
+            && request.fields.is_empty()
+            && request.passage.is_none()
+        {
+            for cached in &content.content.fields {
+                let Some(html) = cached.html.as_deref() else {
+                    continue;
+                };
+                let projection = atlas_record::source_content::general_definition_projection(
+                    atlas_record::source_content::GeneralDefinitionProjectionInput {
+                        locator: &cached.locator,
+                        html,
+                        interactions: &cached.interactions,
+                        reading: cached.general_definition_reading.as_ref(),
+                    },
+                )
+                .map_err(|e| AppServiceError::new(AppErrorCode::ArtifactIncompatible, e))?;
+                let Some(projection) = projection else {
+                    continue;
+                };
+                let field = fields.iter_mut().find(|f| {
+                    f.locator.field == cached.locator.field
+                        && f.locator.owners == cached.locator.owners
+                });
+                let Some(field) = field else {
+                    continue;
+                };
+                let atlas_app_model::PreparedFieldBodyView::Html { html, controls, .. } =
+                    &mut field.body
+                else {
+                    continue;
+                };
+                *html = crate::prepared_content::render_field_content(
+                    &projection.html,
+                    &projection.interactions,
+                    &context,
+                );
+                controls.retain(|control| {
+                    projection
+                        .interactions
+                        .iter()
+                        .any(|i| i.ordinal == control.ordinal)
+                });
+                // Canonical source section addresses describe the complete field,
+                // not this transient reusable-prose selection.
+                field.section_rendering = None;
+                content.relationships.retain(|reference| {
+                    reference.locator != cached.locator
+                        || projection.reference_ordinals.contains(&reference.ordinal)
+                });
+                presentation.general_definition =
+                    Some(atlas_app_model::GeneralDefinitionReadingView {
+                        unspecified_parameters: projection
+                            .parameter_roles
+                            .into_iter()
+                            .map(general_parameter)
+                            .collect(),
+                    });
             }
         }
         crate::inline_content::compose_inline_content(
@@ -449,4 +518,35 @@ pub(crate) fn validate_request(r: &RecordDetailRequest) -> AppServiceResult<()> 
         ));
     }
     Ok(())
+}
+
+fn general_parameter(
+    role: atlas_record::source_content::GeneralDefinitionParameterRole,
+) -> atlas_app_model::GeneralDefinitionParameterView {
+    use atlas_record::source_content::GeneralDefinitionParameterRole::*;
+    let (role, label) = match role {
+        CheckDc => ("check_dc", "Check DC"),
+        Damage => ("damage", "Damage"),
+        DamageType => ("damage_type", "Damage type"),
+        EscapeDc => ("escape_dc", "Escape DC"),
+        RuptureThreshold => ("rupture_threshold", "Rupture threshold"),
+        Range => ("range", "Range"),
+        SizeLimit => ("size_limit", "Size limit"),
+        Size => ("size", "Size"),
+        Strike => ("strike", "Strike"),
+        AuraRadius => ("aura_radius", "Aura radius"),
+        HarmDamageType => ("harm_damage_type", "Harm damage type"),
+        HarmDamage => ("harm_damage", "Harm damage"),
+        AreaOrPersistentDamage => ("area_or_persistent_damage", "Area or persistent damage"),
+        HealingDamageType => ("healing_damage_type", "Healing damage type"),
+        HealingAmount => ("healing_amount", "Healing amount"),
+        SlowingDamageType => ("slowing_damage_type", "Slowing damage type"),
+        WindingDuration => ("winding_duration", "Winding duration"),
+        DisableDeviceDc => ("disable_device_dc", "Disable Device DC"),
+        StandbyMode => ("standby_mode", "Standby mode"),
+    };
+    atlas_app_model::GeneralDefinitionParameterView {
+        role: role.into(),
+        label: label.into(),
+    }
 }

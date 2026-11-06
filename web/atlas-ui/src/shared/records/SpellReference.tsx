@@ -288,14 +288,14 @@ export function SpellChanges({
         renderValue={explain("traits", "Traits")}
         fact={changes.traits}
         patch={!effective}
-        format={(value) => value.join(", ")}
+        format={(values) => values.map((value) => value.label).join(", ")}
       />
       <FactLine
         label="Traditions"
         renderValue={explain("traditions", "Traditions")}
         fact={changes.traditions}
         patch={!effective}
-        format={(value) => value.join(", ")}
+        format={(values) => values.map((value) => value.label).join(", ")}
       />
       {effective && hasReadingFact(changes.damage) ? (
         <div className="record-fact spell-reference__damage">
@@ -415,7 +415,7 @@ export function SpellReference({
         <FactLine
           label="Traditions"
           fact={spell.traditions}
-          format={(value) => value.join(", ")}
+          format={(values) => values.map((value) => value.label).join(", ")}
           renderValue={explain("traditions", "Traditions")}
         />
         <ActionCost

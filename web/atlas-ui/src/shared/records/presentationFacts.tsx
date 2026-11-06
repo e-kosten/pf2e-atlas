@@ -6,9 +6,22 @@ import type { FactView, NumberFactView } from "../../generated/atlas";
 
 export type FactValueRenderer = (value: ReactNode) => ReactNode;
 
+/** Scalar facts render the label supplied by Rust; the token remains identity. */
+export function scalarFactText(value: unknown): string {
+  if (value && typeof value === "object" && "label" in value && "value" in value)
+    return String(value.label);
+  return String(value);
+}
+
 export function isEmptyFactValue(value: unknown): boolean {
   return (
     (typeof value === "string" && !value.trim()) ||
+    (!!value &&
+      typeof value === "object" &&
+      "label" in value &&
+      "value" in value &&
+      typeof value.label === "string" &&
+      !value.label.trim()) ||
     (Array.isArray(value) && value.length === 0)
   );
 }
@@ -22,7 +35,7 @@ export function hasReadingFact<T>(
 }
 export function factText<T>(
   fact: FactView<T>,
-  format: (value: T) => string = String,
+  format: (value: T) => string = scalarFactText,
   { patch = false, required = false }: { patch?: boolean; required?: boolean } = {},
 ): string {
   if (patch && fact.state === "null") return "Cleared";

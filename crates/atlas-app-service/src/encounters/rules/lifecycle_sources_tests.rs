@@ -540,7 +540,7 @@ fn uncertain_vision_and_dazzled_do_not_become_known_available_or_absent() {
         projected
             .senses
             .iter()
-            .any(|sense| sense.sense_type == "vision" && sense.available.is_none())
+            .any(|sense| sense.sense_type.value == "vision" && sense.available.is_none())
     );
     p.conditions = vec![condition(1, ConditionRule::Dazzled, None)];
     assert_eq!(

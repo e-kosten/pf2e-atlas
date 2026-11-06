@@ -789,7 +789,7 @@ fn blinded_ranged_precision_preserves_known_perception_and_context() {
     let echo = projected
         .senses
         .iter()
-        .find(|s| s.sense_type == "echolocation")
+        .find(|s| s.sense_type.value == "echolocation")
         .unwrap();
     assert_eq!(
         echo.perception
@@ -803,7 +803,7 @@ fn blinded_ranged_precision_preserves_known_perception_and_context() {
         projected
             .senses
             .iter()
-            .find(|s| s.sense_type == "vision")
+            .find(|s| s.sense_type.value == "vision")
             .unwrap()
             .available,
         Some(false)

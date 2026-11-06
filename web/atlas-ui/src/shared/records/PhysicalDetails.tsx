@@ -111,7 +111,7 @@ export function PhysicalDetails({ details }: { details: PhysicalDetailsView }) {
           </div>
           <div className="record-fact-list">
             <FactLine label="Category" fact={w.category} format={words} />
-            <FactLine label="Group" fact={w.group} format={words} />
+            <FactLine label="Group" fact={w.group} format={(value) => value.label} />
             {optional(w.range_increment) && (
               <FactLine
                 label="Range increment"
@@ -193,12 +193,12 @@ export function PhysicalDetails({ details }: { details: PhysicalDetailsView }) {
                 <FactLine
                   label="Group"
                   fact={w.melee_usage.value.group}
-                  format={words}
+                  format={(value) => value.label}
                 />
                 <FactLine
                   label="Traits"
                   fact={w.melee_usage.value.traits}
-                  format={(v) => v.map(words).join(", ")}
+                  format={(values) => values.map((value) => value.label).join(", ")}
                 />
               </div>
             </section>
@@ -232,7 +232,7 @@ export function PhysicalDetails({ details }: { details: PhysicalDetailsView }) {
           </div>
           <div className="record-fact-list">
             <FactLine label="Category" fact={a.category} format={words} />
-            <FactLine label="Group" fact={a.group} format={words} />
+            <FactLine label="Group" fact={a.group} format={(value) => value.label} />
             {nonzero(a.potency) && (
               <FactRow label="Potency rune">
                 <NumberFact fact={a.potency} signed />

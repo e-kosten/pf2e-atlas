@@ -7,6 +7,8 @@
 
 #[path = "browser_fixture/corpus.rs"]
 mod corpus;
+#[path = "browser_fixture/reference_data.rs"]
+mod reference_data;
 
 use std::{error::Error, fs, io, net::SocketAddr, path::PathBuf};
 
@@ -49,7 +51,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     };
     let index_path = run_directory.join("artifact.sqlite");
-    let mut fixture = input(corpus::records(), true);
+    let mut records = corpus::records();
+    records.push(reference_data::darkvision_record());
+    let mut fixture = input(records, true);
     fixture.remaster_pairs.push(atlas_index::SourceRemasterPairInput {
         legacy: "browser-editions:legacy0000000001".parse()?,
         remaster: "browser-editions:remaster00000001".parse()?,
@@ -105,7 +109,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
             *common = std::f32::consts::FRAC_1_SQRT_2;
         }
     }
-    atlas_search::test_support::publish_input(&index_path, &fixture)?;
+    let glossary = reference_data::attach(&mut fixture)?;
+    atlas_index::test_support::publish_input_with_references(
+        &index_path,
+        &fixture,
+        &glossary.entries,
+        &glossary.notices,
+        &glossary.occurrences,
+    )?;
     let service = AtlasAppService::start(AtlasAppServiceOptions {
         default_search_profile: Some(SearchProfileId::new("bge-base")),
         path_mode: AtlasPathMode::Global,

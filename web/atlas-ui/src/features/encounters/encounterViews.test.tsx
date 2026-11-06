@@ -3552,7 +3552,7 @@ function participantPresentationFixture({
               {
                 id: "main",
                 formula: knownFact("1d6+2"),
-                damage_type: knownFact("slashing"),
+                damage_type: knownFact({ value: "slashing", label: "slashing" }),
                 kinds: knownFact(["damage"]),
                 category: unavailableFact("not_applicable"),
                 materials: knownFact([]),

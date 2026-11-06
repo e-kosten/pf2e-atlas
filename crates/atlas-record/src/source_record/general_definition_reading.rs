@@ -180,7 +180,7 @@ pub fn validate_general_definition_reading(
     if *actual != expected {
         return Err("general-definition role binding mismatch".into());
     }
-    source_content::validate_general_definition_markers(prepared, actual)
+    source_content::validate_general_definition_markers(&prepared.html, actual)
 }
 
 #[cfg(test)]
@@ -295,6 +295,37 @@ mod tests {
                     .as_ref()
                     .unwrap_or_else(|| panic!("missing {}", record.key()));
                 validate_general_definition_reading(&record, "pf2e", true, prepared).unwrap();
+                let canonical = prepared.clone();
+                let projection = source_content::general_definition_projection(
+                    source_content::GeneralDefinitionProjectionInput {
+                        locator: &prepared.locator,
+                        html: &prepared.html,
+                        interactions: &prepared.interactions,
+                        reading: prepared.general_definition_reading.as_ref(),
+                    },
+                )
+                .unwrap()
+                .unwrap();
+                assert!(projection.text.contains("Reusable prose"));
+                assert_eq!(projection.reference_ordinals, reading.reference_ordinals);
+                assert_eq!(
+                    projection
+                        .interactions
+                        .iter()
+                        .map(|r| r.ordinal)
+                        .collect::<Vec<_>>(),
+                    reading.interaction_ordinals
+                );
+                assert!(!projection.parameter_roles.is_empty());
+                assert!(projection.interactions.iter().all(|i| {
+                    !reading
+                        .excluded_parameter_interaction_ordinals
+                        .contains(&i.ordinal)
+                }));
+                assert_eq!(
+                    prepared, &canonical,
+                    "projection must not modify the canonical cache"
+                );
                 assert_eq!(reading.reference_ordinals.len(), 1);
                 assert_eq!(reading.interaction_ordinals.len(), if gm { 2 } else { 1 });
                 assert!(reading.parameters.iter().all(
@@ -316,6 +347,17 @@ mod tests {
                     .unwrap()
                     .interaction_ordinals
                     .clear();
+                assert!(
+                    source_content::general_definition_projection(
+                        source_content::GeneralDefinitionProjectionInput {
+                            locator: &corrupt.locator,
+                            html: &corrupt.html,
+                            interactions: &corrupt.interactions,
+                            reading: corrupt.general_definition_reading.as_ref()
+                        }
+                    )
+                    .is_err()
+                );
                 assert!(
                     validate_general_definition_reading(&record, "pf2e", true, &corrupt).is_err()
                 );
@@ -366,7 +408,18 @@ mod tests {
             let selector = scraper::Selector::parse("[data-atlas-definition-selection]").unwrap();
             let selected = document.select(&selector).next().unwrap();
             let selected_html = selected.inner_html();
-            let selected_text = selected.text().collect::<String>();
+            let projection = source_content::general_definition_projection(
+                source_content::GeneralDefinitionProjectionInput {
+                    locator: &prepared.locator,
+                    html: &prepared.html,
+                    interactions: &prepared.interactions,
+                    reading: prepared.general_definition_reading.as_ref(),
+                },
+            )
+            .unwrap()
+            .unwrap();
+            assert_eq!(projection.html, selected_html);
+            let selected_text = projection.text;
             if record.key().to_string().ends_with("r34QDwKiWZoVymJa") {
                 assert!(selected_text.contains("2d6 rounds"));
                 assert!(!selected_html.contains("0d8"));
@@ -409,6 +462,18 @@ mod tests {
                 let content = prepare(&record, true);
                 let prepared = body(&content);
                 assert!(prepared.general_definition_reading.is_none());
+                assert!(
+                    source_content::general_definition_projection(
+                        source_content::GeneralDefinitionProjectionInput {
+                            locator: &prepared.locator,
+                            html: &prepared.html,
+                            interactions: &prepared.interactions,
+                            reading: prepared.general_definition_reading.as_ref()
+                        }
+                    )
+                    .unwrap()
+                    .is_none()
+                );
                 assert!(!prepared.html.contains("data-atlas-definition-selection"));
                 validate_general_definition_reading(&record, "pf2e", true, prepared).unwrap();
             }
@@ -451,6 +516,18 @@ mod tests {
         let prepared = body(&content);
         assert!(!prepared.locator.owners.is_empty());
         assert!(prepared.general_definition_reading.is_none());
+        assert!(
+            source_content::general_definition_projection(
+                source_content::GeneralDefinitionProjectionInput {
+                    locator: &prepared.locator,
+                    html: &prepared.html,
+                    interactions: &prepared.interactions,
+                    reading: prepared.general_definition_reading.as_ref()
+                }
+            )
+            .unwrap()
+            .is_none()
+        );
         assert!(prepared.text.contains("22"));
         assert!(prepared.text.contains("5-foot rider"));
         assert!(!prepared.interactions.is_empty());

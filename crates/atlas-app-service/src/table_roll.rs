@@ -36,6 +36,8 @@ impl AtlasAppService {
                     None => invalid_ranges.push(navigation),
                     Some(range) if contains(range, outcome.total.into()) => {
                         let result = loaded.project(RecordDetailRequest {
+                            expected_artifact_generation: None,
+                            reading_context: None,
                             spell_rank: None,
                             record_key: navigation.record_key,
                             owners: navigation.owners,
@@ -124,6 +126,8 @@ mod service_tests {
         let mut request = RollTableRequest {
             artifact_generation: detail.artifact_generation,
             selection: RecordDetailRequest {
+                expected_artifact_generation: None,
+                reading_context: None,
                 spell_rank: None,
                 record_key: "tables:table00000000000".into(),
                 owners: vec![],
@@ -148,6 +152,8 @@ mod service_tests {
             let ordinary = fixture
                 .worker
                 .record_detail_at(RecordDetailRequest {
+                    expected_artifact_generation: None,
+                    reading_context: None,
                     spell_rank: None,
                     record_key: result.selected.record_key.clone(),
                     owners: result.selected.owners.clone(),
@@ -220,6 +226,8 @@ mod service_tests {
         RollTableRequest {
             artifact_generation: detail.artifact_generation,
             selection: RecordDetailRequest {
+                expected_artifact_generation: None,
+                reading_context: None,
                 spell_rank: None,
                 record_key: key.into(),
                 owners: vec![],
@@ -264,6 +272,8 @@ mod service_tests {
                 let ordinary = fixture
                     .worker
                     .record_detail_at(RecordDetailRequest {
+                        expected_artifact_generation: None,
+                        reading_context: None,
                         record_key: result.selected.record_key.clone(),
                         owners: result.selected.owners.clone(),
                         source_fingerprint: result.selected.source_fingerprint.clone(),
@@ -405,6 +415,8 @@ mod service_tests {
             .with_retrieval(&ReadExecutionContext::uncancellable(), move |r| {
                 let (loaded, _) = crate::records::LoadedRecordDetail::read(r, selection.clone())?;
                 loaded.project(RecordDetailRequest {
+                    expected_artifact_generation: None,
+                    reading_context: None,
                     record_key: "tables:table00000000001".into(),
                     ..selection
                 })

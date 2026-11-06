@@ -148,6 +148,18 @@ fn lower(
                     relationship: super::cel_relationship::lower(&c.func_name, &c.args)?,
                 }
             }
+            "references_definition" => {
+                if var.is_some() {
+                    return Err(error(
+                        "mixed_scope",
+                        "Definition references apply to records, not collection members",
+                        None,
+                    ));
+                }
+                QueryExpression::DefinitionReference {
+                    reference: super::cel_relationship::lower_definition(&c.args)?,
+                }
+            }
             operators::LOGICAL_AND | operators::LOGICAL_OR if c.args.len() == 2 => {
                 let children = c
                     .args

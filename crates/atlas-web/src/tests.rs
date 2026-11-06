@@ -8,6 +8,7 @@ use axum::http::{Method, Request, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde_json::{Value, json};
 use tower::ServiceExt;
+mod definitions;
 mod fixture;
 mod read_abandonment_tests;
 mod wire_conversion;

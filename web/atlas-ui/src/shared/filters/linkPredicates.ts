@@ -26,7 +26,7 @@ function samePassage(
   );
 }
 
-function sameSelection(left: RecordNavigationView, right: RecordNavigationView) {
+export function sameSelection(left: RecordNavigationView, right: RecordNavigationView) {
   return (
     left.record_key === right.record_key &&
     (left.field ?? null) === (right.field ?? null) &&
@@ -87,4 +87,23 @@ export function appendLink(
         children: [filter, leaf],
       }
     : leaf;
+}
+
+export function sameReferenceCondition(
+  left: import("../../generated/atlas").ReferenceClauseConditionView,
+  right: import("../../generated/atlas").ReferenceClauseConditionView,
+): boolean {
+  if (left.kind === "record" && right.kind === "record")
+    return sameRelationship(left.relationship, right.relationship);
+  if (left.kind !== "definition" || right.kind !== "definition") return false;
+  const a = left.reference.target;
+  const b = right.reference.target;
+  return (
+    left.reference.include_contents === right.reference.include_contents &&
+    (a.kind === "definition" && b.kind === "definition"
+      ? a.key === b.key
+      : a.kind === "record" &&
+        b.kind === "record" &&
+        sameSelection(a.selection, b.selection))
+  );
 }

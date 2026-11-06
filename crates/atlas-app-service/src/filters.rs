@@ -64,6 +64,7 @@ impl AtlasAppService {
                         field.choices.retain(|choice| matches!(&choice.value, atlas_domain::QueryLiteral::String(value) if kinds.contains(value)));
                     }
                 }
+                crate::definition_values::editor(retrieval, &mut editor)?;
                 Ok(editor)
             },
         )
@@ -178,6 +179,14 @@ impl AtlasAppService {
                         limit,
                     })?;
                     projection_execution.check()?;
+                    let outcome = match outcome {
+                        QueryFacetOutcome::Available { value } => QueryFacetOutcome::Available {
+                            value: crate::definition_values::options(retrieval, value)?,
+                        },
+                        QueryFacetOutcome::Unavailable { reason } => {
+                            QueryFacetOutcome::Unavailable { reason }
+                        }
+                    };
                     Ok(FilterValueListView::Contextual {
                         outcome,
                         search_profile: resolved,
@@ -211,7 +220,7 @@ impl AtlasAppService {
                 projection_execution.check()?;
                 Ok(FilterValueListView::Vocabulary {
                     scope: vocabulary_scope,
-                    values,
+                    values: crate::definition_values::vocabulary(retrieval, values)?,
                 })
             }),
         }
@@ -248,6 +257,14 @@ impl AtlasAppService {
                 },
             })?;
             projection_execution.check()?;
+            let counts = match counts {
+                QueryFacetOutcome::Available { value } => QueryFacetOutcome::Available {
+                    value: crate::definition_values::options(retrieval, value)?,
+                },
+                QueryFacetOutcome::Unavailable { reason } => {
+                    QueryFacetOutcome::Unavailable { reason }
+                }
+            };
             Ok(FilterCountsView {
                 counts,
                 search_profile: resolved,

@@ -11,13 +11,15 @@ import type { FactView } from "./FactView";
 import type { NumberFactView } from "./NumberFactView";
 import type { RecordBadgeView } from "./RecordBadgeView";
 import type { RecordNavigationView } from "./RecordNavigationView";
+import type { ReferenceHelpView } from "./ReferenceHelpView";
+import type { ReferenceValueView } from "./ReferenceValueView";
 import type { RuntimeEffectNoteView } from "./RuntimeEffectNoteView";
 import type { SpellEffectPreviewView } from "./SpellEffectPreviewView";
 import type { StrikeAttackOptionView } from "./StrikeAttackOptionView";
 import type { StrikeRangeView } from "./StrikeRangeView";
 
-export type ActorActivityView = { spell_effect?: SpellEffectPreviewView,
+export type ActorActivityView = { help?: ReferenceHelpView, spell_effect?: SpellEffectPreviewView,
 /**
  * Display order within a reading group; never the runtime item ordinal.
  */
-reading_order: number, ability_group: ActorAbilityGroupView | null, first_level_only?: FactView<boolean>, is_ranged: FactView<boolean>, strike_range: FactView<StrikeRangeView>, effect_duration: FactView<EffectDurationView>, self_effect: FactView<ActivityEffectReferenceView>, strike_effects: FactView<Array<ActivityEffectReferenceView>>, focus_capacity: NumberFactView, frequency: FactView<ActivityFrequencyView>, casting_ranks: Array<number>, has_reference_details: boolean, navigation: RecordNavigationView, title: string, family: string, kind: ActorActivityKindView, usage: string | null, action_cost: FactView<ActionCostView>, traits: Array<RecordBadgeView>, attack: NumberFactView, attack_options: Array<StrikeAttackOptionView>, lore_modifier: NumberFactView, damage: FactView<Array<DamageComponentView>>, difficulty_class: NumberFactView, casting_tradition: FactView<string>, preparation: FactView<string>, casting_entry: RecordNavigationView | null, association: FactView<string>, base_rank: NumberFactView, authored_cast_rank: NumberFactView, casting_context: CastingEntryContextView | null, notes: Array<RuntimeEffectNoteView>, };
+reading_order: number, ability_group: ActorAbilityGroupView | null, first_level_only?: FactView<boolean>, is_ranged: FactView<boolean>, strike_range: FactView<StrikeRangeView>, effect_duration: FactView<EffectDurationView>, self_effect: FactView<ActivityEffectReferenceView>, strike_effects: FactView<Array<ActivityEffectReferenceView>>, focus_capacity: NumberFactView, frequency: FactView<ActivityFrequencyView>, casting_ranks: Array<number>, has_reference_details: boolean, navigation: RecordNavigationView, title: string, family: string, kind: ActorActivityKindView, usage: string | null, action_cost: FactView<ActionCostView>, traits: Array<RecordBadgeView>, attack: NumberFactView, attack_options: Array<StrikeAttackOptionView>, lore_modifier: NumberFactView, damage: FactView<Array<DamageComponentView>>, difficulty_class: NumberFactView, casting_tradition: FactView<ReferenceValueView>, preparation: FactView<string>, casting_entry: RecordNavigationView | null, association: FactView<string>, base_rank: NumberFactView, authored_cast_rank: NumberFactView, casting_context: CastingEntryContextView | null, notes: Array<RuntimeEffectNoteView>, };

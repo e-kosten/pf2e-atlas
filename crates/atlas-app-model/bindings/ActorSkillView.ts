@@ -2,5 +2,6 @@
 import type { ConditionalSkillView } from "./ConditionalSkillView";
 import type { FactView } from "./FactView";
 import type { NumberFactView } from "./NumberFactView";
+import type { ReferenceHelpView } from "./ReferenceHelpView";
 
-export type ActorSkillView = { key: string, label: string, modifier: NumberFactView, note: FactView<string>, conditional: FactView<Array<ConditionalSkillView>>, };
+export type ActorSkillView = { help?: ReferenceHelpView, key: string, label: string, modifier: NumberFactView, note: FactView<string>, conditional: FactView<Array<ConditionalSkillView>>, };

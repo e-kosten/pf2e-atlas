@@ -501,10 +501,14 @@ describe("useSearchWorkspace", () => {
         relationship_clauses: [
           {
             clause_id: request.criteria.filter!.clause_id!,
-            relationship:
-              request.criteria.filter!.kind === "relationship"
-                ? request.criteria.filter!.relationship
-                : constraint,
+            condition: {
+              kind: "record",
+              relationship:
+                request.criteria.filter!.kind === "relationship"
+                  ? request.criteria.filter!.relationship
+                  : constraint,
+            },
+            destination: { kind: "record", navigation: constraint.selection },
             record: summaryFixture("items:armor", "Leather Armor"),
             title: "Exact entry",
           },
@@ -541,10 +545,10 @@ describe("useSearchWorkspace", () => {
     );
     await waitFor(() =>
       expect(
-        result.current.resultPage?.relationship_clauses[0].relationship
-          .include_contents,
-      ).toBe(false),
+        result.current.resultPage?.relationship_clauses[0].condition,
+      ).toMatchObject({ kind: "record", relationship: { include_contents: false } }),
     );
+
     expect(result.current.pageNumber).toBe(1);
     expect(result.current.filterDiscoveryContext).toMatchObject({
       filter: {
@@ -2286,7 +2290,8 @@ it("pages retained link evidence with its producing OR tree while a new NOT tree
       page.relationship_clauses = [
         {
           clause_id: clause.clause_id!,
-          relationship: clause.relationship,
+          condition: { kind: "record", relationship: clause.relationship },
+          destination: { kind: "record", navigation: clause.relationship.selection },
           title: "Leather Armor",
           record: summaryFixture("items:armor", "Leather Armor"),
         },

@@ -12,6 +12,7 @@ export type FilterPanelState = {
   search: SearchFormState;
   setSearch: (next: SearchFormState, intent?: SearchUpdateIntent) => void;
   filterEditor: FilterEditorView | undefined;
+  refreshFilterInformation?: () => Promise<void>;
   filterApplicabilityCurrent?: boolean;
   filterCountsEnabled?: boolean;
   filterCountQueryKey?: readonly unknown[];

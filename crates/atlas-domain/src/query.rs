@@ -61,6 +61,9 @@ pub enum QueryExpression {
     Relationship {
         relationship: crate::QueryRelationship,
     },
+    DefinitionReference {
+        reference: crate::QueryDefinitionReference,
+    },
     BooleanConstant {
         value: bool,
     },
