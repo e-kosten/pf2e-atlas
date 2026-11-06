@@ -2616,11 +2616,12 @@ test("reference feedback: link picker drafts survive reading and filter popovers
   await activate(page.getByRole("button", { name: "Links", exact: true }), info);
   const picker = page.getByRole("dialog", { name: "Add link condition", exact: true });
   const candidate = picker.locator(".reference-result__summary").first();
-  const title = (await candidate
-    .locator(".reference-result__title strong")
-    .textContent())!;
   await activate(candidate, info);
+  await expect(picker.getByRole("button", { name: "Add", exact: true })).toBeEnabled();
+  const results = picker.getByRole("button", { name: "Results", exact: true });
+  if (await results.isVisible()) await activate(results, info);
   await activate(picker.getByText("Linked from", { exact: true }), info);
+  await expect(picker.getByRole("button", { name: "Add", exact: true })).toBeDisabled();
   const help = picker.getByRole("button", { name: "About link scope", exact: true });
   await activate(help, info);
   const scopeHelp = page.locator(".ant-popover:visible");
@@ -2647,19 +2648,20 @@ test("reference feedback: link picker drafts survive reading and filter popovers
       .getByText("Main entry only", { exact: true }),
     info,
   );
-  const summary = picker
-    .locator(".reference-picker__summary")
-    .getByRole("link", { name: title, exact: true });
-  await activate(summary, info);
-  const drawer = page.locator(".record-preview-drawer-root").getByRole("dialog");
+  const refreshedCandidate = picker.locator(".reference-result__summary").first();
+  const title = (await refreshedCandidate
+    .locator(".reference-result__title strong")
+    .textContent())!;
+  await activate(refreshedCandidate, info);
   await expect(
-    drawer.getByRole("heading", { name: title, exact: true }).first(),
+    picker
+      .locator(".reference-reader")
+      .getByRole("heading", { name: title, exact: true })
+      .first(),
   ).toBeVisible();
-  await activate(
-    drawer.getByRole("button", { name: "Close reference preview", exact: true }),
-    info,
-  );
-  await expect(summary).toBeFocused();
+  await expect(picker.locator(".reference-picker__footer a")).toHaveCount(0);
+  await expect(picker.getByRole("button", { name: "Add", exact: true })).toBeEnabled();
+  if (await results.isVisible()) await activate(results, info);
   await expect(
     picker.getByRole("radio", { name: "Linked from", exact: true }),
   ).toBeChecked();
@@ -2673,6 +2675,7 @@ test("reference feedback: link picker drafts survive reading and filter popovers
   await activate(chip, info);
   const open = page.getByRole("link", { name: `Open ${title}`, exact: true });
   await activate(open, info);
+  const drawer = page.locator(".record-preview-drawer-root").getByRole("dialog");
   await expect(drawer).toBeVisible();
   await expect(open).toBeHidden();
   await activate(
