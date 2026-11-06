@@ -187,6 +187,7 @@ mod tests {
                         },
                     ],
                     declaration_ids: vec!["statement-1".into()],
+                    explanation_links: vec![],
                     truncated: false,
                 }],
                 declarations: vec![RemasterDeclarationView {

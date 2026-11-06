@@ -677,6 +677,7 @@ fn render(
         label,
         parts,
         declaration_ids: declarations.iter().map(|value| value.id.clone()).collect(),
+        explanation_links: vec![],
         truncated,
     }
 }

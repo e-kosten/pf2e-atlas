@@ -76,6 +76,7 @@ export function remasterInformationFixture(): RemasterRelationshipsView {
           },
         ],
         declaration_ids: ["declaration-1"],
+        explanation_links: [],
         truncated: false,
       },
     ],

@@ -603,8 +603,10 @@ Conflicting successors and preference cycles grant no unsafe suppression; there
 is no transitive latest-record inference. All versions disables suppression.
 Exact key reads and saved hydration retain chosen identity; saved-list filtering
 retains independently matching chosen members. App-service projects bounded,
-logical inline relationships and exact targets, with bounded supporting declarations
-for Sources. Scope and grouped semantics survive display consolidation; source
+logical inline relationships, exact targets and useful current journal explanation
+links. Bounded supporting declarations remain available for explicit inspection.
+App-service projects Versions availability separately from declaration presence.
+Scope and grouped semantics survive display consolidation; source
 rows do not independently multiply product messages. Explicit term information
 and exact unavailable-key relationship reads remain separate from strict record
 lookup and ordinary Search results. See [ADR0067](decisions/0067-remaster-relationships.md).

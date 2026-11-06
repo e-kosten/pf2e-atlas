@@ -8,16 +8,23 @@ use atlas_search::{
     RemasterOrigin,
 };
 
+mod explanations;
 mod relationships;
 
 const INFORMATION_LIMIT: usize = 20;
 const TEXT_LIMIT: usize = 400;
 pub(crate) struct ProjectionBudget {
     citations: usize,
+    explanations: usize,
+    explanation_cache: explanations::ExplanationCache,
 }
 impl Default for ProjectionBudget {
     fn default() -> Self {
-        Self { citations: 200 }
+        Self {
+            citations: 200,
+            explanations: 20,
+            explanation_cache: explanations::ExplanationCache::default(),
+        }
     }
 }
 
@@ -474,7 +481,8 @@ fn information_category(
     }
     let mut truncated = information.truncated;
     let mut scopes = std::collections::BTreeMap::new();
-    let declarations = information
+    let mut evidence = Vec::new();
+    let mut declarations = information
         .declarations
         .into_iter()
         .map(|value| {
@@ -500,8 +508,8 @@ fn information_category(
                     body_truncated: before_cut || after_cut,
                 },
             );
-            let (citations, citations_truncated) = citations(value.citations, retrieval, budget);
-            let value = RemasterDeclarationView {
+            evidence.push((value.id.clone(), value.citations));
+            RemasterDeclarationView {
                 id: value.id,
                 kinds: value.kinds.into_iter().map(kind).collect(),
                 authored_status: value.authored_status.map(|value| text(&value)),
@@ -509,16 +517,28 @@ fn information_category(
                 before,
                 after,
                 origins,
-                citations,
-                citations_truncated,
-                truncated: before_cut || after_cut || citations_truncated,
-            };
-            truncated |= value.truncated;
-            value
+                citations: vec![],
+                citations_truncated: false,
+                truncated: before_cut || after_cut,
+            }
         })
         .collect::<Vec<_>>();
-    let relationships = relationships::relationships(&declarations, &scopes, selection);
-    truncated |= relationships.iter().any(|value| value.truncated);
+    let mut relationships = relationships::relationships(&declarations, &scopes, selection);
+    explanations::attach(&mut relationships, &evidence, retrieval, selection, budget);
+    // Explanations are resolved independently before the diagnostic evidence budget.
+    for (declaration, (_, raw)) in declarations.iter_mut().zip(evidence) {
+        let (citations, cut) = citations(raw, retrieval, budget);
+        declaration.citations = citations;
+        declaration.citations_truncated = cut;
+        declaration.truncated |= cut;
+        truncated |= declaration.truncated;
+    }
+    for relationship in &mut relationships {
+        relationship.truncated |= declarations.iter().any(|declaration| {
+            declaration.truncated && relationship.declaration_ids.contains(&declaration.id)
+        });
+        truncated |= relationship.truncated;
+    }
     RelatedCategoryView::Content {
         content: RemasterRelationshipsView {
             relationships,
@@ -531,13 +551,6 @@ fn lookup_scope(
     context_value: &atlas_search::RemasterContext,
     citations: &[atlas_search::RemasterCitationResult],
 ) -> Vec<String> {
-    if !citations
-        .iter()
-        .any(|citation| citation.origin == RemasterOrigin::AtlasReviewed)
-    {
-        return context(context_value);
-    }
-    let mut labels = vec!["Atlas mapping".into()];
     let scope = match context_value.namespace.as_str() {
         "creature_ability" => Some("Creature ability glossary"),
         "spell" => Some("Spells"),
@@ -548,10 +561,21 @@ fn lookup_scope(
         "condition" => Some("Conditions"),
         "ancestry" => Some("Ancestries"),
         "heritage" => Some("Heritages"),
+        "language" => Some("Languages"),
+        "domain" => Some("Domains"),
+        "pantheon" => Some("Pantheons"),
+        "material" => Some("Materials"),
+        "rules" => Some("Rules"),
         _ => None,
     };
-    if let Some(scope) = scope {
-        labels.push(scope.into());
+    let mut labels = scope.map(str::to_owned).into_iter().collect::<Vec<_>>();
+    if citations
+        .iter()
+        .any(|citation| citation.origin == RemasterOrigin::Foundry)
+        && let Some(qualifier) = &context_value.qualifier
+        && !qualifier.trim().is_empty()
+    {
+        labels.push(text(qualifier));
     }
     labels
 }
@@ -923,7 +947,10 @@ mod projection_bounds_tests {
                     },
                     None,
                     retrieval,
-                    &mut ProjectionBudget { citations: 0 },
+                    &mut ProjectionBudget {
+                        citations: 0,
+                        ..ProjectionBudget::default()
+                    },
                 ) else {
                     panic!("retained statement");
                 };
@@ -1027,12 +1054,12 @@ mod lookup_scope_tests {
                         truncated: false,
                     },
                     retrieval,
-                    &mut ProjectionBudget { citations: 0 },
+                    &mut ProjectionBudget {
+                        citations: 0,
+                        ..ProjectionBudget::default()
+                    },
                 );
-                assert_eq!(
-                    view.supports[0].context,
-                    vec!["Atlas mapping", "Creature ability glossary"]
-                );
+                assert_eq!(view.supports[0].context, vec!["Creature ability glossary"]);
                 assert!(view.supports[0].citations.is_empty());
                 assert!(view.supports[0].citations_truncated);
                 assert_eq!(declaration.context, original);

@@ -71,8 +71,13 @@ App-service consolidates compatible statements into logical relationships with
 ordered inline text and exact record references. Supporting declaration IDs retain
 bounded evidence; consolidation does not establish new identity or preference.
 Reading shows concise inline context above rules, without duplicate names or
-source-origin badges. Explore Versions shows the relationships once and places
-evidence and plain authorship attribution under Sources; its main notice is omitted.
+source-origin badges. Useful journal explanations are linked directly without
+exposing internal provenance. Full attributed evidence stays available through
+explicit API/CLI inspection. App-service projects Versions availability from actual
+current alternatives or suggested variants; text-only former names and explanation
+links do not create the tab. Explore Versions shows the relationships once and
+omits the repeated main notice. Comparison keeps both identities and rules without
+reciprocal notices.
 Explicit term API/CLI lookup stays separate from record counts and strict identity
 lookup. Ordinary Search does not add an automatic source-statement panel.
 

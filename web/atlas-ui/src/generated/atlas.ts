@@ -445,3 +445,4 @@ export type { RemasterSubjectRequest } from "../../../../crates/atlas-app-model/
 export type { RemasterSubjectView } from "../../../../crates/atlas-app-model/bindings/RemasterSubjectView";
 export type { RemasterRelationshipView } from "../../../../crates/atlas-app-model/bindings/RemasterRelationshipView";
 export type { RemasterInlinePartView } from "../../../../crates/atlas-app-model/bindings/RemasterInlinePartView";
+export type { RemasterExplanationLinkView } from "../../../../crates/atlas-app-model/bindings/RemasterExplanationLinkView";

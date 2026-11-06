@@ -1,3 +1,6 @@
+import { createMemoryHistory } from "@tanstack/react-router";
+import { createAtlasRouter } from "../../app/router";
+import { RecordEditionNotice } from "./RecordEditionNotice";
 import { remasterInformationFixture } from "../../test/remasterFixtures";
 import { parseSearchParams, selectedNavigation } from "../../app/urlState";
 import { RouterTestContext } from "../../test/router";
@@ -102,6 +105,7 @@ function graphFixture(): GraphContextView {
 function renderRelated(
   detail = detailFixture("actors:seed", "Viewed creature"),
   providedClient?: QueryClient,
+  providedRouter?: ReturnType<typeof createAtlasRouter>,
 ) {
   const onReference = vi.fn();
   const queryClient =
@@ -113,11 +117,18 @@ function renderRelated(
     <ConfigProvider theme={{ token: { motion: false } }}>
       <QueryClientProvider client={queryClient}>
         <SearchProfileProvider>
-          <RouterTestContext>
+          <RouterTestContext router={providedRouter}>
             <RecordReadingWorkspace
               identity={(action) => <header>{action}</header>}
+              readingNotice={
+                <RecordEditionNotice detail={detail} onReference={onReference} />
+              }
               explore={<RelatedRecords detail={detail} onReference={onReference} />}
             >
+              <input
+                aria-label="Retained reading draft"
+                defaultValue="Preserved draft"
+              />
               Reading the document
             </RecordReadingWorkspace>
           </RouterTestContext>
@@ -134,6 +145,7 @@ function openRelated() {
 function relatedFixture() {
   const detail = detailFixture("actors:seed", "Viewed creature");
   return {
+    show_versions: false,
     selection: detail.selected,
     artifact_generation: detail.artifact_generation,
     seed: detail.record,
@@ -379,6 +391,7 @@ it("retries failed checks and keeps unavailable versions distinguishable from ve
   );
   api.getRelatedRecords.mockResolvedValue({
     ...relatedFixture(),
+    show_versions: true,
     variants: { kind: "unavailable", reason: "Compatibility facts are unavailable" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
@@ -538,6 +551,7 @@ it("rejects late Similar responses from the previous model and updates the Searc
 it("renders Versions with shared result cards and compares complete records without recursive exploration", async () => {
   api.getRelatedRecords.mockResolvedValue({
     ...relatedFixture(),
+    show_versions: true,
     variants: {
       kind: "content",
       content: {
@@ -632,10 +646,19 @@ it("shows typed edition attribution and preserves exact native and preview desti
   };
   api.getRelatedRecords.mockResolvedValue({
     ...relatedFixture(),
+    show_versions: true,
     remaster_relationships: {
       kind: "content",
       content: {
         ...remasterInformationFixture(),
+        relationships: [
+          {
+            ...remasterInformationFixture().relationships[0],
+            explanation_links: [
+              { label: "Remaster Changes — Class Features", navigation: target },
+            ],
+          },
+        ],
         declarations: [
           {
             ...remasterInformationFixture().declarations[0],
@@ -653,7 +676,6 @@ it("shows typed edition attribution and preserves exact native and preview desti
   const onReference = renderRelated();
   openRelated();
   await selectTab("Versions");
-  fireEvent.click(await screen.findByText("Sources"));
   const link = await screen.findByRole("link", {
     name: "Remaster Changes — Class Features",
   });
@@ -672,39 +694,6 @@ it("shows typed edition attribution and preserves exact native and preview desti
   expect(onReference).toHaveBeenCalledWith(source.record, link, target);
 });
 
-it("keeps unavailable edition citations explicit and inert", async () => {
-  api.getRelatedRecords.mockResolvedValue({
-    ...relatedFixture(),
-    remaster_relationships: {
-      kind: "content",
-      content: {
-        ...remasterInformationFixture(),
-        declarations: [
-          {
-            ...remasterInformationFixture().declarations[0],
-            citations: [
-              {
-                ...remasterInformationFixture().declarations[0].citations[0],
-                attribution: "Source unavailable",
-                destination: {
-                  kind: "attribution",
-                  reason: "Source field is unavailable in the current collection.",
-                },
-              },
-            ],
-          },
-        ],
-      },
-    },
-  });
-  renderRelated();
-  openRelated();
-  await selectTab("Versions");
-  fireEvent.click(await screen.findByText("Sources"));
-  expect(await screen.findByText(/Source field is unavailable/)).toBeVisible();
-  expect(screen.queryByRole("link", { name: "Source unavailable" })).toBeNull();
-});
-
 it("compares a logical relationship's available root without duplicating its name or adding recursive exploration", async () => {
   const content = remasterInformationFixture();
   content.relationships[0].parts = [
@@ -716,6 +705,7 @@ it("compares a logical relationship's available root without duplicating its nam
   ];
   api.getRelatedRecords.mockResolvedValue({
     ...relatedFixture(),
+    show_versions: true,
     remaster_relationships: { kind: "content", content },
   });
   api.getRecordDetail.mockImplementation(async (key: string) => {
@@ -820,6 +810,7 @@ it.each([
       : [{ kind: "reference", label: "Modern creature", navigation: target }];
   api.getRelatedRecords.mockResolvedValue({
     ...relatedFixture(),
+    show_versions: true,
     remaster_relationships: { kind: "content", content },
   });
   renderRelated(detail);
@@ -827,4 +818,195 @@ it.each([
   await selectTab("Versions");
   expect(screen.getByText("Renamed to:")).toBeVisible();
   expect(screen.queryByRole("button", { name: "Compare" })).toBeNull();
+});
+
+it.each([
+  ["Former name", "Magic Missile"],
+  ["Replaces", "Remove Curse, Remove Disease, and Neutralize Poison"],
+  ["Merged from", "Aasimar, Aphorite, Ganzi, and Tiefling"],
+])(
+  "keeps the %s note and journal link without a Versions tab when Rust says no alternatives",
+  async (label, text) => {
+    const detail = detailFixture("actors:seed", "Viewed creature");
+    const content = remasterInformationFixture();
+    content.relationships[0] = {
+      ...content.relationships[0],
+      label,
+      parts: [{ kind: "text", text }],
+      explanation_links: [
+        {
+          label: "Remaster Changes — Spells",
+          navigation: navigation("journals:changes"),
+        },
+      ],
+    };
+    detail.remaster_relationships = { kind: "content", content };
+    api.getRelatedRecords.mockResolvedValue({
+      ...relatedFixture(),
+      show_versions: false,
+      remaster_relationships: { kind: "content", content },
+    });
+    renderRelated(
+      detail,
+      undefined,
+      createAtlasRouter(
+        createMemoryHistory({ initialEntries: ["/records/actors:seed"] }),
+      ),
+    );
+    expect(screen.getByText(`${label}:`)).toBeVisible();
+    openRelated();
+    await waitFor(() => expect(api.getRelatedRecords).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.queryByRole("tab", { name: "Versions" })).toBeNull(),
+    );
+    expect(screen.getByText(text)).toBeVisible();
+    expect(
+      screen.getAllByRole("link", { name: "Remaster Changes — Spells" }),
+    ).toHaveLength(1);
+    expect(screen.queryByText("Sources")).toBeNull();
+  },
+);
+
+it("replaces a successfully unavailable explicit Versions location once and preserves selection, state, hash and drafts", async () => {
+  const href =
+    "/records/actors:seed?versions=all&rank=5&record_view=explore&record_tab=versions#retained-field";
+  const router = createAtlasRouter(
+    createMemoryHistory({
+      initialEntries: ["/search?q=retained", href],
+      initialIndex: 1,
+    }),
+  );
+  router.history.replace(href, {
+    ...router.history.location.state,
+    atlasSearchReset: "retained-draft-state",
+  });
+  const navigate = vi.spyOn(router, "navigate");
+  const detail = detailFixture("actors:seed", "Viewed creature");
+  const content = remasterInformationFixture();
+  content.relationships[0].parts = [{ kind: "text", text: "Unavailable former name" }];
+  detail.remaster_relationships = { kind: "content", content };
+  let resolve!: (value: ReturnType<typeof relatedFixture>) => void;
+  api.getRelatedRecords.mockReturnValue(
+    new Promise((yes) => {
+      resolve = yes;
+    }),
+  );
+  renderRelated(detail, undefined, router);
+  expect(
+    await screen.findByRole("tab", { name: "Versions", selected: true }),
+  ).toBeVisible();
+  expect(screen.getByText("Unavailable former name")).toBeVisible();
+  expect(router.latestLocation.search.record_view).toBe("explore");
+  await act(async () => resolve(relatedFixture()));
+  await waitFor(() => expect(router.latestLocation.search.record_view).toBeUndefined());
+  expect(router.latestLocation.search.record_tab).toBeUndefined();
+  expect(router.latestLocation.pathname).toBe("/records/actors:seed");
+  expect(router.latestLocation.search.rank).toBe("5");
+  expect(router.latestLocation.search.versions).toBe("all");
+  expect(router.latestLocation.href).toContain("#retained-field");
+  expect(router.latestLocation.state.atlasSearchReset).toBe("retained-draft-state");
+  expect(router.history.length).toBe(2);
+  expect(
+    navigate.mock.calls.filter(
+      ([options]) => options.to === "." && options.replace === true,
+    ),
+  ).toHaveLength(1);
+  expect(screen.getByText("Unavailable former name")).toBeVisible();
+  const draft = screen.getByRole("textbox", { name: "Retained reading draft" });
+  fireEvent.change(draft, { target: { value: "Still editing" } });
+  await act(async () => router.history.back());
+  await waitFor(() => expect(router.latestLocation.pathname).toBe("/search"));
+  await act(async () => router.history.forward());
+  await waitFor(() =>
+    expect(router.latestLocation.pathname).toBe("/records/actors:seed"),
+  );
+  expect(router.latestLocation.search.record_view).toBeUndefined();
+  fireEvent.click(screen.getByRole("button", { name: "Explore related records" }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole("tab", { name: "Referenced by", selected: true }),
+    ).toBeVisible(),
+  );
+  expect(screen.queryByRole("tab", { name: "Versions" })).toBeNull();
+  expect(screen.getByText("Unavailable former name")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Read document" }));
+  expect(await screen.findByRole("textbox", { name: "Retained reading draft" })).toBe(
+    draft,
+  );
+  expect(draft).toHaveValue("Still editing");
+  navigate.mockRestore();
+});
+
+it("keeps an explicit Versions failure and routine note recoverable until a successful response arrives", async () => {
+  history.replaceState(
+    null,
+    "",
+    "/records/actors:seed?record_view=explore&record_tab=versions",
+  );
+  const detail = detailFixture("actors:seed", "Viewed creature");
+  detail.remaster_relationships = {
+    kind: "content",
+    content: remasterInformationFixture(),
+  };
+  api.getRelatedRecords.mockRejectedValue(new Error("Temporary connection failure"));
+  renderRelated(detail);
+  expect(
+    await screen.findByRole("tab", { name: "Versions", selected: true }),
+  ).toBeVisible();
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Unable to load connections",
+  );
+  expect(screen.getByText("Renamed to:")).toBeVisible();
+  expect(location.search).toContain("record_view=explore");
+  api.getRelatedRecords.mockResolvedValue(relatedFixture());
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  await waitFor(() =>
+    expect(new URLSearchParams(location.search).has("record_view")).toBe(false),
+  );
+  expect(screen.getByText("Renamed to:")).toBeVisible();
+});
+
+it("retains one Versions relationship and its explanation through a background refetch failure", async () => {
+  const detail = detailFixture("actors:seed", "Viewed creature");
+  const content = remasterInformationFixture();
+  content.relationships[0].explanation_links = [
+    {
+      label: "Remaster Changes — Class Features",
+      navigation: navigation("journals:changes"),
+    },
+  ];
+  detail.remaster_relationships = { kind: "content", content };
+  api.getRelatedRecords.mockResolvedValue({
+    ...relatedFixture(),
+    show_versions: true,
+    remaster_relationships: { kind: "content", content },
+  });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  });
+  renderRelated(
+    detail,
+    client,
+    createAtlasRouter(
+      createMemoryHistory({ initialEntries: ["/records/actors:seed"] }),
+    ),
+  );
+  openRelated();
+  await selectTab("Versions");
+  expect(await screen.findByRole("link", { name: "New name" })).toBeVisible();
+  api.getRelatedRecords.mockRejectedValueOnce(new Error("Background refresh failed"));
+  await act(async () => {
+    await client.refetchQueries({ queryKey: ["related"] });
+  });
+  const explore = screen.getByRole("region", { name: "Explore record" });
+  expect(await within(explore).findByRole("alert")).toHaveTextContent(
+    "Unable to load connections",
+  );
+  expect(within(explore).getByRole("button", { name: "Retry" })).toBeVisible();
+  expect(within(explore).getAllByText("Renamed to:")).toHaveLength(1);
+  expect(within(explore).getAllByRole("link", { name: "New name" })).toHaveLength(1);
+  expect(
+    within(explore).getAllByRole("link", { name: "Remaster Changes — Class Features" }),
+  ).toHaveLength(1);
+  expect(explore.querySelector(".record-edition-notice")).toBeNull();
 });

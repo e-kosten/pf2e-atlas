@@ -107,10 +107,15 @@ When an older entry and its single verified preferred replacement both match you
 search and filters, Atlas shows the replacement. Choose **All versions** to see
 both. Merged, ambiguous or otherwise related entries can still appear together.
 
-Open an entry to see a compact remaster relationship above its rules.
-**Explore → Versions** shows each relationship once, with supporting evidence
-under **Sources**. Available entries are linked; names whose documents are not
-available stay as text. Search can match verified former names.
+Open an entry to see a compact remaster relationship above its rules, with a
+direct link to a readable explanation when available. For example, Force Barrage
+shows **Former name: Magic Missile** and links to **Remaster Changes — Spells**.
+Available entries are linked; names whose documents are not available stay as
+text. Search can match verified former names.
+
+**Explore → Versions** appears when there are available alternatives to browse or
+compare. A former name alone stays in the reader. Use **Compare** to read two
+available entries side by side.
 
 Saved lists and encounters keep the record you selected and follow updates to
 that record. A replacement link offers navigation to another entry; it does not

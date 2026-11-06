@@ -2329,7 +2329,7 @@ test("Other editions keeps exact source citation navigation and comparison", asy
   await expect(
     relationship.getByRole("link", { name: "Legacy signal", exact: true }),
   ).toHaveCount(1);
-  await activate(page.getByText("Sources", { exact: true }), info);
+  await expect(page.getByText("Sources", { exact: true })).toHaveCount(0);
   const source = page.getByRole("link", {
     name: "Remaster Changes — Class Features",
     exact: true,

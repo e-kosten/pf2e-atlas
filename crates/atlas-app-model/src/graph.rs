@@ -81,6 +81,7 @@ pub struct RelatedRecordsRequest {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RelatedRecordsView {
+    pub show_versions: bool,
     pub selection: crate::RecordNavigationView,
     pub artifact_generation: String,
     pub seed: RecordSummaryView,

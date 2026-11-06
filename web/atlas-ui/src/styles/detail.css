@@ -165,6 +165,9 @@
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
+.remaster-relationship__line > .ant-btn {
+  margin-inline-start: var(--space-control);
+}
 .remaster-relationship + .remaster-relationship,
 .remaster-source-context {
   margin-block-start: var(--space-control);
@@ -177,42 +180,10 @@
 .remaster-information__context {
   color: var(--muted);
 }
-.remaster-source-declaration + .remaster-source-declaration {
-  margin-block-start: var(--space-group);
-  padding-block-start: var(--space-control);
-  border-block-start: 1px solid var(--line);
-}
-.remaster-sides {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
-  gap: var(--space-group);
-  margin-block: var(--space-group);
-}
-.remaster-side h4 {
-  margin-block: 0 var(--space-control);
-}
-.remaster-side p {
-  margin-block: var(--space-control);
-}
-.remaster-side__group + .remaster-side__group {
-  margin-block-start: var(--space-group);
-}
-.remaster-information__evidence summary {
-  cursor: pointer;
-  color: var(--link);
-}
-.remaster-citation {
-  padding-block: var(--space-control);
-}
-
 .remaster-alias-evidence {
   padding: 0 var(--browse-pane-inset) var(--space-control);
-  font-size: var(--font-size-small, 0.875rem);
+  font-size: 0.875rem;
   color: var(--muted);
-}
-.remaster-alias-evidence summary {
-  cursor: pointer;
-  color: var(--link);
 }
 .remaster-query-context {
   margin-block: var(--space-group);

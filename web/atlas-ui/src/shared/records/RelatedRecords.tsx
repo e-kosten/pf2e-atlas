@@ -7,7 +7,9 @@ import { navigateDestination } from "../../app/navigation";
 import { recordDestination, searchDestination } from "../../app/destinations";
 import { Button, Empty, Tabs, Typography } from "antd";
 import { LoadingStatus } from "../ui/LoadingStatus";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { GitCompareArrows } from "lucide-react";
+import { RecordEditionNotice } from "./RecordEditionNotice";
 import { SearchPreviewRows } from "./SearchPreviewRows";
 import { ReferenceResult } from "./ReferenceResult";
 import { useQuery } from "@tanstack/react-query";
@@ -56,7 +58,12 @@ export function RelatedRecords(props: ExploreProps) {
   const incoming = useReferencePreview(props.detail, true);
   const outgoing = useReferencePreview(props.detail, false);
   const related = useRelated(props.detail);
-  const { tab: active, setTab: setActive } = useRecordExploreLocation();
+  const {
+    mode,
+    tab: active,
+    setTab: setActive,
+    resetUnavailableVersions,
+  } = useRecordExploreLocation();
   const graph = related.data?.references;
   const otherReferences =
     graph?.kind === "content" &&
@@ -73,13 +80,16 @@ export function RelatedRecords(props: ExploreProps) {
     !!related.error ||
     graph?.kind === "error" ||
     graph?.kind === "unavailable";
-  const versions =
-    related.data &&
-    [
-      related.data.remaster_relationships,
-      related.data.source_remaster_context,
-      related.data.variants,
-    ].some((category) => category && category.kind !== "empty");
+  const versions = related.data?.show_versions;
+  useEffect(() => {
+    if (
+      mode === "explore" &&
+      active === "versions" &&
+      related.isSuccess &&
+      versions === false
+    )
+      resetUnavailableVersions();
+  }, [mode, active, related.isSuccess, versions, resetUnavailableVersions]);
   const items = [
     ...(hasIncoming
       ? [
@@ -100,7 +110,7 @@ export function RelatedRecords(props: ExploreProps) {
         ]
       : []),
     { key: "similar", label: "Similar", children: <SimilarPreview {...props} /> },
-    ...(versions || related.error
+    ...(versions || related.isPending || related.error
       ? [{ key: "versions", label: "Versions", children: <Versions {...props} /> }]
       : []),
   ];
@@ -348,7 +358,11 @@ function VersionCard({
         onPreview={(anchor) => onReference(record.record_key, anchor)}
         context={context}
         actions={
-          <Button size="small" onClick={onCompare}>
+          <Button
+            size="small"
+            icon={<GitCompareArrows size={14} aria-hidden="true" />}
+            onClick={onCompare}
+          >
             Compare
           </Button>
         }
@@ -375,7 +389,7 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
     return (
       <Button
         size="small"
-        type="text"
+        icon={<GitCompareArrows size={14} aria-hidden="true" />}
         onClick={() => setComparison({ target: target.record_key, open: true })}
       >
         Compare
@@ -392,6 +406,13 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
       : [];
   return (
     <div className="record-explore__task">
+      {!related.data && (
+        <RecordEditionNotice
+          detail={detail}
+          onReference={onReference}
+          onReload={onReload}
+        />
+      )}
       {related.isLoading && <LoadingStatus label="Checking versions…" />}
       {related.error && (
         <QueryError

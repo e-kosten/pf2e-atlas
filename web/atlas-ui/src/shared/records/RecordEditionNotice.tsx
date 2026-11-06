@@ -25,13 +25,11 @@ export function RecordEditionNotice({
   return (
     <div className="record-edition-notice">
       <RemasterInformation
-        compact
         category={detail.remaster_relationships}
         onReference={onReference}
         onReload={onReload}
       />
       <SourceRemasterInformation
-        compact
         category={detail.source_remaster_context}
         onReference={onReference}
         onReload={onReload}

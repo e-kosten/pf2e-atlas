@@ -1601,3 +1601,47 @@ async fn remaster_logical_relationships_cross_http_without_per_source_messages()
     }
     let _: atlas_app_model::RecordDetailView = serde_json::from_value(body).unwrap();
 }
+
+#[tokio::test]
+async fn remaster_explanation_and_versions_availability_cross_real_http() {
+    let fixture = Fixture::with_former_name_only();
+    let (status, body) = fixture
+        .json(Method::GET, &format!("/api/records/{SECOND_ACTION}"), None)
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let relationship = &body["remaster_relationships"]["content"]["relationships"][0];
+    assert_eq!(relationship["label"], "Former name");
+    assert_eq!(
+        relationship["parts"],
+        json!([{"kind":"text","text":"Magic Missile"}])
+    );
+    let links = relationship["explanation_links"].as_array().unwrap();
+    assert_eq!(links.len(), 1);
+    assert_eq!(links[0]["label"], "Remaster Changes — Spells");
+    assert_eq!(
+        links[0]["navigation"]["record_key"],
+        "journals:editionjournal01"
+    );
+    assert_eq!(links[0]["navigation"]["field"], "/text/content");
+    let (status,related)=fixture.json(Method::POST,"/api/related",Some(json!({"selection":body["selected"],"artifact_generation":body["artifact_generation"]}))).await;
+    assert_eq!(status, StatusCode::OK, "{related}");
+    assert_eq!(related["show_versions"], false);
+    let _: atlas_app_model::RelatedRecordsView = serde_json::from_value(related).unwrap();
+    fixture.corrupt_remaster_evidence();
+    let (status,failed)=fixture.json(Method::POST,"/api/related",Some(json!({"selection":body["selected"],"artifact_generation":body["artifact_generation"]}))).await;
+    assert_eq!(status, StatusCode::OK, "{failed}");
+    assert_eq!(failed["show_versions"], true);
+    assert_eq!(failed["remaster_relationships"]["kind"], "error");
+    let paired = Fixture::with_remaster(true);
+    let detail = paired.service.record_detail(SECOND_ACTION).unwrap();
+    let (status,related)=paired.json(Method::POST,"/api/related",Some(json!({"selection":detail.selected,"artifact_generation":detail.artifact_generation}))).await;
+    assert_eq!(status, StatusCode::OK, "{related}");
+    assert_eq!(related["show_versions"], true);
+    assert_eq!(
+        related["remaster_relationships"]["content"]["relationships"][0]["explanation_links"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+}

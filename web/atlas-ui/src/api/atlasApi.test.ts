@@ -757,6 +757,7 @@ describe("source-backed API transport", () => {
       selection: detail.selected,
       artifact_generation: detail.artifact_generation,
       seed: detail.record,
+      show_versions: false,
       references: { kind: "empty" },
       remaster_relationships: { kind: "empty" },
       variants: { kind: "empty" },

@@ -62,7 +62,13 @@ pub struct RemasterRelationshipView {
     pub label: String,
     pub parts: Vec<RemasterInlinePartView>,
     pub declaration_ids: Vec<String>,
+    pub explanation_links: Vec<RemasterExplanationLinkView>,
     pub truncated: bool,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct RemasterExplanationLinkView {
+    pub label: String,
+    pub navigation: RecordNavigationView,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
