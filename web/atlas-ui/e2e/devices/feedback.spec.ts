@@ -225,7 +225,6 @@ test("a Similarity inventory outage preserves settings and recovers as a read", 
     dialog.getByRole("button", { name: "Choose sections", exact: true }),
     info,
   );
-  dialog = page.getByRole("dialog", { name: "Choose sections", exact: true });
   await expect(identity).not.toBeChecked();
   await noPageOverflow(page);
   await info.attach("similarity-read-recovered", {
@@ -389,7 +388,6 @@ for (const section of [
       dialog.getByRole("button", { name: "Choose sections", exact: true }),
       info,
     );
-    dialog = page.getByRole("dialog", { name: "Choose sections", exact: true });
     await expect(selected).toBeChecked({
       checked: inventory.core.selectors.includes(part.selector),
     });
