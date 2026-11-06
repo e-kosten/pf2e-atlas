@@ -34,8 +34,10 @@ chooses `Reset search link`, which removes the unsupported selection while keepi
 criteria and reading state. Stale unavailable browser preferences are optional
 defaults and resolve to the valid server or sole stored default on launch.
 Unbuilt catalog entries are never offered as choices in the comparison UI.
-`FilterControls` owns one search row with its trailing settings control. Let the
-search field shrink so settings stays beside it. Similar uses the same normal
+`FilterControls` owns one search row with its trailing settings control. Size that
+row to the natural filter-control row below it, bounded by the available width;
+applied chip contents do not widen the controls. Let the search field shrink so
+settings stays beside it. Similar uses the same normal
 control height as text search; truncate its source title to one line while
 retaining the complete linked title and source-preview interaction. Filter
 controls follow on their own row at their natural widths with the same spacing
@@ -44,7 +46,11 @@ Keep trigger labels stable as choices change. Common selections, numeric ranges
 and link conditions share a separate wrapping area, so values do not create holes
 beneath individual controls. Use compact joined edit/remove link chips; keep each
 remove action attached to its chip and its complete title available from the
-link-scope popover.
+link-scope popover. Conditions that cannot be represented as independent chips
+mark the Advanced button with an active outline and dot; its hover/focus tooltip
+and accessible description say Advanced filters applied. Do not print the boolean
+expression in the toolbar or count groups as though they were individual choices.
+Clear filters uses the same outlined control treatment as its neighbors.
 The settings icon has a normal-sized button target, accessible Search settings
 name and a tooltip summarizing effective values. Model and method controls live
 inside the shared dialog; ordinary
@@ -640,8 +646,10 @@ keeps a long identity reachable while the body scrolls independently. Verify the
 title, close action and computed body/header insets after opening on phone and
 desktop; DOM presence and focus assertions do not establish visible geometry.
 
-BrowseReader uses one full-width BrowsePaneHeader above the desktop split.
-Results controls and reader navigation/status share its naturally wrapping row;
+BrowseReader uses one shared BrowsePaneHeader composition for wide and narrow
+results. Its explicit workspace background, insets, control sizes and centered
+vertical alignment remain the same across that breakpoint. On desktop it spans
+the split. Results controls and reader navigation/status share its naturally wrapping row;
 the reader starts directly with its document, without a Preview label or a
 separately measured header. Both panes retain independent scrolling below the
 shared toolbar. On narrow layouts, the visible pane owns its header and the

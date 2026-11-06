@@ -1,3 +1,4 @@
+import { chipLinkClauses } from "./filterControls";
 import { linkScopeCopy } from "./linkScopeCopy";
 import { useReferencePreview } from "../records/ReferencePreviewContext";
 import {
@@ -9,11 +10,7 @@ import { recordDestination } from "../../app/destinations";
 import { Button, Popover, Radio, Space, Tooltip, Typography } from "antd";
 import { CloseOutlined, DownOutlined } from "@ant-design/icons";
 import { useRef, useState } from "react";
-import type {
-  QueryPredicate,
-  QueryRelationship,
-  FilterEditorFieldView,
-} from "../../generated/atlas";
+import type { QueryPredicate, QueryRelationship } from "../../generated/atlas";
 export type LinkLeaf = Extract<
   QueryPredicate,
   {
@@ -29,96 +26,39 @@ export function linkClauses(filter: QueryPredicate | null): LinkLeaf[] {
     return linkClauses(filter.predicate);
   return [];
 }
-function simple(filter: QueryPredicate): boolean {
-  if (filter.kind === "not" || filter.kind === "any_of") return false;
-  if (filter.kind === "all_of") return filter.children.every(simple);
-  if (filter.kind === "exists") return simple(filter.predicate);
-  return true;
-}
-export function humanExpression(
-  filter: QueryPredicate,
-  title: (leaf: LinkLeaf) => string,
-  fields: FilterEditorFieldView[],
-): string {
-  if (filter.kind === "all_of" || filter.kind === "any_of")
-    return `(${filter.children.map((child) => humanExpression(child, title, fields)).join(filter.kind === "all_of" ? " AND " : " OR ")})`;
-  if (filter.kind === "not")
-    return `NOT ${humanExpression(filter.predicate, title, fields)}`;
-  if (filter.kind === "relationship")
-    return `${filter.relationship.direction === "incoming" ? "Links to" : "Linked from"} ${title(filter)} [${filter.relationship.include_contents ? "Whole entry" : "Main entry only"}]`;
-  if (filter.kind === "boolean_constant")
-    return filter.value ? "All records" : "No records";
-  const field = fields.find(
-    (entry) =>
-      entry.definition.path ===
-      (filter.kind === "exists" ? filter.collection : filter.field),
-  );
-  const name = field?.label ?? "Unavailable field";
-  if (filter.kind === "exists")
-    return `${name}: ${humanExpression(filter.predicate, title, fields)}`;
-  if (filter.kind === "state_match") return `${name}: ${filter.state}`;
-  if (filter.kind === "in") return `${name}: ${filter.values.join(", ")}`;
-  const operator =
-    field?.operators.find((entry) => entry.operator === filter.op)?.label ?? filter.op;
-  return `${name} ${operator} ${filter.kind === "set_match" ? filter.values.join(", ") : filter.value}`;
-}
 export function LinkFilterControls({
   filter,
-  fields,
   title,
   onEdit,
   onRemove,
-  onAdvanced,
   limit,
 }: {
   filter: QueryPredicate | null;
-  fields: FilterEditorFieldView[];
   title: (leaf: LinkLeaf) => string;
   onEdit: (leaf: LinkLeaf, relationship?: QueryRelationship) => string | null;
   onRemove: (leaf: LinkLeaf) => void;
-  onAdvanced: () => void;
   limit?: number;
 }) {
-  const clauses = linkClauses(filter);
-  const expression =
-    filter && clauses.length ? humanExpression(filter, title, fields) : "";
-  const rootOperator = "Grouped filters";
-  if (!clauses.length) return null;
+  const clauses = chipLinkClauses(filter);
+  const linkCount = linkClauses(filter).length;
+  const limitReached = linkCount > 0 && limit !== undefined && linkCount >= limit;
+  if (!clauses.length && !limitReached) return null;
   return (
     <div
       className="filter-controls__applied-links"
       role="group"
       aria-label="Link filters"
     >
-      {filter && simple(filter) ? (
-        clauses.map((leaf) => (
-          <LinkChip
-            key={leaf.clause_id}
-            leaf={leaf}
-            title={title(leaf)}
-            onEdit={onEdit}
-            onRemove={onRemove}
-          />
-        ))
-      ) : (
-        <Tooltip
-          title={<span style={{ whiteSpace: "normal" }}>{expression}</span>}
-          trigger={["hover", "focus"]}
-          styles={{ root: { maxWidth: "min(600px, calc(100vw - 24px))" } }}
-        >
-          <Button
-            className="link-filter-summary"
-            onClick={onAdvanced}
-            aria-label={`${rootOperator}: ${clauses.length} link conditions. Edit advanced filters.`}
-          >
-            <span>
-              {rootOperator} · {clauses.length} link conditions
-            </span>
-            <span className="link-filter-summary__expression">{expression}</span>
-          </Button>
-        </Tooltip>
-      )}
-      {limit !== undefined && clauses.length >= limit && (
+      {clauses.map((leaf) => (
+        <LinkChip
+          key={leaf.clause_id}
+          leaf={leaf}
+          title={title(leaf)}
+          onEdit={onEdit}
+          onRemove={onRemove}
+        />
+      ))}
+      {limitReached && (
         <Typography.Text role="status">
           Remove a link condition before adding another.
         </Typography.Text>

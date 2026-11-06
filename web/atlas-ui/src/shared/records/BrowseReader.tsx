@@ -111,12 +111,11 @@ export function BrowseReader({
       trigger?.focus({ preventScroll: true });
     });
   }
-  function clearSelectionAction(size?: "small") {
+  function clearSelectionAction() {
     return onClearSelection && (selectedRecordKey || reading.request) ? (
       <PaneIconButton
         label="Clear selection"
         icon={<X size={16} aria-hidden="true" />}
-        size={size}
         disabled={clearSelectionDisabled}
         onClick={() => {
           onClearSelection();
@@ -124,6 +123,20 @@ export function BrowseReader({
         }}
       />
     ) : undefined;
+  }
+  function toolbar(actions: ReactNode) {
+    return (
+      <BrowsePaneHeader
+        className={
+          narrow
+            ? "reference-browser__toolbar reference-results__header"
+            : "reference-browser__toolbar"
+        }
+      >
+        {resultsHeader}
+        <div className="reference-browser__reader-actions">{actions}</div>
+      </BrowsePaneHeader>
+    );
   }
   const results = (
     <section
@@ -138,12 +151,9 @@ export function BrowseReader({
           rememberOpener(event.target);
       }}
     >
-      {narrow && (resultsHeader || clearSelectionAction()) && (
-        <BrowsePaneHeader className="reference-results__header">
-          <div className="reference-results__controls">{resultsHeader}</div>
-          {clearSelectionAction("small")}
-        </BrowsePaneHeader>
-      )}
+      {narrow &&
+        (resultsHeader || clearSelectionAction()) &&
+        toolbar(clearSelectionAction())}
       <div
         className="reference-results__scroll"
         ref={listRef}
@@ -178,10 +188,7 @@ export function BrowseReader({
           ? undefined
           : (actions, content) => (
               <>
-                <BrowsePaneHeader className="reference-browser__toolbar">
-                  {resultsHeader}
-                  <div className="reference-browser__reader-actions">{actions}</div>
-                </BrowsePaneHeader>
+                {toolbar(actions)}
                 <Splitter
                   styles={{
                     root: { flex: 1, minHeight: 0, overflow: "clip" },

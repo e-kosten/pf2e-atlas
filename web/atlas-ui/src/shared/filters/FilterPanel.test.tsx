@@ -268,6 +268,22 @@ function renderControls(
 describe("shared common and maintained advanced filters", () => {
   beforeEach(() => vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true }));
   afterEach(() => vi.restoreAllMocks());
+  it("marks Advanced when applied conditions have no chip, without adding an expression to the selections row", () => {
+    const change = renderControls(
+      editorFixture([fieldFixture("level", "number", "Level")]),
+      { kind: "compare", field: "level", op: "gt", value: 5 },
+      null,
+      { layout: "toolbar" },
+    );
+    const advanced = screen.getByRole("button", { name: "Advanced filters" });
+    expect(advanced).toHaveAttribute("aria-description", "Advanced filters applied");
+    expect(screen.queryByText("Grouped filters")).toBeNull();
+    expect(screen.queryByText("Advanced filters applied")).toBeNull();
+    fireEvent.click(advanced);
+    expect(screen.getByRole("dialog", { name: "Advanced filters" })).toBeVisible();
+    expect(change).not.toHaveBeenCalled();
+  });
+
   it("removes an applied numeric range and returns keyboard focus to its stable trigger", async () => {
     const change = renderControls(
       editorFixture([fieldFixture("level_or_rank", "number", "Level / rank")]),
@@ -701,7 +717,9 @@ describe("shared common and maintained advanced filters", () => {
       ],
     };
     const change = renderControls(editorFixture([kind]), predicate);
-    fireEvent.click(screen.getByRole("button", { name: "Kind: Advanced" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit Kind in advanced filters" }),
+    );
     expect(
       screen.getByRole("combobox", { name: "Match conditions" }),
     ).toBeInTheDocument();
@@ -765,7 +783,9 @@ describe("shared common and maintained advanced filters", () => {
     expect(
       screen.queryByRole("button", { name: "Edit Traits filter" }),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Traits: Advanced" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit Traits in advanced filters" }),
+    );
     expect(
       screen.getByRole("combobox", { name: "Condition for Traits" }),
     ).toBeInTheDocument();

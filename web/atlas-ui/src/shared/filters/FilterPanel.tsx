@@ -4,6 +4,7 @@ import { AtlasDrawer as Drawer } from "../ui/overlays/AtlasDrawer";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import {
   Button,
+  Badge,
   Form,
   Input,
   Popover,
@@ -72,6 +73,7 @@ import {
 } from "./queryBuilder";
 import {
   clearAllFilters,
+  hasAdvancedFilterConditions,
   type CommonCondition,
   type FilterPanelState,
 } from "./filterControls";
@@ -132,6 +134,7 @@ export function FilterControls({
   children?: ReactNode;
 }) {
   const { search, setSearch } = workspace;
+  const { token: filterTokens } = theme.useToken();
   const [advanced, setAdvanced] = useState(false);
   const [selectionContainer, setSelectionContainer] = useState<HTMLDivElement | null>(
     null,
@@ -293,7 +296,6 @@ export function FilterControls({
       />
     ) : null;
   const commonLayout = layout === "panel" ? "panel" : "toolbar";
-  const CriteriaHost = commonLayout === "toolbar" ? PrimaryToolbar : "div";
   const inlineError =
     prepared.error && (search.filterError || !prepared.query) ? (
       <Typography.Text type="danger" role="status">
@@ -317,6 +319,14 @@ export function FilterControls({
       }
     />
   );
+  const advancedApplied =
+    editor &&
+    hasAdvancedFilterConditions(
+      search.filter,
+      fields
+        .filter((field) => editor.common_field_ids.includes(field.definition.id))
+        .map((field) => field.definition),
+    );
   const criteria = (
     <>
       <div className="filter-controls__tools">
@@ -390,23 +400,34 @@ export function FilterControls({
         </Button>
         {additionalFilters}
         <div className="filter-panel-actions">
-          <Button
-            ref={advancedTrigger}
-            className="filter-controls__advanced"
-            icon={<FilterOutlined aria-hidden="true" />}
-            onClick={() => setAdvanced(!advanced)}
-            aria-expanded={advanced}
-            aria-label="Advanced filters"
+          <Tooltip
+            title={advancedApplied ? "Advanced filters applied" : undefined}
+            trigger={["hover", "focus"]}
           >
-            Advanced
-          </Button>
+            <Badge dot={advancedApplied} color={filterTokens.colorPrimary}>
+              <Button
+                ref={advancedTrigger}
+                className="filter-controls__advanced"
+                color={advancedApplied ? "primary" : "default"}
+                variant="outlined"
+                aria-description={
+                  advancedApplied ? "Advanced filters applied" : undefined
+                }
+                icon={<FilterOutlined aria-hidden="true" />}
+                onClick={() => setAdvanced(!advanced)}
+                aria-expanded={advanced}
+                aria-label="Advanced filters"
+              >
+                Advanced
+              </Button>
+            </Badge>
+          </Tooltip>
           {(search.filter ||
             search.filterError ||
             prepared.error ||
             (prepared.query?.rules.length ?? 0) > 0) && (
             <Tooltip title="Clear filters">
               <Button
-                type="text"
                 icon={<ClearOutlined aria-hidden="true" />}
                 aria-label="Clear filters"
                 onClick={() => {
@@ -431,7 +452,6 @@ export function FilterControls({
         />
         <LinkFilterControls
           filter={search.filter}
-          fields={fields}
           title={linkTitle}
           limit={editor?.limits.relationship_leaves}
           onEdit={(leaf, relationship) => {
@@ -462,7 +482,6 @@ export function FilterControls({
             );
             latestEditor.current.editLink(leaf, null);
           }}
-          onAdvanced={() => setAdvanced(true)}
         />
       </div>
     </>
@@ -471,13 +490,15 @@ export function FilterControls({
     <LinkEditingContext value={linkEditing}>
       <aside className={layout === "panel" ? "filter-panel" : "filter-toolbar"}>
         {children}
-        {includeSearch && (
-          <PrimaryToolbar className="filter-controls__search-row">
-            {searchEntry}
-            {searchRowEnd}
-          </PrimaryToolbar>
-        )}
-        <CriteriaHost className="filter-controls__criteria">{criteria}</CriteriaHost>
+        <div className="filter-controls__chrome">
+          {includeSearch && (
+            <PrimaryToolbar className="filter-controls__search-row">
+              {searchEntry}
+              {searchRowEnd}
+            </PrimaryToolbar>
+          )}
+          <div className="filter-controls__criteria">{criteria}</div>
+        </div>
         <Drawer
           title="Advanced filters"
           placement="left"
@@ -562,7 +583,12 @@ function CommonFilter({
         </div>
       )}
       {condition.status === "advanced" && !range ? (
-        <Button onClick={onAdvanced}>{field.label}: Advanced</Button>
+        <Button
+          onClick={onAdvanced}
+          aria-label={`Edit ${field.label} in advanced filters`}
+        >
+          {field.label}
+        </Button>
       ) : field.definition.field_type === "number" ? (
         layout === "panel" ? (
           <CommonRange

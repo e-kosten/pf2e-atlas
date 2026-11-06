@@ -148,11 +148,14 @@ test("selected filters keep trigger dimensions stable and restore focus when a c
   let spacing: { padding: string; gap: string } | undefined;
   for (const width of [1440, 1150, 1024, 992, 991, 768, 680, 560, 390, 320]) {
     await page.setViewportSize({ width, height: 844 });
-    const trigger = await page
-      .getByRole("button", { name: "Edit Kind filter", exact: true })
-      .boundingBox();
-    expect(trigger!.width).toBeCloseTo(baseline!.width, 0);
-    expect(trigger!.height).toBeCloseTo(baseline!.height, 0);
+    await expect
+      .poll(async () => {
+        const trigger = await page
+          .getByRole("button", { name: "Edit Kind filter", exact: true })
+          .boundingBox();
+        return trigger ? { width: trigger.width, height: trigger.height } : null;
+      })
+      .toEqual({ width: baseline!.width, height: baseline!.height });
     const layout = await page.locator(".filter-toolbar").evaluate((host) => {
       const style = getComputedStyle(host);
       const tools = host
@@ -185,4 +188,68 @@ test("selected filters keep trigger dimensions stable and restore focus when a c
       exact: true,
     }),
   ).toBeVisible();
+});
+
+test("search and filter rows align and the results bar keeps its wide-screen chrome at the narrow breakpoint", async ({
+  page,
+}) => {
+  await page.goto(similar);
+  await expect(
+    page.locator(".reference-results [data-record-key]").first(),
+  ).toBeVisible();
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme });
+    await expect(page.locator("html")).toHaveAttribute("data-theme", colorScheme);
+    let wideStyle:
+      | {
+          background: string;
+          padding: string;
+          fontSize: string;
+          fontWeight: string;
+          height: number;
+        }
+      | undefined;
+    for (const width of [1440, 1024, 992, 991, 768]) {
+      await page.setViewportSize({ width, height: 900 });
+      const geometry = await page
+        .locator(".reference-browser__toolbar")
+        .evaluate((bar) => {
+          const caption = bar.querySelector(".result-pane-header > span")!;
+          const sort = bar.querySelector(".result-pane-header button")!;
+          const a = caption.getBoundingClientRect();
+          const b = sort.getBoundingClientRect();
+          return {
+            style: {
+              background: getComputedStyle(bar).backgroundColor,
+              padding: getComputedStyle(
+                bar.querySelector(".browse-pane-header__content")!,
+              ).padding,
+              fontSize: getComputedStyle(caption).fontSize,
+              fontWeight: getComputedStyle(caption).fontWeight,
+              height: bar.getBoundingClientRect().height,
+            },
+            captionCenter: a.y + a.height / 2,
+            sortCenter: b.y + b.height / 2,
+          };
+        });
+      wideStyle ??= geometry.style;
+      expect(geometry.style).toEqual(wideStyle);
+      expect(geometry.captionCenter).toBeCloseTo(geometry.sortCenter, 0);
+      const search = await page.locator(".filter-controls__search-row").boundingBox();
+      const controls = await page.locator(".filter-controls__tools").boundingBox();
+      expect(search!.x).toBeCloseTo(controls!.x, 0);
+      expect(search!.width).toBeCloseTo(controls!.width, 0);
+      const settings = await page
+        .getByRole("button", { name: "Search settings", exact: true })
+        .boundingBox();
+      const lastFilter = await page
+        .locator(".filter-controls__tools button")
+        .last()
+        .boundingBox();
+      expect(settings!.x + settings!.width).toBeCloseTo(
+        lastFilter!.x + lastFilter!.width,
+        0,
+      );
+    }
+  }
 });

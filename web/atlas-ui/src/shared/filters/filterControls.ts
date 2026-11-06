@@ -255,3 +255,37 @@ export function conditionRange(clause: QueryPredicate | null): [string, string] 
     }
   return [min, max];
 }
+
+/** Only positive AND children can be shown as independent applied chips. */
+function chipConjuncts(predicate: QueryPredicate | null): QueryPredicate[] {
+  if (!predicate) return [];
+  return predicate.kind === "all_of"
+    ? predicate.children.flatMap(chipConjuncts)
+    : [predicate];
+}
+export function chipLinkClauses(predicate: QueryPredicate | null) {
+  return chipConjuncts(predicate).filter(
+    (node): node is Extract<QueryPredicate, { kind: "relationship" }> =>
+      node.kind === "relationship",
+  );
+}
+/** Reuse quick-control recognition; this is presentation coverage, not tree simplification. */
+export function hasAdvancedFilterConditions(
+  predicate: QueryPredicate | null,
+  commonFields: QueryFieldDefinition[],
+): boolean {
+  let remaining = predicate;
+  for (const field of commonFields) {
+    const condition = commonCondition(remaining, field);
+    const choices = choiceClauses(condition.clause);
+    if (
+      condition.status === "editable" &&
+      (field.field_type === "number" ||
+        (choices.length > 0 &&
+          choices.every((clause) => conditionValues(clause).length > 0)))
+    ) {
+      remaining = replaceCommonCondition(remaining, field, null);
+    }
+  }
+  return chipConjuncts(remaining).some((node) => node.kind !== "relationship");
+}
