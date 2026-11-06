@@ -642,7 +642,10 @@ fn language_speaker_markup(speakers: &[String]) -> Option<String> {
     } else {
         format!("{} and {last}", leading.join(", "))
     };
-    Some(format!("<p>Spoken by: {}</p>", escape_content_text(&text)))
+    Some(format!(
+        "<p><strong>Spoken by</strong> {}</p>",
+        escape_content_text(&text)
+    ))
 }
 
 #[cfg(test)]

@@ -11,32 +11,29 @@ const AGILE: &str = "PF2E.TraitDescriptionAgile";
 #[test]
 fn structured_language_speakers_have_context_and_preserve_source_names() {
     for (speakers, expected) in [
-        (vec!["Demons"], "Spoken by: demons"),
+        (vec!["Demons"], "demons"),
         (
             vec!["Dragons", "reptilian humanoids"],
-            "Spoken by: dragons and reptilian humanoids",
+            "dragons and reptilian humanoids",
         ),
         (
             vec!["Fey", "centaurs", "plant", "fungus creatures"],
-            "Spoken by: fey, centaurs, plant and fungus creatures",
+            "fey, centaurs, plant and fungus creatures",
         ),
         (
             vec!["Nidalese", "Netherworld creatures"],
-            "Spoken by: Nidalese and Netherworld creatures",
+            "Nidalese and Netherworld creatures",
         ),
-        (
-            vec!["Absalom", "Golarion"],
-            "Spoken by: Absalom and Golarion",
-        ),
+        (vec!["Absalom", "Golarion"], "Absalom and Golarion"),
         (
             vec!["<new speakers>", "A&B"],
-            "Spoken by: &lt;new speakers&gt; and A&amp;B",
+            "&lt;new speakers&gt; and A&amp;B",
         ),
     ] {
         let speakers = speakers.into_iter().map(str::to_owned).collect::<Vec<_>>();
         assert_eq!(
             language_speaker_markup(&speakers).unwrap(),
-            format!("<p>{expected}</p>")
+            format!("<p><strong>Spoken by</strong> {expected}</p>")
         );
     }
     assert!(language_speaker_markup(&[]).is_none());
@@ -49,18 +46,18 @@ fn prepared_language_speaker_context_is_readable_without_changing_other_prose() 
         .build(ReferenceSupplementSelection::Bundled)
         .unwrap();
     for (key, expected) in [
-        ("language:chthonian", "Spoken by: demons"),
+        ("language:chthonian", "Spoken by demons"),
         (
             "language:draconic",
-            "Spoken by: dragons and reptilian humanoids",
+            "Spoken by dragons and reptilian humanoids",
         ),
         (
             "language:common",
-            "Spoken by: humans, dwarves, elves, halflings and other common ancestries",
+            "Spoken by humans, dwarves, elves, halflings and other common ancestries",
         ),
         (
             "language:shadowtongue",
-            "Spoken by: Nidalese and Netherworld creatures",
+            "Spoken by Nidalese and Netherworld creatures",
         ),
         ("domain:air", "You can control winds and the weather."),
     ] {
@@ -68,6 +65,14 @@ fn prepared_language_speaker_context_is_readable_without_changing_other_prose() 
             panic!("prepared {key}")
         };
         assert_eq!(content.text, expected, "{key}");
+        if key.starts_with("language:") {
+            assert!(
+                content.html.starts_with("<p><strong>Spoken by</strong> "),
+                "{key}: {}",
+                content.html
+            );
+            assert!(!content.html.contains("Spoken by:"));
+        }
     }
     let ReferenceBacking::Prepared {
         authored_markup,
@@ -76,8 +81,8 @@ fn prepared_language_speaker_context_is_readable_without_changing_other_prose() 
     else {
         panic!("prepared weapon specialization")
     };
-    assert!(!content.text.starts_with("Spoken by:"));
-    assert!(!authored_markup.starts_with("<p>Spoken by:"));
+    assert!(!content.text.starts_with("Spoken by"));
+    assert!(!authored_markup.contains("<strong>Spoken by</strong>"));
 }
 const FAMILY_TEMPLATES: &[(&str, &str)] = &[
     ("r34QDwKiWZoVymJa", "GolemAntimagic"),

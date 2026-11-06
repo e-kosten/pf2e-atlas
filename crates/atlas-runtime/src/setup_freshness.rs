@@ -77,11 +77,12 @@ mod tests {
         });
         assert!(source_is_fresh(&first, &published));
         assert!(!source_is_fresh(&changed, &published));
-        published.reference_preparation.as_mut().unwrap().recipe =
-            "reference-definitions/v2".into();
-        assert!(
-            !source_is_fresh(&first, &published),
-            "changed derived prose must be prepared again even when captured source bytes are unchanged"
-        );
+        for old_recipe in ["reference-definitions/v2", "reference-definitions/v3"] {
+            published.reference_preparation.as_mut().unwrap().recipe = old_recipe.into();
+            assert!(
+                !source_is_fresh(&first, &published),
+                "changed derived prose must be prepared again even when captured source bytes are unchanged: {old_recipe}"
+            );
+        }
     }
 }
