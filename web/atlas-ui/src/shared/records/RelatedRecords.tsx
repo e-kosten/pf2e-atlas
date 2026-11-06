@@ -1,3 +1,4 @@
+import { useReferenceRecordNavigation as useContextualReference } from "./ReferenceHelp";
 import { referenceQueryMeta } from "../queries/referenceQueries";
 import { similarityPartsQueryOptions } from "../search/similarityQueries";
 import { AtlasModal as Modal } from "../ui/overlays/AtlasModal";
@@ -644,15 +645,21 @@ function Comparison({
   onClose: () => void;
   onAfterClose: () => void;
 }) {
+  const reference = useContextualReference();
   const left = useRecordDetail(source);
   const right = useRecordDetail(target);
-  const navigate: RecordReferenceHandler = (recordKey, _anchor, selection) =>
+  const navigate: RecordReferenceHandler = (recordKey, anchor, selection, landing) => {
+    if (reference) {
+      reference(recordKey, anchor, selection, landing);
+      return;
+    }
     navigateDestination(
       recordDestination({
         recordKey,
         selection,
       }),
     );
+  };
   return (
     <Modal
       layout="browse"

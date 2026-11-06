@@ -88,8 +88,8 @@ supported width.
 
 Filter polarity is semantic rather than a variation of the primary action color.
 Included choices use the sage accent role and excluded choices use the error
-oxblood role. Both the open picker rows and closed selection chips consume the
-same theme-defined foreground, background and border roles.
+oxblood role. Open picker rows use their full semantic color set. Closed applied
+chips share a neutral surface and carry polarity through their +/- markers.
 
 The primary search filter region does not introduce a separate tinted surface.
 Context bars use the content surface in both appearances, with rules providing
@@ -127,3 +127,25 @@ Check authored text/background pairs, solid-control foregrounds, HP fills agains
 their missing-HP track, and rendered Ant tokens. Review the full header mark and
 simplified favicon at their actual sizes. Visual acceptance in both appearances
 remains separate from focused contrast tests and the full frontend gate.
+
+## Selected controls and interaction contrast
+
+Brand action fills and readable control ink are separate roles. `atlasTheme.ts`
+owns selected radio-button surfaces and ink, quiet primary button colors, and
+neutral outlined-button hover/pressed colors. `AtlasLayout` installs its public
+Ant semantic hooks once, so dialogs and popovers inherit the same treatment.
+Features must not add local providers to repair generic selected-state contrast.
+
+Radio button choices use the complete selection surface/text/border set. The
+radio label semantic slot supplies readable ink while the ordinary radio glyph
+retains its primary fill and contrasting dot. Disabled states keep Ant's styling.
+Quiet primary outlined/filled buttons use the selection pair; text buttons use it
+when hovered or pressed, while native link buttons use link ink on transparent
+surfaces. Solid action buttons keep their action fill/foreground pair. Tabs and
+segmented controls retain their existing readable component tokens.
+
+Contrast checks cover actual text/background pairs in both appearances, including
+hover and pressed states after color transitions finish. Mid-transition samples
+can conceal an unreadable final state. The shared browser regression also checks
+radio buttons, tabs, segmented choices and outlined-button interaction states on
+real product surfaces.

@@ -6,6 +6,20 @@ Rust toolchain and `npm ci` for candidate validation. Follow the
 delivery. Release jobs generate notices from locked Cargo metadata and verify
 them in packaged assets. See [release tooling](../../dev-tools/release/README.md).
 
+## JavaScript toolchains
+
+CI and release tooling run on Node 26 LTS. The frontend also supports Node 22.18+
+and Node 24; its `engines` field defines the accepted versions for local commands.
+Use `npm ci` in each maintained package when switching checkouts or lockfiles.
+
+The frontend uses TypeScript 7's `tsc` command through the `@typescript/native`
+alias. Its `typescript` alias supplies Microsoft's TypeScript 6 compatibility
+package for ESLint and other compiler API consumers. Keep both aliases when
+updating the checker; TypeScript 7.0 does not supply that API. The source generator
+retains its separately pinned TypeScript 6 API and `tsc6` command; source-generation
+upgrades also require the identity and generated-model checks in
+[source research](source-research.md).
+
 ## Routine updates and advisories
 
 Dependabot checks Cargo, the three maintained npm packages, GitHub Actions and
@@ -15,8 +29,13 @@ Review breaking releases separately. An embedding-stack update needs the
 compatibility evidence below before landing.
 
 GitHub's advisory alerts and security update PRs are separate repository settings.
-The dependency audit workflow scans the committed Rust and npm lockfiles on
-dependency PRs and daily, including the locked dice prototypes. Run the same
+PR CI scans the committed Rust and npm lockfiles on dependency changes and
+requires the result through `validation complete`. The separate dependency audit
+workflow runs the same scanner daily and on manual dispatch, including the locked
+dice prototypes. Cargo changes retain Rust/browser/native and embedding checks;
+they do not automatically rerun unrelated source generation, frontend unit tests
+or the installer matrix. Those checks remain selected by their owning inputs
+and by full main verification. Run the same
 scanner locally with Python 3.11 or newer and a supported Node/npm installation.
 
 ```sh
@@ -29,7 +48,9 @@ unmaintained-package warnings separately as replacement opportunities.
 
 The frontend currently has a scoped exception for
 [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249)
-in minimatch 10.2.5 under TypeScript ESLint's development-only dependency tree.
+in minimatch 10.2.6 under TypeScript ESLint's development-only dependency tree.
+This exact resolution was re-reviewed on November 5, 2026; the original review
+deadline remains unchanged.
 The current parent package requires minimatch 10, and lint patterns come from
 repository configuration. Revisit when upstream supports a fixed release, if
 lint begins to accept untrusted patterns, or by December 4, 2026. The audit fails

@@ -89,15 +89,36 @@ pub(crate) fn eligible_sql(
         if keys.is_empty() {
             sql.push_str(" AND 0");
         } else {
+            let parameter = params.len() + 1;
             sql.push_str(&format!(
-                " AND r.key IN ({})",
-                vec!["?"; keys.len()].join(",")
+                " AND r.key IN (SELECT value FROM json_each(?{parameter}))"
             ));
-            params.extend(keys.iter().map(|k| Value::Text(k.to_string())));
+            params.push(Value::Text(serde_json::to_string(
+                &keys.iter().map(ToString::to_string).collect::<Vec<_>>(),
+            )?));
         }
     }
     Ok((sql, params))
 }
+fn preferred_root_keys_sql(
+    query: &ValidatedQuery,
+    keys: Option<&[RecordKey]>,
+    prefer_remaster: bool,
+) -> Result<(String, Vec<Value>), IndexError> {
+    let (eligible, params) = eligible_sql(query, keys)?;
+    let preference = if prefer_remaster {
+        " AND NOT EXISTS(SELECT 1 FROM remaster_pairs rp WHERE rp.legacy_record_id=r.record_id AND rp.remaster_record_id IN (SELECT record_id FROM eligible))"
+    } else {
+        ""
+    };
+    Ok((
+        format!(
+            "WITH eligible AS ({eligible}) SELECT r.key FROM records r WHERE r.record_id IN(SELECT record_id FROM eligible){preference}"
+        ),
+        params,
+    ))
+}
+
 pub(crate) fn parse_key(s: String) -> Result<RecordKey, IndexError> {
     RecordKey::parse(&s).map_err(|e| IndexError::Invalid(e.to_string()))
 }
@@ -240,15 +261,7 @@ impl SqliteIndexReader {
         } else {
             Some(crate::result_order::attribute_order(&sort)?)
         };
-        let (eligible, mut params) = eligible_sql(query, keys)?;
-        let preference = if prefer_remaster {
-            " AND NOT EXISTS(SELECT 1 FROM remaster_pairs rp WHERE rp.legacy_record_id=r.record_id AND rp.remaster_record_id IN (SELECT record_id FROM eligible))"
-        } else {
-            ""
-        };
-        let base = format!(
-            "WITH eligible AS ({eligible}) SELECT r.key FROM records r WHERE r.record_id IN(SELECT record_id FROM eligible){preference}"
-        );
+        let (base, mut params) = preferred_root_keys_sql(query, keys, prefer_remaster)?;
         let c = self.native()?;
         self.count_statement();
         let total: i64 = c.query_row(

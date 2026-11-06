@@ -106,7 +106,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_vehicle_attrib
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@80468fd382c664a38e311554
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@1a1138011e12d4cebbeeeecc
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaVehicleDetailsSchemaSpaceSourceFromSchema {
@@ -193,7 +193,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_vehicle_detail
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@a24fe03160e0d93a6a82209b
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@186c11888026c533deccf0e2
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct VehicleSystemSourceSavesSourceFromSchema {

@@ -1,97 +1,104 @@
-import { ConfigProvider, Typography } from "antd";
+import { Button, ConfigProvider } from "antd";
+import type { ReactNode } from "react";
 import type { SimilaritySeed } from "../../generated/atlas";
-import { recordDestination, traitDestination } from "../../app/destinations";
+import { AtlasLink } from "../../app/AtlasLink";
+import { recordDestination } from "../../app/destinations";
+import { isPrimaryActivation } from "../../app/navigation";
+import { useDefinitionDetail } from "../records/useDefinitionDetail";
+import { isArtifactGenerationChanged } from "../queries/referenceQueries";
+import { ErrorNotice } from "../feedback/ErrorNotice";
 import {
-  destinationHref,
-  isPrimaryActivation,
-  navigateDestination,
-} from "../../app/navigation";
-import { RecordReferenceDrawer } from "../records/RecordReferenceDrawer";
-import { useRecordPreview } from "../records/useRecordPreview";
+  ReferenceHelpLink,
+  useReferenceHelpGeneration,
+  useReferenceRecordNavigation,
+} from "../records/ReferenceHelp";
+import { ReferenceHelpHost } from "../records/ReferenceHelpHost";
 
-/** A criterion references its source without changing the selected search result. */
-export function SimilaritySeedLink({
-  seed,
-  title,
-  disabled,
-}: {
+type SeedLinkProps = {
   seed: SimilaritySeed;
   title: string;
   disabled?: boolean;
-}) {
-  const { componentDisabled } = ConfigProvider.useConfig();
-  const unavailable = disabled ?? componentDisabled;
-  if (seed.kind === "trait")
-    return (
-      <Typography.Link
-        disabled={unavailable}
-        href={destinationHref(traitDestination({ traitKey: seed.trait_key }))}
-      >
-        {title}
-      </Typography.Link>
-    );
+  generation?: string;
+  onRefresh?: () => Promise<void>;
+  renderLayout?: (link: ReactNode, feedback: ReactNode) => ReactNode;
+};
+
+/** A criterion references its source without changing the selected search result. */
+export function SimilaritySeedLink(props: SeedLinkProps) {
   return (
-    <RecordSeedLink
-      key={seed.record_key}
-      recordKey={seed.record_key}
-      title={title}
-      disabled={unavailable}
-    />
+    <ReferenceHelpHost>
+      <SeedLink {...props} />
+    </ReferenceHelpHost>
   );
 }
 
-function RecordSeedLink({
-  recordKey,
+function SeedLink({
+  seed,
   title,
   disabled,
-}: {
-  recordKey: string;
-  title: string;
-  disabled?: boolean;
-}) {
-  const preview = useRecordPreview();
-  return (
-    <>
-      <Typography.Link
-        href={destinationHref(recordDestination({ recordKey }))}
-        disabled={disabled}
+  generation: expectedGeneration,
+  onRefresh,
+  renderLayout,
+}: SeedLinkProps) {
+  const onReference = useReferenceRecordNavigation();
+  const inheritedGeneration = useReferenceHelpGeneration();
+  const generation = expectedGeneration ?? inheritedGeneration;
+  const { componentDisabled } = ConfigProvider.useConfig();
+  const unavailable = disabled ?? componentDisabled;
+  const definition = useDefinitionDetail(
+    seed.kind === "trait" && !unavailable ? seed.trait_key : null,
+    generation,
+  );
+  const changed = isArtifactGenerationChanged(definition.error);
+  const refreshOwner = changed && (generation !== undefined || onRefresh !== undefined);
+  const link =
+    seed.kind === "trait" ? (
+      unavailable ? (
+        title
+      ) : (
+        <ReferenceHelpLink
+          help={changed ? undefined : definition.data?.help}
+          generation={definition.data?.artifact_generation}
+        >
+          {title}
+        </ReferenceHelpLink>
+      )
+    ) : (
+      <AtlasLink
+        {...recordDestination({ recordKey: seed.record_key })}
+        disabled={unavailable}
         onClick={(event) => {
-          if (!isPrimaryActivation(event)) return;
+          if (unavailable || !onReference || !isPrimaryActivation(event)) return;
           event.preventDefault();
-          preview.open(recordKey, event.currentTarget);
+          onReference(seed.record_key, event.currentTarget);
         }}
       >
         {title}
-      </Typography.Link>
-      {preview.destination && (
-        <RecordReferenceDrawer
-          destination={preview.destination}
-          definition={preview.definition}
-          help={preview.help}
-          onHelp={preview.openHelp}
-          anchor={preview.anchor}
-          requestedNavigation={preview.selection}
-          readingHistory={preview.readingHistory}
-          landing={preview.landing}
-          detail={preview.detail}
-          loading={preview.loading}
-          error={preview.error}
-          onRetry={preview.retry}
-          onClose={preview.close}
-          onReference={preview.open}
-          onRankChange={preview.changeRank}
-          onOpenFullPage={() => {
-            navigateDestination(
-              recordDestination({
-                recordKey: preview.recordKey!,
-                selection: preview.selection,
-                landing: preview.landing,
-              }),
-            );
-            preview.close();
-          }}
-        />
-      )}
+      </AtlasLink>
+    );
+  const recovery = (
+    <Button
+      disabled={refreshOwner && !onRefresh}
+      onClick={() => (refreshOwner ? void onRefresh?.() : void definition.refetch())}
+    >
+      {refreshOwner ? "Refresh filters" : "Retry"}
+    </Button>
+  );
+  const feedback =
+    seed.kind === "trait" && !unavailable && definition.error ? (
+      <ErrorNotice
+        compact
+        error={definition.error}
+        title="Definition unavailable"
+        action={recovery}
+      />
+    ) : null;
+  return renderLayout ? (
+    renderLayout(link, feedback)
+  ) : (
+    <>
+      {link}
+      {feedback}
     </>
   );
 }

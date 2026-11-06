@@ -1,5 +1,6 @@
 import { createContext, useContext, Fragment, type ReactNode } from "react";
 import { AtlasLink } from "../../app/AtlasLink";
+import type { RecordReferenceHandler } from "./PreparedContent";
 import type {
   RecordNavigationView,
   ReferenceDestinationView,
@@ -23,15 +24,18 @@ export type ReferenceHelpHandoff = (
 ) => void;
 const HelpContext = createContext<{
   onHelp?: ReferenceHelpHandler;
+  onReference?: RecordReferenceHandler;
   generation?: string;
 }>({});
 
 export function ReferenceHelpProvider({
   onHelp,
+  onReference,
   generation,
   children,
 }: {
   onHelp?: ReferenceHelpHandler;
+  onReference?: RecordReferenceHandler;
   generation?: string;
   children: ReactNode;
 }) {
@@ -40,6 +44,7 @@ export function ReferenceHelpProvider({
     <HelpContext
       value={{
         onHelp: onHelp ?? inherited.onHelp,
+        onReference: onReference ?? (onHelp ? undefined : inherited.onReference),
         generation: generation ?? inherited.generation,
       }}
     >
@@ -69,6 +74,18 @@ export function referenceDestination(
 /** Classification follows the exact typed identity namespace, never body text. */
 export function definitionClassification(key: string): "Trait" | "Definition" {
   return key.startsWith("trait:") ? "Trait" : "Definition";
+}
+
+export function useReferenceHelpHandler() {
+  return useContext(HelpContext).onHelp;
+}
+
+export function useReferenceRecordNavigation() {
+  return useContext(HelpContext).onReference;
+}
+
+export function useReferenceHelpGeneration() {
+  return useContext(HelpContext).generation;
 }
 
 export function useReferenceHelpNavigation() {

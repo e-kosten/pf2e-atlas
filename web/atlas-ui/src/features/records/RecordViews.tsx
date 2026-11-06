@@ -14,15 +14,16 @@ import { Button } from "antd";
 import { rootNavigation } from "../../shared/records/useReferenceReading";
 import { atlasRouter } from "../../app/router";
 import type { RecordPageInput } from "../../app/destinations";
-import { navigateDestination } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { recordLayout } from "../../shared/records/recordLayout";
 import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
 import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { RecordDetailPane } from "../../shared/records/RecordDetailPane";
-import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawer";
-import { useRecordPreview } from "../../shared/records/useRecordPreview";
+import {
+  ReferenceHelpHost,
+  useReferenceHelpSession,
+} from "../../shared/records/ReferenceHelpHost";
 import { useRecordDetail } from "../../shared/records/useRecordDetail";
 import { recordReadingIdentity } from "../../shared/records/useRetainedRecord";
 type RecordViewProps = {
@@ -34,8 +35,28 @@ export function RecordView({ route }: RecordViewProps) {
     route.selection,
     route.readingContext,
   );
+  return (
+    <ReferenceHelpHost
+      visibleOwnerRecordKey={
+        detail.data?.selected.embedded_path.length === 0
+          ? detail.data.record.record_key
+          : undefined
+      }
+      recordActions={(record) => (
+        <AddToRecordButton recordKey={record.record_key} record={record} />
+      )}
+    >
+      <RecordViewContent route={route} detail={detail} />
+    </ReferenceHelpHost>
+  );
+}
+
+function RecordViewContent({
+  route,
+  detail,
+}: RecordViewProps & { detail: ReturnType<typeof useRecordDetail> }) {
   usePageTitle(detail.data?.presentation.identity.title ?? "Record");
-  const preview = useRecordPreview();
+  const preview = useReferenceHelpSession()!;
   const client = useQueryClient();
   const property = useDefinitionDetail(
     route.definitionKey ?? null,
@@ -168,48 +189,6 @@ export function RecordView({ route }: RecordViewProps) {
           />
         </DocumentPagePane>
       </main>
-      {preview.destination && (
-        <RecordReferenceDrawer
-          destination={preview.destination}
-          definition={preview.definition}
-          help={preview.help}
-          onHelp={preview.openHelp}
-          actions={
-            preview.recordKey ? (
-              <AddToRecordButton
-                recordKey={preview.recordKey!}
-                record={preview.detail?.record}
-              />
-            ) : undefined
-          }
-          visibleOwnerRecordKey={
-            detail.data?.selected.embedded_path.length === 0
-              ? detail.data.record.record_key
-              : undefined
-          }
-          anchor={preview.anchor}
-          readingHistory={preview.readingHistory}
-          requestedNavigation={preview.selection}
-          landing={preview.landing}
-          detail={preview.detail}
-          loading={preview.loading}
-          error={preview.error}
-          onRetry={preview.retry}
-          onClose={preview.close}
-          onReference={preview.open}
-          onRankChange={preview.changeRank}
-          onOpenFullPage={() => {
-            navigateDestination(
-              recordDestination({
-                recordKey: preview.recordKey!,
-                selection: preview.selection,
-                landing: preview.landing,
-              }),
-            );
-            preview.close();
-          }}
-        />
-      )}
     </>
   );
 }

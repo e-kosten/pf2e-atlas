@@ -13,6 +13,8 @@ import {
   COLOR_SCHEME_STORAGE_KEY,
   applyAtlasDocumentTheme,
   atlasPopoverStyles,
+  atlasButtonClassNames,
+  atlasRadioStyles,
   antDesignTheme,
   type ColorSchemePreference,
   type ResolvedColorScheme,
@@ -24,6 +26,8 @@ import { LinkPickerContext } from "../shared/filters/LinkPickerContext";
 import { LinkConditionPicker } from "../shared/filters/LinkConditionPicker";
 import { BackendCompatibilityGate } from "./BackendCompatibilityGate";
 import { GlobalFeedbackProvider } from "../shared/feedback/GlobalFeedback";
+import { ReferenceHelpHost } from "../shared/records/ReferenceHelpHost";
+import { AddToRecordButton } from "../features/record-actions/AddToRecordButton";
 import { SelectionSearch } from "../shared/records/SelectionSearch";
 import { LoadingStatus } from "../shared/ui/LoadingStatus";
 
@@ -69,18 +73,8 @@ export function AtlasLayout({ routeError }: { routeError?: ReactNode } = {}) {
           },
         },
       }}
-      button={{
-        classNames: ({ props }) => ({
-          root:
-            props.color && props.variant
-              ? props.color === "danger" && props.variant === "solid"
-                ? "atlas-destructive-confirm"
-                : undefined
-              : props.type === "primary" && props.danger
-                ? "atlas-destructive-confirm"
-                : undefined,
-        }),
-      }}
+      button={{ classNames: atlasButtonClassNames }}
+      radio={{ styles: atlasRadioStyles(resolvedColorScheme) }}
       tooltip={{ styles: { root: { pointerEvents: "none" } } }}
       popover={{
         styles: atlasPopoverStyles(resolvedColorScheme),
@@ -150,47 +144,55 @@ function AtlasWorkspace({
   });
   return (
     <SearchProfileContext value={searchProfile}>
-      <LinkPickerContext value={LinkConditionPicker}>
-        <AppShell
-          activeView={routeError ? "reference" : section}
-          searchReturnDestination={
-            searchReturn
-              ? {
-                  ...searchDestination(searchReturn.route),
-                  hash: searchReturn.location.hash,
-                  state: searchReturn.location.state,
-                  resetScroll: false,
-                }
-              : undefined
-          }
-          colorScheme={colorScheme}
-          onColorSchemeChange={onColorSchemeChange}
-          resolvedColorScheme={resolvedColorScheme}
-          readiness={readiness.data}
-          readinessError={readiness.error}
-          checkingReadiness={readiness.isFetching}
-          onCheckReadiness={() => void readiness.refetch()}
-        >
-          <>
-            <Activity mode={!routeError && section === "search" ? "visible" : "hidden"}>
-              <Suspense
-                fallback={
-                  <main className="detail-empty">
-                    <LoadingStatus label="Loading search…" />
-                  </main>
-                }
+      <ReferenceHelpHost
+        recordActions={(record) => (
+          <AddToRecordButton recordKey={record.record_key} record={record} />
+        )}
+      >
+        <LinkPickerContext value={LinkConditionPicker}>
+          <AppShell
+            activeView={routeError ? "reference" : section}
+            searchReturnDestination={
+              searchReturn
+                ? {
+                    ...searchDestination(searchReturn.route),
+                    hash: searchReturn.location.hash,
+                    state: searchReturn.location.state,
+                    resetScroll: false,
+                  }
+                : undefined
+            }
+            colorScheme={colorScheme}
+            onColorSchemeChange={onColorSchemeChange}
+            resolvedColorScheme={resolvedColorScheme}
+            readiness={readiness.data}
+            readinessError={readiness.error}
+            checkingReadiness={readiness.isFetching}
+            onCheckReadiness={() => void readiness.refetch()}
+          >
+            <>
+              <Activity
+                mode={!routeError && section === "search" ? "visible" : "hidden"}
               >
-                <SearchView
-                  workspace={workspace}
-                  historyState={searchReturn?.location.state}
-                />
-              </Suspense>
-            </Activity>
-            {routeError ?? <Outlet />}
-            <SelectionSearch key={location.href} />
-          </>
-        </AppShell>
-      </LinkPickerContext>
+                <Suspense
+                  fallback={
+                    <main className="detail-empty">
+                      <LoadingStatus label="Loading search…" />
+                    </main>
+                  }
+                >
+                  <SearchView
+                    workspace={workspace}
+                    historyState={searchReturn?.location.state}
+                  />
+                </Suspense>
+              </Activity>
+              {routeError ?? <Outlet />}
+              <SelectionSearch key={location.href} />
+            </>
+          </AppShell>
+        </LinkPickerContext>
+      </ReferenceHelpHost>
     </SearchProfileContext>
   );
 }

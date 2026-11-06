@@ -65,7 +65,11 @@ export function EncounterOriginalRecord({
           loading={preview.loading}
           error={preview.error}
           onRetry={preview.retry}
+          onReload={preview.reload}
+          reloadLabel={preview.reloadLabel}
+          retryLabel={preview.retryLabel}
           onClose={preview.close}
+          onNavigateAway={preview.closeForNavigation}
           onReference={preview.open}
           onRankChange={preview.changeRank}
           readingHistory={preview.readingHistory}

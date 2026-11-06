@@ -4,7 +4,7 @@
   "systemVersion": "8.6.1",
   "sourceDigest": "c1ee148d16a58ace19114544105ccd50c625ba356d5a79fffd40f49165b68d3b",
   "inputFileCount": 1683,
-  "typescriptVersion": "5.9.3",
+  "typescriptVersion": "6.0.3",
   "ruleKeys": [
     "ActiveEffectLike",
     "ActorTraits",

@@ -67,6 +67,7 @@ export function EncounterInspectorPane({
   errorKind,
   spellError,
   onCloseRecordPreview,
+  onNavigateAwayPreview,
   onOpenRecordFullPage,
   onReference,
   onAddCondition,
@@ -129,6 +130,7 @@ export function EncounterInspectorPane({
   errorKind?: EncounterMutationCommand["kind"];
   spellError?: string;
   onCloseRecordPreview: () => void;
+  onNavigateAwayPreview?: () => void;
   onOpenRecordFullPage: (recordKey: string) => void;
   onReference: import("../../shared/records/PreparedContent").RecordReferenceHandler;
   onAddCondition: (
@@ -220,7 +222,11 @@ export function EncounterInspectorPane({
     );
   }
   return (
-    <ReferenceHelpProvider onHelp={onHelp} generation={artifactGeneration ?? undefined}>
+    <ReferenceHelpProvider
+      onHelp={onHelp}
+      onReference={onReference}
+      generation={artifactGeneration ?? undefined}
+    >
       <section
         className="encounter-pane encounter-record-pane"
         tabIndex={-1}
@@ -325,6 +331,7 @@ export function EncounterInspectorPane({
             reloadLabel={reloadPreviewLabel}
             retryLabel={retryPreviewLabel}
             onClose={onCloseRecordPreview}
+            onNavigateAway={onNavigateAwayPreview}
             onOpenFullPage={() => {
               if (previewRecordKey) onOpenRecordFullPage(previewRecordKey);
             }}

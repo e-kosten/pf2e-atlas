@@ -1,6 +1,9 @@
 //! Generation-checked inventory for stored-vector content comparison.
 use crate::{AppServiceError, AppServiceResult, AtlasAppService, ReadExecutionContext};
-use atlas_app_model::{AppRecoverableAction, SimilarityPartsRequest, SimilarityPartsView};
+use atlas_app_model::{
+    AppRecoverableAction, SearchCriteria, SearchResultsRequest, SimilarityPartsRequest,
+    SimilarityPartsView,
+};
 use atlas_domain::{SimilarityOptions, SimilaritySeed};
 
 impl AtlasAppService {
@@ -57,6 +60,13 @@ pub(crate) fn validate_options(
     options
         .validate(seed)
         .map_err(AppServiceError::invalid_request)?;
+    require_parts_generation(options, expected_generation)
+}
+
+pub(crate) fn require_parts_generation(
+    options: &SimilarityOptions,
+    expected_generation: Option<&str>,
+) -> AppServiceResult<()> {
     if options.parts().is_some() && expected_generation.is_none() {
         return Err(AppServiceError::invalid_request(
             "explicit comparison parts require the artifact generation from the part inventory; refresh Compare parts or rerun `atlas similar <SEED> --list-parts`",
@@ -325,6 +335,23 @@ fn part_view(
         role_label: part.role.label().into(),
         has_vectors: part.has_vectors,
         label_only: part.label_only,
+    }
+}
+
+pub(crate) fn validate_caller_similarity(request: &SearchResultsRequest) -> AppServiceResult<()> {
+    match &request.criteria {
+        SearchCriteria::SimilarRecords {
+            similarity: Some(options),
+            ..
+        }
+        | SearchCriteria::SimilarTraits {
+            similarity: Some(options),
+            ..
+        } => crate::similarity::require_parts_generation(
+            options,
+            request.expected_artifact_generation.as_deref(),
+        ),
+        _ => Ok(()),
     }
 }
 

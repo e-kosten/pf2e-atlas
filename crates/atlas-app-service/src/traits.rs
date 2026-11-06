@@ -26,7 +26,7 @@ impl AtlasAppService {
                     artifact_generation: generation,
                     trait_key: definition.key.to_string(),
                     label: definition.label,
-                    content: definition.prepared.map(|prepared| -> AppServiceResult<_> {
+                    content: definition.prepared.filter(|prepared| atlas_record::source_content::has_prepared_reading_content(&prepared.text, &prepared.html, prepared.interactions.len())).map(|prepared| -> AppServiceResult<_> {
                         Ok(atlas_app_model::ReferenceContentView {
                             section_rendering: Some(atlas_app_model::PreparedSectionRenderingView {
                                 html: atlas_record::source_record::single_section_annotated_prepared_html(&prepared.html),

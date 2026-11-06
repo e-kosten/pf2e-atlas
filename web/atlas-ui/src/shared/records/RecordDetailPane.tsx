@@ -1,3 +1,4 @@
+import { RecordEditionNotice } from "./RecordEditionNotice";
 import { RecordContextError } from "./recordContextError";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import {
@@ -88,7 +89,11 @@ export function RecordDetailPane({
     error && "appError" in error ? (error as AtlasApiError).appError?.code : undefined;
   const notFound = code === "record_not_found";
   return (
-    <ReferenceHelpProvider onHelp={onHelp} generation={detail?.artifact_generation}>
+    <ReferenceHelpProvider
+      onHelp={onHelp}
+      onReference={onReference}
+      generation={detail?.artifact_generation}
+    >
       <section
         className={`detail-panel${compact ? " detail-panel--compact" : ""}`}
         aria-busy={loading}
@@ -129,6 +134,13 @@ export function RecordDetailPane({
           }
           status={
             <>
+              {detail && (
+                <RecordEditionNotice
+                  detail={detail}
+                  onReference={onReference}
+                  onReload={onReload}
+                />
+              )}
               {detail && loading && (
                 <div className="detail-refresh" aria-label="Updating record">
                   <Spin size="small" delay={500} />

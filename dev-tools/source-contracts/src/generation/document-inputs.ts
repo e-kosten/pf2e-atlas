@@ -121,7 +121,7 @@ export function authoredDocumentInputs(schema: TypeGraph, openTraitArrays: strin
     && node.fields.every(field => field.optional)
     && JSON.stringify(node.fields.map(field => field.name).sort()) === JSON.stringify(spell.fields.filter(field => !omitOverlays || field.name !== 'overlays').map(field => field.name).sort());
   if (!partialMembers.some(node => patchFields(node, true) && node?.name === 'Partial'
-    && node.declaredAt?.some(location => location.file === 'node_modules/typescript/lib/lib.es5.d.ts'))
+    && node.declaredAt?.some(location => location.file === 'node_modules/@typescript/old/lib/lib.es5.d.ts'))
     || partialMembers.some(node => !patchFields(node, true) && !(node?.kind === 'primitive' && node.value === 'undefined')))
     throw new Error('Spell overlay partial declaration drift');
   // Start from the rule-projected spell owner so rules in a patch keep authored shapes.

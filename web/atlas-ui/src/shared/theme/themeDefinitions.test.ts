@@ -5,6 +5,8 @@ import {
   antDesignTheme,
   applyAtlasDocumentTheme,
   atlasPopoverStyles,
+  atlasButtonClassNames,
+  atlasRadioStyles,
   atlasCssVariables,
 } from "./atlasTheme";
 import {
@@ -28,6 +30,76 @@ function contrast(foreground: string, background: string) {
   const values = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
   return (values[0] + 0.05) / (values[1] + 0.05);
 }
+
+describe("shared control contrast", () => {
+  for (const scheme of ["light", "dark"] as const) {
+    it(`${scheme} keeps selected radio, quiet button, tab and segmented ink readable`, () => {
+      const palette = resolveAtlasPalette(scheme);
+      const config = antDesignTheme(scheme);
+      const radio = config.components!.Radio!;
+      const styles = atlasRadioStyles(scheme);
+      if (typeof styles !== "function")
+        throw new Error("Radio uses a semantic styles function");
+      const selected = styles({ props: { checked: true } });
+      const ink = String(selected?.label?.color);
+      for (const background of [
+        radio.buttonCheckedBg,
+        radio.buttonSolidCheckedBg,
+        radio.buttonSolidCheckedHoverBg,
+        radio.buttonSolidCheckedActiveBg,
+      ]) {
+        expect(contrast(ink, String(background))).toBeGreaterThanOrEqual(4.5);
+      }
+      expect(styles({ props: { checked: true, disabled: true } })).toEqual({});
+      const button = config.components!.Button!;
+      expect(
+        contrast(String(button.defaultHoverColor), String(button.defaultHoverBg)),
+      ).toBeGreaterThanOrEqual(4.5);
+      expect(
+        contrast(String(button.defaultActiveColor), String(button.defaultActiveBg)),
+      ).toBeGreaterThanOrEqual(4.5);
+      for (const background of [
+        palette.selection.background,
+        palette.selection.hover,
+      ]) {
+        expect(contrast(palette.selection.text, background)).toBeGreaterThanOrEqual(
+          4.5,
+        );
+      }
+      for (const surface of [palette.surface, palette.elevated, palette.background]) {
+        expect(
+          contrast(String(config.components!.Tabs!.itemSelectedColor), surface),
+        ).toBeGreaterThanOrEqual(4.5);
+        expect(
+          contrast(String(config.components!.Tabs!.itemActiveColor), surface),
+        ).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(palette.link, surface)).toBeGreaterThanOrEqual(4.5);
+      }
+      const segmented = config.components!.Segmented!;
+      expect(
+        contrast(String(segmented.itemSelectedColor), String(segmented.itemSelectedBg)),
+      ).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+  it("leaves solid and disabled button colors to Ant while styling quiet primary controls", () => {
+    if (typeof atlasButtonClassNames !== "function")
+      throw new Error("Button uses a semantic class function");
+    expect(
+      atlasButtonClassNames({ props: { color: "primary", variant: "solid" } }),
+    ).toEqual({});
+    expect(
+      atlasButtonClassNames({
+        props: { color: "primary", variant: "outlined", disabled: true },
+      }),
+    ).toEqual({});
+    expect(
+      atlasButtonClassNames({ props: { color: "primary", variant: "outlined" } })?.root,
+    ).toContain("atlas-accent-control--outlined");
+    expect(
+      atlasButtonClassNames({ props: { color: "danger", variant: "solid" } })?.root,
+    ).toBe("atlas-destructive-confirm");
+  });
+});
 
 describe("Atlas product palette", () => {
   for (const scheme of ["light", "dark"] as const) {

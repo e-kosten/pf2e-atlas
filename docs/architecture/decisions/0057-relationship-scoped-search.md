@@ -101,17 +101,43 @@ The full expression participates in request, URL and browser-cache identity.
 
 The toolbar's Links picker and Advanced's structural Record links condition edit
 one tree, retaining unfinished siblings in the existing editor owner. Common
-positive conjunctions support direct chips. Mixed/negated groups use a bounded
-full-expression summary retaining Boolean operators and grouping, with Advanced
-providing complete editing. Global Clear filters clears ordinary and link conditions
+positive conjunctions support direct chips. Conditions that cannot be represented by independent chips mark the Advanced
+button as applied; Advanced retains the complete Boolean expression for editing. Global Clear filters clears ordinary and link conditions
 while retaining text/Similar and result order.
 
-The record finder reuses SearchPickerModal and searches independently of parent
-criteria. A stable app-composed picker component is supplied through a lightweight
+The record finder reuses SearchPickerModal and retains its own search and filters.
+Its candidate corpus is the inverse of the chosen relationship over the parent's
+static eligibility, before picker ranking and pagination. Parent text and Similar
+admission, paging, ranking and edition preference do not restrict that eligibility.
+App-service resolves saved-list membership, trait-reference route membership and
+inherited connected scopes in the consuming workspace snapshot. The static DTO
+cannot carry a parent semantic search. Nested contexts are bounded to four levels.
+Index compiles the parent predicate through ordinary eligibility SQL and joins
+resolved occurrences directly, retaining exact root owner restrictions. Only the
+final distinct connected candidate keys cross into the existing retrieval and
+facet key scopes; no parent result hydration or alternate predicate evaluator is
+needed. Picker edition preference applies after this eligibility.
+
+Field counts and relationship editing share atlas-domain's structural self-exclusion
+policy. Root-field facets remove the complete field selection; link editing removes
+one addressed clause while retaining other conditions. Scoped field facets preserve
+member correlation. Index keeps catalog validation and physical query ownership.
+Conjunctive and directly negated root selections are supported; OR and compound
+negative contexts remain explicitly unavailable. The picker searches all entries
+and visibly explains the broader scope when self-exclusion is unavailable.
+Unprojectable unfinished drafts use the same explicit broader scope with an
+incomplete-edit explanation. An unconfigured link uses an addressed true placeholder
+at its exact editor position solely for discovery classification; it is never a
+persisted relationship. Invalid targets remain errors before optional capability
+classification. Counts and result requests resolve the same connection descriptor.
+Parent generations, predicate admission and nesting are checked before picker text
+inference and again in the consuming snapshot.
+Direction and scope precede search; changing either clears the pending candidate
+and refreshes the corpus without discarding the picker's own filters. A stable app-composed picker component is supplied through a lightweight
 shared-filter composition context, avoiding a filter-to-picker import cycle.
 Each editing owner retains its local selection/draft state; nested lookups use Ant's
-overlay stack. Explicit root-row selection replaces an embedded target; direction
-or scope edits alone preserve that exact target. Human names and useful kind/source/
+overlay stack. Explicit root-row selection replaces an embedded target. An untouched edit keeps
+its exact embedded target; changing direction or scope asks for a new candidate. Human names and useful kind/source/
 parent disambiguation are displayed; IDs never substitute for relationship labels.
 
 Record and Related actions create the same predicate leaves. On active Search,

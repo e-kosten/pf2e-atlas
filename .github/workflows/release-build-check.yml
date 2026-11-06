@@ -9,6 +9,10 @@ on:
       source-ref:
         required: true
         type: string
+      tools-verified:
+        description: "Caller has verified release tools for this exact source in successful full CI."
+        type: boolean
+        default: false
       nightly:
         type: boolean
         default: false
@@ -47,15 +51,18 @@ jobs:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           cache: npm
           cache-dependency-path: dev-tools/release/package-lock.json
-      - name: Build private release tools
+      - name: Install private release tools
         shell: bash
-        run: |
-          npm --prefix dev-tools/release ci --ignore-scripts
-          npm --prefix dev-tools/release run build
+        run: npm --prefix dev-tools/release ci --ignore-scripts
+      - name: Build previously verified release tools
+        if: ${{ inputs.tools-verified }}
+        shell: bash
+        run: npm --prefix dev-tools/release run build
       - name: Release tool smoke tests
+        if: ${{ !inputs.tools-verified }}
         shell: bash
         run: |
           scripts/release/validate-release-tooling.sh
@@ -129,7 +136,7 @@ jobs:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           cache: npm
           cache-dependency-path: |
             dev-tools/release/package-lock.json
@@ -167,12 +174,19 @@ jobs:
         shell: bash
         run: node dev-tools/release/dist/src/cli/generate-notices.js --output target/atlas-release/THIRD-PARTY-NOTICES.md
       - name: Validate PowerShell installer
-        if: ${{ matrix.target == 'x86_64-pc-windows-msvc' }}
+        if: ${{ matrix.target == 'x86_64-pc-windows-msvc' && matrix.variant == 'full' && !inputs.tools-verified }}
         # Git Bash supplies XZ-capable tar for the installer archive fixtures.
         shell: bash
         run: |
           pwsh -NoProfile -File scripts/install/atlas-installer.ps1 -DryRun
           pwsh -NoProfile -File scripts/release/test-installer.ps1
+      - name: Link Apple availability runtime
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          runtime="$(xcrun --sdk macosx clang -print-libgcc-file-name)"
+          test -f "$runtime"
+          echo "RUSTFLAGS=${RUSTFLAGS:-} -C link-arg=$runtime" >> "$GITHUB_ENV"
       - name: Build archives with cargo-dist
         if: ${{ matrix.target != 'x86_64-pc-windows-msvc' }}
         shell: bash
@@ -247,7 +261,7 @@ jobs:
           ref: ${{ inputs.source-ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           cache: npm
           cache-dependency-path: dev-tools/release/package-lock.json
       - name: Build private release tools

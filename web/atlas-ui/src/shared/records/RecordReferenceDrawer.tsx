@@ -5,7 +5,6 @@ import { usePreviewReadingPosition } from "./usePreviewReadingPosition";
 import { ConfigProvider } from "antd";
 import { useId, useRef, useState } from "react";
 import { DefinitionDetailPane, DefinitionAttribution } from "./DefinitionDetailPane";
-import { DocumentIdentityHeader } from "./DocumentIdentityHeader";
 import {
   ReferenceHelpProvider,
   referenceDestination,
@@ -21,6 +20,7 @@ import { usePreviewContentFocus } from "./usePreviewContentFocus";
 import { RecordPresentationIdentity } from "./RecordPresentation";
 import type { RecordNavigationView } from "../../generated/atlas";
 import { SourceSectionSelectionContext } from "./SourceSectionSelectionContext";
+import { DocumentIdentityHeader } from "./DocumentIdentityHeader";
 import { readingNavigationForUrl } from "./readingUrlNavigation";
 import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 const getPopupContainer = (trigger?: HTMLElement) =>
@@ -156,6 +156,7 @@ export function RecordReferenceDrawer({
         <SourceSectionSelectionContext value={null}>
           <ReferenceHelpProvider
             onHelp={onHelp}
+            onReference={onReference}
             generation={definition?.artifact_generation ?? detail?.artifact_generation}
           >
             <ConfigProvider getPopupContainer={getPopupContainer}>

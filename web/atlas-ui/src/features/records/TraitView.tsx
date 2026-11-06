@@ -9,7 +9,6 @@ import type { TraitPageInput } from "../../app/destinations";
 import { navigateDestination } from "../../app/navigation";
 import { canonicalRouteSearch } from "../../app/routeSearch";
 import { parseSearchParams } from "../../app/urlState";
-import { recordDestination } from "../../app/destinations";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
 import { Button, Empty, Tabs, Typography } from "antd";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
@@ -24,13 +23,15 @@ import type {
 import type { RecordReferenceHandler } from "../../shared/records/PreparedContent";
 import { ReferenceResult } from "../../shared/records/ReferenceResult";
 import { ExploreSearchAction } from "../../shared/records/ExploreSearchAction";
-import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawer";
-import { useRecordPreview } from "../../shared/records/useRecordPreview";
+import {
+  ReferenceHelpHost,
+  useReferenceHelpSession,
+} from "../../shared/records/ReferenceHelpHost";
 import { AddToRecordButton } from "../record-actions/AddToRecordButton";
 import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
 import { DocumentIdentityHeader } from "../../shared/records/DocumentIdentityHeader";
 import { useTraitDetail } from "../../shared/records/useTraitDetail";
-import { PreparedContentBody } from "../../shared/records/PreparedContent";
+import { TraitDefinition } from "../../shared/records/TraitDefinition";
 import { useSearchProfile } from "../../shared/search/SearchProfileContext";
 import {
   preferredSourceSections,
@@ -50,8 +51,20 @@ import {
   retireReferenceQueries,
 } from "../../shared/queries/referenceQueries";
 export function TraitView({ route }: { route: TraitPageInput }) {
+  return (
+    <ReferenceHelpHost
+      recordActions={(record) => (
+        <AddToRecordButton recordKey={record.record_key} record={record} />
+      )}
+    >
+      <TraitViewContent route={route} />
+    </ReferenceHelpHost>
+  );
+}
+
+function TraitViewContent({ route }: { route: TraitPageInput }) {
   const query = useTraitDetail(route.traitKey);
-  const preview = useRecordPreview();
+  const preview = useReferenceHelpSession()!;
   const unavailable = query.data?.content === null;
   usePageTitle(unavailable ? "Link not found" : (query.data?.label ?? "Trait"));
   const client = useQueryClient();
@@ -94,6 +107,7 @@ export function TraitView({ route }: { route: TraitPageInput }) {
             {query.data ? (
               <ReferenceHelpProvider
                 onHelp={preview.openHelp}
+                onReference={preview.open}
                 generation={query.data.artifact_generation}
               >
                 <article className="record-reference" data-selection-search>
@@ -101,13 +115,7 @@ export function TraitView({ route }: { route: TraitPageInput }) {
                     title={query.data.label}
                     classification="Trait"
                   />
-                  {query.data.content && (
-                    <PreparedContentBody
-                      body={query.data.content.body}
-                      references={query.data.content.references}
-                      onReference={preview.open}
-                    />
-                  )}
+                  <TraitDefinition detail={query.data} onReference={preview.open} />
                   <TraitAssociations
                     key={JSON.stringify([
                       query.data.trait_key,
@@ -128,43 +136,6 @@ export function TraitView({ route }: { route: TraitPageInput }) {
           </section>
         </DocumentPagePane>
       </main>
-      {preview.destination && (
-        <RecordReferenceDrawer
-          destination={preview.destination}
-          definition={preview.definition}
-          help={preview.help}
-          onHelp={preview.openHelp}
-          actions={
-            preview.recordKey ? (
-              <AddToRecordButton
-                recordKey={preview.recordKey!}
-                record={preview.detail?.record}
-              />
-            ) : undefined
-          }
-          anchor={preview.anchor}
-          readingHistory={preview.readingHistory}
-          requestedNavigation={preview.selection}
-          landing={preview.landing}
-          detail={preview.detail}
-          loading={preview.loading}
-          error={preview.error}
-          onRetry={preview.retry}
-          onClose={preview.close}
-          onReference={preview.open}
-          onRankChange={preview.changeRank}
-          onOpenFullPage={() => {
-            navigateDestination(
-              recordDestination({
-                recordKey: preview.recordKey!,
-                selection: preview.selection,
-                landing: preview.landing,
-              }),
-            );
-            preview.close();
-          }}
-        />
-      )}
     </>
   );
 }

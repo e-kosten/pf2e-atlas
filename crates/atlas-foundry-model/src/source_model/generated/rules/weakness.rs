@@ -22,7 +22,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@f67ac90876661ffe509f59ed#authored-input:type
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@039de1a7ac9d0b2ea8558990#authored-input:type
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaWeaknessRuleSchema {
@@ -88,7 +88,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_weakness_rule_
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@f67ac90876661ffe509f59ed; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@039de1a7ac9d0b2ea8558990; deferred fields:
 pub type WeaknessRule = SourceFromSchemaWeaknessRuleSchema;
 pub fn parse_weakness_rule(
     v: &SourceValue,

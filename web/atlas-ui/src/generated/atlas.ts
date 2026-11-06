@@ -1,3 +1,4 @@
+export type { RecordEditionView } from "../../../../crates/atlas-app-model/bindings/RecordEditionView";
 export type { EncounterManualTrackerView } from "../../../../crates/atlas-app-model/bindings/EncounterManualTrackerView";
 export type { EncounterManualTrackerAction } from "../../../../crates/atlas-app-model/bindings/EncounterManualTrackerAction";
 export type { UpdateEncounterManualTrackerRequest } from "../../../../crates/atlas-app-model/bindings/UpdateEncounterManualTrackerRequest";
@@ -410,3 +411,8 @@ export type { ReferenceClauseConditionView } from "../../../../crates/atlas-app-
 export type { ReferenceOccurrenceView } from "../../../../crates/atlas-app-model/bindings/ReferenceOccurrenceView";
 
 export type { DefinitionReferenceEvidenceView } from "../../../../crates/atlas-app-model/bindings/DefinitionReferenceEvidenceView";
+
+export type { StaticSearchContext } from "../../../../crates/atlas-app-model/bindings/StaticSearchContext";
+export type { ConnectionScopeView } from "../../../../crates/atlas-app-model/bindings/ConnectionScopeView";
+export type { ConnectionScopeUnavailableReason } from "../../../../crates/atlas-app-model/bindings/ConnectionScopeUnavailableReason";
+export type { SearchConnectionScope } from "../../../../crates/atlas-app-model/bindings/SearchConnectionScope";

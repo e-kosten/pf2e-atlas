@@ -25,9 +25,9 @@ export function ReferenceBrowser({
   reading,
   resultsHeader,
   recordActions,
-  readerHeaderActions,
   readerStatus,
   onReaderClose,
+  onClearSelection,
   emptyMessage = "No matching records",
   positions,
   disabled = false,
@@ -48,10 +48,10 @@ export function ReferenceBrowser({
   onSelect: (row: SearchResultRow, request: ReadingRequest) => void;
   reading: ReferenceReading;
   resultsHeader?: ReactNode;
-  readerHeaderActions?: ReactNode;
   recordActions?: (record: RecordSummaryView) => ReactNode;
   readerStatus?: ReactNode;
   onReaderClose?: () => void;
+  onClearSelection?: () => void;
   emptyMessage?: string | null;
   positions?: BrowsePositions;
   disabled?: boolean;
@@ -71,7 +71,7 @@ export function ReferenceBrowser({
     !detail.selected.field &&
     !detail.selected.passage;
   return (
-    <ReferenceHelpHost generation={generation}>
+    <ReferenceHelpHost generation={generation} recordActions={recordActions}>
       <BrowseReader
         reading={reading}
         selectedRecordKey={selectedRecordKey}
@@ -80,9 +80,10 @@ export function ReferenceBrowser({
         resultsIdentity={rows}
         resultsLoading={loading}
         recordActions={recordActions}
-        readerHeaderActions={readerHeaderActions}
         readerStatus={readerStatus}
         onReaderClose={onReaderClose}
+        onClearSelection={onClearSelection}
+        clearSelectionDisabled={disabled}
         positions={positions}
         readerContext={
           showContext ? (

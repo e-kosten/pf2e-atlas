@@ -1,20 +1,24 @@
 import { ConfigProvider } from "antd";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { detailFixture } from "../../test/fixtures";
+import { RouterTestContext } from "../../test/router";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SearchEntry } from "./SearchEntry";
 
-const api = vi.hoisted(() => ({ detail: vi.fn() }));
+const api = vi.hoisted(() => ({ detail: vi.fn(), definition: vi.fn() }));
 vi.mock("../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../api/atlasApi")>()),
   getRecordDetail: api.detail,
+  getDefinitionDetail: api.definition,
 }));
 const seed = { kind: "record", record_key: "items:leather-armor" } as const;
 function wrapper({ children }: { children: React.ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
     <QueryClientProvider client={client}>
-      <ConfigProvider theme={{ token: { motion: false } }}>{children}</ConfigProvider>
+      <ConfigProvider theme={{ token: { motion: false } }}>
+        <RouterTestContext>{children}</RouterTestContext>
+      </ConfigProvider>
     </QueryClientProvider>
   );
 }
@@ -84,7 +88,24 @@ it("opens the seed reference through a native link and restores text-entry focus
   expect(screen.getByRole("searchbox")).toHaveFocus();
 });
 
-it("keeps trait seed links on the native trait destination", () => {
+it("keeps supplied readable trait seed links on the native trait destination", async () => {
+  api.definition.mockResolvedValue({
+    artifact_generation: "test-generation",
+    definition_key: "trait:fire",
+    label: "Fire",
+    help: {
+      definition_key: "trait:fire",
+      availability: "available",
+      destination: { kind: "definition", key: "trait:fire" },
+      related_filters: [],
+    },
+    content: { body: { kind: "plain", text: "Fire rules." }, references: [] },
+    attribution: null,
+    notices: [],
+    references: [],
+    references_availability: "available",
+    references_truncated: false,
+  });
   render(
     <SearchEntry
       query=""
@@ -96,8 +117,9 @@ it("keeps trait seed links on the native trait destination", () => {
         onSearch: vi.fn(),
       }}
     />,
+    { wrapper },
   );
-  expect(screen.getByRole("link", { name: "Fire" })).toHaveAttribute(
+  expect(await screen.findByRole("link", { name: "Fire" })).toHaveAttribute(
     "href",
     "/traits/trait:fire",
   );

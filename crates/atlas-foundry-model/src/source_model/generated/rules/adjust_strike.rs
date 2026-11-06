@@ -48,7 +48,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_adjust_strike_
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@e334de587bfeecad3b429015
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@3255d86064ca0d2716f6e1a7
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaAdjustStrikeSchema {
@@ -121,7 +121,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_adjust_strike_
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@e334de587bfeecad3b429015; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@3255d86064ca0d2716f6e1a7; deferred fields:
 pub type AdjustStrikeRule = SourceFromSchemaAdjustStrikeSchema;
 pub fn parse_adjust_strike_rule(
     v: &SourceValue,

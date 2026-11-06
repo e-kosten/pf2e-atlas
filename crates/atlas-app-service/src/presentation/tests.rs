@@ -2623,3 +2623,54 @@ fn parity_consumable_details_keep_meaningful_intrinsic_facts() {
     assert_eq!(view.auto_destroy.value, Some(false));
     assert_eq!(view.source_uses.value, Some(2.into()));
 }
+
+#[test]
+fn embedded_publication_edition_uses_its_own_source_metadata() {
+    for (publication, expected) in [
+        (
+            json!({"remaster":false}),
+            Some(atlas_app_model::RecordEditionView::Legacy),
+        ),
+        (
+            json!({"remaster":true}),
+            Some(atlas_app_model::RecordEditionView::Remaster),
+        ),
+        (json!({}), None),
+        (json!({"remaster":null}), None),
+        (json!({"remaster":"true"}), None),
+    ] {
+        let source = json!({"_id":"aaaaaaaaaaaaaaaa","type":"npc","name":"Actor",
+            "system":{"details":{"publication":{"remaster":true}}},
+            "items":[{"_id":"bbbbbbbbbbbbbbbb","name":"Local action","type":"action",
+                "system":{"publication":publication,"description":{"value":"<p>Action.</p>"}}}]});
+        let executor = RetrievalExecutor::from_test_fixture_factory(1, 16, move || {
+            Ok(open_source_fixture(
+                vec![record("actors", "Actor", source.clone())],
+                false,
+            )?)
+        });
+        let f = fixture_worker_with_executor(executor);
+        let selected = f
+            .worker
+            .record_detail_at(RecordDetailRequest {
+                expected_artifact_generation: None,
+                reading_context: None,
+                spell_rank: None,
+                record_key: "actors:aaaaaaaaaaaaaaaa".into(),
+                owners: vec![OwnedContentLocator {
+                    collection: "/items".into(),
+                    identity: atlas_domain::OwnedContentIdentity::Stable("bbbbbbbbbbbbbbbb".into()),
+                }],
+                fields: vec![],
+                passage: None,
+                source_fingerprint: None,
+            })
+            .unwrap();
+        assert_eq!(
+            selected.record.edition,
+            Some(atlas_app_model::RecordEditionView::Remaster)
+        );
+        assert_eq!(selected.presentation.identity.edition, expected);
+        assert!(selected.counterparts.is_none());
+    }
+}

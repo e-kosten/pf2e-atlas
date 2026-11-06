@@ -8,7 +8,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { ConfigProvider } from "antd";
+import { ConfigProvider, Grid } from "antd";
 import {
   discoverFilterCounts,
   discoverFilterEditor,
@@ -33,8 +33,9 @@ import { SearchProfileProvider } from "../../test/SearchProfileProvider";
 import { chooseAttributeSort, selectSortOption } from "../../test/sortControls";
 import { FilterControls } from "../../shared/filters/FilterPanel";
 import { LinkPickerContext } from "../../shared/filters/LinkPickerContext";
+import { ReferenceHelpHost } from "../../shared/records/ReferenceHelpHost";
 import { LinkConditionPicker } from "../../shared/filters/LinkConditionPicker";
-import { linkClauses } from "../../shared/filters/LinkFilterControls";
+import { linkClauses } from "../../shared/filters/linkPredicates";
 import { linkLeaf } from "../../shared/filters/linkPredicates";
 import { useSearchWorkspace, type SearchWorkspaceState } from "./useSearchWorkspace";
 vi.mock("../../api/atlasApi", async (original) => ({
@@ -78,9 +79,11 @@ function setup(initial: SearchFormState = DEFAULT_SEARCH_STATE) {
       >
         <RouterTestContext>
           <SearchProfileProvider>
-            <LinkPickerContext value={LinkConditionPicker}>
-              <Harness />
-            </LinkPickerContext>
+            <ReferenceHelpHost>
+              <LinkPickerContext value={LinkConditionPicker}>
+                <Harness />
+              </LinkPickerContext>
+            </ReferenceHelpHost>
           </SearchProfileProvider>
         </RouterTestContext>
       </QueryClientProvider>
@@ -258,6 +261,11 @@ it.each([
     if (change === "direction")
       fireEvent.click(within(dialog).getByRole("radio", { name: "Linked from" }));
     else await selectSortOption("Link filter scope", "Main entry only");
+    expect(within(dialog).getByRole("button", { name: "Add" })).toBeDisabled();
+    fireEvent.click(await within(dialog).findByRole("link", { name: /Leather Armor/ }));
+    await waitFor(() =>
+      expect(within(dialog).getByRole("button", { name: "Add" })).toBeEnabled(),
+    );
     fireEvent.click(within(dialog).getByRole("button", { name: "Add" }));
     await waitFor(() => expect(linkClauses(current().search.filter)).toHaveLength(2));
     expect(
@@ -276,16 +284,50 @@ it("keeps scope explanation optional and Escape closes inner help only", async (
   setup();
   const dialog = await openAndSelect();
   const explanation =
-    "Whole entry also checks each matching record’s abilities, spells, equipment, and other nested documents.";
+    "Also check links in each result’s contents, such as its abilities, spells, and equipment.";
   expect(screen.queryByText(explanation)).toBeNull();
   const help = within(dialog).getByRole("button", { name: "About link scope" });
   fireEvent.click(help);
   expect(await screen.findByText(explanation)).toBeInTheDocument();
+  fireEvent.click(within(dialog).getByRole("radio", { name: "Linked from" }));
+  expect(
+    await screen.findByText("finds records that your selection links to."),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      "Also check links in the selected entry’s contents, such as its abilities, spells, and equipment.",
+    ),
+  ).toBeInTheDocument();
   fireEvent.keyDown(help, { key: "Escape", keyCode: 27 });
   expect(help).toHaveAttribute("aria-expanded", "false");
   expect(help).toHaveFocus();
   expect(dialog).toBeInTheDocument();
 });
+
+it.each([true, false])(
+  "clears an existing link target without restoring it or applying a parent filter change (wide=%s)",
+  async (wide) => {
+    vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: wide });
+    const current = setup({
+      ...DEFAULT_SEARCH_STATE,
+      filter: linkLeaf(existing, "existing"),
+    });
+    const before = current().search;
+    fireEvent.click(screen.getByRole("button", { name: /^Linked from/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Change record" }));
+    const dialog = await screen.findByRole("dialog", { name: "Edit link condition" });
+    fireEvent.click(
+      await within(dialog).findByRole("button", { name: "Clear selection" }),
+    );
+    expect(within(dialog).getByRole("button", { name: "Apply" })).toBeDisabled();
+    expect(
+      within(dialog).queryByRole("button", { name: "Clear selection" }),
+    ).toBeNull();
+    expect(current().search).toEqual(before);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(current().search).toEqual(before);
+  },
+);
 
 it("edits an exact embedded selection without rebinding it until a parent row is explicitly selected", async () => {
   const lookup = vi.mocked(searchPage).getMockImplementation()!;
@@ -309,17 +351,17 @@ it("edits an exact embedded selection without rebinding it until a parent row is
     within(drawer).getByRole("button", { name: /Loading record… · Main entry only/ }),
   );
   let dialog = await screen.findByRole("dialog", { name: "Edit link condition" });
-  fireEvent.click(within(dialog).getByRole("radio", { name: "Links to" }));
+  await waitFor(() =>
+    expect(within(dialog).getByRole("button", { name: "Apply" })).toBeEnabled(),
+  );
   fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
   await waitFor(() => expect(dialog).not.toBeVisible());
-  expect(linkClauses(current().search.filter)[0].relationship).toEqual({
-    ...existing,
-    direction: "incoming",
-  });
+  expect(linkClauses(current().search.filter)[0].relationship).toEqual(existing);
   fireEvent.click(
     within(drawer).getByRole("button", { name: /Loading record… · Main entry only/ }),
   );
   dialog = await screen.findByRole("dialog", { name: "Edit link condition" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Clear selection" }));
   fireEvent.click(await within(dialog).findByRole("link", { name: /Leather Armor/ }));
   await within(dialog).findByRole("heading", { name: "Leather Armor" });
   await waitFor(() =>
@@ -375,4 +417,29 @@ it("rejects a newly selected record from a different reference generation withou
   ).toBeInTheDocument();
   expect(current().search.filter).toBeNull();
   expect(current().pageNumber).toBe(3);
+});
+
+it("uses the selected preview as identity and retains the revised direction and scope", async () => {
+  const current = setup();
+  const picker = await openAndSelect();
+  fireEvent.click(within(picker).getByRole("radio", { name: "Linked from" }));
+  await selectSortOption("Link filter scope", "Main entry only");
+  expect(within(picker).getByRole("button", { name: "Add" })).toBeDisabled();
+  fireEvent.click(await within(picker).findByRole("link", { name: /Leather Armor/ }));
+  await within(picker).findByRole("heading", { name: "Leather Armor" });
+  await waitFor(() =>
+    expect(within(picker).getByRole("button", { name: "Add" })).toBeEnabled(),
+  );
+  expect(picker.querySelector(".reference-picker__footer a")).toBeNull();
+  expect(location.pathname).toBe("/search");
+  expect(picker).toBeInTheDocument();
+  expect(within(picker).getByRole("radio", { name: "Linked from" })).toBeChecked();
+  expect(within(picker).getByText("Main entry only", { exact: true })).toBeVisible();
+  fireEvent.click(within(picker).getByRole("button", { name: "Add" }));
+  await waitFor(() => expect(linkClauses(current().search.filter)).toHaveLength(1));
+  expect(linkClauses(current().search.filter)[0].relationship).toEqual({
+    direction: "outgoing",
+    include_contents: false,
+    selection: rootNavigation(selectedKey),
+  });
 });

@@ -212,6 +212,7 @@ export function SearchView({
             workspace.selectRecord(row.record.record_key);
             workspace.reading.select(request);
           }}
+          onClearSelection={() => workspace.selectRecord(null)}
           reading={workspace.reading}
           positions={workspace.positions}
           resultsHeader={<ResultPaneHeader workspace={workspace} />}

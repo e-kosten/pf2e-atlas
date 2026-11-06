@@ -625,6 +625,7 @@ function EncounterDetail({ route }: EncounterDetailViewProps) {
                   return result.active && result.refreshed;
                 }}
                 onCloseRecordPreview={recordPreview.close}
+                onNavigateAwayPreview={recordPreview.closeForNavigation}
                 onOpenRecordFullPage={(recordKey) =>
                   navigateDestination(
                     recordDestination({

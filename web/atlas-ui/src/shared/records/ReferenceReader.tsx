@@ -1,4 +1,5 @@
-import { useReferenceHelpSession } from "./ReferenceHelpHost";
+import { ReferenceHelpProvider, type ReferenceHelpHandler } from "./ReferenceHelp";
+import type { RecordReferenceHandler } from "./PreparedContent";
 import { PaneIconLink } from "../ui/actions/PaneAction";
 import { ReaderMatchNavigation } from "./ReaderMatchNavigation";
 import type { RecordNavigationView, RecordSummaryView } from "../../generated/atlas";
@@ -29,7 +30,6 @@ type ReferenceReaderProps = {
   reading: ReferenceReading;
   selectedRecordKey?: string | null;
   readerContext?: ReactNode;
-  readerHeaderActions?: ReactNode;
   recordActions?: (record: RecordSummaryView) => ReactNode;
   status?: ReactNode;
   readerFooter?: ReactNode;
@@ -40,27 +40,14 @@ type ReferenceReaderProps = {
   returnToSelectionLabel?: string;
   showRelated?: boolean;
   retryLabel?: string;
+  renderLayout?: (actions: ReactNode, reader: ReactNode) => ReactNode;
+  selectionActions?: ReactNode;
 };
 
-export function ReferenceReader(props: ReferenceReaderProps) {
-  const shared = useReferenceHelpSession();
-  return shared ? (
-    <ReferenceReaderContent {...props} preview={shared} ownsPreview={false} />
-  ) : (
-    <LocalReferenceReader {...props} />
-  );
-}
-function LocalReferenceReader(props: ReferenceReaderProps) {
-  const preview = useRecordPreview();
-  return <ReferenceReaderContent {...props} preview={preview} ownsPreview />;
-}
-function ReferenceReaderContent({
-  preview,
-  ownsPreview,
+export function ReferenceReader({
   reading,
   selectedRecordKey = null,
   recordActions,
-  readerHeaderActions,
   readerContext,
   status,
   readerFooter,
@@ -71,10 +58,10 @@ function ReferenceReaderContent({
   returnToSelectionLabel = "Return to selection",
   showRelated = true,
   retryLabel,
-}: ReferenceReaderProps & {
-  preview: ReturnType<typeof useRecordPreview>;
-  ownsPreview: boolean;
-}) {
+  renderLayout,
+  selectionActions,
+}: ReferenceReaderProps) {
+  const preview = useRecordPreview();
   const { mode, tab } = useRecordExploreLocation();
   const localPositions = useBrowsePositions();
   const saved = positions ?? localPositions;
@@ -156,6 +143,14 @@ function ReferenceReaderContent({
     },
     [address, saved],
   );
+  const onReference: RecordReferenceHandler = (key, anchor, selection, landing) => {
+    rememberPosition(anchor);
+    preview.open(key, anchor, selection, landing);
+  };
+  const onHelp: ReferenceHelpHandler = (help, anchor, generation, finishOwner) => {
+    rememberPosition(anchor);
+    preview.openHelp(help, anchor, generation, finishOwner);
+  };
   const inspect = reading.inspect;
   const openReference = preview.open;
   const navigateToMatch = useCallback(
@@ -397,55 +392,62 @@ function ReferenceReaderContent({
       )}
     </Space>
   );
-  return (
+  const header = (
+    <>
+      <div className="reference-reader__heading">
+        {onResults ? (
+          <Button ref={backRef} icon={<ArrowLeft size={16} />} onClick={onResults}>
+            Results
+          </Button>
+        ) : !renderLayout ? (
+          <Typography.Text type="secondary">{label}</Typography.Text>
+        ) : null}
+        {status}
+      </div>
+      <Space wrap>
+        {reading.canGoBack && (
+          <Button
+            onClick={() => {
+              rememberPosition();
+              reading.back();
+            }}
+            icon={<ArrowLeft size={14} />}
+          >
+            Back
+          </Button>
+        )}
+        {selectedRecordKey &&
+          reading.request &&
+          (recordReadingIdentity(
+            reading.request.navigation.record_key,
+            reading.request.navigation,
+          ) !== recordReadingIdentity(selectedRecordKey) ||
+            reading.request.match ||
+            reading.request.landing) && (
+            <Button
+              onClick={() => {
+                rememberPosition();
+                reading.select({ navigation: rootNavigation(selectedRecordKey) });
+              }}
+            >
+              {returnToSelectionLabel}
+            </Button>
+          )}
+        {!showRelated && documentActions}
+        {selectionActions}
+      </Space>
+    </>
+  );
+  const reader = (
     <section
       className={`reference-reader reference-reader--${recordLayout(detail?.presentation)}`}
       aria-label="Record preview"
     >
-      <BrowsePaneHeader className="reference-reader__header">
-        <div className="reference-reader__heading">
-          {onResults ? (
-            <Button ref={backRef} icon={<ArrowLeft size={16} />} onClick={onResults}>
-              Results
-            </Button>
-          ) : (
-            <Typography.Text type="secondary">{label}</Typography.Text>
-          )}
-          {status}
-        </div>
-        <Space wrap>
-          {reading.canGoBack && (
-            <Button
-              onClick={() => {
-                rememberPosition();
-                reading.back();
-              }}
-              icon={<ArrowLeft size={14} />}
-            >
-              Back
-            </Button>
-          )}
-          {selectedRecordKey &&
-            reading.request &&
-            (recordReadingIdentity(
-              reading.request.navigation.record_key,
-              reading.request.navigation,
-            ) !== recordReadingIdentity(selectedRecordKey) ||
-              reading.request.match ||
-              reading.request.landing) && (
-              <Button
-                onClick={() => {
-                  rememberPosition();
-                  reading.select({ navigation: rootNavigation(selectedRecordKey) });
-                }}
-              >
-                {returnToSelectionLabel}
-              </Button>
-            )}
-          {(!showRelated || !detail) && documentActions}
-          {detail && readerHeaderActions}
-        </Space>
-      </BrowsePaneHeader>
+      {!renderLayout && (
+        <BrowsePaneHeader className="reference-reader__header">
+          {header}
+        </BrowsePaneHeader>
+      )}
       <section
         className="reference-reader__scroll"
         {...contentFocus}
@@ -453,7 +455,7 @@ function ReferenceReaderContent({
       >
         <ReaderMatchNavigation.Provider value={navigateToMatch}>
           <RecordDetailPane
-            onHelp={preview.openHelp}
+            onHelp={onHelp}
             showRelated={showRelated}
             identityActions={showRelated && detail ? documentActions : undefined}
             detail={detail}
@@ -464,10 +466,7 @@ function ReferenceReaderContent({
             retryLabel={retryLabel}
             landing={reading.landing}
             onLandingReady={onLandingReady}
-            onReference={(recordKey, anchor, selection) => {
-              rememberPosition(anchor);
-              preview.open(recordKey, anchor, selection);
-            }}
+            onReference={onReference}
             onRankChange={(spell_rank) => {
               if (detail) {
                 rememberPosition();
@@ -482,7 +481,7 @@ function ReferenceReaderContent({
         </ReaderMatchNavigation.Provider>
       </section>
       {readerFooter}
-      {ownsPreview && preview.destination && (
+      {preview.destination && (
         <RecordReferenceDrawer
           destination={preview.destination}
           definition={preview.definition}
@@ -499,6 +498,11 @@ function ReferenceReaderContent({
           loading={preview.loading}
           error={preview.error}
           onRetry={preview.retry}
+          onReload={preview.reload}
+          retryLabel={preview.retryLabel}
+          reloadLabel={preview.reloadLabel}
+          onNavigateAway={preview.closeForNavigation}
+          restoreAnchorFocus={false}
           onClose={preview.close}
           onReference={preview.open}
           onRankChange={preview.changeRank}
@@ -518,5 +522,14 @@ function ReferenceReaderContent({
         />
       )}
     </section>
+  );
+  return (
+    <ReferenceHelpProvider
+      onHelp={onHelp}
+      onReference={onReference}
+      generation={detail?.artifact_generation}
+    >
+      {renderLayout ? renderLayout(header, reader) : reader}
+    </ReferenceHelpProvider>
   );
 }

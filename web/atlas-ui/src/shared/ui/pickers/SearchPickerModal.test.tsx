@@ -29,13 +29,15 @@ import {
   fieldFixture,
   summaryFixture,
 } from "../../../test/fixtures";
-import type { SearchResultsPage } from "../../../generated/atlas";
+import type { SearchResultsRequest, SearchResultsPage } from "../../../generated/atlas";
 import { SearchPickerModal } from "./SearchPickerModal";
 import { retireReferenceQueries } from "../../queries/referenceQueries";
 import {
   similarityConfigurationFixture,
   similarityPartsFixture,
 } from "../../../test/similarityFixtures";
+
+type SearchConnectionScope = NonNullable<SearchResultsRequest["connection_scope"]>;
 
 vi.mock("../../../api/atlasApi", async (original) => ({
   ...(await original<typeof import("../../../api/atlasApi")>()),
@@ -86,10 +88,12 @@ function Picker({
   disabled = false,
   open = true,
   similar = false,
+  connectionScope,
 }: {
   disabled?: boolean;
   open?: boolean;
   similar?: boolean;
+  connectionScope?: SearchConnectionScope;
 }) {
   const [form] = Form.useForm();
   const [selected, setSelected] = useState<string | null>(null);
@@ -100,7 +104,17 @@ function Picker({
       disabled={disabled}
       open={open}
       form={form}
+      searchHeader={
+        connectionScope
+          ? (scope) => (
+              <output aria-label="Discovery scope">
+                {scope?.kind ?? "unresolved"}
+              </output>
+            )
+          : undefined
+      }
       buildRequest={(query) => ({
+        ...(connectionScope ? { connection_scope: connectionScope } : {}),
         criteria: similar
           ? {
               kind: "similar_records",
@@ -138,7 +152,7 @@ function Picker({
     </SearchPickerModal>
   );
 }
-function renderPicker(similar = false) {
+function renderPicker(similar = false, connectionScope?: SearchConnectionScope) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: 20_000 } },
   });
@@ -150,7 +164,12 @@ function renderPicker(similar = false) {
       <QueryClientProvider client={client}>
         <SearchProfileProvider id={profile}>
           <App>
-            <Picker disabled={disabled} open={open} similar={similar} />
+            <Picker
+              disabled={disabled}
+              open={open}
+              similar={similar}
+              connectionScope={connectionScope}
+            />
           </App>
         </SearchProfileProvider>
       </QueryClientProvider>
@@ -159,6 +178,10 @@ function renderPicker(similar = false) {
   const view = render(content());
   return {
     client,
+    setConnectionScope: (next: SearchConnectionScope) => {
+      connectionScope = next;
+      view.rerender(content());
+    },
     setDisabled: (next: boolean) => {
       disabled = next;
       view.rerender(content());
@@ -400,14 +423,44 @@ it("shows loading without pagination, then completed empty for a queryless picke
   await waitFor(() =>
     expect(screen.getByRole("status", { name: "Searching…" })).toBeVisible(),
   );
-  expect(screen.queryByTitle("Next Page")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Next Page" })).toBeNull();
   expect(screen.queryByText("No matching records")).toBeNull();
   await act(async () =>
     finish({ ...result(), rows: [], page: { ...result().page, count: 0, total: 0n } }),
   );
   expect(await screen.findByText("No matching records")).toBeVisible();
   expect(screen.queryByText("Search for a record")).toBeNull();
-  expect(screen.queryByTitle("Next Page")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Next Page" })).toBeNull();
+});
+
+it("clears the candidate from the shared toolbar while retaining the Add form draft", async () => {
+  vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true });
+  renderPicker();
+  const row = await screen.findByRole("link", { name: /^Ghoul/ });
+  fireEvent.click(row);
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
+  );
+  fireEvent.change(screen.getByLabelText("Note"), {
+    target: { value: "Keep my note" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
+  expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "Clear selection" })).toBeNull();
+  expect(screen.getByLabelText("Note")).toHaveValue("Keep my note");
+  await waitFor(() => expect(row).toHaveFocus());
+});
+
+it("keeps clear selection available after returning to narrow results", async () => {
+  vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: false });
+  renderPicker();
+  fireEvent.click(await screen.findByRole("link", { name: /^Ghoul/ }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Results" }));
+  fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
+  expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
 });
 
 it("previews before explicit Add and retains the candidate when a later query has no results", async () => {
@@ -451,7 +504,7 @@ it("keeps the document and Add candidate together until a replacement is ready, 
   const preview = screen.getByRole("region", { name: "Record preview" });
   await within(preview).findByRole("heading", { name: "ghoul" });
   const oldTitle = within(preview).getByRole("heading", { name: "ghoul" });
-  const frames: string[] = [];
+  const frames = [oldTitle.textContent?.trim() ?? "blank"];
   const observer = new MutationObserver(() =>
     frames.push(preview.querySelector("h2")?.textContent?.trim() ?? "blank"),
   );
@@ -476,7 +529,7 @@ it("keeps the document and Add candidate together until a replacement is ready, 
     });
     fireEvent.submit(screen.getByLabelText("Note").closest("form")!);
     expect(addSelected).not.toHaveBeenCalled();
-    await within(preview).findByText("Loading Ogre…");
+    await screen.findByText("Loading Ogre…");
     expect(within(preview).getByRole("heading", { name: "ghoul" })).toBe(oldTitle);
     await act(async () =>
       finish({
@@ -624,7 +677,7 @@ it("inherits a profile switch on page one while retaining the explicit candidate
     target: { value: "Keep encounter draft" },
   });
   fireEvent.click(await screen.findByRole("button", { name: "Results" }));
-  fireEvent.click(screen.getByTitle("Next Page"));
+  fireEvent.click(screen.getByRole("button", { name: "Next Page" }));
   await waitFor(() => expect(search).toHaveBeenCalledTimes(2));
   setProfile("embeddinggemma");
   await waitFor(() => expect(search).toHaveBeenCalledTimes(3));
@@ -939,4 +992,108 @@ it("keeps picker selections and drafts through profile/page continuation navigat
   expect(screen.getByRole("button", { name: "Add" })).toBeEnabled();
   expect(cancelPicker).not.toHaveBeenCalled();
   expect(screen.getByRole("dialog", { name: "Choose record" })).toBeInTheDocument();
+});
+
+it("retains backend scope guidance while directions load but invalidates it for a different parent", async () => {
+  const scope: SearchConnectionScope = {
+    direction: "incoming",
+    include_contents: true,
+    parent: {
+      filter: {
+        kind: "any_of",
+        children: [
+          { kind: "boolean_constant", value: true, clause_id: "edit" },
+          { kind: "boolean_constant", value: false },
+        ],
+      },
+      exclude_clause_id: "edit",
+      incomplete: false,
+      list_ref: null,
+      trait_key: null,
+      connection_scope: null,
+      expected_artifact_generation: "generation-a",
+    },
+  };
+  const broad: SearchResultsPage = {
+    ...result(),
+    connection_scope: { kind: "all_entries", reason: "non_conjunctive_context" },
+  };
+  search.mockResolvedValue(broad);
+  const view = renderPicker(false, scope);
+  await waitFor(() =>
+    expect(screen.getByLabelText("Discovery scope")).toHaveTextContent("all_entries"),
+  );
+  await screen.findByRole("link", { name: /Ghoul/ });
+  let finishOld!: (value: SearchResultsPage) => void;
+  search.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finishOld = resolve;
+      }),
+  );
+  view.setConnectionScope({ ...scope, direction: "outgoing" });
+  await waitFor(() => expect(finishOld).toBeDefined());
+  expect(screen.getByLabelText("Discovery scope")).toHaveTextContent("all_entries");
+  expect(screen.queryByRole("link", { name: /Ghoul/ })).toBeNull();
+  let finishNew!: (value: SearchResultsPage) => void;
+  search.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finishNew = resolve;
+      }),
+  );
+  const nextScope: SearchConnectionScope = {
+    ...scope,
+    direction: "outgoing",
+    parent: {
+      ...scope.parent,
+      filter: { kind: "boolean_constant", value: true },
+      exclude_clause_id: null,
+    },
+  };
+  view.setConnectionScope(nextScope);
+  await waitFor(() => expect(finishNew).toBeDefined());
+  expect(screen.getByLabelText("Discovery scope")).toHaveTextContent("unresolved");
+  await act(async () => {
+    finishOld(broad);
+    finishNew({ ...result(), connection_scope: { kind: "connected" } });
+  });
+  await waitFor(() =>
+    expect(screen.getByLabelText("Discovery scope")).toHaveTextContent("connected"),
+  );
+  // React Query retains cached data when a background refresh fails.
+  search.mockRejectedValue(
+    new AtlasApiError(409, "Collection changed", {
+      code: "artifact_generation_changed",
+      message: "Collection changed",
+      recoverable_action: "refresh_results",
+    }),
+  );
+  await act(async () => {
+    await view.client.invalidateQueries({ queryKey: ["search-picker"] });
+  });
+  await screen.findByRole("button", { name: "Close picker" });
+  expect(screen.getByLabelText("Discovery scope")).toHaveTextContent("unresolved");
+  let failScope!: (error: Error) => void;
+  search.mockImplementationOnce(
+    () =>
+      new Promise((_resolve, reject) => {
+        failScope = reject;
+      }),
+  );
+  view.setConnectionScope({ ...nextScope, include_contents: false });
+  await waitFor(() => expect(failScope).toBeDefined());
+  expect(screen.getByLabelText("Discovery scope")).toHaveTextContent("unresolved");
+  // An earlier direction also has a cached page from this now-invalid generation.
+  view.setConnectionScope(scope);
+  expect(screen.getByLabelText("Discovery scope")).toHaveTextContent("unresolved");
+  await act(async () => {
+    failScope(
+      new AtlasApiError(409, "Collection changed", {
+        code: "artifact_generation_changed",
+        message: "Collection changed",
+        recoverable_action: "refresh_results",
+      }),
+    );
+  });
 });

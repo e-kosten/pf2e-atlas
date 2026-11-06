@@ -18,6 +18,18 @@ pub(crate) fn content_location(
     }
 }
 
+pub(crate) fn publication_edition(
+    remaster: Option<bool>,
+) -> Option<atlas_app_model::RecordEditionView> {
+    remaster.map(|remaster| {
+        if remaster {
+            atlas_app_model::RecordEditionView::Remaster
+        } else {
+            atlas_app_model::RecordEditionView::Legacy
+        }
+    })
+}
+
 pub fn record_summary_view(record: &SourceRecordSummary) -> RecordSummaryView {
     let kind = record
         .record_kind
@@ -26,6 +38,7 @@ pub fn record_summary_view(record: &SourceRecordSummary) -> RecordSummaryView {
         .unwrap_or_else(|| record.document_kind.to_lowercase());
     RecordSummaryView {
         unit_price_label: None,
+        edition: publication_edition(record.publication_remaster.as_value().copied()),
         record_key: record.key.to_string(),
         title: record
             .name
@@ -464,6 +477,44 @@ mod tests {
             publication_remaster: SourceQueryFact::unavailable(QueryFieldState::Missing).unwrap(),
             source_path: "items/unnamed.json".into(),
             content_hash: "source-content".into(),
+        }
+    }
+
+    #[test]
+    fn publication_edition_preserves_known_values_and_omits_unavailable_metadata() {
+        use atlas_domain::{QueryFieldState, SourceQueryFact};
+        for (fact, expected) in [
+            (SourceQueryFact::known(false), Some("legacy")),
+            (SourceQueryFact::known(true), Some("remaster")),
+            (
+                SourceQueryFact::unavailable(QueryFieldState::Missing).unwrap(),
+                None,
+            ),
+            (
+                SourceQueryFact::unavailable(QueryFieldState::Null).unwrap(),
+                None,
+            ),
+            (
+                SourceQueryFact::unavailable(QueryFieldState::Invalid).unwrap(),
+                None,
+            ),
+            (
+                SourceQueryFact::unavailable(QueryFieldState::NotApplicable).unwrap(),
+                None,
+            ),
+        ] {
+            let mut source = summary_with_name(SourceQueryFact::known("Record".into()));
+            source.publication_remaster = fact;
+            let view = record_summary_view(&source);
+            let wire = serde_json::to_value(&view).unwrap();
+            assert_eq!(
+                wire.get("edition").and_then(serde_json::Value::as_str),
+                expected
+            );
+            assert_eq!(
+                serde_json::from_value::<RecordSummaryView>(wire).unwrap(),
+                view
+            );
         }
     }
 

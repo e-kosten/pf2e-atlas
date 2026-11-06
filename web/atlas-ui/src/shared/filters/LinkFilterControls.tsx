@@ -1,130 +1,55 @@
+import { chipLinkClauses } from "./filterControls";
+import { linkScopeCopy } from "./linkScopeCopy";
+import { useReferenceRecordNavigation } from "../records/ReferenceHelp";
 import {
   destinationHref,
   isPrimaryActivation,
   navigateDestination,
 } from "../../app/navigation";
 import { recordDestination } from "../../app/destinations";
-import { Button, Popover, Radio, Space, Tooltip, Typography, theme } from "antd";
+import { Button, Popover, Radio, Space, Tooltip, Typography } from "antd";
 import { CloseOutlined, DownOutlined } from "@ant-design/icons";
 import { useRef, useState } from "react";
-import type {
-  QueryPredicate,
-  QueryRelationship,
-  FilterEditorFieldView,
-} from "../../generated/atlas";
-export type LinkLeaf = Extract<
-  QueryPredicate,
-  {
-    kind: "relationship";
-  }
->;
-export function linkClauses(filter: QueryPredicate | null): LinkLeaf[] {
-  if (!filter) return [];
-  if (filter.kind === "relationship") return [filter];
-  if (filter.kind === "all_of" || filter.kind === "any_of")
-    return filter.children.flatMap(linkClauses);
-  if (filter.kind === "not" || filter.kind === "exists")
-    return linkClauses(filter.predicate);
-  return [];
-}
-function simple(filter: QueryPredicate): boolean {
-  if (filter.kind === "not" || filter.kind === "any_of") return false;
-  if (filter.kind === "all_of") return filter.children.every(simple);
-  if (filter.kind === "exists") return simple(filter.predicate);
-  return true;
-}
-export function humanExpression(
-  filter: QueryPredicate,
-  title: (leaf: LinkLeaf) => string,
-  fields: FilterEditorFieldView[],
-): string {
-  if (filter.kind === "all_of" || filter.kind === "any_of")
-    return `(${filter.children.map((child) => humanExpression(child, title, fields)).join(filter.kind === "all_of" ? " AND " : " OR ")})`;
-  if (filter.kind === "not")
-    return `NOT ${humanExpression(filter.predicate, title, fields)}`;
-  if (filter.kind === "relationship")
-    return `${filter.relationship.direction === "incoming" ? "Links to" : "Linked from"} ${title(filter)} [${filter.relationship.include_contents ? "Whole entry" : "Main entry only"}]`;
-  if (filter.kind === "definition_reference")
-    return `References a definition [${filter.reference.include_contents ? "Whole entry" : "Main entry only"}]`;
-  if (filter.kind === "boolean_constant")
-    return filter.value ? "All records" : "No records";
-  const field = fields.find(
-    (entry) =>
-      entry.definition.path ===
-      (filter.kind === "exists" ? filter.collection : filter.field),
-  );
-  const name = field?.label ?? "Unavailable field";
-  if (filter.kind === "exists")
-    return `${name}: ${humanExpression(filter.predicate, title, fields)}`;
-  if (filter.kind === "state_match") return `${name}: ${filter.state}`;
-  if (filter.kind === "in") return `${name}: ${filter.values.join(", ")}`;
-  const operator =
-    field?.operators.find((entry) => entry.operator === filter.op)?.label ?? filter.op;
-  return `${name} ${operator} ${filter.kind === "set_match" ? filter.values.join(", ") : filter.value}`;
-}
+import type { QueryPredicate, QueryRelationship } from "../../generated/atlas";
+import { linkClauses, type LinkLeaf } from "./linkPredicates";
 export function LinkFilterControls({
   filter,
-  fields,
   title,
-  onAdd,
   onEdit,
   onRemove,
-  onAdvanced,
   limit,
 }: {
   filter: QueryPredicate | null;
-  fields: FilterEditorFieldView[];
   title: (leaf: LinkLeaf) => string;
-  onAdd: () => void;
   onEdit: (leaf: LinkLeaf, relationship?: QueryRelationship) => string | null;
   onRemove: (leaf: LinkLeaf) => void;
-  onAdvanced: () => void;
   limit?: number;
 }) {
-  const clauses = linkClauses(filter);
-  const expression =
-    filter && clauses.length ? humanExpression(filter, title, fields) : "";
-  const rootOperator = "Grouped filters";
+  const clauses = chipLinkClauses(filter);
+  const linkCount = linkClauses(filter).length;
+  const limitReached = linkCount > 0 && limit !== undefined && linkCount >= limit;
+  if (!clauses.length && !limitReached) return null;
   return (
-    <>
-      <Button onClick={onAdd}>
-        Links <DownOutlined aria-hidden="true" />
-      </Button>
-      {!!clauses.length &&
-        (filter && simple(filter) ? (
-          clauses.map((leaf) => (
-            <LinkChip
-              key={leaf.clause_id}
-              leaf={leaf}
-              title={title(leaf)}
-              onEdit={onEdit}
-              onRemove={onRemove}
-            />
-          ))
-        ) : (
-          <Tooltip
-            title={<span style={{ whiteSpace: "normal" }}>{expression}</span>}
-            trigger={["hover", "focus"]}
-            styles={{ root: { maxWidth: "min(600px, calc(100vw - 24px))" } }}
-          >
-            <Button
-              className="link-filter-summary"
-              onClick={onAdvanced}
-              aria-label={`${rootOperator}: ${clauses.length} link conditions. Edit advanced filters.`}
-            >
-              <span>
-                {rootOperator} · {clauses.length} link conditions
-              </span>
-              <span className="link-filter-summary__expression">{expression}</span>
-            </Button>
-          </Tooltip>
-        ))}
-      {limit !== undefined && clauses.length >= limit && (
+    <div
+      className="filter-controls__applied-links"
+      role="group"
+      aria-label="Link filters"
+    >
+      {clauses.map((leaf) => (
+        <LinkChip
+          key={leaf.clause_id}
+          leaf={leaf}
+          title={title(leaf)}
+          onEdit={onEdit}
+          onRemove={onRemove}
+        />
+      ))}
+      {limitReached && (
         <Typography.Text role="status">
           Remove a link condition before adding another.
         </Typography.Text>
       )}
-    </>
+    </div>
   );
 }
 function LinkChip({
@@ -138,7 +63,7 @@ function LinkChip({
   onEdit: (leaf: LinkLeaf, relationship?: QueryRelationship) => string | null;
   onRemove: (leaf: LinkLeaf) => void;
 }) {
-  const { token } = theme.useToken();
+  const reference = useReferenceRecordNavigation();
   const [open, setOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -162,13 +87,14 @@ function LinkChip({
     }
   }
   return (
-    <div
-      className="relationship-filter"
-      style={{ gap: token.marginXXS }}
+    <Space.Compact
+      className="relationship-filter applied-filter-chip-group"
+      size="small"
       role="group"
       aria-label="Relationship filter"
     >
       <Popover
+        destroyOnHidden
         trigger="click"
         placement="bottom"
         arrow={false}
@@ -207,6 +133,15 @@ function LinkChip({
               onClick={(event) => {
                 if (!isPrimaryActivation(event)) return;
                 event.preventDefault();
+                if (reference) {
+                  close();
+                  reference(
+                    relationship.selection.record_key,
+                    trigger.current ?? event.currentTarget,
+                    relationship.selection,
+                  );
+                  return;
+                }
                 navigateDestination(
                   recordDestination({
                     recordKey: relationship.selection.record_key,
@@ -239,9 +174,8 @@ function LinkChip({
               </Space>
             </Radio.Group>
             <Typography.Paragraph type="secondary">
-              {relationship.direction === "incoming"
-                ? "Whole entry also checks each matching record’s abilities, spells, equipment, and other nested documents."
-                : "Whole entry also checks this entry’s abilities, spells, equipment, and other nested documents."}
+              <strong>Whole entry:</strong>{" "}
+              {linkScopeCopy[relationship.direction].whole}
             </Typography.Paragraph>
             <Button
               onClick={() => {
@@ -257,6 +191,8 @@ function LinkChip({
       >
         <Button
           ref={trigger}
+          className="relationship-filter__edit applied-filter-chip"
+          title={`${direction} ${title}`}
           color="default"
           variant="filled"
           icon={<DownOutlined aria-hidden="true" />}
@@ -272,7 +208,9 @@ function LinkChip({
       </Popover>
       <Tooltip title="Remove relationship filter" trigger={["hover", "focus"]}>
         <Button
-          type="text"
+          className="applied-filter-chip"
+          color="default"
+          variant="filled"
           icon={<CloseOutlined />}
           aria-label="Remove relationship filter"
           onClick={() => {
@@ -281,6 +219,6 @@ function LinkChip({
           }}
         />
       </Tooltip>
-    </div>
+    </Space.Compact>
   );
 }

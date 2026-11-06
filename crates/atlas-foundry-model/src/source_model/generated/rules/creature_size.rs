@@ -16,7 +16,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Partial@547a0f3d80c1e1e886da0046
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Partial@fcca69329a533bb46f1129db
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaCreatureSizeRuleSchemaReachPartial {
@@ -42,7 +42,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_creature_size_
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@a9a1cd5549b683cefe3fb480
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@5b0ccfaf14e6cd60b57fdd34
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaCreatureSizeRuleSchema {
@@ -119,7 +119,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_creature_size_
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@a9a1cd5549b683cefe3fb480; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@5b0ccfaf14e6cd60b57fdd34; deferred fields:
 pub type CreatureSizeRule = SourceFromSchemaCreatureSizeRuleSchema;
 pub fn parse_creature_size_rule(
     v: &SourceValue,

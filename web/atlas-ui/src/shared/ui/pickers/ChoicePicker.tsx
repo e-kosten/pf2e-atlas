@@ -1,3 +1,5 @@
+import { restoreOverlayFocus } from "../overlays/restoreOverlayFocus";
+import { createPortal } from "react-dom";
 import { AtlasDrawer as Drawer } from "../overlays/AtlasDrawer";
 import {
   CloseOutlined,
@@ -57,6 +59,7 @@ export function ChoicePicker({
   valueEditing,
   pageKey,
   optionAction,
+  selectionContainer,
 }: {
   label: string;
   id: string;
@@ -77,6 +80,7 @@ export function ChoicePicker({
   valueEditing?: { triggerText: string; enterValue?: string; manualValue?: string };
   pageKey?: string;
   optionAction?: (option: ChoiceOption) => ReactNode;
+  selectionContainer?: HTMLElement | null;
 }) {
   const { token } = theme.useToken();
   const [sessionValues, setSessionValues] = useState<string[]>([]);
@@ -228,7 +232,7 @@ export function ChoicePicker({
                         : unavailable
                           ? token.colorTextDisabled
                           : undefined,
-                  background:
+                  backgroundColor:
                     state === "include"
                       ? "var(--filter-include-bg)"
                       : state === "exclude"
@@ -326,10 +330,61 @@ export function ChoicePicker({
       onClick={narrow ? () => setMenuOpen(true) : undefined}
       onKeyDown={closeOnEscape}
     >
-      {valueEditing?.triggerText ??
-        (selected.length ? label : "Any " + label.toLowerCase())}
+      {valueEditing?.triggerText ?? label}
     </Button>
   );
+  const selections =
+    selected.length > 0 ? (
+      <div
+        className="common-choice-selections"
+        aria-label={"Selected " + label.toLowerCase()}
+      >
+        {selected.map((value) => {
+          const state = stateOf(value);
+          const valueLabel =
+            choices.find((choice) => choice.value === value)?.label ??
+            labelForValue(value);
+          return (
+            <Button
+              key={value}
+              size="small"
+              color="default"
+              variant="filled"
+              className="applied-filter-chip"
+              aria-label={
+                "Remove " +
+                (valueEditing
+                  ? "selected"
+                  : state === "exclude"
+                    ? "excluded"
+                    : "included") +
+                " " +
+                valueLabel +
+                " from " +
+                label
+              }
+              onClick={(event) => {
+                restoreOverlayFocus(trigger.current, event.currentTarget);
+                change(value, "neutral");
+              }}
+            >
+              <span
+                className={
+                  state === "exclude"
+                    ? "applied-filter-chip__exclude"
+                    : "applied-filter-chip__include"
+                }
+                aria-hidden="true"
+              >
+                {state === "exclude" ? <MinusOutlined /> : <PlusOutlined />}
+              </span>
+              {valueLabel}
+              <CloseOutlined aria-hidden="true" />
+            </Button>
+          );
+        })}
+      </div>
+    ) : null;
   return (
     <ChoiceActionContext value={handoff}>
       <div className="common-choice-picker">
@@ -371,62 +426,9 @@ export function ChoicePicker({
             {open && menu}
           </Drawer>
         )}
-        {selected.length > 0 && (
-          <div
-            className="common-choice-selections"
-            aria-label={"Selected " + label.toLowerCase()}
-          >
-            {selected.map((value) => {
-              const state = stateOf(value);
-              const valueLabel =
-                choices.find((choice) => choice.value === value)?.label ??
-                labelForValue(value);
-              return (
-                <Button
-                  key={value}
-                  size="small"
-                  color="default"
-                  variant="filled"
-                  styles={{
-                    root: {
-                      color:
-                        state === "exclude"
-                          ? "var(--filter-exclude-text)"
-                          : "var(--filter-include-text)",
-                      background:
-                        state === "exclude"
-                          ? "var(--filter-exclude-bg)"
-                          : "var(--filter-include-bg)",
-                      borderColor:
-                        state === "exclude"
-                          ? "var(--filter-exclude-border)"
-                          : "var(--filter-include-border)",
-                    },
-                  }}
-                  aria-label={
-                    "Remove " +
-                    (valueEditing
-                      ? "selected"
-                      : state === "exclude"
-                        ? "excluded"
-                        : "included") +
-                    " " +
-                    valueLabel +
-                    " from " +
-                    label
-                  }
-                  onClick={() => change(value, "neutral")}
-                >
-                  <span aria-hidden="true">
-                    {state === "exclude" ? <MinusOutlined /> : <PlusOutlined />}
-                  </span>
-                  {valueLabel}
-                  <CloseOutlined aria-hidden="true" />
-                </Button>
-              );
-            })}
-          </div>
-        )}
+        {selectionContainer === undefined
+          ? selections
+          : selectionContainer && createPortal(selections, selectionContainer)}
       </div>
     </ChoiceActionContext>
   );

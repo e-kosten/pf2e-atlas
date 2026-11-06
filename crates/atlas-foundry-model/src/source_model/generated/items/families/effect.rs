@@ -238,7 +238,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_effect_badge_c
     })
 }
 
-// Source declaration: structural:2bcf185e88d748e8b28fcd62
+// Source declaration: structural:e5162ef99b7221e3522dc814
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum EffectSystemSourceBadge {
@@ -294,7 +294,7 @@ pub(in crate::source_model::generated) fn read_effect_system_source_badge(
     candidates.finish(v, c, p)
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@d74f222a95772c960aa11d1c
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@6fd57ce000d70e27ebf3bf94
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EffectSystemSourceDurationSourceFromSchema {
@@ -326,7 +326,7 @@ pub(in crate::source_model::generated) fn read_effect_system_source_duration_sou
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@14f297cc023b4690035419c5
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@4fb24ae5fe2773717dfcaff5
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EffectSystemSourceTokenIconSourceFromSchema {

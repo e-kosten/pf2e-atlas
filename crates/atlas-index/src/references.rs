@@ -221,8 +221,14 @@ pub struct ReferenceSummary {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ReferenceSummaryBacking {
-    Prepared,
-    Record { key: RecordKey },
+    Prepared {
+        /// Derived from the retained canonical body, not separately persisted.
+        #[serde(default)]
+        readable: bool,
+    },
+    Record {
+        key: RecordKey,
+    },
     None,
 }
 
@@ -248,7 +254,13 @@ impl From<&ReferenceEntry> for ReferenceSummary {
             label: entry.label.clone(),
             availability: entry.availability,
             backing: match &entry.backing {
-                ReferenceBacking::Prepared { .. } => ReferenceSummaryBacking::Prepared,
+                ReferenceBacking::Prepared { content, .. } => ReferenceSummaryBacking::Prepared {
+                    readable: atlas_record::source_content::has_prepared_reading_content(
+                        &content.text,
+                        &content.html,
+                        content.interactions.len(),
+                    ),
+                },
                 ReferenceBacking::Record { key } => {
                     ReferenceSummaryBacking::Record { key: key.clone() }
                 }
@@ -527,13 +539,24 @@ impl SqliteIndexReader {
         let row = self
             .native()?
             .query_row(
-                "SELECT definition_json,definition_hash FROM reference_entries WHERE key=?",
+                &format!(
+                    "SELECT definition_json,definition_hash,{} FROM reference_entries WHERE key=?",
+                    prepared_reading_projection_sql()
+                ),
                 [key.to_string()],
-                |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)),
+                |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, bool>(2)?,
+                    ))
+                },
             )
             .optional()?;
-        row.map(|(json, hash)| decode_reference_summary(self.native()?, key, &json, &hash))
-            .transpose()
+        row.map(|(json, hash, readable)| {
+            decode_reference_summary(self.native()?, key, &json, &hash, readable)
+        })
+        .transpose()
     }
 
     /// At most 100 keys. Missing complete-coverage keys remain distinct from a
@@ -563,7 +586,7 @@ impl SqliteIndexReader {
             .collect::<Vec<_>>()
             .join(",");
         let mut statement = self.native()?.prepare(&format!(
-            "SELECT key,definition_json,definition_hash FROM reference_entries WHERE key IN ({placeholders})"
+            "SELECT key,definition_json,definition_hash,{} FROM reference_entries WHERE key IN ({placeholders})", prepared_reading_projection_sql()
         ))?;
         let mut entries = std::collections::BTreeMap::new();
         for row in statement.query_map(
@@ -573,14 +596,15 @@ impl SqliteIndexReader {
                     r.get::<_, String>(0)?,
                     r.get::<_, String>(1)?,
                     r.get::<_, String>(2)?,
+                    r.get::<_, bool>(3)?,
                 ))
             },
         )? {
-            let (key, json, hash) = row?;
+            let (key, json, hash, readable) = row?;
             let key: DefinitionKey = key
                 .parse()
                 .map_err(|e| IndexError::Invalid(format!("invalid stored definition key: {e}")))?;
-            let summary = decode_reference_summary(self.native()?, &key, &json, &hash)?;
+            let summary = decode_reference_summary(self.native()?, &key, &json, &hash, readable)?;
             entries.insert(key, summary);
         }
         for key in keys {
@@ -900,11 +924,21 @@ pub(crate) fn validate_entry(
     validate_entry_metadata(c, entry, preparation, true)
 }
 
+/// Equivalent to the record-owned presence predicate over canonical prepared
+/// fields. SQLite returns only the capability bit; Rust never decodes the body.
+fn prepared_reading_projection_sql() -> String {
+    format!(
+        "(coalesce(length(json_extract(definition_json,'$.backing.content.text')),0)>0 OR coalesce(json_array_length(definition_json,'$.backing.content.interactions'),0)>0 OR instr(coalesce(json_extract(definition_json,'$.backing.content.html'),''),'{}')>0)",
+        atlas_record::source_content::PREPARED_IMAGE_TAG_PREFIX,
+    )
+}
+
 fn decode_reference_summary(
     c: &Connection,
     key: &DefinitionKey,
     json: &str,
     hash: &str,
+    readable: bool,
 ) -> Result<ReferenceSummary, IndexError> {
     // The canonical checksum covers the entire envelope, even though serde skips
     // prepared content. A second persisted metadata copy is unnecessary.
@@ -913,7 +947,13 @@ fn decode_reference_summary(
             "reference definition checksum mismatch".into(),
         ));
     }
-    let summary: ReferenceSummary = serde_json::from_str(json)?;
+    let mut summary: ReferenceSummary = serde_json::from_str(json)?;
+    if let ReferenceSummaryBacking::Prepared {
+        readable: capability,
+    } = &mut summary.backing
+    {
+        *capability = readable;
+    }
     if &summary.key != key {
         return Err(IndexError::Invalid(
             "reference definition identity mismatch".into(),
@@ -995,7 +1035,7 @@ fn validate_reference_summary(c: &Connection, entry: &ReferenceSummary) -> Resul
                 ));
             }
         }
-        ReferenceSummaryBacking::Prepared => {
+        ReferenceSummaryBacking::Prepared { .. } => {
             if !matches!(
                 entry.permission.disposition,
                 ReferencePermissionDisposition::ApprovedContent

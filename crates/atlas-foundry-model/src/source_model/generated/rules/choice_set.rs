@@ -19,7 +19,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: structural:7624c09e8d1182f68c251fc2
+// Source declaration: structural:a95dce422160513f56d47341
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum StringOrBoolean {
@@ -64,7 +64,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_allowed_drops_
     })
 }
 
-// Source declaration: src/module/apps/pick-a-thing-prompt/app.ts#PickableThing@c7b069aeecdb71fec02355c2
+// Source declaration: src/module/apps/pick-a-thing-prompt/app.ts#PickableThing@352939964dc85e300ff1dee0
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaChoiceSetSchemaChoicesAlternative1EntryPickableThing {
@@ -98,7 +98,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_choice_set_sch
     )
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@27e1c1f975b00f4ae07eab49
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@59d7d76fea9a818f87cbcd0a
 pub type SourceFromSchemaChoiceSetSchemaChoicesAlternative1 =
     Vec<SourceFromSchemaChoiceSetSchemaChoicesAlternative1EntryPickableThing>;
 pub(in crate::source_model::generated) fn read_source_from_schema_choice_set_schema_choices_alternative1(
@@ -254,7 +254,7 @@ pub(in crate::source_model::generated) fn read_choice_set_owned_items_types_entr
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@6d22aabc022b8ab878d2d466
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@1294e9a5447db2f2103a9a01
 pub type ChoiceSetOwnedItemsTypes = Vec<ChoiceSetOwnedItemsTypesEntry>;
 pub(in crate::source_model::generated) fn read_choice_set_owned_items_types(
     v: &SourceValue,
@@ -410,7 +410,7 @@ pub(in crate::source_model::generated) fn read_choice_set_pack_query(
     })
 }
 
-// Source declaration: structural:bcce815aa25890e19fd0f231#authored-input
+// Source declaration: structural:126008d9c7e89c1fd2cc69b9#authored-input
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "$variant", content = "$value", deny_unknown_fields)]
 pub enum SourceFromSchemaChoiceSetSchemaChoices {
@@ -501,7 +501,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_choice_set_sch
     candidates.finish(v, c, p)
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@27581130dd5889b6e79a6e2f#authored-input
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@b7bb3335ac595a998ec2cf13#authored-input
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaChoiceSetSchema {
@@ -591,7 +591,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_choice_set_sch
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@27581130dd5889b6e79a6e2f; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@b7bb3335ac595a998ec2cf13; deferred fields:
 pub type ChoiceSetRule = SourceFromSchemaChoiceSetSchema;
 pub fn parse_choice_set_rule(
     v: &SourceValue,

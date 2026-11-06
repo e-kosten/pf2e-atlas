@@ -6,8 +6,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc6 -p tsconfig.json",
+    "typecheck": "tsc6 -p tsconfig.json --noEmit",
     "test": "npm run build --silent && node --test dist/tests/*.test.js",
     "verify": "npm run typecheck && npm test",
     "verify-generated": "npm run build --silent && node --test dist/tests/pinned-generation.integration.js",
@@ -37,7 +37,7 @@
     "prepare-reference-supplement": "node dist/src/cli/prepare-reference-supplement.js"
   },
   "dependencies": {
-    "typescript": "5.9.3"
+    "typescript": "npm:@typescript/typescript6@6.0.2"
   },
   "devDependencies": {
     "@types/jest": "29.5.14",

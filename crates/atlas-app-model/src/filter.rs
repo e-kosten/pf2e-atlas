@@ -11,6 +11,9 @@ use ts_rs::TS;
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum FilterDiscoveryContext {
     Filtered {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        connection_scope: Option<crate::SearchConnectionScope>,
         #[serde(default)]
         #[ts(optional)]
         search_content: Option<atlas_domain::SearchContentScope>,
@@ -23,6 +26,9 @@ pub enum FilterDiscoveryContext {
         mode: RetrievalModeView,
     },
     SavedList {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        connection_scope: Option<crate::SearchConnectionScope>,
         #[serde(default)]
         #[ts(optional)]
         search_content: Option<atlas_domain::SearchContentScope>,

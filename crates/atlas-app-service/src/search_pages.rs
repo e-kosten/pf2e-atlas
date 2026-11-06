@@ -14,6 +14,7 @@ impl AtlasAppService {
         execution: &ReadExecutionContext,
     ) -> AppServiceResult<SearchResultsPage> {
         execution.check()?;
+        crate::similarity::validate_caller_similarity(&request)?;
         let page = SearchPage::new(request.page.number, request.page.size)?;
         let sort = crate::result_order::search_sort(request.sort, &request.criteria)?;
         let projection_execution = execution.clone();
@@ -34,6 +35,7 @@ impl AtlasAppService {
         let prepared = if let Some((query, filter, mode)) = query_request {
             let expected = request.expected_artifact_generation.clone();
             let filter = filter.clone();
+            let connection = request.connection_scope.clone();
             self.with_retrieval(execution, move |r| {
                 let actual = r.artifact_generation()?;
                 if let Some(expected) = expected
@@ -48,6 +50,9 @@ impl AtlasAppService {
                 if let Some(filter) = filter {
                     r.validate_filter(&filter)?;
                 }
+                if let Some(connection) = connection {
+                    crate::connection_scope::validate_connection_scope(r, &connection)?;
+                }
                 Ok(())
             })?;
             self.prepare_query(request.search_profile.as_ref(), query, retrieval_mode(mode))?
@@ -56,6 +61,11 @@ impl AtlasAppService {
         };
         execution.check()?;
         self.with_prepared_workspace(execution, prepared, move |workspace| {
+            let connected = request
+                .connection_scope
+                .as_ref()
+                .map(|scope| crate::connection_scope::resolve_connection_scope(workspace, scope))
+                .transpose()?;
             let retrieval = workspace.retrieval_mut();
             let artifact_generation = retrieval.artifact_generation()?;
             if let Some(expected) = &request.expected_artifact_generation
@@ -79,7 +89,11 @@ impl AtlasAppService {
             let relationship_summaries =
                 crate::relationship_search::prepare_filter(retrieval, filter)?;
             let evidence_filter = filter.cloned();
-            let scope = RecordScope::All;
+            let scope = connected
+                .as_ref()
+                .and_then(|scope| scope.keys.as_deref())
+                .map(RecordScope::Keys)
+                .unwrap_or(RecordScope::All);
             let cancelled = || projection_execution.check().is_err();
             let search_content = match &request.criteria {
                 SearchCriteria::TextSearch { search_content, .. }
@@ -190,7 +204,13 @@ impl AtlasAppService {
                     let definition = retrieval.trait_definition(&key)?.ok_or_else(|| {
                         AppServiceError::invalid_request("Trait definition not found")
                     })?;
-                    let keys = retrieval.trait_reference_record_keys(&key)?;
+                    let mut keys = retrieval.trait_reference_record_keys(&key)?;
+                    if let Some(connected) =
+                        connected.as_ref().and_then(|scope| scope.keys.as_ref())
+                    {
+                        let connected: std::collections::BTreeSet<_> = connected.iter().collect();
+                        keys.retain(|key| connected.contains(key));
+                    }
                     let scope = RecordScope::Keys(&keys);
                     let mode = SearchModeSummary::TraitReferences {
                         trait_key,
@@ -338,6 +358,7 @@ impl AtlasAppService {
                 retrieval,
             )?;
             Ok(SearchResultsPage {
+                connection_scope: connected.map(|scope| scope.view),
                 core_recipe: if matches!(mode, SearchModeSummary::TextSearch { .. })
                     && search_content == atlas_domain::SearchContentScope::Core
                 {

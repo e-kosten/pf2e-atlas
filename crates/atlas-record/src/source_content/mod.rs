@@ -75,5 +75,6 @@ pub use inclusion::{
 
 mod reading_metadata;
 pub use reading_metadata::{
-    RoutineHeader, check_traits, routine_header, standalone_labeled_paragraph,
+    PREPARED_IMAGE_TAG_PREFIX, RoutineHeader, check_traits, has_prepared_reading_content,
+    routine_header, standalone_labeled_paragraph,
 };

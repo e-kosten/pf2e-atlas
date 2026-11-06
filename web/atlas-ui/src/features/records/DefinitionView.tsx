@@ -5,20 +5,30 @@ import { atlasRouter } from "../../app/router";
 import { definitionDestination } from "../../app/destinations";
 import { useDefinitionDetail } from "../../shared/records/useDefinitionDetail";
 import { usePageTitle } from "../../shared/browser/usePageTitle";
-import { useRecordPreview } from "../../shared/records/useRecordPreview";
+import {
+  ReferenceHelpHost,
+  useReferenceHelpSession,
+} from "../../shared/records/ReferenceHelpHost";
 import {
   referenceDestination,
   ReferenceHelpProvider,
 } from "../../shared/records/ReferenceHelp";
 import { DefinitionDetailPane } from "../../shared/records/DefinitionDetailPane";
 import { DocumentPagePane } from "../../shared/records/DocumentPagePane";
-import { RecordReferenceDrawer } from "../../shared/records/RecordReferenceDrawer";
 import { DefinitionAssociations } from "../../shared/records/DefinitionAssociations";
 import { retireReferenceQueries } from "../../shared/queries/referenceQueries";
 
 export function DefinitionView({ definitionKey }: { definitionKey: string }) {
+  return (
+    <ReferenceHelpHost>
+      <DefinitionViewContent definitionKey={definitionKey} />
+    </ReferenceHelpHost>
+  );
+}
+
+function DefinitionViewContent({ definitionKey }: { definitionKey: string }) {
   const query = useDefinitionDetail(definitionKey);
-  const preview = useRecordPreview();
+  const preview = useReferenceHelpSession()!;
   const client = useQueryClient();
   const recordTarget =
     query.data?.help.destination?.kind === "record"
@@ -53,6 +63,7 @@ export function DefinitionView({ definitionKey }: { definitionKey: string }) {
   return (
     <ReferenceHelpProvider
       onHelp={preview.openHelp}
+      onReference={preview.open}
       generation={query.data?.artifact_generation}
     >
       <main className="record-view">
@@ -75,26 +86,6 @@ export function DefinitionView({ definitionKey }: { definitionKey: string }) {
           )}
         </DocumentPagePane>
       </main>
-      {preview.destination && (
-        <RecordReferenceDrawer
-          destination={preview.destination}
-          definition={preview.definition}
-          help={preview.help}
-          onHelp={preview.openHelp}
-          anchor={preview.anchor}
-          detail={preview.detail}
-          loading={preview.loading}
-          error={preview.error}
-          onRetry={preview.retry}
-          onClose={preview.close}
-          onReference={preview.open}
-          onRankChange={preview.changeRank}
-          readingHistory={preview.readingHistory}
-          requestedNavigation={preview.selection}
-          landing={preview.landing}
-          onOpenFullPage={preview.close}
-        />
-      )}
     </ReferenceHelpProvider>
   );
 }

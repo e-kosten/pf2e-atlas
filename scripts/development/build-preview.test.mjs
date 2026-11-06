@@ -34,7 +34,7 @@ function fixture(t) {
   put("rust-toolchain.toml", '[toolchain]\nchannel="1.95.0"\n');
   put(
     "web/atlas-ui/package.json",
-    '{"type":"module","engines":{"node":"^22.18.0 || ^24.0.0"}}',
+    '{"type":"module","engines":{"node":"^22.18.0 || ^24.0.0 || ^26.0.0"}}',
   );
   put("web/atlas-ui/node_modules/.package-lock.json", "{}");
   put(

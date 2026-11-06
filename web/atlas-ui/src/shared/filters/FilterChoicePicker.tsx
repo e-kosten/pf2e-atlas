@@ -35,6 +35,7 @@ type DiscoveryProps = {
   countsEnabled?: boolean;
   countQueryKey?: readonly unknown[];
   countLimit?: number;
+  selectionContainer?: HTMLElement | null;
 };
 
 type ChoiceEdit =
@@ -90,6 +91,7 @@ function FilterChoicePicker({
   countsEnabled = true,
   countQueryKey,
   countLimit = 0,
+  selectionContainer,
 }: DiscoveryProps & { label?: string; edit: ChoiceEdit }) {
   const selected =
     edit.kind === "condition"
@@ -228,6 +230,7 @@ function FilterChoicePicker({
           </ChoicePickerAction>
         ) : null;
       }}
+      selectionContainer={selectionContainer}
       labelForValue={labelForValue}
       id={field.definition.id}
       label={label}

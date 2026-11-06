@@ -195,6 +195,13 @@ related-filter actions. Record reading context participates in request, cache an
 retained-content identity; ordinary authored reading cannot reuse a general-template
 projection. Exact owner returns retain their ordinary source address.
 
+The application host supplies a fallback session for links outside an existing
+reader. Selected-record readers and contextual encounter readers retain their
+source-scoped owner and actions. Both ordinary record links and vocabulary help
+delegate through that host's handlers, so nested reads keep one active history
+and the correct owner-return affordance. An application fallback must not replace
+a selected reader's owner context or action renderer.
+
 Record-backed help retains the actual record URL, with explicit reading context
 and optional semantic definition key. Full-page reading resolves that key through
 the existing definition-detail service and uses its property actions only when
@@ -204,6 +211,12 @@ entries remain filterable without a reading destination. Traits keep their URLs 
 specialized membership, reference and Similar workflows. These routes add no
 glossary browser or duplicate record page. Native modified links and the Drawer's
 Open full page action retain the same checked destination and reading purpose.
+
+Prepared backing alone does not establish readability. Canonical content must
+contain readable text, a visible interaction or a safe rendered image. Empty HTML
+shells retain their source, identities, associations and stored seed data while
+product reading projections withhold an empty destination/body. Single and batched
+metadata projections use the same content-presence policy.
 
 Glossary Drawers show the useful definition body and ordinary publication
 attribution. Technical extraction provenance stays in its canonical diagnostic/data

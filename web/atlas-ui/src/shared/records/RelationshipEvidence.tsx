@@ -1,3 +1,4 @@
+import { useReferenceRecordNavigation } from "./ReferenceHelp";
 import { referenceQueryMeta } from "../queries/referenceQueries";
 import { ErrorNotice } from "../feedback/ErrorNotice";
 import {
@@ -237,6 +238,7 @@ function EvidenceLink({
   title: string;
   onNavigate?: (selection: RecordNavigationView, anchor: HTMLElement) => void;
 }) {
+  const reference = useReferenceRecordNavigation();
   const route = recordDestination({
     recordKey: selection.record_key,
     selection,
@@ -248,6 +250,8 @@ function EvidenceLink({
         if (!isPrimaryActivation(event)) return;
         event.preventDefault();
         if (onNavigate) onNavigate(selection, event.currentTarget);
+        else if (reference)
+          reference(selection.record_key, event.currentTarget, selection);
         else navigateDestination(route);
       }}
     >

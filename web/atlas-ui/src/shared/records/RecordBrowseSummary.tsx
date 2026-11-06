@@ -1,3 +1,4 @@
+import { RecordEditionBadge } from "./RecordEditionBadge";
 import {
   destinationHref,
   isPrimaryActivation,
@@ -106,6 +107,7 @@ export function RecordBrowseSummary({
       </div>
       <div className="reference-result__metadata">
         <RecordRarity rarity={record.rarity} />
+        <RecordEditionBadge edition={record.edition} />
         {record.unit_price_label && <span>{record.unit_price_label}</span>}
         <span>{record.publication ?? record.pack}</span>
         {context && <span>{context}</span>}

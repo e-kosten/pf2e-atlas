@@ -92,3 +92,8 @@ installers. Both archive sets carry the release's third-party notices.
 output and workspace-scoped bundled skill installation in a disposable directory.
 Full jobs additionally run `smoke-packaged-web`. Nightly publication tests both
 downloaded variants before advancing its channel pointer.
+
+Stable releases, nightlies and nonpublishing build checks use the same build and
+assembly owner in `.github/workflows/release-build-check.yml`. Publication remains
+in the stable/nightly workflow. See [release procedure](../../docs/development/releases.md)
+for exact-source nightly CI reuse and tool-verification prerequisites.

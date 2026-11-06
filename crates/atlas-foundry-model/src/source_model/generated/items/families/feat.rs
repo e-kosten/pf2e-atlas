@@ -97,7 +97,7 @@ pub(in crate::source_model::generated) fn read_feat_system_source_category(
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@5a825de36b73e8fb3990d20b
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@99ebeb55189c3fa3eab456e8
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FeatSystemSourceLevelSourceFromSchema {
@@ -120,7 +120,7 @@ pub(in crate::source_model::generated) fn read_feat_system_source_level_source_f
     })
 }
 
-// Source declaration: src/module/item/feat/data.ts#FeatSystemSchema.$object.subfeatures.$object.languages.$object@77f2830fc7729569a01cfe26
+// Source declaration: src/module/item/feat/data.ts#FeatSystemSchema.$object.subfeatures.$object.languages.$object@1a18c1c035f261522715521b
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FeatSystemSourceSubfeaturesSourceFromSchemaLanguages {
@@ -159,7 +159,7 @@ pub(in crate::source_model::generated) fn read_one_to_four(
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@50d2674d4117e0b03fcabbd2
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@0c648b7c6021db4b4914cdff
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FeatSystemSourceSubfeaturesSourceFromSchemaProficienciesPartialAdvancedSourceFromSchema {
@@ -186,7 +186,7 @@ pub(in crate::source_model::generated) fn read_feat_system_source_subfeatures_so
     )
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Partial@835030060bcfab01a2175e6a
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Partial@1c3cd051e4e275ac73ffb2a0
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FeatSystemSourceSubfeaturesSourceFromSchemaProficienciesPartial {
@@ -489,7 +489,7 @@ pub(in crate::source_model::generated) fn read_feat_system_source_subfeatures_so
     }
 }
 
-// Source declaration: src/module/item/feat/data.ts#SensesField.$object.special.$object@e7091739d81f4bca6cf650a7
+// Source declaration: src/module/item/feat/data.ts#SensesField.$object.special.$object@df3d79374f7a105d92bcee3e
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FeatSystemSourceSubfeaturesSourceFromSchemaSensesPartialBloodsenseSourceFromSchemaSpecial
@@ -520,7 +520,7 @@ pub(in crate::source_model::generated) fn read_feat_system_source_subfeatures_so
     )
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@8e03723bcc5d8f323867e2c5
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@65d0ae1e235fdb9c20a0548f
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FeatSystemSourceSubfeaturesSourceFromSchemaSensesPartialBloodsenseSourceFromSchema {
@@ -551,7 +551,7 @@ pub(in crate::source_model::generated) fn read_feat_system_source_subfeatures_so
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Partial@889373b68d2a2a04b5d24ce3
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Partial@2f0c92c5ee3f007f5aa2474e
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FeatSystemSourceSubfeaturesSourceFromSchemaSensesPartial {
@@ -659,7 +659,7 @@ pub(in crate::source_model::generated) fn read_feat_system_source_subfeatures_so
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@47b5f0673a675456b9bd6d36
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@b83a0524184b0815b44b977d
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FeatSystemSourceSubfeaturesSourceFromSchema {
@@ -710,7 +710,7 @@ pub(in crate::source_model::generated) fn read_feat_system_source_subfeatures_so
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@e34a6ece40edff4f60af364e
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@025e4363e5cd93cc5fac0485
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FeatSystemSourceTraitsSourceFromSchema {

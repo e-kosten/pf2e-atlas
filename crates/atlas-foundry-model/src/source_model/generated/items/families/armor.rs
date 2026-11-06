@@ -586,7 +586,7 @@ pub(in crate::source_model::generated) fn read_armor_rune_source_property_entry(
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@8ad23eddcfa9a338adc0dcaa
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@6ec82f60f3b5ebb9cf98c58f
 pub type ArmorRuneSourceProperty = Vec<ArmorRuneSourcePropertyEntry>;
 pub(in crate::source_model::generated) fn read_armor_rune_source_property(
     v: &SourceValue,

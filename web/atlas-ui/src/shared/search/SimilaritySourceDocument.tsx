@@ -8,10 +8,11 @@ import { rootNavigation, useReferenceReading } from "../records/useReferenceRead
 import { ReferenceReader } from "../records/ReferenceReader";
 import { DocumentIdentityHeader } from "../records/DocumentIdentityHeader";
 import { PreparedContentBody } from "../records/PreparedContent";
-import { useRecordPreview } from "../records/useRecordPreview";
-import { RecordReferenceDrawer } from "../records/RecordReferenceDrawer";
-import { recordDestination } from "../../app/destinations";
-import { navigateDestination } from "../../app/navigation";
+import {
+  ReferenceHelpHost,
+  useReferenceHelpSession,
+} from "../records/ReferenceHelpHost";
+import { ReferenceHelpProvider } from "../records/ReferenceHelp";
 import { isArtifactGenerationChanged } from "../queries/referenceQueries";
 import { recordReadingIdentity, useRetainedRecord } from "../records/useRetainedRecord";
 import {
@@ -49,26 +50,30 @@ export function SimilaritySourceDocument({
   selection?: SourceSectionSelection | null;
   onReloadSections: () => void;
 }) {
-  return seed.kind === "record" ? (
-    <RecordSourceDocument
-      key={JSON.stringify([seed.record_key, generation])}
-      recordKey={seed.record_key}
-      generation={generation}
-      target={target}
-      selection={selection}
-      active={active}
-      onReloadSections={onReloadSections}
-    />
-  ) : (
-    <TraitSourceDocument
-      key={JSON.stringify([seed.trait_key, generation])}
-      traitKey={seed.trait_key}
-      generation={generation}
-      target={target}
-      selection={selection}
-      active={active}
-      onReloadSections={onReloadSections}
-    />
+  return (
+    <ReferenceHelpHost generation={generation ?? undefined}>
+      {seed.kind === "record" ? (
+        <RecordSourceDocument
+          key={JSON.stringify([seed.record_key, generation])}
+          recordKey={seed.record_key}
+          generation={generation}
+          target={target}
+          selection={selection}
+          active={active}
+          onReloadSections={onReloadSections}
+        />
+      ) : (
+        <TraitSourceDocument
+          key={JSON.stringify([seed.trait_key, generation])}
+          traitKey={seed.trait_key}
+          generation={generation}
+          target={target}
+          selection={selection}
+          active={active}
+          onReloadSections={onReloadSections}
+        />
+      )}
+    </ReferenceHelpHost>
   );
 }
 
@@ -198,7 +203,7 @@ function TraitSourceDocument({
     query.data,
     query.error,
   );
-  const preview = useRecordPreview();
+  const preview = useReferenceHelpSession()!;
   const heading = useRef<HTMLHeadingElement>(null);
   const focusedVisit = useRef<number | null>(null);
   useLayoutEffect(() => {
@@ -241,71 +246,48 @@ function TraitSourceDocument({
         />
       )}
       {detail ? (
-        <article className="record-reference">
-          <DocumentIdentityHeader
-            title={detail.label}
-            classification="Trait"
-            headingRef={heading}
-          />
-          {query.isFetching && <Spin delay={500} size="small" />}
-          {detail.content ? (
-            <SourceSectionSelectionContext
-              value={
-                detail.artifact_generation === generation
-                  ? {
-                      seed: { kind: "trait", trait_key: traitKey },
-                      generation,
-                      selection,
-                    }
-                  : null
-              }
-            >
-              <PreparedContentBody
-                body={detail.content.body}
-                sourceLocation={{ trait_key: traitKey }}
-                sectionRendering={detail.content.section_rendering}
-                references={detail.content.references}
-                onReference={preview.open}
-              />
-            </SourceSectionSelectionContext>
-          ) : (
-            <Alert
-              type="info"
-              title="No definition is available in this reference collection."
+        <ReferenceHelpProvider
+          onHelp={preview.openHelp}
+          onReference={preview.open}
+          generation={detail.artifact_generation}
+        >
+          <article className="record-reference">
+            <DocumentIdentityHeader
+              title={detail.label}
+              classification="Trait"
+              headingRef={heading}
             />
-          )}
-        </article>
+            {query.isFetching && <Spin delay={500} size="small" />}
+            {detail.content ? (
+              <SourceSectionSelectionContext
+                value={
+                  detail.artifact_generation === generation
+                    ? {
+                        seed: { kind: "trait", trait_key: traitKey },
+                        generation,
+                        selection,
+                      }
+                    : null
+                }
+              >
+                <PreparedContentBody
+                  body={detail.content.body}
+                  sourceLocation={{ trait_key: traitKey }}
+                  sectionRendering={detail.content.section_rendering}
+                  references={detail.content.references}
+                  onReference={preview.open}
+                />
+              </SourceSectionSelectionContext>
+            ) : (
+              <Alert
+                type="info"
+                title="No definition is available in this reference collection."
+              />
+            )}
+          </article>
+        </ReferenceHelpProvider>
       ) : (
         query.isPending && <Spin delay={500} description="Loading trait…" />
-      )}
-      {preview.destination && (
-        <RecordReferenceDrawer
-          destination={preview.destination}
-          definition={preview.definition}
-          help={preview.help}
-          onHelp={preview.openHelp}
-          anchor={preview.anchor}
-          requestedNavigation={preview.selection}
-          detail={preview.detail}
-          loading={preview.loading}
-          error={preview.error}
-          onRetry={preview.retry}
-          onClose={preview.close}
-          onReference={preview.open}
-          onRankChange={preview.changeRank}
-          landing={preview.landing}
-          readingHistory={preview.readingHistory}
-          onOpenFullPage={() => {
-            navigateDestination(
-              recordDestination({
-                recordKey: preview.recordKey!,
-                selection: preview.selection,
-                landing: preview.landing,
-              }),
-            );
-            preview.close();
-          }}
-        />
       )}
     </section>
   );

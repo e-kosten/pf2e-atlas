@@ -8,7 +8,11 @@ use rusqlite::Connection;
 struct Locale;
 impl LocalizationResolver for Locale {
     fn localized_value(&self, key: &str) -> Option<&str> {
-        (key == "Fixture.Other").then_some("Existing contextual prose.")
+        match key {
+            "Fixture.Other" => Some("Existing contextual prose."),
+            "Fixture.EmptyContent" => Some("<p></p>"),
+            _ => None,
+        }
     }
 }
 
@@ -972,7 +976,10 @@ fn metadata_batches_skip_prepared_body_hydration_and_keep_integrity_checks() {
         vec![&key, &entries[2].key, &entries[3].key]
     );
     assert_eq!(batch.missing, vec![missing]);
-    assert_eq!(batch.entries[0].backing, ReferenceSummaryBacking::Prepared);
+    assert_eq!(
+        batch.entries[0].backing,
+        ReferenceSummaryBacking::Prepared { readable: false }
+    );
     assert!(
         reader.reference_entry(&key).is_err(),
         "explicit detail must still decode and reject malformed prepared content"
@@ -1017,6 +1024,77 @@ fn metadata_batches_skip_prepared_body_hydration_and_keep_integrity_checks() {
         open_reader(&path).unwrap().reference_summary(&key).is_err(),
         "envelope checksum remains mandatory for metadata reads"
     );
+}
+
+#[test]
+fn prepared_reading_metadata_matches_canonical_presence_without_rewriting_bodies() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("references.sqlite");
+    let (mut input, mut entries, notices) = fixture();
+    let cases = [
+        ("<p></p>", false),
+        ("<p>&nbsp;</p>", false),
+        ("<br>", false),
+        ("<hr>", false),
+        ("<p title=\"<img \"></p>", false),
+        ("@Localize[Fixture.EmptyContent]", false),
+        ("<img src=\"https://example.com/image.png\">", true),
+        ("<img src=\"https://example.com/image.png\" alt=\"\">", true),
+        ("@Damage[1d6[fire]]", true),
+        ("<p>Actual explanatory prose.</p>", true),
+    ];
+    let mut selected = Vec::new();
+    for (index, (markup, readable)) in cases.iter().enumerate() {
+        let entry = prepared(
+            &format!("rule:pf2e:Fixture.Presence{index}"),
+            &format!("Fixture.Presence{index}"),
+            markup,
+            input.context.audience,
+        );
+        selected.push((entry.key.clone(), *readable));
+        entries.push(entry);
+    }
+    publish(&path, &mut input, &entries, &notices).unwrap();
+    let reader = open_reader(&path).unwrap();
+    let revision = reader.artifact_instance().reference_revision();
+    let keys = selected
+        .iter()
+        .map(|(key, _)| key.clone())
+        .collect::<Vec<_>>();
+    let batch = reader.reference_summaries(&keys).unwrap();
+    let c = Connection::open(&path).unwrap();
+    for ((key, readable), summary) in selected.iter().zip(batch.entries) {
+        let entry = entries.iter().find(|entry| &entry.key == key).unwrap();
+        assert_eq!(
+            summary.backing,
+            ReferenceSummaryBacking::Prepared {
+                readable: *readable
+            },
+            "{key}"
+        );
+        assert_eq!(
+            summary,
+            ReferenceSummary::from(entry),
+            "SQL and in-memory projections differ for {key}"
+        );
+        assert_eq!(reader.reference_summary(key).unwrap(), Some(summary));
+        assert_eq!(reader.reference_entry(key).unwrap().as_ref(), Some(entry));
+        let json: String = c
+            .query_row(
+                "SELECT definition_json FROM reference_entries WHERE key=?",
+                [key.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let stored: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(json, serde_json::to_string(entry).unwrap());
+        assert!(
+            stored["backing"].get("readable").is_none(),
+            "reading capability must remain derived for retained entries"
+        );
+        assert_eq!(stored, serde_json::to_value(entry).unwrap());
+    }
+    assert_eq!(reader.artifact_instance().reference_revision(), revision);
 }
 
 #[test]

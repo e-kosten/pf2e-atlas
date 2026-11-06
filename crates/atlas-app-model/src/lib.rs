@@ -219,16 +219,18 @@ pub use presentation::{
 pub use readiness::{AppReadinessStatus, AppReadinessView, SearchProfileReadinessView};
 pub use record::{
     ContentLocationView, EffectReferenceLabelView, RecordBadgeView, RecordDetailRequest,
-    RecordDetailView, RecordNavigationView, RecordRefResolutionView, RecordRelationshipView,
-    RecordResolutionAmbiguousView, RecordResolutionCandidateView, RecordSummaryView,
+    RecordDetailView, RecordEditionView, RecordNavigationView, RecordRefResolutionView,
+    RecordRelationshipView, RecordResolutionAmbiguousView, RecordResolutionCandidateView,
+    RecordSummaryView,
 };
 pub use search::{
-    DefinitionReferenceEvidenceView, ReferenceClauseConditionView, ReferenceOccurrenceView,
-    RelationshipClausePresentationView, RelationshipClauseSummaryView, RelationshipEvidenceView,
-    RelationshipOccurrencesPage, RelationshipOccurrencesRequest, RetrievalModeView,
-    SearchCoverageView, SearchCriteria, SearchLaneView, SearchMatchSectionView, SearchModeSummary,
-    SearchPageRequest, SearchPageView, SearchResultRow, SearchResultsPage, SearchResultsRequest,
-    SearchWitnessView,
+    ConnectionScopeUnavailableReason, ConnectionScopeView, DefinitionReferenceEvidenceView,
+    ReferenceClauseConditionView, ReferenceOccurrenceView, RelationshipClausePresentationView,
+    RelationshipClauseSummaryView, RelationshipEvidenceView, RelationshipOccurrencesPage,
+    RelationshipOccurrencesRequest, RetrievalModeView, SearchConnectionScope, SearchCoverageView,
+    SearchCriteria, SearchLaneView, SearchMatchSectionView, SearchModeSummary, SearchPageRequest,
+    SearchPageView, SearchResultRow, SearchResultsPage, SearchResultsRequest, SearchWitnessView,
+    StaticSearchContext,
 };
 
 #[cfg(test)]

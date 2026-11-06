@@ -5,6 +5,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AtlasApiError, getRelationshipOccurrences } from "../../api/atlasApi";
 import { summaryFixture } from "../../test/fixtures";
 import { RelationshipEvidence } from "./RelationshipEvidence";
+import { ReferenceHelpProvider } from "./ReferenceHelp";
 import { rootNavigation } from "./useReferenceReading";
 import { RouterTestContext } from "../../test/router";
 import type {
@@ -607,4 +608,39 @@ it("links context-bearing record destinations with their supplied reading purpos
     "href",
     "/records/abilities:darkvision?reading_context=general_definition&definition_key=sense%3Adarkvision",
   );
+});
+
+it("keeps ordinary evidence navigation in the current reading host with its exact source address", () => {
+  const globalReference = vi.fn();
+  const localReference = vi.fn();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <RouterTestContext>
+      <QueryClientProvider client={client}>
+        <ReferenceHelpProvider onReference={globalReference}>
+          <ReferenceHelpProvider onHelp={vi.fn()} onReference={localReference}>
+            <RelationshipEvidence
+              evidence={evidence}
+              filter={{ kind: "relationship", clause_id: "link", relationship }}
+              summary={constraint}
+              resultKey="actors:goblin"
+              generation="generation-a"
+            />
+          </ReferenceHelpProvider>
+        </ReferenceHelpProvider>
+      </QueryClientProvider>
+    </RouterTestContext>,
+  );
+  const link = screen.getByRole("link", { name: "Goblin" });
+  fireEvent.click(link, { ctrlKey: true });
+  expect(localReference).not.toHaveBeenCalled();
+  expect(globalReference).not.toHaveBeenCalled();
+  fireEvent.click(link);
+  expect(localReference).toHaveBeenCalledExactlyOnceWith(
+    occurrence.source_navigation.record_key,
+    link,
+    occurrence.source_navigation,
+  );
+  expect(globalReference).not.toHaveBeenCalled();
+  expect(screen.queryByRole("dialog")).toBeNull();
 });

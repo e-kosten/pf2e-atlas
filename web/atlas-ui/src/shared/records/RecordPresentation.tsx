@@ -1,3 +1,4 @@
+import { RecordEditionBadge } from "./RecordEditionBadge";
 import {
   ownerReturnHref,
   isPrimaryActivation,
@@ -262,9 +263,10 @@ export function RecordIdentity({
         ) : null
       }
     >
-      {(hasRarity || traits.length > 0 || badgeExplanations) && (
+      {(identity?.edition || hasRarity || traits.length > 0 || badgeExplanations) && (
         <div className="badge-row">
           <RecordRarity rarity={identity?.rarity ?? null} />
+          <RecordEditionBadge edition={identity?.edition} />
           {traits.map((trait) => (
             <TraitBadge key={`${trait.kind}-${trait.value}`} trait={trait} />
           ))}

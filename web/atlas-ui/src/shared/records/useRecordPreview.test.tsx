@@ -352,3 +352,54 @@ it("abandons a suspended owner on explicit navigation without resuming or focusi
   expect(focus).not.toHaveBeenCalled();
   expect(result.current.destination).toBeNull();
 });
+
+it("keeps mixed trait and record history with exact owned addresses and original opener", async () => {
+  const api = await import("../../api/atlasApi");
+  const help = {
+    definition_key: "trait:agile",
+    availability: "available" as const,
+    destination: { kind: "definition" as const, key: "trait:agile" },
+    related_filters: [],
+  };
+  const read = vi.spyOn(api, "getDefinitionDetail").mockResolvedValue({
+    definition_key: "trait:agile",
+    label: "Agile",
+    artifact_generation: "generation-a",
+    help,
+    content: { body: { kind: "plain", text: "Agile rules." }, references: [] },
+    attribution: null,
+    notices: [],
+    references: [],
+    references_availability: "available",
+    references_truncated: false,
+  });
+  const { result } = renderHook(() => useRecordPreview(), { wrapper: queryWrapper });
+  const opener = document.createElement("button");
+  document.body.append(opener);
+  const selection = {
+    ...detailFixture("actors:ghoul").selected,
+    spell_rank: 5,
+    embedded_path: [{ collection: "items", identity: { SnapshotLocal: { index: 2 } } }],
+    source_fingerprint: "verified-source",
+  };
+  try {
+    act(() => result.current.open("actors:ghoul", opener, selection, selection));
+    act(() => result.current.openHelp(help, opener, "generation-a"));
+    expect(result.current.recordKey).toBeNull();
+    expect(result.current.destination).toEqual(help.destination);
+    act(() => result.current.open("rules:condition", opener));
+    act(() => result.current.readingHistory.onBack());
+    expect(result.current.destination).toEqual(help.destination);
+    act(() => result.current.readingHistory.onBack());
+    expect(result.current.recordKey).toBe("actors:ghoul");
+    expect(result.current.selection).toEqual(selection);
+    expect(result.current.landing).toEqual(selection);
+    expect(result.current.readingHistory.canGoBack).toBe(false);
+    act(() => result.current.close());
+    expect(result.current.destination).toBeNull();
+    expect(opener).toHaveFocus();
+  } finally {
+    opener.remove();
+    read.mockRestore();
+  }
+});

@@ -4,6 +4,7 @@ import { generateTraitDefinitionModule } from './trait-definitions.js';
 import { generateReferenceModule } from './reference-module.js';
 import type { GraphField, GraphNode } from '../contracts.js';
 import { validateInput, type GenerationInput } from './generation-input.js';
+import { UnionOrder, type UnionOrderRegistry } from './union-order.js';
 
 interface Owner { type: string; parser: string; module?: string; allocated?:string; inline?:boolean; typeDependencies?:Owner[] }
 interface RustModule {
@@ -22,7 +23,7 @@ const atomicDomain = (node: GraphNode): string | undefined => node.kind === 'pri
   ? node.value : node.kind === 'open' ? node.domain : undefined;
 
 /** Emit only supported, reachable value shapes. SourcePresence retains pre-default states. */
-export function generateRustModules(input: GenerationInput): Record<string, string> {
+export function generateRustModules(input: GenerationInput, options: { unionOrder?: UnionOrderRegistry; recordUnionOrder?: (registry: UnionOrderRegistry) => void } = {}): Record<string, string> {
   validateInput(input);
   const nodes = new Map(input.nodes.map(node => [node.id, node]));
   if (nodes.size !== input.nodes.length) throw new Error('Duplicate generation node identities');
@@ -54,7 +55,14 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     const node = lookup(ref);
     if (node.kind !== 'array' || !stringVocabulary(node.element)) throw new Error(`Open trait policy requires a string vocabulary array: ${ref}`);
   }
+  const normalizedViews = new Map<string, GraphNode>();
   const normalized = (id: string, seen = new Set<string>()): GraphNode => {
+    if (normalizedViews.has(id)) return normalizedViews.get(id)!;
+    const value = normalizedValue(id, seen);
+    normalizedViews.set(id, value);
+    return value;
+  };
+  const normalizedValue = (id: string, seen = new Set<string>()): GraphNode => {
     if(seen.has(id)) throw new Error(`Recursive alias has no value anchor: ${id}`);
     const node = lookup(id);
     if (node.kind !== 'union') return node;
@@ -101,6 +109,11 @@ export function generateRustModules(input: GenerationInput): Record<string, stri
     :node.kind==='intersection'?[...node.fields.filter(field=>!field.forbidden).map(field=>field.ref),...node.indexSignatures.map(index=>index.value)]:[];
   const mapAlias = (node: GraphNode): boolean => (node.kind === 'object' || node.kind === 'intersection')
     && !node.fields.length && node.indexSignatures.length === 1 && node.indexSignatures[0].key === 'primitive:string';
+  if (openTraitArrays.size && !nodes.has('primitive:string')) nodes.set('primitive:string', { id: 'primitive:string', kind: 'primitive', value: 'string' });
+  const reviewedUnionOrder = options.unionOrder !== undefined ? options.unionOrder : input.unionOrder;
+  const unionOrder = reviewedUnionOrder !== undefined || options.recordUnionOrder !== undefined
+    ? new UnionOrder([...nodes.keys()], normalized, collectionState, openTraitArrays, reviewedUnionOrder)
+    : undefined;
   const anchors=new Set<string>(),visited=new Set<string>(),active:string[]=[];
   const findCycles=(ref:string)=>{
     const node=normalized(ref);const start=active.indexOf(node.id);
@@ -529,8 +542,10 @@ ${tokens.map((token, index) => `        ${rustString(token)} => Ok(${name}::${va
     output.serialize=true;output.types.add(name);output.helpers.add('UnionCandidates');
     const identity=discriminator(members);
     const alternatives=members.map((member,index)=>{
-      const child=emit(member.id,name+'Alternative'+(index+1),module);
-      const variant=pascal(declaredName(member,name+'Alternative'+(index+1)) ?? (member.kind==='primitive'?member.value:member.kind==='open'?member.domain:'Alternative'+(index+1)));
+      const ordinal = unionOrder?.ordinal(node, member.id) ?? index + 1;
+      const child=emit(member.id,name+'Alternative'+ordinal,module);
+      const computedVariant=pascal(declaredName(member,name+'Alternative'+ordinal) ?? (member.kind==='primitive'?member.value:member.kind==='open'?member.domain:'Alternative'+ordinal));
+      const variant = unionOrder?.variant(node, member.id, computedVariant) ?? computedVariant;
       const boxed=boxedEdge(node,member.id) || (['object', 'intersection'].includes(member.kind) && inlineSize(member.id) > 256);
       if(member.kind==='object' || member.kind==='intersection') output.helpers.add('union_required');
       if(member.kind==='object' || member.kind==='intersection') output.helpers.add('union_object');
@@ -701,5 +716,7 @@ ${openTraitArrays.size ? '// Explicit trait-array policies keep identifiers as s
     files['condition_definitions.rs'] = generateConditionModule(input.conditionCatalog, generatedHeader, input.referenceSource);
     files['mod.rs'] += '\npub mod condition_definitions;\n';
   }
+  unionOrder?.finish();
+  if (unionOrder) options.recordUnionOrder?.(unionOrder.registry());
   return files;
 }

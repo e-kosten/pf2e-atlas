@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render as rtlRender,
   screen,
@@ -308,6 +309,43 @@ describe("shared common and maintained advanced filters", () => {
     expect(change).not.toHaveBeenCalled();
     expect(consumed).toHaveBeenCalledOnce();
   });
+  it("marks Advanced when applied conditions have no chip, without adding an expression to the selections row", () => {
+    const change = renderControls(
+      editorFixture([fieldFixture("level", "number", "Level")]),
+      { kind: "compare", field: "level", op: "gt", value: 5 },
+      null,
+      { layout: "toolbar" },
+    );
+    const advanced = screen.getByRole("button", { name: "Advanced filters" });
+    expect(advanced).toHaveAttribute("aria-description", "Additional filters applied");
+    expect(screen.queryByText("Grouped filters")).toBeNull();
+    expect(screen.queryByText("Additional filters applied")).toBeNull();
+    fireEvent.click(advanced);
+    expect(screen.getByRole("dialog", { name: "Advanced filters" })).toBeVisible();
+    expect(change).not.toHaveBeenCalled();
+  });
+
+  it("removes an applied numeric range and returns keyboard focus to its stable trigger", async () => {
+    const change = renderControls(
+      editorFixture([fieldFixture("level_or_rank", "number", "Level / rank")]),
+      { kind: "compare", field: "level_or_rank", op: "gte", value: 5 },
+      null,
+      { layout: "toolbar" },
+    );
+    const clear = screen.getByRole("button", { name: "Clear Level / rank range" });
+    act(() => clear.focus());
+    fireEvent.click(clear);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Edit Level / rank range: Any" }),
+      ).toHaveFocus(),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Clear Level / rank range" }),
+    ).toBeNull();
+    expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ filter: null }));
+  });
+
   it("distinguishes open bounds, exact values and ranges while editing and clearing", async () => {
     const change = renderControls(
       editorFixture([fieldFixture("level_or_rank", "number", "Level / rank")]),
@@ -318,7 +356,10 @@ describe("shared common and maintained advanced filters", () => {
     const trigger = screen.getByRole("button", {
       name: "Edit Level / rank range: Any",
     });
-    expect(trigger).toHaveTextContent("Level / rank: Any");
+    expect(trigger).toHaveTextContent("Level / rank");
+    expect(
+      screen.queryByRole("button", { name: "Clear Level / rank range" }),
+    ).toBeNull();
     fireEvent.click(trigger);
     const minimum = await screen.findByRole("textbox", {
       name: "Level / rank minimum",
@@ -331,24 +372,39 @@ describe("shared common and maintained advanced filters", () => {
     );
     expect(screen.getByText("Maximum", { exact: true })).toBeVisible();
     fireEvent.change(maximum, { target: { value: "6" } });
-    expect(trigger).toHaveTextContent("Level / rank: ≤ 6");
+    expect(
+      screen.getByRole("button", { name: "Clear Level / rank range" }),
+    ).toHaveTextContent("Level / rank: ≤ 6");
     expect(trigger).toHaveAccessibleName("Edit Level / rank range: 6 or lower");
     fireEvent.change(minimum, { target: { value: "6" } });
-    expect(trigger).toHaveTextContent(/^Level \/ rank: 6$/);
+    expect(
+      screen.getByRole("button", { name: "Clear Level / rank range" }),
+    ).toHaveTextContent(/^Level \/ rank: 6$/);
     expect(trigger).toHaveAccessibleName("Edit Level / rank range: Exactly 6");
     fireEvent.change(minimum, { target: { value: "6.0" } });
-    expect(trigger).toHaveTextContent(/^Level \/ rank: 6\.0$/);
+    expect(
+      screen.getByRole("button", { name: "Clear Level / rank range" }),
+    ).toHaveTextContent(/^Level \/ rank: 6\.0$/);
     fireEvent.change(maximum, { target: { value: "" } });
-    expect(trigger).toHaveTextContent("Level / rank: ≥ 6.0");
+    expect(
+      screen.getByRole("button", { name: "Clear Level / rank range" }),
+    ).toHaveTextContent("Level / rank: ≥ 6.0");
     expect(trigger).toHaveAccessibleName("Edit Level / rank range: 6.0 or higher");
     fireEvent.change(minimum, { target: { value: "0" } });
-    expect(trigger).toHaveTextContent("Level / rank: ≥ 0");
+    expect(
+      screen.getByRole("button", { name: "Clear Level / rank range" }),
+    ).toHaveTextContent("Level / rank: ≥ 0");
     fireEvent.change(minimum, { target: { value: "-1" } });
     fireEvent.change(maximum, { target: { value: "6" } });
-    expect(trigger).toHaveTextContent("Level / rank: -1–6");
+    expect(
+      screen.getByRole("button", { name: "Clear Level / rank range" }),
+    ).toHaveTextContent("Level / rank: -1–6");
     expect(trigger).toHaveAccessibleName("Edit Level / rank range: -1 to 6");
     fireEvent.click(screen.getByRole("button", { name: "Clear range" }));
-    expect(trigger).toHaveTextContent("Level / rank: Any");
+    expect(trigger).toHaveTextContent("Level / rank");
+    expect(
+      screen.queryByRole("button", { name: "Clear Level / rank range" }),
+    ).toBeNull();
     expect(minimum).toHaveValue("");
     expect(maximum).toHaveValue("");
     await waitFor(() =>
@@ -409,7 +465,7 @@ describe("shared common and maintained advanced filters", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add condition" }));
     expect(screen.queryByText("Changes pending")).not.toBeInTheDocument();
   });
-  it("composes inline search and the same common/advanced controls once while preserving the predicate on submit", () => {
+  it("composes a search row and common/advanced controls once while preserving the predicate on submit", () => {
     const field = {
       ...fieldFixture("kind", "string", "Kind"),
       choices: ["creature"],
@@ -420,16 +476,17 @@ describe("shared common and maintained advanced filters", () => {
       values: ["creature"],
     };
     const change = renderControls(editorFixture([field]), predicate, null, {
-      layout: "inline-toolbar",
+      layout: "toolbar",
       includeSearch: true,
     });
     const input = screen.getByRole("searchbox", { name: "Search records" });
     const row = input.closest(".primary-toolbar")!;
-    expect(row).toHaveClass("filter-controls__inline");
-    expect(row).toContainElement(
+    expect(row).toHaveClass("filter-controls__search-row");
+    const toolbar = input.closest(".filter-toolbar")!;
+    expect(toolbar).toContainElement(
       screen.getByRole("button", { name: "Edit Kind filter" }),
     );
-    expect(row).toContainElement(
+    expect(toolbar).toContainElement(
       screen.getByRole("button", { name: "Advanced filters" }),
     );
     expect(screen.getAllByRole("searchbox", { name: "Search records" })).toHaveLength(
@@ -700,8 +757,10 @@ describe("shared common and maintained advanced filters", () => {
         { kind: "in", clause_id: "kind", field: kind.path, values: ["creature"] },
       ],
     };
-    const change = renderControls(editorFixture([kind], kindLabels), predicate);
-    fireEvent.click(screen.getByRole("button", { name: "Kind: Advanced" }));
+    const change = renderControls(editorFixture([kind]), predicate);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit Kind in advanced filters" }),
+    );
     expect(
       screen.getByRole("combobox", { name: "Match conditions" }),
     ).toBeInTheDocument();
@@ -765,7 +824,9 @@ describe("shared common and maintained advanced filters", () => {
     expect(
       screen.queryByRole("button", { name: "Edit Traits filter" }),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Traits: Advanced" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit Traits in advanced filters" }),
+    );
     expect(
       screen.getByRole("combobox", { name: "Condition for Traits" }),
     ).toBeInTheDocument();

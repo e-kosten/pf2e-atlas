@@ -234,14 +234,17 @@ with `--config playwright.devices.config.ts`.
 ## CI execution and authenticated browser artifacts
 
 CI builds the frontend once after fast checks. When selected, full Rust
-verification and a browser-fixture build then run independently. Unit tests can start alongside the
-frontend checks/build because they do not consume the bundle. Two browser shards reuse
+verification and a browser-fixture build then run independently. Rust-only changes
+build/typecheck the frontend without repeating unchanged frontend formatting/lint
+checks. Frontend or browser-spec changes retain those checks. Unit tests can
+start alongside the frontend checks/build because they do not consume the bundle. Two browser shards reuse
 that compiled fixture; each runner starts its own disposable SQLite workspace and one
 Playwright worker. No mutable database or live Cargo target is shared between
 runners. The
 `validation complete` check requires both shards, the fixture build, the frontend
-checks/build, unit tests and every other selected gate. Main/nightly retain all
-surfaces. Frontend `verify` alone does not execute browsers. Browser dependencies
+checks/build, unit tests and every other selected gate. Main and fresh nightly
+verification retain all surfaces; verified main results can satisfy the nightly
+verification prerequisite. Frontend `verify` alone does not execute browsers. Browser dependencies
 use the Ubuntu HTTPS archive, with a three-minute installation limit; an installer/network failure can rerun just its browser
 job with `gh run rerun RUN_ID --job JOB_ID`, reusing the retained compiled fixture.
 Use the `databaseId` from `gh run view RUN_ID --json jobs` as `JOB_ID`.
@@ -341,7 +344,7 @@ gh workflow run browser-debug.yml --ref feat/my-branch \
 
 Use a run from this repository with an unexpired `browser-fixture` artifact. The
 manual run checks out the artifact's exact source commit and uses the same Ubuntu
-24.04, Node 22 and lockfile-pinned Playwright installation as ordinary CI. It runs
+24.04, Node 26 and lockfile-pinned Playwright installation as ordinary CI. It runs
 only the selected case, with traces/screenshots/report retained even on failure;
 it does not replace the full PR check or emit its `validation complete` result.
 The `browser-debug.yml` workflow must be registered on the default branch before
@@ -392,7 +395,7 @@ a gate.
 
 | Changed surface | Local full validation / PR CI coverage |
 | --- | --- |
-| Core Rust | Workspace gate; CI also checks Windows storage, standalone atlas-dev and applicable real-app browsers |
+| Core Rust | Workspace gate; CI also checks standalone atlas-dev and applicable real-app browsers; native Windows storage checks follow their dependency owners |
 | Developer-only atlas-dev Rust | Standalone developer gate; no frontend bundle or device matrix |
 | Known development/validation/hook launchers | Shared tooling regressions; CI includes native Windows cancellation, without application builds |
 | Browser packaging/runner scripts | Tooling regressions plus affected local browser flows; CI fixture/browser matrix |
@@ -404,22 +407,33 @@ a gate.
 | Release tooling | Tool tests, notices and installer checks; CI includes three OSes |
 | Research datasets, including hash-bound Markdown | Each dataset's offline `verify.ts`, with no inference |
 | Prose documentation | Diff/links/examples review; no application builds |
-| Cargo manifests/lockfile | Rust, frontend, source contracts and release/notices |
+| Cargo manifests/lockfile | Rust, production frontend bundle/typecheck, applicable browsers, native Windows checks, dependency advisories and embedding selection |
+| npm manifests/lockfiles | Owning package checks plus dependency advisories |
 | Shipped agent skill | Metadata and bundled-file coverage checks (`node scripts/validation/skill.ts`); no application build |
 | Unknown paths or workflow infrastructure | All surfaces |
 
-`--list` exposes nine decisions: `rust`, `web`, `browser`, `dev`, `source`,
-`release`, `research`, `skill` and `tooling`. `browser` owns the real-app fixture/matrix;
+`--list` exposes the shared decisions: `rust`, `web`, `web-format`, `browser`,
+`dev`, `source`, `release`, `research`, `skill`, `tooling` and `audit`.
+`browser` owns the real-app fixture/matrix;
 `dev` owns the standalone developer gate. PR CI uses this same path classifier.
 Renames include the old and new paths;
-executable/symlink mode changes select all. Main pushes and nightly verification
-run every surface. The `validation complete` job rejects failed or unexpectedly
-skipped selected jobs; use it as the aggregate required check. CI selection and
-local script stages report decisions/timings in the job summary.
+executable/symlink mode changes select all. Main pushes and fresh nightly
+verification run every surface. Nightly reuses
+a successful main-push run only for its exact planned SHA, including completed
+aggregate and advisory jobs; otherwise it waits boundedly or verifies afresh.
+The `validation complete` job rejects failed or unexpectedly skipped selected jobs;
+use it as the aggregate required check, including selected dependency advisories.
+CI additionally selects native Windows checks from the transitive workspace
+dependencies of storage, index and runtime (including development, build, target
+and optional edges). Cargo manifests/lockfile, toolchain and unknown global inputs
+retain the native gate. CLI, web and app-service changes outside that closure do
+not rerun storage tests; validation tooling still requires native cancellation.
+CI selection and local script stages report decisions/timings in the job summary.
 
 `node scripts/validation/tooling.mjs` is the independently bootstrapped tooling gate:
 hook/classifier smoke checks plus all maintained `scripts/*.test.mjs`, development
-and validation regressions. Local full selection appends that same exported list
+and validation regressions, and `scripts/validation/test-*.py`. Local full
+selection appends that same exported list
 to its existing session. CI invokes the bootstrap directly, so a broken validation
 runner cannot accidentally skip tests of itself. Native Windows runs its dedicated
 Bash-to-Node cancellation test; POSIX runs retain their existing signal checks.

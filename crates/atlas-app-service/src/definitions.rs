@@ -345,14 +345,18 @@ pub(crate) fn definition_reading_destination(
     source_fingerprint: &str,
 ) -> Option<ReferenceDestinationView> {
     match &summary.backing {
-        ReferenceSummaryBacking::Prepared => Some(ReferenceDestinationView::Definition {
-            key: summary.key.to_string(),
-        }),
+        ReferenceSummaryBacking::Prepared { readable: true } => {
+            Some(ReferenceDestinationView::Definition {
+                key: summary.key.to_string(),
+            })
+        }
         ReferenceSummaryBacking::Record { key } => Some(ReferenceDestinationView::Record {
             navigation: record_navigation(key.clone(), vec![], source_fingerprint).into(),
             reading_context: Some(RecordReadingContextView::GeneralDefinition),
         }),
-        ReferenceSummaryBacking::None => None,
+        ReferenceSummaryBacking::None | ReferenceSummaryBacking::Prepared { readable: false } => {
+            None
+        }
     }
 }
 

@@ -112,6 +112,10 @@ function Harness({
         reading.select(request);
       }}
       reading={reading}
+      onClearSelection={() => {
+        select(null);
+        reading.select(null);
+      }}
       loading={false}
     />
   );
@@ -129,6 +133,56 @@ beforeEach(() => {
   getDetail.mockReset();
   getAbilities.mockReset();
   getDetail.mockImplementation((key) => Promise.resolve(detailFixture(key)));
+});
+
+it("clears a loading selection and ignores its eventual response, restoring result focus", async () => {
+  vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true });
+  let finish!: (detail: RecordDetailView) => void;
+  getDetail.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  renderBrowser();
+  const row = screen.getByRole("link", { name: /^Heal/ });
+  fireEvent.click(row);
+  await waitFor(() => expect(getDetail).toHaveBeenCalled());
+  const toolbar = document.querySelector(".reference-browser__toolbar")!;
+  expect(
+    within(toolbar as HTMLElement).queryByRole("link", { name: "Open full page" }),
+  ).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
+  expect(screen.queryByRole("button", { name: "Clear selection" })).toBeNull();
+  await waitFor(() => expect(row).toHaveFocus());
+  await act(async () => finish(detailFixture("spells:heal", "Heal")));
+  expect(screen.queryByRole("heading", { name: "Heal" })).toBeNull();
+  expect(screen.getByText("Select a record")).toBeVisible();
+});
+
+it("keeps Open full page out of the toolbar while switching to an uncached result", async () => {
+  vi.spyOn(Grid, "useBreakpoint").mockReturnValue({ lg: true });
+  renderBrowser();
+  fireEvent.click(screen.getByRole("link", { name: /^Heal/ }));
+  await screen.findByRole("link", { name: "Open full page" });
+  let finish!: (detail: RecordDetailView) => void;
+  getDetail.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  fireEvent.click(screen.getByRole("link", { name: /^Ghoul/ }));
+  await waitFor(() => expect(getDetail).toHaveBeenCalledTimes(2));
+  const toolbar = document.querySelector(".reference-browser__toolbar")!;
+  expect(
+    within(toolbar as HTMLElement).queryByRole("link", { name: "Open full page" }),
+  ).toBeNull();
+  await act(async () => finish(detailFixture("actors:ghoul", "Ghoul")));
+  const heading = await screen.findByRole("heading", { name: "Ghoul" });
+  expect(
+    within(heading.closest("header")!).getByRole("link", { name: "Open full page" }),
+  ).toBeVisible();
 });
 
 it("groups full-page navigation with Explore and describes it on keyboard focus", async () => {

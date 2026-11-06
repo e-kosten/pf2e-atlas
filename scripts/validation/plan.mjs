@@ -140,6 +140,12 @@ export function validationPlan(
     if (touched("dev") && !touched("rust") && !concurrent)
       checks.push(...(full ? developer : [fmt]));
     if (full) {
+      if (touched("audit"))
+        checks.push([
+          "dependency advisories",
+          "python3",
+          "scripts/validation/dependency-audit.py",
+        ]);
       if (touched("skill"))
         checks.push(
           [

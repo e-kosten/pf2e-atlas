@@ -79,7 +79,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_aelike_schema_
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@2b2ce214d7bbc6514a18367f
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@3de8d4c89686d892d50844fd
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaAELikeSchema {
@@ -157,7 +157,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_aelike_schema(
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@2b2ce214d7bbc6514a18367f; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@3de8d4c89686d892d50844fd; deferred fields:
 pub type ActiveEffectLikeRule = SourceFromSchemaAELikeSchema;
 pub fn parse_active_effect_like_rule(
     v: &SourceValue,

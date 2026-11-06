@@ -19,7 +19,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@d7b3782e3c5d2fd4ea85d4b0
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@16f60455522092b829292621
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaTokenLightValueSchema {
@@ -95,7 +95,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_token_light_va
     })
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@1a78d9bc1e2aa6d78a4fc334
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@1e8d82d5e458f839e715f208
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaTokenLightRuleSchema {
@@ -153,7 +153,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_token_light_ru
     })
 }
 
-// types/foundry/common/data/fields.d.mts#SourceFromSchema@1a78d9bc1e2aa6d78a4fc334; deferred fields:
+// types/foundry/common/data/fields.d.mts#SourceFromSchema@1e8d82d5e458f839e715f208; deferred fields:
 pub type TokenLightRule = SourceFromSchemaTokenLightRuleSchema;
 pub fn parse_token_light_rule(
     v: &SourceValue,

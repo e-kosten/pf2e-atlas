@@ -5,12 +5,12 @@ Priority: soon
 Owner: unassigned
 Last reviewed: 2026-11-06
 
-## Remaining outcome
+## Implemented foundation
 
-Extend contextual help and Advanced Filter discovery to senses, languages, domains,
-groups and reusable ability definitions. Reuse existing glossary records and their
-prepared content wherever available. Standalone definitions extend the trait
-storage owner in place. Open contextual help in the shared Drawer; discovery comes
+Contextual help and Advanced Filter discovery cover senses, languages, domains,
+groups and reusable ability definitions in the pinned glossary inventory. Existing
+glossary records retain their prepared content and identities. Standalone definitions
+extend the trait storage owner in place. Contextual help uses the shared Drawer; discovery comes
 from record context and filters. A dedicated glossary browser is outside this scope.
 
 The implementation supplies generated source evidence, canonical publication,
@@ -26,11 +26,6 @@ only values remain plain facts and useful filter choices, without empty definiti
 pages, technical source panels or invented rules prose. Property membership and
 explicit references keep separate filter meanings.
 
-A further discovery refinement is to distinguish same-title choices with concise,
-readable context. For example, a sense property and references to its general rule
-can both be named Darkvision. Preserve their exact identities and predicates; do
-not expose source keys or merge definitions merely to disambiguate the chooser.
-
 Trait pages, exact membership/reference navigation, stored-vector Similar, CLI
 lookup and shared document chrome were delivered in
 [PR93](https://github.com/e-kosten/pf2e-atlas/pull/93); see the
@@ -40,7 +35,17 @@ Do not reopen trait identity or introduce a parallel generic term store merely
 to extend the namespaces. [ADR0056](../../architecture/decisions/0056-trait-reference-entities.md)
 records the existing typed identity, publication and ownership boundaries.
 
-## Source investigation
+## Remaining work
+
+- Distinguish same-title choices with concise, readable context. A sense property
+  and references to its general rule can both be named Darkvision. Preserve their
+  exact identities and predicates; do not expose source keys or merge definitions
+  merely to disambiguate the chooser.
+- Investigate plain prose references such as Gravity under the separate source
+  and presentation decisions below. The implemented glossary foundation does not
+  auto-link arbitrary prose.
+
+## Source maintenance
 
 The pinned inventory and selected source evidence determine namespace coverage. For
 `PF2E.NPC.Abilities.Glossary.*`, distinguish reusable definitions from labels,

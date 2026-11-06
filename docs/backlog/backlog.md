@@ -44,6 +44,11 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 
 ## Soon
 
+- [Remaster relationship coverage](items/remaster-relationship-coverage.md)
+  Investigate source-backed counterpart coverage beyond name aliases; validate
+  identity, ambiguity and downstream search/navigation in a focused PR separate
+  from frontend presentation. Status: proposed.
+
 - [Database and ingest simplification](items/database-ingest-simplification.md)
   Bounded reference publication, input-owned vectors, canonical sections,
   saved-state integrity and indexed eligibility. Implementation under review in
@@ -156,6 +161,10 @@ Completed and retired items are tracked separately in [history/done-and-supersed
 - [Rust CLI content output formats](items/rust-cli-content-output-formats.md)
   Evaluate unmet content-export needs against the current human, reference JSON
   and checked-source surfaces. Status: deferred.
+
+- [Link counts across a filtered record set](items/search-set-link-aggregation.md)
+  Rank connected entries by distinct matching parent records, with explicit
+  direction, count basis and inspectable link evidence. Status: proposed.
 
 - [Rust graph context deeper local graph](items/rust-graph-context-deeper-local-graph.md)
   Track secondary links, shared-neighbor scoring, local cluster signals, and degree-aware curation after the V1 one-hop graph context command. Status: proposed.

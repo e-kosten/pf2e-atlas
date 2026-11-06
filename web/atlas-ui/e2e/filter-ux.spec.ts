@@ -346,12 +346,12 @@ test("complex conditions remain advanced with searchable fields and no unavailab
   };
   await page.goto("/search?filter=" + encodeURIComponent(encodeFilterUrl(predicate)));
   await expect(
-    page.getByRole("button", { name: "Kind: Advanced", exact: true }),
+    page.getByRole("button", { name: "Edit Kind in advanced filters", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("Counts unavailable for this condition")).toHaveCount(0);
   await expect(page.getByRole("alert")).toHaveCount(0);
   const importedFilter = new URL(page.url()).searchParams.get("filter");
-  await page.getByRole("button", { name: "Kind: Advanced" }).click();
+  await page.getByRole("button", { name: "Edit Kind in advanced filters" }).click();
   expect(new URL(page.url()).searchParams.get("filter")).toBe(importedFilter);
   const field = page.getByRole("combobox", { name: "Filter field" });
   await field.fill("Armor Class");

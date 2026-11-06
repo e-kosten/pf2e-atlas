@@ -30,7 +30,7 @@ use crate::source_model::value::{SourceObject, SourceValue};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
-// Source declaration: structural:f25ee7f1534cde6a3e23287e
+// Source declaration: structural:3bff548b70bcef923c80f91e
 pub type AmmoSourceStatsSourceFromSchemaCompendiumSource = String;
 pub(in crate::source_model::generated) fn read_ammo_source_stats_source_from_schema_compendium_source(
     v: &SourceValue,
@@ -52,7 +52,7 @@ pub(in crate::source_model::generated) fn read_ammo_source_stats_source_from_sch
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@3bfbf6fa1740d80250d806dc
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@ee83800e8891d9411424acf6
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AmmoSourceStatsSourceFromSchema {
@@ -108,7 +108,7 @@ pub(in crate::source_model::generated) fn read_ammo_source_stats_source_from_sch
     })
 }
 
-// Source declaration: structural:7bd4189c0622b524d3faae72
+// Source declaration: structural:375e2dee2f493294b51387ae
 pub type SourceFromSchemaActiveEffectSchemaStatsSourceFromSchemaCompendiumSource = String;
 pub(in crate::source_model::generated) fn read_source_from_schema_active_effect_schema_stats_source_from_schema_compendium_source(
     v: &SourceValue,
@@ -146,7 +146,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_active_effect_
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@0e78b7b4f8f9540d0827104c
+// Source declaration: types/foundry/common/data/fields.d.mts#SourceFromSchema@77153b019ec61c391333239e
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceFromSchemaActiveEffectSchemaStatsSourceFromSchema {
@@ -277,7 +277,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_effect_duratio
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@0c60a9064eb9793597b9e48d
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@5dc7d981fb90d2110c4c6f26
 pub type SourceFromSchemaActiveEffectSchemaFlagsEntry = crate::source_model::SourceMap<SourceValue>;
 pub(in crate::source_model::generated) fn read_source_from_schema_active_effect_schema_flags_entry(
     v: &SourceValue,
@@ -287,7 +287,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_active_effect_
     keyed(v, c, p, unknown)
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Record@bd260376d64014a3c1d0b066
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Record@1717b5acaca7ef07d1c54f2a
 pub type SourceFromSchemaActiveEffectSchemaFlags =
     crate::source_model::SourceMap<SourceFromSchemaActiveEffectSchemaFlagsEntry>;
 pub(in crate::source_model::generated) fn read_source_from_schema_active_effect_schema_flags(
@@ -303,7 +303,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_active_effect_
     )
 }
 
-// Source declaration: structural:250574f99e56be681f637c83
+// Source declaration: structural:8518c3f5705acfdec6b1c81b
 pub type SourceFromSchemaActiveEffectSchemaOrigin = String;
 pub(in crate::source_model::generated) fn read_source_from_schema_active_effect_schema_origin(
     v: &SourceValue,
@@ -368,7 +368,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_effect_start_s
     })
 }
 
-// Source declaration: structural:80bd755aa6817123d830559e
+// Source declaration: structural:ae20438bf806da89c5ead41e
 pub type SourceFromSchemaActiveEffectSchemaTint = String;
 pub(in crate::source_model::generated) fn read_source_from_schema_active_effect_schema_tint(
     v: &SourceValue,
@@ -474,7 +474,7 @@ pub(in crate::source_model::generated) fn read_source_from_schema_active_effect_
     })
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@2eea603175117fb87294bd03
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@2eea603175117fb87294bd03
 pub type AmmoSourceEffects = Vec<SourceFromSchemaActiveEffectSchema>;
 pub(in crate::source_model::generated) fn read_ammo_source_effects(
     v: &SourceValue,
@@ -500,7 +500,7 @@ pub(in crate::source_model::generated) fn read_ammo_source_ownership_entry(
     }
 }
 
-// Source declaration: types/foundry/common/data/fields.d.mts#DocumentOwnershipField.$mapped@29b51ab080edb5f3cf080ee8
+// Source declaration: types/foundry/common/data/fields.d.mts#DocumentOwnershipField.$mapped@8d12afa53690d4e69da365ff
 pub type AmmoSourceOwnership = crate::source_model::SourceMap<Number>;
 pub(in crate::source_model::generated) fn read_ammo_source_ownership(
     v: &SourceValue,
@@ -721,7 +721,7 @@ pub(in crate::source_model::generated) fn read_ammo_system_source_base_item(
     }
 }
 
-// Source declaration: node_modules/typescript/lib/lib.es5.d.ts#Array@23a372b0110942c2e7539351
+// Source declaration: node_modules/@typescript/old/lib/lib.es5.d.ts#Array@9a08b36b63b6733691c7e885
 pub type AmmoSystemSourceCraftableAs = Vec<AmmoSystemSourceBaseItem>;
 pub(in crate::source_model::generated) fn read_ammo_system_source_craftable_as(
     v: &SourceValue,

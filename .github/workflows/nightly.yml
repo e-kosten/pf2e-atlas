@@ -4,9 +4,15 @@ on:
   schedule:
     - cron: '23 9 * * *'
   workflow_dispatch:
+    inputs:
+      force-verification:
+        description: "Run fresh CI even when this exact main commit has passed."
+        type: boolean
+        default: false
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: nightly-publication
@@ -16,17 +22,19 @@ jobs:
   plan:
     if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 35
     outputs:
       build: ${{ steps.plan.outputs.build }}
       sha: ${{ steps.plan.outputs.sha }}
       tag: ${{ steps.plan.outputs.tag }}
+      verify: ${{ steps.ci.outputs.verify }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           cache: npm
           cache-dependency-path: dev-tools/release/package-lock.json
       - name: Build private release tools
@@ -41,24 +49,38 @@ jobs:
           args=()
           if [[ "$EVENT_NAME" == schedule ]]; then args+=(--scheduled); fi
           node dev-tools/release/dist/src/cli/nightly.js plan "${args[@]}" >> "$GITHUB_OUTPUT"
+      - name: Reuse exact-source main CI
+        if: steps.plan.outputs.build == 'true'
+        id: ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ steps.plan.outputs.sha }}
+          FORCE_VERIFICATION: ${{ inputs.force-verification }}
+        run: |
+          args=()
+          if [[ "$FORCE_VERIFICATION" == true ]]; then args+=(--force); fi
+          node scripts/validation/main-ci.mjs "$SOURCE_SHA" "${args[@]}" >> "$GITHUB_OUTPUT"
 
   verify:
     needs: plan
-    if: ${{ needs.plan.outputs.build == 'true' }}
+    if: ${{ needs.plan.outputs.build == 'true' && needs.plan.outputs.verify == 'true' }}
     uses: ./.github/workflows/ci.yml
     with:
       source-ref: ${{ needs.plan.outputs.sha }}
 
   package:
     needs: [plan, verify]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.build == 'true' && (needs.verify.result == 'success' || (needs.verify.result == 'skipped' && needs.plan.outputs.verify == 'false')) }}
     uses: ./.github/workflows/release-build-check.yml
     with:
       tag: ${{ needs.plan.outputs.tag }}
       source-ref: ${{ needs.plan.outputs.sha }}
       nightly: true
+      tools-verified: true
 
   publish:
     needs: [plan, package]
+    if: ${{ !cancelled() && needs.package.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -68,7 +90,7 @@ jobs:
           ref: ${{ needs.plan.outputs.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           cache: npm
           cache-dependency-path: dev-tools/release/package-lock.json
       - name: Build private release tools

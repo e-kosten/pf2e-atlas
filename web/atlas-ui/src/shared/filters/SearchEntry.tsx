@@ -1,4 +1,4 @@
-import { Tooltip, Button, Input, Space, Tag, theme, type InputRef } from "antd";
+import { Tooltip, Button, Flex, Input, Space, Tag, theme, type InputRef } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 import type { SimilaritySeed } from "../../generated/atlas";
 import { SimilaritySeedLink } from "../search/SimilaritySeedLink";
@@ -19,12 +19,16 @@ export function SearchEntry({
   label = "Search records",
   similar,
   inputRef,
+  generation,
+  onRefresh,
 }: {
   query: string;
   onSearch: (query: string) => void;
   disabled?: boolean;
   label?: string;
   similar?: SimilarSearchCriterion;
+  generation?: string;
+  onRefresh?: () => Promise<void>;
   inputRef?: RefObject<InputRef | null>;
 }) {
   const { token } = theme.useToken();
@@ -52,45 +56,53 @@ export function SearchEntry({
   }
   if (similar)
     return (
-      <Space.Compact className="reference-search-entry reference-search-entry--similar">
-        <div
-          className="reference-search-entry__criterion"
-          style={{
-            borderColor: token.colorBorder,
-            borderRadius: `${token.borderRadius}px 0 0 ${token.borderRadius}px`,
-            background: token.colorBgContainer,
-            minHeight: token.controlHeight,
-            paddingInline: token.paddingSM,
-          }}
-        >
-          <Tag>Similar to</Tag>
-          <span className="reference-search-entry__source">
-            <SimilaritySeedLink
-              seed={similar.seed}
-              title={similar.title}
-              disabled={disabled}
-            />
-          </span>
-          <Tooltip title="Clear similar criterion" trigger={["hover", "focus"]}>
-            <Button
-              type="text"
-              disabled={disabled}
-              size="small"
-              aria-label="Clear similar criterion"
-              icon={<CloseCircleFilled aria-hidden="true" />}
-              onClick={clear}
-            />
-          </Tooltip>
-        </div>
-        <Tooltip title="Run similar search" trigger={["hover", "focus"]}>
-          <Button
-            disabled={disabled}
-            aria-label="Run similar search"
-            icon={<SearchOutlined />}
-            onClick={similar.onSearch}
-          />
-        </Tooltip>
-      </Space.Compact>
+      <SimilaritySeedLink
+        seed={similar.seed}
+        title={similar.title}
+        disabled={disabled}
+        generation={generation}
+        onRefresh={onRefresh}
+        renderLayout={(link, feedback) => (
+          <Flex vertical gap={4} className="reference-search-entry">
+            <Space.Compact className="reference-search-entry--similar">
+              <div
+                className="reference-search-entry__criterion"
+                style={{
+                  borderColor: token.colorBorder,
+                  borderRadius: `${token.borderRadius}px 0 0 ${token.borderRadius}px`,
+                  background: token.colorBgContainer,
+                  minHeight: token.controlHeight,
+                  paddingInline: token.paddingSM,
+                }}
+              >
+                <Tag>Similar to</Tag>
+                <span className="reference-search-entry__source" title={similar.title}>
+                  {link}
+                </span>
+                <Tooltip title="Clear similar criterion" trigger={["hover", "focus"]}>
+                  <Button
+                    type="text"
+                    disabled={disabled}
+                    size="small"
+                    aria-label="Clear similar criterion"
+                    icon={<CloseCircleFilled aria-hidden="true" />}
+                    onClick={clear}
+                  />
+                </Tooltip>
+              </div>
+              <Tooltip title="Run similar search" trigger={["hover", "focus"]}>
+                <Button
+                  disabled={disabled}
+                  aria-label="Run similar search"
+                  icon={<SearchOutlined />}
+                  onClick={similar.onSearch}
+                />
+              </Tooltip>
+            </Space.Compact>
+            {feedback}
+          </Flex>
+        )}
+      />
     );
   return (
     <Input.Search

@@ -63,7 +63,7 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
                 record(
                     "actors",
                     "Actor",
-                    json!({"_id":"holder0000000001","type":"npc","name":"Holder","system":{"description":{"value":"<p>@UUID[Compendium.pf2e.bestiary-ability-glossary-srd.Item.qCCLZhnp2HhP3Ex6] @Localize[Fixture.Sense.Darkvision] @Localize[Fixture.Rule.Hidden]</p>"},"traits":{"value":["fire"],"rarity":"uncommon","size":{"value":"lg"}}},"items":[
+                    json!({"_id":"holder0000000001","type":"npc","name":"Holder","system":{"details":{"publication":{"remaster":true}},"description":{"value":"<p>@UUID[Compendium.pf2e.bestiary-ability-glossary-srd.Item.qCCLZhnp2HhP3Ex6] @Localize[Fixture.Sense.Darkvision] @Localize[Fixture.Rule.Hidden]</p>"},"traits":{"value":["fire","empty-fixture"],"rarity":"uncommon","size":{"value":"lg"}}},"items":[
                         {"_id":"trait00000000001","type":"action","name":"Trait mention","system":{"description":{"value":"<p>@Localize[Fixture.Trait.Fire]</p>"}}},
                         {"_id":"domain0000000001","type":"action","name":"Domain mention","system":{"description":{"value":"<p>@Localize[Fixture.Domain.Air]</p>"}}},
                         {"_id":"ambig00000000001","type":"action","name":"Ambiguous mention","system":{"description":{"value":"<p>@Localize[Fixture.Trait.Fire] @Localize[Fixture.Domain.Air]</p>"}}},
@@ -74,7 +74,7 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
                 record(
                     "bestiary-ability-glossary-srd",
                     "Item",
-                    json!({"_id":"qCCLZhnp2HhP3Ex6","type":"action","name":"General darkvision","system":{"description":{"value":"<p>Actual custom prose @Check[type:reflex|dc:0]</p>"}}}),
+                    json!({"_id":"qCCLZhnp2HhP3Ex6","type":"action","name":"General darkvision","system":{"publication":{"remaster":false},"traits":{"value":["fire"]},"description":{"value":"<p>Actual custom prose @Check[type:reflex|dc:0]</p>"}}}),
                 ),
                 record(
                     "armies",
@@ -122,12 +122,34 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
                     json!({"_id":"hazard0000000001","type":"hazard","name":"Trait routine","system":{"details":{"isComplex":true,"routine":"<p>(7 actions; illusion, fire, homebrew-trait) @Check[will|dc:21|traits:illusion,fire,homebrew-trait] save. Keep the authored routine.</p>"}}}),
                 ),
             ];
-            if !complete {
-                return Ok(atlas_search::test_support::open_source_fixture(
-                    records, false,
-                )?);
-            }
             let mut data = input(records, false);
+            let empty_markup = "<p></p>";
+            let empty_prepared = atlas_record::source_content::prepare_reference_definition(
+                DefinitionKey::new(N::Trait, "empty-fixture").unwrap(),
+                empty_markup,
+                data.context.audience,
+                None,
+                None,
+            )
+            .unwrap();
+            data.traits
+                .push(atlas_search::test_support::TraitDefinition {
+                    key: atlas_domain::TraitKey::new("empty-fixture").unwrap(),
+                    label: "Empty fixture".into(),
+                    label_key: None,
+                    description_key: None,
+                    description_html: Some(empty_prepared.html.clone()),
+                    authored_markup: Some(empty_markup.into()),
+                    prepared: Some(empty_prepared),
+                    catalogs: vec!["fixture".into()],
+                    source_locations: vec![],
+                    source_revision: None,
+                    indexing_locale: "en".into(),
+                    content_locale: Some("en".into()),
+                });
+            if !complete {
+                return Ok(atlas_search::test_support::open_input_fixture(data)?);
+            }
             let mut entries = vec![
                 metadata(
                     N::Trait,
@@ -185,6 +207,25 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
             });
             entries[2].permission.disposition =
                 ReferencePermissionDisposition::ExistingRecordPolicy;
+            let air = &mut entries[1];
+            air.backing = ReferenceBacking::Prepared {
+                authored_markup: empty_markup.into(),
+                content: atlas_record::source_content::prepare_reference_definition(
+                    air.key.clone(),
+                    empty_markup,
+                    data.context.audience,
+                    None,
+                    None,
+                )
+                .unwrap(),
+            };
+            air.availability = ReferenceAvailability::Available;
+            air.provenance.source_sha256 = Some(hash(empty_markup.as_bytes()));
+            air.permission.body_grants = vec![atlas_search::ReferenceGrantUse {
+                license: "CC0-1.0".into(),
+                scope: atlas_search::ReferenceGrantScope::FunctionalContent,
+            }];
+            air.permission.notices = vec!["fixture-empty-content".into()];
             entries.push(metadata(
                 N::Rarity,
                 "uncommon",
@@ -357,7 +398,12 @@ fn fixture(complete: bool) -> crate::test_support::FixtureWorker {
                 atlas_search::test_support::open_input_fixture_with_references(
                     data,
                     &entries,
-                    &[],
+                    &[atlas_search::ReferenceNotice {
+                        id: "fixture-empty-content".into(),
+                        sha256: hash(b"Synthetic empty glossary fixture."),
+                        text: "Synthetic empty glossary fixture.".into(),
+                        source_url: None,
+                    }],
                     &occurrences,
                 )?,
             )
@@ -405,7 +451,12 @@ fn exact_owned_general_help_rejects_unrelated_traits_domains_and_ambiguity() {
         !general.navigation.owners.is_empty(),
         "the actual owned entry stays primary"
     );
-    let badge = &detail.record.traits[0];
+    let badge = detail
+        .record
+        .traits
+        .iter()
+        .find(|badge| badge.value == "fire")
+        .unwrap();
     assert_eq!(badge.value, "fire");
 }
 
@@ -413,7 +464,13 @@ fn exact_owned_general_help_rejects_unrelated_traits_domains_and_ambiguity() {
 fn legacy_trait_help_retains_membership_without_narrowing_symmetric_references() {
     let fixture = fixture(true);
     let detail = fixture.worker.record_detail(HOLDER).unwrap();
-    let help = detail.presentation.identity.traits[0]
+    let help = detail
+        .presentation
+        .identity
+        .traits
+        .iter()
+        .find(|badge| badge.value == "fire")
+        .unwrap()
         .help
         .as_ref()
         .unwrap();
@@ -486,6 +543,7 @@ fn alternate_melee_and_spell_patch_traits_keep_contextual_help_and_raw_identity(
 
 fn list_request(filter: Option<atlas_domain::QueryPredicate>) -> SearchResultsRequest {
     SearchResultsRequest {
+        connection_scope: None,
         criteria: SearchCriteria::ListRecords { filter },
         page: SearchPageRequest {
             number: 1,
@@ -560,6 +618,72 @@ fn permission_blocked_body_retains_definition_identity_and_executable_reference_
     assert!(
         matches!(&occurrence.source_destination, Some(ReferenceDestinationView::Record { navigation, reading_context: None }) if navigation.owners == selection.owners && navigation.field == selection.field)
     );
+}
+
+#[test]
+fn glossary_parent_predicate_composes_with_static_connection_scope_and_reader_edition() {
+    let fixture = fixture(true);
+    let execution = crate::ReadExecutionContext::uncancellable();
+    let definition = fixture
+        .worker
+        .definition_detail(
+            DefinitionDetailRequest {
+                definition_key: "rule:pf2e:Fixture.Rule.Hidden".into(),
+                expected_artifact_generation: None,
+            },
+            &execution,
+        )
+        .unwrap();
+    let ReferenceFilterActionView::Search {
+        predicate,
+        artifact_generation,
+        ..
+    } = &definition.help.related_filters[0]
+    else {
+        panic!("exact definition query")
+    };
+    let mut request = list_request(None);
+    request.connection_scope = Some(SearchConnectionScope {
+        parent: Box::new(StaticSearchContext {
+            filter: Some(predicate.clone()),
+            exclude_clause_id: None,
+            incomplete: false,
+            list_ref: None,
+            trait_key: None,
+            connection_scope: None,
+            expected_artifact_generation: Some(artifact_generation.clone()),
+        }),
+        direction: atlas_domain::QueryRelationshipDirection::Incoming,
+        include_contents: true,
+    });
+    let page = fixture
+        .worker
+        .search_page(request.clone(), &execution)
+        .unwrap();
+    assert_eq!(page.connection_scope, Some(ConnectionScopeView::Connected));
+    assert_eq!(page.rows.len(), 1);
+    let record = &page.rows[0].record;
+    assert_eq!(record.record_key, GENERAL);
+    assert_eq!(record.edition, Some(RecordEditionView::Legacy));
+    let badge = &record.traits[0];
+    assert_eq!(
+        (badge.value.as_str(), badge.label.as_str()),
+        ("fire", "Fire")
+    );
+    assert!(badge.help.as_ref().unwrap().destination.is_none());
+    assert_eq!(badge.help.as_ref().unwrap().related_filters.len(), 1);
+    request
+        .connection_scope
+        .as_mut()
+        .unwrap()
+        .parent
+        .expected_artifact_generation = Some("stale".into());
+    let error = fixture
+        .worker
+        .search_page(request, &execution)
+        .unwrap_err()
+        .into_app_error();
+    assert_eq!(error.code, AppErrorCode::ArtifactGenerationChanged);
 }
 
 #[test]
@@ -671,6 +795,175 @@ fn bodyless_help_keeps_filter_workflows_without_offering_definition_reading() {
 }
 
 #[test]
+fn retained_empty_traits_keep_raw_content_and_membership_without_reading_pages() {
+    let execution = crate::ReadExecutionContext::uncancellable();
+    for complete in [false, true] {
+        let fixture = fixture(complete);
+        let generic = fixture
+            .worker
+            .definition_detail(
+                DefinitionDetailRequest {
+                    definition_key: "trait:empty-fixture".into(),
+                    expected_artifact_generation: None,
+                },
+                &execution,
+            )
+            .unwrap();
+        assert_eq!(
+            generic.help.availability,
+            DefinitionAvailabilityView::Available
+        );
+        assert!(generic.help.destination.is_none());
+        let Some(ReferenceContentView {
+            body: PreparedFieldBodyView::Html { html, .. },
+            ..
+        }) = &generic.content
+        else {
+            panic!("retained canonical content")
+        };
+        assert_eq!(html, "<p></p>");
+        let specialized = fixture
+            .worker
+            .trait_definition(
+                TraitDetailRequest {
+                    trait_key: "trait:empty-fixture".into(),
+                    expected_artifact_generation: Some(generic.artifact_generation.clone()),
+                },
+                &execution,
+            )
+            .unwrap();
+        assert_eq!(specialized.label, "Empty fixture");
+        assert!(
+            specialized.content.is_none(),
+            "native trait page must have no empty reading body"
+        );
+        let record = fixture.worker.record_detail(HOLDER).unwrap();
+        let badge = record
+            .presentation
+            .identity
+            .traits
+            .iter()
+            .find(|badge| badge.value == "empty-fixture")
+            .unwrap();
+        assert_eq!(badge.label, "Empty fixture");
+        let help = badge.help.as_ref().unwrap();
+        assert!(help.destination.is_none());
+        assert_eq!(help.related_filters, generic.help.related_filters);
+        let ReferenceFilterActionView::Search { predicate, .. } = &help.related_filters[0] else {
+            panic!("trait membership")
+        };
+        let page = fixture
+            .worker
+            .search_page(list_request(Some(predicate.clone())), &execution)
+            .unwrap();
+        assert_eq!(page.rows.len(), 1);
+        assert_eq!(page.rows[0].record.record_key, HOLDER);
+        if complete {
+            let options = fixture
+                .worker
+                .definition_filter_options(
+                    DefinitionFilterOptionsRequest {
+                        text: None,
+                        offset: 0,
+                        limit: 100,
+                        selected: vec![atlas_domain::QueryDefinitionReferenceTarget::Definition {
+                            key: "trait:empty-fixture".parse().unwrap(),
+                        }],
+                        expected_artifact_generation: Some(generic.artifact_generation),
+                    },
+                    &execution,
+                )
+                .unwrap();
+            assert!(options.selected[0].help.destination.is_none());
+            assert_eq!(
+                options.selected[0].help.related_filters,
+                help.related_filters
+            );
+        }
+    }
+}
+
+#[test]
+fn empty_approved_definition_preserves_attribution_identity_and_reference_proofs() {
+    let fixture = fixture(true);
+    let execution = crate::ReadExecutionContext::uncancellable();
+    let detail = fixture
+        .worker
+        .definition_detail(
+            DefinitionDetailRequest {
+                definition_key: "domain:air".into(),
+                expected_artifact_generation: None,
+            },
+            &execution,
+        )
+        .unwrap();
+    assert_eq!(
+        detail.help.availability,
+        DefinitionAvailabilityView::Available
+    );
+    assert!(detail.help.destination.is_none());
+    assert_eq!(detail.notices[0].text, "Synthetic empty glossary fixture.");
+    assert_eq!(
+        detail.attribution.as_ref().unwrap().body_grants[0].license,
+        "CC0-1.0"
+    );
+    assert_eq!(detail.help.related_filters.len(), 1);
+    let Some(ReferenceContentView {
+        body: PreparedFieldBodyView::Html { html, .. },
+        ..
+    }) = &detail.content
+    else {
+        panic!("retained canonical content")
+    };
+    assert_eq!(html, "<p></p>");
+    let ReferenceFilterActionView::Search { predicate, .. } =
+        crate::definitions::definition_reference_action(
+            atlas_domain::QueryDefinitionReferenceTarget::Definition {
+                key: "domain:air".parse().unwrap(),
+            },
+            &detail.artifact_generation,
+            "References to this definition",
+        )
+        .unwrap()
+    else {
+        panic!("reference predicate")
+    };
+    let page = fixture
+        .worker
+        .search_page(list_request(Some(predicate)), &execution)
+        .unwrap();
+    assert_eq!(page.rows.len(), 1);
+    assert!(page.relationship_clauses[0].destination.is_none());
+    let ReferenceOccurrenceView::Definition { occurrence } =
+        &page.rows[0].relationship_evidence[0].occurrences[0]
+    else {
+        panic!("canonical empty-definition reference")
+    };
+    assert!(
+        matches!(&occurrence.target, atlas_domain::QueryDefinitionReferenceTarget::Definition { key } if key.to_string() == "domain:air")
+    );
+    assert!(occurrence.target_destination.is_none());
+    let options = fixture
+        .worker
+        .definition_filter_options(
+            DefinitionFilterOptionsRequest {
+                text: None,
+                offset: 0,
+                limit: 100,
+                selected: vec![occurrence.target.clone()],
+                expected_artifact_generation: Some(detail.artifact_generation),
+            },
+            &execution,
+        )
+        .unwrap();
+    assert!(options.selected[0].help.destination.is_none());
+    assert_eq!(
+        options.selected[0].help.related_filters,
+        detail.help.related_filters
+    );
+}
+
+#[test]
 fn prepared_check_and_routine_badges_use_canonical_trait_reading_capabilities() {
     let fixture = fixture(true);
     let check_traits = |badges: &[RecordBadgeView]| {
@@ -769,15 +1062,14 @@ fn browse_summary_uses_rust_fallback_then_canonical_rarity_help() {
             .worker
             .search_page(list_request(None), &execution)
             .unwrap();
-        let rarity = page
+        let record = &page
             .rows
             .iter()
             .find(|row| row.record.record_key == HOLDER)
             .unwrap()
-            .record
-            .rarity
-            .as_ref()
-            .unwrap();
+            .record;
+        assert_eq!(record.edition, Some(RecordEditionView::Remaster));
+        let rarity = record.rarity.as_ref().unwrap();
         assert_eq!(rarity.value, "uncommon");
         assert_eq!(rarity.label, label);
         assert_eq!(
@@ -824,6 +1116,7 @@ fn dynamic_filter_values_and_vocabulary_supply_existing_base_type_labels() {
             DiscoverFilterValuesRequest::Contextual {
                 only_matching: false,
                 context: Box::new(FilterDiscoveryContext::Filtered {
+                    connection_scope: None,
                     search_content: None,
                     search_profile: None,
                     expected_artifact_generation: None,
@@ -943,6 +1236,7 @@ fn all_size_filter_paths_use_canonical_labels_and_truthful_help_across_surfaces(
                     DiscoverFilterValuesRequest::Contextual {
                         only_matching: false,
                         context: Box::new(FilterDiscoveryContext::Filtered {
+                            connection_scope: None,
                             search_content: None,
                             search_profile: None,
                             expected_artifact_generation: None,

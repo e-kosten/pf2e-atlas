@@ -74,10 +74,10 @@ impl AtlasAppService {
         request: RawFilterValuesRequest,
     ) -> AppServiceResult<QueryValueOptions> {
         let execution = ReadExecutionContext::uncancellable();
-        let (list, filter, text, profile, expected, content_scope) =
+        let (list, filter, text, profile, expected, content_scope, connection_scope) =
             context_parts(request.context)?;
         self.with_workspace(&execution, move |workspace| {
-            let keys = scoped_list_keys(workspace, list.as_deref())?;
+            let keys = discovery_keys(workspace, list.as_deref(), connection_scope.as_ref())?;
             let r = workspace.retrieval_mut();
             check_generation(r, expected.as_deref())?;
             required_facet(
@@ -108,10 +108,10 @@ impl AtlasAppService {
         request: RawFilterCountsRequest,
     ) -> AppServiceResult<QueryFieldCounts> {
         let execution = ReadExecutionContext::uncancellable();
-        let (list, filter, text, profile, expected, content_scope) =
+        let (list, filter, text, profile, expected, content_scope, connection_scope) =
             context_parts(request.context)?;
         self.with_workspace(&execution, move |workspace| {
-            let keys = scoped_list_keys(workspace, list.as_deref())?;
+            let keys = discovery_keys(workspace, list.as_deref(), connection_scope.as_ref())?;
             let r = workspace.retrieval_mut();
             check_generation(r, expected.as_deref())?;
             required_facet(
@@ -150,10 +150,18 @@ impl AtlasAppService {
                 offset,
                 limit,
             } => {
-                let (keys, filter, text, search_profile, expected_generation, content_scope) =
-                    context_parts(*context)?;
+                let (
+                    keys,
+                    filter,
+                    text,
+                    search_profile,
+                    expected_generation,
+                    content_scope,
+                    connection_scope,
+                ) = context_parts(*context)?;
                 self.with_workspace(execution, move |workspace| {
-                    let keys = scoped_list_keys(workspace, keys.as_deref())?;
+                    let keys =
+                        discovery_keys(workspace, keys.as_deref(), connection_scope.as_ref())?;
                     let retrieval = workspace.retrieval_mut();
                     check_generation(retrieval, expected_generation.as_deref())?;
                     let resolved =
@@ -231,11 +239,18 @@ impl AtlasAppService {
         execution: &ReadExecutionContext,
     ) -> AppServiceResult<FilterCountsView> {
         execution.check()?;
-        let (keys, filter, text, search_profile, expected_generation, content_scope) =
-            context_parts(request.context)?;
+        let (
+            keys,
+            filter,
+            text,
+            search_profile,
+            expected_generation,
+            content_scope,
+            connection_scope,
+        ) = context_parts(request.context)?;
         let projection_execution = execution.clone();
         self.with_workspace(execution, move |workspace| {
-            let keys = scoped_list_keys(workspace, keys.as_deref())?;
+            let keys = discovery_keys(workspace, keys.as_deref(), connection_scope.as_ref())?;
             let retrieval = workspace.retrieval_mut();
             check_generation(retrieval, expected_generation.as_deref())?;
             let resolved = retrieval.resolve_search_profile(search_profile.as_ref(), false)?;
@@ -324,9 +339,10 @@ type ContextParts = (
     Option<atlas_domain::SearchProfileId>,
     Option<String>,
     atlas_domain::SearchContentScope,
+    Option<atlas_app_model::SearchConnectionScope>,
 );
 fn context_parts(context: FilterDiscoveryContext) -> AppServiceResult<ContextParts> {
-    let (list, filter, text, profile, expected, search_content) = match context {
+    let (list, filter, text, profile, expected, search_content, connection_scope) = match context {
         FilterDiscoveryContext::Filtered {
             filter,
             text,
@@ -334,6 +350,7 @@ fn context_parts(context: FilterDiscoveryContext) -> AppServiceResult<ContextPar
             search_profile,
             expected_artifact_generation,
             search_content,
+            connection_scope,
         } => (
             None,
             filter,
@@ -341,6 +358,7 @@ fn context_parts(context: FilterDiscoveryContext) -> AppServiceResult<ContextPar
             search_profile,
             expected_artifact_generation,
             search_content,
+            connection_scope,
         ),
         FilterDiscoveryContext::SavedList {
             list_ref,
@@ -350,6 +368,7 @@ fn context_parts(context: FilterDiscoveryContext) -> AppServiceResult<ContextPar
             search_profile,
             expected_artifact_generation,
             search_content,
+            connection_scope,
         } => (
             Some(list_ref),
             filter,
@@ -357,6 +376,7 @@ fn context_parts(context: FilterDiscoveryContext) -> AppServiceResult<ContextPar
             search_profile,
             expected_artifact_generation,
             search_content,
+            connection_scope,
         ),
     };
     if search_content.is_some() && text.as_deref().is_none_or(|text| text.trim().is_empty()) {
@@ -371,10 +391,33 @@ fn context_parts(context: FilterDiscoveryContext) -> AppServiceResult<ContextPar
         profile,
         expected,
         search_content.unwrap_or_default(),
+        connection_scope,
     ))
 }
 
-fn scoped_list_keys(
+fn discovery_keys(
+    workspace: &mut atlas_runtime::WorkspaceRead,
+    list_ref: Option<&str>,
+    connection: Option<&atlas_app_model::SearchConnectionScope>,
+) -> AppServiceResult<Option<Vec<RecordKey>>> {
+    let list = scoped_list_keys(workspace, list_ref)?;
+    let connected = connection
+        .map(|context| crate::connection_scope::resolve_connection_scope(workspace, context))
+        .transpose()?
+        .and_then(|scope| scope.keys);
+    Ok(match (list, connected) {
+        (Some(list), Some(connected)) => {
+            let allowed: std::collections::BTreeSet<_> = connected.into_iter().collect();
+            Some(
+                list.into_iter()
+                    .filter(|key| allowed.contains(key))
+                    .collect(),
+            )
+        }
+        (list, connected) => list.or(connected),
+    })
+}
+pub(crate) fn scoped_list_keys(
     workspace: &atlas_runtime::WorkspaceRead,
     list_ref: Option<&str>,
 ) -> AppServiceResult<Option<Vec<RecordKey>>> {
@@ -465,6 +508,7 @@ mod tests {
     #[test]
     fn explicit_discovery_scope_requires_text_and_legacy_browse_keeps_all() {
         let context = |text, search_content| FilterDiscoveryContext::Filtered {
+            connection_scope: None,
             search_content,
             search_profile: None,
             expected_artifact_generation: None,
@@ -529,6 +573,7 @@ mod tests {
                 .worker
                 .search_page(
                     SearchResultsRequest {
+                        connection_scope: None,
                         sort: None,
 
                         ranking: None,
@@ -552,6 +597,7 @@ mod tests {
                 .discover_filter_counts(
                     DiscoverFilterCountsRequest {
                         context: FilterDiscoveryContext::Filtered {
+                            connection_scope: None,
                             search_content: None,
                             search_profile: None,
                             expected_artifact_generation: None,

@@ -200,6 +200,9 @@ export function EncounterPersistentRecovery({
     <>
       <Popover
         title={`${damageType} recovery`}
+        // WebKit can retain a scaled alignment after zoom ends near a viewport edge.
+        // Keep this interactive recovery panel in its final geometry throughout.
+        motion={{ motionName: "" }}
         placement="top"
         open={open}
         trigger="click"
