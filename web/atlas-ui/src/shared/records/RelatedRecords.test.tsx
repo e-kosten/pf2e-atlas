@@ -915,7 +915,9 @@ it("replaces a successfully unavailable explicit Versions location once and pres
       screen.getByRole("tab", { name: "Referenced by", selected: true }),
     ).toBeVisible(),
   );
-  expect(screen.queryByRole("tab", { name: "Versions" })).toBeNull();
+  await waitFor(() =>
+    expect(screen.queryByRole("tab", { name: "Versions" })).toBeNull(),
+  );
   expect(screen.queryByText("Unavailable former name")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Read document" }));
   expect(await screen.findByRole("textbox", { name: "Retained reading draft" })).toBe(
