@@ -5,6 +5,29 @@ import { activate } from "./reading";
 const fontSize = (element: Locator) =>
   element.evaluate((node) => parseFloat(getComputedStyle(node).fontSize));
 
+test("narrow Explore overflow dismisses after selecting Versions", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto("/records/browser-editions:remaster00000001");
+  await activate(
+    page.getByRole("button", { name: "Explore related records", exact: true }),
+    info,
+  );
+  const more = page.locator(".record-explore .ant-tabs-nav-more");
+  await expect(more).toBeVisible();
+  await activate(more, info);
+  const menu = page.getByRole("listbox", { name: "expanded dropdown", exact: true });
+  await activate(menu.getByRole("option", { name: "Versions", exact: true }), info);
+  await expect(menu).toBeHidden();
+  await expect(page.locator(".remaster-relationship__line")).toContainText(
+    "Legacy signal",
+  );
+  await expect(
+    page.getByRole("button", { name: "Compare", exact: true }),
+  ).toBeVisible();
+});
+
 test("reading and Versions share inline text size without enlarging controls", async ({
   page,
 }, info) => {

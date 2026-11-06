@@ -122,6 +122,7 @@ export function RelatedRecords(props: ExploreProps) {
       <Tabs
         activeKey={items.some((item) => item.key === active) ? active : items[0].key}
         onChange={setActive}
+        more={{ trigger: ["click"] }}
         animated={false}
         destroyOnHidden
         items={items}
