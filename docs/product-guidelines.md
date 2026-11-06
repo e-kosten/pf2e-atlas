@@ -42,14 +42,16 @@ Show a selected entry's supported remaster relationship as a compact inline
 sentence above its rules, wrapping naturally on narrow screens. Display each name
 once and link only actual available entries. Combine supporting source statements
 into readable logical relationships without merging different scopes or inventing
-record identity. Link directly to readable change explanations when available,
-deduplicating repeated citations to the same journal page. Keep software-provider
+record identity. Place a compact information action beside the reading context to
+open a readable change explanation in the reference drawer, deduplicating repeated
+citations to the same journal page. Keep software-provider
 labels, internal revisions and diagnostic evidence out of ordinary presentation.
 
 Explore Versions appears for available counterparts or suggested variants, with
 a visible Compare button for supported pairs. A former name or explanation link
-alone does not warrant that tab. Omit the repeated main notice while Versions is
-shown; comparison columns retain their own identities and rules without reciprocal
+alone does not warrant that tab. Omit the reader notice throughout Explore; each
+tab owns its content. In Versions, place comparison actions below their relationship
+line. Comparison columns retain their own identities and rules without reciprocal
 notices. Technical attribution remains available in explicit inspection workflows.
 
 Publication-era badges alone do not establish a replacement. Label an owned

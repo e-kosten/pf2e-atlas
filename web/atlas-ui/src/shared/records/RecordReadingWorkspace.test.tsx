@@ -54,7 +54,7 @@ it("restores reading mode and the selected Explore tab through Back and Forward"
   await waitFor(() => expect(screen.getByText("Explore: similar")).toBeVisible());
 });
 
-it("keeps its notice out of Explore Versions while preserving global status and reading mode", async () => {
+it("keeps its entire notice out of every Explore tab while preserving global status and reading mode", async () => {
   const router = createAtlasRouter(
     createMemoryHistory({
       initialEntries: ["/records/items:seed?record_tab=versions"],
@@ -92,8 +92,12 @@ it("keeps its notice out of Explore Versions while preserving global status and 
   ).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Similar" }));
   await waitFor(() =>
-    expect(screen.getByText("Compact relationship notice")).toBeVisible(),
+    expect(screen.getByRole("button", { name: "Read document" })).toBeVisible(),
   );
+  expect(screen.queryByText("Compact relationship notice")).toBeNull();
+  expect(
+    screen.getByText("Refresh failed; retained rules remain available."),
+  ).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Read document" }));
   await waitFor(() => expect(screen.getByText("Document prose")).toBeVisible());
   expect(screen.getByText("Compact relationship notice")).toBeVisible();

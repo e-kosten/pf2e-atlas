@@ -38,9 +38,19 @@ test("reading and Versions share inline text size without enlarging controls", a
       relationship.getByRole("link", { name: "Legacy signal", exact: true }),
     ),
   ).toBe(bodySize);
-  expect(await fontSize(relationship.getByRole("button", { name: "Compare" }))).toBe(
-    controlSize,
-  );
+  const compare = page
+    .locator(".remaster-relationship__actions")
+    .getByRole("button", { name: "Compare", exact: true });
+  await expect(compare).toBeVisible();
+  await expect(
+    relationship.getByRole("button", { name: "Compare", exact: true }),
+  ).toHaveCount(0);
+  expect(await fontSize(compare)).toBe(controlSize);
+  const lineBounds = await relationship.boundingBox();
+  const actionBounds = await compare.boundingBox();
+  expect(lineBounds).not.toBeNull();
+  expect(actionBounds).not.toBeNull();
+  expect(actionBounds!.y).toBeGreaterThanOrEqual(lineBounds!.y + lineBounds!.height);
   expect(controlSize).toBeLessThan(bodySize);
 });
 

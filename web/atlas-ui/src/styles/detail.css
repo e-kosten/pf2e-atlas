@@ -167,6 +167,13 @@
 }
 .remaster-relationship__line > .ant-btn {
   margin-inline-start: var(--space-control);
+  vertical-align: baseline;
+}
+.remaster-relationship__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-control);
+  margin-block-start: var(--space-control);
 }
 .remaster-relationship + .remaster-relationship,
 .remaster-source-context {

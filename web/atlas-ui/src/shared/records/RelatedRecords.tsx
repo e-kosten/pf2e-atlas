@@ -9,7 +9,6 @@ import { Button, Empty, Tabs, Typography } from "antd";
 import { LoadingStatus } from "../ui/LoadingStatus";
 import { useEffect, useState } from "react";
 import { GitCompareArrows } from "lucide-react";
-import { RecordEditionNotice } from "./RecordEditionNotice";
 import { SearchPreviewRows } from "./SearchPreviewRows";
 import { ReferenceResult } from "./ReferenceResult";
 import { useQuery } from "@tanstack/react-query";
@@ -39,7 +38,11 @@ import type {
   RecordNavigationView,
 } from "../../generated/atlas";
 import type { RecordReferenceHandler } from "./PreparedContent";
-import { RemasterInformation, SourceRemasterInformation } from "./RemasterInformation";
+import {
+  RemasterInformation,
+  SourceRemasterInformation,
+  type RemasterReferencePart,
+} from "./RemasterInformation";
 import { RecordDetailPane } from "./RecordDetailPane";
 import { useRecordDetail } from "./useRecordDetail";
 import { isArtifactGenerationChanged } from "../queries/referenceQueries";
@@ -377,24 +380,37 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
     target: string;
     open: boolean;
   } | null>(null);
-  const compareReference = (target: RecordNavigationView) => {
-    if (
-      detail.selected.embedded_path.length ||
-      detail.selected.field ||
-      target.embedded_path.length ||
-      target.field ||
-      target.record_key === detail.selected.record_key
+  const comparableRoot = (target: RecordNavigationView) =>
+    !detail.selected.embedded_path.length &&
+    !detail.selected.field &&
+    !target.embedded_path.length &&
+    !target.field &&
+    target.record_key !== detail.selected.record_key;
+  const direct = related.data?.remaster_relationships;
+  const source = related.data?.source_remaster_context;
+  const sourceRelationships =
+    source?.kind === "content" ? source.content.relationships : undefined;
+  const comparisonTargets = [direct, sourceRelationships]
+    .flatMap((category) =>
+      category?.kind === "content" ? category.content.relationships : [],
     )
-      return null;
-    return (
+    .flatMap((relationship) => relationship.parts)
+    .filter((part) => part.kind === "reference" && comparableRoot(part.navigation));
+  const compareReferences = (references: RemasterReferencePart[]) => {
+    const targets = references.filter(({ navigation }) => comparableRoot(navigation));
+    if (!targets.length) return null;
+    return targets.map((target) => (
       <Button
+        key={JSON.stringify(target.navigation)}
         size="small"
         icon={<GitCompareArrows size={14} aria-hidden="true" />}
-        onClick={() => setComparison({ target: target.record_key, open: true })}
+        onClick={() =>
+          setComparison({ target: target.navigation.record_key, open: true })
+        }
       >
-        Compare
+        {comparisonTargets.length > 1 ? `Compare ${target.label}` : "Compare"}
       </Button>
-    );
+    ));
   };
   const relationships = related.data?.remaster_relationships;
   const variants = related.data?.variants;
@@ -406,13 +422,6 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
       : [];
   return (
     <div className="record-explore__task">
-      {!related.data && (
-        <RecordEditionNotice
-          detail={detail}
-          onReference={onReference}
-          onReload={onReload}
-        />
-      )}
       {related.isLoading && <LoadingStatus label="Checking versions…" />}
       {related.error && (
         <QueryError
@@ -441,14 +450,16 @@ function Versions({ detail, onReference, onReload, reloadLabel }: ExploreProps) 
           category={relationships}
           onReference={onReference}
           onReload={() => void related.refetch()}
-          referenceAction={compareReference}
+          referenceActions={compareReferences}
+          showExplanations={false}
         />
       )}
       <SourceRemasterInformation
         category={related.data?.source_remaster_context}
         onReference={onReference}
         onReload={() => void related.refetch()}
-        referenceAction={compareReference}
+        referenceActions={compareReferences}
+        showExplanations={false}
       />
       {choices.length > 0 && (
         <section>

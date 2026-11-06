@@ -108,8 +108,9 @@ search and filters, Atlas shows the replacement. Choose **All versions** to see
 both. Merged, ambiguous or otherwise related entries can still appear together.
 
 Open an entry to see a compact remaster relationship above its rules, with a
-direct link to a readable explanation when available. For example, Force Barrage
-shows **Former name: Magic Missile** and links to **Remaster Changes — Spells**.
+compact information action for a readable explanation when available. For example,
+Force Barrage shows **Former name: Magic Missile**; its information action opens
+**Remaster Changes — Spells** in the reference drawer.
 Available entries are linked; names whose documents are not available stay as
 text. Search can match verified former names.
 

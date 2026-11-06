@@ -17,7 +17,7 @@ export function RecordReadingWorkspace({
   status?: ReactNode;
   readingNotice?: ReactNode;
 }) {
-  const { mode, tab, setMode } = useRecordExploreLocation();
+  const { mode, setMode } = useRecordExploreLocation();
   const [explored, setExplored] = useState(mode === "explore");
   const previousMode = useRef(mode);
   const root = useRef<HTMLDivElement>(null);
@@ -52,7 +52,7 @@ export function RecordReadingWorkspace({
         />,
       )}
       {status}
-      {!(mode === "explore" && tab === "versions") && readingNotice}
+      {mode === "read" && readingNotice}
       <Activity mode={mode === "read" ? "visible" : "hidden"}>
         <div className="record-workspace__reading">{children}</div>
       </Activity>

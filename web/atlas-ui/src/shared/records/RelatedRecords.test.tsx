@@ -633,65 +633,48 @@ it("retires preview rows after a generation conflict and retains a local recover
   expect(screen.getByRole("button", { name: "Reload record" })).toBeVisible();
 });
 
-it("shows typed edition attribution and preserves exact native and preview destinations", async () => {
-  const source = {
-    record: "journals:source",
+it("keeps Read Info actions exact and leaves explanation context out of Versions", async () => {
+  const target = {
+    ...navigation("journals:source"),
     embedded_path: [{ collection: "/pages", identity: { Stable: "page1" } }],
     field: "/text/content",
   };
-  const target = {
-    ...navigation(source.record),
-    embedded_path: source.embedded_path,
-    field: source.field,
-  };
+  const content = remasterInformationFixture();
+  content.relationships[0].explanation_links = [
+    { label: "Remaster Changes — Class Features", navigation: target },
+  ];
+  const detail = detailFixture("actors:seed", "Viewed creature");
+  detail.remaster_relationships = { kind: "content", content };
   api.getRelatedRecords.mockResolvedValue({
     ...relatedFixture(),
     show_versions: true,
-    remaster_relationships: {
-      kind: "content",
-      content: {
-        ...remasterInformationFixture(),
-        relationships: [
-          {
-            ...remasterInformationFixture().relationships[0],
-            explanation_links: [
-              { label: "Remaster Changes — Class Features", navigation: target },
-            ],
-          },
-        ],
-        declarations: [
-          {
-            ...remasterInformationFixture().declarations[0],
-            citations: [
-              {
-                ...remasterInformationFixture().declarations[0].citations[0],
-                destination: { kind: "internal", navigation: target },
-              },
-            ],
-          },
-        ],
-      },
-    },
+    remaster_relationships: { kind: "content", content },
   });
-  const onReference = renderRelated();
+  const onReference = renderRelated(
+    detail,
+    undefined,
+    createAtlasRouter(
+      createMemoryHistory({ initialEntries: ["/records/actors:seed"] }),
+    ),
+  );
+  const info = screen.getByRole("link", { name: "Remaster Changes — Class Features" });
+  expect(info).toHaveTextContent("");
+  expect(
+    selectedNavigation(
+      parseSearchParams(new URL(info.getAttribute("href")!, "http://localhost").search),
+      "journals:source",
+    ),
+  ).toEqual(target);
+  fireEvent.click(info, { metaKey: true });
+  expect(onReference).not.toHaveBeenCalled();
+  fireEvent.click(info);
+  expect(onReference).toHaveBeenCalledWith("journals:source", info, target);
   openRelated();
   await selectTab("Versions");
-  const link = await screen.findByRole("link", {
-    name: "Remaster Changes — Class Features",
-  });
-  expect(link.getAttribute("href")).toContain("/records/journals:source");
-  const selected = selectedNavigation(
-    parseSearchParams(new URL(link.getAttribute("href")!, "http://localhost").search),
-    source.record,
-  );
-  expect(selected).toMatchObject({
-    embedded_path: source.embedded_path,
-    field: source.field,
-  });
-  fireEvent.click(link, { ctrlKey: true });
-  expect(onReference).not.toHaveBeenCalled();
-  fireEvent.click(link);
-  expect(onReference).toHaveBeenCalledWith(source.record, link, target);
+  expect(
+    screen.queryByRole("link", { name: "Remaster Changes — Class Features" }),
+  ).toBeNull();
+  expect(screen.getByText("Renamed to:")).toBeVisible();
 });
 
 it("compares a logical relationship's available root without duplicating its name or adding recursive exploration", async () => {
@@ -748,7 +731,14 @@ it("compares a logical relationship's available root without duplicating its nam
     current,
     navigation("actors:modern"),
   );
-  const compare = within(line).getByRole("button", { name: "Compare" });
+  const actions = line.parentElement!.querySelector(".remaster-relationship__actions")!;
+  const compare = within(actions as HTMLElement).getByRole("button", {
+    name: "Compare",
+  });
+  expect(line).not.toContainElement(compare);
+  expect(
+    line.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
   compare.focus();
   fireEvent.click(compare);
   const dialog = await screen.findByRole("dialog", { name: "Variant comparison" });
@@ -859,10 +849,10 @@ it.each([
     await waitFor(() =>
       expect(screen.queryByRole("tab", { name: "Versions" })).toBeNull(),
     );
-    expect(screen.getByText(text)).toBeVisible();
+    expect(screen.queryByText(text)).toBeNull();
     expect(
-      screen.getAllByRole("link", { name: "Remaster Changes — Spells" }),
-    ).toHaveLength(1);
+      screen.queryByRole("link", { name: "Remaster Changes — Spells" }),
+    ).toBeNull();
     expect(screen.queryByText("Sources")).toBeNull();
   },
 );
@@ -895,7 +885,7 @@ it("replaces a successfully unavailable explicit Versions location once and pres
   expect(
     await screen.findByRole("tab", { name: "Versions", selected: true }),
   ).toBeVisible();
-  expect(screen.getByText("Unavailable former name")).toBeVisible();
+  expect(screen.queryByText("Unavailable former name")).toBeNull();
   expect(router.latestLocation.search.record_view).toBe("explore");
   await act(async () => resolve(relatedFixture()));
   await waitFor(() => expect(router.latestLocation.search.record_view).toBeUndefined());
@@ -928,7 +918,7 @@ it("replaces a successfully unavailable explicit Versions location once and pres
     ).toBeVisible(),
   );
   expect(screen.queryByRole("tab", { name: "Versions" })).toBeNull();
-  expect(screen.getByText("Unavailable former name")).toBeVisible();
+  expect(screen.queryByText("Unavailable former name")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Read document" }));
   expect(await screen.findByRole("textbox", { name: "Retained reading draft" })).toBe(
     draft,
@@ -937,7 +927,7 @@ it("replaces a successfully unavailable explicit Versions location once and pres
   navigate.mockRestore();
 });
 
-it("keeps an explicit Versions failure and routine note recoverable until a successful response arrives", async () => {
+it("keeps an explicit Versions failure recoverable without a floating reader notice", async () => {
   history.replaceState(
     null,
     "",
@@ -956,7 +946,7 @@ it("keeps an explicit Versions failure and routine note recoverable until a succ
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "Unable to load connections",
   );
-  expect(screen.getByText("Renamed to:")).toBeVisible();
+  expect(screen.queryByText("Renamed to:")).toBeNull();
   expect(location.search).toContain("record_view=explore");
   api.getRelatedRecords.mockResolvedValue(relatedFixture());
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
@@ -1006,7 +996,62 @@ it("retains one Versions relationship and its explanation through a background r
   expect(within(explore).getAllByText("Renamed to:")).toHaveLength(1);
   expect(within(explore).getAllByRole("link", { name: "New name" })).toHaveLength(1);
   expect(
-    within(explore).getAllByRole("link", { name: "Remaster Changes — Class Features" }),
-  ).toHaveLength(1);
+    within(explore).queryByRole("link", { name: "Remaster Changes — Class Features" }),
+  ).toBeNull();
   expect(explore.querySelector(".record-edition-notice")).toBeNull();
+});
+
+it("names multiple root comparison actions and keeps them below the relationship", async () => {
+  const content = remasterInformationFixture();
+  content.relationships[0].parts = [
+    {
+      kind: "reference",
+      label: "First alternative",
+      navigation: navigation("actors:first"),
+    },
+    { kind: "text", text: " and " },
+    {
+      kind: "reference",
+      label: "Second alternative",
+      navigation: navigation("actors:second"),
+    },
+  ];
+  api.getRelatedRecords.mockResolvedValue({
+    ...relatedFixture(),
+    show_versions: true,
+    remaster_relationships: { kind: "content", content },
+  });
+  api.getRecordDetail.mockImplementation(async (key: string) =>
+    detailFixture(
+      key,
+      key === "actors:seed"
+        ? "Viewed creature"
+        : key === "actors:first"
+          ? "First alternative"
+          : "Second alternative",
+    ),
+  );
+  renderRelated();
+  openRelated();
+  await selectTab("Versions");
+  const line = screen.getByText("Renamed to:").closest("p")!;
+  expect(within(line).queryByRole("button")).toBeNull();
+  const actions = line.parentElement!.querySelector(".remaster-relationship__actions")!;
+  expect(
+    within(actions as HTMLElement).getByRole("button", {
+      name: "Compare First alternative",
+    }),
+  ).toBeVisible();
+  fireEvent.click(
+    within(actions as HTMLElement).getByRole("button", {
+      name: "Compare Second alternative",
+    }),
+  );
+  const dialog = await screen.findByRole("dialog", { name: "Variant comparison" });
+  expect(
+    await within(dialog).findByRole("heading", { name: "Second alternative" }),
+  ).toBeVisible();
+  expect(
+    within(dialog).getByRole("heading", { name: "Viewed creature" }),
+  ).toBeVisible();
 });

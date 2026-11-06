@@ -75,8 +75,10 @@ source-origin badges. Useful journal explanations are linked directly without
 exposing internal provenance. Full attributed evidence stays available through
 explicit API/CLI inspection. App-service projects Versions availability from actual
 current alternatives or suggested variants; text-only former names and explanation
-links do not create the tab. Explore Versions shows the relationships once and
-omits the repeated main notice. Comparison keeps both identities and rules without
+links do not create the tab. Reader explanation actions open the supplied journal
+context in the reference drawer. Explore omits the reader notice in every tab;
+Versions shows its relationships once with comparison actions below them.
+Comparison keeps both identities and rules without
 reciprocal notices.
 Explicit term API/CLI lookup stays separate from record counts and strict identity
 lookup. Ordinary Search does not add an automatic source-statement panel.

@@ -3,7 +3,7 @@ import { remasterInformationFixture } from "../../test/remasterFixtures";
 import { RemasterInformation, SourceRemasterInformation } from "./RemasterInformation";
 import { rootNavigation } from "./useReferenceReading";
 
-it("renders useful projected explanation links directly with exact native and drawer navigation", () => {
+it("renders projected explanation destinations as inline named Info actions with exact native and drawer navigation", () => {
   const content = remasterInformationFixture();
   const page = {
     ...rootNavigation("journals:changes"),
@@ -20,6 +20,9 @@ it("renders useful projected explanation links directly with exact native and dr
   const explanation = screen.getByRole("link", { name: "Remaster Changes — Spells" });
   expect(explanation.getAttribute("href")).toContain("/records/journals:changes");
   expect(explanation.getAttribute("href")).toContain("at=");
+  expect(explanation).toHaveTextContent("");
+  expect(explanation.closest("p")).toBe(screen.getByText("Renamed to:").closest("p"));
+  expect(screen.queryByText("Remaster Changes — Spells")).toBeNull();
   fireEvent.click(explanation, { metaKey: true });
   expect(open).not.toHaveBeenCalled();
   fireEvent.click(explanation);

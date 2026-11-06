@@ -2318,23 +2318,12 @@ test("Other editions keeps exact source citation navigation and comparison", asy
   context,
 }, info) => {
   await page.goto("/records/browser-editions:remaster00000001");
-  await activate(
-    page.getByRole("button", { name: "Explore related records", exact: true }),
-    info,
-  );
-  await activate(page.getByRole("tab", { name: "Versions", exact: true }), info);
-  await expect(page.locator(".record-edition-notice")).toHaveCount(0);
-  const relationship = page.locator(".remaster-relationship__line");
-  await expect(relationship).toContainText("Legacy signal");
-  await expect(
-    relationship.getByRole("link", { name: "Legacy signal", exact: true }),
-  ).toHaveCount(1);
-  await expect(page.getByText("Sources", { exact: true })).toHaveCount(0);
   const source = page.getByRole("link", {
     name: "Remaster Changes — Class Features",
     exact: true,
   });
   await expect(source).toBeVisible();
+  await expect(source).toHaveText("");
   const href = await source.getAttribute("href");
   const address = readUrl(new URL(href!, page.url()));
   expect(address).toMatchObject({
@@ -2403,7 +2392,25 @@ test("Other editions keeps exact source citation navigation and comparison", asy
   );
   await expect(drawer).toBeHidden();
   await expect(source).toBeFocused();
-  await activate(page.getByRole("button", { name: "Compare", exact: true }), info);
+  await activate(
+    page.getByRole("button", { name: "Explore related records", exact: true }),
+    info,
+  );
+  await activate(page.getByRole("tab", { name: "Versions", exact: true }), info);
+  await expect(page.locator(".record-edition-notice")).toHaveCount(0);
+  const relationship = page.locator(".remaster-relationship__line");
+  await expect(relationship).toContainText("Legacy signal");
+  await expect(
+    relationship.getByRole("link", { name: "Legacy signal", exact: true }),
+  ).toHaveCount(1);
+  await expect(page.getByText("Sources", { exact: true })).toHaveCount(0);
+  const compare = page
+    .locator(".remaster-relationship__actions")
+    .getByRole("button", { name: "Compare", exact: true });
+  await expect(
+    relationship.getByRole("button", { name: "Compare", exact: true }),
+  ).toHaveCount(0);
+  await activate(compare, info);
   const comparison = page.getByRole("dialog", {
     name: "Variant comparison",
     exact: true,

@@ -1,4 +1,5 @@
-import { Fragment } from "react";
+import { Info } from "lucide-react";
+import { PaneIconLink } from "../ui/actions/PaneAction";
 import { Button, Typography } from "antd";
 import { recordDestination } from "../../app/destinations";
 import { destinationHref, isPrimaryActivation } from "../../app/navigation";
@@ -37,15 +38,27 @@ function RemasterRecordLink({
   );
 }
 
+export type RemasterReferencePart = Extract<
+  RemasterRelationshipView["parts"][number],
+  { kind: "reference" }
+>;
+
 function Relationship({
   relationship,
   onReference,
-  referenceAction,
+  referenceActions,
+  showExplanations = true,
 }: {
   relationship: RemasterRelationshipView;
   onReference: RecordReferenceHandler;
-  referenceAction?: (navigation: RecordNavigationView) => React.ReactNode;
+  referenceActions?: (references: RemasterReferencePart[]) => React.ReactNode;
+  showExplanations?: boolean;
 }) {
+  const actions = referenceActions?.(
+    relationship.parts.filter(
+      (part): part is RemasterReferencePart => part.kind === "reference",
+    ),
+  );
   return (
     <div className="remaster-relationship">
       <p className="remaster-relationship__line">
@@ -58,17 +71,39 @@ function Relationship({
           part.kind === "text" ? (
             <span key={index}>{part.text}</span>
           ) : (
-            <Fragment key={index}>
-              <RemasterRecordLink
-                navigation={part.navigation}
-                onReference={onReference}
-              >
-                {part.label}
-              </RemasterRecordLink>
-              {referenceAction?.(part.navigation)}
-            </Fragment>
+            <RemasterRecordLink
+              key={index}
+              navigation={part.navigation}
+              onReference={onReference}
+            >
+              {part.label}
+            </RemasterRecordLink>
           ),
         )}
+        {showExplanations &&
+          relationship.explanation_links.map((link, index) => (
+            <PaneIconLink
+              key={index}
+              size="small"
+              label={link.label}
+              icon={<Info size={14} aria-hidden="true" />}
+              href={destinationHref(
+                recordDestination({
+                  recordKey: link.navigation.record_key,
+                  selection: link.navigation,
+                }),
+              )}
+              onClick={(event) => {
+                if (!isPrimaryActivation(event)) return;
+                event.preventDefault();
+                onReference(
+                  link.navigation.record_key,
+                  event.currentTarget,
+                  link.navigation,
+                );
+              }}
+            />
+          ))}
         {relationship.truncated && (
           <span className="remaster-information__context">
             {" "}
@@ -76,13 +111,7 @@ function Relationship({
           </span>
         )}
       </p>
-      {relationship.explanation_links.map((link, index) => (
-        <div key={index}>
-          <RemasterRecordLink navigation={link.navigation} onReference={onReference}>
-            {link.label}
-          </RemasterRecordLink>
-        </div>
-      ))}
+      {actions && <div className="remaster-relationship__actions">{actions}</div>}
     </div>
   );
 }
@@ -92,12 +121,14 @@ export function RemasterInformation({
   category,
   onReference,
   onReload,
-  referenceAction,
+  referenceActions,
+  showExplanations = true,
 }: {
   category: RelatedCategoryView<RemasterRelationshipsView>;
   onReference: RecordReferenceHandler;
   onReload?: () => void;
-  referenceAction?: (navigation: RecordNavigationView) => React.ReactNode;
+  referenceActions?: (references: RemasterReferencePart[]) => React.ReactNode;
+  showExplanations?: boolean;
 }) {
   if (category.kind === "empty") return null;
   if (category.kind === "error")
@@ -127,7 +158,8 @@ export function RemasterInformation({
           key={relationship.id}
           relationship={relationship}
           onReference={onReference}
-          referenceAction={referenceAction}
+          referenceActions={referenceActions}
+          showExplanations={showExplanations}
         />
       ))}
       {category.content.truncated && (
@@ -143,12 +175,14 @@ export function SourceRemasterInformation({
   category,
   onReference,
   onReload,
-  referenceAction,
+  referenceActions,
+  showExplanations = true,
 }: {
   category?: RelatedCategoryView<RemasterSourceContextView> | null;
   onReference: RecordReferenceHandler;
   onReload?: () => void;
-  referenceAction?: (navigation: RecordNavigationView) => React.ReactNode;
+  referenceActions?: (references: RemasterReferencePart[]) => React.ReactNode;
+  showExplanations?: boolean;
 }) {
   if (!category || category.kind === "empty") return null;
   if (category.kind === "error")
@@ -204,7 +238,8 @@ export function SourceRemasterInformation({
         category={category.content.relationships}
         onReference={onReference}
         onReload={onReload}
-        referenceAction={referenceAction}
+        referenceActions={referenceActions}
+        showExplanations={showExplanations}
       />
     </section>
   );
