@@ -2865,11 +2865,20 @@ test("definition discovery preserves drafts while reading help and applies suppl
   );
   const largePage = await (await largeResults).json();
   expect(largePage.page.total).toBe(0);
+  expect(largePage.rows).toHaveLength(0);
   expect(
     JSON.stringify(decodeFilterUrl(new URL(page.url()).searchParams.get("filter")!)),
   ).not.toContain("definition_reference");
   await definitionSearch.press("Escape");
   await activate(advanced.getByRole("button", { name: "Close", exact: true }), info);
-  await expect(page.getByText("No matching records.", { exact: true })).toBeVisible();
+  const emptyResults = page.getByRole("region", {
+    name: "Search results",
+    exact: true,
+  });
+  await expect(emptyResults.getByText("0 records", { exact: true })).toBeVisible();
+  await expect(emptyResults.locator("[data-record-key]")).toHaveCount(0);
+  await expect(
+    emptyResults.getByRole("group", { name: "Result pages", exact: true }),
+  ).toHaveCount(0);
   await noPageOverflow(page);
 });
