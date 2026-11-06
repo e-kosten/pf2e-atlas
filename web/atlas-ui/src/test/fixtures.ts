@@ -296,7 +296,10 @@ export function fieldFixture(
           : "open_values",
   };
 }
-export function editorFixture(fields: QueryFieldDefinition[] = []): FilterEditorView {
+export function editorFixture(
+  fields: QueryFieldDefinition[] = [],
+  choiceLabels: Record<string, Record<string, string>> = {},
+): FilterEditorView {
   return {
     artifact_generation: "generation-a",
     relationship_clauses: [],
@@ -319,7 +322,10 @@ export function editorFixture(fields: QueryFieldDefinition[] = []): FilterEditor
           definition,
           label: definition.label,
           help: null,
-          choices: definition.choices.map((value) => ({ value, label: value })),
+          choices: definition.choices.map((value) => ({
+            value,
+            label: choiceLabels[definition.id]?.[value] ?? value,
+          })),
           operators: definition.operators.map((operator) => ({
             operator,
             label: operator,

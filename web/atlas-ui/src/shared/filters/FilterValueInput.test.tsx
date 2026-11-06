@@ -3,11 +3,29 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfigProvider } from "antd";
 import { useState } from "react";
 import { FilterValueInput } from "./FilterValueInput";
+import type {
+  DiscoverFilterValuesRequest,
+  FilterValueListView,
+  DiscoverFilterCountsRequest,
+  FilterCountsView,
+} from "../../generated/atlas";
 import { editorFixture, fieldFixture } from "../../test/fixtures";
 
 const api = vi.hoisted(() => ({
-  discoverFilterValues: vi.fn(),
-  discoverFilterCounts: vi.fn(),
+  discoverFilterValues:
+    vi.fn<
+      (
+        request: DiscoverFilterValuesRequest,
+        signal?: AbortSignal,
+      ) => Promise<FilterValueListView>
+    >(),
+  discoverFilterCounts:
+    vi.fn<
+      (
+        request: DiscoverFilterCountsRequest,
+        signal?: AbortSignal,
+      ) => Promise<FilterCountsView>
+    >(),
 }));
 vi.mock("../../api/atlasApi", () => api);
 function renderInput(
@@ -88,8 +106,8 @@ describe("shared value control vocabulary", () => {
         value: {
           field: "traits",
           options: [
-            { value: "fire", distinct_roots: 8n, selected: false },
-            { value: "cold", distinct_roots: 0n, selected: false },
+            { value: "fire", label: "Fire", distinct_roots: 8n, selected: false },
+            { value: "cold", label: "Cold", distinct_roots: 0n, selected: false },
           ],
           total_values: 2n,
           exhaustive: true,
@@ -114,8 +132,8 @@ describe("shared value control vocabulary", () => {
                 selected_values: request.selected_values,
                 total_values: 90n,
                 options: request.offset
-                  ? [{ value: "second-page" }]
-                  : [{ value: "fire" }],
+                  ? [{ value: "second-page", label: "Second-page" }]
+                  : [{ value: "fire", label: "Fire" }],
                 basis: "product_key_scope_before_edition_preference",
               },
             },
