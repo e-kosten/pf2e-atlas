@@ -59,5 +59,8 @@ and [runtime architecture](../../architecture/runtime.md). Do not weaken the
 existing pair contract solely to populate the UI; establish and test the intended
 identity/evidence contract first.
 
-Full Legacy Content import, general UUID redirect handling, historical saved-text
-retention and saved-entry conversion are separate potential follow-ups.
+Additional reference providers, general UUID redirect handling and explicit
+saved-entry conversion remain separate potential work. Saved records follow the
+current content at their selected key; historical record snapshots and pinning
+are excluded. Updating content at the same key does not authorize rebinding a
+save to another key through a replacement relationship.

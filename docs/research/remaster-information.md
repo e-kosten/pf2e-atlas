@@ -232,5 +232,11 @@ redirecting the chosen document.
 
 The local working plan owns proposed schema details, execution order, acceptance
 cases and unresolved product choices. The [backlog item](../backlog/items/remaster-relationship-coverage.md)
-owns durable scope. Importing full legacy snapshots, a general identity-redirect
-system, and saved-entry conversion are separate potential workstreams.
+owns durable scope. Additional reference providers, a general identity-redirect
+system, and explicit saved-entry conversion are separate potential workstreams.
+
+Product decision on 2026-11-05: saved records follow current content at their
+selected key. Historical record snapshots and pinning are excluded. The proposed
+model therefore keeps current records, supported change statements and derived
+current bindings/policy; it does not require document-version or assessment
+history. Current source evidence remains necessary for attribution and validation.
