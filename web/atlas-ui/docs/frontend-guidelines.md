@@ -402,6 +402,13 @@ and Oxblood in light appearance, and warmer Oxblood and Brass in dark appearance
 Use flat surfaces, subtle separators, the existing interface typography and the
 shared 6px base radius. Generic controls retain Ant component/token ownership.
 
+Reader hosts share the document type scale in `record-reference.css`, including
+related-record content shown inside Tabs. Inline links and text inherit their
+local fact, heading or metadata size rather than Ant Typography's UI default.
+Controls and trait badges retain their own scales; do not change Ant's global
+font size to repair reader content. Verify computed label/link sizes in the
+reader and Explore, and check that badges and controls keep their intended size.
+
 `themeDefinitions.ts` owns the authored light/dark anchors and shared semantic
 roles. `atlasTheme.ts` projects them into the Ant configuration and document-level
 CSS variables. Use the root provider so portaled content receives the same colors.
