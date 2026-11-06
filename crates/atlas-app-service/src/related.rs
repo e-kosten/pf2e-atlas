@@ -16,7 +16,6 @@ impl AtlasAppService {
         let selection = request.selection;
         crate::records::validate_request(&atlas_app_model::RecordDetailRequest {
             expected_artifact_generation: None,
-            reading_context: None,
             spell_rank: None,
             record_key: selection.record_key.clone(),
             owners: selection.owners.clone(),

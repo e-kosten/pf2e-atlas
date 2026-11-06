@@ -794,7 +794,6 @@ fn selected_local_spell_and_casting_entry_keep_customization_and_typed_associati
         .worker
         .record_detail_at(RecordDetailRequest {
             expected_artifact_generation: None,
-            reading_context: None,
             spell_rank: None,
             record_key: local.navigation.record_key.clone(),
             owners: local.navigation.owners.clone(),
@@ -819,7 +818,6 @@ fn selected_local_spell_and_casting_entry_keep_customization_and_typed_associati
         .worker
         .record_detail_at(RecordDetailRequest {
             expected_artifact_generation: None,
-            reading_context: None,
             spell_rank: None,
             record_key: entry.navigation.record_key.clone(),
             owners: entry.navigation.owners.clone(),
@@ -1181,7 +1179,6 @@ fn selected_duplicate_casting_entry_does_not_guess_members_and_rejects_stale_own
     let navigation = &activities[0].navigation;
     let request = RecordDetailRequest {
         expected_artifact_generation: None,
-        reading_context: None,
         spell_rank: None,
         record_key: navigation.record_key.clone(),
         owners: navigation.owners.clone(),
@@ -1205,7 +1202,6 @@ fn selected_duplicate_casting_entry_does_not_guess_members_and_rejects_stale_own
     );
     let stale = RecordDetailRequest {
         expected_artifact_generation: None,
-        reading_context: None,
         spell_rank: None,
         source_fingerprint: Some("previous-snapshot".into()),
         ..request
@@ -1278,7 +1274,6 @@ fn reference_details_flag_agrees_with_actual_selected_spell_and_physical_dispatc
             .worker
             .record_detail_at(RecordDetailRequest {
                 expected_artifact_generation: None,
-                reading_context: None,
                 spell_rank: None,
                 record_key: activity.navigation.record_key.clone(),
                 owners: activity.navigation.owners.clone(),
@@ -1322,7 +1317,6 @@ fn heightened_identity_uses_effective_traits_without_rewriting_source() {
         .worker
         .record_detail_at(RecordDetailRequest {
             expected_artifact_generation: None,
-            reading_context: None,
             record_key: "spells:aaaaaaaaaaaaaaaa".into(),
             spell_rank: Some(3),
             owners: vec![],
@@ -1407,7 +1401,6 @@ fn unsupported_heightening_is_visible_and_does_not_claim_effective_rank() {
             .worker
             .record_detail_at(RecordDetailRequest {
                 expected_artifact_generation: None,
-                reading_context: None,
                 record_key: "spells:aaaaaaaaaaaaaaaa".into(),
                 spell_rank: Some(3),
                 owners: vec![],
@@ -1739,7 +1732,6 @@ fn reference_self_effect_navigation_survives_storage_and_selected_activity_readi
         .worker
         .record_detail_at(atlas_app_model::RecordDetailRequest {
             expected_artifact_generation: None,
-            reading_context: None,
             record_key: "actors:aaaaaaaaaaaaaaaa".into(),
             owners: activities[0].navigation.owners.clone(),
             spell_rank: None,
@@ -1795,7 +1787,6 @@ fn ritual_labels_match_root_and_embedded_records_at_selected_ranks() {
                 .worker
                 .record_detail_at(RecordDetailRequest {
                     expected_artifact_generation: None,
-                    reading_context: None,
                     record_key: key.into(),
                     spell_rank: rank,
                     owners: owners.clone(),
@@ -2240,7 +2231,6 @@ fn selected_kind_labels_describe_documents_without_changing_source_identifiers()
             .worker
             .record_detail_at(RecordDetailRequest {
                 expected_artifact_generation: None,
-                reading_context: None,
                 record_key: key.into(),
                 spell_rank: None,
                 owners: vec![atlas_domain::OwnedContentLocator {
@@ -2535,7 +2525,6 @@ fn creature_reading_preserves_supplied_movement_languages_and_exact_owned_effect
         .worker
         .record_detail_at(RecordDetailRequest {
             expected_artifact_generation: None,
-            reading_context: None,
             record_key: "actors:aaaaaaaaaaaaaaaa".into(),
             owners: activities[7].navigation.owners.clone(),
             spell_rank: None,
@@ -2654,7 +2643,6 @@ fn embedded_publication_edition_uses_its_own_source_metadata() {
             .worker
             .record_detail_at(RecordDetailRequest {
                 expected_artifact_generation: None,
-                reading_context: None,
                 spell_rank: None,
                 record_key: "actors:aaaaaaaaaaaaaaaa".into(),
                 owners: vec![OwnedContentLocator {

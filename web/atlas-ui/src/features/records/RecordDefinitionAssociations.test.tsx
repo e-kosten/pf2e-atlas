@@ -8,11 +8,7 @@ import {
   getDefinitionFilterOptions,
   searchPage,
 } from "../../api/atlasApi";
-import type {
-  DefinitionDetailView,
-  DefinitionFilterOptionView,
-  DefinitionAvailabilityView,
-} from "../../generated/atlas";
+import type { DefinitionDetailView } from "../../generated/atlas";
 import { detailFixture, summaryFixture } from "../../test/fixtures";
 import type { RecordPageInput } from "../../app/destinations";
 import { RouterTestContext } from "../../test/router";
@@ -31,50 +27,6 @@ const recordApi = vi.mocked(getRecordDetail);
 const searchApi = vi.mocked(searchPage);
 const optionsApi = vi.mocked(getDefinitionFilterOptions);
 const recordKey = "bestiary-ability-glossary:darkvision";
-function recordOption(
-  generation = "test-generation",
-  availability: DefinitionAvailabilityView = "available",
-): DefinitionFilterOptionView {
-  const selection = {
-    record_key: recordKey,
-    embedded_path: [],
-    field: null,
-    passage: null,
-    source_fingerprint: null,
-  };
-  const target = { kind: "record" as const, selection };
-  return {
-    target,
-    label: "Darkvision",
-    help: {
-      definition_key: null,
-      availability,
-      destination:
-        availability === "available"
-          ? {
-              kind: "record",
-              navigation: selection,
-              reading_context: "general_definition",
-            }
-          : null,
-      related_filters:
-        availability === "available"
-          ? [
-              {
-                kind: "search",
-                label: "References to this definition",
-                artifact_generation: generation,
-                predicate: {
-                  kind: "definition_reference",
-                  clause_id: "supplied-reference",
-                  reference: { target, include_contents: true },
-                },
-              },
-            ]
-          : [],
-    },
-  };
-}
 function property(
   generation = "test-generation",
   destinationRecord = recordKey,
@@ -88,7 +40,6 @@ function property(
       availability: "available",
       destination: {
         kind: "record",
-        reading_context: "general_definition",
         navigation: {
           record_key: destinationRecord,
           embedded_path: [],
@@ -128,7 +79,6 @@ function setup(
   route: RecordPageInput = {
     recordKey,
     definitionKey: "sense:darkvision",
-    readingContext: "general_definition",
   },
 ) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -151,7 +101,7 @@ beforeEach(() => {
   history.replaceState(
     null,
     "",
-    `/records/${recordKey}?definition_key=sense%3Adarkvision&reading_context=general_definition`,
+    `/records/${recordKey}?definition_key=sense%3Adarkvision`,
   );
   const detail = detailFixture(recordKey, "Darkvision", "dummy:target");
   detail.presentation.content[0].body = {
@@ -275,14 +225,7 @@ it.each(["matching", "changed"] as const)(
     ).toHaveLength(oldRequests);
     expect(recordApi).toHaveBeenCalledWith(
       recordKey,
-      {
-        record_key: recordKey,
-        embedded_path: [],
-        fields: [],
-        passage: null,
-        source_fingerprint: null,
-        reading_context: "general_definition",
-      },
+      undefined,
       expect.any(AbortSignal),
     );
     const refreshedUrl = new URL(window.location.href);
@@ -337,83 +280,6 @@ it("keeps ordinary property request failures on local Retry without reloading th
   );
 });
 
-it("recovers only the supplied exact-record definition relation without inventing a semantic key", async () => {
-  const option = recordOption();
-  const actual = detailFixture(recordKey, "Darkvision", "dummy:target");
-  actual.presentation.content[0].body = {
-    kind: "plain",
-    text: "Actual existing ability rules.",
-  };
-  actual.selected.source_fingerprint = "checked-source";
-  if (option.target.kind === "record")
-    option.target.selection.source_fingerprint = "checked-source";
-  recordApi.mockResolvedValue(actual);
-  optionsApi.mockResolvedValue({
-    artifact_generation: "test-generation",
-    options: [],
-    selected: [option],
-    total: 0n,
-  });
-  history.replaceState(
-    null,
-    "",
-    `/records/${recordKey}?reading_context=general_definition`,
-  );
-  setup({ recordKey, readingContext: "general_definition" });
-  expect(
-    await screen.findByRole("tab", { name: "References to this definition" }),
-  ).toBeVisible();
-  expect(optionsApi).toHaveBeenCalledWith(
-    {
-      text: null,
-      offset: 0,
-      limit: 1,
-      selected: [option.target],
-      expected_artifact_generation: "test-generation",
-    },
-    expect.any(AbortSignal),
-  );
-  const action = option.help.related_filters[0];
-  expect(searchApi).toHaveBeenCalledWith(
-    expect.objectContaining({
-      criteria: {
-        kind: "list_records",
-        filter: action.kind === "search" ? action.predicate : null,
-      },
-    }),
-    expect.any(AbortSignal),
-  );
-  expect(definitionApi).not.toHaveBeenCalled();
-  expect(recordApi).toHaveBeenCalledTimes(1);
-  expect(new URL(window.location.href).searchParams.has("definition_key")).toBe(false);
-});
-
-it.each(["not_in_catalog", "missing_target", "unavailable_unknown"] as const)(
-  "keeps a record-only %s selection on ordinary record reading and Explore",
-  async (availability) => {
-    optionsApi.mockResolvedValue({
-      artifact_generation: "test-generation",
-      options: [],
-      selected: [recordOption("test-generation", availability)],
-      total: 0n,
-    });
-    history.replaceState(
-      null,
-      "",
-      `/records/${recordKey}?reading_context=general_definition`,
-    );
-    setup({ recordKey, readingContext: "general_definition" });
-    expect(await screen.findByText("Actual existing ability rules.")).toBeVisible();
-    await waitFor(() => expect(optionsApi).toHaveBeenCalledOnce());
-    expect(
-      screen.getByRole("button", { name: "Explore related records" }),
-    ).toBeVisible();
-    expect(screen.queryByRole("region", { name: "Related records" })).toBeNull();
-    expect(searchApi).not.toHaveBeenCalled();
-    expect(definitionApi).not.toHaveBeenCalled();
-  },
-);
-
 it("does not request definition metadata for an ordinary record page", async () => {
   history.replaceState(null, "", `/records/${recordKey}`);
   setup({ recordKey });
@@ -421,84 +287,4 @@ it("does not request definition metadata for an ordinary record page", async () 
   expect(screen.getByRole("button", { name: "Explore related records" })).toBeVisible();
   expect(optionsApi).not.toHaveBeenCalled();
   expect(definitionApi).not.toHaveBeenCalled();
-});
-
-it("rejects record-only help whose supplied destination differs from the selected record", async () => {
-  const option = recordOption();
-  if (option.help.destination?.kind === "record")
-    option.help.destination.navigation = {
-      ...option.help.destination.navigation,
-      record_key: "other:record",
-    };
-  optionsApi.mockResolvedValue({
-    artifact_generation: "test-generation",
-    options: [],
-    selected: [option],
-    total: 0n,
-  });
-  setup({ recordKey, readingContext: "general_definition" });
-  expect(await screen.findByText("Actual existing ability rules.")).toBeVisible();
-  await waitFor(() => expect(optionsApi).toHaveBeenCalledOnce());
-  expect(screen.queryByRole("region", { name: "Related records" })).toBeNull();
-  expect(searchApi).not.toHaveBeenCalled();
-});
-
-it("refreshes record-only option metadata through the combined owner and adopts the new generation", async () => {
-  const first = detailFixture(recordKey, "Darkvision", "dummy:target");
-  first.artifact_generation = "generation-one";
-  first.presentation.content[0].body = {
-    kind: "plain",
-    text: "Actual existing ability rules.",
-  };
-  recordApi
-    .mockResolvedValueOnce(first)
-    .mockResolvedValue({ ...first, artifact_generation: "generation-two" });
-  optionsApi.mockImplementation(async (request) => {
-    if (request.expected_artifact_generation === "generation-one")
-      throw new AtlasApiError(409, "Changed", {
-        code: "artifact_generation_changed",
-        message: "Changed",
-        recoverable_action: "refresh_results",
-      });
-    return {
-      artifact_generation: "generation-two",
-      options: [],
-      selected: [recordOption("generation-two")],
-      total: 0n,
-    };
-  });
-  const searchSuccess = searchApi.getMockImplementation()!;
-  searchApi.mockImplementation(async (request, signal) => ({
-    ...(await searchSuccess(request, signal)),
-    artifact_generation: request.expected_artifact_generation!,
-  }));
-  history.replaceState(
-    null,
-    "",
-    `/records/${recordKey}?reading_context=general_definition`,
-  );
-  setup({ recordKey, readingContext: "general_definition" });
-  const refresh = await screen.findByRole("button", { name: "Refresh" });
-  const oldRequests = optionsApi.mock.calls.filter(
-    ([request]) => request.expected_artifact_generation === "generation-one",
-  ).length;
-  fireEvent.click(refresh);
-  expect(
-    await screen.findByRole("tab", { name: "References to this definition" }),
-  ).toBeVisible();
-  expect(optionsApi).toHaveBeenCalledWith(
-    expect.objectContaining({
-      selected: [recordOption().target],
-      expected_artifact_generation: "generation-two",
-    }),
-    expect.any(AbortSignal),
-  );
-  expect(
-    optionsApi.mock.calls.filter(
-      ([request]) => request.expected_artifact_generation === "generation-one",
-    ),
-  ).toHaveLength(oldRequests);
-  expect(definitionApi).not.toHaveBeenCalled();
-  expect(recordApi).toHaveBeenCalledTimes(2);
-  expect(new URL(window.location.href).searchParams.has("definition_key")).toBe(false);
 });

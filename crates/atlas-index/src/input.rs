@@ -212,8 +212,6 @@ impl IndexBuildInput {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourcePreparedContent {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub general_definition_reading: Option<atlas_record::source_content::GeneralDefinitionReading>,
     pub locator: SourceContentLocator,
     pub role: String,
     pub visibility: ContentVisibilityRule,

@@ -395,7 +395,6 @@ export type { RoutineHeaderView } from "../../../../crates/atlas-app-model/bindi
 export type { ReferenceValueView } from "../../../../crates/atlas-app-model/bindings/ReferenceValueView";
 export type { ReferenceHelpView } from "../../../../crates/atlas-app-model/bindings/ReferenceHelpView";
 export type { ReferenceDestinationView } from "../../../../crates/atlas-app-model/bindings/ReferenceDestinationView";
-export type { RecordReadingContextView } from "../../../../crates/atlas-app-model/bindings/RecordReadingContextView";
 export type { ReferenceFilterActionView } from "../../../../crates/atlas-app-model/bindings/ReferenceFilterActionView";
 export type { DefinitionAvailabilityView } from "../../../../crates/atlas-app-model/bindings/DefinitionAvailabilityView";
 export type { DefinitionDetailRequest } from "../../../../crates/atlas-app-model/bindings/DefinitionDetailRequest";

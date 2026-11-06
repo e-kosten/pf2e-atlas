@@ -26,29 +26,6 @@ pub fn prepare_source_content(
     references: Option<&dyn ContentReferenceResolver>,
     formula_context: &super::FormulaContext,
 ) -> Result<PreparedSourceContent, html2text::Error> {
-    prepare_source_content_with_selection(
-        (locator, visibility),
-        markup,
-        audience,
-        localization,
-        references,
-        formula_context,
-        None,
-    )
-}
-
-pub(crate) fn prepare_source_content_with_selection(
-    source: (SourceContentLocator, ContentVisibilityRule),
-    markup: &str,
-    audience: ContentAudience,
-    localization: Option<&dyn LocalizationResolver>,
-    references: Option<&dyn ContentReferenceResolver>,
-    formula_context: &super::FormulaContext,
-    selection: Option<(&str, &str)>,
-) -> Result<PreparedSourceContent, html2text::Error> {
-    // Address and authored visibility describe the source field; the audience
-    // describes this projection of that field.
-    let (locator, visibility) = source;
     let authored_hash = format!(
         "{:x}",
         <sha2::Sha256 as sha2::Digest>::digest(markup.as_bytes())
@@ -68,7 +45,6 @@ pub(crate) fn prepare_source_content_with_selection(
         diagnostics: Vec::new(),
         block: String::new(),
         formula_context,
-        selection,
     };
     let audiences = match visibility {
         ContentVisibilityRule::All => Vec::new(),
@@ -94,7 +70,6 @@ pub(crate) fn prepare_source_content_with_selection(
         references: projection.references,
         interactions: projection.interactions,
         diagnostics: projection.diagnostics,
-        general_definition_reading: None,
     })
 }
 
@@ -124,7 +99,6 @@ pub fn prepare_reference_definition(
         diagnostics: Vec::new(),
         block: String::new(),
         formula_context,
-        selection: None,
     };
     let html = projection.nodes(&parsed.document.nodes, "", &[], true, false);
     let html = sanitizer().clean(&html).to_string();
@@ -145,7 +119,6 @@ pub(super) fn sanitizer() -> ammonia::Builder<'static> {
     let mut builder = ammonia::Builder::default();
     builder
         .add_generic_attributes([
-            "data-atlas-definition-selection",
             "data-atlas-reference",
             "data-atlas-reference-binding",
             "data-atlas-interaction",
@@ -180,7 +153,6 @@ struct Projection<'a> {
     diagnostics: Vec<ContentInterpretationDiagnostic>,
     block: String,
     formula_context: &'a super::FormulaContext,
-    selection: Option<(&'a str, &'a str)>,
 }
 
 struct InlineContext<'a> {
@@ -641,24 +613,13 @@ impl Projection<'_> {
                 self.nodes(label, &format!("{path}/label"), audiences, false, in_link);
             }
             return if let Some(nodes) = resolved {
-                let html = self.nodes(
+                self.nodes(
                     nodes,
                     &format!("{path}/localize"),
                     audiences,
                     visible,
                     in_link,
-                );
-                if let Some((_, marker)) = self
-                    .selection
-                    .filter(|(selected, _)| *selected == path && visible)
-                {
-                    format!(
-                        "<div data-atlas-definition-selection=\"{}\">{html}</div>",
-                        escape(marker)
-                    )
-                } else {
-                    html
-                }
+                )
             } else {
                 self.issue(path, ContentDiagnosticCode::UnresolvedLocalization, key);
                 if visible {

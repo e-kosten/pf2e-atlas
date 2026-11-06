@@ -22,11 +22,11 @@ separately. The PDFs preserve the original license/policy documents alongside
 source-free notice text.
 
 `source-provenance.json` is a separate, finite reviewed policy for the Foundry
-standalone definitions. It contains publication/permission evidence and exact
-approved English body hashes, not another copy of those bodies. It includes the
+standalone definitions. It contains publication/permission evidence keyed by exact
+definition identity, without another copy of the definition bodies. It includes the
 current Foundry-declared ORC selection for Metal, Toil and Wood, the wholly OGL
 CRB/Dark Archive apocryphal source components, and an unknown original page for
-Naga. It does not rename tokens or clear arbitrary translations/customized prose.
+Naga. It does not rename tokens or select a different content locale.
 
 `base-notices.json` supplies the registered license, original publication credits,
 bounded Monster Core 2 creator attribution and CUP notice independently of whether

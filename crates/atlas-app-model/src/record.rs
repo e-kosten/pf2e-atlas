@@ -63,9 +63,6 @@ pub struct RecordNavigationView {
 pub struct RecordDetailRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub reading_context: Option<crate::RecordReadingContextView>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
     pub expected_artifact_generation: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

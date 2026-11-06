@@ -513,7 +513,6 @@ it("uses independent source and target reading capabilities for canonical record
   const destination = {
     kind: "record" as const,
     navigation,
-    reading_context: "general_definition" as const,
   };
   const reference = {
     target: { kind: "definition" as const, key: "sense:darkvision" },
@@ -561,15 +560,14 @@ it("uses independent source and target reading capabilities for canonical record
   expect(screen.queryByRole("link", { name: "Hidden source rule" })).toBeNull();
   expect(screen.getByRole("link", { name: "Darkvision" })).toHaveAttribute(
     "href",
-    "/records/abilities:darkvision?reading_context=general_definition&definition_key=sense%3Adarkvision",
+    "/records/abilities:darkvision?definition_key=sense%3Adarkvision",
   );
 });
 
-it("links context-bearing record destinations with their supplied reading purpose", () => {
+it("retains supplied property associations on record destinations", () => {
   const destination = {
     kind: "record" as const,
     navigation: rootNavigation("abilities:darkvision"),
-    reading_context: "general_definition" as const,
   };
   const reference = {
     target: { kind: "definition" as const, key: "sense:darkvision" },
@@ -606,7 +604,7 @@ it("links context-bearing record destinations with their supplied reading purpos
   expect(screen.getByText("Darkvision", { exact: true })).toBeVisible();
   expect(screen.getByRole("link", { name: "Darkvision" })).toHaveAttribute(
     "href",
-    "/records/abilities:darkvision?reading_context=general_definition&definition_key=sense%3Adarkvision",
+    "/records/abilities:darkvision?definition_key=sense%3Adarkvision",
   );
 });
 

@@ -26,7 +26,6 @@ pub(crate) fn query_selection(
 pub(crate) fn record_destination(
     r: &AtlasRetrievalService,
     selection: &atlas_domain::QueryRecordSelection,
-    reading_context: Option<atlas_app_model::RecordReadingContextView>,
 ) -> atlas_app_model::ReferenceDestinationView {
     atlas_app_model::ReferenceDestinationView::Record {
         navigation: Box::new(atlas_app_model::RecordNavigationView {
@@ -40,7 +39,6 @@ pub(crate) fn record_destination(
             ),
             spell_rank: selection.spell_rank,
         }),
-        reading_context,
     }
 }
 fn root_selection(
@@ -61,7 +59,7 @@ pub(crate) fn clause_summary(
     id: &str,
     condition: &atlas_app_model::ReferenceClauseConditionView,
 ) -> AppServiceResult<atlas_app_model::RelationshipClauseSummaryView> {
-    use atlas_app_model::{RecordReadingContextView, ReferenceClauseConditionView as Condition};
+    use atlas_app_model::ReferenceClauseConditionView as Condition;
     let (record, title, destination) = match condition {
         Condition::Record { relationship } => {
             let checked = r.checked_relationship_selection(&relationship.selection)?;
@@ -79,7 +77,7 @@ pub(crate) fn clause_summary(
             (
                 Some(Box::new(record)),
                 title,
-                Some(record_destination(r, &relationship.selection, None)),
+                Some(record_destination(r, &relationship.selection)),
             )
         }
         Condition::Definition { reference } => {
@@ -110,11 +108,7 @@ pub(crate) fn clause_summary(
                             &record, r,
                         ))),
                         title,
-                        Some(record_destination(
-                            r,
-                            selection,
-                            Some(RecordReadingContextView::GeneralDefinition),
-                        )),
+                        Some(record_destination(r, selection)),
                     )
                 }
                 atlas_search::CheckedDefinitionReferenceTarget::Definition { definition } => {
@@ -376,7 +370,7 @@ fn canonical_evidence_views(
                         &selection.owners,
                         r.source_fingerprint(),
                     );
-                    let destination = record_destination(r, &selection, None);
+                    let destination = record_destination(r, &selection);
                     (
                         atlas_domain::QueryDefinitionReferenceTarget::Record {
                             selection: Box::new(selection),
@@ -438,7 +432,7 @@ pub(crate) fn evidence_page(
             Ok((
                 evidence_views(r, occurrences)?
                     .into_iter()
-                    .map(|occurrence| graph_evidence(occurrence, None))
+                    .map(graph_evidence)
                     .collect::<AppServiceResult<Vec<_>>>()?,
                 crate::projection::search_page_view(info),
             ))
@@ -474,15 +468,12 @@ pub(crate) fn evidence_page(
                             )
                         })
                     } else {
-                        graphs
-                            .next()
-                            .map(|occurrence| graph_evidence(occurrence, Some(atlas_app_model::RecordReadingContextView::GeneralDefinition)))
-                            .ok_or_else(|| {
-                                AppServiceError::new(
-                                    AppErrorCode::InternalError,
-                                    "Record evidence projection is incomplete",
-                                )
-                            })?
+                        graphs.next().map(graph_evidence).ok_or_else(|| {
+                            AppServiceError::new(
+                                AppErrorCode::InternalError,
+                                "Record evidence projection is incomplete",
+                            )
+                        })?
                     }
                 })
                 .collect::<AppServiceResult<Vec<_>>>()?;
@@ -493,7 +484,6 @@ pub(crate) fn evidence_page(
 
 fn graph_evidence(
     occurrence: atlas_app_model::RecordRelationshipView,
-    reading_context: Option<atlas_app_model::RecordReadingContextView>,
 ) -> AppServiceResult<atlas_app_model::ReferenceOccurrenceView> {
     let navigation = occurrence.target.clone().ok_or_else(|| {
         AppServiceError::new(
@@ -505,7 +495,6 @@ fn graph_evidence(
         occurrence: Box::new(occurrence),
         destination: Box::new(atlas_app_model::ReferenceDestinationView::Record {
             navigation: navigation.into(),
-            reading_context,
         }),
     })
 }

@@ -60,7 +60,6 @@ struct SourcePolicies {
 #[derive(Deserialize)]
 struct SourcePolicy {
     key: DefinitionKey,
-    body_sha256: String,
     publications: Vec<ReferencePublication>,
     grants: Vec<String>,
     notices: Vec<String>,
@@ -543,12 +542,6 @@ impl<'a> ReferenceBuild<'a> {
             if let Some((file, hash)) = self.catalog.english_source(description_key) {
                 entry.provenance.source_file = Some(file.into());
                 entry.provenance.source_sha256 = Some(hash.into());
-            }
-            if crate::reference_notices::hash(markup.as_bytes()) != policy.body_sha256 {
-                entry.availability = ReferenceAvailability::PermissionUnresolved;
-                entry.permission.disposition =
-                    ReferencePermissionDisposition::MetadataOnlyUnresolved;
-                return Ok(entry);
             }
             entry.provenance.publications = policy.publications.clone();
             entry.permission.body_grants = grant_uses(&policy.grants);

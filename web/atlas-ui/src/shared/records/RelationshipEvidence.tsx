@@ -209,7 +209,7 @@ function EvidenceDestination({
   onNavigate?: (selection: RecordNavigationView, anchor: HTMLElement) => void;
 }) {
   if (!destination) return <Typography.Text>{title}</Typography.Text>;
-  return destination.kind === "record" && !destination.reading_context ? (
+  return destination.kind === "record" && !definitionKey ? (
     <EvidenceLink
       selection={destination.navigation}
       title={title}

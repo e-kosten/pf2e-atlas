@@ -9,10 +9,6 @@ mod core_sections;
 mod core_sections_tests;
 #[cfg(test)]
 mod declared_grant_tests;
-mod general_definition_reading;
-pub use general_definition_reading::{
-    bind_general_definition_reading, validate_general_definition_reading,
-};
 mod identity;
 mod item_query;
 mod model;

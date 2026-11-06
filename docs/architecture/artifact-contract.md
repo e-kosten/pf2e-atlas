@@ -317,8 +317,9 @@ remain visible with their source diagnostic.
 Prepared unresolved references preserve an explicit authored label or a qualified
 authored root name; opaque UUIDs display as unavailable. Their exact authored
 targets and unresolved status remain in relationship evidence and diagnostics.
-The content interpretation identity is `foundry-content/v23`; older prepared
-content requires re-preparation even when the physical schema is unchanged.
+The content interpretation identity is `foundry-content/v24`; explicit setup
+re-prepares older content even when the physical schema is unchanged. Glossary
+records retain ordinary authored bodies without special reading annotations.
 Exact compatible embedding checkpoints remain reusable.
 
 Static PF2e damage-instance annotations are interpreted in atlas-record, using
@@ -644,8 +645,7 @@ identity, coverage and compact selected-key count/digest. It also retains the
 captured root package and a sparse typed map of explicit pack-system declarations:
 missing map keys inherit the root, explicit matching systems permit association,
 and unsupported/null declarations remain distinct from omission. New record
-mappings, non-trait localization associations and template annotations require
-that captured scope; deep audit never trusts an annotation's own package claim.
+mappings and non-trait localization associations require that captured scope.
 Missing new coverage
 does not block retained record or trait reads; new glossary reads report an explicit
 setup requirement. Traits-only audit preserves the legacy visible-association
@@ -655,16 +655,9 @@ preparation requires exact visible and hidden evidence. Explicit setup captures 
 publishes complete inventory atomically with ordinary Foundry content. Other
 namespaces receive no implicit vectors or ordinary Search candidacy.
 
-Reading selection for ten exact templates (eight general actions and two family
-abilities) is optional typed metadata inside the
-existing prepared-field metadata and HTML cache. Exact source/rules signatures,
-authored byte spans, parser paths and finite ordinal/marker bindings establish it.
-The original checked record and canonical full body remain intact. Owned abilities
-and customized signatures retain ordinary values and controls; zero alone never
-activates template selection. Index publication and deep audit use the record-owned
-source-free validator. A missing annotation is omitted from serialized metadata,
-preserving retained preparation identities. The Golem Antimagic and Wind-Up
-vocabulary entries point to their existing records and share that canonical body.
+Glossary record pointers use ordinary prepared record content. Authored template
+placeholders and controls remain part of those records. The Golem Antimagic and
+Wind-Up vocabulary entries point to their existing records and share that body.
 
 Ingest fingerprints the deterministic actual relevant input set, including pack
 definitions, manifests and excluded inputs. Local edits therefore change identity

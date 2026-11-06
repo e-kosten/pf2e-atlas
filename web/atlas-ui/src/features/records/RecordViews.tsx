@@ -3,8 +3,7 @@ import {
   definitionHelpMatchesRecord,
 } from "../../shared/records/useDefinitionDetail";
 import { DefinitionAssociations } from "../../shared/records/DefinitionAssociations";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { definitionFilterSelectionQueryOptions } from "../../shared/filters/definitionFilterSelectionQuery";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   isArtifactGenerationChanged,
   retireReferenceQueries,
@@ -30,11 +29,7 @@ type RecordViewProps = {
   route: RecordPageInput;
 };
 export function RecordView({ route }: RecordViewProps) {
-  const detail = useRecordDetail(
-    route.recordKey,
-    route.selection,
-    route.readingContext,
-  );
+  const detail = useRecordDetail(route.recordKey, route.selection);
   return (
     <ReferenceHelpHost
       visibleOwnerRecordKey={
@@ -62,43 +57,16 @@ function RecordViewContent({
     route.definitionKey ?? null,
     detail.data?.artifact_generation,
   );
-  const recordOnlyDefinition =
-    !route.definitionKey && route.readingContext === "general_definition";
-  const recordOption = useQuery(
-    definitionFilterSelectionQueryOptions(
-      recordOnlyDefinition && detail.data
-        ? { kind: "record", selection: detail.data.selected }
-        : undefined,
-      detail.data?.artifact_generation,
-    ),
-  );
   const propertyHelp =
     property.data &&
     definitionHelpMatchesRecord(
       property.data.help,
       route.selection ?? rootNavigation(route.recordKey),
-      route.readingContext,
     )
       ? property.data.help
       : undefined;
-  const selectedOption = recordOption.data?.selected[0];
-  const recordHelp =
-    selectedOption?.help.availability === "available" &&
-    detail.data &&
-    !isArtifactGenerationChanged(recordOption.error) &&
-    definitionHelpMatchesRecord(
-      selectedOption.help,
-      detail.data.selected,
-      route.readingContext,
-    )
-      ? selectedOption.help
-      : undefined;
-  const relatedError = route.definitionKey ? property.error : recordOption.error;
+  const relatedError = property.error;
   const relatedChanged = isArtifactGenerationChanged(relatedError);
-  const relatedHelp = route.definitionKey ? propertyHelp : recordHelp;
-  const relatedGeneration = route.definitionKey
-    ? property.data?.artifact_generation
-    : recordOption.data?.artifact_generation;
   const reload = async () => {
     await retireReferenceQueries(client);
     await detail.refetch();
@@ -131,11 +99,10 @@ function RecordViewContent({
             }
             readingKey={JSON.stringify([
               recordReadingIdentity(route.recordKey, route.selection),
-              route.readingContext,
               route.definitionKey,
             ])}
             afterContent={
-              (route.definitionKey || recordOnlyDefinition) && (
+              route.definitionKey && (
                 <>
                   {relatedError && (
                     <ErrorNotice
@@ -149,11 +116,7 @@ function RecordViewContent({
                       action={
                         <Button
                           onClick={() =>
-                            void (relatedChanged
-                              ? reload()
-                              : route.definitionKey
-                                ? property.refetch()
-                                : recordOption.refetch())
+                            void (relatedChanged ? reload() : property.refetch())
                           }
                         >
                           {relatedChanged ? "Refresh" : "Retry"}
@@ -161,10 +124,10 @@ function RecordViewContent({
                       }
                     />
                   )}
-                  {relatedHelp && relatedGeneration && (
+                  {propertyHelp && property.data && (
                     <DefinitionAssociations
-                      actions={relatedHelp.related_filters}
-                      generation={relatedGeneration}
+                      actions={propertyHelp.related_filters}
+                      generation={property.data.artifact_generation}
                       onReference={preview.open}
                       onReload={() => void reload()}
                     />

@@ -101,7 +101,6 @@ function readingSearch(search: AtlasSearchParams): AtlasSearchParams {
   }
   const view = readingView(search);
   const definition = definitionReading(search);
-  if (definition.readingContext) result.reading_context = definition.readingContext;
   if (definition.definitionKey) result.definition_key = definition.definitionKey;
   if (view.view === "explore") result.record_view = "explore";
   if (view.tab !== "incoming") result.record_tab = view.tab;

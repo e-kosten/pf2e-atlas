@@ -1724,7 +1724,7 @@ it("requires deliberate intent for non-GET transport requests", () => {
   expectTypeOf<{ signal: AbortSignal }>().toExtend<AtlasRequestInit>();
 });
 
-it("reads exact definition detail and preserves absence and record purpose context", async () => {
+it("reads exact definition detail and preserves absent content and the record destination", async () => {
   const result = {
     artifact_generation: "generation-a",
     definition_key: "sense:darkvision",
@@ -1741,7 +1741,6 @@ it("reads exact definition detail and preserves absence and record purpose conte
           passage: null,
           source_fingerprint: null,
         },
-        reading_context: "general_definition",
       },
       related_filters: [],
     },

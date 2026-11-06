@@ -45,21 +45,6 @@ pub fn reference_pack_applies(
             .is_none_or(|declared| declared.as_deref() == Some(expected_package))
 }
 
-pub(crate) fn validate_template_scope(
-    record: &atlas_record::source_record::SourceBackedRecord,
-    prepared: &atlas_record::source_content::PreparedSourceContent,
-    preparation: Option<&ReferencePreparation>,
-) -> Result<(), IndexError> {
-    let package = preparation
-        .and_then(|p| p.source_package.as_deref())
-        .unwrap_or("");
-    let applicable = reference_pack_applies(preparation, "pf2e", record.key().pack().as_str());
-    atlas_record::source_record::validate_general_definition_reading(
-        record, package, applicable, prepared,
-    )
-    .map_err(IndexError::Invalid)
-}
-
 /// Compact inventory of selected canonical keys, independent of definition bodies.
 pub fn reference_inventory_identity(
     keys: impl IntoIterator<Item = DefinitionKey>,

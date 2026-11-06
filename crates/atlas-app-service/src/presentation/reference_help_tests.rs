@@ -616,7 +616,7 @@ fn permission_blocked_body_retains_definition_identity_and_executable_reference_
         Some("/system/description/value")
     );
     assert!(
-        matches!(&occurrence.source_destination, Some(ReferenceDestinationView::Record { navigation, reading_context: None }) if navigation.owners == selection.owners && navigation.field == selection.field)
+        matches!(&occurrence.source_destination, Some(ReferenceDestinationView::Record { navigation, }) if navigation.owners == selection.owners && navigation.field == selection.field)
     );
 }
 
@@ -1310,8 +1310,8 @@ fn definition_reference_evidence_keeps_general_purpose_for_both_reference_origin
         .find(|row| row.record.record_key == HOLDER)
         .unwrap();
     let occurrences = &row.relationship_evidence[0].occurrences;
-    assert!(occurrences.iter().any(|occurrence| matches!(occurrence, ReferenceOccurrenceView::Record { destination, .. } if matches!(destination.as_ref(), ReferenceDestinationView::Record { reading_context: Some(RecordReadingContextView::GeneralDefinition), navigation } if navigation.record_key == GENERAL))));
-    assert!(occurrences.iter().any(|occurrence| matches!(occurrence, ReferenceOccurrenceView::Definition { occurrence } if matches!(&occurrence.target_destination, Some(ReferenceDestinationView::Record { reading_context: Some(RecordReadingContextView::GeneralDefinition), navigation }) if navigation.record_key == GENERAL) && matches!(&occurrence.target, atlas_domain::QueryDefinitionReferenceTarget::Record { selection } if selection.record_key.to_string() == GENERAL))));
+    assert!(occurrences.iter().any(|occurrence| matches!(occurrence, ReferenceOccurrenceView::Record { destination, .. } if matches!(destination.as_ref(), ReferenceDestinationView::Record { navigation } if navigation.record_key == GENERAL))));
+    assert!(occurrences.iter().any(|occurrence| matches!(occurrence, ReferenceOccurrenceView::Definition { occurrence } if matches!(&occurrence.target_destination, Some(ReferenceDestinationView::Record { navigation }) if navigation.record_key == GENERAL) && matches!(&occurrence.target, atlas_domain::QueryDefinitionReferenceTarget::Record { selection } if selection.record_key.to_string() == GENERAL))));
 }
 
 #[test]
@@ -1449,39 +1449,20 @@ fn noncatalog_selected_owners_keep_identity_and_labels_without_glossary_promotio
 }
 
 #[test]
-fn general_context_preserves_custom_and_owned_values_when_no_template_is_verified() {
+fn record_backed_help_keeps_ordinary_custom_and_owned_content() {
     let fixture = fixture(true);
-    let request =
-        |key: &str, owners: Vec<atlas_domain::OwnedContentLocator>, context| RecordDetailRequest {
-            record_key: key.into(),
-            owners,
-            reading_context: context,
-            expected_artifact_generation: None,
-            spell_rank: None,
-            fields: vec![],
-            passage: None,
-            source_fingerprint: None,
-        };
-    let ordinary = fixture
-        .worker
-        .record_detail_at(request(GENERAL, vec![], None))
-        .unwrap();
-    let contextual = fixture
-        .worker
-        .record_detail_at(request(
-            GENERAL,
-            vec![],
-            Some(RecordReadingContextView::GeneralDefinition),
-        ))
-        .unwrap();
-    assert_eq!(
-        ordinary.presentation.content,
-        contextual.presentation.content
+    let ordinary = fixture.worker.record_detail(GENERAL).unwrap();
+    let serialized = serde_json::to_value(&ordinary).unwrap();
+    assert!(
+        serialized["presentation"]
+            .get("general_definition")
+            .is_none()
     );
-    assert!(contextual.presentation.general_definition.is_none());
+    assert!(ordinary.presentation.content.iter().any(|field| matches!(&field.body,
+        PreparedFieldBodyView::Html { html, controls, .. } if html.contains("Actual custom prose") && !controls.is_empty())));
     let detail = fixture.worker.record_detail(HOLDER).unwrap();
     let RecordBodyView::Creature(actor) = detail.presentation.body else {
-        panic!("actor");
+        panic!("actor")
     };
     let navigation = actor
         .activities
@@ -1491,21 +1472,18 @@ fn general_context_preserves_custom_and_owned_values_when_no_template_is_verifie
         .find(|a| a.title == "General vision 23")
         .unwrap()
         .navigation;
-    let ordinary = fixture
+    let owned = fixture
         .worker
-        .record_detail_at(request(HOLDER, navigation.owners.clone(), None))
+        .record_detail_at(RecordDetailRequest {
+            record_key: navigation.record_key,
+            owners: navigation.owners,
+            expected_artifact_generation: None,
+            spell_rank: None,
+            fields: vec![],
+            passage: None,
+            source_fingerprint: navigation.source_fingerprint,
+        })
         .unwrap();
-    let contextual = fixture
-        .worker
-        .record_detail_at(request(
-            HOLDER,
-            navigation.owners,
-            Some(RecordReadingContextView::GeneralDefinition),
-        ))
-        .unwrap();
-    assert_eq!(
-        ordinary.presentation.content,
-        contextual.presentation.content
-    );
-    assert!(contextual.presentation.general_definition.is_none());
+    assert!(owned.presentation.content.iter().any(|field| matches!(&field.body,
+        PreparedFieldBodyView::Html { html, controls, .. } if html.contains("Actual DC 23") && !controls.is_empty())));
 }

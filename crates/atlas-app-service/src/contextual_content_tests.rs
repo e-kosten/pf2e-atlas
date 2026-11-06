@@ -32,7 +32,6 @@ fn roll(view: &RecordDetailView) -> RollContentRequest {
 fn selection(key: &str) -> RecordDetailRequest {
     RecordDetailRequest {
         expected_artifact_generation: None,
-        reading_context: None,
         record_key: key.into(),
         owners: vec![],
         fields: vec![],

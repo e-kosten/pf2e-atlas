@@ -45,9 +45,6 @@ pub struct NumberAdjustmentView {
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct RecordPresentationView {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub general_definition: Option<crate::GeneralDefinitionReadingView>,
     pub identity: RecordSummaryView,
     pub classification: String,
     pub content: Vec<PreparedContentFieldView>,

@@ -55,7 +55,6 @@ function readingSearch(
     "focus",
     "record_view",
     "record_tab",
-    "reading_context",
     "definition_key",
   ])
     delete search[key];
@@ -72,7 +71,6 @@ function readingSearch(
   }
   if (input.view === "explore") search.record_view = "explore";
   if (input.tab && input.tab !== "incoming") search.record_tab = input.tab;
-  if (input.readingContext) search.reading_context = input.readingContext;
   if (input.definitionKey) search.definition_key = input.definitionKey;
   return search;
 }

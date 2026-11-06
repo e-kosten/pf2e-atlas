@@ -563,10 +563,7 @@ fn relationship_pages_label_exact_entries_and_page_evidence_with_generation_guar
     assert_eq!(first.source_title.as_deref(), Some("Guard's armor"));
     assert!(matches!(
         destination.as_ref(),
-        atlas_app_model::ReferenceDestinationView::Record {
-            reading_context: None,
-            ..
-        }
+        atlas_app_model::ReferenceDestinationView::Record { .. }
     ));
     assert!(
         result.rows[0].relationship_evidence[0]
@@ -725,7 +722,6 @@ fn relationship_source_navigation_opens_structured_owner_and_precise_prose_field
             .worker
             .record_detail_at(RecordDetailRequest {
                 expected_artifact_generation: None,
-                reading_context: None,
                 spell_rank: navigation.spell_rank,
                 record_key: navigation.record_key.clone(),
                 owners: navigation.owners.clone(),
@@ -1166,7 +1162,6 @@ fn core_source_acknowledges_identity_and_prose_and_identity_navigation_opens_the
         .worker
         .record_detail_at(atlas_app_model::RecordDetailRequest {
             expected_artifact_generation: None,
-            reading_context: None,
             spell_rank: None,
             record_key: navigation.record_key.clone(),
             owners: vec![],
@@ -1451,7 +1446,6 @@ fn similarity_section_labels_preserve_authored_headings_and_navigate_checked_sou
                 .worker
                 .record_detail_at(atlas_app_model::RecordDetailRequest {
                     expected_artifact_generation: None,
-                    reading_context: None,
                     spell_rank: None,
                     record_key: navigation.record_key.clone(),
                     owners: navigation.owners.clone(),

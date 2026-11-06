@@ -113,8 +113,8 @@ supplement, selected profile configurations, batching/reuse and output paths.
 `CapturedBuildInputs` owns those options, the source capture and verified supplement
 bytes. Its source fingerprint remains Foundry-only provenance. Setup additionally
 compares the reference preparation recipe, complete coverage and combined input
-identity, which binds generated glossary metadata, the scoped general-template
-reading recipe, selected supplement payload/mapping/notices, locale and explicit
+identity, which binds generated glossary metadata, selected supplement
+payload/mapping/notices, locale and explicit
 absence. It consumes that same owner if a source build is needed.
 Direct builds capture once after destination
 and requested-configuration admission. An empty profile collection builds lexical
@@ -507,9 +507,8 @@ Bounded metadata batches omit prepared-body decoding while verifying the existin
 canonical-envelope checksum. Exact-owner outgoing occurrences retain field/path
 and visibility; SQL target uniqueness considers the complete selected owner scope.
 App-service supplies typed help destinations, readable labels, query actions and
-scoped attribution/notices. Record backing returns existing navigation, and the
-optional general-definition reading context selects only a verified canonical
-template subtree. It creates no record identity or persisted body. Traits-only
+scoped attribution/notices. Record backing returns existing navigation and ordinary
+prepared record content, including authored placeholders and controls. Traits-only
 coverage preserves ordinary reads with explicit setup-required nontrait help.
 
 `AtlasRetrievalService` is a concrete service over index, an explicit default

@@ -125,7 +125,6 @@ it("redirects record-backed help to the actual record with its supplied property
   detail.help.definition_key = detail.definition_key;
   detail.help.destination = {
     kind: "record",
-    reading_context: "general_definition",
     navigation: {
       record_key: "bestiary-ability-glossary:darkvision",
       embedded_path: [],
@@ -144,7 +143,6 @@ it("redirects record-backed help to the actual record with its supplied property
   );
   expect(atlasRouter.latestLocation.search).toMatchObject({
     definition_key: "sense:darkvision",
-    reading_context: "general_definition",
   });
   expect(screen.queryByRole("region", { name: "Related records" })).toBeNull();
 });

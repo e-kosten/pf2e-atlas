@@ -33,29 +33,10 @@ impl From<&str> for ReferenceValueView {
 pub enum ReferenceDestinationView {
     Record {
         navigation: Box<RecordNavigationView>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        reading_context: Option<RecordReadingContextView>,
     },
     Definition {
         key: String,
     },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub enum RecordReadingContextView {
-    GeneralDefinition,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct GeneralDefinitionReadingView {
-    pub unspecified_parameters: Vec<GeneralDefinitionParameterView>,
-}
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct GeneralDefinitionParameterView {
-    pub role: String,
-    pub label: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

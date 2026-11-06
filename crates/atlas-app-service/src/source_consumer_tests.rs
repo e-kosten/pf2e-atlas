@@ -152,7 +152,6 @@ fn table_results_preserve_collection_states_and_have_one_authoritative_list() {
                 .worker
                 .record_detail_at(RecordDetailRequest {
                     expected_artifact_generation: None,
-                    reading_context: None,
                     spell_rank: None,
                     record_key: link.link.navigation.record_key.clone(),
                     owners: link.link.navigation.owners.clone(),
@@ -306,7 +305,6 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
             .worker
             .record_detail_at(RecordDetailRequest {
                 expected_artifact_generation: None,
-                reading_context: None,
                 spell_rank: None,
                 record_key: activity.navigation.record_key.clone(),
                 owners: activity.navigation.owners.clone(),
@@ -337,7 +335,6 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
         .worker
         .record_detail_at(RecordDetailRequest {
             expected_artifact_generation: None,
-            reading_context: None,
             spell_rank: None,
             record_key: result.link.navigation.record_key.clone(),
             owners: result.link.navigation.owners.clone(),
@@ -363,7 +360,6 @@ fn spell_physical_and_roll_table_details_display_authored_facts() {
         .worker
         .record_detail_at(RecordDetailRequest {
             expected_artifact_generation: None,
-            reading_context: None,
             spell_rank: None,
             record_key: result.link.navigation.record_key.clone(),
             owners: result.link.navigation.owners.clone(),
@@ -406,7 +402,6 @@ fn default_detail_batches_only_root_content_and_owned_navigation_loads_exact_fie
         .worker
         .record_detail_at(RecordDetailRequest {
             expected_artifact_generation: None,
-            reading_context: None,
             spell_rank: None,
             record_key: ACTOR.into(),
             owners: activity.navigation.owners.clone(),
@@ -443,7 +438,6 @@ fn default_detail_batches_only_root_content_and_owned_navigation_loads_exact_fie
     };
     let mut request = RecordDetailRequest {
         expected_artifact_generation: None,
-        reading_context: None,
         spell_rank: None,
         record_key: ACTOR.into(),
         owners: activity.navigation.owners.clone(),
@@ -500,7 +494,6 @@ fn default_detail_batches_only_root_content_and_owned_navigation_loads_exact_fie
         f.worker
             .record_detail_at(RecordDetailRequest {
                 expected_artifact_generation: None,
-                reading_context: None,
                 spell_rank: None,
                 record_key: ACTOR.into(),
                 owners: activity.navigation.owners.clone(),
@@ -551,7 +544,6 @@ fn large_owned_collection_does_not_eagerly_decode_child_html_and_unstable_naviga
             f.worker
                 .record_detail_at(RecordDetailRequest {
                     expected_artifact_generation: None,
-                    reading_context: None,
                     spell_rank: None,
                     record_key: ACTOR.into(),
                     owners: navigation.owners.clone(),
@@ -568,7 +560,6 @@ fn large_owned_collection_does_not_eagerly_decode_child_html_and_unstable_naviga
         .worker
         .record_detail_at(RecordDetailRequest {
             expected_artifact_generation: None,
-            reading_context: None,
             spell_rank: None,
             record_key: ACTOR.into(),
             owners: navigation.owners.clone(),
@@ -614,7 +605,6 @@ fn large_owned_collection_does_not_eagerly_decode_child_html_and_unstable_naviga
         f.worker
             .record_detail_at(RecordDetailRequest {
                 expected_artifact_generation: None,
-                reading_context: None,
                 spell_rank: None,
                 record_key: nav.record_key.clone(),
                 owners: nav.owners.clone(),
@@ -814,7 +804,6 @@ fn explicitly_selected_empty_and_null_prose_keep_distinct_availability() {
         .worker
         .record_detail_at(RecordDetailRequest {
             expected_artifact_generation: None,
-            reading_context: None,
             spell_rank: None,
             record_key: "actions:empty00000000000".into(),
             owners: vec![],
@@ -888,7 +877,6 @@ fn rebuilt_snapshot_rejects_navigation_to_a_reordered_unstable_child() {
     let after = fixture_worker_with_executor(make(true, 'b'));
     let request = RecordDetailRequest {
         expected_artifact_generation: None,
-        reading_context: None,
         spell_rank: None,
         record_key: nav.record_key,
         owners: nav.owners,

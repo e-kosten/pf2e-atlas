@@ -109,11 +109,7 @@ pub(crate) fn run_definition_get(options: DefinitionGetOptions) -> Result<ExitCo
         write_json_data(&detail)?;
         return Ok(ExitCode::SUCCESS);
     }
-    if let Some(ReferenceDestinationView::Record {
-        navigation,
-        reading_context,
-    }) = &detail.help.destination
-    {
+    if let Some(ReferenceDestinationView::Record { navigation }) = &detail.help.destination {
         let record = match service.record_detail_at(RecordDetailRequest {
             record_key: navigation.record_key.clone(),
             owners: navigation.owners.clone(),
@@ -121,7 +117,6 @@ pub(crate) fn run_definition_get(options: DefinitionGetOptions) -> Result<ExitCo
             passage: navigation.passage.clone(),
             source_fingerprint: navigation.source_fingerprint.clone(),
             spell_rank: navigation.spell_rank,
-            reading_context: *reading_context,
             expected_artifact_generation: Some(detail.artifact_generation.clone()),
         }) {
             Ok(record) => record,

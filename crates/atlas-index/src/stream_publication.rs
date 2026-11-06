@@ -84,12 +84,6 @@ pub(crate) fn write(
     let mut sections_to_prune = BTreeMap::<i64, BTreeSet<i64>>::new();
     input.records(&mut |frame|{
         let source=frame.source;
-        for outcome in &source.content {
-            if let atlas_record::source_record::SourceContentStatus::Prepared(prepared) = &outcome.status
-                && (prepared.general_definition_reading.is_some() || prepared.html.contains("data-atlas-definition-selection")) {
-                crate::references::validate_template_scope(&source.record, prepared, input.context.reference_preparation.as_ref())?;
-            }
-        }
         let id=crate::writer::product_id(&ids,source.record.key())?;
         let label=labels.get(source.record.key().pack().as_str()).copied().ok_or_else(||IndexError::Invalid("record pack is absent".into()))?;
         let old=prior.remove(source.record.key()).flatten();

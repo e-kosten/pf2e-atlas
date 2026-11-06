@@ -4,7 +4,6 @@ import type { QueryDefinitionReferenceTarget } from "../../generated/atlas";
 import { referenceQueryMeta } from "../queries/referenceQueries";
 import { sameReferenceCondition } from "./linkPredicates";
 
-/** Exact selected metadata uses the same owner for loaded filters and record help. */
 export function definitionFilterSelectionQueryOptions(
   target: QueryDefinitionReferenceTarget | undefined,
   generation: string | undefined,

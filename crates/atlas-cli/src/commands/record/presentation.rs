@@ -24,16 +24,6 @@ pub(super) fn render_record(
     let mut out = String::new();
     let presentation = &record.presentation;
     identity(&mut out, &presentation.identity);
-    if let Some(definition) = &presentation.general_definition {
-        let parameters = definition
-            .unspecified_parameters
-            .iter()
-            .map(|parameter| parameter.label.as_str())
-            .collect::<Vec<_>>();
-        if !parameters.is_empty() {
-            line(&mut out, format!("Unspecified: {}", parameters.join(", ")));
-        }
-    }
     if !record.selected.owners.is_empty() {
         line(&mut out, format!("From {}", record.record.title));
     }

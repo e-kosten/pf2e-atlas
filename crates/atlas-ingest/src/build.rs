@@ -183,7 +183,6 @@ impl CapturedBuildInputs {
                 .map_err(|error| IngestError::SourceSelectionFailed(error.to_string()))?;
             for value in [
                 crate::REFERENCE_PREPARATION_RECIPE,
-                atlas_record::source_content::GENERAL_DEFINITION_READING_RECIPE,
                 atlas_foundry_model::generated::REFERENCE_CATALOG_SHA256,
                 reference_supplement.identity.as_str(),
                 reference_notices.identity.as_str(),
@@ -205,15 +204,6 @@ impl CapturedBuildInputs {
             reference_inputs_identity,
             reference_notices,
         })
-    }
-    pub(crate) fn source_package(&self) -> &str {
-        self.capture
-            .manifest()
-            .manifest
-            .metadata
-            .get("id")
-            .and_then(serde_json::Value::as_str)
-            .unwrap_or("unknown")
     }
     pub(crate) fn reference_pack_systems(&self) -> BTreeMap<String, Option<String>> {
         captured_pack_systems(&self.capture)

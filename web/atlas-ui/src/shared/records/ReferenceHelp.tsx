@@ -64,10 +64,7 @@ export function referenceDestination(
         recordKey: destination.navigation.record_key,
         selection: destination.navigation,
         landing,
-        readingContext: destination.reading_context,
-        definitionKey: destination.reading_context
-          ? (definitionKey ?? undefined)
-          : undefined,
+        definitionKey: definitionKey ?? undefined,
       });
 }
 
@@ -106,7 +103,7 @@ export function useReferenceHelpNavigation() {
   };
 }
 
-/** Native links and local reading carry the same complete supplied purpose. */
+/** Native links and local reading carry the same complete supplied destination. */
 export function ReferenceHelpLink({
   help,
   children,

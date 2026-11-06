@@ -81,8 +81,7 @@ pub use definitions::{
     DefinitionDetailView, DefinitionFilterOptionView, DefinitionFilterOptionsRequest,
     DefinitionFilterOptionsView, DefinitionGrantScopeView, DefinitionGrantView,
     DefinitionNoticeView, DefinitionPermissionDispositionView, DefinitionPublicationView,
-    DefinitionReferenceView, DefinitionSourceLocationView, GeneralDefinitionParameterView,
-    GeneralDefinitionReadingView, RecordReadingContextView, ReferenceContentView,
+    DefinitionReferenceView, DefinitionSourceLocationView, ReferenceContentView,
     ReferenceDestinationView, ReferenceFilterActionView, ReferenceHelpView, ReferenceValueView,
 };
 pub use traits::{

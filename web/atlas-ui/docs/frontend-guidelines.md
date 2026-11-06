@@ -1264,7 +1264,8 @@ replaces a customized copy or guesses a destination by name. Unavailable
 references remain explicit inert labels, without invented links.
 
 Record destinations use the same RecordDetailPane and family renderer as full
-pages. Standalone definitions reuse prepared content and the shared identity/page
+pages, including authored placeholders and controls in glossary records.
+Standalone definitions reuse prepared content and the shared identity/page
 primitives. Keep ordinary publication attribution; do not fill reading content with
 extraction paths, revisions, declarations or technical provenance. Entries without
 a useful definition stay plain facts and filter choices, without an empty definition

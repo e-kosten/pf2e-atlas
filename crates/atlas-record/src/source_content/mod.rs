@@ -4,15 +4,6 @@
 //! transient parser tree or bind runtime gameplay values. Expression trees remain
 //! transient during preparation and selected reading.
 
-mod general_definition;
-pub use general_definition::{
-    GENERAL_DEFINITION_READING_RECIPE, GeneralDefinitionProjection,
-    GeneralDefinitionProjectionInput, general_definition_projection,
-};
-pub(crate) use general_definition::{
-    finish_general_definition_reading, general_definition_origin, has_general_definition_marker,
-    validate_general_definition_markers,
-};
 mod contextual_formula;
 pub use contextual_formula::{
     FormulaContext, FormulaText, contextual_damage_text, contextual_roll_text,
@@ -49,13 +40,11 @@ pub use model::{
     ContentInteractionKind, ContentInteractionLabel, ContentInterpretationDiagnostic,
     ContentReferenceKind, ContentReferenceLabel, ContentReferenceLookup,
     ContentReferenceOccurrence, ContentReferenceResolution, ContentReferenceResolver,
-    ContentReferenceTarget, ContentVisibilityRule, GeneralDefinitionParameterBinding,
-    GeneralDefinitionParameterRole, GeneralDefinitionReading, PreparedReferenceDefinition,
-    PreparedSourceContent, ResolvedContentReference, SourceByteRange, SourceContentLocator,
+    ContentReferenceTarget, ContentVisibilityRule, PreparedReferenceDefinition,
+    PreparedSourceContent, ResolvedContentReference, SourceContentLocator,
 };
 pub use parse_diagnostics::{ContentParseDiagnostics, DroppedContentMacro};
 pub use parser::LocalizationResolver;
-pub(crate) use preparation::prepare_source_content_with_selection;
 pub use preparation::{is_safe_content_url, prepare_reference_definition, prepare_source_content};
 pub use text_projection::plain_text as prepared_plain_text;
 

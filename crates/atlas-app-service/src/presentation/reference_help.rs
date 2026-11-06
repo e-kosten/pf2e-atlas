@@ -149,11 +149,8 @@ pub(crate) fn annotate_many<'a>(
                             retrieval.source_fingerprint(),
                         ),
                     )?;
-                    let destination = crate::relationship_search::record_destination(
-                        retrieval,
-                        &selection,
-                        Some(RecordReadingContextView::GeneralDefinition),
-                    );
+                    let destination =
+                        crate::relationship_search::record_destination(retrieval, &selection);
                     let target = atlas_domain::QueryDefinitionReferenceTarget::Record {
                         selection: Box::new(selection),
                     };

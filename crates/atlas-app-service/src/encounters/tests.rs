@@ -885,7 +885,6 @@ fn repeated_participants_share_authored_baselines_and_load_source_only_on_reques
     );
     let source_request = RecordDetailRequest {
         expected_artifact_generation: None,
-        reading_context: None,
         spell_rank: None,
         record_key: detail.participants[0].record_key.clone().unwrap(),
         owners: vec![],
@@ -2542,7 +2541,6 @@ fn strike_rolls_are_stateless_and_use_checked_effective_damage() {
             artifact_generation: current.artifact_generation.clone().unwrap(),
             selection: RecordDetailRequest {
                 expected_artifact_generation: None,
-                reading_context: None,
                 spell_rank: None,
                 record_key: activity.navigation.record_key.clone(),
                 owners: activity.navigation.owners.clone(),

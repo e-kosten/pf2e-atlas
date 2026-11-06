@@ -333,8 +333,6 @@ fn detail(body: RecordBodyView) -> RecordDetailView {
         artifact_generation: "test-generation".into(),
         record: summary("Local Caster", "creature"),
         presentation: RecordPresentationView {
-            general_definition: None,
-
             grants: None,
             classification: "creature 2".into(),
             identity: summary("Custom Fireball", "spell"),

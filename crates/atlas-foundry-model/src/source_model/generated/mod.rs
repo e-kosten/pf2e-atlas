@@ -804,8 +804,7 @@ pub use trait_definitions::{
 
 pub mod reference_definitions;
 pub use reference_definitions::{
-    FoundryDefinitionParameterRole, FoundryGeneralDefinitionTemplate, FoundryReferenceDefinition,
-    REFERENCE_CATALOG_SHA256, foundry_glossary_records, general_definition_templates,
+    FoundryReferenceDefinition, REFERENCE_CATALOG_SHA256, foundry_glossary_records,
     reference_definitions,
 };
 

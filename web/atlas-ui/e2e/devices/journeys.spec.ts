@@ -2553,7 +2553,6 @@ test("glossary vocabulary labels and communication notes use supplied context @e
   expect(value.help.destination).toMatchObject({
     kind: "record",
     navigation: { record_key: "bestiary-ability-glossary-srd:qCCLZhnp2HhP3Ex6" },
-    reading_context: "general_definition",
   });
   const language = await request.post("/api/definitions/detail", {
     data: {
@@ -2634,7 +2633,7 @@ test("glossary reading keeps useful drawers, native full pages and exact propert
   expect(decodeURIComponent(senseUrl.pathname)).toBe(
     "/records/bestiary-ability-glossary-srd:qCCLZhnp2HhP3Ex6",
   );
-  expect(senseUrl.searchParams.get("reading_context")).toBe("general_definition");
+  expect(senseUrl.searchParams.has("reading_context")).toBe(false);
   expect(senseUrl.searchParams.get("definition_key")).toBe("sense:darkvision");
   const actorUrl = page.url();
   await activate(darkvision, info);
@@ -2652,7 +2651,7 @@ test("glossary reading keeps useful drawers, native full pages and exact propert
   expect(decodeURIComponent(senseFullUrl.pathname)).toBe(
     decodeURIComponent(senseUrl.pathname),
   );
-  expect(senseFullUrl.searchParams.get("reading_context")).toBe("general_definition");
+  expect(senseFullUrl.searchParams.has("reading_context")).toBe(false);
   expect(senseFullUrl.searchParams.get("definition_key")).toBe("sense:darkvision");
   const sensePreview = page.waitForResponse(
     (response) =>
@@ -2661,10 +2660,10 @@ test("glossary reading keeps useful drawers, native full pages and exact propert
       response.request().postDataJSON()?.criteria?.filter?.collection === "senses",
   );
   await activate(senseFullPage, info);
+  await expect(page).toHaveURL(senseFullUrl.href);
   const sensePage = await (await sensePreview).json();
   expect(sensePage.rows).toHaveLength(5);
   expect(sensePage.page.total).toBeGreaterThan(5);
-  await expect(page).toHaveURL(senseFullUrl.href);
   const senseRelations = page.getByRole("region", {
     name: "With this sense",
     exact: true,

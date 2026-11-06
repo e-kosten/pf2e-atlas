@@ -280,7 +280,6 @@ fn filter_option(
                     availability: DefinitionAvailabilityView::Available,
                     destination: Some(ReferenceDestinationView::Record {
                         navigation: navigation.into(),
-                        reading_context: Some(RecordReadingContextView::GeneralDefinition),
                     }),
                     related_filters,
                 },
@@ -352,7 +351,6 @@ pub(crate) fn definition_reading_destination(
         }
         ReferenceSummaryBacking::Record { key } => Some(ReferenceDestinationView::Record {
             navigation: record_navigation(key.clone(), vec![], source_fingerprint).into(),
-            reading_context: Some(RecordReadingContextView::GeneralDefinition),
         }),
         ReferenceSummaryBacking::None | ReferenceSummaryBacking::Prepared { readable: false } => {
             None
@@ -562,11 +560,7 @@ pub(crate) fn reference_reading_destination(
 ) -> Option<ReferenceDestinationView> {
     match target {
         QueryDefinitionReferenceTarget::Record { selection } => {
-            Some(crate::relationship_search::record_destination(
-                r,
-                selection,
-                Some(RecordReadingContextView::GeneralDefinition),
-            ))
+            Some(crate::relationship_search::record_destination(r, selection))
         }
         QueryDefinitionReferenceTarget::Definition { key } => summaries
             .get(key)

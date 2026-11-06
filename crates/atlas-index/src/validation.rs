@@ -448,7 +448,6 @@ fn validate_content(
                     visibility,
                     visibility_availability: FieldAvailability::Value,
                     status: SourceContentStatus::Prepared(Box::new(PreparedSourceContent {
-                        general_definition_reading: metadata.general_definition_reading().cloned(),
                         locator,
                         interpretation_version: context.content_interpretation_version.clone(),
                         authored_markup_sha256: hash,
@@ -473,18 +472,6 @@ fn validate_content(
     }
     if !expected.is_empty() {
         return Err(bad("selected content cache coverage is incomplete"));
-    }
-    for outcome in &content {
-        if let SourceContentStatus::Prepared(prepared) = &outcome.status
-            && (prepared.general_definition_reading.is_some()
-                || prepared.html.contains("data-atlas-definition-selection"))
-        {
-            crate::references::validate_template_scope(
-                record,
-                prepared,
-                context.reference_preparation.as_ref(),
-            )?;
-        }
     }
     Ok((n, content))
 }

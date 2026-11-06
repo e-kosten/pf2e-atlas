@@ -5,7 +5,7 @@ use atlas_domain::RecordKey;
 use serde::{Deserialize, Serialize};
 
 /// Interpretation identity, independent of source DTO or artifact versions.
-pub const CONTENT_INTERPRETATION_VERSION: &str = "foundry-content/v23";
+pub const CONTENT_INTERPRETATION_VERSION: &str = "foundry-content/v24";
 
 /// A source field, never an output hash, display label or HTML node ordinal.
 /// Callers establish identity from their admitted source and retain this locator
@@ -110,8 +110,6 @@ pub struct PreparedSourceContent {
     /// Only visible interactions, referenced by data-atlas-interaction markers.
     pub interactions: Vec<ContentInteraction>,
     pub diagnostics: Vec<ContentInterpretationDiagnostic>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub general_definition_reading: Option<GeneralDefinitionReading>,
 }
 
 /// Prepared localization-backed term content with its exact vocabulary identity.
@@ -254,61 +252,4 @@ pub enum ContentDiagnosticCode {
     UnavailableImageAsset,
     InvalidTemplate,
     MissingCheckType,
-}
-
-/// UTF-8 byte offsets into the exact authored field, never character positions.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SourceByteRange {
-    pub start: usize,
-    pub end: usize,
-}
-
-/// A finite, checked reading selection beside one canonical prepared body.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct GeneralDefinitionReading {
-    pub template_key: RecordKey,
-    pub source_package: String,
-    pub recipe: String,
-    pub authored_description_sha256: String,
-    pub rules_sha256: String,
-    pub localization_key: String,
-    pub localization_source_span: SourceByteRange,
-    pub localization_node_path: String,
-    pub selection_marker: String,
-    pub parameters: Vec<GeneralDefinitionParameterBinding>,
-    pub reference_ordinals: Vec<usize>,
-    pub interaction_ordinals: Vec<usize>,
-    pub excluded_parameter_interaction_ordinals: Vec<usize>,
-}
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct GeneralDefinitionParameterBinding {
-    pub role: GeneralDefinitionParameterRole,
-    pub source_pointer: String,
-    pub source_span: Option<SourceByteRange>,
-    pub source_node_path: Option<String>,
-    pub reference_ordinals: Vec<usize>,
-    pub interaction_ordinals: Vec<usize>,
-}
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum GeneralDefinitionParameterRole {
-    CheckDc,
-    Damage,
-    DamageType,
-    EscapeDc,
-    RuptureThreshold,
-    Range,
-    SizeLimit,
-    Size,
-    Strike,
-    AuraRadius,
-    HarmDamageType,
-    HarmDamage,
-    AreaOrPersistentDamage,
-    HealingDamageType,
-    HealingAmount,
-    SlowingDamageType,
-    WindingDuration,
-    DisableDeviceDc,
-    StandbyMode,
 }

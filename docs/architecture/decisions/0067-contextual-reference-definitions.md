@@ -5,6 +5,10 @@ Status: accepted; amends the trait-only vocabulary/storage scope of
 semantic-seed policies remain active.
 Date: 2026-11-05
 
+Amended 2026-11-06: existing glossary records use ordinary record presentation.
+The special template-reading selection and per-description approval-hash gate
+were removed after product review. Source attribution and input integrity remain.
+
 ## Context
 
 Reusable Foundry definitions appear both as real compendium documents and as
@@ -36,8 +40,8 @@ and the existing content interpreter. A missing or conflicting record mapping
 retains its intended target as evidence, without offering a pointer or inventing
 a standalone body. Availability is independent of identity and filter metadata.
 
-Generated source-contract evidence owns finite catalog coverage, exact mappings
-and the reviewed generic-template signatures. Ingest verifies mappings against
+Generated source-contract evidence owns finite catalog coverage and exact mappings.
+Ingest verifies mappings against
 the actual captured package, declared packs and consumed records. A compatible
 same-key custom description remains that selected record's content unless an
 explicit required structural signature conflicts. Names and translated labels
@@ -46,7 +50,7 @@ The preparation retains the captured root package and only explicit pack-system
 declarations. An omitted pack declaration inherits the root; an explicit matching
 system permits the new association, while conflicting or unsupported declarations
 disable it. Unknown historical scope stays unknown. Record mappings, new non-trait
-localization associations and template selections use this retained evidence;
+localization associations use this retained evidence;
 annotation metadata cannot assert its own applicability. Ordinary records and
 legacy trait behavior remain available for conflicting packs.
 
@@ -103,14 +107,9 @@ armor group. Offline backfill uses compatible retained snapshots and preserves
 missing, null and invalid values. A retired preparation remains deferred to its
 existing explicit setup path rather than being decoded by the migration.
 
-Ten verified templates (eight general actions and two family abilities) retain finite role-selection metadata
-beside their existing canonical prepared field. Whole description/rules signatures,
-source package, authored spans, unique parser paths and checked HTML/control
-bindings establish the selection. Owned or customized abilities retain ordinary
-content and meaningful zeroes. This metadata introduces no second body, markup
-interpreter, generic UI layout language or automatic rules execution. Golem
-Antimagic and Wind-Up reuse their existing record bodies through this mechanism;
-Generic Sneak Attack remains a standalone supplied definition.
+Glossary records use their ordinary prepared content, including authored
+placeholders, values and controls. Golem Antimagic and Wind-Up point to their
+existing records; Generic Sneak Attack remains a standalone supplied definition.
 
 ## Content acquisition and attribution
 
@@ -136,7 +135,10 @@ this migration. Unknown publication facts remain unknown; the generalization
 does not retroactively clear all existing prose or translations. New selected
 material carries its approved source-specific notices and provenance. A published
 upstream content notice is affirmative source evidence; a missing original-book
-PDF alone is not a requirement for new paragraph-specific permission.
+PDF alone is not a requirement for new paragraph-specific permission. Publication
+metadata is associated with the selected definition identity. Changes in wording
+do not independently withdraw that association or suppress its prose. Source-pin
+updates retain the normal source, attribution and generated-contract review.
 
 ## Consumers
 
@@ -156,9 +158,8 @@ record destination. Exact-owner outgoing evidence and complete SQL target
 uniqueness support owned-ability help without guessing from names or capped pages.
 
 App-service projects categorical values as raw identity, readable label and optional
-typed help. Record destinations retain `RecordNavigationView`; an optional general-
-definition reading context selects a verified canonical template subtree, preserving
-original control/reference ordinals. Other reads retain ordinary authored content.
+typed help. Record destinations retain `RecordNavigationView` and ordinary authored
+content, with their existing control and reference addresses.
 Standalone definition destinations remain typed definition keys. Related actions
 carry the executable predicate, or a numeric field configuration that still needs
 an operator/value. Older traits-only coverage preserves ordinary record reads and
@@ -191,9 +192,7 @@ a glossary browser.
 The existing linked-reference session owns one mixed record/definition Drawer and
 its bounded local history. An initiating property help value remains separate
 from the actual reading destination, so properties sharing a record keep distinct
-related-filter actions. Record reading context participates in request, cache and
-retained-content identity; ordinary authored reading cannot reuse a general-template
-projection. Exact owner returns retain their ordinary source address.
+related-filter actions. Exact owner returns retain their ordinary source address.
 
 The application host supplies a fallback session for links outside an existing
 reader. Selected-record readers and contextual encounter readers retain their
@@ -202,8 +201,8 @@ delegate through that host's handlers, so nested reads keep one active history
 and the correct owner-return affordance. An application fallback must not replace
 a selected reader's owner context or action renderer.
 
-Record-backed help retains the actual record URL, with explicit reading context
-and optional semantic definition key. Full-page reading resolves that key through
+Record-backed help retains the actual record URL and an optional semantic
+definition key. Full-page reading resolves that key through
 the existing definition-detail service and uses its property actions only when
 the returned actual destination matches the requested record selection. Standalone
 definitions with readable content have direct typed destinations; metadata-only

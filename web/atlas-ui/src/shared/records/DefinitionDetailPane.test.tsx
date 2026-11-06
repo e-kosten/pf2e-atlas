@@ -175,7 +175,6 @@ it("preserves ordinary record actions while keeping general-definition reading f
       destination={{
         kind: "record",
         navigation: detail.selected,
-        reading_context: "general_definition",
       }}
       help={help}
       anchor={null}

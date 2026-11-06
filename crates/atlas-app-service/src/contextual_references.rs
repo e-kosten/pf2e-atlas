@@ -183,7 +183,6 @@ mod tests {
                 .worker
                 .record_detail_at(atlas_app_model::RecordDetailRequest {
                     expected_artifact_generation: None,
-                    reading_context: None,
                     record_key: "equipment:wwwwwwwwwwwwwwww".into(),
                     owners: vec![],
                     fields: vec![],

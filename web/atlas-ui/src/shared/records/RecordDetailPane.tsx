@@ -217,17 +217,6 @@ export function RecordDetailPane({
           {detail ? (
             <>
               {readingContext}
-              {detail.presentation.general_definition &&
-                detail.presentation.general_definition.unspecified_parameters.length >
-                  0 && (
-                  <p className="muted">
-                    Varies by creature:{" "}
-                    {detail.presentation.general_definition.unspecified_parameters
-                      .map((parameter) => parameter.label)
-                      .join(", ")}
-                    .
-                  </p>
-                )}
               <RecordPresentation
                 sectionLanding={sectionLanding}
                 identityInHost={identityInHost || showRelated}

@@ -62,7 +62,6 @@ pub(crate) fn run_record_get(o: RecordGetOptions) -> Result<ExitCode, String> {
         }
         let record = s
             .record_detail_at(RecordDetailRequest {
-                reading_context: None,
                 expected_artifact_generation: None,
 
                 spell_rank: o.rank,
@@ -254,7 +253,6 @@ pub(crate) fn render_selected_record(
             }
             let child = service
                 .record_detail_at(RecordDetailRequest {
-                    reading_context: None,
                     expected_artifact_generation: None,
 
                     spell_rank: navigation.spell_rank,

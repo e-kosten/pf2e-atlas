@@ -1645,23 +1645,10 @@ fn glossary_commands_are_source_free_and_keep_existing_record_reading_and_genera
     fs::create_dir_all(fixture.root.join("packs/general")).unwrap();
     fs::create_dir_all(fixture.root.join("static/licenses")).unwrap();
     fs::write(fixture.root.join("module.json"), serde_json::json!({"id":"pf2e","version":"8.6.1","packs":[{"name":"actions","label":"Actions","type":"Item","path":"packs/actions"},{"name":"bestiary-ability-glossary-srd","label":"Abilities","type":"Item","path":"packs/general"}]}).to_string()).unwrap();
-    let templates: Value = serde_json::from_str(include_str!(
-        "../../atlas-record/src/source_record/fixtures/general-definition-templates.json"
-    ))
-    .unwrap();
-    let buck = templates["items"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|item| item["name"] == "Buck")
-        .unwrap();
-    fs::write(
-        fixture.root.join("packs/general/buck.json"),
-        buck.to_string(),
-    )
-    .unwrap();
+    fs::write(fixture.root.join("packs/general/buck.json"), serde_json::json!({"_id":"nZMQh4AaBr291TUf","name":"Buck","type":"action","system":{"description":{"value":"<p>@Check[reflex|dc:]</p><p>@Localize[PF2E.NPC.Abilities.Glossary.Buck]</p>"}}}).to_string()).unwrap();
+    fs::write(fixture.root.join("packs/general/trample.json"), serde_json::json!({"_id":"UNah0bxXxkcZjxO3","name":"Trample","type":"action","system":{"description":{"value":"<p>[Size], [Listed Strike], @Check[reflex|dc:|basic]</p><p>@Localize[PF2E.NPC.Abilities.Glossary.Trample]</p>"}}}).to_string()).unwrap();
     fs::write(fixture.root.join("packs/general/darkvision.json"), serde_json::json!({"_id":"qCCLZhnp2HhP3Ex6","name":"Darkvision","type":"action","system":{"description":{"value":"<p>Existing darkvision record prose.</p>"},"actionType":{"value":"passive"}}}).to_string()).unwrap();
-    let mut locale = templates["localizations"].clone();
+    let mut locale = serde_json::json!({"PF2E.NPC.Abilities.Glossary.Buck":"<p>Reusable Buck rules.</p>","PF2E.NPC.Abilities.Glossary.Trample":"<p>Reusable Trample rules.</p>"});
     locale["PF2E.Actor.Creature.Language.common"] = serde_json::json!("Common");
     locale["PF2E.Actor.Creature.Language.chthonian"] = serde_json::json!("Chthonian");
     locale["PF2E.Actor.Creature.Sense.Type.Darkvision"] = serde_json::json!("Darkvision");
@@ -1730,8 +1717,24 @@ fn glossary_commands_are_source_free_and_keep_existing_record_reading_and_genera
         String::from_utf8_lossy(&buck.stderr)
     );
     let buck = String::from_utf8_lossy(&buck.stdout);
-    assert!(buck.contains("Unspecified:"), "{buck}");
-    assert!(buck.contains("DC"), "{buck}");
+    assert!(buck.contains("Reusable Buck rules."), "{buck}");
+    assert!(!buck.contains("Unspecified:"), "{buck}");
+    let trample = fixture.command(
+        &[
+            "definition",
+            "get",
+            "rule:pf2e:PF2E.NPC.Abilities.Glossary.Trample",
+        ],
+        false,
+    );
+    assert!(
+        trample.status.success(),
+        "{}",
+        String::from_utf8_lossy(&trample.stderr)
+    );
+    let trample = String::from_utf8_lossy(&trample.stdout);
+    assert!(trample.contains("[Size], [Listed Strike]"), "{trample}");
+    assert!(trample.contains("Reusable Trample rules."), "{trample}");
     let options = fixture.data(&["filters", "definitions", "--text", "Chthonian", "--json"]);
     assert_eq!(options["total"], 1);
     assert_eq!(

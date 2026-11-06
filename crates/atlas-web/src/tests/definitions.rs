@@ -45,14 +45,14 @@ async fn glossary_detail_discovery_and_existing_record_reads_share_generation_an
         sense["help"]["destination"]["navigation"]["record_key"],
         "bestiary-ability-glossary-srd:qCCLZhnp2HhP3Ex6"
     );
-    assert_eq!(
-        sense["help"]["destination"]["reading_context"],
-        "general_definition"
+    assert!(
+        sense["help"]["destination"]
+            .get("reading_context")
+            .is_none()
     );
     let mut pointer = sense["help"]["destination"]["navigation"].clone();
     let object = pointer.as_object_mut().unwrap();
     object.remove("field");
-    object.insert("reading_context".into(), json!("general_definition"));
     object.insert("expected_artifact_generation".into(), generation.clone());
     let (status, pointed_record) = fixture
         .json(Method::POST, "/api/records/detail", Some(pointer))
@@ -213,9 +213,10 @@ async fn mixed_glossary_boolean_clauses_keep_typed_destinations_and_exact_proof_
     );
     assert!(clause("standalone").get("record").is_none());
     assert_eq!(clause("mapped")["destination"]["kind"], "record");
-    assert_eq!(
-        clause("mapped")["destination"]["reading_context"],
-        "general_definition"
+    assert!(
+        clause("mapped")["destination"]
+            .get("reading_context")
+            .is_none()
     );
     assert_eq!(
         clause("mapped")["record"]["record_key"],
@@ -262,10 +263,7 @@ async fn mixed_glossary_boolean_clauses_keep_typed_destinations_and_exact_proof_
         .iter()
         .find(|entry| entry["kind"] == "record")
         .expect("definition reference proofs retain the existing authored UUID graph evidence");
-    assert_eq!(
-        graph["destination"]["reading_context"],
-        "general_definition"
-    );
+    assert!(graph["destination"].get("reading_context").is_none());
     assert_eq!(
         graph["destination"]["navigation"]["record_key"],
         "bestiary-ability-glossary-srd:qCCLZhnp2HhP3Ex6"

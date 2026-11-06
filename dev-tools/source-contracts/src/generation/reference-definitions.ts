@@ -11,18 +11,9 @@ export interface ReferenceDefinition {
   requiredLocalizationKey: string | null; sourceFile: string; sourceLine: number;
   excluded: boolean; filterFields: string[];
 }
-export interface DefinitionParameterRole {
-  role: string; sourcePointer: string; start: number | null; end: number | null;
-  fragmentSha256: string | null; expectedValueJson: string | null;
-}
-export interface GeneralDefinitionTemplate {
-  recordKey: string; sourcePackage: string; descriptionSha256: string; rulesSha256: string;
-  localizationKey: string; localizedStart: number; localizedEnd: number;
-  parameterRoles: DefinitionParameterRole[];
-}
 export interface ReferenceCatalog {
   digest: string; definitions: ReferenceDefinition[];
-  records: { key: string; family: string }[]; templates: GeneralDefinitionTemplate[];
+  records: { key: string; family: string }[];
 }
 export interface ReferenceRegistry {
   schema: 'reference-definition-registry/v1'; source_package: 'pf2e';
@@ -30,13 +21,6 @@ export interface ReferenceRegistry {
   standalone_labels: Record<string, string>; pf2e_weapon_groups: string[];
   npc_mappings: { localization_key: string; record_key: string; expected_family: string; source_file: string }[];
   wildsong: { record_key: string; expected_family: string; source_file: string };
-  general_templates: {
-    record_key: string; expected_family: string; source_package: string; source_field: string;
-    definition_localization_key: string;
-    signature: { authored_description_sha256: string; rules_sha256: string };
-    localized_selection: { source_span: [number, number]; localization_key: string };
-    parameter_roles: { role: string; source_pointer: string; source_span?: [number, number]; expected_fragment_sha256?: string; expected_value?: unknown }[];
-  }[];
 }
 const sha = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex');
 const compare = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
@@ -84,51 +68,6 @@ export async function referenceSourceInputs(source: string) {
     documents.push({ file, bytes });
   }
   return { digest: hash.digest('hex'), documents };
-}
-
-/** Verify a reviewed template against its complete selected source, including byte spans. */
-export function validateReferenceTemplate(
-  registry: ReferenceRegistry['general_templates'][number], record: Record<string, unknown>,
-): GeneralDefinitionTemplate {
-  const system = object(record.system), body = object(system.description).value, rules = system.rules;
-  if (typeof body !== 'string' || !Array.isArray(rules) || record.type !== registry.expected_family || registry.source_package !== 'pf2e'
-    || registry.source_field !== '/system/description/value'
-    || sha(body) !== registry.signature.authored_description_sha256 || sha(canonical(rules)) !== registry.signature.rules_sha256)
-    throw new Error('General definition template signature changed: ' + registry.record_key);
-  const bytes = Buffer.from(body);
-  const span = (start: number, end: number): Buffer => {
-    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || start >= end || end > bytes.length)
-      throw new Error('Invalid reference template source span');
-    const fragment = bytes.subarray(start, end);
-    try { new TextDecoder('utf-8', { fatal: true }).decode(fragment); }
-    catch { throw new Error('Invalid UTF-8 reference template source span'); }
-    return fragment;
-  };
-  const [localizedStart, localizedEnd] = registry.localized_selection.source_span;
-  const localizationKey = registry.definition_localization_key;
-  if (registry.localized_selection.localization_key !== localizationKey
-    || span(localizedStart, localizedEnd).toString() !== `@Localize[${localizationKey}]`)
-    throw new Error('General definition localization span changed: ' + registry.record_key);
-  const roles = new Set(['check_dc', 'damage', 'damage_type', 'escape_dc', 'rupture_threshold', 'range', 'size_limit', 'size', 'strike', 'aura_radius', 'harm_damage_type', 'harm_damage', 'area_or_persistent_damage', 'healing_damage_type', 'healing_amount', 'slowing_damage_type', 'winding_duration', 'disable_device_dc', 'standby_mode']);
-  const parameterRoles = registry.parameter_roles.map(role => {
-    if (!roles.has(role.role)) throw new Error('Unreviewed general definition parameter role');
-    if (role.source_pointer === '/system/description/value') {
-      if (!role.source_span || !role.expected_fragment_sha256
-        || sha(span(...role.source_span)) !== role.expected_fragment_sha256)
-        throw new Error('General definition parameter span changed: ' + registry.record_key);
-      return { role: role.role, sourcePointer: role.source_pointer, start: role.source_span[0], end: role.source_span[1],
-        fragmentSha256: role.expected_fragment_sha256, expectedValueJson: null };
-    }
-    const match = /^\/system\/rules\/(\d+)\/radius$/.exec(role.source_pointer);
-    if (!match || role.role !== 'aura_radius' || role.expected_value !== 0 || !Array.isArray(rules)
-      || object(rules[Number(match[1])]).key !== 'Aura' || object(rules[Number(match[1])]).radius !== 0)
-      throw new Error('Unsupported general definition rule role: ' + registry.record_key);
-    return { role: role.role, sourcePointer: role.source_pointer, start: null, end: null,
-      fragmentSha256: null, expectedValueJson: '0' };
-  });
-  return { recordKey: registry.record_key, sourcePackage: registry.source_package,
-    descriptionSha256: registry.signature.authored_description_sha256, rulesSha256: registry.signature.rules_sha256,
-    localizationKey, localizedStart, localizedEnd, parameterRoles };
 }
 
 /** Exact declarations and reviewed associations, without compiling localized prose. */
@@ -274,11 +213,9 @@ export async function referenceDefinitions(source: string, registry: ReferenceRe
   if (reviewedNpc.size !== registry.npc_mappings.length) throw new Error('Duplicate reviewed NPC mapping');
   for (const mapping of reviewedNpc.values()) {
     const target = selected.get(mapping.record_key);
-    const template = registry.general_templates.find(template => template.record_key === mapping.record_key);
     if (!target || target.family !== mapping.expected_family || target.file !== mapping.source_file
       || !target.file.startsWith('packs/pf2e/bestiary-family-ability-glossary/')
       || !target.description.includes(`@Localize[${mapping.localization_key}]`)
-      || !template || template.definition_localization_key !== mapping.localization_key
       || !Object.hasOwn(object(locate('PF2E.NPC.Abilities.Glossary')), mapping.localization_key.slice(prefix.length)))
       throw new Error('Reviewed family NPC mapping changed: ' + mapping.localization_key);
   }
@@ -339,13 +276,7 @@ export async function referenceDefinitions(source: string, registry: ReferenceRe
   definitions.sort((a, b) => compare(a.namespace, b.namespace) || compare(a.identifier, b.identifier));
   if (new Set(definitions.map(definition => definition.namespace + ':' + definition.identifier)).size !== definitions.length)
     throw new Error('Duplicate reference definition identity');
-  const templates = registry.general_templates.map(template => {
-    const target = selected.get(template.record_key);
-    if (!target) throw new Error('General template target missing: ' + template.record_key);
-    return validateReferenceTemplate(template, target.data);
-  }).sort((a, b) => compare(a.recordKey, b.recordKey));
-  if (new Set(templates.map(template => template.recordKey)).size !== templates.length) throw new Error('Duplicate general template');
   const records = [...selected.values()].map(({ key, family }) => ({ key, family })).sort((a, b) => compare(a.key, b.key));
   return { digest: sha('reference-catalog/v1:' + inputs.digest + ':' + canonical(registry)
-    + ':' + canonical({ definitions, records, templates })), definitions, records, templates };
+    + ':' + canonical({ definitions, records })), definitions, records };
 }

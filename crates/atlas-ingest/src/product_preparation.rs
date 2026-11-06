@@ -175,8 +175,6 @@ pub(crate) fn prepare(
     )?;
     let fingerprint = capture.fingerprint.clone();
     let mut context = crate::build::build_context(inputs, &catalog)?;
-    let source_package = inputs.source_package();
-    let reference_preparation = context.reference_preparation.clone();
     let audience = context.audience;
     let mut reference_build =
         crate::references::ReferenceBuild::new(inputs, &catalog, scratch, &context)?;
@@ -527,16 +525,9 @@ pub(crate) fn prepare(
                         "journal frame identity differs".into(),
                     )));
                 }
-                let content = prepare_content(
-                    &mut frame,
-                    &catalog,
-                    &resolver,
-                    &preparation_hash,
-                    source_package,
-                    audience,
-                    reference_preparation.as_ref(),
-                )
-                .map_err(index)?;
+                let content =
+                    prepare_content(&mut frame, &catalog, &resolver, &preparation_hash, audience)
+                        .map_err(index)?;
                 work.alias_journal_reads += 1;
                 work.alias_journal_fresh_preparations += usize::from(!content.reused);
                 work.alias_journal_reused_preparations += usize::from(content.reused);
@@ -580,15 +571,7 @@ pub(crate) fn prepare(
                     content,
                     relationships,
                     reused,
-                } = prepare_content(
-                    &mut frame,
-                    &catalog,
-                    &resolver,
-                    &preparation_hash,
-                    source_package,
-                    audience,
-                    reference_preparation.as_ref(),
-                )?;
+                } = prepare_content(&mut frame, &catalog, &resolver, &preparation_hash, audience)?;
                 report.reused_preparations += usize::from(reused);
                 work.main_fresh_preparations += usize::from(!reused);
                 count_prepared(&mut report, &record, &content, relationships.len());
@@ -789,9 +772,7 @@ fn prepare_content(
     catalog: &LocalizationCatalog,
     resolver: &SourceReferenceIndex,
     preparation_hash: &str,
-    source_package: &str,
     audience: atlas_record::source_content::ContentAudience,
-    reference_preparation: Option<&atlas_index::ReferencePreparation>,
 ) -> Result<PreparedContent, atlas_index::IndexError> {
     let source = atlas_foundry_model::decode_snapshot(frame.snapshot.as_bytes())?;
     let record = SourceBackedRecord::new(&frame.pack, source)
@@ -802,7 +783,7 @@ fn prepare_content(
         ));
     }
     let relationships = resolve_source_relationships(&record, Some(resolver));
-    let (mut content, reused) = match frame.previous.take() {
+    let (content, reused) = match frame.previous.take() {
         Some(previous)
             if previous.hash == preparation_hash
                 && previous.relationships == relationships
@@ -815,16 +796,6 @@ fn prepare_content(
             false,
         ),
     };
-    atlas_record::source_record::bind_general_definition_reading(
-        &record,
-        source_package,
-        atlas_index::reference_pack_applies(reference_preparation, "pf2e", &frame.pack),
-        audience,
-        Some(catalog),
-        Some(resolver),
-        &mut content,
-    )
-    .map_err(|error| atlas_index::IndexError::Invalid(error.to_string()))?;
     Ok(PreparedContent {
         record,
         content,

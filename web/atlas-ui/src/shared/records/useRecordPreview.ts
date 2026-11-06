@@ -184,12 +184,9 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     contextual.data,
     contextual.error,
   );
-  const readingContext =
-    destination?.kind === "record" ? destination.reading_context : undefined;
   const detail = useRecordDetail(
     requestedContext || reloadState?.kind === "loading" ? null : recordKey,
     selection,
-    readingContext,
     generation,
   );
   const definition = useDefinitionDetail(
@@ -242,7 +239,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         );
       } else if (recordKey) {
         const current = await queryClient.fetchQuery(
-          recordDetailQueryOptions(recordKey, selection, undefined, readingContext),
+          recordDetailQueryOptions(recordKey, selection),
         );
         if (session.current !== currentSession) return;
         setGeneration(current.artifact_generation);
@@ -354,10 +351,6 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
           passage: null,
           source_fingerprint: null,
         },
-        reading_context:
-          nextHelp?.destination?.kind === "record"
-            ? nextHelp.destination.reading_context
-            : undefined,
       });
       setHelp(nextHelp);
       setGeneration(nextGeneration);
@@ -484,7 +477,6 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
           definitionHelpMatchesRecord(
             definition.data.help,
             selection ?? destination.navigation,
-            readingContext,
           )
         ? definition.data.help
         : help,
@@ -575,7 +567,6 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         destination?.kind === "definition"
           ? destination.key
           : recordReadingIdentity(recordKey, selection),
-        readingContext,
         help?.definition_key,
         generation,
         landing,

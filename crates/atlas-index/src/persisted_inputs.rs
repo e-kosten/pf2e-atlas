@@ -18,8 +18,6 @@ use serde::{Deserialize, Serialize};
 pub(crate) struct PreparationMetadata {
     visibility_availability: FieldAvailability,
     status: PreparationStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    general_definition_reading: Option<atlas_record::source_content::GeneralDefinitionReading>,
 }
 #[derive(Serialize, Deserialize)]
 enum PreparationStatus {
@@ -32,12 +30,6 @@ enum PreparationStatus {
     PreparationFailed(String),
 }
 impl PreparationMetadata {
-    pub(crate) fn general_definition_reading(
-        &self,
-    ) -> Option<&atlas_record::source_content::GeneralDefinitionReading> {
-        self.general_definition_reading.as_ref()
-    }
-
     pub(crate) fn is_prepared(&self) -> bool {
         matches!(self.status, PreparationStatus::Prepared { .. })
     }
@@ -45,12 +37,6 @@ impl PreparationMetadata {
     pub(crate) fn from_outcome(outcome: &SourceContentOutcome) -> Self {
         Self {
             visibility_availability: outcome.visibility_availability.clone(),
-            general_definition_reading: match &outcome.status {
-                SourceContentStatus::Prepared(prepared) => {
-                    prepared.general_definition_reading.clone()
-                }
-                _ => None,
-            },
             status: match &outcome.status {
                 SourceContentStatus::Prepared(p) => PreparationStatus::Prepared {
                     hidden_references: p
@@ -289,7 +275,6 @@ fn decode_persisted_input(
                 occurrences.append(&mut hidden_references);
                 occurrences.sort_by_key(|r| r.ordinal);
                 SourceContentStatus::Prepared(Box::new(PreparedSourceContent {
-                    general_definition_reading: metadata.general_definition_reading,
                     locator: locator.clone(),
                     interpretation_version: context.content_interpretation_version.clone(),
                     authored_markup_sha256: field.get(4)?,

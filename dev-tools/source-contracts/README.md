@@ -177,14 +177,12 @@ See the [description provenance review](../../docs/research/trait-description-pr
 
 Generation also emits `reference_definitions.rs`: exact non-trait vocabulary,
 localization keys, source locations, reviewed sense/Wildsong record pointers,
-existing glossary-record identities and ten verified general-template signatures.
+existing glossary-record identities.
 Localized game prose remains an ingest input. The maintained
-`fixtures/reference-definition-registry.json` owns reviewed associations and
-parameter roles; generation verifies its exact targets, field/rules signatures
-and UTF-8 source spans before emitting metadata. Reviewed family wrappers are
-explicit record mappings, including Golem Antimagic and Wind-Up. Changes to these
-checked templates also require updating the record-owned fixture and its game
-content notices; parameter roles remain a finite record-owned reading policy.
+`fixtures/reference-definition-registry.json` owns reviewed associations;
+generation verifies exact record targets before emitting metadata. Reviewed
+family wrappers are explicit record mappings, including Golem Antimagic and
+Wind-Up. Record destinations use their ordinary prepared content.
 
 The current census reconciles 784 traits, 1,166 existing records and 603 other
 metadata rows. Four rows are explicit exclusions: shared SF2e Hover/No Breath and

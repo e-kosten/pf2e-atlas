@@ -84,7 +84,7 @@ fn prepared_language_speaker_context_is_readable_without_changing_other_prose() 
     assert!(!content.text.starts_with("Spoken by"));
     assert!(!authored_markup.contains("<strong>Spoken by</strong>"));
 }
-const FAMILY_TEMPLATES: &[(&str, &str)] = &[
+const FAMILY_ABILITIES: &[(&str, &str)] = &[
     ("r34QDwKiWZoVymJa", "GolemAntimagic"),
     ("xS8ybzuqPSi3Jb8k", "WindUp"),
 ];
@@ -151,7 +151,7 @@ impl Fixture {
     fn observer(&self, body: &str) {
         fs::write(self.source.join("packs/items/observer.json"), serde_json::json!({"_id":"aaaaaaaaaaaaaaaa","name":"Observer","type":"effect","system":{"description":{"value":body},"traits":{"value":["agile"]}}}).to_string()).unwrap();
     }
-    fn family_templates(&self) {
+    fn family_abilities(&self) {
         fs::create_dir_all(self.source.join("packs/family")).unwrap();
         let manifest_path = self.source.join("module.json");
         let mut manifest: serde_json::Value =
@@ -164,20 +164,11 @@ impl Fixture {
                 "type":"Item", "path":"packs/family"
             }));
         fs::write(manifest_path, manifest.to_string()).unwrap();
-        let templates: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../atlas-record/src/source_record/fixtures/general-definition-templates.json"
-        ))
-        .unwrap();
         let catalog_path = self.source.join("static/lang/en.json");
         let mut catalog: serde_json::Value =
             serde_json::from_slice(&fs::read(&catalog_path).unwrap()).unwrap();
-        for (id, name) in FAMILY_TEMPLATES {
-            let item = templates["items"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|item| item["_id"] == *id)
-                .unwrap();
+        for (id, name) in FAMILY_ABILITIES {
+            let item = serde_json::json!({"_id":id,"name":name,"type":"action","system":{"description":{"value":format!("<p>@Damage[(0)[bludgeoning]], @Check[fortitude|dc:|basic]</p><p>@Localize[PF2E.NPC.Abilities.Glossary.{name}]</p>")}}});
             fs::write(
                 self.source.join(format!("packs/family/{name}.json")),
                 item.to_string(),
@@ -254,7 +245,7 @@ impl Fixture {
 #[test]
 fn captured_pack_system_controls_only_new_associations_and_restores_on_omission() {
     let fixture = Fixture::new("pf2e");
-    fixture.family_templates();
+    fixture.family_abilities();
     fixture.observer(&format!("<p>@Localize[{AGILE}] @Localize[{AIR}] @Localize[PF2E.NPC.Abilities.Glossary.Darkvision]</p>"));
     let declarations = [
         Some(serde_json::json!("sf2e")), // initial full publication
@@ -285,7 +276,7 @@ fn captured_pack_system_controls_only_new_associations_and_restores_on_omission(
                 ReferenceAvailability::SourceInapplicable
             }
         );
-        for (id, name) in FAMILY_TEMPLATES {
+        for (id, name) in FAMILY_ABILITIES {
             let key = format!("bestiary-family-ability-glossary:{id}")
                 .parse()
                 .unwrap();
@@ -294,10 +285,6 @@ fn captured_pack_system_controls_only_new_associations_and_restores_on_omission(
                 bundle.fields.len(),
                 1,
                 "ordinary record survives every source-system state"
-            );
-            assert_eq!(
-                bundle.fields[0].general_definition_reading.is_some(),
-                applicable
             );
             let entry = fixture.entry(&format!("rule:pf2e:PF2E.NPC.Abilities.Glossary.{name}"));
             assert_eq!(
@@ -382,13 +369,13 @@ fn pack_system_scope_is_owned_by_capture_without_tightening_manifest_admission()
 }
 
 #[test]
-fn family_templates_reuse_the_actual_body_and_keep_checked_reading_beside_it() {
+fn family_abilities_reuse_the_actual_body_with_authored_placeholders_and_custom_values() {
     let fixture = Fixture::new("pf2e");
-    fixture.family_templates();
+    fixture.family_abilities();
     fixture
         .build(ReferenceSupplementSelection::Bundled)
         .unwrap();
-    for (id, name) in FAMILY_TEMPLATES {
+    for (id, name) in FAMILY_ABILITIES {
         let target: RecordKey = format!("bestiary-family-ability-glossary:{id}")
             .parse()
             .unwrap();
@@ -406,13 +393,8 @@ fn family_templates_reuse_the_actual_body_and_keep_checked_reading_beside_it() {
             .iter()
             .find(|field| field.locator.field == "/system/description/value")
             .unwrap();
-        let reading = body
-            .general_definition_reading
-            .as_ref()
-            .expect("exact template has a checked general reading");
-        assert_eq!(reading.template_key, target);
-        assert!(!reading.parameters.is_empty());
-        assert!(!reading.excluded_parameter_interaction_ordinals.is_empty());
+        assert!(body.html.as_ref().unwrap().contains("0"));
+        assert!(!body.interactions.is_empty());
         assert!(
             body.html
                 .as_ref()
@@ -427,8 +409,6 @@ fn family_templates_reuse_the_actual_body_and_keep_checked_reading_beside_it() {
     }
     atlas_index::validate_artifact(&fixture.database).unwrap();
 
-    // Exact source identity still maps after a customization, but template reading
-    // must fall back to the ordinary full body when its signature changes.
     let path = fixture.source.join("packs/family/GolemAntimagic.json");
     let mut item: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
     item["system"]["description"]["value"] = serde_json::json!(
@@ -452,12 +432,6 @@ fn family_templates_reuse_the_actual_body_and_keep_checked_reading_beside_it() {
     );
     let reader = test_support::open_reader(&fixture.database).unwrap();
     let bundle = reader.read_content_for_record(&target, 16).unwrap();
-    assert!(
-        bundle
-            .fields
-            .iter()
-            .all(|field| field.general_definition_reading.is_none())
-    );
     assert!(
         bundle.fields[0]
             .html
@@ -628,6 +602,40 @@ fn unsupported_record_mapping_never_becomes_a_standalone_localization_fallback()
         }
         atlas_index::validate_artifact(&fixture.database).unwrap();
     }
+}
+
+#[test]
+fn known_source_attribution_does_not_withhold_updated_description() {
+    let fixture = Fixture::new("pf2e");
+    let path = fixture.source.join("static/lang/en.json");
+    let mut catalog: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    catalog[AIR] = serde_json::json!("Updated source wording for the Air domain.");
+    fs::write(path, catalog.to_string()).unwrap();
+    fixture
+        .build(ReferenceSupplementSelection::Bundled)
+        .unwrap();
+    let entry = fixture.entry("domain:air");
+    assert_eq!(entry.availability, ReferenceAvailability::Available);
+    let ReferenceBacking::Prepared { content, .. } = entry.backing else {
+        panic!("standalone content")
+    };
+    assert!(
+        content
+            .text
+            .contains("Updated source wording for the Air domain.")
+    );
+    assert_eq!(
+        entry.provenance.publications[0].title.as_deref(),
+        Some("Pathfinder Player Core")
+    );
+    assert!(
+        entry
+            .permission
+            .notices
+            .iter()
+            .any(|id| id == "player-core")
+    );
+    atlas_index::validate_artifact(&fixture.database).unwrap();
 }
 
 #[test]

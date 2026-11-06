@@ -26,31 +26,26 @@ const filter = encodeFilterUrl({
   values: ["spell"],
 });
 
-it("preserves typed general purpose and property context on actual record URLs", () => {
+it("preserves property associations on ordinary record URLs", () => {
   const route = recordDestination({
     recordKey: "abilities:darkvision",
-    readingContext: "general_definition",
     definitionKey: "sense:darkvision",
   });
   const router = createAtlasRouter();
   expect(router.buildLocation(route).href).toBe(
-    "/records/abilities:darkvision?reading_context=general_definition&definition_key=sense%3Adarkvision",
+    "/records/abilities:darkvision?definition_key=sense%3Adarkvision",
   );
   expect(definitionReading(route.search)).toEqual({
-    readingContext: "general_definition",
     definitionKey: "sense:darkvision",
   });
   expect(() =>
     canonicalRouteSearch("record", {
-      reading_context: ["general_definition", "other"],
+      definition_key: ["sense:darkvision", "sense:scent"],
     }),
   ).toThrow("conflicting");
-  expect(() => canonicalRouteSearch("record", { reading_context: "other" })).toThrow(
-    "invalid reading context",
+  expect(() => canonicalRouteSearch("record", { definition_key: " " })).toThrow(
+    "invalid definition context",
   );
-  expect(() =>
-    canonicalRouteSearch("record", { definition_key: "sense:darkvision" }),
-  ).toThrow("invalid definition context");
   expect(
     router.buildLocation(definitionDestination({ definitionKey: "language:chthonian" }))
       .href,

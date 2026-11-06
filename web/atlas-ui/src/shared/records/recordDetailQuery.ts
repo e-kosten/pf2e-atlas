@@ -7,31 +7,17 @@ export function recordDetailQueryOptions(
   recordKey: string | null,
   selection?: RecordNavigationView,
   generation?: string | null,
-  readingContext?: import("../../generated/atlas").RecordReadingContextView,
 ) {
   const request =
     selection &&
     recordKey !== null &&
-    (readingContext ||
-      selection.embedded_path.length ||
+    (selection.embedded_path.length ||
       selection.field ||
       selection.passage ||
       selection.spell_rank !== undefined ||
       selection.source_fingerprint)
-      ? {
-          ...recordDetailRequest({ ...selection, record_key: recordKey }),
-          reading_context: readingContext,
-        }
-      : readingContext && recordKey
-        ? {
-            record_key: recordKey,
-            embedded_path: [],
-            fields: [],
-            passage: null,
-            source_fingerprint: null,
-            reading_context: readingContext,
-          }
-        : undefined;
+      ? recordDetailRequest({ ...selection, record_key: recordKey })
+      : undefined;
   return queryOptions({
     queryKey: [
       "record-detail",

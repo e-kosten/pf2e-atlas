@@ -1,7 +1,4 @@
-import type {
-  RecordNavigationView,
-  RecordReadingContextView,
-} from "../generated/atlas";
+import type { RecordNavigationView } from "../generated/atlas";
 import { decodeReadingAddress, ReadingUrlError } from "./readingUrl";
 
 /** URL values stay strings; repeated values retain their original order. */
@@ -76,20 +73,16 @@ export function validateReadingSearch(search: AtlasSearchParams): AtlasSearchPar
 }
 
 export type DefinitionReadingInput = {
-  readingContext?: RecordReadingContextView;
   definitionKey?: string;
 };
 
 export function definitionReading(search: AtlasSearchParams): DefinitionReadingInput {
-  const context = readingParam(search, "reading_context");
   const key = readingParam(search, "definition_key");
-  if (context !== undefined && context !== "general_definition")
-    throw new ReadingUrlError("This record link contains an invalid reading context.");
-  if (key !== undefined && (!key.trim() || context !== "general_definition"))
+  if (key !== undefined && !key.trim())
     throw new ReadingUrlError(
       "This record link contains an invalid definition context.",
     );
-  return { readingContext: context, definitionKey: key };
+  return { definitionKey: key };
 }
 
 function rejectLegacyReading(search: AtlasSearchParams) {

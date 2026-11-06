@@ -602,7 +602,6 @@ fn hazard_free_actions_and_reactions_share_exact_bounded_activation_reading() {
         .worker
         .record_detail_at(RecordDetailRequest {
             expected_artifact_generation: None,
-            reading_context: None,
             record_key: ACTOR.into(),
             owners: activities[0].navigation.owners.clone(),
             spell_rank: None,

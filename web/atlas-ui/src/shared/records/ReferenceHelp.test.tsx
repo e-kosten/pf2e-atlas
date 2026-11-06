@@ -36,7 +36,6 @@ const propertyHelp: ReferenceHelpView = {
   destination: {
     kind: "record",
     navigation: rootNavigation("abilities:darkvision"),
-    reading_context: "general_definition",
   },
   related_filters: [
     {
@@ -97,7 +96,7 @@ it("retains real record identity, property context and native activation", () =>
   const link = screen.getByRole("link", { name: "Darkvision" });
   expect(link).toHaveAttribute(
     "href",
-    "/records/abilities:darkvision?reading_context=general_definition&definition_key=sense%3Adarkvision",
+    "/records/abilities:darkvision?definition_key=sense%3Adarkvision",
   );
   fireEvent.click(link, { ctrlKey: true });
   fireEvent.click(link, { button: 1 });
@@ -148,9 +147,7 @@ it("uses one mixed Drawer session through nested hosts while preserving the draf
   fireEvent.click(opener);
   const drawer = await screen.findByRole("dialog", { name: "Darkvision" });
   expect(screen.getAllByRole("dialog")).toHaveLength(1);
-  expect(vi.mocked(getRecordDetail).mock.calls[0]?.[1]).toMatchObject({
-    reading_context: "general_definition",
-  });
+  expect(vi.mocked(getRecordDetail).mock.calls[0]?.[1]).toBeUndefined();
   expect(
     within(drawer).queryByRole("link", { name: "Creatures with this sense" }),
   ).toBeNull();
@@ -169,38 +166,20 @@ it("uses one mixed Drawer session through nested hosts while preserving the draf
   expect(screen.getByText("Selected creature")).toBeVisible();
 });
 
-it("separates ordinary and general requests and rejects changed semantic mappings", () => {
+it("uses ordinary record requests and rejects changed semantic mappings", () => {
   const navigation = rootNavigation("abilities:darkvision");
-  expect(
-    recordDetailQueryOptions(navigation.record_key, navigation).queryKey,
-  ).not.toEqual(
-    recordDetailQueryOptions(
-      navigation.record_key,
-      navigation,
-      undefined,
-      "general_definition",
-    ).queryKey,
+  expect(recordDetailQueryOptions(navigation.record_key, navigation).queryKey).toEqual(
+    recordDetailQueryOptions(navigation.record_key).queryKey,
   );
+  expect(definitionHelpMatchesRecord(propertyHelp, navigation)).toBe(true);
   expect(
-    definitionHelpMatchesRecord(propertyHelp, navigation, "general_definition"),
-  ).toBe(true);
-  expect(definitionHelpMatchesRecord(propertyHelp, navigation)).toBe(false);
-  expect(
-    definitionHelpMatchesRecord(
-      propertyHelp,
-      {
-        ...navigation,
-        embedded_path: [{ collection: "/items", identity: { Stable: "owned" } }],
-      },
-      "general_definition",
-    ),
+    definitionHelpMatchesRecord(propertyHelp, {
+      ...navigation,
+      embedded_path: [{ collection: "/items", identity: { Stable: "owned" } }],
+    }),
   ).toBe(false);
   expect(
-    definitionHelpMatchesRecord(
-      propertyHelp,
-      rootNavigation("abilities:other"),
-      "general_definition",
-    ),
+    definitionHelpMatchesRecord(propertyHelp, rootNavigation("abilities:other")),
   ).toBe(false);
 });
 

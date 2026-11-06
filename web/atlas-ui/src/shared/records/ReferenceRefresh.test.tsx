@@ -145,7 +145,6 @@ it.each(["changed", "unreadable"] as const)(
       destination: {
         kind: "record",
         navigation: old,
-        reading_context: "general_definition",
       },
       related_filters: [],
     };
@@ -167,7 +166,6 @@ it.each(["changed", "unreadable"] as const)(
                   : {
                       kind: "record",
                       navigation: replacement,
-                      reading_context: "general_definition",
                     },
             };
       return definition(help, generation);
@@ -200,7 +198,7 @@ it.each(["changed", "unreadable"] as const)(
         screen.getByRole("link", { name: "Open reference full page" }),
       ).toHaveAttribute(
         "href",
-        "/records/abilities:new?reading_context=general_definition&definition_key=sense%3Adarkvision",
+        "/records/abilities:new?definition_key=sense%3Adarkvision",
       );
     } else {
       expect(
@@ -223,7 +221,7 @@ it.each(["changed", "unreadable"] as const)(
       vi
         .mocked(getRecordDetail)
         .mock.calls.filter(([key]) => key === replacement.record_key)
-        .every(([, request]) => request?.reading_context === "general_definition"),
+        .every(([, request]) => request === undefined),
     ).toBe(true);
   },
 );
@@ -244,7 +242,6 @@ it("keeps the complete direct-record address when refresh is refused", async () 
     destination: {
       kind: "record",
       navigation: selection,
-      reading_context: "general_definition",
     },
     related_filters: [],
   };

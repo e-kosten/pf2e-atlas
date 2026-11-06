@@ -48,11 +48,9 @@ export function useDefinitionDetail(key: string | null, generation?: string | nu
 export function definitionHelpMatchesRecord(
   help: ReferenceHelpView,
   navigation: RecordNavigationView,
-  readingContext?: import("../../generated/atlas").RecordReadingContextView,
 ): boolean {
   return (
     help.destination?.kind === "record" &&
-    help.destination.reading_context === readingContext &&
     recordNavigationIdentity(
       help.destination.navigation.record_key,
       help.destination.navigation,
