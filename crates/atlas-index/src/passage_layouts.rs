@@ -65,13 +65,20 @@ impl<'a> PassageLayoutReader<'a> {
         }) else {
             return Ok(None);
         };
-        // Preserve layout admission against mutable profile/catalog/vector-table
-        // storage, once per batch and only after compatible recipe selection.
-        if matches!(
-            crate::classify_reference_upgrade(c)?,
-            crate::ReferenceUpgrade::SourcePreparation | crate::ReferenceUpgrade::SourceReplacement
-        ) {
+        // Authenticate the stored policies, but metadata-only remaster publication
+        // does not change selected text, section addresses or segmentation.
+        // Actual source/selection incompatibility remains a cache miss.
+        let upgrade = crate::classify_reference_upgrade(c)?;
+        if upgrade == crate::ReferenceUpgrade::SourceReplacement
+            || !crate::component_upgrade::source_preparation_is_current(context)
+            || context.selected_sections_recipe != crate::SELECTED_SECTIONS_RECIPE
+        {
             return Ok(None);
+        }
+        // Metadata-only admission can return before validate_open. Preserve its
+        // physical catalog/vector checks against the authentic stored context.
+        if upgrade != crate::ReferenceUpgrade::Current {
+            crate::validation::validate_profile_storage(c, context)?;
         }
         Ok(Some(Self {
             connection: c,
@@ -207,6 +214,109 @@ mod tests {
     }
 
     #[test]
+    fn metadata_only_republication_preserves_layouts_but_real_source_contract_changes_miss() {
+        let input = crate::foundation_tests::fixture(true);
+        let (_dir, path) = crate::foundation_tests::build(&input);
+        let workspace = initialize_workspace(&path).unwrap();
+        let c = rusqlite::Connection::open(&path).unwrap();
+        let store = |context: &crate::SourceArtifactBuildContext| {
+            c.execute(
+                "UPDATE artifact_context SET context_json=?,context_hash=?",
+                rusqlite::params![
+                    serde_json::to_string(context).unwrap(),
+                    context.sha256().unwrap()
+                ],
+            )
+            .unwrap();
+        };
+        let mut metadata = input.context.clone();
+        metadata.remaster_inputs_identity.clear();
+        store(&metadata);
+        assert_eq!(
+            crate::classify_reference_upgrade(&c).unwrap(),
+            crate::ReferenceUpgrade::SourcePreparation
+        );
+        assert!(crate::test_support::open_reader(&path).is_err());
+        let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        let layouts = read_reusable_passage_layouts(&read).unwrap();
+        assert!(!layouts.is_empty());
+        drop(read);
+        let reuse =
+            crate::ReferenceReuseReader::new(&workspace, TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        let key = input.records[1].record.key();
+        assert!(
+            reuse
+                .preparation_matches(&input.context.preparation_sha256().unwrap())
+                .unwrap()
+        );
+        assert!(reuse.read_records(&[key]).unwrap()[0].is_some());
+        assert!(!reuse.read_layouts(&[key]).unwrap()[0].is_empty());
+        for (field, older) in [
+            ("content_interpretation_version", "foundry-content/v22"),
+            ("content_selection_version", "structural-source-sections/v3"),
+            ("relationship_policy", "typed-authored-occurrences/v6"),
+            ("selected_sections_recipe", ""),
+        ] {
+            let mut old = serde_json::to_value(&metadata).unwrap();
+            old[field] = serde_json::json!(older);
+            let old: crate::SourceArtifactBuildContext = serde_json::from_value(old).unwrap();
+            store(&old);
+            let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+            assert!(
+                read_reusable_passage_layouts(&read).unwrap().is_empty(),
+                "{field}"
+            );
+        }
+        store(&metadata);
+        c.execute("UPDATE semantic_locations SET section_id=NULL,chunk_ordinal=NULL,chunk_start=NULL,chunk_end=NULL WHERE location_id=(SELECT min(location_id) FROM semantic_units WHERE unit_kind='passage')",[]).unwrap();
+        let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+        assert!(
+            read_reusable_passage_layouts(&read).is_err(),
+            "metadata-only publication never turns corrupt layout evidence into a miss"
+        );
+    }
+
+    #[test]
+    fn metadata_only_republication_still_checks_physical_profile_storage() {
+        for defect in ["catalog", "model", "vector"] {
+            let input = crate::foundation_tests::fixture(true);
+            let (_dir, path) = crate::foundation_tests::build(&input);
+            let workspace = initialize_workspace(&path).unwrap();
+            let c = rusqlite::Connection::open(&path).unwrap();
+            let mut old = input.context.clone();
+            old.remaster_inputs_identity.clear();
+            c.execute(
+                "UPDATE artifact_context SET context_json=?,context_hash=?",
+                rusqlite::params![serde_json::to_string(&old).unwrap(), old.sha256().unwrap()],
+            )
+            .unwrap();
+            match defect {
+                "catalog" => {
+                    c.execute("UPDATE search_profiles SET dimensions=dimensions+1", [])
+                        .unwrap();
+                }
+                "model" => {
+                    let mut model = input.context.search_profiles[0].clone();
+                    model.revision.push_str("-contradiction");
+                    c.execute(
+                        "UPDATE embedding_models SET identity_json=?",
+                        [serde_json::to_string(&model).unwrap()],
+                    )
+                    .unwrap();
+                }
+                _ => {
+                    let table =
+                        crate::schema::native_vector_table(&input.context.search_profiles[0])
+                            .unwrap();
+                    c.execute_batch(&format!("DROP TABLE {table}; CREATE VIRTUAL TABLE {table} USING vec0(embedding float[4] distance_metric=cosine)" )).unwrap();
+                }
+            }
+            let read = workspace.read(TEST_WORKSPACE_SCHEMA_VERSION).unwrap();
+            assert!(read_reusable_passage_layouts(&read).is_err(), "{defect}");
+        }
+    }
+
+    #[test]
     fn contradictory_published_model_and_passage_kind_are_errors() {
         for corruption in ["model", "identity address"] {
             let input = crate::foundation_tests::fixture(true);
@@ -232,3 +342,6 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod dependency_tests;

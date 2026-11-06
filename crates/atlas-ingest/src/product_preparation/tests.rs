@@ -938,3 +938,73 @@ fn metadata_authority_readiness_does_not_invalidate_unchanged_source_preparation
     drop(reader);
     assert_eq!(components(&options.output_path), before);
 }
+
+#[test]
+#[ignore = "requires verified pinned BGE tokenizer only; no weights or inference"]
+fn remaster_metadata_publication_reuses_layouts_and_changed_text_recomputes_only_its_inputs() {
+    let fixture = SourceFixture::new();
+    let options = tokenizer_only_options(&fixture);
+    crate::build::publish_fixture_without_inference(&options).unwrap();
+    let reader = atlas_index::test_support::open_reader(&options.output_path).unwrap();
+    let mut context = reader.context().clone();
+    context.remaster_inputs_identity.clear();
+    drop(reader);
+    let workspace = atlas_storage::Workspace::at(&options.output_path).unwrap();
+    let write = workspace
+        .write(atlas_index::test_support::TEST_WORKSPACE_SCHEMA_VERSION)
+        .unwrap();
+    write
+        .connection()
+        .execute(
+            "UPDATE artifact_context SET context_hash=?,context_json=?",
+            rusqlite::params![
+                context.sha256().unwrap(),
+                serde_json::to_string(&context).unwrap()
+            ],
+        )
+        .unwrap();
+    write.commit().unwrap();
+    let reused = prepare_fixture(&options).unwrap();
+    assert_eq!(reused.source_report.reused_admissions, 2);
+    assert_eq!(reused.source_report.reused_preparations, 2);
+    assert!(reused.reused_sections > 0);
+    let signatures = |prepared: &PreparedSourceBuild| {
+        let mut inputs = std::collections::BTreeMap::<_, Vec<_>>::new();
+        prepared
+            .native_inputs
+            .visit(&mut |frame| {
+                if let RawOccurrence::Document { attribution } = &frame.occurrence {
+                    inputs
+                        .entry(attribution.record.clone())
+                        .or_default()
+                        .push(frame.input.descriptor());
+                }
+                Ok(())
+            })
+            .unwrap();
+        inputs
+    };
+    let before = signatures(&reused);
+    fixture.document(
+        "a",
+        "aaaaaaaaaaaaaaaa",
+        "Dependent",
+        "<h2>Changed rules</h2><p>A materially different selected body.</p>",
+    );
+    let changed = prepare_fixture(&options).unwrap();
+    assert_eq!(changed.source_report.reused_admissions, 1);
+    assert_eq!(changed.source_report.reused_preparations, 1);
+    let after = signatures(&changed);
+    let unchanged: atlas_domain::RecordKey = "items:bbbbbbbbbbbbbbbb".parse().unwrap();
+    let changed_key: atlas_domain::RecordKey = "items:aaaaaaaaaaaaaaaa".parse().unwrap();
+    assert_eq!(after[&unchanged], before[&unchanged]);
+    assert_ne!(after[&changed_key], before[&changed_key]);
+    let mut fresh = options.clone();
+    fresh.output_path = fixture.0.path().join("independently-fresh.sqlite");
+    let independently_fresh = prepare_fixture(&fresh).unwrap();
+    assert_eq!(after, signatures(&independently_fresh));
+    assert!(
+        changed.reused_sections > 0,
+        "the unchanged sibling retains its matching layout"
+    );
+}

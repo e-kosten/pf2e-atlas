@@ -134,13 +134,18 @@ fn pinned_remaster_journal_and_static_inputs_reconcile_all_authored_forms() {
     let mut intro_groups = 0;
     let mut intro_names = 0;
     let mut term_groups = 0;
+    let mut journal_total = 0;
+    let mut discussion_count = 0;
     for page in journal["pages"].as_array().unwrap() {
         let declarations = journal_declarations(
             page["name"].as_str().unwrap(),
             &prepare(page["text"]["content"].as_str().unwrap()),
         )
         .unwrap();
+        journal_total += declarations.len();
         for declaration in declarations {
+            discussion_count +=
+                usize::from(declaration.kinds.contains(&RemasterChangeKind::Discussion));
             if matches!(
                 declaration.citations[0],
                 RemasterCitation::Journal {
@@ -176,6 +181,7 @@ fn pinned_remaster_journal_and_static_inputs_reconcile_all_authored_forms() {
     assert_eq!(rows, 560);
     assert_eq!(removed, 54);
     assert_eq!((intro_groups, intro_names, term_groups), (6, 9, 21));
+    assert_eq!((journal_total, discussion_count), (604, 17));
     for (name, kind, count) in [
         (
             "850-flat-footed-to-off-guard.ts",
@@ -468,4 +474,19 @@ fn migration887_absent_predecessor_keeps_verified_spell_lookup_without_a_prefere
     let projection = derive_remaster_projection(&declarations, &bindings, &records, &[input]);
     assert_eq!(projection.aliases[0].alias, "Old spell");
     assert!(projection.preferences.is_empty());
+}
+
+#[test]
+fn table_header_paragraphs_are_not_rules_discussion() {
+    let prepared = prepare(
+        "<p>Selected source discussion.</p><table><tr><th><p>Old Name</p></th><th><p>New Name</p></th></tr><tr><td><p>Old</p></td><td><p>New</p></td></tr></table>",
+    );
+    let declarations = journal_declarations("Equipment", &prepared).unwrap();
+    assert_eq!(declarations.len(), 2);
+    let discussion = declarations
+        .iter()
+        .filter(|d| d.kinds.contains(&RemasterChangeKind::Discussion))
+        .collect::<Vec<_>>();
+    assert_eq!(discussion.len(), 1);
+    assert_eq!(discussion[0].after[0].text, "Selected source discussion.");
 }

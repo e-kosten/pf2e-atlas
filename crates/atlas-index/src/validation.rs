@@ -594,7 +594,7 @@ fn validate_vectors(
     }
     Ok(())
 }
-fn validate_profile_storage(
+pub(crate) fn validate_profile_storage(
     c: &Connection,
     context: &SourceArtifactBuildContext,
 ) -> Result<(), IndexError> {

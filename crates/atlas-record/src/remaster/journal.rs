@@ -316,7 +316,7 @@ pub fn journal_declarations(
             "p" if element
                 .ancestors()
                 .filter_map(ElementRef::wrap)
-                .all(|p| !matches!(p.value().name(), "td" | "li")) =>
+                .all(|p| !matches!(p.value().name(), "table" | "li")) =>
             {
                 let mut value = side(element, content)?;
                 if section == "Equipment" && value.text == "Some materials have been renamed." {

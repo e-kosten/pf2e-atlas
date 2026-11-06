@@ -16,7 +16,7 @@ pub const ATLAS_CORRESPONDENCE_BYTES: &[u8] = include_bytes!("remaster/correspon
 pub fn remaster_inputs_identity() -> String {
     hash(format!("{}:{}", REMASTER_RECIPE, hash(ATLAS_CORRESPONDENCE_BYTES)).as_bytes())
 }
-pub const REMASTER_RECIPE: &str = "source-remaster-statements/v1";
+pub const REMASTER_RECIPE: &str = "source-remaster-statements/v2";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
