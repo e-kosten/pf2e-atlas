@@ -16,7 +16,7 @@ export type RecordPreviewContentProps = {
     restoringHistory: boolean;
     canGoBack: boolean;
     onBack: () => void;
-    restore: { scroll: number; focusHref?: string };
+    restore: { scroll: number; focusHref?: string; focusRegion?: "header" | "body" };
   };
   fullPageHref?: string;
   requestedNavigation?: import("../../generated/atlas").RecordNavigationView;

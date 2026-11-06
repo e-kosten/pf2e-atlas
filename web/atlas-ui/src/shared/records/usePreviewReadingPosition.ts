@@ -27,9 +27,16 @@ export function usePreviewReadingPosition(
     const node = content.current;
     const scroll = node?.parentElement;
     if (!node || !scroll) return;
+    const drawer = node.closest<HTMLElement>(".record-preview-drawer");
+    const focusHost =
+      restore.focusRegion === "header"
+        ? drawer?.querySelector<HTMLElement>(".record-preview-drawer__header")
+        : restore.focusRegion === "body"
+          ? scroll
+          : (drawer ?? node);
     scroll.scrollTop = restore.scroll;
     if (restore.focusHref)
-      Array.from(node.querySelectorAll<HTMLAnchorElement>("a[href]"))
+      Array.from(focusHost?.querySelectorAll<HTMLAnchorElement>("a[href]") ?? [])
         .find((link) => link.getAttribute("href") === restore.focusHref)
         ?.focus({ preventScroll: true });
     restoredAddress.current = address;

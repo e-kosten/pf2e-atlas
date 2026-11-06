@@ -36,6 +36,21 @@ type EncounterPreviewContext = {
   reloadEncounter?: () => Promise<unknown>;
 };
 
+function previewBookmark(anchor?: HTMLElement) {
+  const drawer = anchor?.closest<HTMLElement>(".record-preview-drawer");
+  const pane = drawer?.querySelector<HTMLElement>(".record-preview-drawer__body");
+  const focusRegion = anchor?.closest(".record-preview-drawer__header")
+    ? ("header" as const)
+    : pane?.contains(anchor ?? null)
+      ? ("body" as const)
+      : undefined;
+  return {
+    scroll: pane?.scrollTop,
+    focusHref: anchor?.closest("a")?.getAttribute("href") ?? undefined,
+    focusRegion,
+  };
+}
+
 export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
   const queryClient = useQueryClient();
   const [destination, setDestination] = useState<ReferenceDestinationView | null>(null);
@@ -55,9 +70,14 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     context?: { identity: string; generation: string | null; conditionId?: bigint };
     scroll: number;
     focusHref?: string;
+    focusRegion?: "header" | "body";
   };
   const [history, setHistory] = useState<PriorDocument[]>([]);
-  const [restore, setRestore] = useState({
+  const [restore, setRestore] = useState<{
+    scroll: number;
+    focusHref?: string;
+    focusRegion?: "header" | "body";
+  }>({
     scroll: 0,
     focusHref: undefined as string | undefined,
   });
@@ -180,16 +200,12 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
     if (!destination || reloadState?.kind === "loading") return;
     const currentSession = session.current;
     const focused = document.activeElement;
-    const scrollHost =
-      focused instanceof HTMLElement
-        ? focused.closest<HTMLElement>(".record-preview-drawer__body")
-        : null;
+    const bookmark = previewBookmark(
+      focused instanceof HTMLElement ? focused : undefined,
+    );
     setRestore({
-      scroll: scrollHost?.scrollTop ?? restore.scroll,
-      focusHref:
-        focused instanceof Element
-          ? (focused.closest("a")?.getAttribute("href") ?? undefined)
-          : undefined,
+      ...bookmark,
+      scroll: bookmark.scroll ?? restore.scroll,
     });
     setRestoringHistory(true);
     setReloadState({ kind: "loading" });
@@ -293,7 +309,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
           JSON.stringify(selection) !== JSON.stringify(navigation) ||
           JSON.stringify(landing) !== JSON.stringify(nextLanding))
       ) {
-        const scrollHost = anchor?.closest<HTMLElement>(".record-preview-drawer__body");
+        const bookmark = previewBookmark(anchor);
         setHistory((prior) =>
           [
             ...prior,
@@ -304,8 +320,8 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
               selection,
               landing,
               context: requestedContext,
-              scroll: scrollHost?.scrollTop ?? 0,
-              focusHref: anchor?.closest("a")?.getAttribute("href") ?? undefined,
+              ...bookmark,
+              scroll: bookmark.scroll ?? 0,
             },
           ].slice(-24),
         );
@@ -398,9 +414,7 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         (JSON.stringify(destination) !== JSON.stringify(next) ||
           help?.definition_key !== nextHelp.definition_key)
       ) {
-        const scrollHost = nextAnchor.closest<HTMLElement>(
-          ".record-preview-drawer__body",
-        );
+        const bookmark = previewBookmark(nextAnchor);
         setHistory((prior) =>
           [
             ...prior,
@@ -411,8 +425,8 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
               selection,
               landing,
               context: requestedContext,
-              scroll: scrollHost?.scrollTop ?? 0,
-              focusHref: nextAnchor.closest("a")?.getAttribute("href") ?? undefined,
+              ...bookmark,
+              scroll: bookmark.scroll ?? 0,
             },
           ].slice(-24),
         );
@@ -565,7 +579,11 @@ export function useRecordPreview(encounterContext?: EncounterPreviewContext) {
         setSelection(prior.selection);
         setLanding(prior.landing);
         setRequestedContext(prior.context);
-        setRestore({ scroll: prior.scroll, focusHref: prior.focusHref });
+        setRestore({
+          scroll: prior.scroll,
+          focusHref: prior.focusHref,
+          focusRegion: prior.focusRegion,
+        });
         setRestoringHistory(true);
       },
     },
